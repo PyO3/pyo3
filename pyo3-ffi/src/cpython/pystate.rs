@@ -87,12 +87,12 @@ pub type _PyFrameEvalFunction = extern "C" fn(
 #[cfg(all(Py_3_9, not(PyPy)))]
 extern "C" {
     /// Get the frame evaluation function.
-    pub fn _PyInterpreterState_GetEvalFrameFunc(
+    fn _PyInterpreterState_GetEvalFrameFunc(
         interp: *mut PyInterpreterState,
     ) -> _PyFrameEvalFunction;
 
     ///Set the frame evaluation function.
-    pub fn _PyInterpreterState_SetEvalFrameFunc(
+    fn _PyInterpreterState_SetEvalFrameFunc(
         interp: *mut PyInterpreterState,
         eval_frame: _PyFrameEvalFunction,
     );

@@ -14,17 +14,14 @@ use crate::{
 #[cfg(Py_3_8)]
 use libc::size_t;
 
-extern "C" {
-    #[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
-    pub fn _PyStack_AsDict(values: *const *mut PyObject, kwnames: *mut PyObject) -> *mut PyObject;
-}
+// skipped private _PyStack_AsDict
 
 #[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
 const _PY_FASTCALL_SMALL_STACK: size_t = 5;
 
 extern "C" {
     #[cfg(all(Py_3_8, not(PyPy)))]
-    pub fn _Py_CheckFunctionResult(
+    fn _Py_CheckFunctionResult(
         tstate: *mut PyThreadState,
         callable: *mut PyObject,
         result: *mut PyObject,
@@ -32,7 +29,7 @@ extern "C" {
     ) -> *mut PyObject;
 
     #[cfg(all(Py_3_8, not(PyPy)))]
-    pub fn _PyObject_MakeTpCall(
+    fn _PyObject_MakeTpCall(
         tstate: *mut PyThreadState,
         callable: *mut PyObject,
         args: *const *mut PyObject,
@@ -69,7 +66,7 @@ pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcal
 
 #[cfg(all(Py_3_8, not(PyPy)))]
 #[inline(always)]
-pub unsafe fn _PyObject_VectorcallTstate(
+unsafe fn _PyObject_VectorcallTstate(
     tstate: *mut PyThreadState,
     callable: *mut PyObject,
     args: *const *mut PyObject,
