@@ -73,7 +73,7 @@ The PyO3 ecosystem has two packaging tools, [`maturin`] and [`setuptools-rust`],
 
 PyO3 has some functionality for configuring projects when building Python extension modules:
 
-- The `PYO3_BUILD_EXTENSION_MODULE` environment variable, which must be set when building Python extension modules.
+- The `PYO3_BUILD_EXTENSION_MODULE` environment variable, which must be set when building Python extension modules. `maturin` and `setuptools-rust` set this automatically.
 - The `abi3` Cargo feature and its version-specific `abi3-pyXY` companions, which are used to opt-in to the limited Python API in order to support multiple Python versions in a single wheel.
 
 This section describes the packaging tools before describing how to build manually without them.
