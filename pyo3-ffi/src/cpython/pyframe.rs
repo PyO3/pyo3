@@ -6,9 +6,7 @@ use std::ffi::c_char;
 use std::ffi::c_int;
 use std::ptr::addr_of_mut;
 
-// NB used in `_PyEval_EvalFrameDefault`, maybe we remove this too.
-#[cfg(all(Py_3_11, not(PyPy)))]
-opaque_struct!(pub _PyInterpreterFrame);
+// skipped private _PyInterpreterFrame
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
