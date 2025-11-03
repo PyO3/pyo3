@@ -8,8 +8,8 @@ publish = false
 pyo3-ffi-check-macro = { path = "./macro" }
 memoffset = "0.9.0"
 
-[dependencies.pyo3-ffi]
-path = "../pyo3-ffi"
+[dependencies]
+pyo3-ffi = { path = "../pyo3-ffi" }
 
 [build-dependencies]
 bindgen = "0.69.4"

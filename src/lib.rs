@@ -178,8 +178,8 @@
 //! # crate-type = ["cdylib", "rlib"]
 //! crate-type = ["cdylib"]
 //!
-//! [dependencies.pyo3]
-#![doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")]
+//! [dependencies]
+#![doc = concat!("pyo3 = \"", env!("CARGO_PKG_VERSION"),  "\"")]
 //! ```
 //!
 //! **`src/lib.rs`**

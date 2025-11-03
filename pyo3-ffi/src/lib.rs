@@ -102,8 +102,8 @@
 //! # crate-type = ["cdylib", "rlib"]
 //! crate-type = ["cdylib"]
 //!
-//! [dependencies.pyo3-ffi]
-#![doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")]
+//! [dependencies]
+#![doc = concat!("pyo3-ffi = \"", env!("CARGO_PKG_VERSION"),  "\"")]
 //!
 //! [build-dependencies]
 //! # This is only necessary if you need to configure your build based on
