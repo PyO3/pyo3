@@ -2,15 +2,16 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
-use crate::instance::Bound;
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-use crate::{intern, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
+use crate::{intern, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python};
 
-impl FromPyObject<'_> for IpAddr {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for IpAddr {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         match obj.getattr(intern!(obj.py(), "packed")) {
             Ok(packed) => {
                 if let Ok(packed) = packed.extract::<[u8; 4]>() {

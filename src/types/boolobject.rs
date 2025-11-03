@@ -1,12 +1,14 @@
-#[cfg(feature = "experimental-inspect")]
-use crate::inspect::types::TypeInfo;
-use crate::{
-    exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
-    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, PyResult, Python,
-};
-
 use super::any::PyAnyMethods;
 use crate::conversion::IntoPyObject;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::types::TypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
+use crate::PyErr;
+use crate::{
+    exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
+    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, Python,
+};
 use std::convert::Infallible;
 use std::ptr;
 
@@ -30,9 +32,10 @@ impl PyBool {
     /// `False` singletons
     #[inline]
     pub fn new(py: Python<'_>, val: bool) -> Borrowed<'_, '_, Self> {
+        // SAFETY: `Py_True` and `Py_False` are global singletons which are known to be boolean objects
         unsafe {
             if val { ffi::Py_True() } else { ffi::Py_False() }
-                .assume_borrowed(py)
+                .assume_borrowed_unchecked(py)
                 .cast_unchecked()
         }
     }
@@ -142,7 +145,7 @@ impl<'py> IntoPyObject<'py> for bool {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = "bool";
+    const OUTPUT_TYPE: TypeHint = TypeHint::builtin("bool");
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -161,7 +164,7 @@ impl<'py> IntoPyObject<'py> for &bool {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = bool::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = bool::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -177,11 +180,13 @@ impl<'py> IntoPyObject<'py> for &bool {
 /// Converts a Python `bool` to a Rust `bool`.
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
-impl FromPyObject<'_> for bool {
-    #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "bool";
+impl FromPyObject<'_, '_> for bool {
+    type Error = PyErr;
 
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = TypeHint::builtin("bool");
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let err = match obj.cast::<PyBool>() {
             Ok(obj) => return Ok(obj.is_true()),
             Err(err) => err,
@@ -196,7 +201,7 @@ impl FromPyObject<'_> for bool {
         };
 
         if is_numpy_bool {
-            let missing_conversion = |obj: &Bound<'_, PyAny>| {
+            let missing_conversion = |obj: Borrowed<'_, '_, PyAny>| {
                 PyTypeError::new_err(format!(
                     "object of type '{}' does not define a '__bool__' conversion",
                     obj.get_type()
@@ -242,9 +247,7 @@ impl FromPyObject<'_> for bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::any::PyAnyMethods;
-    use crate::types::boolobject::PyBoolMethods;
-    use crate::types::PyBool;
+    use crate::types::{PyAnyMethods, PyBool, PyBoolMethods};
     use crate::IntoPyObject;
     use crate::Python;
 

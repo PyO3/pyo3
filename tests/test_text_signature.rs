@@ -333,6 +333,7 @@ fn test_auto_test_signature_opt_out() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn test_pyfn() {
     #[pymodule]
     fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {

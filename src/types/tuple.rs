@@ -4,7 +4,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::types::TypeInfo;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
-use crate::types::{any::PyAnyMethods, sequence::PySequenceMethods, PyList, PySequence};
+use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
 use crate::{
     exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
@@ -159,11 +159,16 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// by avoiding a reference count change.
     fn get_borrowed_item<'a>(&'a self, index: usize) -> PyResult<Borrowed<'a, 'py, PyAny>>;
 
-    /// Gets the tuple item at the specified index. Undefined behavior on bad index. Use with caution.
+    /// Gets the tuple item at the specified index. Undefined behavior on bad index, or if the tuple
+    /// contains a null pointer at the specified index. Use with caution.
     ///
     /// # Safety
     ///
-    /// Caller must verify that the index is within the bounds of the tuple.
+    /// - Caller must verify that the index is within the bounds of the tuple.
+    /// - A null pointer is only legal in a tuple which is in the process of being initialized, callers
+    ///   can typically assume the tuple item is non-null unless they are knowingly filling an
+    ///   uninitialized tuple. (If a tuple were to contain a null pointer element, accessing it from Python
+    ///   typically causes a segfault.)
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
 
@@ -172,7 +177,7 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Safety
     ///
-    /// Caller must verify that the index is within the bounds of the tuple.
+    /// See [`get_item_unchecked`][PyTupleMethods::get_item_unchecked].
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny>;
 
@@ -304,10 +309,15 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
         }
     }
 
+    /// # Safety
+    ///
+    /// See `get_item_unchecked` in `PyTupleMethods`.
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
+        // SAFETY: caller has upheld the safety contract
         unsafe {
-            ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t).assume_borrowed(self.py())
+            ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
+                .assume_borrowed_unchecked(self.py())
         }
     }
 
@@ -583,7 +593,7 @@ impl ExactSizeIterator for BorrowedTupleIterator<'_, '_> {
 impl FusedIterator for BorrowedTupleIterator<'_, '_> {}
 
 #[cold]
-fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
+fn wrong_tuple_length(t: Borrowed<'_, '_, PyTuple>, expected_length: usize) -> PyErr {
     let msg = format!(
         "expected tuple of length {}, but got tuple of length {}",
         expected_length,
@@ -614,7 +624,6 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     impl <'a, 'py, $($T),+> IntoPyObject<'py> for &'a ($($T,)+)
     where
         $(&'a $T: IntoPyObject<'py>,)+
-        $($T: 'a,)+ // MSRV
     {
         type Target = PyTuple;
         type Output = Bound<'py, Self::Target>;
@@ -759,11 +768,10 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    impl<'a, 'py, $($T),+> crate::call::private::Sealed for &'a ($($T,)+) where $(&'a $T: IntoPyObject<'py>,)+ $($T: 'a,)+ /*MSRV */ {}
+    impl<'a, 'py, $($T),+> crate::call::private::Sealed for &'a ($($T,)+) where $(&'a $T: IntoPyObject<'py>,)+ {}
     impl<'a, 'py, $($T),+> crate::call::PyCallArgs<'py> for &'a ($($T,)+)
     where
         $(&'a $T: IntoPyObject<'py>,)+
-        $($T: 'a,)+ // MSRV
     {
         #[cfg(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API))))]
         fn call(
@@ -888,16 +896,18 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    impl<'py, $($T: FromPyObject<'py>),+> FromPyObject<'py> for ($($T,)+) {
-        fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self>
+    impl<'a, 'py, $($T: FromPyObject<'a, 'py>),+> FromPyObject<'a, 'py> for ($($T,)+) {
+        type Error = PyErr;
+
+        fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error>
         {
             let t = obj.cast::<PyTuple>()?;
             if t.len() == $length {
                 #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
-                return Ok(($(t.get_borrowed_item($n)?.extract::<$T>()?,)+));
+                return Ok(($(t.get_borrowed_item($n)?.extract::<$T>().map_err(Into::into)?,)+));
 
                 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-                unsafe {return Ok(($(t.get_borrowed_item_unchecked($n).extract::<$T>()?,)+));}
+                unsafe {return Ok(($(t.get_borrowed_item_unchecked($n).extract::<$T>().map_err(Into::into)?,)+));}
             } else {
                 Err(wrong_tuple_length(t, $length))
             }

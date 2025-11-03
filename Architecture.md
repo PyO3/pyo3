@@ -99,7 +99,7 @@ Thus, when copying a Rust struct to a Python object, we first allocate `PyClassO
 move `T` into it.
 
 The primary way to interact with Python objects implemented in Rust is through the `Bound<'py, T>` smart pointer.
-By having the `'py` lifetime of the `Python<'py>` token, this ties the lifetime of the `Bound<'py, T>` smart pointer to the lifetime of the GIL and allows PyO3 to call Python APIs at maximum efficiency.
+By having the `'py` lifetime of the `Python<'py>` token, this ties the lifetime of the `Bound<'py, T>` smart pointer to the lifetime for which the thread is attached to the Python interpreter and allows PyO3 to call Python APIs at maximum efficiency.
 
 `Bound<'py, T>` requires that `T` implements `PyClass`.
 This trait is somewhat complex and derives many traits, but the most important one is `PyTypeInfo`

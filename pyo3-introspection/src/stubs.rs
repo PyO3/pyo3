@@ -1,9 +1,10 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Function, Module, VariableLengthArgument,
+    Argument, Arguments, Attribute, Class, Function, Module, TypeHint, TypeHintExpr,
+    VariableLengthArgument,
 };
-use std::collections::{BTreeSet, HashMap};
-use std::path::{Path, PathBuf};
-use unicode_ident::{is_xid_continue, is_xid_start};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::path::PathBuf;
+use std::str::FromStr;
 
 /// Generates the [type stubs](https://typing.readthedocs.io/en/latest/source/stubs.html) of a given module.
 /// It returns a map between the file name and the file content.
@@ -11,40 +12,49 @@ use unicode_ident::{is_xid_continue, is_xid_start};
 /// in files with a relevant name.
 pub fn module_stub_files(module: &Module) -> HashMap<PathBuf, String> {
     let mut output_files = HashMap::new();
-    add_module_stub_files(module, Path::new(""), &mut output_files);
+    add_module_stub_files(module, &[], &mut output_files);
     output_files
 }
 
 fn add_module_stub_files(
     module: &Module,
-    module_path: &Path,
+    module_path: &[&str],
     output_files: &mut HashMap<PathBuf, String>,
 ) {
-    output_files.insert(module_path.join("__init__.pyi"), module_stubs(module));
+    let mut file_path = PathBuf::new();
+    for e in module_path {
+        file_path = file_path.join(e);
+    }
+    output_files.insert(
+        file_path.join("__init__.pyi"),
+        module_stubs(module, module_path),
+    );
+    let mut module_path = module_path.to_vec();
+    module_path.push(&module.name);
     for submodule in &module.modules {
         if submodule.modules.is_empty() {
             output_files.insert(
-                module_path.join(format!("{}.pyi", submodule.name)),
-                module_stubs(submodule),
+                file_path.join(format!("{}.pyi", submodule.name)),
+                module_stubs(submodule, &module_path),
             );
         } else {
-            add_module_stub_files(submodule, &module_path.join(&submodule.name), output_files);
+            add_module_stub_files(submodule, &module_path, output_files);
         }
     }
 }
 
 /// Generates the module stubs to a String, not including submodules
-fn module_stubs(module: &Module) -> String {
-    let mut modules_to_import = BTreeSet::new();
+fn module_stubs(module: &Module, parents: &[&str]) -> String {
+    let imports = Imports::create(module, parents);
     let mut elements = Vec::new();
     for attribute in &module.attributes {
-        elements.push(attribute_stubs(attribute, &mut modules_to_import));
+        elements.push(attribute_stubs(attribute, &imports));
     }
     for class in &module.classes {
-        elements.push(class_stubs(class, &mut modules_to_import));
+        elements.push(class_stubs(class, &imports));
     }
     for function in &module.functions {
-        elements.push(function_stubs(function, &mut modules_to_import));
+        elements.push(function_stubs(function, &imports));
     }
 
     // We generate a __getattr__ method to tag incomplete stubs
@@ -59,22 +69,22 @@ fn module_stubs(module: &Module) -> String {
                     arguments: vec![Argument {
                         name: "name".to_string(),
                         default_value: None,
-                        annotation: Some("str".into()),
+                        annotation: Some(TypeHint::Ast(TypeHintExpr::Builtin { id: "str".into() })),
                     }],
                     vararg: None,
                     keyword_only_arguments: Vec::new(),
                     kwarg: None,
                 },
-                returns: Some("_typeshed.Incomplete".into()),
+                returns: Some(TypeHint::Ast(TypeHintExpr::Attribute {
+                    module: "_typeshed".into(),
+                    attr: "Incomplete".into(),
+                })),
             },
-            &mut modules_to_import,
+            &imports,
         ));
     }
 
-    let mut final_elements = Vec::new();
-    for module_to_import in &modules_to_import {
-        final_elements.push(format!("import {module_to_import}"));
-    }
+    let mut final_elements = imports.imports;
     final_elements.extend(elements);
 
     let mut output = String::new();
@@ -99,7 +109,7 @@ fn module_stubs(module: &Module) -> String {
     output
 }
 
-fn class_stubs(class: &Class, modules_to_import: &mut BTreeSet<String>) -> String {
+fn class_stubs(class: &Class, imports: &Imports) -> String {
     let mut buffer = format!("class {}:", class.name);
     if class.methods.is_empty() && class.attributes.is_empty() {
         buffer.push_str(" ...");
@@ -108,43 +118,43 @@ fn class_stubs(class: &Class, modules_to_import: &mut BTreeSet<String>) -> Strin
     for attribute in &class.attributes {
         // We do the indentation
         buffer.push_str("\n    ");
-        buffer.push_str(&attribute_stubs(attribute, modules_to_import).replace('\n', "\n    "));
+        buffer.push_str(&attribute_stubs(attribute, imports).replace('\n', "\n    "));
     }
     for method in &class.methods {
         // We do the indentation
         buffer.push_str("\n    ");
-        buffer.push_str(&function_stubs(method, modules_to_import).replace('\n', "\n    "));
+        buffer.push_str(&function_stubs(method, imports).replace('\n', "\n    "));
     }
     buffer
 }
 
-fn function_stubs(function: &Function, modules_to_import: &mut BTreeSet<String>) -> String {
+fn function_stubs(function: &Function, imports: &Imports) -> String {
     // Signature
     let mut parameters = Vec::new();
     for argument in &function.arguments.positional_only_arguments {
-        parameters.push(argument_stub(argument, modules_to_import));
+        parameters.push(argument_stub(argument, imports));
     }
     if !function.arguments.positional_only_arguments.is_empty() {
         parameters.push("/".into());
     }
     for argument in &function.arguments.arguments {
-        parameters.push(argument_stub(argument, modules_to_import));
+        parameters.push(argument_stub(argument, imports));
     }
     if let Some(argument) = &function.arguments.vararg {
         parameters.push(format!(
             "*{}",
-            variable_length_argument_stub(argument, modules_to_import)
+            variable_length_argument_stub(argument, imports)
         ));
     } else if !function.arguments.keyword_only_arguments.is_empty() {
         parameters.push("*".into());
     }
     for argument in &function.arguments.keyword_only_arguments {
-        parameters.push(argument_stub(argument, modules_to_import));
+        parameters.push(argument_stub(argument, imports));
     }
     if let Some(argument) = &function.arguments.kwarg {
         parameters.push(format!(
             "**{}",
-            variable_length_argument_stub(argument, modules_to_import)
+            variable_length_argument_stub(argument, imports)
         ));
     }
     let mut buffer = String::new();
@@ -160,150 +170,327 @@ fn function_stubs(function: &Function, modules_to_import: &mut BTreeSet<String>)
     buffer.push(')');
     if let Some(returns) = &function.returns {
         buffer.push_str(" -> ");
-        buffer.push_str(annotation_stub(returns, modules_to_import));
+        type_hint_stub(returns, imports, &mut buffer);
     }
     buffer.push_str(": ...");
     buffer
 }
 
-fn attribute_stubs(attribute: &Attribute, modules_to_import: &mut BTreeSet<String>) -> String {
-    let mut output = attribute.name.clone();
+fn attribute_stubs(attribute: &Attribute, imports: &Imports) -> String {
+    let mut buffer = attribute.name.clone();
     if let Some(annotation) = &attribute.annotation {
-        output.push_str(": ");
-        output.push_str(annotation_stub(annotation, modules_to_import));
+        buffer.push_str(": ");
+        type_hint_stub(annotation, imports, &mut buffer);
     }
     if let Some(value) = &attribute.value {
-        output.push_str(" = ");
-        output.push_str(value);
+        buffer.push_str(" = ");
+        buffer.push_str(value);
     }
-    output
+    buffer
 }
 
-fn argument_stub(argument: &Argument, modules_to_import: &mut BTreeSet<String>) -> String {
-    let mut output = argument.name.clone();
+fn argument_stub(argument: &Argument, imports: &Imports) -> String {
+    let mut buffer = argument.name.clone();
     if let Some(annotation) = &argument.annotation {
-        output.push_str(": ");
-        output.push_str(annotation_stub(annotation, modules_to_import));
+        buffer.push_str(": ");
+        type_hint_stub(annotation, imports, &mut buffer);
     }
     if let Some(default_value) = &argument.default_value {
-        output.push_str(if argument.annotation.is_some() {
+        buffer.push_str(if argument.annotation.is_some() {
             " = "
         } else {
             "="
         });
-        output.push_str(default_value);
+        buffer.push_str(default_value);
     }
-    output
+    buffer
 }
 
-fn variable_length_argument_stub(
-    argument: &VariableLengthArgument,
-    modules_to_import: &mut BTreeSet<String>,
-) -> String {
-    let mut output = argument.name.clone();
+fn variable_length_argument_stub(argument: &VariableLengthArgument, imports: &Imports) -> String {
+    let mut buffer = argument.name.clone();
     if let Some(annotation) = &argument.annotation {
-        output.push_str(": ");
-        output.push_str(annotation_stub(annotation, modules_to_import));
+        buffer.push_str(": ");
+        type_hint_stub(annotation, imports, &mut buffer);
     }
-    output
+    buffer
 }
 
-fn annotation_stub<'a>(annotation: &'a str, modules_to_import: &mut BTreeSet<String>) -> &'a str {
-    // We iterate on the annotation string
-    // If it starts with a Python path like foo.bar, we add the module name (here foo) to the import list
-    // and we skip after it
-    let mut i = 0;
-    while i < annotation.len() {
-        if let Some(path) = path_prefix(&annotation[i..]) {
-            // We found a path!
-            i += path.len();
-            if let Some((module, _)) = path.rsplit_once('.') {
-                modules_to_import.insert(module.into());
+fn type_hint_stub(type_hint: &TypeHint, imports: &Imports, buffer: &mut String) {
+    match type_hint {
+        TypeHint::Ast(t) => imports.serialize_type_hint(t, buffer),
+        TypeHint::Plain(t) => buffer.push_str(t),
+    }
+}
+
+/// Datastructure to deduplicate, validate and generate imports
+#[derive(Default)]
+struct Imports {
+    /// Import lines ready to use
+    imports: Vec<String>,
+    /// Renaming map: from module name and member name return the name to use in type hints
+    renaming: BTreeMap<(String, String), String>,
+}
+
+impl Imports {
+    /// This generates a map from the builtin or module name to the actual alias used in the file
+    ///
+    /// For Python builtins and elements declared by the module the alias is always the actual name.
+    ///
+    /// For other elements, we can alias them using the `from X import Y as Z` syntax.
+    /// So, we first list all builtins and local elements, then iterate on imports
+    /// and create the aliases when needed.
+    fn create(module: &Module, module_parents: &[&str]) -> Self {
+        let mut elements_used_in_annotations = ElementsUsedInAnnotations::new();
+        elements_used_in_annotations.walk_module(module);
+
+        let mut imports = Vec::new();
+        let mut renaming = BTreeMap::new();
+        let mut local_name_to_module_and_attribute = BTreeMap::new();
+
+        // We first process local and built-ins elements, they are never aliased or imported
+        for name in module
+            .classes
+            .iter()
+            .map(|c| c.name.clone())
+            .chain(module.functions.iter().map(|f| f.name.clone()))
+            .chain(module.attributes.iter().map(|a| a.name.clone()))
+            .chain(elements_used_in_annotations.builtins)
+        {
+            local_name_to_module_and_attribute.insert(name.clone(), (None, name.clone()));
+        }
+
+        // We compute the set of ways the current module can be named
+        let mut possible_current_module_names = vec![module.name.clone()];
+        let mut current_module_name = Some(module.name.clone());
+        for parent in module_parents.iter().rev() {
+            let path = if let Some(current) = current_module_name {
+                format!("{parent}.{current}")
+            } else {
+                parent.to_string()
+            };
+            possible_current_module_names.push(path.clone());
+            current_module_name = Some(path);
+        }
+
+        // We process then imports, normalizing local imports
+        for (module, attrs) in elements_used_in_annotations.module_members {
+            let normalized_module = if possible_current_module_names.contains(&module) {
+                None
+            } else {
+                Some(module.clone())
+            };
+            let mut import_for_module = Vec::new();
+            for attr in attrs {
+                // We split nested classes A.B in "A" (the part that must be imported and can have naming conflicts) and ".B"
+                let (root_attr, attr_path) = attr
+                    .split_once('.')
+                    .map_or((attr.as_str(), None), |(root, path)| (root, Some(path)));
+                let mut local_name = root_attr.to_owned();
+                let mut already_imported = false;
+                while let Some((possible_conflict_module, possible_conflict_attr)) =
+                    local_name_to_module_and_attribute.get(&local_name)
+                {
+                    if *possible_conflict_module == normalized_module
+                        && *possible_conflict_attr == root_attr
+                    {
+                        // It's the same
+                        already_imported = true;
+                        break;
+                    }
+                    // We generate a new local name
+                    // TODO: we use currently a format like Foo2. It might be nicer to use something like ModFoo
+                    let number_of_digits_at_the_end = local_name
+                        .bytes()
+                        .rev()
+                        .take_while(|b| b.is_ascii_digit())
+                        .count();
+                    let (local_name_prefix, local_name_number) =
+                        local_name.split_at(local_name.len() - number_of_digits_at_the_end);
+                    local_name = format!(
+                        "{local_name_prefix}{}",
+                        u64::from_str(local_name_number).unwrap_or(1) + 1
+                    );
+                }
+                renaming.insert(
+                    (module.clone(), attr.clone()),
+                    if let Some(attr_path) = attr_path {
+                        format!("{local_name}.{attr_path}")
+                    } else {
+                        local_name.clone()
+                    },
+                );
+                if !already_imported {
+                    local_name_to_module_and_attribute.insert(
+                        local_name.clone(),
+                        (normalized_module.clone(), root_attr.to_owned()),
+                    );
+                    import_for_module.push(if local_name == root_attr {
+                        local_name
+                    } else {
+                        format!("{root_attr} as {local_name}")
+                    });
+                }
+            }
+            if let Some(module) = normalized_module {
+                imports.push(format!(
+                    "from {module} import {}",
+                    import_for_module.join(", ")
+                ));
             }
         }
-        i += 1;
-    }
-    annotation
-}
 
-// If the input starts with a path like foo.bar, returns it
-fn path_prefix(input: &str) -> Option<&str> {
-    let mut length = identifier_prefix(input)?.len();
-    loop {
-        // We try to add another identifier to the path
-        let Some(remaining) = input[length..].strip_prefix('.') else {
-            break;
-        };
-        let Some(id) = identifier_prefix(remaining) else {
-            break;
-        };
-        length += id.len() + 1;
+        Self { imports, renaming }
     }
-    Some(&input[..length])
-}
 
-// If the input starts with an identifier like foo, returns it
-fn identifier_prefix(input: &str) -> Option<&str> {
-    // We get the first char and validate it
-    let mut iter = input.chars();
-    let first_char = iter.next()?;
-    if first_char != '_' && !is_xid_start(first_char) {
-        return None;
-    }
-    let mut length = first_char.len_utf8();
-    // We add extra chars as much as we can
-    for c in iter {
-        if is_xid_continue(c) {
-            length += c.len_utf8();
-        } else {
-            break;
+    fn serialize_type_hint(&self, expr: &TypeHintExpr, buffer: &mut String) {
+        match expr {
+            TypeHintExpr::Builtin { id } => buffer.push_str(id),
+            TypeHintExpr::Attribute { module, attr } => {
+                let alias = self
+                    .renaming
+                    .get(&(module.clone(), attr.clone()))
+                    .expect("All type hint attributes should have been visited");
+                buffer.push_str(alias)
+            }
+            TypeHintExpr::Union { elts } => {
+                for (i, elt) in elts.iter().enumerate() {
+                    if i > 0 {
+                        buffer.push_str(" | ");
+                    }
+                    self.serialize_type_hint(elt, buffer);
+                }
+            }
+            TypeHintExpr::Subscript { value, slice } => {
+                self.serialize_type_hint(value, buffer);
+                buffer.push('[');
+                for (i, elt) in slice.iter().enumerate() {
+                    if i > 0 {
+                        buffer.push_str(", ");
+                    }
+                    self.serialize_type_hint(elt, buffer);
+                }
+                buffer.push(']');
+            }
         }
     }
-    Some(&input[0..length])
+}
+
+/// Lists all the elements used in annotations
+struct ElementsUsedInAnnotations {
+    /// module -> name
+    module_members: BTreeMap<String, BTreeSet<String>>,
+    builtins: BTreeSet<String>,
+}
+
+impl ElementsUsedInAnnotations {
+    fn new() -> Self {
+        Self {
+            module_members: BTreeMap::new(),
+            builtins: BTreeSet::new(),
+        }
+    }
+
+    fn walk_module(&mut self, module: &Module) {
+        for attr in &module.attributes {
+            self.walk_attribute(attr);
+        }
+        for class in &module.classes {
+            self.walk_class(class);
+        }
+        for function in &module.functions {
+            self.walk_function(function);
+        }
+        if module.incomplete {
+            self.builtins.insert("str".into());
+            self.module_members
+                .entry("_typeshed".into())
+                .or_default()
+                .insert("Incomplete".into());
+        }
+    }
+
+    fn walk_class(&mut self, class: &Class) {
+        for method in &class.methods {
+            self.walk_function(method);
+        }
+        for attr in &class.attributes {
+            self.walk_attribute(attr);
+        }
+    }
+
+    fn walk_attribute(&mut self, attribute: &Attribute) {
+        if let Some(type_hint) = &attribute.annotation {
+            self.walk_type_hint(type_hint);
+        }
+    }
+
+    fn walk_function(&mut self, function: &Function) {
+        for decorator in &function.decorators {
+            self.builtins.insert(decorator.clone());
+        }
+        for arg in function
+            .arguments
+            .positional_only_arguments
+            .iter()
+            .chain(&function.arguments.arguments)
+            .chain(&function.arguments.keyword_only_arguments)
+        {
+            if let Some(type_hint) = &arg.annotation {
+                self.walk_type_hint(type_hint);
+            }
+        }
+        for arg in function
+            .arguments
+            .vararg
+            .as_ref()
+            .iter()
+            .chain(&function.arguments.kwarg.as_ref())
+        {
+            if let Some(type_hint) = &arg.annotation {
+                self.walk_type_hint(type_hint);
+            }
+        }
+        if let Some(type_hint) = &function.returns {
+            self.walk_type_hint(type_hint);
+        }
+    }
+
+    fn walk_type_hint(&mut self, type_hint: &TypeHint) {
+        if let TypeHint::Ast(type_hint) = type_hint {
+            self.walk_type_hint_expr(type_hint);
+        }
+    }
+
+    fn walk_type_hint_expr(&mut self, expr: &TypeHintExpr) {
+        match expr {
+            TypeHintExpr::Builtin { id } => {
+                self.builtins.insert(id.clone());
+            }
+            TypeHintExpr::Attribute { module, attr } => {
+                self.module_members
+                    .entry(module.clone())
+                    .or_default()
+                    .insert(attr.clone());
+            }
+            TypeHintExpr::Union { elts } => {
+                for elt in elts {
+                    self.walk_type_hint_expr(elt)
+                }
+            }
+            TypeHintExpr::Subscript { value, slice } => {
+                self.walk_type_hint_expr(value);
+                for elt in slice {
+                    self.walk_type_hint_expr(elt);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::Arguments;
-
-    #[test]
-    fn annotation_stub_proper_imports() {
-        let mut modules_to_import = BTreeSet::new();
-
-        // Basic int
-        annotation_stub("int", &mut modules_to_import);
-        assert!(modules_to_import.is_empty());
-
-        // Simple path
-        annotation_stub("collections.abc.Iterable", &mut modules_to_import);
-        assert!(modules_to_import.contains("collections.abc"));
-
-        // With underscore
-        annotation_stub("_foo._bar_baz", &mut modules_to_import);
-        assert!(modules_to_import.contains("_foo"));
-
-        // Basic generic
-        annotation_stub("typing.List[int]", &mut modules_to_import);
-        assert!(modules_to_import.contains("typing"));
-
-        // Complex generic
-        annotation_stub("typing.List[foo.Bar[int]]", &mut modules_to_import);
-        assert!(modules_to_import.contains("foo"));
-
-        // Callable
-        annotation_stub(
-            "typing.Callable[[int, baz.Bar], bar.Baz[bool]]",
-            &mut modules_to_import,
-        );
-        assert!(modules_to_import.contains("bar"));
-        assert!(modules_to_import.contains("baz"));
-
-        // Union
-        annotation_stub("a.B | b.C", &mut modules_to_import);
-        assert!(modules_to_import.contains("a"));
-        assert!(modules_to_import.contains("b"));
-    }
 
     #[test]
     fn function_stubs_with_variable_length() {
@@ -328,18 +515,18 @@ mod tests {
                 keyword_only_arguments: vec![Argument {
                     name: "karg".into(),
                     default_value: None,
-                    annotation: Some("str".into()),
+                    annotation: Some(TypeHint::Plain("str".into())),
                 }],
                 kwarg: Some(VariableLengthArgument {
                     name: "kwarg".into(),
-                    annotation: Some("str".into()),
+                    annotation: Some(TypeHint::Plain("str".into())),
                 }),
             },
-            returns: Some("list[str]".into()),
+            returns: Some(TypeHint::Plain("list[str]".into())),
         };
         assert_eq!(
             "def func(posonly, /, arg, *varargs, karg: str, **kwarg: str) -> list[str]: ...",
-            function_stubs(&function, &mut BTreeSet::new())
+            function_stubs(&function, &Imports::default())
         )
     }
 
@@ -363,7 +550,7 @@ mod tests {
                 keyword_only_arguments: vec![Argument {
                     name: "karg".into(),
                     default_value: Some("\"foo\"".into()),
-                    annotation: Some("str".into()),
+                    annotation: Some(TypeHint::Plain("str".into())),
                 }],
                 kwarg: None,
             },
@@ -371,7 +558,81 @@ mod tests {
         };
         assert_eq!(
             "def afunc(posonly=1, /, arg=True, *, karg: str = \"foo\"): ...",
-            function_stubs(&function, &mut BTreeSet::new())
+            function_stubs(&function, &Imports::default())
         )
+    }
+
+    #[test]
+    fn test_import() {
+        let big_type = TypeHintExpr::Subscript {
+            value: Box::new(TypeHintExpr::Builtin { id: "dict".into() }),
+            slice: vec![
+                TypeHintExpr::Attribute {
+                    module: "foo.bar".into(),
+                    attr: "A".into(),
+                },
+                TypeHintExpr::Union {
+                    elts: vec![
+                        TypeHintExpr::Attribute {
+                            module: "bar".into(),
+                            attr: "A".into(),
+                        },
+                        TypeHintExpr::Attribute {
+                            module: "foo".into(),
+                            attr: "A.C".into(),
+                        },
+                        TypeHintExpr::Attribute {
+                            module: "foo".into(),
+                            attr: "A.D".into(),
+                        },
+                        TypeHintExpr::Attribute {
+                            module: "foo".into(),
+                            attr: "B".into(),
+                        },
+                        TypeHintExpr::Attribute {
+                            module: "bat".into(),
+                            attr: "A".into(),
+                        },
+                    ],
+                },
+            ],
+        };
+        let imports = Imports::create(
+            &Module {
+                name: "bar".into(),
+                modules: Vec::new(),
+                classes: vec![Class {
+                    name: "A".into(),
+                    methods: Vec::new(),
+                    attributes: Vec::new(),
+                }],
+                functions: vec![Function {
+                    name: String::new(),
+                    decorators: Vec::new(),
+                    arguments: Arguments {
+                        positional_only_arguments: Vec::new(),
+                        arguments: Vec::new(),
+                        vararg: None,
+                        keyword_only_arguments: Vec::new(),
+                        kwarg: None,
+                    },
+                    returns: Some(TypeHint::Ast(big_type.clone())),
+                }],
+                attributes: Vec::new(),
+                incomplete: true,
+            },
+            &["foo"],
+        );
+        assert_eq!(
+            &imports.imports,
+            &[
+                "from _typeshed import Incomplete",
+                "from bat import A as A2",
+                "from foo import A as A3, B"
+            ]
+        );
+        let mut output = String::new();
+        imports.serialize_type_hint(&big_type, &mut output);
+        assert_eq!(output, "dict[A, A | A3.C | A3.D | B | A2]");
     }
 }

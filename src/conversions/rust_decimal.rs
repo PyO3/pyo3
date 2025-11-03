@@ -55,12 +55,14 @@ use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-use crate::{Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
+use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
-impl FromPyObject<'_> for Decimal {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for Decimal {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         // use the string representation to not be lossy
         if let Ok(val) = obj.extract() {
             Ok(Decimal::new(val, 0))
@@ -111,7 +113,6 @@ mod test_rust_decimal {
     use crate::types::PyDict;
     use std::ffi::CString;
 
-    use crate::ffi;
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
 
@@ -192,7 +193,7 @@ mod test_rust_decimal {
         Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
-                ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"NaN\")"),
+                c"import decimal\npy_dec = decimal.Decimal(\"NaN\")",
                 None,
                 Some(&locals),
             )
@@ -208,7 +209,7 @@ mod test_rust_decimal {
         Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
-                ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"1e3\")"),
+                c"import decimal\npy_dec = decimal.Decimal(\"1e3\")",
                 None,
                 Some(&locals),
             )
@@ -225,7 +226,7 @@ mod test_rust_decimal {
         Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
-                ffi::c_str!("import decimal\npy_dec = decimal.Decimal(\"Infinity\")"),
+                c"import decimal\npy_dec = decimal.Decimal(\"Infinity\")",
                 None,
                 Some(&locals),
             )

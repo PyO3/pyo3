@@ -1,10 +1,10 @@
-use super::any::PyAnyMethods;
 use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, PyResult,
-    Python,
+    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, Python,
 };
 use std::convert::Infallible;
 use std::ffi::c_double;
@@ -18,7 +18,7 @@ use std::ffi::c_double;
 /// [`Bound<'py, PyFloat>`][Bound].
 ///
 /// You can usually avoid directly working with this type
-/// by using [`IntoPyObject`] and [`extract`][PyAnyMethods::extract]
+/// by using [`IntoPyObject`] and [`extract`][crate::types::PyAnyMethods::extract]
 /// with [`f32`]/[`f64`].
 #[repr(transparent)]
 pub struct PyFloat(PyAny);
@@ -75,7 +75,7 @@ impl<'py> IntoPyObject<'py> for f64 {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = "float";
+    const OUTPUT_TYPE: TypeHint = TypeHint::builtin("float");
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -94,7 +94,7 @@ impl<'py> IntoPyObject<'py> for &f64 {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = f64::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = f64::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -107,13 +107,15 @@ impl<'py> IntoPyObject<'py> for &f64 {
     }
 }
 
-impl<'py> FromPyObject<'py> for f64 {
+impl<'py> FromPyObject<'_, 'py> for f64 {
+    type Error = PyErr;
+
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "float";
+    const INPUT_TYPE: TypeHint = TypeHint::builtin("float");
 
     // PyFloat_AsDouble returns -1.0 upon failure
     #[allow(clippy::float_cmp)]
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         // On non-limited API, .value() uses PyFloat_AS_DOUBLE which
         // allows us to have an optimized fast path for the case when
         // we have exactly a `float` object (it's not worth going through
@@ -146,7 +148,7 @@ impl<'py> IntoPyObject<'py> for f32 {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = "float";
+    const OUTPUT_TYPE: TypeHint = TypeHint::builtin("float");
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -165,7 +167,7 @@ impl<'py> IntoPyObject<'py> for &f32 {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = f32::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = f32::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -178,11 +180,13 @@ impl<'py> IntoPyObject<'py> for &f32 {
     }
 }
 
-impl<'py> FromPyObject<'py> for f32 {
-    #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "float";
+impl<'a, 'py> FromPyObject<'a, 'py> for f32 {
+    type Error = <f64 as FromPyObject<'a, 'py>>::Error;
 
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = TypeHint::builtin("float");
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         Ok(obj.extract::<f64>()? as f32)
     }
 

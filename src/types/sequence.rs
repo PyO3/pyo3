@@ -1,18 +1,12 @@
-use crate::err::{self, DowncastError, PyErr, PyResult};
-use crate::exceptions::PyTypeError;
+use crate::err::{self, PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
-#[cfg(feature = "experimental-inspect")]
-use crate::inspect::types::TypeInfo;
 use crate::instance::Bound;
 use crate::internal_tricks::get_ssize_index;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
-use crate::types::{any::PyAnyMethods, PyAny, PyList, PyString, PyTuple, PyType};
-use crate::{
-    ffi, Borrowed, BoundObject, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyTypeCheck,
-    Python,
-};
+use crate::types::{any::PyAnyMethods, PyAny, PyList, PyTuple, PyType, PyTypeMethods};
+use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 ///
@@ -23,7 +17,35 @@ use crate::{
 /// [`Bound<'py, PySequence>`][Bound].
 #[repr(transparent)]
 pub struct PySequence(PyAny);
+
 pyobject_native_type_named!(PySequence);
+
+unsafe impl PyTypeInfo for PySequence {
+    const NAME: &'static str = "Sequence";
+    const MODULE: Option<&'static str> = Some("collections.abc");
+
+    #[inline]
+    fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "collections.abc", "Sequence")
+            .unwrap()
+            .as_type_ptr()
+    }
+
+    #[inline]
+    fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
+        // Using `is_instance` for `collections.abc.Sequence` is slow, so provide
+        // optimized cases for list and tuples as common well-known sequences
+        PyList::is_type_of(object)
+            || PyTuple::is_type_of(object)
+            || object
+                .is_instance(&Self::type_object(object.py()).into_any())
+                .unwrap_or_else(|err| {
+                    err.write_unraisable(object.py(), Some(object));
+                    false
+                })
+    }
+}
 
 impl PySequence {
     /// Register a pyclass as a subclass of `collections.abc.Sequence` (from the Python standard
@@ -31,7 +53,7 @@ impl PySequence {
     /// This registration is required for a pyclass to be castable from `PyAny` to `PySequence`.
     pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
         let ty = T::type_object(py);
-        get_sequence_abc(py)?.call_method1("register", (ty,))?;
+        Self::type_object(py).call_method1("register", (ty,))?;
         Ok(())
     }
 }
@@ -331,80 +353,16 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     }
 }
 
-impl<'py, T> FromPyObject<'py> for Vec<T>
-where
-    T: FromPyObject<'py>,
-{
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
-        if obj.is_instance_of::<PyString>() {
-            return Err(PyTypeError::new_err("Can't extract `str` to `Vec`"));
-        }
-        extract_sequence(obj)
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        TypeInfo::sequence_of(T::type_input())
-    }
-}
-
-fn extract_sequence<'py, T>(obj: &Bound<'py, PyAny>) -> PyResult<Vec<T>>
-where
-    T: FromPyObject<'py>,
-{
-    // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
-    // to support this function and if not, we will only fail extraction safely.
-    let seq = unsafe {
-        if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.cast_unchecked::<PySequence>()
-        } else {
-            return Err(DowncastError::new(obj, "Sequence").into());
-        }
-    };
-
-    let mut v = Vec::with_capacity(seq.len().unwrap_or(0));
-    for item in seq.try_iter()? {
-        v.push(item?.extract::<T>()?);
-    }
-    Ok(v)
-}
-
-fn get_sequence_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
-    static SEQUENCE_ABC: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-
-    SEQUENCE_ABC.import(py, "collections.abc", "Sequence")
-}
-
-impl PyTypeCheck for PySequence {
-    const NAME: &'static str = "Sequence";
-    #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "collections.abc.Sequence";
-
-    #[inline]
-    fn type_check(object: &Bound<'_, PyAny>) -> bool {
-        // Using `is_instance` for `collections.abc.Sequence` is slow, so provide
-        // optimized cases for list and tuples as common well-known sequences
-        PyList::is_type_of(object)
-            || PyTuple::is_type_of(object)
-            || get_sequence_abc(object.py())
-                .and_then(|abc| object.is_instance(abc))
-                .unwrap_or_else(|err| {
-                    err.write_unraisable(object.py(), Some(object));
-                    false
-                })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyList, PySequence, PySequenceMethods, PyTuple};
-    use crate::{ffi, IntoPyObject, Py, PyAny, Python};
+    use crate::{IntoPyObject, Py, PyAny, PyTypeInfo, Python};
     use std::ptr;
 
     fn get_object() -> Py<PyAny> {
         // Convenience function for getting a single unique object
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
 
             obj.into_pyobject(py).unwrap().unbind()
         })
@@ -423,17 +381,6 @@ mod tests {
         Python::attach(|py| {
             let v = "London Calling";
             assert!(v.into_pyobject(py).unwrap().cast::<PySequence>().is_ok());
-        });
-    }
-
-    #[test]
-    fn test_strings_cannot_be_extracted_to_vec() {
-        Python::attach(|py| {
-            let v = "London Calling";
-            let ob = v.into_pyobject(py).unwrap();
-
-            assert!(ob.extract::<Vec<String>>().is_err());
-            assert!(ob.extract::<Vec<char>>().is_err());
         });
     }
 
@@ -778,42 +725,6 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_tuple_to_vec() {
-        Python::attach(|py| {
-            let v: Vec<i32> = py
-                .eval(ffi::c_str!("(1, 2)"), None, None)
-                .unwrap()
-                .extract()
-                .unwrap();
-            assert!(v == [1, 2]);
-        });
-    }
-
-    #[test]
-    fn test_extract_range_to_vec() {
-        Python::attach(|py| {
-            let v: Vec<i32> = py
-                .eval(ffi::c_str!("range(1, 5)"), None, None)
-                .unwrap()
-                .extract()
-                .unwrap();
-            assert!(v == [1, 2, 3, 4]);
-        });
-    }
-
-    #[test]
-    fn test_extract_bytearray_to_vec() {
-        Python::attach(|py| {
-            let v: Vec<u8> = py
-                .eval(ffi::c_str!("bytearray(b'abc')"), None, None)
-                .unwrap()
-                .extract()
-                .unwrap();
-            assert!(v == b"abc");
-        });
-    }
-
-    #[test]
     fn test_seq_cast_unchecked() {
         Python::attach(|py| {
             let v = vec!["foo", "bar"];
@@ -823,5 +734,14 @@ mod tests {
             let seq_from = unsafe { type_ptr.cast_unchecked::<PySequence>() };
             assert!(seq_from.to_list().is_ok());
         });
+    }
+
+    #[test]
+    fn test_type_object() {
+        Python::attach(|py| {
+            let abc = PySequence::type_object(py);
+            assert!(PyList::empty(py).is_instance(&abc).unwrap());
+            assert!(PyTuple::empty(py).is_instance(&abc).unwrap());
+        })
     }
 }

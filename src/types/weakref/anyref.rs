@@ -1,8 +1,12 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
+use crate::sync::PyOnceLock;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAny;
-use crate::{ffi, Bound};
+use crate::types::{PyTuple, PyWeakrefProxy, PyWeakrefReference};
+use crate::{ffi, Bound, Py, Python};
 
 /// Represents any Python `weakref` reference.
 ///
@@ -16,13 +20,38 @@ pyobject_native_type_named!(PyWeakref);
 // #[cfg(not(Py_LIMITED_API))]
 // pyobject_native_type_sized!(PyWeakref, ffi::PyWeakReference);
 
-impl PyTypeCheck for PyWeakref {
+unsafe impl PyTypeCheck for PyWeakref {
     const NAME: &'static str = "weakref";
-    #[cfg(feature = "experimental-inspect")]
-    const PYTHON_TYPE: &'static str = "weakref.ProxyTypes";
 
+    #[cfg(feature = "experimental-inspect")]
+    const TYPE_HINT: TypeHint = TypeHint::union(&[
+        PyWeakrefProxy::TYPE_HINT,
+        <PyWeakrefReference as PyTypeCheck>::TYPE_HINT,
+    ]);
+
+    #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         unsafe { ffi::PyWeakref_Check(object.as_ptr()) > 0 }
+    }
+
+    fn classinfo_object(py: Python<'_>) -> Bound<'_, PyAny> {
+        static TYPE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+        TYPE.get_or_try_init(py, || {
+            PyResult::Ok(
+                PyTuple::new(
+                    py,
+                    [
+                        PyWeakrefProxy::classinfo_object(py),
+                        PyWeakrefReference::classinfo_object(py),
+                    ],
+                )?
+                .into_any()
+                .unbind(),
+            )
+        })
+        .unwrap()
+        .bind(py)
+        .clone()
     }
 }
 
@@ -66,7 +95,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///         let (name, score) = data.get_data();
     ///         Ok(format!("Processing '{}': score = {}", name, score))
     ///     } else {
-    ///         Ok("The supplied data reference is nolonger relavent.".to_owned())
+    ///         Ok("The supplied data reference is no longer relevant.".to_owned())
     ///     }
     /// }
     ///
@@ -84,7 +113,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
-    ///         "The supplied data reference is nolonger relavent."
+    ///         "The supplied data reference is no longer relevant."
     ///     );
     ///
     ///     Ok(())
@@ -94,7 +123,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Panics
     /// This function panics is the current object is invalid.
-    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    /// If used properly this is never the case. (NonNull and actually a weakref type)
     ///
     /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
@@ -146,7 +175,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///         let (name, score) = data.get_data();
     ///         format!("Processing '{}': score = {}", name, score)
     ///     } else {
-    ///         "The supplied data reference is nolonger relavent.".to_owned()
+    ///         "The supplied data reference is no longer relevant.".to_owned()
     ///     }
     /// }
     ///
@@ -164,7 +193,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed()),
-    ///         "The supplied data reference is nolonger relavent."
+    ///         "The supplied data reference is no longer relevant."
     ///     );
     ///
     ///     Ok(())
@@ -174,7 +203,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Panics
     /// This function panics is the current object is invalid.
-    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    /// If used properly this is never the case. (NonNull and actually a weakref type)
     ///
     /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
@@ -216,7 +245,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///         let (name, score) = data.get_data();
     ///         Ok(format!("Processing '{}': score = {}", name, score))
     ///     } else {
-    ///         Ok("The supplied data reference is nolonger relavent.".to_owned())
+    ///         Ok("The supplied data reference is no longer relevant.".to_owned())
     ///     }
     /// }
     ///
@@ -234,7 +263,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
-    ///         "The supplied data reference is nolonger relavent."
+    ///         "The supplied data reference is no longer relevant."
     ///     );
     ///
     ///     Ok(())
@@ -244,7 +273,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Panics
     /// This function panics is the current object is invalid.
-    /// If used propperly this is never the case. (NonNull and actually a weakref type)
+    /// If used properly this is never the case. (NonNull and actually a weakref type)
     ///
     /// [`PyWeakref_GetRef`]: https://docs.python.org/3/c-api/weakref.html#c.PyWeakref_GetRef
     /// [`weakref.ReferenceType`]: https://docs.python.org/3/library/weakref.html#weakref.ReferenceType
@@ -284,9 +313,9 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     /// fn parse_data(reference: Borrowed<'_, '_, PyWeakrefReference>) -> PyResult<String> {
     ///     if let Some(object) = reference.upgrade() {
-    ///         Ok(format!("The object '{}' refered by this reference still exists.", object.getattr("__class__")?.getattr("__qualname__")?))
+    ///         Ok(format!("The object '{}' referred by this reference still exists.", object.getattr("__class__")?.getattr("__qualname__")?))
     ///     } else {
-    ///         Ok("The object, which this reference refered to, no longer exists".to_owned())
+    ///         Ok("The object, which this reference referred to, no longer exists".to_owned())
     ///     }
     /// }
     ///
@@ -297,14 +326,14 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
-    ///         "The object 'Foo' refered by this reference still exists."
+    ///         "The object 'Foo' referred by this reference still exists."
     ///     );
     ///
     ///     drop(data);
     ///
     ///     assert_eq!(
     ///         parse_data(reference.as_borrowed())?,
-    ///         "The object, which this reference refered to, no longer exists"
+    ///         "The object, which this reference referred to, no longer exists"
     ///     );
     ///
     ///     Ok(())
@@ -351,13 +380,15 @@ mod tests {
 
     mod python_class {
         use super::*;
-        use crate::ffi;
+        #[cfg(Py_3_10)]
+        use crate::types::PyInt;
+        use crate::PyTypeCheck;
         use crate::{py_result_ext::PyResultExt, types::PyType};
         use std::ptr;
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
-            py.run(ffi::c_str!("class A:\n    pass\n"), None, None)?;
-            py.eval(ffi::c_str!("A"), None, None).cast_into::<PyType>()
+            py.run(c"class A:\n    pass\n", None, None)?;
+            py.eval(c"A", None, None).cast_into::<PyType>()
         }
 
         #[test]
@@ -475,6 +506,43 @@ mod tests {
 
             inner(new_reference, true)?;
             inner(new_proxy, false)
+        }
+
+        #[test]
+        fn test_classinfo_object() -> PyResult<()> {
+            fn inner(
+                create_reference: impl for<'py> FnOnce(
+                    &Bound<'py, PyAny>,
+                )
+                    -> PyResult<Bound<'py, PyWeakref>>,
+            ) -> PyResult<()> {
+                Python::attach(|py| {
+                    let class = get_type(py)?;
+                    let object = class.call0()?;
+                    let reference = create_reference(&object)?;
+                    let t = PyWeakref::classinfo_object(py);
+                    assert!(reference.is_instance(&t)?);
+                    Ok(())
+                })
+            }
+
+            inner(new_reference)?;
+            inner(new_proxy)
+        }
+
+        #[cfg(Py_3_10)] // Name is different in 3.9
+        #[test]
+        fn test_classinfo_downcast_error() -> PyResult<()> {
+            Python::attach(|py| {
+                assert_eq!(
+                    PyInt::new(py, 1)
+                        .cast_into::<PyWeakref>()
+                        .unwrap_err()
+                        .to_string(),
+                    "'int' object cannot be cast as 'ProxyType | CallableProxyType | ReferenceType'"
+                );
+                Ok(())
+            })
         }
     }
 

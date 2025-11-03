@@ -111,13 +111,12 @@ macro_rules! py_run_impl {
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{
         use ::std::option::Option::*;
-        #[allow(unused_imports)]
         if let ::std::result::Result::Err(e) = $py.run(&::std::ffi::CString::new($code).unwrap(), None, Some(&$dict)) {
             e.print($py);
             // So when this c api function the last line called printed the error to stderr,
             // the output is only written into a buffer which is never flushed because we
             // panic before flushing. This is where this hack comes into place
-            $py.run($crate::ffi::c_str!("import sys; sys.stderr.flush()"), None, None)
+            $py.run(c"import sys; sys.stderr.flush()", None, None)
                 .unwrap();
             ::std::panic!("{}", $code)
         }
@@ -160,7 +159,7 @@ macro_rules! wrap_pymodule {
         &|py| {
             use $module as wrapped_pymodule;
             wrapped_pymodule::_PYO3_DEF
-                .make_module(py, wrapped_pymodule::__PYO3_GIL_USED)
+                .make_module(py)
                 .expect("failed to wrap pymodule")
         }
     };

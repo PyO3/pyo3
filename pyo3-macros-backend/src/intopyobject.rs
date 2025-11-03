@@ -1,5 +1,7 @@
 use crate::attributes::{IntoPyWithAttribute, RenamingRule};
 use crate::derive_attributes::{ContainerAttributes, FieldAttributes};
+#[cfg(feature = "experimental-inspect")]
+use crate::introspection::elide_lifetimes;
 use crate::utils::{self, Ctx};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
@@ -356,6 +358,48 @@ impl<'a, const REF: bool> Container<'a, REF> {
             },
         }
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn output_type(&self, ctx: &Ctx) -> TokenStream {
+        let pyo3_crate_path = &ctx.pyo3_path;
+        match &self.ty {
+            ContainerType::StructNewtype(field) | ContainerType::TupleNewtype(field) => {
+                Self::field_output_type(&None, &field.ty, ctx)
+            }
+            ContainerType::Tuple(tups) => {
+                let elements = tups.iter().map(
+                    |TupleStructField {
+                         into_py_with,
+                         field,
+                     }| {
+                        Self::field_output_type(into_py_with, &field.ty, ctx)
+                    },
+                );
+                quote! { #pyo3_crate_path::inspect::TypeHint::subscript(&#pyo3_crate_path::inspect::TypeHint::builtin("tuple"), &[#(#elements),*]) }
+            }
+            ContainerType::Struct(_) => {
+                // TODO: implement using a Protocol?
+                quote! { #pyo3_crate_path::inspect::TypeHint::module_attr("_typeshed", "Incomplete") }
+            }
+        }
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn field_output_type(
+        into_py_with: &Option<IntoPyWithAttribute>,
+        ty: &syn::Type,
+        ctx: &Ctx,
+    ) -> TokenStream {
+        let pyo3_crate_path = &ctx.pyo3_path;
+        if into_py_with.is_some() {
+            // We don't know what into_py_with is doing
+            quote! { #pyo3_crate_path::inspect::TypeHint::module_attr("_typeshed", "Incomplete") }
+        } else {
+            let mut ty = ty.clone();
+            elide_lifetimes(&mut ty);
+            quote! { <#ty as #pyo3_crate_path::IntoPyObject<'_>>::OUTPUT_TYPE }
+        }
+    }
 }
 
 /// Describes derivation input of an enum.
@@ -431,6 +475,15 @@ impl<'a, const REF: bool> Enum<'a, REF> {
             },
         }
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn output_type(&self, ctx: &Ctx) -> TokenStream {
+        let pyo3_crate_path = &ctx.pyo3_path;
+        let variants = self.variants.iter().map(|var| var.output_type(ctx));
+        quote! {
+            #pyo3_crate_path::inspect::TypeHint::union(&[#(#variants),*])
+        }
+    }
 }
 
 // if there is a `'py` lifetime, we treat it as the `Python<'py>` lifetime
@@ -484,7 +537,7 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
                 Some(Ident::new("self", Span::call_site())),
                 &st.fields,
                 parse_quote!(#ident),
-                options,
+                options.clone(),
             )?;
             st.build(ctx)
         }
@@ -522,12 +575,50 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
     } else {
         quote! { #ident }
     };
+
+    #[cfg(feature = "experimental-inspect")]
+    let output_type = {
+        let pyo3_crate_path = &ctx.pyo3_path;
+        let output_type = if tokens
+            .generics
+            .params
+            .iter()
+            .all(|p| matches!(p, syn::GenericParam::Lifetime(_)))
+        {
+            match &tokens.data {
+                syn::Data::Enum(en) => Enum::<REF>::new(en, &tokens.ident)?.output_type(ctx),
+                syn::Data::Struct(st) => {
+                    let ident = &tokens.ident;
+                    Container::<REF>::new(
+                        Some(Ident::new("self", Span::call_site())),
+                        &st.fields,
+                        parse_quote!(#ident),
+                        options,
+                    )?
+                    .output_type(ctx)
+                }
+                syn::Data::Union(_) => {
+                    // Not supported at this point
+                    quote! { #pyo3_crate_path::inspect::TypeHint::module_attr("_typeshed", "Incomplete") }
+                }
+            }
+        } else {
+            // We don't know how to deal with generic parameters
+            // Blocked by https://github.com/rust-lang/rust/issues/76560
+            quote! { #pyo3_crate_path::inspect::TypeHint::module_attr("_typeshed", "Incomplete") }
+        };
+        quote! { const OUTPUT_TYPE: #pyo3_path::inspect::TypeHint = #output_type; }
+    };
+    #[cfg(not(feature = "experimental-inspect"))]
+    let output_type = quote! {};
+
     Ok(quote!(
         #[automatically_derived]
         impl #impl_generics #pyo3_path::conversion::IntoPyObject<#lt_param> for #ident #ty_generics #where_clause {
             type Target = #target;
             type Output = #output;
             type Error = #error;
+            #output_type
 
             fn into_pyobject(self, py: #pyo3_path::Python<#lt_param>) -> ::std::result::Result<
                 <Self as #pyo3_path::conversion::IntoPyObject<#lt_param>>::Output,

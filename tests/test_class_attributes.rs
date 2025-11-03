@@ -151,7 +151,7 @@ fn recursive_class_attributes() {
 }
 
 #[test]
-#[cfg(all(Py_3_8, not(Py_GIL_DISABLED)))] // sys.unraisablehook not available until Python 3.8
+#[cfg(Py_3_8)] // sys.unraisablehook not available until Python 3.8
 fn test_fallible_class_attribute() {
     use pyo3::exceptions::PyValueError;
     use test_utils::UnraisableCapture;
@@ -168,29 +168,31 @@ fn test_fallible_class_attribute() {
     }
 
     Python::attach(|py| {
-        let capture = UnraisableCapture::install(py);
-        assert!(std::panic::catch_unwind(|| py.get_type::<BrokenClass>()).is_err());
+        let (err, object) = UnraisableCapture::enter(py, |capture| {
+            // Accessing the type will attempt to initialize the class attributes
+            assert!(std::panic::catch_unwind(|| py.get_type::<BrokenClass>()).is_err());
 
-        let (err, object) = capture.borrow_mut(py).capture.take().unwrap();
-        assert!(object.is_none(py));
+            capture.take_capture().unwrap()
+        });
 
+        assert!(object.is_none());
         assert_eq!(
             err.to_string(),
             "RuntimeError: An error occurred while initializing class BrokenClass"
         );
+
         let cause = err.cause(py).unwrap();
         assert_eq!(
             cause.to_string(),
             "RuntimeError: An error occurred while initializing `BrokenClass.fails_to_init`"
         );
+
         let cause = cause.cause(py).unwrap();
         assert_eq!(
             cause.to_string(),
             "ValueError: failed to create class attribute"
         );
         assert!(cause.cause(py).is_none());
-
-        capture.borrow_mut(py).uninstall(py);
     });
 }
 

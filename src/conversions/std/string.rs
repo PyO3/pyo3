@@ -1,13 +1,12 @@
-use std::{borrow::Cow, convert::Infallible};
-
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::{
-    conversion::IntoPyObject,
-    instance::Bound,
-    types::{string::PyStringMethods, PyString},
-    FromPyObject, PyAny, PyResult, Python,
+    conversion::IntoPyObject, instance::Bound, types::PyString, Borrowed, FromPyObject, PyAny,
+    PyErr, Python,
 };
+use std::{borrow::Cow, convert::Infallible};
 
 impl<'py> IntoPyObject<'py> for &str {
     type Target = PyString;
@@ -15,7 +14,7 @@ impl<'py> IntoPyObject<'py> for &str {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -34,7 +33,7 @@ impl<'py> IntoPyObject<'py> for &&str {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -53,7 +52,7 @@ impl<'py> IntoPyObject<'py> for Cow<'_, str> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -72,7 +71,7 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, str> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -91,7 +90,7 @@ impl<'py> IntoPyObject<'py> for char {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let mut bytes = [0u8; 4];
@@ -110,7 +109,7 @@ impl<'py> IntoPyObject<'py> for &char {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -129,7 +128,7 @@ impl<'py> IntoPyObject<'py> for String {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = "str";
+    const OUTPUT_TYPE: TypeHint = TypeHint::builtin("str");
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new(py, &self))
@@ -147,7 +146,7 @@ impl<'py> IntoPyObject<'py> for &String {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -161,11 +160,13 @@ impl<'py> IntoPyObject<'py> for &String {
 }
 
 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a str {
-    #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "str";
+impl<'a> crate::conversion::FromPyObject<'a, '_> for &'a str {
+    type Error = PyErr;
 
-    fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = TypeHint::builtin("str");
+
+    fn extract(ob: crate::Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         ob.cast::<PyString>()?.to_str()
     }
 
@@ -175,11 +176,13 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a str {
     }
 }
 
-impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, str> {
-    #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "str";
+impl<'a> crate::conversion::FromPyObject<'a, '_> for Cow<'a, str> {
+    type Error = PyErr;
 
-    fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = TypeHint::builtin("str");
+
+    fn extract(ob: crate::Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         ob.cast::<PyString>()?.to_cow()
     }
 
@@ -191,11 +194,13 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, str> {
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-impl FromPyObject<'_> for String {
-    #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "str";
+impl FromPyObject<'_, '_> for String {
+    type Error = PyErr;
 
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = TypeHint::builtin("str");
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         obj.cast::<PyString>()?.to_cow().map(Cow::into_owned)
     }
 
@@ -205,11 +210,13 @@ impl FromPyObject<'_> for String {
     }
 }
 
-impl FromPyObject<'_> for char {
-    #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "str";
+impl FromPyObject<'_, '_> for char {
+    type Error = PyErr;
 
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = TypeHint::builtin("str");
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let s = obj.cast::<PyString>()?.to_cow()?;
         let mut iter = s.chars();
         if let (Some(ch), None) = (iter.next(), iter.next()) {

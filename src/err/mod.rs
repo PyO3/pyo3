@@ -1,19 +1,23 @@
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
+#[cfg(Py_3_11)]
+use crate::intern;
 use crate::panic::PanicException;
+use crate::py_result_ext::PyResultExt;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
+#[cfg(Py_3_11)]
+use crate::types::PyString;
 use crate::types::{
     string::PyStringMethods, traceback::PyTracebackMethods, typeobject::PyTypeMethods, PyTraceback,
     PyType,
 };
-use crate::{
-    exceptions::{self, PyBaseException},
-    ffi,
-};
-use crate::{Borrowed, BoundObject, Py, PyAny, Python};
-use std::borrow::Cow;
+use crate::{exceptions::PyBaseException, ffi};
+use crate::{BoundObject, Py, PyAny, Python};
 use std::ffi::CStr;
 
+mod cast_error;
+mod downcast_error;
 mod err_state;
 mod impls;
 
@@ -21,6 +25,10 @@ use crate::conversion::IntoPyObject;
 use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
 use std::convert::Infallible;
 use std::ptr;
+
+pub use cast_error::{CastError, CastIntoError};
+#[allow(deprecated)]
+pub use downcast_error::{DowncastError, DowncastIntoError};
 
 /// Represents a Python exception.
 ///
@@ -41,59 +49,6 @@ unsafe impl crate::marker::Ungil for PyErr {}
 
 /// Represents the result of a Python call.
 pub type PyResult<T> = Result<T, PyErr>;
-
-/// Error that indicates a failure to convert a PyAny to a more specific Python type.
-#[derive(Debug)]
-pub struct DowncastError<'a, 'py> {
-    from: Borrowed<'a, 'py, PyAny>,
-    to: Cow<'static, str>,
-}
-
-impl<'a, 'py> DowncastError<'a, 'py> {
-    /// Create a new `PyDowncastError` representing a failure to convert the object
-    /// `from` into the type named in `to`.
-    pub fn new(from: &'a Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
-        DowncastError {
-            from: from.as_borrowed(),
-            to: to.into(),
-        }
-    }
-    pub(crate) fn new_from_borrowed(
-        from: Borrowed<'a, 'py, PyAny>,
-        to: impl Into<Cow<'static, str>>,
-    ) -> Self {
-        DowncastError {
-            from,
-            to: to.into(),
-        }
-    }
-}
-
-/// Error that indicates a failure to convert a PyAny to a more specific Python type.
-#[derive(Debug)]
-pub struct DowncastIntoError<'py> {
-    from: Bound<'py, PyAny>,
-    to: Cow<'static, str>,
-}
-
-impl<'py> DowncastIntoError<'py> {
-    /// Create a new `DowncastIntoError` representing a failure to convert the object
-    /// `from` into the type named in `to`.
-    pub fn new(from: Bound<'py, PyAny>, to: impl Into<Cow<'static, str>>) -> Self {
-        DowncastIntoError {
-            from,
-            to: to.into(),
-        }
-    }
-
-    /// Consumes this `DowncastIntoError` and returns the original object, allowing continued
-    /// use of it after a failed conversion.
-    ///
-    /// See [`cast_into`][Bound::cast_into] for an example.
-    pub fn into_inner(self) -> Bound<'py, PyAny> {
-        self.from
-    }
-}
 
 /// Helper conversion trait that allows to use custom arguments for lazy exception construction.
 pub trait PyErrArguments: Send + Sync {
@@ -372,7 +327,7 @@ impl PyErr {
             #[cfg(debug_assertions)]
             None => panic!("{}", FAILED_TO_FETCH),
             #[cfg(not(debug_assertions))]
-            None => exceptions::PySystemError::new_err(FAILED_TO_FETCH),
+            None => crate::exceptions::PySystemError::new_err(FAILED_TO_FETCH),
         }
     }
 
@@ -408,9 +363,14 @@ impl PyErr {
             None => std::ptr::null(),
         };
 
-        let ptr = unsafe { ffi::PyErr_NewExceptionWithDoc(name.as_ptr(), doc_ptr, base, dict) };
-
-        unsafe { Py::from_owned_ptr_or_err(py, ptr) }
+        // SAFETY: correct call to FFI function, return value is known to be a new
+        // exception type or null on error
+        unsafe {
+            ffi::PyErr_NewExceptionWithDoc(name.as_ptr(), doc_ptr, base, dict)
+                .assume_owned_or_err(py)
+                .cast_into_unchecked()
+        }
+        .map(Bound::unbind)
     }
 
     /// Prints a standard traceback to `sys.stderr`.
@@ -498,7 +458,7 @@ impl PyErr {
     ///
     /// Calling this method has the benefit that the error goes back into a standardized callback
     /// in Python which for instance allows unittests to ensure that no unraisable error
-    /// actually happend by hooking `sys.unraisablehook`.
+    /// actually happened by hooking `sys.unraisablehook`.
     ///
     /// Example:
     /// ```rust
@@ -537,7 +497,7 @@ impl PyErr {
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| {
     ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>();
-    ///     PyErr::warn(py, &user_warning, c_str!("I am warning you"), 0)?;
+    ///     PyErr::warn(py, &user_warning, c"I am warning you", 0)?;
     ///     Ok(())
     /// })
     /// # }
@@ -644,6 +604,18 @@ impl PyErr {
         }
     }
 
+    /// Equivalent to calling `add_note` on the exception in Python.
+    #[cfg(Py_3_11)]
+    pub fn add_note<N: for<'py> IntoPyObject<'py, Target = PyString>>(
+        &self,
+        py: Python<'_>,
+        note: N,
+    ) -> PyResult<()> {
+        self.value(py)
+            .call_method1(intern!(py, "add_note"), (note,))?;
+        Ok(())
+    }
+
     #[inline]
     fn from_state(state: PyErrState) -> PyErr {
         PyErr { state }
@@ -719,27 +691,6 @@ impl<'py> IntoPyObject<'py> for &PyErr {
     }
 }
 
-struct PyDowncastErrorArguments {
-    from: Py<PyType>,
-    to: Cow<'static, str>,
-}
-
-impl PyErrArguments for PyDowncastErrorArguments {
-    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
-        const FAILED_TO_EXTRACT: Cow<'_, str> = Cow::Borrowed("<failed to extract type name>");
-        let from = self.from.bind(py).qualname();
-        let from = match &from {
-            Ok(qn) => qn.to_cow().unwrap_or(FAILED_TO_EXTRACT),
-            Err(_) => FAILED_TO_EXTRACT,
-        };
-        format!("'{}' object cannot be converted to '{}'", from, self.to)
-            .into_pyobject(py)
-            .unwrap()
-            .into_any()
-            .unbind()
-    }
-}
-
 /// Python exceptions that can be converted to [`PyErr`].
 ///
 /// This is used to implement [`From<Bound<'_, T>> for PyErr`].
@@ -756,67 +707,6 @@ where
     fn from(err: Bound<'py, T>) -> PyErr {
         PyErr::from_value(err.into_any())
     }
-}
-
-/// Convert `DowncastError` to Python `TypeError`.
-impl std::convert::From<DowncastError<'_, '_>> for PyErr {
-    fn from(err: DowncastError<'_, '_>) -> PyErr {
-        let args = PyDowncastErrorArguments {
-            from: err.from.get_type().into(),
-            to: err.to,
-        };
-
-        exceptions::PyTypeError::new_err(args)
-    }
-}
-
-impl std::error::Error for DowncastError<'_, '_> {}
-
-impl std::fmt::Display for DowncastError<'_, '_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        display_downcast_error(f, &self.from, &self.to)
-    }
-}
-
-/// Convert `DowncastIntoError` to Python `TypeError`.
-impl std::convert::From<DowncastIntoError<'_>> for PyErr {
-    fn from(err: DowncastIntoError<'_>) -> PyErr {
-        let args = PyDowncastErrorArguments {
-            from: err.from.get_type().into(),
-            to: err.to,
-        };
-
-        exceptions::PyTypeError::new_err(args)
-    }
-}
-
-impl std::error::Error for DowncastIntoError<'_> {}
-
-impl std::fmt::Display for DowncastIntoError<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        display_downcast_error(f, &self.from, &self.to)
-    }
-}
-
-fn display_downcast_error(
-    f: &mut std::fmt::Formatter<'_>,
-    from: &Bound<'_, PyAny>,
-    to: &str,
-) -> std::fmt::Result {
-    write!(
-        f,
-        "'{}' object cannot be converted to '{}'",
-        from.get_type().qualname().map_err(|_| std::fmt::Error)?,
-        to
-    )
-}
-
-#[track_caller]
-pub fn panic_after_error(_py: Python<'_>) -> ! {
-    unsafe {
-        ffi::PyErr_Print();
-    }
-    panic!("Python API call failed");
 }
 
 /// Returns Ok if the error code is not -1.
@@ -854,7 +744,7 @@ mod tests {
     use crate::exceptions::{self, PyTypeError, PyValueError};
     use crate::impl_::pyclass::{value_of, IsSend, IsSync};
     use crate::test_utils::assert_warnings;
-    use crate::{ffi, PyErr, PyTypeInfo, Python};
+    use crate::{PyErr, PyTypeInfo, Python};
 
     #[test]
     fn no_error() {
@@ -945,7 +835,7 @@ mod tests {
 
         Python::attach(|py| {
             let err = py
-                .run(ffi::c_str!("raise Exception('banana')"), None, None)
+                .run(c"raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
 
             let debug_str = format!("{err:?}");
@@ -971,7 +861,7 @@ mod tests {
     fn err_display() {
         Python::attach(|py| {
             let err = py
-                .run(ffi::c_str!("raise Exception('banana')"), None, None)
+                .run(c"raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
             assert_eq!(err.to_string(), "Exception: banana");
         });
@@ -1011,13 +901,13 @@ mod tests {
     fn test_pyerr_cause() {
         Python::attach(|py| {
             let err = py
-                .run(ffi::c_str!("raise Exception('banana')"), None, None)
+                .run(c"raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
             assert!(err.cause(py).is_none());
 
             let err = py
                 .run(
-                    ffi::c_str!("raise Exception('banana') from Exception('apple')"),
+                    c"raise Exception('banana') from Exception('apple')",
                     None,
                     None,
                 )
@@ -1055,7 +945,7 @@ mod tests {
             // First, test the warning is emitted
             assert_warnings!(
                 py,
-                { PyErr::warn(py, &cls, ffi::c_str!("I am warning you"), 0).unwrap() },
+                { PyErr::warn(py, &cls, c"I am warning you", 0).unwrap() },
                 [(exceptions::PyUserWarning, "I am warning you")]
             );
 
@@ -1063,7 +953,7 @@ mod tests {
             warnings
                 .call_method1("simplefilter", ("error", &cls))
                 .unwrap();
-            PyErr::warn(py, &cls, ffi::c_str!("I am warning you"), 0).unwrap_err();
+            PyErr::warn(py, &cls, c"I am warning you", 0).unwrap_err();
 
             // Test with error for an explicit module
             warnings.call_method0("resetwarnings").unwrap();
@@ -1074,15 +964,15 @@ mod tests {
             // This has the wrong module and will not raise, just be emitted
             assert_warnings!(
                 py,
-                { PyErr::warn(py, &cls, ffi::c_str!("I am warning you"), 0).unwrap() },
+                { PyErr::warn(py, &cls, c"I am warning you", 0).unwrap() },
                 [(exceptions::PyUserWarning, "I am warning you")]
             );
 
             let err = PyErr::warn_explicit(
                 py,
                 &cls,
-                ffi::c_str!("I am warning you"),
-                ffi::c_str!("pyo3test.py"),
+                c"I am warning you",
+                c"pyo3test.py",
                 427,
                 None,
                 None,
@@ -1099,6 +989,23 @@ mod tests {
 
             // Finally, reset filter again
             warnings.call_method0("resetwarnings").unwrap();
+        });
+    }
+
+    #[test]
+    #[cfg(Py_3_11)]
+    fn test_add_note() {
+        use crate::types::any::PyAnyMethods;
+        Python::attach(|py| {
+            let err = PyErr::new::<exceptions::PyValueError, _>("original error");
+            err.add_note(py, "additional context").unwrap();
+
+            let notes = err.value(py).getattr("__notes__").unwrap();
+            assert_eq!(notes.len().unwrap(), 1);
+            assert_eq!(
+                notes.get_item(0).unwrap().extract::<String>().unwrap(),
+                "additional context"
+            );
         });
     }
 }

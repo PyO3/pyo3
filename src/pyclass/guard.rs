@@ -1,10 +1,12 @@
-use crate::conversion::FromPyObjectBound;
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout as _};
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::pycell::PyBorrowMutError;
 use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
 use crate::pyclass::boolean_struct::False;
-use crate::{ffi, Borrowed, IntoPyObject, Py, PyClass};
+use crate::{ffi, Borrowed, CastError, FromPyObject, IntoPyObject, Py, PyClass, PyErr};
 use std::convert::Infallible;
+use std::fmt;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
@@ -271,15 +273,22 @@ impl<T: PyClass> Deref for PyClassGuard<'_, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        // SAFETY: `PyClassObject<T>` constains a valid `T`, by construction no
+        // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
         // mutable alias is enforced
         unsafe { &*self.as_class_object().get_ptr().cast_const() }
     }
 }
 
-impl<'a, 'py, T: PyClass> FromPyObjectBound<'a, 'py> for PyClassGuard<'a, T> {
-    fn from_py_object_bound(obj: Borrowed<'a, 'py, crate::PyAny>) -> crate::PyResult<Self> {
-        Self::try_from_class_object(obj.cast()?.get_class_object()).map_err(Into::into)
+impl<'a, 'py, T: PyClass> FromPyObject<'a, 'py> for PyClassGuard<'a, T> {
+    type Error = PyClassGuardError<'a, 'py>;
+
+    fn extract(obj: Borrowed<'a, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
+        Self::try_from_class_object(
+            obj.cast()
+                .map_err(|e| PyClassGuardError(Some(e)))?
+                .get_class_object(),
+        )
+        .map_err(|_| PyClassGuardError(None))
     }
 }
 
@@ -300,7 +309,7 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &PyClassGuard<'a, T> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = T::PYTHON_TYPE;
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -325,6 +334,39 @@ unsafe impl<T: PyClass> crate::marker::Ungil for PyClassGuard<'_, T> {}
 // - `&T`, which requires `T: Sync` to be Send and `T: Sync` to be Sync
 unsafe impl<T: PyClass + Sync> Send for PyClassGuard<'_, T> {}
 unsafe impl<T: PyClass + Sync> Sync for PyClassGuard<'_, T> {}
+
+/// Custom error type for extracting a [PyClassGuard]
+pub struct PyClassGuardError<'a, 'py>(pub(crate) Option<CastError<'a, 'py>>);
+
+impl fmt::Debug for PyClassGuardError<'_, '_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(e) = &self.0 {
+            write!(f, "{e:?}")
+        } else {
+            write!(f, "{:?}", PyBorrowError::new())
+        }
+    }
+}
+
+impl fmt::Display for PyClassGuardError<'_, '_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(e) = &self.0 {
+            write!(f, "{e}")
+        } else {
+            write!(f, "{}", PyBorrowError::new())
+        }
+    }
+}
+
+impl From<PyClassGuardError<'_, '_>> for PyErr {
+    fn from(value: PyClassGuardError<'_, '_>) -> Self {
+        if let Some(e) = value.0 {
+            e.into()
+        } else {
+            PyBorrowError::new().into()
+        }
+    }
+}
 
 /// A wrapper type for a mutably borrowed value from a `PyClass`
 ///
@@ -626,7 +668,7 @@ impl<T: PyClass<Frozen = False>> Deref for PyClassGuardMut<'_, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        // SAFETY: `PyClassObject<T>` constains a valid `T`, by construction no
+        // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
         // alias is enforced
         unsafe { &*self.as_class_object().get_ptr().cast_const() }
     }
@@ -634,15 +676,22 @@ impl<T: PyClass<Frozen = False>> Deref for PyClassGuardMut<'_, T> {
 impl<T: PyClass<Frozen = False>> DerefMut for PyClassGuardMut<'_, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
-        // SAFETY: `PyClassObject<T>` constains a valid `T`, by construction no
+        // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
         // alias is enforced
         unsafe { &mut *self.as_class_object().get_ptr() }
     }
 }
 
-impl<'a, 'py, T: PyClass<Frozen = False>> FromPyObjectBound<'a, 'py> for PyClassGuardMut<'a, T> {
-    fn from_py_object_bound(obj: Borrowed<'a, 'py, crate::PyAny>) -> crate::PyResult<Self> {
-        Self::try_from_class_object(obj.cast()?.get_class_object()).map_err(Into::into)
+impl<'a, 'py, T: PyClass<Frozen = False>> FromPyObject<'a, 'py> for PyClassGuardMut<'a, T> {
+    type Error = PyClassGuardMutError<'a, 'py>;
+
+    fn extract(obj: Borrowed<'a, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
+        Self::try_from_class_object(
+            obj.cast()
+                .map_err(|e| PyClassGuardMutError(Some(e)))?
+                .get_class_object(),
+        )
+        .map_err(|_| PyClassGuardMutError(None))
     }
 }
 
@@ -686,6 +735,39 @@ unsafe impl<T: PyClass<Frozen = False>> crate::marker::Ungil for PyClassGuardMut
 // - `&mut T`, which requires `T: Send` to be Send and `T: Sync` to be Sync
 unsafe impl<T: PyClass<Frozen = False> + Send + Sync> Send for PyClassGuardMut<'_, T> {}
 unsafe impl<T: PyClass<Frozen = False> + Sync> Sync for PyClassGuardMut<'_, T> {}
+
+/// Custom error type for extracting a [PyClassGuardMut]
+pub struct PyClassGuardMutError<'a, 'py>(pub(crate) Option<CastError<'a, 'py>>);
+
+impl fmt::Debug for PyClassGuardMutError<'_, '_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(e) = &self.0 {
+            write!(f, "{e:?}")
+        } else {
+            write!(f, "{:?}", PyBorrowMutError::new())
+        }
+    }
+}
+
+impl fmt::Display for PyClassGuardMutError<'_, '_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(e) = &self.0 {
+            write!(f, "{e}")
+        } else {
+            write!(f, "{}", PyBorrowMutError::new())
+        }
+    }
+}
+
+impl From<PyClassGuardMutError<'_, '_>> for PyErr {
+    fn from(value: PyClassGuardMutError<'_, '_>) -> Self {
+        if let Some(e) = value.0 {
+            e.into()
+        } else {
+            PyBorrowMutError::new().into()
+        }
+    }
+}
 
 /// Wraps a borrowed reference `U` to a value stored inside of a pyclass `T`
 ///

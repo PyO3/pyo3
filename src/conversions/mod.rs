@@ -17,6 +17,6 @@ pub mod ordered_float;
 pub mod rust_decimal;
 pub mod serde;
 pub mod smallvec;
-mod std;
+pub(crate) mod std;
 pub mod time;
 pub mod uuid;

@@ -4,7 +4,7 @@ use pyo3::exceptions::{PyStopIteration, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 struct EmptyClass {}
 
@@ -70,7 +70,7 @@ impl PyClassThreadIter {
 }
 
 /// Demonstrates a base class which can operate on the relevant subclass in its constructor.
-#[pyclass(subclass)]
+#[pyclass(subclass, skip_from_py_object)]
 #[derive(Clone, Debug)]
 struct AssertingBaseClass;
 
@@ -104,7 +104,7 @@ impl ClassWithDict {
     }
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Clone)]
 struct ClassWithDecorators {
     attr: usize,
@@ -144,6 +144,12 @@ impl ClassWithDecorators {
     }
 }
 
+#[pyclass(get_all, set_all)]
+struct PlainObject {
+    foo: String,
+    bar: usize,
+}
+
 #[derive(FromPyObject, IntoPyObject)]
 enum AClass {
     NewType(EmptyClass),
@@ -162,7 +168,7 @@ fn map_a_class(cls: AClass) -> AClass {
     cls
 }
 
-#[pymodule(gil_used = false)]
+#[pymodule]
 pub mod pyclasses {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     #[pymodule_export]
@@ -170,6 +176,6 @@ pub mod pyclasses {
     #[pymodule_export]
     use super::{
         map_a_class, AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass,
-        PyClassIter, PyClassThreadIter,
+        PlainObject, PyClassIter, PyClassThreadIter,
     };
 }

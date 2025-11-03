@@ -1,4 +1,3 @@
-use pyo3::ffi;
 use pyo3::prelude::*;
 
 // This test mucks around with sys.modules, so run it separately to prevent it
@@ -17,16 +16,14 @@ fn err_debug_unformattable() {
     Python::attach(|py| {
         // PyTracebackMethods::format uses io.StringIO. Mock it out to trigger a
         // formatting failure:
-        // TypeError: 'Mock' object cannot be converted to 'PyString'
+        // TypeError: 'Mock' object cannot be cast as 'str'
         let err = py
             .run(
-                ffi::c_str!(
-                    r#"
+                cr#"
 import io, sys, unittest.mock
 sys.modules['orig_io'] = sys.modules['io']
 sys.modules['io'] = unittest.mock.Mock()
-raise Exception('banana')"#
-                ),
+raise Exception('banana')"#,
                 None,
                 None,
             )
@@ -51,13 +48,11 @@ raise Exception('banana')"#
         assert!(fields.next().is_none());
 
         py.run(
-            ffi::c_str!(
-                r#"
+            cr#"
 import io, sys, unittest.mock
 sys.modules['io'] = sys.modules['orig_io']
 del sys.modules['orig_io']
-"#
-            ),
+"#,
             None,
             None,
         )

@@ -25,7 +25,7 @@ async fn sleep(seconds: f64, result: Option<Py<PyAny>>) -> Option<Py<PyAny>> {
 # }
 ```
 
-*Python awaitables instantiated with this method can only be awaited in *asyncio* context. Other Python async runtime may be supported in the future.*
+*Python awaitables instantiated with this method can only be awaited in `asyncio` context. Other Python async runtime may be supported in the future.*
 
 ## `Send + 'static` constraint
 
@@ -33,7 +33,11 @@ Resulting future of an `async fn` decorated by `#[pyfunction]` must be `Send + '
 
 As a consequence, `async fn` parameters and return types must also be `Send + 'static`, so it is not possible to have a signature like `async fn does_not_compile<'py>(arg: Bound<'py, PyAny>) -> Bound<'py, PyAny>`.
 
-However, there is an exception for method receivers, so async methods can accept `&self`/`&mut self`. Note that this means that the class instance is borrowed for as long as the returned future is not completed, even across yield points and while waiting for I/O operations to complete. Hence, other methods cannot obtain exclusive borrows while the future is still being polled. This is the same as how async methods in Rust generally work but it is more problematic for Rust code interfacing with Python code due to pervasive shared mutability. This strongly suggests to prefer shared borrows `&self` over exclusive ones `&mut self` to avoid racy borrow check failures at runtime.
+However, there is an exception for method receivers, so async methods can accept `&self`/ `&mut self`.
+Note that this means that the class instance is borrowed for as long as the returned future is not completed, even across yield points and while waiting for I/O operations to complete.
+Hence, other methods cannot obtain exclusive borrows while the future is still being polled.
+This is the same as how async methods in Rust generally work but it is more problematic for Rust code interfacing with Python code due to pervasive shared mutability.
+This strongly suggests to prefer shared borrows `&self` over exclusive ones `&mut self` to avoid racy borrow check failures at runtime.
 
 ## Implicitly attached to the interpreter
 
@@ -98,6 +102,7 @@ async fn cancellable(#[pyo3(cancel_handle)] mut cancel: CancelHandle) {
 
 To make a Rust future awaitable in Python, PyO3 defines a [`Coroutine`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.Coroutine.html) type, which implements the Python [coroutine protocol](https://docs.python.org/3/library/collections.abc.html#collections.abc.Coroutine).
 
-Each `coroutine.send` call is translated to a `Future::poll` call. If a [`CancelHandle`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.CancelHandle.html) parameter is declared, the exception passed to `coroutine.throw` call is stored in it and can be retrieved with [`CancelHandle::cancelled`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.CancelHandle.html#method.cancelled); otherwise, it cancels the Rust future, and the exception is reraised;
+Each `coroutine.send` call is translated to a `Future::poll` call.
+If a [`CancelHandle`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.CancelHandle.html) parameter is declared, the exception passed to `coroutine.throw` call is stored in it and can be retrieved with [`CancelHandle::cancelled`]({{#PYO3_DOCS_URL}}/pyo3/coroutine/struct.CancelHandle.html#method.cancelled); otherwise, it cancels the Rust future, and the exception is reraised;
 
 *The type does not yet have a public constructor until the design is finalized.*

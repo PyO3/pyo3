@@ -38,7 +38,7 @@ try:
 except ImportError:
     requests = None
 
-nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "docs"]
+nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "rumdl", "docs"]
 
 PYO3_DIR = Path(__file__).parent
 PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).absolute()
@@ -109,7 +109,6 @@ def test_rust(session: nox.Session):
 
     for feature_set in _get_feature_sets():
         flags = extra_flags.copy()
-        print(feature_set)
 
         if feature_set is None or "full" not in feature_set:
             # doctests require at least the macros feature, which is
@@ -203,9 +202,20 @@ def ruff(session: nox.Session):
     _run(session, "ruff", "check", ".")
 
 
+@nox.session(name="rumdl", venv_backend="none")
+def rumdl(session: nox.Session):
+    """Run rumdl to check markdown formatting in the guide.
+
+    Can also run with uv directly, e.g. `uv run rumdl check guide`.
+    """
+    _run(
+        session, "uv", "run", "rumdl", "check", "guide", *session.posargs, external=True
+    )
+
+
 @nox.session(name="clippy", venv_backend="none")
 def clippy(session: nox.Session) -> bool:
-    if not _clippy(session) and _clippy_additional_workspaces(session):
+    if not (_clippy(session) and _clippy_additional_workspaces(session)):
         session.error("one or more jobs failed")
 
 
@@ -441,6 +451,69 @@ def test_emscripten(session: nox.Session):
     )
 
 
+@nox.session(name="test-cross-compilation-windows")
+def test_cross_compilation_windows(session: nox.Session):
+    session.install("cargo-xwin")
+
+    env = os.environ.copy()
+    env["XWIN_ARCH"] = "x86_64"
+
+    # abi3
+    _run_cargo(
+        session,
+        "build",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "abi3",
+        "--target",
+        "x86_64-pc-windows-gnu",
+        env=env,
+    )
+    _run_cargo(
+        session,
+        "xwin",
+        "build",
+        "--cross-compiler",
+        "clang",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "abi3",
+        "--target",
+        "x86_64-pc-windows-msvc",
+        env=env,
+    )
+
+    # non-abi3
+    env["PYO3_CROSS_PYTHON_VERSION"] = "3.13"
+    _run_cargo(
+        session,
+        "build",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "generate-import-lib",
+        "--target",
+        "x86_64-pc-windows-gnu",
+        env=env,
+    )
+    _run_cargo(
+        session,
+        "xwin",
+        "build",
+        "--cross-compiler",
+        "clang",
+        "--manifest-path",
+        "examples/maturin-starter/Cargo.toml",
+        "--features",
+        "generate-import-lib",
+        "--target",
+        "x86_64-pc-windows-msvc",
+        env=env,
+    )
+
+
 @nox.session(venv_backend="none")
 def docs(session: nox.Session, nightly: bool = False, internal: bool = False) -> None:
     rustdoc_flags = ["-Dwarnings"]
@@ -624,7 +697,7 @@ def _build_netlify_redirects(preview: bool) -> None:
             redirects_file.write(f"/ /v{current_version}/ 302\n")
 
 
-@nox.session(name="check-guide", venv_backend="none")
+@nox.session(name="check-guide")
 def check_guide(session: nox.Session):
     # reuse other sessions, but with default args
     posargs = [*session.posargs]
@@ -666,6 +739,7 @@ def check_guide(session: nox.Session):
         *remap_args,
         "--accept=200,429",
         *session.posargs,
+        external=True,
     )
     # check external links in the docs
     # (intra-doc links are checked by rustdoc)
@@ -682,6 +756,7 @@ def check_guide(session: nox.Session):
         # reduce the concurrency to avoid rate-limit from `pyo3.rs`
         "--max-concurrency=32",
         *session.posargs,
+        external=True,
     )
 
 
@@ -891,8 +966,8 @@ def test_version_limits(session: nox.Session):
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
-        assert "3.8" not in PYPY_VERSIONS
-        config_file.set("PyPy", "3.8")
+        assert "3.10" not in PYPY_VERSIONS
+        config_file.set("PyPy", "3.10")
         _run_cargo(session, "check", env=env, expect_error=True)
 
     # attempt to build with latest version and check that abi3 version
@@ -1028,21 +1103,32 @@ def update_ui_tests(session: nox.Session):
 def test_introspection(session: nox.Session):
     session.install("maturin")
     session.install("ruff")
+    options = []
     target = os.environ.get("CARGO_BUILD_TARGET")
-    for options in ([], ["--release"]):
-        if target is not None:
-            options += ("--target", target)
-        session.run_always("maturin", "develop", "-m", "./pytests/Cargo.toml", *options)
-        # We look for the built library
-        lib_file = None
-        for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
-            if file.is_file():
-                lib_file = str(file.resolve())
-        _run_cargo_test(
-            session,
-            package="pyo3-introspection",
-            env={"PYO3_PYTEST_LIB_PATH": lib_file},
-        )
+    if target is not None:
+        options += ("--target", target)
+    profile = os.environ.get("CARGO_BUILD_PROFILE")
+    if profile == "release":
+        options.append("--release")
+    session.run_always(
+        "maturin",
+        "develop",
+        "-m",
+        "./pytests/Cargo.toml",
+        "--features",
+        "experimental-inspect",
+        *options,
+    )
+    # We look for the built library
+    lib_file = None
+    for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
+        if file.is_file():
+            lib_file = str(file.resolve())
+    _run_cargo_test(
+        session,
+        package="pyo3-introspection",
+        env={"PYO3_PYTEST_LIB_PATH": lib_file},
+    )
 
 
 def _build_docs_for_ffi_check(session: nox.Session) -> None:

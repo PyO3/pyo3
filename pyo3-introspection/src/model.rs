@@ -22,7 +22,7 @@ pub struct Function {
     pub decorators: Vec<String>,
     pub arguments: Arguments,
     /// return type
-    pub returns: Option<String>,
+    pub returns: Option<TypeHint>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -31,7 +31,7 @@ pub struct Attribute {
     /// Value as a Python expression if easily expressible
     pub value: Option<String>,
     /// Type annotation as a Python expression
-    pub annotation: Option<String>,
+    pub annotation: Option<TypeHint>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -54,7 +54,7 @@ pub struct Argument {
     /// Default value as a Python expression
     pub default_value: Option<String>,
     /// Type annotation as a Python expression
-    pub annotation: Option<String>,
+    pub annotation: Option<TypeHint>,
 }
 
 /// A variable length argument ie. *vararg or **kwarg
@@ -62,5 +62,30 @@ pub struct Argument {
 pub struct VariableLengthArgument {
     pub name: String,
     /// Type annotation as a Python expression
-    pub annotation: Option<String>,
+    pub annotation: Option<TypeHint>,
+}
+
+/// A type hint annotation
+///
+/// Might be a plain string or an AST fragment
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub enum TypeHint {
+    Ast(TypeHintExpr),
+    Plain(String),
+}
+
+/// A type hint annotation as an AST fragment
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub enum TypeHintExpr {
+    /// A Python builtin like `int`
+    Builtin { id: String },
+    /// The attribute of a python object like `{value}.{attr}`
+    Attribute { module: String, attr: String },
+    /// A union `{left} | {right}`
+    Union { elts: Vec<TypeHintExpr> },
+    /// A subscript `{value}[*slice]`
+    Subscript {
+        value: Box<TypeHintExpr>,
+        slice: Vec<TypeHintExpr>,
+    },
 }

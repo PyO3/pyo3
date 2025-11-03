@@ -718,7 +718,12 @@ mod borrowed_iter {
                 // Safety:
                 // - PyDict_Next returns borrowed values
                 // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
-                Some(unsafe { (key.assume_borrowed(py), value.assume_borrowed(py)) })
+                Some(unsafe {
+                    (
+                        key.assume_borrowed_unchecked(py),
+                        value.assume_borrowed_unchecked(py),
+                    )
+                })
             } else {
                 None
             }
@@ -1004,7 +1009,7 @@ mod tests {
     fn test_set_item_refcnt() {
         Python::attach(|py| {
             let cnt;
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
             {
                 cnt = obj.get_refcnt();
                 let _dict = [(10, &obj)].into_py_dict(py);

@@ -292,7 +292,6 @@ mod tests {
     use super::PySet;
     use crate::{
         conversion::IntoPyObject,
-        ffi,
         types::{PyAnyMethods, PySetMethods},
         Python,
     };
@@ -369,7 +368,7 @@ mod tests {
     fn test_set_add() {
         Python::attach(|py| {
             let set = PySet::new(py, [1, 2]).unwrap();
-            set.add(1).unwrap(); // Add a dupliated element
+            set.add(1).unwrap(); // Add a duplicated element
             assert!(set.contains(1).unwrap());
         });
     }
@@ -383,11 +382,7 @@ mod tests {
             let val2 = set.pop();
             assert!(val2.is_none());
             assert!(py
-                .eval(
-                    ffi::c_str!("print('Exception state should not be set.')"),
-                    None,
-                    None
-                )
+                .eval(c"print('Exception state should not be set.')", None, None)
                 .is_ok());
         });
     }

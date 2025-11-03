@@ -15,14 +15,15 @@
 //!
 //! Note that you must use compatible versions of smallvec and PyO3.
 //! The required smallvec version may vary based on the version of PyO3.
-use crate::conversion::IntoPyObject;
+use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PySequence, PyString};
-use crate::PyErr;
-use crate::{err::DowncastError, ffi, Bound, FromPyObject, PyAny, PyResult, Python};
+use crate::{
+    err::CastError, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, PyTypeInfo, Python,
+};
 use smallvec::{Array, SmallVec};
 
 impl<'py, A> IntoPyObject<'py> for SmallVec<A>
@@ -53,7 +54,6 @@ impl<'a, 'py, A> IntoPyObject<'py> for &'a SmallVec<A>
 where
     A: Array,
     &'a A::Item: IntoPyObject<'py>,
-    A::Item: 'a, // MSRV
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -70,12 +70,14 @@ where
     }
 }
 
-impl<'py, A> FromPyObject<'py> for SmallVec<A>
+impl<'py, A> FromPyObject<'_, 'py> for SmallVec<A>
 where
     A: Array,
-    A::Item: FromPyObject<'py>,
+    A::Item: FromPyObjectOwned<'py>,
 {
-    fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         if obj.is_instance_of::<PyString>() {
             return Err(PyTypeError::new_err("Can't extract `str` to `SmallVec`"));
         }
@@ -88,10 +90,10 @@ where
     }
 }
 
-fn extract_sequence<'py, A>(obj: &Bound<'py, PyAny>) -> PyResult<SmallVec<A>>
+fn extract_sequence<'py, A>(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<SmallVec<A>>
 where
     A: Array,
-    A::Item: FromPyObject<'py>,
+    A::Item: FromPyObjectOwned<'py>,
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
@@ -99,13 +101,13 @@ where
         if ffi::PySequence_Check(obj.as_ptr()) != 0 {
             obj.cast_unchecked::<PySequence>()
         } else {
-            return Err(DowncastError::new(obj, "Sequence").into());
+            return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
         }
     };
 
     let mut sv = SmallVec::with_capacity(seq.len().unwrap_or(0));
     for item in seq.try_iter()? {
-        sv.push(item?.extract::<A::Item>()?);
+        sv.push(item?.extract::<A::Item>().map_err(Into::into)?);
     }
     Ok(sv)
 }
@@ -131,7 +133,7 @@ mod tests {
             let sv: PyResult<SmallVec<[u64; 8]>> = dict.extract();
             assert_eq!(
                 sv.unwrap_err().to_string(),
-                "TypeError: 'dict' object cannot be converted to 'Sequence'"
+                "TypeError: 'dict' object cannot be cast as 'Sequence'"
             );
         });
     }

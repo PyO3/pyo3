@@ -3,7 +3,7 @@
     feature = "nightly",
     feature(auto_traits, negative_impls, try_trait_v2, iter_advance_by)
 )]
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(unsafe_op_in_unsafe_fn)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
@@ -61,7 +61,7 @@
 //!
 //! The type parameter `T` in these smart pointers can be filled by:
 //!   - [`PyAny`], e.g. `Py<PyAny>` or `Bound<'py, PyAny>`, where the Python object type is not
-//!     known. `Py<PyAny>` is so common it has a type alias [`PyObject`].
+//!     known.
 //!   - Concrete Python types like [`PyList`](types::PyList) or [`PyTuple`](types::PyTuple).
 //!   - Rust types which are exposed to Python using the [`#[pyclass]`](macro@pyclass) macro.
 //!
@@ -152,7 +152,7 @@
 //!
 //! PyO3 supports the following Python distributions:
 //!   - CPython 3.7 or greater
-//!   - PyPy 7.3 (Python 3.9+)
+//!   - PyPy 7.3 (Python 3.11+)
 //!   - GraalPy 24.0 or greater (Python 3.10+)
 //!
 //! # Example: Building a native Python module
@@ -260,7 +260,7 @@
 //!         let version: String = sys.getattr("version")?.extract()?;
 //!
 //!         let locals = [("os", py.import("os")?)].into_py_dict(py)?;
-//!         let code = c_str!("os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'");
+//!         let code = c"os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
 //!         let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 //!
 //!         println!("Hello {}, I'm Python {}", user, version);
@@ -315,7 +315,7 @@
 //! [`ordered-float`]: ./ordered_float/index.html "Documentation about the `ordered-float` feature."
 //! [`pyo3-build-config`]: https://docs.rs/pyo3-build-config
 //! [rust_decimal]: https://docs.rs/rust_decimal
-//! [`rust_decimal`]: ./rust_decimal/index.html "Documenation about the `rust_decimal` feature."
+//! [`rust_decimal`]: ./rust_decimal/index.html "Documentation about the `rust_decimal` feature."
 //! [`Decimal`]: https://docs.rs/rust_decimal/latest/rust_decimal/struct.Decimal.html
 //! [`serde`]: <./serde/index.html> "Documentation about the `serde` feature."
 #![doc = concat!("[calling_rust]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/python-from-rust.html \"Calling Python from Rust - PyO3 user guide\"")]
@@ -342,7 +342,9 @@
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{FromPyObject, IntoPyObject, IntoPyObjectExt};
-pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
+pub use crate::err::{CastError, CastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
+#[allow(deprecated)]
+pub use crate::err::{DowncastError, DowncastIntoError};
 #[allow(deprecated)]
 pub use crate::instance::PyObject;
 pub use crate::instance::{Borrowed, Bound, BoundObject, Py};
@@ -448,7 +450,10 @@ pub mod type_object;
 pub mod types;
 mod version;
 
-#[allow(unused_imports)] // with no features enabled this module has no public exports
+#[allow(
+    unused_imports,
+    reason = "with no features enabled this module has no public exports"
+)]
 pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]

@@ -100,7 +100,7 @@ fn get_delta_tuple<'py>(delta: &Bound<'py, PyDelta>) -> PyResult<Bound<'py, PyTu
     )
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 #[pyfunction]
 #[pyo3(signature=(year, month, day, hour, minute, second, microsecond, tzinfo=None))]
 fn make_datetime<'py>(
@@ -203,7 +203,7 @@ impl TzClass {
     }
 }
 
-#[pymodule(gil_used = false)]
+#[pymodule]
 pub fn datetime(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(make_date, m)?)?;
     m.add_function(wrap_pyfunction!(get_date_tuple, m)?)?;

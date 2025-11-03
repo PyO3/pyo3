@@ -75,7 +75,7 @@ impl<'a> PyStringData<'a> {
 
                     Err(PyUnicodeDecodeError::new(
                         py,
-                        ffi::c_str!("utf-16"),
+                        c"utf-16",
                         self.as_bytes(),
                         0..self.as_bytes().len(),
                         CStr::from_bytes_with_nul(&message).unwrap(),
@@ -87,10 +87,10 @@ impl<'a> PyStringData<'a> {
                 Some(s) => Ok(Cow::Owned(s)),
                 None => Err(PyUnicodeDecodeError::new(
                     py,
-                    ffi::c_str!("utf-32"),
+                    c"utf-32",
                     self.as_bytes(),
                     0..self.as_bytes().len(),
-                    ffi::c_str!("error converting utf-32"),
+                    c"error converting utf-32",
                 )?
                 .into()),
             },
@@ -164,6 +164,20 @@ impl PyString {
         unsafe {
             ffi::PyUnicode_FromStringAndSize(ptr, len)
                 .assume_owned(py)
+                .cast_into_unchecked()
+        }
+    }
+
+    /// Creates a new Python string object from bytes.
+    ///
+    /// Returns PyMemoryError if out of memory.
+    /// Returns [PyUnicodeDecodeError] if the slice is not a valid UTF-8 string.
+    pub fn from_bytes<'py>(py: Python<'py>, s: &[u8]) -> PyResult<Bound<'py, PyString>> {
+        let ptr = s.as_ptr().cast();
+        let len = s.len() as ffi::Py_ssize_t;
+        unsafe {
+            ffi::PyUnicode_FromStringAndSize(ptr, len)
+                .assume_owned_or_err(py)
                 .cast_into_unchecked()
         }
     }
@@ -313,7 +327,6 @@ impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
 
 impl<'a> Borrowed<'a, '_, PyString> {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-    #[allow(clippy::wrong_self_convention)]
     pub(crate) fn to_str(self) -> PyResult<&'a str> {
         // PyUnicode_AsUTF8AndSize only available on limited API starting with 3.10.
         let mut size: ffi::Py_ssize_t = 0;
@@ -328,7 +341,6 @@ impl<'a> Borrowed<'a, '_, PyString> {
         }
     }
 
-    #[allow(clippy::wrong_self_convention)]
     pub(crate) fn to_cow(self) -> PyResult<Cow<'a, str>> {
         // TODO: this method can probably be deprecated once Python 3.9 support is dropped,
         // because all versions then support the more efficient `to_str`.
@@ -346,7 +358,6 @@ impl<'a> Borrowed<'a, '_, PyString> {
         }
     }
 
-    #[allow(clippy::wrong_self_convention)]
     fn to_string_lossy(self) -> Cow<'a, str> {
         let ptr = self.as_ptr();
         let py = self.py();
@@ -357,13 +368,9 @@ impl<'a> Borrowed<'a, '_, PyString> {
         }
 
         let bytes = unsafe {
-            ffi::PyUnicode_AsEncodedString(
-                ptr,
-                ffi::c_str!("utf-8").as_ptr(),
-                ffi::c_str!("surrogatepass").as_ptr(),
-            )
-            .assume_owned(py)
-            .cast_into_unchecked::<PyBytes>()
+            ffi::PyUnicode_AsEncodedString(ptr, c"utf-8".as_ptr(), c"surrogatepass".as_ptr())
+                .assume_owned(py)
+                .cast_into_unchecked::<PyBytes>()
         };
         Cow::Owned(String::from_utf8_lossy(bytes.as_bytes()).into_owned())
     }
@@ -559,8 +566,6 @@ impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
 
 #[cfg(test)]
 mod tests {
-    use pyo3_ffi::c_str;
-
     use super::*;
     use crate::{exceptions::PyLookupError, types::PyAnyMethods as _, IntoPyObject};
 
@@ -577,7 +582,7 @@ mod tests {
     fn test_to_cow_surrogate() {
         Python::attach(|py| {
             let py_string = py
-                .eval(ffi::c_str!(r"'\ud800'"), None, None)
+                .eval(cr"'\ud800'", None, None)
                 .unwrap()
                 .cast_into::<PyString>()
                 .unwrap();
@@ -606,10 +611,7 @@ mod tests {
     #[test]
     fn test_encode_utf8_surrogate() {
         Python::attach(|py| {
-            let obj: Py<PyAny> = py
-                .eval(ffi::c_str!(r"'\ud800'"), None, None)
-                .unwrap()
-                .into();
+            let obj: Py<PyAny> = py.eval(cr"'\ud800'", None, None).unwrap().into();
             assert!(obj
                 .bind(py)
                 .cast::<PyString>()
@@ -623,7 +625,7 @@ mod tests {
     fn test_to_string_lossy() {
         Python::attach(|py| {
             let py_string = py
-                .eval(ffi::c_str!(r"'🐈 Hello \ud800World'"), None, None)
+                .eval(cr"'🐈 Hello \ud800World'", None, None)
                 .unwrap()
                 .cast_into::<PyString>()
                 .unwrap();
@@ -661,7 +663,7 @@ mod tests {
 
             // with `ignore` error handler, the invalid byte is dropped
             let py_string =
-                PyString::from_encoded_object(&py_bytes, None, Some(c_str!("ignore"))).unwrap();
+                PyString::from_encoded_object(&py_bytes, None, Some(c"ignore")).unwrap();
 
             let result = py_string.to_cow().unwrap();
             assert_eq!(result, "abcd");
@@ -680,18 +682,14 @@ mod tests {
             let py_bytes = PyBytes::new(py, b"abcd");
 
             // invalid encoding
-            let err =
-                PyString::from_encoded_object(&py_bytes, Some(c_str!("wat")), None).unwrap_err();
+            let err = PyString::from_encoded_object(&py_bytes, Some(c"wat"), None).unwrap_err();
             assert!(err.is_instance(py, &py.get_type::<PyLookupError>()));
             assert_eq!(err.to_string(), "LookupError: unknown encoding: wat");
 
             // invalid error handler
-            let err = PyString::from_encoded_object(
-                &PyBytes::new(py, b"ab\xFFcd"),
-                None,
-                Some(c_str!("wat")),
-            )
-            .unwrap_err();
+            let err =
+                PyString::from_encoded_object(&PyBytes::new(py, b"ab\xFFcd"), None, Some(c"wat"))
+                    .unwrap_err();
             assert!(err.is_instance(py, &py.get_type::<PyLookupError>()));
             assert_eq!(
                 err.to_string(),
@@ -751,7 +749,7 @@ mod tests {
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     fn test_string_data_ucs2() {
         Python::attach(|py| {
-            let s = py.eval(ffi::c_str!("'foo\\ud800'"), None, None).unwrap();
+            let s = py.eval(c"'foo\\ud800'", None, None).unwrap();
             let py_string = s.cast::<PyString>().unwrap();
             let data = unsafe { py_string.data().unwrap() };
 
@@ -829,6 +827,20 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+    fn test_pystring_from_bytes() {
+        Python::attach(|py| {
+            let result = PyString::from_bytes(py, "\u{2122}".as_bytes());
+            assert!(result.is_ok());
+            let result = PyString::from_bytes(py, b"\x80");
+            assert!(result
+                .unwrap_err()
+                .get_type(py)
+                .is(py.get_type::<PyUnicodeDecodeError>()));
+        });
+    }
+
+    #[test]
     fn test_intern_string() {
         Python::attach(|py| {
             let py_string1 = PyString::intern(py, "foo");
@@ -863,7 +875,7 @@ mod tests {
     fn test_py_to_str_surrogate() {
         Python::attach(|py| {
             let py_string: Py<PyString> = py
-                .eval(ffi::c_str!(r"'\ud800'"), None, None)
+                .eval(cr"'\ud800'", None, None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -879,7 +891,7 @@ mod tests {
     fn test_py_to_string_lossy() {
         Python::attach(|py| {
             let py_string: Py<PyString> = py
-                .eval(ffi::c_str!(r"'🐈 Hello \ud800World'"), None, None)
+                .eval(cr"'🐈 Hello \ud800World'", None, None)
                 .unwrap()
                 .extract()
                 .unwrap();

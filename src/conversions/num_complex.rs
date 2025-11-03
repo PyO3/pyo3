@@ -94,7 +94,7 @@
 //! assert result == [complex(1,-1), complex(-2,0)]
 //! ```
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, types::PyComplex, Bound, FromPyObject, PyAny, PyErr, PyResult,
+    ffi, ffi_ptr_ext::FfiPtrExt, types::PyComplex, Borrowed, Bound, FromPyObject, PyAny, PyErr,
     Python,
 };
 use num_complex::Complex;
@@ -146,8 +146,10 @@ macro_rules! complex_conversion {
         }
 
         #[cfg_attr(docsrs, doc(cfg(feature = "num-complex")))]
-        impl FromPyObject<'_> for Complex<$float> {
-            fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Complex<$float>> {
+        impl FromPyObject<'_, '_> for Complex<$float> {
+            type Error = PyErr;
+
+            fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Complex<$float>, Self::Error> {
                 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
                 unsafe {
                     let val = ffi::PyComplex_AsCComplex(obj.as_ptr());
@@ -169,7 +171,7 @@ macro_rules! complex_conversion {
                         obj.lookup_special(crate::intern!(obj.py(), "__complex__"))?
                     {
                         complex = method.call0()?;
-                        &complex
+                        complex.as_borrowed()
                     } else {
                         // `obj` might still implement `__float__` or `__index__`, which will be
                         // handled by `PyComplex_{Real,Imag}AsDouble`, including propagating any
@@ -200,7 +202,6 @@ mod tests {
     use crate::types::PyAnyMethods as _;
     use crate::types::{complex::PyComplexMethods, PyModule};
     use crate::IntoPyObject;
-    use pyo3_ffi::c_str;
 
     #[test]
     fn from_complex() {
@@ -231,17 +232,15 @@ mod tests {
         Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
-                c_str!(
-                    r#"
+                cr#"
 class A:
     def __complex__(self): return 3.0+1.2j
 class B:
     def __float__(self): return 3.0
 class C:
     def __index__(self): return 3
-                "#
-                ),
-                c_str!("test.py"),
+                "#,
+                c"test.py",
                 &generate_unique_module_name("test"),
             )
             .unwrap();
@@ -271,8 +270,7 @@ class C:
         Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
-                c_str!(
-                    r#"
+                cr#"
 class First: pass
 class ComplexMixin:
     def __complex__(self): return 3.0+1.2j
@@ -283,9 +281,8 @@ class IndexMixin:
 class A(First, ComplexMixin): pass
 class B(First, FloatMixin): pass
 class C(First, IndexMixin): pass
-                "#
-                ),
-                c_str!("test.py"),
+                "#,
+                c"test.py",
                 &generate_unique_module_name("test"),
             )
             .unwrap();
@@ -317,15 +314,13 @@ class C(First, IndexMixin): pass
         Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
-                c_str!(
-                    r#"
+                cr#"
 class A:
     @property
     def __complex__(self):
         return lambda: 3.0+1.2j
-                "#
-                ),
-                c_str!("test.py"),
+                "#,
+                c"test.py",
                 &generate_unique_module_name("test"),
             )
             .unwrap();
@@ -342,15 +337,13 @@ class A:
         Python::attach(|py| {
             let module = PyModule::from_code(
                 py,
-                c_str!(
-                    r#"
+                cr#"
 class MyComplex:
     def __call__(self): return 3.0+1.2j
 class A:
     __complex__ = MyComplex()
-                "#
-                ),
-                c_str!("test.py"),
+                "#,
+                c"test.py",
                 &generate_unique_module_name("test"),
             )
             .unwrap();

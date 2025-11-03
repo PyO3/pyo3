@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-build-config"
-version = "0.26.0"
+version = "0.27.1"
 description = "Build configuration for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -13,11 +13,11 @@ rust-version.workspace = true
 
 [dependencies]
 python3-dll-a = { version = "0.2.12", optional = true }
-target-lexicon = "0.13"
+target-lexicon = "0.13.3"
 
 [build-dependencies]
 python3-dll-a = { version = "0.2.12", optional = true }
-target-lexicon = "0.13"
+target-lexicon = "0.13.3"
 
 [features]
 default = []
@@ -28,6 +28,9 @@ resolve-config = []
 
 # This feature is enabled by pyo3 when building an extension module.
 extension-module = []
+
+# Automatically generates `python3.dll` import libraries for Windows targets.
+generate-import-lib = ["dep:python3-dll-a"]
 
 # These features are enabled by pyo3 when building Stable ABI extension modules.
 abi3 = []

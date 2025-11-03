@@ -3,7 +3,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use std::ffi::CString;
 use syn::spanned::Spanned;
-use syn::visit_mut::VisitMut;
+use syn::LitCStr;
 use syn::{punctuated::Punctuated, Token};
 
 /// Macro inspired by `anyhow::anyhow!` to create a compiler error with the given span.
@@ -67,44 +67,6 @@ pub fn option_type_argument(ty: &syn::Type) -> Option<&syn::Type> {
         }
     }
     None
-}
-
-// TODO: Replace usage of this by [`syn::LitCStr`] when on MSRV 1.77
-#[derive(Clone)]
-pub struct LitCStr {
-    lit: CString,
-    span: Span,
-    pyo3_path: PyO3CratePath,
-}
-
-impl LitCStr {
-    pub fn new(lit: CString, span: Span, ctx: &Ctx) -> Self {
-        Self {
-            lit,
-            span,
-            pyo3_path: ctx.pyo3_path.clone(),
-        }
-    }
-
-    pub fn empty(ctx: &Ctx) -> Self {
-        Self {
-            lit: CString::new("").unwrap(),
-            span: Span::call_site(),
-            pyo3_path: ctx.pyo3_path.clone(),
-        }
-    }
-}
-
-impl quote::ToTokens for LitCStr {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        if cfg!(c_str_lit) {
-            syn::LitCStr::new(&self.lit, self.span).to_tokens(tokens);
-        } else {
-            let pyo3_path = &self.pyo3_path;
-            let lit = self.lit.to_str().unwrap();
-            tokens.extend(quote::quote_spanned!(self.span => #pyo3_path::ffi::c_str!(#lit)));
-        }
-    }
 }
 
 /// A syntax tree which evaluates to a nul-terminated docstring for Python.
@@ -209,9 +171,8 @@ pub fn get_doc(
             )
         })?;
         Ok(PythonDoc(PythonDocKind::LitCStr(LitCStr::new(
-            docs,
+            &docs,
             current_part_span.unwrap_or(Span::call_site()),
-            ctx,
         ))))
     }
 }
@@ -338,29 +299,6 @@ pub(crate) fn has_attribute_with_namespace(
             .iter()
             .eq(attr.path().segments.iter().map(|v| &v.ident))
     })
-}
-
-pub(crate) trait TypeExt {
-    /// Replaces all explicit lifetimes in `self` with elided (`'_`) lifetimes
-    ///
-    /// This is useful if `Self` is used in `const` context, where explicit
-    /// lifetimes are not allowed (yet).
-    fn elide_lifetimes(self) -> Self;
-}
-
-impl TypeExt for syn::Type {
-    fn elide_lifetimes(mut self) -> Self {
-        struct ElideLifetimesVisitor;
-
-        impl VisitMut for ElideLifetimesVisitor {
-            fn visit_lifetime_mut(&mut self, l: &mut syn::Lifetime) {
-                *l = syn::Lifetime::new("'_", l.span());
-            }
-        }
-
-        ElideLifetimesVisitor.visit_type_mut(&mut self);
-        self
-    }
 }
 
 pub fn expr_to_python(expr: &syn::Expr) -> String {
