@@ -1,6 +1,6 @@
 name: 🐛 Bug Report
 description: Create a bug report
-labels: [bug]
+type: Bug
 body:
   - type: markdown
     attributes:
