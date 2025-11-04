@@ -546,7 +546,7 @@ fn module_initialization(
 
             // The full slots, used for the PyModExport initialization
             static SLOTS: impl_::PyModuleSlots = impl_::PyModuleSlotsBuilder::new()
-                .with_mod_exec(__pyo3_module_exec)
+                .with_mod_exec(impl_::pyo3_module_state_init)
                 .with_abi_info()
                 .with_gil_used(#gil_used)
                 .with_name(__PYO3_NAME)
