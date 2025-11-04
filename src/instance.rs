@@ -1814,11 +1814,8 @@ impl<T> Py<T> {
     pub fn extract<'a, 'py, D>(&'a self, py: Python<'py>) -> Result<D, D::Error>
     where
         D: FromPyObject<'a, 'py>,
-        // TODO it might be possible to relax this bound in future, to allow
-        // e.g. `.extract::<&str>(py)` where `py` is short-lived.
-        'py: 'a,
     {
-        self.bind(py).as_any().extract()
+        self.bind_borrowed(py).extract()
     }
 
     /// Retrieves an attribute value.
