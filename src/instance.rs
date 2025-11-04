@@ -1815,7 +1815,7 @@ impl<T> Py<T> {
     where
         D: FromPyObject<'a, 'py>,
     {
-        self.bind_borrowed(py).to_any().extract()
+        self.bind_borrowed(py).extract()
     }
 
     /// Retrieves an attribute value.
