@@ -28,3 +28,5 @@ pub mod pymodule;
 pub mod trampoline;
 pub mod unindent;
 pub mod wrap;
+
+pub(crate) mod pymodule_state;
