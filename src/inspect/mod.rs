@@ -24,6 +24,8 @@ pub struct TypeHint {
 
 #[derive(Clone, Copy)]
 enum TypeHintExpr {
+    /// A local name. Used only when the module is unknown.
+    Local { id: &'static str },
     /// A built-name like `list` or `datetime`. Used for built-in types or modules.
     Builtin { id: &'static str },
     /// A module member like `datetime.time` where module = `datetime` and attr = `time`
@@ -65,7 +67,19 @@ impl TypeHint {
     /// ```
     pub const fn module_attr(module: &'static str, attr: &'static str) -> Self {
         Self {
-            inner: TypeHintExpr::ModuleAttribute { module, attr },
+            inner: if matches!(module.as_bytes(), b"builtins") {
+                TypeHintExpr::Builtin { id: attr }
+            } else {
+                TypeHintExpr::ModuleAttribute { module, attr }
+            },
+        }
+    }
+
+    /// A value in the local module which module is unknown
+    #[doc(hidden)]
+    pub const fn local(name: &'static str) -> Self {
+        Self {
+            inner: TypeHintExpr::Local { id: name },
         }
     }
 
@@ -105,6 +119,11 @@ impl TypeHint {
 pub const fn serialize_for_introspection(hint: &TypeHint, mut output: &mut [u8]) -> usize {
     let original_len = output.len();
     match &hint.inner {
+        TypeHintExpr::Local { id } => {
+            output = write_slice_and_move_forward(b"{\"type\":\"local\",\"id\":\"", output);
+            output = write_slice_and_move_forward(id.as_bytes(), output);
+            output = write_slice_and_move_forward(b"\"}", output);
+        }
         TypeHintExpr::Builtin { id } => {
             output = write_slice_and_move_forward(b"{\"type\":\"builtin\",\"id\":\"", output);
             output = write_slice_and_move_forward(id.as_bytes(), output);
@@ -151,6 +170,7 @@ pub const fn serialize_for_introspection(hint: &TypeHint, mut output: &mut [u8])
 #[doc(hidden)]
 pub const fn serialized_len_for_introspection(hint: &TypeHint) -> usize {
     match &hint.inner {
+        TypeHintExpr::Local { id } => 24 + id.len(),
         TypeHintExpr::Builtin { id } => 26 + id.len(),
         TypeHintExpr::ModuleAttribute { module, attr } => 42 + module.len() + attr.len(),
         TypeHintExpr::Union { elts } => {
@@ -184,7 +204,7 @@ impl fmt::Display for TypeHint {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.inner {
-            TypeHintExpr::Builtin { id } => id.fmt(f),
+            TypeHintExpr::Builtin { id } | TypeHintExpr::Local { id } => id.fmt(f),
             TypeHintExpr::ModuleAttribute { module, attr } => {
                 module.fmt(f)?;
                 f.write_str(".")?;
@@ -241,11 +261,15 @@ mod tests {
         const T: TypeHint = TypeHint::subscript(
             &TypeHint::builtin("dict"),
             &[
-                TypeHint::union(&[TypeHint::builtin("int"), TypeHint::builtin("float")]),
+                TypeHint::union(&[
+                    TypeHint::builtin("int"),
+                    TypeHint::module_attr("builtins", "float"),
+                    TypeHint::local("weird"),
+                ]),
                 TypeHint::module_attr("datetime", "time"),
             ],
         );
-        assert_eq!(T.to_string(), "dict[int | float, datetime.time]")
+        assert_eq!(T.to_string(), "dict[int | float | weird, datetime.time]")
     }
 
     #[test]
@@ -253,7 +277,7 @@ mod tests {
         const T: TypeHint = TypeHint::subscript(
             &TypeHint::builtin("dict"),
             &[
-                TypeHint::union(&[TypeHint::builtin("int"), TypeHint::builtin("float")]),
+                TypeHint::union(&[TypeHint::builtin("int"), TypeHint::local("weird")]),
                 TypeHint::module_attr("datetime", "time"),
             ],
         );
@@ -265,7 +289,7 @@ mod tests {
         };
         assert_eq!(
             std::str::from_utf8(&SER).unwrap(),
-            r#"{"type":"subscript","value":{"type":"builtin","id":"dict"},"slice":[{"type":"union","elts":[{"type":"builtin","id":"int"},{"type":"builtin","id":"float"}]},{"type":"attribute","module":"datetime","attr":"time"}]}"#
+            r#"{"type":"subscript","value":{"type":"builtin","id":"dict"},"slice":[{"type":"union","elts":[{"type":"builtin","id":"int"},{"type":"local","id":"weird"}]},{"type":"attribute","module":"datetime","attr":"time"}]}"#
         )
     }
 }
