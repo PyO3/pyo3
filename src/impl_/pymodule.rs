@@ -4,6 +4,7 @@ use std::{
     cell::UnsafeCell,
     ffi::CStr,
     marker::PhantomData,
+    mem::MaybeUninit,
     os::raw::{c_int, c_void},
 };
 
@@ -27,7 +28,7 @@ use crate::exceptions::PyImportError;
 use crate::prelude::PyTypeMethods;
 use crate::{
     ffi,
-    impl_::pyfunction::PyFunctionDef,
+    impl_::{pyfunction::PyFunctionDef, pymodule_state::ModuleState},
     sync::PyOnceLock,
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict, PyModule, PyModuleMethods},
     Bound, Py, PyAny, PyClass, PyResult, PyTypeInfo, Python,
@@ -77,9 +78,11 @@ impl ModuleDef {
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
             m_name: name.as_ptr(),
             m_doc: doc.as_ptr(),
+            m_size: ModuleState::size_of() as _,
             // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
             // but that requires mut ptr deref on MSRV.
             m_slots: slots.0.get() as _,
+            m_free: Some(pyo3_module_state_free),
             ..INIT
         });
 
@@ -306,6 +309,40 @@ impl PyAddToModule for ModuleDef {
     fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {
         module.add_submodule(self.make_module(module.py())?.bind(module.py()))
     }
+}
+
+/// Called during multi-phase initialization in order to create an instance of
+/// ModuleState on the memory area specific to modules.
+///
+/// Slot: [`Py_mod_exec`]
+///
+/// [`Py_mod_exec`]: https://docs.python.org/3/c-api/module.html#c.Py_mod_exec
+pub unsafe extern "C" fn pyo3_module_state_init(module: *mut ffi::PyObject) -> c_int {
+    unsafe {
+        let state: *mut MaybeUninit<ModuleState> = ffi::PyModule_GetState(module).cast();
+
+        if state.is_null() {
+            // TODO: Not sure what to do here... but it means m_size was <= 0
+            // so we have no memory space to write into...
+            //
+            // Set a PyErr and return -1?
+            return 0;
+        }
+
+        (*state).write(ModuleState::new());
+    }
+
+    0
+}
+
+/// Called during deallocation of the module object.
+///
+/// Used for the [`m_free`] field of [`PyModuleDef`].
+///
+/// [`m_free`]: https://docs.python.org/3/c-api/module.html#c.PyModuleDef.m_free
+/// [`PyModuleDef`]: https://docs.python.org/3/c-api/module.html#c.PyModuleDef
+pub unsafe extern "C" fn pyo3_module_state_free(module: *mut c_void) {
+    unsafe { ModuleState::pymodule_free_state(module.cast()) };
 }
 
 #[cfg(test)]
