@@ -1,5 +1,3 @@
-#[cfg(not(Py_LIMITED_API))]
-use crate::exceptions::PyNotImplementedError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
@@ -114,11 +112,7 @@ impl<'py> Iterator for Bound<'py, PyIterator> {
         let hint = unsafe { ffi::PyObject_LengthHint(self.as_ptr(), 0) };
         if hint < 0 {
             let py = self.py();
-            let err = PyErr::fetch(py);
-            if !err.is_instance_of::<PyNotImplementedError>(py) {
-                // Write unraisable error only if it's not NotImplementedError
-                err.write_unraisable(py, Some(self));
-            }
+            PyErr::fetch(py).write_unraisable(py, Some(self));
             (0, None)
         } else {
             (hint as usize, None)
@@ -157,7 +151,9 @@ mod tests {
     #[cfg(all(not(PyPy), Py_3_10))]
     use crate::types::PyNone;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
-    use crate::{IntoPyObject, PyErr, PyTypeInfo, Python};
+    #[cfg(all(feature = "macros", not(Py_LIMITED_API)))]
+    use crate::PyErr;
+    use crate::{IntoPyObject, PyTypeInfo, Python};
 
     #[test]
     fn vec_iter() {
@@ -407,7 +403,7 @@ def fibonacci(target):
 
     #[test]
     #[cfg(all(feature = "macros", not(Py_LIMITED_API)))]
-    fn length_hint_not_implemented() {
+    fn length_hint_error() {
         #[crate::pyfunction(crate = "crate")]
         fn test_size_hint(obj: &crate::Bound<'_, crate::PyAny>) {
             let iter = obj.cast::<PyIterator>().unwrap();
@@ -421,14 +417,22 @@ def fibonacci(target):
                 py,
                 test_size_hint,
                 r#"
-                    class MyIter:
+                    class NoHintIter:
                         def __next__(self):
                             raise StopIteration
 
                         def __length_hint__(self):
-                            raise NotImplementedError
+                            return NotImplemented
 
-                    test_size_hint(MyIter())
+                    class ErrorHintIter:
+                        def __next__(self):
+                            raise StopIteration
+
+                        def __length_hint__(self):
+                            raise ValueError("bad hint impl")
+
+                    test_size_hint(NoHintIter())
+                    test_size_hint(ErrorHintIter())
                 "#
             );
         });
