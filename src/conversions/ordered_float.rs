@@ -98,14 +98,24 @@ float_conversions!(NotNan, f32, |val| NotNan::new(val)
 float_conversions!(NotNan, f64, |val| NotNan::new(val)
     .map_err(|e| PyValueError::new_err(e.to_string())));
 
-#[cfg(all(test, feature = "macros"))]
+#[cfg(all(test))]
 mod test_ordered_float {
     use super::*;
-    use crate::py_run;
+    use crate::types::dict::IntoPyDict;
     use crate::types::PyAnyMethods;
+    use std::ffi::CString;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
+
+    fn py_run<'py>(py: Python<'py>, script: String, locals: impl IntoPyDict<'py>) {
+        py.run(
+            &CString::new(script).unwrap(),
+            None,
+            Some(&locals.into_py_dict(py).unwrap()),
+        )
+        .unwrap()
+    }
 
     macro_rules! float_roundtrip_tests {
         ($wrapper:ident, $float_type:ty, $constructor:expr, $standard_test:ident, $wasm_test:ident, $infinity_test:ident, $zero_test:ident) => {
@@ -118,15 +128,7 @@ mod test_ordered_float {
                 Python::attach(|py| {
                     let f_py: Bound<'_, PyFloat>  = f.into_pyobject(py).unwrap();
 
-                    py_run!(
-                        py,
-                        f_py,
-                        &format!(
-                            "import math\nassert math.isclose(f_py, {})",
-                             inner_f as f64 // Always interpret the literal rs float value as f64
-                                            // so that it's comparable with the python float
-                        )
-                    );
+                    py_run(py, format!("import math\nassert math.isclose(f_py, {f_py})"), [("f_py", &f_py)]);
 
                     let roundtripped_f: $wrapper<$float_type> = f_py.extract().unwrap();
 
@@ -144,15 +146,11 @@ mod test_ordered_float {
                 Python::attach(|py| {
                     let f_py: Bound<'_, PyFloat>  = f.into_pyobject(py).unwrap();
 
-                    py_run!(
-                        py,
-                        f_py,
-                        &format!(
+                    py_run(py, format!(
                             "import math\nassert math.isclose(f_py, {})",
                             inner_f as f64 // Always interpret the literal rs float value as f64
                                            // so that it's comparable with the python float
-                        )
-                    );
+                        ), [("f_py", &f_py)]);
 
                     let roundtripped_f: $wrapper<$float_type> = f_py.extract().unwrap();
 
@@ -172,12 +170,14 @@ mod test_ordered_float {
                     let pinf_py: Bound<'_, PyFloat>  = pinf.into_pyobject(py).unwrap();
                     let ninf_py: Bound<'_, PyFloat>  = ninf.into_pyobject(py).unwrap();
 
-                    py_run!(
-                        py,
-                        pinf_py ninf_py,
+                    py_run(py, format!(
                         "\
                         assert pinf_py == float('inf')\n\
                         assert ninf_py == float('-inf')"
+
+                    ),
+                        [("pinf_py", &pinf_py),("ninf_py", &ninf_py)]
+
                     );
 
                     let roundtripped_pinf: $wrapper<$float_type> = pinf_py.extract().unwrap();
@@ -202,15 +202,15 @@ mod test_ordered_float {
 
                     // This python script verifies that the values are 0.0 in magnitude
                     // and that the signs are correct(+0.0 vs -0.0)
-                    py_run!(
-                        py,
-                        pzero_py nzero_py,
+                    py_run(py, format!(
                         "\
                         import math\n\
                         assert pzero_py == 0.0\n\
                         assert math.copysign(1.0, pzero_py) > 0.0\n\
                         assert nzero_py == 0.0\n\
                         assert math.copysign(1.0, nzero_py) < 0.0"
+
+                    ), [("pzero_py", &pzero_py), ("nzero_py", &nzero_py)]
                     );
 
                     let roundtripped_pzero: $wrapper<$float_type> = pzero_py.extract().unwrap();
@@ -271,12 +271,10 @@ mod test_ordered_float {
                 Python::attach(|py| {
                     let nan_py: Bound<'_, PyFloat> = nan.into_pyobject(py).unwrap();
 
-                    py_run!(
+                    py_run(
                         py,
-                        nan_py,
-                        "\
-                        import math\n\
-                        assert math.isnan(nan_py)"
+                        format!("import math\nassert math.isnan(nan_py)"),
+                        [("nan_py", &nan_py)],
                     );
 
                     let roundtripped_nan: OrderedFloat<$float_type> = nan_py.extract().unwrap();
