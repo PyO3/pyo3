@@ -263,6 +263,7 @@ print_if_set("base_prefix", base_prefix)
 print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 print("mingw", get_platform().startswith("mingw"))
+print("cygwin", get_platform().startswith("cygwin"))
 print("ext_suffix", get_config_var("EXT_SUFFIX"))
 print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 "#;
@@ -315,6 +316,8 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             _ => panic!("Unknown Py_GIL_DISABLED value"),
         };
 
+        let cygwin = map["cygwin"].as_str() == "True";
+
         let lib_name = if cfg!(windows) {
             default_lib_name_windows(
                 version,
@@ -331,6 +334,8 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             default_lib_name_unix(
                 version,
                 implementation,
+                abi3,
+                cygwin,
                 map.get("ld_version").map(String::as_str),
                 gil_disabled,
             )?
@@ -410,9 +415,13 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             Some(value) => value == "1",
             None => false,
         };
+        let cygwin = soabi.ends_with("cygwin");
+        let abi3 = is_abi3();
         let lib_name = Some(default_lib_name_unix(
             version,
             implementation,
+            abi3,
+            cygwin,
             sysconfigdata.get_value("LDVERSION"),
             gil_disabled,
         )?);
@@ -425,7 +434,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             implementation,
             version,
             shared: shared || framework,
-            abi3: is_abi3(),
+            abi3,
             lib_dir,
             lib_name,
             executable: None,
@@ -1714,7 +1723,15 @@ fn default_lib_name_for_target(
     if target.operating_system == OperatingSystem::Windows {
         default_lib_name_windows(version, implementation, abi3, false, false, gil_disabled).unwrap()
     } else {
-        default_lib_name_unix(version, implementation, None, gil_disabled).unwrap()
+        default_lib_name_unix(
+            version,
+            implementation,
+            abi3,
+            target.operating_system == OperatingSystem::Cygwin,
+            None,
+            gil_disabled,
+        )
+        .unwrap()
     }
 }
 
@@ -1760,6 +1777,8 @@ fn default_lib_name_windows(
 fn default_lib_name_unix(
     version: PythonVersion,
     implementation: PythonImplementation,
+    abi3: bool,
+    cygwin: bool,
     ld_version: Option<&str>,
     gil_disabled: bool,
 ) -> Result<String> {
@@ -1767,7 +1786,9 @@ fn default_lib_name_unix(
         PythonImplementation::CPython => match ld_version {
             Some(ld_version) => Ok(format!("python{ld_version}")),
             None => {
-                if version > PythonVersion::PY37 {
+                if cygwin && abi3 {
+                    Ok("python3".to_string())
+                } else if version > PythonVersion::PY37 {
                     // PEP 3149 ABI version tags are finally gone
                     if gil_disabled {
                         ensure!(version >= PythonVersion::PY313, "Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
@@ -2688,6 +2709,8 @@ mod tests {
             super::default_lib_name_unix(
                 PythonVersion { major: 3, minor: 7 },
                 CPython,
+                false,
+                false,
                 None,
                 false
             )
@@ -2699,6 +2722,8 @@ mod tests {
             super::default_lib_name_unix(
                 PythonVersion { major: 3, minor: 8 },
                 CPython,
+                false,
+                false,
                 None,
                 false
             )
@@ -2709,6 +2734,8 @@ mod tests {
             super::default_lib_name_unix(
                 PythonVersion { major: 3, minor: 9 },
                 CPython,
+                false,
+                false,
                 None,
                 false
             )
@@ -2720,6 +2747,8 @@ mod tests {
             super::default_lib_name_unix(
                 PythonVersion { major: 3, minor: 9 },
                 CPython,
+                false,
+                false,
                 Some("3.7md"),
                 false
             )
@@ -2735,6 +2764,8 @@ mod tests {
                     minor: 11
                 },
                 PyPy,
+                false,
+                false,
                 None,
                 false
             )
@@ -2746,6 +2777,8 @@ mod tests {
             super::default_lib_name_unix(
                 PythonVersion { major: 3, minor: 9 },
                 PyPy,
+                false,
+                false,
                 Some("3.11d"),
                 false
             )
@@ -2761,6 +2794,8 @@ mod tests {
                     minor: 13
                 },
                 CPython,
+                false,
+                false,
                 None,
                 true
             )
@@ -2774,10 +2809,28 @@ mod tests {
                 minor: 12,
             },
             CPython,
+            false,
+            false,
             None,
             true,
         )
         .is_err());
+        // cygwin abi3 links to unversioned libpython
+        assert_eq!(
+            super::default_lib_name_unix(
+                PythonVersion {
+                    major: 3,
+                    minor: 13
+                },
+                CPython,
+                true,
+                true,
+                None,
+                false
+            )
+            .unwrap(),
+            "python3",
+        );
     }
 
     #[test]
