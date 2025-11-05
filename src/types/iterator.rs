@@ -40,7 +40,8 @@ pyobject_native_type_core!(
             .unwrap()
             .as_type_ptr()
     },
-    #module=Some("collections.abc"),
+    "collections.abc",
+    "Iterator",
     #checkfunction=ffi::PyIter_Check
 );
 

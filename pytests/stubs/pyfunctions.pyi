@@ -3,32 +3,34 @@ from typing import Any
 def args_kwargs(*args, **kwargs) -> Any: ...
 def many_keyword_arguments(
     *,
-    ant: Any | None = None,
-    bear: Any | None = None,
-    cat: Any | None = None,
-    dog: Any | None = None,
-    elephant: Any | None = None,
-    fox: Any | None = None,
-    goat: Any | None = None,
-    horse: Any | None = None,
-    iguana: Any | None = None,
-    jaguar: Any | None = None,
-    koala: Any | None = None,
-    lion: Any | None = None,
-    monkey: Any | None = None,
-    newt: Any | None = None,
-    owl: Any | None = None,
-    penguin: Any | None = None,
+    ant: object | None = None,
+    bear: object | None = None,
+    cat: object | None = None,
+    dog: object | None = None,
+    elephant: object | None = None,
+    fox: object | None = None,
+    goat: object | None = None,
+    horse: object | None = None,
+    iguana: object | None = None,
+    jaguar: object | None = None,
+    koala: object | None = None,
+    lion: object | None = None,
+    monkey: object | None = None,
+    newt: object | None = None,
+    owl: object | None = None,
+    penguin: object | None = None,
 ) -> None: ...
 def none() -> None: ...
-def positional_only(a: Any, /, b: Any) -> Any: ...
-def simple(a: Any, b: Any | None = None, *, c: Any | None = None) -> Any: ...
-def simple_args(a: Any, b: Any | None = None, *args, c: Any | None = None) -> Any: ...
+def positional_only(a: object, /, b: object) -> Any: ...
+def simple(a: object, b: object | None = None, *, c: object | None = None) -> Any: ...
+def simple_args(
+    a: object, b: object | None = None, *args, c: object | None = None
+) -> Any: ...
 def simple_args_kwargs(
-    a: Any, b: Any | None = None, *args, c: Any | None = None, **kwargs
+    a: object, b: object | None = None, *args, c: object | None = None, **kwargs
 ) -> Any: ...
 def simple_kwargs(
-    a: Any, b: Any | None = None, c: Any | None = None, **kwargs
+    a: object, b: object | None = None, c: object | None = None, **kwargs
 ) -> Any: ...
 def with_custom_type_annotations(
     a: int, *_args: str, _b: int | None = None, **_kwargs: bool

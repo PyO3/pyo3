@@ -201,7 +201,8 @@ pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
     |py| expect_datetime_api(py).DateType,
-    #module=Some("datetime"),
+    "datetime",
+    "date",
     #checkfunction=PyDate_Check
 );
 #[cfg(not(Py_LIMITED_API))]
@@ -214,7 +215,8 @@ pyobject_native_type_core!(
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "datetime", "date").unwrap().as_type_ptr()
     },
-    #module=Some("datetime")
+    "datetime",
+    "date"
 );
 
 impl PyDate {
@@ -287,7 +289,8 @@ pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
     |py| expect_datetime_api(py).DateTimeType,
-    #module=Some("datetime"),
+    "datetime",
+    "datetime",
     #checkfunction=PyDateTime_Check
 );
 #[cfg(not(Py_LIMITED_API))]
@@ -298,9 +301,12 @@ pyobject_native_type_core!(
     PyDateTime,
     |py| {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "datetime", "datetime").unwrap().as_type_ptr()
+        TYPE.import(py, "datetime", "datetime")
+            .unwrap()
+            .as_type_ptr()
     },
-    #module=Some("datetime")
+    "datetime",
+    "datetime"
 );
 
 impl PyDateTime {
@@ -519,7 +525,8 @@ pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
     |py| expect_datetime_api(py).TimeType,
-    #module=Some("datetime"),
+    "datetime",
+    "time",
     #checkfunction=PyTime_Check
 );
 #[cfg(not(Py_LIMITED_API))]
@@ -532,7 +539,8 @@ pyobject_native_type_core!(
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "datetime", "time").unwrap().as_type_ptr()
     },
-    #module=Some("datetime")
+    "datetime",
+    "time"
 );
 
 impl PyTime {
@@ -689,7 +697,7 @@ pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
     |py| expect_datetime_api(py).TZInfoType,
-    #module=Some("datetime"),
+    "datetime", "tzinfo",
     #checkfunction=PyTZInfo_Check
 );
 #[cfg(not(Py_LIMITED_API))]
@@ -702,7 +710,8 @@ pyobject_native_type_core!(
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "datetime", "tzinfo").unwrap().as_type_ptr()
     },
-    #module=Some("datetime")
+    "datetime",
+    "tzinfo"
 );
 
 impl PyTzInfo {
@@ -798,7 +807,7 @@ pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,
     |py| expect_datetime_api(py).DeltaType,
-    #module=Some("datetime"),
+    "datetime", "timedelta",
     #checkfunction=PyDelta_Check
 );
 #[cfg(not(Py_LIMITED_API))]
@@ -809,9 +818,12 @@ pyobject_native_type_core!(
     PyDelta,
     |py| {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "datetime", "timedelta").unwrap().as_type_ptr()
+        TYPE.import(py, "datetime", "timedelta")
+            .unwrap()
+            .as_type_ptr()
     },
-    #module=Some("datetime")
+    "datetime",
+    "timedelta"
 );
 
 impl PyDelta {
