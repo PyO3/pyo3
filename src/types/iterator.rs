@@ -1,3 +1,5 @@
+#[cfg(not(Py_LIMITED_API))]
+use crate::exceptions::PyNotImplementedError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
@@ -108,8 +110,19 @@ impl<'py> Iterator for Bound<'py, PyIterator> {
 
     #[cfg(not(Py_LIMITED_API))]
     fn size_hint(&self) -> (usize, Option<usize>) {
+        // SAFETY: `self` is a valid iterator object
         let hint = unsafe { ffi::PyObject_LengthHint(self.as_ptr(), 0) };
-        (hint.max(0) as usize, None)
+        if hint < 0 {
+            let py = self.py();
+            let err = PyErr::fetch(py);
+            if !err.is_instance_of::<PyNotImplementedError>(py) {
+                // Write unraisable error only if it's not NotImplementedError
+                err.write_unraisable(py, Some(self));
+            }
+            (0, None)
+        } else {
+            (hint as usize, None)
+        }
     }
 }
 
@@ -144,7 +157,7 @@ mod tests {
     #[cfg(all(not(PyPy), Py_3_10))]
     use crate::types::PyNone;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
-    use crate::{IntoPyObject, PyTypeInfo, Python};
+    use crate::{IntoPyObject, PyErr, PyTypeInfo, Python};
 
     #[test]
     fn vec_iter() {
@@ -389,6 +402,35 @@ def fibonacci(target):
             let iter = list.try_iter().unwrap();
             let hint = iter.size_hint();
             assert_eq!(hint, (3, None));
+        });
+    }
+
+    #[test]
+    #[cfg(all(feature = "macros", not(Py_LIMITED_API)))]
+    fn length_hint_not_implemented() {
+        #[crate::pyfunction(crate = "crate")]
+        fn test_size_hint(obj: &crate::Bound<'_, crate::PyAny>) {
+            let iter = obj.cast::<PyIterator>().unwrap();
+            assert_eq!((0, None), iter.size_hint());
+            assert!(PyErr::take(obj.py()).is_none());
+        }
+
+        Python::attach(|py| {
+            let test_size_hint = crate::wrap_pyfunction!(test_size_hint, py).unwrap();
+            crate::py_run!(
+                py,
+                test_size_hint,
+                r#"
+                    class MyIter:
+                        def __next__(self):
+                            raise StopIteration
+
+                        def __length_hint__(self):
+                            raise NotImplementedError
+
+                    test_size_hint(MyIter())
+                "#
+            );
         });
     }
 
