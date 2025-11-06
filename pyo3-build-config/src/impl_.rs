@@ -98,6 +98,11 @@ pub struct InterpreterConfig {
     /// Serialized to `version`.
     pub version: PythonVersion,
 
+    /// The name of the Python framework (if available)
+    ///
+    /// Serialized to `framework`.
+    pub framework: Option<String>,
+
     /// Whether link library is shared.
     ///
     /// Serialized to `shared`.
@@ -255,6 +260,7 @@ SHARED = bool(get_config_var("Py_ENABLE_SHARED"))
 print("implementation", platform.python_implementation())
 print("version_major", sys.version_info[0])
 print("version_minor", sys.version_info[1])
+print_if_set("framework", get_config_var("PYTHONFRAMEWORK"))
 print("shared", PYPY or GRAALPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
 print("python_framework_prefix", FRAMEWORK_PREFIX)
 print_if_set("ld_version", get_config_var("LDVERSION"))
@@ -293,6 +299,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             );
         };
 
+        let framework = map.get("framework").cloned();
         let shared = map["shared"].as_str() == "True";
         let python_framework_prefix = map.get("python_framework_prefix").cloned();
 
@@ -360,6 +367,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         Ok(InterpreterConfig {
             version,
             implementation,
+            framework,
             shared,
             abi3,
             lib_name: Some(lib_name),
@@ -403,10 +411,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             _ => bail!("expected a bool (1/true/True or 0/false/False) for Py_ENABLE_SHARED"),
         };
         // macOS framework packages use shared linking (PYTHONFRAMEWORK is the framework name, hence the empty check)
-        let framework = match sysconfigdata.get_value("PYTHONFRAMEWORK") {
-            Some(s) => !s.is_empty(),
-            _ => false,
-        };
+        let framework = get_key!(sysconfigdata, "PYTHONFRAMEWORK").ok().map(str::to_string);
         let python_framework_prefix = sysconfigdata
             .get_value("PYTHONFRAMEWORKPREFIX")
             .map(str::to_string);
@@ -429,11 +434,13 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             .map(|bytes_width: u32| bytes_width * 8)
             .ok();
         let build_flags = BuildFlags::from_sysconfigdata(sysconfigdata);
+        let shared = shared || framework.is_some();
 
         Ok(InterpreterConfig {
             implementation,
             version,
-            shared: shared || framework,
+            framework,
+            shared,
             abi3,
             lib_dir,
             lib_name,
@@ -510,6 +517,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 
         let mut implementation = None;
         let mut version = None;
+        let mut framework = None;
         let mut shared = None;
         let mut abi3 = None;
         let mut lib_name = None;
@@ -535,6 +543,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             match key {
                 "implementation" => parse_value!(implementation, value),
                 "version" => parse_value!(version, value),
+                "framework" => parse_value!(framework, value),
                 "shared" => parse_value!(shared, value),
                 "abi3" => parse_value!(abi3, value),
                 "lib_name" => parse_value!(lib_name, value),
@@ -561,6 +570,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         Ok(InterpreterConfig {
             implementation,
             version,
+            framework,
             shared: shared.unwrap_or(true),
             abi3,
             lib_name,
@@ -674,6 +684,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 
         write_line!(implementation)?;
         write_line!(version)?;
+        write_option_line!(framework)?;
         write_line!(shared)?;
         write_line!(abi3)?;
         write_option_line!(lib_name)?;
@@ -1622,6 +1633,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
     Ok(InterpreterConfig {
         implementation,
         version,
+        framework: None,
         shared: true,
         abi3,
         lib_name: Some(lib_name),
@@ -1665,6 +1677,7 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> Result<Interpre
     Ok(InterpreterConfig {
         implementation,
         version,
+        framework: None,
         shared: true,
         abi3,
         lib_name,
@@ -2055,6 +2068,7 @@ mod tests {
             implementation: PythonImplementation::CPython,
             lib_name: Some("lib_name".into()),
             lib_dir: Some("lib_dir".into()),
+            framework: Some("Python".into()),
             shared: true,
             version: MINIMUM_SUPPORTED_VERSION,
             suppress_build_script_link_lines: true,
@@ -2081,6 +2095,7 @@ mod tests {
             implementation: PythonImplementation::PyPy,
             lib_dir: None,
             lib_name: None,
+            framework: None,
             shared: true,
             version: PythonVersion {
                 major: 3,
@@ -2106,6 +2121,7 @@ mod tests {
             implementation: PythonImplementation::CPython,
             lib_name: Some("lib_name".into()),
             lib_dir: Some("lib_dir\\n".into()),
+            framework: None,
             shared: true,
             version: MINIMUM_SUPPORTED_VERSION,
             suppress_build_script_link_lines: true,
@@ -2128,6 +2144,7 @@ mod tests {
             InterpreterConfig {
                 version: PythonVersion { major: 3, minor: 7 },
                 implementation: PythonImplementation::CPython,
+                framework: None,
                 shared: true,
                 abi3: false,
                 lib_name: None,
@@ -2151,6 +2168,7 @@ mod tests {
             InterpreterConfig {
                 version: PythonVersion { major: 3, minor: 7 },
                 implementation: PythonImplementation::CPython,
+                framework: None,
                 shared: true,
                 abi3: false,
                 lib_name: None,
@@ -2259,6 +2277,7 @@ mod tests {
                 implementation: PythonImplementation::CPython,
                 lib_dir: Some("/usr/lib".into()),
                 lib_name: Some("python3.7m".into()),
+                framework: None,
                 shared: true,
                 version: PythonVersion::PY37,
                 suppress_build_script_link_lines: false,
@@ -2289,6 +2308,7 @@ mod tests {
                 implementation: PythonImplementation::CPython,
                 lib_dir: Some("/usr/lib".into()),
                 lib_name: Some("python3.7m".into()),
+                framework: Some("Python".into()),
                 shared: true,
                 version: PythonVersion::PY37,
                 suppress_build_script_link_lines: false,
@@ -2316,6 +2336,7 @@ mod tests {
                 implementation: PythonImplementation::CPython,
                 lib_dir: Some("/usr/lib".into()),
                 lib_name: Some("python3.7m".into()),
+                framework: None,
                 shared: false,
                 version: PythonVersion::PY37,
                 suppress_build_script_link_lines: false,
@@ -2335,6 +2356,7 @@ mod tests {
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
                 version: PythonVersion { major: 3, minor: 7 },
+                framework: None,
                 shared: true,
                 abi3: true,
                 lib_name: Some("python3".into()),
@@ -2359,6 +2381,7 @@ mod tests {
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
                 version: PythonVersion { major: 3, minor: 9 },
+                framework: None,
                 shared: true,
                 abi3: true,
                 lib_name: None,
@@ -2394,6 +2417,7 @@ mod tests {
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
                 version: PythonVersion { major: 3, minor: 7 },
+                framework: None,
                 shared: true,
                 abi3: false,
                 lib_name: Some("python37".into()),
@@ -2429,6 +2453,7 @@ mod tests {
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
                 version: PythonVersion { major: 3, minor: 8 },
+                framework: None,
                 shared: true,
                 abi3: false,
                 lib_name: Some("python38".into()),
@@ -2464,6 +2489,7 @@ mod tests {
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
                 version: PythonVersion { major: 3, minor: 9 },
+                framework: None,
                 shared: true,
                 abi3: false,
                 lib_name: Some("python3.9".into()),
@@ -2501,6 +2527,7 @@ mod tests {
                     major: 3,
                     minor: 11
                 },
+                framework: None,
                 shared: true,
                 abi3: false,
                 lib_name: Some("pypy3.11-c".into()),
@@ -2894,6 +2921,7 @@ mod tests {
             implementation: PythonImplementation::CPython,
             lib_dir: None,
             lib_name: None,
+            framework: None,
             shared: true,
             version: PythonVersion { major: 3, minor: 7 },
             suppress_build_script_link_lines: false,
@@ -2917,6 +2945,7 @@ mod tests {
             implementation: PythonImplementation::CPython,
             lib_dir: None,
             lib_name: None,
+            framework: None,
             shared: true,
             version: PythonVersion { major: 3, minor: 7 },
             suppress_build_script_link_lines: false,
@@ -3112,6 +3141,7 @@ mod tests {
                 major: 3,
                 minor: 11,
             },
+            framework: None,
             shared: true,
             abi3: false,
             lib_name: Some("python3".into()),
@@ -3156,6 +3186,7 @@ mod tests {
         let interpreter_config = InterpreterConfig {
             implementation: PythonImplementation::CPython,
             version: PythonVersion { major: 3, minor: 9 },
+            framework: None,
             shared: true,
             abi3: true,
             lib_name: Some("python3".into()),
@@ -3204,6 +3235,7 @@ mod tests {
                 major: 3,
                 minor: 13,
             },
+            framework: None,
             shared: true,
             abi3: false,
             lib_name: Some("python3".into()),
@@ -3238,6 +3270,7 @@ mod tests {
         let interpreter_config = InterpreterConfig {
             implementation: PythonImplementation::CPython,
             version: PythonVersion { major: 3, minor: 7 },
+            framework: None,
             shared: true,
             abi3: false,
             lib_name: Some("python3".into()),
@@ -3293,6 +3326,7 @@ mod tests {
         let mut config = InterpreterConfig {
             implementation: PythonImplementation::CPython,
             version: PythonVersion { major: 3, minor: 9 },
+            framework: None,
             shared: true,
             abi3: false,
             lib_name: None,

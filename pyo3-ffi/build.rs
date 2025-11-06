@@ -150,7 +150,9 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
 
     println!(
         "cargo:rustc-link-lib={link_model}{alias}{lib_name}",
-        link_model = if interpreter_config.shared {
+        link_model = if interpreter_config.framework.is_some() {
+            "framework="
+        } else if interpreter_config.shared {
             ""
         } else {
             "static="
@@ -160,11 +162,18 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
         } else {
             ""
         },
-        lib_name = interpreter_config.lib_name.as_ref().ok_or(
-            "attempted to link to Python shared library but config does not contain lib_name"
-        )?,
+        lib_name = if let Some(framework) = &interpreter_config.framework {
+            framework
+        } else {
+            interpreter_config.lib_name.as_ref().ok_or(
+                "attempted to link to Python shared library but config does not contain lib_name"
+            )?
+        },
     );
 
+    if let Some(framework_prefix) = &interpreter_config.python_framework_prefix {
+        println!("cargo:rustc-link-search=framework={framework_prefix}");
+    }
     if let Some(lib_dir) = &interpreter_config.lib_dir {
         println!("cargo:rustc-link-search=native={lib_dir}");
     } else if matches!(build_config.source, BuildConfigSource::CrossCompile) {
