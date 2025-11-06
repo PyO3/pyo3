@@ -411,7 +411,9 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             _ => bail!("expected a bool (1/true/True or 0/false/False) for Py_ENABLE_SHARED"),
         };
         // macOS framework packages use shared linking (PYTHONFRAMEWORK is the framework name, hence the empty check)
-        let framework = get_key!(sysconfigdata, "PYTHONFRAMEWORK").ok().map(str::to_string);
+        let framework = get_key!(sysconfigdata, "PYTHONFRAMEWORK")
+            .ok()
+            .map(str::to_string);
         let python_framework_prefix = sysconfigdata
             .get_value("PYTHONFRAMEWORKPREFIX")
             .map(str::to_string);
