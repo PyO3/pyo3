@@ -34,3 +34,58 @@ def test(session: nox.Session):
 def bench(session: nox.Session):
     session.install(".[dev]")
     session.run("pytest", "--benchmark-enable", "--benchmark-only", *session.posargs)
+
+
+@nox.session
+def build_guide(session: nox.Session):
+    """Build the mdBook guide for all languages"""
+    # Build main guide (English)
+    session.run("mdbook", "build", "guide", external=True)
+    # Build Chinese guide if it exists
+    try:
+        session.run("mdbook", "build", "guide/cn", external=True)
+    except CommandFailed:
+        print("Chinese guide build failed or doesn't exist, continuing...")
+
+
+@nox.session
+def check_guide(session: nox.Session):
+    """Build and check links in the mdBook guide"""
+    # Build all guides first
+    session.run("mdbook", "build", "guide", external=True)
+    try:
+        session.run("mdbook", "build", "guide/cn", external=True)
+    except CommandFailed:
+        print("Chinese guide build failed or doesn't exist, continuing...")
+
+    # Run lychee link checker on the built output
+    session.run(
+        "lychee",
+        "--include-fragments",
+        "target/guide/",
+        "--remap",
+        "file://target/guide/=https://pyo3.rs/",
+        "--remap",
+        "file://target/guide/cn/=https://pyo3.rs/cn/",
+        "--accept=200,429",
+        "--exclude-path",
+        "target/guide/doc/",
+        external=True,
+    )
+
+
+@nox.session
+def ruff(session: nox.Session):
+    """Check code formatting and linting with ruff"""
+    session.install("ruff")
+
+    # Run ruff format check
+    session.run("ruff", "format", ".", "--check")
+
+    # Run ruff linting
+    session.run("ruff", "check", ".")
+    """Build the complete Netlify site"""
+    session.install("requests", "towncrier")
+
+    # Run the netlify build script
+    session.run("bash", ".netlify/build.sh", *session.posargs, external=True)

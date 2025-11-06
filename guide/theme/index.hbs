@@ -1,0 +1,311 @@
+<!DOCTYPE HTML>
+<html lang="{{ language }}" class="sidebar-visible no-js {{ default_theme }}">
+<head>
+    <!-- Book generated using mdBook -->
+    <meta charset="UTF-8">
+    <title>{{ title }} - {{ book_title }}</title>
+    {{#if is_print }}
+    <meta name="robots" content="noindex">
+    {{/if}}
+    <!-- Custom HTML head -->
+    {{> head }}
+
+    <meta name="description" content="{{ description }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff">
+
+    {{#if favicon_png }}
+    <link rel="icon" href="{{ path_to_root }}favicon.png">
+    {{/if}}
+    {{#if favicon_svg }}
+    <link rel="icon" href="{{ path_to_root }}favicon.svg">
+    {{/if}}
+    <link rel="shortcut icon" href="{{ path_to_root }}favicon.png">
+    <link rel="stylesheet" href="{{ path_to_root }}css/variables.css">
+    <link rel="stylesheet" href="{{ path_to_root }}css/general.css">
+    <link rel="stylesheet" href="{{ path_to_root }}css/chrome.css">
+    {{#if print_enable }}
+    <link rel="stylesheet" href="{{ path_to_root }}css/print.css" media="print">
+    {{/if}}
+
+    <!-- Fonts -->
+    <link rel="stylesheet" href="{{ path_to_root }}FontAwesome/css/font-awesome.css">
+    {{#if copy_fonts }}
+    <link rel="stylesheet" href="{{ path_to_root }}fonts/fonts.css">
+    {{/if}}
+
+    <!-- Highlight CSS -->
+    <link rel="stylesheet" href="{{ path_to_root }}highlight.css">
+    <!-- Custom CSS -->
+    {{#if additional_css }}
+        {{# each additional_css }}
+            <link rel="stylesheet" href="{{ ../path_to_root }}{{ this }}">
+        {{/each}}
+    {{/if}}
+
+    <!-- Custom JS -->
+    {{#if additional_js }}
+        {{# each additional_js }}
+            <script src="{{ ../path_to_root }}{{ this }}"></script>
+        {{/each}}
+    {{/if}}
+
+    <!-- MathJax -->
+    {{#if mathjax_support }}
+    <script type="text/javascript" async
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+    </script>
+    {{/if}}
+</head>
+<body>
+<!-- Provide site root to javascript -->
+<script>
+    var path_to_root = "{{ path_to_root }}";
+    var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "{{ default_theme }}";
+</script>
+
+<!-- Work around some values being stored in localStorage wrapped in quotes. -->
+<script>
+    try {
+        var theme = localStorage.getItem('mdbook-theme');
+        var sidebar = localStorage.getItem('mdbook-sidebar');
+
+        if (theme.startsWith('"') && theme.endsWith('"')) {
+            localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+        }
+
+        if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+            localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+        }
+    } catch (e) { }
+</script>
+
+<!-- Set the theme before any content is loaded, prevents flicker -->
+<script>
+    var theme;
+    try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+    if (theme === null || theme === undefined) { theme = default_theme; }
+    var html = document.querySelector('html');
+    html.classList.remove('{{ default_theme }}')
+    html.classList.add(theme);
+    var body = document.querySelector('body');
+    body.classList.remove('no-js')
+    body.classList.add('js');
+</script>
+
+{{#if playground_line_numbers }}
+<script type="text/template" id="line-numbers-template">
+    <span aria-hidden="true">{{this}}</span>
+</script>
+{{/if}}
+
+<!-- Hide / unhide sidebar before it is displayed -->
+<script>
+    var html = document.querySelector('html');
+    var sidebar = null;
+    if (document.body.clientWidth >= 1080) {
+        try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+        sidebar = sidebar || 'visible';
+    } else {
+        sidebar = 'hidden';
+    }
+    html.classList.remove('sidebar-visible');
+    html.classList.add("sidebar-" + sidebar);
+</script>
+
+<nav id="sidebar" class="sidebar" aria-label="Table of contents">
+    <!-- 添加语言切换器在这里（侧边栏顶部） -->
+    <div class="language-switcher">
+        <select onchange="switchLanguage(this.value)">
+            <option value="en" {{#if (eq language "en")}}selected{{/if}}>English</option>
+            <option value="cn" {{#if (eq language "cn")}}selected{{/if}}>中文</option>
+        </select>
+    </div>
+    <div class="sidebar-scrollbox">
+        {{{ toc }}}
+    </div>
+    <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+        <div class="sidebar-resize-indicator"></div>
+    </div>
+</nav>
+
+<!-- Track and set sidebar scroll position -->
+<script>
+    var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+    sidebarScrollbox.addEventListener('click', function(e) {
+        if (e.target.tagName === 'A') {
+            sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+        }
+    }, true);
+    document.addEventListener('scroll', function(e) {
+        sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+    }, true);
+
+    var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+    sessionStorage.removeItem('sidebar-scroll');
+    if (sidebarScrollTop !== null) {
+        sidebarScrollbox.scrollTop = parseInt(sidebarScrollTop);
+    }
+</script>
+
+<div id="page-wrapper" class="page-wrapper">
+
+    <div class="page">
+        {{> header }}
+        <div id="menu-bar-hover-placeholder"></div>
+        <div id="menu-bar" class="menu-bar sticky">
+            <div class="left-buttons">
+                <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                    <i class="fa fa-bars"></i>
+                </label>
+                <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                    <i class="fa fa-paint-brush"></i>
+                </button>
+                <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                    <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                    <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                    <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                    <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                    <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                </ul>
+                {{#if search_enabled }}
+                <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                    <i class="fa fa-search"></i>
+                </button>
+                {{/if}}
+            </div>
+
+            <h1 class="menu-title">{{ book_title }}</h1>
+
+            <div class="right-buttons">
+                {{#if print_enable }}
+                <a href="{{ path_to_root }}print.html" title="Print this book" aria-label="Print this book">
+                    <i id="print-button" class="fa fa-print"></i>
+                </a>
+                {{/if}}
+                {{#if git_repository_url }}
+                <a href="{{git_repository_url}}" title="Git repository" aria-label="Git repository">
+                    <i id="git-repository-button" class="fa {{git_repository_icon}}"></i>
+                </a>
+                {{/if}}
+                {{#if git_repository_edit_url }}
+                <a href="{{git_repository_edit_url}}" title="Suggest an edit" aria-label="Suggest an edit">
+                    <i id="git-edit-button" class="fa fa-edit"></i>
+                </a>
+                {{/if}}
+            </div>
+        </div>
+
+        {{#if search_enabled }}
+        <div id="search-wrapper" class="hidden">
+            <form id="searchbar-outer" class="searchbar-outer">
+                <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+            </form>
+            <div id="searchresults-outer" class="searchresults-outer hidden">
+                <div id="searchresults-header" class="searchresults-header"></div>
+                <ul id="searchresults">
+                </ul>
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+        <script>
+            document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+            document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+            Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+            });
+        </script>
+
+        <div id="content" class="content">
+            <main>
+                {{{ content }}}
+            </main>
+
+            <nav class="nav-wrapper" aria-label="Page navigation">
+                <!-- Mobile navigation buttons -->
+                {{# previous }}
+                    <a rel="prev" href="{{ path_to_root }}{{ link }}" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                {{/ previous }}
+
+                {{# next }}
+                    <a rel="next" href="{{ path_to_root }}{{ link }}" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                {{/ next }}
+
+                <div style="clear: both"></div>
+            </nav>
+        </div>
+    </div>
+
+    <nav class="nav-wide-wrapper" aria-label="Page navigation">
+        {{# previous }}
+            <a rel="prev" href="{{ path_to_root }}{{ link }}" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                <i class="fa fa-angle-left"></i>
+            </a>
+        {{/ previous }}
+
+        {{# next }}
+            <a rel="next" href="{{ path_to_root }}{{ link }}" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                <i class="fa fa-angle-right"></i>
+            </a>
+        {{/ next }}
+    </nav>
+
+</div>
+
+{{#if livereload }}
+<!-- Livereload script (if served using the cli tool) -->
+<script>
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+    const socket = new WebSocket(wsAddress);
+    socket.onmessage = function (event) {
+        if (event.data === "reload") {
+            socket.close();
+            location.reload();
+        }
+    };
+
+    window.onbeforeunload = function() {
+        socket.close();
+    }
+</script>
+{{/if}}
+
+{{#if playground_copyable }}
+<script src="{{ path_to_root }}ace.js"></script>
+<script src="{{ path_to_root }}editor.js"></script>
+<script src="{{ path_to_root }}mode-rust.js"></script>
+<script src="{{ path_to_root }}theme-dawn.js"></script>
+<script src="{{ path_to_root }}theme-tomorrow_night.js"></script>
+{{/if}}
+
+{{#if search_enabled }}
+<script src="{{ path_to_root }}elasticlunr.min.js"></script>
+<script src="{{ path_to_root }}mark.min.js"></script>
+<script src="{{ path_to_root }}searcher.js"></script>
+{{/if}}
+
+<script src="{{ path_to_root }}clipboard.min.js"></script>
+<script src="{{ path_to_root }}highlight.js"></script>
+<script src="{{ path_to_root }}book.js"></script>
+
+<!-- Custom JS scripts -->
+{{#if additional_js }}
+    {{# each additional_js }}
+        <script src="{{ ../path_to_root }}{{ this }}"></script>
+    {{/each}}
+{{/if}}
+
+{{#if live_translations }}
+<script>
+    var LI_LANGUAGE_DICTIONARY = {{{ LI_LANGUAGE_DICTIONARY }}};
+</script>
+{{/if}}
+</body>
+</html>
