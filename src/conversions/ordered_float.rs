@@ -128,7 +128,11 @@ mod test_ordered_float {
                 Python::attach(|py| {
                     let f_py: Bound<'_, PyFloat>  = f.into_pyobject(py).unwrap();
 
-                    py_run(py, format!("import math\nassert math.isclose(f_py, {f_py})"), [("f_py", &f_py)]);
+                    py_run(py, format!(
+                            "import math\nassert math.isclose(f_py, {})",
+                             inner_f as f64 // Always interpret the literal rs float value as f64
+                                            // so that it's comparable with the python float
+                        ), [("f_py", &f_py)]);
 
                     let roundtripped_f: $wrapper<$float_type> = f_py.extract().unwrap();
 
