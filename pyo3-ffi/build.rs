@@ -166,13 +166,15 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
             framework
         } else {
             interpreter_config.lib_name.as_ref().ok_or(
-                "attempted to link to Python shared library but config does not contain lib_name",
+                "attempted to link to Python shared library but config does not contain lib_name"
             )?
         },
     );
 
-    if let Some(framework_prefix) = &interpreter_config.python_framework_prefix {
-        println!("cargo:rustc-link-search=framework={framework_prefix}");
+    if interpreter_config.framework.is_some() {
+        if let Some(framework_prefix) = &interpreter_config.python_framework_prefix {
+            println!("cargo:rustc-link-search=framework={framework_prefix}");
+        }
     }
     if let Some(lib_dir) = &interpreter_config.lib_dir {
         println!("cargo:rustc-link-search=native={lib_dir}");
