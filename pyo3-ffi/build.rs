@@ -166,7 +166,7 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
             framework
         } else {
             interpreter_config.lib_name.as_ref().ok_or(
-                "attempted to link to Python shared library but config does not contain lib_name"
+                "attempted to link to Python shared library but config does not contain lib_name",
             )?
         },
     );
