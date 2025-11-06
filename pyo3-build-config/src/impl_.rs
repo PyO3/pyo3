@@ -243,8 +243,8 @@ if base_prefix:
 else:
     ANACONDA = False
 
-def print_if_set(varname, value):
-    if value is not None:
+def print_if_set(varname, value, empty_as_none=False):
+    if value is not None or (empty_as_none and value != ""):
         print(varname, value)
 
 # Windows always uses shared linking
@@ -260,7 +260,7 @@ SHARED = bool(get_config_var("Py_ENABLE_SHARED"))
 print("implementation", platform.python_implementation())
 print("version_major", sys.version_info[0])
 print("version_minor", sys.version_info[1])
-print_if_set("framework", get_config_var("PYTHONFRAMEWORK"))
+print_if_set("framework", get_config_var("PYTHONFRAMEWORK"), empty_as_none=True)
 print("shared", PYPY or GRAALPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
 print("python_framework_prefix", FRAMEWORK_PREFIX)
 print_if_set("ld_version", get_config_var("LDVERSION"))
@@ -3013,6 +3013,7 @@ mod tests {
                 implementation: PythonImplementation::CPython,
                 lib_dir: interpreter_config.lib_dir.to_owned(),
                 lib_name: interpreter_config.lib_name.to_owned(),
+                framework: None,
                 shared: true,
                 version: interpreter_config.version,
                 suppress_build_script_link_lines: false,
