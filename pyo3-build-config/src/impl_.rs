@@ -243,8 +243,12 @@ if base_prefix:
 else:
     ANACONDA = False
 
-def print_if_set(varname, value, empty_as_none=False):
-    if value is not None or (empty_as_none and value != ""):
+def print_if_set(varname, value):
+    if value is not None:
+        print(varname, value)
+
+def print_if_not_empty(varname, value):
+    if value:
         print(varname, value)
 
 # Windows always uses shared linking
@@ -260,7 +264,7 @@ SHARED = bool(get_config_var("Py_ENABLE_SHARED"))
 print("implementation", platform.python_implementation())
 print("version_major", sys.version_info[0])
 print("version_minor", sys.version_info[1])
-print_if_set("framework", get_config_var("PYTHONFRAMEWORK"), empty_as_none=True)
+print_if_not_empty("framework", get_config_var("PYTHONFRAMEWORK"))
 print("shared", PYPY or GRAALPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
 print("python_framework_prefix", FRAMEWORK_PREFIX)
 print_if_set("ld_version", get_config_var("LDVERSION"))
@@ -413,6 +417,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         // macOS framework packages use shared linking (PYTHONFRAMEWORK is the framework name, hence the empty check)
         let framework = get_key!(sysconfigdata, "PYTHONFRAMEWORK")
             .ok()
+            .filter(|s| !s.is_empty())
             .map(str::to_string);
         let python_framework_prefix = sysconfigdata
             .get_value("PYTHONFRAMEWORKPREFIX")
