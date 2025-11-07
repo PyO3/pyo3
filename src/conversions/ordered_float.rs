@@ -98,7 +98,7 @@ float_conversions!(NotNan, f32, |val| NotNan::new(val)
 float_conversions!(NotNan, f64, |val| NotNan::new(val)
     .map_err(|e| PyValueError::new_err(e.to_string())));
 
-#[cfg(all(test))]
+#[cfg(test)]
 mod test_ordered_float {
     use super::*;
     use crate::types::dict::IntoPyDict;
