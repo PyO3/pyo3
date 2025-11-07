@@ -85,17 +85,20 @@
 /// ```
 #[macro_export]
 macro_rules! py_run {
+    // TODO: support c string literals?
+    // unindent the code at compile time
     ($py:expr, $($val:ident)+, $code:literal) => {{
-        $crate::py_run_impl!($py, $($val)+, $crate::indoc::indoc!($code))
-    }};
-    ($py:expr, $($val:ident)+, $code:expr) => {{
-        $crate::py_run_impl!($py, $($val)+, $crate::unindent::unindent($code))
+        $crate::py_run_impl!($py, $($val)+, $crate::impl_::unindent::unindent!($code))
     }};
     ($py:expr, *$dict:expr, $code:literal) => {{
-        $crate::py_run_impl!($py, *$dict, $crate::indoc::indoc!($code))
+        $crate::py_run_impl!($py, *$dict, $crate::impl_::unindent::unindent!($code))
+    }};
+    // unindent the code at runtime, TODO: support C strings somehow?
+    ($py:expr, $($val:ident)+, $code:expr) => {{
+        $crate::py_run_impl!($py, $($val)+, $crate::impl_::unindent::unindent($code))
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{
-        $crate::py_run_impl!($py, *$dict, $crate::unindent::unindent($code))
+        $crate::py_run_impl!($py, *$dict, $crate::impl_::unindent::unindent($code))
     }};
 }
 

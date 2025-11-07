@@ -26,4 +26,5 @@ pub mod pymethods;
 pub mod pymodule;
 #[doc(hidden)]
 pub mod trampoline;
+pub mod unindent;
 pub mod wrap;
