@@ -85,7 +85,6 @@
 /// ```
 #[macro_export]
 macro_rules! py_run {
-    // TODO: support c string literals?
     // unindent the code at compile time
     ($py:expr, $($val:ident)+, $code:literal) => {{
         $crate::py_run_impl!($py, $($val)+, $crate::impl_::unindent::unindent!($code))
@@ -93,7 +92,7 @@ macro_rules! py_run {
     ($py:expr, *$dict:expr, $code:literal) => {{
         $crate::py_run_impl!($py, *$dict, $crate::impl_::unindent::unindent!($code))
     }};
-    // unindent the code at runtime, TODO: support C strings somehow?
+    // unindent the code at runtime
     ($py:expr, $($val:ident)+, $code:expr) => {{
         $crate::py_run_impl!($py, $($val)+, $crate::impl_::unindent::unindent($code))
     }};
@@ -102,6 +101,11 @@ macro_rules! py_run {
     }};
 }
 
+/// Internal implementation of the `py_run!` macro.
+///
+/// FIXME: this currently unconditionally allocates a `CString`. We should consider making this not so:
+/// - Maybe require users to pass `&CStr` / `CString`?
+/// - Maybe adjust the `unindent` code to produce `&Cstr` / `Cstring`?
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_run_impl {

@@ -1,4 +1,4 @@
-use core::panic;
+use crate::impl_::concat::slice_copy_from_slice;
 
 /// This is a reimplementation of the `indoc` crate's unindent functionality:
 ///
@@ -75,9 +75,10 @@ const fn unindent_bytes(bytes: &mut [u8]) -> usize {
             read_idx += 1;
         }
 
-        if leading_spaces_skipped < to_unindent && consume_eol(bytes, read_idx).is_none() {
-            panic!("removed fewer spaces than expected on non-empty line");
-        }
+        assert!(
+            leading_spaces_skipped == to_unindent || consume_eol(bytes, read_idx).is_some(),
+            "removed fewer spaces than expected on non-empty line"
+        );
 
         // copy remainder of line
         while read_idx < bytes.len() {
@@ -128,7 +129,7 @@ const fn consume_eol(bytes: &[u8], i: usize) -> Option<usize> {
 
 pub const fn unindent_sized<const N: usize>(src: &[u8]) -> ([u8; N], usize) {
     let mut out: [u8; N] = [0; N];
-    out.copy_from_slice(src);
+    slice_copy_from_slice(&mut out, src);
     let new_len = unindent_bytes(&mut out);
     (out, new_len)
 }
