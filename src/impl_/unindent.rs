@@ -215,7 +215,7 @@ no indent
         const INDENTED: &str = SAMPLE_1_WITH_FIRST_LINE;
         const LEN: usize = INDENTED.len();
         let (unindented, unindented_size) = unindent_sized::<LEN>(INDENTED.as_bytes());
-        let unindented = str::from_utf8(&unindented[..unindented_size]).unwrap();
+        let unindented = std::str::from_utf8(&unindented[..unindented_size]).unwrap();
         assert_eq!(unindented, UNINDENTED_1);
     }
 
