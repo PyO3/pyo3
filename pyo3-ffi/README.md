@@ -41,7 +41,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.27.1"
+pyo3-ffi = "0.27.1"
 
 [build-dependencies]
 # This is only necessary if you need to configure your build based on
