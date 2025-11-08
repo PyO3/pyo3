@@ -49,7 +49,7 @@ pub fn use_pyo3_cfgs() {
     }
 }
 
-/// Adds linker arguments suitable for PyO3's `extension-module` feature.
+/// Adds linker arguments suitable for linking an extension module.
 ///
 /// This should be called from a build script.
 ///

@@ -26,7 +26,7 @@ default = []
 # script. If this feature isn't enabled, the build script no-ops.
 resolve-config = []
 
-# This feature is enabled by pyo3 when building an extension module.
+# deprecated
 extension-module = []
 
 # Automatically generates `python3.dll` import libraries for Windows targets.
