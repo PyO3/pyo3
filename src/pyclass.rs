@@ -18,6 +18,11 @@ pub use self::guard::{
 /// The `#[pyclass]` attribute implements this trait for your Rust struct -
 /// you shouldn't implement this trait directly.
 pub trait PyClass: PyTypeInfo + PyClassImpl {
+    /// Name of the class.
+    ///
+    /// This can be set via `#[pyclass(name = "...")]`, otherwise it defaults to the Rust type name.
+    const NAME: &'static str;
+
     /// Whether the pyclass is frozen.
     ///
     /// This can be enabled via `#[pyclass(frozen)]`.

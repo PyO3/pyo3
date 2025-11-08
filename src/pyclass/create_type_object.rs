@@ -8,7 +8,7 @@ use crate::{
         pycell::PyClassObject,
         pyclass::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-            tp_dealloc_with_gc, PyClassItemsIter,
+            tp_dealloc_with_gc, PyClassImpl, PyClassItemsIter,
         },
         pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
@@ -103,8 +103,8 @@ where
             T::weaklist_offset(),
             T::IS_BASETYPE,
             T::items_iter(),
-            T::NAME,
-            T::MODULE,
+            <T as PyClass>::NAME,
+            <T as PyClassImpl>::MODULE,
             std::mem::size_of::<PyClassObject<T>>(),
         )
     }

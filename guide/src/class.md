@@ -1409,17 +1409,19 @@ unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
             .unwrap_or_else(|e| pyo3::impl_::pyclass::type_object_init_failed(
                 py,
                 e,
-                <Self as pyo3::type_object::PyTypeInfo>::NAME
+                <Self as pyo3::PyClass>::NAME
             ))
             .as_type_ptr()
     }
 }
 
 impl pyo3::PyClass for MyClass {
+    const NAME: &str = "MyClass";
     type Frozen = pyo3::pyclass::boolean_struct::False;
 }
 
 impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
+    const MODULE: Option<&str> = None;
     const IS_BASETYPE: bool = false;
     const IS_SUBCLASS: bool = false;
     const IS_MAPPING: bool = false;
