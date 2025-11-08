@@ -9,41 +9,102 @@ use std::{
     panic::{self, UnwindSafe},
 };
 
-use crate::gil::GILGuard;
+use crate::internal::state::AttachGuard;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput, impl_::panic::PanicTrap,
-    impl_::pymethods::IPowModulo, panic::PanicException, types::PyModule, Py, PyResult, Python,
+    impl_::pymethods::IPowModulo, panic::PanicException, types::PyModule, Bound, PyResult, Python,
 };
 
 #[inline]
-pub unsafe fn module_init(
-    f: for<'py> unsafe fn(Python<'py>) -> PyResult<Py<PyModule>>,
-) -> *mut ffi::PyObject {
-    trampoline(|py| f(py).map(|module| module.into_ptr()))
+pub unsafe fn module_exec(
+    module: *mut ffi::PyObject,
+    f: for<'a, 'py> fn(&'a Bound<'py, PyModule>) -> PyResult<()>,
+) -> c_int {
+    unsafe {
+        trampoline(|py| {
+            let module = module.assume_borrowed_or_err(py)?.cast::<PyModule>()?;
+            f(&module)?;
+            Ok(0)
+        })
+    }
 }
 
-#[inline]
-#[allow(clippy::used_underscore_binding)]
-pub unsafe fn noargs(
-    slf: *mut ffi::PyObject,
-    _args: *mut ffi::PyObject,
-    f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>,
-) -> *mut ffi::PyObject {
-    #[cfg(not(GraalPy))] // this is not specified and GraalPy does not pass null here
-    debug_assert!(_args.is_null());
-    trampoline(|py| f(py, slf))
+/// A workaround for Rust not allowing function pointers as const generics: define a trait which
+/// has a constant function pointer.
+pub trait MethodDef<T> {
+    const METH: T;
 }
 
+/// Generates an implementation of `MethodDef` and then returns the trampoline function
+/// specialized to call the provided method.
+///
+/// Note that the functions returned by this macro are instantiations of generic functions. Code
+/// should not depend on these function pointers being stable (e.g. across compilation units);
+/// the intended purpose of these is to create function pointers which can be passed to the Python
+/// C-API to correctly wrap Rust functions.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! get_trampoline_function {
+    ($trampoline:ident, $f:path) => {{
+        struct Def;
+        impl $crate::impl_::trampoline::MethodDef<$crate::impl_::trampoline::$trampoline::Func> for Def {
+            const METH: $crate::impl_::trampoline::$trampoline::Func = $f;
+        }
+        $crate::impl_::trampoline::$trampoline::<Def>
+    }};
+}
+
+pub use get_trampoline_function;
+
+/// Macro to define a trampoline function for a given function signature.
+///
+/// This macro generates:
+/// 1. An external "C" function that serves as the trampoline, generic on a specific function pointer.
+/// 2. A companion module containing a non-generic inner function, and the function pointer type.
 macro_rules! trampoline {
     (pub fn $name:ident($($arg_names:ident: $arg_types:ty),* $(,)?) -> $ret:ty;) => {
-        #[inline]
-        pub unsafe fn $name(
+        /// External symbol called by Python, which calls the provided Rust function.
+        ///
+        /// The Rust function is supplied via the generic parameter `Meth`.
+        pub unsafe extern "C" fn $name<Meth: MethodDef<$name::Func>>(
             $($arg_names: $arg_types,)*
-            f: for<'py> unsafe fn (Python<'py>, $($arg_types),*) -> PyResult<$ret>,
         ) -> $ret {
-            trampoline(|py| f(py, $($arg_names,)*))
+            unsafe { $name::inner($($arg_names),*, Meth::METH) }
+        }
+
+        /// Companion module contains the function pointer type.
+        pub mod $name {
+            use super::*;
+
+            /// Non-generic inner function to ensure only one trampoline instantiated
+            #[inline]
+            pub(crate) unsafe fn inner($($arg_names: $arg_types),*, f: $name::Func) -> $ret {
+                unsafe { trampoline(|py| f(py, $($arg_names,)*)) }
+            }
+
+            /// The type of the function pointer for this trampoline.
+            pub type Func = for<'py> unsafe fn (Python<'py>, $($arg_types),*) -> PyResult<$ret>;
         }
     }
+}
+
+/// Noargs is a special case where the `_args` parameter is unused and not passed to the inner `Func`.
+pub unsafe extern "C" fn noargs<Meth: MethodDef<noargs::Func>>(
+    slf: *mut ffi::PyObject,
+    _args: *mut ffi::PyObject, // unused and value not defined
+) -> *mut ffi::PyObject {
+    unsafe { noargs::inner(slf, Meth::METH) }
+}
+
+pub mod noargs {
+    use super::*;
+
+    #[inline]
+    pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, f: Func) -> *mut ffi::PyObject {
+        unsafe { trampoline(|py| f(py, slf)) }
+    }
+
+    pub type Func = unsafe fn(Python<'_>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>;
 }
 
 macro_rules! trampolines {
@@ -53,7 +114,7 @@ macro_rules! trampolines {
 }
 
 trampolines!(
-    pub fn fastcall_with_keywords(
+    pub fn fastcall_cfunction_with_keywords(
         slf: *mut ffi::PyObject,
         args: *const *mut ffi::PyObject,
         nargs: ffi::Py_ssize_t,
@@ -133,14 +194,26 @@ trampoline! {
     pub fn getbufferproc(slf: *mut ffi::PyObject, buf: *mut ffi::Py_buffer, flags: c_int) -> c_int;
 }
 
+/// Releasebufferproc is a special case where the function cannot return an error,
+/// so we use trampoline_unraisable.
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
-#[inline]
-pub unsafe fn releasebufferproc(
+pub unsafe extern "C" fn releasebufferproc<Meth: MethodDef<releasebufferproc::Func>>(
     slf: *mut ffi::PyObject,
     buf: *mut ffi::Py_buffer,
-    f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject, *mut ffi::Py_buffer) -> PyResult<()>,
 ) {
-    trampoline_unraisable(|py| f(py, slf, buf), slf)
+    unsafe { releasebufferproc::inner(slf, buf, Meth::METH) }
+}
+
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+pub mod releasebufferproc {
+    use super::*;
+
+    #[inline]
+    pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, buf: *mut ffi::Py_buffer, f: Func) {
+        unsafe { trampoline_unraisable(|py| f(py, slf, buf), slf) }
+    }
+
+    pub type Func = unsafe fn(Python<'_>, *mut ffi::PyObject, *mut ffi::Py_buffer) -> PyResult<()>;
 }
 
 #[inline]
@@ -152,13 +225,15 @@ pub(crate) unsafe fn dealloc(
     // so pass null_mut() to the context.
     //
     // (Note that we don't allow the implementation `f` to fail.)
-    trampoline_unraisable(
-        |py| {
-            f(py, slf);
-            Ok(())
-        },
-        std::ptr::null_mut(),
-    )
+    unsafe {
+        trampoline_unraisable(
+            |py| {
+                f(py, slf);
+                Ok(())
+            },
+            std::ptr::null_mut(),
+        )
+    }
 }
 
 // Ipowfunc is a unique case where PyO3 has its own type
@@ -172,12 +247,12 @@ trampoline!(
     ) -> *mut ffi::PyObject;
 );
 
-/// Implementation of trampoline functions, which sets up a GILPool and calls F.
+/// Implementation of trampoline functions, which sets up an AttachGuard and calls F.
 ///
 /// Panics during execution are trapped so that they don't propagate through any
 /// outer FFI boundary.
 ///
-/// The GIL must already be held when this is called.
+/// The thread must already be attached to the interpreter when this is called.
 #[inline]
 pub(crate) unsafe fn trampoline<F, R>(body: F) -> R
 where
@@ -186,8 +261,8 @@ where
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
 
-    // SAFETY: This function requires the GIL to already be held.
-    let guard = GILGuard::assume();
+    // SAFETY: This function requires the thread to already be attached.
+    let guard = unsafe { AttachGuard::assume() };
     let py = guard.python();
     let out = panic_result_into_callback_output(
         py,
@@ -226,7 +301,7 @@ where
 /// # Safety
 ///
 /// - ctx must be either a valid ffi::PyObject or NULL
-/// - The GIL must already be held when this is called.
+/// - The thread must be attached to the interpreter when this is called.
 #[inline]
 unsafe fn trampoline_unraisable<F>(body: F, ctx: *mut ffi::PyObject)
 where
@@ -234,14 +309,14 @@ where
 {
     let trap = PanicTrap::new("uncaught panic at ffi boundary");
 
-    // SAFETY: The GIL is already held.
-    let guard = GILGuard::assume();
+    // SAFETY: Thread is known to be attached.
+    let guard = unsafe { AttachGuard::assume() };
     let py = guard.python();
 
     if let Err(py_err) = panic::catch_unwind(move || body(py))
         .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
     {
-        py_err.write_unraisable(py, ctx.assume_borrowed_or_opt(py).as_deref());
+        py_err.write_unraisable(py, unsafe { ctx.assume_borrowed_or_opt(py) }.as_deref());
     }
     trap.disarm();
 }

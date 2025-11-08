@@ -5,8 +5,7 @@ use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
 
 #[macro_use]
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 /// Helper function that concatenates the error message from
 /// each error in the traceback into a single string that can
@@ -52,7 +51,7 @@ impl PyA {
 
 #[test]
 fn test_named_fields_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let pya = PyA {
             s: "foo".into(),
             foo: None,
@@ -75,7 +74,7 @@ pub struct B {
 
 #[test]
 fn test_transparent_named_field_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let test = "test".into_pyobject(py).unwrap();
         let b = test
             .extract::<B>()
@@ -95,7 +94,7 @@ pub struct D<T> {
 
 #[test]
 fn test_generic_transparent_named_field_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let test = "test".into_pyobject(py).unwrap();
         let d = test
             .extract::<D<String>>()
@@ -114,7 +113,7 @@ pub struct GenericWithBound<K: std::hash::Hash + Eq, V>(std::collections::HashMa
 
 #[test]
 fn test_generic_with_bound() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let dict = [("1", 1), ("2", 2)].into_py_dict(py).unwrap();
         let map = dict.extract::<GenericWithBound<String, i32>>().unwrap().0;
         assert_eq!(map.len(), 2);
@@ -130,7 +129,7 @@ pub struct E<T, T2> {
     test2: T2,
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyE {
     #[pyo3(get)]
@@ -141,7 +140,7 @@ pub struct PyE {
 
 #[test]
 fn test_generic_named_fields_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let pye = PyE {
             test: "test".into(),
             test2: 2,
@@ -167,7 +166,7 @@ pub struct C {
 
 #[test]
 fn test_named_field_with_ext_fn() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let pyc = PyE {
             test: "foo".into(),
             test2: 0,
@@ -184,7 +183,7 @@ pub struct Tuple(String, usize);
 
 #[test]
 fn test_tuple_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = PyTuple::new(
             py,
             &[
@@ -216,7 +215,7 @@ pub struct TransparentTuple(String);
 
 #[test]
 fn test_transparent_tuple_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = 1i32.into_pyobject(py).unwrap();
         let tup = tup.extract::<TransparentTuple>();
         assert!(tup.is_err());
@@ -237,7 +236,7 @@ struct PyBaz {
 }
 
 #[derive(Debug, FromPyObject)]
-#[allow(dead_code)]
+#[expect(dead_code)]
 struct Baz<U, T> {
     e: E<U, T>,
     tup: Tuple,
@@ -245,7 +244,7 @@ struct Baz<U, T> {
 
 #[test]
 fn test_struct_nested_type_errors() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let pybaz = PyBaz {
             tup: ("test".into(), "test".into()),
             e: PyE {
@@ -268,7 +267,7 @@ fn test_struct_nested_type_errors() {
 
 #[test]
 fn test_struct_nested_type_errors_with_generics() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let pybaz = PyBaz {
             tup: ("test".into(), "test".into()),
             e: PyE {
@@ -291,42 +290,42 @@ fn test_struct_nested_type_errors_with_generics() {
 
 #[test]
 fn test_transparent_struct_error_message() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = 1i32.into_pyobject(py).unwrap();
         let tup = tup.extract::<B>();
         assert!(tup.is_err());
         assert_eq!(
-            extract_traceback(py,tup.unwrap_err()),
-            "TypeError: failed to extract field B.test: TypeError: \'int\' object cannot be converted \
-         to \'PyString\'"
+            extract_traceback(py, tup.unwrap_err()),
+            "TypeError: failed to extract field B.test: TypeError: \'int\' object cannot be cast \
+         as \'str\'"
         );
     });
 }
 
 #[test]
 fn test_tuple_struct_error_message() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = (1, "test").into_pyobject(py).unwrap();
         let tup = tup.extract::<Tuple>();
         assert!(tup.is_err());
         assert_eq!(
             extract_traceback(py, tup.unwrap_err()),
-            "TypeError: failed to extract field Tuple.0: TypeError: \'int\' object cannot be \
-         converted to \'PyString\'"
+            "TypeError: failed to extract field Tuple.0: TypeError: \'int\' object cannot be cast \
+         as \'str\'"
         );
     });
 }
 
 #[test]
 fn test_transparent_tuple_error_message() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = 1i32.into_pyobject(py).unwrap();
         let tup = tup.extract::<TransparentTuple>();
         assert!(tup.is_err());
         assert_eq!(
             extract_traceback(py, tup.unwrap_err()),
             "TypeError: failed to extract field TransparentTuple.0: TypeError: 'int' object \
-         cannot be converted to 'PyString'",
+         cannot be cast as 'str'",
         );
     });
 }
@@ -368,7 +367,7 @@ fn test_struct_rename_all() {
         custom_name: i32,
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let RenameAll {
             some_field,
             other_field,
@@ -399,7 +398,7 @@ fn test_enum_rename_all() {
         },
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let RenameAll::Foo {
             some_field,
             other_field,
@@ -450,7 +449,7 @@ pub struct PyBool {
 
 #[test]
 fn test_enum() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let tup = PyTuple::new(
             py,
             &[
@@ -467,7 +466,7 @@ fn test_enum() {
                 assert_eq!(test, 1);
                 assert_eq!(test2, "test");
             }
-            _ => panic!("Expected extracting Foo::TupleVar, got {:?}", f),
+            _ => panic!("Expected extracting Foo::TupleVar, got {f:?}"),
         }
 
         let pye = PyE {
@@ -481,7 +480,7 @@ fn test_enum() {
             .expect("Failed to extract Foo from PyE");
         match f {
             Foo::StructVar { test } => assert_eq!(test.to_string_lossy(), "foo"),
-            _ => panic!("Expected extracting Foo::StructVar, got {:?}", f),
+            _ => panic!("Expected extracting Foo::StructVar, got {f:?}"),
         }
 
         let int = 1i32.into_pyobject(py).unwrap();
@@ -490,7 +489,7 @@ fn test_enum() {
             .expect("Failed to extract Foo from int");
         match f {
             Foo::TransparentTuple(test) => assert_eq!(test, 1),
-            _ => panic!("Expected extracting Foo::TransparentTuple, got {:?}", f),
+            _ => panic!("Expected extracting Foo::TransparentTuple, got {f:?}"),
         }
         let none = py.None();
         let f = none
@@ -498,7 +497,7 @@ fn test_enum() {
             .expect("Failed to extract Foo from int");
         match f {
             Foo::TransparentStructVar { a } => assert!(a.is_none()),
-            _ => panic!("Expected extracting Foo::TransparentStructVar, got {:?}", f),
+            _ => panic!("Expected extracting Foo::TransparentStructVar, got {f:?}"),
         }
 
         let pybool = PyBool { bla: true }.into_pyobject(py).unwrap();
@@ -507,7 +506,7 @@ fn test_enum() {
             .expect("Failed to extract Foo from PyBool");
         match f {
             Foo::StructVarGetAttrArg { a } => assert!(a),
-            _ => panic!("Expected extracting Foo::StructVarGetAttrArg, got {:?}", f),
+            _ => panic!("Expected extracting Foo::StructVarGetAttrArg, got {f:?}"),
         }
 
         let dict = PyDict::new(py);
@@ -517,7 +516,7 @@ fn test_enum() {
             .expect("Failed to extract Foo from dict");
         match f {
             Foo::StructWithGetItem { a } => assert_eq!(a, "test"),
-            _ => panic!("Expected extracting Foo::StructWithGetItem, got {:?}", f),
+            _ => panic!("Expected extracting Foo::StructWithGetItem, got {f:?}"),
         }
 
         let dict = PyDict::new(py);
@@ -527,24 +526,24 @@ fn test_enum() {
             .expect("Failed to extract Foo from dict");
         match f {
             Foo::StructWithGetItemArg { a } => assert_eq!(a, "test"),
-            _ => panic!("Expected extracting Foo::StructWithGetItemArg, got {:?}", f),
+            _ => panic!("Expected extracting Foo::StructWithGetItemArg, got {f:?}"),
         }
     });
 }
 
 #[test]
 fn test_enum_error() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let dict = PyDict::new(py);
         let err = dict.extract::<Foo<'_>>().unwrap_err();
         assert_eq!(
             err.to_string(),
             "\
 TypeError: failed to extract enum Foo ('TupleVar | StructVar | TransparentTuple | TransparentStructVar | StructVarGetAttrArg | StructWithGetItem | StructWithGetItemArg')
-- variant TupleVar (TupleVar): TypeError: 'dict' object cannot be converted to 'PyTuple'
+- variant TupleVar (TupleVar): TypeError: 'dict' object cannot be cast as 'tuple'
 - variant StructVar (StructVar): AttributeError: 'dict' object has no attribute 'test'
 - variant TransparentTuple (TransparentTuple): TypeError: failed to extract field Foo::TransparentTuple.0, caused by TypeError: 'dict' object cannot be interpreted as an integer
-- variant TransparentStructVar (TransparentStructVar): TypeError: failed to extract field Foo::TransparentStructVar.a, caused by TypeError: 'dict' object cannot be converted to 'PyString'
+- variant TransparentStructVar (TransparentStructVar): TypeError: failed to extract field Foo::TransparentStructVar.a, caused by TypeError: 'dict' object cannot be cast as 'str'
 - variant StructVarGetAttrArg (StructVarGetAttrArg): AttributeError: 'dict' object has no attribute 'bla'
 - variant StructWithGetItem (StructWithGetItem): KeyError: 'a'
 - variant StructWithGetItemArg (StructWithGetItemArg): KeyError: 'foo'"
@@ -559,7 +558,7 @@ TypeError: failed to extract enum Foo ('TupleVar | StructVar | TransparentTuple 
 - variant TupleVar (TupleVar): ValueError: expected tuple of length 2, but got tuple of length 0
 - variant StructVar (StructVar): AttributeError: 'tuple' object has no attribute 'test'
 - variant TransparentTuple (TransparentTuple): TypeError: failed to extract field Foo::TransparentTuple.0, caused by TypeError: 'tuple' object cannot be interpreted as an integer
-- variant TransparentStructVar (TransparentStructVar): TypeError: failed to extract field Foo::TransparentStructVar.a, caused by TypeError: 'tuple' object cannot be converted to 'PyString'
+- variant TransparentStructVar (TransparentStructVar): TypeError: failed to extract field Foo::TransparentStructVar.a, caused by TypeError: 'tuple' object cannot be cast as 'str'
 - variant StructVarGetAttrArg (StructVarGetAttrArg): AttributeError: 'tuple' object has no attribute 'bla'
 - variant StructWithGetItem (StructWithGetItem): TypeError: tuple indices must be integers or slices, not str
 - variant StructWithGetItemArg (StructWithGetItemArg): TypeError: tuple indices must be integers or slices, not str"
@@ -569,7 +568,7 @@ TypeError: failed to extract enum Foo ('TupleVar | StructVar | TransparentTuple 
 
 #[derive(Debug, FromPyObject)]
 enum EnumWithCatchAll<'py> {
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     #[pyo3(transparent)]
     Foo(Foo<'py>),
     #[pyo3(transparent)]
@@ -578,7 +577,7 @@ enum EnumWithCatchAll<'py> {
 
 #[test]
 fn test_enum_catch_all() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let dict = PyDict::new(py);
         let f = dict
             .extract::<EnumWithCatchAll<'_>>()
@@ -588,10 +587,7 @@ fn test_enum_catch_all() {
                 let d = any.extract::<Bound<'_, PyDict>>().expect("Expected pydict");
                 assert!(d.is_empty());
             }
-            _ => panic!(
-                "Expected extracting EnumWithCatchAll::CatchAll, got {:?}",
-                f
-            ),
+            _ => panic!("Expected extracting EnumWithCatchAll::CatchAll, got {f:?}"),
         }
     });
 }
@@ -608,7 +604,7 @@ pub enum Bar {
 
 #[test]
 fn test_err_rename() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let dict = PyDict::new(py);
         let f = dict.extract::<Bar>();
         assert!(f.is_err());
@@ -616,7 +612,7 @@ fn test_err_rename() {
             f.unwrap_err().to_string(),
             "\
 TypeError: failed to extract enum Bar ('str | uint | int')
-- variant A (str): TypeError: failed to extract field Bar::A.0, caused by TypeError: 'dict' object cannot be converted to 'PyString'
+- variant A (str): TypeError: failed to extract field Bar::A.0, caused by TypeError: 'dict' object cannot be cast as 'str'
 - variant B (uint): TypeError: failed to extract field Bar::B.0, caused by TypeError: 'dict' object cannot be interpreted as an integer
 - variant C (int): TypeError: failed to extract field Bar::C.0, caused by TypeError: 'dict' object cannot be interpreted as an integer"
         );
@@ -634,10 +630,10 @@ pub struct Zap {
 
 #[test]
 fn test_from_py_with() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let py_zap = py
             .eval(
-                pyo3_ffi::c_str!(r#"{"name": "whatever", "my_object": [1, 2, 3]}"#),
+                cr#"{"name": "whatever", "my_object": [1, 2, 3]}"#,
                 None,
                 None,
             )
@@ -658,9 +654,9 @@ pub struct ZapTuple(
 
 #[test]
 fn test_from_py_with_tuple_struct() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let py_zap = py
-            .eval(pyo3_ffi::c_str!(r#"("whatever", [1, 2, 3])"#), None, None)
+            .eval(cr#"("whatever", [1, 2, 3])"#, None, None)
             .expect("failed to create tuple");
 
         let zap = py_zap.extract::<ZapTuple>().unwrap();
@@ -672,13 +668,9 @@ fn test_from_py_with_tuple_struct() {
 
 #[test]
 fn test_from_py_with_tuple_struct_error() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let py_zap = py
-            .eval(
-                pyo3_ffi::c_str!(r#"("whatever", [1, 2, 3], "third")"#),
-                None,
-                None,
-            )
+            .eval(cr#"("whatever", [1, 2, 3], "third")"#, None, None)
             .expect("failed to create tuple");
 
         let f = py_zap.extract::<ZapTuple>();
@@ -702,9 +694,9 @@ pub enum ZapEnum {
 
 #[test]
 fn test_from_py_with_enum() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let py_zap = py
-            .eval(pyo3_ffi::c_str!(r#"("whatever", [1, 2, 3])"#), None, None)
+            .eval(cr#"("whatever", [1, 2, 3])"#, None, None)
             .expect("failed to create tuple");
 
         let zap = py_zap.extract::<ZapEnum>().unwrap();
@@ -723,7 +715,7 @@ pub struct TransparentFromPyWith {
 
 #[test]
 fn test_transparent_from_py_with() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let result = PyList::new(py, [1, 2, 3])
             .unwrap()
             .extract::<TransparentFromPyWith>()
@@ -747,7 +739,7 @@ pub struct WithKeywordAttrC {
 
 #[test]
 fn test_with_keyword_attr() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let cls = WithKeywordAttrC { r#box: 3 }.into_pyobject(py).unwrap();
         let result = cls.extract::<WithKeywordAttr>().unwrap();
         let expected = WithKeywordAttr { r#box: 3 };
@@ -763,7 +755,7 @@ pub struct WithKeywordItem {
 
 #[test]
 fn test_with_keyword_item() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let dict = PyDict::new(py);
         dict.set_item("box", 3).unwrap();
         let result = dict.extract::<WithKeywordItem>().unwrap();
@@ -782,7 +774,7 @@ pub struct WithDefaultItem {
 
 #[test]
 fn test_with_default_item() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let dict = PyDict::new(py);
         dict.set_item("value", 3).unwrap();
         let result = dict.extract::<WithDefaultItem>().unwrap();
@@ -804,7 +796,7 @@ pub struct WithExplicitDefaultItem {
 
 #[test]
 fn test_with_explicit_default_item() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let dict = PyDict::new(py);
         dict.set_item("value", 3).unwrap();
         let result = dict.extract::<WithExplicitDefaultItem>().unwrap();
@@ -823,7 +815,7 @@ pub struct WithDefaultItemAndConversionFunction {
 
 #[test]
 fn test_with_default_item_and_conversion_function() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // Filled case
         let dict = PyDict::new(py);
         dict.set_item("opt", (1,)).unwrap();
@@ -868,7 +860,7 @@ pub enum WithDefaultItemEnum {
 
 #[test]
 fn test_with_default_item_enum() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // A and B filled
         let dict = PyDict::new(py);
         dict.set_item("a", 1).unwrap();

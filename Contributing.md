@@ -18,10 +18,42 @@ The following sections also contain specific ideas on where to start contributin
 ## Setting up a development environment
 
 To work and develop PyO3, you need Python & Rust installed on your system.
+
 * We encourage the use of [rustup](https://rustup.rs/) to be able to select and choose specific toolchains based on the project.
 * [Pyenv](https://github.com/pyenv/pyenv) is also highly recommended for being able to choose a specific Python version.
 * [virtualenv](https://virtualenv.pypa.io/en/latest/) can also be used with or without Pyenv to use specific installed Python versions.
 * [`nox`][nox] is used to automate many of our CI tasks.
+
+### Testing, linting, etc. with nox
+
+[`Nox`][nox] is used to automate many of our CI tasks and can be used locally to handle verification tasks as you code. We recommend running these actions via nox to make use of our preferred configuration options. You can install nox into your global python with pip: `pip install nox` or (recommended) with [`pipx`][pipx] `pip install pipx`, `pipx install nox`
+
+The main nox commands we have implemented are:
+
+* `nox -s test` will run the full suite of recommended rust and python tests (>10 minutes)
+* `nox -s test-rust -- skip-full` will run a short suite of rust tests (2-3 minutes)
+* `nox -s ruff` will check python linting and apply standard formatting rules
+* `nox -s rustfmt` will check basic rust linting and apply standard formatting rules
+* `nox -s rumdl` will check the markdown in the guide
+* `nox -s clippy` will run clippy to make recommendations on rust style
+* `nox -s bench` will benchmark your rust code
+* `nox -s codspeed` will run our suite of rust and python performance tests
+* `nox -s coverage` will analyse test coverage and output `coverage.json` (alternatively: `nox -s coverage lcov` outputs `lcov.info`)
+* `nox -s check-guide` will use [`lychee`][lychee] to check all the links in the guide and doc comments.
+
+Use  `nox -l` to list the full set of subcommands you can run.
+
+#### UI Tests
+
+PyO3 uses [`trybuild`][trybuild] to develop UI tests to capture error messages from the Rust compiler for some of the macro functionality.
+
+Because there are several feature combinations for these UI tests, when updating them all (e.g. for a new Rust compiler version) it may be helpful to use the `update-ui-tests` nox session:
+
+```bash
+nox -s update-ui-tests
+```
+
+## Ways to help
 
 ### Help users identify bugs
 
@@ -60,7 +92,7 @@ https://doc.rust-lang.org/rustdoc/documentation-tests.html for a guide on doctes
 
 You can preview the user guide by building it locally with `mdbook`.
 
-First, install [`mdbook`][mdbook] and [`nox`][nox]. Then, run
+First, install [`mdbook`][mdbook], the [`mdbook-tabs`][mdbook-tabs] plugin and [`nox`][nox]. Then, run
 
 ```shell
 nox -s build-guide -- --open
@@ -88,41 +120,16 @@ Here are a few things to note when you are writing PRs.
 
 ### Testing and Continuous Integration
 
-The PyO3 repo uses GitHub Actions. PRs are blocked from merging if CI is not successful. Formatting, linting and tests are checked for all Rust and Python code. In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
+The PyO3 repo uses GitHub Actions.
+PRs are blocked from merging if CI is not successful.
+Formatting, linting and tests are checked for all Rust and Python code (the pipeline will abort early if formatting fails to save resources).
+In addition, all warnings in Rust code are disallowed (using `RUSTFLAGS="-D warnings"`).
 
 Tests run with all supported Python versions with the latest stable Rust compiler, as well as for Python 3.9 with the minimum supported Rust version.
 
 If you are adding a new feature, you should add it to the `full` feature in our *Cargo.toml** so that it is tested in CI.
 
-You can run these checks yourself with `nox`. Use  `nox -l` to list the full set of subcommands you can run.
-
-#### Linting Python code
-`nox -s ruff`
-
-#### Linting Rust code
-`nox -s rustfmt`
-
-#### Semver checks
-`cargo semver-checks check-release`
-
-#### Clippy
-`nox -s clippy-all`
-
-#### Tests
-`nox -s test` or `cargo test` for Rust tests only, `nox -f pytests/noxfile.py -s test` for Python tests only
-
-#### Check all conditional compilation
-`nox -s check-feature-powerset`
-
-#### UI Tests
-
-PyO3 uses [`trybuild`](https://github.com/dtolnay/trybuild) to develop UI tests to capture error messages from the Rust compiler for some of the macro functionality.
-
-Because there are several feature combinations for these UI tests, when updating them all (e.g. for a new Rust compiler version) it may be helpful to use the `update-ui-tests` nox session:
-
-```bash
-nox -s update-ui-tests
-```
+You can run the CI pipeline components yourself with `nox`, see [the testing section above](#testing-linting-etc-with-nox).
 
 ### Documenting changes
 
@@ -178,6 +185,20 @@ Below are guidelines on what compatibility all PRs are expected to deliver for e
 ### Python
 
 PyO3 supports all officially supported Python versions, as well as the latest PyPy3 release. All of these versions are tested in CI.
+
+#### Adding support for new CPython versions
+
+If you plan to add support for a pre-release version of CPython, here's a (non-exhaustive) checklist:
+
+ - [ ] Wait until the last alpha release (usually alpha7), since ABI is not guaranteed until the first beta release
+ - [ ] Add prerelease_ver-dev (e.g. `3.14-dev`) to `.github/workflows/ci.yml`, and bump version in `noxfile.py`, `pyo3-ffi/Cargo.toml` under `max-version` within  `[package.metadata.cpython]`, and `max` within `pyo3-ffi/build.rs`
+- [ ] Add a new abi3-prerelease feature for the version (e.g. `abi3-py314`)
+   - In `pyo3-build-config/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease"] and abi3-prerelease to ["abi3"]
+   - In `pyo3-ffi/Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease", "pyo3-build-config/abi3-most_current_stable"] and abi3-prerelease to ["abi3", "pyo3-build-config/abi3-prerelease"]
+   - In `Cargo.toml`, set abi3-most_current_stable to ["abi3-prerelease", "pyo3-ffi/abi3-most_current_stable"] and abi3-prerelease to ["abi3", "pyo3-ffi/abi3-prerelease"]
+ - [ ] Use `#[cfg(Py_prerelease])` (e.g. `#[cfg(Py_3_14)]`) and `#[cfg(not(Py_prerelease]))` to indicate changes between the stable branches of CPython and the pre-release
+ - [ ] Do not add a Rust binding to any function, struct, or global variable prefixed with `_` in CPython's headers
+ - [ ] Ping @ngoldbaum and @davidhewitt for assistance
 
 ### Rust
 
@@ -235,5 +256,8 @@ In the meanwhile, some of our maintainers have personal GitHub sponsorship pages
 - [messense](https://github.com/sponsors/messense)
 
 [mdbook]: https://rust-lang.github.io/mdBook/cli/index.html
+[mdbook-tabs]: https://mdbook-plugins.rustforweb.org/tabs.html
 [lychee]: https://github.com/lycheeverse/lychee
 [nox]: https://github.com/theacodes/nox
+[pipx]: https://pipx.pypa.io/stable/
+[trybuild]: https://github.com/dtolnay/trybuild

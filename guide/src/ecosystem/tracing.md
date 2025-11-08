@@ -1,43 +1,33 @@
 # Tracing
 
-Python projects that write extension modules for performance reasons may want to
-tap into [Rust's `tracing` ecosystem] to gain insight into the performance of
-their extension module.
+Python projects that write extension modules for performance reasons may want to tap into [Rust's `tracing` ecosystem] to gain insight into the performance of their extension module.
 
 This section of the guide describes a few crates that provide ways to do that.
-They build on [`tracing_subscriber`][tracing-subscriber] and require code
-changes in both Python and Rust to integrate. Note that each extension module
-must configure its own `tracing` integration; one extension module will not see
-`tracing` data from a different module.
+They build on [`tracing_subscriber`][tracing-subscriber] and require code changes in both Python and Rust to integrate.
+Note that each extension module must configure its own `tracing` integration; one extension module will not see `tracing` data from a different module.
 
 ## `pyo3-tracing-subscriber` ([documentation][pyo3-tracing-subscriber-docs])
 
-[`pyo3-tracing-subscriber`][pyo3-tracing-subscriber] provides a way for Python
-projects to configure `tracing_subscriber`. It exposes a few
-`tracing_subscriber` layers:
+[`pyo3-tracing-subscriber`][pyo3-tracing-subscriber] provides a way for Python projects to configure `tracing_subscriber`.
+It exposes a few `tracing_subscriber` layers:
+
 - `tracing_subscriber::fmt` for writing human-readable output to file or stdout
 - `opentelemetry-stdout` for writing OTLP output to file or stdout
 - `opentelemetry-otlp` for writing OTLP output to an OTLP endpoint
 
-The extension module must call [`pyo3_tracing_subscriber::add_submodule`][add-submodule]
-to export the Python classes needed to configure and initialize `tracing`.
+The extension module must call [`pyo3_tracing_subscriber::add_submodule`][add-submodule] to export the Python classes needed to configure and initialize `tracing`.
 
-On the Python side, use the `Tracing` context manager to initialize tracing and
-run Rust code inside the context manager's block. `Tracing` takes a
-`GlobalTracingConfig` instance describing the layers to be used.
+On the Python side, use the `Tracing` context manager to initialize tracing and run Rust code inside the context manager's block. `Tracing` takes a `GlobalTracingConfig` instance describing the layers to be used.
 
-See [the README on crates.io][pyo3-tracing-subscriber]
-for example code.
+See [the README on crates.io][pyo3-tracing-subscriber] for example code.
 
 ## `pyo3-python-tracing-subscriber` ([documentation][pyo3-python-tracing-subscriber-docs])
 
-The similarly-named [`pyo3-python-tracing-subscriber`][pyo3-python-tracing-subscriber]
-implements a shim in Rust that forwards `tracing` data to a `Layer`
-implementation defined in and passed in from Python.
+The similarly-named [`pyo3-python-tracing-subscriber`][pyo3-python-tracing-subscriber] implements a shim in Rust that forwards `tracing` data to a `Layer` implementation defined in and passed in from Python.
 
-There are many ways an extension module could integrate `pyo3-python-tracing-subscriber`
-but a simple one may look something like this:
-```rust
+There are many ways an extension module could integrate `pyo3-python-tracing-subscriber` but a simple one may look something like this:
+
+```rust,no_run
 #[tracing::instrument]
 #[pyfunction]
 fn fibonacci(index: usize, use_memoized: bool) -> PyResult<usize> {
@@ -51,17 +41,17 @@ pub fn initialize_tracing(py_impl: Bound<'_, PyAny>) {
         .init();
 }
 ```
-The extension module must provide some way for Python to pass in one or more
-Python objects that implement [the `Layer` interface]. Then it should construct
-[`pyo3_python_tracing_subscriber::PythonCallbackLayerBridge`][PythonCallbackLayerBridge]
-instances with each of those Python objects and initialize `tracing_subscriber`
-as shown above.
+
+The extension module must provide some way for Python to pass in one or more Python objects that implement [the `Layer` interface].
+Then it should construct [`pyo3_python_tracing_subscriber::PythonCallbackLayerBridge`][PythonCallbackLayerBridge] instances with each of those Python objects and initialize `tracing_subscriber` as shown above.
 
 The Python objects implement a modified version of the `Layer` interface:
+
 - `on_new_span()` may return some state that will stored inside the Rust span
 - other callbacks will be given that state as an additional positional argument
 
 A dummy `Layer` implementation may look like this:
+
 ```python
 import rust_extension
 
@@ -90,8 +80,7 @@ def main():
     print("10th fibonacci number: ", rust_extension.fibonacci(10, True))
 ```
 
-`pyo3-python-tracing-subscriber` has [working examples]
-showing both the Rust side and the Python side of an integration.
+`pyo3-python-tracing-subscriber` has [working examples] showing both the Rust side and the Python side of an integration.
 
 [pyo3-tracing-subscriber]: https://crates.io/crates/pyo3-tracing-subscriber
 [pyo3-tracing-subscriber-docs]: https://docs.rs/pyo3-tracing-subscriber

@@ -1,6 +1,6 @@
 # sequential
 
-A project built using only `pyo3_ffi`, without any of PyO3's safe api. It can be executed by subinterpreters that have their own GIL.
+A project built using only `pyo3_ffi`, without any of PyO3's safe api. It supports both subinterpreters and free-threaded Python.
 
 ## Building and Testing
 

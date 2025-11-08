@@ -4,8 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 
 #[macro_use]
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct PyClassWithMultiplePyMethods {}
@@ -64,7 +63,7 @@ impl PyClassWithMultiplePyMethods {
 
 #[test]
 fn test_class_with_multiple_pymethods() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let cls = py.get_type::<PyClassWithMultiplePyMethods>();
         py_assert!(py, cls, "cls()() == 'call'");
         py_assert!(py, cls, "cls().method() == 'method'");

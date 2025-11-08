@@ -9,13 +9,13 @@ use crate::PyCapsule_Import;
 #[cfg(GraalPy)]
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
-use std::os::raw::c_char;
-use std::os::raw::c_int;
+use std::ffi::c_char;
+use std::ffi::c_int;
 use std::ptr;
 use std::sync::Once;
 use std::{cell::UnsafeCell, ffi::CStr};
 #[cfg(not(PyPy))]
-use {crate::Py_hash_t, std::os::raw::c_uchar};
+use {crate::Py_hash_t, std::ffi::c_uchar};
 // Type struct wrappers
 const _PyDateTime_DATE_DATASIZE: usize = 4;
 const _PyDateTime_TIME_DATASIZE: usize = 6;
@@ -358,55 +358,55 @@ pub unsafe fn _get_attr(obj: *mut PyObject, field: &std::ffi::CStr) -> c_int {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("year"))
+    _get_attr(o, c"year")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_GET_MONTH(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("month"))
+    _get_attr(o, c"month")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_GET_DAY(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("day"))
+    _get_attr(o, c"day")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_HOUR(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("hour"))
+    _get_attr(o, c"hour")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_MINUTE(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("minute"))
+    _get_attr(o, c"minute")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_SECOND(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("second"))
+    _get_attr(o, c"second")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("microsecond"))
+    _get_attr(o, c"microsecond")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("fold"))
+    _get_attr(o, c"fold")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
-    let res = PyObject_GetAttrString(o, c_str!("tzinfo").as_ptr().cast());
+    let res = PyObject_GetAttrString(o, c"tzinfo".as_ptr().cast());
     Py_DecRef(res); // the original macros are borrowing
     res
 }
@@ -414,37 +414,37 @@ pub unsafe fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_HOUR(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("hour"))
+    _get_attr(o, c"hour")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_MINUTE(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("minute"))
+    _get_attr(o, c"minute")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_SECOND(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("second"))
+    _get_attr(o, c"second")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("microsecond"))
+    _get_attr(o, c"microsecond")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("fold"))
+    _get_attr(o, c"fold")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
-    let res = PyObject_GetAttrString(o, c_str!("tzinfo").as_ptr().cast());
+    let res = PyObject_GetAttrString(o, c"tzinfo".as_ptr().cast());
     Py_DecRef(res); // the original macros are borrowing
     res
 }
@@ -452,19 +452,19 @@ pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DELTA_GET_DAYS(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("days"))
+    _get_attr(o, c"days")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DELTA_GET_SECONDS(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("seconds"))
+    _get_attr(o, c"seconds")
 }
 
 #[inline]
 #[cfg(GraalPy)]
 pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
-    _get_attr(o, c_str!("microseconds"))
+    _get_attr(o, c"microseconds")
 }
 
 #[cfg(PyPy)]
@@ -487,7 +487,9 @@ extern "C" {
     pub fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int;
     #[link_name = "PyPyDateTime_GET_FOLD"]
     pub fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_int;
-    // skipped PyDateTime_DATE_GET_TZINFO (not in PyPy)
+    #[link_name = "PyPyDateTime_DATE_GET_TZINFO"]
+    #[cfg(Py_3_10)]
+    pub fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject;
 
     #[link_name = "PyPyDateTime_TIME_GET_HOUR"]
     pub fn PyDateTime_TIME_GET_HOUR(o: *mut PyObject) -> c_int;
@@ -499,7 +501,9 @@ extern "C" {
     pub fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int;
     #[link_name = "PyPyDateTime_TIME_GET_FOLD"]
     pub fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_int;
-    // skipped PyDateTime_TIME_GET_TZINFO (not in PyPy)
+    #[link_name = "PyPyDateTime_TIME_GET_TZINFO"]
+    #[cfg(Py_3_10)]
+    pub fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject;
 
     #[link_name = "PyPyDateTime_DELTA_GET_DAYS"]
     pub fn PyDateTime_DELTA_GET_DAYS(o: *mut PyObject) -> c_int;
@@ -586,7 +590,7 @@ pub struct PyDateTime_CAPI {
 // Python already shares this object between threads, so it's no more evil for us to do it too!
 unsafe impl Sync for PyDateTime_CAPI {}
 
-pub const PyDateTime_CAPSULE_NAME: &CStr = c_str!("datetime.datetime_CAPI");
+pub const PyDateTime_CAPSULE_NAME: &CStr = c"datetime.datetime_CAPI";
 
 /// Returns a pointer to a `PyDateTime_CAPI` instance
 ///

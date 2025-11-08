@@ -33,4 +33,7 @@ fn my_module(m: &crate::Bound<'_, crate::types::PyModule>) -> crate::PyResult<()
 mod my_module_declarative {
     #[pymodule_export]
     use super::{do_something, foo};
+
+    #[pymodule_export]
+    const BAR: u32 = 42;
 }

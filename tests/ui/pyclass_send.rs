@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use std::os::raw::c_void;
+use std::ffi::c_void;
 
 #[pyclass]
 struct NotSyncNotSend(*mut c_void);

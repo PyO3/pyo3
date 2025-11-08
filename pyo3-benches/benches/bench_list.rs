@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyList, PySequence};
 
 fn iter_list(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 100_000;
         let list = PyList::new(py, 0..LEN).unwrap();
         let mut sum = 0;
@@ -20,14 +20,14 @@ fn iter_list(b: &mut Bencher<'_>) {
 }
 
 fn list_new(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
         b.iter_with_large_drop(|| PyList::new(py, 0..LEN));
     });
 }
 
 fn list_get_item(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
         let list = PyList::new(py, 0..LEN).unwrap();
         let mut sum = 0;
@@ -40,9 +40,9 @@ fn list_get_item(b: &mut Bencher<'_>) {
 }
 
 fn list_nth(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50;
-        let list = PyList::new_bound(py, 0..LEN);
+        let list = PyList::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -53,9 +53,9 @@ fn list_nth(b: &mut Bencher<'_>) {
 }
 
 fn list_nth_back(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50;
-        let list = PyList::new_bound(py, 0..LEN);
+        let list = PyList::new(py, 0..LEN).unwrap();
         let mut sum = 0;
         b.iter(|| {
             for i in 0..LEN {
@@ -65,9 +65,9 @@ fn list_nth_back(b: &mut Bencher<'_>) {
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, Py_GIL_DISABLED)))]
 fn list_get_item_unchecked(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
         let list = PyList::new(py, 0..LEN).unwrap();
         let mut sum = 0;
@@ -82,10 +82,10 @@ fn list_get_item_unchecked(b: &mut Bencher<'_>) {
 }
 
 fn sequence_from_list(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         const LEN: usize = 50_000;
         let list = &PyList::new(py, 0..LEN).unwrap();
-        b.iter(|| black_box(list).downcast::<PySequence>().unwrap());
+        b.iter(|| black_box(list).cast::<PySequence>().unwrap());
     });
 }
 

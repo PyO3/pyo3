@@ -3,33 +3,38 @@
 //! For more details about these types, see the [Python
 //! documentation](https://docs.python.org/3/library/datetime.html)
 
+#[cfg(not(Py_LIMITED_API))]
+use crate::err::PyErr;
 use crate::err::PyResult;
+#[cfg(not(Py_3_9))]
+use crate::exceptions::PyImportError;
+#[cfg(not(Py_LIMITED_API))]
 use crate::ffi::{
-    self, PyDateTime_CAPI, PyDateTime_FromTimestamp, PyDateTime_IMPORT, PyDate_FromTimestamp,
-};
-use crate::ffi::{
-    PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR, PyDateTime_DATE_GET_MICROSECOND,
-    PyDateTime_DATE_GET_MINUTE, PyDateTime_DATE_GET_SECOND,
-};
-#[cfg(GraalPy)]
-use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
-use crate::ffi::{
+    self, PyDateTime_CAPI, PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR,
+    PyDateTime_DATE_GET_MICROSECOND, PyDateTime_DATE_GET_MINUTE, PyDateTime_DATE_GET_SECOND,
     PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS, PyDateTime_DELTA_GET_SECONDS,
+    PyDateTime_FromTimestamp, PyDateTime_GET_DAY, PyDateTime_GET_MONTH, PyDateTime_GET_YEAR,
+    PyDateTime_IMPORT, PyDateTime_TIME_GET_FOLD, PyDateTime_TIME_GET_HOUR,
+    PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
+    PyDate_FromTimestamp,
 };
-use crate::ffi::{PyDateTime_GET_DAY, PyDateTime_GET_MONTH, PyDateTime_GET_YEAR};
-use crate::ffi::{
-    PyDateTime_TIME_GET_FOLD, PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND,
-    PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
-};
-use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::py_result_ext::PyResultExt;
-use crate::types::any::PyAnyMethods;
-use crate::types::PyTuple;
-use crate::{Bound, IntoPyObject, PyAny, PyErr, Python};
-use std::os::raw::c_int;
-#[cfg(any(feature = "chrono", feature = "jiff-02"))]
-use std::ptr;
+#[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
+#[cfg(Py_LIMITED_API)]
+use crate::type_object::PyTypeInfo;
+#[cfg(Py_LIMITED_API)]
+use crate::types::typeobject::PyTypeMethods;
+#[cfg(Py_LIMITED_API)]
+use crate::types::IntoPyDict;
+use crate::types::{any::PyAnyMethods, PyString, PyType};
+#[cfg(not(Py_LIMITED_API))]
+use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, BoundObject};
+use crate::{sync::PyOnceLock, Py};
+use crate::{Borrowed, Bound, IntoPyObject, PyAny, Python};
+#[cfg(not(Py_LIMITED_API))]
+use std::ffi::c_int;
 
+#[cfg(not(Py_LIMITED_API))]
 fn ensure_datetime_api(py: Python<'_>) -> PyResult<&'static PyDateTime_CAPI> {
     if let Some(api) = unsafe { pyo3_ffi::PyDateTimeAPI().as_ref() } {
         Ok(api)
@@ -42,6 +47,7 @@ fn ensure_datetime_api(py: Python<'_>) -> PyResult<&'static PyDateTime_CAPI> {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 fn expect_datetime_api(py: Python<'_>) -> &'static PyDateTime_CAPI {
     ensure_datetime_api(py).expect("failed to import `datetime` C API")
 }
@@ -57,7 +63,7 @@ fn expect_datetime_api(py: Python<'_>) -> &'static PyDateTime_CAPI {
 // # Safety
 //
 // These functions must only be called when the GIL is held!
-
+#[cfg(not(Py_LIMITED_API))]
 macro_rules! ffi_fun_with_autoinit {
     ($(#[$outer:meta] unsafe fn $name: ident($arg: ident: *mut PyObject) -> $ret: ty;)*) => {
         $(
@@ -68,8 +74,8 @@ macro_rules! ffi_fun_with_autoinit {
             /// Must only be called while the GIL is held
             unsafe fn $name($arg: *mut crate::ffi::PyObject) -> $ret {
 
-                let _ = ensure_datetime_api(Python::assume_gil_acquired());
-                crate::ffi::$name($arg)
+                let _ = ensure_datetime_api(unsafe { Python::assume_attached() });
+                unsafe { crate::ffi::$name($arg) }
             }
         )*
 
@@ -77,6 +83,7 @@ macro_rules! ffi_fun_with_autoinit {
     };
 }
 
+#[cfg(not(Py_LIMITED_API))]
 ffi_fun_with_autoinit! {
     /// Check if `op` is a `PyDateTimeAPI.DateType` or subtype.
     unsafe fn PyDate_Check(op: *mut PyObject) -> c_int;
@@ -97,6 +104,7 @@ ffi_fun_with_autoinit! {
 // Access traits
 
 /// Trait for accessing the date components of a struct containing a date.
+#[cfg(not(Py_LIMITED_API))]
 pub trait PyDateAccess {
     /// Returns the year, as a positive int.
     ///
@@ -120,6 +128,7 @@ pub trait PyDateAccess {
 /// Note: These access the individual components of a (day, second,
 /// microsecond) representation of the delta, they are *not* intended as
 /// aliases for calculating the total duration in each of these units.
+#[cfg(not(Py_LIMITED_API))]
 pub trait PyDeltaAccess {
     /// Returns the number of days, as an int from -999999999 to 999999999.
     ///
@@ -129,16 +138,17 @@ pub trait PyDeltaAccess {
     /// Returns the number of seconds, as an int from 0 through 86399.
     ///
     /// Implementations should conform to the upstream documentation:
-    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_DAYS>
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_SECONDS>
     fn get_seconds(&self) -> i32;
     /// Returns the number of microseconds, as an int from 0 through 999999.
     ///
     /// Implementations should conform to the upstream documentation:
-    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_DAYS>
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_MICROSECONDS>
     fn get_microseconds(&self) -> i32;
 }
 
 /// Trait for accessing the time components of a struct containing a time.
+#[cfg(not(Py_LIMITED_API))]
 pub trait PyTimeAccess {
     /// Returns the hour, as an int from 0 through 23.
     ///
@@ -177,13 +187,6 @@ pub trait PyTzInfoAccess<'py> {
     /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DATE_GET_TZINFO>
     /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_TIME_GET_TZINFO>
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>>;
-
-    /// Deprecated name for [`PyTzInfoAccess::get_tzinfo`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTzInfoAccess::get_tzinfo`")]
-    #[inline]
-    fn get_tzinfo_bound(&self) -> Option<Bound<'py, PyTzInfo>> {
-        self.get_tzinfo()
-    }
 }
 
 /// Bindings around `datetime.date`.
@@ -192,6 +195,8 @@ pub trait PyTzInfoAccess<'py> {
 /// [`Py<PyDate>`][crate::Py] or [`Bound<'py, PyDate>`][Bound].
 #[repr(transparent)]
 pub struct PyDate(PyAny);
+
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
@@ -199,50 +204,63 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDate_Check
 );
+#[cfg(not(Py_LIMITED_API))]
 pyobject_subclassable_native_type!(PyDate, crate::ffi::PyDateTime_Date);
+
+#[cfg(Py_LIMITED_API)]
+pyobject_native_type_core!(
+    PyDate,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "datetime", "date").unwrap().as_type_ptr()
+    },
+    #module=Some("datetime")
+);
 
 impl PyDate {
     /// Creates a new `datetime.date`.
     pub fn new(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<Bound<'_, PyDate>> {
-        let api = ensure_datetime_api(py)?;
-        unsafe {
-            (api.Date_FromDate)(year, c_int::from(month), c_int::from(day), api.DateType)
-                .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let api = ensure_datetime_api(py)?;
+            unsafe {
+                (api.Date_FromDate)(year, c_int::from(month), c_int::from(day), api.DateType)
+                    .assume_owned_or_err(py)
+                    .cast_into_unchecked()
+            }
         }
-    }
-
-    /// Deprecated name for [`PyDate::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDate::new`")]
-    #[inline]
-    pub fn new_bound(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<Bound<'_, PyDate>> {
-        Self::new(py, year, month, day)
+        #[cfg(Py_LIMITED_API)]
+        Ok(Self::type_object(py)
+            .call((year, month, day), None)?
+            .cast_into()?)
     }
 
     /// Construct a `datetime.date` from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.date.fromtimestamp`
     pub fn from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<Bound<'_, PyDate>> {
-        let time_tuple = PyTuple::new(py, [timestamp])?;
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let time_tuple = PyTuple::new(py, [timestamp])?;
 
-        // safety ensure that the API is loaded
-        let _api = ensure_datetime_api(py)?;
+            // safety ensure that the API is loaded
+            let _api = ensure_datetime_api(py)?;
 
-        unsafe {
-            PyDate_FromTimestamp(time_tuple.as_ptr())
-                .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+            unsafe {
+                PyDate_FromTimestamp(time_tuple.as_ptr())
+                    .assume_owned_or_err(py)
+                    .cast_into_unchecked()
+            }
         }
-    }
 
-    /// Deprecated name for [`PyDate::from_timestamp`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDate::from_timestamp`")]
-    #[inline]
-    pub fn from_timestamp_bound(py: Python<'_>, timestamp: i64) -> PyResult<Bound<'_, PyDate>> {
-        Self::from_timestamp(py, timestamp)
+        #[cfg(Py_LIMITED_API)]
+        Ok(Self::type_object(py)
+            .call_method1("fromtimestamp", (timestamp,))?
+            .cast_into()?)
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyDateAccess for Bound<'_, PyDate> {
     fn get_year(&self) -> i32 {
         unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
@@ -263,6 +281,8 @@ impl PyDateAccess for Bound<'_, PyDate> {
 /// [`Py<PyDateTime>`][crate::Py] or [`Bound<'py, PyDateTime>`][Bound].
 #[repr(transparent)]
 pub struct PyDateTime(PyAny);
+
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
@@ -270,7 +290,18 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
 );
+#[cfg(not(Py_LIMITED_API))]
 pyobject_subclassable_native_type!(PyDateTime, crate::ffi::PyDateTime_DateTime);
+
+#[cfg(Py_LIMITED_API)]
+pyobject_native_type_core!(
+    PyDateTime,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "datetime", "datetime").unwrap().as_type_ptr()
+    },
+    #module=Some("datetime")
+);
 
 impl PyDateTime {
     /// Creates a new `datetime.datetime` object.
@@ -286,50 +317,33 @@ impl PyDateTime {
         microsecond: u32,
         tzinfo: Option<&Bound<'py, PyTzInfo>>,
     ) -> PyResult<Bound<'py, PyDateTime>> {
-        let api = ensure_datetime_api(py)?;
-        unsafe {
-            (api.DateTime_FromDateAndTime)(
-                year,
-                c_int::from(month),
-                c_int::from(day),
-                c_int::from(hour),
-                c_int::from(minute),
-                c_int::from(second),
-                microsecond as c_int,
-                opt_to_pyobj(tzinfo),
-                api.DateTimeType,
-            )
-            .assume_owned_or_err(py)
-            .downcast_into_unchecked()
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let api = ensure_datetime_api(py)?;
+            unsafe {
+                (api.DateTime_FromDateAndTime)(
+                    year,
+                    c_int::from(month),
+                    c_int::from(day),
+                    c_int::from(hour),
+                    c_int::from(minute),
+                    c_int::from(second),
+                    microsecond as c_int,
+                    opt_to_pyobj(tzinfo),
+                    api.DateTimeType,
+                )
+                .assume_owned_or_err(py)
+                .cast_into_unchecked()
+            }
         }
-    }
 
-    /// Deprecated name for [`PyDateTime::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDateTime::new`")]
-    #[inline]
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_bound<'py>(
-        py: Python<'py>,
-        year: i32,
-        month: u8,
-        day: u8,
-        hour: u8,
-        minute: u8,
-        second: u8,
-        microsecond: u32,
-        tzinfo: Option<&Bound<'py, PyTzInfo>>,
-    ) -> PyResult<Bound<'py, PyDateTime>> {
-        Self::new(
-            py,
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second,
-            microsecond,
-            tzinfo,
-        )
+        #[cfg(Py_LIMITED_API)]
+        Ok(Self::type_object(py)
+            .call(
+                (year, month, day, hour, minute, second, microsecond, tzinfo),
+                None,
+            )?
+            .cast_into()?)
     }
 
     /// Alternate constructor that takes a `fold` parameter. A `true` value for this parameter
@@ -352,53 +366,34 @@ impl PyDateTime {
         tzinfo: Option<&Bound<'py, PyTzInfo>>,
         fold: bool,
     ) -> PyResult<Bound<'py, PyDateTime>> {
-        let api = ensure_datetime_api(py)?;
-        unsafe {
-            (api.DateTime_FromDateAndTimeAndFold)(
-                year,
-                c_int::from(month),
-                c_int::from(day),
-                c_int::from(hour),
-                c_int::from(minute),
-                c_int::from(second),
-                microsecond as c_int,
-                opt_to_pyobj(tzinfo),
-                c_int::from(fold),
-                api.DateTimeType,
-            )
-            .assume_owned_or_err(py)
-            .downcast_into_unchecked()
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let api = ensure_datetime_api(py)?;
+            unsafe {
+                (api.DateTime_FromDateAndTimeAndFold)(
+                    year,
+                    c_int::from(month),
+                    c_int::from(day),
+                    c_int::from(hour),
+                    c_int::from(minute),
+                    c_int::from(second),
+                    microsecond as c_int,
+                    opt_to_pyobj(tzinfo),
+                    c_int::from(fold),
+                    api.DateTimeType,
+                )
+                .assume_owned_or_err(py)
+                .cast_into_unchecked()
+            }
         }
-    }
 
-    /// Deprecated name for [`PyDateTime::new_with_fold`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDateTime::new_with_fold`")]
-    #[inline]
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_bound_with_fold<'py>(
-        py: Python<'py>,
-        year: i32,
-        month: u8,
-        day: u8,
-        hour: u8,
-        minute: u8,
-        second: u8,
-        microsecond: u32,
-        tzinfo: Option<&Bound<'py, PyTzInfo>>,
-        fold: bool,
-    ) -> PyResult<Bound<'py, PyDateTime>> {
-        Self::new_with_fold(
-            py,
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second,
-            microsecond,
-            tzinfo,
-            fold,
-        )
+        #[cfg(Py_LIMITED_API)]
+        Ok(Self::type_object(py)
+            .call(
+                (year, month, day, hour, minute, second, microsecond, tzinfo),
+                Some(&[("fold", fold)].into_py_dict(py)?),
+            )?
+            .cast_into()?)
     }
 
     /// Construct a `datetime` object from a POSIX timestamp
@@ -409,30 +404,28 @@ impl PyDateTime {
         timestamp: f64,
         tzinfo: Option<&Bound<'py, PyTzInfo>>,
     ) -> PyResult<Bound<'py, PyDateTime>> {
-        let args = (timestamp, tzinfo).into_pyobject(py)?;
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let args = (timestamp, tzinfo).into_pyobject(py)?;
 
-        // safety ensure API is loaded
-        let _api = ensure_datetime_api(py)?;
+            // safety ensure API is loaded
+            let _api = ensure_datetime_api(py)?;
 
-        unsafe {
-            PyDateTime_FromTimestamp(args.as_ptr())
-                .assume_owned_or_err(py)
-                .downcast_into_unchecked()
+            unsafe {
+                PyDateTime_FromTimestamp(args.as_ptr())
+                    .assume_owned_or_err(py)
+                    .cast_into_unchecked()
+            }
         }
-    }
 
-    /// Deprecated name for [`PyDateTime::from_timestamp`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDateTime::from_timestamp`")]
-    #[inline]
-    pub fn from_timestamp_bound<'py>(
-        py: Python<'py>,
-        timestamp: f64,
-        tzinfo: Option<&Bound<'py, PyTzInfo>>,
-    ) -> PyResult<Bound<'py, PyDateTime>> {
-        Self::from_timestamp(py, timestamp, tzinfo)
+        #[cfg(Py_LIMITED_API)]
+        Ok(Self::type_object(py)
+            .call_method1("fromtimestamp", (timestamp, tzinfo))?
+            .cast_into()?)
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyDateAccess for Bound<'_, PyDateTime> {
     fn get_year(&self) -> i32 {
         unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
@@ -447,6 +440,7 @@ impl PyDateAccess for Bound<'_, PyDateTime> {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyTimeAccess for Bound<'_, PyDateTime> {
     fn get_hour(&self) -> u8 {
         unsafe { PyDateTime_DATE_GET_HOUR(self.as_ptr()) as u8 }
@@ -471,33 +465,43 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        let ptr = self.as_ptr() as *mut ffi::PyDateTime_DateTime;
-        #[cfg(not(GraalPy))]
+        #[cfg(all(not(Py_3_10), not(Py_LIMITED_API)))]
         unsafe {
+            let ptr = self.as_ptr() as *mut ffi::PyDateTime_DateTime;
             if (*ptr).hastzinfo != 0 {
                 Some(
                     (*ptr)
                         .tzinfo
                         .assume_borrowed(self.py())
                         .to_owned()
-                        .downcast_into_unchecked(),
+                        .cast_into_unchecked(),
                 )
             } else {
                 None
             }
         }
 
-        #[cfg(GraalPy)]
+        #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
         unsafe {
-            let res = PyDateTime_DATE_GET_TZINFO(ptr as *mut ffi::PyObject);
+            let res = PyDateTime_DATE_GET_TZINFO(self.as_ptr());
             if Py_IsNone(res) == 1 {
                 None
             } else {
                 Some(
                     res.assume_borrowed(self.py())
                         .to_owned()
-                        .downcast_into_unchecked(),
+                        .cast_into_unchecked(),
                 )
+            }
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        unsafe {
+            let tzinfo = self.getattr(intern!(self.py(), "tzinfo")).ok()?;
+            if tzinfo.is_none() {
+                None
+            } else {
+                Some(tzinfo.cast_into_unchecked())
             }
         }
     }
@@ -509,6 +513,8 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
 /// [`Py<PyTime>`][crate::Py] or [`Bound<'py, PyTime>`][Bound].
 #[repr(transparent)]
 pub struct PyTime(PyAny);
+
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
@@ -516,7 +522,18 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyTime_Check
 );
+#[cfg(not(Py_LIMITED_API))]
 pyobject_subclassable_native_type!(PyTime, crate::ffi::PyDateTime_Time);
+
+#[cfg(Py_LIMITED_API)]
+pyobject_native_type_core!(
+    PyTime,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "datetime", "time").unwrap().as_type_ptr()
+    },
+    #module=Some("datetime")
+);
 
 impl PyTime {
     /// Creates a new `datetime.time` object.
@@ -528,36 +545,30 @@ impl PyTime {
         microsecond: u32,
         tzinfo: Option<&Bound<'py, PyTzInfo>>,
     ) -> PyResult<Bound<'py, PyTime>> {
-        let api = ensure_datetime_api(py)?;
-        unsafe {
-            (api.Time_FromTime)(
-                c_int::from(hour),
-                c_int::from(minute),
-                c_int::from(second),
-                microsecond as c_int,
-                opt_to_pyobj(tzinfo),
-                api.TimeType,
-            )
-            .assume_owned_or_err(py)
-            .downcast_into_unchecked()
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let api = ensure_datetime_api(py)?;
+            unsafe {
+                (api.Time_FromTime)(
+                    c_int::from(hour),
+                    c_int::from(minute),
+                    c_int::from(second),
+                    microsecond as c_int,
+                    opt_to_pyobj(tzinfo),
+                    api.TimeType,
+                )
+                .assume_owned_or_err(py)
+                .cast_into_unchecked()
+            }
         }
+
+        #[cfg(Py_LIMITED_API)]
+        Ok(Self::type_object(py)
+            .call((hour, minute, second, microsecond, tzinfo), None)?
+            .cast_into()?)
     }
 
-    /// Deprecated name for [`PyTime::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTime::new`")]
-    #[inline]
-    pub fn new_bound<'py>(
-        py: Python<'py>,
-        hour: u8,
-        minute: u8,
-        second: u8,
-        microsecond: u32,
-        tzinfo: Option<&Bound<'py, PyTzInfo>>,
-    ) -> PyResult<Bound<'py, PyTime>> {
-        Self::new(py, hour, minute, second, microsecond, tzinfo)
-    }
-
-    /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_bound_with_fold`].
+    /// Alternate constructor that takes a `fold` argument. See [`PyDateTime::new_with_fold`].
     pub fn new_with_fold<'py>(
         py: Python<'py>,
         hour: u8,
@@ -567,38 +578,35 @@ impl PyTime {
         tzinfo: Option<&Bound<'py, PyTzInfo>>,
         fold: bool,
     ) -> PyResult<Bound<'py, PyTime>> {
-        let api = ensure_datetime_api(py)?;
-        unsafe {
-            (api.Time_FromTimeAndFold)(
-                c_int::from(hour),
-                c_int::from(minute),
-                c_int::from(second),
-                microsecond as c_int,
-                opt_to_pyobj(tzinfo),
-                fold as c_int,
-                api.TimeType,
-            )
-            .assume_owned_or_err(py)
-            .downcast_into_unchecked()
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let api = ensure_datetime_api(py)?;
+            unsafe {
+                (api.Time_FromTimeAndFold)(
+                    c_int::from(hour),
+                    c_int::from(minute),
+                    c_int::from(second),
+                    microsecond as c_int,
+                    opt_to_pyobj(tzinfo),
+                    fold as c_int,
+                    api.TimeType,
+                )
+                .assume_owned_or_err(py)
+                .cast_into_unchecked()
+            }
         }
-    }
 
-    /// Deprecated name for [`PyTime::new_with_fold`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTime::new_with_fold`")]
-    #[inline]
-    pub fn new_bound_with_fold<'py>(
-        py: Python<'py>,
-        hour: u8,
-        minute: u8,
-        second: u8,
-        microsecond: u32,
-        tzinfo: Option<&Bound<'py, PyTzInfo>>,
-        fold: bool,
-    ) -> PyResult<Bound<'py, PyTime>> {
-        Self::new_with_fold(py, hour, minute, second, microsecond, tzinfo, fold)
+        #[cfg(Py_LIMITED_API)]
+        Ok(Self::type_object(py)
+            .call(
+                (hour, minute, second, microsecond, tzinfo),
+                Some(&[("fold", fold)].into_py_dict(py)?),
+            )?
+            .cast_into()?)
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyTimeAccess for Bound<'_, PyTime> {
     fn get_hour(&self) -> u8 {
         unsafe { PyDateTime_TIME_GET_HOUR(self.as_ptr()) as u8 }
@@ -623,33 +631,43 @@ impl PyTimeAccess for Bound<'_, PyTime> {
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        let ptr = self.as_ptr() as *mut ffi::PyDateTime_Time;
-        #[cfg(not(GraalPy))]
+        #[cfg(all(not(Py_3_10), not(Py_LIMITED_API)))]
         unsafe {
+            let ptr = self.as_ptr() as *mut ffi::PyDateTime_Time;
             if (*ptr).hastzinfo != 0 {
                 Some(
                     (*ptr)
                         .tzinfo
                         .assume_borrowed(self.py())
                         .to_owned()
-                        .downcast_into_unchecked(),
+                        .cast_into_unchecked(),
                 )
             } else {
                 None
             }
         }
 
-        #[cfg(GraalPy)]
+        #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
         unsafe {
-            let res = PyDateTime_TIME_GET_TZINFO(ptr as *mut ffi::PyObject);
+            let res = PyDateTime_TIME_GET_TZINFO(self.as_ptr());
             if Py_IsNone(res) == 1 {
                 None
             } else {
                 Some(
                     res.assume_borrowed(self.py())
                         .to_owned()
-                        .downcast_into_unchecked(),
+                        .cast_into_unchecked(),
                 )
+            }
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        unsafe {
+            let tzinfo = self.getattr(intern!(self.py(), "tzinfo")).ok()?;
+            if tzinfo.is_none() {
+                None
+            } else {
+                Some(tzinfo.cast_into_unchecked())
             }
         }
     }
@@ -661,10 +679,12 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
 /// [`Py<PyTzInfo>`][crate::Py] or [`Bound<'py, PyTzInfo>`][Bound].
 ///
 /// This is an abstract base class and cannot be constructed directly.
-/// For concrete time zone implementations, see [`timezone_utc_bound`] and
+/// For concrete time zone implementations, see [`timezone_utc`] and
 /// the [`zoneinfo` module](https://docs.python.org/3/library/zoneinfo.html).
 #[repr(transparent)]
 pub struct PyTzInfo(PyAny);
+
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
@@ -672,43 +692,98 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
 );
+#[cfg(not(Py_LIMITED_API))]
 pyobject_subclassable_native_type!(PyTzInfo, crate::ffi::PyObject);
 
+#[cfg(Py_LIMITED_API)]
+pyobject_native_type_core!(
+    PyTzInfo,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "datetime", "tzinfo").unwrap().as_type_ptr()
+    },
+    #module=Some("datetime")
+);
+
+impl PyTzInfo {
+    /// Equivalent to `datetime.timezone.utc`
+    pub fn utc(py: Python<'_>) -> PyResult<Borrowed<'static, '_, PyTzInfo>> {
+        #[cfg(not(Py_LIMITED_API))]
+        unsafe {
+            Ok(ensure_datetime_api(py)?
+                .TimeZone_UTC
+                .assume_borrowed(py)
+                .cast_unchecked())
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        {
+            static UTC: PyOnceLock<Py<PyTzInfo>> = PyOnceLock::new();
+            UTC.get_or_try_init(py, || {
+                Ok(py
+                    .import("datetime")?
+                    .getattr("timezone")?
+                    .getattr("utc")?
+                    .cast_into()?
+                    .unbind())
+            })
+            .map(|utc| utc.bind_borrowed(py))
+        }
+    }
+
+    /// Equivalent to `zoneinfo.ZoneInfo` constructor
+    pub fn timezone<'py, T>(py: Python<'py>, iana_name: T) -> PyResult<Bound<'py, PyTzInfo>>
+    where
+        T: IntoPyObject<'py, Target = PyString>,
+    {
+        static ZONE_INFO: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+
+        let zoneinfo = ZONE_INFO.import(py, "zoneinfo", "ZoneInfo");
+
+        #[cfg(not(Py_3_9))]
+        let zoneinfo = zoneinfo
+            .or_else(|_| ZONE_INFO.import(py, "backports.zoneinfo", "ZoneInfo"))
+            .map_err(|_| PyImportError::new_err("Could not import \"backports.zoneinfo.ZoneInfo\". ZoneInfo is required when converting timezone-aware DateTime's. Please install \"backports.zoneinfo\" on python < 3.9"));
+
+        zoneinfo?
+            .call1((iana_name,))?
+            .cast_into()
+            .map_err(Into::into)
+    }
+
+    /// Equivalent to `datetime.timezone` constructor
+    pub fn fixed_offset<'py, T>(py: Python<'py>, offset: T) -> PyResult<Bound<'py, PyTzInfo>>
+    where
+        T: IntoPyObject<'py, Target = PyDelta>,
+    {
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let api = ensure_datetime_api(py)?;
+            let delta = offset.into_pyobject(py).map_err(Into::into)?;
+            unsafe {
+                (api.TimeZone_FromTimeZone)(delta.as_ptr(), std::ptr::null_mut())
+                    .assume_owned_or_err(py)
+                    .cast_into_unchecked()
+            }
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        {
+            static TIMEZONE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+            Ok(TIMEZONE
+                .import(py, "datetime", "timezone")?
+                .call1((offset,))?
+                .cast_into()?)
+        }
+    }
+}
+
 /// Equivalent to `datetime.timezone.utc`
+#[deprecated(since = "0.25.0", note = "use `PyTzInfo::utc` instead")]
 pub fn timezone_utc(py: Python<'_>) -> Bound<'_, PyTzInfo> {
-    // TODO: this _could_ have a borrowed form `timezone_utc_borrowed`, but that seems
-    // like an edge case optimization and we'd prefer in PyO3 0.21 to use `Bound` as
-    // much as possible
-    unsafe {
-        expect_datetime_api(py)
-            .TimeZone_UTC
-            .assume_borrowed(py)
-            .to_owned()
-            .downcast_into_unchecked()
-    }
-}
-
-/// Deprecated name for [`timezone_utc`].
-#[deprecated(since = "0.23.0", note = "renamed to `timezone_utc`")]
-#[inline]
-pub fn timezone_utc_bound(py: Python<'_>) -> Bound<'_, PyTzInfo> {
-    timezone_utc(py)
-}
-
-/// Equivalent to `datetime.timezone` constructor
-///
-/// Only used internally
-#[cfg(any(feature = "chrono", feature = "jiff-02"))]
-pub(crate) fn timezone_from_offset<'py>(
-    offset: &Bound<'py, PyDelta>,
-) -> PyResult<Bound<'py, PyTzInfo>> {
-    let py = offset.py();
-    let api = ensure_datetime_api(py)?;
-    unsafe {
-        (api.TimeZone_FromTimeZone)(offset.as_ptr(), ptr::null_mut())
-            .assume_owned_or_err(py)
-            .downcast_into_unchecked()
-    }
+    PyTzInfo::utc(py)
+        .expect("failed to import datetime.timezone.utc")
+        .to_owned()
 }
 
 /// Bindings for `datetime.timedelta`.
@@ -717,6 +792,8 @@ pub(crate) fn timezone_from_offset<'py>(
 /// [`Py<PyDelta>`][crate::Py] or [`Bound<'py, PyDelta>`][Bound].
 #[repr(transparent)]
 pub struct PyDelta(PyAny);
+
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,
@@ -724,7 +801,18 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDelta_Check
 );
+#[cfg(not(Py_LIMITED_API))]
 pyobject_subclassable_native_type!(PyDelta, crate::ffi::PyDateTime_Delta);
+
+#[cfg(Py_LIMITED_API)]
+pyobject_native_type_core!(
+    PyDelta,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "datetime", "timedelta").unwrap().as_type_ptr()
+    },
+    #module=Some("datetime")
+);
 
 impl PyDelta {
     /// Creates a new `timedelta`.
@@ -735,34 +823,32 @@ impl PyDelta {
         microseconds: i32,
         normalize: bool,
     ) -> PyResult<Bound<'_, PyDelta>> {
-        let api = ensure_datetime_api(py)?;
-        unsafe {
-            (api.Delta_FromDelta)(
-                days as c_int,
-                seconds as c_int,
-                microseconds as c_int,
-                normalize as c_int,
-                api.DeltaType,
-            )
-            .assume_owned_or_err(py)
-            .downcast_into_unchecked()
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let api = ensure_datetime_api(py)?;
+            unsafe {
+                (api.Delta_FromDelta)(
+                    days as c_int,
+                    seconds as c_int,
+                    microseconds as c_int,
+                    normalize as c_int,
+                    api.DeltaType,
+                )
+                .assume_owned_or_err(py)
+                .cast_into_unchecked()
+            }
         }
-    }
 
-    /// Deprecated name for [`PyDelta::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyDelta::new`")]
-    #[inline]
-    pub fn new_bound(
-        py: Python<'_>,
-        days: i32,
-        seconds: i32,
-        microseconds: i32,
-        normalize: bool,
-    ) -> PyResult<Bound<'_, PyDelta>> {
-        Self::new(py, days, seconds, microseconds, normalize)
+        #[cfg(Py_LIMITED_API)]
+        let _ = normalize;
+        #[cfg(Py_LIMITED_API)]
+        Ok(Self::type_object(py)
+            .call1((days, seconds, microseconds))?
+            .cast_into()?)
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 impl PyDeltaAccess for Bound<'_, PyDelta> {
     fn get_days(&self) -> i32 {
         unsafe { PyDateTime_DELTA_GET_DAYS(self.as_ptr()) }
@@ -779,6 +865,7 @@ impl PyDeltaAccess for Bound<'_, PyDelta> {
 
 // Utility function which returns a borrowed reference to either
 // the underlying tzinfo or None.
+#[cfg(not(Py_LIMITED_API))]
 fn opt_to_pyobj(opt: Option<&Bound<'_, PyTzInfo>>) -> *mut ffi::PyObject {
     match opt {
         Some(tzi) => tzi.as_ptr(),
@@ -796,7 +883,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_datetime_fromtimestamp() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dt = PyDateTime::from_timestamp(py, 100.0, None).unwrap();
             py_run!(
                 py,
@@ -804,7 +891,8 @@ mod tests {
                 "import datetime; assert dt == datetime.datetime.fromtimestamp(100)"
             );
 
-            let dt = PyDateTime::from_timestamp(py, 100.0, Some(&timezone_utc(py))).unwrap();
+            let utc = PyTzInfo::utc(py).unwrap();
+            let dt = PyDateTime::from_timestamp(py, 100.0, Some(&utc)).unwrap();
             py_run!(
                 py,
                 dt,
@@ -817,7 +905,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_date_fromtimestamp() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dt = PyDate::from_timestamp(py, 100).unwrap();
             py_run!(
                 py,
@@ -828,9 +916,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(Py_LIMITED_API))]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_new_with_fold() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let a = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, false);
             let b = PyDateTime::new_with_fold(py, 2021, 1, 23, 20, 32, 40, 341516, None, true);
 
@@ -842,12 +931,12 @@ mod tests {
     #[test]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_get_tzinfo() {
-        crate::Python::with_gil(|py| {
-            let utc = timezone_utc(py);
+        crate::Python::attach(|py| {
+            let utc = PyTzInfo::utc(py).unwrap();
 
             let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
 
-            assert!(dt.get_tzinfo().unwrap().eq(&utc).unwrap());
+            assert!(dt.get_tzinfo().unwrap().eq(utc).unwrap());
 
             let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, None).unwrap();
 
@@ -869,30 +958,30 @@ mod tests {
     fn test_timezone_from_offset() {
         use crate::types::PyNone;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(
-                timezone_from_offset(&PyDelta::new(py, 0, -3600, 0, true).unwrap())
+                PyTzInfo::fixed_offset(py, PyDelta::new(py, 0, -3600, 0, true).unwrap())
                     .unwrap()
                     .call_method1("utcoffset", (PyNone::get(py),))
                     .unwrap()
-                    .downcast_into::<PyDelta>()
+                    .cast_into::<PyDelta>()
                     .unwrap()
                     .eq(PyDelta::new(py, 0, -3600, 0, true).unwrap())
                     .unwrap()
             );
 
             assert!(
-                timezone_from_offset(&PyDelta::new(py, 0, 3600, 0, true).unwrap())
+                PyTzInfo::fixed_offset(py, PyDelta::new(py, 0, 3600, 0, true).unwrap())
                     .unwrap()
                     .call_method1("utcoffset", (PyNone::get(py),))
                     .unwrap()
-                    .downcast_into::<PyDelta>()
+                    .cast_into::<PyDelta>()
                     .unwrap()
                     .eq(PyDelta::new(py, 0, 3600, 0, true).unwrap())
                     .unwrap()
             );
 
-            timezone_from_offset(&PyDelta::new(py, 1, 0, 0, true).unwrap()).unwrap_err();
+            PyTzInfo::fixed_offset(py, PyDelta::new(py, 1, 0, 0, true).unwrap()).unwrap_err();
         })
     }
 }

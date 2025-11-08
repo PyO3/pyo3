@@ -4,16 +4,25 @@ use std::{cmp::Ordering, os::raw::c_int};
 
 mod create_type_object;
 mod gc;
+mod guard;
 
 pub(crate) use self::create_type_object::{create_type_object, PyClassTypeObject};
 
 pub use self::gc::{PyTraverseError, PyVisit};
+pub use self::guard::{
+    PyClassGuard, PyClassGuardError, PyClassGuardMap, PyClassGuardMut, PyClassGuardMutError,
+};
 
 /// Types that can be used as Python classes.
 ///
 /// The `#[pyclass]` attribute implements this trait for your Rust struct -
 /// you shouldn't implement this trait directly.
 pub trait PyClass: PyTypeInfo + PyClassImpl {
+    /// Name of the class.
+    ///
+    /// This can be set via `#[pyclass(name = "...")]`, otherwise it defaults to the Rust type name.
+    const NAME: &'static str;
+
     /// Whether the pyclass is frozen.
     ///
     /// This can be enabled via `#[pyclass(frozen)]`.
@@ -55,7 +64,7 @@ impl CompareOp {
     ///
     /// Usage example:
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # use pyo3::prelude::*;
     /// # use pyo3::class::basic::CompareOp;
     ///

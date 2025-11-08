@@ -28,13 +28,6 @@ impl TestClass {
 
 #[pymethods]
 impl TestClass {
-    #[pyo3(name = "makeinit")]
-    #[init]
-    fn init(&self) {}
-}
-
-#[pymethods]
-impl TestClass {
     #[getter(1)]
     fn get_one(&self) -> Self { Self { num: 0 } }
 }

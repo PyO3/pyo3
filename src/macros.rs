@@ -2,17 +2,17 @@
 ///
 /// # Panics
 ///
-/// This macro internally calls [`Python::run_bound`](crate::Python::run_bound) and panics
+/// This macro internally calls [`Python::run`](crate::Python::run) and panics
 /// if it returns `Err`, after printing the error to stdout.
 ///
-/// If you need to handle failures, please use [`Python::run_bound`](crate::marker::Python::run_bound) instead.
+/// If you need to handle failures, please use [`Python::run`](crate::marker::Python::run) instead.
 ///
 /// # Examples
 /// ```
 /// use pyo3::{prelude::*, py_run, types::PyList};
 ///
 /// # fn main() -> PyResult<()> {
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let list = PyList::new(py, &[1, 2, 3])?;
 ///     py_run!(py, list, "assert list == [1, 2, 3]");
 /// # Ok(())
@@ -47,7 +47,7 @@
 ///     }
 /// }
 ///
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let time = Py::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
 ///     let time_as_tuple = (8, 43, 16);
 ///     py_run!(py, time time_as_tuple, r#"
@@ -76,7 +76,7 @@
 /// }
 ///
 /// # fn main() -> PyResult<()> {
-/// Python::with_gil(|py| {
+/// Python::attach(|py| {
 ///     let locals = [("C", py.get_type::<MyClass>())].into_py_dict(py)?;
 ///     pyo3::py_run!(py, *locals, "c = C()");
 /// #   Ok(())
@@ -111,13 +111,12 @@ macro_rules! py_run_impl {
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{
         use ::std::option::Option::*;
-        #[allow(unused_imports)]
         if let ::std::result::Result::Err(e) = $py.run(&::std::ffi::CString::new($code).unwrap(), None, Some(&$dict)) {
             e.print($py);
             // So when this c api function the last line called printed the error to stderr,
             // the output is only written into a buffer which is never flushed because we
             // panic before flushing. This is where this hack comes into place
-            $py.run($crate::ffi::c_str!("import sys; sys.stderr.flush()"), None, None)
+            $py.run(c"import sys; sys.stderr.flush()", None, None)
                 .unwrap();
             ::std::panic!("{}", $code)
         }
@@ -149,22 +148,6 @@ macro_rules! wrap_pyfunction {
     }};
 }
 
-/// Wraps a Rust function annotated with [`#[pyfunction]`](macro@crate::pyfunction).
-///
-/// This can be used with [`PyModule::add_function`](crate::types::PyModuleMethods::add_function) to
-/// add free functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more
-/// information.
-#[deprecated(since = "0.23.0", note = "renamed to `wrap_pyfunction!`")]
-#[macro_export]
-macro_rules! wrap_pyfunction_bound {
-    ($function:path) => {
-        $crate::wrap_pyfunction!($function)
-    };
-    ($function:path, $py_or_module:expr) => {
-        $crate::wrap_pyfunction!($function, $py_or_module)
-    };
-}
-
 /// Returns a function that takes a [`Python`](crate::Python) instance and returns a
 /// Python module.
 ///
@@ -176,7 +159,7 @@ macro_rules! wrap_pymodule {
         &|py| {
             use $module as wrapped_pymodule;
             wrapped_pymodule::_PYO3_DEF
-                .make_module(py, wrapped_pymodule::__PYO3_GIL_USED)
+                .make_module(py)
                 .expect("failed to wrap pymodule")
         }
     };
@@ -185,7 +168,7 @@ macro_rules! wrap_pymodule {
 /// Add the module to the initialization table in order to make embedded Python code to use it.
 /// Module name is the argument.
 ///
-/// Use it before [`prepare_freethreaded_python`](crate::prepare_freethreaded_python) and
+/// Use it before [`Python::initialize`](crate::marker::Python::initialize) and
 /// leave feature `auto-initialize` off
 #[cfg(not(any(PyPy, GraalPy)))]
 #[macro_export]

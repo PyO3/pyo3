@@ -11,7 +11,7 @@ fn take_pathbuf(path: PathBuf) -> PathBuf {
     path
 }
 
-#[pymodule(gil_used = false)]
+#[pymodule]
 pub fn path(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(make_path, m)?)?;
     m.add_function(wrap_pyfunction!(take_pathbuf, m)?)?;

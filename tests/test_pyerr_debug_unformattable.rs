@@ -1,4 +1,3 @@
-use pyo3::ffi;
 use pyo3::prelude::*;
 
 // This test mucks around with sys.modules, so run it separately to prevent it
@@ -14,25 +13,23 @@ fn err_debug_unformattable() {
     //     traceback: Some(\"<unformattable <traceback object at 0x...>>\")
     // }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // PyTracebackMethods::format uses io.StringIO. Mock it out to trigger a
         // formatting failure:
-        // TypeError: 'Mock' object cannot be converted to 'PyString'
+        // TypeError: 'Mock' object cannot be cast as 'str'
         let err = py
             .run(
-                ffi::c_str!(
-                    r#"
+                cr#"
 import io, sys, unittest.mock
 sys.modules['orig_io'] = sys.modules['io']
 sys.modules['io'] = unittest.mock.Mock()
-raise Exception('banana')"#
-                ),
+raise Exception('banana')"#,
                 None,
                 None,
             )
             .expect_err("raising should have given us an error");
 
-        let debug_str = format!("{:?}", err);
+        let debug_str = format!("{err:?}");
         assert!(debug_str.starts_with("PyErr { "));
         assert!(debug_str.ends_with(" }"));
 
@@ -46,19 +43,16 @@ raise Exception('banana')"#
         let traceback = fields.next().unwrap();
         assert!(
             traceback.starts_with("traceback: Some(\"<unformattable <traceback object at 0x"),
-            "assertion failed, actual traceback str: {:?}",
-            traceback
+            "assertion failed, actual traceback str: {traceback:?}"
         );
         assert!(fields.next().is_none());
 
         py.run(
-            ffi::c_str!(
-                r#"
+            cr#"
 import io, sys, unittest.mock
 sys.modules['io'] = sys.modules['orig_io']
 del sys.modules['orig_io']
-"#
-            ),
+"#,
             None,
             None,
         )

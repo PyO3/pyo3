@@ -1,8 +1,13 @@
 # Function signatures
 
-The `#[pyfunction]` attribute also accepts parameters to control how the generated Python function accepts arguments. Just like in Python, arguments can be positional-only, keyword-only, or accept either. `*args` lists and `**kwargs` dicts can also be accepted. These parameters also work for `#[pymethods]` which will be introduced in the [Python Classes](../class.md) section of the guide.
+The `#[pyfunction]` attribute also accepts parameters to control how the generated Python function accepts arguments.
+Just like in Python, arguments can be positional-only, keyword-only, or accept either.
+`*args` lists and `**kwargs` dicts can also be accepted.
+These parameters also work for `#[pymethods]` which will be introduced in the [Python Classes](../class.md) section of the guide.
 
-Like Python, by default PyO3 accepts all arguments as either positional or keyword arguments. All arguments are required by default. This behaviour can be configured by the `#[pyo3(signature = (...))]` option which allows writing a signature in Python syntax.
+Like Python, by default PyO3 accepts all arguments as either positional or keyword arguments.
+All arguments are required by default.
+This behaviour can be configured by the `#[pyo3(signature = (...))]` option which allows writing a signature in Python syntax.
 
 This section of the guide goes into detail about use of the `#[pyo3(signature = (...))]` option and its related option `#[pyo3(text_signature = "...")]`
 
@@ -10,35 +15,35 @@ This section of the guide goes into detail about use of the `#[pyo3(signature = 
 
 For example, below is a function that accepts arbitrary keyword arguments (`**kwargs` in Python syntax) and returns the number that was passed:
 
-```rust
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
+```rust,no_run
+#[pyo3::pymodule]
+mod module_with_functions {
+    use pyo3::prelude::*;
+    use pyo3::types::PyDict;
 
-#[pyfunction]
-#[pyo3(signature = (**kwds))]
-fn num_kwds(kwds: Option<&Bound<'_, PyDict>>) -> usize {
-    kwds.map_or(0, |dict| dict.len())
-}
-
-#[pymodule]
-fn module_with_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(num_kwds, m)?)
+    #[pyfunction]
+    #[pyo3(signature = (**kwds))]
+    fn num_kwds(kwds: Option<&Bound<'_, PyDict>>) -> usize {
+        kwds.map_or(0, |dict| dict.len())
+    }
 }
 ```
 
 Just like in Python, the following constructs can be part of the signature::
 
- * `/`: positional-only arguments separator, each parameter defined before `/` is a positional-only parameter.
- * `*`: var arguments separator, each parameter defined after `*` is a keyword-only parameter.
- * `*args`: "args" is var args. Type of the `args` parameter has to be `&Bound<'_, PyTuple>`.
- * `**kwargs`: "kwargs" receives keyword arguments. The type of the `kwargs` parameter has to be `Option<&Bound<'_, PyDict>>`.
- * `arg=Value`: arguments with default value.
+- `/`: positional-only arguments separator, each parameter defined before `/` is a positional-only parameter.
+- `*`: var arguments separator, each parameter defined after `*` is a keyword-only parameter.
+- `*args`: "args" is var args.
+  Type of the `args` parameter has to be `&Bound<'_, PyTuple>`.
+- `**kwargs`: "kwargs" receives keyword arguments.
+  The type of the `kwargs` parameter has to be `Option<&Bound<'_, PyDict>>`.
+- `arg=Value`: arguments with default value.
    If the `arg` argument is defined after var arguments, it is treated as a keyword-only argument.
-   Note that `Value` has to be valid rust code, PyO3 just inserts it into the generated
-   code unmodified.
+   Note that `Value` has to be valid rust code, PyO3 just inserts it into the generated code unmodified.
 
 Example:
-```rust
+
+```rust,no_run
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 #
@@ -79,36 +84,39 @@ impl MyClass {
 
 Arguments of type `Python` must not be part of the signature:
 
-```rust
+```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 #[pyfunction]
 #[pyo3(signature = (lambda))]
-pub fn simple_python_bound_function(py: Python<'_>, lambda: PyObject) -> PyResult<()> {
+pub fn simple_python_bound_function(py: Python<'_>, lambda: Py<PyAny>) -> PyResult<()> {
     Ok(())
 }
 ```
 
-N.B. the position of the `/` and `*` arguments (if included) control the system of handling positional and keyword arguments. In Python:
+N.B. the position of the `/` and `*` arguments (if included) control the system of handling positional and keyword arguments.
+In Python:
+
 ```python
 import mymodule
 
 mc = mymodule.MyClass()
 print(mc.method(44, False, "World", 666, x=44, y=55))
 print(mc.method(num=-1, name="World"))
-print(mc.make_change(44, False))
+print(mc.make_change(44))
 ```
+
 Produces output:
+
 ```text
-py_args=('World', 666), py_kwargs=Some({'x': 44, 'y': 55}), name=Hello, num=44
-py_args=(), py_kwargs=None, name=World, num=-1
+num=44 (was previously=-1), py_args=(False, 'World', 666), name=Hello, py_kwargs=Some({'x': 44, 'y': 55})
+num=-1 (was previously=44), py_args=(), name=World, py_kwargs=None
 num=44
-num=-1
 ```
 
 > Note: to use keywords like `struct` as a function argument, use "raw identifier" syntax `r#struct` in both the signature and the function definition:
 >
-> ```rust
+> ```rust,no_run
 > # #![allow(dead_code)]
 > # use pyo3::prelude::*;
 > #[pyfunction(signature = (r#struct = "foo"))]
@@ -120,9 +128,11 @@ num=-1
 
 ## Making the function signature available to Python
 
-The function signature is exposed to Python via the `__text_signature__` attribute. PyO3 automatically generates this for every `#[pyfunction]` and all `#[pymethods]` directly from the Rust function, taking into account any override done with the `#[pyo3(signature = (...))]` option.
+The function signature is exposed to Python via the `__text_signature__` attribute.
+PyO3 automatically generates this for every `#[pyfunction]` and all `#[pymethods]` directly from the Rust function, taking into account any override done with the `#[pyo3(signature = (...))]` option.
 
-This automatic generation can only display the value of default arguments for strings, integers, boolean types, and `None`. Any other default arguments will be displayed as `...`. (`.pyi` type stub files commonly also use `...` for default arguments in the same way.)
+This automatic generation can only display the value of default arguments for strings, integers, boolean types, and `None`.
+Any other default arguments will be displayed as `...`. (`.pyi` type stub files commonly also use `...` for default arguments in the same way.)
 
 In cases where the automatically-generated signature needs adjusting, it can [be overridden](#overriding-the-generated-signature) using the `#[pyo3(text_signature)]` option.)
 
@@ -139,7 +149,7 @@ fn add(a: u64, b: u64) -> u64 {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
@@ -187,7 +197,7 @@ fn add(a: u64, b: u64) -> u64 {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
@@ -205,7 +215,8 @@ fn add(a: u64, b: u64) -> u64 {
 # }
 ```
 
-PyO3 will include the contents of the annotation unmodified as the `__text_signature__`. Below shows how IPython will now present this (see the default value of 0 for b):
+PyO3 will include the contents of the annotation unmodified as the `__text_signature__`.
+Below shows how IPython will now present this (see the default value of 0 for b):
 
 ```text
 >>> pyo3_test.add.__text_signature__
@@ -216,7 +227,8 @@ Docstring: This function adds two unsigned 64-bit integers.
 Type:      builtin_function_or_method
 ```
 
-If no signature is wanted at all, `#[pyo3(text_signature = None)]` will disable the built-in signature. The snippet below demonstrates use of this:
+If no signature is wanted at all, `#[pyo3(text_signature = None)]` will disable the built-in signature.
+The snippet below demonstrates use of this:
 
 ```rust
 use pyo3::prelude::*;
@@ -229,7 +241,7 @@ fn add(a: u64, b: u64) -> u64 {
 }
 #
 # fn main() -> PyResult<()> {
-#     Python::with_gil(|py| {
+#     Python::attach(|py| {
 #         let fun = pyo3::wrap_pyfunction!(add, py)?;
 #
 #         let doc: String = fun.getattr("__doc__")?.extract()?;
@@ -250,3 +262,40 @@ True
 Docstring: This function adds two unsigned 64-bit integers.
 Type:      builtin_function_or_method
 ```
+
+### Type annotations in the signature
+
+When the `experimental-inspect` Cargo feature is enabled, the `signature` attribute can also contain type hints:
+
+```rust
+# #[cfg(feature = "experimental-inspect")] {
+use pyo3::prelude::*;
+
+#[pymodule]
+pub mod example {
+   use pyo3::prelude::*;
+
+   #[pyfunction]
+   #[pyo3(signature = (arg: "list[int]") -> "list[int]")]
+   fn list_of_int_identity(arg: Bound<'_, PyAny>) -> Bound<'_, PyAny> {
+      arg
+   }
+}
+# }
+```
+
+It enables the [work-in-progress capacity of PyO3 to autogenerate type stubs](../type-stub.md) to generate a file with the correct type hints:
+
+```python
+def list_of_int_identity(arg: list[int]) -> list[int]: ...
+```
+
+instead of the generic:
+
+```python
+import typing
+
+def list_of_int_identity(arg: typing.Any) -> typing.Any: ...
+```
+
+Note that currently type annotations must be written as Rust strings.

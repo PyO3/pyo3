@@ -3,60 +3,11 @@ use std::{cmp, collections, hash};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 use crate::{
-    conversion::IntoPyObject,
+    conversion::{FromPyObjectOwned, IntoPyObject},
     instance::Bound,
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
-    FromPyObject, PyAny, PyErr, PyObject, Python,
+    Borrowed, FromPyObject, PyAny, PyErr, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
-
-#[allow(deprecated)]
-impl<K, V, H> ToPyObject for collections::HashMap<K, V, H>
-where
-    K: hash::Hash + cmp::Eq + ToPyObject,
-    V: ToPyObject,
-    H: hash::BuildHasher,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
-        for (k, v) in self {
-            dict.set_item(k.to_object(py), v.to_object(py)).unwrap();
-        }
-        dict.into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl<K, V> ToPyObject for collections::BTreeMap<K, V>
-where
-    K: cmp::Eq + ToPyObject,
-    V: ToPyObject,
-{
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
-        for (k, v) in self {
-            dict.set_item(k.to_object(py), v.to_object(py)).unwrap();
-        }
-        dict.into_any().unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl<K, V, H> IntoPy<PyObject> for collections::HashMap<K, V, H>
-where
-    K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
-    V: IntoPy<PyObject>,
-    H: hash::BuildHasher,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
-        for (k, v) in self {
-            dict.set_item(k.into_py(py), v.into_py(py)).unwrap();
-        }
-        dict.into_any().unbind()
-    }
-}
 
 impl<'py, K, V, H> IntoPyObject<'py> for collections::HashMap<K, V, H>
 where
@@ -86,8 +37,6 @@ impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a collections::HashMap<K, V, H>
 where
     &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     &'a V: IntoPyObject<'py>,
-    K: 'a, // MSRV
-    V: 'a, // MSRV
     H: hash::BuildHasher,
 {
     type Target = PyDict;
@@ -105,21 +54,6 @@ where
     #[cfg(feature = "experimental-inspect")]
     fn type_output() -> TypeInfo {
         TypeInfo::dict_of(<&K>::type_output(), <&V>::type_output())
-    }
-}
-
-#[allow(deprecated)]
-impl<K, V> IntoPy<PyObject> for collections::BTreeMap<K, V>
-where
-    K: cmp::Eq + IntoPy<PyObject>,
-    V: IntoPy<PyObject>,
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
-        for (k, v) in self {
-            dict.set_item(k.into_py(py), v.into_py(py)).unwrap();
-        }
-        dict.into_any().unbind()
     }
 }
 
@@ -171,17 +105,22 @@ where
     }
 }
 
-impl<'py, K, V, S> FromPyObject<'py> for collections::HashMap<K, V, S>
+impl<'py, K, V, S> FromPyObject<'_, 'py> for collections::HashMap<K, V, S>
 where
-    K: FromPyObject<'py> + cmp::Eq + hash::Hash,
-    V: FromPyObject<'py>,
+    K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
+    V: FromPyObjectOwned<'py>,
     S: hash::BuildHasher + Default,
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
-        let dict = ob.downcast::<PyDict>()?;
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+        let dict = ob.cast::<PyDict>()?;
         let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
-        for (k, v) in dict {
-            ret.insert(k.extract()?, v.extract()?);
+        for (k, v) in dict.iter() {
+            ret.insert(
+                k.extract().map_err(Into::into)?,
+                v.extract().map_err(Into::into)?,
+            );
         }
         Ok(ret)
     }
@@ -192,16 +131,21 @@ where
     }
 }
 
-impl<'py, K, V> FromPyObject<'py> for collections::BTreeMap<K, V>
+impl<'py, K, V> FromPyObject<'_, 'py> for collections::BTreeMap<K, V>
 where
-    K: FromPyObject<'py> + cmp::Ord,
-    V: FromPyObject<'py>,
+    K: FromPyObjectOwned<'py> + cmp::Ord,
+    V: FromPyObjectOwned<'py>,
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> Result<Self, PyErr> {
-        let dict = ob.downcast::<PyDict>()?;
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
+        let dict = ob.cast::<PyDict>()?;
         let mut ret = collections::BTreeMap::new();
-        for (k, v) in dict {
-            ret.insert(k.extract()?, v.extract()?);
+        for (k, v) in dict.iter() {
+            ret.insert(
+                k.extract().map_err(Into::into)?,
+                v.extract().map_err(Into::into)?,
+            );
         }
         Ok(ret)
     }
@@ -219,13 +163,13 @@ mod tests {
 
     #[test]
     fn test_hashmap_to_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
             let py_map = (&map).into_pyobject(py).unwrap();
 
-            assert!(py_map.len() == 1);
+            assert_eq!(py_map.len(), 1);
             assert!(
                 py_map
                     .get_item(1)
@@ -241,13 +185,13 @@ mod tests {
 
     #[test]
     fn test_btreemap_to_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = BTreeMap::<i32, i32>::new();
             map.insert(1, 1);
 
             let py_map = (&map).into_pyobject(py).unwrap();
 
-            assert!(py_map.len() == 1);
+            assert_eq!(py_map.len(), 1);
             assert!(
                 py_map
                     .get_item(1)
@@ -263,13 +207,13 @@ mod tests {
 
     #[test]
     fn test_hashmap_into_python() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
 
             let py_map = map.into_pyobject(py).unwrap();
 
-            assert!(py_map.len() == 1);
+            assert_eq!(py_map.len(), 1);
             assert!(
                 py_map
                     .get_item(1)
@@ -284,13 +228,13 @@ mod tests {
 
     #[test]
     fn test_btreemap_into_py() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut map = BTreeMap::<i32, i32>::new();
             map.insert(1, 1);
 
             let py_map = map.into_pyobject(py).unwrap();
 
-            assert!(py_map.len() == 1);
+            assert_eq!(py_map.len(), 1);
             assert!(
                 py_map
                     .get_item(1)

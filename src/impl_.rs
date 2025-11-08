@@ -7,13 +7,16 @@
 //! breaking semver guarantees.
 
 pub mod callback;
+pub mod concat;
 #[cfg(feature = "experimental-async")]
 pub mod coroutine;
+pub mod deprecated;
 pub mod exceptions;
 pub mod extract_argument;
 pub mod freelist;
 pub mod frompyobject;
-pub(crate) mod not_send;
+#[cfg(feature = "experimental-inspect")]
+pub mod introspection;
 pub mod panic;
 pub mod pycell;
 pub mod pyclass;

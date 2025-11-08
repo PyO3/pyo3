@@ -1,13 +1,11 @@
 use crate::object::*;
 use crate::PyFrameObject;
-#[cfg(not(any(PyPy, GraalPy)))]
-use crate::_PyErr_StackItem;
-#[cfg(all(Py_3_11, not(any(PyPy, GraalPy))))]
-use std::os::raw::c_char;
-use std::os::raw::c_int;
+#[cfg(all(Py_3_11, not(any(PyPy, GraalPy, Py_3_14))))]
+use std::ffi::c_char;
+use std::ffi::c_int;
 use std::ptr::addr_of_mut;
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, Py_3_14)))]
 #[repr(C)]
 pub struct PyGenObject {
     pub ob_base: PyObject,
@@ -20,7 +18,11 @@ pub struct PyGenObject {
     pub gi_weakreflist: *mut PyObject,
     pub gi_name: *mut PyObject,
     pub gi_qualname: *mut PyObject,
-    pub gi_exc_state: _PyErr_StackItem,
+    #[allow(
+        private_interfaces,
+        reason = "PyGenObject layout was public until 3.14"
+    )]
+    pub gi_exc_state: crate::cpython::pystate::_PyErr_StackItem,
     #[cfg(Py_3_11)]
     pub gi_origin_or_finalizer: *mut PyObject,
     #[cfg(Py_3_11)]
@@ -34,6 +36,9 @@ pub struct PyGenObject {
     #[cfg(Py_3_11)]
     pub gi_iframe: [*mut PyObject; 1],
 }
+
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
+opaque_struct!(pub PyGenObject);
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -67,8 +72,9 @@ extern "C" {
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub static mut PyCoro_Type: PyTypeObject;
-    pub static mut _PyCoroWrapper_Type: PyTypeObject;
 }
+
+// skipped _PyCoroWrapper_Type
 
 #[inline]
 pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int {

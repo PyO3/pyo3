@@ -1,4 +1,4 @@
-use std::os::raw::c_int;
+use std::ffi::c_int;
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyOS_InterruptOccurred")]

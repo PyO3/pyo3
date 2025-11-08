@@ -67,13 +67,81 @@ fn args_kwargs<'py>(
     (args, kwargs)
 }
 
-#[pymodule(gil_used = false)]
-pub fn pyfunctions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(none, m)?)?;
-    m.add_function(wrap_pyfunction!(simple, m)?)?;
-    m.add_function(wrap_pyfunction!(simple_args, m)?)?;
-    m.add_function(wrap_pyfunction!(simple_kwargs, m)?)?;
-    m.add_function(wrap_pyfunction!(simple_args_kwargs, m)?)?;
-    m.add_function(wrap_pyfunction!(args_kwargs, m)?)?;
-    Ok(())
+#[pyfunction(signature = (a, /, b))]
+fn positional_only<'py>(a: Any<'py>, b: Any<'py>) -> (Any<'py>, Any<'py>) {
+    (a, b)
+}
+
+#[pyfunction(signature = (a = false, b = 0, c = 0.0, d = ""))]
+fn with_typed_args(a: bool, b: u64, c: f64, d: &str) -> (bool, u64, f64, &str) {
+    (a, b, c, d)
+}
+
+#[cfg(feature = "experimental-inspect")]
+#[pyfunction(signature = (a: "int", *_args: "str", _b: "int | None" = None, **_kwargs: "bool") -> "int")]
+fn with_custom_type_annotations<'py>(
+    a: Any<'py>,
+    _args: Tuple<'py>,
+    _b: Option<Any<'py>>,
+    _kwargs: Option<Dict<'py>>,
+) -> Any<'py> {
+    a
+}
+
+#[expect(clippy::too_many_arguments)]
+#[pyfunction(
+    signature = (
+        *,
+        ant = None,
+        bear = None,
+        cat = None,
+        dog = None,
+        elephant = None,
+        fox = None,
+        goat = None,
+        horse = None,
+        iguana = None,
+        jaguar = None,
+        koala = None,
+        lion = None,
+        monkey = None,
+        newt = None,
+        owl = None,
+        penguin = None
+    )
+)]
+fn many_keyword_arguments<'py>(
+    ant: Option<&'_ Bound<'py, PyAny>>,
+    bear: Option<&'_ Bound<'py, PyAny>>,
+    cat: Option<&'_ Bound<'py, PyAny>>,
+    dog: Option<&'_ Bound<'py, PyAny>>,
+    elephant: Option<&'_ Bound<'py, PyAny>>,
+    fox: Option<&'_ Bound<'py, PyAny>>,
+    goat: Option<&'_ Bound<'py, PyAny>>,
+    horse: Option<&'_ Bound<'py, PyAny>>,
+    iguana: Option<&'_ Bound<'py, PyAny>>,
+    jaguar: Option<&'_ Bound<'py, PyAny>>,
+    koala: Option<&'_ Bound<'py, PyAny>>,
+    lion: Option<&'_ Bound<'py, PyAny>>,
+    monkey: Option<&'_ Bound<'py, PyAny>>,
+    newt: Option<&'_ Bound<'py, PyAny>>,
+    owl: Option<&'_ Bound<'py, PyAny>>,
+    penguin: Option<&'_ Bound<'py, PyAny>>,
+) {
+    std::hint::black_box((
+        ant, bear, cat, dog, elephant, fox, goat, horse, iguana, jaguar, koala, lion, monkey, newt,
+        owl, penguin,
+    ));
+}
+
+#[pymodule]
+pub mod pyfunctions {
+    #[cfg(feature = "experimental-inspect")]
+    #[pymodule_export]
+    use super::with_custom_type_annotations;
+    #[pymodule_export]
+    use super::{
+        args_kwargs, many_keyword_arguments, none, positional_only, simple, simple_args,
+        simple_args_kwargs, simple_kwargs, with_typed_args,
+    };
 }

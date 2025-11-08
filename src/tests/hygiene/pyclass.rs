@@ -1,4 +1,4 @@
-#[crate::pyclass]
+#[crate::pyclass(from_py_object)]
 #[pyo3(crate = "crate")]
 #[derive(::std::clone::Clone)]
 pub struct Foo;
@@ -150,4 +150,10 @@ impl ::std::fmt::Display for Point {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::std::write!(f, "({}, {}, {})", self.x, self.y, self.z)
     }
+}
+
+#[crate::pyclass(crate = "crate", from_py_object)]
+#[derive(Clone)]
+pub struct Foo5 {
+    a: i32,
 }

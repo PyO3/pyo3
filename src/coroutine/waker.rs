@@ -1,7 +1,7 @@
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyCFunction;
-use crate::{intern, wrap_pyfunction, Bound, Py, PyAny, PyObject, PyResult, Python};
+use crate::{intern, wrap_pyfunction, Bound, Py, PyAny, PyResult, Python};
 use pyo3_macros::pyfunction;
 use std::sync::Arc;
 use std::task::Wake;
@@ -14,11 +14,11 @@ use std::task::Wake;
 ///
 /// [1]: AsyncioWaker::initialize_future
 /// [2]: AsyncioWaker::wake
-pub struct AsyncioWaker(GILOnceCell<Option<LoopAndFuture>>);
+pub struct AsyncioWaker(PyOnceLock<Option<LoopAndFuture>>);
 
 impl AsyncioWaker {
     pub(super) fn new() -> Self {
-        Self(GILOnceCell::new())
+        Self(PyOnceLock::new())
     }
 
     pub(super) fn reset(&mut self) {
@@ -41,10 +41,10 @@ impl Wake for AsyncioWaker {
     }
 
     fn wake_by_ref(self: &Arc<Self>) {
-        Python::with_gil(|gil| {
-            if let Some(loop_and_future) = self.0.get_or_init(gil, || None) {
+        Python::attach(|py| {
+            if let Some(loop_and_future) = self.0.get_or_init(py, || None) {
                 loop_and_future
-                    .set_result(gil)
+                    .set_result(py)
                     .expect("unexpected error in coroutine waker");
             }
         });
@@ -52,13 +52,13 @@ impl Wake for AsyncioWaker {
 }
 
 struct LoopAndFuture {
-    event_loop: PyObject,
-    future: PyObject,
+    event_loop: Py<PyAny>,
+    future: Py<PyAny>,
 }
 
 impl LoopAndFuture {
     fn new(py: Python<'_>) -> PyResult<Self> {
-        static GET_RUNNING_LOOP: GILOnceCell<PyObject> = GILOnceCell::new();
+        static GET_RUNNING_LOOP: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
         let import = || -> PyResult<_> {
             let module = py.import("asyncio")?;
             Ok(module.getattr("get_running_loop")?.into())
@@ -69,7 +69,7 @@ impl LoopAndFuture {
     }
 
     fn set_result(&self, py: Python<'_>) -> PyResult<()> {
-        static RELEASE_WAITER: GILOnceCell<Py<PyCFunction>> = GILOnceCell::new();
+        static RELEASE_WAITER: PyOnceLock<Py<PyCFunction>> = PyOnceLock::new();
         let release_waiter = RELEASE_WAITER.get_or_try_init(py, || {
             wrap_pyfunction!(release_waiter, py).map(Bound::unbind)
         })?;

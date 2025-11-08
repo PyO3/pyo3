@@ -27,3 +27,5 @@ lcov.info
 coverage.json
 netlify_build/
 .nox/
+.vscode/
+.lycheecache

@@ -5,22 +5,12 @@ use crate::inspect::types::TypeInfo;
 use crate::{
     conversion::IntoPyObject,
     types::{PyByteArray, PyByteArrayMethods, PyBytes},
-    Bound, Py, PyAny, PyErr, PyObject, PyResult, Python,
+    Bound, CastError, PyAny, PyErr, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for &[u8] {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyBytes::new(py, self).unbind().into()
-    }
-}
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
 where
     &'a T: IntoPyObject<'py>,
-    T: 'a, // MSRV
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -44,9 +34,11 @@ where
     }
 }
 
-impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
-    fn from_py_object_bound(obj: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
-        Ok(obj.downcast::<PyBytes>()?.as_bytes())
+impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for &'a [u8] {
+    type Error = CastError<'a, 'py>;
+
+    fn extract(obj: crate::Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        Ok(obj.cast::<PyBytes>()?.as_bytes())
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -60,33 +52,21 @@ impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for &'a [u8] {
 /// If the source object is a `bytes` object, the `Cow` will be borrowed and
 /// pointing into the source object, and no copying or heap allocations will happen.
 /// If it is a `bytearray`, its contents will be copied to an owned `Cow`.
-impl<'a> crate::conversion::FromPyObjectBound<'a, '_> for Cow<'a, [u8]> {
-    fn from_py_object_bound(ob: crate::Borrowed<'a, '_, PyAny>) -> PyResult<Self> {
-        if let Ok(bytes) = ob.downcast::<PyBytes>() {
+impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for Cow<'a, [u8]> {
+    type Error = CastError<'a, 'py>;
+
+    fn extract(ob: crate::Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        if let Ok(bytes) = ob.cast::<PyBytes>() {
             return Ok(Cow::Borrowed(bytes.as_bytes()));
         }
 
-        let byte_array = ob.downcast::<PyByteArray>()?;
+        let byte_array = ob.cast::<PyByteArray>()?;
         Ok(Cow::Owned(byte_array.to_vec()))
     }
 
     #[cfg(feature = "experimental-inspect")]
     fn type_input() -> TypeInfo {
         Self::type_output()
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for Cow<'_, [u8]> {
-    fn to_object(&self, py: Python<'_>) -> Py<PyAny> {
-        PyBytes::new(py, self.as_ref()).into()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyAny>> for Cow<'_, [u8]> {
-    fn into_py(self, py: Python<'_>) -> Py<PyAny> {
-        self.into_pyobject(py).unwrap().into_any().unbind()
     }
 }
 
@@ -115,15 +95,14 @@ mod tests {
 
     use crate::{
         conversion::IntoPyObject,
-        ffi,
         types::{any::PyAnyMethods, PyBytes, PyBytesMethods, PyList},
         Python,
     };
 
     #[test]
     fn test_extract_bytes() {
-        Python::with_gil(|py| {
-            let py_bytes = py.eval(ffi::c_str!("b'Hello Python'"), None, None).unwrap();
+        Python::attach(|py| {
+            let py_bytes = py.eval(c"b'Hello Python'", None, None).unwrap();
             let bytes: &[u8] = py_bytes.extract().unwrap();
             assert_eq!(bytes, b"Hello Python");
         });
@@ -131,18 +110,16 @@ mod tests {
 
     #[test]
     fn test_cow_impl() {
-        Python::with_gil(|py| {
-            let bytes = py.eval(ffi::c_str!(r#"b"foobar""#), None, None).unwrap();
+        Python::attach(|py| {
+            let bytes = py.eval(cr#"b"foobar""#, None, None).unwrap();
             let cow = bytes.extract::<Cow<'_, [u8]>>().unwrap();
             assert_eq!(cow, Cow::<[u8]>::Borrowed(b"foobar"));
 
-            let byte_array = py
-                .eval(ffi::c_str!(r#"bytearray(b"foobar")"#), None, None)
-                .unwrap();
+            let byte_array = py.eval(cr#"bytearray(b"foobar")"#, None, None).unwrap();
             let cow = byte_array.extract::<Cow<'_, [u8]>>().unwrap();
             assert_eq!(cow, Cow::<[u8]>::Owned(b"foobar".to_vec()));
 
-            let something_else_entirely = py.eval(ffi::c_str!("42"), None, None).unwrap();
+            let something_else_entirely = py.eval(c"42", None, None).unwrap();
             something_else_entirely
                 .extract::<Cow<'_, [u8]>>()
                 .unwrap_err();
@@ -159,11 +136,11 @@ mod tests {
 
     #[test]
     fn test_slice_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes: &[u8] = b"foobar";
             let obj = bytes.into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            let obj = obj.cast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), bytes);
 
             let nums: &[u16] = &[0, 1, 2, 3];
@@ -174,17 +151,17 @@ mod tests {
 
     #[test]
     fn test_cow_intopyobject_impl() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let borrowed_bytes = Cow::<[u8]>::Borrowed(b"foobar");
             let obj = borrowed_bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            let obj = obj.cast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), &*borrowed_bytes);
 
             let owned_bytes = Cow::<[u8]>::Owned(b"foobar".to_vec());
             let obj = owned_bytes.clone().into_pyobject(py).unwrap();
             assert!(obj.is_instance_of::<PyBytes>());
-            let obj = obj.downcast_into::<PyBytes>().unwrap();
+            let obj = obj.cast_into::<PyBytes>().unwrap();
             assert_eq!(obj.as_bytes(), &*owned_bytes);
 
             let borrowed_nums = Cow::<[u16]>::Borrowed(&[0, 1, 2, 3]);

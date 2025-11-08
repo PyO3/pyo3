@@ -1,6 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::os::raw::{c_char, c_int};
+use std::ffi::{c_char, c_int};
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetNone")]
@@ -101,7 +101,7 @@ pub unsafe fn PyUnicodeDecodeError_Create(
 ) -> *mut PyObject {
     crate::_PyObject_CallFunction_SizeT(
         PyExc_UnicodeDecodeError,
-        c_str!("sy#nns").as_ptr(),
+        c"sy#nns".as_ptr(),
         encoding,
         object,
         length,

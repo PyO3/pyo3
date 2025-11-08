@@ -6,8 +6,7 @@ use pyo3::types::IntoPyDict;
 
 use pyo3::py_run;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass]
 struct Count5();
@@ -48,7 +47,7 @@ fn test_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
 
 #[test]
 fn test_len() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = test_dict(py);
 
         py_assert!(py, *d, "len(s) == 5");
@@ -57,7 +56,7 @@ fn test_len() {
 
 #[test]
 fn test_getitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = test_dict(py);
 
         py_assert!(py, *d, "s[4] == 5.0");
@@ -66,7 +65,7 @@ fn test_getitem() {
 
 #[test]
 fn test_list() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = test_dict(py);
 
         py_assert!(py, *d, "list(s) == [1.0, 2.0, 3.0, 4.0, 5.0]");

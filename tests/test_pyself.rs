@@ -5,12 +5,11 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
 use std::collections::HashMap;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 /// Assumes it's a file reader or so.
 /// Inspired by https://github.com/jothan/cordoba, thanks.
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Clone, Debug)]
 struct Reader {
     inner: HashMap<u8, String>,
@@ -59,12 +58,12 @@ struct Iter {
 
 #[pymethods]
 impl Iter {
-    #[allow(clippy::self_named_constructors)]
+    #[expect(clippy::self_named_constructors)]
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<PyObject>> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<Py<PyAny>>> {
         let bytes = slf.keys.bind(slf.py()).as_bytes();
         match bytes.get(slf.idx) {
             Some(&b) => {
@@ -92,7 +91,7 @@ fn reader() -> Reader {
 
 #[test]
 fn test_nested_iter() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let reader = reader().into_pyobject(py).unwrap();
         py_assert!(
             py,
@@ -104,7 +103,7 @@ fn test_nested_iter() {
 
 #[test]
 fn test_clone_ref() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let reader = reader().into_pyobject(py).unwrap();
         py_assert!(py, reader, "reader == reader.clone_ref()");
         py_assert!(py, reader, "reader == reader.clone_ref_with_py()");
@@ -113,7 +112,7 @@ fn test_clone_ref() {
 
 #[test]
 fn test_nested_iter_reset() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let reader = Bound::new(py, reader()).unwrap();
         py_assert!(
             py,

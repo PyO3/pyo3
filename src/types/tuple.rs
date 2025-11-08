@@ -4,13 +4,10 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::types::TypeInfo;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
-use crate::types::{any::PyAnyMethods, sequence::PySequenceMethods, PyList, PySequence};
+use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
 use crate::{
-    exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyObject,
-    PyResult, Python,
+    exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
 use std::iter::FusedIterator;
 #[cfg(feature = "nightly")]
 use std::num::NonZero;
@@ -32,7 +29,7 @@ fn try_new_from_iter<'py>(
 
         // - Panics if the ptr is null
         // - Cleans up the tuple if `convert` or the asserts panic
-        let tup = ptr.assume_owned(py).downcast_into_unchecked();
+        let tup = ptr.assume_owned(py).cast_into_unchecked();
 
         let mut counter: Py_ssize_t = 0;
 
@@ -66,9 +63,12 @@ pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyT
 impl PyTuple {
     /// Constructs a new tuple with the given elements.
     ///
-    /// If you want to create a [`PyTuple`] with elements of different or unknown types, or from an
-    /// iterable that doesn't implement [`ExactSizeIterator`], create a Rust tuple with the given
-    /// elements and convert it at once using `into_py`.
+    /// If you want to create a [`PyTuple`] with elements of different or unknown types, create a Rust
+    /// tuple with the given elements and convert it at once using [`into_pyobject()`][crate::IntoPyObject].
+    /// (`IntoPyObject` is implemented for tuples of up to 12 elements.)
+    ///
+    /// To create a [`PyTuple`] from an iterable that doesn't implement [`ExactSizeIterator`],
+    /// collect the elements into a `Vec` first.
     ///
     /// # Examples
     ///
@@ -77,10 +77,14 @@ impl PyTuple {
     /// use pyo3::types::PyTuple;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let elements: Vec<i32> = vec![0, 1, 2, 3, 4, 5];
     ///     let tuple = PyTuple::new(py, elements)?;
     ///     assert_eq!(format!("{:?}", tuple), "(0, 1, 2, 3, 4, 5)");
+    ///
+    ///     // alternative using `into_pyobject()`
+    ///     let tuple = (0, "hello", true).into_pyobject(py)?;
+    ///     assert_eq!(format!("{:?}", tuple), "(0, 'hello', True)");
     /// # Ok(())
     /// })
     /// # }
@@ -104,36 +108,9 @@ impl PyTuple {
         try_new_from_iter(py, elements)
     }
 
-    /// Deprecated name for [`PyTuple::new`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTuple::new`")]
-    #[allow(deprecated)]
-    #[track_caller]
-    #[inline]
-    pub fn new_bound<T, U>(
-        py: Python<'_>,
-        elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> Bound<'_, PyTuple>
-    where
-        T: ToPyObject,
-        U: ExactSizeIterator<Item = T>,
-    {
-        PyTuple::new(py, elements.into_iter().map(|e| e.to_object(py))).unwrap()
-    }
-
     /// Constructs an empty tuple (on the Python side, a singleton object).
     pub fn empty(py: Python<'_>) -> Bound<'_, PyTuple> {
-        unsafe {
-            ffi::PyTuple_New(0)
-                .assume_owned(py)
-                .downcast_into_unchecked()
-        }
-    }
-
-    /// Deprecated name for [`PyTuple::empty`].
-    #[deprecated(since = "0.23.0", note = "renamed to `PyTuple::empty`")]
-    #[inline]
-    pub fn empty_bound(py: Python<'_>) -> Bound<'_, PyTuple> {
-        PyTuple::empty(py)
+        unsafe { ffi::PyTuple_New(0).assume_owned(py).cast_into_unchecked() }
     }
 }
 
@@ -168,7 +145,7 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     ///
     /// # fn main() -> PyResult<()> {
-    /// Python::with_gil(|py| -> PyResult<()> {
+    /// Python::attach(|py| -> PyResult<()> {
     ///     let tuple = (1, 2, 3).into_pyobject(py)?;
     ///     let obj = tuple.get_item(0);
     ///     assert_eq!(obj?.extract::<i32>()?, 1);
@@ -182,11 +159,16 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// by avoiding a reference count change.
     fn get_borrowed_item<'a>(&'a self, index: usize) -> PyResult<Borrowed<'a, 'py, PyAny>>;
 
-    /// Gets the tuple item at the specified index. Undefined behavior on bad index. Use with caution.
+    /// Gets the tuple item at the specified index. Undefined behavior on bad index, or if the tuple
+    /// contains a null pointer at the specified index. Use with caution.
     ///
     /// # Safety
     ///
-    /// Caller must verify that the index is within the bounds of the tuple.
+    /// - Caller must verify that the index is within the bounds of the tuple.
+    /// - A null pointer is only legal in a tuple which is in the process of being initialized, callers
+    ///   can typically assume the tuple item is non-null unless they are knowingly filling an
+    ///   uninitialized tuple. (If a tuple were to contain a null pointer element, accessing it from Python
+    ///   typically causes a segfault.)
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
 
@@ -195,7 +177,7 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Safety
     ///
-    /// Caller must verify that the index is within the bounds of the tuple.
+    /// See [`get_item_unchecked`][PyTupleMethods::get_item_unchecked].
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny>;
 
@@ -247,18 +229,18 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
     }
 
     fn as_sequence(&self) -> &Bound<'py, PySequence> {
-        unsafe { self.downcast_unchecked() }
+        unsafe { self.cast_unchecked() }
     }
 
     fn into_sequence(self) -> Bound<'py, PySequence> {
-        unsafe { self.into_any().downcast_into_unchecked() }
+        unsafe { self.cast_into_unchecked() }
     }
 
     fn get_slice(&self, low: usize, high: usize) -> Bound<'py, PyTuple> {
         unsafe {
             ffi::PyTuple_GetSlice(self.as_ptr(), get_ssize_index(low), get_ssize_index(high))
                 .assume_owned(self.py())
-                .downcast_into_unchecked()
+                .cast_into_unchecked()
         }
     }
 
@@ -272,12 +254,12 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
 
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
-        self.get_borrowed_item_unchecked(index).to_owned()
+        unsafe { self.get_borrowed_item_unchecked(index).to_owned() }
     }
 
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny> {
-        self.as_borrowed().get_borrowed_item_unchecked(index)
+        unsafe { self.as_borrowed().get_borrowed_item_unchecked(index) }
     }
 
     #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
@@ -327,9 +309,16 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
         }
     }
 
+    /// # Safety
+    ///
+    /// See `get_item_unchecked` in `PyTupleMethods`.
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
-        ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t).assume_borrowed(self.py())
+        // SAFETY: caller has upheld the safety contract
+        unsafe {
+            ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
+                .assume_borrowed_unchecked(self.py())
+        }
     }
 
     pub(crate) fn iter_borrowed(self) -> BorrowedTupleIterator<'a, 'py> {
@@ -540,7 +529,7 @@ impl<'a, 'py> BorrowedTupleIterator<'a, 'py> {
         #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
         let item = tuple.get_borrowed_item(index).expect("tuple.get failed");
         #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-        let item = tuple.get_borrowed_item_unchecked(index);
+        let item = unsafe { tuple.get_borrowed_item_unchecked(index) };
         item
     }
 }
@@ -603,22 +592,8 @@ impl ExactSizeIterator for BorrowedTupleIterator<'_, '_> {
 
 impl FusedIterator for BorrowedTupleIterator<'_, '_> {}
 
-#[allow(deprecated)]
-impl IntoPy<Py<PyTuple>> for Bound<'_, PyTuple> {
-    fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
-        self.unbind()
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<Py<PyTuple>> for &'_ Bound<'_, PyTuple> {
-    fn into_py(self, _: Python<'_>) -> Py<PyTuple> {
-        self.clone().unbind()
-    }
-}
-
 #[cold]
-fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
+fn wrong_tuple_length(t: Borrowed<'_, '_, PyTuple>, expected_length: usize) -> PyErr {
     let msg = format!(
         "expected tuple of length {}, but got tuple of length {}",
         expected_length,
@@ -628,20 +603,6 @@ fn wrong_tuple_length(t: &Bound<'_, PyTuple>, expected_length: usize) -> PyErr {
 }
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
-    #[allow(deprecated)]
-    impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
-        fn to_object(&self, py: Python<'_>) -> PyObject {
-            array_into_tuple(py, [$(self.$n.to_object(py).into_bound(py)),+]).into()
-        }
-    }
-
-    #[allow(deprecated)]
-    impl <$($T: IntoPy<PyObject>),+> IntoPy<PyObject> for ($($T,)+) {
-        fn into_py(self, py: Python<'_>) -> PyObject {
-            array_into_tuple(py, [$(self.$n.into_py(py).into_bound(py)),+]).into()
-        }
-    }
-
     impl <'py, $($T),+> IntoPyObject<'py> for ($($T,)+)
     where
         $($T: IntoPyObject<'py>,)+
@@ -663,7 +624,6 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     impl <'a, 'py, $($T),+> IntoPyObject<'py> for &'a ($($T,)+)
     where
         $(&'a $T: IntoPyObject<'py>,)+
-        $($T: 'a,)+ // MSRV
     {
         type Target = PyTuple;
         type Output = Bound<'py, Self::Target>;
@@ -808,11 +768,10 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    impl<'a, 'py, $($T),+> crate::call::private::Sealed for &'a ($($T,)+) where $(&'a $T: IntoPyObject<'py>,)+ $($T: 'a,)+ /*MSRV */ {}
+    impl<'a, 'py, $($T),+> crate::call::private::Sealed for &'a ($($T,)+) where $(&'a $T: IntoPyObject<'py>,)+ {}
     impl<'a, 'py, $($T),+> crate::call::PyCallArgs<'py> for &'a ($($T,)+)
     where
         $(&'a $T: IntoPyObject<'py>,)+
-        $($T: 'a,)+ // MSRV
     {
         #[cfg(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API))))]
         fn call(
@@ -937,23 +896,18 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    #[allow(deprecated)]
-    impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
-        fn into_py(self, py: Python<'_>) -> Py<PyTuple> {
-            array_into_tuple(py, [$(self.$n.into_py(py).into_bound(py)),+]).unbind()
-        }
-    }
+    impl<'a, 'py, $($T: FromPyObject<'a, 'py>),+> FromPyObject<'a, 'py> for ($($T,)+) {
+        type Error = PyErr;
 
-    impl<'py, $($T: FromPyObject<'py>),+> FromPyObject<'py> for ($($T,)+) {
-        fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self>
+        fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error>
         {
-            let t = obj.downcast::<PyTuple>()?;
+            let t = obj.cast::<PyTuple>()?;
             if t.len() == $length {
                 #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
-                return Ok(($(t.get_borrowed_item($n)?.extract::<$T>()?,)+));
+                return Ok(($(t.get_borrowed_item($n)?.extract::<$T>().map_err(Into::into)?,)+));
 
                 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-                unsafe {return Ok(($(t.get_borrowed_item_unchecked($n).extract::<$T>()?,)+));}
+                unsafe {return Ok(($(t.get_borrowed_item_unchecked($n).extract::<$T>().map_err(Into::into)?,)+));}
             } else {
                 Err(wrong_tuple_length(t, $length))
             }
@@ -972,7 +926,7 @@ fn array_into_tuple<'py, const N: usize>(
 ) -> Bound<'py, PyTuple> {
     unsafe {
         let ptr = ffi::PyTuple_New(N.try_into().expect("0 < N <= 12"));
-        let tup = ptr.assume_owned(py).downcast_into_unchecked();
+        let tup = ptr.assume_owned(py).cast_into_unchecked();
         for (index, obj) in array.into_iter().enumerate() {
             #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
             ffi::PyTuple_SET_ITEM(ptr, index as ffi::Py_ssize_t, obj.into_ptr());
@@ -1097,7 +1051,7 @@ mod tests {
     use std::ops::Range;
     #[test]
     fn test_new() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = PyTuple::new(py, [1, 2, 3]).unwrap();
             assert_eq!(3, ob.len());
             let ob = ob.as_any();
@@ -1112,9 +1066,9 @@ mod tests {
 
     #[test]
     fn test_len() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
-            let tuple = ob.downcast::<PyTuple>().unwrap();
+            let tuple = ob.cast::<PyTuple>().unwrap();
             assert_eq!(3, tuple.len());
             assert!(!tuple.is_empty());
             let ob = tuple.as_any();
@@ -1124,7 +1078,7 @@ mod tests {
 
     #[test]
     fn test_empty() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::empty(py);
             assert!(tuple.is_empty());
             assert_eq!(0, tuple.len());
@@ -1133,7 +1087,7 @@ mod tests {
 
     #[test]
     fn test_slice() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tup = PyTuple::new(py, [2, 3, 5, 7]).unwrap();
             let slice = tup.get_slice(1, 3);
             assert_eq!(2, slice.len());
@@ -1144,9 +1098,9 @@ mod tests {
 
     #[test]
     fn test_iter() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
-            let tuple = ob.downcast::<PyTuple>().unwrap();
+            let tuple = ob.cast::<PyTuple>().unwrap();
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter();
 
@@ -1168,9 +1122,9 @@ mod tests {
 
     #[test]
     fn test_iter_rev() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
-            let tuple = ob.downcast::<PyTuple>().unwrap();
+            let tuple = ob.cast::<PyTuple>().unwrap();
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter().rev();
 
@@ -1192,7 +1146,7 @@ mod tests {
 
     #[test]
     fn test_bound_iter() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, [1, 2, 3]).unwrap();
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter();
@@ -1215,7 +1169,7 @@ mod tests {
 
     #[test]
     fn test_bound_iter_rev() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, [1, 2, 3]).unwrap();
             assert_eq!(3, tuple.len());
             let mut iter = tuple.iter().rev();
@@ -1238,9 +1192,9 @@ mod tests {
 
     #[test]
     fn test_into_iter() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
-            let tuple = ob.downcast::<PyTuple>().unwrap();
+            let tuple = ob.cast::<PyTuple>().unwrap();
             assert_eq!(3, tuple.len());
 
             for (i, item) in tuple.iter().enumerate() {
@@ -1251,7 +1205,7 @@ mod tests {
 
     #[test]
     fn test_into_iter_bound() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = (1, 2, 3).into_pyobject(py).unwrap();
             assert_eq!(3, tuple.len());
 
@@ -1266,9 +1220,9 @@ mod tests {
     #[test]
     #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     fn test_as_slice() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
-            let tuple = ob.downcast::<PyTuple>().unwrap();
+            let tuple = ob.cast::<PyTuple>().unwrap();
 
             let slice = tuple.as_slice();
             assert_eq!(3, slice.len());
@@ -1280,7 +1234,7 @@ mod tests {
 
     #[test]
     fn test_tuple_lengths_up_to_12() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let t0 = (0,).into_pyobject(py).unwrap();
             let t1 = (0, 1).into_pyobject(py).unwrap();
             let t2 = (0, 1, 2).into_pyobject(py).unwrap();
@@ -1348,9 +1302,9 @@ mod tests {
 
     #[test]
     fn test_tuple_get_item_invalid_index() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
-            let tuple = ob.downcast::<PyTuple>().unwrap();
+            let tuple = ob.cast::<PyTuple>().unwrap();
             let obj = tuple.get_item(5);
             assert!(obj.is_err());
             assert_eq!(
@@ -1362,9 +1316,9 @@ mod tests {
 
     #[test]
     fn test_tuple_get_item_sanity() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
-            let tuple = ob.downcast::<PyTuple>().unwrap();
+            let tuple = ob.cast::<PyTuple>().unwrap();
             let obj = tuple.get_item(0);
             assert_eq!(obj.unwrap().extract::<i32>().unwrap(), 1);
         });
@@ -1373,9 +1327,9 @@ mod tests {
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     #[test]
     fn test_tuple_get_item_unchecked_sanity() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 2, 3).into_pyobject(py).unwrap();
-            let tuple = ob.downcast::<PyTuple>().unwrap();
+            let tuple = ob.cast::<PyTuple>().unwrap();
             let obj = unsafe { tuple.get_item_unchecked(0) };
             assert_eq!(obj.extract::<i32>().unwrap(), 1);
         });
@@ -1383,9 +1337,9 @@ mod tests {
 
     #[test]
     fn test_tuple_contains() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 1, 2, 3, 5, 8).into_pyobject(py).unwrap();
-            let tuple = ob.downcast::<PyTuple>().unwrap();
+            let tuple = ob.cast::<PyTuple>().unwrap();
             assert_eq!(6, tuple.len());
 
             let bad_needle = 7i32.into_pyobject(py).unwrap();
@@ -1401,9 +1355,9 @@ mod tests {
 
     #[test]
     fn test_tuple_index() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ob = (1, 1, 2, 3, 5, 8).into_pyobject(py).unwrap();
-            let tuple = ob.downcast::<PyTuple>().unwrap();
+            let tuple = ob.cast::<PyTuple>().unwrap();
             assert_eq!(0, tuple.index(1i32).unwrap());
             assert_eq!(2, tuple.index(2i32).unwrap());
             assert_eq!(3, tuple.index(3i32).unwrap());
@@ -1436,7 +1390,7 @@ mod tests {
         expected = "Attempted to create PyTuple but `elements` was larger than reported by its `ExactSizeIterator` implementation."
     )]
     fn too_long_iterator() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let iter = FaultyIter(0..usize::MAX, 73);
             let _tuple = PyTuple::new(py, iter);
         })
@@ -1447,7 +1401,7 @@ mod tests {
         expected = "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation."
     )]
     fn too_short_iterator() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let iter = FaultyIter(0..35, 73);
             let _tuple = PyTuple::new(py, iter);
         })
@@ -1458,7 +1412,7 @@ mod tests {
         expected = "out of range integral type conversion attempted on `elements.len()`"
     )]
     fn overflowing_size() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let iter = FaultyIter(0..0, usize::MAX);
 
             let _tuple = PyTuple::new(py, iter);
@@ -1512,7 +1466,7 @@ mod tests {
             }
         }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             std::panic::catch_unwind(|| {
                 let iter = FaultyIter(0..50, 50);
                 let _tuple = PyTuple::new(py, iter);
@@ -1557,7 +1511,7 @@ mod tests {
 
         let s = (Bad(1), Bad(2), Bad(3), Bad(4));
         NEEDS_DESTRUCTING_COUNT.store(4, SeqCst);
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             std::panic::catch_unwind(|| {
                 let _tuple = (&s).into_pyobject(py).unwrap();
             })
@@ -1574,7 +1528,7 @@ mod tests {
 
     #[test]
     fn test_tuple_to_list() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
             let list = tuple.to_list();
             let list_expected = PyList::new(py, vec![1, 2, 3]).unwrap();
@@ -1584,7 +1538,7 @@ mod tests {
 
     #[test]
     fn test_tuple_as_sequence() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
             let sequence = tuple.as_sequence();
             assert!(tuple.get_item(0).unwrap().eq(1).unwrap());
@@ -1597,7 +1551,7 @@ mod tests {
 
     #[test]
     fn test_tuple_into_sequence() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
             let sequence = tuple.into_sequence();
             assert!(sequence.get_item(0).unwrap().eq(1).unwrap());
@@ -1607,7 +1561,7 @@ mod tests {
 
     #[test]
     fn test_bound_tuple_get_item() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4]).unwrap();
 
             assert_eq!(tuple.len(), 4);
@@ -1640,7 +1594,7 @@ mod tests {
 
     #[test]
     fn test_bound_tuple_nth() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4]).unwrap();
             let mut iter = tuple.iter();
             assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 2);
@@ -1671,7 +1625,7 @@ mod tests {
 
     #[test]
     fn test_bound_tuple_nth_back() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
             let mut iter = tuple.iter();
             assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 5);
@@ -1714,7 +1668,7 @@ mod tests {
     #[cfg(feature = "nightly")]
     #[test]
     fn test_bound_tuple_advance_by() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
             let mut iter = tuple.iter();
 
@@ -1739,7 +1693,7 @@ mod tests {
     #[cfg(feature = "nightly")]
     #[test]
     fn test_bound_tuple_advance_back_by() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
             let mut iter = tuple.iter();
 
@@ -1763,7 +1717,7 @@ mod tests {
 
     #[test]
     fn test_iter_last() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
             let last = tuple.iter().last();
             assert_eq!(last.unwrap().extract::<i32>().unwrap(), 3);
@@ -1772,7 +1726,7 @@ mod tests {
 
     #[test]
     fn test_iter_count() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
             assert_eq!(tuple.iter().count(), 3);
         })

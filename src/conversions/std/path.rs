@@ -1,38 +1,19 @@
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::Bound;
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{ffi, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python};
 use std::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-#[allow(deprecated)]
-impl ToPyObject for Path {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.as_os_str().into_py_any(py).unwrap()
-    }
-}
+impl FromPyObject<'_, '_> for PathBuf {
+    type Error = PyErr;
 
-// See osstr.rs for why there's no FromPyObject impl for &Path
-
-impl FromPyObject<'_> for PathBuf {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+    fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         // We use os.fspath to get the underlying path as bytes or str
         let path = unsafe { ffi::PyOS_FSPath(ob.as_ptr()).assume_owned_or_err(ob.py())? };
         Ok(path.extract::<OsString>()?.into())
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for &Path {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
     }
 }
 
@@ -43,7 +24,7 @@ impl<'py> IntoPyObject<'py> for &Path {
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        static PY_PATH: GILOnceCell<PyObject> = GILOnceCell::new();
+        static PY_PATH: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
         PY_PATH
             .import(py, "pathlib", "Path")?
             .call((self.as_os_str(),), None)
@@ -58,22 +39,6 @@ impl<'py> IntoPyObject<'py> for &&Path {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
-    }
-}
-
-#[allow(deprecated)]
-impl ToPyObject for Cow<'_, Path> {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        (**self).to_object(py)
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for Cow<'_, Path> {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        (*self).to_object(py)
     }
 }
 
@@ -99,19 +64,16 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, Path> {
     }
 }
 
-#[allow(deprecated)]
-impl ToPyObject for PathBuf {
-    #[inline]
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        (**self).to_object(py)
-    }
-}
+impl<'a> FromPyObject<'a, '_> for Cow<'a, Path> {
+    type Error = PyErr;
 
-#[allow(deprecated)]
-impl IntoPy<PyObject> for PathBuf {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        (*self).to_object(py)
+    fn extract(obj: Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
+        #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+        if let Ok(s) = obj.extract::<&str>() {
+            return Ok(Cow::Borrowed(s.as_ref()));
+        }
+
+        obj.extract::<PathBuf>().map(Cow::Owned)
     }
 }
 
@@ -123,14 +85,6 @@ impl<'py> IntoPyObject<'py> for PathBuf {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (&self).into_pyobject(py)
-    }
-}
-
-#[allow(deprecated)]
-impl IntoPy<PyObject> for &PathBuf {
-    #[inline]
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        (**self).to_object(py)
     }
 }
 
@@ -147,17 +101,22 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyAnyMethods, PyString, PyStringMethods};
-    use crate::{IntoPyObject, IntoPyObjectExt, PyObject, Python};
-    use std::borrow::Cow;
+    use super::*;
+    use crate::{
+        types::{PyAnyMethods, PyString},
+        IntoPyObjectExt,
+    };
+    use std::ffi::OsStr;
     use std::fmt::Debug;
-    use std::path::{Path, PathBuf};
+    #[cfg(unix)]
+    use std::os::unix::ffi::OsStringExt;
+    #[cfg(windows)]
+    use std::os::windows::ffi::OsStringExt;
 
     #[test]
     #[cfg(not(windows))]
     fn test_non_utf8_conversion() {
-        Python::with_gil(|py| {
-            use std::ffi::OsStr;
+        Python::attach(|py| {
             #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;
             #[cfg(target_os = "wasi")]
@@ -176,7 +135,7 @@ mod tests {
 
     #[test]
     fn test_intopyobject_roundtrip() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             fn test_roundtrip<'py, T>(py: Python<'py>, obj: T)
             where
                 T: IntoPyObject<'py> + AsRef<Path> + Debug + Clone,
@@ -196,7 +155,7 @@ mod tests {
 
     #[test]
     fn test_from_pystring() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let path = "Hello\0\n🐍";
             let pystring = PyString::new(py, path);
             let roundtrip: PathBuf = pystring.extract().unwrap();
@@ -205,26 +164,38 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
-    fn test_intopy_string() {
-        use crate::IntoPy;
-
-        Python::with_gil(|py| {
-            fn test_roundtrip<T>(py: Python<'_>, obj: T)
+    fn test_extract_cow() {
+        Python::attach(|py| {
+            fn test_extract<'py, T>(py: Python<'py>, path: &T, is_borrowed: bool)
             where
-                T: IntoPy<PyObject> + AsRef<Path> + Debug + Clone,
+                for<'a> &'a T: IntoPyObject<'py, Output = Bound<'py, PyString>>,
+                for<'a> <&'a T as IntoPyObject<'py>>::Error: Debug,
+                T: AsRef<Path> + ?Sized,
             {
-                let pyobject = obj.clone().into_py(py).into_bound(py);
-                let pystring = pyobject.downcast_exact::<PyString>().unwrap();
-                assert_eq!(pystring.to_string_lossy(), obj.as_ref().to_string_lossy());
-                let roundtripped_obj: PathBuf = pyobject.extract().unwrap();
-                assert_eq!(obj.as_ref(), roundtripped_obj.as_path());
+                let pystring = path.into_pyobject(py).unwrap();
+                let cow: Cow<'_, Path> = pystring.extract().unwrap();
+                assert_eq!(cow, path.as_ref());
+                assert_eq!(is_borrowed, matches!(cow, Cow::Borrowed(_)));
             }
-            let path = Path::new("Hello\0\n🐍");
-            test_roundtrip::<&Path>(py, path);
-            test_roundtrip::<Cow<'_, Path>>(py, Cow::Borrowed(path));
-            test_roundtrip::<Cow<'_, Path>>(py, Cow::Owned(path.to_path_buf()));
-            test_roundtrip::<PathBuf>(py, path.to_path_buf());
+
+            // On Python 3.10+ or when not using the limited API, we can borrow strings from python
+            let can_borrow_str = cfg!(any(Py_3_10, not(Py_LIMITED_API)));
+            // This can be borrowed because it is valid UTF-8
+            test_extract::<str>(py, "Hello\0\n🐍", can_borrow_str);
+            test_extract::<str>(py, "Hello, world!", can_borrow_str);
+
+            #[cfg(windows)]
+            let os_str = {
+                // 'A', unpaired surrogate, 'B'
+                OsString::from_wide(&['A' as u16, 0xD800, 'B' as u16])
+            };
+
+            #[cfg(unix)]
+            let os_str = { OsString::from_vec(vec![250, 251, 252, 253, 254, 255, 0, 255]) };
+
+            // This cannot be borrowed because it is not valid UTF-8
+            #[cfg(any(unix, windows))]
+            test_extract::<OsStr>(py, &os_str, false);
         });
     }
 }

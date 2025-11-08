@@ -1,7 +1,7 @@
 #[cfg(not(PyPy))]
 use crate::PyThreadState;
 use crate::{PyFrameObject, PyInterpreterState, PyObject};
-use std::os::raw::c_int;
+use std::ffi::c_int;
 
 // skipped _PyInterpreterState_RequiresIDRef
 // skipped _PyInterpreterState_RequireIDRef
@@ -27,16 +27,17 @@ pub const PyTrace_OPCODE: c_int = 7;
 // skipped PyTraceInfo
 // skipped CFrame
 
+/// Private structure used inline in `PyGenObject`
 #[cfg(not(PyPy))]
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct _PyErr_StackItem {
+pub(crate) struct _PyErr_StackItem {
     #[cfg(not(Py_3_11))]
-    pub exc_type: *mut PyObject,
-    pub exc_value: *mut PyObject,
+    exc_type: *mut PyObject,
+    exc_value: *mut PyObject,
     #[cfg(not(Py_3_11))]
-    pub exc_traceback: *mut PyObject,
-    pub previous_item: *mut _PyErr_StackItem,
+    exc_traceback: *mut PyObject,
+    previous_item: *mut _PyErr_StackItem,
 }
 
 // skipped _PyStackChunk

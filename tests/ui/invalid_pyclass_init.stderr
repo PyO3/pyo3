@@ -1,0 +1,9 @@
+error[E0277]: the trait bound `i32: IntoPyCallbackOutput<'_, i32>` is not satisfied
+ --> tests/ui/invalid_pyclass_init.rs:8:27
+  |
+8 |     fn __init__(&self) -> i32 {
+  |                           ^^^ the trait `IntoPyCallbackOutput<'_, i32>` is not implemented for `i32`
+  |
+  = help: the following other types implement trait `IntoPyCallbackOutput<'py, Target>`:
+            `usize` implements `IntoPyCallbackOutput<'_, isize>`
+            `usize` implements `IntoPyCallbackOutput<'_, usize>`

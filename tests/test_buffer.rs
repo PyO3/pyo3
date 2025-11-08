@@ -1,5 +1,6 @@
 #![cfg(feature = "macros")]
 #![cfg(any(not(Py_LIMITED_API), Py_3_11))]
+#![warn(unsafe_op_in_unsafe_fn)]
 
 use pyo3::{buffer::PyBuffer, exceptions::PyBufferError, ffi, prelude::*};
 use std::{
@@ -8,8 +9,7 @@ use std::{
 };
 
 #[macro_use]
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 enum TestGetBufferError {
     NullShape,
@@ -42,42 +42,44 @@ impl TestBufferErrors {
 
         let bytes = &slf.buf;
 
-        (*view).buf = bytes.as_ptr() as *mut c_void;
-        (*view).len = bytes.len() as isize;
-        (*view).readonly = 1;
-        (*view).itemsize = std::mem::size_of::<u32>() as isize;
+        unsafe {
+            (*view).buf = bytes.as_ptr() as *mut c_void;
+            (*view).len = bytes.len() as isize;
+            (*view).readonly = 1;
+            (*view).itemsize = std::mem::size_of::<u32>() as isize;
 
-        let msg = ffi::c_str!("I");
-        (*view).format = msg.as_ptr() as *mut _;
+            let msg = c"I";
+            (*view).format = msg.as_ptr() as *mut _;
 
-        (*view).ndim = 1;
-        (*view).shape = &mut (*view).len;
+            (*view).ndim = 1;
+            (*view).shape = &mut (*view).len;
 
-        (*view).strides = &mut (*view).itemsize;
+            (*view).strides = &mut (*view).itemsize;
 
-        (*view).suboffsets = ptr::null_mut();
-        (*view).internal = ptr::null_mut();
+            (*view).suboffsets = ptr::null_mut();
+            (*view).internal = ptr::null_mut();
 
-        if let Some(err) = &slf.error {
-            use TestGetBufferError::*;
-            match err {
-                NullShape => {
-                    (*view).shape = std::ptr::null_mut();
+            if let Some(err) = &slf.error {
+                use TestGetBufferError::*;
+                match err {
+                    NullShape => {
+                        (*view).shape = std::ptr::null_mut();
+                    }
+                    NullStrides => {
+                        (*view).strides = std::ptr::null_mut();
+                    }
+                    IncorrectItemSize => {
+                        (*view).itemsize += 1;
+                    }
+                    IncorrectFormat => {
+                        (*view).format = c"B".as_ptr() as _;
+                    }
+                    IncorrectAlignment => (*view).buf = (*view).buf.add(1),
                 }
-                NullStrides => {
-                    (*view).strides = std::ptr::null_mut();
-                }
-                IncorrectItemSize => {
-                    (*view).itemsize += 1;
-                }
-                IncorrectFormat => {
-                    (*view).format = ffi::c_str!("B").as_ptr() as _;
-                }
-                IncorrectAlignment => (*view).buf = (*view).buf.add(1),
             }
-        }
 
-        (*view).obj = slf.into_ptr();
+            (*view).obj = slf.into_ptr();
+        }
 
         Ok(())
     }
@@ -85,7 +87,7 @@ impl TestBufferErrors {
 
 #[test]
 fn test_get_buffer_errors() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let instance = Py::new(
             py,
             TestBufferErrors {

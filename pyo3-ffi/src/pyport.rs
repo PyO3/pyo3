@@ -1,3 +1,8 @@
+// NB libc does not define this constant on all platforms, so we hard code it
+// like CPython does.
+// https://github.com/python/cpython/blob/d8b9011702443bb57579f8834f3effe58e290dfc/Include/pyport.h#L372
+pub const INT_MAX: std::ffi::c_int = 2147483647;
+
 pub type PY_UINT32_T = u32;
 pub type PY_UINT64_T = u64;
 
@@ -11,8 +16,8 @@ pub type Py_ssize_t = ::libc::ssize_t;
 pub type Py_hash_t = Py_ssize_t;
 pub type Py_uhash_t = ::libc::size_t;
 
-pub const PY_SSIZE_T_MIN: Py_ssize_t = isize::MIN as Py_ssize_t;
-pub const PY_SSIZE_T_MAX: Py_ssize_t = isize::MAX as Py_ssize_t;
+pub const PY_SSIZE_T_MIN: Py_ssize_t = Py_ssize_t::MIN;
+pub const PY_SSIZE_T_MAX: Py_ssize_t = Py_ssize_t::MAX;
 
 #[cfg(target_endian = "big")]
 pub const PY_BIG_ENDIAN: usize = 1;

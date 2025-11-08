@@ -1,4 +1,4 @@
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 //! Raw FFI declarations for Python's C API.
 //!
 //! PyO3 can be used to write native Python modules or run Python code and modules from Rust.
@@ -17,7 +17,7 @@
 //! generally the following apply:
 //! - Pointer arguments have to point to a valid Python object of the correct type,
 //! although null pointers are sometimes valid input.
-//! - The vast majority can only be used safely while the GIL is held.
+//! - The vast majority can only be used safely while the thread is attached to the Python interpreter.
 //! - Some functions have additional safety requirements, consult the
 //! [Python/C API Reference Manual][capi]
 //! for more information.
@@ -81,7 +81,7 @@
 //!
 //! `pyo3-ffi` supports the following Python distributions:
 //!   - CPython 3.7 or greater
-//!   - PyPy 7.3 (Python 3.9+)
+//!   - PyPy 7.3 (Python 3.11+)
 //!   - GraalPy 24.0 or greater (Python 3.10+)
 //!
 //! # Example: Building Python Native modules
@@ -129,16 +129,16 @@
 //! ```
 //!
 //! **`src/lib.rs`**
-//! ```rust
-//! use std::os::raw::{c_char, c_long};
+//! ```rust,no_run
+//! use std::ffi::{c_char, c_long};
 //! use std::ptr;
 //!
 //! use pyo3_ffi::*;
 //!
 //! static mut MODULE_DEF: PyModuleDef = PyModuleDef {
 //!     m_base: PyModuleDef_HEAD_INIT,
-//!     m_name: c_str!("string_sum").as_ptr(),
-//!     m_doc: c_str!("A Python module written in Rust.").as_ptr(),
+//!     m_name: c"string_sum".as_ptr(),
+//!     m_doc: c"A Python module written in Rust.".as_ptr(),
 //!     m_size: 0,
 //!     m_methods: unsafe { METHODS as *const [PyMethodDef] as *mut PyMethodDef },
 //!     m_slots: std::ptr::null_mut(),
@@ -149,19 +149,19 @@
 //!
 //! static mut METHODS: &[PyMethodDef] = &[
 //!     PyMethodDef {
-//!         ml_name: c_str!("sum_as_string").as_ptr(),
+//!         ml_name: c"sum_as_string".as_ptr(),
 //!         ml_meth: PyMethodDefPointer {
 //!             PyCFunctionFast: sum_as_string,
 //!         },
 //!         ml_flags: METH_FASTCALL,
-//!         ml_doc: c_str!("returns the sum of two integers as a string").as_ptr(),
+//!         ml_doc: c"returns the sum of two integers as a string".as_ptr(),
 //!     },
 //!     // A zeroed PyMethodDef to mark the end of the array.
 //!     PyMethodDef::zeroed(),
 //! ];
 //!
-//! // The module initialization function, which must be named `PyInit_<your_module>`.
-//! #[allow(non_snake_case)]
+//! // The module initialization function.
+//! #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
 //! #[no_mangle]
 //! pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
 //!     let module = PyModule_Create(ptr::addr_of_mut!(MODULE_DEF));
@@ -195,7 +195,7 @@
 //!     let mut overflow = 0;
 //!     let i_long: c_long = PyLong_AsLongAndOverflow(obj, &mut overflow);
 //!
-//!     #[allow(irrefutable_let_patterns)] // some platforms have c_long equal to i32
+//!     #[allow(irrefutable_let_patterns, reason = "some platforms have c_long equal to i32")]
 //!     if overflow != 0 {
 //!         raise_overflowerror(obj);
 //!         None
@@ -233,7 +233,7 @@
 //!     if nargs != 2 {
 //!         PyErr_SetString(
 //!             PyExc_TypeError,
-//!             c_str!("sum_as_string expected 2 positional arguments").as_ptr(),
+//!             c"sum_as_string expected 2 positional arguments".as_ptr(),
 //!         );
 //!         return std::ptr::null_mut();
 //!     }
@@ -257,7 +257,7 @@
 //!         None => {
 //!             PyErr_SetString(
 //!                 PyExc_OverflowError,
-//!                 c_str!("arguments too large to add").as_ptr(),
+//!                 c"arguments too large to add".as_ptr(),
 //!             );
 //!             std::ptr::null_mut()
 //!         }
@@ -320,24 +320,31 @@
 #![doc = concat!("[manual_builds]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution.html#manual-builds \"Manual builds - Building and Distribution - PyO3 user guide\"")]
 //! [setuptools-rust]: https://github.com/PyO3/setuptools-rust "Setuptools plugin for Rust extensions"
 //! [PEP 384]: https://www.python.org/dev/peps/pep-0384 "PEP 384 -- Defining a Stable ABI"
-#![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features eference - PyO3 user guide\"")]
+#![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features reference - PyO3 user guide\"")]
 #![allow(
     missing_docs,
     non_camel_case_types,
     non_snake_case,
     non_upper_case_globals,
     clippy::upper_case_acronyms,
-    clippy::missing_safety_doc
+    clippy::missing_safety_doc,
+    clippy::ptr_eq
 )]
 #![warn(elided_lifetimes_in_paths, unused_lifetimes)]
+// This crate is a hand-maintained translation of CPython's headers, so requiring "unsafe"
+// blocks within those translations increases maintenance burden without providing any
+// additional safety. The safety of the functions in this crate is determined by the
+// original CPython headers
+#![allow(unsafe_op_in_unsafe_fn)]
 
 // Until `extern type` is stabilized, use the recommended approach to
 // model opaque types:
 // https://doc.rust-lang.org/nomicon/ffi.html#representing-opaque-structs
 macro_rules! opaque_struct {
-    ($name:ident) => {
+    ($(#[$attrs:meta])* $pub:vis $name:ident) => {
+        $(#[$attrs])*
         #[repr(C)]
-        pub struct $name([u8; 0]);
+        $pub struct $name([u8; 0]);
     };
 }
 
@@ -351,7 +358,7 @@ macro_rules! opaque_struct {
 ///
 /// Examples:
 ///
-/// ```rust
+/// ```rust,no_run
 /// use std::ffi::CStr;
 ///
 /// const HELLO: &CStr = pyo3_ffi::c_str!("hello");
@@ -359,6 +366,7 @@ macro_rules! opaque_struct {
 /// ```
 #[macro_export]
 macro_rules! c_str {
+    // TODO: deprecate this now MSRV is above 1.77
     ($s:expr) => {
         $crate::_cstr_from_utf8_with_nul_checked(concat!($s, "\0"))
     };
@@ -366,25 +374,12 @@ macro_rules! c_str {
 
 /// Private helper for `c_str!` macro.
 #[doc(hidden)]
-pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &CStr {
-    // TODO: Replace this implementation with `CStr::from_bytes_with_nul` when MSRV above 1.72.
-    let bytes = s.as_bytes();
-    let len = bytes.len();
-    assert!(
-        !bytes.is_empty() && bytes[bytes.len() - 1] == b'\0',
-        "string is not nul-terminated"
-    );
-    let mut i = 0;
-    let non_null_len = len - 1;
-    while i < non_null_len {
-        assert!(bytes[i] != b'\0', "string contains null bytes");
-        i += 1;
+pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &std::ffi::CStr {
+    match std::ffi::CStr::from_bytes_with_nul(s.as_bytes()) {
+        Ok(cstr) => cstr,
+        Err(_) => panic!("string contains nul bytes"),
     }
-
-    unsafe { CStr::from_bytes_with_nul_unchecked(bytes) }
 }
-
-use std::ffi::CStr;
 
 pub mod compat;
 mod impl_;
@@ -440,7 +435,9 @@ pub use self::pyport::*;
 pub use self::pystate::*;
 pub use self::pystrtod::*;
 pub use self::pythonrun::*;
+pub use self::pytypedefs::*;
 pub use self::rangeobject::*;
+pub use self::refcount::*;
 pub use self::setobject::*;
 pub use self::sliceobject::*;
 pub use self::structseq::*;
@@ -532,7 +529,9 @@ mod pythonrun;
 mod pystrtod;
 // skipped pythread.h
 // skipped pytime.h
+mod pytypedefs;
 mod rangeobject;
+mod refcount;
 mod setobject;
 mod sliceobject;
 mod structseq;

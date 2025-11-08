@@ -9,7 +9,7 @@ use crate::{
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     types::{PyAnyMethods, PyTraceback, PyType},
-    Bound, Py, PyAny, PyErrArguments, PyObject, PyTypeInfo, Python,
+    Bound, Py, PyAny, PyErrArguments, PyTypeInfo, Python,
 };
 
 pub(crate) struct PyErrState {
@@ -45,7 +45,7 @@ impl PyErrState {
     pub(crate) fn normalized(normalized: PyErrStateNormalized) -> Self {
         let state = Self::from_inner(PyErrStateInner::Normalized(normalized));
         // This state is already normalized, by completing the Once immediately we avoid
-        // reaching the `py.allow_threads` in `make_normalized` which is less efficient
+        // reaching the `py.detach` in `make_normalized` which is less efficient
         // and introduces a GIL switch which could deadlock.
         // See https://github.com/PyO3/pyo3/issues/4764
         state.normalized.call_once(|| {});
@@ -85,8 +85,8 @@ impl PyErrState {
     #[cold]
     fn make_normalized(&self, py: Python<'_>) -> &PyErrStateNormalized {
         // This process is safe because:
-        // - Access is guaranteed not to be concurrent thanks to `Python` GIL token
         // - Write happens only once, and then never will change again.
+        // - The `Once` ensure that only one thread will do the write.
 
         // Guard against re-entrant normalization, because `Once` does not provide
         // re-entrancy guarantees.
@@ -98,7 +98,7 @@ impl PyErrState {
         }
 
         // avoid deadlock of `.call_once` with the GIL
-        py.allow_threads(|| {
+        py.detach(|| {
             self.normalized.call_once(|| {
                 self.normalizing_thread
                     .lock()
@@ -113,7 +113,7 @@ impl PyErrState {
                 };
 
                 let normalized_state =
-                    Python::with_gil(|py| PyErrStateInner::Normalized(state.normalize(py)));
+                    Python::attach(|py| PyErrStateInner::Normalized(state.normalize(py)));
 
                 // Safety: no other thread can access the inner value while we are normalizing it.
                 unsafe {
@@ -147,10 +147,9 @@ impl PyErrStateNormalized {
             ptype: pvalue.get_type().into(),
             #[cfg(not(Py_3_12))]
             ptraceback: unsafe {
-                Py::from_owned_ptr_or_opt(
-                    pvalue.py(),
-                    ffi::PyException_GetTraceback(pvalue.as_ptr()),
-                )
+                ffi::PyException_GetTraceback(pvalue.as_ptr())
+                    .assume_owned_or_opt(pvalue.py())
+                    .map(|b| b.cast_into_unchecked().unbind())
             },
             pvalue: pvalue.into(),
         }
@@ -178,7 +177,7 @@ impl PyErrStateNormalized {
         unsafe {
             ffi::PyException_GetTraceback(self.pvalue.as_ptr())
                 .assume_owned_or_opt(py)
-                .map(|b| b.downcast_into_unchecked())
+                .map(|b| b.cast_into_unchecked())
         }
     }
 
@@ -190,7 +189,7 @@ impl PyErrStateNormalized {
             unsafe { ffi::PyErr_GetRaisedException().assume_owned_or_opt(py) }.map(|pvalue| {
                 PyErrStateNormalized {
                     // Safety: PyErr_GetRaisedException returns a valid exception type.
-                    pvalue: unsafe { pvalue.downcast_into_unchecked() }.unbind(),
+                    pvalue: unsafe { pvalue.cast_into_unchecked() }.unbind(),
                 }
             })
         }
@@ -214,13 +213,13 @@ impl PyErrStateNormalized {
                 (
                     ptype
                         .assume_owned_or_opt(py)
-                        .map(|b| b.downcast_into_unchecked()),
+                        .map(|b| b.cast_into_unchecked()),
                     pvalue
                         .assume_owned_or_opt(py)
-                        .map(|b| b.downcast_into_unchecked()),
+                        .map(|b| b.cast_into_unchecked()),
                     ptraceback
                         .assume_owned_or_opt(py)
-                        .map(|b| b.downcast_into_unchecked()),
+                        .map(|b| b.cast_into_unchecked()),
                 )
             };
 
@@ -240,9 +239,22 @@ impl PyErrStateNormalized {
         ptraceback: *mut ffi::PyObject,
     ) -> Self {
         PyErrStateNormalized {
-            ptype: Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing"),
-            pvalue: Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing"),
-            ptraceback: Py::from_owned_ptr_or_opt(py, ptraceback),
+            ptype: unsafe {
+                ptype
+                    .assume_owned_or_opt(py)
+                    .expect("Exception type missing")
+                    .cast_into_unchecked()
+            }
+            .unbind(),
+            pvalue: unsafe {
+                pvalue
+                    .assume_owned_or_opt(py)
+                    .expect("Exception value missing")
+                    .cast_into_unchecked()
+            }
+            .unbind(),
+            ptraceback: unsafe { ptraceback.assume_owned_or_opt(py) }
+                .map(|b| unsafe { b.cast_into_unchecked() }.unbind()),
         }
     }
 
@@ -261,8 +273,8 @@ impl PyErrStateNormalized {
 }
 
 pub(crate) struct PyErrStateLazyFnOutput {
-    pub(crate) ptype: PyObject,
-    pub(crate) pvalue: PyObject,
+    pub(crate) ptype: Py<PyAny>,
+    pub(crate) pvalue: Py<PyAny>,
 }
 
 pub(crate) type PyErrStateLazyFn =
@@ -354,7 +366,7 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
         if ffi::PyExceptionClass_Check(ptype.as_ptr()) == 0 {
             ffi::PyErr_SetString(
                 PyTypeError::type_object_raw(py).cast(),
-                ffi::c_str!("exceptions must derive from BaseException").as_ptr(),
+                c"exceptions must derive from BaseException".as_ptr(),
             )
         } else {
             ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr())
@@ -366,18 +378,18 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
 mod tests {
 
     use crate::{
-        exceptions::PyValueError, sync::GILOnceCell, PyErr, PyErrArguments, PyObject, Python,
+        exceptions::PyValueError, sync::PyOnceLock, Py, PyAny, PyErr, PyErrArguments, Python,
     };
 
     #[test]
     #[should_panic(expected = "Re-entrant normalization of PyErrState detected")]
     fn test_reentrant_normalization() {
-        static ERR: GILOnceCell<PyErr> = GILOnceCell::new();
+        static ERR: PyOnceLock<PyErr> = PyOnceLock::new();
 
         struct RecursiveArgs;
 
         impl PyErrArguments for RecursiveArgs {
-            fn arguments(self, py: Python<'_>) -> PyObject {
+            fn arguments(self, py: Python<'_>) -> Py<PyAny> {
                 // .value(py) triggers normalization
                 ERR.get(py)
                     .expect("is set just below")
@@ -387,7 +399,7 @@ mod tests {
             }
         }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             ERR.set(py, PyValueError::new_err(RecursiveArgs)).unwrap();
             ERR.get(py).expect("is set just above").value(py);
         })
@@ -396,28 +408,28 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_no_deadlock_thread_switch() {
-        static ERR: GILOnceCell<PyErr> = GILOnceCell::new();
+        static ERR: PyOnceLock<PyErr> = PyOnceLock::new();
 
         struct GILSwitchArgs;
 
         impl PyErrArguments for GILSwitchArgs {
-            fn arguments(self, py: Python<'_>) -> PyObject {
+            fn arguments(self, py: Python<'_>) -> Py<PyAny> {
                 // releasing the GIL potentially allows for other threads to deadlock
                 // with the normalization going on here
-                py.allow_threads(|| {
+                py.detach(|| {
                     std::thread::sleep(std::time::Duration::from_millis(10));
                 });
                 py.None()
             }
         }
 
-        Python::with_gil(|py| ERR.set(py, PyValueError::new_err(GILSwitchArgs)).unwrap());
+        Python::attach(|py| ERR.set(py, PyValueError::new_err(GILSwitchArgs)).unwrap());
 
         // Let many threads attempt to read the normalized value at the same time
         let handles = (0..10)
             .map(|_| {
                 std::thread::spawn(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         ERR.get(py).expect("is set just above").value(py);
                     });
                 })
@@ -430,7 +442,7 @@ mod tests {
 
         // We should never have deadlocked, and should be able to run
         // this assertion
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(ERR
                 .get(py)
                 .expect("is set above")

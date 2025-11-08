@@ -8,11 +8,11 @@
 //! use pyo3::prelude::*;
 //! ```
 
-pub use crate::conversion::{FromPyObject, IntoPyObject};
-#[allow(deprecated)]
-pub use crate::conversion::{IntoPy, ToPyObject};
+pub use crate::conversion::{FromPyObject, FromPyObjectOwned, IntoPyObject};
 pub use crate::err::{PyErr, PyResult};
-pub use crate::instance::{Borrowed, Bound, Py, PyObject};
+#[allow(deprecated)]
+pub use crate::instance::PyObject;
+pub use crate::instance::{Borrowed, Bound, Py};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass_init::PyClassInitializer;
@@ -25,9 +25,6 @@ pub use pyo3_macros::{
 
 #[cfg(feature = "macros")]
 pub use crate::wrap_pyfunction;
-#[cfg(feature = "macros")]
-#[allow(deprecated)]
-pub use crate::wrap_pyfunction_bound;
 
 pub use crate::types::any::PyAnyMethods;
 pub use crate::types::boolobject::PyBoolMethods;

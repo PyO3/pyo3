@@ -1,24 +1,23 @@
 use crate::exceptions::PyStopAsyncIteration;
-use crate::gil::LockGIL;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout};
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
+use crate::internal::state::ForbidAttaching;
 use crate::pycell::impl_::PyClassBorrowChecker as _;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
 use crate::{
-    ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassInitializer, PyErr, PyObject, PyRef,
-    PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
+    ffi, Bound, CastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyClassInitializer,
+    PyErr, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
 };
 use std::ffi::CStr;
+use std::ffi::{c_int, c_void};
 use std::fmt;
 use std::marker::PhantomData;
-use std::os::raw::{c_int, c_void};
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::ptr::null_mut;
+use std::ptr::{null_mut, NonNull};
 
 use super::trampoline;
 use crate::internal_tricks::{clear_eq, traverse_eq};
@@ -58,13 +57,9 @@ impl IPowModulo {
 
 /// `PyMethodDefType` represents different types of Python callable objects.
 /// It is used by the `#[pymethods]` attribute.
-#[cfg_attr(test, derive(Clone))]
+#[derive(Copy, Clone)]
 pub enum PyMethodDefType {
-    /// Represents class method
-    Class(PyMethodDef),
-    /// Represents static method
-    Static(PyMethodDef),
-    /// Represents normal method
+    /// Represents a class method (might be `classmethod` or `staticmethod`, depends on `ml_flags`)
     Method(PyMethodDef),
     /// Represents class attribute, used by `#[attribute]`
     ClassAttribute(PyClassAttributeDef),
@@ -84,12 +79,9 @@ pub enum PyMethodType {
     PyCFunctionFastWithKeywords(ffi::PyCFunctionFastWithKeywords),
 }
 
-pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<PyObject>;
+pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<Py<PyAny>>;
 
-// TODO: it would be nice to use CStr in these types, but then the constructors can't be const fn
-// until `CStr::from_bytes_with_nul_unchecked` is const fn.
-
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct PyMethodDef {
     pub(crate) ml_name: &'static CStr,
     pub(crate) ml_meth: PyMethodType,
@@ -103,25 +95,19 @@ pub struct PyClassAttributeDef {
     pub(crate) meth: PyClassAttributeFactory,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct PyGetterDef {
     pub(crate) name: &'static CStr,
     pub(crate) meth: Getter,
     pub(crate) doc: &'static CStr,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct PySetterDef {
     pub(crate) name: &'static CStr,
     pub(crate) meth: Setter,
     pub(crate) doc: &'static CStr,
 }
-
-unsafe impl Sync for PyMethodDef {}
-
-unsafe impl Sync for PyGetterDef {}
-
-unsafe impl Sync for PySetterDef {}
 
 impl PyMethodDef {
     /// Define a function with no `*args` and `**kwargs`.
@@ -172,8 +158,7 @@ impl PyMethodDef {
         self
     }
 
-    /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
-    pub(crate) fn as_method_def(&self) -> ffi::PyMethodDef {
+    pub const fn into_raw(self) -> ffi::PyMethodDef {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => ffi::PyMethodDefPointer { PyCFunction: meth },
             PyMethodType::PyCFunctionWithKeywords(meth) => ffi::PyMethodDefPointer {
@@ -260,7 +245,7 @@ impl PySetterDef {
 ///
 /// Elided lifetime should compile ok:
 ///
-/// ```rust
+/// ```rust,no_run
 /// use pyo3::prelude::*;
 /// use pyo3::pyclass::{PyTraverseError, PyVisit};
 ///
@@ -285,24 +270,22 @@ pub unsafe fn _call_traverse<T>(
 where
     T: PyClass,
 {
-    // It is important the implementation of `__traverse__` cannot safely access the GIL,
-    // c.f. https://github.com/PyO3/pyo3/issues/3165, and hence we do not expose our GIL
-    // token to the user code and lock safe methods for acquiring the GIL.
+    // It is important the implementation of `__traverse__` cannot safely access the interpreter,
+    // c.f. https://github.com/PyO3/pyo3/issues/3165, and hence we do not expose our Python
+    // token to the user code and forbid safe methods for attaching.
     // (This includes enforcing the `&self` method receiver as e.g. `PyRef<Self>` could
-    // reconstruct a GIL token via `PyRef::py`.)
-    // Since we do not create a `GILPool` at all, it is important that our usage of the GIL
-    // token does not produce any owned objects thereby calling into `register_owned`.
+    // reconstruct a Python token via `PyRef::py`.)
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
-    let lock = LockGIL::during_traverse();
+    let lock = ForbidAttaching::during_traverse();
 
-    let super_retval = call_super_traverse(slf, visit, arg, current_traverse);
+    let super_retval = unsafe { call_super_traverse(slf, visit, arg, current_traverse) };
     if super_retval != 0 {
         return super_retval;
     }
 
     // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
     // traversal is running so no mutations can occur.
-    let class_object: &PyClassObject<T> = &*slf.cast();
+    let class_object: &PyClassObject<T> = unsafe { &*slf.cast() };
 
     let retval =
     // `#[pyclass(unsendable)]` types can only be deallocated by their own thread, so
@@ -320,7 +303,7 @@ where
         // `.try_borrow()` above created a borrow, we need to release it when we're done
         // traversing the object. This allows us to read `instance` safely.
         let _guard = TraverseGuard(class_object);
-        let instance = &*class_object.contents.value.get();
+        let instance = unsafe {&*class_object.contents.value.get()};
 
         let visit = PyVisit { visit, arg, _guard: PhantomData };
 
@@ -359,16 +342,16 @@ unsafe fn call_super_traverse(
     // because the GC is running and so
     // - (a) we cannot do refcounting and
     // - (b) the type of the object cannot change.
-    let mut ty = ffi::Py_TYPE(obj);
+    let mut ty = unsafe { ffi::Py_TYPE(obj) };
     let mut traverse: Option<ffi::traverseproc>;
 
     // First find the current type by the current_traverse function
     loop {
-        traverse = get_slot(ty, TP_TRAVERSE);
+        traverse = unsafe { get_slot(ty, TP_TRAVERSE) };
         if traverse_eq(traverse, current_traverse) {
             break;
         }
-        ty = get_slot(ty, TP_BASE);
+        ty = unsafe { get_slot(ty, TP_BASE) };
         if ty.is_null() {
             // FIXME: return an error if current type not in the MRO? Should be impossible.
             return 0;
@@ -377,16 +360,16 @@ unsafe fn call_super_traverse(
 
     // Get first base which has a different traverse function
     while traverse_eq(traverse, current_traverse) {
-        ty = get_slot(ty, TP_BASE);
+        ty = unsafe { get_slot(ty, TP_BASE) };
         if ty.is_null() {
             break;
         }
-        traverse = get_slot(ty, TP_TRAVERSE);
+        traverse = unsafe { get_slot(ty, TP_TRAVERSE) };
     }
 
     // If we found a type with a different traverse function, call it
     if let Some(traverse) = traverse {
-        return traverse(obj, visit, arg);
+        return unsafe { traverse(obj, visit, arg) };
     }
 
     // FIXME same question as cython: what if the current type is not in the MRO?
@@ -399,14 +382,16 @@ pub unsafe fn _call_clear(
     impl_: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<()>,
     current_clear: ffi::inquiry,
 ) -> c_int {
-    trampoline::trampoline(move |py| {
-        let super_retval = call_super_clear(py, slf, current_clear);
-        if super_retval != 0 {
-            return Err(PyErr::fetch(py));
-        }
-        impl_(py, slf)?;
-        Ok(0)
-    })
+    unsafe {
+        trampoline::trampoline(move |py| {
+            let super_retval = call_super_clear(py, slf, current_clear);
+            if super_retval != 0 {
+                return Err(PyErr::fetch(py));
+            }
+            impl_(py, slf)?;
+            Ok(0)
+        })
+    }
 }
 
 /// Call super-type traverse method, if necessary.
@@ -424,7 +409,7 @@ unsafe fn call_super_clear(
     obj: *mut ffi::PyObject,
     current_clear: ffi::inquiry,
 ) -> c_int {
-    let mut ty = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj));
+    let mut ty = unsafe { PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(obj)) };
     let mut clear: Option<ffi::inquiry>;
 
     // First find the current type by the current_clear function
@@ -438,7 +423,7 @@ unsafe fn call_super_clear(
             // FIXME: return an error if current type not in the MRO? Should be impossible.
             return 0;
         }
-        ty = PyType::from_borrowed_type_ptr(py, base);
+        ty = unsafe { PyType::from_borrowed_type_ptr(py, base) };
     }
 
     // Get first base which has a different clear function
@@ -447,13 +432,13 @@ unsafe fn call_super_clear(
         if base.is_null() {
             break;
         }
-        ty = PyType::from_borrowed_type_ptr(py, base);
+        ty = unsafe { PyType::from_borrowed_type_ptr(py, base) };
         clear = ty.get_slot(TP_CLEAR);
     }
 
     // If we found a type with a different clear function, call it
     if let Some(clear) = clear {
-        return clear(obj);
+        return unsafe { clear(obj) };
     }
 
     // FIXME same question as cython: what if the current type is not in the MRO?
@@ -633,22 +618,42 @@ pub struct BoundRef<'a, 'py, T>(pub &'a Bound<'py, T>);
 
 impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
     pub unsafe fn ref_from_ptr(py: Python<'py>, ptr: &'a *mut ffi::PyObject) -> Self {
-        BoundRef(Bound::ref_from_ptr(py, ptr))
+        unsafe { BoundRef(Bound::ref_from_ptr(py, ptr)) }
     }
 
     pub unsafe fn ref_from_ptr_or_opt(
         py: Python<'py>,
         ptr: &'a *mut ffi::PyObject,
     ) -> Option<Self> {
-        Bound::ref_from_ptr_or_opt(py, ptr).as_ref().map(BoundRef)
+        unsafe { Bound::ref_from_ptr_or_opt(py, ptr).as_ref().map(BoundRef) }
     }
 
-    pub fn downcast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, DowncastError<'a, 'py>> {
-        self.0.downcast::<T>().map(BoundRef)
+    pub unsafe fn ref_from_non_null(py: Python<'py>, ptr: &'a NonNull<ffi::PyObject>) -> Self {
+        unsafe { Self(Bound::ref_from_non_null(py, ptr)) }
     }
 
-    pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
-        BoundRef(self.0.downcast_unchecked::<T>())
+    pub fn cast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, CastError<'a, 'py>> {
+        self.0.cast::<T>().map(BoundRef)
+    }
+
+    pub unsafe fn cast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
+        unsafe { BoundRef(self.0.cast_unchecked::<T>()) }
+    }
+}
+
+impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyClassGuard<'a, T> {
+    type Error = PyBorrowError;
+    #[inline]
+    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
+        PyClassGuard::try_borrow(value.0.as_unbound())
+    }
+}
+
+impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<BoundRef<'a, 'py, T>> for PyClassGuardMut<'a, T> {
+    type Error = PyBorrowMutError;
+    #[inline]
+    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
+        PyClassGuardMut::try_borrow_mut(value.0.as_unbound())
     }
 }
 
@@ -656,7 +661,7 @@ impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyRef<'py, T> {
     type Error = PyBorrowError;
     #[inline]
     fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
-        value.0.try_borrow()
+        PyRef::try_borrow(value.0)
     }
 }
 
@@ -664,7 +669,7 @@ impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<BoundRef<'a, 'py, T>> for PyRe
     type Error = PyBorrowMutError;
     #[inline]
     fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
-        value.0.try_borrow_mut()
+        PyRefMut::try_borrow(value.0)
     }
 }
 
@@ -702,9 +707,11 @@ pub unsafe fn tp_new_impl<T: PyClass>(
     initializer: PyClassInitializer<T>,
     target_type: *mut ffi::PyTypeObject,
 ) -> PyResult<*mut ffi::PyObject> {
-    initializer
-        .create_class_object_of_type(py, target_type)
-        .map(Bound::into_ptr)
+    unsafe {
+        initializer
+            .create_class_object_of_type(py, target_type)
+            .map(Bound::into_ptr)
+    }
 }
 
 #[cfg(test)]
@@ -713,10 +720,21 @@ mod tests {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn test_fastcall_function_with_keywords() {
         use super::PyMethodDef;
-        use crate::types::{PyAnyMethods, PyCFunction};
+        use crate::impl_::pyfunction::PyFunctionDef;
+        use crate::types::PyAnyMethods;
         use crate::{ffi, Python};
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
+            let def =
+                PyFunctionDef::from_method_def(PyMethodDef::fastcall_cfunction_with_keywords(
+                    c"test",
+                    accepts_no_arguments,
+                    c"doc",
+                ));
+            // leak to make it 'static
+            // deliberately done at runtime to have coverage of `PyFunctionDef::from_method_def`
+            let def = Box::leak(Box::new(def));
+
             unsafe extern "C" fn accepts_no_arguments(
                 _slf: *mut ffi::PyObject,
                 _args: *const *mut ffi::PyObject,
@@ -725,19 +743,10 @@ mod tests {
             ) -> *mut ffi::PyObject {
                 assert_eq!(nargs, 0);
                 assert!(kwargs.is_null());
-                Python::assume_gil_acquired().None().into_ptr()
+                unsafe { Python::assume_attached().None().into_ptr() }
             }
 
-            let f = PyCFunction::internal_new(
-                py,
-                &PyMethodDef::fastcall_cfunction_with_keywords(
-                    ffi::c_str!("test"),
-                    accepts_no_arguments,
-                    ffi::c_str!("doc"),
-                ),
-                None,
-            )
-            .unwrap();
+            let f = def.create_py_c_function(py, None).unwrap();
 
             f.call0().unwrap();
         });

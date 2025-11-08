@@ -1,8 +1,8 @@
 #[cfg(Py_3_8)]
 use crate::vectorcallfunc;
 use crate::{object, PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, Py_ssize_t};
+use std::ffi::{c_char, c_int, c_uint, c_void};
 use std::mem;
-use std::os::raw::{c_char, c_int, c_uint, c_void};
 
 // skipped private _Py_NewReference
 // skipped private _Py_NewReferenceNoTotal
@@ -22,7 +22,7 @@ use std::os::raw::{c_char, c_int, c_uint, c_void};
 #[cfg(not(Py_3_11))] // moved to src/buffer.rs from Python
 mod bufferinfo {
     use crate::Py_ssize_t;
-    use std::os::raw::{c_char, c_int, c_void};
+    use std::ffi::{c_char, c_int, c_void};
     use std::ptr;
 
     #[repr(C)]
@@ -233,7 +233,7 @@ pub struct PyTypeObject {
     pub tp_setattro: Option<object::setattrofunc>,
     pub tp_as_buffer: *mut PyBufferProcs,
     #[cfg(not(Py_GIL_DISABLED))]
-    pub tp_flags: std::os::raw::c_ulong,
+    pub tp_flags: std::ffi::c_ulong,
     #[cfg(Py_GIL_DISABLED)]
     pub tp_flags: crate::impl_::AtomicCULong,
     pub tp_doc: *const c_char,
@@ -268,10 +268,8 @@ pub struct PyTypeObject {
     pub tp_vectorcall: Option<vectorcallfunc>,
     #[cfg(Py_3_12)]
     pub tp_watched: c_char,
-    #[cfg(any(all(PyPy, Py_3_8, not(Py_3_10)), all(not(PyPy), Py_3_8, not(Py_3_9))))]
+    #[cfg(all(not(PyPy), Py_3_8, not(Py_3_9)))]
     pub tp_print: Option<printfunc>,
-    #[cfg(all(PyPy, not(Py_3_10)))]
-    pub tp_pypy_flags: std::os::raw::c_long,
     #[cfg(py_sys_config = "COUNT_ALLOCS")]
     pub tp_allocs: Py_ssize_t,
     #[cfg(py_sys_config = "COUNT_ALLOCS")]
@@ -312,8 +310,12 @@ pub struct PyHeapTypeObject {
     pub ht_module: *mut object::PyObject,
     #[cfg(all(Py_3_11, not(PyPy)))]
     _ht_tpname: *mut c_char,
+    #[cfg(Py_3_14)]
+    pub ht_token: *mut c_void,
     #[cfg(all(Py_3_11, not(PyPy)))]
     _spec_cache: _specialization_cache,
+    #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
+    pub unique_id: Py_ssize_t,
 }
 
 impl Default for PyHeapTypeObject {

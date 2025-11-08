@@ -13,14 +13,18 @@ pyo3 = { path = "../", features = ["auto-initialize", "full"] }
 pyo3-build-config = { path = "../pyo3-build-config" }
 
 [dev-dependencies]
-codspeed-criterion-compat = "2.3"
-criterion = "0.5.1"
+codspeed-criterion-compat = "4.0"
+criterion = "0.7.0"
 num-bigint = "0.4.3"
 rust_decimal = { version = "1.0.0", default-features = false }
-hashbrown = "0.15"
+hashbrown = "0.16"
 
 [[bench]]
 name = "bench_any"
+harness = false
+
+[[bench]]
+name = "bench_attach"
 harness = false
 
 [[bench]]
@@ -48,10 +52,6 @@ name = "bench_frompyobject"
 harness = false
 
 [[bench]]
-name = "bench_gil"
-harness = false
-
-[[bench]]
 name = "bench_intopyobject"
 harness = false
 
@@ -60,11 +60,11 @@ name = "bench_list"
 harness = false
 
 [[bench]]
-name = "bench_pyclass"
+name = "bench_py"
 harness = false
 
 [[bench]]
-name = "bench_pyobject"
+name = "bench_pyclass"
 harness = false
 
 [[bench]]

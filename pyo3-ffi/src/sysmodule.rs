@@ -1,6 +1,6 @@
 use crate::object::PyObject;
 use libc::wchar_t;
-use std::os::raw::{c_char, c_int};
+use std::ffi::{c_char, c_int};
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPySys_GetObject")]

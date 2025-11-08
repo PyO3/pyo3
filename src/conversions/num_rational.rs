@@ -17,7 +17,7 @@
 //!
 //! Rust code to create a function that adds five to a fraction:
 //!
-//! ```rust
+//! ```rust,no_run
 //! use num_rational::Ratio;
 //! use pyo3::prelude::*;
 //!
@@ -45,18 +45,16 @@
 
 use crate::conversion::IntoPyObject;
 use crate::ffi;
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
-use crate::{Bound, FromPyObject, Py, PyAny, PyErr, PyObject, PyResult, Python};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 
 #[cfg(feature = "num-bigint")]
 use num_bigint::BigInt;
 use num_rational::Ratio;
 
-static FRACTION_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+static FRACTION_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
 fn get_fraction_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     FRACTION_CLS.import(py, "fractions", "Fraction")
@@ -64,8 +62,10 @@ fn get_fraction_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
 
 macro_rules! rational_conversion {
     ($int: ty) => {
-        impl<'py> FromPyObject<'py> for Ratio<$int> {
-            fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+        impl<'py> FromPyObject<'_, 'py> for Ratio<$int> {
+            type Error = PyErr;
+
+            fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let py = obj.py();
                 let py_numerator_obj = obj.getattr(crate::intern!(py, "numerator"))?;
                 let py_denominator_obj = obj.getattr(crate::intern!(py, "denominator"))?;
@@ -81,21 +81,6 @@ macro_rules! rational_conversion {
                 let rs_numerator: $int = numerator_owned.extract()?;
                 let rs_denominator: $int = denominator_owned.extract()?;
                 Ok(Ratio::new(rs_numerator, rs_denominator))
-            }
-        }
-
-        #[allow(deprecated)]
-        impl ToPyObject for Ratio<$int> {
-            #[inline]
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
-            }
-        }
-        #[allow(deprecated)]
-        impl IntoPy<PyObject> for Ratio<$int> {
-            #[inline]
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.into_pyobject(py).unwrap().into_any().unbind()
             }
         }
 
@@ -138,10 +123,10 @@ mod tests {
     use proptest::prelude::*;
     #[test]
     fn test_negative_fraction() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
-                ffi::c_str!("import fractions\npy_frac = fractions.Fraction(-0.125)"),
+                c"import fractions\npy_frac = fractions.Fraction(-0.125)",
                 None,
                 Some(&locals),
             )
@@ -154,10 +139,10 @@ mod tests {
     }
     #[test]
     fn test_obj_with_incorrect_atts() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
-                ffi::c_str!("not_fraction = \"contains_incorrect_atts\""),
+                c"not_fraction = \"contains_incorrect_atts\"",
                 None,
                 Some(&locals),
             )
@@ -169,12 +154,10 @@ mod tests {
 
     #[test]
     fn test_fraction_with_fraction_type() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
-                ffi::c_str!(
-                    "import fractions\npy_frac = fractions.Fraction(fractions.Fraction(10))"
-                ),
+                c"import fractions\npy_frac = fractions.Fraction(fractions.Fraction(10))",
                 None,
                 Some(&locals),
             )
@@ -188,10 +171,10 @@ mod tests {
 
     #[test]
     fn test_fraction_with_decimal() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
-                ffi::c_str!("import fractions\n\nfrom decimal import Decimal\npy_frac = fractions.Fraction(Decimal(\"1.1\"))"),
+                c"import fractions\n\nfrom decimal import Decimal\npy_frac = fractions.Fraction(Decimal(\"1.1\"))",
                 None,
                 Some(&locals),
             )
@@ -205,10 +188,10 @@ mod tests {
 
     #[test]
     fn test_fraction_with_num_den() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             py.run(
-                ffi::c_str!("import fractions\npy_frac = fractions.Fraction(10,5)"),
+                c"import fractions\npy_frac = fractions.Fraction(10,5)",
                 None,
                 Some(&locals),
             )
@@ -223,7 +206,7 @@ mod tests {
     #[cfg(target_arch = "wasm32")]
     #[test]
     fn test_int_roundtrip() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let rs_frac = Ratio::new(1i32, 2);
             let py_frac = rs_frac.into_pyobject(py).unwrap();
             let roundtripped: Ratio<i32> = py_frac.extract().unwrap();
@@ -235,7 +218,7 @@ mod tests {
     #[cfg(target_arch = "wasm32")]
     #[test]
     fn test_big_int_roundtrip() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let rs_frac = Ratio::from_float(5.5).unwrap();
             let py_frac = rs_frac.clone().into_pyobject(py).unwrap();
             let roundtripped: Ratio<BigInt> = py_frac.extract().unwrap();
@@ -247,7 +230,7 @@ mod tests {
     proptest! {
         #[test]
         fn test_int_roundtrip(num in any::<i32>(), den in any::<i32>()) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let rs_frac = Ratio::new(num, den);
                 let py_frac = rs_frac.into_pyobject(py).unwrap();
                 let roundtripped: Ratio<i32> = py_frac.extract().unwrap();
@@ -258,7 +241,7 @@ mod tests {
         #[test]
         #[cfg(feature = "num-bigint")]
         fn test_big_int_roundtrip(num in any::<f32>()) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let rs_frac = Ratio::from_float(num).unwrap();
                 let py_frac = rs_frac.clone().into_pyobject(py).unwrap();
                 let roundtripped: Ratio<BigInt> = py_frac.extract().unwrap();
@@ -270,10 +253,10 @@ mod tests {
 
     #[test]
     fn test_infinity() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let locals = PyDict::new(py);
             let py_bound = py.run(
-                ffi::c_str!("import fractions\npy_frac = fractions.Fraction(\"Infinity\")"),
+                c"import fractions\npy_frac = fractions.Fraction(\"Infinity\")",
                 None,
                 Some(&locals),
             );

@@ -10,6 +10,8 @@ use syn::{
     Attribute, Expr, ExprPath, Ident, Index, LitBool, LitStr, Member, Path, Result, Token,
 };
 
+use crate::combine_errors::CombineErrors;
+
 pub mod kw {
     syn::custom_keyword!(annotation);
     syn::custom_keyword!(attribute);
@@ -27,6 +29,7 @@ pub mod kw {
     syn::custom_keyword!(hash);
     syn::custom_keyword!(into_py_with);
     syn::custom_keyword!(item);
+    syn::custom_keyword!(immutable_type);
     syn::custom_keyword!(from_item_all);
     syn::custom_keyword!(mapping);
     syn::custom_keyword!(module);
@@ -45,7 +48,13 @@ pub mod kw {
     syn::custom_keyword!(transparent);
     syn::custom_keyword!(unsendable);
     syn::custom_keyword!(weakref);
+    syn::custom_keyword!(generic);
     syn::custom_keyword!(gil_used);
+    syn::custom_keyword!(warn);
+    syn::custom_keyword!(message);
+    syn::custom_keyword!(category);
+    syn::custom_keyword!(from_py_object);
+    syn::custom_keyword!(skip_from_py_object);
 }
 
 fn take_int(read: &mut &str, tracker: &mut usize) -> String {
@@ -267,7 +276,7 @@ impl ToTokens for RenamingRuleLitStr {
     }
 }
 
-/// Text signatue can be either a literal string or opt-in/out
+/// Text signature can be either a literal string or opt-in/out
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TextSignatureAttributeValue {
     Str(LitStr),
@@ -350,37 +359,7 @@ impl<K: ToTokens, V: ToTokens> ToTokens for OptionalKeywordAttribute<K, V> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ExprPathWrap {
-    pub from_lit_str: bool,
-    pub expr_path: ExprPath,
-}
-
-impl Parse for ExprPathWrap {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        match input.parse::<ExprPath>() {
-            Ok(expr_path) => Ok(ExprPathWrap {
-                from_lit_str: false,
-                expr_path,
-            }),
-            Err(e) => match input.parse::<LitStrValue<ExprPath>>() {
-                Ok(LitStrValue(expr_path)) => Ok(ExprPathWrap {
-                    from_lit_str: true,
-                    expr_path,
-                }),
-                Err(_) => Err(e),
-            },
-        }
-    }
-}
-
-impl ToTokens for ExprPathWrap {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.expr_path.to_tokens(tokens)
-    }
-}
-
-pub type FromPyWithAttribute = KeywordAttribute<kw::from_py_with, ExprPathWrap>;
+pub type FromPyWithAttribute = KeywordAttribute<kw::from_py_with, ExprPath>;
 pub type IntoPyWithAttribute = KeywordAttribute<kw::into_py_with, ExprPath>;
 
 pub type DefaultAttribute = OptionalKeywordAttribute<Token![default], Expr>;
@@ -420,41 +399,23 @@ pub fn take_attributes(
 
 pub fn take_pyo3_options<T: Parse>(attrs: &mut Vec<syn::Attribute>) -> Result<Vec<T>> {
     let mut out = Vec::new();
-    let mut all_errors = ErrorCombiner(None);
+
     take_attributes(attrs, |attr| match get_pyo3_options(attr) {
         Ok(result) => {
             if let Some(options) = result {
-                out.extend(options);
+                out.extend(options.into_iter().map(|a| Ok(a)));
                 Ok(true)
             } else {
                 Ok(false)
             }
         }
         Err(err) => {
-            all_errors.combine(err);
+            out.push(Err(err));
             Ok(true)
         }
     })?;
-    all_errors.ensure_empty()?;
+
+    let out: Vec<T> = out.into_iter().try_combine_syn_errors()?;
+
     Ok(out)
-}
-
-pub struct ErrorCombiner(pub Option<syn::Error>);
-
-impl ErrorCombiner {
-    pub fn combine(&mut self, error: syn::Error) {
-        if let Some(existing) = &mut self.0 {
-            existing.combine(error);
-        } else {
-            self.0 = Some(error);
-        }
-    }
-
-    pub fn ensure_empty(self) -> Result<()> {
-        if let Some(error) = self.0 {
-            Err(error)
-        } else {
-            Ok(())
-        }
-    }
 }

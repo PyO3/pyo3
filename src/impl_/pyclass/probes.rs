@@ -1,8 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{conversion::IntoPyObject, Py};
-#[allow(deprecated)]
-use crate::{IntoPy, ToPyObject};
+use crate::{conversion::IntoPyObject, FromPyObject, Py};
 
 /// Trait used to combine with zero-sized types to calculate at compile time
 /// some property of a type.
@@ -30,25 +28,8 @@ impl<T> IsPyT<Py<T>> {
     pub const VALUE: bool = true;
 }
 
-probe!(IsToPyObject);
-
-#[allow(deprecated)]
-impl<T: ToPyObject> IsToPyObject<T> {
-    pub const VALUE: bool = true;
-}
-
-probe!(IsIntoPy);
-
-#[allow(deprecated)]
-impl<T: IntoPy<crate::PyObject>> IsIntoPy<T> {
-    pub const VALUE: bool = true;
-}
-
 probe!(IsIntoPyObjectRef);
 
-// Possible clippy beta regression,
-// see https://github.com/rust-lang/rust-clippy/issues/13578
-#[allow(clippy::extra_unused_lifetimes)]
 impl<'a, 'py, T: 'a> IsIntoPyObjectRef<T>
 where
     &'a T: IntoPyObject<'py>,
@@ -65,8 +46,47 @@ where
     pub const VALUE: bool = true;
 }
 
+probe!(IsSend);
+
+impl<T: Send> IsSend<T> {
+    pub const VALUE: bool = true;
+}
+
 probe!(IsSync);
 
 impl<T: Sync> IsSync<T> {
     pub const VALUE: bool = true;
 }
+
+probe!(IsFromPyObject);
+
+impl<'a, 'py, T> IsFromPyObject<T>
+where
+    T: FromPyObject<'a, 'py>,
+{
+    pub const VALUE: bool = true;
+}
+
+probe!(HasNewTextSignature);
+
+impl<T: super::doc::PyClassNewTextSignature> HasNewTextSignature<T> {
+    pub const VALUE: bool = true;
+}
+
+probe!(IsClone);
+
+impl<T: Clone> IsClone<T> {
+    pub const VALUE: bool = true;
+}
+
+#[cfg(test)]
+macro_rules! value_of {
+    ($probe:ident, $ty:ty) => {{
+        #[allow(unused_imports)] // probe trait not used if VALUE is true
+        use crate::impl_::pyclass::Probe as _;
+        $probe::<$ty>::VALUE
+    }};
+}
+
+#[cfg(test)]
+pub(crate) use value_of;

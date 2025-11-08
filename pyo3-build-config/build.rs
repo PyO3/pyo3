@@ -2,11 +2,11 @@
 // Allow dead code because not all code in the modules is used in this build script.
 
 #[path = "src/impl_.rs"]
-#[allow(dead_code)]
+#[allow(dead_code, reason = "not all code is used in build.rs")]
 mod impl_;
 
 #[path = "src/errors.rs"]
-#[allow(dead_code)]
+#[allow(dead_code, reason = "not all code is used in build.rs")]
 mod errors;
 
 use std::{env, path::Path};

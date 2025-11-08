@@ -3,7 +3,7 @@
 
 use std::cell::UnsafeCell;
 use std::marker::PhantomData;
-use std::mem::ManuallyDrop;
+use std::mem::{offset_of, ManuallyDrop};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::impl_::pyclass::{
@@ -98,7 +98,9 @@ pub struct BorrowChecker(BorrowFlag);
 
 pub trait PyClassBorrowChecker {
     /// Initial value for self
-    fn new() -> Self;
+    fn new() -> Self
+    where
+        Self: Sized;
 
     /// Increments immutable borrow count, if possible
     fn try_borrow(&self) -> Result<(), PyBorrowError>;
@@ -233,42 +235,44 @@ where
         Ok(())
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        // FIXME: there is potentially subtle issues here if the base is overwritten
-        // at runtime? To be investigated.
-        let type_obj = T::type_object(py);
-        let type_ptr = type_obj.as_type_ptr();
-        let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
+        unsafe {
+            // FIXME: there is potentially subtle issues here if the base is overwritten
+            // at runtime? To be investigated.
+            let type_obj = T::type_object(py);
+            let type_ptr = type_obj.as_type_ptr();
+            let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
 
-        // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
-        if type_ptr == std::ptr::addr_of_mut!(ffi::PyBaseObject_Type) {
-            let tp_free = actual_type
-                .get_slot(TP_FREE)
-                .expect("PyBaseObject_Type should have tp_free");
-            return tp_free(slf.cast());
-        }
-
-        // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            // FIXME: should this be using actual_type.tp_dealloc?
-            if let Some(dealloc) = (*type_ptr).tp_dealloc {
-                // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
-                // assumes the exception is currently GC tracked, so we have to re-track
-                // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
-                #[cfg(not(any(Py_3_11, PyPy)))]
-                if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
-                    ffi::PyObject_GC_Track(slf.cast());
-                }
-                dealloc(slf);
-            } else {
-                (*actual_type.as_type_ptr())
-                    .tp_free
-                    .expect("type missing tp_free")(slf.cast());
+            // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
+            if std::ptr::eq(type_ptr, std::ptr::addr_of!(ffi::PyBaseObject_Type)) {
+                let tp_free = actual_type
+                    .get_slot(TP_FREE)
+                    .expect("PyBaseObject_Type should have tp_free");
+                return tp_free(slf.cast());
             }
-        }
 
-        #[cfg(Py_LIMITED_API)]
-        unreachable!("subclassing native types is not possible with the `abi3` feature");
+            // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
+            #[cfg(not(Py_LIMITED_API))]
+            {
+                // FIXME: should this be using actual_type.tp_dealloc?
+                if let Some(dealloc) = (*type_ptr).tp_dealloc {
+                    // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
+                    // assumes the exception is currently GC tracked, so we have to re-track
+                    // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
+                    #[cfg(not(any(Py_3_11, PyPy)))]
+                    if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
+                        ffi::PyObject_GC_Track(slf.cast());
+                    }
+                    dealloc(slf);
+                } else {
+                    (*actual_type.as_type_ptr())
+                        .tp_free
+                        .expect("type missing tp_free")(slf.cast());
+                }
+            }
+
+            #[cfg(Py_LIMITED_API)]
+            unreachable!("subclassing native types is not possible with the `abi3` feature");
+        }
     }
 }
 
@@ -295,25 +299,25 @@ impl<T: PyClassImpl> PyClassObject<T> {
 
     /// Gets the offset of the dictionary from the start of the struct in bytes.
     pub(crate) fn dict_offset() -> ffi::Py_ssize_t {
-        use memoffset::offset_of;
-
         let offset =
             offset_of!(PyClassObject<T>, contents) + offset_of!(PyClassObjectContents<T>, dict);
 
-        // Py_ssize_t may not be equal to isize on all platforms
-        #[allow(clippy::useless_conversion)]
+        #[allow(
+            clippy::useless_conversion,
+            reason = "Py_ssize_t may not be isize on all platforms"
+        )]
         offset.try_into().expect("offset should fit in Py_ssize_t")
     }
 
     /// Gets the offset of the weakref list from the start of the struct in bytes.
     pub(crate) fn weaklist_offset() -> ffi::Py_ssize_t {
-        use memoffset::offset_of;
-
         let offset =
             offset_of!(PyClassObject<T>, contents) + offset_of!(PyClassObjectContents<T>, weakref);
 
-        // Py_ssize_t may not be equal to isize on all platforms
-        #[allow(clippy::useless_conversion)]
+        #[allow(
+            clippy::useless_conversion,
+            reason = "Py_ssize_t may not be isize on all platforms"
+        )]
         offset.try_into().expect("offset should fit in Py_ssize_t")
     }
 }
@@ -343,13 +347,15 @@ where
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.
-        let class_object = &mut *(slf.cast::<PyClassObject<T>>());
+        let class_object = unsafe { &mut *(slf.cast::<PyClassObject<T>>()) };
         if class_object.contents.thread_checker.can_drop(py) {
-            ManuallyDrop::drop(&mut class_object.contents.value);
+            unsafe { ManuallyDrop::drop(&mut class_object.contents.value) };
         }
         class_object.contents.dict.clear_dict(py);
-        class_object.contents.weakref.clear_weakrefs(slf, py);
-        <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf)
+        unsafe {
+            class_object.contents.weakref.clear_weakrefs(slf, py);
+            <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf)
+        }
     }
 }
 
@@ -445,7 +451,7 @@ mod tests {
 
     #[test]
     fn test_mutable_borrow_prevents_further_borrows() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mmm = Py::new(
                 py,
                 PyClassInitializer::from(MutableBase)
@@ -496,7 +502,7 @@ mod tests {
 
     #[test]
     fn test_immutable_borrows_prevent_mutable_borrows() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mmm = Py::new(
                 py,
                 PyClassInitializer::from(MutableBase)
@@ -548,17 +554,17 @@ mod tests {
             x: u64,
         }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let inst = Py::new(py, MyClass { x: 0 }).unwrap();
 
-            let total_modifications = py.allow_threads(|| {
+            let total_modifications = py.detach(|| {
                 std::thread::scope(|s| {
                     // Spawn a bunch of threads all racing to write to
                     // the same instance of `MyClass`.
                     let threads = (0..10)
                         .map(|_| {
                             s.spawn(|| {
-                                Python::with_gil(|py| {
+                                Python::attach(|py| {
                                     // Each thread records its own view of how many writes it made
                                     let mut local_modifications = 0;
                                     for _ in 0..100 {

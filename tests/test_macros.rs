@@ -5,8 +5,7 @@
 use pyo3::prelude::*;
 
 #[macro_use]
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 macro_rules! make_struct_using_macro {
     // Ensure that one doesn't need to fall back on the escape type: tt
@@ -31,7 +30,7 @@ macro_rules! set_extends_via_macro {
 set_extends_via_macro!(MyClass2, MyBaseClass);
 
 //
-// Check that pyfunctiona nd text_signature can be called with macro arguments.
+// Check that pyfunctions and text_signature can be called with macro arguments.
 //
 
 macro_rules! fn_macro {
@@ -73,7 +72,7 @@ property_rename_via_macro!(my_new_property_name);
 
 #[test]
 fn test_macro_rules_interactions() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let my_base = py.get_type::<MyBaseClass>();
         py_assert!(py, my_base, "my_base.__name__ == 'MyClass'");
 

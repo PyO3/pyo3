@@ -2,11 +2,11 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 #[cfg(any(Py_3_12, all(Py_3_8, not(Py_LIMITED_API))))]
 use libc::size_t;
-use std::os::raw::{c_char, c_int};
+use std::ffi::{c_char, c_int};
 
 #[inline]
 #[cfg(all(
-    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h 
+    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h
     not(all(PyPy, not(Py_3_11))) // PyPy exposed as a function until PyPy 3.10, macro in 3.11+
 ))]
 pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int {
@@ -15,7 +15,7 @@ pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char)
 
 #[inline]
 #[cfg(all(
-    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h 
+    not(Py_3_13), // CPython exposed as a function in 3.13, in object.h
     not(all(PyPy, not(Py_3_11))) // PyPy exposed as a function until PyPy 3.10, macro in 3.11+
 ))]
 pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_int {
@@ -93,7 +93,7 @@ extern "C" {
         kwnames: *mut PyObject,
     ) -> *mut PyObject;
 
-    #[cfg(any(Py_3_12, all(Py_3_9, not(any(Py_LIMITED_API, PyPy, GraalPy)))))]
+    #[cfg(any(Py_3_12, all(Py_3_9, not(any(Py_LIMITED_API, PyPy)))))]
     pub fn PyObject_VectorcallMethod(
         name: *mut PyObject,
         args: *const *mut PyObject,
@@ -137,7 +137,7 @@ extern "C" {
 #[cfg(not(any(Py_3_8, PyPy)))]
 #[inline]
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
-    crate::PyObject_HasAttrString(crate::Py_TYPE(o).cast(), c_str!("__next__").as_ptr())
+    crate::PyObject_HasAttrString(crate::Py_TYPE(o).cast(), c"__next__".as_ptr())
 }
 
 extern "C" {
@@ -149,7 +149,11 @@ extern "C" {
     pub fn PyIter_Next(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg(all(not(PyPy), Py_3_10))]
     #[cfg_attr(PyPy, link_name = "PyPyIter_Send")]
-    pub fn PyIter_Send(iter: *mut PyObject, arg: *mut PyObject, presult: *mut *mut PyObject);
+    pub fn PyIter_Send(
+        iter: *mut PyObject,
+        arg: *mut PyObject,
+        presult: *mut *mut PyObject,
+    ) -> PySendResult;
 
     #[cfg_attr(PyPy, link_name = "PyPyNumber_Check")]
     pub fn PyNumber_Check(o: *mut PyObject) -> c_int;

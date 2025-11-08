@@ -41,13 +41,13 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3-ffi]
-version = "0.23.5"
+version = "0.27.1"
 features = ["extension-module"]
 
 [build-dependencies]
 # This is only necessary if you need to configure your build based on
 # the Python version or the compile-time configuration for the interpreter.
-pyo3_build_config = "0.23.5"
+pyo3_build_config = "0.27.1"
 ```
 
 If you need to use conditional compilation based on Python version or how
@@ -65,53 +65,62 @@ fn main() {
 ```
 
 **`src/lib.rs`**
-```rust
-use std::os::raw::{c_char, c_long};
+```rust,no_run
+use std::ffi::{c_char, c_long};
 use std::ptr;
 
 use pyo3_ffi::*;
 
 static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_base: PyModuleDef_HEAD_INIT,
-    m_name: c_str!("string_sum").as_ptr(),
-    m_doc: c_str!("A Python module written in Rust.").as_ptr(),
+    m_name: c"string_sum".as_ptr(),
+    m_doc: c"A Python module written in Rust.".as_ptr(),
     m_size: 0,
-    m_methods: unsafe { METHODS as *const [PyMethodDef] as *mut PyMethodDef },
-    m_slots: std::ptr::null_mut(),
+    m_methods: std::ptr::addr_of_mut!(METHODS).cast(),
+    m_slots: unsafe { SLOTS as *const [PyModuleDef_Slot] as *mut PyModuleDef_Slot },
     m_traverse: None,
     m_clear: None,
     m_free: None,
 };
 
-static mut METHODS: &[PyMethodDef] = &[
+static mut METHODS: [PyMethodDef; 2] = [
     PyMethodDef {
-        ml_name: c_str!("sum_as_string").as_ptr(),
+        ml_name: c"sum_as_string".as_ptr(),
         ml_meth: PyMethodDefPointer {
             PyCFunctionFast: sum_as_string,
         },
         ml_flags: METH_FASTCALL,
-        ml_doc: c_str!("returns the sum of two integers as a string").as_ptr(),
+        ml_doc: c"returns the sum of two integers as a string".as_ptr(),
     },
     // A zeroed PyMethodDef to mark the end of the array.
     PyMethodDef::zeroed(),
+];
+
+static mut SLOTS: &[PyModuleDef_Slot] = &[
+    // NB: only include this slot if the module does not store any global state in `static` variables
+    // or other data which could cross between subinterpreters
+    #[cfg(Py_3_12)]
+    PyModuleDef_Slot {
+        slot: Py_mod_multiple_interpreters,
+        value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
+    },
+    // NB: only include this slot if the module does not depend on the GIL for thread safety
+    #[cfg(Py_GIL_DISABLED)]
+    PyModuleDef_Slot {
+        slot: Py_mod_gil,
+        value: Py_MOD_GIL_NOT_USED,
+    },
+    PyModuleDef_Slot {
+        slot: 0,
+        value: ptr::null_mut(),
+    },
 ];
 
 // The module initialization function, which must be named `PyInit_<your_module>`.
 #[allow(non_snake_case)]
 #[no_mangle]
 pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
-    let module = PyModule_Create(ptr::addr_of_mut!(MODULE_DEF));
-    if module.is_null() {
-        return module;
-    }
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        if PyUnstable_Module_SetGIL(module, Py_MOD_GIL_NOT_USED) < 0 {
-            Py_DECREF(module);
-            return std::ptr::null_mut();
-        }
-    }
-    module
+    PyModuleDef_Init(ptr::addr_of_mut!(MODULE_DEF))
 }
 
 /// A helper to parse function arguments
@@ -169,7 +178,7 @@ pub unsafe extern "C" fn sum_as_string(
     if nargs != 2 {
         PyErr_SetString(
             PyExc_TypeError,
-            c_str!("sum_as_string expected 2 positional arguments").as_ptr(),
+            c"sum_as_string expected 2 positional arguments".as_ptr(),
         );
         return std::ptr::null_mut();
     }
@@ -193,7 +202,7 @@ pub unsafe extern "C" fn sum_as_string(
         None => {
             PyErr_SetString(
                 PyExc_OverflowError,
-                c_str!("arguments too large to add").as_ptr(),
+                c"arguments too large to add".as_ptr(),
             );
             std::ptr::null_mut()
         }

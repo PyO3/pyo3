@@ -21,7 +21,7 @@
 //!
 //! Rust code to create a function that parses a UUID string and returns it as a `Uuid`:
 //!
-//! ```rust
+//! ```rust,no_run
 //! use pyo3::prelude::*;
 //! use pyo3::exceptions::PyValueError;
 //! use uuid::Uuid;
@@ -68,24 +68,26 @@ use uuid::Uuid;
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyTypeError;
 use crate::instance::Bound;
-use crate::sync::GILOnceCell;
+use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
-use crate::{intern, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
+use crate::{intern, Borrowed, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 
 fn get_uuid_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
-    static UUID_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+    static UUID_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     UUID_CLS.import(py, "uuid", "UUID")
 }
 
-impl FromPyObject<'_> for Uuid {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for Uuid {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         let py = obj.py();
         let uuid_cls = get_uuid_cls(py)?;
 
         if obj.is_instance(uuid_cls)? {
             let uuid_int: u128 = obj.getattr(intern!(py, "int"))?.extract()?;
-            Ok(Uuid::from_u128(uuid_int.to_le()))
+            Ok(Uuid::from_u128(uuid_int))
         } else {
             Err(PyTypeError::new_err("Expected a `uuid.UUID` instance."))
         }
@@ -126,7 +128,7 @@ mod tests {
         ($name:ident, $rs:expr, $py:literal) => {
             #[test]
             fn $name() -> PyResult<()> {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let rs_orig = $rs;
                     let rs_uuid = rs_orig.into_pyobject(py).unwrap();
                     let locals = PyDict::new(py);

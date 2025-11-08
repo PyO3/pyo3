@@ -1,9 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
   merge_group:
     types: [checks_requested]
@@ -20,11 +17,11 @@ jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
-      - run: python -m pip install --upgrade pip && pip install nox
+          python-version: "3.13"
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -32,47 +29,58 @@ jobs:
         run: nox -s ruff
       - name: Check rust formatting (rustfmt)
         run: nox -s rustfmt
+      - name: Check markdown formatting (rumdl)
+        run: nox -s rumdl
 
   resolve:
     runs-on: ubuntu-latest
     outputs:
       MSRV: ${{ steps.resolve-msrv.outputs.MSRV }}
+      verbose: ${{ runner.debug == '1' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - name: resolve MSRV
         id: resolve-msrv
-        run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])'` >> $GITHUB_OUTPUT
+        run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])'` >> $GITHUB_OUTPUT
 
   semver-checks:
-    if: github.ref != 'refs/heads/main'
+    if: github.event_name == 'pull_request'
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
+      - name: Fetch merge base
+        id: fetch_merge_base
+        uses: ./.github/actions/fetch-merge-base
+        with:
+          base_ref: "refs/heads/${{ github.event.pull_request.base.ref }}"
+          head_ref: "refs/pull/${{ github.event.pull_request.number }}/merge"
       - uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          baseline-rev: ${{ steps.fetch_merge_base.outputs.merge_base }}
 
   check-msrv:
     needs: [fmt, resolve]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ needs.resolve.outputs.MSRV }}
           components: rust-src
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
-      - run: python -m pip install --upgrade pip && pip install nox
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
       # This is a smoke test to confirm that CI will run on MSRV (including dev dependencies)
       - name: Check with MSRV package versions
         run: |
@@ -84,84 +92,41 @@ jobs:
 
   clippy:
     needs: [fmt]
-    runs-on: ${{ matrix.platform.os }}
+    runs-on: ubuntu-24.04-arm
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         rust: [stable]
-        platform:
+        target:
           [
-            {
-              os: "macos-latest",
-              python-architecture: "arm64",
-              rust-target: "aarch64-apple-darwin",
-            },
-            {
-              os: "ubuntu-latest",
-              python-architecture: "x64",
-              rust-target: "x86_64-unknown-linux-gnu",
-            },
-            {
-              os: "ubuntu-22.04-arm",
-              python-architecture: "arm64",
-              rust-target: "aarch64-unknown-linux-gnu",
-            },
-            {
-              os: "ubuntu-latest",
-              python-architecture: "x64",
-              rust-target: "powerpc64le-unknown-linux-gnu",
-            },
-            {
-              os: "ubuntu-latest",
-              python-architecture: "x64",
-              rust-target: "s390x-unknown-linux-gnu",
-            },
-            {
-              os: "ubuntu-latest",
-              python-architecture: "x64",
-              rust-target: "wasm32-wasip1",
-            },
-            {
-              os: "windows-latest",
-              python-architecture: "x64",
-              rust-target: "x86_64-pc-windows-msvc",
-            },
-            {
-              os: "windows-latest",
-              python-architecture: "x86",
-              rust-target: "i686-pc-windows-msvc",
-            },
+            "aarch64-apple-darwin",
+            "x86_64-unknown-linux-gnu",
+            "aarch64-unknown-linux-gnu",
+            "powerpc64le-unknown-linux-gnu",
+            "s390x-unknown-linux-gnu",
+            "wasm32-wasip1",
+            "x86_64-pc-windows-msvc",
+            "i686-pc-windows-msvc",
+            "aarch64-pc-windows-msvc",
           ]
         include:
           # Run beta clippy as a way to detect any incoming lints which may affect downstream users
           - rust: beta
-            platform:
-              {
-                os: "ubuntu-latest",
-                python-architecture: "x64",
-                rust-target: "x86_64-unknown-linux-gnu",
-              }
-    name: clippy/${{ matrix.platform.rust-target }}/${{ matrix.rust }}
+            target: "x86_64-unknown-linux-gnu"
+    name: clippy/${{ matrix.target }}/${{ matrix.rust }}
     continue-on-error: ${{ matrix.rust != 'stable' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          targets: ${{ matrix.platform.rust-target }}
+          targets: ${{ matrix.target }}
           components: clippy,rust-src
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          architecture: ${{ matrix.platform.python-architecture }}
-      - uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.event_name != 'merge_group' }}
-      - run: python -m pip install --upgrade pip && pip install nox
-      - run: nox -s clippy-all
+      - uses: astral-sh/setup-uv@v7
+      - run: uvx nox -s clippy-all
     env:
-      CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
+      CARGO_BUILD_TARGET: ${{ matrix.target }}
 
   build-pr:
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && github.event_name == 'pull_request' }}
@@ -175,23 +140,20 @@ jobs:
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
       MSRV: ${{ needs.resolve.outputs.MSRV }}
+      verbose: ${{ needs.resolve.outputs.verbose == 'true' }}
     secrets: inherit
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
       fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
       matrix:
         rust: [stable]
-        python-version: ["3.12"]
-        platform: [
+        python-version: ["3.14"]
+        platform:
+          [
             {
-              os: "macos-latest", # first available arm macos runner
+              os: "macos-latest",
               python-architecture: "arm64",
               rust-target: "aarch64-apple-darwin",
-            },
-            {
-              os: "macos-13", # last available x86_64 macos runner
-              python-architecture: "x64",
-              rust-target: "x86_64-apple-darwin",
             },
             {
               os: "ubuntu-latest",
@@ -199,7 +161,7 @@ jobs:
               rust-target: "x86_64-unknown-linux-gnu",
             },
             {
-              os: "ubuntu-22.04-arm",
+              os: "ubuntu-24.04-arm",
               python-architecture: "arm64",
               rust-target: "aarch64-unknown-linux-gnu",
             },
@@ -213,18 +175,34 @@ jobs:
               python-architecture: "x86",
               rust-target: "i686-pc-windows-msvc",
             },
+            {
+              os: "windows-11-arm",
+              python-architecture: "arm64",
+              rust-target: "aarch64-pc-windows-msvc",
+            },
           ]
         include:
           # Test nightly Rust on PRs so that PR authors have a chance to fix nightly
           # failures, as nightly does not block merge.
           - rust: nightly
-            python-version: "3.12"
+            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
                 python-architecture: "x64",
                 rust-target: "x86_64-unknown-linux-gnu",
               }
+          # Also test free-threaded Python just for latest Python version, on ubuntu
+          # (run for all OSes on build-full)
+          - rust: stable
+            python-version: "3.14t"
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
+
   build-full:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
@@ -237,6 +215,7 @@ jobs:
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
       MSRV: ${{ needs.resolve.outputs.MSRV }}
+      verbose: ${{ needs.resolve.outputs.verbose == 'true' }}
     secrets: inherit
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
@@ -252,11 +231,11 @@ jobs:
             "3.11",
             "3.12",
             "3.13",
-            "pypy3.9",
-            "pypy3.10",
+            "3.13t",
+            "3.14",
+            "3.14t",
             "pypy3.11",
-            "graalpy24.0",
-            "graalpy24.1",
+            "graalpy25.0",
           ]
         platform:
           [
@@ -279,7 +258,7 @@ jobs:
         include:
           # Test minimal supported Rust version
           - rust: ${{ needs.resolve.outputs.MSRV }}
-            python-version: "3.12"
+            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
@@ -289,7 +268,7 @@ jobs:
 
           # Test the `nightly` feature
           - rust: nightly
-            python-version: "3.12"
+            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
@@ -299,7 +278,7 @@ jobs:
 
           # Run rust beta to help catch toolchain regressions
           - rust: beta
-            python-version: "3.12"
+            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
@@ -309,7 +288,7 @@ jobs:
 
           # Test 32-bit Windows and x64 macOS only with the latest Python version
           - rust: stable
-            python-version: "3.12"
+            python-version: "3.14"
             platform:
               {
                 os: "windows-latest",
@@ -317,10 +296,10 @@ jobs:
                 rust-target: "i686-pc-windows-msvc",
               }
           - rust: stable
-            python-version: "3.12"
+            python-version: "3.14"
             platform:
               {
-                os: "macos-13",
+                os: "macos-latest",
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
@@ -334,13 +313,12 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
 
-          # arm64 macOS Python not available on GitHub Actions until 3.10
-          # so backfill 3.7-3.9 with x64 macOS runners
+          # arm64 macOS Python not available on GitHub Actions until 3.10, test older versions on x64
           - rust: stable
             python-version: "3.7"
             platform:
               {
-                os: "macos-13",
+                os: "macos-15-intel",
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
@@ -348,7 +326,7 @@ jobs:
             python-version: "3.8"
             platform:
               {
-                os: "macos-13",
+                os: "macos-15-intel",
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
@@ -356,20 +334,27 @@ jobs:
             python-version: "3.9"
             platform:
               {
-                os: "macos-13",
+                os: "macos-15-intel",
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
-          # arm64 Linux runner is in public preview, so test 3.13 on it
+          # test latest Python on arm64 linux & windows runners
           - rust: stable
-            python-version: "3.13"
+            python-version: "3.14"
             platform:
               {
-                os: "ubuntu-22.04-arm",
+                os: "ubuntu-24.04-arm",
                 python-architecture: "arm64",
                 rust-target: "aarch64-unknown-linux-gnu",
               }
-
+          - rust: stable
+            python-version: "3.14"
+            platform:
+              {
+                os: "windows-11-arm",
+                python-architecture: "arm64",
+                rust-target: "aarch64-pc-windows-msvc",
+              }
         exclude:
           # ubuntu-latest (24.04) no longer supports 3.7
           - python-version: "3.7"
@@ -405,18 +390,16 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          # FIXME valgrind detects an issue with Python 3.12.5, needs investigation
-          # whether it's a PyO3 issue or upstream CPython.
-          python-version: "3.12.4"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@valgrind
-      - run: python -m pip install --upgrade pip && pip install nox
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
       - run: nox -s test-rust -- release skip-full
     env:
       CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind --leak-check=no --error-exitcode=1
@@ -428,18 +411,18 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
       - uses: taiki-e/install-action@cargo-careful
-      - run: python -m pip install --upgrade pip && pip install nox
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
       - run: nox -s test-rust -- careful skip-full
     env:
       RUST_BACKTRACE: 1
@@ -450,46 +433,17 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
       - run: cargo rustdoc --lib --no-default-features --features full,jiff-02 -Zunstable-options --config "build.rustdocflags=[\"--cfg\", \"docsrs\"]"
-
-  coverage:
-    if: ${{ github.event_name != 'merge_group' }}
-    needs: [fmt]
-    name: coverage ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: ["windows-latest", "macos-latest", "ubuntu-latest"]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.event_name != 'merge_group' }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview,rust-src
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - run: python -m pip install --upgrade pip && pip install nox
-      - run: nox -s coverage
-      - uses: codecov/codecov-action@v5
-        with:
-          files: coverage.json
-          name: ${{ matrix.os }}
-          token: ${{ secrets.CODECOV_TOKEN }}
 
   emscripten:
     name: emscripten
@@ -497,10 +451,10 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          # TODO bump emscripten builds to test on 3.12
+          # TODO bump emscripten builds to test on 3.13
           python-version: 3.11
         id: setup-python
       - name: Install Rust toolchain
@@ -508,41 +462,47 @@ jobs:
         with:
           targets: wasm32-unknown-emscripten
           components: rust-src
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 18
-      - run: python -m pip install --upgrade pip && pip install nox
-      - uses: actions/cache@v4
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
+      - uses: actions/cache/restore@v4
         id: cache
         with:
           path: |
             .nox/emscripten
-          key: ${{ hashFiles('emscripten/*') }} - ${{ hashFiles('noxfile.py') }} - ${{ steps.setup-python.outputs.python-path }}
+          key: emscripten-${{ hashFiles('emscripten/*') }}-${{ hashFiles('noxfile.py') }}-${{ steps.setup-python.outputs.python-path }}
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - name: Build
         if: steps.cache.outputs.cache-hit != 'true'
         run: nox -s build-emscripten
       - name: Test
         run: nox -s test-emscripten
+      - uses: actions/cache/save@v4
+        if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+        with:
+          path: |
+            .nox/emscripten
+          key: emscripten-${{ hashFiles('emscripten/*') }}-${{ hashFiles('noxfile.py') }}-${{ steps.setup-python.outputs.python-path }}
 
   test-debug:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
       - name: Install python3 standalone debug build with nox
         run: |
-          PBS_RELEASE="20241016"
-          PBS_PYTHON_VERSION="3.13.0"
+          PBS_RELEASE="20241219"
+          PBS_PYTHON_VERSION="3.13.1"
           PBS_ARCHIVE="cpython-${PBS_PYTHON_VERSION}+${PBS_RELEASE}-x86_64-unknown-linux-gnu-debug-full.tar.zst"
           wget "https://github.com/indygreg/python-build-standalone/releases/download/${PBS_RELEASE}/${PBS_ARCHIVE}"
           tar -I zstd -xf "${PBS_ARCHIVE}"
@@ -553,7 +513,7 @@ jobs:
           echo PYTHONHOME=$(pwd)/python/install >> $GITHUB_ENV
           echo PYO3_PYTHON=$(pwd)/python/install/bin/python3 >> $GITHUB_ENV
       - run: python3 -m sysconfig
-      - run: python3 -m pip install --upgrade pip && pip install nox
+      - run: python3 -m pip install --upgrade pip && pip install nox[uv]
       - run: |
           PYO3_CONFIG_FILE=$(mktemp)
           cat > $PYO3_CONFIG_FILE << EOF
@@ -571,58 +531,20 @@ jobs:
           echo PYO3_CONFIG_FILE=$PYO3_CONFIG_FILE >> $GITHUB_ENV
       - run: python3 -m nox -s test
 
-  test-free-threaded:
-    needs: [fmt]
-    name: Free threaded tests - ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.event_name != 'merge_group' }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rust-src
-      # TODO: replace with actions/setup-python when there is support
-      - uses: quansight-labs/setup-python@v5.4.0
-        with:
-          python-version: "3.13t"
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - run: python3 -m sysconfig
-      - run: python3 -m pip install --upgrade pip && pip install nox
-      - name: Prepare coverage environment
-        run: |
-          cargo llvm-cov clean --workspace --profraw-only
-          nox -s set-coverage-env
-      - run: nox -s ffi-check
-      - run: nox
-      - name: Generate coverage report
-        run: nox -s generate-coverage-report
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v5
-        with:
-          files: coverage.json
-          name: ${{ matrix.os }}-test-free-threaded
-          token: ${{ secrets.CODECOV_TOKEN }}
-
   test-version-limits:
     needs: [fmt]
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@stable
-      - run: python3 -m pip install --upgrade pip && pip install nox
+      - run: python3 -m pip install --upgrade pip && pip install nox[uv]
       - run: python3 -m nox -s test-version-limits
 
   check-feature-powerset:
@@ -638,20 +560,20 @@ jobs:
         include:
           - rust: ${{ needs.resolve.outputs.MSRV }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-hack,cargo-minimal-versions
-      - run: python3 -m pip install --upgrade pip && pip install nox
+      - run: python3 -m pip install --upgrade pip && pip install nox[uv]
       - run: python3 -m nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
 
   test-cross-compilation:
@@ -667,36 +589,30 @@ jobs:
           # ubuntu "cross compile" to itself
           - os: "ubuntu-latest"
             target: "x86_64-unknown-linux-gnu"
-            flags: "-i python3.12"
+            flags: "-i python3.13"
             manylinux: auto
           # ubuntu x86_64 -> aarch64
           - os: "ubuntu-latest"
             target: "aarch64-unknown-linux-gnu"
-            flags: "-i python3.12"
+            flags: "-i python3.13"
             manylinux: auto
           # ubuntu x86_64 -> windows x86_64
           - os: "ubuntu-latest"
             target: "x86_64-pc-windows-gnu"
-            flags: "-i python3.12 --features generate-import-lib"
-          # macos x86_64 -> aarch64
-          - os: "macos-13" # last x86_64 macos runners
-            target: "aarch64-apple-darwin"
-          # macos aarch64 -> x86_64
-          - os: "macos-latest"
-            target: "x86_64-apple-darwin"
+            flags: "-i python3.13 --features generate-import-lib"
           # windows x86_64 -> aarch64
           - os: "windows-latest"
             target: "aarch64-pc-windows-msvc"
-            flags: "-i python3.12 --features generate-import-lib"
+            flags: "-i python3.13 --features generate-import-lib"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: examples/maturin-starter
-          save-if: ${{ github.event_name != 'merge_group' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
           key: ${{ matrix.target }}
       - name: Setup cross-compiler
         if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
@@ -719,39 +635,88 @@ jobs:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
-      - uses: Swatinem/rust-cache@v2
+          python-version: "3.13"
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          workspaces: examples/maturin-starter
-          save-if: ${{ github.event_name != 'merge_group' }}
+          targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
+          components: rust-src
+      # load cache (prepared in ci-cache-warmup.yml)
       - uses: actions/cache/restore@v4
         with:
-          # https://github.com/PyO3/maturin/discussions/1953
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
       - name: Test cross compile to Windows
-        env:
-          XWIN_ARCH: x86_64
         run: |
           set -ex
           sudo apt-get install -y mingw-w64 llvm
-          rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
-          pip install cargo-xwin
-          # abi3
-          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-gnu
-          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features abi3 --target x86_64-pc-windows-msvc
-          # non-abi3
-          export PYO3_CROSS_PYTHON_VERSION=3.12
-          cargo build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-gnu
-          cargo xwin build --manifest-path examples/maturin-starter/Cargo.toml --features generate-import-lib --target x86_64-pc-windows-msvc
-      - if: ${{ github.ref == 'refs/heads/main' }}
-        uses: actions/cache/save@v4
+          pip install nox
+          nox -s test-cross-compilation-windows
+
+  test-introspection:
+    needs: [fmt]
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-test-introspection') || contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    strategy:
+      matrix:
+        platform:
+          [
+            {
+              os: "macos-latest",
+              python-architecture: "arm64",
+              rust-target: "aarch64-apple-darwin",
+            },
+            {
+              os: "ubuntu-latest",
+              python-architecture: "x64",
+              rust-target: "x86_64-unknown-linux-gnu",
+            },
+            {
+              os: "windows-latest",
+              python-architecture: "x64",
+              rust-target: "x86_64-pc-windows-msvc",
+            },
+            {
+              os: "windows-latest",
+              python-architecture: "x86",
+              rust-target: "i686-pc-windows-msvc",
+            },
+          ]
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          path: ~/.cache/cargo-xwin
-          key: cargo-xwin-cache
+          targets: ${{ matrix.platform.rust-target }}
+          components: rust-src
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          architecture: ${{ matrix.platform.python-architecture }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
+      - run: nox -s test-introspection
+    env:
+      CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
+
+  test-introspection-pr:
+    needs: [fmt]
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-src
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
+      - run: nox -s test-introspection
+
   conclusion:
     needs:
       - fmt
@@ -762,14 +727,13 @@ jobs:
       - valgrind
       - careful
       - docsrs
-      - coverage
       - emscripten
       - test-debug
-      - test-free-threaded
       - test-version-limits
       - check-feature-powerset
       - test-cross-compilation
       - test-cross-compilation-windows
+      - test-introspection
     if: always()
     runs-on: ubuntu-latest
     steps:

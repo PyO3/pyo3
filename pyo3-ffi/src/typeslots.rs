@@ -1,4 +1,4 @@
-use std::os::raw::c_int;
+use std::ffi::c_int;
 
 pub const Py_bf_getbuffer: c_int = 1;
 pub const Py_bf_releasebuffer: c_int = 2;

@@ -1,19 +1,21 @@
 use crate::object::*;
-use std::os::raw::c_int;
+use std::ffi::c_int;
 #[cfg(not(PyPy))]
 use std::ptr::addr_of_mut;
 
 #[cfg(all(not(PyPy), Py_LIMITED_API, not(GraalPy)))]
-opaque_struct!(PyWeakReference);
+opaque_struct!(pub PyWeakReference);
 
 #[cfg(all(not(PyPy), not(Py_LIMITED_API), not(GraalPy)))]
 pub use crate::_PyWeakReference as PyWeakReference;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    // TODO: PyO3 is depending on this symbol in `reference.rs`, we should change this and
+    // remove the export as this is a private symbol.
     pub static mut _PyWeakref_RefType: PyTypeObject;
-    pub static mut _PyWeakref_ProxyType: PyTypeObject;
-    pub static mut _PyWeakref_CallableProxyType: PyTypeObject;
+    static mut _PyWeakref_ProxyType: PyTypeObject;
+    static mut _PyWeakref_CallableProxyType: PyTypeObject;
 
     #[cfg(PyPy)]
     #[link_name = "PyPyWeakref_CheckRef"]

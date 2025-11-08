@@ -1,11 +1,9 @@
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use crate::pyport::{Py_hash_t, Py_ssize_t};
-#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-use std::os::raw::c_char;
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-use std::os::raw::c_void;
+use std::ffi::c_void;
 
-use std::os::raw::{c_int, c_ulong};
+use std::ffi::{c_int, c_ulong};
 
 extern "C" {
     // skipped non-limited _Py_HashDouble
@@ -21,29 +19,6 @@ pub const _PyHASH_MULTIPLIER: c_ulong = 1000003;
 // skipped _PyHASH_BITS
 
 // skipped non-limited _Py_HashSecret_t
-
-#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct PyHash_FuncDef {
-    pub hash: Option<extern "C" fn(arg1: *const c_void, arg2: Py_ssize_t) -> Py_hash_t>,
-    pub name: *const c_char,
-    pub hash_bits: c_int,
-    pub seed_bits: c_int,
-}
-
-#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-impl Default for PyHash_FuncDef {
-    #[inline]
-    fn default() -> Self {
-        unsafe { std::mem::zeroed() }
-    }
-}
-
-extern "C" {
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-    pub fn PyHash_GetFuncDef() -> *mut PyHash_FuncDef;
-}
 
 // skipped Py_HASH_CUTOFF
 

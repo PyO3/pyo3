@@ -52,9 +52,9 @@ fn find_object_type(obj: &Bound<'_, PyAny>) -> ObjectType {
         ObjectType::Str
     } else if obj.is_instance_of::<PyTuple>() {
         ObjectType::Tuple
-    } else if obj.downcast::<PySequence>().is_ok() {
+    } else if obj.cast::<PySequence>().is_ok() {
         ObjectType::Sequence
-    } else if obj.downcast::<PyMapping>().is_ok() {
+    } else if obj.cast::<PyMapping>().is_ok() {
         ObjectType::Mapping
     } else {
         ObjectType::Unknown
@@ -62,7 +62,7 @@ fn find_object_type(obj: &Bound<'_, PyAny>) -> ObjectType {
 }
 
 fn bench_identify_object_type(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let obj = py.eval(c"object()", None, None).unwrap();
 
         b.iter(|| find_object_type(&obj));
@@ -72,7 +72,7 @@ fn bench_identify_object_type(b: &mut Bencher<'_>) {
 }
 
 fn bench_collect_generic_iterator(b: &mut Bencher<'_>) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let collection = py.eval(c"list(range(1 << 20))", None, None).unwrap();
 
         b.iter(|| {

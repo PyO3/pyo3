@@ -1,6 +1,6 @@
 use crate::object::PyObject;
 use crate::pyport::Py_ssize_t;
-use std::os::raw::{c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_void};
 use std::ptr;
 
 #[repr(C)]
@@ -103,11 +103,7 @@ extern "C" {
 }
 
 /// Maximum number of dimensions
-pub const PyBUF_MAX_NDIM: usize = if cfg!(all(PyPy, not(Py_3_11))) {
-    36
-} else {
-    64
-};
+pub const PyBUF_MAX_NDIM: usize = 64;
 
 /* Flags for getting buffers */
 pub const PyBUF_SIMPLE: c_int = 0;

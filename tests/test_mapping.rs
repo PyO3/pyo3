@@ -10,8 +10,7 @@ use pyo3::types::PyList;
 use pyo3::types::PyMapping;
 use pyo3::types::PySequence;
 
-#[path = "../src/tests/common.rs"]
-mod common;
+mod test_utils;
 
 #[pyclass(mapping)]
 struct Mapping {
@@ -65,8 +64,8 @@ impl Mapping {
         &self,
         py: Python<'_>,
         key: &str,
-        default: Option<PyObject>,
-    ) -> PyResult<Option<PyObject>> {
+        default: Option<Py<PyAny>>,
+    ) -> PyResult<Option<Py<PyAny>>> {
         match self.index.get(key) {
             Some(value) => Ok(Some(value.into_pyobject(py)?.into_any().unbind())),
             None => Ok(default),
@@ -85,7 +84,7 @@ fn map_dict(py: Python<'_>) -> Bound<'_, pyo3::types::PyDict> {
 
 #[test]
 fn test_getitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = map_dict(py);
 
         py_assert!(py, *d, "m['1'] == 0");
@@ -97,7 +96,7 @@ fn test_getitem() {
 
 #[test]
 fn test_setitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = map_dict(py);
 
         py_run!(py, *d, "m['1'] = 4; assert m['1'] == 4");
@@ -110,7 +109,7 @@ fn test_setitem() {
 
 #[test]
 fn test_delitem() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let d = map_dict(py);
         py_run!(
             py,
@@ -124,7 +123,7 @@ fn test_delitem() {
 
 #[test]
 fn mapping_is_not_sequence() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let mut index = HashMap::new();
         index.insert("Foo".into(), 1);
         index.insert("Bar".into(), 2);
@@ -132,7 +131,7 @@ fn mapping_is_not_sequence() {
 
         PyMapping::register::<Mapping>(py).unwrap();
 
-        assert!(m.bind(py).downcast::<PyMapping>().is_ok());
-        assert!(m.bind(py).downcast::<PySequence>().is_err());
+        assert!(m.bind(py).cast::<PyMapping>().is_ok());
+        assert!(m.bind(py).cast::<PySequence>().is_err());
     });
 }

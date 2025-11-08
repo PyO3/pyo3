@@ -3,10 +3,11 @@ use std::{thread, time};
 use pyo3::exceptions::{PyStopIteration, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyType;
-#[cfg(Py_3_8)]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use pyo3::types::{PyDict, PyTuple};
 
-#[pyclass]
+#[pyclass(from_py_object)]
+#[derive(Clone, Default)]
 struct EmptyClass {}
 
 #[pymethods]
@@ -64,14 +65,14 @@ impl PyClassThreadIter {
         let current_count = self.count;
         self.count += 1;
         if current_count == 0 {
-            py.allow_threads(|| thread::sleep(time::Duration::from_millis(100)));
+            py.detach(|| thread::sleep(time::Duration::from_millis(100)));
         }
         self.count
     }
 }
 
 /// Demonstrates a base class which can operate on the relevant subclass in its constructor.
-#[pyclass(subclass)]
+#[pyclass(subclass, skip_from_py_object)]
 #[derive(Clone, Debug)]
 struct AssertingBaseClass;
 
@@ -82,8 +83,7 @@ impl AssertingBaseClass {
     fn new(cls: &Bound<'_, PyType>, expected_type: Bound<'_, PyType>) -> PyResult<Self> {
         if !cls.is(&expected_type) {
             return Err(PyValueError::new_err(format!(
-                "{:?} != {:?}",
-                cls, expected_type
+                "{cls:?} != {expected_type:?}"
             )));
         }
         Ok(Self)
@@ -106,11 +106,11 @@ impl ClassWithDict {
     }
 }
 
-#[cfg(Py_3_8)]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))] // Can't subclass native types on abi3 yet, PyPy/GraalPy don't support `py_super`
 #[pyclass(extends = PyDict)]
 struct SubClassWithInit;
 
-#[cfg(Py_3_8)]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 #[pymethods]
 impl SubClassWithInit {
     #[new]
@@ -120,7 +120,6 @@ impl SubClassWithInit {
         Self
     }
 
-    #[init]
     #[pyo3(signature = (*args, **kwargs))]
     fn __init__(
         self_: &Bound<'_, Self>,
@@ -135,17 +134,81 @@ impl SubClassWithInit {
     }
 }
 
-#[pymodule(gil_used = false)]
-pub fn pyclasses(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<EmptyClass>()?;
-    m.add_class::<PyClassIter>()?;
-    m.add_class::<PyClassThreadIter>()?;
-    m.add_class::<AssertingBaseClass>()?;
-    m.add_class::<ClassWithoutConstructor>()?;
-    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-    m.add_class::<ClassWithDict>()?;
-    #[cfg(Py_3_8)]
-    m.add_class::<SubClassWithInit>()?;
+#[pyclass(skip_from_py_object)]
+#[derive(Clone)]
+struct ClassWithDecorators {
+    attr: usize,
+}
 
-    Ok(())
+#[pymethods]
+impl ClassWithDecorators {
+    #[new]
+    #[classmethod]
+    fn new(_cls: Bound<'_, PyType>) -> Self {
+        Self { attr: 0 }
+    }
+
+    #[getter]
+    fn get_attr(&self) -> usize {
+        self.attr
+    }
+
+    #[setter]
+    fn set_attr(&mut self, value: usize) {
+        self.attr = value;
+    }
+
+    #[classmethod]
+    fn cls_method(_cls: &Bound<'_, PyType>) -> usize {
+        1
+    }
+
+    #[staticmethod]
+    fn static_method() -> usize {
+        2
+    }
+
+    #[classattr]
+    fn cls_attribute() -> usize {
+        3
+    }
+}
+
+#[pyclass(get_all, set_all)]
+struct PlainObject {
+    foo: String,
+    bar: usize,
+}
+
+#[derive(FromPyObject, IntoPyObject)]
+enum AClass {
+    NewType(EmptyClass),
+    Tuple(EmptyClass, EmptyClass),
+    Struct {
+        f: EmptyClass,
+        #[pyo3(item(42))]
+        g: EmptyClass,
+        #[pyo3(default)]
+        h: EmptyClass,
+    },
+}
+
+#[pyfunction]
+fn map_a_class(cls: AClass) -> AClass {
+    cls
+}
+
+#[pymodule]
+pub mod pyclasses {
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    #[pymodule_export]
+    use super::ClassWithDict;
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+    #[pymodule_export]
+    use super::SubClassWithInit;
+    #[pymodule_export]
+    use super::{
+        map_a_class, AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass,
+        PlainObject, PyClassIter, PyClassThreadIter,
+    };
 }

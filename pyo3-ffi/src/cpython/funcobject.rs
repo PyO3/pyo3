@@ -1,4 +1,4 @@
-use std::os::raw::c_int;
+use std::ffi::c_int;
 #[cfg(not(all(PyPy, not(Py_3_8))))]
 use std::ptr::addr_of_mut;
 
@@ -41,6 +41,8 @@ pub struct PyFunctionObject {
     pub func_weakreflist: *mut PyObject,
     pub func_module: *mut PyObject,
     pub func_annotations: *mut PyObject,
+    #[cfg(Py_3_14)]
+    pub func_annotate: *mut PyObject,
     #[cfg(Py_3_12)]
     pub func_typeparams: *mut PyObject,
     pub vectorcall: Option<crate::vectorcallfunc>,

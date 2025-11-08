@@ -1,6 +1,8 @@
+use pyo3::basic::CompareOp;
 use pyo3::prelude::*;
+use std::fmt;
 
-#[pyclass]
+#[pyclass(frozen)]
 struct Eq(i64);
 
 #[pymethods]
@@ -19,7 +21,7 @@ impl Eq {
     }
 }
 
-#[pyclass]
+#[pyclass(frozen)]
 struct EqDefaultNe(i64);
 
 #[pymethods]
@@ -34,7 +36,7 @@ impl EqDefaultNe {
     }
 }
 
-#[pyclass(eq)]
+#[pyclass(eq, frozen)]
 #[derive(PartialEq, Eq)]
 struct EqDerived(i64);
 
@@ -46,7 +48,7 @@ impl EqDerived {
     }
 }
 
-#[pyclass]
+#[pyclass(frozen)]
 struct Ordered(i64);
 
 #[pymethods]
@@ -81,7 +83,40 @@ impl Ordered {
     }
 }
 
-#[pyclass]
+#[pyclass(frozen)]
+struct OrderedRichCmp(i64);
+
+#[pymethods]
+impl OrderedRichCmp {
+    #[new]
+    fn new(value: i64) -> Self {
+        Self(value)
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp) -> bool {
+        op.matches(self.0.cmp(&other.0))
+    }
+}
+
+#[pyclass(eq, ord, hash, str, frozen)]
+#[derive(PartialEq, Eq, Ord, PartialOrd, Hash)]
+struct OrderedDerived(i64);
+
+impl fmt::Display for OrderedDerived {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+#[pymethods]
+impl OrderedDerived {
+    #[new]
+    fn new(value: i64) -> Self {
+        Self(value)
+    }
+}
+
+#[pyclass(frozen)]
 struct OrderedDefaultNe(i64);
 
 #[pymethods]
@@ -112,12 +147,10 @@ impl OrderedDefaultNe {
     }
 }
 
-#[pymodule(gil_used = false)]
-pub fn comparisons(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Eq>()?;
-    m.add_class::<EqDefaultNe>()?;
-    m.add_class::<EqDerived>()?;
-    m.add_class::<Ordered>()?;
-    m.add_class::<OrderedDefaultNe>()?;
-    Ok(())
+#[pymodule]
+pub mod comparisons {
+    #[pymodule_export]
+    use super::{
+        Eq, EqDefaultNe, EqDerived, Ordered, OrderedDefaultNe, OrderedDerived, OrderedRichCmp,
+    };
 }

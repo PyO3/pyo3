@@ -1,5 +1,5 @@
 use crate::{PyGetSetDef, PyMethodDef, PyObject, PyTypeObject};
-use std::os::raw::{c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_void};
 
 pub type wrapperfunc = Option<
     unsafe extern "C" fn(
@@ -69,10 +69,7 @@ pub struct PyWrapperDescrObject {
     pub d_wrapped: *mut c_void,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    pub static mut _PyMethodWrapper_Type: PyTypeObject;
-}
+// skipped _PyMethodWrapper_Type
 
 // skipped non-limited PyDescr_NewWrapper
 // skipped non-limited PyDescr_IsData

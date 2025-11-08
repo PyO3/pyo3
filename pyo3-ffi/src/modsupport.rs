@@ -2,7 +2,7 @@ use crate::methodobject::PyMethodDef;
 use crate::moduleobject::PyModuleDef;
 use crate::object::PyObject;
 use crate::pyport::Py_ssize_t;
-use std::os::raw::{c_char, c_int, c_long};
+use std::ffi::{c_char, c_int, c_long};
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyArg_Parse")]
@@ -36,6 +36,8 @@ extern "C" {
     pub fn Py_BuildValue(arg1: *const c_char, ...) -> *mut PyObject;
     // skipped Py_VaBuildValue
 
+    #[cfg(Py_3_13)]
+    pub fn PyModule_Add(module: *mut PyObject, name: *const c_char, value: *mut PyObject) -> c_int;
     #[cfg(Py_3_10)]
     #[cfg_attr(PyPy, link_name = "PyPyModule_AddObjectRef")]
     pub fn PyModule_AddObjectRef(
@@ -71,6 +73,7 @@ extern "C" {
     // skipped PyModule_AddStringMacro
     pub fn PyModule_SetDocString(arg1: *mut PyObject, arg2: *const c_char) -> c_int;
     pub fn PyModule_AddFunctions(arg1: *mut PyObject, arg2: *mut PyMethodDef) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyModule_ExecDef")]
     pub fn PyModule_ExecDef(module: *mut PyObject, def: *mut PyModuleDef) -> c_int;
 }
 
@@ -88,6 +91,7 @@ extern "C" {
     fn PyModule_Create2TraceRefs(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject;
 
     #[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
+    #[cfg_attr(PyPy, link_name = "PyPyModule_FromDefAndSpec2")]
     pub fn PyModule_FromDefAndSpec2(
         def: *mut PyModuleDef,
         spec: *mut PyObject,

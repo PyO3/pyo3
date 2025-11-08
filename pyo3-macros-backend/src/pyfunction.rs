@@ -1,3 +1,7 @@
+use crate::attributes::KeywordAttribute;
+use crate::combine_errors::CombineErrors;
+#[cfg(feature = "experimental-inspect")]
+use crate::introspection::{function_introspection_code, introspection_id_const};
 use crate::utils::Ctx;
 use crate::{
     attributes::{
@@ -7,13 +11,16 @@ use crate::{
     method::{self, CallingConvention, FnArg},
     pymethod::check_generic,
 };
-use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
-use syn::{ext::IdentExt, spanned::Spanned, Result};
-use syn::{
-    parse::{Parse, ParseStream},
-    token::Comma,
-};
+use proc_macro2::{Span, TokenStream};
+use quote::{format_ident, quote, ToTokens};
+use std::cmp::PartialEq;
+use std::ffi::CString;
+#[cfg(feature = "experimental-inspect")]
+use std::iter::empty;
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::LitCStr;
+use syn::{ext::IdentExt, spanned::Spanned, LitStr, Path, Result, Token};
 
 mod signature;
 
@@ -83,6 +90,149 @@ impl PyFunctionArgPyO3Attributes {
     }
 }
 
+type PyFunctionWarningMessageAttribute = KeywordAttribute<attributes::kw::message, LitStr>;
+type PyFunctionWarningCategoryAttribute = KeywordAttribute<attributes::kw::category, Path>;
+
+pub struct PyFunctionWarningAttribute {
+    pub message: PyFunctionWarningMessageAttribute,
+    pub category: Option<PyFunctionWarningCategoryAttribute>,
+    pub span: Span,
+}
+
+#[derive(PartialEq, Clone)]
+pub enum PyFunctionWarningCategory {
+    Path(Path),
+    UserWarning,
+    DeprecationWarning, // TODO: unused for now, intended for pyo3(deprecated) special-case
+}
+
+#[derive(Clone)]
+pub struct PyFunctionWarning {
+    pub message: LitStr,
+    pub category: PyFunctionWarningCategory,
+    pub span: Span,
+}
+
+impl From<PyFunctionWarningAttribute> for PyFunctionWarning {
+    fn from(value: PyFunctionWarningAttribute) -> Self {
+        Self {
+            message: value.message.value,
+            category: value
+                .category
+                .map_or(PyFunctionWarningCategory::UserWarning, |cat| {
+                    PyFunctionWarningCategory::Path(cat.value)
+                }),
+            span: value.span,
+        }
+    }
+}
+
+pub trait WarningFactory {
+    fn build_py_warning(&self, ctx: &Ctx) -> TokenStream;
+    fn span(&self) -> Span;
+}
+
+impl WarningFactory for PyFunctionWarning {
+    fn build_py_warning(&self, ctx: &Ctx) -> TokenStream {
+        let message = &self.message.value();
+        let c_message = LitCStr::new(
+            &CString::new(message.clone()).unwrap(),
+            Spanned::span(&message),
+        );
+        let pyo3_path = &ctx.pyo3_path;
+        let category = match &self.category {
+            PyFunctionWarningCategory::Path(path) => quote! {#path},
+            PyFunctionWarningCategory::UserWarning => {
+                quote! {#pyo3_path::exceptions::PyUserWarning}
+            }
+            PyFunctionWarningCategory::DeprecationWarning => {
+                quote! {#pyo3_path::exceptions::PyDeprecationWarning}
+            }
+        };
+        quote! {
+            #pyo3_path::PyErr::warn(py, &<#category as #pyo3_path::PyTypeInfo>::type_object(py), #c_message, 1)?;
+        }
+    }
+
+    fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl<T: WarningFactory> WarningFactory for Vec<T> {
+    fn build_py_warning(&self, ctx: &Ctx) -> TokenStream {
+        let warnings = self.iter().map(|warning| warning.build_py_warning(ctx));
+
+        quote! {
+            #(#warnings)*
+        }
+    }
+
+    fn span(&self) -> Span {
+        self.iter()
+            .map(|val| val.span())
+            .reduce(|acc, span| acc.join(span).unwrap_or(acc))
+            .unwrap()
+    }
+}
+
+impl Parse for PyFunctionWarningAttribute {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let mut message: Option<PyFunctionWarningMessageAttribute> = None;
+        let mut category: Option<PyFunctionWarningCategoryAttribute> = None;
+
+        let span = input.parse::<attributes::kw::warn>()?.span();
+
+        let content;
+        syn::parenthesized!(content in input);
+
+        while !content.is_empty() {
+            let lookahead = content.lookahead1();
+
+            if lookahead.peek(attributes::kw::message) {
+                message = content
+                    .parse::<PyFunctionWarningMessageAttribute>()
+                    .map(Some)?;
+            } else if lookahead.peek(attributes::kw::category) {
+                category = content
+                    .parse::<PyFunctionWarningCategoryAttribute>()
+                    .map(Some)?;
+            } else {
+                return Err(lookahead.error());
+            }
+
+            if content.peek(Token![,]) {
+                content.parse::<Token![,]>()?;
+            }
+        }
+
+        Ok(PyFunctionWarningAttribute {
+            message: message.ok_or(syn::Error::new(
+                content.span(),
+                "missing `message` in `warn` attribute",
+            ))?,
+            category,
+            span,
+        })
+    }
+}
+
+impl ToTokens for PyFunctionWarningAttribute {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let message_tokens = self.message.to_token_stream();
+        let category_tokens = self
+            .category
+            .as_ref()
+            .map_or(quote! {}, |cat| cat.to_token_stream());
+
+        let token_stream = quote! {
+            warn(#message_tokens, #category_tokens)
+        };
+
+        tokens.extend(token_stream);
+    }
+}
+
 #[derive(Default)]
 pub struct PyFunctionOptions {
     pub pass_module: Option<attributes::kw::pass_module>,
@@ -90,30 +240,15 @@ pub struct PyFunctionOptions {
     pub signature: Option<SignatureAttribute>,
     pub text_signature: Option<TextSignatureAttribute>,
     pub krate: Option<CrateAttribute>,
+    pub warnings: Vec<PyFunctionWarning>,
 }
 
 impl Parse for PyFunctionOptions {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let mut options = PyFunctionOptions::default();
 
-        while !input.is_empty() {
-            let lookahead = input.lookahead1();
-            if lookahead.peek(attributes::kw::name)
-                || lookahead.peek(attributes::kw::pass_module)
-                || lookahead.peek(attributes::kw::signature)
-                || lookahead.peek(attributes::kw::text_signature)
-            {
-                options.add_attributes(std::iter::once(input.parse()?))?;
-                if !input.is_empty() {
-                    let _: Comma = input.parse()?;
-                }
-            } else if lookahead.peek(syn::Token![crate]) {
-                // TODO needs duplicate check?
-                options.krate = Some(input.parse()?);
-            } else {
-                return Err(lookahead.error());
-            }
-        }
+        let attrs = Punctuated::<PyFunctionOption, syn::Token![,]>::parse_terminated(input)?;
+        options.add_attributes(attrs)?;
 
         Ok(options)
     }
@@ -125,6 +260,7 @@ pub enum PyFunctionOption {
     Signature(SignatureAttribute),
     TextSignature(TextSignatureAttribute),
     Crate(CrateAttribute),
+    Warning(PyFunctionWarningAttribute),
 }
 
 impl Parse for PyFunctionOption {
@@ -140,6 +276,8 @@ impl Parse for PyFunctionOption {
             input.parse().map(PyFunctionOption::TextSignature)
         } else if lookahead.peek(syn::Token![crate]) {
             input.parse().map(PyFunctionOption::Crate)
+        } else if lookahead.peek(attributes::kw::warn) {
+            input.parse().map(PyFunctionOption::Warning)
         } else {
             Err(lookahead.error())
         }
@@ -175,6 +313,9 @@ impl PyFunctionOptions {
                 PyFunctionOption::Signature(signature) => set_option!(signature),
                 PyFunctionOption::TextSignature(text_signature) => set_option!(text_signature),
                 PyFunctionOption::Crate(krate) => set_option!(krate),
+                PyFunctionOption::Warning(warning) => {
+                    self.warnings.push(warning.into());
+                }
             }
         }
         Ok(())
@@ -202,6 +343,7 @@ pub fn impl_wrap_pyfunction(
         signature,
         text_signature,
         krate,
+        warnings,
     } = options;
 
     let ctx = &Ctx::new(&krate, Some(&func.sig));
@@ -234,7 +376,7 @@ pub fn impl_wrap_pyfunction(
             0
         })
         .map(FnArg::parse)
-        .collect::<syn::Result<Vec<_>>>()?;
+        .try_combine_syn_errors()?;
 
     let signature = if let Some(signature) = signature {
         FunctionSignature::from_arguments_and_attribute(arguments, signature)?
@@ -242,45 +384,82 @@ pub fn impl_wrap_pyfunction(
         FunctionSignature::from_arguments(arguments)
     };
 
+    let vis = &func.vis;
+    let name = &func.sig.ident;
+
+    #[cfg(feature = "experimental-inspect")]
+    let introspection = function_introspection_code(
+        pyo3_path,
+        Some(name),
+        &name.to_string(),
+        &signature,
+        None,
+        func.sig.output.clone(),
+        empty(),
+        None,
+    );
+    #[cfg(not(feature = "experimental-inspect"))]
+    let introspection = quote! {};
+    #[cfg(feature = "experimental-inspect")]
+    let introspection_id = introspection_id_const();
+    #[cfg(not(feature = "experimental-inspect"))]
+    let introspection_id = quote! {};
+
     let spec = method::FnSpec {
         tp,
         name: &func.sig.ident,
-        convention: CallingConvention::from_signature(&signature),
         python_name,
         signature,
         text_signature,
         asyncness: func.sig.asyncness,
         unsafety: func.sig.unsafety,
+        warnings,
+        #[cfg(feature = "experimental-inspect")]
+        output: func.sig.output.clone(),
     };
 
-    let vis = &func.vis;
-    let name = &func.sig.ident;
-
     let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);
-    let wrapper = spec.get_wrapper_function(&wrapper_ident, None, ctx)?;
-    let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs, ctx), ctx);
+    if spec.asyncness.is_some() {
+        ensure_spanned!(
+            cfg!(feature = "experimental-async"),
+            spec.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
+        );
+    }
+    let calling_convention = CallingConvention::from_signature(&spec.signature);
+    let wrapper = spec.get_wrapper_function(&wrapper_ident, None, calling_convention, ctx)?;
+    let methoddef = spec.get_methoddef(
+        wrapper_ident,
+        &spec.get_doc(&func.attrs, ctx)?,
+        calling_convention,
+        ctx,
+    );
 
     let wrapped_pyfunction = quote! {
-
         // Create a module with the same name as the `#[pyfunction]` - this way `use <the function>`
         // will actually bring both the module and the function into scope.
         #[doc(hidden)]
         #vis mod #name {
             pub(crate) struct MakeDef;
-            pub const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = MakeDef::_PYO3_DEF;
+            pub static _PYO3_DEF: #pyo3_path::impl_::pyfunction::PyFunctionDef = MakeDef::_PYO3_DEF;
+            #introspection_id
         }
 
-        // Generate the definition inside an anonymous function in the same scope as the original function -
+        // Generate the definition in the same scope as the original function -
         // this avoids complications around the fact that the generated module has a different scope
         // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pyfunction] is
         // inside a function body)
         #[allow(unknown_lints, non_local_definitions)]
         impl #name::MakeDef {
-            const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = #methoddef;
+            // We're using this to initialize a static, so it's fine.
+            #[allow(clippy::declare_interior_mutable_const)]
+            const _PYO3_DEF: #pyo3_path::impl_::pyfunction::PyFunctionDef =
+                #pyo3_path::impl_::pyfunction::PyFunctionDef::from_method_def(#methoddef);
         }
 
         #[allow(non_snake_case)]
         #wrapper
+
+        #introspection
     };
     Ok(wrapped_pyfunction)
 }
