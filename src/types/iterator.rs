@@ -405,9 +405,12 @@ def fibonacci(target):
     #[cfg(all(feature = "macros", not(Py_LIMITED_API)))]
     fn length_hint_error() {
         #[crate::pyfunction(crate = "crate")]
-        fn test_size_hint(obj: &crate::Bound<'_, crate::PyAny>) {
+        fn test_size_hint(obj: &crate::Bound<'_, crate::PyAny>, should_error: bool) {
             let iter = obj.cast::<PyIterator>().unwrap();
-            assert_eq!((0, None), iter.size_hint());
+            crate::test_utils::UnraisableCapture::enter(obj.py(), |capture| {
+                assert_eq!((0, None), iter.size_hint());
+                assert_eq!(should_error, capture.take_capture().is_some());
+            });
             assert!(PyErr::take(obj.py()).is_none());
         }
 
@@ -431,8 +434,8 @@ def fibonacci(target):
                         def __length_hint__(self):
                             raise ValueError("bad hint impl")
 
-                    test_size_hint(NoHintIter())
-                    test_size_hint(ErrorHintIter())
+                    test_size_hint(NoHintIter(), False)
+                    test_size_hint(ErrorHintIter(), True)
                 "#
             );
         });
