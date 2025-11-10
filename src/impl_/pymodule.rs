@@ -424,6 +424,47 @@ mod tests {
     }
 
     #[test]
+    fn module_state_init() {
+        use super::{pyo3_module_state_init, ModuleState};
+        use crate::{PyAny, PyErr};
+
+        unsafe extern "C" fn state_test(module: *mut ffi::PyObject) -> c_int {
+            unsafe {
+                trampoline::module_exec(module, |module| {
+                    match ModuleState::pymodule_get_state(module.as_ptr()) {
+                        Some(_) => Ok(()),
+                        None => Err(PyErr::new::<PyAny, _>("failed to initialize ModuleState")),
+                    }
+                })
+            }
+        }
+
+        static SLOTS: PyModuleSlots<5> = PyModuleSlotsBuilder::new()
+            .with_gil_used(false)
+            .with_mod_exec(pyo3_module_state_init)
+            .with_mod_exec(state_test)
+            .build();
+        static MODULE_DEF: ModuleDef = ModuleDef::new(
+            c"test_module_state_init",
+            c"This test is for checking PyO3 ModuleState is initialized correctly",
+            &SLOTS,
+        );
+
+        Python::attach(|py| {
+            let module = MODULE_DEF
+                .make_module(py)
+                .expect("module to initialize without error")
+                .into_bound(py);
+            let state = unsafe { ModuleState::pymodule_get_state(module.as_ptr()) };
+
+            assert!(
+                state.is_some(),
+                "unable to fetch state from a bound pymodule"
+            );
+        })
+    }
+
+    #[test]
     #[should_panic]
     fn test_module_slots_builder_overflow() {
         unsafe extern "C" fn module_exec(_module: *mut ffi::PyObject) -> c_int {
