@@ -8,19 +8,18 @@ import sys
 import sysconfig
 import tarfile
 import tempfile
+from collections.abc import (
+    Callable,
+    Iterable,
+    Iterator,
+)
 from contextlib import ExitStack, contextmanager
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
+    IO,
 )
 
 import nox.command
@@ -54,7 +53,7 @@ def _get_output(*args: str) -> str:
 
 def _parse_supported_interpreter_version(
     python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     output = _get_output("cargo", "metadata", "--format-version=1", "--no-deps")
     cargo_packages = json.loads(output)["packages"]
     # Check Python interpreter version support in package metadata
@@ -68,7 +67,7 @@ def _parse_supported_interpreter_version(
 
 def _supported_interpreter_versions(
     python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
-) -> List[str]:
+) -> list[str]:
     min_version, max_version = _parse_supported_interpreter_version(python_impl)
     major = int(min_version.split(".")[0])
     assert major == 3, f"unsupported Python major version {major}"
@@ -97,7 +96,7 @@ def test_rust(session: nox.Session):
     _run_cargo_test(session, package="pyo3-macros-backend")
     _run_cargo_test(session, package="pyo3-macros")
 
-    extra_flags = []
+    extra_flags: list[str] = []
     # pypy and graalpy don't have Py_Initialize APIs, so we can only
     # build the main tests, not run them
     if sys.implementation.name in ("pypy", "graalpy"):
@@ -214,14 +213,14 @@ def rumdl(session: nox.Session):
 
 
 @nox.session(name="clippy", venv_backend="none")
-def clippy(session: nox.Session) -> bool:
+def clippy(session: nox.Session) -> None:
     if not (_clippy(session) and _clippy_additional_workspaces(session)):
         session.error("one or more jobs failed")
 
 
-def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
+def _clippy(session: nox.Session, *, env: dict[str, str] | None = None) -> bool:
     success = True
-    env = env or os.environ
+    env = env or dict(os.environ)
     for feature_set in _get_feature_sets():
         try:
             _run_cargo(
@@ -263,12 +262,12 @@ def _clippy_additional_workspaces(session: nox.Session) -> bool:
 
 
 @nox.session(venv_backend="none")
-def bench(session: nox.Session) -> bool:
+def bench(session: nox.Session) -> None:
     _run_cargo(session, "bench", _BENCHES, *session.posargs)
 
 
 @nox.session()
-def codspeed(session: nox.Session) -> bool:
+def codspeed(session: nox.Session) -> None:
     # rust benchmarks
     os.chdir(PYO3_DIR / "pyo3-benches")
     _run_cargo(session, "codspeed", "build")
@@ -283,7 +282,7 @@ def codspeed(session: nox.Session) -> bool:
 def clippy_all(session: nox.Session) -> None:
     success = True
 
-    def _clippy_with_config(env: Dict[str, str]) -> None:
+    def _clippy_with_config(env: dict[str, str]) -> None:
         nonlocal success
         success &= _clippy(session, env=env)
 
@@ -298,7 +297,7 @@ def clippy_all(session: nox.Session) -> None:
 def check_all(session: nox.Session) -> None:
     success = True
 
-    def _check(env: Dict[str, str]) -> None:
+    def _check(env: dict[str, str]) -> None:
         nonlocal success
         for feature_set in _get_feature_sets():
             try:
@@ -347,7 +346,7 @@ def contributors(session: nox.Session) -> None:
     if len(session.posargs) > 2:
         raise Exception("too many arguments")
 
-    authors = set()
+    authors: set[str] | list[str] = set()
 
     while True:
         resp = requests.get(
@@ -387,9 +386,10 @@ class EmscriptenInfo:
 
         self.pyversion = sys.version.split()[0]
         self.pymajor, self.pyminor, self.pymicro = self.pyversion.split(".")
-        self.pymicro, self.pydev = re.match(
-            "([0-9]*)([^0-9].*)?", self.pymicro
-        ).groups()
+        match = re.match("([0-9]*)([^0-9].*)?", self.pymicro)
+        if match:
+            self.pymicro, self.pydev = match.groups()
+
         if self.pydev is None:
             self.pydev = ""
 
@@ -441,7 +441,7 @@ def test_emscripten(session: nox.Session):
     )
     session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
     session.env["CARGO_BUILD_TARGET"] = target
-    session.env["PYO3_CROSS_LIB_DIR"] = pythonlibdir
+    session.env["PYO3_CROSS_LIB_DIR"] = str(pythonlibdir)
     _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
     _run(
         session,
@@ -517,8 +517,8 @@ def test_cross_compilation_windows(session: nox.Session):
 @nox.session(venv_backend="none")
 def docs(session: nox.Session, nightly: bool = False, internal: bool = False) -> None:
     rustdoc_flags = ["-Dwarnings"]
-    toolchain_flags = []
-    cargo_flags = []
+    toolchain_flags: list[str] = []
+    cargo_flags: list[str] = []
 
     nightly = nightly or ("nightly" in session.posargs)
     internal = internal or ("internal" in session.posargs)
@@ -539,7 +539,7 @@ def docs(session: nox.Session, nightly: bool = False, internal: bool = False) ->
     else:
         cargo_flags.extend(["--exclude=pyo3-macros", "--exclude=pyo3-macros-backend"])
 
-    rustdoc_flags.append(session.env.get("RUSTDOCFLAGS", ""))
+    rustdoc_flags.append(session.env.get("RUSTDOCFLAGS") or "")
     session.env["RUSTDOCFLAGS"] = " ".join(rustdoc_flags)
 
     features = "full"
@@ -579,6 +579,9 @@ def build_guide(session: nox.Session):
 
 @nox.session(name="build-netlify-site")
 def build_netlify_site(session: nox.Session):
+    if requests is None:
+        session.error("requests library is required for this session")
+    
     # Remove netlify_build directory if it exists
     netlify_build = Path("netlify_build")
     if netlify_build.exists():
@@ -726,7 +729,7 @@ def check_guide(session: nox.Session):
         # rust docs
         "(https://docs.rs/[^#]+)#[a-zA-Z0-9._-]*": "$1",
     }
-    remap_args = []
+    remap_args: list[str] = []
     for key, value in remaps.items():
         remap_args.extend(("--remap", f"{key} {value}"))
 
@@ -771,7 +774,7 @@ def format_guide(session: nox.Session):
     for path in Path("guide").glob("**/*.md"):
         session.log("Working on %s", path)
         lines = iter(path.read_text().splitlines(True))
-        new_lines = []
+        new_lines: list[str] = []
 
         for line in lines:
             new_lines.append(line)
@@ -893,7 +896,7 @@ def set_msrv_package_versions(session: nox.Session):
         *(Path(p).parent for p in glob("examples/*/Cargo.toml")),
         *(Path(p).parent for p in glob("pyo3-ffi/examples/*/Cargo.toml")),
     )
-    min_pkg_versions = {}
+    min_pkg_versions: dict[str, str] = {}
 
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
@@ -908,10 +911,12 @@ def set_msrv_package_versions(session: nox.Session):
 
         lock_file = project / "Cargo.lock"
 
-        def load_pkg_versions():
+        def load_pkg_versions():            
+            if toml is None:
+                session.error("requires `toml` to be installed")
             cargo_lock = toml.loads(lock_file.read_text())
             # Cargo allows to depends on multiple versions of the same package
-            pkg_versions = defaultdict(list)
+            pkg_versions: defaultdict[str, list[str]] = defaultdict(list)
             for pkg in cargo_lock["package"]:
                 name = pkg["name"]
                 if name not in min_pkg_versions:
@@ -926,7 +931,7 @@ def set_msrv_package_versions(session: nox.Session):
                 if version != min_version:
                     pkg_id = pkg_name + ":" + version
                     _run_cargo_set_package_version(
-                        session, pkg_id, min_version, project=project
+                        session, pkg_id, min_version, project=str(project)
                     )
                     # assume `_run_cargo_set_package_version` has changed something
                     # and re-read `Cargo.lock`
@@ -1107,7 +1112,7 @@ def update_ui_tests(session: nox.Session):
 def test_introspection(session: nox.Session):
     session.install("maturin")
     session.install("ruff")
-    options = []
+    options: list[str] = []
     target = os.environ.get("CARGO_BUILD_TARGET")
     if target is not None:
         options += ("--target", target)
@@ -1128,6 +1133,8 @@ def test_introspection(session: nox.Session):
     for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
         if file.is_file():
             lib_file = str(file.resolve())
+    if lib_file is None:
+        session.error("Could not find built pyo3_pytests")
     _run_cargo_test(
         session,
         package="pyo3-introspection",
@@ -1143,19 +1150,21 @@ def _build_docs_for_ffi_check(session: nox.Session) -> None:
 
 
 @lru_cache()
-def _get_rust_info() -> Tuple[str, ...]:
+def _get_rust_info() -> tuple[str, ...]:
     output = _get_output("rustc", "-vV")
 
     return tuple(output.splitlines())
 
 
-def get_rust_version() -> Tuple[int, int, int, List[str]]:
+def get_rust_version() -> tuple[int, int, int, list[str]]:
     for line in _get_rust_info():
         if line.startswith(_RELEASE_LINE_START):
             version = line[len(_RELEASE_LINE_START) :].strip()
             # e.g. 1.67.0-beta.2
             (version_number, *extra) = version.split("-", maxsplit=1)
-            return (*map(int, version_number.split(".")), extra)
+            major, minor, patch = map(int, version_number.split("."))
+            return (major, minor, patch, extra)
+    raise RuntimeError("Could not parse Rust version")
 
 
 def is_rust_nightly() -> bool:
@@ -1169,10 +1178,11 @@ def _get_rust_default_target() -> str:
     for line in _get_rust_info():
         if line.startswith(_HOST_LINE_START):
             return line[len(_HOST_LINE_START) :].strip()
+    raise RuntimeError("Could not get Rust default target")
 
 
 @lru_cache()
-def _get_feature_sets() -> Tuple[Optional[str], ...]:
+def _get_feature_sets() -> tuple[str | None, ...]:
     """Returns feature sets to use for Rust jobs"""
     cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
 
@@ -1192,8 +1202,8 @@ _RELEASE_LINE_START = "release: "
 _HOST_LINE_START = "host: "
 
 
-def _get_coverage_env() -> Dict[str, str]:
-    env = {}
+def _get_coverage_env() -> dict[str, str]:
+    env: dict[str, str] = {}
     output = _get_output("cargo", "llvm-cov", "show-env")
 
     for line in output.strip().splitlines():
@@ -1246,10 +1256,10 @@ def _run_cargo(
 def _run_cargo_test(
     session: nox.Session,
     *,
-    package: Optional[str] = None,
-    features: Optional[str] = None,
-    env: Optional[Dict[str, str]] = None,
-    extra_flags: Optional[List[str]] = None,
+    package: str | None = None,
+    features: str | None = None,
+    env: dict[str, str] | None = None,
+    extra_flags: list[str] | None = None,
 ) -> None:
     command = ["cargo"]
     if "careful" in session.posargs:
@@ -1280,7 +1290,7 @@ def _run_cargo_set_package_version(
     pkg_id: str,
     version: str,
     *,
-    project: Optional[str] = None,
+    project: str | None = None,
 ) -> None:
     command = ["cargo", "update", "-p", pkg_id, "--precise", version, "--workspace"]
     if project:
@@ -1289,13 +1299,13 @@ def _run_cargo_set_package_version(
 
 
 def _for_all_version_configs(
-    session: nox.Session, job: Callable[[Dict[str, str]], None]
+    session: nox.Session, job: Callable[[dict[str, str]], None]
 ) -> None:
     env = os.environ.copy()
     with _config_file() as config_file:
         env["PYO3_CONFIG_FILE"] = config_file.name
 
-        def _job_with_config(implementation, version):
+        def _job_with_config(implementation: str, version: str) -> None:
             session.log(f"{implementation} {version}")
             config_file.set(implementation, version)
             job(env)
@@ -1308,7 +1318,7 @@ def _for_all_version_configs(
 
 
 class _ConfigFile:
-    def __init__(self, config_file) -> None:
+    def __init__(self, config_file: IO[str]) -> None:
         self._config_file = config_file
 
     def set(
