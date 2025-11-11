@@ -50,9 +50,9 @@ fn main() {
         ($struct_name:ident, $field:ident, $bindgen_field:ident) => {{
             // some struct fields are deprecated but still present in the ABI
             #[allow(clippy::used_underscore_binding, deprecated)]
-            let pyo3_ffi_offset = memoffset::offset_of!(pyo3_ffi::$struct_name, $field);
+            let pyo3_ffi_offset = std::mem::offset_of!(pyo3_ffi::$struct_name, $field);
             #[allow(clippy::used_underscore_binding)]
-            let bindgen_offset = memoffset::offset_of!(bindings::$struct_name, $bindgen_field);
+            let bindgen_offset = std::mem::offset_of!(bindings::$struct_name, $bindgen_field);
 
             if pyo3_ffi_offset != bindgen_offset {
                 failed = true;
