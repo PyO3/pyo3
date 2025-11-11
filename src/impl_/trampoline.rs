@@ -37,6 +37,11 @@ pub trait MethodDef<T> {
 
 /// Generates an implementation of `MethodDef` and then returns the trampoline function
 /// specialized to call the provided method.
+///
+/// Note that the functions returned by this macro are instantiations of generic functions. Code
+/// should not depend on these function pointers being stable (e.g. across compilation units);
+/// the intended purpose of these is to create function pointers which can be passed to the Python
+/// C-API to correctly wrap Rust functions.
 #[macro_export]
 #[doc(hidden)]
 macro_rules! get_trampoline_function {
