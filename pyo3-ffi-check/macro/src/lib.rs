@@ -1,4 +1,7 @@
-use std::{env, fs, path::PathBuf};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use pyo3_build_config::PythonVersion;
@@ -67,16 +70,7 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 }
 
 fn get_doc_dir() -> PathBuf {
-    let path = PathBuf::from(env::var_os("OUT_DIR").unwrap());
-    path.parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .to_owned()
+    Path::new(&env::var_os("OUT_DIR").unwrap()).join("doc_build")
 }
 
 /// Macro which expands to multiple macro calls, one per field in a pyo3-ffi

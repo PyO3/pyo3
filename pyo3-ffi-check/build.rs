@@ -1,5 +1,5 @@
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 struct ParseCallbacks;
@@ -21,6 +21,33 @@ impl bindgen::callbacks::ParseCallbacks for ParseCallbacks {
 
 fn main() {
     let config = pyo3_build_config::get();
+
+    // build docs for pyo3-ffi
+    let docs_build = std::process::Command::new("cargo")
+        .args([
+            "doc",
+            "--manifest-path",
+            &format!("{}/Cargo.toml", env::var("CARGO_MANIFEST_DIR").unwrap()),
+            "--no-deps",
+            "--package",
+            "pyo3-ffi",
+        ])
+        .env(
+            "CARGO_TARGET_DIR",
+            Path::new(&env::var("OUT_DIR").unwrap()).join("doc_build"),
+        )
+        .env(
+            "PYO3_PYTHON",
+            config
+                .executable
+                .as_ref()
+                .expect("need executable for ffi check"),
+        )
+        .status()
+        .expect("failed to build pyo3-ffi docs");
+
+    assert!(docs_build.success(), "failed to build pyo3-ffi docs");
+
     let python_include_dir = config
         .run_python_script(
             "import sysconfig; print(sysconfig.get_config_var('INCLUDEPY'), end='');",
