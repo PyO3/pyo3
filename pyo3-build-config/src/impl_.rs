@@ -900,6 +900,7 @@ pub fn is_linking_libpython_for_target(target: &Triple) -> bool {
         || target.environment == Environment::Android
         || target.environment == Environment::Androideabi
         || target.operating_system == OperatingSystem::Cygwin
+        || matches!(target.operating_system, OperatingSystem::IOS(_))
         || !is_extension_module()
 }
 
@@ -987,6 +988,8 @@ impl CrossCompileConfig {
         // Not cross-compiling to compile for x86-64 Python from macOS arm64 and vice versa
         compatible |= matches!(target.operating_system, OperatingSystem::Darwin(_))
             && matches!(host.operating_system, OperatingSystem::Darwin(_));
+
+        compatible |= matches!(target.operating_system, OperatingSystem::IOS(_));
 
         !compatible
     }
