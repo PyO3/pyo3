@@ -39,6 +39,13 @@ jobs:
           TAG_NAME="${GITHUB_REF##*/}"
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
 
+      - name: Restore lychee cache
+        id: restore-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .lycheecache
+          key: lychee
+
       # This builds the book in target/guide/.
       - name: Build the guide
         run: |
@@ -48,6 +55,13 @@ jobs:
           PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
           # allows lychee to get better rate limits from github
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save lychee cache
+        uses: actions/cache/save@v4
+        if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+        with:
+          path: .lycheecache
+          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
       # We store the versioned guides on GitHub's gh-pages branch for convenience
       # (the full gh-pages branch is pulled in the build-netlify-site step)
