@@ -151,7 +151,7 @@ mod tests {
     #[cfg(all(not(PyPy), Py_3_10))]
     use crate::types::PyNone;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
-    #[cfg(all(feature = "macros", not(Py_LIMITED_API)))]
+    #[cfg(all(feature = "macros", Py_3_8, not(Py_LIMITED_API)))]
     use crate::PyErr;
     use crate::{IntoPyObject, PyTypeInfo, Python};
 
@@ -402,7 +402,7 @@ def fibonacci(target):
     }
 
     #[test]
-    #[cfg(all(feature = "macros", not(Py_LIMITED_API)))]
+    #[cfg(all(feature = "macros", Py_3_8, not(Py_LIMITED_API)))]
     fn length_hint_error() {
         #[crate::pyfunction(crate = "crate")]
         fn test_size_hint(obj: &crate::Bound<'_, crate::PyAny>, should_error: bool) {
