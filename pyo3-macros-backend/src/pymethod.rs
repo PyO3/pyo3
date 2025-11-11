@@ -376,22 +376,8 @@ pub fn impl_py_method_def_new(
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_new,
             pfunc: {
-                unsafe extern "C" fn trampoline(
-                    subtype: *mut #pyo3_path::ffi::PyTypeObject,
-                    args: *mut #pyo3_path::ffi::PyObject,
-                    kwargs: *mut #pyo3_path::ffi::PyObject,
-                ) -> *mut #pyo3_path::ffi::PyObject {
-
-                    #text_signature_impl
-
-                    #pyo3_path::impl_::trampoline::newfunc(
-                        subtype,
-                        args,
-                        kwargs,
-                        #cls::#wrapper_ident
-                    )
-                }
-                trampoline
+                #text_signature_impl
+                #pyo3_path::impl_::trampoline::get_trampoline_function!(newfunc, #cls::#wrapper_ident)
             } as #pyo3_path::ffi::newfunc as _
         }
     };
@@ -413,22 +399,7 @@ fn impl_call_slot(cls: &syn::Type, mut spec: FnSpec<'_>, ctx: &Ctx) -> Result<Me
     let slot_def = quote! {
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_call,
-            pfunc: {
-                unsafe extern "C" fn trampoline(
-                    slf: *mut #pyo3_path::ffi::PyObject,
-                    args: *mut #pyo3_path::ffi::PyObject,
-                    kwargs: *mut #pyo3_path::ffi::PyObject,
-                ) -> *mut #pyo3_path::ffi::PyObject
-                {
-                    #pyo3_path::impl_::trampoline::ternaryfunc(
-                        slf,
-                        args,
-                        kwargs,
-                        #cls::#wrapper_ident
-                    )
-                }
-                trampoline
-            } as #pyo3_path::ffi::ternaryfunc as _
+            pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(ternaryfunc, #cls::#wrapper_ident) as _
         }
     };
     Ok(MethodAndSlotDef {
@@ -1371,21 +1342,9 @@ impl SlotDef {
             }
         };
         let slot_def = quote! {{
-            unsafe extern "C" fn trampoline(
-                _slf: *mut #pyo3_path::ffi::PyObject,
-                #(#arg_idents: #arg_types),*
-            ) -> #ret_ty
-            {
-                #pyo3_path::impl_::trampoline:: #func_ty (
-                    _slf,
-                    #(#arg_idents,)*
-                    #cls::#wrapper_ident
-                )
-            }
-
             #pyo3_path::ffi::PyType_Slot {
                 slot: #pyo3_path::ffi::#slot,
-                pfunc: trampoline as #pyo3_path::ffi::#func_ty as _
+                pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(#func_ty, #cls::#wrapper_ident) as #pyo3_path::ffi::#func_ty as _
             }
         }};
         Ok(MethodAndSlotDef {

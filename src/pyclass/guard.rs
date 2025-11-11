@@ -440,10 +440,9 @@ impl From<PyClassGuardError<'_, '_>> for PyErr {
 ///     }
 ///
 ///     unsafe {
-///         ::pyo3::impl_::trampoline::noargs(
+///         ::pyo3::impl_::trampoline::get_trampoline_function!(noargs, inner)(
 ///             _slf,
 ///             _args,
-///             inner,
 ///         )
 ///     }
 /// }

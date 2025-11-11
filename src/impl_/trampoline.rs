@@ -29,25 +29,82 @@ pub unsafe fn module_exec(
     }
 }
 
-#[inline]
-pub unsafe fn noargs(
-    slf: *mut ffi::PyObject,
-    _args: *mut ffi::PyObject,
-    f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>,
-) -> *mut ffi::PyObject {
-    unsafe { trampoline(|py| f(py, slf)) }
+/// A workaround for Rust not allowing function pointers as const generics: define a trait which
+/// has a constant function pointer.
+pub trait MethodDef<T> {
+    const METH: T;
 }
 
+/// Generates an implementation of `MethodDef` and then returns the trampoline function
+/// specialized to call the provided method.
+///
+/// Note that the functions returned by this macro are instantiations of generic functions. Code
+/// should not depend on these function pointers being stable (e.g. across compilation units);
+/// the intended purpose of these is to create function pointers which can be passed to the Python
+/// C-API to correctly wrap Rust functions.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! get_trampoline_function {
+    ($trampoline:ident, $f:path) => {{
+        struct Def;
+        impl $crate::impl_::trampoline::MethodDef<$crate::impl_::trampoline::$trampoline::Func> for Def {
+            const METH: $crate::impl_::trampoline::$trampoline::Func = $f;
+        }
+        $crate::impl_::trampoline::$trampoline::<Def>
+    }};
+}
+
+pub use get_trampoline_function;
+
+/// Macro to define a trampoline function for a given function signature.
+///
+/// This macro generates:
+/// 1. An external "C" function that serves as the trampoline, generic on a specific function pointer.
+/// 2. A companion module containing a non-generic inner function, and the function pointer type.
 macro_rules! trampoline {
     (pub fn $name:ident($($arg_names:ident: $arg_types:ty),* $(,)?) -> $ret:ty;) => {
-        #[inline]
-        pub unsafe fn $name(
+        /// External symbol called by Python, which calls the provided Rust function.
+        ///
+        /// The Rust function is supplied via the generic parameter `Meth`.
+        pub unsafe extern "C" fn $name<Meth: MethodDef<$name::Func>>(
             $($arg_names: $arg_types,)*
-            f: for<'py> unsafe fn (Python<'py>, $($arg_types),*) -> PyResult<$ret>,
         ) -> $ret {
-            unsafe {trampoline(|py| f(py, $($arg_names,)*))}
+            unsafe { $name::inner($($arg_names),*, Meth::METH) }
+        }
+
+        /// Companion module contains the function pointer type.
+        pub mod $name {
+            use super::*;
+
+            /// Non-generic inner function to ensure only one trampoline instantiated
+            #[inline]
+            pub(crate) unsafe fn inner($($arg_names: $arg_types),*, f: $name::Func) -> $ret {
+                unsafe { trampoline(|py| f(py, $($arg_names,)*)) }
+            }
+
+            /// The type of the function pointer for this trampoline.
+            pub type Func = for<'py> unsafe fn (Python<'py>, $($arg_types),*) -> PyResult<$ret>;
         }
     }
+}
+
+/// Noargs is a special case where the `_args` parameter is unused and not passed to the inner `Func`.
+pub unsafe extern "C" fn noargs<Meth: MethodDef<noargs::Func>>(
+    slf: *mut ffi::PyObject,
+    _args: *mut ffi::PyObject, // unused and value not defined
+) -> *mut ffi::PyObject {
+    unsafe { noargs::inner(slf, Meth::METH) }
+}
+
+pub mod noargs {
+    use super::*;
+
+    #[inline]
+    pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, f: Func) -> *mut ffi::PyObject {
+        unsafe { trampoline(|py| f(py, slf)) }
+    }
+
+    pub type Func = unsafe fn(Python<'_>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>;
 }
 
 macro_rules! trampolines {
@@ -57,7 +114,7 @@ macro_rules! trampolines {
 }
 
 trampolines!(
-    pub fn fastcall_with_keywords(
+    pub fn fastcall_cfunction_with_keywords(
         slf: *mut ffi::PyObject,
         args: *const *mut ffi::PyObject,
         nargs: ffi::Py_ssize_t,
@@ -131,14 +188,26 @@ trampoline! {
     pub fn getbufferproc(slf: *mut ffi::PyObject, buf: *mut ffi::Py_buffer, flags: c_int) -> c_int;
 }
 
+/// Releasebufferproc is a special case where the function cannot return an error,
+/// so we use trampoline_unraisable.
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
-#[inline]
-pub unsafe fn releasebufferproc(
+pub unsafe extern "C" fn releasebufferproc<Meth: MethodDef<releasebufferproc::Func>>(
     slf: *mut ffi::PyObject,
     buf: *mut ffi::Py_buffer,
-    f: for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject, *mut ffi::Py_buffer) -> PyResult<()>,
 ) {
-    unsafe { trampoline_unraisable(|py| f(py, slf, buf), slf) }
+    unsafe { releasebufferproc::inner(slf, buf, Meth::METH) }
+}
+
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+pub mod releasebufferproc {
+    use super::*;
+
+    #[inline]
+    pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, buf: *mut ffi::Py_buffer, f: Func) {
+        unsafe { trampoline_unraisable(|py| f(py, slf, buf), slf) }
+    }
+
+    pub type Func = unsafe fn(Python<'_>, *mut ffi::PyObject, *mut ffi::Py_buffer) -> PyResult<()>;
 }
 
 #[inline]
