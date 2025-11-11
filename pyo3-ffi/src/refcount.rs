@@ -14,8 +14,10 @@ use std::ptr;
 #[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::Ordering::Relaxed;
 
-#[cfg(Py_3_14)]
+#[cfg(all(Py_3_14, not(Py_3_15)))]
 const _Py_STATICALLY_ALLOCATED_FLAG: c_int = 1 << 7;
+#[cfg(Py_3_15)]
+const _Py_STATICALLY_ALLOCATED_FLAG: c_int = 1 << 2;
 
 #[cfg(all(Py_3_12, not(Py_3_14)))]
 const _Py_IMMORTAL_REFCNT: Py_ssize_t = {
