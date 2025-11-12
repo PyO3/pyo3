@@ -1,5 +1,5 @@
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug)]
 struct ParseCallbacks;
@@ -28,14 +28,12 @@ fn main() {
             "doc",
             "--manifest-path",
             &format!("{}/Cargo.toml", env::var("CARGO_MANIFEST_DIR").unwrap()),
+            "--target-dir",
+            &format!("{}/doc_build", env::var("OUT_DIR").unwrap()),
             "--no-deps",
             "--package",
             "pyo3-ffi",
         ])
-        .env(
-            "CARGO_TARGET_DIR",
-            Path::new(&env::var("OUT_DIR").unwrap()).join("doc_build"),
-        )
         .env(
             "PYO3_PYTHON",
             config
