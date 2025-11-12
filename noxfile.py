@@ -940,10 +940,7 @@ def set_msrv_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check", venv_backend="none")
 def ffi_check(session: nox.Session):
-    env = os.environ.copy()
-    # lazy way to skip linking pyo3-ffi-check, it uses pyo3-ffi to inspect symbols but doesn't run anything
-    env["PYO3_BUILD_EXTENSION_MODULE"] = "1"
-    _run_cargo(session, "run", _FFI_CHECK, env=env)
+    _run_cargo(session, "run", _FFI_CHECK)
 
 
 @nox.session(name="test-version-limits")
