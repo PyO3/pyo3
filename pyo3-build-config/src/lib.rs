@@ -93,7 +93,6 @@ pub fn add_libpython_rpath_link_args() {
     let target = impl_::target_triple_from_env();
     _add_libpython_rpath_link_args(
         get(),
-        &target,
         impl_::is_linking_libpython_for_target(&target),
         std::io::stdout(),
     )
@@ -102,21 +101,14 @@ pub fn add_libpython_rpath_link_args() {
 #[cfg(feature = "resolve-config")]
 fn _add_libpython_rpath_link_args(
     interpreter_config: &InterpreterConfig,
-    triple: &Triple,
-    link_libpython: bool,
+    is_linking_libpython: bool,
     mut writer: impl std::io::Write,
 ) {
-    if link_libpython {
-        // FIXME: handle framework linking after #5606 merges
+    if is_linking_libpython {
         if let Some(lib_dir) = interpreter_config.lib_dir.as_ref() {
             writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}").unwrap();
         }
     }
-    // if matches!(triple.operating_system, OperatingSystem::Darwin(_)) && link_libpython {
-    //     if let Some(framework_prefix) = interpreter_config.python_framework_prefix.as_ref() {
-    //         writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{framework_prefix}").unwrap();
-    //     }
-    // }
 }
 
 /// Adds linker arguments suitable for linking against the Python framework on macOS.
