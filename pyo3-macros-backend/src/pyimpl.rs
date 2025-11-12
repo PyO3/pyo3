@@ -2,7 +2,9 @@ use std::collections::HashSet;
 
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
-use crate::introspection::{attribute_introspection_code, function_introspection_code};
+use crate::introspection::{
+    attribute_introspection_code, function_introspection_code, PythonIdentifier,
+};
 #[cfg(feature = "experimental-inspect")]
 use crate::method::{FnSpec, FnType};
 #[cfg(feature = "experimental-inspect")]
@@ -400,11 +402,11 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
     match &spec.tp {
         FnType::Getter(_) => {
             first_argument = Some("self");
-            decorators.push("property".into());
+            decorators.push(PythonIdentifier::builtins("property"));
         }
         FnType::Setter(_) => {
             first_argument = Some("self");
-            decorators.push(format!("{name}.setter"));
+            decorators.push(PythonIdentifier::local(format!("{name}.setter")));
         }
         FnType::Fn(_) => {
             first_argument = Some("self");
@@ -415,17 +417,17 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
         }
         FnType::FnClass(_) => {
             first_argument = Some("cls");
-            decorators.push("classmethod".into());
+            decorators.push(PythonIdentifier::builtins("classmethod"));
         }
         FnType::FnStatic => {
-            decorators.push("staticmethod".into());
+            decorators.push(PythonIdentifier::builtins("staticmethod"));
         }
         FnType::FnModule(_) => (), // TODO: not sure this can happen
         FnType::ClassAttribute => {
             first_argument = Some("cls");
             // TODO: this combination only works with Python 3.9-3.11 https://docs.python.org/3.11/library/functions.html#classmethod
-            decorators.push("classmethod".into());
-            decorators.push("property".into());
+            decorators.push(PythonIdentifier::builtins("classmethod"));
+            decorators.push(PythonIdentifier::builtins("property"));
         }
     }
     function_introspection_code(
