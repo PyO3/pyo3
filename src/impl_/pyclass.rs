@@ -1497,10 +1497,17 @@ mod tests {
 
         assert_eq!(def.name, c"my_field");
         assert_eq!(def.doc, c"My field doc");
-        assert_eq!(
-            def.meth as usize,
-            pyo3_get_value_into_pyobject_ref::<MyClass, i32, FIELD_OFFSET> as usize
-        );
+
+        #[cfg(fn_ptr_eq)]
+        #[expect(clippy::incompatible_msrv, reason = "guarded by cfg(fn_ptr_eq)")]
+        {
+            use crate::impl_::pymethods::Getter;
+
+            assert!(std::ptr::fn_addr_eq(
+                def.meth,
+                pyo3_get_value_into_pyobject_ref::<MyClass, i32, FIELD_OFFSET> as Getter
+            ));
+        }
 
         // generate for a field via `IntoPyObject` + `Clone`
         // SAFETY: offset is correct
@@ -1512,10 +1519,17 @@ mod tests {
         };
         assert_eq!(def.name, c"my_field");
         assert_eq!(def.doc, c"My field doc");
-        assert_eq!(
-            def.meth as usize,
-            pyo3_get_value_into_pyobject::<MyClass, String, FIELD_OFFSET> as usize
-        );
+
+        #[cfg(fn_ptr_eq)]
+        #[expect(clippy::incompatible_msrv, reason = "guarded by cfg(fn_ptr_eq)")]
+        {
+            use crate::impl_::pymethods::Getter;
+
+            assert!(std::ptr::fn_addr_eq(
+                def.meth,
+                pyo3_get_value_into_pyobject::<MyClass, String, FIELD_OFFSET> as Getter
+            ));
+        }
     }
 
     #[test]
@@ -1563,9 +1577,14 @@ mod tests {
         };
         assert_eq!(def.name, c"my_field");
         assert_eq!(def.doc, c"My field doc");
-        assert_eq!(
-            def.meth as usize,
-            pyo3_get_value_into_pyobject_ref::<MyClass, Py<PyAny>, FIELD_OFFSET> as usize
-        );
+
+        #[cfg(fn_ptr_eq)]
+        #[expect(clippy::incompatible_msrv, reason = "guarded by cfg(fn_ptr_eq)")]
+        {
+            assert!(std::ptr::fn_addr_eq(
+                def.meth,
+                pyo3_get_value_into_pyobject_ref::<MyClass, Py<PyAny>, FIELD_OFFSET> as Getter
+            ));
+        }
     }
 }
