@@ -583,7 +583,6 @@ fn test_return_value_borrows_from_arguments() {
 #[test]
 fn test_some_wrap_arguments() {
     // https://github.com/PyO3/pyo3/issues/3460
-    #[allow(unused)]
     const NONE: Option<u8> = None;
     #[pyfunction(signature = (a = 1, b = Some(2), c = None, d = NONE))]
     fn some_wrap_arguments(

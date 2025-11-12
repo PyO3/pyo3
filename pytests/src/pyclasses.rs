@@ -168,7 +168,7 @@ fn map_a_class(cls: AClass) -> AClass {
     cls
 }
 
-#[pymodule(gil_used = false)]
+#[pymodule]
 pub mod pyclasses {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     #[pymodule_export]

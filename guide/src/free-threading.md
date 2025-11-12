@@ -3,16 +3,7 @@
 CPython 3.14 declared support for the "free-threaded" build of CPython that does not rely on the [global interpreter lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock) (often referred to as the GIL) for thread safety.
 Since version 0.23, PyO3 supports building Rust extensions for the free-threaded Python build and calling into free-threaded Python from Rust.
 
-If you want more background on free-threaded Python in general, see the
-[what's new](https://docs.python.org/3/whatsnew/3.13.html#whatsnew313-free-threaded-cpython)
-entry in the 3.13 release notes (when the "free-threaded" build was first added as an experimental
-mode), the
-[free-threading HOWTO guide](https://docs.python.org/3/howto/free-threading-extensions.html#freethreading-extensions-howto)
-in the CPython docs, the
-[extension porting guide](https://py-free-threading.github.io/porting-extensions/)
-in the community-maintained Python free-threading guide, and
-[PEP 703](https://peps.python.org/pep-0703/), which provides the technical background
-for the free-threading implementation in CPython.
+If you want more background on free-threaded Python in general, see the [what's new](https://docs.python.org/3/whatsnew/3.13.html#whatsnew313-free-threaded-cpython) entry in the 3.13 release notes (when the "free-threaded" build was first added as an experimental mode), the [free-threading HOWTO guide](https://docs.python.org/3/howto/free-threading-extensions.html#freethreading-extensions-howto) in the CPython docs, the [extension porting guide](https://py-free-threading.github.io/porting-extensions/) in the community-maintained Python free-threading guide, and [PEP 703](https://peps.python.org/pep-0703/), which provides the technical background for the free-threading implementation in CPython.
 
 In the GIL-enabled build (the only choice before the "free-threaded" build was introduced), the global interpreter lock serializes access to the Python runtime.
 The GIL is therefore a fundamental limitation to parallel scaling of multithreaded Python workflows, due to [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law), because any time spent executing a parallel processing task on only one execution context fundamentally cannot be sped up using parallelism.
@@ -24,34 +15,40 @@ If you have ever needed to use [`multiprocessing`](https://docs.python.org/3/lib
 PyO3's support for free-threaded Python will enable authoring native Python extensions that are thread-safe by construction, with much stronger safety guarantees than C extensions.
 Our goal is to enable ["fearless concurrency"](https://doc.rust-lang.org/book/ch16-00-concurrency.html) in the native Python runtime by building on the Rust [`Send` and `Sync`](https://doc.rust-lang.org/nomicon/send-and-sync.html) traits.
 
-This document provides advice for porting Rust code using PyO3 to run under
-free-threaded Python.
+This document provides advice for porting Rust code using PyO3 to run under free-threaded Python.
 
 ## Supporting free-threaded Python with PyO3
 
-Many simple uses of PyO3, like exposing bindings for a "pure" Rust function with no side-effects or defining an immutable Python class, will likely work "out of the box" on the free-threaded build.
-All that will be necessary is to annotate Python modules declared by rust code in your project to declare that they support free-threaded Python, for example by declaring the module with `#[pymodule(gil_used = false)]`.
+Since PyO3 0.28, PyO3 defaults to assuming Python modules created with it are thread-safe.
+This will be the case except for Rust code which has used `unsafe` to assume thread-safety incorrectly.
+An example of this is `unsafe` code which was written with the historical assumption that Python was single-threaded due to the GIL, and so the `Python<'py>` token used by PyO3 could be used to guarantee thread-safety.
+A module can opt-out of supporting free-threaded Python until it has audited its `unsafe` code for correctness by declaring the module with `#[pymodule(gil_used = true)]` (see below).
 
-More complicated `#[pyclass]` types may need to deal with thread-safety directly; there is [a dedicated section of the guide](./class/thread-safety.md) to discuss this.
+Complicated `#[pyclass]` types may need to deal with thread-safety directly; there is [a dedicated section of the guide](./class/thread-safety.md) to discuss this.
 
 At a low-level, annotating a module sets the `Py_MOD_GIL` slot on modules defined by an extension to `Py_MOD_GIL_NOT_USED`, which allows the interpreter to see at runtime that the author of the extension thinks the extension is thread-safe.
-You should only do this if you know that your extension is thread-safe.
-Because of Rust's guarantees, this is already true for many extensions, however see below for more discussion about how to evaluate the thread safety of existing Rust extensions and how to think about the PyO3 API using a Python runtime with no GIL.
 
-If you do not explicitly mark that modules are thread-safe, the Python interpreter will re-enable the GIL at runtime while importing your module and print a `RuntimeWarning` with a message containing the name of the module causing it to re-enable the GIL.
+By opting-out of supporting free-threaded Python, the Python interpreter will re-enable the GIL at runtime while importing your module and print a `RuntimeWarning` with a message containing the name of the module causing it to re-enable the GIL.
 You can force the GIL to remain disabled by setting the `PYTHON_GIL=0` as an environment variable or passing `-Xgil=0` when starting Python (`0` means the GIL is turned off).
 
 If you are sure that all data structures exposed in a `PyModule` are thread-safe, then pass `gil_used = false` as a parameter to the `pymodule` procedural macro declaring the module or call `PyModule::gil_used` on a `PyModule` instance.
 For example:
 
-```rust,no_run
-use pyo3::prelude::*;
+### Example opting-in
 
-/// This module supports free-threaded Python
-#[pymodule(gil_used = false)]
-fn my_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // add members to the module that you know are thread-safe
-    Ok(())
+(Note: for PyO3 versions 0.23 through 0.27, the default was `gil_used = true` and so the opposite was needed; modules needed to opt-in to free-threaded Python support with `gil_used = false`.)
+
+```rust,no_run
+/// This module relies on the GIL for thread safety
+#[pyo3::pymodule(gil_used = true)]
+mod my_extension {
+    use pyo3::prelude::*;
+
+    // this type is not thread-safe
+    #[pyclass]
+    struct MyNotThreadSafeType {
+        // insert not thread-safe code
+    }
 }
 ```
 
@@ -63,21 +60,13 @@ use pyo3::prelude::*;
 # #[allow(dead_code)]
 fn register_child_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let child_module = PyModule::new(parent_module.py(), "child_module")?;
-    child_module.gil_used(false)?;
+    child_module.gil_used(true)?;
     parent_module.add_submodule(&child_module)
 }
 
 ```
 
-For now you must explicitly opt in to free-threading support by annotating modules defined in your extension.
-In a future version of `PyO3`, we plan to make `gil_used = false` the default.
-
-See the
-[`string-sum`](https://github.com/PyO3/pyo3/tree/main/pyo3-ffi/examples/string-sum)
-example for how to declare free-threaded support using raw FFI calls for modules
-using single-phase initialization and the
-[`sequential`](https://github.com/PyO3/pyo3/tree/main/pyo3-ffi/examples/sequential)
-example for modules using multi-phase initialization.
+See the [`string-sum`](https://github.com/PyO3/pyo3/tree/main/pyo3-ffi/examples/string-sum) example for how to declare free-threaded support using raw FFI calls for modules using single-phase initialization and the [`sequential`](https://github.com/PyO3/pyo3/tree/main/pyo3-ffi/examples/sequential) example for modules using multi-phase initialization.
 
 If you would like to use conditional compilation to trigger different code paths under the free-threaded build, you can use the `Py_GIL_DISABLED` attribute once you have configured your crate to generate the necessary build configuration data.
 See [the guide section](./building-and-distribution/multiple-python-versions.md) for more details about supporting multiple different Python versions, including the free-threaded build.
@@ -103,8 +92,7 @@ Threads created via the Python [`threading`] module do not need to do this, and 
 
 ### Detaching to avoid hangs and deadlocks
 
-The free-threaded build triggers global synchronization events in the following
-situations:
+The free-threaded build triggers global synchronization events in the following situations:
 
 - During garbage collection in order to get a globally consistent view of
   reference counts and references between objects
@@ -114,8 +102,7 @@ situations:
   instrument running code objects and threads
 - During a call to `os.fork()`, to ensure a process-wide consistent state.
 
-This is a non-exhaustive list and there may be other situations in future Python
-versions that can trigger global synchronization events.
+This is a non-exhaustive list and there may be other situations in future Python versions that can trigger global synchronization events.
 
 This means that you should detach from the interpreter runtime using [`Python::detach`] in exactly the same situations as you should detach from the runtime in the GIL-enabled build: when doing long-running tasks that do not require the CPython runtime or when doing any task that needs to re-attach to the runtime (see the [guide section](parallelism.md#sharing-python-objects-between-rust-threads) that covers this).
 In the former case, you would observe a hang on threads that are waiting on the long-running task to complete, and in the latter case you would see a deadlock while a thread tries to attach after the runtime triggers a global synchronization event, but the spawning thread prevents the synchronization event from completing.
@@ -184,14 +171,9 @@ For now you should explicitly add locking, possibly using conditional compilatio
 The free-threaded build uses a completely new ABI and there is not yet an equivalent to the limited API for the free-threaded ABI.
 That means if your crate depends on PyO3 using the `abi3` feature or an an `abi3-pyxx` feature, PyO3 will print a warning and ignore that setting when building extensions using the free-threaded interpreter.
 
-This means that if your package makes use of the ABI forward compatibility
-provided by the limited API to upload only one wheel for each release of your
-package, you will need to update your release procedure to also upload a
-version-specific free-threaded wheel.
+This means that if your package makes use of the ABI forward compatibility provided by the limited API to upload only one wheel for each release of your package, you will need to update your release procedure to also upload a version-specific free-threaded wheel.
 
-See [the guide section](./building-and-distribution/multiple-python-versions.md)
-for more details about supporting multiple different Python versions, including
-the free-threaded build.
+See [the guide section](./building-and-distribution/multiple-python-versions.md) for more details about supporting multiple different Python versions, including the free-threaded build.
 
 ### Thread-safe single initialization
 

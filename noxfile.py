@@ -738,6 +738,8 @@ def check_guide(session: nox.Session):
         str(PYO3_GUIDE_SRC),
         *remap_args,
         "--accept=200,429",
+        "--cache",
+        "--max-cache-age=7d",
         *session.posargs,
         external=True,
     )
@@ -755,6 +757,8 @@ def check_guide(session: nox.Session):
         "--accept=200,429",
         # reduce the concurrency to avoid rate-limit from `pyo3.rs`
         "--max-concurrency=32",
+        "--cache",
+        "--max-cache-age=7d",
         *session.posargs,
         external=True,
     )

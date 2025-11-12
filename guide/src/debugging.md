@@ -358,9 +358,7 @@ Automated ways to discover thread safety issues can often be more fruitful than 
 [ThreadSanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html) is a thread safety checking runtime that can be used to detect data races triggered by thread safety bugs or incorrect use of thread-unsafe data structures.
 While it can only detect data races triggered by code at runtime, if it does detect something the reports often point to exactly where the problem is happening.
 
-To use `ThreadSanitizer` with a library that depends on PyO3, you will need to
-install a nightly Rust toolchain, along with the `rust-src` component, since you
-will need to compile the Rust standard library:
+To use `ThreadSanitizer` with a library that depends on PyO3, you will need to install a nightly Rust toolchain, along with the `rust-src` component, since you will need to compile the Rust standard library:
 
 ```bash
 rustup install nightly
@@ -371,13 +369,9 @@ rustup component add rust-src
 You will also need a version of CPython compiled using LLVM/Clang with the same major version of LLVM as is currently used to compile nightly Rust.
 As of March 2025, Rust nightly uses LLVM 20.
 
-The [cpython_sanity docker images](https://github.com/nascheme/cpython_sanity)
-contain a development environment with a pre-compiled version of CPython 3.13 or
-3.14 as well as optionally NumPy and SciPy, all compiled using LLVM 20 and
-ThreadSanitizer.
+The [cpython_sanity docker images](https://github.com/nascheme/cpython_sanity) contain a development environment with a pre-compiled version of CPython 3.13 or 3.14 as well as optionally NumPy and SciPy, all compiled using LLVM 20 and ThreadSanitizer.
 
-After activating a nightly Rust toolchain, you can build your project using
-`ThreadSanitizer` with the following command:
+After activating a nightly Rust toolchain, you can build your project using `ThreadSanitizer` with the following command:
 
 ```bash
 RUSTFLAGS="-Zsanitizer=thread" maturin develop -Zbuild-std --target x86_64-unknown-linux-gnu

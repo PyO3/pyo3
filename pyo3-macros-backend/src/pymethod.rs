@@ -374,7 +374,7 @@ fn impl_call_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> Result<Metho
     let slot_def = quote! {
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_call,
-            pfunc: #cls::#wrapper_ident as #pyo3_path::ffi::ternaryfunc as _
+            pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(ternaryfunc, #cls::#wrapper_ident) as _
         }
     };
     Ok(MethodAndSlotDef {
@@ -662,7 +662,7 @@ pub fn impl_py_setter_def(
 
             let holder = holders.push_holder(span);
             quote! {
-                #[allow(unused_imports)]
+                #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
                 use #pyo3_path::impl_::pyclass::Probe as _;
                 let _val = #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?;
             }
@@ -789,7 +789,7 @@ pub fn impl_py_getter_def(
             let method_def = quote! {
                 #cfg_attrs
                 {
-                    #[allow(unused_imports)]  // might not be used if all probes are positive
+                    #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
                     use #pyo3_path::impl_::pyclass::Probe as _;
 
                     const GENERATOR: #pyo3_path::impl_::pyclass::PyClassGetterGenerator::<
@@ -1149,7 +1149,7 @@ fn extract_object(
     } else {
         let holder = holders.push_holder(Span::call_site());
         quote! {{
-            #[allow(unused_imports)]
+            #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
             use #pyo3_path::impl_::pyclass::Probe as _;
             #pyo3_path::impl_::extract_argument::extract_argument(
                 unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },
@@ -1327,25 +1327,19 @@ impl SlotDef {
         let holders = holders.init_holders(ctx);
         let associated_method = quote! {
             #[allow(non_snake_case)]
-            unsafe extern "C" fn #wrapper_ident(
+            unsafe fn #wrapper_ident(
+                py: #pyo3_path::Python<'_>,
                 #(#arg_idents: #arg_types),*
-            ) -> #ret_ty {
-                unsafe fn inner(
-                    py: #pyo3_path::Python<'_>,
-                    #(#arg_idents: #arg_types),*
-                ) -> #pyo3_path::PyResult<#ret_ty> {
-                    let function = #cls::#name; // Shadow the method name to avoid #3017
-                    #holders
-                    #body
-                }
-
-                unsafe { #pyo3_path::impl_::trampoline::#func_ty(#(#arg_idents,)* inner) }
+            ) -> #pyo3_path::PyResult<#ret_ty> {
+                let function = #cls::#name; // Shadow the method name to avoid #3017
+                #holders
+                #body
             }
         };
         let slot_def = quote! {
             #pyo3_path::ffi::PyType_Slot {
                 slot: #pyo3_path::ffi::#slot,
-                pfunc: #cls::#wrapper_ident as #pyo3_path::ffi::#func_ty as _
+                pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(#func_ty, #cls::#wrapper_ident) as #pyo3_path::ffi::#func_ty as _
             }
         };
         Ok(MethodAndSlotDef {

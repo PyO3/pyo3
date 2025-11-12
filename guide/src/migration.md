@@ -5,6 +5,13 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.27.* to 0.28
 
+### Default to supporting free-threaded Python
+
+When PyO3 0.23 added support for free-threaded Python, this was as an opt-in feature for modules by annotating with `#[pymodule(gil_used = false)]`.
+
+As the support has matured and PyO3's own API has evolved to remove reliance on the GIL, the time is right to switch the default.
+Modules now automatically allow use on free-threaded Python, unless they directly state they require the GIL with `#[pymodule(gil_used = true)]`.
+
 ### Deprecation of automatic `FromPyObject` for `#[pyclass]` types which implement `Clone`
 
 `#[pyclass]` types which implement `Clone` used to also implement `FromPyObject` automatically.
@@ -14,6 +21,43 @@ To migrate use either
 
 - `from_py_object` to keep the automatic derive, or
 - `skip_from_py_object` to accept the new behaviour
+
+### Deprecation of `Py<T>` constructors from raw pointer
+
+The constructors `Py::from_owned_ptr`, `Py::from_owned_ptr_or_opt`, and `Py::from_owned_ptr_or_err` (and similar "borrowed" variants) perform an unchecked cast to the `Py<T>` target type `T`.
+This unchecked cast is a footgun on APIs where the primary concern is about constructing PyO3's safe smart pointer types correctly from the raw pointer value.
+
+The equivalent constructors on `Bound` always produce a `Bound<PyAny>`, which encourages any subsequent cast to be done explicitly as either checked or unchecked.
+These should be used instead.
+
+Before:
+
+```rust
+#![allow(deprecated)]
+# use pyo3::prelude::*;
+# use pyo3::types::PyNone;
+# Python::attach(|py| {
+let raw_ptr = py.None().into_ptr();
+
+let _: Py<PyNone> = unsafe { Py::from_borrowed_ptr(py, raw_ptr) };
+let _: Py<PyNone> = unsafe { Py::from_owned_ptr(py, raw_ptr) };
+# })
+```
+
+Before:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::PyNone;
+# Python::attach(|py| {
+let raw_ptr = py.None().into_ptr();
+
+// Bound APIs require choice of doing unchecked or checked cast. Optionally `.unbind()` to
+// produce `Py<T>` values.
+let _: Bound<'_, PyNone> = unsafe { Bound::from_borrowed_ptr(py, raw_ptr).cast_into_unchecked() };
+let _: Bound<'_, PyNone> = unsafe { Bound::from_owned_ptr(py, raw_ptr).cast_into_unchecked() };
+# })
+```
 
 ## from 0.26.* to 0.27
 
@@ -29,8 +73,7 @@ This allows borrowing from the input data without extending the lifetime of bein
 The argument type of the `extract` method changed from `&Bound<'py, PyAny>` to `Borrowed<'a, 'py, PyAny>`.
 This was done because `&'a Bound<'py, PyAny>` would have an implicit restriction `'py: 'a` due to the reference type.
 
-This new form was partly implemented already in 0.22 using the internal `FromPyObjectBound` trait and
-is now extended to all types.
+This new form was partly implemented already in 0.22 using the internal `FromPyObjectBound` trait and is now extended to all types.
 
 Most implementations can just add an elided lifetime to migrate.
 
@@ -353,8 +396,7 @@ The sections below discuss the rationale and details of each change in more dept
 <details>
 <summary><small>Click to expand</small></summary>
 
-PyO3 0.23 introduces initial support for the new free-threaded build of
-CPython 3.13, aka "3.13t".
+PyO3 0.23 introduces initial support for the new free-threaded build of CPython 3.13, aka "3.13t".
 
 Because this build allows multiple Python threads to operate simultaneously on underlying Rust data, the `#[pyclass]` macro now requires that types it operates on implement `Sync`.
 
@@ -398,8 +440,7 @@ In many cases the new [`#[derive(IntoPyObject)]`](#intopyobject-and-intopyobject
 
 Since `IntoPyObject::into_pyobject` may return either a `Bound` or `Borrowed`, you may find the [`BoundObject`](conversions/traits.md#boundobject-for-conversions-that-may-be-bound-or-borrowed) trait to be useful to write code that generically handles either type of smart pointer.
 
-Together with the introduction of `IntoPyObject` the old conversion traits `ToPyObject` and `IntoPy`
-are deprecated and will be removed in a future PyO3 version.
+Together with the introduction of `IntoPyObject` the old conversion traits `ToPyObject` and `IntoPy` are deprecated and will be removed in a future PyO3 version.
 
 #### `IntoPyObject` and `IntoPyObjectRef` derive macros
 
@@ -726,8 +767,7 @@ However the contents of `tp_name` don't have well-defined semantics.
 
 Instead `PyType::name()` now returns the equivalent of Python `__name__` and returns `PyResult<Bound<'py, PyString>>`.
 
-The closest equivalent to PyO3 0.21's version of `PyType::name()` has been introduced as a new function `PyType::fully_qualified_name()`,
-which is equivalent to `__module__` and `__qualname__` joined as `module.qualname`.
+The closest equivalent to PyO3 0.21's version of `PyType::name()` has been introduced as a new function `PyType::fully_qualified_name()`, which is equivalent to `__module__` and `__qualname__` joined as `module.qualname`.
 
 Before:
 
@@ -1840,8 +1880,7 @@ The Python object wrappers `Py` and `PyAny` had implementations of `PartialEq` s
 This has been removed in favor of a new method: use `object_a.is(object_b)`.
 This also has the advantage of not requiring the same wrapper type for `object_a` and `object_b`; you can now directly compare a `Py<T>` with a `&PyAny` without having to convert.
 
-To check for Python object equality (the Python `==` operator), use the new
-method `eq()`.
+To check for Python object equality (the Python `==` operator), use the new method `eq()`.
 </details>
 
 ### Container magic methods now match Python behavior
@@ -1951,13 +1990,9 @@ Negative indices, which were only sporadically supported even in APIs that took 
 Further, the `get_item` methods now always return a `PyResult` instead of panicking on invalid indices.
 The `Index` trait has been implemented instead, and provides the same panic behavior as on Rust vectors.
 
-Note that _slice_ indices (accepted by `PySequence::get_slice` and other) still
-inherit the Python behavior of clamping the indices to the actual length, and
-not panicking/returning an error on out of range indices.
+Note that _slice_ indices (accepted by `PySequence::get_slice` and other) still inherit the Python behavior of clamping the indices to the actual length, and not panicking/returning an error on out of range indices.
 
-An additional advantage of using Rust's indexing conventions for these types is
-that these types can now also support Rust's indexing operators as part of a
-consistent API:
+An additional advantage of using Rust's indexing conventions for these types is that these types can now also support Rust's indexing operators as part of a consistent API:
 
 ```rust,ignore
 #![allow(deprecated)]
@@ -2108,8 +2143,7 @@ You should instead now use the new methods `PyErr::ptype`, `PyErr::pvalue` and `
 
 As these were part the internals of `PyErr` which have been reworked, these APIs no longer exist.
 
-If you used this API, it is recommended to use `PyException::new_err` (see [the section on
-Exception types](#exception-types-have-been-reworked)).
+If you used this API, it is recommended to use `PyException::new_err` (see [the section on Exception types](#exception-types-have-been-reworked)).
 </details>
 
 #### `Into<PyResult<T>>` for `PyErr` has been removed
@@ -2181,8 +2215,7 @@ assert_eq!(
 To simplify the PyO3 conversion traits, the `FromPy` trait has been removed.
 Previously there were two ways to define the to-Python conversion for a type: `FromPy<T> for PyObject` and `IntoPy<PyObject> for T`.
 
-Now there is only one way to define the conversion, `IntoPy`, so downstream crates may need to
-adjust accordingly.
+Now there is only one way to define the conversion, `IntoPy`, so downstream crates may need to adjust accordingly.
 
 Before:
 
@@ -2252,8 +2285,7 @@ If you implemented traits for both `PyObject` and `Py<T>`, you may find you can 
 As `PyObject` has been changed to be just a type alias, the only remaining implementor of `AsPyRef` was `Py<T>`.
 This removed the need for a trait, so the `AsPyRef::as_ref` method has been moved to `Py::as_ref`.
 
-This should require no code changes except removing `use pyo3::AsPyRef` for code which did not use
-`pyo3::prelude::*`.
+This should require no code changes except removing `use pyo3::AsPyRef` for code which did not use `pyo3::prelude::*`.
 
 Before:
 
@@ -2430,8 +2462,7 @@ assert_eq!(hi.len().unwrap(), 5);
 <details>
 <summary><small>Click to expand</small></summary>
 
-While PyO3 itself still requires specialization and nightly Rust,
-now you don't have to use `#![feature(specialization)]` in your crate.
+While PyO3 itself still requires specialization and nightly Rust, now you don't have to use `#![feature(specialization)]` in your crate.
 </details>
 
 ## from 0.8.* to 0.9

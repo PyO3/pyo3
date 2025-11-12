@@ -83,10 +83,10 @@ mod declarative_module {
     const BAR: &str = "BAR";
 
     #[pymodule_export]
-    #[allow(non_upper_case_globals)]
+    #[expect(non_upper_case_globals)]
     const r#type: char = '!';
 
-    #[allow(unused)]
+    #[expect(unused)]
     const NOT_EXPORTED: &str = "not exported";
 
     #[pymodule]

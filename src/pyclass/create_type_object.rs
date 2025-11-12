@@ -1,16 +1,19 @@
+#[cfg(not(Py_3_10))]
+use crate::types::typeobject::PyTypeMethods;
 use crate::{
     exceptions::PyTypeError,
     ffi,
+    ffi_ptr_ext::FfiPtrExt,
     impl_::{
         pycell::PyClassObject,
         pyclass::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-            tp_dealloc_with_gc, PyClassItemsIter,
+            tp_dealloc_with_gc, PyClassImpl, PyClassItemsIter,
         },
         pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
     },
-    types::{typeobject::PyTypeMethods, PyType},
+    types::PyType,
     Py, PyClass, PyResult, PyTypeInfo, Python,
 };
 use std::{
@@ -23,8 +26,11 @@ use std::{
 pub(crate) struct PyClassTypeObject {
     pub type_object: Py<PyType>,
     pub is_immutable_type: bool,
-    #[allow(dead_code)] // This is purely a cache that must live as long as the type object
-    getset_destructors: Vec<GetSetDefDestructor>,
+    #[expect(
+        dead_code,
+        reason = "this is just storage that must live as long as the type object"
+    )]
+    getset_defs: Vec<GetSetDefType>,
 }
 
 pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<PyClassTypeObject>
@@ -32,7 +38,7 @@ where
     T: PyClass,
 {
     // Written this way to monomorphize the majority of the logic.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     unsafe fn inner(
         py: Python<'_>,
         base: *mut ffi::PyTypeObject,
@@ -56,6 +62,7 @@ where
                 method_defs: Vec::new(),
                 member_defs: Vec::new(),
                 getset_builders: HashMap::new(),
+                #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
                 cleanup: Vec::new(),
                 tp_base: base,
                 tp_dealloc: dealloc,
@@ -96,13 +103,14 @@ where
             T::weaklist_offset(),
             T::IS_BASETYPE,
             T::items_iter(),
-            T::NAME,
-            T::MODULE,
+            <T as PyClass>::NAME,
+            <T as PyClassImpl>::MODULE,
             std::mem::size_of::<PyClassObject<T>>(),
         )
     }
 }
 
+#[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
 type PyTypeBuilderCleanup = Box<dyn Fn(&PyTypeBuilder, *mut ffi::PyTypeObject)>;
 
 struct PyTypeBuilder {
@@ -113,6 +121,7 @@ struct PyTypeBuilder {
     /// Used to patch the type objects for the things there's no
     /// PyType_FromSpec API for... there's no reason this should work,
     /// except for that it does and we have tests.
+    #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
     cleanup: Vec<PyTypeBuilderCleanup>,
     tp_base: *mut ffi::PyTypeObject,
     tp_dealloc: ffi::destructor,
@@ -199,7 +208,7 @@ impl PyTypeBuilder {
         }
     }
 
-    fn finalize_methods_and_properties(&mut self) -> Vec<GetSetDefDestructor> {
+    fn finalize_methods_and_properties(&mut self) -> Vec<GetSetDefType> {
         let method_defs: Vec<pyo3_ffi::PyMethodDef> = std::mem::take(&mut self.method_defs);
         // Safety: Py_tp_methods expects a raw vec of PyMethodDef
         unsafe { self.push_raw_vec_slot(ffi::Py_tp_methods, method_defs) };
@@ -210,7 +219,7 @@ impl PyTypeBuilder {
 
         let mut getset_destructors = Vec::with_capacity(self.getset_builders.len());
 
-        #[allow(unused_mut)]
+        #[allow(unused_mut, reason = "not modified on PyPy")]
         let mut property_defs: Vec<_> = self
             .getset_builders
             .iter()
@@ -415,7 +424,7 @@ impl PyTypeBuilder {
         // on some platforms (like windows)
         #![allow(clippy::useless_conversion)]
 
-        let getset_destructors = self.finalize_methods_and_properties();
+        let getset_defs = self.finalize_methods_and_properties();
 
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
 
@@ -486,21 +495,26 @@ impl PyTypeBuilder {
             slots: self.slots.as_mut_ptr(),
         };
 
-        // Safety: We've correctly setup the PyType_Spec at this point
-        let type_object: Py<PyType> =
-            unsafe { Py::from_owned_ptr_or_err(py, ffi::PyType_FromSpec(&mut spec))? };
+        // SAFETY: We've correctly setup the PyType_Spec at this point
+        // The FFI call is known to return a new type object or null on error
+        let type_object = unsafe {
+            ffi::PyType_FromSpec(&mut spec)
+                .assume_owned_or_err(py)?
+                .cast_into_unchecked::<PyType>()
+        };
 
         #[cfg(not(Py_3_11))]
         bpo_45315_workaround(py, class_name);
 
+        #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
         for cleanup in std::mem::take(&mut self.cleanup) {
-            cleanup(&self, type_object.bind(py).as_type_ptr());
+            cleanup(&self, type_object.as_type_ptr());
         }
 
         Ok(PyClassTypeObject {
-            type_object,
+            type_object: type_object.unbind(),
             is_immutable_type: self.is_immutable_type,
-            getset_destructors,
+            getset_defs,
         })
     }
 }
@@ -591,7 +605,7 @@ impl GetSetDefBuilder {
         self.setter = Some(setter.meth)
     }
 
-    fn as_get_set_def(&self, name: &'static CStr) -> (ffi::PyGetSetDef, GetSetDefDestructor) {
+    fn as_get_set_def(&self, name: &'static CStr) -> (ffi::PyGetSetDef, GetSetDefType) {
         let getset_type = match (self.getter, self.setter) {
             (Some(getter), None) => GetSetDefType::Getter(getter),
             (None, Some(setter)) => GetSetDefType::Setter(setter),
@@ -604,16 +618,8 @@ impl GetSetDefBuilder {
         };
 
         let getset_def = getset_type.create_py_get_set_def(name, self.doc);
-        let destructor = GetSetDefDestructor {
-            closure: getset_type,
-        };
-        (getset_def, destructor)
+        (getset_def, getset_type)
     }
-}
-
-#[allow(dead_code)] // a stack of fields which are purely to cache until dropped
-struct GetSetDefDestructor {
-    closure: GetSetDefType,
 }
 
 /// Possible forms of property - either a getter, setter, or both

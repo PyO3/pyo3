@@ -443,7 +443,7 @@ fn get_class_type_hint(cls: &Ident, args: &PyClassArgs, ctx: &Ctx) -> TokenStrea
         let module = module.value.value();
         quote! { #pyo3_path::inspect::TypeHint::module_attr(#module, #name) }
     } else {
-        quote! { #pyo3_path::inspect::TypeHint::builtin(#name) }
+        quote! { #pyo3_path::inspect::TypeHint::local(#name) }
     }
 }
 
@@ -1958,13 +1958,6 @@ fn descriptors_to_items(
 
 fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
-    let cls_name = get_class_python_name(cls, attr).to_string();
-
-    let module = if let Some(ModuleAttribute { value, .. }) = &attr.options.module {
-        quote! { ::core::option::Option::Some(#value) }
-    } else {
-        quote! { ::core::option::Option::None }
-    };
 
     #[cfg(feature = "experimental-inspect")]
     let type_hint = {
@@ -1973,11 +1966,14 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
     };
     #[cfg(not(feature = "experimental-inspect"))]
     let type_hint = quote! {};
+    #[cfg(not(feature = "experimental-inspect"))]
+    let _ = attr;
 
     quote! {
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
-            const NAME: &'static str = #cls_name;
-            const MODULE: ::std::option::Option<&'static str> = #module;
+
+            const NAME: &str = <Self as #pyo3_path::PyClass>::NAME;
+            const MODULE: ::std::option::Option<&str> = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::MODULE;
 
             #type_hint
 
@@ -1989,7 +1985,7 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
                     .unwrap_or_else(|e| #pyo3_path::impl_::pyclass::type_object_init_failed(
                         py,
                         e,
-                        <Self as #pyo3_path::type_object::PyTypeInfo>::NAME
+                        <Self as #pyo3_path::PyClass>::NAME
                     ))
                     .as_type_ptr()
             }
@@ -2335,6 +2331,8 @@ impl<'a> PyClassImplsBuilder<'a> {
         let Ctx { pyo3_path, .. } = ctx;
         let cls = self.cls;
 
+        let cls_name = get_class_python_name(cls, self.attr).to_string();
+
         let frozen = if self.attr.options.frozen.is_some() {
             quote! { #pyo3_path::pyclass::boolean_struct::True }
         } else {
@@ -2343,6 +2341,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         quote! {
             impl #pyo3_path::PyClass for #cls {
+                const NAME: &str = #cls_name;
                 type Frozen = #frozen;
             }
         }
@@ -2385,6 +2384,13 @@ impl<'a> PyClassImplsBuilder<'a> {
             .doc
             .as_ref()
             .map_or(c"".to_token_stream(), PythonDoc::to_token_stream);
+
+        let module = if let Some(ModuleAttribute { value, .. }) = &self.attr.options.module {
+            quote! { ::core::option::Option::Some(#value) }
+        } else {
+            quote! { ::core::option::Option::None }
+        };
+
         let is_basetype = self.attr.options.subclass.is_some();
         let base = match &self.attr.options.extends {
             Some(extends_attr) => extends_attr.value.clone(),
@@ -2569,6 +2575,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             #pyclass_base_type_impl
 
             impl #pyo3_path::impl_::pyclass::PyClassImpl for #cls {
+                const MODULE: ::std::option::Option<&str> = #module;
                 const IS_BASETYPE: bool = #is_basetype;
                 const IS_SUBCLASS: bool = #is_subclass;
                 const IS_MAPPING: bool = #is_mapping;

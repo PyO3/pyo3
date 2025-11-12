@@ -234,9 +234,7 @@ It can take any combination of the following options:
 
 ### Calling Python functions in Rust
 
-You can pass Python `def`'d functions and built-in functions to Rust functions [`PyFunction`]
-corresponds to regular Python functions while [`PyCFunction`] describes built-ins such as
-`repr()`.
+You can pass Python `def`'d functions and built-in functions to Rust functions [`PyFunction`] corresponds to regular Python functions while [`PyCFunction`] describes built-ins such as `repr()`.
 
 You can also use [`Bound<'_, PyAny>::is_callable`] to check if you have a callable object. `is_callable` will return `true` for functions (including lambdas), methods and objects with a `__call__` method.
 You can call the object with [`Bound<'_, PyAny>::call`] with the args as first parameter and the kwargs (or `None`) as second parameter.
@@ -256,8 +254,7 @@ The ways to convert a Rust function into a Python object vary depending on the f
 In order to make Rust functions callable from Python, PyO3 generates an `extern "C"` function whose exact signature depends on the Rust signature.  (PyO3 chooses the optimal Python argument passing convention.) It then embeds the call to the Rust function inside this FFI-wrapper function.
 This wrapper handles extraction of the regular arguments and the keyword arguments from the input `PyObject`s.
 
-The `wrap_pyfunction` macro can be used to directly get a `Bound<PyCFunction>` given a
-`#[pyfunction]` and a `Bound<PyModule>`: `wrap_pyfunction!(rust_fun, module)`.
+The `wrap_pyfunction` macro can be used to directly get a `Bound<PyCFunction>` given a `#[pyfunction]` and a `Bound<PyModule>`: `wrap_pyfunction!(rust_fun, module)`.
 
 <!-- rumdl-disable-next-line MD053 - false positive -->
 [`Bound<'_, PyAny>::is_callable`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods.html#tymethod.is_callable

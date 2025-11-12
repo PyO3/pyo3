@@ -20,9 +20,7 @@ let v: Vec<i32> = list.extract()?;
 # }
 ```
 
-This method is available for many Python object types, and can produce a wide
-variety of Rust types, which you can check out in the implementor list of
-[`FromPyObject`].
+This method is available for many Python object types, and can produce a wide variety of Rust types, which you can check out in the implementor list of [`FromPyObject`].
 
 [`FromPyObject`] is also implemented for your own Rust types wrapped as Python objects (see [the chapter about classes](../class.md)).
 There, in order to both be able to operate on mutable references *and* satisfy Rust's rules of non-aliasing mutable references, you have to extract the PyO3 reference wrappers [`PyRef`] and [`PyRefMut`].
@@ -36,8 +34,7 @@ Derivation for empty enums, enum variants and structs is not supported.
 
 ### Deriving [`FromPyObject`] for structs
 
-The derivation generates code that will attempt to access the attribute  `my_string` on
-the Python object, i.e. `obj.getattr("my_string")`, and call `extract()` on the attribute.
+The derivation generates code that will attempt to access the attribute  `my_string` on the Python object, i.e. `obj.getattr("my_string")`, and call `extract()` on the attribute.
 
 ```rust
 use pyo3::prelude::*;
@@ -447,8 +444,7 @@ enum RustyEnum {
 # }
 ```
 
-If the input is neither a string nor an integer, the error message will be:
-`"'<INPUT_TYPE>' cannot be cast as 'str | int'"`.
+If the input is neither a string nor an integer, the error message will be: `"'<INPUT_TYPE>' cannot be cast as 'str | int'"`.
 
 ### `#[derive(FromPyObject)]` Container Attributes
 
@@ -560,16 +556,14 @@ All types in PyO3 implement this trait, as does a `#[pyclass]` which doesn't use
 This trait defines a single method, `into_pyobject()`, which returns a [`Result`] with `Ok` and `Err` types depending on the input value.
 For convenience, there is a companion [`IntoPyObjectExt`] trait which adds methods such as `into_py_any()` which converts the `Ok` and `Err` types to commonly used types (in the case of `into_py_any()`, `Py<PyAny>` and `PyErr` respectively).
 
-Occasionally you may choose to implement this for custom types which are mapped to Python types
-*without* having a unique python type.
+Occasionally you may choose to implement this for custom types which are mapped to Python types *without* having a unique python type.
 
 ### derive macro
 
 `IntoPyObject` can be implemented using our derive macro.
 Both `struct`s and `enum`s are supported.
 
-`struct`s will turn into a `PyDict` using the field names as keys, tuple `struct`s will turn convert
-into `PyTuple` with the fields in declaration order.
+`struct`s will turn into a `PyDict` using the field names as keys, tuple `struct`s will turn convert into `PyTuple` with the fields in declaration order.
 
 ```rust,no_run
 # #![allow(dead_code)]
@@ -591,8 +585,7 @@ struct Struct {
 struct Tuple<'a, K: Hash + Eq, V>(&'a str, HashMap<K, V>);
 ```
 
-For structs with a single field (newtype pattern) the `#[pyo3(transparent)]` option can be used to
-forward the implementation to the inner type.
+For structs with a single field (newtype pattern) the `#[pyo3(transparent)]` option can be used to forward the implementation to the inner type.
 
 ```rust,no_run
 # #![allow(dead_code)]
@@ -660,8 +653,7 @@ All the same rules from above apply as well.
 
 ### manual implementation
 
-If the derive macro is not suitable for your use case, `IntoPyObject` can be implemented manually as
-demonstrated below.
+If the derive macro is not suitable for your use case, `IntoPyObject` can be implemented manually as demonstrated below.
 
 ```rust,no_run
 # use pyo3::prelude::*;

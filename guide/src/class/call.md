@@ -3,8 +3,7 @@
 Classes can be callable if they have a `#[pymethod]` named `__call__`.
 This allows instances of a class to behave similar to functions.
 
-This method's signature must look like `__call__(<self>, ...) -> object` - here,
- any argument list can be defined as for normal pymethods
+This method's signature must look like `__call__(<self>, ...) -> object` - here, any argument list can be defined as for normal pymethods
 
 ## Example: Implementing a call counter
 

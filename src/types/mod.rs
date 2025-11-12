@@ -165,7 +165,7 @@ macro_rules! pyobject_native_type_info(
             $(
                 #[inline]
                 fn is_type_of(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
-                    #[allow(unused_unsafe)] // not all `$checkfunction` are unsafe extern "C" fn
+                    #[allow(unused_unsafe, reason = "not all `$checkfunction` are unsafe fn")]
                     // SAFETY: `$checkfunction` is being called with a valid `PyObject` pointer
                     unsafe { $checkfunction(obj.as_ptr()) > 0 }
                 }

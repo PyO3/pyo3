@@ -114,7 +114,10 @@ impl<'a> FnArg<'a> {
         }
     }
 
-    #[allow(clippy::wrong_self_convention)]
+    #[expect(
+        clippy::wrong_self_convention,
+        reason = "called `from_` but not a constructor"
+    )]
     pub fn from_py_with(&self) -> Option<&FromPyWithAttribute> {
         if let FnArg::Regular(RegularArg { from_py_with, .. }) = self {
             from_py_with.as_ref()
@@ -304,7 +307,7 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
-                    #[allow(clippy::useless_conversion)]
+                    #[allow(clippy::useless_conversion, reason = "#[classmethod] accepts anything which implements `From<BoundRef<PyType>>`")]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
                             .cast_unchecked::<#pyo3_path::types::PyType>()
@@ -317,7 +320,7 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
-                    #[allow(clippy::useless_conversion)]
+                    #[allow(clippy::useless_conversion, reason = "`pass_module` accepts anything which implements `From<BoundRef<PyModule>>`")]
                     ::std::convert::Into::into(
                         #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
                             .cast_unchecked::<#pyo3_path::types::PyModule>()
@@ -398,7 +401,7 @@ impl SelfType {
                         #bound_ref.cast::<#cls>()
                             .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
                             .and_then(
-                                #[allow(clippy::unnecessary_fallible_conversions)]  // In case slf is Py<Self>
+                                #[allow(clippy::unnecessary_fallible_conversions, reason = "anything implementing `TryFrom<BoundRef>` is permitted")]
                                 |bound| ::std::convert::TryFrom::try_from(bound).map_err(::std::convert::Into::into)
                             )
 
@@ -663,8 +666,8 @@ impl<'a> FnSpec<'a> {
         let MethodBody {
             arg_idents,
             arg_types,
-            trampoline,
             body,
+            ..
         } = self.generate_method_body(cls, calling_convention, ctx)?;
 
         let (inner_args, inner_arg_types) =
@@ -681,17 +684,11 @@ impl<'a> FnSpec<'a> {
 
         Ok(quote! {
             #[allow(non_snake_case)]
-            unsafe extern "C" fn #ident(
-                #(#arg_idents: #arg_types),*
-            ) -> *mut #pyo3_path::ffi::PyObject {
-                unsafe fn inner(
-                    py: #pyo3_path::Python<'_>,
-                    #(#inner_args: #inner_arg_types),*
-                ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
-                    #body
-                }
-
-                unsafe { #pyo3_path::impl_::trampoline::#trampoline(#(#arg_idents,)* inner) }
+            unsafe fn #ident(
+                py: #pyo3_path::Python<'_>,
+                #(#inner_args: #inner_arg_types),*
+            ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                #body
             }
         })
     }
@@ -733,7 +730,7 @@ impl<'a> FnSpec<'a> {
                 };
                 let python_name = &self.python_name;
                 let qualname_prefix = match cls {
-                    Some(cls) => quote!(Some(<#cls as #pyo3_path::PyTypeInfo>::NAME)),
+                    Some(cls) => quote!(Some(<#cls as #pyo3_path::PyClass>::NAME)),
                     None => quote!(None),
                 };
                 let arg_names = (0..args.len())
@@ -913,20 +910,22 @@ impl<'a> FnSpec<'a> {
     ) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
         let python_name = self.null_terminated_python_name();
-        let ident = match calling_convention {
-            CallingConvention::Noargs => StaticIdent::new("noargs"),
-            CallingConvention::Fastcall => StaticIdent::new("fastcall_cfunction_with_keywords"),
-            CallingConvention::Varargs => StaticIdent::new("cfunction_with_keywords"),
-        };
         let flags = match self.tp {
             FnType::FnClass(_) => quote! { .flags(#pyo3_path::ffi::METH_CLASS) },
             FnType::FnStatic => quote! { .flags(#pyo3_path::ffi::METH_STATIC) },
             _ => quote! {},
         };
+        let trampoline = match calling_convention {
+            CallingConvention::Noargs => Ident::new("noargs", Span::call_site()),
+            CallingConvention::Fastcall => {
+                Ident::new("fastcall_cfunction_with_keywords", Span::call_site())
+            }
+            CallingConvention::Varargs => Ident::new("cfunction_with_keywords", Span::call_site()),
+        };
         quote! {
-            #pyo3_path::impl_::pymethods::PyMethodDef::#ident(
+            #pyo3_path::impl_::pymethods::PyMethodDef::#trampoline(
                 #python_name,
-                #wrapper,
+                #pyo3_path::impl_::trampoline::get_trampoline_function!(#trampoline, #wrapper),
                 #doc,
             ) #flags
         }

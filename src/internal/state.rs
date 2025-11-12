@@ -444,7 +444,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn test_attach_counts() {
         // Check `attach` and AttachGuard both increase counts correctly
         let get_attach_count = || ATTACH_COUNT.with(|c| c.get());
@@ -524,7 +523,7 @@ mod tests {
             let count = obj.get_refcnt(py);
 
             // Cloning when attached should increase reference count immediately
-            #[allow(clippy::redundant_clone)]
+            #[expect(clippy::redundant_clone)]
             let c = obj.clone();
             assert_eq!(count + 1, c.get_refcnt(py));
         })
@@ -548,7 +547,9 @@ mod tests {
 
                 // Rebuild obj so that it can be dropped
                 unsafe {
-                    Py::<PyAny>::from_owned_ptr(
+                    use crate::Bound;
+
+                    Bound::from_owned_ptr(
                         pool.python(),
                         ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _,
                     )

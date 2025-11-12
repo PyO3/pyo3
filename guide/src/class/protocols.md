@@ -233,8 +233,7 @@ impl Container {
 # });
 ```
 
-For more details on Python's iteration protocols, check out [the "Iterator Types" section of the library
-documentation](https://docs.python.org/library/stdtypes.html#iterator-types).
+For more details on Python's iteration protocols, check out [the "Iterator Types" section of the library documentation](https://docs.python.org/library/stdtypes.html#iterator-types).
 
 #### Returning a value from iteration
 
@@ -363,11 +362,9 @@ This will help libraries such as `numpy` recognise the class as a sequence, howe
 
 ### Numeric types
 
-Binary arithmetic operations (`+`, `-`, `*`, `@`, `/`, `//`, `%`, `divmod()`,
-`pow()` and `**`, `<<`, `>>`, `&`, `^`, and `|`) and their reflected versions:
+Binary arithmetic operations (`+`, `-`, `*`, `@`, `/`, `//`, `%`, `divmod()`, `pow()` and `**`, `<<`, `>>`, `&`, `^`, and `|`) and their reflected versions:
 
-(If the `object` is not of the type specified in the signature, the generated code
-will automatically `return NotImplemented`.)
+(If the `object` is not of the type specified in the signature, the generated code will automatically `return NotImplemented`.)
 
 - `__add__(<self>, object) -> object`
 - `__radd__(<self>, object) -> object`
@@ -398,8 +395,7 @@ will automatically `return NotImplemented`.)
 - `__pow__(<self>, object, object) -> object`
 - `__rpow__(<self>, object, object) -> object`
 
-In-place assignment operations (`+=`, `-=`, `*=`, `@=`, `/=`, `//=`, `%=`,
-`**=`, `<<=`, `>>=`, `&=`, `^=`, `|=`):
+In-place assignment operations (`+=`, `-=`, `*=`, `@=`, `/=`, `//=`, `%=`, `**=`, `<<=`, `>>=`, `&=`, `^=`, `|=`):
 
 - `__iadd__(<self>, object) -> ()`
 - `__isub__(<self>, object) -> ()`

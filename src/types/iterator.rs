@@ -70,10 +70,12 @@ pub enum PySendResult<'py> {
 
 #[cfg(all(not(PyPy), Py_3_10))]
 impl<'py> Bound<'py, PyIterator> {
-    /// Sends a value into a python generator. This is the equivalent of calling `generator.send(value)` in Python.
-    /// This resumes the generator and continues its execution until the next `yield` or `return` statement.
-    /// If the generator exits without returning a value, this function returns a `StopException`.
-    /// The first call to `send` must be made with `None` as the argument to start the generator, failing to do so will raise a `TypeError`.
+    /// Sends a value into a python generator. This is the equivalent of calling
+    /// `generator.send(value)` in Python. This resumes the generator and continues its execution
+    /// until the next `yield` or `return` statement. When the generator completes, the (optional)
+    /// return value will be returned as `PySendResult::Return`. All subsequent calls will return
+    /// `PySendResult::Return(None)`. The first call to `send` must be made with `None` as the
+    /// argument to start the generator, failing to do so will raise a `TypeError`.
     #[inline]
     pub fn send(&self, value: &Bound<'py, PyAny>) -> PyResult<PySendResult<'py>> {
         let py = self.py();
@@ -106,8 +108,15 @@ impl<'py> Iterator for Bound<'py, PyIterator> {
 
     #[cfg(not(Py_LIMITED_API))]
     fn size_hint(&self) -> (usize, Option<usize>) {
+        // SAFETY: `self` is a valid iterator object
         let hint = unsafe { ffi::PyObject_LengthHint(self.as_ptr(), 0) };
-        (hint.max(0) as usize, None)
+        if hint < 0 {
+            let py = self.py();
+            PyErr::fetch(py).write_unraisable(py, Some(self));
+            (0, None)
+        } else {
+            (hint as usize, None)
+        }
     }
 }
 
@@ -142,6 +151,8 @@ mod tests {
     #[cfg(all(not(PyPy), Py_3_10))]
     use crate::types::PyNone;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
+    #[cfg(all(feature = "macros", Py_3_8, not(Py_LIMITED_API)))]
+    use crate::PyErr;
     use crate::{IntoPyObject, PyTypeInfo, Python};
 
     #[test]
@@ -387,6 +398,46 @@ def fibonacci(target):
             let iter = list.try_iter().unwrap();
             let hint = iter.size_hint();
             assert_eq!(hint, (3, None));
+        });
+    }
+
+    #[test]
+    #[cfg(all(feature = "macros", Py_3_8, not(Py_LIMITED_API)))]
+    fn length_hint_error() {
+        #[crate::pyfunction(crate = "crate")]
+        fn test_size_hint(obj: &crate::Bound<'_, crate::PyAny>, should_error: bool) {
+            let iter = obj.cast::<PyIterator>().unwrap();
+            crate::test_utils::UnraisableCapture::enter(obj.py(), |capture| {
+                assert_eq!((0, None), iter.size_hint());
+                assert_eq!(should_error, capture.take_capture().is_some());
+            });
+            assert!(PyErr::take(obj.py()).is_none());
+        }
+
+        Python::attach(|py| {
+            let test_size_hint = crate::wrap_pyfunction!(test_size_hint, py).unwrap();
+            crate::py_run!(
+                py,
+                test_size_hint,
+                r#"
+                    class NoHintIter:
+                        def __next__(self):
+                            raise StopIteration
+
+                        def __length_hint__(self):
+                            return NotImplemented
+
+                    class ErrorHintIter:
+                        def __next__(self):
+                            raise StopIteration
+
+                        def __length_hint__(self):
+                            raise ValueError("bad hint impl")
+
+                    test_size_hint(NoHintIter(), False)
+                    test_size_hint(ErrorHintIter(), True)
+                "#
+            );
         });
     }
 
