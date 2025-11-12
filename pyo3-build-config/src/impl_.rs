@@ -100,6 +100,10 @@ pub struct InterpreterConfig {
 
     /// The name of the Python framework (if available)
     ///
+    /// If present (and not empty), the named framework will be used for
+    /// linking using the `python_framework_prefix` as the framework search
+    /// path. This overrides the use of `shared` and `lib_name` for linking.
+    ///
     /// Serialized to `framework`.
     pub framework: Option<String>,
 
