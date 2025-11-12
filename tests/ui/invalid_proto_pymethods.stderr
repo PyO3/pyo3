@@ -49,7 +49,7 @@ note: candidate #2 is defined in an impl for the type `EqAndRichcmp`
    |
 55 | #[pymethods]
    | ^^^^^^^^^^^^
-   = note: this error originates in the macro `::pyo3::impl_::pyclass::generate_pyclass_richcompare_slot` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
   --> tests/ui/invalid_proto_pymethods.rs:55:1
@@ -67,4 +67,4 @@ note: candidate #2 is defined in an impl for the type `EqAndRichcmp`
    |
 55 | #[pymethods]
    | ^^^^^^^^^^^^
-   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the macro `::pyo3::impl_::pyclass::generate_pyclass_richcompare_slot` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
