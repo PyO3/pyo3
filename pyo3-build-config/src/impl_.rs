@@ -270,7 +270,7 @@ print("version_major", sys.version_info[0])
 print("version_minor", sys.version_info[1])
 print_if_not_empty("framework", get_config_var("PYTHONFRAMEWORK"))
 print("shared", PYPY or GRAALPY or ANACONDA or WINDOWS or FRAMEWORK or SHARED)
-print("python_framework_prefix", FRAMEWORK_PREFIX)
+print_if_not_empty("python_framework_prefix", FRAMEWORK_PREFIX)
 print_if_set("ld_version", get_config_var("LDVERSION"))
 print_if_set("libdir", get_config_var("LIBDIR"))
 print_if_set("base_prefix", base_prefix)
@@ -418,13 +418,16 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             Some("0") | Some("false") | Some("False") => false,
             _ => bail!("expected a bool (1/true/True or 0/false/False) for Py_ENABLE_SHARED"),
         };
-        // macOS framework packages use shared linking (PYTHONFRAMEWORK is the framework name, hence the empty check)
+        // macOS framework packages use shared linking (PYTHONFRAMEWORK is the
+        // framework name, hence the empty check) Empty values are converted to
+        // None.
         let framework = get_key!(sysconfigdata, "PYTHONFRAMEWORK")
             .ok()
             .filter(|s| !s.is_empty())
             .map(str::to_string);
-        let python_framework_prefix = sysconfigdata
-            .get_value("PYTHONFRAMEWORKPREFIX")
+        let python_framework_prefix = get_key!(sysconfigdata, "PYTHONFRAMEWORKPREFIX")
+            .ok()
+            .filter(|s| !s.is_empty())
             .map(str::to_string);
         let lib_dir = get_key!(sysconfigdata, "LIBDIR").ok().map(str::to_string);
         let gil_disabled = match sysconfigdata.get_value("Py_GIL_DISABLED") {
@@ -2087,7 +2090,7 @@ mod tests {
             version: MINIMUM_SUPPORTED_VERSION,
             suppress_build_script_link_lines: true,
             extra_build_script_lines: vec!["cargo:test1".to_string(), "cargo:test2".to_string()],
-            python_framework_prefix: None,
+            python_framework_prefix: Some("python_framework_prefix".into()),
         };
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
@@ -2309,6 +2312,7 @@ mod tests {
         // PYTHONFRAMEWORK should override Py_ENABLE_SHARED
         sysconfigdata.insert("Py_ENABLE_SHARED", "0");
         sysconfigdata.insert("PYTHONFRAMEWORK", "Python");
+        sysconfigdata.insert("PYTHONFRAMEWORKPREFIX", "/Library/Frameworks");
         sysconfigdata.insert("LIBDIR", "/usr/lib");
         sysconfigdata.insert("LDVERSION", "3.7m");
         sysconfigdata.insert("SIZEOF_VOID_P", "8");
@@ -2327,7 +2331,7 @@ mod tests {
                 version: PythonVersion::PY37,
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
-                python_framework_prefix: None,
+                python_framework_prefix: Some("/Library/Frameworks".into()),
             }
         );
 
@@ -2337,6 +2341,7 @@ mod tests {
         // An empty PYTHONFRAMEWORK means it is not a framework
         sysconfigdata.insert("Py_ENABLE_SHARED", "0");
         sysconfigdata.insert("PYTHONFRAMEWORK", "");
+        sysconfigdata.insert("PYTHONFRAMEWORKPREFIX", "");
         sysconfigdata.insert("LIBDIR", "/usr/lib");
         sysconfigdata.insert("LDVERSION", "3.7m");
         sysconfigdata.insert("SIZEOF_VOID_P", "8");
