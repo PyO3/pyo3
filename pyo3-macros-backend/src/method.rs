@@ -9,7 +9,7 @@ use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::pyversions::is_abi3_before;
-use crate::utils::{expr_to_python, Ctx, StaticIdent};
+use crate::utils::{expr_to_python, Ctx};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     params::{impl_arg_params, Holders},
@@ -414,7 +414,7 @@ impl SelfType {
 }
 
 /// Determines which CPython calling convention a given FnSpec uses.
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub enum CallingConvention {
     Noargs,   // METH_NOARGS
     Varargs,  // METH_VARARGS | METH_KEYWORDS
@@ -658,48 +658,9 @@ impl<'a> FnSpec<'a> {
         &self,
         ident: &proc_macro2::Ident,
         cls: Option<&syn::Type>,
-        calling_convention: CallingConvention,
+        convention: CallingConvention,
         ctx: &Ctx,
     ) -> Result<TokenStream> {
-        let Ctx { pyo3_path, .. } = ctx;
-
-        let MethodBody {
-            arg_idents,
-            arg_types,
-            body,
-            ..
-        } = self.generate_method_body(cls, calling_convention, ctx)?;
-
-        let (inner_args, inner_arg_types) =
-            if matches!(calling_convention, CallingConvention::Noargs) {
-                // special case for noargs: the closure only takes py and _slf, the external wrapper
-                // gets an _arg pointer that the trampoline handles
-                (
-                    arg_idents.split_last().unwrap().1,
-                    arg_types.split_last().unwrap().1,
-                )
-            } else {
-                (arg_idents.as_slice(), arg_types.as_slice())
-            };
-
-        Ok(quote! {
-            #[allow(non_snake_case)]
-            unsafe fn #ident(
-                py: #pyo3_path::Python<'_>,
-                #(#inner_args: #inner_arg_types),*
-            ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
-                #body
-            }
-        })
-    }
-
-    /// Generates the components of the wrapper function.
-    fn generate_method_body(
-        &self,
-        cls: Option<&syn::Type>,
-        calling_convention: CallingConvention,
-        ctx: &Ctx,
-    ) -> Result<MethodBody> {
         let Ctx {
             pyo3_path,
             output_span,
@@ -818,12 +779,11 @@ impl<'a> FnSpec<'a> {
             quote!(#func_name)
         };
 
-        let mut holders = Holders::new();
         let warnings = self.warnings.build_py_warning(ctx);
 
-        let (arg_convert, call, arg_idents, arg_types, trampoline) = match calling_convention {
+        Ok(match convention {
             CallingConvention::Noargs => {
-                let arg_convert = TokenStream::new();
+                let mut holders = Holders::new();
                 let args = self
                     .signature
                     .arguments
@@ -835,67 +795,65 @@ impl<'a> FnSpec<'a> {
                     })
                     .collect();
                 let call = rust_call(args, &mut holders);
-                let arg_idents = vec![
-                    syn::Ident::new("_slf", Span::call_site()),
-                    syn::Ident::new("_arg", Span::call_site()),
-                ];
-                let arg_types = vec![
-                    quote! { *mut #pyo3_path::ffi::PyObject },
-                    quote! { *mut #pyo3_path::ffi::PyObject },
-                ];
-                let trampoline = StaticIdent::new("noargs");
-                (arg_convert, call, arg_idents, arg_types, trampoline)
+                let init_holders = holders.init_holders(ctx);
+                quote! {
+                    unsafe fn #ident<'py>(
+                        py: #pyo3_path::Python<'py>,
+                        _slf: *mut #pyo3_path::ffi::PyObject,
+                    ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                        let function = #rust_name; // Shadow the function name to avoid #3017
+                        #init_holders
+                        #warnings
+                        let result = #call;
+                        result
+                    }
+                }
             }
             CallingConvention::Fastcall => {
+                let mut holders = Holders::new();
                 let (arg_convert, args) = impl_arg_params(self, cls, true, &mut holders, ctx);
                 let call = rust_call(args, &mut holders);
-                let arg_idents = vec![
-                    syn::Ident::new("_slf", Span::call_site()),
-                    syn::Ident::new("_args", Span::call_site()),
-                    syn::Ident::new("_nargs", Span::call_site()),
-                    syn::Ident::new("_kwnames", Span::call_site()),
-                ];
-                let arg_types = vec![
-                    quote! { *mut #pyo3_path::ffi::PyObject },
-                    quote! { *const *mut #pyo3_path::ffi::PyObject },
-                    quote! { #pyo3_path::ffi::Py_ssize_t },
-                    quote! { *mut #pyo3_path::ffi::PyObject },
-                ];
-                let trampoline = StaticIdent::new("fastcall_with_keywords");
-                (arg_convert, call, arg_idents, arg_types, trampoline)
+                let init_holders = holders.init_holders(ctx);
+
+                quote! {
+                    unsafe fn #ident<'py>(
+                        py: #pyo3_path::Python<'py>,
+                        _slf: *mut #pyo3_path::ffi::PyObject,
+                        _args: *const *mut #pyo3_path::ffi::PyObject,
+                        _nargs: #pyo3_path::ffi::Py_ssize_t,
+                        _kwnames: *mut #pyo3_path::ffi::PyObject
+                    ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                        let function = #rust_name; // Shadow the function name to avoid #3017
+                        #arg_convert
+                        #init_holders
+                        #warnings
+                        let result = #call;
+                        result
+                    }
+                }
             }
             CallingConvention::Varargs => {
+                let mut holders = Holders::new();
                 let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx);
                 let call = rust_call(args, &mut holders);
-                let arg_idents = vec![
-                    syn::Ident::new("_slf", Span::call_site()),
-                    syn::Ident::new("_args", Span::call_site()),
-                    syn::Ident::new("_kwargs", Span::call_site()),
-                ];
-                let arg_types = vec![
-                    quote! { *mut #pyo3_path::ffi::PyObject },
-                    quote! { *mut #pyo3_path::ffi::PyObject },
-                    quote! { *mut #pyo3_path::ffi::PyObject },
-                ];
-                let trampoline = StaticIdent::new("cfunction_with_keywords");
-                (arg_convert, call, arg_idents, arg_types, trampoline)
-            }
-        };
-        let init_holders = holders.init_holders(ctx);
-        let body = quote! {
-            let function = #rust_name; // Shadow the function name to avoid #3017
-            #arg_convert
-            #init_holders
-            #warnings
-            let result = #call;
-            result
-        };
+                let init_holders = holders.init_holders(ctx);
 
-        Ok(MethodBody {
-            arg_idents,
-            arg_types,
-            trampoline,
-            body,
+                quote! {
+                    unsafe fn #ident<'py>(
+                        py: #pyo3_path::Python<'py>,
+                        _slf: *mut #pyo3_path::ffi::PyObject,
+                        _args: *mut #pyo3_path::ffi::PyObject,
+                        _kwargs: *mut #pyo3_path::ffi::PyObject
+                    ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
+                        let function = #rust_name; // Shadow the function name to avoid #3017
+                        #arg_convert
+                        #init_holders
+                        #warnings
+                        let result = #call;
+                        result
+                    }
+                }
+            }
         })
     }
 
@@ -905,7 +863,7 @@ impl<'a> FnSpec<'a> {
         &self,
         wrapper: impl ToTokens,
         doc: &PythonDoc,
-        calling_convention: CallingConvention,
+        convention: CallingConvention,
         ctx: &Ctx,
     ) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
@@ -915,7 +873,7 @@ impl<'a> FnSpec<'a> {
             FnType::FnStatic => quote! { .flags(#pyo3_path::ffi::METH_STATIC) },
             _ => quote! {},
         };
-        let trampoline = match calling_convention {
+        let trampoline = match convention {
             CallingConvention::Noargs => Ident::new("noargs", Span::call_site()),
             CallingConvention::Fastcall => {
                 Ident::new("fastcall_cfunction_with_keywords", Span::call_site())
@@ -957,14 +915,6 @@ impl<'a> FnSpec<'a> {
             Some(TextSignatureAttributeValue::Disabled(_)) => None,
         }
     }
-}
-
-/// The reusable components of a method body.
-pub struct MethodBody {
-    pub arg_idents: Vec<Ident>,
-    pub arg_types: Vec<TokenStream>,
-    pub trampoline: StaticIdent,
-    pub body: TokenStream,
 }
 
 enum MethodTypeAttribute {

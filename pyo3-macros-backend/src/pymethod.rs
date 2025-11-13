@@ -4,7 +4,7 @@ use std::ffi::CString;
 use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::unique_element_id;
-use crate::method::{CallingConvention, ExtractErrorMode, MethodBody, PyArg};
+use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
 use crate::params::{impl_arg_params, impl_regular_arg_param, Holders};
 use crate::pyfunction::WarningFactory;
 use crate::utils::PythonDoc;
@@ -1533,6 +1533,14 @@ impl SlotFragmentDef {
             }
         })
     }
+}
+
+/// The reusable components of a method body.
+pub struct MethodBody {
+    pub arg_idents: Vec<Ident>,
+    pub arg_types: Vec<TokenStream>,
+    pub trampoline: StaticIdent,
+    pub body: TokenStream,
 }
 
 const __GETATTRIBUTE__: SlotFragmentDef =
