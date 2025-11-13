@@ -410,10 +410,18 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
         }
         FnType::FnClass(_) => {
             first_argument = Some("cls");
-            decorators.push("classmethod".into());
+            if spec.python_name != "__new__" {
+                // special case __new__ - does not get the decorator
+                decorators.push("classmethod".into());
+            }
         }
         FnType::FnStatic => {
-            decorators.push("staticmethod".into());
+            if spec.python_name != "__new__" {
+                decorators.push("staticmethod".into());
+            } else {
+                // special case __new__ - does not get the decorator and gets first argument
+                first_argument = Some("cls");
+            }
         }
         FnType::FnModule(_) => (), // TODO: not sure this can happen
         FnType::ClassAttribute => {
