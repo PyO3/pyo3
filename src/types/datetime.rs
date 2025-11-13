@@ -203,6 +203,7 @@ pyobject_native_type!(
     |py| expect_datetime_api(py).DateType,
     "datetime",
     "date",
+    #module=Some("datetime"),
     #checkfunction=PyDate_Check
 );
 #[cfg(not(Py_LIMITED_API))]
@@ -216,7 +217,8 @@ pyobject_native_type_core!(
         TYPE.import(py, "datetime", "date").unwrap().as_type_ptr()
     },
     "datetime",
-    "date"
+    "date",
+    #module=Some("datetime")
 );
 
 impl PyDate {
@@ -291,6 +293,7 @@ pyobject_native_type!(
     |py| expect_datetime_api(py).DateTimeType,
     "datetime",
     "datetime",
+    #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
 );
 #[cfg(not(Py_LIMITED_API))]
@@ -306,7 +309,8 @@ pyobject_native_type_core!(
             .as_type_ptr()
     },
     "datetime",
-    "datetime"
+    "datetime",
+    #module=Some("datetime")
 );
 
 impl PyDateTime {
@@ -527,6 +531,7 @@ pyobject_native_type!(
     |py| expect_datetime_api(py).TimeType,
     "datetime",
     "time",
+    #module=Some("datetime"),
     #checkfunction=PyTime_Check
 );
 #[cfg(not(Py_LIMITED_API))]
@@ -540,7 +545,8 @@ pyobject_native_type_core!(
         TYPE.import(py, "datetime", "time").unwrap().as_type_ptr()
     },
     "datetime",
-    "time"
+    "time",
+    #module=Some("datetime")
 );
 
 impl PyTime {
@@ -697,7 +703,9 @@ pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
     |py| expect_datetime_api(py).TZInfoType,
-    "datetime", "tzinfo",
+    "datetime",
+    "tzinfo",
+    #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
 );
 #[cfg(not(Py_LIMITED_API))]
@@ -711,7 +719,8 @@ pyobject_native_type_core!(
         TYPE.import(py, "datetime", "tzinfo").unwrap().as_type_ptr()
     },
     "datetime",
-    "tzinfo"
+    "tzinfo",
+    #module=Some("datetime")
 );
 
 impl PyTzInfo {
@@ -807,7 +816,9 @@ pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,
     |py| expect_datetime_api(py).DeltaType,
-    "datetime", "timedelta",
+    "datetime",
+    "timedelta",
+    #module=Some("datetime"),
     #checkfunction=PyDelta_Check
 );
 #[cfg(not(Py_LIMITED_API))]
@@ -823,7 +834,8 @@ pyobject_native_type_core!(
             .as_type_ptr()
     },
     "datetime",
-    "timedelta"
+    "timedelta",
+    #module=Some("datetime")
 );
 
 impl PyDelta {

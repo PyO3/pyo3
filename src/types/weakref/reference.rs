@@ -31,6 +31,7 @@ pyobject_native_type!(
     pyobject_native_static_type_object!(ffi::_PyWeakref_RefType),
     "weakref",
     "ReferenceType",
+    #module=Some("weakref"),
     #checkfunction=ffi::PyWeakref_CheckRefExact
 );
 
@@ -46,6 +47,7 @@ pyobject_native_type_core!(
     },
     "weakref",
     "ReferenceType",
+    #module=Some("weakref"),
     #checkfunction=ffi::PyWeakref_CheckRef
 );
 

@@ -72,10 +72,7 @@ macro_rules! import_exception {
         ///
         /// [`pyo3::import_exception!`]: https://docs.rs/pyo3/latest/pyo3/macro.import_exception.html "import_exception in pyo3"
         #[repr(transparent)]
-        #[allow(
-            non_camel_case_types,
-            reason = "matches imported exception name, e.g. `socket.herror`"
-        )]
+        #[allow(non_camel_case_types, reason = "matches imported exception name, e.g. `socket.herror`")]
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
@@ -84,17 +81,15 @@ macro_rules! import_exception {
             $name,
             $name::type_object_raw,
             stringify!($name),
-            stringify!($module)
+            stringify!($module),
+            #module=::std::option::Option::Some(stringify!($module))
         );
 
         impl $name {
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
                 use $crate::types::PyTypeMethods;
                 static TYPE_OBJECT: $crate::impl_::exceptions::ImportedExceptionTypeObject =
-                    $crate::impl_::exceptions::ImportedExceptionTypeObject::new(
-                        stringify!($module),
-                        stringify!($name),
-                    );
+                    $crate::impl_::exceptions::ImportedExceptionTypeObject::new(stringify!($module), stringify!($name));
                 TYPE_OBJECT.get(py).as_type_ptr()
             }
         }
@@ -206,19 +201,15 @@ macro_rules! create_exception_type_object {
         $crate::create_exception_type_object!($module, $name, $base, ::std::option::Option::None);
     };
     ($module: expr, $name: ident, $base: ty, Some($doc: expr)) => {
-        $crate::create_exception_type_object!(
-            $module,
-            $name,
-            $base,
-            ::std::option::Option::Some($crate::ffi::c_str!($doc))
-        );
+        $crate::create_exception_type_object!($module, $name, $base, ::std::option::Option::Some($crate::ffi::c_str!($doc)));
     };
     ($module: expr, $name: ident, $base: ty, $doc: expr) => {
         $crate::pyobject_native_type_core!(
             $name,
             $name::type_object_raw,
             stringify!($name),
-            stringify!($module)
+            stringify!($module),
+            #module=::std::option::Option::Some(stringify!($module))
         );
 
         impl $name {
@@ -228,21 +219,15 @@ macro_rules! create_exception_type_object {
                     PyOnceLock::new();
 
                 TYPE_OBJECT
-                    .get_or_init(py, || {
+                    .get_or_init(py, ||
                         $crate::PyErr::new_type(
                             py,
-                            $crate::ffi::c_str!(concat!(
-                                stringify!($module),
-                                ".",
-                                stringify!($name)
-                            )),
+                            $crate::ffi::c_str!(concat!(stringify!($module), ".", stringify!($name))),
                             $doc,
                             ::std::option::Option::Some(&py.get_type::<$base>()),
                             ::std::option::Option::None,
-                        )
-                        .expect("Failed to initialize new exception type.")
-                    })
-                    .as_ptr() as *mut $crate::ffi::PyTypeObject
+                        ).expect("Failed to initialize new exception type.")
+                ).as_ptr() as *mut $crate::ffi::PyTypeObject
             }
         }
     };
