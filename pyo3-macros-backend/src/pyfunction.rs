@@ -15,6 +15,8 @@ use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::cmp::PartialEq;
 use std::ffi::CString;
+#[cfg(feature = "experimental-inspect")]
+use std::iter::empty;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::LitCStr;
@@ -393,7 +395,7 @@ pub fn impl_wrap_pyfunction(
         &signature,
         None,
         func.sig.output.clone(),
-        [] as [String; 0],
+        empty(),
         None,
     );
     #[cfg(not(feature = "experimental-inspect"))]

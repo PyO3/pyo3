@@ -16,7 +16,7 @@ use crate::attributes::{
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{
-    class_introspection_code, function_introspection_code, introspection_id_const,
+    class_introspection_code, function_introspection_code, introspection_id_const, PythonIdentifier,
 };
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
@@ -1897,7 +1897,7 @@ fn descriptors_to_items(
                     &FunctionSignature::from_arguments(vec![]),
                     Some("self"),
                     parse_quote!(-> #return_type),
-                    vec!["property".into()],
+                    vec![PythonIdentifier::builtins("property")],
                     Some(&parse_quote!(#cls)),
                 ));
             }
@@ -1936,7 +1936,7 @@ fn descriptors_to_items(
                     })]),
                     Some("self"),
                     syn::ReturnType::Default,
-                    vec![format!("{name}.setter")],
+                    vec![PythonIdentifier::local(format!("{name}.setter"))],
                     Some(&parse_quote!(#cls)),
                 ));
             }

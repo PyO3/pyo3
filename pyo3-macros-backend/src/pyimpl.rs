@@ -2,7 +2,9 @@ use std::collections::HashSet;
 
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
-use crate::introspection::{attribute_introspection_code, function_introspection_code};
+use crate::introspection::{
+    attribute_introspection_code, function_introspection_code, PythonIdentifier,
+};
 #[cfg(feature = "experimental-inspect")]
 use crate::method::{FnSpec, FnType};
 #[cfg(feature = "experimental-inspect")]
@@ -399,11 +401,11 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
     match &spec.tp {
         FnType::Getter(_) => {
             first_argument = Some("self");
-            decorators.push("property".into());
+            decorators.push(PythonIdentifier::builtins("property"));
         }
         FnType::Setter(_) => {
             first_argument = Some("self");
-            decorators.push(format!("{name}.setter"));
+            decorators.push(PythonIdentifier::local(format!("{name}.setter")));
         }
         FnType::Fn(_) => {
             first_argument = Some("self");
@@ -412,12 +414,12 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
             first_argument = Some("cls");
             if spec.python_name != "__new__" {
                 // special case __new__ - does not get the decorator
-                decorators.push("classmethod".into());
+                decorators.push(PythonIdentifier::builtins("classmethod"));
             }
         }
         FnType::FnStatic => {
             if spec.python_name != "__new__" {
-                decorators.push("staticmethod".into());
+                decorators.push(PythonIdentifier::builtins("staticmethod"));
             } else {
                 // special case __new__ - does not get the decorator and gets first argument
                 first_argument = Some("cls");
@@ -427,8 +429,8 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
         FnType::ClassAttribute => {
             first_argument = Some("cls");
             // TODO: this combination only works with Python 3.9-3.11 https://docs.python.org/3.11/library/functions.html#classmethod
-            decorators.push("classmethod".into());
-            decorators.push("property".into());
+            decorators.push(PythonIdentifier::builtins("classmethod"));
+            decorators.push(PythonIdentifier::builtins("property"));
         }
     }
     let return_type = if spec.python_name == "__new__" {
