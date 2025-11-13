@@ -906,16 +906,13 @@ impl PropertyType<'_> {
 pub const __NEW__: SlotDef = SlotDef::new("Py_tp_new", "newfunc");
 pub const __STR__: SlotDef = SlotDef::new("Py_tp_str", "reprfunc");
 pub const __REPR__: SlotDef = SlotDef::new("Py_tp_repr", "reprfunc");
-pub const __HASH__: SlotDef = SlotDef::new("Py_tp_hash", "hashfunc")
-    .ret_ty(Ty::PyHashT)
-    .return_conversion(TokenGenerator(
+pub const __HASH__: SlotDef =
+    SlotDef::new("Py_tp_hash", "hashfunc").return_conversion(TokenGenerator(
         |Ctx { pyo3_path, .. }: &Ctx| quote! { #pyo3_path::impl_::callback::HashCallbackOutput },
     ));
 pub const __RICHCMP__: SlotDef = SlotDef::new("Py_tp_richcompare", "richcmpfunc")
-    .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .arguments(&[Ty::Object, Ty::CompareOp]);
-const __GET__: SlotDef = SlotDef::new("Py_tp_descr_get", "descrgetfunc")
-    .arguments(&[Ty::MaybeNullObject, Ty::MaybeNullObject]);
+    .extract_error_mode(ExtractErrorMode::NotImplemented);
+const __GET__: SlotDef = SlotDef::new("Py_tp_descr_get", "descrgetfunc");
 const __ITER__: SlotDef = SlotDef::new("Py_tp_iter", "getiterfunc");
 const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc")
     .return_specialized_conversion(
@@ -930,18 +927,13 @@ const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_speci
     ),
     TokenGenerator(|_| quote! { async_iter_tag }),
 );
-pub const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc").ret_ty(Ty::PySsizeT);
-const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc")
-    .arguments(&[Ty::Object])
-    .ret_ty(Ty::Int);
-const __CONCAT__: SlotDef = SlotDef::new("Py_sq_concat", "binaryfunc").arguments(&[Ty::Object]);
-const __REPEAT__: SlotDef = SlotDef::new("Py_sq_repeat", "ssizeargfunc").arguments(&[Ty::PySsizeT]);
-const __INPLACE_CONCAT__: SlotDef =
-    SlotDef::new("Py_sq_concat", "binaryfunc").arguments(&[Ty::Object]);
-const __INPLACE_REPEAT__: SlotDef =
-    SlotDef::new("Py_sq_repeat", "ssizeargfunc").arguments(&[Ty::PySsizeT]);
-pub const __GETITEM__: SlotDef =
-    SlotDef::new("Py_mp_subscript", "binaryfunc").arguments(&[Ty::Object]);
+pub const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc");
+const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc");
+const __CONCAT__: SlotDef = SlotDef::new("Py_sq_concat", "binaryfunc");
+const __REPEAT__: SlotDef = SlotDef::new("Py_sq_repeat", "ssizeargfunc");
+const __INPLACE_CONCAT__: SlotDef = SlotDef::new("Py_sq_concat", "binaryfunc");
+const __INPLACE_REPEAT__: SlotDef = SlotDef::new("Py_sq_repeat", "ssizeargfunc");
+pub const __GETITEM__: SlotDef = SlotDef::new("Py_mp_subscript", "binaryfunc");
 
 const __POS__: SlotDef = SlotDef::new("Py_nb_positive", "unaryfunc");
 const __NEG__: SlotDef = SlotDef::new("Py_nb_negative", "unaryfunc");
@@ -950,71 +942,29 @@ const __INVERT__: SlotDef = SlotDef::new("Py_nb_invert", "unaryfunc");
 const __INDEX__: SlotDef = SlotDef::new("Py_nb_index", "unaryfunc");
 pub const __INT__: SlotDef = SlotDef::new("Py_nb_int", "unaryfunc");
 const __FLOAT__: SlotDef = SlotDef::new("Py_nb_float", "unaryfunc");
-const __BOOL__: SlotDef = SlotDef::new("Py_nb_bool", "inquiry").ret_ty(Ty::Int);
+const __BOOL__: SlotDef = SlotDef::new("Py_nb_bool", "inquiry");
 
-const __IADD__: SlotDef = SlotDef::new("Py_nb_inplace_add", "binaryfunc")
-    .arguments(&[Ty::Object])
-    .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .return_self();
-const __ISUB__: SlotDef = SlotDef::new("Py_nb_inplace_subtract", "binaryfunc")
-    .arguments(&[Ty::Object])
-    .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .return_self();
-const __IMUL__: SlotDef = SlotDef::new("Py_nb_inplace_multiply", "binaryfunc")
-    .arguments(&[Ty::Object])
-    .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .return_self();
-const __IMATMUL__: SlotDef = SlotDef::new("Py_nb_inplace_matrix_multiply", "binaryfunc")
-    .arguments(&[Ty::Object])
-    .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .return_self();
-const __ITRUEDIV__: SlotDef = SlotDef::new("Py_nb_inplace_true_divide", "binaryfunc")
-    .arguments(&[Ty::Object])
-    .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .return_self();
-const __IFLOORDIV__: SlotDef = SlotDef::new("Py_nb_inplace_floor_divide", "binaryfunc")
-    .arguments(&[Ty::Object])
-    .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .return_self();
-const __IMOD__: SlotDef = SlotDef::new("Py_nb_inplace_remainder", "binaryfunc")
-    .arguments(&[Ty::Object])
-    .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .return_self();
+const __IADD__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_add");
+const __ISUB__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_subtract");
+const __IMUL__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_multiply");
+const __IMATMUL__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_matrix_multiply");
+const __ITRUEDIV__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_true_divide");
+const __IFLOORDIV__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_floor_divide");
+const __IMOD__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_remainder");
+const __ILSHIFT__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_lshift");
+const __IRSHIFT__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_rshift");
+const __IAND__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_and");
+const __IXOR__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_xor");
+const __IOR__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_or");
+
 const __IPOW__: SlotDef = SlotDef::new("Py_nb_inplace_power", "ipowfunc")
-    .arguments(&[Ty::Object, Ty::IPowModulo])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
-const __ILSHIFT__: SlotDef = SlotDef::new("Py_nb_inplace_lshift", "binaryfunc")
-    .arguments(&[Ty::Object])
-    .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .return_self();
-const __IRSHIFT__: SlotDef = SlotDef::new("Py_nb_inplace_rshift", "binaryfunc")
-    .arguments(&[Ty::Object])
-    .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .return_self();
-const __IAND__: SlotDef = SlotDef::new("Py_nb_inplace_and", "binaryfunc")
-    .arguments(&[Ty::Object])
-    .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .return_self();
-const __IXOR__: SlotDef = SlotDef::new("Py_nb_inplace_xor", "binaryfunc")
-    .arguments(&[Ty::Object])
-    .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .return_self();
-const __IOR__: SlotDef = SlotDef::new("Py_nb_inplace_or", "binaryfunc")
-    .arguments(&[Ty::Object])
-    .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .return_self();
-const __GETBUFFER__: SlotDef = SlotDef::new("Py_bf_getbuffer", "getbufferproc")
-    .arguments(&[Ty::PyBuffer, Ty::Int])
-    .ret_ty(Ty::Int)
-    .require_unsafe();
-const __RELEASEBUFFER__: SlotDef = SlotDef::new("Py_bf_releasebuffer", "releasebufferproc")
-    .arguments(&[Ty::PyBuffer])
-    .ret_ty(Ty::Void)
-    .require_unsafe();
-const __CLEAR__: SlotDef = SlotDef::new("Py_tp_clear", "inquiry")
-    .arguments(&[])
-    .ret_ty(Ty::Int);
+
+const __GETBUFFER__: SlotDef = SlotDef::new("Py_bf_getbuffer", "getbufferproc").require_unsafe();
+const __RELEASEBUFFER__: SlotDef =
+    SlotDef::new("Py_bf_releasebuffer", "releasebufferproc").require_unsafe();
+const __CLEAR__: SlotDef = SlotDef::new("Py_tp_clear", "inquiry");
 
 #[derive(Clone, Copy)]
 enum Ty {
@@ -1201,6 +1151,7 @@ impl ReturnMode {
 
 pub struct SlotDef {
     slot: StaticIdent,
+    func_ty: StaticIdent,
     calling_convention: SlotCallingConvention,
     ret_ty: Ty,
     extract_error_mode: ExtractErrorMode,
@@ -1209,50 +1160,75 @@ pub struct SlotDef {
 }
 
 enum SlotCallingConvention {
-    Fixed {
-        func_ty: StaticIdent,
-        arguments: &'static [Ty],
-    },
+    /// Specific set of arguments for the slot function
+    FixedArguments(&'static [Ty]),
+    /// Arbitrary arguments for `__new__` from the signature (extracted from args / kwargs)
     TpNew,
 }
 
-const NO_ARGUMENTS: &[Ty] = &[];
-
 impl SlotDef {
     const fn new(slot: &'static str, func_ty: &'static str) -> Self {
-        let calling_convention = if matches!(func_ty.as_bytes(), b"newfunc") {
-            SlotCallingConvention::TpNew
-        } else {
-            SlotCallingConvention::Fixed {
-                func_ty: StaticIdent::new(func_ty),
-                arguments: NO_ARGUMENTS,
-            }
+        // The FFI function pointer type determines the arguments and return type
+        let (calling_convention, ret_ty) = match func_ty.as_bytes() {
+            b"newfunc" => (SlotCallingConvention::TpNew, Ty::Object),
+            b"reprfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::Object),
+            b"hashfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::PyHashT),
+            b"richcmpfunc" => (
+                SlotCallingConvention::FixedArguments(&[Ty::Object, Ty::CompareOp]),
+                Ty::Object,
+            ),
+            b"descrgetfunc" => (
+                SlotCallingConvention::FixedArguments(&[Ty::MaybeNullObject, Ty::MaybeNullObject]),
+                Ty::Object,
+            ),
+            b"getiterfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::Object),
+            b"iternextfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::Object),
+            b"unaryfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::Object),
+            b"lenfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::PySsizeT),
+            b"objobjproc" => (
+                SlotCallingConvention::FixedArguments(&[Ty::Object]),
+                Ty::Int,
+            ),
+            b"binaryfunc" => (
+                SlotCallingConvention::FixedArguments(&[Ty::Object]),
+                Ty::Object,
+            ),
+            b"inquiry" => (SlotCallingConvention::FixedArguments(&[]), Ty::Int),
+            b"ssizeargfunc" => (
+                SlotCallingConvention::FixedArguments(&[Ty::PySsizeT]),
+                Ty::Object,
+            ),
+            b"getbufferproc" => (
+                SlotCallingConvention::FixedArguments(&[Ty::PyBuffer, Ty::Int]),
+                Ty::Int,
+            ),
+            b"releasebufferproc" => (
+                SlotCallingConvention::FixedArguments(&[Ty::PyBuffer]),
+                Ty::Void,
+            ),
+            b"ipowfunc" => (
+                SlotCallingConvention::FixedArguments(&[Ty::Object, Ty::IPowModulo]),
+                Ty::Object,
+            ),
+            _ => panic!("don't know calling convention for func_ty"),
         };
+
         SlotDef {
             slot: StaticIdent::new(slot),
+            func_ty: StaticIdent::new(func_ty),
             calling_convention,
-            ret_ty: Ty::Object,
+            ret_ty,
             extract_error_mode: ExtractErrorMode::Raise,
             return_mode: None,
             require_unsafe: false,
         }
     }
 
-    const fn arguments(mut self, arguments: &'static [Ty]) -> Self {
-        match self.calling_convention {
-            SlotCallingConvention::TpNew => {
-                panic!("TpNew calling convention does not support custom arguments");
-            }
-            SlotCallingConvention::Fixed { func_ty, .. } => {
-                self.calling_convention = SlotCallingConvention::Fixed { func_ty, arguments };
-            }
-        }
-        self
-    }
-
-    const fn ret_ty(mut self, ret_ty: Ty) -> Self {
-        self.ret_ty = ret_ty;
-        self
+    /// Specialized constructor for binary inplace operators
+    const fn binary_inplace_operator(slot: &'static str) -> Self {
+        SlotDef::new(slot, "binaryfunc")
+            .extract_error_mode(ExtractErrorMode::NotImplemented)
+            .return_self()
     }
 
     const fn return_conversion(mut self, return_conversion: TokenGenerator) -> Self {
@@ -1294,6 +1270,7 @@ impl SlotDef {
         let Ctx { pyo3_path, .. } = ctx;
         let SlotDef {
             slot,
+            func_ty,
             calling_convention,
             extract_error_mode,
             ret_ty,
@@ -1312,7 +1289,6 @@ impl SlotDef {
         let MethodBody {
             arg_idents,
             arg_types,
-            trampoline: func_ty,
             body,
         } = generate_method_body(
             cls,
@@ -1369,7 +1345,7 @@ fn generate_method_body(
     let rust_name = spec.name;
     let warnings = spec.warnings.build_py_warning(ctx);
 
-    let (arg_idents, arg_types, trampoline, body) = match calling_convention {
+    let (arg_idents, arg_types, body) = match calling_convention {
         SlotCallingConvention::TpNew => {
             let arg_idents = vec![
                 format_ident!("_slf"),
@@ -1406,9 +1382,9 @@ fn generate_method_body(
                 let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
                 #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)
             };
-            (arg_idents, arg_types, StaticIdent::new("newfunc"), body)
+            (arg_idents, arg_types, body)
         }
-        SlotCallingConvention::Fixed { func_ty, arguments } => {
+        SlotCallingConvention::FixedArguments(arguments) => {
             let arg_idents: Vec<_> = std::iter::once(format_ident!("_slf"))
                 .chain((0..arguments.len()).map(|i| format_ident!("arg{}", i)))
                 .collect();
@@ -1430,15 +1406,13 @@ fn generate_method_body(
                 #warnings
                 #result
             };
-            // TODO: maybe use `StaticIdent` in `MethodBody` to avoid the formatting?
-            (arg_idents, arg_types, *func_ty, body)
+            (arg_idents, arg_types, body)
         }
     };
 
     Ok(MethodBody {
         arg_idents,
         arg_types,
-        trampoline,
         body,
     })
 }
@@ -1457,6 +1431,16 @@ impl SlotFragmentDef {
             arguments,
             extract_error_mode: ExtractErrorMode::Raise,
             ret_ty: Ty::Void,
+        }
+    }
+
+    /// Specialized constructor for binary operators (which are a common pattern)
+    const fn binary_operator(fragment: &'static str) -> Self {
+        SlotFragmentDef {
+            fragment,
+            arguments: &[Ty::Object],
+            extract_error_mode: ExtractErrorMode::NotImplemented,
+            ret_ty: Ty::Object,
         }
     }
 
@@ -1491,16 +1475,11 @@ impl SlotFragmentDef {
         let MethodBody {
             arg_idents,
             arg_types,
-            trampoline: _,
             body,
         } = generate_method_body(
             cls,
             spec,
-            &SlotCallingConvention::Fixed {
-                // the func_ty is not used here
-                func_ty: StaticIdent::new(""),
-                arguments,
-            },
+            &SlotCallingConvention::FixedArguments(arguments),
             *extract_error_mode,
             &mut holders,
             None,
@@ -1539,7 +1518,6 @@ impl SlotFragmentDef {
 pub struct MethodBody {
     pub arg_idents: Vec<Ident>,
     pub arg_types: Vec<TokenStream>,
-    pub trampoline: StaticIdent,
     pub body: TokenStream,
 }
 
@@ -1556,40 +1534,32 @@ const __SETITEM__: SlotFragmentDef =
     SlotFragmentDef::new("__setitem__", &[Ty::Object, Ty::NonNullObject]);
 const __DELITEM__: SlotFragmentDef = SlotFragmentDef::new("__delitem__", &[Ty::Object]);
 
-macro_rules! binary_num_slot_fragment_def {
-    ($ident:ident, $name:literal) => {
-        const $ident: SlotFragmentDef = SlotFragmentDef::new($name, &[Ty::Object])
-            .extract_error_mode(ExtractErrorMode::NotImplemented)
-            .ret_ty(Ty::Object);
-    };
-}
-
-binary_num_slot_fragment_def!(__ADD__, "__add__");
-binary_num_slot_fragment_def!(__RADD__, "__radd__");
-binary_num_slot_fragment_def!(__SUB__, "__sub__");
-binary_num_slot_fragment_def!(__RSUB__, "__rsub__");
-binary_num_slot_fragment_def!(__MUL__, "__mul__");
-binary_num_slot_fragment_def!(__RMUL__, "__rmul__");
-binary_num_slot_fragment_def!(__MATMUL__, "__matmul__");
-binary_num_slot_fragment_def!(__RMATMUL__, "__rmatmul__");
-binary_num_slot_fragment_def!(__FLOORDIV__, "__floordiv__");
-binary_num_slot_fragment_def!(__RFLOORDIV__, "__rfloordiv__");
-binary_num_slot_fragment_def!(__TRUEDIV__, "__truediv__");
-binary_num_slot_fragment_def!(__RTRUEDIV__, "__rtruediv__");
-binary_num_slot_fragment_def!(__DIVMOD__, "__divmod__");
-binary_num_slot_fragment_def!(__RDIVMOD__, "__rdivmod__");
-binary_num_slot_fragment_def!(__MOD__, "__mod__");
-binary_num_slot_fragment_def!(__RMOD__, "__rmod__");
-binary_num_slot_fragment_def!(__LSHIFT__, "__lshift__");
-binary_num_slot_fragment_def!(__RLSHIFT__, "__rlshift__");
-binary_num_slot_fragment_def!(__RSHIFT__, "__rshift__");
-binary_num_slot_fragment_def!(__RRSHIFT__, "__rrshift__");
-binary_num_slot_fragment_def!(__AND__, "__and__");
-binary_num_slot_fragment_def!(__RAND__, "__rand__");
-binary_num_slot_fragment_def!(__XOR__, "__xor__");
-binary_num_slot_fragment_def!(__RXOR__, "__rxor__");
-binary_num_slot_fragment_def!(__OR__, "__or__");
-binary_num_slot_fragment_def!(__ROR__, "__ror__");
+const __ADD__: SlotFragmentDef = SlotFragmentDef::binary_operator("__add__");
+const __RADD__: SlotFragmentDef = SlotFragmentDef::binary_operator("__radd__");
+const __SUB__: SlotFragmentDef = SlotFragmentDef::binary_operator("__sub__");
+const __RSUB__: SlotFragmentDef = SlotFragmentDef::binary_operator("__rsub__");
+const __MUL__: SlotFragmentDef = SlotFragmentDef::binary_operator("__mul__");
+const __RMUL__: SlotFragmentDef = SlotFragmentDef::binary_operator("__rmul__");
+const __MATMUL__: SlotFragmentDef = SlotFragmentDef::binary_operator("__matmul__");
+const __RMATMUL__: SlotFragmentDef = SlotFragmentDef::binary_operator("__rmatmul__");
+const __FLOORDIV__: SlotFragmentDef = SlotFragmentDef::binary_operator("__floordiv__");
+const __RFLOORDIV__: SlotFragmentDef = SlotFragmentDef::binary_operator("__rfloordiv__");
+const __TRUEDIV__: SlotFragmentDef = SlotFragmentDef::binary_operator("__truediv__");
+const __RTRUEDIV__: SlotFragmentDef = SlotFragmentDef::binary_operator("__rtruediv__");
+const __DIVMOD__: SlotFragmentDef = SlotFragmentDef::binary_operator("__divmod__");
+const __RDIVMOD__: SlotFragmentDef = SlotFragmentDef::binary_operator("__rdivmod__");
+const __MOD__: SlotFragmentDef = SlotFragmentDef::binary_operator("__mod__");
+const __RMOD__: SlotFragmentDef = SlotFragmentDef::binary_operator("__rmod__");
+const __LSHIFT__: SlotFragmentDef = SlotFragmentDef::binary_operator("__lshift__");
+const __RLSHIFT__: SlotFragmentDef = SlotFragmentDef::binary_operator("__rlshift__");
+const __RSHIFT__: SlotFragmentDef = SlotFragmentDef::binary_operator("__rshift__");
+const __RRSHIFT__: SlotFragmentDef = SlotFragmentDef::binary_operator("__rrshift__");
+const __AND__: SlotFragmentDef = SlotFragmentDef::binary_operator("__and__");
+const __RAND__: SlotFragmentDef = SlotFragmentDef::binary_operator("__rand__");
+const __XOR__: SlotFragmentDef = SlotFragmentDef::binary_operator("__xor__");
+const __RXOR__: SlotFragmentDef = SlotFragmentDef::binary_operator("__rxor__");
+const __OR__: SlotFragmentDef = SlotFragmentDef::binary_operator("__or__");
+const __ROR__: SlotFragmentDef = SlotFragmentDef::binary_operator("__ror__");
 
 const __POW__: SlotFragmentDef = SlotFragmentDef::new("__pow__", &[Ty::Object, Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
