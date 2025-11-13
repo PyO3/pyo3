@@ -1499,7 +1499,6 @@ mod tests {
         assert_eq!(def.doc, c"My field doc");
 
         #[cfg(fn_ptr_eq)]
-        #[expect(clippy::incompatible_msrv, reason = "guarded by cfg(fn_ptr_eq)")]
         {
             use crate::impl_::pymethods::Getter;
 
@@ -1521,7 +1520,6 @@ mod tests {
         assert_eq!(def.doc, c"My field doc");
 
         #[cfg(fn_ptr_eq)]
-        #[expect(clippy::incompatible_msrv, reason = "guarded by cfg(fn_ptr_eq)")]
         {
             use crate::impl_::pymethods::Getter;
 
@@ -1579,7 +1577,6 @@ mod tests {
         assert_eq!(def.doc, c"My field doc");
 
         #[cfg(fn_ptr_eq)]
-        #[expect(clippy::incompatible_msrv, reason = "guarded by cfg(fn_ptr_eq)")]
         {
             use crate::impl_::pymethods::Getter;
 
