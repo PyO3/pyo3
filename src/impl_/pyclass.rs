@@ -1581,6 +1581,8 @@ mod tests {
         #[cfg(fn_ptr_eq)]
         #[expect(clippy::incompatible_msrv, reason = "guarded by cfg(fn_ptr_eq)")]
         {
+            use crate::impl_::pymethods::Getter;
+
             assert!(std::ptr::fn_addr_eq(
                 def.meth,
                 pyo3_get_value_into_pyobject_ref::<MyClass, Py<PyAny>, FIELD_OFFSET> as Getter
