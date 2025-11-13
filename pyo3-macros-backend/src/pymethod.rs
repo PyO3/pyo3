@@ -1416,7 +1416,7 @@ fn generate_method_body(
                 .chain(arguments.iter().map(|arg| arg.ffi_type(ctx)))
                 .collect();
 
-            let args = extract_proto_arguments(spec, &arguments, extract_error_mode, holders, ctx)?;
+            let args = extract_proto_arguments(spec, arguments, extract_error_mode, holders, ctx)?;
             let call = quote! { #cls::#rust_name(#self_arg #(#args),*) };
             let result = if let Some(return_mode) = return_mode {
                 return_mode.return_call_output(call, ctx)

@@ -1758,12 +1758,7 @@ fn complex_enum_struct_variant_new<'a>(
         output: syn::ReturnType::Default,
     };
 
-    __NEW__.generate_type_slot(
-        &variant_cls_type,
-        &spec,
-        &format!("__default___new____"),
-        ctx,
-    )
+    __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", ctx)
 }
 
 fn complex_enum_tuple_variant_new<'a>(
@@ -1821,12 +1816,7 @@ fn complex_enum_tuple_variant_new<'a>(
         output: syn::ReturnType::Default,
     };
 
-    __NEW__.generate_type_slot(
-        &variant_cls_type,
-        &spec,
-        &format!("__default___new____"),
-        ctx,
-    )
+    __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", ctx)
 }
 
 fn complex_enum_variant_field_getter<'a>(

@@ -423,7 +423,7 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
             decorators.push("property".into());
         }
     }
-    let return_type = if spec.python_name.to_string() == "__new__" {
+    let return_type = if spec.python_name == "__new__" {
         // Hack to return Self while implementing IntoPyObject
         parse_quote!(-> #pyo3_path::PyRef<Self>)
     } else {
