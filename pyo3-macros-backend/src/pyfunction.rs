@@ -408,7 +408,6 @@ pub fn impl_wrap_pyfunction(
     let spec = method::FnSpec {
         tp,
         name: &func.sig.ident,
-        convention: CallingConvention::from_signature(&signature),
         python_name,
         signature,
         text_signature,
@@ -426,8 +425,14 @@ pub fn impl_wrap_pyfunction(
             spec.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
         );
     }
-    let wrapper = spec.get_wrapper_function(&wrapper_ident, None, ctx)?;
-    let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs, ctx)?, ctx);
+    let calling_convention = CallingConvention::from_signature(&spec.signature);
+    let wrapper = spec.get_wrapper_function(&wrapper_ident, None, calling_convention, ctx)?;
+    let methoddef = spec.get_methoddef(
+        wrapper_ident,
+        &spec.get_doc(&func.attrs, ctx)?,
+        calling_convention,
+        ctx,
+    );
 
     let wrapped_pyfunction = quote! {
         // Create a module with the same name as the `#[pyfunction]` - this way `use <the function>`

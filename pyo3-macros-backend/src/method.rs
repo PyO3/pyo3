@@ -252,10 +252,6 @@ pub enum FnType {
     Setter(SelfType),
     /// Represents a regular pymethod
     Fn(SelfType),
-    /// Represents a pymethod annotated with `#[new]`, i.e. the `__new__` dunder.
-    FnNew,
-    /// Represents a pymethod annotated with both `#[new]` and `#[classmethod]` (in either order)
-    FnNewClass(Span),
     /// Represents a pymethod annotated with `#[classmethod]`, like a `@classmethod`
     FnClass(Span),
     /// Represents a pyfunction or a pymethod annotated with `#[staticmethod]`, like a `@staticmethod`
@@ -273,20 +269,14 @@ impl FnType {
             | FnType::Setter(_)
             | FnType::Fn(_)
             | FnType::FnClass(_)
-            | FnType::FnNewClass(_)
             | FnType::FnModule(_) => true,
-            FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => false,
+            FnType::FnStatic | FnType::ClassAttribute => false,
         }
     }
 
     pub fn signature_attribute_allowed(&self) -> bool {
         match self {
-            FnType::Fn(_)
-            | FnType::FnNew
-            | FnType::FnStatic
-            | FnType::FnClass(_)
-            | FnType::FnNewClass(_)
-            | FnType::FnModule(_) => true,
+            FnType::Fn(_) | FnType::FnStatic | FnType::FnClass(_) | FnType::FnModule(_) => true,
             // Setter, Getter and ClassAttribute all have fixed signatures (either take 0 or 1
             // arguments) so cannot have a `signature = (...)` attribute.
             FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => false,
@@ -312,7 +302,7 @@ impl FnType {
                 syn::Token![,](Span::call_site()).to_tokens(&mut receiver);
                 Some(receiver)
             }
-            FnType::FnClass(span) | FnType::FnNewClass(span) => {
+            FnType::FnClass(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
@@ -338,7 +328,7 @@ impl FnType {
                 };
                 Some(quote! { unsafe { #ret }, })
             }
-            FnType::FnNew | FnType::FnStatic | FnType::ClassAttribute => None,
+            FnType::FnStatic | FnType::ClassAttribute => None,
         }
     }
 }
@@ -424,12 +414,11 @@ impl SelfType {
 }
 
 /// Determines which CPython calling convention a given FnSpec uses.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub enum CallingConvention {
     Noargs,   // METH_NOARGS
     Varargs,  // METH_VARARGS | METH_KEYWORDS
     Fastcall, // METH_FASTCALL | METH_KEYWORDS (not compatible with `abi3` feature before 3.10)
-    TpNew,    // special convention for tp_new
 }
 
 impl CallingConvention {
@@ -461,7 +450,6 @@ pub struct FnSpec<'a> {
     // r# can be removed by syn::ext::IdentExt::unraw()
     pub python_name: syn::Ident,
     pub signature: FunctionSignature<'a>,
-    pub convention: CallingConvention,
     pub text_signature: Option<TextSignatureAttribute>,
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
@@ -533,16 +521,9 @@ impl<'a> FnSpec<'a> {
             FunctionSignature::from_arguments(arguments)
         };
 
-        let convention = if matches!(fn_type, FnType::FnNew | FnType::FnNewClass(_)) {
-            CallingConvention::TpNew
-        } else {
-            CallingConvention::from_signature(&signature)
-        };
-
         Ok(FnSpec {
             tp: fn_type,
             name,
-            convention,
             python_name,
             signature,
             text_signature,
@@ -600,12 +581,12 @@ impl<'a> FnSpec<'a> {
             [MethodTypeAttribute::ClassAttribute(_)] => FnType::ClassAttribute,
             [MethodTypeAttribute::New(_)] => {
                 set_name_to_new()?;
-                FnType::FnNew
+                FnType::FnStatic
             }
             [MethodTypeAttribute::New(_), MethodTypeAttribute::ClassMethod(span)]
             | [MethodTypeAttribute::ClassMethod(span), MethodTypeAttribute::New(_)] => {
                 set_name_to_new()?;
-                FnType::FnNewClass(*span)
+                FnType::FnClass(*span)
             }
             [MethodTypeAttribute::ClassMethod(_)] => {
                 // Add a helpful hint if the classmethod doesn't look like a classmethod
@@ -677,6 +658,7 @@ impl<'a> FnSpec<'a> {
         &self,
         ident: &proc_macro2::Ident,
         cls: Option<&syn::Type>,
+        convention: CallingConvention,
         ctx: &Ctx,
     ) -> Result<TokenStream> {
         let Ctx {
@@ -799,7 +781,7 @@ impl<'a> FnSpec<'a> {
 
         let warnings = self.warnings.build_py_warning(ctx);
 
-        Ok(match self.convention {
+        Ok(match convention {
             CallingConvention::Noargs => {
                 let mut holders = Holders::new();
                 let args = self
@@ -872,38 +854,18 @@ impl<'a> FnSpec<'a> {
                     }
                 }
             }
-            CallingConvention::TpNew => {
-                let mut holders = Holders::new();
-                let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx);
-                let self_arg = self
-                    .tp
-                    .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);
-                let call = quote_spanned! {*output_span=> #rust_name(#self_arg #(#args),*) };
-                let init_holders = holders.init_holders(ctx);
-                quote! {
-                    unsafe fn #ident(
-                        py: #pyo3_path::Python<'_>,
-                        _slf: *mut #pyo3_path::ffi::PyTypeObject,
-                        _args: *mut #pyo3_path::ffi::PyObject,
-                        _kwargs: *mut #pyo3_path::ffi::PyObject
-                    ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
-                        use #pyo3_path::impl_::callback::IntoPyCallbackOutput;
-                        let function = #rust_name; // Shadow the function name to avoid #3017
-                        #arg_convert
-                        #init_holders
-                        #warnings
-                        let result = #call;
-                        let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
-                        #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)
-                    }
-                }
-            }
         })
     }
 
     /// Return a `PyMethodDef` constructor for this function, matching the selected
     /// calling convention.
-    pub fn get_methoddef(&self, wrapper: impl ToTokens, doc: &PythonDoc, ctx: &Ctx) -> TokenStream {
+    pub fn get_methoddef(
+        &self,
+        wrapper: impl ToTokens,
+        doc: &PythonDoc,
+        convention: CallingConvention,
+        ctx: &Ctx,
+    ) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
         let python_name = self.null_terminated_python_name();
         let flags = match self.tp {
@@ -911,13 +873,12 @@ impl<'a> FnSpec<'a> {
             FnType::FnStatic => quote! { .flags(#pyo3_path::ffi::METH_STATIC) },
             _ => quote! {},
         };
-        let trampoline = match self.convention {
+        let trampoline = match convention {
             CallingConvention::Noargs => Ident::new("noargs", Span::call_site()),
             CallingConvention::Fastcall => {
                 Ident::new("fastcall_cfunction_with_keywords", Span::call_site())
             }
             CallingConvention::Varargs => Ident::new("cfunction_with_keywords", Span::call_site()),
-            CallingConvention::TpNew => unreachable!("tp_new cannot get a methoddef"),
         };
         quote! {
             #pyo3_path::impl_::pymethods::PyMethodDef::#trampoline(
@@ -944,8 +905,8 @@ impl<'a> FnSpec<'a> {
             FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => return None,
             FnType::Fn(_) => Some("self"),
             FnType::FnModule(_) => Some("module"),
-            FnType::FnClass(_) | FnType::FnNewClass(_) => Some("cls"),
-            FnType::FnStatic | FnType::FnNew => None,
+            FnType::FnClass(_) => Some("cls"),
+            FnType::FnStatic => None,
         };
 
         match self.text_signature.as_ref().map(|attr| &attr.value) {
