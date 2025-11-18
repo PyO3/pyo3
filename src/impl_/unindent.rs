@@ -7,92 +7,86 @@ use crate::impl_::concat::slice_copy_from_slice;
 /// 3. If the first line is empty i.e. the string begins with a newline, remove the first line.
 /// 4. Remove the computed number of spaces from the beginning of each line.
 const fn unindent_bytes(bytes: &mut [u8]) -> usize {
-    if bytes.is_empty() {
-        // nothing to do
+    // (1) + (2) - count leading spaces, take the minimum
+    let Some(to_unindent) = get_minimum_leading_spaces(bytes) else {
+        // all lines were empty, nothing to unindent
         return bytes.len();
+    };
+
+    // now copy from the original buffer, bringing values forward as needed
+    let mut read_idx = 0;
+    let mut write_idx = 0;
+
+    // (3) - remove first line if it is empty
+    match consume_eol(bytes, read_idx) {
+        // skip empty first line
+        Some(eol) => read_idx = eol,
+        // copy non-empty first line as-is
+        None => {
+            (read_idx, write_idx) = copy_forward_until_eol(bytes, read_idx, write_idx);
+        }
+    };
+
+    // (4) - unindent remaining lines
+    while read_idx < bytes.len() {
+        let leading_spaces = count_spaces(bytes, read_idx);
+
+        if leading_spaces < to_unindent {
+            read_idx += leading_spaces;
+            assert!(
+                consume_eol(bytes, read_idx).is_some(),
+                "removed fewer spaces than expected on non-empty line"
+            );
+        } else {
+            // leading_spaces may be equal to or larger than to_unindent, only need to unindent
+            // the required amount, additional indentation is meaningful
+            read_idx += to_unindent;
+        }
+
+        // copy remainder of line
+        (read_idx, write_idx) = copy_forward_until_eol(bytes, read_idx, write_idx);
     }
 
+    write_idx
+}
+
+/// Counts the minimum leading spaces of all non-empty lines except the first line.
+///
+/// Returns `None` if there are no non-empty lines except the first line.
+const fn get_minimum_leading_spaces(bytes: &[u8]) -> Option<usize> {
     // scan for leading spaces (ignoring first line and empty lines)
     let mut i = 0;
 
     // skip first line
     i = advance_to_next_line(bytes, i);
 
-    let mut to_unindent = usize::MAX;
+    let mut to_unindent = None;
 
     // for remaining lines, count leading spaces
-    'lines: while i < bytes.len() {
+    while i < bytes.len() {
         let line_leading_spaces = count_spaces(bytes, i);
         i += line_leading_spaces;
 
         // line only had spaces, ignore for the count
         if let Some(eol) = consume_eol(bytes, i) {
             i = eol;
-            continue 'lines;
+            continue;
         }
 
         // this line has content, consider its leading spaces
-        if line_leading_spaces < to_unindent {
-            to_unindent = line_leading_spaces;
+        if let Some(current) = to_unindent {
+            // .unwrap_or(usize::MAX) not available in const fn
+            if line_leading_spaces < current {
+                to_unindent = Some(line_leading_spaces);
+            }
+        } else {
+            to_unindent = Some(line_leading_spaces);
         }
 
         i = advance_to_next_line(bytes, i);
     }
 
-    if to_unindent == usize::MAX {
-        // all lines were empty, nothing to unindent
-        return bytes.len();
-    }
-
-    // now copy from the original buffer, bringing values forward as needed
-    let mut read_idx = 0;
-    let mut write_idx = 0;
-
-    match consume_eol(bytes, read_idx) {
-        // skip empty first line
-        Some(eol) => read_idx = eol,
-        // copy non-empty first line as-is
-        None => {
-            while read_idx < bytes.len() {
-                let value = bytes[read_idx];
-                bytes[write_idx] = value;
-                read_idx += 1;
-                write_idx += 1;
-                if value == b'\n' {
-                    break;
-                }
-            }
-        }
-    };
-
-    while read_idx < bytes.len() {
-        let mut leading_spaces_skipped = 0;
-        while leading_spaces_skipped < to_unindent
-            && read_idx < bytes.len()
-            && bytes[read_idx] == b' '
-        {
-            leading_spaces_skipped += 1;
-            read_idx += 1;
-        }
-
-        assert!(
-            leading_spaces_skipped == to_unindent || consume_eol(bytes, read_idx).is_some(),
-            "removed fewer spaces than expected on non-empty line"
-        );
-
-        // copy remainder of line
-        while read_idx < bytes.len() {
-            let value = bytes[read_idx];
-            bytes[write_idx] = value;
-            read_idx += 1;
-            write_idx += 1;
-            if value == b'\n' {
-                break;
-            }
-        }
-    }
-
-    write_idx
+    to_unindent
 }
 
 const fn advance_to_next_line(bytes: &[u8], mut i: usize) -> usize {
@@ -103,6 +97,27 @@ const fn advance_to_next_line(bytes: &[u8], mut i: usize) -> usize {
         i += 1;
     }
     i
+}
+
+/// Brings elements in `bytes` forward until `\n` (inclusive) or end of `source`.
+///
+/// `read_idx` must be greater than or equal to `write_idx`.
+const fn copy_forward_until_eol(
+    bytes: &mut [u8],
+    mut read_idx: usize,
+    mut write_idx: usize,
+) -> (usize, usize) {
+    assert!(read_idx >= write_idx);
+    while read_idx < bytes.len() {
+        let value = bytes[read_idx];
+        bytes[write_idx] = value;
+        read_idx += 1;
+        write_idx += 1;
+        if value == b'\n' {
+            break;
+        }
+    }
+    (read_idx, write_idx)
 }
 
 const fn count_spaces(bytes: &[u8], mut i: usize) -> usize {
@@ -183,10 +198,16 @@ no indent
 
     const UNINDENTED_3: &str = "no indent\n  here";
 
+    const SAMPLE_4_NOOP: &str = "no indent\nhere\n  but here";
+
+    const SAMPLE_5_EMPTY: &str = "   \n   \n";
+
     const ALL_CASES: &[(&str, &str)] = &[
         (SAMPLE_1_WITH_FIRST_LINE, UNINDENTED_1),
         (SAMPLE_2_EMPTY_FIRST_LINE, UNINDENTED_2),
         (SAMPLE_3_NO_INDENT, UNINDENTED_3),
+        (SAMPLE_4_NOOP, SAMPLE_4_NOOP),
+        (SAMPLE_5_EMPTY, SAMPLE_5_EMPTY),
     ];
 
     // run const tests for each sample to ensure they work at compile time
