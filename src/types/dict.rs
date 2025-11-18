@@ -16,12 +16,15 @@ use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 
+#[cfg(not(GraalPy))]
 pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
 
 pyobject_native_type!(
     PyDict,
     ffi::PyDictObject,
     pyobject_native_static_type_object!(ffi::PyDict_Type),
+    "builtins",
+    "dict",
     #checkfunction=ffi::PyDict_Check
 );
 
@@ -34,6 +37,8 @@ pub struct PyDictKeys(PyAny);
 pyobject_native_type_core!(
     PyDictKeys,
     pyobject_native_static_type_object!(ffi::PyDictKeys_Type),
+    "builtins",
+    "dict_keys",
     #checkfunction=ffi::PyDictKeys_Check
 );
 
@@ -46,6 +51,8 @@ pub struct PyDictValues(PyAny);
 pyobject_native_type_core!(
     PyDictValues,
     pyobject_native_static_type_object!(ffi::PyDictValues_Type),
+    "builtins",
+    "dict_values",
     #checkfunction=ffi::PyDictValues_Check
 );
 
@@ -58,6 +65,8 @@ pub struct PyDictItems(PyAny);
 pyobject_native_type_core!(
     PyDictItems,
     pyobject_native_static_type_object!(ffi::PyDictItems_Type),
+    "builtins",
+    "dict_items",
     #checkfunction=ffi::PyDictItems_Check
 );
 

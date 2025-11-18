@@ -15,6 +15,8 @@ pub struct PyTraceback(PyAny);
 pyobject_native_type_core!(
     PyTraceback,
     pyobject_native_static_type_object!(ffi::PyTraceBack_Type),
+    "builtins",
+    "traceback",
     #checkfunction=ffi::PyTraceBack_Check
 );
 

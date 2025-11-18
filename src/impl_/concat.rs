@@ -37,7 +37,7 @@ pub const fn combine_to_array<const LEN: usize>(pieces: &[&[u8]]) -> [u8; LEN] {
 }
 
 /// Replacement for `slice::copy_from_slice`, which is const from 1.87
-const fn slice_copy_from_slice(out: &mut [u8], src: &[u8]) {
+pub(crate) const fn slice_copy_from_slice(out: &mut [u8], src: &[u8]) {
     let mut i = 0;
     while i < src.len() {
         out[i] = src[i];

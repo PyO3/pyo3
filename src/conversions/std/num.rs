@@ -6,6 +6,10 @@ use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::TypeHint;
 use crate::py_result_ext::PyResultExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::types::PySequence;
 use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
 use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
 use std::convert::Infallible;
@@ -109,7 +113,7 @@ macro_rules! int_convert_u64_or_i64 {
             type Error = Infallible;
 
             #[cfg(feature = "experimental-inspect")]
-            const OUTPUT_TYPE: TypeHint = TypeHint::builtin("int");
+            const OUTPUT_TYPE: TypeHint = PyInt::TYPE_HINT;
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 unsafe {
@@ -141,7 +145,7 @@ macro_rules! int_convert_u64_or_i64 {
             type Error = PyErr;
 
             #[cfg(feature = "experimental-inspect")]
-            const INPUT_TYPE: TypeHint = TypeHint::builtin("int");
+            const INPUT_TYPE: TypeHint = PyInt::TYPE_HINT;
 
             fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                 extract_int!(obj, !0, $pylong_as_ll_or_ull, $force_index_call)
@@ -163,7 +167,7 @@ macro_rules! int_fits_c_long {
             type Error = Infallible;
 
             #[cfg(feature = "experimental-inspect")]
-            const OUTPUT_TYPE: TypeHint = TypeHint::builtin("int");
+            const OUTPUT_TYPE: TypeHint = PyInt::TYPE_HINT;
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 unsafe {
@@ -202,7 +206,7 @@ macro_rules! int_fits_c_long {
             type Error = PyErr;
 
             #[cfg(feature = "experimental-inspect")]
-            const INPUT_TYPE: TypeHint = TypeHint::builtin("int");
+            const INPUT_TYPE: TypeHint = PyInt::TYPE_HINT;
 
             fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
@@ -224,7 +228,7 @@ impl<'py> IntoPyObject<'py> for u8 {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = TypeHint::builtin("int");
+    const OUTPUT_TYPE: TypeHint = PyInt::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         unsafe {
@@ -250,6 +254,9 @@ impl<'py> IntoPyObject<'py> for u8 {
     {
         Ok(PyBytes::new(py, iter.as_ref()).into_any())
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    const SEQUENCE_OUTPUT_TYPE: TypeHint = PyBytes::TYPE_HINT;
 }
 
 impl<'py> IntoPyObject<'py> for &'_ u8 {
@@ -281,13 +288,16 @@ impl<'py> IntoPyObject<'py> for &'_ u8 {
     {
         Ok(PyBytes::new(py, iter.as_ref()).into_any())
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    const SEQUENCE_OUTPUT_TYPE: TypeHint = PyBytes::TYPE_HINT;
 }
 
 impl<'py> FromPyObject<'_, 'py> for u8 {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::builtin("int");
+    const INPUT_TYPE: TypeHint = PyInt::TYPE_HINT;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
@@ -312,6 +322,13 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
             None
         }
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    const SEQUENCE_INPUT_TYPE: TypeHint = TypeHint::union(&[
+        PyBytes::TYPE_HINT,
+        PyByteArray::TYPE_HINT,
+        TypeHint::subscript(&PySequence::TYPE_HINT, &[Self::INPUT_TYPE]),
+    ]);
 }
 
 pub(crate) enum BytesSequenceExtractor<'a, 'py> {
@@ -413,7 +430,7 @@ mod fast_128bit_int_conversion {
                 type Error = Infallible;
 
                 #[cfg(feature = "experimental-inspect")]
-                const OUTPUT_TYPE: TypeHint = TypeHint::builtin("int");
+                const OUTPUT_TYPE: TypeHint = PyInt::TYPE_HINT;
 
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     #[cfg(Py_3_13)]
@@ -457,7 +474,7 @@ mod fast_128bit_int_conversion {
                 type Error = PyErr;
 
                 #[cfg(feature = "experimental-inspect")]
-                const INPUT_TYPE: TypeHint = TypeHint::builtin("int");
+                const INPUT_TYPE: TypeHint = PyInt::TYPE_HINT;
 
                 fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                     let num = nb_index(&ob)?;
@@ -566,7 +583,7 @@ mod slow_128bit_int_conversion {
                 type Error = Infallible;
 
                 #[cfg(feature = "experimental-inspect")]
-                const OUTPUT_TYPE: TypeHint = TypeHint::builtin("int");
+                const OUTPUT_TYPE: TypeHint = PyInt::TYPE_HINT;
 
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     let lower = (self as u64).into_pyobject(py)?;
@@ -611,7 +628,7 @@ mod slow_128bit_int_conversion {
                 type Error = PyErr;
 
                 #[cfg(feature = "experimental-inspect")]
-                const INPUT_TYPE: TypeHint = TypeHint::builtin("int");
+                const INPUT_TYPE: TypeHint = PyInt::TYPE_HINT;
 
                 fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                     let py = ob.py();
@@ -665,7 +682,7 @@ macro_rules! nonzero_int_impl {
             type Error = Infallible;
 
             #[cfg(feature = "experimental-inspect")]
-            const OUTPUT_TYPE: TypeHint = TypeHint::builtin("int");
+            const OUTPUT_TYPE: TypeHint = PyInt::TYPE_HINT;
 
             #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {

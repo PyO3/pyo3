@@ -79,7 +79,5 @@ This is useful when PyO3 is not able to derive proper type annotations by itself
 - Introspection only works with Python modules declared with an inline Rust module.
   Modules declared using a function are not supported.
 - `FromPyObject::INPUT_TYPE` and `IntoPyObject::OUTPUT_TYPE` must be implemented for PyO3 to get the proper input/output type annotations to use.
-- Because `FromPyObject::INPUT_TYPE` and `IntoPyObject::OUTPUT_TYPE` are `const` it is not possible to build yet smart generic annotations for containers like `concat!("list[", T::OUTPUT_TYPE, "]")`.
-  See [this tracking issue](https://github.com/rust-lang/rust/issues/76560).
 - PyO3 is not able to introspect the content of `#[pymodule]` and `#[pymodule_init]` functions.
   If they are present, the module is tagged as incomplete using a fake `def __getattr__(name: str) -> Incomplete: ...` function [following best practices](https://typing.python.org/en/latest/guides/writing_stubs.html#incomplete-stubs).

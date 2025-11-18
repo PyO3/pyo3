@@ -119,7 +119,15 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
 }
 
 fn class_stubs(class: &Class, imports: &Imports) -> String {
-    let mut buffer = format!("class {}:", class.name);
+    let mut buffer = String::new();
+    for decorator in &class.decorators {
+        buffer.push('@');
+        imports.serialize_identifier(decorator, &mut buffer);
+        buffer.push('\n');
+    }
+    buffer.push_str("class ");
+    buffer.push_str(&class.name);
+    buffer.push(':');
     if class.methods.is_empty() && class.attributes.is_empty() {
         buffer.push_str(" ...");
         return buffer;
@@ -433,6 +441,9 @@ impl ElementsUsedInAnnotations {
     }
 
     fn walk_class(&mut self, class: &Class) {
+        for decorator in &class.decorators {
+            self.walk_identifier(decorator);
+        }
         for method in &class.methods {
             self.walk_function(method);
         }
@@ -658,6 +669,10 @@ mod tests {
                     name: "A".into(),
                     methods: Vec::new(),
                     attributes: Vec::new(),
+                    decorators: vec![PythonIdentifier {
+                        module: Some("typing".into()),
+                        name: "final".into(),
+                    }],
                 }],
                 functions: vec![Function {
                     name: String::new(),
@@ -683,6 +698,7 @@ mod tests {
                 "from bat import A as A2",
                 "from builtins import int as int2",
                 "from foo import A as A3, B",
+                "from typing import final"
             ]
         );
         let mut output = String::new();

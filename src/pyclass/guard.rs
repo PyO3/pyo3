@@ -142,10 +142,10 @@ impl<'a, T: PyClass> PyClassGuard<'a, T> {
     }
 }
 
-impl<'a, T, U> PyClassGuard<'a, T>
+impl<'a, T> PyClassGuard<'a, T>
 where
-    T: PyClass<BaseType = U>,
-    U: PyClass,
+    T: PyClass,
+    T::BaseType: PyClass,
 {
     /// Borrows a shared reference to `PyClassGuard<T::BaseType>`.
     ///
@@ -191,7 +191,7 @@ where
     /// #     pyo3::py_run!(py, sub, "assert sub.format_name_lengths() == '9 8'")
     /// # });
     /// ```
-    pub fn as_super(&self) -> &PyClassGuard<'a, U> {
+    pub fn as_super(&self) -> &PyClassGuard<'a, T::BaseType> {
         // SAFETY: `PyClassGuard<T>` and `PyClassGuard<U>` have the same layout
         unsafe { NonNull::from(self).cast().as_ref() }
     }
@@ -239,9 +239,10 @@ where
     /// #     pyo3::py_run!(py, sub, "assert sub.name() == 'base1 base2 sub'")
     /// # });
     /// ```
-    pub fn into_super(self) -> PyClassGuard<'a, U> {
+    pub fn into_super(self) -> PyClassGuard<'a, T::BaseType> {
         let t_not_frozen = !<T::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE;
-        let u_frozen = <U::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE;
+        let u_frozen =
+            <<T::BaseType as PyClass>::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE;
         if t_not_frozen && u_frozen {
             // If `T` is a mutable subclass of a frozen `U` base, then it is possible that we need
             // to release the borrow count now. (e.g. `U` may have a noop borrow checker so dropping
@@ -282,6 +283,9 @@ impl<T: PyClass> Deref for PyClassGuard<'_, T> {
 impl<'a, 'py, T: PyClass> FromPyObject<'a, 'py> for PyClassGuard<'a, T> {
     type Error = PyClassGuardError<'a, 'py>;
 
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
+
     fn extract(obj: Borrowed<'a, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
         Self::try_from_class_object(
             obj.cast()
@@ -296,6 +300,9 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for PyClassGuard<'a, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, T>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -631,10 +638,10 @@ impl<'a, T: PyClass<Frozen = False>> PyClassGuardMut<'a, T> {
     }
 }
 
-impl<'a, T, U> PyClassGuardMut<'a, T>
+impl<'a, T> PyClassGuardMut<'a, T>
 where
-    T: PyClass<BaseType = U, Frozen = False>,
-    U: PyClass<Frozen = False>,
+    T: PyClass<Frozen = False>,
+    T::BaseType: PyClass<Frozen = False>,
 {
     /// Borrows a mutable reference to `PyClassGuardMut<T::BaseType>`.
     ///
@@ -644,7 +651,7 @@ where
     /// super-superclass (and so on).
     ///
     /// See [`PyClassGuard::as_super`] for more.
-    pub fn as_super(&mut self) -> &mut PyClassGuardMut<'a, U> {
+    pub fn as_super(&mut self) -> &mut PyClassGuardMut<'a, T::BaseType> {
         // SAFETY: `PyClassGuardMut<T>` and `PyClassGuardMut<U>` have the same layout
         unsafe { NonNull::from(self).cast().as_mut() }
     }
@@ -652,7 +659,7 @@ where
     /// Gets a `PyClassGuardMut<T::BaseType>`.
     ///
     /// See [`PyClassGuard::into_super`] for more.
-    pub fn into_super(self) -> PyClassGuardMut<'a, U> {
+    pub fn into_super(self) -> PyClassGuardMut<'a, T::BaseType> {
         // `PyClassGuardMut` is only available for non-frozen classes, so there
         // is no possibility of leaking borrows like `PyClassGuard`
         PyClassGuardMut {
@@ -684,6 +691,9 @@ impl<T: PyClass<Frozen = False>> DerefMut for PyClassGuardMut<'_, T> {
 impl<'a, 'py, T: PyClass<Frozen = False>> FromPyObject<'a, 'py> for PyClassGuardMut<'a, T> {
     type Error = PyClassGuardMutError<'a, 'py>;
 
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
+
     fn extract(obj: Borrowed<'a, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
         Self::try_from_class_object(
             obj.cast()
@@ -699,6 +709,9 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyClassGuardMut<
     type Output = Borrowed<'a, 'py, T>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
+
     #[inline]
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
         (&self).into_pyobject(py)
@@ -709,6 +722,9 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &PyClassGuardMut
     type Target = T;
     type Output = Borrowed<'a, 'py, T>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
