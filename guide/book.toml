@@ -1,7 +1,7 @@
 [book]
 title = "PyO3 user guide"
 description = "PyO3 user guide"
-author = "PyO3 Project and Contributors"
+authors = ["PyO3 Project and Contributors"]
 
 [preprocessor.pyo3_version]
 command = "python3 guide/pyo3_version.py"
