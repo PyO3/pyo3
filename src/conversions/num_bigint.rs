@@ -328,7 +328,6 @@ mod tests {
     use crate::exceptions::PyTypeError;
     use crate::test_utils::generate_unique_module_name;
     use crate::types::{PyAnyMethods as _, PyDict, PyModule};
-    use indoc::indoc;
     use pyo3_ffi::c_str;
 
     fn rust_fib<T>() -> impl Iterator<Item = T>
@@ -390,15 +389,15 @@ mod tests {
     }
 
     fn python_index_class(py: Python<'_>) -> Bound<'_, PyModule> {
-        let index_code = c_str!(indoc!(
+        let index_code = c_str!(
             r#"
-                class C:
-                    def __init__(self, x):
-                        self.x = x
-                    def __index__(self):
-                        return self.x
-                "#
-        ));
+class C:
+    def __init__(self, x):
+        self.x = x
+    def __index__(self):
+        return self.x
+"#
+        );
         PyModule::from_code(
             py,
             index_code,

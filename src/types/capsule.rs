@@ -49,7 +49,7 @@ use std::ptr::{self, NonNull};
 #[repr(transparent)]
 pub struct PyCapsule(PyAny);
 
-pyobject_native_type_core!(PyCapsule, pyobject_native_static_type_object!(ffi::PyCapsule_Type), #checkfunction=ffi::PyCapsule_CheckExact);
+pyobject_native_type_core!(PyCapsule, pyobject_native_static_type_object!(ffi::PyCapsule_Type), "types", "CapsuleType", #checkfunction=ffi::PyCapsule_CheckExact);
 
 impl PyCapsule {
     /// Constructs a new capsule whose contents are `value`, associated with `name`.

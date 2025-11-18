@@ -17,7 +17,9 @@ pub struct PyGenericAlias(PyAny);
 pyobject_native_type!(
     PyGenericAlias,
     ffi::PyDictObject,
-    pyobject_native_static_type_object!(ffi::Py_GenericAliasType)
+    pyobject_native_static_type_object!(ffi::Py_GenericAliasType),
+    "builtins",
+    "GenericAlias"
 );
 
 impl PyGenericAlias {

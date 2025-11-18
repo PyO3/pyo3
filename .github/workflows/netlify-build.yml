@@ -21,7 +21,7 @@ jobs:
     outputs:
       tag_name: ${{ steps.prepare_tag.outputs.tag_name }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5.0.1
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
@@ -31,7 +31,7 @@ jobs:
       - name: Setup mdBook
         uses: taiki-e/install-action@v2
         with:
-          tool: mdbook, mdbook-linkcheck, lychee
+          tool: mdbook@0.4, mdbook-tabs@0.2, lychee
 
       - name: Prepare tag
         id: prepare_tag

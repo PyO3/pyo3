@@ -21,6 +21,8 @@ pyobject_native_type!(
     PySlice,
     ffi::PySliceObject,
     pyobject_native_static_type_object!(ffi::PySlice_Type),
+    "builtins",
+    "slice",
     #checkfunction=ffi::PySlice_Check
 );
 

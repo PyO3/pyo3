@@ -26,6 +26,8 @@ pyobject_native_type!(
     PySet,
     ffi::PySetObject,
     pyobject_native_static_type_object!(ffi::PySet_Type),
+    "builtins",
+    "set",
     #checkfunction=ffi::PySet_Check
 );
 
@@ -33,6 +35,8 @@ pyobject_native_type!(
 pyobject_native_type_core!(
     PySet,
     pyobject_native_static_type_object!(ffi::PySet_Type),
+    "builtins",
+    "set",
     #checkfunction=ffi::PySet_Check
 );
 

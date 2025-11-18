@@ -2,23 +2,22 @@
 
 use pyo3::prelude::*;
 
-#[pyclass(subclass)]
-pub struct Subclassable {}
+#[pymodule(gil_used = false)]
+pub mod subclassing {
+    use pyo3::prelude::*;
 
-#[pymethods]
-impl Subclassable {
-    #[new]
-    fn new() -> Self {
-        Subclassable {}
+    #[pyclass(subclass)]
+    pub struct Subclassable {}
+
+    #[pymethods]
+    impl Subclassable {
+        #[new]
+        fn new() -> Self {
+            Subclassable {}
+        }
+
+        fn __str__(&self) -> &'static str {
+            "Subclassable"
+        }
     }
-
-    fn __str__(&self) -> &'static str {
-        "Subclassable"
-    }
-}
-
-#[pymodule]
-pub fn subclassing(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Subclassable>()?;
-    Ok(())
 }

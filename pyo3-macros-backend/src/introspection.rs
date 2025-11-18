@@ -89,19 +89,26 @@ pub fn class_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     ident: &Ident,
     name: &str,
+    is_final: bool,
 ) -> TokenStream {
-    IntrospectionNode::Map(
-        [
-            ("type", IntrospectionNode::String("class".into())),
-            (
-                "id",
-                IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
-            ),
-            ("name", IntrospectionNode::String(name.into())),
-        ]
-        .into(),
-    )
-    .emit(pyo3_crate_path)
+    let mut desc = HashMap::from([
+        ("type", IntrospectionNode::String("class".into())),
+        (
+            "id",
+            IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
+        ),
+        ("name", IntrospectionNode::String(name.into())),
+    ]);
+    if is_final {
+        desc.insert(
+            "decorators",
+            IntrospectionNode::List(vec![IntrospectionNode::ConstantType(
+                PythonIdentifier::module_attr("typing", "final"),
+            )
+            .into()]),
+        );
+    }
+    IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
 
 #[expect(clippy::too_many_arguments)]

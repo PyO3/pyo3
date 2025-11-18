@@ -150,7 +150,7 @@ fn double_value(v: &ValueClass) -> usize {
     v.value * 2
 }
 
-#[pymodule]
+#[pymodule(module = "declarative_module")]
 mod declarative_submodule {
     #[pymodule_export]
     use super::{double, double_value};
@@ -204,6 +204,25 @@ fn test_declarative_module() {
         py_assert!(py, m, "not hasattr(m, 'BAR')");
         py_assert!(py, m, "m.type == '!'");
         py_assert!(py, m, "not hasattr(m, 'NOT_EXPORTED')");
+
+        // submodule dunder name and attribute name
+        // declarative_module.inner is declared inside
+        py_assert!(py, m, "m.inner.__name__ == 'declarative_module.inner'");
+        py_assert!(py, m, "'inner' in m.__dict__");
+        py_assert!(py, m, "'declarative_module.inner' not in m.__dict__");
+
+        // since declarative_submodule is declared outside, but the parent module name is passed
+        py_assert!(
+            py,
+            m,
+            "m.declarative_submodule.__name__ == 'declarative_module.declarative_submodule'"
+        );
+        py_assert!(py, m, "'declarative_submodule' in m.__dict__");
+        py_assert!(
+            py,
+            m,
+            "'declarative_module.declarative_submodule' not in m.__dict__"
+        );
     })
 }
 

@@ -124,9 +124,17 @@ fn convert_members<'a>(
                     chunks_by_parent,
                 )?);
             }
-            Chunk::Class { name, id } => {
-                classes.push(convert_class(id, name, chunks_by_id, chunks_by_parent)?)
-            }
+            Chunk::Class {
+                name,
+                id,
+                decorators,
+            } => classes.push(convert_class(
+                id,
+                name,
+                decorators,
+                chunks_by_id,
+                chunks_by_parent,
+            )?),
             Chunk::Function {
                 name,
                 id: _,
@@ -178,6 +186,7 @@ fn convert_members<'a>(
 fn convert_class(
     id: &str,
     name: &str,
+    decorators: &[ChunkTypeHint],
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
 ) -> Result<Class> {
@@ -198,7 +207,27 @@ fn convert_class(
         name: name.into(),
         methods,
         attributes,
+        decorators: decorators
+            .iter()
+            .map(convert_decorator)
+            .collect::<Result<_>>()?,
     })
+}
+
+fn convert_decorator(decorator: &ChunkTypeHint) -> Result<PythonIdentifier> {
+    match convert_type_hint(decorator) {
+        TypeHint::Plain(id) => Ok(PythonIdentifier {
+            module: None,
+            name: id.clone(),
+        }),
+        TypeHint::Ast(expr) => {
+            if let TypeHintExpr::Identifier(i) = expr {
+                Ok(i)
+            } else {
+                bail!("PyO3 introspection currently only support decorators that are identifiers of a Python function")
+            }
+        }
+    }
 }
 
 fn convert_function(
@@ -211,19 +240,7 @@ fn convert_function(
         name: name.into(),
         decorators: decorators
             .iter()
-            .map(|d| match convert_type_hint(d) {
-                TypeHint::Plain(id) => Ok(PythonIdentifier {
-                    module: None,
-                    name: id.clone(),
-                }),
-                TypeHint::Ast(expr) => {
-                    if let TypeHintExpr::Identifier(i) = expr {
-                        Ok(i)
-                    } else {
-                        bail!("A decorator must be the identifier of a Python function")
-                    }
-                }
-            })
+            .map(convert_decorator)
             .collect::<Result<_>>()?,
         arguments: Arguments {
             positional_only_arguments: arguments.posonlyargs.iter().map(convert_argument).collect(),
@@ -444,6 +461,8 @@ enum Chunk {
     Class {
         id: String,
         name: String,
+        #[serde(default)]
+        decorators: Vec<ChunkTypeHint>,
     },
     Function {
         #[serde(default)]

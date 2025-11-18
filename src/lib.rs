@@ -398,13 +398,6 @@ pub mod class {
     }
 }
 
-#[cfg(feature = "macros")]
-#[doc(hidden)]
-pub use {
-    indoc,    // Re-exported for py_run
-    unindent, // Re-exported for py_run
-};
-
 #[cfg(all(feature = "macros", feature = "multiple-pymethods"))]
 #[doc(hidden)]
 pub use inventory; // Re-exported for `#[pyclass]` and `#[pymethods]` with `multiple-pymethods`.

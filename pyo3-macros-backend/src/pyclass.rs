@@ -2683,7 +2683,12 @@ impl<'a> PyClassImplsBuilder<'a> {
         let Ctx { pyo3_path, .. } = ctx;
         let name = get_class_python_name(self.cls, self.attr).to_string();
         let ident = self.cls;
-        let static_introspection = class_introspection_code(pyo3_path, ident, &name);
+        let static_introspection = class_introspection_code(
+            pyo3_path,
+            ident,
+            &name,
+            self.attr.options.subclass.is_none(),
+        );
         let introspection_id = introspection_id_const();
         quote! {
             #static_introspection
