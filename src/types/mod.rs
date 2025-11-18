@@ -140,6 +140,23 @@ macro_rules! pyobject_native_static_type_object(
     };
 );
 
+/// Adds a TYPE_HINT constant if the `experimental-inspect`  feature is enabled.
+#[cfg(not(feature = "experimental-inspect"))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! pyobject_type_info_type_hint(
+    ($module:expr, $name:expr) => {};
+);
+
+#[cfg(feature = "experimental-inspect")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! pyobject_type_info_type_hint(
+    ($module:expr, $name:expr) => {
+        const TYPE_HINT: $crate::inspect::TypeHint = $crate::inspect::TypeHint::module_attr($module, $name);
+    };
+);
+
 /// Implements the `PyTypeInfo` trait for a native Python type.
 ///
 /// # Safety
@@ -147,7 +164,6 @@ macro_rules! pyobject_native_static_type_object(
 /// - `$typeobject` must be a function that produces a valid `*mut PyTypeObject`
 /// - `$checkfunction` must be a function that accepts arbitrary `*mut PyObject` and returns true /
 ///   false according to whether the object is an instance of the type from `$typeobject`
-#[cfg(not(feature = "experimental-inspect"))]
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_info(
@@ -156,44 +172,7 @@ macro_rules! pyobject_native_type_info(
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
-
-            #[inline]
-            #[allow(clippy::redundant_closure_call)]
-            fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
-                $typeobject(py)
-            }
-
-            $(
-                #[inline]
-                fn is_type_of(obj: &$crate::Bound<'_, $crate::PyAny>) -> bool {
-                    #[allow(unused_unsafe, reason = "not all `$checkfunction` are unsafe fn")]
-                    // SAFETY: `$checkfunction` is being called with a valid `PyObject` pointer
-                    unsafe { $checkfunction(obj.as_ptr()) > 0 }
-                }
-            )?
-        }
-
-        impl $name {
-            #[doc(hidden)]
-            pub const _PYO3_DEF: $crate::impl_::pymodule::AddTypeToModule<Self> = $crate::impl_::pymodule::AddTypeToModule::new();
-
-            #[allow(dead_code)]
-            #[doc(hidden)]
-            pub const _PYO3_INTROSPECTION_ID: &'static str = concat!(stringify!($module), stringify!($name));
-        }
-    };
-);
-
-#[cfg(feature = "experimental-inspect")]
-#[doc(hidden)]
-#[macro_export]
-macro_rules! pyobject_native_type_info(
-    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        // SAFETY: macro caller has upheld the safety contracts
-        unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
-            const NAME: &'static str = stringify!($name);
-            const MODULE: ::std::option::Option<&'static str> = $module;
-            const TYPE_HINT: $crate::inspect::TypeHint = $crate::inspect::TypeHint::module_attr($type_hint_module, $type_hint_name);
+            $crate::pyobject_type_info_type_hint!($type_hint_module, $type_hint_name);
 
             #[inline]
             #[allow(clippy::redundant_closure_call)]
