@@ -1,6 +1,6 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Function, Module, TypeHint, TypeHintExpr,
-    VariableLengthArgument,
+    Argument, Arguments, Attribute, Class, Function, Module, PythonIdentifier, TypeHint,
+    TypeHintExpr, VariableLengthArgument,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
@@ -69,16 +69,25 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
                     arguments: vec![Argument {
                         name: "name".to_string(),
                         default_value: None,
-                        annotation: Some(TypeHint::Ast(TypeHintExpr::Builtin { id: "str".into() })),
+                        annotation: Some(TypeHint::Ast(
+                            PythonIdentifier {
+                                module: Some("builtins".into()),
+                                name: "str".into(),
+                            }
+                            .into(),
+                        )),
                     }],
                     vararg: None,
                     keyword_only_arguments: Vec::new(),
                     kwarg: None,
                 },
-                returns: Some(TypeHint::Ast(TypeHintExpr::Attribute {
-                    module: "_typeshed".into(),
-                    attr: "Incomplete".into(),
-                })),
+                returns: Some(TypeHint::Ast(
+                    PythonIdentifier {
+                        module: Some("_typeshed".into()),
+                        name: "Incomplete".into(),
+                    }
+                    .into(),
+                )),
             },
             &imports,
         ));
@@ -160,7 +169,7 @@ fn function_stubs(function: &Function, imports: &Imports) -> String {
     let mut buffer = String::new();
     for decorator in &function.decorators {
         buffer.push('@');
-        buffer.push_str(decorator);
+        imports.serialize_identifier(decorator, &mut buffer);
         buffer.push('\n');
     }
     buffer.push_str("def ");
@@ -350,22 +359,10 @@ impl Imports {
 
     fn serialize_type_hint(&self, expr: &TypeHintExpr, buffer: &mut String) {
         match expr {
-            TypeHintExpr::Local { id } => buffer.push_str(id),
-            TypeHintExpr::Builtin { id } => {
-                let alias = self
-                    .renaming
-                    .get(&("builtins".to_string(), id.clone()))
-                    .expect("All type hint attributes should have been visited");
-                buffer.push_str(alias)
+            TypeHintExpr::Identifier(id) => {
+                self.serialize_identifier(id, buffer);
             }
-            TypeHintExpr::Attribute { module, attr } => {
-                let alias = self
-                    .renaming
-                    .get(&(module.clone(), attr.clone()))
-                    .expect("All type hint attributes should have been visited");
-                buffer.push_str(alias)
-            }
-            TypeHintExpr::Union { elts } => {
+            TypeHintExpr::Union(elts) => {
                 for (i, elt) in elts.iter().enumerate() {
                     if i > 0 {
                         buffer.push_str(" | ");
@@ -385,6 +382,16 @@ impl Imports {
                 buffer.push(']');
             }
         }
+    }
+
+    fn serialize_identifier(&self, id: &PythonIdentifier, buffer: &mut String) {
+        buffer.push_str(if let Some(module) = &id.module {
+            self.renaming
+                .get(&(module.clone(), id.name.clone()))
+                .expect("All type hint attributes should have been visited")
+        } else {
+            &id.name
+        });
     }
 }
 
@@ -442,7 +449,7 @@ impl ElementsUsedInAnnotations {
 
     fn walk_function(&mut self, function: &Function) {
         for decorator in &function.decorators {
-            self.locals.insert(decorator.clone()); // TODO: better decorator support
+            self.walk_identifier(decorator);
         }
         for arg in function
             .arguments
@@ -479,22 +486,10 @@ impl ElementsUsedInAnnotations {
 
     fn walk_type_hint_expr(&mut self, expr: &TypeHintExpr) {
         match expr {
-            TypeHintExpr::Local { id } => {
-                self.locals.insert(id.clone());
+            TypeHintExpr::Identifier(id) => {
+                self.walk_identifier(id);
             }
-            TypeHintExpr::Builtin { id } => {
-                self.module_members
-                    .entry("builtins".into())
-                    .or_default()
-                    .insert(id.clone());
-            }
-            TypeHintExpr::Attribute { module, attr } => {
-                self.module_members
-                    .entry(module.clone())
-                    .or_default()
-                    .insert(attr.clone());
-            }
-            TypeHintExpr::Union { elts } => {
+            TypeHintExpr::Union(elts) => {
                 for elt in elts {
                     self.walk_type_hint_expr(elt)
                 }
@@ -505,6 +500,17 @@ impl ElementsUsedInAnnotations {
                     self.walk_type_hint_expr(elt);
                 }
             }
+        }
+    }
+
+    fn walk_identifier(&mut self, id: &PythonIdentifier) {
+        if let Some(module) = &id.module {
+            self.module_members
+                .entry(module.clone())
+                .or_default()
+                .insert(id.name.clone());
+        } else {
+            self.locals.insert(id.name.clone());
         }
     }
 }
@@ -587,39 +593,61 @@ mod tests {
     #[test]
     fn test_import() {
         let big_type = TypeHintExpr::Subscript {
-            value: Box::new(TypeHintExpr::Builtin { id: "dict".into() }),
+            value: Box::new(
+                PythonIdentifier {
+                    module: Some("builtins".into()),
+                    name: "dict".into(),
+                }
+                .into(),
+            ),
             slice: vec![
-                TypeHintExpr::Attribute {
-                    module: "foo.bar".into(),
-                    attr: "A".into(),
-                },
-                TypeHintExpr::Union {
-                    elts: vec![
-                        TypeHintExpr::Attribute {
-                            module: "bar".into(),
-                            attr: "A".into(),
-                        },
-                        TypeHintExpr::Attribute {
-                            module: "foo".into(),
-                            attr: "A.C".into(),
-                        },
-                        TypeHintExpr::Attribute {
-                            module: "foo".into(),
-                            attr: "A.D".into(),
-                        },
-                        TypeHintExpr::Attribute {
-                            module: "foo".into(),
-                            attr: "B".into(),
-                        },
-                        TypeHintExpr::Attribute {
-                            module: "bat".into(),
-                            attr: "A".into(),
-                        },
-                        TypeHintExpr::Local { id: "int".into() },
-                        TypeHintExpr::Builtin { id: "int".into() },
-                        TypeHintExpr::Builtin { id: "float".into() },
-                    ],
-                },
+                PythonIdentifier {
+                    module: Some("foo.bar".into()),
+                    name: "A".into(),
+                }
+                .into(),
+                TypeHintExpr::Union(vec![
+                    PythonIdentifier {
+                        module: Some("bar".into()),
+                        name: "A".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: Some("foo".into()),
+                        name: "A.C".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: Some("foo".into()),
+                        name: "A.D".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: Some("foo".into()),
+                        name: "B".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: Some("bat".into()),
+                        name: "A".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: None,
+                        name: "int".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: Some("builtins".into()),
+                        name: "int".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: Some("builtins".into()),
+                        name: "float".into(),
+                    }
+                    .into(),
+                ]),
             ],
         };
         let imports = Imports::create(

@@ -2,7 +2,9 @@ use std::collections::HashSet;
 
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
-use crate::introspection::{attribute_introspection_code, function_introspection_code};
+use crate::introspection::{
+    attribute_introspection_code, function_introspection_code, PythonIdentifier,
+};
 #[cfg(feature = "experimental-inspect")]
 use crate::method::{FnSpec, FnType};
 #[cfg(feature = "experimental-inspect")]
@@ -395,46 +397,55 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
 
     // We introduce self/cls argument and setup decorators
     let mut first_argument = None;
-    let mut output = spec.output.clone();
     let mut decorators = Vec::new();
     match &spec.tp {
         FnType::Getter(_) => {
             first_argument = Some("self");
-            decorators.push("property".into());
+            decorators.push(PythonIdentifier::builtins("property"));
         }
         FnType::Setter(_) => {
             first_argument = Some("self");
-            decorators.push(format!("{name}.setter"));
+            decorators.push(PythonIdentifier::local(format!("{name}.setter")));
         }
         FnType::Fn(_) => {
             first_argument = Some("self");
         }
-        FnType::FnNew | FnType::FnNewClass(_) => {
-            first_argument = Some("cls");
-            output = parse_quote!(-> #pyo3_path::PyRef<Self>); // Hack to return Self while implementing IntoPyObject
-        }
         FnType::FnClass(_) => {
             first_argument = Some("cls");
-            decorators.push("classmethod".into());
+            if spec.python_name != "__new__" {
+                // special case __new__ - does not get the decorator
+                decorators.push(PythonIdentifier::builtins("classmethod"));
+            }
         }
         FnType::FnStatic => {
-            decorators.push("staticmethod".into());
+            if spec.python_name != "__new__" {
+                decorators.push(PythonIdentifier::builtins("staticmethod"));
+            } else {
+                // special case __new__ - does not get the decorator and gets first argument
+                first_argument = Some("cls");
+            }
         }
         FnType::FnModule(_) => (), // TODO: not sure this can happen
         FnType::ClassAttribute => {
             first_argument = Some("cls");
             // TODO: this combination only works with Python 3.9-3.11 https://docs.python.org/3.11/library/functions.html#classmethod
-            decorators.push("classmethod".into());
-            decorators.push("property".into());
+            decorators.push(PythonIdentifier::builtins("classmethod"));
+            decorators.push(PythonIdentifier::builtins("property"));
         }
     }
+    let return_type = if spec.python_name == "__new__" {
+        // Hack to return Self while implementing IntoPyObject
+        parse_quote!(-> #pyo3_path::PyRef<Self>)
+    } else {
+        spec.output.clone()
+    };
     function_introspection_code(
         pyo3_path,
         None,
         &name,
         &spec.signature,
         first_argument,
-        output,
+        return_type,
         decorators,
         Some(parent),
     )

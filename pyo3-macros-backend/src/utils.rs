@@ -1,6 +1,6 @@
 use crate::attributes::{CrateAttribute, RenamingRule};
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
 use std::ffi::CString;
 use syn::spanned::Spanned;
 use syn::LitCStr;
@@ -326,5 +326,21 @@ pub fn expr_to_python(expr: &syn::Expr) -> String {
         }
         // others, unsupported yet so defaults to `...`
         _ => "...".to_string(),
+    }
+}
+
+/// Helper struct for hard-coded identifiers used in the macro code.
+#[derive(Clone, Copy)]
+pub struct StaticIdent(&'static str);
+
+impl StaticIdent {
+    pub const fn new(name: &'static str) -> Self {
+        Self(name)
+    }
+}
+
+impl ToTokens for StaticIdent {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.append(syn::Ident::new(self.0, Span::call_site()));
     }
 }

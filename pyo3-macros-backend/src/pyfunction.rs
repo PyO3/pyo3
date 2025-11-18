@@ -15,6 +15,8 @@ use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::cmp::PartialEq;
 use std::ffi::CString;
+#[cfg(feature = "experimental-inspect")]
+use std::iter::empty;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::LitCStr;
@@ -393,7 +395,7 @@ pub fn impl_wrap_pyfunction(
         &signature,
         None,
         func.sig.output.clone(),
-        [] as [String; 0],
+        empty(),
         None,
     );
     #[cfg(not(feature = "experimental-inspect"))]
@@ -406,7 +408,6 @@ pub fn impl_wrap_pyfunction(
     let spec = method::FnSpec {
         tp,
         name: &func.sig.ident,
-        convention: CallingConvention::from_signature(&signature),
         python_name,
         signature,
         text_signature,
@@ -424,8 +425,14 @@ pub fn impl_wrap_pyfunction(
             spec.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
         );
     }
-    let wrapper = spec.get_wrapper_function(&wrapper_ident, None, ctx)?;
-    let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs, ctx)?, ctx);
+    let calling_convention = CallingConvention::from_signature(&spec.signature);
+    let wrapper = spec.get_wrapper_function(&wrapper_ident, None, calling_convention, ctx)?;
+    let methoddef = spec.get_methoddef(
+        wrapper_ident,
+        &spec.get_doc(&func.attrs, ctx)?,
+        calling_convention,
+        ctx,
+    );
 
     let wrapped_pyfunction = quote! {
         // Create a module with the same name as the `#[pyfunction]` - this way `use <the function>`

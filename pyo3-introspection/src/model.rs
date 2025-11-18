@@ -19,7 +19,7 @@ pub struct Class {
 pub struct Function {
     pub name: String,
     /// decorator like 'property' or 'staticmethod'
-    pub decorators: Vec<String>,
+    pub decorators: Vec<PythonIdentifier>,
     pub arguments: Arguments,
     /// return type
     pub returns: Option<TypeHint>,
@@ -77,17 +77,27 @@ pub enum TypeHint {
 /// A type hint annotation as an AST fragment
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub enum TypeHintExpr {
-    /// A local identifier which module is unknown
-    Local { id: String },
-    /// A Python builtin like `int`
-    Builtin { id: String },
-    /// The attribute of a python object like `{value}.{attr}`
-    Attribute { module: String, attr: String },
+    /// An identifier
+    Identifier(PythonIdentifier),
     /// A union `{left} | {right}`
-    Union { elts: Vec<TypeHintExpr> },
+    Union(Vec<TypeHintExpr>),
     /// A subscript `{value}[*slice]`
     Subscript {
         value: Box<TypeHintExpr>,
         slice: Vec<TypeHintExpr>,
     },
+}
+
+impl From<PythonIdentifier> for TypeHintExpr {
+    #[inline]
+    fn from(value: PythonIdentifier) -> Self {
+        Self::Identifier(value)
+    }
+}
+
+/// An Python identifier, either local (with `module = None`) or global (with `module = Some(_)`)
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub struct PythonIdentifier {
+    pub module: Option<String>,
+    pub name: String,
 }

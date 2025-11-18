@@ -24,6 +24,35 @@ use syn::{Attribute, Ident, Lifetime, ReturnType, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
+/// A Python type hint
+pub struct PythonIdentifier {
+    module: Option<&'static str>,
+    name: Cow<'static, str>,
+}
+
+impl PythonIdentifier {
+    pub fn builtins(name: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            module: Some("builtins"),
+            name: name.into(),
+        }
+    }
+
+    pub fn local(name: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            module: None,
+            name: name.into(),
+        }
+    }
+
+    pub fn module_attr(module: &'static str, name: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            module: Some(module),
+            name: name.into(),
+        }
+    }
+}
+
 pub fn module_introspection_code<'a>(
     pyo3_crate_path: &PyO3CratePath,
     name: &str,
@@ -83,7 +112,7 @@ pub fn function_introspection_code(
     signature: &FunctionSignature<'_>,
     first_argument: Option<&'static str>,
     returns: ReturnType,
-    decorators: impl IntoIterator<Item = String>,
+    decorators: impl IntoIterator<Item = PythonIdentifier>,
     parent: Option<&Type>,
 ) -> TokenStream {
     let mut desc = HashMap::from([
@@ -103,17 +132,11 @@ pub fn function_introspection_code(
                 IntrospectionNode::String(returns.to_python().into())
             } else {
                 match returns {
-                    ReturnType::Default => IntrospectionNode::ConstantType {
-                        name: "None",
-                        module: "builtins",
-                    },
+                    ReturnType::Default => PythonIdentifier::builtins("None").into(),
                     ReturnType::Type(_, ty) => match *ty {
                         Type::Tuple(t) if t.elems.is_empty() => {
                             // () is converted to None in return types
-                            IntrospectionNode::ConstantType {
-                                name: "None",
-                                module: "builtins",
-                            }
+                            PythonIdentifier::builtins("None").into()
                         }
                         mut ty => {
                             if let Some(class_type) = parent {
@@ -136,10 +159,7 @@ pub fn function_introspection_code(
             IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
         );
     }
-    let decorators = decorators
-        .into_iter()
-        .map(|d| IntrospectionNode::String(d.into()).into())
-        .collect::<Vec<_>>();
+    let decorators = decorators.into_iter().map(|d| d.into()).collect::<Vec<_>>();
     if !decorators.is_empty() {
         desc.insert("decorators", IntrospectionNode::List(decorators));
     }
@@ -188,10 +208,7 @@ pub fn attribute_introspection_code(
                 // Type checkers can infer the type from the value because it's typing.Literal[value]
                 // So, following stubs best practices, we only write typing.Final and not
                 // typing.Final[typing.literal[value]]
-                IntrospectionNode::ConstantType {
-                    name: "Final",
-                    module: "typing",
-                }
+                PythonIdentifier::module_attr("typing", "Final").into()
             } else {
                 IntrospectionNode::OutputType {
                     rust_type,
@@ -351,18 +368,9 @@ enum IntrospectionNode<'a> {
     String(Cow<'a, str>),
     Bool(bool),
     IntrospectionId(Option<Cow<'a, Type>>),
-    InputType {
-        rust_type: Type,
-        nullable: bool,
-    },
-    OutputType {
-        rust_type: Type,
-        is_final: bool,
-    },
-    ConstantType {
-        name: &'static str,
-        module: &'static str,
-    },
+    InputType { rust_type: Type, nullable: bool },
+    OutputType { rust_type: Type, is_final: bool },
+    ConstantType(PythonIdentifier),
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<AttributedIntrospectionNode<'a>>),
 }
@@ -424,9 +432,13 @@ impl IntrospectionNode<'_> {
                 }
                 content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
             }
-            Self::ConstantType { name, module } => {
-                let annotation =
-                    quote! { #pyo3_crate_path::inspect::TypeHint::module_attr(#module, #name) };
+            Self::ConstantType(hint) => {
+                let name = &hint.name;
+                let annotation = if let Some(module) = &hint.module {
+                    quote! { #pyo3_crate_path::inspect::TypeHint::module_attr(#module, #name) }
+                } else {
+                    quote! { #pyo3_crate_path::inspect::TypeHint::local(#name) }
+                };
                 content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
             }
             Self::Map(map) => {
@@ -468,6 +480,12 @@ impl IntrospectionNode<'_> {
     }
 }
 
+impl From<PythonIdentifier> for IntrospectionNode<'static> {
+    fn from(element: PythonIdentifier) -> Self {
+        Self::ConstantType(element)
+    }
+}
+
 fn serialize_type_hint(hint: TokenStream, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
     quote! {{
         const TYPE_HINT: #pyo3_crate_path::inspect::TypeHint = #hint;
@@ -492,6 +510,12 @@ impl<'a> From<IntrospectionNode<'a>> for AttributedIntrospectionNode<'a> {
             node,
             attributes: &[],
         }
+    }
+}
+
+impl<'a> From<PythonIdentifier> for AttributedIntrospectionNode<'a> {
+    fn from(node: PythonIdentifier) -> Self {
+        IntrospectionNode::from(node).into()
     }
 }
 
