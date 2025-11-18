@@ -201,7 +201,7 @@ If possible handling this in `__new__` should be preferred, but in some cases, l
 For example, you define a class that extends `PyDict` and don't want that the original `__init__` method of `PyDict` been called.
 In this case by defining an own `__init__` method it's possible to stop initialization flow.
 
-If you declare an own `__init__` method you may need to call a super class' `__init__` method explicitly like that happens in a regular Python code.
+If you declare an `__init__` method you may need to call a super class' `__init__` method explicitly like in Python code.
 
 To declare an initializer, you need to define the `__init__` method.
 Like in Python `__init__` must have the `self` receiver as the first argument, followed by the same arguments as the constructor.
@@ -211,7 +211,9 @@ It can either return `()` or `PyResult<()>`.
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # #[cfg(not(Py_LIMITED_API))]
-use pyo3::types::{PyDict, PyTuple};
+use pyo3::types::{PyDict, PyTuple, PySuper};
+# #[cfg(not(Py_LIMITED_API))]
+use crate::pyo3::PyTypeInfo;
 
 # #[cfg(not(Py_LIMITED_API))]
 #[pyclass(extends = PyDict)]
@@ -237,8 +239,11 @@ impl MyDict {
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
         // call the super types __init__
-        slf.py_super()?
+        PySuper::new(&PyDict::type_object(slf.py()), slf)?
             .call_method("__init__", args.to_owned(), kwargs)?;
+        // Note: if `MyDict` allows further subclassing, and this is called from such a subclass,
+        // then this will not that any overrides into account that such a subclass may have defined.
+        // In such a case it may be preferred to just call `slf.set_item` and let Python figure it out.
         slf.as_super().set_item("my_key", "always insert this key")?;
         Ok(())
     }
