@@ -29,6 +29,8 @@ pyobject_native_type!(
     PyFloat,
     ffi::PyFloatObject,
     pyobject_native_static_type_object!(ffi::PyFloat_Type),
+    "builtins",
+    "float",
     #checkfunction=ffi::PyFloat_Check
 );
 

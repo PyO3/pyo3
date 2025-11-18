@@ -58,7 +58,7 @@ fn try_new_from_iter<'py>(
 #[repr(transparent)]
 pub struct PyTuple(PyAny);
 
-pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyTuple_Type), #checkfunction=ffi::PyTuple_Check);
+pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyTuple_Type), "builtins", "tuple", #checkfunction=ffi::PyTuple_Check);
 
 impl PyTuple {
     /// Constructs a new tuple with the given elements.

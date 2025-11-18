@@ -80,6 +80,8 @@ macro_rules! import_exception {
         $crate::pyobject_native_type_core!(
             $name,
             $name::type_object_raw,
+            stringify!($name),
+            stringify!($module),
             #module=::std::option::Option::Some(stringify!($module))
         );
 
@@ -205,6 +207,8 @@ macro_rules! create_exception_type_object {
         $crate::pyobject_native_type_core!(
             $name,
             $name::type_object_raw,
+            stringify!($name),
+            stringify!($module),
             #module=::std::option::Option::Some(stringify!($module))
         );
 
@@ -230,24 +234,24 @@ macro_rules! create_exception_type_object {
 }
 
 macro_rules! impl_native_exception (
-    ($name:ident, $exc_name:ident, $doc:expr, $layout:path $(, #checkfunction=$checkfunction:path)?) => (
+    ($name:ident, $exc_name:ident, $python_name:expr, $doc:expr, $layout:path $(, #checkfunction=$checkfunction:path)?) => (
         #[doc = $doc]
         #[repr(transparent)]
         #[allow(clippy::upper_case_acronyms, reason = "Python exception names")]
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject } $(, #checkfunction=$checkfunction)?);
+        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject }, "builtins", $python_name $(, #checkfunction=$checkfunction)?);
         $crate::pyobject_subclassable_native_type!($name, $layout);
     );
-    ($name:ident, $exc_name:ident, $doc:expr) => (
-        impl_native_exception!($name, $exc_name, $doc, $crate::ffi::PyBaseExceptionObject);
+    ($name:ident, $exc_name:ident, $python_name:expr, $doc:expr) => (
+        impl_native_exception!($name, $exc_name, $python_name, $doc, $crate::ffi::PyBaseExceptionObject);
     )
 );
 
 #[cfg(windows)]
 macro_rules! impl_windows_native_exception (
-    ($name:ident, $exc_name:ident, $doc:expr, $layout:path) => (
+    ($name:ident, $exc_name:ident, $python_name:expr, $doc:expr, $layout:path) => (
         #[cfg(windows)]
         #[doc = $doc]
         #[repr(transparent)]
@@ -255,10 +259,10 @@ macro_rules! impl_windows_native_exception (
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject });
+        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject }, "builtins", $python_name);
     );
-    ($name:ident, $exc_name:ident, $doc:expr) => (
-        impl_windows_native_exception!($name, $exc_name, $doc, $crate::ffi::PyBaseExceptionObject);
+    ($name:ident, $exc_name:ident, $python_name:expr, $doc:expr) => (
+        impl_windows_native_exception!($name, $exc_name, $python_name, $doc, $crate::ffi::PyBaseExceptionObject);
     )
 );
 
@@ -333,131 +337,216 @@ Python::attach(|py| {
 impl_native_exception!(
     PyBaseException,
     PyExc_BaseException,
+    "BaseException",
     native_doc!("BaseException"),
     ffi::PyBaseExceptionObject,
     #checkfunction=ffi::PyExceptionInstance_Check
 );
-impl_native_exception!(PyException, PyExc_Exception, native_doc!("Exception"));
+impl_native_exception!(
+    PyException,
+    PyExc_Exception,
+    "Exception",
+    native_doc!("Exception")
+);
 impl_native_exception!(
     PyStopAsyncIteration,
     PyExc_StopAsyncIteration,
+    "StopAsyncIteration",
     native_doc!("StopAsyncIteration")
 );
 impl_native_exception!(
     PyStopIteration,
     PyExc_StopIteration,
+    "StopIteration",
     native_doc!("StopIteration"),
     ffi::PyStopIterationObject
 );
 impl_native_exception!(
     PyGeneratorExit,
     PyExc_GeneratorExit,
+    "GeneratorExit",
     native_doc!("GeneratorExit")
 );
 impl_native_exception!(
     PyArithmeticError,
     PyExc_ArithmeticError,
+    "ArithmeticError",
     native_doc!("ArithmeticError")
 );
-impl_native_exception!(PyLookupError, PyExc_LookupError, native_doc!("LookupError"));
+impl_native_exception!(
+    PyLookupError,
+    PyExc_LookupError,
+    "LookupError",
+    native_doc!("LookupError")
+);
 
 impl_native_exception!(
     PyAssertionError,
     PyExc_AssertionError,
+    "AssertionError",
     native_doc!("AssertionError")
 );
 impl_native_exception!(
     PyAttributeError,
     PyExc_AttributeError,
+    "AttributeError",
     native_doc!("AttributeError")
 );
-impl_native_exception!(PyBufferError, PyExc_BufferError, native_doc!("BufferError"));
-impl_native_exception!(PyEOFError, PyExc_EOFError, native_doc!("EOFError"));
+impl_native_exception!(
+    PyBufferError,
+    PyExc_BufferError,
+    "BufferError",
+    native_doc!("BufferError")
+);
+impl_native_exception!(
+    PyEOFError,
+    PyExc_EOFError,
+    "EOFError",
+    native_doc!("EOFError")
+);
 impl_native_exception!(
     PyFloatingPointError,
     PyExc_FloatingPointError,
+    "FloatingPointError",
     native_doc!("FloatingPointError")
 );
 #[cfg(not(any(PyPy, GraalPy)))]
 impl_native_exception!(
     PyOSError,
     PyExc_OSError,
+    "OSError",
     native_doc!("OSError"),
     ffi::PyOSErrorObject
 );
 #[cfg(any(PyPy, GraalPy))]
-impl_native_exception!(PyOSError, PyExc_OSError, native_doc!("OSError"));
-impl_native_exception!(PyImportError, PyExc_ImportError, native_doc!("ImportError"));
+impl_native_exception!(PyOSError, PyExc_OSError, "OSError", native_doc!("OSError"));
+impl_native_exception!(
+    PyImportError,
+    PyExc_ImportError,
+    "ImportError",
+    native_doc!("ImportError")
+);
 
 impl_native_exception!(
     PyModuleNotFoundError,
     PyExc_ModuleNotFoundError,
+    "ModuleNotFoundError",
     native_doc!("ModuleNotFoundError")
 );
 
-impl_native_exception!(PyIndexError, PyExc_IndexError, native_doc!("IndexError"));
-impl_native_exception!(PyKeyError, PyExc_KeyError, native_doc!("KeyError"));
+impl_native_exception!(
+    PyIndexError,
+    PyExc_IndexError,
+    "IndexError",
+    native_doc!("IndexError")
+);
+impl_native_exception!(
+    PyKeyError,
+    PyExc_KeyError,
+    "KeyError",
+    native_doc!("KeyError")
+);
 impl_native_exception!(
     PyKeyboardInterrupt,
     PyExc_KeyboardInterrupt,
+    "KeyboardInterrupt",
     native_doc!("KeyboardInterrupt")
 );
-impl_native_exception!(PyMemoryError, PyExc_MemoryError, native_doc!("MemoryError"));
-impl_native_exception!(PyNameError, PyExc_NameError, native_doc!("NameError"));
+impl_native_exception!(
+    PyMemoryError,
+    PyExc_MemoryError,
+    "MemoryError",
+    native_doc!("MemoryError")
+);
+impl_native_exception!(
+    PyNameError,
+    PyExc_NameError,
+    "NameError",
+    native_doc!("NameError")
+);
 impl_native_exception!(
     PyOverflowError,
     PyExc_OverflowError,
+    "OverflowError",
     native_doc!("OverflowError")
 );
 impl_native_exception!(
     PyRuntimeError,
     PyExc_RuntimeError,
+    "RuntimeError",
     native_doc!("RuntimeError")
 );
 impl_native_exception!(
     PyRecursionError,
     PyExc_RecursionError,
+    "RecursionError",
     native_doc!("RecursionError")
 );
 impl_native_exception!(
     PyNotImplementedError,
     PyExc_NotImplementedError,
+    "NotImplementedError",
     native_doc!("NotImplementedError")
 );
 #[cfg(not(any(PyPy, GraalPy)))]
 impl_native_exception!(
     PySyntaxError,
     PyExc_SyntaxError,
+    "SyntaxError",
     native_doc!("SyntaxError"),
     ffi::PySyntaxErrorObject
 );
 #[cfg(any(PyPy, GraalPy))]
-impl_native_exception!(PySyntaxError, PyExc_SyntaxError, native_doc!("SyntaxError"));
+impl_native_exception!(
+    PySyntaxError,
+    PyExc_SyntaxError,
+    "SyntaxError",
+    native_doc!("SyntaxError")
+);
 impl_native_exception!(
     PyReferenceError,
     PyExc_ReferenceError,
+    "ReferenceError",
     native_doc!("ReferenceError")
 );
-impl_native_exception!(PySystemError, PyExc_SystemError, native_doc!("SystemError"));
+impl_native_exception!(
+    PySystemError,
+    PyExc_SystemError,
+    "SystemError",
+    native_doc!("SystemError")
+);
 #[cfg(not(any(PyPy, GraalPy)))]
 impl_native_exception!(
     PySystemExit,
     PyExc_SystemExit,
+    "SystemExit",
     native_doc!("SystemExit"),
     ffi::PySystemExitObject
 );
 #[cfg(any(PyPy, GraalPy))]
-impl_native_exception!(PySystemExit, PyExc_SystemExit, native_doc!("SystemExit"));
-impl_native_exception!(PyTypeError, PyExc_TypeError, native_doc!("TypeError"));
+impl_native_exception!(
+    PySystemExit,
+    PyExc_SystemExit,
+    "SystemExit",
+    native_doc!("SystemExit")
+);
+impl_native_exception!(
+    PyTypeError,
+    PyExc_TypeError,
+    "TypeError",
+    native_doc!("TypeError")
+);
 impl_native_exception!(
     PyUnboundLocalError,
     PyExc_UnboundLocalError,
+    "UnboundLocalError",
     native_doc!("UnboundLocalError")
 );
 #[cfg(not(any(PyPy, GraalPy)))]
 impl_native_exception!(
     PyUnicodeError,
     PyExc_UnicodeError,
+    "UnicodeError",
     native_doc!("UnicodeError"),
     ffi::PyUnicodeErrorObject
 );
@@ -465,124 +554,152 @@ impl_native_exception!(
 impl_native_exception!(
     PyUnicodeError,
     PyExc_UnicodeError,
+    "UnicodeError",
     native_doc!("UnicodeError")
 );
 // these four errors need arguments, so they're too annoying to write tests for using macros...
 impl_native_exception!(
     PyUnicodeDecodeError,
     PyExc_UnicodeDecodeError,
+    "UnicodeDecodeError",
     native_doc!("UnicodeDecodeError", "")
 );
 impl_native_exception!(
     PyUnicodeEncodeError,
     PyExc_UnicodeEncodeError,
+    "UnicodeEncodeError",
     native_doc!("UnicodeEncodeError", "")
 );
 impl_native_exception!(
     PyUnicodeTranslateError,
     PyExc_UnicodeTranslateError,
+    "UnicodeTranslateError",
     native_doc!("UnicodeTranslateError", "")
 );
 #[cfg(Py_3_11)]
 impl_native_exception!(
     PyBaseExceptionGroup,
     PyExc_BaseExceptionGroup,
+    "BaseExceptionGroup",
     native_doc!("BaseExceptionGroup", "")
 );
-impl_native_exception!(PyValueError, PyExc_ValueError, native_doc!("ValueError"));
+impl_native_exception!(
+    PyValueError,
+    PyExc_ValueError,
+    "ValueError",
+    native_doc!("ValueError")
+);
 impl_native_exception!(
     PyZeroDivisionError,
     PyExc_ZeroDivisionError,
+    "ZeroDivisionError",
     native_doc!("ZeroDivisionError")
 );
 
 impl_native_exception!(
     PyBlockingIOError,
     PyExc_BlockingIOError,
+    "BlockingIOError",
     native_doc!("BlockingIOError")
 );
 impl_native_exception!(
     PyBrokenPipeError,
     PyExc_BrokenPipeError,
+    "BrokenPipeError",
     native_doc!("BrokenPipeError")
 );
 impl_native_exception!(
     PyChildProcessError,
     PyExc_ChildProcessError,
+    "ChildProcessError",
     native_doc!("ChildProcessError")
 );
 impl_native_exception!(
     PyConnectionError,
     PyExc_ConnectionError,
+    "ConnectionError",
     native_doc!("ConnectionError")
 );
 impl_native_exception!(
     PyConnectionAbortedError,
     PyExc_ConnectionAbortedError,
+    "ConnectionAbortedError",
     native_doc!("ConnectionAbortedError")
 );
 impl_native_exception!(
     PyConnectionRefusedError,
     PyExc_ConnectionRefusedError,
+    "ConnectionRefusedError",
     native_doc!("ConnectionRefusedError")
 );
 impl_native_exception!(
     PyConnectionResetError,
     PyExc_ConnectionResetError,
+    "ConnectionResetError",
     native_doc!("ConnectionResetError")
 );
 impl_native_exception!(
     PyFileExistsError,
     PyExc_FileExistsError,
+    "FileExistsError",
     native_doc!("FileExistsError")
 );
 impl_native_exception!(
     PyFileNotFoundError,
     PyExc_FileNotFoundError,
+    "FileNotFoundError",
     native_doc!("FileNotFoundError")
 );
 impl_native_exception!(
     PyInterruptedError,
     PyExc_InterruptedError,
+    "InterruptedError",
     native_doc!("InterruptedError")
 );
 impl_native_exception!(
     PyIsADirectoryError,
     PyExc_IsADirectoryError,
+    "IsADirectoryError",
     native_doc!("IsADirectoryError")
 );
 impl_native_exception!(
     PyNotADirectoryError,
     PyExc_NotADirectoryError,
+    "NotADirectoryError",
     native_doc!("NotADirectoryError")
 );
 impl_native_exception!(
     PyPermissionError,
     PyExc_PermissionError,
+    "PermissionError",
     native_doc!("PermissionError")
 );
 impl_native_exception!(
     PyProcessLookupError,
     PyExc_ProcessLookupError,
+    "ProcessLookupError",
     native_doc!("ProcessLookupError")
 );
 impl_native_exception!(
     PyTimeoutError,
     PyExc_TimeoutError,
+    "TimeoutError",
     native_doc!("TimeoutError")
 );
 
 impl_native_exception!(
     PyEnvironmentError,
     PyExc_EnvironmentError,
+    "EnvironmentError",
     native_doc!("EnvironmentError")
 );
-impl_native_exception!(PyIOError, PyExc_IOError, native_doc!("IOError"));
+impl_native_exception!(PyIOError, PyExc_IOError, "IOError", native_doc!("IOError"));
 
 #[cfg(windows)]
 impl_windows_native_exception!(
     PyWindowsError,
     PyExc_WindowsError,
+    "WindowsError",
     native_doc!("WindowsError")
 );
 
@@ -642,51 +759,65 @@ impl PyUnicodeDecodeError {
     }
 }
 
-impl_native_exception!(PyWarning, PyExc_Warning, native_doc!("Warning"));
-impl_native_exception!(PyUserWarning, PyExc_UserWarning, native_doc!("UserWarning"));
+impl_native_exception!(PyWarning, PyExc_Warning, "Warning", native_doc!("Warning"));
+impl_native_exception!(
+    PyUserWarning,
+    PyExc_UserWarning,
+    "UserWarning",
+    native_doc!("UserWarning")
+);
 impl_native_exception!(
     PyDeprecationWarning,
     PyExc_DeprecationWarning,
+    "DeprecationWarning",
     native_doc!("DeprecationWarning")
 );
 impl_native_exception!(
     PyPendingDeprecationWarning,
     PyExc_PendingDeprecationWarning,
+    "PendingDeprecationWarning",
     native_doc!("PendingDeprecationWarning")
 );
 impl_native_exception!(
     PySyntaxWarning,
     PyExc_SyntaxWarning,
+    "SyntaxWarning",
     native_doc!("SyntaxWarning")
 );
 impl_native_exception!(
     PyRuntimeWarning,
     PyExc_RuntimeWarning,
+    "RuntimeWarning",
     native_doc!("RuntimeWarning")
 );
 impl_native_exception!(
     PyFutureWarning,
     PyExc_FutureWarning,
+    "FutureWarning",
     native_doc!("FutureWarning")
 );
 impl_native_exception!(
     PyImportWarning,
     PyExc_ImportWarning,
+    "ImportWarning",
     native_doc!("ImportWarning")
 );
 impl_native_exception!(
     PyUnicodeWarning,
     PyExc_UnicodeWarning,
+    "UnicodeWarning",
     native_doc!("UnicodeWarning")
 );
 impl_native_exception!(
     PyBytesWarning,
     PyExc_BytesWarning,
+    "BytesWarning",
     native_doc!("BytesWarning")
 );
 impl_native_exception!(
     PyResourceWarning,
     PyExc_ResourceWarning,
+    "ResourceWarning",
     native_doc!("ResourceWarning")
 );
 
@@ -694,6 +825,7 @@ impl_native_exception!(
 impl_native_exception!(
     PyEncodingWarning,
     PyExc_EncodingWarning,
+    "EncodingWarning",
     native_doc!("EncodingWarning")
 );
 

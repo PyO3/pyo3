@@ -40,9 +40,12 @@ fn PyObject_Check(_: *mut ffi::PyObject) -> c_int {
     1
 }
 
+// We follow stub writing guidelines and use "object" instead of "typing.Any": https://typing.python.org/en/latest/guides/writing_stubs.html#using-any
 pyobject_native_type_info!(
     PyAny,
     pyobject_native_static_type_object!(ffi::PyBaseObject_Type),
+    "builtins",
+    "object",
     Some("builtins"),
     #checkfunction=PyObject_Check
 );

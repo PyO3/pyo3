@@ -27,6 +27,8 @@ pyobject_native_type!(
     PyComplex,
     ffi::PyComplexObject,
     pyobject_native_static_type_object!(ffi::PyComplex_Type),
+    "builtins",
+    "complex",
     #checkfunction=ffi::PyComplex_Check
 );
 

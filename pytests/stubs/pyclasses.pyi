@@ -1,8 +1,8 @@
 from _typeshed import Incomplete
-from typing import Any, final
+from typing import final
 
 class AssertingBaseClass:
-    def __new__(cls, /, expected_type: Any) -> AssertingBaseClass: ...
+    def __new__(cls, /, expected_type: type) -> AssertingBaseClass: ...
 
 @final
 class ClassWithDecorators:
