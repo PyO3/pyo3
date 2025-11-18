@@ -4,11 +4,13 @@ use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
-    any::PyAnyMethods, list::PyListMethods, PyAny, PyCFunction, PyDict, PyList, PyString,
+    any::PyAnyMethods, list::PyListMethods, string::PyStringMethods, PyAny, PyCFunction, PyDict,
+    PyList, PyString,
 };
 use crate::{
     exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
 };
+use std::borrow::Cow;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use std::ffi::c_int;
 use std::ffi::CStr;
@@ -516,7 +518,10 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
     fn add_submodule(&self, module: &Bound<'_, PyModule>) -> PyResult<()> {
         let name = module.name()?;
         let name = name.to_cow()?;
-        let name = name.rsplit_once(b'.').map_or(&name, |(_, last_part)| last_part);
+        let name = match name.rsplit_once('.') {
+            Some((_, name)) => Cow::from(name),
+            None => name,
+        };
         self.add(name, module)
     }
 
