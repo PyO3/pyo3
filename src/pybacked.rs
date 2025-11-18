@@ -1,7 +1,7 @@
 //! Contains types for working with Python objects that own the underlying data.
 
-use std::{convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
-
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::{
     types::{
         bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
@@ -9,6 +9,7 @@ use crate::{
     },
     Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo, Python,
 };
+use std::{convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
 
 /// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
 ///
@@ -84,6 +85,9 @@ impl TryFrom<Bound<'_, PyString>> for PyBackedStr {
 impl FromPyObject<'_, '_> for PyBackedStr {
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = PyString::TYPE_HINT;
+
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let py_string = obj.cast::<PyString>()?.to_owned();
         Self::try_from(py_string)
@@ -94,6 +98,9 @@ impl<'py> IntoPyObject<'py> for PyBackedStr {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = PyString::TYPE_HINT;
 
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -110,6 +117,9 @@ impl<'py> IntoPyObject<'py> for &PyBackedStr {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = PyString::TYPE_HINT;
 
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -207,6 +217,9 @@ impl From<Bound<'_, PyByteArray>> for PyBackedBytes {
 impl<'a, 'py> FromPyObject<'a, 'py> for PyBackedBytes {
     type Error = CastError<'a, 'py>;
 
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = PyBytes::TYPE_HINT;
+
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(bytes) = obj.cast::<PyBytes>() {
             Ok(Self::from(bytes.to_owned()))
@@ -234,6 +247,9 @@ impl<'py> IntoPyObject<'py> for PyBackedBytes {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = PyBytes::TYPE_HINT;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self.storage {
             PyBackedBytesStorage::Python(bytes) => Ok(bytes.into_bound(py)),
@@ -246,6 +262,9 @@ impl<'py> IntoPyObject<'py> for &PyBackedBytes {
     type Target = PyBytes;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = PyBytes::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match &self.storage {

@@ -1,15 +1,22 @@
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
 use crate::{intern, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 impl FromPyObject<'_, '_> for IpAddr {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = TypeHint::union(&[
+        TypeHint::module_attr("ipaddress", "IPv4Address"),
+        TypeHint::module_attr("ipaddress", "IPv6Address"),
+    ]);
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         match obj.getattr(intern!(obj.py(), "packed")) {
@@ -35,6 +42,9 @@ impl<'py> IntoPyObject<'py> for Ipv4Addr {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = TypeHint::module_attr("ipaddress", "IPv4Address");
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static IPV4_ADDRESS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         IPV4_ADDRESS
@@ -48,6 +58,9 @@ impl<'py> IntoPyObject<'py> for &Ipv4Addr {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = Ipv4Addr::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
@@ -58,6 +71,9 @@ impl<'py> IntoPyObject<'py> for Ipv6Addr {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = TypeHint::module_attr("ipaddress", "IPv6Address");
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static IPV6_ADDRESS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
@@ -72,6 +88,9 @@ impl<'py> IntoPyObject<'py> for &Ipv6Addr {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = Ipv6Addr::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
@@ -82,6 +101,9 @@ impl<'py> IntoPyObject<'py> for IpAddr {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = TypeHint::union(&[Ipv4Addr::OUTPUT_TYPE, Ipv6Addr::OUTPUT_TYPE]);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self {
@@ -95,6 +117,9 @@ impl<'py> IntoPyObject<'py> for &IpAddr {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = IpAddr::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {

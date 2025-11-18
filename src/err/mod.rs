@@ -1,4 +1,7 @@
+use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::instance::Bound;
 #[cfg(Py_3_11)]
 use crate::intern;
@@ -14,17 +17,15 @@ use crate::types::{
 };
 use crate::{exceptions::PyBaseException, ffi};
 use crate::{BoundObject, Py, PyAny, Python};
+use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
+use std::convert::Infallible;
 use std::ffi::CStr;
+use std::ptr;
 
 mod cast_error;
 mod downcast_error;
 mod err_state;
 mod impls;
-
-use crate::conversion::IntoPyObject;
-use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
-use std::convert::Infallible;
-use std::ptr;
 
 pub use cast_error::{CastError, CastIntoError};
 #[allow(deprecated)]
@@ -674,6 +675,9 @@ impl<'py> IntoPyObject<'py> for PyErr {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = PyBaseException::TYPE_HINT;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.into_value(py).into_bound(py))
@@ -684,6 +688,9 @@ impl<'py> IntoPyObject<'py> for &PyErr {
     type Target = PyBaseException;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = PyErr::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {

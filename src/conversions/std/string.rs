@@ -2,6 +2,8 @@
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::TypeHint;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
 use crate::{
     conversion::IntoPyObject, instance::Bound, types::PyString, Borrowed, FromPyObject, PyAny,
     PyErr, Python,
@@ -128,7 +130,7 @@ impl<'py> IntoPyObject<'py> for String {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = TypeHint::builtin("str");
+    const OUTPUT_TYPE: TypeHint = PyString::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new(py, &self))
@@ -164,7 +166,7 @@ impl<'a> crate::conversion::FromPyObject<'a, '_> for &'a str {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::builtin("str");
+    const INPUT_TYPE: TypeHint = PyString::TYPE_HINT;
 
     fn extract(ob: crate::Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         ob.cast::<PyString>()?.to_str()
@@ -180,7 +182,7 @@ impl<'a> crate::conversion::FromPyObject<'a, '_> for Cow<'a, str> {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::builtin("str");
+    const INPUT_TYPE: TypeHint = PyString::TYPE_HINT;
 
     fn extract(ob: crate::Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         ob.cast::<PyString>()?.to_cow()
@@ -198,7 +200,7 @@ impl FromPyObject<'_, '_> for String {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::builtin("str");
+    const INPUT_TYPE: TypeHint = PyString::TYPE_HINT;
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         obj.cast::<PyString>()?.to_cow().map(Cow::into_owned)
@@ -214,7 +216,7 @@ impl FromPyObject<'_, '_> for char {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::builtin("str");
+    const INPUT_TYPE: TypeHint = PyString::TYPE_HINT;
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let s = obj.cast::<PyString>()?.to_cow()?;

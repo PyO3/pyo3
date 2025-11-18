@@ -2,6 +2,10 @@ use std::borrow::Cow;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
 use crate::{
     conversion::IntoPyObject,
     types::{PyByteArray, PyByteArrayMethods, PyBytes},
@@ -37,6 +41,9 @@ where
 impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for &'a [u8] {
     type Error = CastError<'a, 'py>;
 
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = PyBytes::TYPE_HINT;
+
     fn extract(obj: crate::Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         Ok(obj.cast::<PyBytes>()?.as_bytes())
     }
@@ -54,6 +61,9 @@ impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for &'a [u8] {
 /// If it is a `bytearray`, its contents will be copied to an owned `Cow`.
 impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for Cow<'a, [u8]> {
     type Error = CastError<'a, 'py>;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = TypeHint::union(&[PyBytes::TYPE_HINT, PyByteArray::TYPE_HINT]);
 
     fn extract(ob: crate::Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(bytes) = ob.cast::<PyBytes>() {
@@ -78,6 +88,9 @@ where
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = <&[T]>::OUTPUT_TYPE;
 
     /// Turns `Cow<[u8]>` into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///

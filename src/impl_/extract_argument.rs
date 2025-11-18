@@ -1,5 +1,7 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::TypeHint;
+#[cfg(any(Py_3_10, not(Py_LIMITED_API), feature = "experimental-inspect"))]
+use crate::types::PyString;
 use crate::{
     exceptions::PyTypeError,
     ffi,
@@ -108,10 +110,7 @@ where
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::union(&[
-        TypeHint::module_attr("typing", "Any"),
-        TypeHint::builtin("None"),
-    ]);
+    const INPUT_TYPE: TypeHint = TypeHint::union(&[T::INPUT_TYPE, TypeHint::builtin("None")]);
 
     #[inline]
     fn extract(
@@ -132,7 +131,7 @@ impl<'a, 'holder, 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'holder 
     type Error = <std::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::builtin("str");
+    const INPUT_TYPE: TypeHint = PyString::TYPE_HINT;
 
     #[inline]
     fn extract(
@@ -504,8 +503,7 @@ impl FunctionDescription {
             // Safety: All keyword arguments should be UTF-8 strings, but if it's not, `.to_str()`
             // will return an error anyway.
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-            let kwarg_name =
-                unsafe { kwarg_name_py.cast_unchecked::<crate::types::PyString>() }.to_str();
+            let kwarg_name = unsafe { kwarg_name_py.cast_unchecked::<PyString>() }.to_str();
 
             #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
             let kwarg_name = kwarg_name_py.extract::<crate::pybacked::PyBackedStr>();

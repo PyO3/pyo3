@@ -1,4 +1,6 @@
 use crate::conversion::{FromPyObjectOwned, FromPyObjectSequence, IntoPyObject};
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
 use crate::{err::CastError, ffi, FromPyObject, PyAny, PyResult, PyTypeInfo, Python};
@@ -29,6 +31,9 @@ where
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = <&[T]>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {

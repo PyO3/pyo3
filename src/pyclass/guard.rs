@@ -282,6 +282,9 @@ impl<T: PyClass> Deref for PyClassGuard<'_, T> {
 impl<'a, 'py, T: PyClass> FromPyObject<'a, 'py> for PyClassGuard<'a, T> {
     type Error = PyClassGuardError<'a, 'py>;
 
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
+
     fn extract(obj: Borrowed<'a, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
         Self::try_from_class_object(
             obj.cast()
@@ -296,6 +299,9 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for PyClassGuard<'a, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, T>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -684,6 +690,9 @@ impl<T: PyClass<Frozen = False>> DerefMut for PyClassGuardMut<'_, T> {
 impl<'a, 'py, T: PyClass<Frozen = False>> FromPyObject<'a, 'py> for PyClassGuardMut<'a, T> {
     type Error = PyClassGuardMutError<'a, 'py>;
 
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
+
     fn extract(obj: Borrowed<'a, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
         Self::try_from_class_object(
             obj.cast()
@@ -699,6 +708,9 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyClassGuardMut<
     type Output = Borrowed<'a, 'py, T>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
+
     #[inline]
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
         (&self).into_pyobject(py)
@@ -709,6 +721,9 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &PyClassGuardMut
     type Target = T;
     type Output = Borrowed<'a, 'py, T>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {

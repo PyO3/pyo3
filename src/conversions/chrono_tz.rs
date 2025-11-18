@@ -36,7 +36,11 @@
 //! ```
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::pybacked::PyBackedStr;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
 use crate::types::{any::PyAnyMethods, PyTzInfo};
 use crate::{intern, Borrowed, Bound, FromPyObject, PyAny, PyErr, Python};
 use chrono_tz::Tz;
@@ -47,6 +51,9 @@ impl<'py> IntoPyObject<'py> for Tz {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = PyTzInfo::TYPE_HINT;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyTzInfo::timezone(py, self.name())
     }
@@ -56,6 +63,9 @@ impl<'py> IntoPyObject<'py> for &Tz {
     type Target = PyTzInfo;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = Tz::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
