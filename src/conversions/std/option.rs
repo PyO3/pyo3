@@ -35,7 +35,7 @@ where
     type Output = Bound<'py, Self::Target>;
     type Error = <&'a T as IntoPyObject<'py>>::Error;
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = <Option<&T> as IntoPyObject<'_>>::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = <Option<&T>>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
