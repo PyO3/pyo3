@@ -43,11 +43,6 @@ impl ModuleState {
         }
     }
 
-    /// Returns the byte size of this type, for use in `ffi::PyModuleDef.m_size`
-    pub const fn size_of() -> ffi::Py_ssize_t {
-        std::mem::size_of::<Self>() as ffi::Py_ssize_t
-    }
-
     pub fn state_map_ref(&self) -> &StateMap {
         &self.inner_ref().sm
     }
