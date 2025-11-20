@@ -428,6 +428,9 @@ mod tests {
         use super::{pyo3_module_state_init, ModuleState};
         use crate::{PyAny, PyErr};
 
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        struct UserState(u64);
+
         unsafe extern "C" fn state_test(module: *mut ffi::PyObject) -> c_int {
             unsafe {
                 trampoline::module_exec(module, |module| {
@@ -451,15 +454,28 @@ mod tests {
         );
 
         Python::attach(|py| {
-            let module = MODULE_DEF
+            let mut module = MODULE_DEF
                 .make_module(py)
                 .expect("module to initialize without error")
                 .into_bound(py);
-            let state = unsafe { ModuleState::pymodule_get_state(module.as_ptr()) };
+            let mystate = UserState(42);
 
-            assert!(
-                state.is_some(),
-                "unable to fetch state from a bound pymodule"
+            assert_eq!(
+                None,
+                module.state_ref::<UserState>(),
+                "no state has been added yet"
+            );
+
+            assert_eq!(
+                mystate,
+                *module.state_or_init(|| mystate),
+                "added state successfully"
+            );
+
+            assert_eq!(
+                Some(&mystate),
+                module.state_ref::<UserState>(),
+                "previously added state is referenceable"
             );
         })
     }
