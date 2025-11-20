@@ -1,7 +1,8 @@
 use std::ptr::NonNull;
 
 use crate::internal::typemap::{CloneAny, TypeMap};
-use crate::ffi;
+use crate::types::PyModule;
+use crate::{ffi, Bound};
 
 /// The internal typemap for [`ModuleState`]
 pub type StateMap = TypeMap<dyn CloneAny + Send>;
@@ -47,6 +48,28 @@ impl ModuleState {
         std::mem::size_of::<Self>() as ffi::Py_ssize_t
     }
 
+    pub fn state_map_ref(&self) -> &StateMap {
+        &self.inner_ref().sm
+    }
+
+    pub fn state_map_mut(&mut self) -> &mut StateMap {
+        &mut self.inner_mut().sm
+    }
+
+    fn inner_ref(&self) -> &StateCapsule {
+        self.inner
+            .as_ref()
+            .map(|ptr| unsafe { ptr.as_ref() })
+            .expect("BUG: ModuleState.inner should always be Some, except when dropping")
+    }
+
+    fn inner_mut(&mut self) -> &mut StateCapsule {
+        self.inner
+            .as_mut()
+            .map(|ptr| unsafe { ptr.as_mut() })
+            .expect("BUG: ModuleState.inner should always be Some, except when dropping")
+    }
+
     /// This is the actual [`Drop::drop`] implementation, split out
     /// so we can run it on the state ptr returned from [`Self::pymodule_get_state`]
     ///
@@ -65,6 +88,35 @@ impl ModuleState {
 }
 
 impl ModuleState {
+    /// Fetch the [`ModuleState`] from a bound PyModule, inheriting it's lifetime
+    ///
+    /// ## Panics
+    ///
+    /// This function can panic if called on a PyModule that has not yet been
+    /// initialized
+    pub(crate) fn from_bound<'a>(this: &'a Bound<'_, PyModule>) -> &'a Self {
+        unsafe {
+            Self::pymodule_get_state(this.as_ptr())
+                .map(|ptr| ptr.as_ref())
+                .expect("pyo3 PyModules should always have per-module state")
+        }
+    }
+
+    /// Fetch the [`ModuleState`] mutably from a bound PyModule, inheriting it's
+    /// lifetime
+    ///
+    /// ## Panics
+    ///
+    /// This function can panic if called on a PyModule that has not yet been
+    /// initialized
+    pub(crate) fn from_bound_mut<'a>(this: &'a mut Bound<'_, PyModule>) -> &'a mut Self {
+        unsafe {
+            Self::pymodule_get_state(this.as_ptr())
+                .map(|mut ptr| ptr.as_mut())
+                .expect("pyo3 PyModules should always have per-module state")
+        }
+    }
+
     /// Associated low level function for retrieving a pyo3 `pymodule`'s state
     ///
     /// If this function returns None, it means the underlying C PyModule does
