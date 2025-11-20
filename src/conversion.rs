@@ -7,7 +7,11 @@ use crate::inspect::types::TypeInfo;
 use crate::inspect::TypeHint;
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;
+#[cfg(feature = "experimental-inspect")]
+use crate::types::{PyList, PySequence};
 use crate::{
     Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyClassGuard, PyErr, PyRef, PyRefMut,
     PyTypeCheck, Python,
@@ -110,6 +114,12 @@ pub trait IntoPyObject<'py>: Sized {
         let list = crate::types::list::try_new_from_iter(py, &mut iter);
         list.map(Bound::into_any)
     }
+
+    /// The output type of [`owned_sequence_into_pyobject`] and [`borrowed_sequence_into_pyobject`]
+    #[cfg(feature = "experimental-inspect")]
+    #[doc(hidden)]
+    const SEQUENCE_OUTPUT_TYPE: TypeHint =
+        TypeHint::subscript(&PyList::TYPE_HINT, &[Self::OUTPUT_TYPE]);
 }
 
 pub(crate) mod private {
@@ -454,6 +464,12 @@ pub trait FromPyObject<'a, 'py>: Sized {
 
         Option::<NeverASequence<Self>>::None
     }
+
+    /// The union of Sequence[Self::INPUT_TYPE] and the input sequence extraction function [`sequence_extractor`] if it's defined
+    #[cfg(feature = "experimental-inspect")]
+    #[doc(hidden)]
+    const SEQUENCE_INPUT_TYPE: TypeHint =
+        TypeHint::subscript(&PySequence::TYPE_HINT, &[Self::INPUT_TYPE]);
 
     /// Helper used to make a specialized path in extracting `DateTime<Tz>` where `Tz` is
     /// `chrono::Local`, which will accept "naive" datetime objects as being in the local timezone.
