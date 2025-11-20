@@ -1,7 +1,26 @@
-use std::marker::PhantomData;
 use std::ptr::NonNull;
 
+use crate::internal::typemap::{CloneAny, TypeMap};
 use crate::ffi;
+
+/// The internal typemap for [`ModuleState`]
+pub type StateMap = TypeMap<dyn CloneAny + Send>;
+
+/// A marker trait for indicating what type level guarantees (and requirements)
+/// are made for PyO3 `PyModule` state types.
+///
+/// In general, a type *must be*
+///
+/// 1. Fully owned (`'static`)
+/// 2. Cloneable (`Clone`)
+/// 3. Sendable (`Send`)
+///
+/// To qualify as `PyModule` state.
+///
+/// This type is automatically implemented for all types that qualify, so no
+/// further action is required.
+pub trait ModuleStateType: Clone + Send {}
+impl<T: Clone + Send> ModuleStateType for T {}
 
 /// Represents a Python module's state.
 ///
@@ -88,9 +107,8 @@ impl Default for ModuleState {
 }
 
 /// Inner layout of [`ModuleState`].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct StateCapsule {
-    #[allow(dead_code)]
     sm: StateMap,
 }
 
@@ -108,19 +126,17 @@ impl Default for StateCapsule {
     }
 }
 
-/// Placeholder for the actual TypeMap implementation
-#[derive(Debug, Clone)]
-struct StateMap {
-    /// The actual typemap is !Sync + Send, so emulate this
-    _mkr: PhantomData<*const ()>,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl StateMap {
-    pub fn new() -> Self {
-        Self {
-            _mkr: Default::default(),
-        }
+    #[test]
+    fn type_assertions() {
+        fn is_send<T: Send>(_t: &T) {}
+        fn is_clone<T: Clone>(_t: &T) {}
+
+        let this = StateCapsule::new();
+        is_send(&this);
+        is_clone(&this);
     }
 }
-
-unsafe impl Send for StateMap {}
