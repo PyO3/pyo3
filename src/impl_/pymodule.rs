@@ -78,7 +78,7 @@ impl ModuleDef {
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
             m_name: name.as_ptr(),
             m_doc: doc.as_ptr(),
-            m_size: ModuleState::size_of() as _,
+            m_size: std::mem::size_of::<ModuleState>() as _,
             // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
             // but that requires mut ptr deref on MSRV.
             m_slots: slots.0.get() as _,
