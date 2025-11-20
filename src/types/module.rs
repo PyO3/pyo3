@@ -1,6 +1,7 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
+use crate::impl_::pymodule_state::{ModuleState, ModuleStateType};
 use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
@@ -402,6 +403,27 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// This is a no-op on the GIL-enabled build.
     fn gil_used(&self, gil_used: bool) -> PyResult<()>;
+
+    /// Get an immutable view into the per-module state associated with this
+    /// PyModule.
+    fn state_ref<T>(&self) -> Option<&T>
+    where
+        T: ModuleStateType + 'static;
+
+    /// Get a mutable view into the per-module state associated with this
+    /// PyModule.
+    fn state_mut<T>(&mut self) -> Option<&mut T>
+    where
+        T: ModuleStateType + 'static;
+
+    /// Get a mutable view into the per-module state associated with this
+    /// PyModule.
+    ///
+    /// Will initialize the state type with the given `f` if needed.
+    fn state_or_init<T, F>(&mut self, f: F) -> &mut T
+    where
+        T: ModuleStateType + 'static,
+        F: FnOnce() -> T;
 }
 
 impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
@@ -548,6 +570,33 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         }
         #[cfg(any(Py_LIMITED_API, not(Py_GIL_DISABLED)))]
         Ok(())
+    }
+
+    fn state_ref<T>(&self) -> Option<&T>
+    where
+        T: ModuleStateType + 'static,
+    {
+        ModuleState::from_bound(self).state_map_ref().get::<T>()
+    }
+
+    fn state_mut<T>(&mut self) -> Option<&mut T>
+    where
+        T: ModuleStateType + 'static,
+    {
+        ModuleState::from_bound_mut(self)
+            .state_map_mut()
+            .get_mut::<T>()
+    }
+
+    fn state_or_init<T, F>(&mut self, f: F) -> &mut T
+    where
+        T: ModuleStateType + 'static,
+        F: FnOnce() -> T,
+    {
+        ModuleState::from_bound_mut(self)
+            .state_map_mut()
+            .entry::<T>()
+            .or_insert_with(f)
     }
 }
 
