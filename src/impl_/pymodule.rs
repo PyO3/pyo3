@@ -25,6 +25,8 @@ use std::sync::atomic::{AtomicI64, Ordering};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
+use crate::exceptions::PyRuntimeError;
+use crate::impl_::trampoline::trampoline;
 use crate::prelude::PyTypeMethods;
 use crate::{
     ffi,
@@ -319,20 +321,20 @@ impl PyAddToModule for ModuleDef {
 /// [`Py_mod_exec`]: https://docs.python.org/3/c-api/module.html#c.Py_mod_exec
 pub unsafe extern "C" fn pyo3_module_state_init(module: *mut ffi::PyObject) -> c_int {
     unsafe {
-        let state: *mut MaybeUninit<ModuleState> = ffi::PyModule_GetState(module).cast();
+        trampoline(|_| {
+            let state: *mut MaybeUninit<ModuleState> = ffi::PyModule_GetState(module).cast();
 
-        if state.is_null() {
-            // TODO: Not sure what to do here... but it means m_size was <= 0
-            // so we have no memory space to write into...
-            //
-            // Set a PyErr and return -1?
-            return 0;
-        }
+            // CPython builtins just assert this, but cross ffi panics are tricky, so we return an
+            // error instead
+            if state.is_null() {
+                return Err(PyRuntimeError::new_err("PyO3 per-module state was null. This is a bug in the Python interpreter runtime."));
+            }
 
-        (*state).write(ModuleState::new());
+            (*state).write(ModuleState::new());
+
+            Ok(0)
+        })
     }
-
-    0
 }
 
 /// Called during deallocation of the module object.
