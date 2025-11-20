@@ -73,7 +73,7 @@ impl ModuleState {
     ///
     /// Calling this function multiple times on a single ModuleState is a noop,
     /// beyond the first
-    fn drop_impl(&mut self) {
+    unsafe fn drop_impl(&mut self) {
         if let Some(ptr) = self.inner.take().map(|state| state.as_ptr()) {
             // SAFETY: This ptr is allocated via Box::new in Self::new, and is
             // non null
@@ -135,6 +135,8 @@ impl ModuleState {
     pub(crate) unsafe fn pymodule_free_state(module: *mut ffi::PyObject) {
         unsafe {
             if let Some(state) = Self::pymodule_get_state(module) {
+                // SAFETY: this callback is called when python is freeing the
+                // associated PyModule, so we should never be accessed again
                 (*state.as_ptr()).drop_impl()
             }
         }
@@ -143,7 +145,8 @@ impl ModuleState {
 
 impl Drop for ModuleState {
     fn drop(&mut self) {
-        self.drop_impl();
+        // SAFETY: we're being dropped, so we'll never be accessed again
+        unsafe { self.drop_impl() };
     }
 }
 
