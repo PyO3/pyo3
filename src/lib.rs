@@ -427,6 +427,7 @@ pub mod coroutine;
 mod err;
 pub mod exceptions;
 pub mod ffi;
+pub mod fmt;
 mod instance;
 mod interpreter_lifecycle;
 pub mod marker;
