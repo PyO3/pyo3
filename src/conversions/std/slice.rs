@@ -20,6 +20,9 @@ where
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = <&T>::SEQUENCE_OUTPUT_TYPE;
+
     /// Turns [`&[u8]`](std::slice) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///
     /// [`PyBytes`]: crate::types::PyBytes
@@ -90,7 +93,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = <&[T]>::OUTPUT_TYPE;
+    const OUTPUT_TYPE: TypeHint = <&T>::SEQUENCE_OUTPUT_TYPE;
 
     /// Turns `Cow<[u8]>` into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///
