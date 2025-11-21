@@ -315,10 +315,10 @@ impl<'py, T: PyClass> PyRef<'py, T> {
     }
 }
 
-impl<'p, T, U> PyRef<'p, T>
+impl<'p, T> PyRef<'p, T>
 where
-    T: PyClass<BaseType = U>,
-    U: PyClass,
+    T: PyClass,
+    T::BaseType: PyClass,
 {
     /// Gets a `PyRef<T::BaseType>`.
     ///
@@ -365,10 +365,10 @@ where
     /// #     pyo3::py_run!(py, sub, "assert sub.name() == 'base1 base2 sub'")
     /// # });
     /// ```
-    pub fn into_super(self) -> PyRef<'p, U> {
+    pub fn into_super(self) -> PyRef<'p, T::BaseType> {
         let py = self.py();
         let t_not_frozen = !<T::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE;
-        let u_frozen = <U::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE;
+        let u_frozen = <<T::BaseType as PyClass>::Frozen as crate::pyclass::boolean_struct::private::Boolean>::VALUE;
         if t_not_frozen && u_frozen {
             // If `T` is mutable subclass of `U` differ, then it is possible that we need to
             // release the borrow count now. (e.g. `U` may have a noop borrow checker so
@@ -445,7 +445,7 @@ where
     /// #     pyo3::py_run!(py, sub, "assert sub.format_name_lengths() == '9 8'")
     /// # });
     /// ```
-    pub fn as_super(&self) -> &PyRef<'p, U> {
+    pub fn as_super(&self) -> &PyRef<'p, T::BaseType> {
         let ptr = NonNull::from(&self.inner)
             // `Bound<T>` has the same layout as `Bound<T::BaseType>`
             .cast::<Bound<'p, T::BaseType>>()
@@ -523,20 +523,20 @@ impl<'p, T: PyClass<Frozen = False>> PyRefMut<'p, T> {
     }
 }
 
-impl<T, U> AsRef<U> for PyRefMut<'_, T>
+impl<T> AsRef<T::BaseType> for PyRefMut<'_, T>
 where
-    T: PyClass<BaseType = U, Frozen = False>,
-    U: PyClass<Frozen = False>,
+    T: PyClass<Frozen = False>,
+    T::BaseType: PyClass<Frozen = False>,
 {
     fn as_ref(&self) -> &T::BaseType {
         PyRefMut::downgrade(self).as_super()
     }
 }
 
-impl<T, U> AsMut<U> for PyRefMut<'_, T>
+impl<T> AsMut<T::BaseType> for PyRefMut<'_, T>
 where
-    T: PyClass<BaseType = U, Frozen = False>,
-    U: PyClass<Frozen = False>,
+    T: PyClass<Frozen = False>,
+    T::BaseType: PyClass<Frozen = False>,
 {
     fn as_mut(&mut self) -> &mut T::BaseType {
         self.as_super()
@@ -589,15 +589,15 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     }
 }
 
-impl<'p, T, U> PyRefMut<'p, T>
+impl<'p, T> PyRefMut<'p, T>
 where
-    T: PyClass<BaseType = U, Frozen = False>,
-    U: PyClass<Frozen = False>,
+    T: PyClass<Frozen = False>,
+    T::BaseType: PyClass<Frozen = False>,
 {
     /// Gets a `PyRef<T::BaseType>`.
     ///
     /// See [`PyRef::into_super`] for more.
-    pub fn into_super(self) -> PyRefMut<'p, U> {
+    pub fn into_super(self) -> PyRefMut<'p, T::BaseType> {
         let py = self.py();
         PyRefMut {
             inner: unsafe {
@@ -616,7 +616,7 @@ where
     /// can also be chained to access the super-superclass (and so on).
     ///
     /// See [`PyRef::as_super`] for more.
-    pub fn as_super(&mut self) -> &mut PyRefMut<'p, U> {
+    pub fn as_super(&mut self) -> &mut PyRefMut<'p, T::BaseType> {
         let mut ptr = NonNull::from(&mut self.inner)
             // `Bound<T>` has the same layout as `Bound<T::BaseType>`
             .cast::<Bound<'p, T::BaseType>>()
