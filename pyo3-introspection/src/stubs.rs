@@ -127,6 +127,16 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
     }
     buffer.push_str("class ");
     buffer.push_str(&class.name);
+    if !class.bases.is_empty() {
+        buffer.push('(');
+        for (i, base) in class.bases.iter().enumerate() {
+            if i > 0 {
+                buffer.push_str(", ");
+            }
+            imports.serialize_identifier(base, &mut buffer);
+        }
+        buffer.push(')');
+    }
     buffer.push(':');
     if class.methods.is_empty() && class.attributes.is_empty() {
         buffer.push_str(" ...");
@@ -441,6 +451,9 @@ impl ElementsUsedInAnnotations {
     }
 
     fn walk_class(&mut self, class: &Class) {
+        for base in &class.bases {
+            self.walk_identifier(base);
+        }
         for decorator in &class.decorators {
             self.walk_identifier(decorator);
         }
@@ -667,6 +680,10 @@ mod tests {
                 modules: Vec::new(),
                 classes: vec![Class {
                     name: "A".into(),
+                    bases: vec![PythonIdentifier {
+                        module: Some("builtins".into()),
+                        name: "dict".into(),
+                    }],
                     methods: Vec::new(),
                     attributes: Vec::new(),
                     decorators: vec![PythonIdentifier {

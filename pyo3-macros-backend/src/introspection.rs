@@ -20,7 +20,7 @@ use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use syn::visit_mut::{visit_type_mut, VisitMut};
-use syn::{Attribute, Ident, Lifetime, ReturnType, Type, TypePath};
+use syn::{Attribute, Ident, Lifetime, Path, ReturnType, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
@@ -89,6 +89,7 @@ pub fn class_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     ident: &Ident,
     name: &str,
+    extends: Option<&Path>,
     is_final: bool,
 ) -> TokenStream {
     let mut desc = HashMap::from([
@@ -99,6 +100,12 @@ pub fn class_introspection_code(
         ),
         ("name", IntrospectionNode::String(name.into())),
     ]);
+    if let Some(extends) = extends {
+        desc.insert(
+            "bases",
+            IntrospectionNode::List(vec![IntrospectionNode::BaseType(extends).into()]),
+        );
+    }
     if is_final {
         desc.insert(
             "decorators",
@@ -355,6 +362,7 @@ enum IntrospectionNode<'a> {
     IntrospectionId(Option<Cow<'a, Type>>),
     InputType(Type),
     OutputType { rust_type: Type, is_final: bool },
+    BaseType(&'a Path),
     ConstantType(PythonIdentifier),
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<AttributedIntrospectionNode<'a>>),
@@ -409,6 +417,11 @@ impl IntrospectionNode<'_> {
                 if is_final {
                     annotation = quote! { #pyo3_crate_path::inspect::TypeHint::subscript(&#pyo3_crate_path::inspect::TypeHint::module_attr("typing", "Final"), &[#annotation]) };
                 }
+                content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
+            }
+            Self::BaseType(rust_type) => {
+                let annotation =
+                    quote! { <#rust_type as #pyo3_crate_path::type_object::PyTypeInfo>::TYPE_HINT };
                 content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
             }
             Self::ConstantType(hint) => {

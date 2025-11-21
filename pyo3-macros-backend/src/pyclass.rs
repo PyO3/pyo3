@@ -427,7 +427,7 @@ impl FieldPyO3Options {
     }
 }
 
-fn get_class_python_name<'a>(cls: &'a syn::Ident, args: &'a PyClassArgs) -> Cow<'a, syn::Ident> {
+fn get_class_python_name<'a>(cls: &'a Ident, args: &'a PyClassArgs) -> Cow<'a, Ident> {
     args.options
         .name
         .as_ref()
@@ -2687,6 +2687,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             pyo3_path,
             ident,
             &name,
+            self.attr.options.extends.as_ref().map(|attr| &attr.value),
             self.attr.options.subclass.is_none(),
         );
         let introspection_id = introspection_id_const();
