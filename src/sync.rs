@@ -560,8 +560,10 @@ where
 
 /// Executes a closure with a Python critical section held on mutex.
 ///
-/// Acquires the per-object lock for the mutex `mutex` that is held
-/// until the closure `f` is finished.
+/// Acquires the mutex `mutex` until the closure `f` is finishes. The mutex
+/// may be temporarily released and re-acquired if closure calls back into
+/// the interpreter, in a similar way to how the GIL can be released during
+/// blocking calls.
 ///
 /// This is structurally equivalent to the use of the paired
 /// Py_BEGIN_CRITICAL_SECTION_MUTEX and Py_END_CRITICAL_SECTION C-API macros.
@@ -574,8 +576,8 @@ where
 /// deadlocks associated with traditional locks.
 ///
 /// This variant with a mutex as an argument is particularly useful when paired
-/// with a static `PyMutex`. This can be used in situations where a `PyMutex` would
-/// deadlock with the interpreter.
+/// with a static `PyMutex` to create a "local GIL" to protect global state
+/// in an extension without introducing any deadlock risks.
 ///
 /// Many CPython C API functions do not acquire the per-object lock on objects
 /// passed to Python. You should not expect critical sections applied to
@@ -586,7 +588,11 @@ where
 /// Only available on Python 3.14 and newer.
 #[cfg(Py_3_14)]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section_mutex<F, R, T>(mutex: &PyMutex<T>, f: F) -> R
+pub unsafe fn with_critical_section_mutex<'py, F, R, T>(
+    _py: Python<'py>,
+    mutex: &PyMutex<T>,
+    f: F,
+) -> R
 where
     F: FnOnce(&UnsafeCell<T>) -> R,
 {
@@ -594,8 +600,7 @@ where
     {
         let mut guard = CSGuard(unsafe { std::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection_BeginMutex(&mut guard.0, &mut *mutex.mutex.get()) };
-        let cell = unsafe { &*(mutex.data.get() as *mut T as *const UnsafeCell<T>) };
-        f(&cell)
+        f(&mutex.data)
     }
     #[cfg(not(Py_GIL_DISABLED))]
     {
@@ -1259,21 +1264,27 @@ mod tests {
     fn test_critical_section_mutex() {
         let barrier = Barrier::new(2);
 
-        let bool_wrapper = PyMutex::new(BoolWrapper(AtomicBool::new(false)));
+        let mutex = PyMutex::new(false);
 
         std::thread::scope(|s| {
-            s.spawn(|| {
-                with_critical_section_mutex(&mut bool_wrapper, |b| {
-                    barrier.wait();
-                    std::thread::sleep(std::time::Duration::from_millis(10));
-                    unsafe { (*b.get()).0.store(true, Ordering::Release) };
+            s.spawn(|| unsafe {
+                Python::attach(|py| {
+                    with_critical_section_mutex(py, &mutex, |b: &UnsafeCell<bool>| {
+                        barrier.wait();
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        (*b.get()) = true;
+                    });
                 });
             });
             s.spawn(|| {
-                barrier.wait();
-                // this blocks until the other thread's critical section finishes
-                with_critical_section_mutex(&mut bool_wrapper, |b| {
-                    assert!(b.get_mut().0.load(Ordering::Acquire));
+                Python::attach(|py| {
+                    barrier.wait();
+                    // blocks until the other thread enters a critical section
+                    unsafe {
+                        with_critical_section_mutex(py, &mutex, |b: &UnsafeCell<bool>| {
+                            assert!(*b.get() == true);
+                        });
+                    }
                 });
             });
         });
