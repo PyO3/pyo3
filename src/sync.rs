@@ -487,7 +487,11 @@ impl Drop for CS2Guard {
 /// Executes a closure with a Python critical section held on an object.
 ///
 /// Acquires the per-object lock for the object `op` that is held
-/// until the closure `f` is finished.
+/// while the closure `f` is executing. The critical section may be temporarily
+/// released and re-acquired if the closure calls back into the interpreter in
+/// a manner that would block.  This is similar to how the GIL can be released
+/// during blocking calls. See the safety notes below for caveats about
+/// releasing critical sections.
 ///
 /// This is structurally equivalent to the use of the paired
 /// Py_BEGIN_CRITICAL_SECTION and Py_END_CRITICAL_SECTION C-API macros.
@@ -498,6 +502,16 @@ impl Drop for CS2Guard {
 /// Provides weaker locking guarantees than traditional locks, but can in some
 /// cases be used to provide guarantees similar to the GIL without the risk of
 /// deadlocks associated with traditional locks.
+///
+/// The caller must ensure the closure cannot implicitly release the critical
+/// section. If a multithreaded program calls back into the Python interpreter
+/// in a manner that would cause the critical section to be released, the
+/// per-object lock will be released and the state of the object may be read
+/// from or modified by another thread. Concurrent modifications are still
+/// impossible, but the state of object may change "underneath" a suspended
+/// thread in possibly surprising ways. Note that many operations on Python
+/// objects may call back into the interpreter in a blocking manner because
+/// many C API calls can trigger the execution of arbitrary Python code.
 ///
 /// Many CPython C API functions do not acquire the per-object lock on objects
 /// passed to Python. You should not expect critical sections applied to
@@ -524,7 +538,11 @@ where
 /// Executes a closure with a Python critical section held on two objects.
 ///
 /// Acquires the per-object lock for the objects `a` and `b` that are held
-/// until the closure `f` is finished.
+/// while the closure `f` is executing. The critical section may be temporarily
+/// released and re-acquired if the closure calls back into the interpreter in
+/// a manner that would block.  This is similar to how the GIL can be released
+/// during blocking calls. See the safety notes below for caveats about
+/// releasing critical sections.
 ///
 /// This is structurally equivalent to the use of the paired
 /// Py_BEGIN_CRITICAL_SECTION2 and Py_END_CRITICAL_SECTION2 C-API macros.
@@ -535,6 +553,16 @@ where
 /// Provides weaker locking guarantees than traditional locks, but can in some
 /// cases be used to provide guarantees similar to the GIL without the risk of
 /// deadlocks associated with traditional locks.
+///
+/// The caller must ensure the closure cannot implicitly release the critical
+/// section. If a multithreaded program calls back into the Python interpreter
+/// in a manner that would cause the critical section to be released, the
+/// per-object lock will be released and the state of the object may be read
+/// from or modified by another thread. Concurrent modifications are still
+/// impossible, but the state of object may change "underneath" a suspended
+/// thread in possibly surprising ways. Note that many operations on Python
+/// objects may call back into the interpreter in a blocking manner because
+/// many C API calls can trigger the execution of arbitrary Python code.
 ///
 /// Many CPython C API functions do not acquire the per-object lock on objects
 /// passed to Python. You should not expect critical sections applied to
@@ -558,12 +586,13 @@ where
     }
 }
 
-/// Executes a closure with a Python critical section held on mutex.
+/// Executes a closure with a Python critical section held on a `PyMutex`.
 ///
-/// Acquires the mutex `mutex` until the closure `f` is finishes. The mutex
-/// may be temporarily released and re-acquired if closure calls back into
-/// the interpreter, in a similar way to how the GIL can be released during
-/// blocking calls.
+/// Acquires the mutex `mutex` until the closure `f` finishes. The mutex may be
+/// temporarily released and re-acquired if the closure calls back into the
+/// interpreter in a manner that would block.  This is similar to how the GIL
+/// can be released during blocking calls. See the safety notes below for
+/// caveats about releasing critical sections.
 ///
 /// This is structurally equivalent to the use of the paired
 /// Py_BEGIN_CRITICAL_SECTION_MUTEX and Py_END_CRITICAL_SECTION C-API macros.
@@ -571,28 +600,29 @@ where
 /// A no-op on GIL-enabled builds, where the critical section API is exposed as
 /// a no-op by the Python C API.
 ///
+/// This variant is particularly useful when paired with a global `PyMutex` to
+/// create a "local GIL" to protect global state in an extension in an
+/// analogous manner to the GIL without introducing any deadlock risks or
+/// affecting runtime behavior on the GIL-enabled build.
+///
+/// # Safety
+///
 /// Provides weaker locking guarantees than traditional locks, but can in some
 /// cases be used to provide guarantees similar to the GIL without the risk of
 /// deadlocks associated with traditional locks.
 ///
-/// This variant with a mutex as an argument is particularly useful when paired
-/// with a static `PyMutex` to create a "local GIL" to protect global state
-/// in an extension without introducing any deadlock risks.
-///
-/// Many CPython C API functions do not acquire the per-object lock on objects
-/// passed to Python. You should not expect critical sections applied to
-/// built-in types to prevent concurrent modification. This API is most useful
-/// for user-defined types with full control over how the internal state for the
-/// type is managed.
+/// The caller must ensure the closure cannot implicitly release the critical
+/// section. If a multithreaded program calls back into the Python interpreter
+/// in a manner that would cause the critical section to be released, the
+/// `PyMutex` will be released and the resource protected by the `PyMutex` may
+/// be read from or modified by another thread. Concurrent modifications are
+/// still impossible, but the state of the resource may change "underneath" a
+/// suspended thread in possibly surprising ways.
 ///
 /// Only available on Python 3.14 and newer.
 #[cfg(Py_3_14)]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub unsafe fn with_critical_section_mutex<'py, F, R, T>(
-    _py: Python<'py>,
-    mutex: &PyMutex<T>,
-    f: F,
-) -> R
+pub fn with_critical_section_mutex<'py, F, R, T>(_py: Python<'py>, mutex: &PyMutex<T>, f: F) -> R
 where
     F: FnOnce(&UnsafeCell<T>) -> R,
 {
@@ -604,14 +634,18 @@ where
     }
     #[cfg(not(Py_GIL_DISABLED))]
     {
-        f()
+        f(&mutex.data)
     }
 }
 
-/// Executes a closure with a Python critical section held on two mutexes.
+/// Executes a closure with a Python critical section held on two `PyMutex` instances.
 ///
 /// Simultaneously acquires the mutexes `m1` and `m2` and holds them
-/// until the closure `f` is finished.
+/// until the closure `f` is finished. The mutexes may be
+/// temporarily released and re-acquired if the closure calls back into the
+/// interpreter in a manner that would block.  This is similar to how the GIL
+/// can be released during blocking calls. See the safety notes below for
+/// caveats about releasing critical sections.
 ///
 /// This is structurally equivalent to the use of the paired
 /// Py_BEGIN_CRITICAL_SECTION2_MUTEX and Py_END_CRITICAL_SECTION2 C-API macros.
@@ -619,22 +653,27 @@ where
 /// A no-op on GIL-enabled builds, where the critical section API is exposed as
 /// a no-op by the Python C API.
 ///
+/// # Safety
+///
 /// Provides weaker locking guarantees than traditional locks, but can in some
 /// cases be used to provide guarantees similar to the GIL without the risk of
 /// deadlocks associated with traditional locks.
 ///
-/// Many CPython C API functions do not acquire the per-object lock on objects
-/// passed to Python. You should not expect critical sections applied to
-/// built-in types to prevent concurrent modification. This API is most useful
-/// for user-defined types with full control over how the internal state for the
-/// type is managed.
+/// The caller must ensure the closure cannot implicitly release the critical
+/// section. If a multithreaded program calls back into the Python interpreter
+/// in a manner that would cause the critical section to be released, the
+/// `PyMutex` will be released and the resource protected by the `PyMutex` may
+/// be read from or modified by another thread. Concurrent modifications are
+/// still impossible, but the state of the resource may change "underneath" a
+/// suspended thread in possibly surprising ways.
 ///
 /// Only available on Python 3.14 and newer.
 #[cfg(Py_3_14)]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section_mutex2<F, R, T1, T2>(
-    m1: &mut PyMutex<T1>,
-    m2: &mut PyMutex<T2>,
+pub fn with_critical_section_mutex2<'py, F, R, T1, T2>(
+    _py: Python<'py>,
+    m1: &PyMutex<T1>,
+    m2: &PyMutex<T2>,
     f: F,
 ) -> R
 where
@@ -650,13 +689,11 @@ where
                 &mut *m2.mutex.get(),
             )
         };
-        let cell1 = unsafe { &*(m1.mutex.get() as *mut T1 as *const UnsafeCell<T1>) };
-        let cell2 = unsafe { &*(m2.mutex.get() as *mut T2 as *const UnsafeCell<T2>) };
-        f(&cell1, &cell2)
+        f(&m1.data, &m2.data)
     }
     #[cfg(not(Py_GIL_DISABLED))]
     {
-        f()
+        f(&m1.data, &m2.data)
     }
 }
 
@@ -1267,12 +1304,12 @@ mod tests {
         let mutex = PyMutex::new(false);
 
         std::thread::scope(|s| {
-            s.spawn(|| unsafe {
+            s.spawn(|| {
                 Python::attach(|py| {
-                    with_critical_section_mutex(py, &mutex, |b: &UnsafeCell<bool>| {
+                    with_critical_section_mutex(py, &mutex, |b| {
                         barrier.wait();
                         std::thread::sleep(std::time::Duration::from_millis(10));
-                        (*b.get()) = true;
+                        unsafe { (*b.get()) = true };
                     });
                 });
             });
@@ -1280,11 +1317,9 @@ mod tests {
                 Python::attach(|py| {
                     barrier.wait();
                     // blocks until the other thread enters a critical section
-                    unsafe {
-                        with_critical_section_mutex(py, &mutex, |b: &UnsafeCell<bool>| {
-                            assert!(*b.get() == true);
-                        });
-                    }
+                    with_critical_section_mutex(py, &mutex, |b| {
+                        assert!(unsafe { *b.get() } == true);
+                    });
                 });
             });
         });
@@ -1333,6 +1368,39 @@ mod tests {
                     // this blocks until the other thread's critical section finishes
                     with_critical_section(b2, || {
                         assert!(b2.borrow().0.load(Ordering::Acquire));
+                    });
+                });
+            });
+        });
+    }
+
+    #[cfg(feature = "macros")]
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[test]
+    fn test_critical_section2_mutex() {
+        let barrier = Barrier::new(2);
+
+        let m1 = PyMutex::new(false);
+        let m2 = PyMutex::new(false);
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                Python::attach(|py| {
+                    with_critical_section_mutex2(py, &m1, &m2, |b1, b2| {
+                        barrier.wait();
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        unsafe { (*b1.get()) = true };
+                        unsafe { (*b2.get()) = true };
+                    });
+                });
+            });
+            s.spawn(|| {
+                Python::attach(|py| {
+                    barrier.wait();
+                    // blocks until the other thread enters a critical section
+                    with_critical_section_mutex2(py, &m1, &m2, |b1, b2| {
+                        assert!(unsafe { *b1.get() } == true);
+                        assert!(unsafe { *b2.get() } == true);
                     });
                 });
             });
