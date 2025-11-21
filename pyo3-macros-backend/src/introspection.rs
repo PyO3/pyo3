@@ -339,34 +339,12 @@ fn argument_introspection_data<'a>(
         params.insert("annotation", IntrospectionNode::String(annotation.into()));
     } else if desc.from_py_with.is_none() {
         // If from_py_with is set we don't know anything on the input type
-        if let Some(ty) = desc.option_wrapped_type {
-            // Special case to properly generate a `T | None` annotation
-            let mut ty = ty.clone();
-            if let Some(class_type) = class_type {
-                replace_self(&mut ty, class_type);
-            }
-            elide_lifetimes(&mut ty);
-            params.insert(
-                "annotation",
-                IntrospectionNode::InputType {
-                    rust_type: ty,
-                    nullable: true,
-                },
-            );
-        } else {
-            let mut ty = desc.ty.clone();
-            if let Some(class_type) = class_type {
-                replace_self(&mut ty, class_type);
-            }
-            elide_lifetimes(&mut ty);
-            params.insert(
-                "annotation",
-                IntrospectionNode::InputType {
-                    rust_type: ty,
-                    nullable: false,
-                },
-            );
+        let mut ty = desc.ty.clone();
+        if let Some(class_type) = class_type {
+            replace_self(&mut ty, class_type);
         }
+        elide_lifetimes(&mut ty);
+        params.insert("annotation", IntrospectionNode::InputType(ty));
     }
     IntrospectionNode::Map(params).into()
 }
@@ -375,7 +353,7 @@ enum IntrospectionNode<'a> {
     String(Cow<'a, str>),
     Bool(bool),
     IntrospectionId(Option<Cow<'a, Type>>),
-    InputType { rust_type: Type, nullable: bool },
+    InputType(Type),
     OutputType { rust_type: Type, is_final: bool },
     ConstantType(PythonIdentifier),
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
@@ -411,11 +389,8 @@ impl IntrospectionNode<'_> {
                 });
                 content.push_str("\"");
             }
-            Self::InputType {
-                rust_type,
-                nullable,
-            } => {
-                let mut annotation = quote! {
+            Self::InputType(rust_type) => {
+                let annotation = quote! {
                     <#rust_type as #pyo3_crate_path::impl_::extract_argument::PyFunctionArgument<
                         {
                             #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
@@ -424,9 +399,6 @@ impl IntrospectionNode<'_> {
                         }
                     >>::INPUT_TYPE
                 };
-                if nullable {
-                    annotation = quote! { #pyo3_crate_path::inspect::TypeHint::union(&[#annotation, #pyo3_crate_path::inspect::TypeHint::builtin("None")]) };
-                }
                 content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
             }
             Self::OutputType {

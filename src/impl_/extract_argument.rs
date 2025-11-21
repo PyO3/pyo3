@@ -108,10 +108,7 @@ where
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::union(&[
-        TypeHint::module_attr("typing", "Any"),
-        TypeHint::builtin("None"),
-    ]);
+    const INPUT_TYPE: TypeHint = TypeHint::union(&[T::INPUT_TYPE, TypeHint::builtin("None")]);
 
     #[inline]
     fn extract(
