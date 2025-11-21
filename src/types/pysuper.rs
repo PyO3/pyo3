@@ -13,7 +13,9 @@ pub struct PySuper(PyAny);
 
 pyobject_native_type_core!(
     PySuper,
-    pyobject_native_static_type_object!(ffi::PySuper_Type)
+    pyobject_native_static_type_object!(ffi::PySuper_Type),
+    "builtins",
+    "super"
 );
 
 impl PySuper {

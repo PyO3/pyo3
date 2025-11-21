@@ -19,7 +19,7 @@ use std::ptr::NonNull;
 #[repr(transparent)]
 pub struct PyCFunction(PyAny);
 
-pyobject_native_type_core!(PyCFunction, pyobject_native_static_type_object!(ffi::PyCFunction_Type), #checkfunction=ffi::PyCFunction_Check);
+pyobject_native_type_core!(PyCFunction, pyobject_native_static_type_object!(ffi::PyCFunction_Type), "builtins", "builtin_function_or_method", #checkfunction=ffi::PyCFunction_Check);
 
 impl PyCFunction {
     /// Create a new built-in function with keywords (*args and/or **kwargs).
@@ -167,4 +167,4 @@ unsafe impl<F: Send> Send for ClosureDestructor<F> {}
 pub struct PyFunction(PyAny);
 
 #[cfg(not(Py_LIMITED_API))]
-pyobject_native_type_core!(PyFunction, pyobject_native_static_type_object!(ffi::PyFunction_Type), #checkfunction=ffi::PyFunction_Check);
+pyobject_native_type_core!(PyFunction, pyobject_native_static_type_object!(ffi::PyFunction_Type), "builtins", "function", #checkfunction=ffi::PyFunction_Check);
