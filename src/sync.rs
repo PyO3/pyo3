@@ -9,10 +9,12 @@
 //! interpreter.
 //!
 //! This module provides synchronization primitives which are able to synchronize under these conditions.
+#[cfg(not(Py_LIMITED_API))]
+use crate::types::PyMutex;
 use crate::{
     internal::state::SuspendAttach,
     sealed::Sealed,
-    types::{any::PyAnyMethods, PyAny, PyMutex, PyString},
+    types::{any::PyAnyMethods, PyAny, PyString},
     Bound, Py, PyResult, PyTypeCheck, Python,
 };
 use std::{
@@ -620,7 +622,7 @@ where
 /// suspended thread in possibly surprising ways.
 ///
 /// Only available on Python 3.14 and newer.
-#[cfg(Py_3_14)]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
 pub fn with_critical_section_mutex<'py, F, R, T>(_py: Python<'py>, mutex: &PyMutex<T>, f: F) -> R
 where
@@ -668,7 +670,7 @@ where
 /// suspended thread in possibly surprising ways.
 ///
 /// Only available on Python 3.14 and newer.
-#[cfg(Py_3_14)]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
 pub fn with_critical_section_mutex2<'py, F, R, T1, T2>(
     _py: Python<'py>,
@@ -1261,7 +1263,6 @@ mod tests {
         });
     }
 
-    #[cfg(feature = "macros")]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section() {
@@ -1295,7 +1296,7 @@ mod tests {
         });
     }
 
-    #[cfg(feature = "macros")]
+    #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section_mutex() {
@@ -1374,10 +1375,10 @@ mod tests {
         });
     }
 
-    #[cfg(feature = "macros")]
+    #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
-    fn test_critical_section2_mutex() {
+    fn test_critical_section_mutex2() {
         let barrier = Barrier::new(2);
 
         let m1 = PyMutex::new(false);
