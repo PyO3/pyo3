@@ -4,6 +4,8 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::types::TypeInfo;
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
 use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
 use crate::{
     exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
@@ -611,6 +613,12 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         type Output = Bound<'py, Self::Target>;
         type Error = PyErr;
 
+        #[cfg(feature = "experimental-inspect")]
+        const OUTPUT_TYPE: crate::inspect::TypeHint = crate::inspect::TypeHint::subscript(
+            &PyTuple::TYPE_HINT,
+            &[$($T::OUTPUT_TYPE ),+]
+        );
+
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
             Ok(array_into_tuple(py, [$(self.$n.into_bound_py_any(py)?),+]))
         }
@@ -628,6 +636,12 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         type Target = PyTuple;
         type Output = Bound<'py, Self::Target>;
         type Error = PyErr;
+
+        #[cfg(feature = "experimental-inspect")]
+        const OUTPUT_TYPE: crate::inspect::TypeHint = crate::inspect::TypeHint::subscript(
+            &PyTuple::TYPE_HINT,
+            &[$(<&$T>::OUTPUT_TYPE ),+]
+        );
 
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
             Ok(array_into_tuple(py, [$(self.$n.into_bound_py_any(py)?),+]))
@@ -898,6 +912,12 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
 
     impl<'a, 'py, $($T: FromPyObject<'a, 'py>),+> FromPyObject<'a, 'py> for ($($T,)+) {
         type Error = PyErr;
+
+        #[cfg(feature = "experimental-inspect")]
+        const INPUT_TYPE: crate::inspect::TypeHint = crate::inspect::TypeHint::subscript(
+            &PyTuple::TYPE_HINT,
+            &[$($T::INPUT_TYPE ),+]
+        );
 
         fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error>
         {

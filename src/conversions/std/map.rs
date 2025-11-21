@@ -1,13 +1,16 @@
-use std::{cmp, collections, hash};
-
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
 use crate::{
     conversion::{FromPyObjectOwned, IntoPyObject},
     instance::Bound,
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
     Borrowed, FromPyObject, PyAny, PyErr, Python,
 };
+use std::{cmp, collections, hash};
 
 impl<'py, K, V, H> IntoPyObject<'py> for collections::HashMap<K, V, H>
 where
@@ -18,6 +21,10 @@ where
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint =
+        TypeHint::subscript(&PyDict::TYPE_HINT, &[K::OUTPUT_TYPE, V::OUTPUT_TYPE]);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
@@ -43,6 +50,10 @@ where
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint =
+        TypeHint::subscript(&PyDict::TYPE_HINT, &[<&K>::OUTPUT_TYPE, <&V>::OUTPUT_TYPE]);
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
@@ -65,6 +76,10 @@ where
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint =
+        TypeHint::subscript(&PyDict::TYPE_HINT, &[K::OUTPUT_TYPE, V::OUTPUT_TYPE]);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
@@ -91,6 +106,10 @@ where
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint =
+        TypeHint::subscript(&PyDict::TYPE_HINT, &[<&K>::OUTPUT_TYPE, <&V>::OUTPUT_TYPE]);
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
         for (k, v) in self {
@@ -112,6 +131,10 @@ where
     S: hash::BuildHasher + Default,
 {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint =
+        TypeHint::subscript(&PyDict::TYPE_HINT, &[K::INPUT_TYPE, V::INPUT_TYPE]);
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let dict = ob.cast::<PyDict>()?;
@@ -137,6 +160,10 @@ where
     V: FromPyObjectOwned<'py>,
 {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint =
+        TypeHint::subscript(&PyDict::TYPE_HINT, &[K::INPUT_TYPE, V::INPUT_TYPE]);
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.cast::<PyDict>()?;

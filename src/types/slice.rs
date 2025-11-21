@@ -1,6 +1,10 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
 use crate::types::{PyRange, PyRangeMethods};
 use crate::{Bound, IntoPyObject, PyAny, Python};
 use std::convert::Infallible;
@@ -127,6 +131,9 @@ impl<'py> IntoPyObject<'py> for PySliceIndices {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = PySlice::TYPE_HINT;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PySlice::new(py, self.start, self.stop, self.step))
     }
@@ -136,6 +143,9 @@ impl<'py> IntoPyObject<'py> for &PySliceIndices {
     type Target = PySlice;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = PySlice::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PySlice::new(py, self.start, self.stop, self.step))
