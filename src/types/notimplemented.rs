@@ -1,3 +1,5 @@
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyTypeInfo,
     Python,
@@ -28,6 +30,9 @@ impl PyNotImplemented {
 unsafe impl PyTypeInfo for PyNotImplemented {
     const NAME: &'static str = "NotImplementedType";
     const MODULE: Option<&'static str> = None;
+
+    #[cfg(feature = "experimental-inspect")]
+    const TYPE_HINT: TypeHint = TypeHint::module_attr("types", "NotImplementedType");
 
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_NotImplemented()) }
