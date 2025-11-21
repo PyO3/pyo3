@@ -235,6 +235,26 @@ fn test_renaming_all_struct_fields() {
     });
 }
 
+#[pyclass(get_all, set_all, new = "from_fields")]
+struct AutoNewCls {
+    a: i32,
+    b: String,
+    c: Option<f64>,
+}
+
+#[test]
+fn new_impl() {
+    Python::attach(|py| {
+        // python should be able to do AutoNewCls(1, "two", 3.0)
+        let cls = py.get_type::<AutoNewCls>();
+        pyo3::py_run!(
+            py,
+            cls,
+            "inst = cls(1, 'two', 3.0); assert inst.a == 1; assert inst.b == 'two'; assert inst.c == 3.0"
+        );
+    });
+}
+
 macro_rules! test_case {
     ($struct_name: ident, $rule: literal, $field_name: ident, $renamed_field_name: literal, $test_name: ident) => {
         #[pyclass(get_all, set_all, rename_all = $rule)]
