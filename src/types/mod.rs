@@ -39,7 +39,6 @@ pub use self::mutex::{PyMutex, PyMutexGuard};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
 pub use self::num::PyInt;
-#[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
 pub use self::range::{PyRange, PyRangeMethods};
 pub use self::sequence::{PySequence, PySequenceMethods};
@@ -278,7 +277,6 @@ mod mutex;
 mod none;
 mod notimplemented;
 mod num;
-#[cfg(not(any(PyPy, GraalPy)))]
 mod pysuper;
 pub(crate) mod range;
 pub(crate) mod sequence;
