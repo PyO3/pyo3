@@ -170,7 +170,7 @@ def test_class_init_method():
     try:
         SubClassWithInit = pyclasses.SubClassWithInit
     except AttributeError:
-        pytest.skip("not defined using abi3, PyPy or GraalPy")
+        pytest.skip("not defined using abi3")
 
     d = SubClassWithInit()
     assert d == {"__init__": True}
