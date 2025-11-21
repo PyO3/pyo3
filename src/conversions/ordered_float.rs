@@ -103,18 +103,15 @@ mod test_ordered_float {
     use super::*;
     use crate::types::dict::IntoPyDict;
     use crate::types::PyAnyMethods;
+    use std::ffi::CStr;
     use std::ffi::CString;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;
 
-    fn py_run<'py>(py: Python<'py>, script: String, locals: impl IntoPyDict<'py>) {
-        py.run(
-            &CString::new(script).unwrap(),
-            None,
-            Some(&locals.into_py_dict(py).unwrap()),
-        )
-        .unwrap()
+    fn py_run<'py>(py: Python<'py>, script: &CStr, locals: impl IntoPyDict<'py>) {
+        py.run(script, None, Some(&locals.into_py_dict(py).unwrap()))
+            .unwrap()
     }
 
     macro_rules! float_roundtrip_tests {
@@ -128,11 +125,11 @@ mod test_ordered_float {
                 Python::attach(|py| {
                     let f_py: Bound<'_, PyFloat>  = f.into_pyobject(py).unwrap();
 
-                    py_run(py, format!(
+                    py_run(py, &CString::new(format!(
                             "import math\nassert math.isclose(f_py, {})",
                              inner_f as f64 // Always interpret the literal rs float value as f64
                                             // so that it's comparable with the python float
-                        ), [("f_py", &f_py)]);
+                        )).unwrap(), [("f_py", &f_py)]);
 
                     let roundtripped_f: $wrapper<$float_type> = f_py.extract().unwrap();
 
@@ -152,11 +149,12 @@ mod test_ordered_float {
 
                     py_run(
                         py,
-                        format!(
+                        &CString::new(format!(
                             "import math\nassert math.isclose(f_py, {})",
                             inner_f as f64 // Always interpret the literal rs float value as f64
                                            // so that it's comparable with the python float
-                        ),
+                        ))
+                        .unwrap(),
                         [("f_py", &f_py)],
                     );
 
@@ -180,11 +178,9 @@ mod test_ordered_float {
 
                     py_run(
                         py,
-                        format!(
-                            "\
+                        c"\
                         assert pinf_py == float('inf')\n\
-                        assert ninf_py == float('-inf')"
-                        ),
+                        assert ninf_py == float('-inf')",
                         [("pinf_py", &pinf_py), ("ninf_py", &ninf_py)],
                     );
 
@@ -212,14 +208,12 @@ mod test_ordered_float {
                     // and that the signs are correct(+0.0 vs -0.0)
                     py_run(
                         py,
-                        format!(
-                            "\
+                        c"\
                         import math\n\
                         assert pzero_py == 0.0\n\
                         assert math.copysign(1.0, pzero_py) > 0.0\n\
                         assert nzero_py == 0.0\n\
-                        assert math.copysign(1.0, nzero_py) < 0.0"
-                        ),
+                        assert math.copysign(1.0, nzero_py) < 0.0",
                         [("pzero_py", &pzero_py), ("nzero_py", &nzero_py)],
                     );
 
@@ -283,7 +277,7 @@ mod test_ordered_float {
 
                     py_run(
                         py,
-                        format!("import math\nassert math.isnan(nan_py)"),
+                        c"import math\nassert math.isnan(nan_py)",
                         [("nan_py", &nan_py)],
                     );
 
