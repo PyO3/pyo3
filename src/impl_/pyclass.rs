@@ -11,7 +11,7 @@ use crate::{
     pycell::PyBorrowError,
     types::{any::PyAnyMethods, PyBool},
     Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
-    PyTypeInfo, Python,
+    PyTypeCheck, PyTypeInfo, Python,
 };
 use std::{
     ffi::CStr,
@@ -1204,7 +1204,7 @@ impl<
 
 impl<
         ClassT: PyClass,
-        U,
+        U: PyTypeCheck,
         const OFFSET: usize,
         const IMPLEMENTS_INTOPYOBJECT_REF: bool,
         const IMPLEMENTS_INTOPYOBJECT: bool,
