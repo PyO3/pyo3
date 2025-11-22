@@ -192,7 +192,8 @@ def generate_coverage_report(session: nox.Session) -> None:
 @nox.session(venv_backend="none")
 def rustfmt(session: nox.Session):
     _run_cargo(session, "fmt", "--all", "--check")
-    _run_cargo(session, "fmt", _FFI_CHECK, "--all", "--check")
+    with session.cd(_FFI_CHECK_DIR):
+        _run_cargo(session, "fmt", "--all", "--check")
 
 
 @nox.session(name="ruff")
@@ -255,8 +256,8 @@ def _clippy_additional_workspaces(session: nox.Session) -> bool:
     target = os.environ.get("CARGO_BUILD_TARGET")
     if target is None or _get_rust_default_target() == target:
         try:
-            _build_docs_for_ffi_check(session)
-            _run_cargo(session, "clippy", _FFI_CHECK, "--workspace", "--all-targets")
+            with session.cd(_FFI_CHECK_DIR):
+                _run_cargo(session, "clippy", "--workspace", "--all-targets")
         except Exception:
             success = False
     return success
@@ -943,10 +944,10 @@ def set_msrv_package_versions(session: nox.Session):
         )
 
 
-@nox.session(name="ffi-check")
+@nox.session(name="ffi-check", venv_backend="none")
 def ffi_check(session: nox.Session):
-    _build_docs_for_ffi_check(session)
-    _run_cargo(session, "run", _FFI_CHECK)
+    with session.cd(_FFI_CHECK_DIR):
+        _run_cargo(session, "run")
 
 
 @nox.session(name="test-version-limits")
@@ -1133,13 +1134,6 @@ def test_introspection(session: nox.Session):
         package="pyo3-introspection",
         env={"PYO3_PYTEST_LIB_PATH": lib_file},
     )
-
-
-def _build_docs_for_ffi_check(session: nox.Session) -> None:
-    # pyo3-ffi-check needs to scrape docs of pyo3-ffi
-    env = os.environ.copy()
-    env["PYO3_PYTHON"] = sys.executable
-    _run_cargo(session, "doc", _FFI_CHECK, "-p", "pyo3-ffi", "--no-deps", env=env)
 
 
 @lru_cache()
@@ -1349,4 +1343,7 @@ def _is_github_actions() -> bool:
 
 
 _BENCHES = "--manifest-path=pyo3-benches/Cargo.toml"
-_FFI_CHECK = "--manifest-path=pyo3-ffi-check/Cargo.toml"
+
+# NB: to pick up correct cargo configuration, always invoke cargo commands for ffi-check
+# from within the ffi-check directory
+_FFI_CHECK_DIR = PYO3_DIR / "pyo3-ffi-check"
