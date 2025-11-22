@@ -6,10 +6,7 @@ publish = false
 
 [dependencies]
 pyo3-ffi-check-macro = { path = "./macro" }
-
-[dependencies.pyo3-ffi]
-path = "../pyo3-ffi"
-features = ["extension-module"]  # A lazy way of skipping linking in most cases (as we don't use any runtime symbols)
+pyo3-ffi = { path = "../pyo3-ffi" }
 
 [build-dependencies]
 bindgen = "0.69.4"
