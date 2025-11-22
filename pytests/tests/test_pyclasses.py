@@ -164,3 +164,16 @@ def test_class_method(benchmark):
 def test_static_method(benchmark):
     cls = pyclasses.ClassWithDecorators
     benchmark(lambda: cls.static_method())
+
+
+def test_class_init_method():
+    try:
+        SubClassWithInit = pyclasses.SubClassWithInit
+    except AttributeError:
+        pytest.skip("not defined using abi3")
+
+    d = SubClassWithInit()
+    assert d == {"__init__": True}
+
+    d = SubClassWithInit({"a": 1}, b=2)
+    assert d == {"__init__": True, "a": 1, "b": 2}

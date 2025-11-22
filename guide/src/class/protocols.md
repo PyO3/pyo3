@@ -6,7 +6,7 @@ Because of the double-underscores surrounding their name, these are also known a
 
 PyO3 makes it possible for every magic method to be implemented in `#[pymethods]` just as they would be done in a regular Python class, with a few notable differences:
 
-- `__new__` and `__init__` are replaced by the [`#[new]` attribute](../class.md#constructor).
+- `__new__` is replaced by the [`#[new]` attribute](../class.md#constructor).
 - `__del__` is not yet supported, but may be in the future.
 - `__buffer__` and `__release_buffer__` are currently not supported and instead PyO3 supports [`__getbuffer__` and `__releasebuffer__`](#buffer-objects) methods (these predate [PEP 688](https://peps.python.org/pep-0688/#python-level-buffer-protocol)), again this may change in the future.
 - PyO3 adds [`__traverse__` and `__clear__`](#garbage-collector-integration) methods for controlling garbage collection.

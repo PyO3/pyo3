@@ -81,6 +81,7 @@ impl PyMethodKind {
         match name {
             // Protocol implemented through slots
             "__new__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__NEW__)),
+            "__init__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__INIT__)),
             "__str__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__STR__)),
             "__repr__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__REPR__)),
             "__hash__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__HASH__)),
@@ -312,11 +313,11 @@ fn ensure_no_forbidden_protocol_attributes(
     method_name: &str,
 ) -> syn::Result<()> {
     if let Some(signature) = &spec.signature.attribute {
-        // __new__ and __call__ are allowed to have a signature, but nothing else is.
+        // __new__, __init__ and __call__ are allowed to have a signature, but nothing else is.
         if !matches!(
             proto_kind,
             PyMethodProtoKind::Slot(SlotDef {
-                calling_convention: SlotCallingConvention::TpNew,
+                calling_convention: SlotCallingConvention::TpNew | SlotCallingConvention::TpInit,
                 ..
             })
         ) && !matches!(proto_kind, PyMethodProtoKind::Call)
@@ -367,7 +368,6 @@ pub fn impl_py_method_def(
 
 fn impl_call_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> Result<MethodAndSlotDef> {
     let Ctx { pyo3_path, .. } = ctx;
-
     let wrapper_ident = syn::Ident::new("__pymethod___call____", Span::call_site());
     let associated_method =
         spec.get_wrapper_function(&wrapper_ident, Some(cls), CallingConvention::Varargs, ctx)?;
@@ -904,6 +904,7 @@ impl PropertyType<'_> {
 }
 
 pub const __NEW__: SlotDef = SlotDef::new("Py_tp_new", "newfunc");
+pub const __INIT__: SlotDef = SlotDef::new("Py_tp_init", "initproc");
 pub const __STR__: SlotDef = SlotDef::new("Py_tp_str", "reprfunc");
 pub const __REPR__: SlotDef = SlotDef::new("Py_tp_repr", "reprfunc");
 pub const __HASH__: SlotDef =
@@ -1164,6 +1165,7 @@ enum SlotCallingConvention {
     FixedArguments(&'static [Ty]),
     /// Arbitrary arguments for `__new__` from the signature (extracted from args / kwargs)
     TpNew,
+    TpInit,
 }
 
 impl SlotDef {
@@ -1171,6 +1173,7 @@ impl SlotDef {
         // The FFI function pointer type determines the arguments and return type
         let (calling_convention, ret_ty) = match func_ty.as_bytes() {
             b"newfunc" => (SlotCallingConvention::TpNew, Ty::Object),
+            b"initproc" => (SlotCallingConvention::TpInit, Ty::Int),
             b"reprfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::Object),
             b"hashfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::PyHashT),
             b"richcmpfunc" => (
@@ -1381,6 +1384,35 @@ fn generate_method_body(
                 let result = #call;
                 let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
                 #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)
+            };
+            (arg_idents, arg_types, body)
+        }
+        SlotCallingConvention::TpInit => {
+            let arg_idents = vec![
+                format_ident!("_slf"),
+                format_ident!("_args"),
+                format_ident!("_kwargs"),
+            ];
+            let arg_types = vec![
+                quote! { *mut #pyo3_path::ffi::PyObject },
+                quote! { *mut #pyo3_path::ffi::PyObject },
+                quote! { *mut #pyo3_path::ffi::PyObject },
+            ];
+            let (arg_convert, args) = impl_arg_params(spec, Some(cls), false, holders, ctx);
+            let call = quote! {{
+                let r = #cls::#rust_name(#self_arg #(#args),*);
+                #pyo3_path::impl_::wrap::converter(&r)
+                    .wrap(r)
+                    .map_err(::core::convert::Into::<#pyo3_path::PyErr>::into)?
+            }};
+            let output = quote_spanned! { *output_span => result.convert(py) };
+
+            let body = quote! {
+                use #pyo3_path::impl_::callback::IntoPyCallbackOutput;
+                #warnings
+                #arg_convert
+                let result = #call;
+                #output
             };
             (arg_idents, arg_types, body)
         }
