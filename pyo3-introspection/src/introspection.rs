@@ -127,10 +127,12 @@ fn convert_members<'a>(
             Chunk::Class {
                 name,
                 id,
+                bases,
                 decorators,
             } => classes.push(convert_class(
                 id,
                 name,
+                bases,
                 decorators,
                 chunks_by_id,
                 chunks_by_parent,
@@ -186,6 +188,7 @@ fn convert_members<'a>(
 fn convert_class(
     id: &str,
     name: &str,
+    bases: &[ChunkTypeHint],
     decorators: &[ChunkTypeHint],
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
@@ -205,16 +208,20 @@ fn convert_class(
     );
     Ok(Class {
         name: name.into(),
+        bases: bases
+            .iter()
+            .map(convert_python_identifier)
+            .collect::<Result<_>>()?,
         methods,
         attributes,
         decorators: decorators
             .iter()
-            .map(convert_decorator)
+            .map(convert_python_identifier)
             .collect::<Result<_>>()?,
     })
 }
 
-fn convert_decorator(decorator: &ChunkTypeHint) -> Result<PythonIdentifier> {
+fn convert_python_identifier(decorator: &ChunkTypeHint) -> Result<PythonIdentifier> {
     match convert_type_hint(decorator) {
         TypeHint::Plain(id) => Ok(PythonIdentifier {
             module: None,
@@ -240,7 +247,7 @@ fn convert_function(
         name: name.into(),
         decorators: decorators
             .iter()
-            .map(convert_decorator)
+            .map(convert_python_identifier)
             .collect::<Result<_>>()?,
         arguments: Arguments {
             positional_only_arguments: arguments.posonlyargs.iter().map(convert_argument).collect(),
@@ -461,6 +468,8 @@ enum Chunk {
     Class {
         id: String,
         name: String,
+        #[serde(default)]
+        bases: Vec<ChunkTypeHint>,
         #[serde(default)]
         decorators: Vec<ChunkTypeHint>,
     },

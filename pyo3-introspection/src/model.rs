@@ -11,6 +11,7 @@ pub struct Module {
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Class {
     pub name: String,
+    pub bases: Vec<PythonIdentifier>,
     pub methods: Vec<Function>,
     pub attributes: Vec<Attribute>,
     /// decorator like 'typing.final'
