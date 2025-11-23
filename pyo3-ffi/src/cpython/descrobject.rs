@@ -1,4 +1,4 @@
-use crate::{PyGetSetDef, PyMethodDef, PyObject, PyTypeObject};
+use crate::{PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, PyTypeObject};
 use std::ffi::{c_char, c_int, c_void};
 
 pub type wrapperfunc = Option<
@@ -53,7 +53,7 @@ pub struct PyMethodDescrObject {
 #[repr(C)]
 pub struct PyMemberDescrObject {
     pub d_common: PyDescrObject,
-    pub d_member: *mut PyGetSetDef,
+    pub d_member: *mut PyMemberDef,
 }
 
 #[repr(C)]
