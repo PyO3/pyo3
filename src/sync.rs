@@ -491,9 +491,10 @@ impl Drop for CS2Guard {
 /// Used with the `with_critical_section_mutex` and
 /// `with_critical_section_mutex2` functions. See the documentation of those
 /// functions for more details.
-#[cfg(all(Py_3_14, Py_GIL_DISABLED))]
+#[cfg(any(Py_3_14, Py_GIL_DISABLED))]
 pub struct EnteredCriticalSection<'a, T>(&'a UnsafeCell<T>);
 
+#[cfg(any(Py_3_14, Py_GIL_DISABLED))]
 impl<T> EnteredCriticalSection<'_, T> {
     /// Get a mutable reference to the data wrapped by a PyMutex
     ///
