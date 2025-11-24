@@ -1441,6 +1441,7 @@ mod tests {
         });
     }
 
+    #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section_mutex2_same_object_no_deadlock() {
@@ -1526,6 +1527,7 @@ mod tests {
         });
     }
 
+    #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section_mutex2_two_containers() {
