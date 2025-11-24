@@ -486,6 +486,54 @@ impl Drop for CS2Guard {
     }
 }
 
+/// Allows access to data protected by a PyMutex in a critical section
+///
+/// Used with the `with_critical_section_mutex` and
+/// `with_critical_section_mutex2` functions. See the documentation of those
+/// functions for more details.
+#[cfg(all(Py_3_14, Py_GIL_DISABLED))]
+pub struct EnteredCriticalSection<'a, T>(&'a UnsafeCell<T>);
+
+impl<T> EnteredCriticalSection<'_, T> {
+    /// Get a mutable reference to the data wrapped by a PyMutex
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure the critical section is not released while the
+    /// reference is alive. If a multithreaded program calls back into the
+    /// Python interpreter in a manner that would cause the critical section to
+    /// be released, the `PyMutex` will be released and the resource protected
+    /// by the `PyMutex` may be read from or modified by another thread while
+    /// the critical section is suspended and the thread that owns the reference
+    /// is blocked. Concurrent modifications are impossible, but races are
+    /// possible and the state of an object may change "underneath" a suspended
+    /// thread in possibly surprising ways. Note that many operations on Python
+    /// objects may call back into the interpreter in a blocking manner because
+    /// many C API calls can trigger the execution of arbitrary Python code.
+    pub unsafe fn get_mut(&mut self) -> &mut T {
+        return unsafe { &mut *(self.0.get()) };
+    }
+
+    /// Get a immutable reference to the value wrapped by a PyMutex
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure the critical section is not released while the
+    /// reference is alive. If a multithreaded program calls back into the
+    /// Python interpreter in a manner that would cause the critical section to
+    /// be released, the `PyMutex` will be released and the resource protected
+    /// by the `PyMutex` may be read from or modified by another thread while
+    /// the critical section is suspended and the thread that owns the reference
+    /// is blocked. Concurrent modifications are impossible, but races are
+    /// possible and the state of an object may change "underneath" a suspended
+    /// thread in possibly surprising ways. Note that many operations on Python
+    /// objects may call back into the interpreter in a blocking manner because
+    /// many C API calls can trigger the execution of arbitrary Python code.
+    pub unsafe fn get(&self) -> &T {
+        return unsafe { &*(self.0.get()) };
+    }
+}
+
 /// Executes a closure with a Python critical section held on an object.
 ///
 /// Acquires the per-object lock for the object `op` that is held
@@ -618,25 +666,32 @@ where
 /// in a manner that would cause the critical section to be released, the
 /// `PyMutex` will be released and the resource protected by the `PyMutex` may
 /// be read from or modified by another thread. Concurrent modifications are
-/// still impossible, but the state of the resource may change "underneath" a
-/// suspended thread in possibly surprising ways.
+/// impossible, but races are possible and the state of an object may change
+/// "underneath" a suspended thread in possibly surprising ways. Note that many
+/// operations on Python objects may call back into the interpreter in a
+/// blocking manner because many C API calls can trigger the execution of
+/// arbitrary Python code.
 ///
 /// Only available on Python 3.14 and newer.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section_mutex<'py, F, R, T>(_py: Python<'py>, mutex: &PyMutex<T>, f: F) -> R
+pub fn with_critical_section_mutex<'py, 'a, F, R, T>(
+    _py: Python<'py>,
+    mutex: &'a PyMutex<T>,
+    f: F,
+) -> R
 where
-    F: FnOnce(&UnsafeCell<T>) -> R,
+    F: FnOnce(EnteredCriticalSection<'a, T>) -> R,
 {
     #[cfg(Py_GIL_DISABLED)]
     {
         let mut guard = CSGuard(unsafe { std::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection_BeginMutex(&mut guard.0, &mut *mutex.mutex.get()) };
-        f(&mutex.data)
+        f(EnteredCriticalSection(&mutex.data))
     }
     #[cfg(not(Py_GIL_DISABLED))]
     {
-        f(&mutex.data)
+        f(EnteredCriticalSection(&mutex.data))
     }
 }
 
@@ -672,14 +727,14 @@ where
 /// Only available on Python 3.14 and newer.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section_mutex2<'py, F, R, T1, T2>(
+pub fn with_critical_section_mutex2<'py, 'a, F, R, T1, T2>(
     _py: Python<'py>,
-    m1: &PyMutex<T1>,
-    m2: &PyMutex<T2>,
+    m1: &'a PyMutex<T1>,
+    m2: &'a PyMutex<T2>,
     f: F,
 ) -> R
 where
-    F: FnOnce(&UnsafeCell<T1>, &UnsafeCell<T2>) -> R,
+    F: FnOnce(EnteredCriticalSection<'a, T1>, EnteredCriticalSection<'a, T2>) -> R,
 {
     #[cfg(Py_GIL_DISABLED)]
     {
@@ -691,11 +746,17 @@ where
                 &mut *m2.mutex.get(),
             )
         };
-        f(&m1.data, &m2.data)
+        f(
+            EnteredCriticalSection(&m1.data),
+            EnteredCriticalSection(&m2.data),
+        )
     }
     #[cfg(not(Py_GIL_DISABLED))]
     {
-        f(&m1.data, &m2.data)
+        f(
+            EnteredCriticalSection(&m1.data),
+            EnteredCriticalSection(&m2.data),
+        )
     }
 }
 
@@ -1308,10 +1369,10 @@ mod tests {
         std::thread::scope(|s| {
             s.spawn(|| {
                 Python::attach(|py| {
-                    with_critical_section_mutex(py, &mutex, |b| {
+                    with_critical_section_mutex(py, &mutex, |mut b| {
                         barrier.wait();
                         std::thread::sleep(std::time::Duration::from_millis(10));
-                        unsafe { (*b.get()) = true };
+                        *(unsafe { b.get_mut() }) = true;
                     });
                 });
             });
@@ -1388,11 +1449,11 @@ mod tests {
         std::thread::scope(|s| {
             s.spawn(|| {
                 Python::attach(|py| {
-                    with_critical_section_mutex2(py, &m1, &m2, |b1, b2| {
+                    with_critical_section_mutex2(py, &m1, &m2, |mut b1, mut b2| {
                         barrier.wait();
                         std::thread::sleep(std::time::Duration::from_millis(10));
-                        unsafe { (*b1.get()) = true };
-                        unsafe { (*b2.get()) = true };
+                        unsafe { (*b1.get_mut()) = true };
+                        unsafe { (*b2.get_mut()) = true };
                     });
                 });
             });
@@ -1454,10 +1515,10 @@ mod tests {
         std::thread::scope(|s| {
             s.spawn(|| {
                 Python::attach(|py| {
-                    with_critical_section_mutex2(py, &m, &m, |b1, b2| {
+                    with_critical_section_mutex2(py, &m, &m, |mut b1, b2| {
                         barrier.wait();
                         std::thread::sleep(std::time::Duration::from_millis(10));
-                        unsafe { (*b1.get()) = true };
+                        unsafe { (*b1.get_mut()) = true };
                         assert!(unsafe { *b2.get() });
                     });
                 });
@@ -1538,20 +1599,20 @@ mod tests {
         std::thread::scope(|s| {
             s.spawn(|| {
                 Python::attach(|py| {
-                    with_critical_section_mutex2(py, &m1, &m2, |v1, v2| {
+                    with_critical_section_mutex2(py, &m1, &m2, |mut v1, v2| {
                         // v1.extend(v1)
-                        let vec1 = unsafe { &mut *v1.get() };
-                        let vec2 = unsafe { &*v2.get() };
+                        let vec1 = unsafe { v1.get_mut() };
+                        let vec2 = unsafe { v2.get() };
                         vec1.extend(vec2.iter());
                     })
                 });
             });
             s.spawn(|| {
                 Python::attach(|py| {
-                    with_critical_section_mutex2(py, &m1, &m2, |v1, v2| {
+                    with_critical_section_mutex2(py, &m1, &m2, |v1, mut v2| {
                         // v2.extend(v1)
-                        let vec1 = unsafe { &*v1.get() };
-                        let vec2 = unsafe { &mut *v2.get() };
+                        let vec1 = unsafe { v1.get() };
+                        let vec2 = unsafe { v2.get_mut() };
                         vec2.extend(vec1.iter());
                     })
                 });
