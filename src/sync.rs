@@ -9,7 +9,7 @@
 //! interpreter.
 //!
 //! This module provides synchronization primitives which are able to synchronize under these conditions.
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use crate::types::PyMutex;
 use crate::{
     internal::state::SuspendAttach,
