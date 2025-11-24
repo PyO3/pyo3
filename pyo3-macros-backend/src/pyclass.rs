@@ -16,7 +16,7 @@ use crate::attributes::{
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{
-    class_introspection_code, function_introspection_code, introspection_id_const, PythonIdentifier,
+    class_introspection_code, function_introspection_code, introspection_id_const,
 };
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
@@ -32,6 +32,8 @@ use crate::pymethod::{
     __REPR__, __RICHCMP__, __STR__,
 };
 use crate::pyversions::{is_abi3_before, is_py_before};
+#[cfg(feature = "experimental-inspect")]
+use crate::type_hint::PythonTypeHint;
 use crate::utils::{self, apply_renaming_rule, Ctx, PythonDoc};
 use crate::PyFunctionOptions;
 
@@ -1897,7 +1899,7 @@ fn descriptors_to_items(
                     &FunctionSignature::from_arguments(vec![]),
                     Some("self"),
                     parse_quote!(-> #return_type),
-                    vec![PythonIdentifier::builtins("property")],
+                    vec![PythonTypeHint::builtin("property")],
                     Some(&parse_quote!(#cls)),
                 ));
             }
@@ -1936,7 +1938,7 @@ fn descriptors_to_items(
                     })]),
                     Some("self"),
                     syn::ReturnType::Default,
-                    vec![PythonIdentifier::local(format!("{name}.setter"))],
+                    vec![PythonTypeHint::local(format!("{name}.setter"))],
                     Some(&parse_quote!(#cls)),
                 ));
             }

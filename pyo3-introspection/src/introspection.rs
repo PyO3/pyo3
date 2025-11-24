@@ -224,7 +224,7 @@ fn convert_decorator(decorator: &ChunkTypeHint) -> Result<PythonIdentifier> {
             if let TypeHintExpr::Identifier(i) = expr {
                 Ok(i)
             } else {
-                bail!("PyO3 introspection currently only support decorators that are identifiers of a Python function")
+                bail!("PyO3 introspection currently only support decorators that are identifiers of a Python function, got {expr:?}")
             }
         }
     }
