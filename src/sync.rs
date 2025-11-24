@@ -557,11 +557,11 @@ impl<T> EnteredCriticalSection<'_, T> {
 /// section. If a multithreaded program calls back into the Python interpreter
 /// in a manner that would cause the critical section to be released, the
 /// per-object lock will be released and the state of the object may be read
-/// from or modified by another thread. Concurrent modifications are still
-/// impossible, but the state of object may change "underneath" a suspended
-/// thread in possibly surprising ways. Note that many operations on Python
-/// objects may call back into the interpreter in a blocking manner because
-/// many C API calls can trigger the execution of arbitrary Python code.
+/// from or modified by another thread. Concurrent modifications are impossible,
+/// but races are possible and the state of an object may change "underneath" a
+/// suspended thread in possibly surprising ways. Note that many operations on
+/// Python objects may call back into the interpreter in a blocking manner
+/// because many C API calls can trigger the execution of arbitrary Python code.
 ///
 /// Many CPython C API functions do not acquire the per-object lock on objects
 /// passed to Python. You should not expect critical sections applied to
@@ -608,11 +608,11 @@ where
 /// section. If a multithreaded program calls back into the Python interpreter
 /// in a manner that would cause the critical section to be released, the
 /// per-object lock will be released and the state of the object may be read
-/// from or modified by another thread. Concurrent modifications are still
-/// impossible, but the state of object may change "underneath" a suspended
-/// thread in possibly surprising ways. Note that many operations on Python
-/// objects may call back into the interpreter in a blocking manner because
-/// many C API calls can trigger the execution of arbitrary Python code.
+/// from or modified by another thread. Concurrent modifications are impossible,
+/// but races are possible and the state of an object may change "underneath" a
+/// suspended thread in possibly surprising ways. Note that many operations on
+/// Python objects may call back into the interpreter in a blocking manner
+/// because many C API calls can trigger the execution of arbitrary Python code.
 ///
 /// Many CPython C API functions do not acquire the per-object lock on objects
 /// passed to Python. You should not expect critical sections applied to
@@ -721,8 +721,11 @@ where
 /// in a manner that would cause the critical section to be released, the
 /// `PyMutex` will be released and the resource protected by the `PyMutex` may
 /// be read from or modified by another thread. Concurrent modifications are
-/// still impossible, but the state of the resource may change "underneath" a
-/// suspended thread in possibly surprising ways.
+/// impossible, but races are possible and the state of an object may change
+/// "underneath" a suspended thread in possibly surprising ways. Note that many
+/// operations on Python objects may call back into the interpreter in a
+/// blocking manner because many C API calls can trigger the execution of
+/// arbitrary Python code.
 ///
 /// Only available on Python 3.14 and newer.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
