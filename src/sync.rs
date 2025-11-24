@@ -1174,13 +1174,11 @@ mod tests {
 
     use crate::types::{PyDict, PyDictMethods};
     #[cfg(not(target_arch = "wasm32"))]
-    use std::sync::Mutex;
-    #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
-    use std::sync::{
-        atomic::{AtomicBool, Ordering},
-        Barrier,
-    };
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Barrier;
+    #[cfg(not(target_arch = "wasm32"))]
+    use std::sync::Mutex;
 
     #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
@@ -1263,6 +1261,7 @@ mod tests {
         });
     }
 
+    #[cfg(feature = "macros")]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section() {
@@ -1315,8 +1314,8 @@ mod tests {
                 });
             });
             s.spawn(|| {
+                barrier.wait();
                 Python::attach(|py| {
-                    barrier.wait();
                     // blocks until the other thread enters a critical section
                     with_critical_section_mutex(py, &mutex, |b| {
                         assert!(unsafe { *b.get() } == true);
@@ -1396,8 +1395,8 @@ mod tests {
                 });
             });
             s.spawn(|| {
+                barrier.wait();
                 Python::attach(|py| {
-                    barrier.wait();
                     // blocks until the other thread enters a critical section
                     with_critical_section_mutex2(py, &m1, &m2, |b1, b2| {
                         assert!(unsafe { *b1.get() } == true);
