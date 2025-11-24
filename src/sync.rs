@@ -1318,7 +1318,7 @@ mod tests {
                 Python::attach(|py| {
                     // blocks until the other thread enters a critical section
                     with_critical_section_mutex(py, &mutex, |b| {
-                        assert!(unsafe { *b.get() } == true);
+                        assert!(unsafe { *b.get() });
                     });
                 });
             });
@@ -1399,8 +1399,8 @@ mod tests {
                 Python::attach(|py| {
                     // blocks until the other thread enters a critical section
                     with_critical_section_mutex2(py, &m1, &m2, |b1, b2| {
-                        assert!(unsafe { *b1.get() } == true);
-                        assert!(unsafe { *b2.get() } == true);
+                        assert!(unsafe { *b1.get() });
+                        assert!(unsafe { *b2.get() });
                     });
                 });
             });
