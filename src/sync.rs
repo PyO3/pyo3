@@ -1441,6 +1441,36 @@ mod tests {
         });
     }
 
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[test]
+    fn test_critical_section_mutex2_same_object_no_deadlock() {
+        let barrier = Barrier::new(2);
+
+        let m = PyMutex::new(false);
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                Python::attach(|py| {
+                    with_critical_section_mutex2(py, &m, &m, |b1, b2| {
+                        barrier.wait();
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        unsafe { (*b1.get()) = true };
+                        assert!(unsafe { *b2.get() });
+                    });
+                });
+            });
+            s.spawn(|| {
+                barrier.wait();
+                Python::attach(|py| {
+                    // this blocks until the other thread's critical section finishes
+                    with_critical_section_mutex(py, &m, |b| {
+                        assert!(unsafe { *b.get() });
+                    });
+                });
+            });
+        });
+    }
+
     #[cfg(feature = "macros")]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
@@ -1494,6 +1524,53 @@ mod tests {
                     || (v1.borrow().0.eq(&expected2_vec1) && v2.borrow().0.eq(&expected2_vec2))
             );
         });
+    }
+
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[test]
+    fn test_critical_section_mutex2_two_containers() {
+        let (m1, m2) = (PyMutex::new(vec![1, 2, 3]), PyMutex::new(vec![4, 5]));
+
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                Python::attach(|py| {
+                    with_critical_section_mutex2(py, &m1, &m2, |v1, v2| {
+                        // v1.extend(v1)
+                        let vec1 = unsafe { &mut *v1.get() };
+                        let vec2 = unsafe { &*v2.get() };
+                        vec1.extend(vec2.iter());
+                    })
+                });
+            });
+            s.spawn(|| {
+                Python::attach(|py| {
+                    with_critical_section_mutex2(py, &m1, &m2, |v1, v2| {
+                        // v2.extend(v1)
+                        let vec1 = unsafe { &*v1.get() };
+                        let vec2 = unsafe { &mut *v2.get() };
+                        vec2.extend(vec1.iter());
+                    })
+                });
+            });
+        });
+
+        // execution order is not guaranteed, so we need to check both
+        // NB: extend should be atomic, items must not be interleaved
+        // v1.extend(v2)
+        // v2.extend(v1)
+        let expected1_vec1 = vec![1, 2, 3, 4, 5];
+        let expected1_vec2 = vec![4, 5, 1, 2, 3, 4, 5];
+        // v2.extend(v1)
+        // v1.extend(v2)
+        let expected2_vec1 = vec![1, 2, 3, 4, 5, 1, 2, 3];
+        let expected2_vec2 = vec![4, 5, 1, 2, 3];
+
+        let v1 = m1.lock().unwrap();
+        let v2 = m2.lock().unwrap();
+        assert!(
+            ((*v1).eq(&expected1_vec1) && (*v2).eq(&expected1_vec2))
+                || ((*v1).eq(&expected2_vec1) && (*v2).eq(&expected2_vec2))
+        );
     }
 
     #[test]
