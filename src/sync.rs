@@ -512,7 +512,7 @@ impl<T> EnteredCriticalSection<'_, T> {
     /// objects may call back into the interpreter in a blocking manner because
     /// many C API calls can trigger the execution of arbitrary Python code.
     pub unsafe fn get_mut(&mut self) -> &mut T {
-        return unsafe { &mut *(self.0.get()) };
+        unsafe { &mut *(self.0.get()) }
     }
 
     /// Get a immutable reference to the value wrapped by a PyMutex
@@ -531,7 +531,7 @@ impl<T> EnteredCriticalSection<'_, T> {
     /// objects may call back into the interpreter in a blocking manner because
     /// many C API calls can trigger the execution of arbitrary Python code.
     pub unsafe fn get(&self) -> &T {
-        return unsafe { &*(self.0.get()) };
+        unsafe { &*(self.0.get()) }
     }
 }
 
