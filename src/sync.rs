@@ -1375,6 +1375,7 @@ mod tests {
                     with_critical_section_mutex(py, &mutex, |mut b| {
                         barrier.wait();
                         std::thread::sleep(std::time::Duration::from_millis(10));
+                        // SAFETY: we never call back into the python interpreter inside this critical section
                         *(unsafe { b.get_mut() }) = true;
                     });
                 });
@@ -1384,6 +1385,7 @@ mod tests {
                 Python::attach(|py| {
                     // blocks until the other thread enters a critical section
                     with_critical_section_mutex(py, &mutex, |b| {
+                        // SAFETY: we never call back into the python interpreter inside this critical section
                         assert!(unsafe { *b.get() });
                     });
                 });
@@ -1455,6 +1457,7 @@ mod tests {
                     with_critical_section_mutex2(py, &m1, &m2, |mut b1, mut b2| {
                         barrier.wait();
                         std::thread::sleep(std::time::Duration::from_millis(10));
+                        // SAFETY: we never call back into the python interpreter inside this critical section
                         unsafe { (*b1.get_mut()) = true };
                         unsafe { (*b2.get_mut()) = true };
                     });
@@ -1465,6 +1468,7 @@ mod tests {
                 Python::attach(|py| {
                     // blocks until the other thread enters a critical section
                     with_critical_section_mutex2(py, &m1, &m2, |b1, b2| {
+                        // SAFETY: we never call back into the python interpreter inside this critical section
                         assert!(unsafe { *b1.get() });
                         assert!(unsafe { *b2.get() });
                     });
@@ -1521,6 +1525,7 @@ mod tests {
                     with_critical_section_mutex2(py, &m, &m, |mut b1, b2| {
                         barrier.wait();
                         std::thread::sleep(std::time::Duration::from_millis(10));
+                        // SAFETY: we never call back into the python interpreter inside this critical section
                         unsafe { (*b1.get_mut()) = true };
                         assert!(unsafe { *b2.get() });
                     });
@@ -1531,6 +1536,7 @@ mod tests {
                 Python::attach(|py| {
                     // this blocks until the other thread's critical section finishes
                     with_critical_section_mutex(py, &m, |b| {
+                        // SAFETY: we never call back into the python interpreter inside this critical section
                         assert!(unsafe { *b.get() });
                     });
                 });
@@ -1604,6 +1610,7 @@ mod tests {
                 Python::attach(|py| {
                     with_critical_section_mutex2(py, &m1, &m2, |mut v1, v2| {
                         // v1.extend(v1)
+                        // SAFETY: we never call back into the python interpreter inside this critical section
                         let vec1 = unsafe { v1.get_mut() };
                         let vec2 = unsafe { v2.get() };
                         vec1.extend(vec2.iter());
@@ -1614,6 +1621,7 @@ mod tests {
                 Python::attach(|py| {
                     with_critical_section_mutex2(py, &m1, &m2, |v1, mut v2| {
                         // v2.extend(v1)
+                        // SAFETY: we never call back into the python interpreter inside this critical section
                         let vec1 = unsafe { v1.get() };
                         let vec2 = unsafe { v2.get_mut() };
                         vec2.extend(vec1.iter());
