@@ -1,3 +1,4 @@
+#[cfg(any(Py_3_14, Py_GIL_DISABLED))]
 use crate::PyMutex;
 use crate::PyObject;
 
