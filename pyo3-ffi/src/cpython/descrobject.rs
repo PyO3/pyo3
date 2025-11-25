@@ -1,4 +1,4 @@
-use crate::{PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, PyTypeObject};
+use crate::{PyGetSetDef, PyMethodDef, PyObject, PyTypeObject};
 use std::ffi::{c_char, c_int, c_void};
 
 pub type wrapperfunc = Option<
@@ -56,7 +56,7 @@ pub struct PyMemberDescrObject {
     #[cfg(not(Py_3_11))]
     pub d_member: *mut PyGetSetDef,
     #[cfg(Py_3_11)]
-    pub d_member: *mut PyMemberDef,
+    pub d_member: *mut crate::PyMemberDef,
 }
 
 #[repr(C)]
