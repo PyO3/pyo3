@@ -53,6 +53,9 @@ pub struct PyMethodDescrObject {
 #[repr(C)]
 pub struct PyMemberDescrObject {
     pub d_common: PyDescrObject,
+    #[cfg(not(Py_3_11))]
+    pub d_member: *mut PyGetSetDef,
+    #[cfg(Py_3_11)]
     pub d_member: *mut PyMemberDef,
 }
 
