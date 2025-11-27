@@ -581,7 +581,7 @@ def build_guide(session: nox.Session):
 def build_netlify_site(session: nox.Session):
     if requests is None:
         session.error("requests library is required for this session")
-    
+
     # Remove netlify_build directory if it exists
     netlify_build = Path("netlify_build")
     if netlify_build.exists():
@@ -911,7 +911,7 @@ def set_msrv_package_versions(session: nox.Session):
 
         lock_file = project / "Cargo.lock"
 
-        def load_pkg_versions():            
+        def load_pkg_versions():
             if toml is None:
                 session.error("requires `toml` to be installed")
             cargo_lock = toml.loads(lock_file.read_text())
