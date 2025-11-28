@@ -230,8 +230,54 @@ macro_rules! create_exception_type_object {
                 ).as_ptr() as *mut $crate::ffi::PyTypeObject
             }
         }
+
+        $crate::create_exception_introspection_data!($module, $name, $base);
     };
 }
+
+/// Adds some introspection data for the exception if the `experimental-inspect` feature is enabled.
+#[cfg(not(feature = "experimental-inspect"))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! create_exception_introspection_data(
+    ($module: expr, $name: ident, $base: ty) => {};
+);
+
+#[cfg(feature = "experimental-inspect")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! create_exception_introspection_data(
+    ($module: expr, $name: ident, $base: ty) => {
+        const _: () = {
+            const PIECES: &[&[u8]] = &[
+                b"{\"type\":\"class\",\"id\":\"",
+                $name::_PYO3_INTROSPECTION_ID.as_bytes(),
+                b"\",\"name\":\"",
+                stringify!($name).as_bytes(),
+                b"\",\"bases\":[",
+                {
+                    const BASE_LEN: usize = $crate::inspect::serialized_len_for_introspection(&<$base as $crate::type_object::PyTypeInfo>::TYPE_HINT);
+                    const BASE_SER: [u8; BASE_LEN] = {
+                        let mut result: [u8; BASE_LEN] = [0; BASE_LEN];
+                        $crate::inspect::serialize_for_introspection(&<$base as $crate::type_object::PyTypeInfo>::TYPE_HINT, &mut result);
+                        result
+                    };
+                    &BASE_SER
+                },
+                b"]}"
+            ];
+            const PIECES_LEN: usize = $crate::impl_::concat::combined_len(PIECES);
+            $crate::impl_::introspection::paste! {
+                #[used]
+                #[no_mangle]
+                static [<PYO3_INTROSPECTION_1_ $name>]: $crate::impl_::introspection::SerializedIntrospectionFragment<PIECES_LEN> = $crate::impl_::introspection::SerializedIntrospectionFragment {
+                    length: PIECES_LEN as u32,
+                    fragment: $crate::impl_::concat::combine_to_array::<PIECES_LEN>(PIECES)
+                };
+            }
+        };
+    };
+);
 
 macro_rules! impl_native_exception (
     ($name:ident, $exc_name:ident, $python_name:expr, $doc:expr, $layout:path $(, #checkfunction=$checkfunction:path)?) => (

@@ -1,5 +1,6 @@
 use crate::conversion::IntoPyObject;
 use crate::inspect::TypeHint;
+pub use paste::paste;
 
 /// Trait to guess a function Python return type
 ///
