@@ -322,9 +322,9 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
 
     #[cfg(feature = "experimental-inspect")]
     const SEQUENCE_INPUT_TYPE: TypeHint = TypeHint::union(&[
-        TypeHint::subscript(&PySequence::TYPE_HINT, &[Self::INPUT_TYPE]),
         PyBytes::TYPE_HINT,
         PyByteArray::TYPE_HINT,
+        TypeHint::subscript(&PySequence::TYPE_HINT, &[Self::INPUT_TYPE]),
     ]);
 }
 
