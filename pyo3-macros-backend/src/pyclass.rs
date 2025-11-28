@@ -1546,11 +1546,11 @@ fn generate_protocol_slot(
 ) -> syn::Result<MethodAndSlotDef> {
     let spec = FnSpec::parse(
         &mut method.sig,
-        &mut Vec::new(),
+        &mut method.attrs,
         PyFunctionOptions::default(),
     )?;
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
-    let mut def = slot.generate_type_slot(&syn::parse_quote!(#cls), &spec, name, ctx)?;
+    let mut def = slot.generate_type_slot(cls, &spec, name, ctx)?;
     #[cfg(feature = "experimental-inspect")]
     {
         // We generate introspection data
@@ -2273,6 +2273,7 @@ fn pyclass_new_impl<'a>(
 
             let mut new_impl = {
                 parse_quote_spanned! { opt.span() =>
+                    #[new]
                     fn __pyo3_generated____new__( #( #field_idents : #field_types ),* ) -> Self {
                         Self {
                             #( #field_idents, )*
