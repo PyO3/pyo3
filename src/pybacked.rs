@@ -23,6 +23,18 @@ pub struct PyBackedStr {
     data: NonNull<str>,
 }
 
+impl PyBackedStr {
+    /// Clones this by incrementing the reference count of the underlying Python object.
+    ///
+    /// Similar to [`Py::clone_ref`], this method is always available, even when the `py-clone` feature is disabled.
+    pub fn clone_ref(&self, py: Python<'_>) -> Self {
+        Self {
+            storage: self.storage.clone_ref(py),
+            data: self.data,
+        }
+    }
+}
+
 impl Deref for PyBackedStr {
     type Target = str;
     fn deref(&self) -> &str {
@@ -144,6 +156,23 @@ pub struct PyBackedBytes {
 enum PyBackedBytesStorage {
     Python(Py<PyBytes>),
     Rust(Arc<[u8]>),
+}
+
+impl PyBackedBytes {
+    /// Clones this by incrementing the reference count of the underlying data.
+    ///
+    /// Similar to [`Py::clone_ref`], this method is always available, even when the `py-clone` feature is disabled.
+    pub fn clone_ref(&self, py: Python<'_>) -> Self {
+        Self {
+            storage: match &self.storage {
+                PyBackedBytesStorage::Python(bytes) => {
+                    PyBackedBytesStorage::Python(bytes.clone_ref(py))
+                }
+                PyBackedBytesStorage::Rust(bytes) => PyBackedBytesStorage::Rust(bytes.clone()),
+            },
+            data: self.data,
+        }
+    }
 }
 
 impl Deref for PyBackedBytes {
@@ -480,6 +509,19 @@ mod test {
     }
 
     #[test]
+    fn test_backed_str_clone_ref() {
+        Python::attach(|py| {
+            let s1: PyBackedStr = PyString::new(py, "hello").try_into().unwrap();
+            let s2 = s1.clone_ref(py);
+            assert_eq!(s1, s2);
+            assert!(s1.storage.is(&s2.storage));
+
+            drop(s1);
+            assert_eq!(s2, "hello");
+        });
+    }
+
+    #[test]
     fn test_backed_str_eq() {
         Python::attach(|py| {
             let s1: PyBackedStr = PyString::new(py, "hello").try_into().unwrap();
@@ -542,6 +584,24 @@ mod test {
         });
     }
 
+    #[test]
+    fn test_backed_bytes_from_bytes_clone_ref() {
+        Python::attach(|py| {
+            let b1: PyBackedBytes = PyBytes::new(py, b"abcde").into();
+            let b2 = b1.clone_ref(py);
+            assert_eq!(b1, b2);
+            let (PyBackedBytesStorage::Python(s1), PyBackedBytesStorage::Python(s2)) =
+                (&b1.storage, &b2.storage)
+            else {
+                panic!("Expected Python-backed bytes");
+            };
+            assert!(s1.is(s2));
+
+            drop(b1);
+            assert_eq!(b2, b"abcde");
+        });
+    }
+
     #[cfg(feature = "py-clone")]
     #[test]
     fn test_backed_bytes_from_bytearray_clone() {
@@ -549,6 +609,24 @@ mod test {
             let b1: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
             let b2 = b1.clone();
             assert_eq!(b1, b2);
+
+            drop(b1);
+            assert_eq!(b2, b"abcde");
+        });
+    }
+
+    #[test]
+    fn test_backed_bytes_from_bytearray_clone_ref() {
+        Python::attach(|py| {
+            let b1: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
+            let b2 = b1.clone_ref(py);
+            assert_eq!(b1, b2);
+            let (PyBackedBytesStorage::Rust(s1), PyBackedBytesStorage::Rust(s2)) =
+                (&b1.storage, &b2.storage)
+            else {
+                panic!("Expected Rust-backed bytes");
+            };
+            assert!(Arc::ptr_eq(s1, s2));
 
             drop(b1);
             assert_eq!(b2, b"abcde");
