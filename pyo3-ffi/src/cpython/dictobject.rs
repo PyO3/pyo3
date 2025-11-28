@@ -7,7 +7,7 @@ opaque_struct!(pub PyDictKeysObject);
 #[cfg(Py_3_11)]
 opaque_struct!(pub PyDictValues);
 
-#[cfg(not(GraalPy))]
+#[cfg(not(any(GraalPy, PyPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyDictObject {
@@ -26,6 +26,14 @@ pub struct PyDictObject {
     pub ma_values: *mut *mut PyObject,
     #[cfg(Py_3_11)]
     pub ma_values: *mut PyDictValues,
+}
+
+#[cfg(PyPy)]
+#[repr(C)]
+#[derive(Debug)]
+pub struct PyDictObject {
+    pub ob_base: PyObject,
+    _tmpkeys: *mut PyObject,
 }
 
 extern "C" {
