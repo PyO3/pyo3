@@ -1,39 +1,39 @@
 from typing import Any
 
-def args_kwargs(*args, **kwargs) -> tuple[Any, Any | None]: ...
+def args_kwargs(*args, **kwargs) -> tuple[tuple, dict | None]: ...
 def many_keyword_arguments(
     *,
-    ant: object | None = None,
-    bear: object | None = None,
-    cat: object | None = None,
-    dog: object | None = None,
-    elephant: object | None = None,
-    fox: object | None = None,
-    goat: object | None = None,
-    horse: object | None = None,
-    iguana: object | None = None,
-    jaguar: object | None = None,
-    koala: object | None = None,
-    lion: object | None = None,
-    monkey: object | None = None,
-    newt: object | None = None,
-    owl: object | None = None,
-    penguin: object | None = None,
+    ant: Any | None = None,
+    bear: Any | None = None,
+    cat: Any | None = None,
+    dog: Any | None = None,
+    elephant: Any | None = None,
+    fox: Any | None = None,
+    goat: Any | None = None,
+    horse: Any | None = None,
+    iguana: Any | None = None,
+    jaguar: Any | None = None,
+    koala: Any | None = None,
+    lion: Any | None = None,
+    monkey: Any | None = None,
+    newt: Any | None = None,
+    owl: Any | None = None,
+    penguin: Any | None = None,
 ) -> None: ...
 def none() -> None: ...
-def positional_only(a: object, /, b: object) -> tuple[Any, Any]: ...
+def positional_only(a: Any, /, b: Any) -> tuple[Any, Any]: ...
 def simple(
-    a: object, b: object | None = None, *, c: object | None = None
+    a: Any, b: Any | None = None, *, c: Any | None = None
 ) -> tuple[Any, Any | None, Any | None]: ...
 def simple_args(
-    a: object, b: object | None = None, *args, c: object | None = None
-) -> tuple[Any, Any | None, Any, Any | None]: ...
+    a: Any, b: Any | None = None, *args, c: Any | None = None
+) -> tuple[Any, Any | None, tuple, Any | None]: ...
 def simple_args_kwargs(
-    a: object, b: object | None = None, *args, c: object | None = None, **kwargs
-) -> tuple[Any, Any | None, Any, Any | None, Any | None]: ...
+    a: Any, b: Any | None = None, *args, c: Any | None = None, **kwargs
+) -> tuple[Any, Any | None, tuple, Any | None, dict | None]: ...
 def simple_kwargs(
-    a: object, b: object | None = None, c: object | None = None, **kwargs
-) -> tuple[Any, Any | None, Any | None, Any | None]: ...
+    a: Any, b: Any | None = None, c: Any | None = None, **kwargs
+) -> tuple[Any, Any | None, Any | None, dict | None]: ...
 def with_custom_type_annotations(
     a: int, *_args: str, _b: int | None = None, **_kwargs: bool
 ) -> int: ...
