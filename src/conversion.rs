@@ -7,8 +7,6 @@ use crate::inspect::types::TypeInfo;
 use crate::inspect::TypeHint;
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
-#[cfg(feature = "experimental-inspect")]
-use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;
 #[cfg(feature = "experimental-inspect")]
 use crate::types::{PyList, PySequence};

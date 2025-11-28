@@ -254,6 +254,9 @@ impl<'py> IntoPyObject<'py> for u8 {
     {
         Ok(PyBytes::new(py, iter.as_ref()).into_any())
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    const SEQUENCE_OUTPUT_TYPE: TypeHint = PyBytes::TYPE_HINT;
 }
 
 impl<'py> IntoPyObject<'py> for &'_ u8 {
