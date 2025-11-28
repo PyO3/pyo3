@@ -16,11 +16,10 @@ use std::{convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
 /// This type gives access to the underlying data via a `Deref` implementation.
 #[cfg_attr(feature = "py-clone", derive(Clone))]
 pub struct PyBackedStr {
-    #[allow(
-        dead_code,
-        reason = "not read on Python 3.9 and older limited API, storage only on those versions"
-    )]
-    storage: Py<PyAny>,
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    storage: Py<PyString>,
+    #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
+    storage: Py<PyBytes>,
     data: NonNull<str>,
 }
 
@@ -65,7 +64,7 @@ impl TryFrom<Bound<'_, PyString>> for PyBackedStr {
             let s = py_string.to_str()?;
             let data = NonNull::from(s);
             Ok(Self {
-                storage: py_string.into_any().unbind(),
+                storage: py_string.unbind(),
                 data,
             })
         }
@@ -75,7 +74,7 @@ impl TryFrom<Bound<'_, PyString>> for PyBackedStr {
             let s = unsafe { std::str::from_utf8_unchecked(bytes.as_bytes()) };
             let data = NonNull::from(s);
             Ok(Self {
-                storage: bytes.into_any().unbind(),
+                storage: bytes.unbind(),
                 data,
             })
         }
@@ -95,7 +94,7 @@ impl FromPyObject<'_, '_> for PyBackedStr {
 }
 
 impl<'py> IntoPyObject<'py> for PyBackedStr {
-    type Target = PyAny;
+    type Target = PyString;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
@@ -109,12 +108,12 @@ impl<'py> IntoPyObject<'py> for PyBackedStr {
 
     #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(PyString::new(py, &self).into_any())
+        Ok(PyString::new(py, &self))
     }
 }
 
 impl<'py> IntoPyObject<'py> for &PyBackedStr {
-    type Target = PyAny;
+    type Target = PyString;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
@@ -128,7 +127,7 @@ impl<'py> IntoPyObject<'py> for &PyBackedStr {
 
     #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(PyString::new(py, self).into_any())
+        Ok(PyString::new(py, self))
     }
 }
 
