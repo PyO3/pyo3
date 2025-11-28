@@ -1,5 +1,7 @@
 use crate::object::*;
+#[cfg(not(PyPy))]
 use crate::pyport::Py_ssize_t;
+#[cfg(not(PyPy))]
 use std::ffi::c_int;
 
 #[cfg(not(PyPy))]
