@@ -22,7 +22,7 @@ pub mod subclassing;
 mod pyo3_pytests {
     use super::*;
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
     #[pymodule_export]
     use buf_and_str::buf_and_str;
     #[pymodule_export]
