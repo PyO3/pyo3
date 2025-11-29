@@ -1,5 +1,6 @@
+#[cfg(not(GraalPy))]
 use crate::object::*;
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 use crate::pyport::Py_ssize_t;
 
 #[cfg(not(PyPy))]
