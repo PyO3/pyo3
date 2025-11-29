@@ -1,0 +1,5 @@
+[env]
+# a lazy way to skip linking to Python; ffi-check uses the symbols and values but doesn't call any Python APIs
+#
+# NB this config file is only used when cargo is invoke from the pyo3-ffi-check directory.
+PYO3_BUILD_EXTENSION_MODULE = "1"
