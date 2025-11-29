@@ -1130,8 +1130,6 @@ let obj: &Py<PyList> = bound.as_unbound();
 let obj: Py<PyList> = bound.unbind();
 ```
 
-<div class="warning">
-
 > [!WARNING]
 > Dangling pointer trap 💣
 > 
@@ -1150,7 +1148,6 @@ let obj: Py<PyList> = bound.unbind();
 > let opt: Option<Bound<PyAny>> = ...;
 > let p: *mut ffi::PyObject = opt.as_ref().map_or(std::ptr::null_mut(), Bound::as_ptr);
 > ```
-</div>
 
 #### Migrating `FromPyObject` implementations
 
