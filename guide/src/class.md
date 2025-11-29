@@ -145,7 +145,7 @@ There is a [detailed discussion on thread-safety](./class/thread-safety.md) late
 
 By default, it is not possible to create an instance of a custom class from Python code.
 To declare a constructor, you need to define a method and annotate it with the `#[new]` attribute.
-Only Python's `__new__` method can be specified, `__init__` is not available.
+A constructor is accessible as Python's `__new__` method.
 
 ```rust
 # #![allow(dead_code)]
@@ -191,6 +191,76 @@ As you can see, the Rust method name is not important here; this way you can sti
 If no method marked with `#[new]` is declared, object instances can only be created from Rust, but not from Python.
 
 For arguments, see the [`Method arguments`](#method-arguments) section below.
+
+## Initializer
+
+An initializer implements Python's `__init__` method.
+
+It may be required when it's needed to control an object initalization flow on the Rust code.
+If possible handling this in `__new__` should be preferred, but in some cases, like subclassing native types, overwriting `__init__` might be necessary.
+For example, you define a class that extends `PyDict` and don't want that the original `__init__` method of `PyDict` been called.
+In this case by defining an own `__init__` method it's possible to stop initialization flow.
+
+If you declare an `__init__` method you may need to call a super class' `__init__` method explicitly like in Python code.
+
+To declare an initializer, you need to define the `__init__` method.
+Like in Python `__init__` must have the `self` receiver as the first argument, followed by the same arguments as the constructor.
+It can either return `()` or `PyResult<()>`.
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+use pyo3::types::{PyDict, PyTuple, PySuper};
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+use crate::pyo3::PyTypeInfo;
+
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+#[pyclass(extends = PyDict)]
+struct MyDict;
+
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+#[pymethods]
+impl MyDict {
+#   #[allow(unused_variables)]
+    #[new]
+    #[pyo3(signature = (*args, **kwargs))]
+    fn __new__(
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<Self> {
+        Ok(Self)
+    }
+
+    #[pyo3(signature = (*args, **kwargs))]
+    fn __init__(
+        slf: &Bound<'_, Self>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<()> {
+        // call the super types __init__
+        PySuper::new(&PyDict::type_object(slf.py()), slf)?
+            .call_method("__init__", args.to_owned(), kwargs)?;
+        // Note: if `MyDict` allows further subclassing, and this is called from such a subclass,
+        // then this will not that any overrides into account that such a subclass may have defined.
+        // In such a case it may be preferred to just call `slf.set_item` and let Python figure it out.
+        slf.as_super().set_item("my_key", "always insert this key")?;
+        Ok(())
+    }
+}
+
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+# fn main() {
+#     Python::attach(|py| {
+#         let typeobj = py.get_type::<MyDict>();
+#         let obj = typeobj.call((), None).unwrap().cast_into::<MyDict>().unwrap();
+#         // check __init__ was called
+#         assert_eq!(obj.get_item("my_key").unwrap().extract::<&str>().unwrap(), "always insert this key");
+#     });
+# }
+# #[cfg(any(Py_LIMITED_API, GraalPy))]
+# fn main() {}
+```
 
 ## Adding the class to a module
 

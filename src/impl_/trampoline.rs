@@ -162,6 +162,12 @@ trampolines!(
         kwargs: *mut ffi::PyObject,
     ) -> *mut ffi::PyObject;
 
+    pub fn initproc(
+        slf: *mut ffi::PyObject,
+        args: *mut ffi::PyObject,
+        kwargs: *mut ffi::PyObject,
+    ) -> c_int;
+
     pub fn objobjproc(slf: *mut ffi::PyObject, arg1: *mut ffi::PyObject) -> c_int;
 
     pub fn reprfunc(slf: *mut ffi::PyObject) -> *mut ffi::PyObject;
