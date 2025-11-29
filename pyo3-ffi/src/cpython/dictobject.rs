@@ -1,13 +1,17 @@
 use crate::object::*;
+#[cfg(not(PyPy))]
 use crate::pyport::Py_ssize_t;
+#[cfg(not(PyPy))]
 use std::ffi::c_int;
 
+#[cfg(not(PyPy))]
 opaque_struct!(pub PyDictKeysObject);
 
 #[cfg(Py_3_11)]
+#[cfg(not(PyPy))]
 opaque_struct!(pub PyDictValues);
 
-#[cfg(not(GraalPy))]
+#[cfg(not(any(GraalPy, PyPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyDictObject {
@@ -28,11 +32,20 @@ pub struct PyDictObject {
     pub ma_values: *mut PyDictValues,
 }
 
+#[cfg(PyPy)]
+#[repr(C)]
+#[derive(Debug)]
+pub struct PyDictObject {
+    pub ob_base: PyObject,
+    _tmpkeys: *mut PyObject,
+}
+
 extern "C" {
     // skipped _PyDict_GetItem_KnownHash
     // skipped _PyDict_GetItemIdWithError
     // skipped _PyDict_GetItemStringWithError
     // skipped PyDict_SetDefault
+    #[cfg(not(PyPy))]
     pub fn _PyDict_SetItem_KnownHash(
         mp: *mut PyObject,
         key: *mut PyObject,
@@ -42,6 +55,7 @@ extern "C" {
     // skipped _PyDict_DelItem_KnownHash
     // skipped _PyDict_DelItemIf
     // skipped _PyDict_NewKeysForClass
+    #[cfg(not(PyPy))]
     pub fn _PyDict_Next(
         mp: *mut PyObject,
         pos: *mut Py_ssize_t,
@@ -51,6 +65,7 @@ extern "C" {
     ) -> c_int;
     // skipped PyDict_GET_SIZE
     // skipped _PyDict_ContainsId
+    #[cfg(not(PyPy))]
     pub fn _PyDict_NewPresized(minused: Py_ssize_t) -> *mut PyObject;
     // skipped _PyDict_MaybeUntrack
     // skipped _PyDict_HasOnlyStringKeys
@@ -72,6 +87,7 @@ extern "C" {
     // skipped _PyDictView_Intersect
 
     #[cfg(Py_3_10)]
+    #[cfg(not(PyPy))]
     pub fn _PyDict_Contains_KnownHash(
         op: *mut PyObject,
         key: *mut PyObject,
@@ -79,5 +95,6 @@ extern "C" {
     ) -> c_int;
 
     #[cfg(not(Py_3_10))]
+    #[cfg(not(PyPy))]
     pub fn _PyDict_Contains(mp: *mut PyObject, key: *mut PyObject, hash: Py_ssize_t) -> c_int;
 }

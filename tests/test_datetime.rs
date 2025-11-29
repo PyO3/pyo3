@@ -52,8 +52,8 @@ macro_rules! assert_check_exact {
     ($check_func:ident, $check_func_exact:ident, $obj: expr) => {
         unsafe {
             use pyo3::ffi::*;
-            assert!($check_func(($obj).as_ptr()) != 0);
-            assert!($check_func_exact(($obj).as_ptr()) != 0);
+            assert_ne!($check_func(($obj).as_ptr()), 0);
+            assert_ne!($check_func_exact(($obj).as_ptr()), 0);
         }
     };
 }
@@ -62,8 +62,8 @@ macro_rules! assert_check_only {
     ($check_func:ident, $check_func_exact:ident, $obj: expr) => {
         unsafe {
             use pyo3::ffi::*;
-            assert!($check_func(($obj).as_ptr()) != 0);
-            assert!($check_func_exact(($obj).as_ptr()) == 0);
+            assert_ne!($check_func(($obj).as_ptr()), 0);
+            assert_eq!($check_func_exact(($obj).as_ptr()), 0);
         }
     };
 }

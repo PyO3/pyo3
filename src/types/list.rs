@@ -1222,7 +1222,7 @@ mod tests {
                 -5
             });
             assert_eq!(sum, -5);
-            assert!(list.len() == 0);
+            assert_eq!(list.len(), 0);
         });
     }
 

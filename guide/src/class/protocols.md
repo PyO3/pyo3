@@ -78,7 +78,7 @@ given signatures should be interpreted as follows:
 
     The implementations of Python's "rich comparison" operators `<`, `<=`, `==`, `!=`, `>` and `>=` respectively.
 
-    _Note that implementing any of these methods will cause Python not to generate a default `__hash__` implementation, so consider also implementing `__hash__`._
+    *Note that implementing any of these methods will cause Python not to generate a default XXXXXXXXXX implementation, so consider also implementing XXXXXXXXXX.*
     <details>
     <summary>Return type</summary>
     The return type will normally be `bool` or `PyResult<bool>`, however any Python object can be returned.
@@ -90,9 +90,9 @@ given signatures should be interpreted as follows:
     The `CompareOp` argument indicates the comparison operation being performed. You can use
     [`CompareOp::matches`] to adapt a Rust `std::cmp::Ordering` result to the requested comparison.
 
-    _This method cannot be implemented in combination with any of `__lt__`, `__le__`, `__eq__`, `__ne__`, `__gt__`, or `__ge__`._
+    *This method cannot be implemented in combination with any of XXXXXXXX, XXXXXXXX, XXXXXXXX, XXXXXXXX, XXXXXXXX, or XXXXXXXX.*
 
-    _Note that implementing `__richcmp__` will cause Python not to generate a default `__hash__` implementation, so consider implementing `__hash__` when implementing `__richcmp__`._
+    *Note that implementing XXXXXXXXXXXXX will cause Python not to generate a default XXXXXXXXXX implementation, so consider implementing XXXXXXXXXX when implementing XXXXXXXXXXXXX.*
     <details>
     <summary>Return type</summary>
     The return type will normally be `PyResult<bool>`, but any Python object can be returned.

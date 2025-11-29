@@ -9,7 +9,6 @@ pub(crate) mod complexobject;
 #[cfg(Py_3_13)]
 pub(crate) mod critical_section;
 pub(crate) mod descrobject;
-#[cfg(not(PyPy))]
 pub(crate) mod dictobject;
 // skipped fileobject.h
 // skipped fileutils.h
@@ -53,7 +52,6 @@ pub use self::complexobject::*;
 #[cfg(Py_3_13)]
 pub use self::critical_section::*;
 pub use self::descrobject::*;
-#[cfg(not(PyPy))]
 pub use self::dictobject::*;
 pub use self::floatobject::*;
 pub use self::frameobject::*;

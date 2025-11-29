@@ -183,7 +183,7 @@ mod tests {
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(&v == b"abcabcabcabcabcabcabcabcabcabcabc");
+            assert_eq!(&v, b"abcabcabcabcabcabcabcabcabcabcabc");
         })
     }
 
@@ -213,7 +213,7 @@ mod tests {
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(&v == b"abcabcabcabcabcabcabcabcabcabcabc");
+            assert_eq!(&v, b"abcabcabcabcabcabcabcabcabcabcabc");
         })
     }
 
@@ -225,7 +225,7 @@ mod tests {
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert!(&v == b"abc");
+            assert_eq!(&v, b"abc");
         });
     }
     #[test]

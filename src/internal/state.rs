@@ -504,7 +504,7 @@ mod tests {
         Python::attach(|py| {
             // Make a simple object with 1 reference
             let obj = get_object(py);
-            assert!(obj.get_refcnt(py) == 1);
+            assert_eq!(obj.get_refcnt(py), 1);
             // Cloning the object when detached should panic
             py.detach(|| obj.clone());
         });

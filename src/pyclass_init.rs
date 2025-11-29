@@ -138,8 +138,8 @@ impl<T: PyClass> PyClassInitializer<T> {
     #[inline]
     pub fn add_subclass<S>(self, subclass_value: S) -> PyClassInitializer<S>
     where
+        T: PyClassBaseType<Initializer = Self>,
         S: PyClass<BaseType = T>,
-        S::BaseType: PyClassBaseType<Initializer = Self>,
     {
         PyClassInitializer::new(subclass_value, self)
     }
