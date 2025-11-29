@@ -71,6 +71,7 @@ The given signatures should be interpreted as follows:
         const __hash__: Option<Py<PyAny>> = None;
     }
     ```
+
     </details>
 
 - `__lt__(<self>, object) -> object`
@@ -83,10 +84,10 @@ The given signatures should be interpreted as follows:
     The implementations of Python's "rich comparison" operators `<`, `<=`, `==`, `!=`, `>` and `>=` respectively.
 
     _Note that implementing any of these methods will cause Python not to generate a default `__hash__` implementation, so consider also implementing `__hash__`._
-    
+
     <details>
     <summary>Return type</summary>
-    
+
     The return type will normally be `bool` or `PyResult<bool>`, however any Python object can be returned.
     </details>
 
@@ -101,7 +102,7 @@ The given signatures should be interpreted as follows:
     _Note that implementing `__richcmp__` will cause Python not to generate a default `__hash__` implementation, so consider implementing `__hash__` when implementing `__richcmp__`._
     <details>
     <summary>Return type</summary>
-    
+
     The return type will normally be `PyResult<bool>`, but any Python object can be returned.
 
     If you want to leave some operations unimplemented, you can return `py.NotImplemented()`
@@ -138,7 +139,7 @@ The given signatures should be interpreted as follows:
 
     <details>
     <summary>Differences between <code>__getattr__</code> and <code>__getattribute__</code></summary>
-    
+
     As in Python, `__getattr__` is only called if the attribute is not found
     by normal attribute lookup.  `__getattribute__`, on the other hand, is
     called for *every* attribute access.  If it wants to access existing

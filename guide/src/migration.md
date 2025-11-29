@@ -362,7 +362,8 @@ This change makes error conversions more precise and matches the semantics of ou
 <details>
 <summary><small>Click to expand</small></summary>
 
-The `AsPyPointer` trait is mostly a leftover from the now removed gil-refs API. The last remaining uses were the GC API, namely `PyVisit::call`, and identity comparison (`PyAnyMethods::is` and `Py::is`).
+The `AsPyPointer` trait is mostly a leftover from the now removed gil-refs API.
+The last remaining uses were the GC API, namely `PyVisit::call`, and identity comparison (`PyAnyMethods::is` and `Py::is`).
 
 `PyVisit::call` has been updated to take `T: Into<Option<&Py<T>>>`, which allows for arguments of type `&Py<T>`, `&Option<Py<T>>` and `Option<&Py<T>>`.
 It is unlikely any changes are needed here to migrate.
