@@ -59,6 +59,17 @@ let _: Bound<'_, PyNone> = unsafe { Bound::from_owned_ptr(py, raw_ptr).cast_into
 # })
 ```
 
+### Internal change to use multi-phase initialization
+
+[PEP 489](https://peps.python.org/pep-0489/) introduced "multi-phase initialization" for extension modules which provides ways to allocate and clean up per-module state.
+This is a necessary step towards supporting Python "subinterpreters" which run on their own copy of state.
+
+Starting in PyO3 0.28, the `#[pymodule]` macro machinery has been reworked to use multi-phase initialization.
+The possibility of creating and consuming per-module state (and supporting subinterpreters) is left for a future PyO3 version.
+This should not require migration, nor is there expected to be breakage caused by the change.
+
+Nevertheless, this affects the order of initialization so seemed worth noting in this guide.
+
 ## from 0.26.* to 0.27
 
 ### `FromPyObject` reworked for flexibility and efficiency
