@@ -1,4 +1,4 @@
-#![cfg(not(Py_LIMITED_API))]
+#![cfg(any(not(Py_LIMITED_API), Py_3_11))]
 
 use pyo3::prelude::*;
 

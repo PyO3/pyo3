@@ -113,7 +113,7 @@ pub trait IntoPyObject<'py>: Sized {
         list.map(Bound::into_any)
     }
 
-    /// The output type of [`owned_sequence_into_pyobject`] and [`borrowed_sequence_into_pyobject`]
+    /// The output type of [`IntoPyObject::owned_sequence_into_pyobject`] and [`IntoPyObject::borrowed_sequence_into_pyobject`]
     #[cfg(feature = "experimental-inspect")]
     #[doc(hidden)]
     const SEQUENCE_OUTPUT_TYPE: TypeHint =
@@ -463,7 +463,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
         Option::<NeverASequence<Self>>::None
     }
 
-    /// The union of Sequence[Self::INPUT_TYPE] and the input sequence extraction function [`sequence_extractor`] if it's defined
+    /// The union of Sequence[Self::INPUT_TYPE] and the input sequence extraction function [`FromPyObject::sequence_extractor`] if it's defined
     #[cfg(feature = "experimental-inspect")]
     #[doc(hidden)]
     const SEQUENCE_INPUT_TYPE: TypeHint =
