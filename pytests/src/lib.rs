@@ -22,6 +22,9 @@ pub mod subclassing;
 mod pyo3_pytests {
     use super::*;
 
+    #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+    #[pymodule_export]
+    use buf_and_str::buf_and_str;
     #[pymodule_export]
     use {
         comparisons::comparisons, consts::consts, enums::enums, pyclasses::pyclasses,
@@ -33,8 +36,6 @@ mod pyo3_pytests {
     #[pymodule_init]
     fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.add_wrapped(wrap_pymodule!(awaitable::awaitable))?;
-        #[cfg(not(Py_LIMITED_API))]
-        m.add_wrapped(wrap_pymodule!(buf_and_str::buf_and_str))?;
         #[cfg(not(Py_LIMITED_API))]
         m.add_wrapped(wrap_pymodule!(datetime::datetime))?;
         m.add_wrapped(wrap_pymodule!(dict_iter::dict_iter))?;
