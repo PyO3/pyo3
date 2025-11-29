@@ -177,6 +177,7 @@ except Exception as e:
 mod inheriting_native_type {
     use super::*;
     use pyo3::exceptions::PyException;
+    #[cfg(not(GraalPy))]
     use pyo3::types::PyDict;
 
     #[cfg(not(any(PyPy, GraalPy)))]
