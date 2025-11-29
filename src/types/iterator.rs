@@ -1,5 +1,4 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::types::{PyType, PyTypeMethods};
@@ -92,6 +91,19 @@ impl<'py> Bound<'py, PyIterator> {
             })),
         }
     }
+
+    fn next(&self) -> Option<PyResult<Bound<'py, PyAny>>> {
+        let py = self.py();
+        let mut item = std::ptr::null_mut();
+
+        // SAFETY: `self` is a valid iterator object, `item` is a valid pointer to receive the next item
+        match unsafe { ffi::PyIter_NextItem(self.as_ptr(), &mut item) } {
+            std::ffi::c_int::MIN..=-1 => Some(Err(PyErr::fetch(py))),
+            0 => None,
+            // SAFETY: `item` is guaranteed to be a non-null strong reference
+            1..=std::ffi::c_int::MAX => Some(Ok(unsafe { item.assume_owned_unchecked(py) })),
+        }
+    }
 }
 
 impl<'py> Iterator for Bound<'py, PyIterator> {
@@ -105,7 +117,7 @@ impl<'py> Iterator for Bound<'py, PyIterator> {
     /// to repeatedly result in the same exception.
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        Borrowed::from(&*self).next()
+        Bound::next(self)
     }
 
     #[cfg(not(Py_LIMITED_API))]
@@ -118,19 +130,6 @@ impl<'py> Iterator for Bound<'py, PyIterator> {
             (0, None)
         } else {
             (hint as usize, None)
-        }
-    }
-}
-
-impl<'py> Borrowed<'_, 'py, PyIterator> {
-    // TODO: this method is on Borrowed so that &'py PyIterator can use this; once that
-    // implementation is deleted this method should be moved to the `Bound<'py, PyIterator> impl
-    fn next(self) -> Option<PyResult<Bound<'py, PyAny>>> {
-        let py = self.py();
-
-        match unsafe { ffi::PyIter_Next(self.as_ptr()).assume_owned_or_opt(py) } {
-            Some(obj) => Some(Ok(obj)),
-            None => PyErr::take(py).map(Err),
         }
     }
 }
