@@ -628,13 +628,9 @@ impl PyErr {
 fn failed_to_fetch() -> PyErr {
     const FAILED_TO_FETCH: &str = "attempted to fetch exception but none was set";
 
-    #[cfg(debug_assertions)]
-    {
+    if cfg!(debug_assertions) {
         panic!("{}", FAILED_TO_FETCH)
-    }
-
-    #[cfg(not(debug_assertions))]
-    {
+    } else {
         crate::exceptions::PySystemError::new_err(FAILED_TO_FETCH)
     }
 }
