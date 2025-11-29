@@ -179,6 +179,7 @@ except Exception as e:
 mod inheriting_native_type {
     use super::*;
     use pyo3::exceptions::PyException;
+    #[cfg(not(GraalPy))]
     use pyo3::types::PyDict;
 
     #[cfg(not(any(PyPy, GraalPy)))]
@@ -211,6 +212,7 @@ mod inheriting_native_type {
         });
     }
 
+    #[cfg(not(GraalPy))]
     #[pyclass(extends=PyDict)]
     #[derive(Debug)]
     struct DictWithName {
@@ -218,6 +220,7 @@ mod inheriting_native_type {
         _name: &'static str,
     }
 
+    #[cfg(not(GraalPy))]
     #[pymethods]
     impl DictWithName {
         #[new]
@@ -226,6 +229,7 @@ mod inheriting_native_type {
         }
     }
 
+    #[cfg(not(GraalPy))]
     #[test]
     fn inherit_dict() {
         Python::attach(|py| {
@@ -238,6 +242,7 @@ mod inheriting_native_type {
         });
     }
 
+    #[cfg(not(GraalPy))]
     #[test]
     fn inherit_dict_drop() {
         Python::attach(|py| {
