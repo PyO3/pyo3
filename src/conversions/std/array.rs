@@ -14,6 +14,9 @@ where
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::SEQUENCE_OUTPUT_TYPE;
+
     /// Turns [`[u8; N]`](std::array) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///
     /// [`PyBytes`]: crate::types::PyBytes
@@ -46,6 +49,9 @@ where
     T: FromPyObjectOwned<'py>,
 {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = T::SEQUENCE_INPUT_TYPE;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {

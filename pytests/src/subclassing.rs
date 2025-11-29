@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 #[pymodule(gil_used = false)]
 pub mod subclassing {
     use pyo3::prelude::*;
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     use pyo3::types::PyDict;
 
     #[pyclass(subclass)]
@@ -38,11 +38,11 @@ pub mod subclassing {
         }
     }
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     #[pyclass(extends = PyDict)]
     pub struct SubDict {}
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     #[pymethods]
     impl SubDict {
         #[new]

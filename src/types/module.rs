@@ -60,7 +60,7 @@ impl PyModule {
                 .cast_into_unchecked()
         };
 
-        // By default, PyO3 assumes modules use the GIL for thread safety.
+        // By default, PyO3 assumes modules do not use the GIL for thread safety.
         module.gil_used(false)?;
 
         Ok(module)
