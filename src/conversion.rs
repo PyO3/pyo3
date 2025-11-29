@@ -8,8 +8,11 @@ use crate::inspect::TypeHint;
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
 use crate::types::PyTuple;
+#[cfg(feature = "experimental-inspect")]
+use crate::types::{PyList, PySequence};
 use crate::{
-    Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyClassGuard, PyErr, PyRef, PyRefMut, Python,
+    Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyClassGuard, PyErr, PyRef, PyRefMut,
+    PyTypeCheck, Python,
 };
 use std::convert::Infallible;
 use std::marker::PhantomData;
@@ -109,6 +112,12 @@ pub trait IntoPyObject<'py>: Sized {
         let list = crate::types::list::try_new_from_iter(py, &mut iter);
         list.map(Bound::into_any)
     }
+
+    /// The output type of [`IntoPyObject::owned_sequence_into_pyobject`] and [`IntoPyObject::borrowed_sequence_into_pyobject`]
+    #[cfg(feature = "experimental-inspect")]
+    #[doc(hidden)]
+    const SEQUENCE_OUTPUT_TYPE: TypeHint =
+        TypeHint::subscript(&PyList::TYPE_HINT, &[Self::OUTPUT_TYPE]);
 }
 
 pub(crate) mod private {
@@ -123,60 +132,78 @@ pub(crate) mod private {
     }
 }
 
-impl<'py, T> IntoPyObject<'py> for Bound<'py, T> {
+impl<'py, T: PyTypeCheck> IntoPyObject<'py> for Bound<'py, T> {
     type Target = T;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self)
     }
 }
 
-impl<'a, 'py, T> IntoPyObject<'py> for &'a Bound<'py, T> {
+impl<'a, 'py, T: PyTypeCheck> IntoPyObject<'py> for &'a Bound<'py, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.as_borrowed())
     }
 }
 
-impl<'a, 'py, T> IntoPyObject<'py> for Borrowed<'a, 'py, T> {
+impl<'a, 'py, T: PyTypeCheck> IntoPyObject<'py> for Borrowed<'a, 'py, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self)
     }
 }
 
-impl<'a, 'py, T> IntoPyObject<'py> for &Borrowed<'a, 'py, T> {
+impl<'a, 'py, T: PyTypeCheck> IntoPyObject<'py> for &Borrowed<'a, 'py, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(*self)
     }
 }
 
-impl<'py, T> IntoPyObject<'py> for Py<T> {
+impl<'py, T: PyTypeCheck> IntoPyObject<'py> for Py<T> {
     type Target = T;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.into_bound(py))
     }
 }
 
-impl<'a, 'py, T> IntoPyObject<'py> for &'a Py<T> {
+impl<'a, 'py, T: PyTypeCheck> IntoPyObject<'py> for &'a Py<T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.bind_borrowed(py))
@@ -435,6 +462,12 @@ pub trait FromPyObject<'a, 'py>: Sized {
 
         Option::<NeverASequence<Self>>::None
     }
+
+    /// The union of Sequence[Self::INPUT_TYPE] and the input sequence extraction function [`FromPyObject::sequence_extractor`] if it's defined
+    #[cfg(feature = "experimental-inspect")]
+    #[doc(hidden)]
+    const SEQUENCE_INPUT_TYPE: TypeHint =
+        TypeHint::subscript(&PySequence::TYPE_HINT, &[Self::INPUT_TYPE]);
 
     /// Helper used to make a specialized path in extracting `DateTime<Tz>` where `Tz` is
     /// `chrono::Local`, which will accept "naive" datetime objects as being in the local timezone.

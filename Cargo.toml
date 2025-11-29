@@ -33,8 +33,6 @@ pyo3-ffi = { path = "pyo3-ffi", version = "=0.27.1" }
 
 # support crates for macros feature
 pyo3-macros = { path = "pyo3-macros", version = "=0.27.1", optional = true }
-indoc = { version = "2.0.1", optional = true }
-unindent = { version = "0.2.1", optional = true }
 
 # support crate for multiple-pymethods feature
 inventory = { version = "0.3.5", optional = true }
@@ -98,7 +96,7 @@ experimental-async = ["macros", "pyo3-macros/experimental-async"]
 experimental-inspect = ["pyo3-macros/experimental-inspect"]
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
-macros = ["pyo3-macros", "indoc", "unindent"]
+macros = ["pyo3-macros"]
 
 # Enables multiple #[pymethods] per #[pyclass]
 multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]

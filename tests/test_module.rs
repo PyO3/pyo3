@@ -365,10 +365,10 @@ fn superfunction() -> String {
 #[pymodule]
 fn supermodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(superfunction, module)?)?;
-    let module_to_add = PyModule::new(module.py(), "submodule")?;
+    let module_to_add = PyModule::new(module.py(), "supermodule.submodule")?;
     submodule(&module_to_add)?;
     module.add_submodule(&module_to_add)?;
-    let module_to_add = PyModule::new(module.py(), "submodule_with_init_fn")?;
+    let module_to_add = PyModule::new(module.py(), "supermodule.submodule_with_init_fn")?;
     submodule_with_init_fn(&module_to_add)?;
     module.add_submodule(&module_to_add)?;
     Ok(())
@@ -395,6 +395,36 @@ fn test_module_nesting() {
             py,
             supermodule,
             "supermodule.submodule_with_init_fn.subfunction() == 'Subfunction'"
+        );
+
+        // submodule dunder name and attribute name
+        py_assert!(
+            py,
+            supermodule,
+            "supermodule.submodule.__name__ == 'supermodule.submodule'"
+        );
+        py_assert!(py, supermodule, "'submodule' in supermodule.__dict__");
+        py_assert!(
+            py,
+            supermodule,
+            "'supermodule.submodule' not in supermodule.__dict__"
+        );
+
+        // submodule_with_init_fn dunder name and attribute name
+        py_assert!(
+            py,
+            supermodule,
+            "supermodule.submodule_with_init_fn.__name__ == 'supermodule.submodule_with_init_fn'"
+        );
+        py_assert!(
+            py,
+            supermodule,
+            "'submodule_with_init_fn' in supermodule.__dict__"
+        );
+        py_assert!(
+            py,
+            supermodule,
+            "'supermodule.submodule_with_init_fn' not in supermodule.__dict__"
         );
     });
 }

@@ -13,6 +13,8 @@ pub struct Class {
     pub name: String,
     pub methods: Vec<Function>,
     pub attributes: Vec<Attribute>,
+    /// decorator like 'typing.final'
+    pub decorators: Vec<PythonIdentifier>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]

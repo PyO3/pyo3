@@ -1,5 +1,7 @@
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::instance::Bound;
 use crate::internal_tricks::get_ssize_index;
 use crate::py_result_ext::PyResultExt;
@@ -23,6 +25,9 @@ pyobject_native_type_named!(PySequence);
 unsafe impl PyTypeInfo for PySequence {
     const NAME: &'static str = "Sequence";
     const MODULE: Option<&'static str> = Some("collections.abc");
+
+    #[cfg(feature = "experimental-inspect")]
+    const TYPE_HINT: TypeHint = TypeHint::module_attr("collections.abc", "Sequence");
 
     #[inline]
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject {
