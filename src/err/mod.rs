@@ -20,7 +20,6 @@ use crate::{BoundObject, Py, PyAny, Python};
 use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
 use std::convert::Infallible;
 use std::ffi::CStr;
-use std::ptr;
 
 mod cast_error;
 mod downcast_error;
@@ -280,27 +279,29 @@ impl PyErr {
     /// from a C FFI function, use [`PyErr::fetch`].
     pub fn take(py: Python<'_>) -> Option<PyErr> {
         let state = PyErrStateNormalized::take(py)?;
-        let pvalue = state.pvalue.bind(py);
-        if ptr::eq(
-            pvalue.get_type().as_ptr(),
-            PanicException::type_object_raw(py).cast(),
-        ) {
-            let msg: String = pvalue
-                .str()
-                .map(|py_str| py_str.to_string_lossy().into())
-                .unwrap_or_else(|_| String::from("Unwrapped panic from Python code"));
-            Self::print_panic_and_unwind(py, PyErrState::normalized(state), msg)
+
+        if PanicException::is_exact_type_of(state.pvalue.bind(py)) {
+            Self::print_panic_and_unwind(py, state)
         }
 
         Some(PyErr::from_state(PyErrState::normalized(state)))
     }
 
-    fn print_panic_and_unwind(py: Python<'_>, state: PyErrState, msg: String) -> ! {
+    #[cold]
+    fn print_panic_and_unwind(py: Python<'_>, state: PyErrStateNormalized) -> ! {
+        let msg: String = state
+            .pvalue
+            .bind(py)
+            .str()
+            .map(|py_str| py_str.to_string_lossy().into())
+            .unwrap_or_else(|_| String::from("Unwrapped panic from Python code"));
+
         eprintln!("--- PyO3 is resuming a panic after fetching a PanicException from Python. ---");
         eprintln!("Python stack trace below:");
 
-        state.restore(py);
+        PyErrState::normalized(state).restore(py);
 
+        // SAFETY: thread is attached and error was just set in the interpreter
         unsafe {
             ffi::PyErr_PrintEx(0);
         }
@@ -322,14 +323,7 @@ impl PyErr {
     #[cfg_attr(debug_assertions, track_caller)]
     #[inline]
     pub fn fetch(py: Python<'_>) -> PyErr {
-        const FAILED_TO_FETCH: &str = "attempted to fetch exception but none was set";
-        match PyErr::take(py) {
-            Some(err) => err,
-            #[cfg(debug_assertions)]
-            None => panic!("{}", FAILED_TO_FETCH),
-            #[cfg(not(debug_assertions))]
-            None => crate::exceptions::PySystemError::new_err(FAILED_TO_FETCH),
-        }
+        PyErr::take(py).unwrap_or_else(failed_to_fetch)
     }
 
     /// Creates a new exception type with the given name and docstring.
@@ -625,6 +619,19 @@ impl PyErr {
     #[inline]
     fn normalized(&self, py: Python<'_>) -> &PyErrStateNormalized {
         self.state.as_normalized(py)
+    }
+}
+
+/// Called when `PyErr::fetch` is called but no exception is set.
+#[cold]
+#[cfg_attr(debug_assertions, track_caller)]
+fn failed_to_fetch() -> PyErr {
+    const FAILED_TO_FETCH: &str = "attempted to fetch exception but none was set";
+
+    if cfg!(debug_assertions) {
+        panic!("{}", FAILED_TO_FETCH)
+    } else {
+        crate::exceptions::PySystemError::new_err(FAILED_TO_FETCH)
     }
 }
 
