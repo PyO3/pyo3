@@ -210,16 +210,16 @@ It can either return `()` or `PyResult<()>`.
 ```rust
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
-# #[cfg(not(Py_LIMITED_API))]
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 use pyo3::types::{PyDict, PyTuple, PySuper};
-# #[cfg(not(Py_LIMITED_API))]
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 use crate::pyo3::PyTypeInfo;
 
-# #[cfg(not(Py_LIMITED_API))]
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 #[pyclass(extends = PyDict)]
 struct MyDict;
 
-# #[cfg(not(Py_LIMITED_API))]
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 #[pymethods]
 impl MyDict {
 #   #[allow(unused_variables)]
@@ -249,7 +249,7 @@ impl MyDict {
     }
 }
 
-# #[cfg(not(Py_LIMITED_API))]
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 # fn main() {
 #     Python::attach(|py| {
 #         let typeobj = py.get_type::<MyDict>();
@@ -258,7 +258,7 @@ impl MyDict {
 #         assert_eq!(obj.get_item("my_key").unwrap().extract::<&str>().unwrap(), "always insert this key");
 #     });
 # }
-# #[cfg(Py_LIMITED_API)]
+# #[cfg(any(Py_LIMITED_API, GraalPy))]
 # fn main() {}
 ```
 
