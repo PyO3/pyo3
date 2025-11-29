@@ -361,6 +361,7 @@ This change makes error conversions more precise and matches the semantics of ou
 
 <details>
 <summary><small>Click to expand</small></summary>
+
 The `AsPyPointer` trait is mostly a leftover from the now removed gil-refs API. The last remaining uses were the GC API, namely `PyVisit::call`, and identity comparison (`PyAnyMethods::is` and `Py::is`).
 
 `PyVisit::call` has been updated to take `T: Into<Option<&Py<T>>>`, which allows for arguments of type `&Py<T>`, `&Option<Py<T>>` and `Option<&Py<T>>`.
@@ -713,6 +714,7 @@ fn increment(x: u64, amount: Option<u64>) -> u64 {
 
 <details>
 <summary><small>Click to expand</small></summary>
+
 If you rely on `impl<T> Clone for Py<T>` to fulfil trait requirements imposed by existing Rust code written without PyO3-based code in mind, the newly introduced feature `py-clone` must be enabled.
 
 However, take care to note that the behaviour is different from previous versions.
@@ -1145,7 +1147,7 @@ let obj: Py<PyList> = bound.unbind();
 > let opt: Option<Bound<PyAny>> = ...;
 > let p: *mut ffi::PyObject = opt.as_ref().map_or(std::ptr::null_mut(), Bound::as_ptr);
 > ```
-<div>
+</div>
 
 #### Migrating `FromPyObject` implementations
 

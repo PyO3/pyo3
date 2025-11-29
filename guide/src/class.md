@@ -210,7 +210,7 @@ mod my_module {
 }
 ```
 
-## Bound<T> and interior mutability
+## `Bound<T>` and interior mutability
 
 It is often useful to turn a `#[pyclass]` type `T` into a Python object and access it from Rust code.
 The [`Py<T>`] and [`Bound<'py, T>`] smart pointers are the ways to represent a Python object in PyO3's API.
