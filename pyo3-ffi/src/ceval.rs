@@ -65,10 +65,13 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyEval_GetFrame")]
     pub fn PyEval_GetFrame() -> *mut crate::PyFrameObject;
 
+    #[cfg(Py_3_13)]
     #[cfg_attr(PyPy, link_name = "PyPyEval_GetFrameBuiltins")]
     pub fn PyEval_GetFrameBuiltins() -> *mut PyObject;
+    #[cfg(Py_3_13)]
     #[cfg_attr(PyPy, link_name = "PyPyEval_GetFrameGlobals")]
     pub fn PyEval_GetFrameGlobals() -> *mut PyObject;
+    #[cfg(Py_3_13)]
     #[cfg_attr(PyPy, link_name = "PyPyEval_GetFrameLocals")]
     pub fn PyEval_GetFrameLocals() -> *mut PyObject;
 
