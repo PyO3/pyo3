@@ -60,6 +60,7 @@ pub fn class_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     ident: &Ident,
     name: &str,
+    extends: Option<PythonTypeHint>,
     is_final: bool,
 ) -> TokenStream {
     let mut desc = HashMap::from([
@@ -70,6 +71,9 @@ pub fn class_introspection_code(
         ),
         ("name", IntrospectionNode::String(name.into())),
     ]);
+    if let Some(extends) = extends {
+        desc.insert("bases", IntrospectionNode::List(vec![extends.into()]));
+    }
     if is_final {
         desc.insert(
             "decorators",
