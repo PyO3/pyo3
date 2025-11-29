@@ -443,7 +443,8 @@ Immutable references do not have to be cleared, as every cycle must contain at l
 - `__traverse__(<self>, pyo3::class::gc::PyVisit<'_>) -> Result<(), pyo3::class::gc::PyTraverseError>`
 - `__clear__(<self>) -> ()`
 
-> Note: `__traverse__` does not work with [`#[pyo3(warn(...))]`](../function.md#warn).
+> [!NOTE]
+> `__traverse__` does not work with [`#[pyo3(warn(...))]`](../function.md#warn).
 
 Example:
 
@@ -474,7 +475,8 @@ impl ClassWithGCSupport {
 Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`.
 Most importantly, safe access to the interpreter is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
 
-> Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://github.com/pypy/pypy/issues/3848).
+> [!NOTE]
+> These methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://github.com/pypy/pypy/issues/3848).
 
 [`PySequence`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PySequence.html
 <!-- rumdl-disable-next-line MD053 - false positive -->

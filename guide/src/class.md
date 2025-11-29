@@ -807,10 +807,12 @@ Python::attach(|py| {
 });
 ```
 
-> Note: if the method has a `Result` return type and returns an `Err`, PyO3 will panic during
+> [!NOTE]
+> If the method has a `Result` return type and returns an `Err`, PyO3 will panic during
 class creation.
 
-> Note: `#[classattr]` does not work with [`#[pyo3(warn(...))]`](./function.md#warn) attribute.
+> [!NOTE]
+> `#[classattr]` does not work with [`#[pyo3(warn(...))]`](./function.md#warn) attribute.
 
 If the class attribute is defined with `const` code only, one can also annotate associated constants:
 
