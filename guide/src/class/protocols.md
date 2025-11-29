@@ -84,8 +84,10 @@ The given signatures should be interpreted as follows:
     The implementations of Python's "rich comparison" operators `<`, `<=`, `==`, `!=`, `>` and `>=` respectively.
 
     _Note that implementing any of these methods will cause Python not to generate a default `__hash__` implementation, so consider also implementing `__hash__`._
+
     <details>
     <summary>Return type</summary>
+
     The return type will normally be `bool` or `PyResult<bool>`, however any Python object can be returned.
     </details>
 
@@ -100,6 +102,7 @@ The given signatures should be interpreted as follows:
     _Note that implementing `__richcmp__` will cause Python not to generate a default `__hash__` implementation, so consider implementing `__hash__` when implementing `__richcmp__`._
     <details>
     <summary>Return type</summary>
+
     The return type will normally be `PyResult<bool>`, but any Python object can be returned.
 
     If you want to leave some operations unimplemented, you can return `py.NotImplemented()`
@@ -135,7 +138,8 @@ The given signatures should be interpreted as follows:
 - `__getattribute__(<self>, object) -> object`
 
     <details>
-    <summary>Differences between `__getattr__` and `__getattribute__`</summary>
+    <summary>Differences between <code>__getattr__</code> and <code>__getattribute__</code></summary>
+
     As in Python, `__getattr__` is only called if the attribute is not found
     by normal attribute lookup.  `__getattribute__`, on the other hand, is
     called for *every* attribute access.  If it wants to access existing
@@ -440,7 +444,8 @@ Immutable references do not have to be cleared, as every cycle must contain at l
 - `__traverse__(<self>, pyo3::class::gc::PyVisit<'_>) -> Result<(), pyo3::class::gc::PyTraverseError>`
 - `__clear__(<self>) -> ()`
 
-> Note: `__traverse__` does not work with [`#[pyo3(warn(...))]`](../function.md#warn).
+> [!NOTE]
+> `__traverse__` does not work with [`#[pyo3(warn(...))]`](../function.md#warn).
 
 Example:
 
@@ -471,7 +476,8 @@ impl ClassWithGCSupport {
 Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`.
 Most importantly, safe access to the interpreter is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
 
-> Note: these methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://github.com/pypy/pypy/issues/3848).
+> [!NOTE]
+> These methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://github.com/pypy/pypy/issues/3848).
 
 [`PySequence`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PySequence.html
 <!-- rumdl-disable-next-line MD053 - false positive -->

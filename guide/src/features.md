@@ -91,6 +91,7 @@ It also provides the `py_run!` macro.
 These macros require a number of dependencies which may not be needed by users who just need PyO3 for Python FFI.
 Disabling this feature enables faster builds for those users, as these dependencies will not be built if this feature is disabled.
 
+> [!NOTE]
 > This feature is enabled by default. To disable it, set `default-features = false` for the `pyo3` entry in your Cargo.toml.
 
 ### `multiple-pymethods`

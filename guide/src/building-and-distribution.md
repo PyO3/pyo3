@@ -247,7 +247,8 @@ See [the relevant section of this guide](./building-and-distribution/multiple-py
 PyO3 is only able to link your extension module to abi3 version up to and including your host Python version.
 E.g., if you set `abi3-py38` and try to compile the crate with a host of Python 3.7, the build will fail.
 
-> Note: If you set more that one of these `abi3` version feature flags the lowest version always wins. For example, with both `abi3-py37` and `abi3-py38` set, PyO3 would build a wheel which supports Python 3.7 and up.
+> [!NOTE]
+> If you set more that one of these `abi3` version feature flags the lowest version always wins. For example, with both `abi3-py37` and `abi3-py38` set, PyO3 would build a wheel which supports Python 3.7 and up.
 
 #### Building `abi3` extensions without a Python interpreter
 

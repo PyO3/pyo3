@@ -31,7 +31,7 @@ jobs:
       - name: Setup mdBook
         uses: taiki-e/install-action@v2
         with:
-          tool: mdbook@0.4, mdbook-tabs@0.2, lychee
+          tool: mdbook@0.5, mdbook-tabs@0.3, lychee
 
       - name: Prepare tag
         id: prepare_tag

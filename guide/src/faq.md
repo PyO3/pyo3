@@ -219,6 +219,7 @@ Some ways to achieve this are:
 If the wrong DLL is linked it is possible that this happened because another program added itself and its own Python DLLs to `PATH`.
 Rearrange your `PATH` variables to give the correct DLL priority.
 
-> **Note**: Changes to `PATH` (or any other environment variable) are not visible to existing shells. Restart it for changes to take effect.
+> [!NOTE]
+> Changes to `PATH` (or any other environment variable) are not visible to existing shells. Restart it for changes to take effect.
 
 For advanced troubleshooting, [Dependency Walker](https://www.dependencywalker.com/) can be used to diagnose linking errors.
