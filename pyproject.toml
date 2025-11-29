@@ -33,7 +33,9 @@ disable = [
     # TODO: what to do about inline HTML, probably allow?
     "MD033",
     # TODO: {{#PYO3_DOCS_URL}} placeholder confuses rumdl, change syntax perhaps?
-    "MD051"
+    "MD051",
+    # Disabled on release-0.27 branch
+    "MD059",
 ]
 
 exclude = [
