@@ -73,6 +73,13 @@ extern "C" {
         key: *mut PyObject,
         result: *mut *mut PyObject,
     ) -> c_int;
+    #[cfg(Py_3_13)]
+    #[cfg_attr(PyPy, link_name = "PyPyDict_GetItemStringRef")]
+    pub fn PyDict_GetItemStringRef(
+        dp: *mut PyObject,
+        key: *const c_char,
+        result: *mut *mut PyObject,
+    ) -> c_int;
     // skipped 3.10 / ex-non-limited PyObject_GenericGetDict
 }
 
@@ -85,17 +92,17 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyDictKeys_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyDictKeys_Type)) as c_int
+    PyObject_TypeCheck(op, addr_of_mut!(PyDictKeys_Type))
 }
 
 #[inline]
 pub unsafe fn PyDictValues_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyDictValues_Type)) as c_int
+    PyObject_TypeCheck(op, addr_of_mut!(PyDictValues_Type))
 }
 
 #[inline]
 pub unsafe fn PyDictItems_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyDictItems_Type)) as c_int
+    PyObject_TypeCheck(op, addr_of_mut!(PyDictItems_Type))
 }
 
 #[inline]

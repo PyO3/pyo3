@@ -24,14 +24,14 @@ jobs:
       - uses: actions/checkout@v6.0.0
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - uses: dtolnay/rust-toolchain@nightly
 
       - name: Setup mdBook
         uses: taiki-e/install-action@v2
         with:
-          tool: mdbook@0.4, mdbook-tabs@0.2, lychee
+          tool: mdbook@0.5, mdbook-tabs@0.3, lychee
 
       - name: Prepare tag
         id: prepare_tag

@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v6.0.0
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.14'
       - name: Fetch merge base
         id: fetch_merge_base
         uses: ./.github/actions/fetch-merge-base

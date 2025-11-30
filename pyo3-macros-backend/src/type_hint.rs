@@ -20,6 +20,8 @@ enum PythonTypeHintVariant {
     ArgumentType(Type),
     /// The Python type matching the given Rust type given as a function returned value
     ReturnType(Type),
+    /// The Python type matching the given Rust type
+    Type(Type),
     /// A local type
     Local(Cow<'static, str>),
     /// A type in a module
@@ -58,18 +60,18 @@ impl PythonTypeHint {
         })
     }
 
-    /// The type hint of a FromPyObject implementation as a function argument
+    /// The type hint of a `FromPyObject` implementation as a function argument
     ///
-    /// If self_type is set, Self in the given type will be replaced by self_type
+    /// If self_type is set, self_type will replace Self in the given type
     pub fn from_from_py_object(t: Type, self_type: Option<&Type>) -> Self {
         Self(PythonTypeHintVariant::FromPyObject(clean_type(
             t, self_type,
         )))
     }
 
-    /// The type hint of a IntoPyObject implementation as a function argument
+    /// The type hint of a `IntoPyObject` implementation as a function argument
     ///
-    /// If self_type is set, Self in the given type will be replaced by self_type
+    /// If self_type is set, self_type will replace Self in the given type
     pub fn from_into_py_object(t: Type, self_type: Option<&Type>) -> Self {
         Self(PythonTypeHintVariant::IntoPyObject(clean_type(
             t, self_type,
@@ -78,7 +80,7 @@ impl PythonTypeHint {
 
     /// The type hint of the Rust type used as a function argument
     ///
-    /// If self_type is set, Self in the given type will be replaced by self_type
+    /// If self_type is set, self_type will replace Self in the given type
     pub fn from_argument_type(t: Type, self_type: Option<&Type>) -> Self {
         Self(PythonTypeHintVariant::ArgumentType(clean_type(
             t, self_type,
@@ -87,9 +89,16 @@ impl PythonTypeHint {
 
     /// The type hint of the Rust type used as a function output type
     ///
-    /// If self_type is set, Self in the given type will be replaced by self_type
+    /// If self_type is set, self_type will replace Self in the given type
     pub fn from_return_type(t: Type, self_type: Option<&Type>) -> Self {
         Self(PythonTypeHintVariant::ReturnType(clean_type(t, self_type)))
+    }
+
+    /// The type hint of the Rust type `PyTypeCheck` trait.
+    ///
+    /// If self_type is set, self_type will replace Self in the given type
+    pub fn from_type(t: Type, self_type: Option<&Type>) -> Self {
+        Self(PythonTypeHintVariant::Type(clean_type(t, self_type)))
     }
 
     /// Build the union of the different element
@@ -140,6 +149,9 @@ impl PythonTypeHint {
             }
             PythonTypeHintVariant::ReturnType(t) => {
                 quote! { <#t as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE }
+            }
+            PythonTypeHintVariant::Type(t) => {
+                quote! { <#t as #pyo3_crate_path::type_object::PyTypeCheck>::TYPE_HINT }
             }
             PythonTypeHintVariant::Union(elements) => {
                 let elements = elements

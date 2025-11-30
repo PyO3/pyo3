@@ -1,8 +1,7 @@
+#[cfg(not(GraalPy))]
 use crate::object::*;
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 use crate::pyport::Py_ssize_t;
-#[cfg(not(PyPy))]
-use std::ffi::c_int;
 
 #[cfg(not(PyPy))]
 opaque_struct!(pub PyDictKeysObject);
@@ -40,61 +39,29 @@ pub struct PyDictObject {
     _tmpkeys: *mut PyObject,
 }
 
-extern "C" {
-    // skipped _PyDict_GetItem_KnownHash
-    // skipped _PyDict_GetItemIdWithError
-    // skipped _PyDict_GetItemStringWithError
-    // skipped PyDict_SetDefault
-    #[cfg(not(PyPy))]
-    pub fn _PyDict_SetItem_KnownHash(
-        mp: *mut PyObject,
-        key: *mut PyObject,
-        item: *mut PyObject,
-        hash: crate::Py_hash_t,
-    ) -> c_int;
-    // skipped _PyDict_DelItem_KnownHash
-    // skipped _PyDict_DelItemIf
-    // skipped _PyDict_NewKeysForClass
-    #[cfg(not(PyPy))]
-    pub fn _PyDict_Next(
-        mp: *mut PyObject,
-        pos: *mut Py_ssize_t,
-        key: *mut *mut PyObject,
-        value: *mut *mut PyObject,
-        hash: *mut crate::Py_hash_t,
-    ) -> c_int;
-    // skipped PyDict_GET_SIZE
-    // skipped _PyDict_ContainsId
-    #[cfg(not(PyPy))]
-    pub fn _PyDict_NewPresized(minused: Py_ssize_t) -> *mut PyObject;
-    // skipped _PyDict_MaybeUntrack
-    // skipped _PyDict_HasOnlyStringKeys
-    // skipped _PyDict_KeysSize
-    // skipped _PyDict_SizeOf
-    // skipped _PyDict_Pop
-    // skipped _PyDict_Pop_KnownHash
-    // skipped _PyDict_FromKeys
-    // skipped _PyDict_HasSplitTable
-    // skipped _PyDict_MergeEx
-    // skipped _PyDict_SetItemId
-    // skipped _PyDict_DelItemId
-    // skipped _PyDict_DebugMallocStats
-    // skipped _PyObjectDict_SetItem
-    // skipped _PyDict_LoadGlobal
-    // skipped _PyDict_GetItemHint
-    // skipped _PyDictViewObject
-    // skipped _PyDictView_New
-    // skipped _PyDictView_Intersect
+// skipped private _PyDict_GetItem_KnownHash
+// skipped private _PyDict_GetItemStringWithError
 
-    #[cfg(Py_3_10)]
-    #[cfg(not(PyPy))]
-    pub fn _PyDict_Contains_KnownHash(
-        op: *mut PyObject,
-        key: *mut PyObject,
-        hash: crate::Py_hash_t,
-    ) -> c_int;
+// skipped PyDict_SetDefault
+// skipped PyDict_SetDefaultRef
 
-    #[cfg(not(Py_3_10))]
-    #[cfg(not(PyPy))]
-    pub fn _PyDict_Contains(mp: *mut PyObject, key: *mut PyObject, hash: Py_ssize_t) -> c_int;
-}
+// skipped PyDict_GET_SIZE
+// skipped PyDict_ContainsString
+
+// skipped private _PyDict_NewPresized
+
+// skipped PyDict_Pop
+// skipped PyDict_PopString
+
+// skipped private _PyDict_Pop
+
+// skipped PY_FOREACH_DICT_EVENT
+// skipped PyDict_WatchEvent
+
+// skipped PyDict_WatchCallback
+
+// skipped PyDict_AddWatcher
+// skipped PyDict_ClearWatcher
+
+// skipped PyDict_Watch
+// skipped PyDict_Unwatch
