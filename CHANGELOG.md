@@ -10,6 +10,17 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.27.2] - 2025-11-30
+
+### Changed
+
+- Disable subclassing `PyDict` on GraalPy (unsupported for now, may crash at runtime). [#5653](https://github.com/PyO3/pyo3/pull/5653)
+
+### Fixed
+
+- Fix crash when compiling on Rust 1.92+ with both debug assertions and optimizations enabled. [#5638](https://github.com/PyO3/pyo3/pull/5638)
+- Fix FFI definition of `PyDictObject` on PyPy. [#5653](https://github.com/PyO3/pyo3/pull/5653)
+
 ## [0.27.1] - 2025-10-21
 
 ### Fixed
