@@ -54,7 +54,8 @@ fn test_return_enum() {
         let f = wrap_pyfunction!(return_enum)(py).unwrap();
         let mynum = py.get_type::<MyEnum>();
 
-        py_run!(py, f mynum, "assert f() == mynum.Variant")
+        py_run!(py, f mynum, "assert f() == mynum.Variant");
+        py_run!(py, f mynum, "assert f() is mynum.Variant");
     });
 }
 

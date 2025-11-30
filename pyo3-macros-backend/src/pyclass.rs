@@ -950,6 +950,7 @@ fn impl_simple_enum(
     methods_type: PyClassMethodsType,
     ctx: &Ctx,
 ) -> Result<TokenStream> {
+    let Ctx { pyo3_path, .. } = ctx;
     let cls = simple_enum.ident;
     let ty: syn::Type = syn::parse_quote!(#cls);
     let variants = simple_enum.variants;
@@ -1021,7 +1022,7 @@ fn impl_simple_enum(
     default_slots.extend(default_hash_slot);
     default_slots.extend(default_str_slot);
 
-    let pyclass_impls = PyClassImplsBuilder::new(
+    let impl_builder = PyClassImplsBuilder::new(
         cls,
         args,
         methods_type,
@@ -1034,8 +1035,58 @@ fn impl_simple_enum(
         ),
         default_slots,
     )
-    .doc(doc)
-    .impl_all(ctx)?;
+    .doc(doc);
+
+    let enum_into_pyobject_impl = {
+        let output_type = if cfg!(feature = "experimental-inspect") {
+            quote!(const OUTPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
+        } else {
+            TokenStream::new()
+        };
+
+        let num = variants.len();
+        let i = (0..num).map(proc_macro2::Literal::usize_unsuffixed);
+        let variant_idents = variants.iter().map(|v| v.ident);
+        let cfgs = variants.iter().map(|v| &v.cfg_attrs);
+        quote! {
+            impl<'py> #pyo3_path::conversion::IntoPyObject<'py> for #cls {
+                type Target = Self;
+                type Output = #pyo3_path::Bound<'py, <Self as #pyo3_path::conversion::IntoPyObject<'py>>::Target>;
+                type Error = #pyo3_path::PyErr;
+                #output_type
+
+                fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> ::std::result::Result<
+                    <Self as #pyo3_path::conversion::IntoPyObject<'py>>::Output,
+                    <Self as #pyo3_path::conversion::IntoPyObject<'py>>::Error,
+                > {
+                    // TODO(icxolu): switch this to lookup the variants on the type object, once that is immutable
+                    const LOCK: #pyo3_path::sync::PyOnceLock<#pyo3_path::Py<#cls>> = #pyo3_path::sync::PyOnceLock::<#pyo3_path::Py<#cls>>::new();
+                    static SINGLETON: [#pyo3_path::sync::PyOnceLock<#pyo3_path::Py<#cls>>; #num] = [LOCK; #num];
+                    let idx: usize = match self {
+                        #(
+                            #(#cfgs)*
+                            Self::#variant_idents => #i,
+                        )*
+                    };
+                    #[allow(unreachable_code)]
+                    SINGLETON[idx].get_or_try_init(py, || {
+                        #pyo3_path::Py::new(py, self)
+                    }).map(|obj| ::std::clone::Clone::clone(obj.bind(py)))
+                }
+            }
+        }
+    };
+
+    let pyclass_impls: TokenStream = [
+        impl_builder.impl_pyclass(ctx),
+        enum_into_pyobject_impl,
+        impl_builder.impl_pyclassimpl(ctx)?,
+        impl_builder.impl_add_to_module(ctx),
+        impl_builder.impl_freelist(ctx),
+        impl_builder.impl_introspection(ctx),
+    ]
+    .into_iter()
+    .collect();
 
     Ok(quote! {
         #variant_cfg_check
@@ -1120,11 +1171,7 @@ fn impl_complex_enum(
                     }
                 }
             });
-        let output_type = if cfg!(feature = "experimental-inspect") {
-            quote!(const OUTPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
-        } else {
-            TokenStream::new()
-        };
+        let output_type = get_conversion_type_hint(ctx, &format_ident!("OUTPUT_TYPE"), cls);
         quote! {
             impl<'py> #pyo3_path::conversion::IntoPyObject<'py> for #cls {
                 type Target = Self;
@@ -2345,11 +2392,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         let attr = self.attr;
         // If #cls is not extended type, we allow Self->PyObject conversion
         if attr.options.extends.is_none() {
-            let output_type = if cfg!(feature = "experimental-inspect") {
-                quote!(const OUTPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
-            } else {
-                TokenStream::new()
-            };
+            let output_type = get_conversion_type_hint(ctx, &format_ident!("OUTPUT_TYPE"), cls);
             quote! {
                 impl<'py> #pyo3_path::conversion::IntoPyObject<'py> for #cls {
                     type Target = Self;
@@ -2532,11 +2575,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         let extract_pyclass_with_clone = if let Some(from_py_object) =
             self.attr.options.from_py_object
         {
-            let input_type = if cfg!(feature = "experimental-inspect") {
-                quote!(const INPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
-            } else {
-                TokenStream::new()
-            };
+            let input_type = get_conversion_type_hint(ctx, &format_ident!("INPUT_TYPE"), cls);
             quote_spanned! { from_py_object.span() =>
                 impl<'a, 'py> #pyo3_path::FromPyObject<'a, 'py> for #cls
                 where
@@ -2767,6 +2806,18 @@ fn generate_cfg_check(variants: &[PyClassEnumUnitVariant<'_>], cls: &syn::Ident)
         cls.span() =>
         #[cfg(all(#(#conditions),*))]
         ::core::compile_error!(concat!("#[pyclass] can't be used on enums without any variants - all variants of enum `", stringify!(#cls), "` have been configured out by cfg attributes"));
+    }
+}
+
+fn get_conversion_type_hint(
+    Ctx { pyo3_path, .. }: &Ctx,
+    konst: &Ident,
+    cls: &Ident,
+) -> TokenStream {
+    if cfg!(feature = "experimental-inspect") {
+        quote!(const #konst: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
+    } else {
+        TokenStream::new()
     }
 }
 
