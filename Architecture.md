@@ -151,9 +151,8 @@ Some of the functionality of `pyo3-build-config`:
     entirely and only abi3 extensions can be built.
 - Check if we are building a Python extension.
   - If we are building an extension (e.g., Python library installable by `pip`),
-    we don't link `libpython`.
-    Currently we use the `extension-module` feature for this purpose. This may change in the future.
-    See [#1123](https://github.com/PyO3/pyo3/pull/1123).
+    we don't link `libpython` on most platforms (to allow for statically-linked Python interpreters).
+    The `PYO3_BUILD_EXTENSION_MODULE` environment variable suppresses linking.
 - Cross-compiling configuration
   - If `TARGET` architecture and `HOST` architecture differ, we can find cross compile information
     from environment variables (`PYO3_CROSS_LIB_DIR`, `PYO3_CROSS_PYTHON_VERSION` and

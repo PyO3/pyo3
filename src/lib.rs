@@ -93,9 +93,6 @@
 //! [PEP 384] to be forward-compatible with future Python versions.
 //! - `auto-initialize`: Changes [`Python::attach`] to automatically initialize the Python
 //! interpreter if needed.
-//! - `extension-module`: This will tell the linker to keep the Python symbols unresolved, so that
-//! your module can also be used with statically linked Python interpreters. Use this feature when
-//! building an extension module.
 //! - `multiple-pymethods`: Enables the use of multiple [`#[pymethods]`](macro@crate::pymethods)
 //! blocks per [`#[pyclass]`](macro@crate::pyclass). This adds a dependency on the [inventory]
 //! crate, which is not supported on all platforms.
@@ -181,9 +178,8 @@
 //! # crate-type = ["cdylib", "rlib"]
 //! crate-type = ["cdylib"]
 //!
-//! [dependencies.pyo3]
-#![doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")]
-//! features = ["extension-module"]
+//! [dependencies]
+#![doc = concat!("pyo3 = \"", env!("CARGO_PKG_VERSION"),  "\"")]
 //! ```
 //!
 //! **`src/lib.rs`**

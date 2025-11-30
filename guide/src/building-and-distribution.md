@@ -71,13 +71,13 @@ Package vendors can opt-in to the "abi3" limited Python API which allows their w
 There are many ways to go about this: it is possible to use `cargo` to build the extension module (along with some manual work, which varies with OS).
 The PyO3 ecosystem has two packaging tools, [`maturin`] and [`setuptools-rust`], which abstract over the OS difference and also support building wheels for PyPI upload.
 
-PyO3 has some Cargo features to configure projects for building Python extension modules:
+PyO3 has some functionality for configuring projects when building Python extension modules:
 
-- The `extension-module` feature, which must be enabled when building Python extension modules.
-- The `abi3` feature and its version-specific `abi3-pyXY` companions, which are used to opt-in to the limited Python API in order to support multiple Python versions in a single wheel.
+- The `PYO3_BUILD_EXTENSION_MODULE` environment variable, which must be set when building Python extension modules. `maturin` and `setuptools-rust` set this automatically.
+- The `abi3` Cargo feature and its version-specific `abi3-pyXY` companions, which are used to opt-in to the limited Python API in order to support multiple Python versions in a single wheel.
 
-This section describes each of these packaging tools before describing how to build manually without them.
-It then proceeds with an explanation of the `extension-module` feature.
+This section describes the packaging tools before describing how to build manually without them.
+It then proceeds with an explanation of the `PYO3_BUILD_EXTENSION_MODULE` environment variable.
 Finally, there is a section describing PyO3's `abi3` features.
 
 ### Packaging tools
@@ -97,7 +97,7 @@ There are also [`maturin-starter`] and [`setuptools-rust-starter`] examples in t
 
 ### Manual builds
 
-To build a PyO3-based Python extension manually, start by running `cargo build` as normal in a library project which uses PyO3's `extension-module` feature and has the [`cdylib` crate type](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field).
+To build a PyO3-based Python extension manually, start by running `cargo build` as normal in a library project with the [`cdylib` crate type](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field) while the `PYO3_BUILD_EXTENSION_MODULE` environment variable is set.
 
 Once built, symlink (or copy) and rename the shared library from Cargo's `target/` directory to your desired output directory:
 
@@ -142,7 +142,7 @@ See [PEP 3149](https://peps.python.org/pep-3149/) for more background on platfor
 
 #### macOS
 
-On macOS, because the `extension-module` feature disables linking to `libpython` ([see the next section](#the-extension-module-feature)), some additional linker arguments need to be set. `maturin` and `setuptools-rust` both pass these arguments for PyO3 automatically, but projects using manual builds will need to set these directly in order to support macOS.
+On macOS, because the `PYO3_BUILD_EXTENSION_MODULE` environment variable disables linking to `libpython` ([see the next section](#the-extension-module-feature)), some additional linker arguments need to be set. `maturin` and `setuptools-rust` both pass these arguments for PyO3 automatically, but projects using manual builds will need to set these directly in order to support macOS.
 
 The easiest way to set the correct linker arguments is to add a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) with the following content:
 
@@ -193,17 +193,24 @@ For more discussion on and workarounds for MacOS linking problems [see this issu
 
 Finally, don't forget that on MacOS the `extension-module` feature will cause `cargo test` to fail without the `--no-default-features` flag (see [the FAQ](https://pyo3.rs/main/faq.html#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror)).
 
-### The `extension-module` feature
+### The `PYO3_BUILD_EXTENSION_MODULE` environment variable
 
-PyO3's `extension-module` feature is used to disable [linking](https://en.wikipedia.org/wiki/Linker_(computing)) to `libpython` on Unix targets.
+<a name="the-extension-module-feature"></a> <!-- for backwards compatibility -->
 
-This is necessary because by default PyO3 links to `libpython`.
+By default PyO3 links to `libpython`.
 This makes binaries, tests, and examples "just work".
 However, Python extensions on Unix must not link to libpython for [manylinux](https://www.python.org/dev/peps/pep-0513/) compliance.
 
 The downside of not linking to `libpython` is that binaries, tests, and examples (which usually embed Python) will fail to build.
-If you have an extension module as well as other outputs in a single project, you need to use optional Cargo features to disable the `extension-module` when you're not building the extension module.
-See [the FAQ](faq.md#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror) for an example workaround.
+As a result, PyO3 uses an envionment variable `PYO3_BUILD_EXTENSION_MODULE` to disable linking to `libpython`.
+This should only be set when building a library for distribution.
+`maturin >= 1.9.4` and `setuptools-rust >= 1.12` will set this for you automatically.
+
+> [!NOTE]
+> Historically PyO3 used an `extension-module` feature to perform the same function now done by the `PYO3_BUILD_EXTENSION_MODULE` env var.
+> This feature caused linking to be disabled for all compile targets, including Rust tests and benchmarks.
+>
+> Projects are encouraged to migrate off the feature, as it caused [major development pain](faq.md#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror) due to the lack of linking.
 
 ### `Py_LIMITED_API`/`abi3`
 

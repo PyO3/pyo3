@@ -9,7 +9,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3-ffi = { path = "../../", features = ["extension-module"] }
+pyo3-ffi = { path = "../../" }
 
 [build-dependencies]
 pyo3-build-config = { path = "../../../pyo3-build-config" }

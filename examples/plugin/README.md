@@ -5,7 +5,7 @@ interface types that can be used to exchange data between Rust and Python. This 
 
 # Building and Testing
 ## Host application
-To run the app itself, you only need to run 
+To run the app itself, you only need to run
 
 ```shell
 cargo run
@@ -14,20 +14,14 @@ It will build the app, as well as the plugin API, then run the app, load the plu
 
 ## Plugin API testing
 
-The plugin API is in a separate crate `plugin_api`, so you can test it separately from the main app. 
+The plugin API is in a separate crate `plugin_api`, so you can test it separately from the main app.
 
-To build the API only package, first install `maturin`:
+To build the API only package, install and build with `maturin`:
 
 ```shell
 pip install maturin
-```
-
-When building the plugin, simply using `maturin develop` will fail to produce a viable extension module due to the features arrangement of PyO3. 
-Instead, one needs to enable the optional feature as follows:
-
-```shell
 cd plugin_api
-maturin build --features "extension-module"
+maturin build
 ```
 
 Alternatively, install nox and run the tests inside an isolated environment:
