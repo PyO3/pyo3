@@ -206,7 +206,8 @@ As a result, PyO3 uses an envionment variable `PYO3_BUILD_EXTENSION_MODULE` to d
 This should only be set when building a library for distribution.
 `maturin >= 1.9.4` and `setuptools-rust >= 1.12` will set this for you automatically.
 
-> Note: historically PyO3 used an `extension-module` feature to perform the same function now done by the `PYO3_BUILD_EXTENSION_MODULE` env var.
+> [!NOTE]
+> Historically PyO3 used an `extension-module` feature to perform the same function now done by the `PYO3_BUILD_EXTENSION_MODULE` env var.
 > This feature caused linking to be disabled for all compile targets, including Rust tests and benchmarks.
 >
 > Projects are encouraged to migrate off the feature, as it caused [major development pain](faq.md#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror) due to the lack of linking.
