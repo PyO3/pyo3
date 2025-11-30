@@ -75,7 +75,7 @@ pub unsafe fn PyType_IS_GC(t: *mut PyTypeObject) -> c_int {
 }
 
 extern "C" {
-    fn _PyObject_GC_Resize(arg1: *mut PyVarObject, arg2: Py_ssize_t) -> *mut PyVarObject;
+    fn _PyObject_GC_Resize(op: *mut PyVarObject, n: Py_ssize_t) -> *mut PyVarObject;
 }
 
 #[inline]
@@ -85,9 +85,9 @@ pub unsafe fn PyObject_GC_Resize<T>(op: *mut PyObject, n: Py_ssize_t) -> *mut T 
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "_PyPyObject_GC_New")]
-    fn _PyObject_GC_New(arg1: *mut PyTypeObject) -> *mut PyObject;
+    fn _PyObject_GC_New(typeobj: *mut PyTypeObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "_PyPyObject_GC_NewVar")]
-    fn _PyObject_GC_NewVar(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyVarObject;
+    fn _PyObject_GC_NewVar(typeobj: *mut PyTypeObject, n: Py_ssize_t) -> *mut PyVarObject;
 
     #[cfg(not(PyPy))]
     pub fn PyObject_GC_Track(arg1: *mut c_void);
