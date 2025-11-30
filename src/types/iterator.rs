@@ -91,19 +91,6 @@ impl<'py> Bound<'py, PyIterator> {
             })),
         }
     }
-
-    fn next(&self) -> Option<PyResult<Bound<'py, PyAny>>> {
-        let py = self.py();
-        let mut item = std::ptr::null_mut();
-
-        // SAFETY: `self` is a valid iterator object, `item` is a valid pointer to receive the next item
-        match unsafe { ffi::PyIter_NextItem(self.as_ptr(), &mut item) } {
-            std::ffi::c_int::MIN..=-1 => Some(Err(PyErr::fetch(py))),
-            0 => None,
-            // SAFETY: `item` is guaranteed to be a non-null strong reference
-            1..=std::ffi::c_int::MAX => Some(Ok(unsafe { item.assume_owned_unchecked(py) })),
-        }
-    }
 }
 
 impl<'py> Iterator for Bound<'py, PyIterator> {
@@ -117,7 +104,16 @@ impl<'py> Iterator for Bound<'py, PyIterator> {
     /// to repeatedly result in the same exception.
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        Bound::next(self)
+        let py = self.py();
+        let mut item = std::ptr::null_mut();
+
+        // SAFETY: `self` is a valid iterator object, `item` is a valid pointer to receive the next item
+        match unsafe { ffi::compat::PyIter_NextItem(self.as_ptr(), &mut item) } {
+            std::ffi::c_int::MIN..=-1 => Some(Err(PyErr::fetch(py))),
+            0 => None,
+            // SAFETY: `item` is guaranteed to be a non-null strong reference
+            1..=std::ffi::c_int::MAX => Some(Ok(unsafe { item.assume_owned_unchecked(py) })),
+        }
     }
 
     #[cfg(not(Py_LIMITED_API))]

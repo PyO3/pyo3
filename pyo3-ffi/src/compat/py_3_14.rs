@@ -34,7 +34,7 @@ compat_function!(
         item: *mut *mut crate::PyObject,
     ) -> std::ffi::c_int {
         *item = crate::PyIter_Next(iter);
-        if item.is_null() {
+        if !(*item).is_null() {
             1
         } else if crate::PyErr_Occurred().is_null() {
             0
