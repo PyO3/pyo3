@@ -59,6 +59,17 @@ let _: Bound<'_, PyNone> = unsafe { Bound::from_owned_ptr(py, raw_ptr).cast_into
 # })
 ```
 
+### Internal change to use multi-phase initialization
+
+[PEP 489](https://peps.python.org/pep-0489/) introduced "multi-phase initialization" for extension modules which provides ways to allocate and clean up per-module state.
+This is a necessary step towards supporting Python "subinterpreters" which run on their own copy of state.
+
+Starting in PyO3 0.28, the `#[pymodule]` macro machinery has been reworked to use multi-phase initialization.
+The possibility of creating and consuming per-module state (and supporting subinterpreters) is left for a future PyO3 version.
+This should not require migration, nor is there expected to be breakage caused by the change.
+
+Nevertheless, this affects the order of initialization so seemed worth noting in this guide.
+
 ## from 0.26.* to 0.27
 
 ### `FromPyObject` reworked for flexibility and efficiency
@@ -350,7 +361,9 @@ This change makes error conversions more precise and matches the semantics of ou
 
 <details>
 <summary><small>Click to expand</small></summary>
-The `AsPyPointer` trait is mostly a leftover from the now removed gil-refs API. The last remaining uses were the GC API, namely `PyVisit::call`, and identity comparison (`PyAnyMethods::is` and `Py::is`).
+
+The `AsPyPointer` trait is mostly a leftover from the now removed gil-refs API.
+The last remaining uses were the GC API, namely `PyVisit::call`, and identity comparison (`PyAnyMethods::is` and `Py::is`).
 
 `PyVisit::call` has been updated to take `T: Into<Option<&Py<T>>>`, which allows for arguments of type `&Py<T>`, `&Option<Py<T>>` and `Option<&Py<T>>`.
 It is unlikely any changes are needed here to migrate.
@@ -702,6 +715,7 @@ fn increment(x: u64, amount: Option<u64>) -> u64 {
 
 <details>
 <summary><small>Click to expand</small></summary>
+
 If you rely on `impl<T> Clone for Py<T>` to fulfil trait requirements imposed by existing Rust code written without PyO3-based code in mind, the newly introduced feature `py-clone` must be enabled.
 
 However, take care to note that the behaviour is different from previous versions.
@@ -850,6 +864,7 @@ To make the transition for the PyO3 ecosystem away from the GIL Refs API as smoo
 Instead, variants using `Bound<T>` smart pointers have been introduced, for example `PyTuple::new_bound` which returns `Bound<PyTuple>` is the replacement form of `PyTuple::new`.
 The GIL Ref APIs have been deprecated, but to make migration easier it is possible to disable these deprecation warnings by enabling the `gil-refs` feature.
 
+> [!TIP]
 > The one single exception where an existing API was changed in-place is the `pyo3::intern!` macro. Almost all uses of this macro did not need to update code to account it changing to return `&Bound<PyString>` immediately, and adding an `intern_bound!` replacement was perceived as adding more work for users.
 
 It is recommended that users do this as a first step of updating to PyO3 0.21 so that the deprecation warnings do not get in the way of resolving the rest of the migration steps.
@@ -1115,10 +1130,9 @@ let obj: &Py<PyList> = bound.as_unbound();
 let obj: Py<PyList> = bound.unbind();
 ```
 
-<div class="warning">
-
-⚠️ Warning: dangling pointer trap 💣
-
+> [!WARNING]
+> Dangling pointer trap 💣
+> 
 > Because of the ownership changes, code which uses `.as_ptr()` to convert `&PyAny` and other GIL Refs to a `*mut pyo3_ffi::PyObject` should take care to avoid creating dangling pointers now that `Bound<PyAny>` carries ownership.
 >
 > For example, the following pattern with `Option<&PyAny>` can easily create a dangling pointer when migrating to the `Bound<PyAny>` smart pointer:
@@ -1134,7 +1148,6 @@ let obj: Py<PyList> = bound.unbind();
 > let opt: Option<Bound<PyAny>> = ...;
 > let p: *mut ffi::PyObject = opt.as_ref().map_or(std::ptr::null_mut(), Bound::as_ptr);
 > ```
-<div>
 
 #### Migrating `FromPyObject` implementations
 

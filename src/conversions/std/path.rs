@@ -1,5 +1,7 @@
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python};
@@ -9,6 +11,12 @@ use std::path::{Path, PathBuf};
 
 impl FromPyObject<'_, '_> for PathBuf {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = TypeHint::union(&[
+        OsString::INPUT_TYPE,
+        TypeHint::module_attr("os", "PathLike"),
+    ]);
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         // We use os.fspath to get the underlying path as bytes or str
@@ -21,6 +29,9 @@ impl<'py> IntoPyObject<'py> for &Path {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = TypeHint::module_attr("pathlib", "Path");
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -36,6 +47,9 @@ impl<'py> IntoPyObject<'py> for &&Path {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = <&Path>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
@@ -46,6 +60,9 @@ impl<'py> IntoPyObject<'py> for Cow<'_, Path> {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = <&Path>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -58,6 +75,9 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, Path> {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = <&Path>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (&**self).into_pyobject(py)
@@ -66,6 +86,9 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, Path> {
 
 impl<'a> FromPyObject<'a, '_> for Cow<'a, Path> {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = PathBuf::INPUT_TYPE;
 
     fn extract(obj: Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -82,6 +105,9 @@ impl<'py> IntoPyObject<'py> for PathBuf {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = <&Path>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (&self).into_pyobject(py)
@@ -92,6 +118,9 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = <&Path>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {

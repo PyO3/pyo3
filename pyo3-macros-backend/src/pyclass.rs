@@ -28,10 +28,12 @@ use crate::pyimpl::{gen_py_const, get_cfg_attributes, PyClassMethodsType};
 use crate::pymethod::field_python_name;
 use crate::pymethod::{
     impl_py_class_attribute, impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef,
-    MethodAndSlotDef, PropertyType, SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __REPR__,
-    __RICHCMP__, __STR__,
+    MethodAndSlotDef, PropertyType, SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __NEW__,
+    __REPR__, __RICHCMP__, __STR__,
 };
 use crate::pyversions::{is_abi3_before, is_py_before};
+#[cfg(feature = "experimental-inspect")]
+use crate::type_hint::PythonTypeHint;
 use crate::utils::{self, apply_renaming_rule, Ctx, PythonDoc};
 use crate::PyFunctionOptions;
 
@@ -427,7 +429,7 @@ impl FieldPyO3Options {
     }
 }
 
-fn get_class_python_name<'a>(cls: &'a syn::Ident, args: &'a PyClassArgs) -> Cow<'a, syn::Ident> {
+fn get_class_python_name<'a>(cls: &'a Ident, args: &'a PyClassArgs) -> Cow<'a, Ident> {
     args.options
         .name
         .as_ref()
@@ -443,7 +445,7 @@ fn get_class_type_hint(cls: &Ident, args: &PyClassArgs, ctx: &Ctx) -> TokenStrea
         let module = module.value.value();
         quote! { #pyo3_path::inspect::TypeHint::module_attr(#module, #name) }
     } else {
-        quote! { #pyo3_path::inspect::TypeHint::builtin(#name) }
+        quote! { #pyo3_path::inspect::TypeHint::local(#name) }
     }
 }
 
@@ -1746,11 +1748,10 @@ fn complex_enum_struct_variant_new<'a>(
     };
 
     let spec = FnSpec {
-        tp: crate::method::FnType::FnNew,
+        tp: crate::method::FnType::FnStatic,
         name: &format_ident!("__pymethod_constructor__"),
         python_name: format_ident!("__new__"),
         signature,
-        convention: crate::method::CallingConvention::TpNew,
         text_signature: None,
         asyncness: None,
         unsafety: None,
@@ -1759,7 +1760,7 @@ fn complex_enum_struct_variant_new<'a>(
         output: syn::ReturnType::Default,
     };
 
-    crate::pymethod::impl_py_method_def_new(&variant_cls_type, &spec, ctx)
+    __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", ctx)
 }
 
 fn complex_enum_tuple_variant_new<'a>(
@@ -1805,11 +1806,10 @@ fn complex_enum_tuple_variant_new<'a>(
     };
 
     let spec = FnSpec {
-        tp: crate::method::FnType::FnNew,
+        tp: crate::method::FnType::FnStatic,
         name: &format_ident!("__pymethod_constructor__"),
         python_name: format_ident!("__new__"),
         signature,
-        convention: crate::method::CallingConvention::TpNew,
         text_signature: None,
         asyncness: None,
         unsafety: None,
@@ -1818,7 +1818,7 @@ fn complex_enum_tuple_variant_new<'a>(
         output: syn::ReturnType::Default,
     };
 
-    crate::pymethod::impl_py_method_def_new(&variant_cls_type, &spec, ctx)
+    __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", ctx)
 }
 
 fn complex_enum_variant_field_getter<'a>(
@@ -1838,7 +1838,6 @@ fn complex_enum_variant_field_getter<'a>(
         name: field_name,
         python_name: field_name.unraw(),
         signature,
-        convention: crate::method::CallingConvention::Noargs,
         text_signature: None,
         asyncness: None,
         unsafety: None,
@@ -1900,7 +1899,7 @@ fn descriptors_to_items(
                     &FunctionSignature::from_arguments(vec![]),
                     Some("self"),
                     parse_quote!(-> #return_type),
-                    vec!["property".into()],
+                    vec![PythonTypeHint::builtin("property")],
                     Some(&parse_quote!(#cls)),
                 ));
             }
@@ -1939,7 +1938,7 @@ fn descriptors_to_items(
                     })]),
                     Some("self"),
                     syn::ReturnType::Default,
-                    vec![format!("{name}.setter")],
+                    vec![PythonTypeHint::local(format!("{name}.setter"))],
                     Some(&parse_quote!(#cls)),
                 ));
             }
@@ -1951,13 +1950,6 @@ fn descriptors_to_items(
 
 fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
-    let cls_name = get_class_python_name(cls, attr).to_string();
-
-    let module = if let Some(ModuleAttribute { value, .. }) = &attr.options.module {
-        quote! { ::core::option::Option::Some(#value) }
-    } else {
-        quote! { ::core::option::Option::None }
-    };
 
     #[cfg(feature = "experimental-inspect")]
     let type_hint = {
@@ -1966,11 +1958,14 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
     };
     #[cfg(not(feature = "experimental-inspect"))]
     let type_hint = quote! {};
+    #[cfg(not(feature = "experimental-inspect"))]
+    let _ = attr;
 
     quote! {
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
-            const NAME: &'static str = #cls_name;
-            const MODULE: ::std::option::Option<&'static str> = #module;
+
+            const NAME: &str = <Self as #pyo3_path::PyClass>::NAME;
+            const MODULE: ::std::option::Option<&str> = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::MODULE;
 
             #type_hint
 
@@ -1982,7 +1977,7 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
                     .unwrap_or_else(|e| #pyo3_path::impl_::pyclass::type_object_init_failed(
                         py,
                         e,
-                        <Self as #pyo3_path::type_object::PyTypeInfo>::NAME
+                        <Self as #pyo3_path::PyClass>::NAME
                     ))
                     .as_type_ptr()
             }
@@ -2328,6 +2323,8 @@ impl<'a> PyClassImplsBuilder<'a> {
         let Ctx { pyo3_path, .. } = ctx;
         let cls = self.cls;
 
+        let cls_name = get_class_python_name(cls, self.attr).to_string();
+
         let frozen = if self.attr.options.frozen.is_some() {
             quote! { #pyo3_path::pyclass::boolean_struct::True }
         } else {
@@ -2336,6 +2333,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         quote! {
             impl #pyo3_path::PyClass for #cls {
+                const NAME: &str = #cls_name;
                 type Frozen = #frozen;
             }
         }
@@ -2378,6 +2376,13 @@ impl<'a> PyClassImplsBuilder<'a> {
             .doc
             .as_ref()
             .map_or(c"".to_token_stream(), PythonDoc::to_token_stream);
+
+        let module = if let Some(ModuleAttribute { value, .. }) = &self.attr.options.module {
+            quote! { ::core::option::Option::Some(#value) }
+        } else {
+            quote! { ::core::option::Option::None }
+        };
+
         let is_basetype = self.attr.options.subclass.is_some();
         let base = match &self.attr.options.extends {
             Some(extends_attr) => extends_attr.value.clone(),
@@ -2562,6 +2567,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             #pyclass_base_type_impl
 
             impl #pyo3_path::impl_::pyclass::PyClassImpl for #cls {
+                const MODULE: ::std::option::Option<&str> = #module;
                 const IS_BASETYPE: bool = #is_basetype;
                 const IS_SUBCLASS: bool = #is_subclass;
                 const IS_MAPPING: bool = #is_mapping;
@@ -2679,7 +2685,22 @@ impl<'a> PyClassImplsBuilder<'a> {
         let Ctx { pyo3_path, .. } = ctx;
         let name = get_class_python_name(self.cls, self.attr).to_string();
         let ident = self.cls;
-        let static_introspection = class_introspection_code(pyo3_path, ident, &name);
+        let static_introspection = class_introspection_code(
+            pyo3_path,
+            ident,
+            &name,
+            self.attr.options.extends.as_ref().map(|attr| {
+                PythonTypeHint::from_type(
+                    syn::TypePath {
+                        qself: None,
+                        path: attr.value.clone(),
+                    }
+                    .into(),
+                    None,
+                )
+            }),
+            self.attr.options.subclass.is_none(),
+        );
         let introspection_id = introspection_id_const();
         quote! {
             #static_introspection

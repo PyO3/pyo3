@@ -1,5 +1,7 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::{
     conversion::{FromPyObject, FromPyObjectOwned, FromPyObjectSequence, IntoPyObject},
     exceptions::PyTypeError,
@@ -16,6 +18,9 @@ where
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = T::SEQUENCE_OUTPUT_TYPE;
 
     /// Turns [`Vec<u8>`] into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///
@@ -40,6 +45,9 @@ where
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = <&[T]>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         // NB: we could actually not cast to `PyAny`, which would be nice for
@@ -59,6 +67,9 @@ where
     T: FromPyObjectOwned<'py>,
 {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: TypeHint = T::SEQUENCE_INPUT_TYPE;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {

@@ -11,7 +11,7 @@ use crate::{
     pycell::PyBorrowError,
     types::{any::PyAnyMethods, PyBool},
     Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
-    PyTypeInfo, Python,
+    PyTypeCheck, PyTypeInfo, Python,
 };
 use std::{
     ffi::CStr,
@@ -157,6 +157,12 @@ unsafe impl Sync for PyClassItems {}
 /// Users are discouraged from implementing this trait manually; it is a PyO3 implementation detail
 /// and may be changed at any time.
 pub trait PyClassImpl: Sized + 'static {
+    /// Module which the class will be associated with.
+    ///
+    /// (Currently defaults to `builtins` if unset, this will likely be improved in the future, it
+    /// may also be removed when passing module objects in class init.)
+    const MODULE: Option<&'static str>;
+
     /// #[pyclass(subclass)]
     const IS_BASETYPE: bool = false;
 
@@ -343,34 +349,33 @@ slot_fragment_trait! {
 #[macro_export]
 macro_rules! generate_pyclass_getattro_slot {
     ($cls:ty) => {{
-        unsafe extern "C" fn __wrap(
+        unsafe fn slot_impl(
+            py: $crate::Python<'_>,
             _slf: *mut $crate::ffi::PyObject,
             attr: *mut $crate::ffi::PyObject,
-        ) -> *mut $crate::ffi::PyObject {
-            unsafe {
-                $crate::impl_::trampoline::getattrofunc(_slf, attr, |py, _slf, attr| {
-                    use ::std::result::Result::*;
-                    use $crate::impl_::pyclass::*;
-                    let collector = PyClassImplCollector::<$cls>::new();
+        ) -> $crate::PyResult<*mut $crate::ffi::PyObject> {
+            use ::std::result::Result::*;
+            use $crate::impl_::pyclass::*;
+            let collector = PyClassImplCollector::<$cls>::new();
 
-                    // Strategy:
-                    // - Try __getattribute__ first. Its default is PyObject_GenericGetAttr.
-                    // - If it returns a result, use it.
-                    // - If it fails with AttributeError, try __getattr__.
-                    // - If it fails otherwise, reraise.
-                    match collector.__getattribute__(py, _slf, attr) {
-                        Ok(obj) => Ok(obj),
-                        Err(e) if e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) => {
-                            collector.__getattr__(py, _slf, attr)
-                        }
-                        Err(e) => Err(e),
-                    }
-                })
+            // Strategy:
+            // - Try __getattribute__ first. Its default is PyObject_GenericGetAttr.
+            // - If it returns a result, use it.
+            // - If it fails with AttributeError, try __getattr__.
+            // - If it fails otherwise, reraise.
+            match unsafe { collector.__getattribute__(py, _slf, attr) } {
+                Ok(obj) => Ok(obj),
+                Err(e) if e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) => unsafe {
+                    collector.__getattr__(py, _slf, attr)
+                },
+                Err(e) => Err(e),
             }
         }
+
         $crate::ffi::PyType_Slot {
             slot: $crate::ffi::Py_tp_getattro,
-            pfunc: __wrap as $crate::ffi::getattrofunc as _,
+            pfunc: $crate::impl_::trampoline::get_trampoline_function!(getattrofunc, slot_impl)
+                as $crate::ffi::getattrofunc as _,
         }
     }};
 }
@@ -428,33 +433,29 @@ macro_rules! define_pyclass_setattr_slot {
         #[macro_export]
         macro_rules! $generate_macro {
             ($cls:ty) => {{
-                unsafe extern "C" fn __wrap(
+                unsafe fn slot_impl(
+                    py: $crate::Python<'_>,
                     _slf: *mut $crate::ffi::PyObject,
                     attr: *mut $crate::ffi::PyObject,
                     value: *mut $crate::ffi::PyObject,
-                ) -> ::std::ffi::c_int {
-                    unsafe {
-                        $crate::impl_::trampoline::setattrofunc(
-                            _slf,
-                            attr,
-                            value,
-                            |py, _slf, attr, value| {
-                                use ::std::option::Option::*;
-                                use $crate::impl_::callback::IntoPyCallbackOutput;
-                                use $crate::impl_::pyclass::*;
-                                let collector = PyClassImplCollector::<$cls>::new();
-                                if let Some(value) = ::std::ptr::NonNull::new(value) {
-                                    collector.$set(py, _slf, attr, value).convert(py)
-                                } else {
-                                    collector.$del(py, _slf, attr).convert(py)
-                                }
-                            },
-                        )
+                ) -> $crate::PyResult<::std::ffi::c_int> {
+                    use ::std::option::Option::*;
+                    use $crate::impl_::callback::IntoPyCallbackOutput;
+                    use $crate::impl_::pyclass::*;
+                    let collector = PyClassImplCollector::<$cls>::new();
+                    if let Some(value) = ::std::ptr::NonNull::new(value) {
+                        unsafe { collector.$set(py, _slf, attr, value).convert(py) }
+                    } else {
+                        unsafe { collector.$del(py, _slf, attr).convert(py) }
                     }
                 }
+
                 $crate::ffi::PyType_Slot {
                     slot: $crate::ffi::$slot,
-                    pfunc: __wrap as $crate::ffi::$func_ty as _,
+                    pfunc: $crate::impl_::trampoline::get_trampoline_function!(
+                        setattrofunc,
+                        slot_impl
+                    ) as $crate::ffi::$func_ty as _,
                 }
             }};
         }
@@ -510,7 +511,6 @@ macro_rules! define_pyclass_binary_operator_slot {
         $rhs:ident,
         $generate_macro:ident,
         $slot:ident,
-        $func_ty:ident,
     ) => {
         slot_fragment_trait! {
             $lhs_trait,
@@ -546,27 +546,27 @@ macro_rules! define_pyclass_binary_operator_slot {
         #[macro_export]
         macro_rules! $generate_macro {
             ($cls:ty) => {{
-                unsafe extern "C" fn __wrap(
+                unsafe fn slot_impl(
+                    py: $crate::Python<'_>,
                     _slf: *mut $crate::ffi::PyObject,
                     _other: *mut $crate::ffi::PyObject,
-                ) -> *mut $crate::ffi::PyObject {
-                    unsafe {
-                        $crate::impl_::trampoline::binaryfunc(_slf, _other, |py, _slf, _other| {
-                            use $crate::impl_::pyclass::*;
-                            let collector = PyClassImplCollector::<$cls>::new();
-                            let lhs_result = collector.$lhs(py, _slf, _other)?;
-                            if lhs_result == $crate::ffi::Py_NotImplemented() {
-                                $crate::ffi::Py_DECREF(lhs_result);
-                                collector.$rhs(py, _other, _slf)
-                            } else {
-                                ::std::result::Result::Ok(lhs_result)
-                            }
-                        })
+                ) -> $crate::PyResult<*mut $crate::ffi::PyObject> {
+                    use $crate::impl_::pyclass::*;
+                    let collector = PyClassImplCollector::<$cls>::new();
+                    let lhs_result = unsafe { collector.$lhs(py, _slf, _other) }?;
+                    if lhs_result == unsafe { $crate::ffi::Py_NotImplemented() } {
+                        unsafe { $crate::ffi::Py_DECREF(lhs_result) };
+                        unsafe { collector.$rhs(py, _other, _slf) }
+                    } else {
+                        ::std::result::Result::Ok(lhs_result)
                     }
                 }
+
                 $crate::ffi::PyType_Slot {
                     slot: $crate::ffi::$slot,
-                    pfunc: __wrap as $crate::ffi::$func_ty as _,
+                    pfunc: $crate::impl_::trampoline::get_trampoline_function!(
+                        binaryfunc, slot_impl
+                    ) as $crate::ffi::binaryfunc as _,
                 }
             }};
         }
@@ -581,7 +581,6 @@ define_pyclass_binary_operator_slot! {
     __radd__,
     generate_pyclass_add_slot,
     Py_nb_add,
-    binaryfunc,
 }
 
 define_pyclass_binary_operator_slot! {
@@ -591,7 +590,6 @@ define_pyclass_binary_operator_slot! {
     __rsub__,
     generate_pyclass_sub_slot,
     Py_nb_subtract,
-    binaryfunc,
 }
 
 define_pyclass_binary_operator_slot! {
@@ -601,7 +599,6 @@ define_pyclass_binary_operator_slot! {
     __rmul__,
     generate_pyclass_mul_slot,
     Py_nb_multiply,
-    binaryfunc,
 }
 
 define_pyclass_binary_operator_slot! {
@@ -611,7 +608,6 @@ define_pyclass_binary_operator_slot! {
     __rmod__,
     generate_pyclass_mod_slot,
     Py_nb_remainder,
-    binaryfunc,
 }
 
 define_pyclass_binary_operator_slot! {
@@ -621,7 +617,6 @@ define_pyclass_binary_operator_slot! {
     __rdivmod__,
     generate_pyclass_divmod_slot,
     Py_nb_divmod,
-    binaryfunc,
 }
 
 define_pyclass_binary_operator_slot! {
@@ -631,7 +626,6 @@ define_pyclass_binary_operator_slot! {
     __rlshift__,
     generate_pyclass_lshift_slot,
     Py_nb_lshift,
-    binaryfunc,
 }
 
 define_pyclass_binary_operator_slot! {
@@ -641,7 +635,6 @@ define_pyclass_binary_operator_slot! {
     __rrshift__,
     generate_pyclass_rshift_slot,
     Py_nb_rshift,
-    binaryfunc,
 }
 
 define_pyclass_binary_operator_slot! {
@@ -651,7 +644,6 @@ define_pyclass_binary_operator_slot! {
     __rand__,
     generate_pyclass_and_slot,
     Py_nb_and,
-    binaryfunc,
 }
 
 define_pyclass_binary_operator_slot! {
@@ -661,7 +653,6 @@ define_pyclass_binary_operator_slot! {
     __ror__,
     generate_pyclass_or_slot,
     Py_nb_or,
-    binaryfunc,
 }
 
 define_pyclass_binary_operator_slot! {
@@ -671,7 +662,6 @@ define_pyclass_binary_operator_slot! {
     __rxor__,
     generate_pyclass_xor_slot,
     Py_nb_xor,
-    binaryfunc,
 }
 
 define_pyclass_binary_operator_slot! {
@@ -681,7 +671,6 @@ define_pyclass_binary_operator_slot! {
     __rmatmul__,
     generate_pyclass_matmul_slot,
     Py_nb_matrix_multiply,
-    binaryfunc,
 }
 
 define_pyclass_binary_operator_slot! {
@@ -691,7 +680,6 @@ define_pyclass_binary_operator_slot! {
     __rtruediv__,
     generate_pyclass_truediv_slot,
     Py_nb_true_divide,
-    binaryfunc,
 }
 
 define_pyclass_binary_operator_slot! {
@@ -701,7 +689,6 @@ define_pyclass_binary_operator_slot! {
     __rfloordiv__,
     generate_pyclass_floordiv_slot,
     Py_nb_floor_divide,
-    binaryfunc,
 }
 
 slot_fragment_trait! {
@@ -740,33 +727,27 @@ slot_fragment_trait! {
 #[macro_export]
 macro_rules! generate_pyclass_pow_slot {
     ($cls:ty) => {{
-        unsafe extern "C" fn __wrap(
+        fn slot_impl(
+            py: $crate::Python<'_>,
             _slf: *mut $crate::ffi::PyObject,
             _other: *mut $crate::ffi::PyObject,
             _mod: *mut $crate::ffi::PyObject,
-        ) -> *mut $crate::ffi::PyObject {
-            unsafe {
-                $crate::impl_::trampoline::ternaryfunc(
-                    _slf,
-                    _other,
-                    _mod,
-                    |py, _slf, _other, _mod| {
-                        use $crate::impl_::pyclass::*;
-                        let collector = PyClassImplCollector::<$cls>::new();
-                        let lhs_result = collector.__pow__(py, _slf, _other, _mod)?;
-                        if lhs_result == $crate::ffi::Py_NotImplemented() {
-                            $crate::ffi::Py_DECREF(lhs_result);
-                            collector.__rpow__(py, _other, _slf, _mod)
-                        } else {
-                            ::std::result::Result::Ok(lhs_result)
-                        }
-                    },
-                )
+        ) -> $crate::PyResult<*mut $crate::ffi::PyObject> {
+            use $crate::impl_::pyclass::*;
+            let collector = PyClassImplCollector::<$cls>::new();
+            let lhs_result = unsafe { collector.__pow__(py, _slf, _other, _mod) }?;
+            if lhs_result == unsafe { $crate::ffi::Py_NotImplemented() } {
+                unsafe { $crate::ffi::Py_DECREF(lhs_result) };
+                unsafe { collector.__rpow__(py, _other, _slf, _mod) }
+            } else {
+                ::std::result::Result::Ok(lhs_result)
             }
         }
+
         $crate::ffi::PyType_Slot {
             slot: $crate::ffi::Py_nb_power,
-            pfunc: __wrap as $crate::ffi::ternaryfunc as _,
+            pfunc: $crate::impl_::trampoline::get_trampoline_function!(ternaryfunc, slot_impl)
+                as $crate::ffi::ternaryfunc as _,
         }
     }};
 }
@@ -871,32 +852,35 @@ macro_rules! generate_pyclass_richcompare_slot {
     ($cls:ty) => {{
         #[allow(unknown_lints, non_local_definitions)]
         impl $cls {
-            #[allow(non_snake_case)]
-            unsafe extern "C" fn __pymethod___richcmp____(
+            #[expect(non_snake_case)]
+            unsafe fn __pymethod___richcmp____(
+                py: $crate::Python<'_>,
                 slf: *mut $crate::ffi::PyObject,
                 other: *mut $crate::ffi::PyObject,
                 op: ::std::ffi::c_int,
-            ) -> *mut $crate::ffi::PyObject {
-                unsafe {
-                    $crate::impl_::trampoline::richcmpfunc(slf, other, op, |py, slf, other, op| {
-                        use $crate::class::basic::CompareOp;
-                        use $crate::impl_::pyclass::*;
-                        let collector = PyClassImplCollector::<$cls>::new();
-                        match CompareOp::from_raw(op).expect("invalid compareop") {
-                            CompareOp::Lt => collector.__lt__(py, slf, other),
-                            CompareOp::Le => collector.__le__(py, slf, other),
-                            CompareOp::Eq => collector.__eq__(py, slf, other),
-                            CompareOp::Ne => collector.__ne__(py, slf, other),
-                            CompareOp::Gt => collector.__gt__(py, slf, other),
-                            CompareOp::Ge => collector.__ge__(py, slf, other),
-                        }
-                    })
+            ) -> $crate::PyResult<*mut $crate::ffi::PyObject> {
+                use $crate::class::basic::CompareOp;
+                use $crate::impl_::pyclass::*;
+                let collector = PyClassImplCollector::<$cls>::new();
+                match CompareOp::from_raw(op).expect("invalid compareop") {
+                    CompareOp::Lt => unsafe { collector.__lt__(py, slf, other) },
+                    CompareOp::Le => unsafe { collector.__le__(py, slf, other) },
+                    CompareOp::Eq => unsafe { collector.__eq__(py, slf, other) },
+                    CompareOp::Ne => unsafe { collector.__ne__(py, slf, other) },
+                    CompareOp::Gt => unsafe { collector.__gt__(py, slf, other) },
+                    CompareOp::Ge => unsafe { collector.__ge__(py, slf, other) },
                 }
             }
         }
         $crate::ffi::PyType_Slot {
             slot: $crate::ffi::Py_tp_richcompare,
-            pfunc: <$cls>::__pymethod___richcmp____ as $crate::ffi::richcmpfunc as _,
+            pfunc: {
+                type Cls = $cls; // `get_trampoline_function` doesn't accept $cls directly
+                $crate::impl_::trampoline::get_trampoline_function!(
+                    richcmpfunc,
+                    Cls::__pymethod___richcmp____
+                ) as $crate::ffi::richcmpfunc as _
+            },
         }
     }};
 }
@@ -1220,7 +1204,7 @@ impl<
 
 impl<
         ClassT: PyClass,
-        U,
+        U: PyTypeCheck,
         const OFFSET: usize,
         const IMPLEMENTS_INTOPYOBJECT_REF: bool,
         const IMPLEMENTS_INTOPYOBJECT: bool,
@@ -1513,10 +1497,16 @@ mod tests {
 
         assert_eq!(def.name, c"my_field");
         assert_eq!(def.doc, c"My field doc");
-        assert_eq!(
-            def.meth as usize,
-            pyo3_get_value_into_pyobject_ref::<MyClass, i32, FIELD_OFFSET> as usize
-        );
+
+        #[cfg(fn_ptr_eq)]
+        {
+            use crate::impl_::pymethods::Getter;
+
+            assert!(std::ptr::fn_addr_eq(
+                def.meth,
+                pyo3_get_value_into_pyobject_ref::<MyClass, i32, FIELD_OFFSET> as Getter
+            ));
+        }
 
         // generate for a field via `IntoPyObject` + `Clone`
         // SAFETY: offset is correct
@@ -1528,10 +1518,16 @@ mod tests {
         };
         assert_eq!(def.name, c"my_field");
         assert_eq!(def.doc, c"My field doc");
-        assert_eq!(
-            def.meth as usize,
-            pyo3_get_value_into_pyobject::<MyClass, String, FIELD_OFFSET> as usize
-        );
+
+        #[cfg(fn_ptr_eq)]
+        {
+            use crate::impl_::pymethods::Getter;
+
+            assert!(std::ptr::fn_addr_eq(
+                def.meth,
+                pyo3_get_value_into_pyobject::<MyClass, String, FIELD_OFFSET> as Getter
+            ));
+        }
     }
 
     #[test]
@@ -1579,9 +1575,15 @@ mod tests {
         };
         assert_eq!(def.name, c"my_field");
         assert_eq!(def.doc, c"My field doc");
-        assert_eq!(
-            def.meth as usize,
-            pyo3_get_value_into_pyobject_ref::<MyClass, Py<PyAny>, FIELD_OFFSET> as usize
-        );
+
+        #[cfg(fn_ptr_eq)]
+        {
+            use crate::impl_::pymethods::Getter;
+
+            assert!(std::ptr::fn_addr_eq(
+                def.meth,
+                pyo3_get_value_into_pyobject_ref::<MyClass, Py<PyAny>, FIELD_OFFSET> as Getter
+            ));
+        }
     }
 }

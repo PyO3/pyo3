@@ -10,6 +10,7 @@
 
 use crate::method::{FnArg, RegularArg};
 use crate::pyfunction::FunctionSignature;
+use crate::type_hint::PythonTypeHint;
 use crate::utils::PyO3CratePath;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
@@ -19,8 +20,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::visit_mut::{visit_type_mut, VisitMut};
-use syn::{Attribute, Ident, Lifetime, ReturnType, Type, TypePath};
+use syn::{Attribute, Ident, ReturnType, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
@@ -60,19 +60,27 @@ pub fn class_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     ident: &Ident,
     name: &str,
+    extends: Option<PythonTypeHint>,
+    is_final: bool,
 ) -> TokenStream {
-    IntrospectionNode::Map(
-        [
-            ("type", IntrospectionNode::String("class".into())),
-            (
-                "id",
-                IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
-            ),
-            ("name", IntrospectionNode::String(name.into())),
-        ]
-        .into(),
-    )
-    .emit(pyo3_crate_path)
+    let mut desc = HashMap::from([
+        ("type", IntrospectionNode::String("class".into())),
+        (
+            "id",
+            IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
+        ),
+        ("name", IntrospectionNode::String(name.into())),
+    ]);
+    if let Some(extends) = extends {
+        desc.insert("bases", IntrospectionNode::List(vec![extends.into()]));
+    }
+    if is_final {
+        desc.insert(
+            "decorators",
+            IntrospectionNode::List(vec![PythonTypeHint::module_attr("typing", "final").into()]),
+        );
+    }
+    IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
 
 #[expect(clippy::too_many_arguments)]
@@ -83,7 +91,7 @@ pub fn function_introspection_code(
     signature: &FunctionSignature<'_>,
     first_argument: Option<&'static str>,
     returns: ReturnType,
-    decorators: impl IntoIterator<Item = String>,
+    decorators: impl IntoIterator<Item = PythonTypeHint>,
     parent: Option<&Type>,
 ) -> TokenStream {
     let mut desc = HashMap::from([
@@ -103,30 +111,16 @@ pub fn function_introspection_code(
                 IntrospectionNode::String(returns.to_python().into())
             } else {
                 match returns {
-                    ReturnType::Default => IntrospectionNode::ConstantType {
-                        name: "None",
-                        module: None,
-                    },
+                    ReturnType::Default => PythonTypeHint::builtin("None"),
                     ReturnType::Type(_, ty) => match *ty {
                         Type::Tuple(t) if t.elems.is_empty() => {
                             // () is converted to None in return types
-                            IntrospectionNode::ConstantType {
-                                name: "None",
-                                module: None,
-                            }
+                            PythonTypeHint::builtin("None")
                         }
-                        mut ty => {
-                            if let Some(class_type) = parent {
-                                replace_self(&mut ty, class_type);
-                            }
-                            elide_lifetimes(&mut ty);
-                            IntrospectionNode::OutputType {
-                                rust_type: ty,
-                                is_final: false,
-                            }
-                        }
+                        ty => PythonTypeHint::from_return_type(ty, parent),
                     },
                 }
+                .into()
             },
         ),
     ]);
@@ -136,10 +130,7 @@ pub fn function_introspection_code(
             IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
         );
     }
-    let decorators = decorators
-        .into_iter()
-        .map(|d| IntrospectionNode::String(d.into()).into())
-        .collect::<Vec<_>>();
+    let decorators = decorators.into_iter().map(|d| d.into()).collect::<Vec<_>>();
     if !decorators.is_empty() {
         desc.insert("decorators", IntrospectionNode::List(decorators));
     }
@@ -157,7 +148,7 @@ pub fn attribute_introspection_code(
     parent: Option<&Type>,
     name: String,
     value: String,
-    mut rust_type: Type,
+    rust_type: Type,
     is_final: bool,
 ) -> TokenStream {
     let mut desc = HashMap::from([
@@ -170,15 +161,16 @@ pub fn attribute_introspection_code(
     ]);
     if value == "..." {
         // We need to set a type, but not need to set the value to ..., all attributes have a value
-        if let Some(parent) = parent {
-            replace_self(&mut rust_type, parent);
-        }
-        elide_lifetimes(&mut rust_type);
         desc.insert(
             "annotation",
-            IntrospectionNode::OutputType {
-                rust_type,
-                is_final,
+            if is_final {
+                PythonTypeHint::subscript(
+                    PythonTypeHint::module_attr("typing", "Final"),
+                    [PythonTypeHint::from_return_type(rust_type, parent)],
+                )
+                .into()
+            } else {
+                PythonTypeHint::from_return_type(rust_type, parent).into()
             },
         );
     } else {
@@ -188,16 +180,11 @@ pub fn attribute_introspection_code(
                 // Type checkers can infer the type from the value because it's typing.Literal[value]
                 // So, following stubs best practices, we only write typing.Final and not
                 // typing.Final[typing.literal[value]]
-                IntrospectionNode::ConstantType {
-                    name: "Final",
-                    module: Some("typing"),
-                }
+                PythonTypeHint::module_attr("typing", "Final")
             } else {
-                IntrospectionNode::OutputType {
-                    rust_type,
-                    is_final,
-                }
-            },
+                PythonTypeHint::from_return_type(rust_type, parent)
+            }
+            .into(),
         );
         desc.insert("value", IntrospectionNode::String(value.into()));
     }
@@ -315,34 +302,10 @@ fn argument_introspection_data<'a>(
         params.insert("annotation", IntrospectionNode::String(annotation.into()));
     } else if desc.from_py_with.is_none() {
         // If from_py_with is set we don't know anything on the input type
-        if let Some(ty) = desc.option_wrapped_type {
-            // Special case to properly generate a `T | None` annotation
-            let mut ty = ty.clone();
-            if let Some(class_type) = class_type {
-                replace_self(&mut ty, class_type);
-            }
-            elide_lifetimes(&mut ty);
-            params.insert(
-                "annotation",
-                IntrospectionNode::InputType {
-                    rust_type: ty,
-                    nullable: true,
-                },
-            );
-        } else {
-            let mut ty = desc.ty.clone();
-            if let Some(class_type) = class_type {
-                replace_self(&mut ty, class_type);
-            }
-            elide_lifetimes(&mut ty);
-            params.insert(
-                "annotation",
-                IntrospectionNode::InputType {
-                    rust_type: ty,
-                    nullable: false,
-                },
-            );
-        }
+        params.insert(
+            "annotation",
+            PythonTypeHint::from_argument_type(desc.ty.clone(), class_type).into(),
+        );
     }
     IntrospectionNode::Map(params).into()
 }
@@ -351,18 +314,7 @@ enum IntrospectionNode<'a> {
     String(Cow<'a, str>),
     Bool(bool),
     IntrospectionId(Option<Cow<'a, Type>>),
-    InputType {
-        rust_type: Type,
-        nullable: bool,
-    },
-    OutputType {
-        rust_type: Type,
-        is_final: bool,
-    },
-    ConstantType {
-        name: &'static str,
-        module: Option<&'static str>,
-    },
+    TypeHint(Cow<'a, PythonTypeHint>),
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<AttributedIntrospectionNode<'a>>),
 }
@@ -396,41 +348,11 @@ impl IntrospectionNode<'_> {
                 });
                 content.push_str("\"");
             }
-            Self::InputType {
-                rust_type,
-                nullable,
-            } => {
-                let mut annotation = quote! {
-                    <#rust_type as #pyo3_crate_path::impl_::extract_argument::PyFunctionArgument<
-                        {
-                            #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
-                            use #pyo3_crate_path::impl_::pyclass::Probe as _;
-                            #pyo3_crate_path::impl_::pyclass::IsFromPyObject::<#rust_type>::VALUE
-                        }
-                    >>::INPUT_TYPE
-                };
-                if nullable {
-                    annotation = quote! { #pyo3_crate_path::inspect::TypeHint::union(&[#annotation, #pyo3_crate_path::inspect::TypeHint::builtin("None")]) };
-                }
-                content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
-            }
-            Self::OutputType {
-                rust_type,
-                is_final,
-            } => {
-                let mut annotation = quote! { <#rust_type as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE };
-                if is_final {
-                    annotation = quote! { #pyo3_crate_path::inspect::TypeHint::subscript(&#pyo3_crate_path::inspect::TypeHint::module_attr("typing", "Final"), &[#annotation]) };
-                }
-                content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
-            }
-            Self::ConstantType { name, module } => {
-                let annotation = if let Some(module) = module {
-                    quote! { #pyo3_crate_path::inspect::TypeHint::module_attr(#module, #name) }
-                } else {
-                    quote! { #pyo3_crate_path::inspect::TypeHint::builtin(#name) }
-                };
-                content.push_tokens(serialize_type_hint(annotation, pyo3_crate_path));
+            Self::TypeHint(hint) => {
+                content.push_tokens(serialize_type_hint(
+                    hint.to_introspection_token_stream(pyo3_crate_path),
+                    pyo3_crate_path,
+                ));
             }
             Self::Map(map) => {
                 content.push_str("{");
@@ -471,6 +393,12 @@ impl IntrospectionNode<'_> {
     }
 }
 
+impl From<PythonTypeHint> for IntrospectionNode<'static> {
+    fn from(element: PythonTypeHint) -> Self {
+        Self::TypeHint(Cow::Owned(element))
+    }
+}
+
 fn serialize_type_hint(hint: TokenStream, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
     quote! {{
         const TYPE_HINT: #pyo3_crate_path::inspect::TypeHint = #hint;
@@ -495,6 +423,12 @@ impl<'a> From<IntrospectionNode<'a>> for AttributedIntrospectionNode<'a> {
             node,
             attributes: &[],
         }
+    }
+}
+
+impl<'a> From<PythonTypeHint> for AttributedIntrospectionNode<'a> {
+    fn from(node: PythonTypeHint) -> Self {
+        IntrospectionNode::from(node).into()
     }
 }
 
@@ -620,46 +554,4 @@ fn ident_to_type(ident: &Ident) -> Cow<'static, Type> {
         }
         .into(),
     )
-}
-
-/// Replaces all explicit lifetimes in `self` with elided (`'_`) lifetimes
-///
-/// This is useful if `Self` is used in `const` context, where explicit
-/// lifetimes are not allowed (yet).
-pub fn elide_lifetimes(ty: &mut Type) {
-    struct ElideLifetimesVisitor;
-
-    impl VisitMut for ElideLifetimesVisitor {
-        fn visit_lifetime_mut(&mut self, l: &mut syn::Lifetime) {
-            *l = Lifetime::new("'_", l.span());
-        }
-    }
-
-    ElideLifetimesVisitor.visit_type_mut(ty);
-}
-
-// Replace Self in types with the given type
-fn replace_self(ty: &mut Type, self_target: &Type) {
-    struct SelfReplacementVisitor<'a> {
-        self_target: &'a Type,
-    }
-
-    impl VisitMut for SelfReplacementVisitor<'_> {
-        fn visit_type_mut(&mut self, ty: &mut Type) {
-            if let Type::Path(type_path) = ty {
-                if type_path.qself.is_none()
-                    && type_path.path.segments.len() == 1
-                    && type_path.path.segments[0].ident == "Self"
-                    && type_path.path.segments[0].arguments.is_empty()
-                {
-                    // It is Self
-                    *ty = self.self_target.clone();
-                    return;
-                }
-            }
-            visit_type_mut(self, ty);
-        }
-    }
-
-    SelfReplacementVisitor { self_target }.visit_type_mut(ty);
 }

@@ -1,6 +1,6 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Function, Module, TypeHint, TypeHintExpr,
-    VariableLengthArgument,
+    Argument, Arguments, Attribute, Class, Function, Module, PythonIdentifier, TypeHint,
+    TypeHintExpr, VariableLengthArgument,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
@@ -69,16 +69,25 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
                     arguments: vec![Argument {
                         name: "name".to_string(),
                         default_value: None,
-                        annotation: Some(TypeHint::Ast(TypeHintExpr::Builtin { id: "str".into() })),
+                        annotation: Some(TypeHint::Ast(
+                            PythonIdentifier {
+                                module: Some("builtins".into()),
+                                name: "str".into(),
+                            }
+                            .into(),
+                        )),
                     }],
                     vararg: None,
                     keyword_only_arguments: Vec::new(),
                     kwarg: None,
                 },
-                returns: Some(TypeHint::Ast(TypeHintExpr::Attribute {
-                    module: "_typeshed".into(),
-                    attr: "Incomplete".into(),
-                })),
+                returns: Some(TypeHint::Ast(
+                    PythonIdentifier {
+                        module: Some("_typeshed".into()),
+                        name: "Incomplete".into(),
+                    }
+                    .into(),
+                )),
             },
             &imports,
         ));
@@ -110,7 +119,25 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
 }
 
 fn class_stubs(class: &Class, imports: &Imports) -> String {
-    let mut buffer = format!("class {}:", class.name);
+    let mut buffer = String::new();
+    for decorator in &class.decorators {
+        buffer.push('@');
+        imports.serialize_identifier(decorator, &mut buffer);
+        buffer.push('\n');
+    }
+    buffer.push_str("class ");
+    buffer.push_str(&class.name);
+    if !class.bases.is_empty() {
+        buffer.push('(');
+        for (i, base) in class.bases.iter().enumerate() {
+            if i > 0 {
+                buffer.push_str(", ");
+            }
+            imports.serialize_identifier(base, &mut buffer);
+        }
+        buffer.push(')');
+    }
+    buffer.push(':');
     if class.methods.is_empty() && class.attributes.is_empty() {
         buffer.push_str(" ...");
         return buffer;
@@ -160,7 +187,7 @@ fn function_stubs(function: &Function, imports: &Imports) -> String {
     let mut buffer = String::new();
     for decorator in &function.decorators {
         buffer.push('@');
-        buffer.push_str(decorator);
+        imports.serialize_identifier(decorator, &mut buffer);
         buffer.push('\n');
     }
     buffer.push_str("def ");
@@ -254,7 +281,7 @@ impl Imports {
             .map(|c| c.name.clone())
             .chain(module.functions.iter().map(|f| f.name.clone()))
             .chain(module.attributes.iter().map(|a| a.name.clone()))
-            .chain(elements_used_in_annotations.builtins)
+            .chain(elements_used_in_annotations.locals)
         {
             local_name_to_module_and_attribute.insert(name.clone(), (None, name.clone()));
         }
@@ -324,18 +351,24 @@ impl Imports {
                         local_name.clone(),
                         (normalized_module.clone(), root_attr.to_owned()),
                     );
-                    import_for_module.push(if local_name == root_attr {
-                        local_name
-                    } else {
-                        format!("{root_attr} as {local_name}")
-                    });
+                    let is_not_aliased_builtin =
+                        normalized_module.as_deref() == Some("builtins") && local_name == root_attr;
+                    if !is_not_aliased_builtin {
+                        import_for_module.push(if local_name == root_attr {
+                            local_name
+                        } else {
+                            format!("{root_attr} as {local_name}")
+                        });
+                    }
                 }
             }
             if let Some(module) = normalized_module {
-                imports.push(format!(
-                    "from {module} import {}",
-                    import_for_module.join(", ")
-                ));
+                if !import_for_module.is_empty() {
+                    imports.push(format!(
+                        "from {module} import {}",
+                        import_for_module.join(", ")
+                    ));
+                }
             }
         }
 
@@ -344,15 +377,10 @@ impl Imports {
 
     fn serialize_type_hint(&self, expr: &TypeHintExpr, buffer: &mut String) {
         match expr {
-            TypeHintExpr::Builtin { id } => buffer.push_str(id),
-            TypeHintExpr::Attribute { module, attr } => {
-                let alias = self
-                    .renaming
-                    .get(&(module.clone(), attr.clone()))
-                    .expect("All type hint attributes should have been visited");
-                buffer.push_str(alias)
+            TypeHintExpr::Identifier(id) => {
+                self.serialize_identifier(id, buffer);
             }
-            TypeHintExpr::Union { elts } => {
+            TypeHintExpr::Union(elts) => {
                 for (i, elt) in elts.iter().enumerate() {
                     if i > 0 {
                         buffer.push_str(" | ");
@@ -373,20 +401,30 @@ impl Imports {
             }
         }
     }
+
+    fn serialize_identifier(&self, id: &PythonIdentifier, buffer: &mut String) {
+        buffer.push_str(if let Some(module) = &id.module {
+            self.renaming
+                .get(&(module.clone(), id.name.clone()))
+                .expect("All type hint attributes should have been visited")
+        } else {
+            &id.name
+        });
+    }
 }
 
 /// Lists all the elements used in annotations
 struct ElementsUsedInAnnotations {
     /// module -> name
     module_members: BTreeMap<String, BTreeSet<String>>,
-    builtins: BTreeSet<String>,
+    locals: BTreeSet<String>,
 }
 
 impl ElementsUsedInAnnotations {
     fn new() -> Self {
         Self {
             module_members: BTreeMap::new(),
-            builtins: BTreeSet::new(),
+            locals: BTreeSet::new(),
         }
     }
 
@@ -401,7 +439,10 @@ impl ElementsUsedInAnnotations {
             self.walk_function(function);
         }
         if module.incomplete {
-            self.builtins.insert("str".into());
+            self.module_members
+                .entry("builtins".into())
+                .or_default()
+                .insert("str".into());
             self.module_members
                 .entry("_typeshed".into())
                 .or_default()
@@ -410,6 +451,12 @@ impl ElementsUsedInAnnotations {
     }
 
     fn walk_class(&mut self, class: &Class) {
+        for base in &class.bases {
+            self.walk_identifier(base);
+        }
+        for decorator in &class.decorators {
+            self.walk_identifier(decorator);
+        }
         for method in &class.methods {
             self.walk_function(method);
         }
@@ -426,7 +473,7 @@ impl ElementsUsedInAnnotations {
 
     fn walk_function(&mut self, function: &Function) {
         for decorator in &function.decorators {
-            self.builtins.insert(decorator.clone());
+            self.walk_identifier(decorator);
         }
         for arg in function
             .arguments
@@ -463,16 +510,10 @@ impl ElementsUsedInAnnotations {
 
     fn walk_type_hint_expr(&mut self, expr: &TypeHintExpr) {
         match expr {
-            TypeHintExpr::Builtin { id } => {
-                self.builtins.insert(id.clone());
+            TypeHintExpr::Identifier(id) => {
+                self.walk_identifier(id);
             }
-            TypeHintExpr::Attribute { module, attr } => {
-                self.module_members
-                    .entry(module.clone())
-                    .or_default()
-                    .insert(attr.clone());
-            }
-            TypeHintExpr::Union { elts } => {
+            TypeHintExpr::Union(elts) => {
                 for elt in elts {
                     self.walk_type_hint_expr(elt)
                 }
@@ -483,6 +524,17 @@ impl ElementsUsedInAnnotations {
                     self.walk_type_hint_expr(elt);
                 }
             }
+        }
+    }
+
+    fn walk_identifier(&mut self, id: &PythonIdentifier) {
+        if let Some(module) = &id.module {
+            self.module_members
+                .entry(module.clone())
+                .or_default()
+                .insert(id.name.clone());
+        } else {
+            self.locals.insert(id.name.clone());
         }
     }
 }
@@ -565,36 +617,61 @@ mod tests {
     #[test]
     fn test_import() {
         let big_type = TypeHintExpr::Subscript {
-            value: Box::new(TypeHintExpr::Builtin { id: "dict".into() }),
+            value: Box::new(
+                PythonIdentifier {
+                    module: Some("builtins".into()),
+                    name: "dict".into(),
+                }
+                .into(),
+            ),
             slice: vec![
-                TypeHintExpr::Attribute {
-                    module: "foo.bar".into(),
-                    attr: "A".into(),
-                },
-                TypeHintExpr::Union {
-                    elts: vec![
-                        TypeHintExpr::Attribute {
-                            module: "bar".into(),
-                            attr: "A".into(),
-                        },
-                        TypeHintExpr::Attribute {
-                            module: "foo".into(),
-                            attr: "A.C".into(),
-                        },
-                        TypeHintExpr::Attribute {
-                            module: "foo".into(),
-                            attr: "A.D".into(),
-                        },
-                        TypeHintExpr::Attribute {
-                            module: "foo".into(),
-                            attr: "B".into(),
-                        },
-                        TypeHintExpr::Attribute {
-                            module: "bat".into(),
-                            attr: "A".into(),
-                        },
-                    ],
-                },
+                PythonIdentifier {
+                    module: Some("foo.bar".into()),
+                    name: "A".into(),
+                }
+                .into(),
+                TypeHintExpr::Union(vec![
+                    PythonIdentifier {
+                        module: Some("bar".into()),
+                        name: "A".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: Some("foo".into()),
+                        name: "A.C".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: Some("foo".into()),
+                        name: "A.D".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: Some("foo".into()),
+                        name: "B".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: Some("bat".into()),
+                        name: "A".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: None,
+                        name: "int".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: Some("builtins".into()),
+                        name: "int".into(),
+                    }
+                    .into(),
+                    PythonIdentifier {
+                        module: Some("builtins".into()),
+                        name: "float".into(),
+                    }
+                    .into(),
+                ]),
             ],
         };
         let imports = Imports::create(
@@ -603,8 +680,16 @@ mod tests {
                 modules: Vec::new(),
                 classes: vec![Class {
                     name: "A".into(),
+                    bases: vec![PythonIdentifier {
+                        module: Some("builtins".into()),
+                        name: "dict".into(),
+                    }],
                     methods: Vec::new(),
                     attributes: Vec::new(),
+                    decorators: vec![PythonIdentifier {
+                        module: Some("typing".into()),
+                        name: "final".into(),
+                    }],
                 }],
                 functions: vec![Function {
                     name: String::new(),
@@ -628,11 +713,16 @@ mod tests {
             &[
                 "from _typeshed import Incomplete",
                 "from bat import A as A2",
-                "from foo import A as A3, B"
+                "from builtins import int as int2",
+                "from foo import A as A3, B",
+                "from typing import final"
             ]
         );
         let mut output = String::new();
         imports.serialize_type_hint(&big_type, &mut output);
-        assert_eq!(output, "dict[A, A | A3.C | A3.D | B | A2]");
+        assert_eq!(
+            output,
+            "dict[A, A | A3.C | A3.D | B | A2 | int | int2 | float]"
+        );
     }
 }

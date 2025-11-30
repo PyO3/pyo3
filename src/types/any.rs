@@ -8,7 +8,6 @@ use crate::instance::Bound;
 use crate::internal::get_slot::TP_DESCR_GET;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
-#[cfg(not(any(PyPy, GraalPy)))]
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
 use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py, Python};
@@ -40,9 +39,12 @@ fn PyObject_Check(_: *mut ffi::PyObject) -> c_int {
     1
 }
 
+// We follow stub writing guidelines and use "object" instead of "typing.Any": https://typing.python.org/en/latest/guides/writing_stubs.html#using-any
 pyobject_native_type_info!(
     PyAny,
     pyobject_native_static_type_object!(ffi::PyBaseObject_Type),
+    "typing",
+    "Any",
     Some("builtins"),
     #checkfunction=PyObject_Check
 );
@@ -936,7 +938,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// Return a proxy object that delegates method calls to a parent or sibling class of type.
     ///
     /// This is equivalent to the Python expression `super()`
-    #[cfg(not(any(PyPy, GraalPy)))]
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>>;
 }
 
@@ -1608,7 +1609,6 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         )
     }
 
-    #[cfg(not(any(PyPy, GraalPy)))]
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>> {
         PySuper::new(&self.get_type(), self)
     }

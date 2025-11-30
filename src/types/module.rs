@@ -4,11 +4,13 @@ use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
-    any::PyAnyMethods, list::PyListMethods, PyAny, PyCFunction, PyDict, PyList, PyString,
+    any::PyAnyMethods, list::PyListMethods, string::PyStringMethods, PyAny, PyCFunction, PyDict,
+    PyList, PyString,
 };
 use crate::{
     exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
 };
+use std::borrow::Cow;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use std::ffi::c_int;
 use std::ffi::CStr;
@@ -30,10 +32,11 @@ use std::str;
 #[repr(transparent)]
 pub struct PyModule(PyAny);
 
-pyobject_native_type_core!(PyModule, pyobject_native_static_type_object!(ffi::PyModule_Type), #checkfunction=ffi::PyModule_Check);
+pyobject_native_type_core!(PyModule, pyobject_native_static_type_object!(ffi::PyModule_Type), "types", "ModuleType", #checkfunction=ffi::PyModule_Check);
 
 impl PyModule {
-    /// Creates a new module object with the `__name__` attribute set to `name`.
+    /// Creates a new module object with the `__name__` attribute set to `name`.  When creating
+    /// a submodule pass the full path as the name such as `top_level.name`.
     ///
     /// # Examples
     ///
@@ -57,7 +60,7 @@ impl PyModule {
                 .cast_into_unchecked()
         };
 
-        // By default, PyO3 assumes modules use the GIL for thread safety.
+        // By default, PyO3 assumes modules do not use the GIL for thread safety.
         module.gil_used(false)?;
 
         Ok(module)
@@ -496,7 +499,10 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         T: PyClass,
     {
         let py = self.py();
-        self.add(T::NAME, T::lazy_type_object().get_or_try_init(py)?)
+        self.add(
+            <T as PyClass>::NAME,
+            T::lazy_type_object().get_or_try_init(py)?,
+        )
     }
 
     fn add_wrapped<T>(&self, wrapper: &impl Fn(Python<'py>) -> T) -> PyResult<()>
@@ -514,6 +520,11 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
 
     fn add_submodule(&self, module: &Bound<'_, PyModule>) -> PyResult<()> {
         let name = module.name()?;
+        let name = name.to_cow()?;
+        let name = match name.rsplit_once('.') {
+            Some((_, name)) => Cow::from(name),
+            None => name,
+        };
         self.add(name, module)
     }
 

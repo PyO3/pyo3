@@ -22,7 +22,7 @@ fn handle_windows(test: &str) -> String {
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     "#;
-    pyo3::unindent::unindent(set_event_loop_policy) + &pyo3::unindent::unindent(test)
+    pyo3::impl_::unindent::unindent(set_event_loop_policy) + &pyo3::impl_::unindent::unindent(test)
 }
 
 #[test]
@@ -149,7 +149,7 @@ fn cancelled_coroutine() {
         globals.set_item("sleep", sleep).unwrap();
         let err = py
             .run(
-                &CString::new(pyo3::unindent::unindent(&handle_windows(test))).unwrap(),
+                &CString::new(pyo3::impl_::unindent::unindent(&handle_windows(test))).unwrap(),
                 Some(&globals),
                 None,
             )
@@ -189,7 +189,7 @@ fn coroutine_cancel_handle() {
             .set_item("cancellable_sleep", cancellable_sleep)
             .unwrap();
         py.run(
-            &CString::new(pyo3::unindent::unindent(&handle_windows(test))).unwrap(),
+            &CString::new(pyo3::impl_::unindent::unindent(&handle_windows(test))).unwrap(),
             Some(&globals),
             None,
         )
@@ -219,7 +219,7 @@ fn coroutine_is_cancelled() {
         let globals = PyDict::new(py);
         globals.set_item("sleep_loop", sleep_loop).unwrap();
         py.run(
-            &CString::new(pyo3::unindent::unindent(&handle_windows(test))).unwrap(),
+            &CString::new(pyo3::impl_::unindent::unindent(&handle_windows(test))).unwrap(),
             Some(&globals),
             None,
         )

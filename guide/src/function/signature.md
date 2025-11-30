@@ -114,7 +114,8 @@ num=-1 (was previously=44), py_args=(), name=World, py_kwargs=None
 num=44
 ```
 
-> Note: to use keywords like `struct` as a function argument, use "raw identifier" syntax `r#struct` in both the signature and the function definition:
+> [!NOTE]
+> To use keywords like `struct` as a function argument, use "raw identifier" syntax `r#struct` in both the signature and the function definition:
 >
 > ```rust,no_run
 > # #![allow(dead_code)]

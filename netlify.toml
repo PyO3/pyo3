@@ -1,6 +1,0 @@
-[build]
-publish = "netlify_build/"
-command = ".netlify/build.sh"
-
-[build.environment]
-PYTHON_VERSION = "3.8"

@@ -1,4 +1,7 @@
+use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::TypeHint;
 use crate::instance::Bound;
 #[cfg(Py_3_11)]
 use crate::intern;
@@ -14,17 +17,14 @@ use crate::types::{
 };
 use crate::{exceptions::PyBaseException, ffi};
 use crate::{BoundObject, Py, PyAny, Python};
+use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
+use std::convert::Infallible;
 use std::ffi::CStr;
 
 mod cast_error;
 mod downcast_error;
 mod err_state;
 mod impls;
-
-use crate::conversion::IntoPyObject;
-use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
-use std::convert::Infallible;
-use std::ptr;
 
 pub use cast_error::{CastError, CastIntoError};
 #[allow(deprecated)]
@@ -279,27 +279,29 @@ impl PyErr {
     /// from a C FFI function, use [`PyErr::fetch`].
     pub fn take(py: Python<'_>) -> Option<PyErr> {
         let state = PyErrStateNormalized::take(py)?;
-        let pvalue = state.pvalue.bind(py);
-        if ptr::eq(
-            pvalue.get_type().as_ptr(),
-            PanicException::type_object_raw(py).cast(),
-        ) {
-            let msg: String = pvalue
-                .str()
-                .map(|py_str| py_str.to_string_lossy().into())
-                .unwrap_or_else(|_| String::from("Unwrapped panic from Python code"));
-            Self::print_panic_and_unwind(py, PyErrState::normalized(state), msg)
+
+        if PanicException::is_exact_type_of(state.pvalue.bind(py)) {
+            Self::print_panic_and_unwind(py, state)
         }
 
         Some(PyErr::from_state(PyErrState::normalized(state)))
     }
 
-    fn print_panic_and_unwind(py: Python<'_>, state: PyErrState, msg: String) -> ! {
+    #[cold]
+    fn print_panic_and_unwind(py: Python<'_>, state: PyErrStateNormalized) -> ! {
+        let msg: String = state
+            .pvalue
+            .bind(py)
+            .str()
+            .map(|py_str| py_str.to_string_lossy().into())
+            .unwrap_or_else(|_| String::from("Unwrapped panic from Python code"));
+
         eprintln!("--- PyO3 is resuming a panic after fetching a PanicException from Python. ---");
         eprintln!("Python stack trace below:");
 
-        state.restore(py);
+        PyErrState::normalized(state).restore(py);
 
+        // SAFETY: thread is attached and error was just set in the interpreter
         unsafe {
             ffi::PyErr_PrintEx(0);
         }
@@ -321,14 +323,7 @@ impl PyErr {
     #[cfg_attr(debug_assertions, track_caller)]
     #[inline]
     pub fn fetch(py: Python<'_>) -> PyErr {
-        const FAILED_TO_FETCH: &str = "attempted to fetch exception but none was set";
-        match PyErr::take(py) {
-            Some(err) => err,
-            #[cfg(debug_assertions)]
-            None => panic!("{}", FAILED_TO_FETCH),
-            #[cfg(not(debug_assertions))]
-            None => crate::exceptions::PySystemError::new_err(FAILED_TO_FETCH),
-        }
+        PyErr::take(py).unwrap_or_else(failed_to_fetch)
     }
 
     /// Creates a new exception type with the given name and docstring.
@@ -627,6 +622,19 @@ impl PyErr {
     }
 }
 
+/// Called when `PyErr::fetch` is called but no exception is set.
+#[cold]
+#[cfg_attr(debug_assertions, track_caller)]
+fn failed_to_fetch() -> PyErr {
+    const FAILED_TO_FETCH: &str = "attempted to fetch exception but none was set";
+
+    if cfg!(debug_assertions) {
+        panic!("{}", FAILED_TO_FETCH)
+    } else {
+        crate::exceptions::PySystemError::new_err(FAILED_TO_FETCH)
+    }
+}
+
 impl std::fmt::Debug for PyErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         Python::attach(|py| {
@@ -674,6 +682,9 @@ impl<'py> IntoPyObject<'py> for PyErr {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = PyBaseException::TYPE_HINT;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.into_value(py).into_bound(py))
@@ -684,6 +695,9 @@ impl<'py> IntoPyObject<'py> for &PyErr {
     type Target = PyBaseException;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = PyErr::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
