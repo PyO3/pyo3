@@ -443,9 +443,12 @@ fn get_class_type_hint(cls: &Ident, args: &PyClassArgs, ctx: &Ctx) -> TokenStrea
     let name = get_class_python_name(cls, args).to_string();
     if let Some(module) = &args.options.module {
         let module = module.value.value();
-        quote! { #pyo3_path::inspect::TypeHint::module_attr(#module, #name) }
+        quote! {{
+            const MODULE: #pyo3_path::inspect::PyStaticExpr = #pyo3_path::inspect::PyStaticExpr::module(#module);
+            #pyo3_path::inspect::PyStaticExpr::attribute(&MODULE, #name)
+        }}
     } else {
-        quote! { #pyo3_path::inspect::TypeHint::local(#name) }
+        quote! { #pyo3_path::inspect::PyStaticExpr::local(#name) }
     }
 }
 
@@ -1121,7 +1124,7 @@ fn impl_complex_enum(
                 }
             });
         let output_type = if cfg!(feature = "experimental-inspect") {
-            quote!(const OUTPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
+            quote!(const OUTPUT_TYPE: #pyo3_path::inspect::PyStaticExpr = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
         } else {
             TokenStream::new()
         };
@@ -1954,7 +1957,7 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
     #[cfg(feature = "experimental-inspect")]
     let type_hint = {
         let type_hint = get_class_type_hint(cls, attr, ctx);
-        quote! { const TYPE_HINT: #pyo3_path::inspect::TypeHint = #type_hint; }
+        quote! { const TYPE_HINT: #pyo3_path::inspect::PyStaticExpr = #type_hint; }
     };
     #[cfg(not(feature = "experimental-inspect"))]
     let type_hint = quote! {};
@@ -2346,7 +2349,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         // If #cls is not extended type, we allow Self->PyObject conversion
         if attr.options.extends.is_none() {
             let output_type = if cfg!(feature = "experimental-inspect") {
-                quote!(const OUTPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
+                quote!(const OUTPUT_TYPE: #pyo3_path::inspect::PyStaticExpr = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
             } else {
                 TokenStream::new()
             };
@@ -2533,7 +2536,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             self.attr.options.from_py_object
         {
             let input_type = if cfg!(feature = "experimental-inspect") {
-                quote!(const INPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
+                quote!(const INPUT_TYPE: #pyo3_path::inspect::PyStaticExpr = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
             } else {
                 TokenStream::new()
             };

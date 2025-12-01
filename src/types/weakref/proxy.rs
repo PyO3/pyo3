@@ -27,8 +27,8 @@ unsafe impl PyTypeCheck for PyWeakrefProxy {
 
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = PyStaticExpr::bit_or(
-        &PyStaticExpr::module_attr("weakref", "ProxyType"),
-        &PyStaticExpr::module_attr("weakref", "CallableProxyType"),
+        &PyStaticExpr::attribute(&PyStaticExpr::module("weakref"), "ProxyType"),
+        &PyStaticExpr::attribute(&PyStaticExpr::module("weakref"), "CallableProxyType"),
     );
 
     #[inline]

@@ -28,7 +28,8 @@ unsafe impl PyTypeInfo for PyMapping {
     const MODULE: Option<&'static str> = Some("collections.abc");
 
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: PyStaticExpr = PyStaticExpr::module_attr("collections.abc", "Mapping");
+    const TYPE_HINT: PyStaticExpr =
+        PyStaticExpr::attribute(&PyStaticExpr::module("collections.abc"), "Mapping");
 
     #[inline]
     #[allow(clippy::redundant_closure_call)]

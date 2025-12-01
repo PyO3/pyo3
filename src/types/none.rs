@@ -30,7 +30,7 @@ unsafe impl PyTypeInfo for PyNone {
     const MODULE: Option<&'static str> = None;
 
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: PyStaticExpr = PyStaticExpr::builtin("None");
+    const TYPE_HINT: PyStaticExpr = PyStaticExpr::none();
 
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_None()) }

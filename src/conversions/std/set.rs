@@ -27,7 +27,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(&PySet::TYPE_HINT, &[K::OUTPUT_TYPE]);
+    const OUTPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(&PySet::TYPE_HINT, &K::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         try_new_from_iter(py, self)
@@ -49,7 +49,7 @@ where
     type Error = PyErr;
     #[cfg(feature = "experimental-inspect")]
     const OUTPUT_TYPE: PyStaticExpr =
-        PyStaticExpr::subscript(&PySet::TYPE_HINT, &[<&K>::OUTPUT_TYPE]);
+        PyStaticExpr::subscript(&PySet::TYPE_HINT, &<&K>::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         try_new_from_iter(py, self.iter())
@@ -69,7 +69,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(&PySet::TYPE_HINT, &[K::INPUT_TYPE]);
+    const INPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(&PySet::TYPE_HINT, &K::INPUT_TYPE);
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         match ob.cast::<PySet>() {
@@ -105,7 +105,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(&PySet::TYPE_HINT, &[K::OUTPUT_TYPE]);
+    const OUTPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(&PySet::TYPE_HINT, &K::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         try_new_from_iter(py, self)
@@ -128,7 +128,7 @@ where
 
     #[cfg(feature = "experimental-inspect")]
     const OUTPUT_TYPE: PyStaticExpr =
-        PyStaticExpr::subscript(&PySet::TYPE_HINT, &[<&K>::OUTPUT_TYPE]);
+        PyStaticExpr::subscript(&PySet::TYPE_HINT, &<&K>::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         try_new_from_iter(py, self.iter())
@@ -147,7 +147,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(&PySet::TYPE_HINT, &[K::INPUT_TYPE]);
+    const INPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(&PySet::TYPE_HINT, &K::INPUT_TYPE);
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         match ob.cast::<PySet>() {

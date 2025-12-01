@@ -32,7 +32,8 @@ unsafe impl PyTypeInfo for PyEllipsis {
     const MODULE: Option<&'static str> = None;
 
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: PyStaticExpr = PyStaticExpr::module_attr("types", "EllipsisType");
+    const TYPE_HINT: PyStaticExpr =
+        PyStaticExpr::attribute(&PyStaticExpr::module("types"), "EllipsisType");
 
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_Ellipsis()) }

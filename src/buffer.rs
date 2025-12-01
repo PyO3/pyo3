@@ -202,7 +202,8 @@ impl<T: Element> FromPyObject<'_, '_> for PyBuffer<T> {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyStaticExpr::module_attr("collections.abc", "Buffer");
+    const INPUT_TYPE: PyStaticExpr =
+        PyStaticExpr::attribute(&PyStaticExpr::module("collections.abc"), "Buffer");
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<PyBuffer<T>, Self::Error> {
         Self::get(&obj)

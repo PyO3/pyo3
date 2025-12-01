@@ -14,8 +14,8 @@ impl FromPyObject<'_, '_> for IpAddr {
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = PyStaticExpr::bit_or(
-        &PyStaticExpr::module_attr("ipaddress", "IPv4Address"),
-        &PyStaticExpr::module_attr("ipaddress", "IPv6Address"),
+        &PyStaticExpr::attribute(&PyStaticExpr::module("ipaddress"), "IPv4Address"),
+        &PyStaticExpr::attribute(&PyStaticExpr::module("ipaddress"), "IPv6Address"),
     );
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
@@ -43,7 +43,8 @@ impl<'py> IntoPyObject<'py> for Ipv4Addr {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr = PyStaticExpr::module_attr("ipaddress", "IPv4Address");
+    const OUTPUT_TYPE: PyStaticExpr =
+        PyStaticExpr::attribute(&PyStaticExpr::module("ipaddress"), "IPv4Address");
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static IPV4_ADDRESS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
@@ -73,7 +74,8 @@ impl<'py> IntoPyObject<'py> for Ipv6Addr {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr = PyStaticExpr::module_attr("ipaddress", "IPv6Address");
+    const OUTPUT_TYPE: PyStaticExpr =
+        PyStaticExpr::attribute(&PyStaticExpr::module("ipaddress"), "IPv6Address");
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static IPV6_ADDRESS: PyOnceLock<Py<PyType>> = PyOnceLock::new();

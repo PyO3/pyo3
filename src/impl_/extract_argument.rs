@@ -110,8 +110,7 @@ where
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr =
-        PyStaticExpr::bit_or(&T::INPUT_TYPE, &PyStaticExpr::builtin("None"));
+    const INPUT_TYPE: PyStaticExpr = PyStaticExpr::bit_or(&T::INPUT_TYPE, &PyStaticExpr::none());
 
     #[inline]
     fn extract(

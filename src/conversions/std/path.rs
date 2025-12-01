@@ -15,7 +15,7 @@ impl FromPyObject<'_, '_> for PathBuf {
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = PyStaticExpr::bit_or(
         &OsString::INPUT_TYPE,
-        &PyStaticExpr::module_attr("os", "PathLike"),
+        &PyStaticExpr::attribute(&PyStaticExpr::module("os"), "PathLike"),
     );
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
@@ -31,7 +31,8 @@ impl<'py> IntoPyObject<'py> for &Path {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr = PyStaticExpr::module_attr("pathlib", "Path");
+    const OUTPUT_TYPE: PyStaticExpr =
+        PyStaticExpr::attribute(&PyStaticExpr::module("pathlib"), "Path");
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {

@@ -13,8 +13,7 @@ where
     type Output = Bound<'py, Self::Target>;
     type Error = T::Error;
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr =
-        PyStaticExpr::bit_or(&T::OUTPUT_TYPE, &PyStaticExpr::builtin("None"));
+    const OUTPUT_TYPE: PyStaticExpr = PyStaticExpr::bit_or(&T::OUTPUT_TYPE, &PyStaticExpr::none());
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.map_or_else(
@@ -50,8 +49,7 @@ where
 {
     type Error = T::Error;
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr =
-        PyStaticExpr::bit_or(&T::INPUT_TYPE, &PyStaticExpr::builtin("None"));
+    const INPUT_TYPE: PyStaticExpr = PyStaticExpr::bit_or(&T::INPUT_TYPE, &PyStaticExpr::none());
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if obj.is_none() {

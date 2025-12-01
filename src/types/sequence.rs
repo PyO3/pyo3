@@ -27,7 +27,8 @@ unsafe impl PyTypeInfo for PySequence {
     const MODULE: Option<&'static str> = Some("collections.abc");
 
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: PyStaticExpr = PyStaticExpr::module_attr("collections.abc", "Sequence");
+    const TYPE_HINT: PyStaticExpr =
+        PyStaticExpr::attribute(&PyStaticExpr::module("collections.abc"), "Sequence");
 
     #[inline]
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject {
