@@ -154,7 +154,7 @@ impl PyStaticExpr {
     /// ```
     /// use pyo3::inspect::PyStaticExpr;
     ///
-    /// const T: PyStaticExpr = PyStaticExpr::subscript(&PyStaticExpr::builtin("list"), &PyStaticExpr::builtin("int")));
+    /// const T: PyStaticExpr = PyStaticExpr::subscript(&PyStaticExpr::builtin("list"), &PyStaticExpr::builtin("int"));
     /// assert_eq!(T.to_string(), "list[int");
     /// ```
     pub const fn subscript(value: &'static Self, slice: &'static Self) -> Self {
@@ -343,7 +343,7 @@ pub enum PyStaticConstant {
     // TODO: add Bool(bool), String(&'static str)... (is useful for Literal["foo", "bar"] types)
 }
 
-/// An operator used in [`PyStaticExpr::BinaryOpt`].
+/// An operator used in [`PyStaticExpr::BinOp`].
 #[derive(Clone, Copy)]
 #[non_exhaustive]
 pub enum PyStaticOperator {
