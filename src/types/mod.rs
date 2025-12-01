@@ -152,7 +152,7 @@ macro_rules! pyobject_type_info_type_hint(
 #[macro_export]
 macro_rules! pyobject_type_info_type_hint(
     ($module:expr, $name:expr) => {
-        const TYPE_HINT: $crate::inspect::TypeHint = $crate::inspect::TypeHint::module_attr($module, $name);
+        const TYPE_HINT: $crate::inspect::PyStaticExpr = $crate::inspect::PyStaticExpr::module_attr($module, $name);
     };
 );
 

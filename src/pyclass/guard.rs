@@ -1,6 +1,6 @@
 use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout as _};
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
 use crate::pycell::PyBorrowMutError;
 use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
 use crate::pyclass::boolean_struct::False;
@@ -284,7 +284,7 @@ impl<'a, 'py, T: PyClass> FromPyObject<'a, 'py> for PyClassGuard<'a, T> {
     type Error = PyClassGuardError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
     fn extract(obj: Borrowed<'a, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
         Self::try_from_class_object(
@@ -302,7 +302,7 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for PyClassGuard<'a, T> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -316,7 +316,7 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &PyClassGuard<'a, T> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -692,7 +692,7 @@ impl<'a, 'py, T: PyClass<Frozen = False>> FromPyObject<'a, 'py> for PyClassGuard
     type Error = PyClassGuardMutError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
     fn extract(obj: Borrowed<'a, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
         Self::try_from_class_object(
@@ -710,7 +710,7 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyClassGuardMut<
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -724,7 +724,7 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &PyClassGuardMut
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = T::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {

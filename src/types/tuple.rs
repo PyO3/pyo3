@@ -614,7 +614,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         type Error = PyErr;
 
         #[cfg(feature = "experimental-inspect")]
-        const OUTPUT_TYPE: crate::inspect::TypeHint = crate::inspect::TypeHint::subscript(
+        const OUTPUT_TYPE: crate::inspect::PyStaticExpr = crate::inspect::PyStaticExpr::subscript(
             &PyTuple::TYPE_HINT,
             &[$($T::OUTPUT_TYPE ),+]
         );
@@ -638,7 +638,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         type Error = PyErr;
 
         #[cfg(feature = "experimental-inspect")]
-        const OUTPUT_TYPE: crate::inspect::TypeHint = crate::inspect::TypeHint::subscript(
+        const OUTPUT_TYPE: crate::inspect::PyStaticExpr = crate::inspect::PyStaticExpr::subscript(
             &PyTuple::TYPE_HINT,
             &[$(<&$T>::OUTPUT_TYPE ),+]
         );
@@ -914,7 +914,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         type Error = PyErr;
 
         #[cfg(feature = "experimental-inspect")]
-        const INPUT_TYPE: crate::inspect::TypeHint = crate::inspect::TypeHint::subscript(
+        const INPUT_TYPE: crate::inspect::PyStaticExpr = crate::inspect::PyStaticExpr::subscript(
             &PyTuple::TYPE_HINT,
             &[$($T::INPUT_TYPE ),+]
         );
