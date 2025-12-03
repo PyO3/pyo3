@@ -255,6 +255,22 @@ fn new_impl() {
     });
 }
 
+#[pyclass(new = "from_fields", get_all)]
+struct Point2d(#[pyo3(name = "first")] f64, #[pyo3(name = "second")] f64);
+
+#[test]
+fn new_impl_tuple_struct() {
+    Python::attach(|py| {
+        // python should be able to do AutoNewCls(1, "two", 3.0)
+        let cls = py.get_type::<Point2d>();
+        pyo3::py_run!(
+            py,
+            cls,
+            "inst = cls(0.2, 0.3); assert inst.first == 0.2; assert inst.second == 0.3"
+        );
+    });
+}
+
 macro_rules! test_case {
     ($struct_name: ident, $rule: literal, $field_name: ident, $renamed_field_name: literal, $test_name: ident) => {
         #[pyclass(get_all, set_all, rename_all = $rule)]

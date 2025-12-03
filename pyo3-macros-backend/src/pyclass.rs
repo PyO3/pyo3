@@ -2257,11 +2257,15 @@ fn pyclass_new_impl<'a>(
         );
     }
 
+    let mut tuple_struct: bool = false;
+
     match &options.new {
         Some(opt) => {
             let mut field_idents = vec![];
             let mut field_types = vec![];
             for (idx, field) in fields.enumerate() {
+                tuple_struct = field.ident.is_none();
+
                 field_idents.push(
                     field
                         .ident
@@ -2271,7 +2275,16 @@ fn pyclass_new_impl<'a>(
                 field_types.push(&field.ty);
             }
 
-            let mut new_impl = {
+            let mut new_impl = if tuple_struct {
+                parse_quote_spanned! { opt.span() =>
+                    #[new]
+                    fn __pyo3_generated____new__( #( #field_idents : #field_types ),* ) -> Self {
+                        Self (
+                            #( #field_idents, )*
+                        )
+                    }
+                }
+            } else {
                 parse_quote_spanned! { opt.span() =>
                     #[new]
                     fn __pyo3_generated____new__( #( #field_idents : #field_types ),* ) -> Self {
