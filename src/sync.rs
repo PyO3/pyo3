@@ -540,7 +540,7 @@ impl<T> EnteredCriticalSection<'_, T> {
 /// Acquires the per-object lock for the object `op` that is held
 /// while the closure `f` is executing. The critical section may be temporarily
 /// released and re-acquired if the closure calls back into the interpreter in
-/// a manner that would block.  This is similar to how the GIL can be released
+/// a manner that would block. This is similar to how the GIL can be released
 /// during blocking calls. See the safety notes below for caveats about
 /// releasing critical sections.
 ///
@@ -591,7 +591,7 @@ where
 /// Acquires the per-object lock for the objects `a` and `b` that are held
 /// while the closure `f` is executing. The critical section may be temporarily
 /// released and re-acquired if the closure calls back into the interpreter in
-/// a manner that would block.  This is similar to how the GIL can be released
+/// a manner that would block. This is similar to how the GIL can be released
 /// during blocking calls. See the safety notes below for caveats about
 /// releasing critical sections.
 ///
@@ -641,7 +641,7 @@ where
 ///
 /// Acquires the mutex `mutex` until the closure `f` finishes. The mutex may be
 /// temporarily released and re-acquired if the closure calls back into the
-/// interpreter in a manner that would block.  This is similar to how the GIL
+/// interpreter in a manner that would block. This is similar to how the GIL
 /// can be released during blocking calls. See the safety notes below for
 /// caveats about releasing critical sections.
 ///
@@ -701,7 +701,7 @@ where
 /// Simultaneously acquires the mutexes `m1` and `m2` and holds them
 /// until the closure `f` is finished. The mutexes may be
 /// temporarily released and re-acquired if the closure calls back into the
-/// interpreter in a manner that would block.  This is similar to how the GIL
+/// interpreter in a manner that would block. This is similar to how the GIL
 /// can be released during blocking calls. See the safety notes below for
 /// caveats about releasing critical sections.
 ///
