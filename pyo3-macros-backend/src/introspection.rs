@@ -112,13 +112,7 @@ pub fn function_introspection_code(
             } else {
                 match returns {
                     ReturnType::Default => PythonTypeHint::builtin("None"),
-                    ReturnType::Type(_, ty) => match *ty {
-                        Type::Tuple(t) if t.elems.is_empty() => {
-                            // () is converted to None in return types
-                            PythonTypeHint::builtin("None")
-                        }
-                        ty => PythonTypeHint::from_return_type(ty, parent),
-                    },
+                    ReturnType::Type(_, ty) => PythonTypeHint::from_return_type(*ty, parent),
                 }
                 .into()
             },
