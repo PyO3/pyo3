@@ -1602,6 +1602,8 @@ mod tests {
     fn test_critical_section_mutex2_two_containers() {
         let (m1, m2) = (PyMutex::new(vec![1, 2, 3]), PyMutex::new(vec![4, 5]));
 
+        let (m1_guard, m2_guard) = (m1.lock().unwrap(), m2.lock().unwrap());
+
         std::thread::scope(|s| {
             s.spawn(|| {
                 Python::attach(|py| {
@@ -1625,6 +1627,18 @@ mod tests {
                     })
                 });
             });
+            // the other threads waiting for locks should not block this attach
+            Python::attach(|_| {
+                // On the free-threaded build, the critical sections should have blocked
+                // the other threads from modification.
+                #[cfg(Py_GIL_DISABLED)]
+                {
+                    assert_eq!(&*m1_guard, &[1, 2, 3]);
+                    assert_eq!(&*m2_guard, &[4, 5]);
+                }
+            });
+            drop(m1_guard);
+            drop(m2_guard);
         });
 
         // execution order is not guaranteed, so we need to check both
@@ -1641,8 +1655,8 @@ mod tests {
         let v1 = m1.lock().unwrap();
         let v2 = m2.lock().unwrap();
         assert!(
-            ((*v1).eq(&expected1_vec1) && (*v2).eq(&expected1_vec2))
-                || ((*v1).eq(&expected2_vec1) && (*v2).eq(&expected2_vec2))
+            (&*v1, &*v2) == (&expected1_vec1, &expected1_vec2)
+                || (&*v1, &*v2) == (&expected2_vec1, &expected2_vec2)
         );
     }
 
