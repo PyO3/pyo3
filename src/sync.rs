@@ -676,13 +676,9 @@ where
 /// arbitrary Python code.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section_mutex<'py, 'a, F, R, T>(
-    _py: Python<'py>,
-    mutex: &'a PyMutex<T>,
-    f: F,
-) -> R
+pub fn with_critical_section_mutex<F, R, T>(_py: Python<'_>, mutex: &PyMutex<T>, f: F) -> R
 where
-    F: FnOnce(EnteredCriticalSection<'a, T>) -> R,
+    F: for<'s> FnOnce(EnteredCriticalSection<'s, T>) -> R,
 {
     #[cfg(Py_GIL_DISABLED)]
     {
@@ -731,14 +727,14 @@ where
 /// arbitrary Python code.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section_mutex2<'py, 'a, F, R, T1, T2>(
-    _py: Python<'py>,
-    m1: &'a PyMutex<T1>,
-    m2: &'a PyMutex<T2>,
+pub fn with_critical_section_mutex2<F, R, T1, T2>(
+    _py: Python<'_>,
+    m1: &PyMutex<T1>,
+    m2: &PyMutex<T2>,
     f: F,
 ) -> R
 where
-    F: FnOnce(EnteredCriticalSection<'a, T1>, EnteredCriticalSection<'a, T2>) -> R,
+    F: for<'s> FnOnce(EnteredCriticalSection<'s, T1>, EnteredCriticalSection<'s, T2>) -> R,
 {
     #[cfg(Py_GIL_DISABLED)]
     {
