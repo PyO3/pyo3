@@ -656,6 +656,8 @@ where
 /// analogous manner to the GIL without introducing any deadlock risks or
 /// affecting runtime behavior on the GIL-enabled build.
 ///
+/// Only available on Python 3.14 and newer.
+///
 /// # Safety
 ///
 /// Provides weaker locking guarantees than traditional locks, but can in some
@@ -672,8 +674,6 @@ where
 /// operations on Python objects may call back into the interpreter in a
 /// blocking manner because many C API calls can trigger the execution of
 /// arbitrary Python code.
-///
-/// Only available on Python 3.14 and newer.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
 pub fn with_critical_section_mutex<'py, 'a, F, R, T>(
@@ -711,6 +711,8 @@ where
 /// A no-op on GIL-enabled builds, where the critical section API is exposed as
 /// a no-op by the Python C API.
 ///
+/// Only available on Python 3.14 and newer.
+///
 /// # Safety
 ///
 /// Provides weaker locking guarantees than traditional locks, but can in some
@@ -727,8 +729,6 @@ where
 /// operations on Python objects may call back into the interpreter in a
 /// blocking manner because many C API calls can trigger the execution of
 /// arbitrary Python code.
-///
-/// Only available on Python 3.14 and newer.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
 pub fn with_critical_section_mutex2<'py, 'a, F, R, T1, T2>(
