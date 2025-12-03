@@ -181,6 +181,20 @@ help: consider annotating `StructFromPyObjectNoClone` with `#[derive(Clone)]`
 192 | struct StructFromPyObjectNoClone {
     |
 
+error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
+   --> tests/ui/invalid_pyclass_args.rs:205:12
+    |
+205 |     field: Box<dyn std::error::Error + Send + Sync>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyFunctionArgument<'_, '_, '_, false>` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
+    |
+    = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
+    = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
+    = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
+              `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, '_, 'py, false>`
+              `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
+              `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
+              `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:37:1
    |
@@ -400,3 +414,84 @@ warning: use of deprecated associated constant `pyo3::impl_::deprecated::HasAuto
     |
     = note: `#[warn(deprecated)]` on by default
     = note: this warning originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
+   --> tests/ui/invalid_pyclass_args.rs:205:12
+    |
+205 |     field: Box<dyn std::error::Error + Send + Sync>,
+    |            ^^^ the trait `PyClass` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
+    |
+    = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
+    = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
+    = help: the following other types implement trait `PyClass`:
+              Coord
+              Coord2
+              Coord3
+              EqOptAndManualRichCmp
+              EqOptRequiresEq
+              HashOptAndManualHash
+              HashOptRequiresHash
+              NonPythonField
+            and $N others
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `PyFunctionArgument<'_, '_, '_, true>`
+note: required by a bound in `extract_argument`
+   --> src/impl_/extract_argument.rs
+    |
+    | pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+    |        ---------------- required by a bound in this function
+...
+    |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+
+error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
+   --> tests/ui/invalid_pyclass_args.rs:205:12
+    |
+205 |     field: Box<dyn std::error::Error + Send + Sync>,
+    |            ^^^ the trait `ExtractPyClassWithClone` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
+    |
+    = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
+    = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
+    = help: the following other types implement trait `ExtractPyClassWithClone`:
+              Coord
+              Coord2
+              Coord3
+              EqOptAndManualRichCmp
+              EqOptRequiresEq
+              HashOptAndManualHash
+              HashOptRequiresHash
+              NonPythonField
+            and $N others
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `PyFunctionArgument<'_, '_, '_, true>`
+note: required by a bound in `extract_argument`
+   --> src/impl_/extract_argument.rs
+    |
+    | pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+    |        ---------------- required by a bound in this function
+...
+    |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+
+error[E0277]: the trait bound `dyn std::error::Error + Send + Sync: Clone` is not satisfied
+   --> tests/ui/invalid_pyclass_args.rs:205:12
+    |
+205 |     field: Box<dyn std::error::Error + Send + Sync>,
+    |            ^^^ the trait `Clone` is not implemented for `dyn std::error::Error + Send + Sync`
+    |
+    = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
+              `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, '_, 'py, false>`
+              `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
+              `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
+              `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `Clone`
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `PyFunctionArgument<'_, '_, '_, true>`
+note: required by a bound in `extract_argument`
+   --> src/impl_/extract_argument.rs
+    |
+    | pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+    |        ---------------- required by a bound in this function
+...
+    |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`

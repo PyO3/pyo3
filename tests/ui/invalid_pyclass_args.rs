@@ -200,4 +200,9 @@ struct StructImplicitFromPyObjectDeprecated {
     b: String,
 }
 
+#[pyclass(new = "from_fields")]
+struct NonPythonField {
+    field: Box<dyn std::error::Error + Send + Sync>,
+}
+
 fn main() {}
