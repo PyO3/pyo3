@@ -445,6 +445,9 @@ mod version;
 )]
 pub use crate::conversions::*;
 
+#[cfg(all(feature = "experimental-inspect", feature = "macros"))]
+#[doc(hidden)]
+pub use pyo3_macros::implement_class_introspection;
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{
     pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef,
