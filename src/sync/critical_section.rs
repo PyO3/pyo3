@@ -43,7 +43,7 @@ use crate::types::PyMutex;
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use crate::Python;
 use crate::{types::PyAny, Bound};
-#[cfg(any(Py_3_14, not(Py_LIMITED_API)))]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use std::cell::UnsafeCell;
 
 #[cfg(Py_GIL_DISABLED)]
@@ -75,10 +75,10 @@ impl Drop for CS2Guard {
 /// Used with the `with_critical_section_mutex` and
 /// `with_critical_section_mutex2` functions. See the documentation of those
 /// functions for more details.
-#[cfg(any(Py_3_14, Py_GIL_DISABLED))]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 pub struct EnteredCriticalSection<'a, T>(&'a UnsafeCell<T>);
 
-#[cfg(any(Py_3_14, Py_GIL_DISABLED))]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 impl<T> EnteredCriticalSection<'_, T> {
     /// Get a mutable reference to the data wrapped by a PyMutex
     ///
