@@ -278,6 +278,7 @@ mod tests {
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
     use crate::types::PyMutex;
     #[cfg(feature = "macros")]
+    #[cfg(not(target_arch = "wasm32"))]
     use std::sync::atomic::{AtomicBool, Ordering};
     #[cfg(not(target_arch = "wasm32"))]
     #[cfg(any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14)))]
