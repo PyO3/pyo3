@@ -40,7 +40,10 @@
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use crate::types::PyMutex;
 
-use crate::{types::PyAny, Bound, Python};
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+use crate::Python;
+use crate::{types::PyAny, Bound};
+#[cfg(any(Py_3_14, not(Py_LIMITED_API)))]
 use std::cell::UnsafeCell;
 
 #[cfg(Py_GIL_DISABLED)]
@@ -265,8 +268,15 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "macros")]
+    use super::{with_critical_section, with_critical_section2};
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+    use super::{with_critical_section_mutex, with_critical_section_mutex2};
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+    use crate::types::PyMutex;
     #[cfg(feature = "macros")]
     use std::sync::atomic::{AtomicBool, Ordering};
     #[cfg(not(target_arch = "wasm32"))]
@@ -276,6 +286,9 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
     use crate::Py;
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14)))]
+    use crate::Python;
 
     #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
