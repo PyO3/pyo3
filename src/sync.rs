@@ -941,7 +941,7 @@ mod tests {
     #[cfg(feature = "macros")]
     use std::sync::atomic::{AtomicBool, Ordering};
     #[cfg(not(target_arch = "wasm32"))]
-    #[cfg(any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14)))]
+    #[cfg(feature = "macros")]
     use std::sync::Barrier;
     #[cfg(not(target_arch = "wasm32"))]
     use std::sync::Mutex;
