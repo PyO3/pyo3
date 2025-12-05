@@ -11,7 +11,7 @@
 use crate::method::{FnArg, RegularArg};
 use crate::pyfunction::FunctionSignature;
 use crate::type_hint::PythonTypeHint;
-use crate::utils::PyO3CratePath;
+use crate::utils::{expr_to_python, PyO3CratePath};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
@@ -291,10 +291,10 @@ fn argument_introspection_data<'a>(
     class_type: Option<&Type>,
 ) -> AttributedIntrospectionNode<'a> {
     let mut params: HashMap<_, _> = [("name", IntrospectionNode::String(name.into()))].into();
-    if desc.default_value.is_some() {
+    if let Some(expr) = &desc.default_value {
         params.insert(
             "default",
-            IntrospectionNode::String(desc.default_value().into()),
+            IntrospectionNode::String(expr_to_python(expr).into()),
         );
     }
 

@@ -324,11 +324,9 @@ impl ParseState {
         match self {
             ParseState::Positional | ParseState::PositionalAfterPosargs => {
                 signature.positional_parameters.push(name);
-                if default_value.is_some() {
-                    signature
-                        .default_positional_parameters
-                        .push(default_value.unwrap());
-                    // Now all subsequent positional parameters are optional
+                if let Some(default_value) = default_value {
+                    signature.default_positional_parameters.push(default_value);
+                    // Now all subsequent positional parameters must also have defaults
                 } else if !signature.default_positional_parameters.is_empty() {
                     bail_spanned!(span => "cannot have required positional parameter after an optional parameter")
                 }
