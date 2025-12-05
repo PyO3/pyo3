@@ -193,7 +193,6 @@ error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Pyt
               `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, '_, 'py, false>`
               `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
               `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
-              `&'holder str` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
               `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
 
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
@@ -484,7 +483,6 @@ error[E0277]: the trait bound `dyn std::error::Error + Send + Sync: Clone` is no
               `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, '_, 'py, false>`
               `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
               `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
-              `&'holder str` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
               `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `Clone`
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
