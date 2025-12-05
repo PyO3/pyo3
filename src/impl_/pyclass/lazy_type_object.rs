@@ -67,7 +67,7 @@ impl<T: PyClass> LazyTypeObject<T> {
             py,
             <T::BaseType as PyTypeInfo>::type_object_raw,
             create_type_object::<T>,
-            T::NAME,
+            <T as PyClass>::NAME,
             T::items_iter(),
         )
     }
