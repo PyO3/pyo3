@@ -63,6 +63,14 @@ fn test_trailing_optional_no_signature() {
 
         py_assert!(py, f, "f(1, 2) == 'x=1 y=Some(2)'");
         py_assert!(py, f, "f(2, None) == 'x=2 y=None'");
+
+        py_expect_exception!(
+            py,
+            f,
+            "f(3)",
+            PyTypeError,
+            "trailing_optional() missing 1 required positional argument: 'y'"
+        );
     });
 }
 
