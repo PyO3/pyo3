@@ -1,5 +1,6 @@
 use crate::conversion::IntoPyObject;
 use crate::inspect::TypeHint;
+use crate::pyclass::boolean_struct::{private::Boolean, False, True};
 use std::marker::PhantomData;
 use std::ops::Deref;
 
@@ -23,26 +24,10 @@ impl<T: PyReturnType, E> PyReturnType for Result<T, E> {
 ///
 /// Inspiration: <https://github.com/GoldsteinE/gh-blog/blob/master/const_deref_specialization/src/lib.md>
 /// TL;DR: with closure we can get the compiler to return us the output type of the usual deref-based specialization
-pub const fn is_empty_tuple_from_closure<B: IsEmptyTuple>(
+pub const fn is_empty_tuple_from_closure<B: Boolean>(
     _closure_returning_bool: &impl FnOnce() -> B,
 ) -> bool {
     B::VALUE
-}
-
-pub trait IsEmptyTuple {
-    const VALUE: bool;
-}
-
-pub struct IsEmptyTupleFalse;
-
-impl IsEmptyTuple for IsEmptyTupleFalse {
-    const VALUE: bool = false;
-}
-
-pub struct IsEmptyTupleTrue;
-
-impl IsEmptyTuple for IsEmptyTupleTrue {
-    const VALUE: bool = true;
 }
 
 pub struct IsEmptyTupleChecker<T> {
@@ -59,21 +44,21 @@ impl<T> IsEmptyTupleChecker<T> {
 }
 
 impl IsEmptyTupleChecker<()> {
-    pub fn check(&self) -> IsEmptyTupleTrue {
-        IsEmptyTupleTrue
+    pub fn check(&self) -> True {
+        True
     }
 }
 
 impl<E> IsEmptyTupleChecker<Result<(), E>> {
-    pub fn check(&self) -> IsEmptyTupleTrue {
-        IsEmptyTupleTrue
+    pub fn check(&self) -> True {
+        True
     }
 }
 
 impl<T> Deref for IsEmptyTupleChecker<T> {
     type Target = IsEmptyTupleCheckerFalse;
 
-    fn deref(&self) -> &Self::Target {
+    fn deref(&self) -> &IsEmptyTupleCheckerFalse {
         &IsEmptyTupleCheckerFalse
     }
 }
@@ -81,8 +66,8 @@ impl<T> Deref for IsEmptyTupleChecker<T> {
 pub struct IsEmptyTupleCheckerFalse;
 
 impl IsEmptyTupleCheckerFalse {
-    pub fn check(&self) -> IsEmptyTupleFalse {
-        IsEmptyTupleFalse
+    pub fn check(&self) -> False {
+        False
     }
 }
 
