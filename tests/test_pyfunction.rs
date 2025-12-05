@@ -48,6 +48,32 @@ fn test_optional_bool() {
     });
 }
 
+#[test]
+fn test_trailing_optional_no_signature() {
+    // Since PyO3 0.24, trailing optional arguments are treated like any other required argument
+    // (previously would get an implicit default of `None`)
+
+    #[pyfunction]
+    fn trailing_optional(x: i32, y: Option<i32>) -> String {
+        format!("x={x:?} y={y:?}")
+    }
+
+    Python::attach(|py| {
+        let f = wrap_pyfunction!(trailing_optional)(py).unwrap();
+
+        py_assert!(py, f, "f(1, 2) == 'x=1 y=Some(2)'");
+        py_assert!(py, f, "f(2, None) == 'x=2 y=None'");
+
+        py_expect_exception!(
+            py,
+            f,
+            "f(3)",
+            PyTypeError,
+            "trailing_optional() missing 1 required positional argument: 'y'"
+        );
+    });
+}
+
 #[pyfunction]
 #[pyo3(signature=(arg))]
 fn required_optional_str(arg: Option<&str>) -> &str {
@@ -582,7 +608,10 @@ fn test_return_value_borrows_from_arguments() {
 
 #[test]
 fn test_some_wrap_arguments() {
-    // https://github.com/PyO3/pyo3/issues/3460
+    // Option<T> arguments get special treatment in pyfunction default values where it's
+    // valid to pass the inner type without wrapping in `Some()`.
+    //
+    // See also https://github.com/PyO3/pyo3/issues/3460
     const NONE: Option<u8> = None;
     #[pyfunction(signature = (a = 1, b = Some(2), c = None, d = NONE))]
     fn some_wrap_arguments(

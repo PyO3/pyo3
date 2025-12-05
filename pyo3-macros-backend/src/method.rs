@@ -9,7 +9,7 @@ use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::pyversions::is_abi3_before;
-use crate::utils::{expr_to_python, Ctx};
+use crate::utils::Ctx;
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     params::{impl_arg_params, Holders},
@@ -29,28 +29,6 @@ pub struct RegularArg<'a> {
     pub option_wrapped_type: Option<&'a syn::Type>,
     #[cfg(feature = "experimental-inspect")]
     pub annotation: Option<String>,
-}
-
-impl RegularArg<'_> {
-    pub fn default_value(&self) -> String {
-        if let Self {
-            default_value: Some(arg_default),
-            ..
-        } = self
-        {
-            expr_to_python(arg_default)
-        } else if let RegularArg {
-            option_wrapped_type: Some(..),
-            ..
-        } = self
-        {
-            // functions without a `#[pyo3(signature = (...))]` option
-            // will treat trailing `Option<T>` arguments as having a default of `None`
-            "None".to_string()
-        } else {
-            "...".to_string()
-        }
-    }
 }
 
 /// Pythons *args argument
@@ -218,14 +196,6 @@ impl<'a> FnArg<'a> {
                     annotation: None,
                 }))
             }
-        }
-    }
-
-    pub fn default_value(&self) -> String {
-        if let Self::Regular(args) = self {
-            args.default_value()
-        } else {
-            "...".to_string()
         }
     }
 }
