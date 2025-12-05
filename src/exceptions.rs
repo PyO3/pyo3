@@ -703,6 +703,11 @@ impl_windows_native_exception!(
     native_doc!("WindowsError")
 );
 
+pub(crate) struct Utf8ErrorWithBytes {
+    pub(crate) err: std::str::Utf8Error,
+    pub(crate) bytes: Vec<u8>,
+}
+
 impl PyUnicodeDecodeError {
     /// Creates a Python `UnicodeDecodeError`.
     pub fn new<'py>(
@@ -754,8 +759,30 @@ impl PyUnicodeDecodeError {
         input: &[u8],
         err: std::str::Utf8Error,
     ) -> PyResult<Bound<'py, PyUnicodeDecodeError>> {
-        let pos = err.valid_up_to();
-        PyUnicodeDecodeError::new(py, c"utf-8", input, pos..(pos + 1), c"invalid utf-8")
+        let start = err.valid_up_to();
+        let end = err.error_len().map_or(input.len(), |l| start + l);
+        PyUnicodeDecodeError::new(py, c"utf-8", input, start..end, c"invalid utf-8")
+    }
+
+    /// Create a new [`crate::PyErr`] of this type from a Rust UTF-8 decoding error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use pyo3::prelude::*;
+    /// use pyo3::exceptions::PyUnicodeDecodeError;
+    ///
+    /// let invalid_utf8 = b"fo\xd8o";
+    /// # #[expect(invalid_from_utf8)]
+    /// let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
+    /// let py_err = PyUnicodeDecodeError::new_err_from_utf8(invalid_utf8, err);
+    /// ```
+    pub fn new_err_from_utf8(bytes: &[u8], err: std::str::Utf8Error) -> crate::PyErr {
+        Utf8ErrorWithBytes {
+            err,
+            bytes: bytes.to_vec(),
+        }
+        .into()
     }
 }
 

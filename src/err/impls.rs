@@ -1,4 +1,4 @@
-use crate::{err::PyErrArguments, exceptions, PyErr, Python};
+use crate::{err::PyErrArguments, exceptions, types, PyErr, Python};
 use crate::{IntoPyObject, Py, PyAny};
 use std::io;
 
@@ -118,23 +118,70 @@ macro_rules! impl_to_pyerr {
     };
 }
 
+impl PyErrArguments for exceptions::Utf8ErrorWithBytes {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
+        let Self { err, bytes } = self;
+        let start = err.valid_up_to();
+        let end = err.error_len().map_or(bytes.len(), |l| start + l);
+
+        let encoding = types::PyString::new(py, "utf-8").into_any();
+        let bytes = types::PyBytes::new(py, &bytes).into_any();
+        let start = types::PyInt::new(py, start).into_any();
+        let end = types::PyInt::new(py, end).into_any();
+        let reason = types::PyString::new(py, "invalid utf-8").into_any();
+
+        // FIXME(icxolu) remove unwrap
+        types::PyTuple::new(py, &[encoding, bytes, start, end, reason])
+            .unwrap()
+            .into_any()
+            .unbind()
+    }
+}
+
+impl std::convert::From<exceptions::Utf8ErrorWithBytes> for PyErr {
+    fn from(err: exceptions::Utf8ErrorWithBytes) -> PyErr {
+        exceptions::PyUnicodeDecodeError::new_err(err)
+    }
+}
+
+impl PyErrArguments for std::string::FromUtf8Error {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
+        exceptions::Utf8ErrorWithBytes {
+            err: self.utf8_error(),
+            bytes: self.into_bytes(),
+        }
+        .arguments(py)
+    }
+}
+
+impl std::convert::From<std::string::FromUtf8Error> for PyErr {
+    fn from(err: std::string::FromUtf8Error) -> PyErr {
+        exceptions::PyUnicodeDecodeError::new_err(err)
+    }
+}
+
+impl PyErrArguments for std::ffi::IntoStringError {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
+        exceptions::Utf8ErrorWithBytes {
+            err: self.utf8_error(),
+            bytes: self.into_cstring().into_bytes(),
+        }
+        .arguments(py)
+    }
+}
+
+impl std::convert::From<std::ffi::IntoStringError> for PyErr {
+    fn from(err: std::ffi::IntoStringError) -> PyErr {
+        exceptions::PyUnicodeDecodeError::new_err(err)
+    }
+}
+
 impl_to_pyerr!(std::array::TryFromSliceError, exceptions::PyValueError);
 impl_to_pyerr!(std::num::ParseIntError, exceptions::PyValueError);
 impl_to_pyerr!(std::num::ParseFloatError, exceptions::PyValueError);
 impl_to_pyerr!(std::num::TryFromIntError, exceptions::PyValueError);
 impl_to_pyerr!(std::str::ParseBoolError, exceptions::PyValueError);
-impl_to_pyerr!(std::ffi::IntoStringError, exceptions::PyUnicodeDecodeError);
 impl_to_pyerr!(std::ffi::NulError, exceptions::PyValueError);
-impl_to_pyerr!(std::str::Utf8Error, exceptions::PyUnicodeDecodeError);
-impl_to_pyerr!(std::string::FromUtf8Error, exceptions::PyUnicodeDecodeError);
-impl_to_pyerr!(
-    std::string::FromUtf16Error,
-    exceptions::PyUnicodeDecodeError
-);
-impl_to_pyerr!(
-    std::char::DecodeUtf16Error,
-    exceptions::PyUnicodeDecodeError
-);
 impl_to_pyerr!(std::net::AddrParseError, exceptions::PyValueError);
 
 #[cfg(test)]
