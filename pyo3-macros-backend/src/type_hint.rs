@@ -121,13 +121,16 @@ impl PythonTypeHint {
     pub fn to_introspection_token_stream(&self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
         match &self.0 {
             PythonTypeHintVariant::Local(name) => {
-                quote! { #pyo3_crate_path::inspect::TypeHint::local(#name) }
+                quote! { #pyo3_crate_path::inspect::PyStaticExpr::local(#name) }
             }
             PythonTypeHintVariant::ModuleAttribute { module, attr } => {
                 if module == "builtins" {
-                    quote! { #pyo3_crate_path::inspect::TypeHint::builtin(#attr) }
+                    quote! { #pyo3_crate_path::inspect::PyStaticExpr::builtin(#attr) }
                 } else {
-                    quote! { #pyo3_crate_path::inspect::TypeHint::module_attr(#module, #attr) }
+                    quote! {{
+                        const MODULE: #pyo3_crate_path::inspect::PyStaticExpr = #pyo3_crate_path::inspect::PyStaticExpr::module(#module);
+                        #pyo3_crate_path::inspect::PyStaticExpr::attribute(&MODULE, #attr)
+                    }}
                 }
             }
             PythonTypeHintVariant::FromPyObject(t) => {
@@ -154,17 +157,23 @@ impl PythonTypeHint {
                 quote! { <#t as #pyo3_crate_path::type_object::PyTypeCheck>::TYPE_HINT }
             }
             PythonTypeHintVariant::Union(elements) => {
-                let elements = elements
+                elements
                     .iter()
-                    .map(|elt| elt.to_introspection_token_stream(pyo3_crate_path));
-                quote! { #pyo3_crate_path::inspect::TypeHint::union(&[#(#elements),*]) }
+                    .map(|elt| elt.to_introspection_token_stream(pyo3_crate_path))
+                    .reduce(|left, right| quote! { #pyo3_crate_path::inspect::PyStaticExpr::bit_or(&#left, &#right) })
+                    .expect("unions must not be empty")
             }
             PythonTypeHintVariant::Subscript { value, slice } => {
                 let value = value.to_introspection_token_stream(pyo3_crate_path);
-                let slice = slice
-                    .iter()
-                    .map(|elt| elt.to_introspection_token_stream(pyo3_crate_path));
-                quote! { #pyo3_crate_path::inspect::TypeHint::subscript(&#value, &[#(#slice),*]) }
+                let slice = if slice.len() == 1 {
+                    slice[0].to_introspection_token_stream(pyo3_crate_path)
+                } else {
+                    let elts = slice
+                        .iter()
+                        .map(|elt| elt.to_introspection_token_stream(pyo3_crate_path));
+                    quote! { #pyo3_crate_path::inspect::PyStaticExpr::tuple(&[#(#elts),*]) }
+                };
+                quote! { #pyo3_crate_path::inspect::PyStaticExpr::subscript(&#value, &#slice) }
             }
         }
     }

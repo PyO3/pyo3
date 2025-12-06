@@ -3,7 +3,7 @@ use std::borrow::Cow;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
@@ -21,7 +21,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = <&T>::SEQUENCE_OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = <&T>::SEQUENCE_OUTPUT_TYPE;
 
     /// Turns [`&[u8]`](std::slice) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///
@@ -45,7 +45,7 @@ impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for &'a [u8] {
     type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyBytes::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyBytes::TYPE_HINT;
 
     fn extract(obj: crate::Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         Ok(obj.cast::<PyBytes>()?.as_bytes())
@@ -66,7 +66,8 @@ impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for Cow<'a, [u8]> {
     type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::union(&[PyBytes::TYPE_HINT, PyByteArray::TYPE_HINT]);
+    const INPUT_TYPE: PyStaticExpr =
+        PyStaticExpr::bit_or(&PyBytes::TYPE_HINT, &PyByteArray::TYPE_HINT);
 
     fn extract(ob: crate::Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(bytes) = ob.cast::<PyBytes>() {
@@ -93,7 +94,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = <&T>::SEQUENCE_OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = <&T>::SEQUENCE_OUTPUT_TYPE;
 
     /// Turns `Cow<[u8]>` into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///

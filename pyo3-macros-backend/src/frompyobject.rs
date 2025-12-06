@@ -577,7 +577,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
             PythonTypeHint::module_attr("_typeshed", "Incomplete")
         }
         .to_introspection_token_stream(pyo3_crate_path);
-        quote! { const INPUT_TYPE: #pyo3_crate_path::inspect::TypeHint = #input_type; }
+        quote! { const INPUT_TYPE: #pyo3_crate_path::inspect::PyStaticExpr = #input_type; }
     };
     #[cfg(not(feature = "experimental-inspect"))]
     let input_type = quote! {};
