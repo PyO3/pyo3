@@ -230,8 +230,27 @@ macro_rules! create_exception_type_object {
                 ).as_ptr() as *mut $crate::ffi::PyTypeObject
             }
         }
+
+        $crate::create_exception_introspection_data!($name, $base);
     };
 }
+
+/// Adds some introspection data for the exception if the `experimental-inspect` feature is enabled.
+#[cfg(not(feature = "experimental-inspect"))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! create_exception_introspection_data(
+    ($name: ident, $base: ty) => {};
+);
+
+#[cfg(all(feature = "experimental-inspect", feature = "macros"))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! create_exception_introspection_data(
+    ($name: ident, $base: ty) => {
+        $crate::implement_class_introspection!($crate, $name, $base);
+    };
+);
 
 macro_rules! impl_native_exception (
     ($name:ident, $exc_name:ident, $python_name:expr, $doc:expr, $layout:path $(, #checkfunction=$checkfunction:path)?) => (

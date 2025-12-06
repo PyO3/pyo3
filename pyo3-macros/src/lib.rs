@@ -159,32 +159,25 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_derive(IntoPyObject, attributes(pyo3))]
 pub fn derive_into_py_object(item: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(item as syn::DeriveInput);
-    let expanded = build_derive_into_pyobject::<false>(&ast).unwrap_or_compile_error();
-    quote!(
-        #expanded
-    )
-    .into()
+    build_derive_into_pyobject::<false>(&ast)
+        .unwrap_or_compile_error()
+        .into()
 }
 
 #[proc_macro_derive(IntoPyObjectRef, attributes(pyo3))]
 pub fn derive_into_py_object_ref(item: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(item as syn::DeriveInput);
-    let expanded =
-        pyo3_macros_backend::build_derive_into_pyobject::<true>(&ast).unwrap_or_compile_error();
-    quote!(
-        #expanded
-    )
-    .into()
+    build_derive_into_pyobject::<true>(&ast)
+        .unwrap_or_compile_error()
+        .into()
 }
 
 #[proc_macro_derive(FromPyObject, attributes(pyo3))]
 pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(item as syn::DeriveInput);
-    let expanded = build_derive_from_pyobject(&ast).unwrap_or_compile_error();
-    quote!(
-        #expanded
-    )
-    .into()
+    build_derive_from_pyobject(&ast)
+        .unwrap_or_compile_error()
+        .into()
 }
 
 fn pyclass_impl(
@@ -253,4 +246,12 @@ impl UnwrapOrCompileError for syn::Result<TokenStream2> {
     fn unwrap_or_compile_error(self) -> TokenStream2 {
         self.unwrap_or_else(|e| e.into_compile_error())
     }
+}
+
+#[cfg(feature = "experimental-inspect")]
+#[doc(hidden)]
+#[proc_macro]
+pub fn implement_class_introspection(args: TokenStream) -> TokenStream {
+    let options = parse_macro_input!(args as pyo3_macros_backend::ClassIntrospectionOptions);
+    pyo3_macros_backend::implement_class_introspection(options).into()
 }

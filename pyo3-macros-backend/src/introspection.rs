@@ -20,9 +20,47 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::{Attribute, Ident, ReturnType, Type, TypePath};
+use syn::ext::IdentExt;
+use syn::parse::{Parse, ParseStream};
+use syn::{Attribute, Ident, Path, ReturnType, Token, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
+
+/// Entry point to implement introspection on exceptions
+pub fn implement_class_introspection(options: ClassIntrospectionOptions) -> TokenStream {
+    class_introspection_code(
+        &PyO3CratePath::Given(options.pyo3_class_path),
+        &options.name,
+        &options.name.unraw().to_string(),
+        options.base.map(|t| PythonTypeHint::from_type(t, None)),
+        false,
+    )
+}
+
+pub struct ClassIntrospectionOptions {
+    pub pyo3_class_path: Path,
+    pub name: Ident,
+    pub base: Option<Type>,
+}
+
+impl Parse for ClassIntrospectionOptions {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let pyo3_class_path = input.parse()?;
+        let _: Token![,] = input.parse()?;
+        let name = input.parse()?;
+        let base = if input.peek(Token![,]) {
+            let _: Token![,] = input.parse()?;
+            Some(input.parse()?)
+        } else {
+            None
+        };
+        Ok(Self {
+            pyo3_class_path,
+            name,
+            base,
+        })
+    }
+}
 
 pub fn module_introspection_code<'a>(
     pyo3_crate_path: &PyO3CratePath,
