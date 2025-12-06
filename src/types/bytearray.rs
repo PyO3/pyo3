@@ -2,7 +2,7 @@ use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
-use crate::sync::with_critical_section;
+use crate::sync::critical_section::with_critical_section;
 use crate::{ffi, PyAny, Python};
 use std::slice;
 

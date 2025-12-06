@@ -427,7 +427,9 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     where
         F: Fn(Bound<'py, PyAny>) -> PyResult<()>,
     {
-        crate::sync::with_critical_section(self, || self.iter().try_for_each(closure))
+        crate::sync::critical_section::with_critical_section(self, || {
+            self.iter().try_for_each(closure)
+        })
     }
 
     /// Sorts the list in-place. Equivalent to the Python expression `l.sort()`.
@@ -626,7 +628,7 @@ impl<'py> BoundListIterator<'py> {
             length,
             list,
         } = self;
-        crate::sync::with_critical_section(list, || f(index, length, list))
+        crate::sync::critical_section::with_critical_section(list, || f(index, length, list))
     }
 }
 

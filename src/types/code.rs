@@ -114,7 +114,7 @@ impl<'py> PyCodeMethods<'py> for Bound<'py, PyCode> {
         let builtins_s = crate::intern!(self.py(), "__builtins__");
         let has_builtins = globals.contains(builtins_s)?;
         if !has_builtins {
-            crate::sync::with_critical_section(globals, || {
+            crate::sync::critical_section::with_critical_section(globals, || {
                 // check if another thread set __builtins__ while this thread was blocked on the critical section
                 let has_builtins = globals.contains(builtins_s)?;
                 if !has_builtins {
