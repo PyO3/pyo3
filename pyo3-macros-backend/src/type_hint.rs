@@ -148,7 +148,17 @@ impl PythonTypeHint {
                 }
             }
             PythonTypeHintVariant::ReturnType(t) => {
-                quote! { <#t as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE }
+                // Use https://github.com/GoldsteinE/gh-blog/blob/master/const_deref_specialization/src/lib.md to detect empty tuple
+                quote! {{
+                    const TYPE: #pyo3_crate_path::inspect::TypeHint = if #pyo3_crate_path::impl_::introspection::is_empty_tuple_from_closure(&|| {
+                        #pyo3_crate_path::impl_::introspection::IsEmptyTupleChecker::<#t>::new().check()
+                    }) {
+                        #pyo3_crate_path::inspect::TypeHint::builtin("None")
+                    } else {
+                        <#t as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE
+                    };
+                    TYPE
+                }}
             }
             PythonTypeHintVariant::Type(t) => {
                 quote! { <#t as #pyo3_crate_path::type_object::PyTypeCheck>::TYPE_HINT }
