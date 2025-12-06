@@ -8,8 +8,6 @@ use crate::inspect::TypeHint;
 use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
-#[cfg(feature = "experimental-inspect")]
-use crate::types::PySequence;
 use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
 use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
 use std::convert::Infallible;
@@ -322,13 +320,6 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
             None
         }
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    const SEQUENCE_INPUT_TYPE: TypeHint = TypeHint::union(&[
-        PyBytes::TYPE_HINT,
-        PyByteArray::TYPE_HINT,
-        TypeHint::subscript(&PySequence::TYPE_HINT, &[Self::INPUT_TYPE]),
-    ]);
 }
 
 pub(crate) enum BytesSequenceExtractor<'a, 'py> {
