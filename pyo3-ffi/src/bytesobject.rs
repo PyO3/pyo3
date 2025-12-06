@@ -56,6 +56,17 @@ extern "C" {
     ) -> c_int;
 }
 
+#[cfg(Py_3_15)]
+opaque_struct!(pub PyBytesWriter);
+
+#[repr(C)]
+#[cfg(not(Py_3_15))]
+pub struct PyBytesWriter {
+    pub(crate) small_buffer: [c_char; 256],
+    pub(crate) obj: *mut PyObject,
+    pub(crate) size: Py_ssize_t,
+}
+
 // skipped F_LJUST
 // skipped F_SIGN
 // skipped F_BLANK
