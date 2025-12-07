@@ -9,9 +9,7 @@ By default, only the `macros` feature is enabled.
 
 ### `extension-module`
 
-This feature is required when building a Python extension module using PyO3.
-
-It tells PyO3's build script to skip linking against `libpython.so` on Unix platforms, where this must not be done.
+Deprecated, users should remove this feature and upgrade to `maturin >= 1.9.4` or `setuptools-rust >= 1.12`.
 
 See the [building and distribution](building-and-distribution.md#the-extension-module-feature) section for further detail.
 

@@ -26,47 +26,18 @@ See the documentation for [`PyOnceLock`] and [`OnceExt`] for further details and
 
 ## I can't run `cargo test`; or I can't build in a Cargo workspace: I'm having linker issues like "Symbol not found" or "Undefined reference to _PyExc_SystemError"
 
-Currently, [#340](https://github.com/PyO3/pyo3/issues/340) causes `cargo test` to fail with linking errors when the `extension-module` feature is activated.
-Linking errors can also happen when building in a cargo workspace where a different crate also uses PyO3 (see [#2521](https://github.com/PyO3/pyo3/issues/2521)).
-For now, there are three ways we can work around these issues.
+The `extension-module` feature (now deprecated) disables linking to `libpython`.
+This breaks binaries and tests which need to load symbols from `libpython` to execute.
 
-1. Make the `extension-module` feature optional.
-   Build with `maturin develop --features "extension-module"`
+Remove the `extension-module` feature and upgrade to `maturin >= 1.9.4` or `setuptools-rust 1.12`.
 
-   ```toml
-   [dependencies.pyo3]
-   {{#PYO3_CRATE_VERSION}}
-
-   [features]
-   extension-module = ["pyo3/extension-module"]
-   ```
-
-2. Make the `extension-module` feature optional and default.
-   Run tests with `cargo test --no-default-features`:
-
-   ```toml
-   [dependencies.pyo3]
-   {{#PYO3_CRATE_VERSION}}
-
-   [features]
-   extension-module = ["pyo3/extension-module"]
-   default = ["extension-module"]
-   ```
-
-3. If you are using a [`pyproject.toml`](https://maturin.rs/metadata.html) file to control maturin settings, add the following section:
-
-   ```toml
-   [tool.maturin]
-   features = ["pyo3/extension-module"]
-   # Or for maturin 0.12:
-   # cargo-extra-args = ["--features", "pyo3/extension-module"]
-   ```
+If building manually, see the [`PYO3_BUILD_EXTENSION_MODULE` environment variable](./building-and-distribution.md#the-pyo3_build_extension_module-environment-variable).
 
 ## I can't run `cargo test`: my crate cannot be found for tests in `tests/` directory
 
 The Rust book suggests to [put integration tests inside a `tests/` directory](https://doc.rust-lang.org/book/ch11-03-test-organization.html#integration-tests).
 
-For a PyO3 `extension-module` project where the `crate-type` is set to `"cdylib"` in your `Cargo.toml`, the compiler won't be able to find your crate and will display errors such as `E0432` or `E0463`:
+For a PyO3 project where the `crate-type` is set to `"cdylib"` in your `Cargo.toml`, the compiler won't be able to find your crate and will display errors such as `E0432` or `E0463`:
 
 ```text
 error[E0432]: unresolved import `my_crate`
