@@ -69,7 +69,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = T::SEQUENCE_INPUT_TYPE;
+    const INPUT_TYPE: TypeHint = TypeHint::subscript(&PySequence::TYPE_HINT, &[T::INPUT_TYPE]);
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {

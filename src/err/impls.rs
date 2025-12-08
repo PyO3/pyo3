@@ -275,7 +275,7 @@ mod tests {
         };
 
         let utf8_err_with_bytes = exceptions::Utf8ErrorWithBytes {
-            err: str::from_utf8(&bytes).expect_err("\\xff is invalid utf-8"),
+            err: std::str::from_utf8(&bytes).expect_err("\\xff is invalid utf-8"),
             bytes: bytes.clone(),
         }
         .into();

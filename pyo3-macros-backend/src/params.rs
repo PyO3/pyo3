@@ -90,16 +90,17 @@ pub fn impl_arg_params(
 
     let positional_parameter_names = &spec.signature.python_signature.positional_parameters;
     let positional_only_parameters = &spec.signature.python_signature.positional_only_parameters;
-    let required_positional_parameters = &spec
+    let required_positional_parameters = spec
         .signature
         .python_signature
-        .required_positional_parameters;
+        .required_positional_parameters();
     let keyword_only_parameters = spec
         .signature
         .python_signature
         .keyword_only_parameters
         .iter()
-        .map(|(name, required)| {
+        .map(|(name, default_value)| {
+            let required = default_value.is_none();
             quote! {
                 #pyo3_path::impl_::extract_argument::KeywordOnlyParameterDescription {
                     name: #name,
