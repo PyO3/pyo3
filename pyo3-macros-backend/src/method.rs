@@ -704,7 +704,12 @@ impl<'a> FnSpec<'a> {
                         #throw_callback,
                         async move {
                             let fut = future.await;
-                            #pyo3_path::impl_::wrap::converter(&fut).wrap(fut)
+                            let res = #pyo3_path::impl_::wrap::converter(&fut).wrap(fut).map_err(::std::convert::Into::into);
+                            #pyo3_path::impl_::wrap::converter(&res).map_into_pyobject(
+                                // SAFETY: attached when future is polled (see `Coroutine::poll`)
+                                unsafe { #pyo3_path::Python::assume_attached() },
+                                res
+                            )
                         },
                     )
                 }};
