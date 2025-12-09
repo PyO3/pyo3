@@ -4,7 +4,7 @@ use crate::impl_::pyclass::ExtractPyClassWithClone;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::PyStaticExpr;
+use crate::inspect::{type_hint_identifier, type_hint_subscript, PyStaticExpr};
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
 use crate::types::PyTuple;
@@ -61,8 +61,7 @@ pub trait IntoPyObject<'py>: Sized {
     /// For most types, the return value for this method will be identical to that of [`FromPyObject::INPUT_TYPE`].
     /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr =
-        PyStaticExpr::attribute(&PyStaticExpr::module("typing"), "Any");
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("typing", "Any");
 
     /// Performs the conversion.
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
@@ -118,7 +117,7 @@ pub trait IntoPyObject<'py>: Sized {
     #[cfg(feature = "experimental-inspect")]
     #[doc(hidden)]
     const SEQUENCE_OUTPUT_TYPE: PyStaticExpr =
-        PyStaticExpr::subscript(&PyList::TYPE_HINT, &Self::OUTPUT_TYPE);
+        type_hint_subscript!(PyList::TYPE_HINT, Self::OUTPUT_TYPE);
 }
 
 pub(crate) mod private {
@@ -417,8 +416,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
     /// For example, `Vec<u32>` would be `collections.abc.Sequence[int]`.
     /// The default value is `typing.Any`, which is correct for any type.
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr =
-        PyStaticExpr::attribute(&PyStaticExpr::module("typing"), "Any");
+    const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("typing", "Any");
 
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///
@@ -469,7 +467,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
     #[cfg(feature = "experimental-inspect")]
     #[doc(hidden)]
     const SEQUENCE_INPUT_TYPE: PyStaticExpr =
-        PyStaticExpr::subscript(&PySequence::TYPE_HINT, &Self::INPUT_TYPE);
+        type_hint_subscript!(PySequence::TYPE_HINT, Self::INPUT_TYPE);
 
     /// Helper used to make a specialized path in extracting `DateTime<Tz>` where `Tz` is
     /// `chrono::Local`, which will accept "naive" datetime objects as being in the local timezone.

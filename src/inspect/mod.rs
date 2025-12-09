@@ -6,18 +6,91 @@ use std::fmt::{self, Display, Write};
 
 pub mod types;
 
+/// Builds a type hint from a module name and a member name in the module
+///
+/// ```
+/// use pyo3::inspect::PyStaticExpr;
+///
+/// const T: PyStaticExpr = type_hint_identifier!("datetime", "date");
+/// assert_eq!(T.to_string(), "datetime.date");
+///
+/// const T2: PyStaticExpr = type_hint_identifier!("builtins", "int");
+/// assert_eq!(T2.to_string(), "int");
+/// ```
+#[macro_export]
+macro_rules! type_hint_identifier {
+    ("builtins", $name:expr) => {
+        $crate::inspect::PyStaticExpr::Name {
+            id: $name,
+            kind: $crate::inspect::PyStaticNameKind::Global,
+        }
+    };
+    ($module:expr, $name:expr) => {
+        $crate::inspect::PyStaticExpr::Attribute {
+            value: &$crate::inspect::PyStaticExpr::Name {
+                id: $module,
+                kind: $crate::inspect::PyStaticNameKind::Global,
+            },
+            attr: $name,
+        }
+    };
+}
+pub(crate) use type_hint_identifier;
+
+/// Builds the union of multiple type hints
+///
+/// ```
+/// use pyo3::inspect::PyStaticExpr;
+///
+/// const T: PyStaticExpr = type_hint_union!(type_hint_identifier!("datetime.datetime"), type_hint_identifier!("datetime", "date"));
+/// assert_eq!(T.to_string(), "int | float");
+/// ```
+#[macro_export]
+macro_rules! type_hint_union {
+    ($e:expr) => { $e };
+    ($l:expr , $($r:expr),+) => { $crate::inspect::PyStaticExpr::BinOp {
+        left: &$l,
+        op: $crate::inspect::PyStaticOperator::BitOr,
+        right: &type_hint_union!($($r),+),
+    } };
+}
+pub(crate) use type_hint_union;
+
+/// Builds a subscribed type hint
+///
+/// ```
+/// use pyo3::inspect::PyStaticExpr;
+///
+/// const T: PyStaticExpr = type_hint_subscript!(type_hint_identifier!("collections.abc", "Sequence"), type_hint_identifier!("builtins", "float"));
+/// assert_eq!(T.to_string(), "collections.abc.Sequence[float]");
+///
+/// const 2: PyStaticExpr = type_hint_subscript!(type_hint_identifier!("builtins", "dict"), type_hint_identifier!("builtins", "str"), type_hint_identifier!("builtins", "float"));
+/// assert_eq!(T.to_string(), "dict[str, float]");
+/// ```
+#[macro_export]
+macro_rules! type_hint_subscript {
+    ($l:expr, $r:expr) => {
+        $crate::inspect::PyStaticExpr::Subscript {
+            value: &$l,
+            slice: &$r
+        }
+    };
+    ($l:expr, $($r:expr),*) => {
+        $crate::inspect::PyStaticExpr::Subscript {
+            value: &$l,
+            slice: &$crate::inspect::PyStaticExpr::Tuple { elts: &[$($r),*] }
+        }
+    };
+}
+pub(crate) use type_hint_subscript;
+
 /// A Python expression.
 ///
 /// This is the `expr` production of the [Python `ast` module grammar](https://docs.python.org/3/library/ast.html#abstract-grammar)
 ///
 /// This struct aims at being used in `const` contexts like in [`FromPyObject::INPUT_TYPE`](crate::FromPyObject::INPUT_TYPE) and [`IntoPyObject::OUTPUT_TYPE`](crate::IntoPyObject::OUTPUT_TYPE).
 ///
-/// ```
-/// use pyo3::inspect::PyStaticExpr;
-///
-/// const T: PyStaticExpr = PyStaticExpr::union(&[PyStaticExpr::builtin("int"), PyStaticExpr::attribute(&PyStaticExpr::module("b"), "B")]);
-/// assert_eq!(T.to_string(), "int | b.B");
-/// ```
+/// Use macros like [`type_hint_identifier`], [`type_hint_union`] and [`type_hint_subscript`] to construct values.
 #[derive(Clone, Copy)]
 #[non_exhaustive]
 #[allow(missing_docs)]
@@ -49,132 +122,6 @@ pub enum PyStaticExpr {
         value: &'static Self,
         slice: &'static Self,
     },
-}
-
-impl PyStaticExpr {
-    /// A value in the local context. Can be a locally defined class, a module relative to the current one...
-    #[doc(hidden)]
-    pub const fn local(id: &'static str) -> Self {
-        Self::Name {
-            id,
-            kind: PyStaticNameKind::Local,
-        }
-    }
-
-    /// A global builtin like `int` or `list`
-    ///
-    /// ```
-    /// use pyo3::inspect::PyStaticExpr;
-    ///
-    /// const T: PyStaticExpr = PyStaticExpr::builtin("int");
-    /// assert_eq!(T.to_string(), "int");
-    /// ```
-    pub const fn builtin(id: &'static str) -> Self {
-        Self::Name {
-            id,
-            kind: PyStaticNameKind::Global,
-        }
-    }
-
-    /// An absolute module name like `datetime` or `collections.abc`
-    ///
-    /// ```
-    /// use pyo3::inspect::PyStaticExpr;
-    ///
-    /// const T: PyStaticExpr = PyStaticExpr::module("datetime");
-    /// assert_eq!(T.to_string(), "datetime");
-    /// ```
-    pub const fn module(id: &'static str) -> Self {
-        Self::Name {
-            id,
-            kind: PyStaticNameKind::Global,
-        }
-    }
-
-    /// A type contained in a module like `datetime.time`
-    ///
-    /// ```
-    /// use pyo3::inspect::PyStaticExpr;
-    ///
-    /// const T: PyStaticExpr = PyStaticExpr::attribute(&PyStaticExpr::module("datetime"), "time");
-    /// assert_eq!(T.to_string(), "datetime.time");
-    /// ```
-    pub const fn attribute(value: &'static Self, attr: &'static str) -> Self {
-        Self::Attribute { value, attr }
-    }
-
-    /// The bit or (`|`) operator, also used for type union
-    ///
-    /// ```
-    /// use pyo3::inspect::PyStaticExpr;
-    ///
-    /// const T: PyStaticExpr = PyStaticExpr::bit_or(&PyStaticExpr::builtin("int"), &PyStaticExpr::builtin("float"));
-    /// assert_eq!(T.to_string(), "int | float");
-    /// ```
-    pub const fn bit_or(left: &'static Self, right: &'static Self) -> Self {
-        Self::BinOp {
-            left,
-            op: PyStaticOperator::BitOr,
-            right,
-        }
-    }
-
-    /// A tuple
-    ///
-    /// ```
-    /// use pyo3::inspect::PyStaticExpr;
-    ///
-    /// const T: PyStaticExpr = PyStaticExpr::tuple(&[PyStaticExpr::builtin("int"), PyStaticExpr::builtin("str")]);
-    /// assert_eq!(T.to_string(), "(int, str)");
-    /// ```
-    pub const fn tuple(elts: &'static [Self]) -> Self {
-        Self::Tuple { elts }
-    }
-
-    /// A list
-    ///
-    /// ```
-    /// use pyo3::inspect::PyStaticExpr;
-    ///
-    /// const T: PyStaticExpr = PyStaticExpr::subscript(
-    ///     &PyStaticExpr::builtin("Callable"),
-    ///     &PyStaticExpr::tuple(&[
-    ///         &PyStaticExpr::list(&[PyStaticExpr::builtin("int")]),
-    ///         PyStaticExpr::builtin("str")
-    ///     ])
-    /// );
-    /// assert_eq!(T.to_string(), "Callable[[int], str]");
-    /// ```
-    pub const fn list(elts: &'static [Self]) -> Self {
-        Self::List { elts }
-    }
-
-    /// A subscribed expression
-    ///
-    /// ```
-    /// use pyo3::inspect::PyStaticExpr;
-    ///
-    /// const T: PyStaticExpr = PyStaticExpr::subscript(&PyStaticExpr::builtin("list"), &PyStaticExpr::builtin("int"));
-    /// assert_eq!(T.to_string(), "list[int");
-    /// ```
-    pub const fn subscript(value: &'static Self, slice: &'static Self) -> Self {
-        Self::Subscript { value, slice }
-    }
-
-    /// The `None` constant
-    ///
-    /// ```
-    /// use pyo3::inspect::PyStaticExpr;
-    ///
-    /// const T: PyStaticExpr = PyStaticExpr::none();
-    /// assert_eq!(T.to_string(), "None");
-    /// ```
-    #[doc(hidden)]
-    pub const fn none() -> Self {
-        Self::Constant {
-            value: PyStaticConstant::None,
-        }
-    }
 }
 
 /// Serialize the type for introspection and return the number of written bytes
@@ -273,7 +220,6 @@ pub const fn serialized_len_for_introspection(expr: &PyStaticExpr) -> usize {
 }
 
 impl fmt::Display for PyStaticExpr {
-    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Constant { value } => match value {
@@ -417,30 +363,48 @@ mod tests {
 
     #[test]
     fn test_to_string() {
-        const T: PyStaticExpr = PyStaticExpr::subscript(
-            &PyStaticExpr::builtin("dict"),
-            &PyStaticExpr::tuple(&[
-                PyStaticExpr::bit_or(&PyStaticExpr::builtin("int"), &PyStaticExpr::local("weird")),
-                PyStaticExpr::attribute(&PyStaticExpr::module("datetime"), "time"),
-            ]),
+        const T: PyStaticExpr = type_hint_subscript!(
+            PyStaticExpr::Name {
+                id: "dict",
+                kind: PyStaticNameKind::Global
+            },
+            type_hint_union!(
+                PyStaticExpr::Name {
+                    id: "int",
+                    kind: PyStaticNameKind::Global
+                },
+                PyStaticExpr::Name {
+                    id: "weird",
+                    kind: PyStaticNameKind::Local
+                }
+            ),
+            type_hint_identifier!("datetime", "time")
         );
         assert_eq!(T.to_string(), "dict[int | weird, datetime.time]")
     }
 
     #[test]
     fn test_serialize_for_introspection() {
-        const T: PyStaticExpr = PyStaticExpr::subscript(
-            &PyStaticExpr::attribute(&PyStaticExpr::module("typing"), "Callable"),
-            &PyStaticExpr::tuple(&[
-                PyStaticExpr::list(&[
-                    PyStaticExpr::bit_or(
-                        &PyStaticExpr::builtin("int"),
-                        &PyStaticExpr::local("weird"),
+        const T: PyStaticExpr = type_hint_subscript!(
+            type_hint_identifier!("typing", "Callable"),
+            PyStaticExpr::List {
+                elts: &[
+                    type_hint_union!(
+                        PyStaticExpr::Name {
+                            id: "int",
+                            kind: PyStaticNameKind::Global
+                        },
+                        PyStaticExpr::Name {
+                            id: "weird",
+                            kind: PyStaticNameKind::Local
+                        }
                     ),
-                    PyStaticExpr::attribute(&PyStaticExpr::module("datetime"), "time"),
-                ]),
-                PyStaticExpr::none(),
-            ]),
+                    type_hint_identifier!("datetime", "time"),
+                ]
+            },
+            PyStaticExpr::Constant {
+                value: PyStaticConstant::None
+            }
         );
         const SER_LEN: usize = serialized_len_for_introspection(&T);
         const SER: [u8; SER_LEN] = {

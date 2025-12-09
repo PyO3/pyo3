@@ -1,7 +1,7 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::PyStaticExpr;
+use crate::inspect::{type_hint_subscript, PyStaticExpr};
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
@@ -23,10 +23,8 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(
-        &PyDict::TYPE_HINT,
-        &PyStaticExpr::tuple(&[K::OUTPUT_TYPE, V::OUTPUT_TYPE]),
-    );
+    const OUTPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(PyDict::TYPE_HINT, K::OUTPUT_TYPE, V::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
@@ -53,10 +51,8 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(
-        &PyDict::TYPE_HINT,
-        &PyStaticExpr::tuple(&[<&K>::OUTPUT_TYPE, <&V>::OUTPUT_TYPE]),
-    );
+    const OUTPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(PyDict::TYPE_HINT, <&K>::OUTPUT_TYPE, <&V>::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
@@ -82,10 +78,8 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(
-        &PyDict::TYPE_HINT,
-        &PyStaticExpr::tuple(&[K::OUTPUT_TYPE, V::OUTPUT_TYPE]),
-    );
+    const OUTPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(PyDict::TYPE_HINT, K::OUTPUT_TYPE, V::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
@@ -113,10 +107,8 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(
-        &PyDict::TYPE_HINT,
-        &PyStaticExpr::tuple(&[<&K>::OUTPUT_TYPE, <&V>::OUTPUT_TYPE]),
-    );
+    const OUTPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(PyDict::TYPE_HINT, <&K>::OUTPUT_TYPE, <&V>::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
@@ -141,10 +133,8 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(
-        &PyDict::TYPE_HINT,
-        &PyStaticExpr::tuple(&[K::INPUT_TYPE, V::INPUT_TYPE]),
-    );
+    const INPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(&PyDict::TYPE_HINT, K::INPUT_TYPE, V::INPUT_TYPE);
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let dict = ob.cast::<PyDict>()?;
@@ -172,10 +162,8 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyStaticExpr::subscript(
-        &PyDict::TYPE_HINT,
-        &PyStaticExpr::tuple(&[K::INPUT_TYPE, V::INPUT_TYPE]),
-    );
+    const INPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(PyDict::TYPE_HINT, K::INPUT_TYPE, V::INPUT_TYPE);
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.cast::<PyDict>()?;

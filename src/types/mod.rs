@@ -152,12 +152,7 @@ macro_rules! pyobject_type_info_type_hint(
 #[macro_export]
 macro_rules! pyobject_type_info_type_hint(
     ($module:expr, $name:expr) => {
-        const TYPE_HINT: $crate::inspect::PyStaticExpr = if ::std::matches!($module.as_bytes(), b"builtins") {
-            $crate::inspect::PyStaticExpr::builtin($name)
-        } else {
-            const MODULE: $crate::inspect::PyStaticExpr = $crate::inspect::PyStaticExpr::module($module);
-            $crate::inspect::PyStaticExpr::attribute(&MODULE, $name)
-        };
+        const TYPE_HINT: $crate::inspect::PyStaticExpr = $crate::type_hint_identifier!($module, $name);
     };
 );
 

@@ -3,7 +3,7 @@ use std::borrow::Cow;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::PyStaticExpr;
+use crate::inspect::{type_hint_union, PyStaticExpr};
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
@@ -66,8 +66,7 @@ impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for Cow<'a, [u8]> {
     type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr =
-        PyStaticExpr::bit_or(&PyBytes::TYPE_HINT, &PyByteArray::TYPE_HINT);
+    const INPUT_TYPE: PyStaticExpr = type_hint_union!(PyBytes::TYPE_HINT, PyByteArray::TYPE_HINT);
 
     fn extract(ob: crate::Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(bytes) = ob.cast::<PyBytes>() {

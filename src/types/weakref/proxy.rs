@@ -2,7 +2,7 @@ use super::PyWeakrefMethods;
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::PyStaticExpr;
+use crate::inspect::{type_hint_identifier, type_hint_union, PyStaticExpr};
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeCheck;
@@ -26,9 +26,9 @@ unsafe impl PyTypeCheck for PyWeakrefProxy {
     const NAME: &'static str = "weakref.ProxyTypes";
 
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: PyStaticExpr = PyStaticExpr::bit_or(
-        &PyStaticExpr::attribute(&PyStaticExpr::module("weakref"), "ProxyType"),
-        &PyStaticExpr::attribute(&PyStaticExpr::module("weakref"), "CallableProxyType"),
+    const TYPE_HINT: PyStaticExpr = type_hint_union!(
+        type_hint_identifier!("weakref", "ProxyType"),
+        type_hint_identifier!("weakref", "CallableProxyType")
     );
 
     #[inline]

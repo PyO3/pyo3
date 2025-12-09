@@ -1,5 +1,7 @@
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::PyStaticExpr;
+use crate::inspect::{type_hint_union, PyStaticExpr};
+#[cfg(feature = "experimental-inspect")]
+use crate::types::PyNone;
 #[cfg(any(Py_3_10, not(Py_LIMITED_API), feature = "experimental-inspect"))]
 use crate::types::PyString;
 use crate::{
@@ -110,7 +112,7 @@ where
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyStaticExpr::bit_or(&T::INPUT_TYPE, &PyStaticExpr::none());
+    const INPUT_TYPE: PyStaticExpr = type_hint_union!(T::INPUT_TYPE, PyNone::TYPE_HINT);
 
     #[inline]
     fn extract(

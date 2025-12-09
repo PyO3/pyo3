@@ -4,7 +4,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::PyStaticExpr;
+use crate::inspect::{type_hint_subscript, type_hint_union, PyStaticExpr};
 use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
@@ -324,9 +324,10 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
     }
 
     #[cfg(feature = "experimental-inspect")]
-    const SEQUENCE_INPUT_TYPE: PyStaticExpr = PyStaticExpr::bit_or(
-        &PyStaticExpr::bit_or(&PyBytes::TYPE_HINT, &PyByteArray::TYPE_HINT),
-        &PyStaticExpr::subscript(&PySequence::TYPE_HINT, &Self::INPUT_TYPE),
+    const SEQUENCE_INPUT_TYPE: PyStaticExpr = type_hint_union!(
+        PyBytes::TYPE_HINT,
+        PyByteArray::TYPE_HINT,
+        type_hint_subscript!(PySequence::TYPE_HINT, Self::INPUT_TYPE)
     );
 }
 

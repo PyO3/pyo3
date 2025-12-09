@@ -121,17 +121,21 @@ impl PythonTypeHint {
     pub fn to_introspection_token_stream(&self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
         match &self.0 {
             PythonTypeHintVariant::Local(name) => {
-                quote! { #pyo3_crate_path::inspect::PyStaticExpr::local(#name) }
+                quote! { #pyo3_crate_path::inspect::PyStaticExpr::Name {
+                    id: #name,
+                    kind: #pyo3_crate_path::inspect::PyStaticNameKind::Local
+                } }
             }
             PythonTypeHintVariant::ModuleAttribute { module, attr } => {
-                if module == "builtins" {
-                    quote! { #pyo3_crate_path::inspect::PyStaticExpr::builtin(#attr) }
-                } else {
-                    quote! {{
-                        const MODULE: #pyo3_crate_path::inspect::PyStaticExpr = #pyo3_crate_path::inspect::PyStaticExpr::module(#module);
-                        #pyo3_crate_path::inspect::PyStaticExpr::attribute(&MODULE, #attr)
-                    }}
-                }
+                quote! {{
+                    #pyo3_crate_path::inspect::PyStaticExpr::Attribute {
+                        value: &#pyo3_crate_path::inspect::PyStaticExpr::Name {
+                            id: #module,
+                            kind: #pyo3_crate_path::inspect::PyStaticNameKind::Local
+                        },
+                        attr: #attr
+                    }
+                }}
             }
             PythonTypeHintVariant::FromPyObject(t) => {
                 quote! { <#t as #pyo3_crate_path::FromPyObject<'_, '_>>::INPUT_TYPE }
@@ -156,13 +160,17 @@ impl PythonTypeHint {
             PythonTypeHintVariant::Type(t) => {
                 quote! { <#t as #pyo3_crate_path::type_object::PyTypeCheck>::TYPE_HINT }
             }
-            PythonTypeHintVariant::Union(elements) => {
-                elements
-                    .iter()
-                    .map(|elt| elt.to_introspection_token_stream(pyo3_crate_path))
-                    .reduce(|left, right| quote! { #pyo3_crate_path::inspect::PyStaticExpr::bit_or(&#left, &#right) })
-                    .expect("unions must not be empty")
-            }
+            PythonTypeHintVariant::Union(elements) => elements
+                .iter()
+                .map(|elt| elt.to_introspection_token_stream(pyo3_crate_path))
+                .reduce(|left, right| {
+                    quote! { #pyo3_crate_path::inspect::PyStaticExpr::BinOp {
+                        left: &#left,
+                        op: #pyo3_crate_path::inspect::PyStaticOperator::BitOr,
+                        right: &#right,
+                    }}
+                })
+                .expect("unions must not be empty"),
             PythonTypeHintVariant::Subscript { value, slice } => {
                 let value = value.to_introspection_token_stream(pyo3_crate_path);
                 let slice = if slice.len() == 1 {
@@ -171,9 +179,9 @@ impl PythonTypeHint {
                     let elts = slice
                         .iter()
                         .map(|elt| elt.to_introspection_token_stream(pyo3_crate_path));
-                    quote! { #pyo3_crate_path::inspect::PyStaticExpr::tuple(&[#(#elts),*]) }
+                    quote! { #pyo3_crate_path::inspect::PyStaticExpr::Tuple { elts: &[#(#elts),*] } }
                 };
-                quote! { #pyo3_crate_path::inspect::PyStaticExpr::subscript(&#value, &#slice) }
+                quote! { #pyo3_crate_path::inspect::PyStaticExpr::Subscript { value: &#value, slice: &#slice } }
             }
         }
     }

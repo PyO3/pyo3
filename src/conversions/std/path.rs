@@ -1,7 +1,7 @@
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::PyStaticExpr;
+use crate::inspect::{type_hint_identifier, type_hint_union, PyStaticExpr};
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python};
@@ -13,9 +13,9 @@ impl FromPyObject<'_, '_> for PathBuf {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyStaticExpr::bit_or(
-        &OsString::INPUT_TYPE,
-        &PyStaticExpr::attribute(&PyStaticExpr::module("os"), "PathLike"),
+    const INPUT_TYPE: PyStaticExpr = type_hint_union!(
+        OsString::INPUT_TYPE,
+        type_hint_identifier!("os", "PathLike")
     );
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
@@ -31,8 +31,7 @@ impl<'py> IntoPyObject<'py> for &Path {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr =
-        PyStaticExpr::attribute(&PyStaticExpr::module("pathlib"), "Path");
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("pathlib", "Path");
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {

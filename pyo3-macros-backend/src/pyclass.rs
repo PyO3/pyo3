@@ -444,11 +444,19 @@ fn get_class_type_hint(cls: &Ident, args: &PyClassArgs, ctx: &Ctx) -> TokenStrea
     if let Some(module) = &args.options.module {
         let module = module.value.value();
         quote! {{
-            const MODULE: #pyo3_path::inspect::PyStaticExpr = #pyo3_path::inspect::PyStaticExpr::module(#module);
-            #pyo3_path::inspect::PyStaticExpr::attribute(&MODULE, #name)
+            #pyo3_path::inspect::PyStaticExpr::Attribute {
+                value: &#pyo3_path::inspect::PyStaticExpr::Name {
+                    id: #module,
+                    kind: #pyo3_path::inspect::PyStaticNameKind::Local
+                },
+                attr: #name
+            }
         }}
     } else {
-        quote! { #pyo3_path::inspect::PyStaticExpr::local(#name) }
+        quote! { #pyo3_path::inspect::PyStaticExpr::Name {
+            id: #name,
+            kind: #pyo3_path::inspect::PyStaticNameKind::Local
+        } }
     }
 }
 

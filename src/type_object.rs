@@ -2,7 +2,7 @@
 
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::PyStaticExpr;
+use crate::inspect::{type_hint_identifier, PyStaticExpr};
 use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, Python};
 use std::ptr;
@@ -58,7 +58,7 @@ pub unsafe trait PyTypeInfo: Sized {
 
     /// Provides the full python type as a type hint.
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: PyStaticExpr = PyStaticExpr::attribute(&PyStaticExpr::module("typing"), "Any");
+    const TYPE_HINT: PyStaticExpr = type_hint_identifier!("typing", "Any");
 
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
