@@ -660,44 +660,28 @@ impl<'a> FnSpec<'a> {
                     Some(cls) => quote!(Some(<#cls as #pyo3_path::PyClass>::NAME)),
                     None => quote!(None),
                 };
-                let arg_names = (0..args.len())
-                    .map(|i| format_ident!("arg_{}", i))
-                    .collect::<Vec<_>>();
-                // If extracting `self`, we move the `_slf` pointer into the async block. This reduces the lifetime for which the Rust state is considered "borrowed"
-                // to just when the async block is executing.
-                //
-                // TODO: we should do this with all arguments, not just `self`, e.g. https://github.com/PyO3/pyo3/issues/5681
                 let future = match self.tp {
-                    FnType::Fn(SelfType::Receiver { mutable: false, .. }) => {
+                    // If extracting `self`, we move the `_slf` pointer into the async block. This reduces the lifetime for which the Rust state is considered "borrowed"
+                    // to just when the async block is executing.
+                    //
+                    // TODO: we should do this with all arguments, not just `self`, e.g. https://github.com/PyO3/pyo3/issues/5681
+                    FnType::Fn(SelfType::Receiver { mutable, .. }) => {
+                        let arg_names = (0..args.len())
+                            .map(|i| format_ident!("arg_{}", i))
+                            .collect::<Vec<_>>();
+                        let method = if mutable {
+                            syn::Ident::new("extract_pyclass_ref_mut", Span::call_site())
+                        } else {
+                            syn::Ident::new("extract_pyclass_ref", Span::call_site())
+                        };
                         quote! {{
                             let _slf = unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf) }.to_owned().unbind();
                             #(let #arg_names = #args;)*
                             async move {
                                 let mut holder = None;
                                 let result = function(
-                                    #pyo3_path::impl_::extract_argument::extract_pyclass_ref(
-                                        // SAFETY: extract_pyclass_ref output does not depend on the 'py lifetime, so users cannot observe this.
-                                        //
-                                        // The thread is attached during the future execution.
-                                        _slf.bind(unsafe { #pyo3_path::Python::assume_attached() }),
-                                        &mut holder,
-                                    )?,
-                                    #(#arg_names),*
-                                ).await;
-                                let result: #pyo3_path::PyResult<_> = #pyo3_path::impl_::wrap::converter(&result).wrap(result).map_err(::std::convert::Into::into);
-                                result
-                            }
-                        }}
-                    }
-                    FnType::Fn(SelfType::Receiver { mutable: true, .. }) => {
-                        quote! {{
-                            let _slf = unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf) }.to_owned().unbind();
-                            #(let #arg_names = #args;)*
-                            async move {
-                                let mut holder = None;
-                                let result = function(
-                                    #pyo3_path::impl_::extract_argument::extract_pyclass_ref_mut(
-                                        // SAFETY: extract_pyclass_ref_mut output does not depend on the 'py lifetime, so users cannot observe this.
+                                    #pyo3_path::impl_::extract_argument::#method(
+                                        // SAFETY: extract_pyclass_ref(_mut) output does not depend on the 'py lifetime, so users cannot observe this.
                                         //
                                         // The thread is attached during the future execution.
                                         _slf.bind(unsafe { #pyo3_path::Python::assume_attached() }),
