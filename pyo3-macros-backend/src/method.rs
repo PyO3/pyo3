@@ -262,16 +262,12 @@ impl FnType {
     ) -> Option<TokenStream> {
         let Ctx { pyo3_path, .. } = ctx;
         match self {
-            FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) => {
-                let mut receiver = st.receiver(
-                    cls.expect("no class given for Fn with a \"self\" receiver"),
-                    error_mode,
-                    holders,
-                    ctx,
-                );
-                syn::Token![,](Span::call_site()).to_tokens(&mut receiver);
-                Some(receiver)
-            }
+            FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) => Some(st.receiver(
+                cls.expect("no class given for Fn with a \"self\" receiver"),
+                error_mode,
+                holders,
+                ctx,
+            )),
             FnType::FnClass(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
@@ -283,7 +279,7 @@ impl FnType {
                             .cast_unchecked::<#pyo3_path::types::PyType>()
                     )
                 };
-                Some(quote! { unsafe { #ret }, })
+                Some(quote! { unsafe { #ret } })
             }
             FnType::FnModule(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
@@ -296,7 +292,7 @@ impl FnType {
                             .cast_unchecked::<#pyo3_path::types::PyModule>()
                     )
                 };
-                Some(quote! { unsafe { #ret }, })
+                Some(quote! { unsafe { #ret } })
             }
             FnType::FnStatic | FnType::ClassAttribute => None,
         }
@@ -683,17 +679,8 @@ impl<'a> FnSpec<'a> {
                         }}
                     }
                     _ => {
-                        if let Some(self_arg) = self_arg() {
-                            quote! {
-                                function(
-                                    // NB #self_arg includes a comma, so none inserted here
-                                    #self_arg
-                                    #(#args),*
-                                )
-                            }
-                        } else {
-                            quote! { function(#(#args),*) }
-                        }
+                        let args = self_arg().into_iter().chain(args);
+                        quote! { function(#(#args),*) }
                     }
                 };
                 let mut call = quote! {{
@@ -703,8 +690,8 @@ impl<'a> FnSpec<'a> {
                         #qualname_prefix,
                         #throw_callback,
                         async move {
-                            let fut = future.await;
-                            #pyo3_path::impl_::wrap::converter(&fut).wrap(fut)
+                            let result = future.await;
+                            #pyo3_path::impl_::wrap::converter(&result).wrap(result).map_err(::std::convert::Into::into)
                         },
                     )
                 }};
@@ -716,15 +703,8 @@ impl<'a> FnSpec<'a> {
                     }};
                 }
                 call
-            } else if let Some(self_arg) = self_arg() {
-                quote! {
-                    function(
-                        // NB #self_arg includes a comma, so none inserted here
-                        #self_arg
-                        #(#args),*
-                    )
-                }
             } else {
+                let args = self_arg().into_iter().chain(args);
                 quote! { function(#(#args),*) }
             };
 

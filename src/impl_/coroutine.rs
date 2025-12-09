@@ -9,19 +9,18 @@ use crate::{
     pycell::impl_::PyClassBorrowChecker,
     pyclass::boolean_struct::False,
     types::PyString,
-    IntoPyObject, Py, PyAny, PyClass, PyErr, PyResult, Python,
+    IntoPyObject, Py, PyAny, PyClass, PyResult, Python,
 };
 
-pub fn new_coroutine<'py, F, T, E>(
+pub fn new_coroutine<'py, F, T>(
     name: &Bound<'py, PyString>,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
     future: F,
 ) -> Coroutine
 where
-    F: Future<Output = Result<T, E>> + Send + 'static,
+    F: Future<Output = PyResult<T>> + Send + 'static,
     T: IntoPyObject<'py>,
-    E: Into<PyErr>,
 {
     Coroutine::new(Some(name.clone()), qualname_prefix, throw_callback, future)
 }
