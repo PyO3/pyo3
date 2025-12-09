@@ -678,17 +678,15 @@ impl<'a> FnSpec<'a> {
                             let _slf = unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf) }.to_owned().unbind();
                             #(let #arg_names = #args;)*
                             async move {
+                                let assume_attached = unsafe { #pyo3_path::impl_::coroutine::AssumeAttachedInCoroutine::new() };
+                                let py = assume_attached.py();
                                 let mut holder = None;
-                                let result = function(
-                                    #pyo3_path::impl_::extract_argument::#method(
-                                        // SAFETY: extract_pyclass_ref(_mut) output does not depend on the 'py lifetime, so users cannot observe this.
-                                        //
-                                        // The thread is attached during the future execution.
-                                        _slf.bind(unsafe { #pyo3_path::Python::assume_attached() }),
-                                        &mut holder,
-                                    )?,
+                                let future = function(
+                                    #pyo3_path::impl_::extract_argument::#method(_slf.bind(py), &mut holder)?,
                                     #(#arg_names),*
-                                ).await;
+                                );
+                                drop(py);
+                                let result = future.await;
                                 let result: #pyo3_path::PyResult<_> = #pyo3_path::impl_::wrap::converter(&result).wrap(result).map_err(::std::convert::Into::into);
                                 result
                             }
