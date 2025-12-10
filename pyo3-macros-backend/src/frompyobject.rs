@@ -101,7 +101,11 @@ impl<'a> Enum<'a> {
 
     #[cfg(feature = "experimental-inspect")]
     fn input_type(&self) -> PythonTypeHint {
-        PythonTypeHint::union(self.variants.iter().map(|var| var.input_type()))
+        self.variants
+            .iter()
+            .map(|var| var.input_type())
+            .reduce(PythonTypeHint::union)
+            .expect("Empty enum")
     }
 }
 
@@ -463,9 +467,9 @@ impl<'a> Container<'a> {
             }
             ContainerType::Tuple(tups) => PythonTypeHint::subscript(
                 PythonTypeHint::builtin("tuple"),
-                tups.iter().map(|TupleStructField { from_py_with, ty }| {
+                PythonTypeHint::tuple(tups.iter().map(|TupleStructField { from_py_with, ty }| {
                     Self::field_input_type(from_py_with, ty)
-                }),
+                })),
             ),
             ContainerType::Struct(_) => {
                 // TODO: implement using a Protocol?

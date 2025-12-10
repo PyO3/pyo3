@@ -117,7 +117,7 @@ pub enum PyStaticExpr {
     Tuple { elts: &'static [Self] },
     /// A list
     List { elts: &'static [Self] },
-    /// A subscript `main[*args]`
+    /// A subscript `value[slice]`
     Subscript {
         value: &'static Self,
         slice: &'static Self,

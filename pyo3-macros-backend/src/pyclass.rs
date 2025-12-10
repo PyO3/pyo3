@@ -443,7 +443,7 @@ fn get_class_type_hint(cls: &Ident, args: &PyClassArgs, ctx: &Ctx) -> TokenStrea
     let name = get_class_python_name(cls, args).to_string();
     if let Some(module) = &args.options.module {
         let module = module.value.value();
-        quote! {{
+        quote! {
             #pyo3_path::inspect::PyStaticExpr::Attribute {
                 value: &#pyo3_path::inspect::PyStaticExpr::Name {
                     id: #module,
@@ -451,7 +451,7 @@ fn get_class_type_hint(cls: &Ident, args: &PyClassArgs, ctx: &Ctx) -> TokenStrea
                 },
                 attr: #name
             }
-        }}
+        }
     } else {
         quote! { #pyo3_path::inspect::PyStaticExpr::Name {
             id: #name,

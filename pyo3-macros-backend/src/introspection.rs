@@ -111,11 +111,11 @@ pub fn function_introspection_code(
                 IntrospectionNode::String(returns.to_python().into())
             } else {
                 match returns {
-                    ReturnType::Default => PythonTypeHint::builtin("None"),
+                    ReturnType::Default => PythonTypeHint::none(),
                     ReturnType::Type(_, ty) => match *ty {
                         Type::Tuple(t) if t.elems.is_empty() => {
                             // () is converted to None in return types
-                            PythonTypeHint::builtin("None")
+                            PythonTypeHint::none()
                         }
                         ty => PythonTypeHint::from_return_type(ty, parent),
                     },
@@ -166,7 +166,7 @@ pub fn attribute_introspection_code(
             if is_final {
                 PythonTypeHint::subscript(
                     PythonTypeHint::module_attr("typing", "Final"),
-                    [PythonTypeHint::from_return_type(rust_type, parent)],
+                    PythonTypeHint::from_return_type(rust_type, parent),
                 )
                 .into()
             } else {
