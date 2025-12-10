@@ -138,7 +138,7 @@ pub const fn serialize_for_introspection(expr: &PyStaticExpr, mut output: &mut [
             }
         },
         PyStaticExpr::Name { id, kind } => {
-            output = write_slice_and_move_forward(b"{\"type\":\"", output);
+            output = write_slice_and_move_forward(b"{\"type\":\"name\",\"kind\":\"", output);
             output = write_slice_and_move_forward(
                 match kind {
                     PyStaticNameKind::Local => b"local",
@@ -197,8 +197,8 @@ pub const fn serialized_len_for_introspection(expr: &PyStaticExpr) -> usize {
         },
         PyStaticExpr::Name { id, kind } => {
             (match kind {
-                PyStaticNameKind::Local => 24,
-                PyStaticNameKind::Global => 25,
+                PyStaticNameKind::Local => 38,
+                PyStaticNameKind::Global => 39,
             }) + id.len()
         }
         PyStaticExpr::Attribute { value, attr } => {
@@ -255,14 +255,14 @@ impl fmt::Display for PyStaticExpr {
             }
             Self::Subscript { value, slice } => {
                 value.fmt(f)?;
-                f.write_str("[")?;
+                f.write_char('[')?;
                 if let PyStaticExpr::Tuple { elts } = slice {
                     // We don't display the tuple parentheses
                     fmt_elements(elts, f)?;
                 } else {
                     slice.fmt(f)?;
                 }
-                f.write_str("]")
+                f.write_char(']')
             }
         }
     }
@@ -414,7 +414,7 @@ mod tests {
         };
         assert_eq!(
             std::str::from_utf8(&SER).unwrap(),
-            r#"{"type":"subscript","value":{"type":"attribute","value":{"type":"global","id":"typing"},"attr":"Callable"},"slice":{"type":"tuple","elts":[{"type":"list","elts":[{"type":"binop","left":{"type":"global","id":"int"},"op":"bitor","right":{"type":"local","id":"weird"}},{"type":"attribute","value":{"type":"global","id":"datetime"},"attr":"time"}]},{"type":"constant","kind":"none"}]}}"#
+            r#"{"type":"subscript","value":{"type":"attribute","value":{"type":"name","kind":"global","id":"typing"},"attr":"Callable"},"slice":{"type":"tuple","elts":[{"type":"list","elts":[{"type":"binop","left":{"type":"name","kind":"global","id":"int"},"op":"bitor","right":{"type":"name","kind":"local","id":"weird"}},{"type":"attribute","value":{"type":"name","kind":"global","id":"datetime"},"attr":"time"}]},{"type":"constant","kind":"none"}]}}"#
         )
     }
 }
