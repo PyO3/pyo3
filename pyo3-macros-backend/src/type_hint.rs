@@ -25,10 +25,7 @@ enum PyExpr {
     /// A constant like `None` or `123`
     Constant { value: PyConstant },
     /// A name
-    Name {
-        id: Cow<'static, str>,
-        kind: PyNameKind,
-    },
+    Name { id: Cow<'static, str> },
     /// An attribute `value.attr`
     Attribute {
         value: Box<Self>,
@@ -47,15 +44,6 @@ enum PyExpr {
 }
 
 #[derive(Clone, Copy)]
-#[non_exhaustive]
-pub enum PyNameKind {
-    /// A local name, relative to the current module
-    Local,
-    /// A global name, can be a module like `datetime`, a builtin like `int`...
-    Global,
-}
-
-#[derive(Clone, Copy)]
 enum PyOperator {
     /// `|` operator
     BitOr,
@@ -68,17 +56,16 @@ enum PyConstant {
 }
 
 impl PythonTypeHint {
-    /// Build from a local name
-    pub fn local(name: impl Into<Cow<'static, str>>) -> Self {
-        Self(PyExpr::Name {
-            id: name.into(),
-            kind: PyNameKind::Local,
+    /// The `None` value.
+    pub fn none() -> Self {
+        Self(PyExpr::Constant {
+            value: PyConstant::None,
         })
     }
 
     /// Build from a builtins name like `None`
     pub fn builtin(name: impl Into<Cow<'static, str>>) -> Self {
-        Self::module_attr("builtins", name)
+        Self(PyExpr::Name { id: name.into() })
     }
 
     /// Build from a module and a name like `collections.abc` and `Sequence`
@@ -86,22 +73,7 @@ impl PythonTypeHint {
         module: impl Into<Cow<'static, str>>,
         name: impl Into<Cow<'static, str>>,
     ) -> Self {
-        let module = module.into();
-        let name = name.into();
-        Self(if module == "builtins" {
-            PyExpr::Name {
-                id: name,
-                kind: PyNameKind::Global,
-            }
-        } else {
-            PyExpr::Attribute {
-                value: Box::new(PyExpr::Name {
-                    id: name,
-                    kind: PyNameKind::Global,
-                }),
-                attr: module,
-            }
-        })
+        Self::attribute(Self(PyExpr::Name { id: module.into() }), name)
     }
 
     /// The type hint of a `FromPyObject` implementation as a function argument
@@ -139,10 +111,11 @@ impl PythonTypeHint {
         Self(PyExpr::Type(clean_type(t, self_type)))
     }
 
-    /// The `None` value.
-    pub fn none() -> Self {
-        Self(PyExpr::Constant {
-            value: PyConstant::None,
+    /// An attribute of a given value: `value.attr`
+    pub fn attribute(value: Self, attr: impl Into<Cow<'static, str>>) -> Self {
+        Self(PyExpr::Attribute {
+            value: Box::new(value.0),
+            attr: attr.into(),
         })
     }
 
@@ -209,14 +182,8 @@ impl PyExpr {
                 };
                 quote! { #pyo3_crate_path::inspect::PyStaticExpr::Constant { value: #value } }
             }
-            PyExpr::Name { id, kind } => {
-                let kind = match kind {
-                    PyNameKind::Local => quote!(#pyo3_crate_path::inspect::PyStaticNameKind::Local),
-                    PyNameKind::Global => {
-                        quote!(#pyo3_crate_path::inspect::PyStaticNameKind::Global)
-                    }
-                };
-                quote! { #pyo3_crate_path::inspect::PyStaticExpr::Name { id: #id, kind: #kind } }
+            PyExpr::Name { id } => {
+                quote! { #pyo3_crate_path::inspect::PyStaticExpr::Name { id: #id, kind: #pyo3_crate_path::inspect::PyStaticNameKind::Global } }
             }
             PyExpr::Attribute { value, attr } => {
                 let value = value.to_introspection_token_stream(pyo3_crate_path);

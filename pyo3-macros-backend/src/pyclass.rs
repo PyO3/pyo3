@@ -1949,7 +1949,20 @@ fn descriptors_to_items(
                     })]),
                     Some("self"),
                     syn::ReturnType::Default,
-                    vec![PythonTypeHint::local(format!("{name}.setter"))],
+                    vec![PythonTypeHint::attribute(
+                        PythonTypeHint::attribute(
+                            PythonTypeHint::from_type(
+                                syn::TypePath {
+                                    qself: None,
+                                    path: cls.clone().into(),
+                                }
+                                .into(),
+                                None,
+                            ),
+                            name.clone(),
+                        ),
+                        "setter",
+                    )],
                     Some(&parse_quote!(#cls)),
                 ));
             }

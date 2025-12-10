@@ -405,7 +405,13 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
         }
         FnType::Setter(_) => {
             first_argument = Some("self");
-            decorators.push(PythonTypeHint::local(format!("{name}.setter")));
+            decorators.push(PythonTypeHint::attribute(
+                PythonTypeHint::attribute(
+                    PythonTypeHint::from_type(parent.clone(), None),
+                    name.clone(),
+                ),
+                "setter",
+            ));
         }
         FnType::Fn(_) => {
             first_argument = Some("self");
