@@ -11,3 +11,9 @@ error[E0597]: `local_data` does not live long enough
 ...
 17 |     });
    |     - `local_data` dropped here while still borrowed
+   |
+note: requirement that the value outlives `'static` introduced here
+  --> src/types/function.rs
+   |
+   |         F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
+   |                                                                              ^^^^^^^
