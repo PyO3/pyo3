@@ -135,6 +135,129 @@ impl PyCapsule {
         }
     }
 
+    /// Constructs a new capsule with a raw pointer.
+    ///
+    /// Unlike [`PyCapsule::new`], which stores a value and sets the capsule's pointer
+    /// to the address of that stored value, this method sets the capsule's pointer
+    /// directly to the provided address. This is useful when interfacing with APIs
+    /// that expect the capsule pointer to *be* a specific address (such as a function
+    /// pointer) rather than point to stored data.
+    ///
+    /// # Safety
+    ///
+    /// - `pointer` must be non-null and valid for the intended use case.
+    /// - If the pointer refers to data, the caller must ensure that data outlives
+    ///   the capsule or is otherwise managed appropriately.
+    /// - No destructor is set, so no cleanup will occur when the capsule is destroyed.
+    ///   Use [`PyCapsule::new_pointer_with_destructor`] if cleanup is needed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use pyo3::{prelude::*, types::PyCapsule};
+    /// use std::ffi::{c_void, CString};
+    ///
+    /// // Example: wrapping a function pointer for FFI
+    /// extern "C" fn my_handler(arg: *mut c_void) -> *mut c_void {
+    ///     std::ptr::null_mut()
+    /// }
+    ///
+    /// Python::attach(|py| {
+    ///     let capsule = unsafe {
+    ///         PyCapsule::new_pointer(
+    ///             py,
+    ///             my_handler as *mut c_void,
+    ///             None,
+    ///         )
+    ///     }.unwrap();
+    ///
+    ///     // The capsule's pointer IS the function address
+    ///     let ptr = capsule.pointer_checked(None).unwrap();
+    ///     assert_eq!(ptr.as_ptr(), my_handler as *mut c_void);
+    /// });
+    /// ```
+    pub unsafe fn new_pointer(
+        py: Python<'_>,
+        pointer: *mut c_void,
+        name: Option<CString>,
+    ) -> PyResult<Bound<'_, Self>> {
+        // SAFETY: caller guarantees pointer validity
+        unsafe { Self::new_pointer_with_destructor(py, pointer, name, None) }
+    }
+
+    /// Constructs a new capsule with a raw pointer and an optional destructor.
+    ///
+    /// This is the full-featured version of [`PyCapsule::new_pointer`], allowing
+    /// specification of a destructor that will be called when the capsule is
+    /// garbage collected.
+    ///
+    /// # Safety
+    ///
+    /// - `pointer` must be non-null and valid for the intended use case.
+    /// - If the pointer refers to data, the caller must ensure that data remains
+    ///   valid for the lifetime of the capsule, or that the destructor properly
+    ///   cleans it up.
+    /// - The destructor, if provided, must be safe to call from any thread.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use pyo3::{prelude::*, types::PyCapsule, ffi::PyCapsule_Destructor};
+    /// use std::ffi::{c_void, CString};
+    ///
+    /// // A destructor that will be called when the capsule is destroyed
+    /// unsafe extern "C" fn my_destructor(capsule: *mut pyo3::ffi::PyObject) {
+    ///     // Clean up resources here
+    ///     println!("Capsule destroyed!");
+    /// }
+    ///
+    /// Python::attach(|py| {
+    ///     let data = Box::into_raw(Box::new(42u32));
+    ///
+    ///     let capsule = unsafe {
+    ///         PyCapsule::new_pointer_with_destructor(
+    ///             py,
+    ///             data as *mut c_void,
+    ///             None,
+    ///             Some(my_destructor),
+    ///         )
+    ///     }.unwrap();
+    /// });
+    /// ```
+    pub unsafe fn new_pointer_with_destructor(
+        py: Python<'_>,
+        pointer: *mut c_void,
+        name: Option<CString>,
+        destructor: Option<ffi::PyCapsule_Destructor>,
+    ) -> PyResult<Bound<'_, Self>> {
+        if pointer.is_null() {
+            return Err(crate::exceptions::PyValueError::new_err(
+                "PyCapsule pointer must not be null",
+            ));
+        }
+
+        let name_ptr = name.as_ref().map_or(std::ptr::null(), |n| n.as_ptr());
+
+        // We need to keep the name alive if it was provided, but since we're not
+        // using PyO3's destructor mechanism, we need to leak it or store it.
+        // For simplicity, we leak the name - this matches Python's expectation
+        // that capsule names are static or long-lived.
+        if let Some(name) = name {
+            std::mem::forget(name);
+        }
+
+        // SAFETY:
+        // - `pointer` is guaranteed non-null by the check above
+        // - `name_ptr` is either null or points to a valid C string
+        // - `destructor` is either None or a valid destructor function
+        // - thread is attached to the Python interpreter
+        unsafe {
+            ffi::PyCapsule_New(pointer, name_ptr, destructor)
+                .assume_owned_or_err(py)
+                .cast_into_unchecked()
+        }
+    }
+
     /// Imports an existing capsule.
     ///
     /// The `name` should match the path to the module attribute exactly in the form
@@ -676,5 +799,101 @@ mod tests {
             assert!(cap.name().unwrap().is_none());
             assert_eq!(cap.context().unwrap(), std::ptr::null_mut());
         });
+    }
+
+    #[test]
+    fn test_pycapsule_new_pointer() {
+        extern "C" fn dummy_handler(_: *mut c_void) -> *mut c_void {
+            std::ptr::null_mut()
+        }
+
+        Python::attach(|py| {
+            let fn_ptr = dummy_handler as *mut c_void;
+
+            // SAFETY: `fn_ptr` is a valid, non-null function pointer
+            let capsule = unsafe { PyCapsule::new_pointer(py, fn_ptr, None) }.unwrap();
+
+            // The capsule's pointer should BE the function address, not point to it
+            let retrieved_ptr = capsule.pointer_checked(None).unwrap();
+            assert_eq!(retrieved_ptr.as_ptr(), fn_ptr);
+        });
+    }
+
+    #[test]
+    fn test_pycapsule_new_pointer_with_name() {
+        use std::ffi::CString;
+
+        extern "C" fn dummy_handler(_: *mut c_void) -> *mut c_void {
+            std::ptr::null_mut()
+        }
+
+        Python::attach(|py| {
+            let fn_ptr = dummy_handler as *mut c_void;
+            let name = CString::new("my_module.my_function").unwrap();
+
+            // SAFETY: `fn_ptr` is a valid, non-null function pointer
+            let capsule = unsafe { PyCapsule::new_pointer(py, fn_ptr, Some(name)) }.unwrap();
+
+            let retrieved_ptr = capsule
+                .pointer_checked(Some(c"my_module.my_function"))
+                .unwrap();
+            assert_eq!(retrieved_ptr.as_ptr(), fn_ptr);
+
+            // Verify the name was set correctly
+            let capsule_name = capsule.name().unwrap().unwrap();
+            // SAFETY: we know the capsule has a name that outlives this usage
+            assert_eq!(unsafe { capsule_name.as_cstr() }, c"my_module.my_function");
+        });
+    }
+
+    #[test]
+    fn test_pycapsule_new_pointer_null_rejected() {
+        Python::attach(|py| {
+            // SAFETY: Testing that null pointers are properly rejected
+            let result = unsafe { PyCapsule::new_pointer(py, std::ptr::null_mut(), None) };
+
+            assert!(result.is_err());
+        });
+    }
+
+    #[test]
+    fn test_pycapsule_new_pointer_with_destructor() {
+        use std::sync::mpsc::channel;
+
+        let (tx, rx) = channel::<bool>();
+
+        unsafe extern "C" fn destructor_fn(capsule: *mut crate::ffi::PyObject) {
+            // SAFETY:
+            // - `capsule` is a valid capsule object being destroyed by Python
+            // - The context was set to a valid `Box<Sender<bool>>` below
+            unsafe {
+                let ctx = crate::ffi::PyCapsule_GetContext(capsule);
+                if !ctx.is_null() {
+                    let sender: Box<Sender<bool>> = Box::from_raw(ctx.cast());
+                    let _ = sender.send(true);
+                }
+            }
+        }
+
+        Python::attach(|py| {
+            let dummy_ptr = 0xDEADBEEF as *mut c_void;
+
+            // SAFETY:
+            // - `dummy_ptr` is non-null (it's a made-up address for testing)
+            // - We're providing a valid destructor function
+            let capsule = unsafe {
+                PyCapsule::new_pointer_with_destructor(py, dummy_ptr, None, Some(destructor_fn))
+            }
+            .unwrap();
+
+            // Store the sender in the capsule's context
+            let sender_box = Box::new(tx);
+            capsule
+                .set_context(Box::into_raw(sender_box).cast())
+                .unwrap();
+        });
+
+        // After Python::attach scope ends, the capsule should be destroyed
+        assert_eq!(rx.recv(), Ok(true));
     }
 }
