@@ -10,7 +10,7 @@
 //!
 //! # Usage Notes
 //!
-//! The calling thread acquires the per-object lock when it enters the critical section and holds it
+//! The calling thread locks the per-object mutex when it enters the critical section and holds it
 //! until exiting the critical section unless the critical section is suspended. Any call into the
 //! CPython C API may cause the critical section to be suspended. Creating an inner critical
 //! section, for example by accessing an item in a Python list or dict, will cause the outer
@@ -25,14 +25,14 @@
 //! Taking a critical section on a container object does not lock the objects stored in the
 //! container.
 //!
-//! Many CPython C API functions do not acquire the per-object lock on objects passed to Python. You
+//! Many CPython C API functions do not lock the per-object mutex on objects passed to Python. You
 //! should not expect critical sections applied to built-in types to prevent concurrent
 //! modification. This API is most useful for user-defined types with full control over how the
 //! internal state for the type is managed.
 //!
 //! The caller must ensure the closure cannot implicitly release the critical section. If a
 //! multithreaded program calls back into the Python interpreter in a manner that would cause the
-//! critical section to be released, the per-object lock will be released and the state of the
+//! critical section to be released, the per-object mutex will be unlocked and the state of the
 //! object may be read from or modified by another thread. Concurrent modifications are impossible,
 //! but races are possible and the state of an object may change "underneath" a suspended thread in
 //! possibly surprising ways.
@@ -87,7 +87,7 @@ impl<T> EnteredCriticalSection<'_, T> {
     /// The caller must ensure the closure cannot implicitly release the critical section.
     ///
     /// If a multithreaded program calls back into the Python interpreter in a manner that would cause
-    /// the critical section to be released, the `PyMutex` will be released and the resource protected
+    /// the critical section to be released, the `PyMutex` will be unlocked and the resource protected
     /// by the `PyMutex` may be read from or modified by another thread while the critical section is
     /// suspended. Concurrent modifications are impossible, but races are possible and the state of the
     /// protected resource may change in possibly surprising ways after calls into the interpreter.
@@ -102,7 +102,7 @@ impl<T> EnteredCriticalSection<'_, T> {
     /// The caller must ensure the critical section is not released while the
     /// reference is alive. If a multithreaded program calls back into the
     /// Python interpreter in a manner that would cause the critical section to
-    /// be released, the `PyMutex` will be released and the resource protected
+    /// be released, the `PyMutex` will be unlocked and the resource protected
     /// by the `PyMutex` may be read from or modified by another thread while
     /// the critical section is suspended and the thread that owns the reference
     /// is blocked. Concurrent modifications are impossible, but races are
@@ -117,7 +117,7 @@ impl<T> EnteredCriticalSection<'_, T> {
 
 /// Executes a closure with a Python critical section held on an object.
 ///
-/// Acquires the per-object lock for the object `op` that is held while the closure `f` is
+/// Locks the per-object mutex for the object `op` that is held while the closure `f` is
 /// executing. The critical section may be temporarily released and re-acquired if the closure calls
 /// back into the interpreter. See the notes in the
 /// [`pyo3::sync::critical_section`][crate::sync::critical_section] module documentation for more
@@ -144,7 +144,7 @@ where
 
 /// Executes a closure with a Python critical section held on two objects.
 ///
-/// Acquires the per-object lock for the objects `a` and `b` that are held while the closure `f` is
+/// Locks the per-object mutex for the objects `a` and `b` that are held while the closure `f` is
 /// executing. The critical section may be temporarily released and re-acquired if the closure calls
 /// back into the interpreter. See the notes in the
 /// [`pyo3::sync::critical_section`][crate::sync::critical_section] module documentation for more
@@ -171,7 +171,7 @@ where
 
 /// Executes a closure with a Python critical section held on a `PyMutex`.
 ///
-/// Acquires the mutex `mutex` until the closure `f` finishes. The mutex may be temporarily released
+/// Locks the mutex `mutex` until the closure `f` finishes. The mutex may be temporarily unlocked
 /// and re-acquired if the closure calls back into the interpreter. See the notes in the
 /// [`pyo3::sync::critical_section`][crate::sync::critical_section] module documentation for more
 /// details.
@@ -211,8 +211,8 @@ where
 
 /// Executes a closure with a Python critical section held on two `PyMutex` instances.
 ///
-/// Simultaneously acquires the mutexes `m1` and `m2` and holds them until the closure `f` is
-/// finished. The mutexes may be temporarily released and re-acquired if the closure calls back into
+/// Simultaneously locks the mutexes `m1` and `m2` and holds them until the closure `f` is
+/// finished. The mutexes may be temporarily unlock and re-acquired if the closure calls back into
 /// the interpreter. See the notes in the
 /// [`pyo3::sync::critical_section`][crate::sync::critical_section] module documentation for more
 /// details.
