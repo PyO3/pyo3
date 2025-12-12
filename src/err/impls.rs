@@ -118,7 +118,12 @@ macro_rules! impl_to_pyerr {
     };
 }
 
-impl PyErrArguments for exceptions::Utf8ErrorWithBytes {
+pub(crate) struct Utf8ErrorWithBytes {
+    pub(crate) err: std::str::Utf8Error,
+    pub(crate) bytes: Vec<u8>,
+}
+
+impl PyErrArguments for Utf8ErrorWithBytes {
     fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         let Self { err, bytes } = self;
         let start = err.valid_up_to();
@@ -138,15 +143,15 @@ impl PyErrArguments for exceptions::Utf8ErrorWithBytes {
     }
 }
 
-impl std::convert::From<exceptions::Utf8ErrorWithBytes> for PyErr {
-    fn from(err: exceptions::Utf8ErrorWithBytes) -> PyErr {
+impl std::convert::From<Utf8ErrorWithBytes> for PyErr {
+    fn from(err: Utf8ErrorWithBytes) -> PyErr {
         exceptions::PyUnicodeDecodeError::new_err(err)
     }
 }
 
 impl PyErrArguments for std::string::FromUtf8Error {
     fn arguments(self, py: Python<'_>) -> Py<PyAny> {
-        exceptions::Utf8ErrorWithBytes {
+        Utf8ErrorWithBytes {
             err: self.utf8_error(),
             bytes: self.into_bytes(),
         }
@@ -162,7 +167,7 @@ impl std::convert::From<std::string::FromUtf8Error> for PyErr {
 
 impl PyErrArguments for std::ffi::IntoStringError {
     fn arguments(self, py: Python<'_>) -> Py<PyAny> {
-        exceptions::Utf8ErrorWithBytes {
+        Utf8ErrorWithBytes {
             err: self.utf8_error(),
             bytes: self.into_cstring().into_bytes(),
         }
@@ -274,17 +279,11 @@ mod tests {
             });
         };
 
-        let utf8_err_with_bytes = exceptions::Utf8ErrorWithBytes {
+        let utf8_err_with_bytes = Utf8ErrorWithBytes {
             err: std::str::from_utf8(&bytes).expect_err("\\xff is invalid utf-8"),
             bytes: bytes.clone(),
         }
         .into();
-        check_err(utf8_err_with_bytes);
-
-        let utf8_err_with_bytes = exceptions::PyUnicodeDecodeError::new_err_from_utf8(
-            &bytes,
-            std::str::from_utf8(&bytes).expect_err("\\xff is invalid utf-8"),
-        );
         check_err(utf8_err_with_bytes);
 
         let from_utf8_err = String::from_utf8(bytes.clone())
