@@ -39,6 +39,18 @@ fn noop_coroutine() {
 }
 
 #[test]
+fn test_async_function_returns_unit_none() {
+    #[pyfunction]
+    async fn returns_unit() {}
+
+    Python::attach(|py| {
+        let returns_unit = wrap_pyfunction!(returns_unit, py).unwrap();
+        let test = "import asyncio; assert asyncio.run(returns_unit()) is None";
+        pyo3::py_run!(py, returns_unit, &handle_windows(test));
+    });
+}
+
+#[test]
 fn test_coroutine_qualname() {
     #[pyfunction]
     async fn my_fn() {}

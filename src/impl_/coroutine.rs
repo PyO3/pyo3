@@ -4,18 +4,17 @@ use crate::{
     coroutine::{cancel::ThrowCallback, Coroutine},
     instance::Bound,
     types::PyString,
-    IntoPyObject, PyResult, Python,
+    Py, PyAny, PyResult, Python,
 };
 
-pub fn new_coroutine<'py, F, T>(
+pub fn new_coroutine<'py, F>(
     name: &Bound<'py, PyString>,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
     future: F,
 ) -> Coroutine
 where
-    F: Future<Output = PyResult<T>> + Send + 'static,
-    T: IntoPyObject<'py>,
+    F: Future<Output = PyResult<Py<PyAny>>> + Send + 'static,
 {
     Coroutine::new(Some(name.clone()), qualname_prefix, throw_callback, future)
 }

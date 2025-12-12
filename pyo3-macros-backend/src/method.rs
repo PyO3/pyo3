@@ -678,6 +678,7 @@ impl<'a> FnSpec<'a> {
                             let _slf = unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf) }.to_owned().unbind();
                             #(let #arg_names = #args;)*
                             async move {
+                                // SAFETY: attached when future is polled (see `Coroutine::poll`)
                                 let assume_attached = unsafe { #pyo3_path::impl_::coroutine::AssumeAttachedInCoroutine::new() };
                                 let py = assume_attached.py();
                                 let mut holder = None;
@@ -704,8 +705,11 @@ impl<'a> FnSpec<'a> {
                         #qualname_prefix,
                         #throw_callback,
                         async move {
-                            let result = future.await;
-                            #pyo3_path::impl_::wrap::converter(&result).wrap(result).map_err(::std::convert::Into::into)
+                            // SAFETY: attached when future is polled (see `Coroutine::poll`)
+                            let assume_attached = unsafe { #pyo3_path::impl_::coroutine::AssumeAttachedInCoroutine::new() };
+                            let output = future.await;
+                            let res = #pyo3_path::impl_::wrap::converter(&output).wrap(output).map_err(::std::convert::Into::into);
+                            #pyo3_path::impl_::wrap::converter(&res).map_into_pyobject(assume_attached.py(), res)
                         },
                     )
                 }};
