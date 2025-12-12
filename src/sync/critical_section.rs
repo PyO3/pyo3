@@ -262,43 +262,36 @@ where
     }
 }
 
+// We are building wasm Python with pthreads disabled and all these
+// tests use threads
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod tests {
-    #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
     use super::{with_critical_section, with_critical_section2};
-    #[cfg(not(target_arch = "wasm32"))]
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
     use super::{with_critical_section_mutex, with_critical_section_mutex2};
-    #[cfg(not(target_arch = "wasm32"))]
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
     use crate::types::PyMutex;
     #[cfg(feature = "macros")]
-    #[cfg(not(target_arch = "wasm32"))]
     use std::sync::atomic::{AtomicBool, Ordering};
-    #[cfg(not(target_arch = "wasm32"))]
     #[cfg(any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14)))]
     use std::sync::Barrier;
 
-    #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
     use crate::Py;
-    #[cfg(not(target_arch = "wasm32"))]
     #[cfg(any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14)))]
     use crate::Python;
 
-    #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
     #[crate::pyclass(crate = "crate")]
     struct VecWrapper(Vec<isize>);
 
-    #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
     #[crate::pyclass(crate = "crate")]
     struct BoolWrapper(AtomicBool);
 
     #[cfg(feature = "macros")]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section() {
         let barrier = Barrier::new(2);
@@ -332,7 +325,6 @@ mod tests {
     }
 
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section_mutex() {
         let barrier = Barrier::new(2);
@@ -364,7 +356,6 @@ mod tests {
     }
 
     #[cfg(feature = "macros")]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section2() {
         let barrier = Barrier::new(3);
@@ -413,7 +404,6 @@ mod tests {
     }
 
     #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section_mutex2() {
         let barrier = Barrier::new(2);
@@ -448,7 +438,6 @@ mod tests {
     }
 
     #[cfg(feature = "macros")]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section2_same_object_no_deadlock() {
         let barrier = Barrier::new(2);
@@ -482,7 +471,6 @@ mod tests {
     }
 
     #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section_mutex2_same_object_no_deadlock() {
         let barrier = Barrier::new(2);
@@ -515,7 +503,6 @@ mod tests {
     }
 
     #[cfg(feature = "macros")]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section2_two_containers() {
         let (vec1, vec2) = Python::attach(|py| {
@@ -570,7 +557,6 @@ mod tests {
     }
 
     #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_critical_section_mutex2_two_containers() {
         let (m1, m2) = (PyMutex::new(vec![1, 2, 3]), PyMutex::new(vec![4, 5]));
