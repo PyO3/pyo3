@@ -24,6 +24,7 @@ use std::sync::atomic::{AtomicI64, Ordering};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
+use crate::exceptions::PyUnicodeDecodeError;
 use crate::prelude::PyTypeMethods;
 use crate::{
     ffi,
@@ -152,7 +153,11 @@ impl ModuleDef {
 
         let ffi_def = self.ffi_def.get();
 
-        let name = unsafe { CStr::from_ptr((*ffi_def).m_name).to_str()? }.to_string();
+        let m_name = unsafe { CStr::from_ptr((*ffi_def).m_name) };
+        let name = m_name
+            .to_str()
+            .map_err(|e| PyUnicodeDecodeError::new_err_from_utf8(m_name.to_bytes(), e))?
+            .to_string();
         let kwargs = PyDict::new(py);
         kwargs.set_item("name", name)?;
         let spec = simple_ns.call((), Some(&kwargs))?;

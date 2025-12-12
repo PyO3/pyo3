@@ -70,6 +70,37 @@ This should not require migration, nor is there expected to be breakage caused b
 
 Nevertheless, this affects the order of initialization so seemed worth noting in this guide.
 
+### Removed implementations of `From<str::Utf8Error>`, `From<string::FromUtf16Error>`, and `From<char::DecodeUtf16Error>` for `PyErr`
+
+Previously the implementations of `From<string::FromUtf8Error>`, `From<ffi::IntoStringError>`, `From<str::Utf8Error>`, `From<string::FromUtf16Error>`, and `From<char::DecodeUtf16Error>` failed to construct the correct Python exception class, as reported in <https://github.com/PyO3/pyo3/issues/5651>.
+The implementations for `string::FromUtf8Error` and `ffi::IntoStringError` were fixed in this release.
+
+For `str::Utf8Error`, the Rust error does not contain the source bytes required to construct the Python exception.
+Instead, `PyUnicodeDecodeError::new_err_from_utf8` can be used to convert the error to a `PyErr`.
+
+Before:
+
+```rust,ignore
+fn bytes_to_str(bytes: &[u8]) -> PyResult<&str> {
+    Ok(str::from_utf8(bytes)?)
+}
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+use pyo3::exceptions::PyUnicodeDecodeError;
+
+# #[expect(dead_code)]
+fn bytes_to_str(bytes: &[u8]) -> PyResult<&str> {
+    str::from_utf8(bytes).map_err(|e| PyUnicodeDecodeError::new_err_from_utf8(bytes, e))
+}
+```
+
+For `string::FromUtf16Error` and `char::DecodeUtf16Error` the Rust error types do not contain any of the information required to construct a `UnicodeDecodeError`.
+To raise a Python `UnicodeDecodeError` a new error should be manually constructed by calling `PyUnicodeDecodeError::new_err(...)`.
+
 ## from 0.26.* to 0.27
 
 ### `FromPyObject` reworked for flexibility and efficiency
@@ -1132,7 +1163,7 @@ let obj: Py<PyList> = bound.unbind();
 
 > [!WARNING]
 > Dangling pointer trap 💣
-> 
+>
 > Because of the ownership changes, code which uses `.as_ptr()` to convert `&PyAny` and other GIL Refs to a `*mut pyo3_ffi::PyObject` should take care to avoid creating dangling pointers now that `Bound<PyAny>` carries ownership.
 >
 > For example, the following pattern with `Option<&PyAny>` can easily create a dangling pointer when migrating to the `Bound<PyAny>` smart pointer:
