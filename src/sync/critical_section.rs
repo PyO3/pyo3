@@ -183,8 +183,6 @@ where
 /// This is structurally equivalent to the use of the paired Py_BEGIN_CRITICAL_SECTION_MUTEX and
 /// Py_END_CRITICAL_SECTION C-API macros.
 ///
-/// Only available on Python 3.14 and newer.
-///
 /// # Safety
 ///
 /// The caller must ensure the closure cannot implicitly release the critical section. See the
@@ -222,8 +220,6 @@ where
 ///
 /// A no-op on GIL-enabled builds, where the critical section API is exposed as
 /// a no-op by the Python C API.
-///
-/// Only available on Python 3.14 and newer.
 ///
 /// # Safety
 ///
