@@ -673,7 +673,11 @@ impl<'a> FnSpec<'a> {
                             syn::Ident::new("extract_pyclass_ref_mut", Span::call_site())
                         } else {
                             syn::Ident::new("extract_pyclass_ref", Span::call_site())
-                        };
+                        let method = syn::Ident::new(if mutable {
+                            "extract_pyclass_ref_mut"
+                        } else {
+                            "extract_pyclass_ref"
+                        },  Span::call_site());
                         quote! {{
                             let _slf = unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf) }.to_owned().unbind();
                             #(let #arg_names = #args;)*
