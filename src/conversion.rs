@@ -595,6 +595,10 @@ impl<'py> IntoPyObject<'py> for () {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(PyTuple::TYPE_HINT, PyStaticExpr::Tuple { elts: &[] });
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyTuple::empty(py))
     }

@@ -22,8 +22,6 @@ enum PyExpr {
     ReturnType(Type),
     /// The Python type matching the given Rust type
     Type(Type),
-    /// A constant like `None` or `123`
-    Constant { value: PyConstant },
     /// A name
     Name { id: Cow<'static, str> },
     /// An attribute `value.attr`
@@ -49,20 +47,7 @@ enum PyOperator {
     BitOr,
 }
 
-#[derive(Clone)]
-enum PyConstant {
-    /// None
-    None,
-}
-
 impl PythonTypeHint {
-    /// The `None` value.
-    pub fn none() -> Self {
-        Self(PyExpr::Constant {
-            value: PyConstant::None,
-        })
-    }
-
     /// Build from a builtins name like `None`
     pub fn builtin(name: impl Into<Cow<'static, str>>) -> Self {
         Self(PyExpr::Name { id: name.into() })
@@ -169,18 +154,19 @@ impl PyExpr {
                 }
             }
             PyExpr::ReturnType(t) => {
-                quote! { <#t as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE }
+                quote! {{
+                    #[allow(unused_imports)]
+                    use #pyo3_crate_path::impl_::pyclass::Probe as _;
+                    const TYPE: #pyo3_crate_path::inspect::PyStaticExpr = if #pyo3_crate_path::impl_::pyclass::IsReturningEmptyTuple::<#t>::VALUE {
+                        <#pyo3_crate_path::types::PyNone as #pyo3_crate_path::type_object::PyTypeInfo>::TYPE_HINT
+                    } else {
+                        <#t as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE
+                    };
+                    TYPE
+                }}
             }
             PyExpr::Type(t) => {
                 quote! { <#t as #pyo3_crate_path::type_object::PyTypeCheck>::TYPE_HINT }
-            }
-            PyExpr::Constant { value } => {
-                let value = match value {
-                    PyConstant::None => {
-                        quote! { #pyo3_crate_path::inspect::PyStaticConstant::None }
-                    }
-                };
-                quote! { #pyo3_crate_path::inspect::PyStaticExpr::Constant { value: #value } }
             }
             PyExpr::Name { id } => {
                 quote! { #pyo3_crate_path::inspect::PyStaticExpr::Name { id: #id, kind: #pyo3_crate_path::inspect::PyStaticNameKind::Global } }
