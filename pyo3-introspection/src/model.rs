@@ -98,7 +98,7 @@ pub enum Expr {
     Tuple { elts: Vec<Self> },
     /// A list
     List { elts: Vec<Self> },
-    /// A subscript `main[*args]`
+    /// A subscript `value[slice]`
     Subscript { value: Box<Self>, slice: Box<Self> },
 }
 

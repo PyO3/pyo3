@@ -1049,11 +1049,7 @@ fn impl_simple_enum(
     .doc(doc);
 
     let enum_into_pyobject_impl = {
-        let output_type = if cfg!(feature = "experimental-inspect") {
-            quote!(const OUTPUT_TYPE: #pyo3_path::inspect::PyStaticExpr = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
-        } else {
-            TokenStream::new()
-        };
+        let output_type = get_conversion_type_hint(ctx, &format_ident!("OUTPUT_TYPE"), cls);
 
         let num = variants.len();
         let i = (0..num).map(proc_macro2::Literal::usize_unsuffixed);
