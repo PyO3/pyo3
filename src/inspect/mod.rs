@@ -9,6 +9,7 @@ pub mod types;
 /// Builds a type hint from a module name and a member name in the module
 ///
 /// ```
+/// use pyo3::type_hint_identifier;
 /// use pyo3::inspect::PyStaticExpr;
 ///
 /// const T: PyStaticExpr = type_hint_identifier!("datetime", "date");
@@ -40,9 +41,10 @@ pub(crate) use type_hint_identifier;
 /// Builds the union of multiple type hints
 ///
 /// ```
+/// use pyo3::{type_hint_identifier, type_hint_union};
 /// use pyo3::inspect::PyStaticExpr;
 ///
-/// const T: PyStaticExpr = type_hint_union!(type_hint_identifier!("datetime.datetime"), type_hint_identifier!("datetime", "date"));
+/// const T: PyStaticExpr = type_hint_union!(type_hint_identifier!("builtins", "int"), type_hint_identifier!("builtins", "float"));
 /// assert_eq!(T.to_string(), "int | float");
 /// ```
 #[macro_export]
@@ -59,13 +61,14 @@ pub(crate) use type_hint_union;
 /// Builds a subscribed type hint
 ///
 /// ```
+/// use pyo3::{type_hint_identifier, type_hint_subscript};
 /// use pyo3::inspect::PyStaticExpr;
 ///
 /// const T: PyStaticExpr = type_hint_subscript!(type_hint_identifier!("collections.abc", "Sequence"), type_hint_identifier!("builtins", "float"));
 /// assert_eq!(T.to_string(), "collections.abc.Sequence[float]");
 ///
-/// const 2: PyStaticExpr = type_hint_subscript!(type_hint_identifier!("builtins", "dict"), type_hint_identifier!("builtins", "str"), type_hint_identifier!("builtins", "float"));
-/// assert_eq!(T.to_string(), "dict[str, float]");
+/// const T2: PyStaticExpr = type_hint_subscript!(type_hint_identifier!("builtins", "dict"), type_hint_identifier!("builtins", "str"), type_hint_identifier!("builtins", "float"));
+/// assert_eq!(T2.to_string(), "dict[str, float]");
 /// ```
 #[macro_export]
 macro_rules! type_hint_subscript {
@@ -193,7 +196,7 @@ pub const fn serialize_for_introspection(expr: &PyStaticExpr, mut output: &mut [
 pub const fn serialized_len_for_introspection(expr: &PyStaticExpr) -> usize {
     match expr {
         PyStaticExpr::Constant { value } => match value {
-            PyStaticConstant::None => 34,
+            PyStaticConstant::None => 33,
         },
         PyStaticExpr::Name { id, kind } => {
             (match kind {
@@ -214,7 +217,7 @@ pub const fn serialized_len_for_introspection(expr: &PyStaticExpr) -> usize {
         PyStaticExpr::Tuple { elts } => 5 + serialized_container_len_for_introspection(elts),
         PyStaticExpr::List { elts } => 4 + serialized_container_len_for_introspection(elts),
         PyStaticExpr::Subscript { value, slice } => {
-            39 + serialized_len_for_introspection(value) + serialized_len_for_introspection(slice)
+            38 + serialized_len_for_introspection(value) + serialized_len_for_introspection(slice)
         }
     }
 }
@@ -335,7 +338,7 @@ const fn write_container_and_move_forward<'a>(
 }
 
 const fn serialized_container_len_for_introspection(elts: &[PyStaticExpr]) -> usize {
-    let mut len = 20;
+    let mut len = 21;
     let mut i = 0;
     while i < elts.len() {
         if i > 0 {
@@ -385,36 +388,58 @@ mod tests {
 
     #[test]
     fn test_serialize_for_introspection() {
-        const T: PyStaticExpr = type_hint_subscript!(
-            type_hint_identifier!("typing", "Callable"),
-            PyStaticExpr::List {
-                elts: &[
-                    type_hint_union!(
-                        PyStaticExpr::Name {
-                            id: "int",
-                            kind: PyStaticNameKind::Global
-                        },
-                        PyStaticExpr::Name {
-                            id: "weird",
-                            kind: PyStaticNameKind::Local
-                        }
-                    ),
-                    type_hint_identifier!("datetime", "time"),
-                ]
-            },
+        fn check_serialization(expr: PyStaticExpr, expected: &str) {
+            let mut out = vec![0; serialized_len_for_introspection(&expr)];
+            serialize_for_introspection(&expr, &mut out);
+            assert_eq!(std::str::from_utf8(&out).unwrap(), expected)
+        }
+
+        check_serialization(
             PyStaticExpr::Constant {
-                value: PyStaticConstant::None
-            }
+                value: PyStaticConstant::None,
+            },
+            r#"{"type":"constant","kind":"none"}"#,
         );
-        const SER_LEN: usize = serialized_len_for_introspection(&T);
-        const SER: [u8; SER_LEN] = {
-            let mut out: [u8; SER_LEN] = [0; SER_LEN];
-            serialize_for_introspection(&T, &mut out);
-            out
-        };
-        assert_eq!(
-            std::str::from_utf8(&SER).unwrap(),
-            r#"{"type":"subscript","value":{"type":"attribute","value":{"type":"name","kind":"global","id":"typing"},"attr":"Callable"},"slice":{"type":"tuple","elts":[{"type":"list","elts":[{"type":"binop","left":{"type":"name","kind":"global","id":"int"},"op":"bitor","right":{"type":"name","kind":"local","id":"weird"}},{"type":"attribute","value":{"type":"name","kind":"global","id":"datetime"},"attr":"time"}]},{"type":"constant","kind":"none"}]}}"#
-        )
+        check_serialization(
+            type_hint_identifier!("builtins", "int"),
+            r#"{"type":"name","kind":"global","id":"int"}"#,
+        );
+        check_serialization(
+            PyStaticExpr::Name {
+                id: "int",
+                kind: PyStaticNameKind::Local,
+            },
+            r#"{"type":"name","kind":"local","id":"int"}"#,
+        );
+        check_serialization(
+            type_hint_identifier!("datetime", "date"),
+            r#"{"type":"attribute","value":{"type":"name","kind":"global","id":"datetime"},"attr":"date"}"#,
+        );
+        check_serialization(
+            type_hint_union!(
+                type_hint_identifier!("builtins", "int"),
+                type_hint_identifier!("builtins", "float")
+            ),
+            r#"{"type":"binop","left":{"type":"name","kind":"global","id":"int"},"op":"bitor","right":{"type":"name","kind":"global","id":"float"}}"#,
+        );
+        check_serialization(
+            PyStaticExpr::Tuple {
+                elts: &[type_hint_identifier!("builtins", "list")],
+            },
+            r#"{"type":"tuple","elts":[{"type":"name","kind":"global","id":"list"}]}"#,
+        );
+        check_serialization(
+            PyStaticExpr::List {
+                elts: &[type_hint_identifier!("builtins", "list")],
+            },
+            r#"{"type":"list","elts":[{"type":"name","kind":"global","id":"list"}]}"#,
+        );
+        check_serialization(
+            type_hint_subscript!(
+                type_hint_identifier!("builtins", "list"),
+                type_hint_identifier!("builtins", "int")
+            ),
+            r#"{"type":"subscript","value":{"type":"name","kind":"global","id":"list"},"slice":{"type":"name","kind":"global","id":"int"}}"#,
+        );
     }
 }

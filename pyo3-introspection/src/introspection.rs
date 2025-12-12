@@ -428,7 +428,7 @@ fn deserialize_chunk(
         })?;
     serde_json::from_slice(chunk).with_context(|| {
         format!(
-            "Failed to parse introspection chunk: '{}'",
+            "Failed to parse introspection chunk: {:?}",
             String::from_utf8_lossy(chunk)
         )
     })

@@ -309,7 +309,10 @@ impl Imports {
             .chain(&elements_used_in_annotations.globals)
         {
             let normalized_module = if let Some(module) = module {
-                if possible_current_module_names.contains(module) {
+                if possible_current_module_names.contains(module)
+                    || local_name_to_module_and_attribute.contains_key(module)
+                {
+                    // This is importing a local element or from a local element, don't import
                     None
                 } else {
                     Some(module.clone())
