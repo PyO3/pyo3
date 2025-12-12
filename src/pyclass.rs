@@ -113,8 +113,8 @@ pub mod boolean_struct {
         }
     }
 
-    pub struct True;
-    pub struct False;
+    pub struct True(());
+    pub struct False(());
 }
 
 /// A trait which is used to describe whether a `#[pyclass]` is frozen.
