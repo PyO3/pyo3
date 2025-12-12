@@ -1,5 +1,5 @@
 from _typeshed import Incomplete
-from typing import Any, final
+from typing import final
 
 class AssertingBaseClass:
     def __new__(cls, /, expected_type: type) -> AssertingBaseClass: ...
@@ -55,7 +55,7 @@ class PyClassThreadIter:
 
 @final
 class SubClassWithInit(dict):
-    def __init__(self, /, *args, **kwargs) -> Any: ...
+    def __init__(self, /, *args, **kwargs) -> None: ...
     def __new__(cls, /, *args, **kwargs) -> SubClassWithInit: ...
 
 def map_a_class(

@@ -595,6 +595,9 @@ impl<'py> IntoPyObject<'py> for () {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: TypeHint = PyTuple::TYPE_HINT; // TODO(Tpt): should be tuple[()]
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyTuple::empty(py))
     }
