@@ -12,7 +12,7 @@
 use crate::{
     internal::state::SuspendAttach,
     sealed::Sealed,
-    types::{any::PyAnyMethods, PyString},
+    types::{any::PyAnyMethods, PyAny, PyString},
     Bound, Py, PyResult, PyTypeCheck, Python,
 };
 use std::{
@@ -28,8 +28,29 @@ pub(crate) mod once_lock;
 #[cfg(not(Py_GIL_DISABLED))]
 use crate::PyVisit;
 
-#[deprecated(since = "0.28.0", note = "use std::sync::critical_section instead")]
-pub use self::critical_section::{with_critical_section, with_critical_section2};
+/// Deprecated alias for [`pyo3::sync::critical_section::with_critical_section`][crate::sync::critical_section::with_critical_section]
+#[deprecated(
+    since = "0.28.0",
+    note = "use pyo3::sync::critical_section::with_critical_section instead"
+)]
+pub fn with_critical_section<F, R>(object: &Bound<'_, PyAny>, f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    crate::sync::critical_section::with_critical_section(object, f)
+}
+
+/// Deprecated alias for [`pyo3::sync::critical_section::with_critical_section2`][crate::sync::critical_section::with_critical_section2]
+#[deprecated(
+    since = "0.28.0",
+    note = "use pyo3::sync::critical_section::with_critical_section2 instead"
+)]
+pub fn with_critical_section2<F, R>(a: &Bound<'_, PyAny>, b: &Bound<'_, PyAny>, f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    crate::sync::critical_section::with_critical_section2(a, b, f)
+}
 pub use self::once_lock::PyOnceLock;
 
 /// Value with concurrent access protected by the GIL.
