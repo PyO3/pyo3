@@ -1361,7 +1361,8 @@ fn generate_method_body(
                 quote! { *mut #pyo3_path::ffi::PyObject },
             ];
             let (arg_convert, args) = impl_arg_params(spec, Some(cls), false, holders, ctx);
-            let call = quote_spanned! {*output_span=> #cls::#rust_name(#self_arg #(#args),*) };
+            let args = self_arg.into_iter().chain(args);
+            let call = quote_spanned! {*output_span=> #cls::#rust_name(#(#args),*) };
 
             // Use just the text_signature_call_signature() because the class' Python name
             // isn't known to `#[pymethods]` - that has to be attached at runtime from the PyClassImpl
@@ -1399,8 +1400,9 @@ fn generate_method_body(
                 quote! { *mut #pyo3_path::ffi::PyObject },
             ];
             let (arg_convert, args) = impl_arg_params(spec, Some(cls), false, holders, ctx);
+            let args = self_arg.into_iter().chain(args);
             let call = quote! {{
-                let r = #cls::#rust_name(#self_arg #(#args),*);
+                let r = #cls::#rust_name(#(#args),*);
                 #pyo3_path::impl_::wrap::converter(&r)
                     .wrap(r)
                     .map_err(::core::convert::Into::<#pyo3_path::PyErr>::into)?
@@ -1425,7 +1427,8 @@ fn generate_method_body(
                 .collect();
 
             let args = extract_proto_arguments(spec, arguments, extract_error_mode, holders, ctx)?;
-            let call = quote! { #cls::#rust_name(#self_arg #(#args),*) };
+            let args = self_arg.into_iter().chain(args);
+            let call = quote! { #cls::#rust_name(#(#args),*) };
             let result = if let Some(return_mode) = return_mode {
                 return_mode.return_call_output(call, ctx)
             } else {
