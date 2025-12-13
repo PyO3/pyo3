@@ -74,6 +74,9 @@ impl std::fmt::Debug for PyObjectObRefcnt {
 #[cfg(all(not(Py_3_12), not(Py_GIL_DISABLED)))]
 pub type PyObjectObRefcnt = Py_ssize_t;
 
+const _PyGC_PREV_SHIFT: usize = 2;
+pub const _PyObject_MIN_ALIGNMENT: usize = 1 << _PyGC_PREV_SHIFT;
+
 // PyObject_HEAD_INIT comes before the PyObject definition in object.h
 // but we put it after PyObject because HEAD_INIT uses PyObject
 
@@ -114,7 +117,9 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     _ob_next: std::ptr::null_mut(),
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     _ob_prev: std::ptr::null_mut(),
-    #[cfg(Py_GIL_DISABLED)]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_3_15)))]
+    ob_tid: 0,
+    #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
     ob_tid: 0,
     #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
     ob_flags: 0,
