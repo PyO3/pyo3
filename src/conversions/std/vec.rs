@@ -1,7 +1,7 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::{type_hint_subscript, PyStaticExpr};
 use crate::{
     conversion::{FromPyObject, FromPyObjectOwned, FromPyObjectSequence, IntoPyObject},
     exceptions::PyTypeError,
@@ -20,7 +20,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = T::SEQUENCE_OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = T::SEQUENCE_OUTPUT_TYPE;
 
     /// Turns [`Vec<u8>`] into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///
@@ -46,7 +46,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = <&[T]>::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = <&[T]>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -69,7 +69,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::subscript(&PySequence::TYPE_HINT, &[T::INPUT_TYPE]);
+    const INPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySequence::TYPE_HINT, T::INPUT_TYPE);
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {

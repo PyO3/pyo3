@@ -1,7 +1,7 @@
 //! Contains types for working with Python objects that own the underlying data.
 
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
 use crate::{
     types::{
         bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
@@ -97,7 +97,7 @@ impl FromPyObject<'_, '_> for PyBackedStr {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyString::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let py_string = obj.cast::<PyString>()?.to_owned();
@@ -111,7 +111,7 @@ impl<'py> IntoPyObject<'py> for PyBackedStr {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyString::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
 
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -130,7 +130,7 @@ impl<'py> IntoPyObject<'py> for &PyBackedStr {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyString::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
 
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -246,7 +246,7 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyBackedBytes {
     type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyBytes::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyBytes::TYPE_HINT;
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(bytes) = obj.cast::<PyBytes>() {
@@ -276,7 +276,7 @@ impl<'py> IntoPyObject<'py> for PyBackedBytes {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyBytes::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyBytes::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self.storage {
@@ -292,7 +292,7 @@ impl<'py> IntoPyObject<'py> for &PyBackedBytes {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyBytes::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyBytes::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match &self.storage {

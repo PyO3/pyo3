@@ -2,165 +2,190 @@
 //!
 //! Tracking issue: <https://github.com/PyO3/pyo3/issues/2454>.
 
-use std::fmt;
-use std::fmt::Formatter;
+use std::fmt::{self, Display, Write};
 
 pub mod types;
 
-/// A [type hint](https://docs.python.org/3/glossary.html#term-type-hint).
+/// Builds a type hint from a module name and a member name in the module
+///
+/// ```
+/// use pyo3::type_hint_identifier;
+/// use pyo3::inspect::PyStaticExpr;
+///
+/// const T: PyStaticExpr = type_hint_identifier!("datetime", "date");
+/// assert_eq!(T.to_string(), "datetime.date");
+///
+/// const T2: PyStaticExpr = type_hint_identifier!("builtins", "int");
+/// assert_eq!(T2.to_string(), "int");
+/// ```
+#[macro_export]
+macro_rules! type_hint_identifier {
+    ("builtins", $name:expr) => {
+        $crate::inspect::PyStaticExpr::Name {
+            id: $name,
+            kind: $crate::inspect::PyStaticNameKind::Global,
+        }
+    };
+    ($module:expr, $name:expr) => {
+        $crate::inspect::PyStaticExpr::Attribute {
+            value: &$crate::inspect::PyStaticExpr::Name {
+                id: $module,
+                kind: $crate::inspect::PyStaticNameKind::Global,
+            },
+            attr: $name,
+        }
+    };
+}
+pub(crate) use type_hint_identifier;
+
+/// Builds the union of multiple type hints
+///
+/// ```
+/// use pyo3::{type_hint_identifier, type_hint_union};
+/// use pyo3::inspect::PyStaticExpr;
+///
+/// const T: PyStaticExpr = type_hint_union!(type_hint_identifier!("builtins", "int"), type_hint_identifier!("builtins", "float"));
+/// assert_eq!(T.to_string(), "int | float");
+/// ```
+#[macro_export]
+macro_rules! type_hint_union {
+    ($e:expr) => { $e };
+    ($l:expr , $($r:expr),+) => { $crate::inspect::PyStaticExpr::BinOp {
+        left: &$l,
+        op: $crate::inspect::PyStaticOperator::BitOr,
+        right: &type_hint_union!($($r),+),
+    } };
+}
+pub(crate) use type_hint_union;
+
+/// Builds a subscribed type hint
+///
+/// ```
+/// use pyo3::{type_hint_identifier, type_hint_subscript};
+/// use pyo3::inspect::PyStaticExpr;
+///
+/// const T: PyStaticExpr = type_hint_subscript!(type_hint_identifier!("collections.abc", "Sequence"), type_hint_identifier!("builtins", "float"));
+/// assert_eq!(T.to_string(), "collections.abc.Sequence[float]");
+///
+/// const T2: PyStaticExpr = type_hint_subscript!(type_hint_identifier!("builtins", "dict"), type_hint_identifier!("builtins", "str"), type_hint_identifier!("builtins", "float"));
+/// assert_eq!(T2.to_string(), "dict[str, float]");
+/// ```
+#[macro_export]
+macro_rules! type_hint_subscript {
+    ($l:expr, $r:expr) => {
+        $crate::inspect::PyStaticExpr::Subscript {
+            value: &$l,
+            slice: &$r
+        }
+    };
+    ($l:expr, $($r:expr),*) => {
+        $crate::inspect::PyStaticExpr::Subscript {
+            value: &$l,
+            slice: &$crate::inspect::PyStaticExpr::Tuple { elts: &[$($r),*] }
+        }
+    };
+}
+pub(crate) use type_hint_subscript;
+
+/// A Python expression.
+///
+/// This is the `expr` production of the [Python `ast` module grammar](https://docs.python.org/3/library/ast.html#abstract-grammar)
 ///
 /// This struct aims at being used in `const` contexts like in [`FromPyObject::INPUT_TYPE`](crate::FromPyObject::INPUT_TYPE) and [`IntoPyObject::OUTPUT_TYPE`](crate::IntoPyObject::OUTPUT_TYPE).
 ///
-/// ```
-/// use pyo3::inspect::TypeHint;
-///
-/// const T: TypeHint = TypeHint::union(&[TypeHint::builtin("int"), TypeHint::module_attr("b", "B")]);
-/// assert_eq!(T.to_string(), "int | b.B");
-/// ```
+/// Use macros like [`type_hint_identifier`], [`type_hint_union`] and [`type_hint_subscript`] to construct values.
 #[derive(Clone, Copy)]
-pub struct TypeHint {
-    inner: TypeHintExpr,
-}
-
-#[derive(Clone, Copy)]
-enum TypeHintExpr {
-    /// A local name. Used only when the module is unknown.
-    Local { id: &'static str },
-    /// A built-name like `list` or `datetime`. Used for built-in types or modules.
-    Builtin { id: &'static str },
-    /// A module member like `datetime.time` where module = `datetime` and attr = `time`
-    ModuleAttribute {
-        module: &'static str,
+#[non_exhaustive]
+#[allow(missing_docs)]
+pub enum PyStaticExpr {
+    /// A constant like `None` or `123`
+    Constant { value: PyStaticConstant },
+    /// A name
+    Name {
+        id: &'static str,
+        kind: PyStaticNameKind,
+    },
+    /// An attribute `value.attr`
+    Attribute {
+        value: &'static Self,
         attr: &'static str,
     },
-    /// A union `elts[0] | ... | elts[len]`
-    Union { elts: &'static [TypeHint] },
-    /// A subscript `main[*args]`
-    Subscript {
-        value: &'static TypeHint,
-        slice: &'static [TypeHint],
+    /// A binary operator
+    BinOp {
+        left: &'static Self,
+        op: PyStaticOperator,
+        right: &'static Self,
     },
-}
-
-impl TypeHint {
-    /// A builtin like `int` or `list`
-    ///
-    /// ```
-    /// use pyo3::inspect::TypeHint;
-    ///
-    /// const T: TypeHint = TypeHint::builtin("int");
-    /// assert_eq!(T.to_string(), "int");
-    /// ```
-    pub const fn builtin(name: &'static str) -> Self {
-        Self {
-            inner: TypeHintExpr::Builtin { id: name },
-        }
-    }
-
-    /// A type contained in a module like `datetime.time`
-    ///
-    /// ```
-    /// use pyo3::inspect::TypeHint;
-    ///
-    /// const T: TypeHint = TypeHint::module_attr("datetime", "time");
-    /// assert_eq!(T.to_string(), "datetime.time");
-    /// ```
-    pub const fn module_attr(module: &'static str, attr: &'static str) -> Self {
-        Self {
-            inner: if matches!(module.as_bytes(), b"builtins") {
-                TypeHintExpr::Builtin { id: attr }
-            } else {
-                TypeHintExpr::ModuleAttribute { module, attr }
-            },
-        }
-    }
-
-    /// A value in the local module which module is unknown
-    #[doc(hidden)]
-    pub const fn local(name: &'static str) -> Self {
-        Self {
-            inner: TypeHintExpr::Local { id: name },
-        }
-    }
-
-    /// The union of multiple types
-    ///
-    /// ```
-    /// use pyo3::inspect::TypeHint;
-    ///
-    /// const T: TypeHint = TypeHint::union(&[TypeHint::builtin("int"), TypeHint::builtin("float")]);
-    /// assert_eq!(T.to_string(), "int | float");
-    /// ```
-    pub const fn union(elts: &'static [TypeHint]) -> Self {
-        Self {
-            inner: TypeHintExpr::Union { elts },
-        }
-    }
-
-    /// A subscribed type, often a container
-    ///
-    /// ```
-    /// use pyo3::inspect::TypeHint;
-    ///
-    /// const T: TypeHint = TypeHint::subscript(&TypeHint::builtin("dict"), &[TypeHint::builtin("int"), TypeHint::builtin("str")]);
-    /// assert_eq!(T.to_string(), "dict[int, str]");
-    /// ```
-    pub const fn subscript(value: &'static Self, slice: &'static [Self]) -> Self {
-        Self {
-            inner: TypeHintExpr::Subscript { value, slice },
-        }
-    }
+    /// A tuple
+    Tuple { elts: &'static [Self] },
+    /// A list
+    List { elts: &'static [Self] },
+    /// A subscript `value[slice]`
+    Subscript {
+        value: &'static Self,
+        slice: &'static Self,
+    },
 }
 
 /// Serialize the type for introspection and return the number of written bytes
-///
-/// We use the same AST as Python: <https://docs.python.org/3/library/ast.html#abstract-grammar>
 #[doc(hidden)]
-pub const fn serialize_for_introspection(hint: &TypeHint, mut output: &mut [u8]) -> usize {
+pub const fn serialize_for_introspection(expr: &PyStaticExpr, mut output: &mut [u8]) -> usize {
     let original_len = output.len();
-    match &hint.inner {
-        TypeHintExpr::Local { id } => {
-            output = write_slice_and_move_forward(b"{\"type\":\"local\",\"id\":\"", output);
+    match expr {
+        PyStaticExpr::Constant { value } => match value {
+            PyStaticConstant::None => {
+                output = write_slice_and_move_forward(
+                    b"{\"type\":\"constant\",\"kind\":\"none\"}",
+                    output,
+                )
+            }
+        },
+        PyStaticExpr::Name { id, kind } => {
+            output = write_slice_and_move_forward(b"{\"type\":\"name\",\"kind\":\"", output);
+            output = write_slice_and_move_forward(
+                match kind {
+                    PyStaticNameKind::Local => b"local",
+                    PyStaticNameKind::Global => b"global",
+                },
+                output,
+            );
+            output = write_slice_and_move_forward(b"\",\"id\":\"", output);
             output = write_slice_and_move_forward(id.as_bytes(), output);
             output = write_slice_and_move_forward(b"\"}", output);
         }
-        TypeHintExpr::Builtin { id } => {
-            output = write_slice_and_move_forward(b"{\"type\":\"builtin\",\"id\":\"", output);
-            output = write_slice_and_move_forward(id.as_bytes(), output);
-            output = write_slice_and_move_forward(b"\"}", output);
-        }
-        TypeHintExpr::ModuleAttribute { module, attr } => {
-            output = write_slice_and_move_forward(b"{\"type\":\"attribute\",\"module\":\"", output);
-            output = write_slice_and_move_forward(module.as_bytes(), output);
-            output = write_slice_and_move_forward(b"\",\"attr\":\"", output);
+        PyStaticExpr::Attribute { value, attr } => {
+            output = write_slice_and_move_forward(b"{\"type\":\"attribute\",\"value\":", output);
+            output = write_expr_and_move_forward(value, output);
+            output = write_slice_and_move_forward(b",\"attr\":\"", output);
             output = write_slice_and_move_forward(attr.as_bytes(), output);
             output = write_slice_and_move_forward(b"\"}", output);
         }
-        TypeHintExpr::Union { elts } => {
-            output = write_slice_and_move_forward(b"{\"type\":\"union\",\"elts\":[", output);
-            let mut i = 0;
-            while i < elts.len() {
-                if i > 0 {
-                    output = write_slice_and_move_forward(b",", output);
-                }
-                output = write_type_hint_and_move_forward(&elts[i], output);
-                i += 1;
-            }
-            output = write_slice_and_move_forward(b"]}", output);
+        PyStaticExpr::BinOp { left, op, right } => {
+            output = write_slice_and_move_forward(b"{\"type\":\"binop\",\"left\":", output);
+            output = write_expr_and_move_forward(left, output);
+            output = write_slice_and_move_forward(b",\"op\":\"", output);
+            output = write_slice_and_move_forward(
+                match op {
+                    PyStaticOperator::BitOr => b"bitor",
+                },
+                output,
+            );
+            output = write_slice_and_move_forward(b"\",\"right\":", output);
+            output = write_expr_and_move_forward(right, output);
+            output = write_slice_and_move_forward(b"}", output);
         }
-        TypeHintExpr::Subscript { value, slice } => {
+        PyStaticExpr::Tuple { elts } => {
+            output = write_container_and_move_forward(b"tuple", elts, output);
+        }
+        PyStaticExpr::List { elts } => {
+            output = write_container_and_move_forward(b"list", elts, output);
+        }
+        PyStaticExpr::Subscript { value, slice } => {
             output = write_slice_and_move_forward(b"{\"type\":\"subscript\",\"value\":", output);
-            output = write_type_hint_and_move_forward(value, output);
-            output = write_slice_and_move_forward(b",\"slice\":[", output);
-            let mut i = 0;
-            while i < slice.len() {
-                if i > 0 {
-                    output = write_slice_and_move_forward(b",", output);
-                }
-                output = write_type_hint_and_move_forward(&slice[i], output);
-                i += 1;
-            }
-            output = write_slice_and_move_forward(b"]}", output);
+            output = write_expr_and_move_forward(value, output);
+            output = write_slice_and_move_forward(b",\"slice\":", output);
+            output = write_expr_and_move_forward(slice, output);
+            output = write_slice_and_move_forward(b"}", output);
         }
     }
     original_len - output.len()
@@ -168,70 +193,111 @@ pub const fn serialize_for_introspection(hint: &TypeHint, mut output: &mut [u8])
 
 /// Length required by [`serialize_for_introspection`]
 #[doc(hidden)]
-pub const fn serialized_len_for_introspection(hint: &TypeHint) -> usize {
-    match &hint.inner {
-        TypeHintExpr::Local { id } => 24 + id.len(),
-        TypeHintExpr::Builtin { id } => 26 + id.len(),
-        TypeHintExpr::ModuleAttribute { module, attr } => 42 + module.len() + attr.len(),
-        TypeHintExpr::Union { elts } => {
-            let mut count = 26;
-            let mut i = 0;
-            while i < elts.len() {
-                if i > 0 {
-                    count += 1;
-                }
-                count += serialized_len_for_introspection(&elts[i]);
-                i += 1;
-            }
-            count
+pub const fn serialized_len_for_introspection(expr: &PyStaticExpr) -> usize {
+    match expr {
+        PyStaticExpr::Constant { value } => match value {
+            PyStaticConstant::None => 33,
+        },
+        PyStaticExpr::Name { id, kind } => {
+            (match kind {
+                PyStaticNameKind::Local => 38,
+                PyStaticNameKind::Global => 39,
+            }) + id.len()
         }
-        TypeHintExpr::Subscript { value, slice } => {
-            let mut count = 40 + serialized_len_for_introspection(value);
-            let mut i = 0;
-            while i < slice.len() {
-                if i > 0 {
-                    count += 1;
+        PyStaticExpr::Attribute { value, attr } => {
+            39 + serialized_len_for_introspection(value) + attr.len()
+        }
+        PyStaticExpr::BinOp { left, op, right } => {
+            41 + serialized_len_for_introspection(left)
+                + match op {
+                    PyStaticOperator::BitOr => 5,
                 }
-                count += serialized_len_for_introspection(&slice[i]);
-                i += 1;
-            }
-            count
+                + serialized_len_for_introspection(right)
+        }
+        PyStaticExpr::Tuple { elts } => 5 + serialized_container_len_for_introspection(elts),
+        PyStaticExpr::List { elts } => 4 + serialized_container_len_for_introspection(elts),
+        PyStaticExpr::Subscript { value, slice } => {
+            38 + serialized_len_for_introspection(value) + serialized_len_for_introspection(slice)
         }
     }
 }
 
-impl fmt::Display for TypeHint {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match &self.inner {
-            TypeHintExpr::Builtin { id } | TypeHintExpr::Local { id } => id.fmt(f),
-            TypeHintExpr::ModuleAttribute { module, attr } => {
-                module.fmt(f)?;
-                f.write_str(".")?;
-                attr.fmt(f)
-            }
-            TypeHintExpr::Union { elts } => {
-                for (i, elt) in elts.iter().enumerate() {
-                    if i > 0 {
-                        f.write_str(" | ")?;
-                    }
-                    elt.fmt(f)?;
-                }
-                Ok(())
-            }
-            TypeHintExpr::Subscript { value, slice } => {
+impl fmt::Display for PyStaticExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Constant { value } => match value {
+                PyStaticConstant::None => f.write_str("None"),
+            },
+            Self::Name { id, .. } => f.write_str(id),
+            Self::Attribute { value, attr } => {
                 value.fmt(f)?;
-                f.write_str("[")?;
-                for (i, elt) in slice.iter().enumerate() {
-                    if i > 0 {
-                        f.write_str(", ")?;
-                    }
-                    elt.fmt(f)?;
+                f.write_str(".")?;
+                f.write_str(attr)
+            }
+            Self::BinOp { left, op, right } => {
+                left.fmt(f)?;
+                f.write_char(' ')?;
+                f.write_char(match op {
+                    PyStaticOperator::BitOr => '|',
+                })?;
+                f.write_char(' ')?;
+                right.fmt(f)
+            }
+            Self::Tuple { elts } => {
+                f.write_char('(')?;
+                fmt_elements(elts, f)?;
+                if elts.len() == 1 {
+                    f.write_char(',')?;
                 }
-                f.write_str("]")
+                f.write_char(')')
+            }
+            Self::List { elts } => {
+                f.write_char('[')?;
+                fmt_elements(elts, f)?;
+                f.write_char(']')
+            }
+            Self::Subscript { value, slice } => {
+                value.fmt(f)?;
+                f.write_char('[')?;
+                if let PyStaticExpr::Tuple { elts } = slice {
+                    // We don't display the tuple parentheses
+                    fmt_elements(elts, f)?;
+                } else {
+                    slice.fmt(f)?;
+                }
+                f.write_char(']')
             }
         }
     }
+}
+
+/// A PyO3 extension to the Python AST to know more about [`PyStaticExpr::Name`].
+#[derive(Clone, Copy)]
+#[non_exhaustive]
+pub enum PyStaticNameKind {
+    /// A local name, relative to the current module
+    Local,
+    /// A global name, can be a module like `datetime`, a builtin like `int`...
+    Global,
+}
+
+/// A PyO3 extension to the Python AST to know more about [`PyStaticExpr::Constant`].
+///
+/// This enables advanced features like escaping.
+#[derive(Clone, Copy)]
+#[non_exhaustive]
+pub enum PyStaticConstant {
+    /// None
+    None,
+    // TODO: add Bool(bool), String(&'static str)... (is useful for Literal["foo", "bar"] types)
+}
+
+/// An operator used in [`PyStaticExpr::BinOp`].
+#[derive(Clone, Copy)]
+#[non_exhaustive]
+pub enum PyStaticOperator {
+    /// `|` operator
+    BitOr,
 }
 
 const fn write_slice_and_move_forward<'a>(value: &[u8], output: &'a mut [u8]) -> &'a mut [u8] {
@@ -244,12 +310,54 @@ const fn write_slice_and_move_forward<'a>(value: &[u8], output: &'a mut [u8]) ->
     output.split_at_mut(value.len()).1
 }
 
-const fn write_type_hint_and_move_forward<'a>(
-    value: &TypeHint,
+const fn write_expr_and_move_forward<'a>(
+    value: &PyStaticExpr,
     output: &'a mut [u8],
 ) -> &'a mut [u8] {
     let written = serialize_for_introspection(value, output);
     output.split_at_mut(written).1
+}
+
+const fn write_container_and_move_forward<'a>(
+    name: &'static [u8],
+    elts: &[PyStaticExpr],
+    mut output: &'a mut [u8],
+) -> &'a mut [u8] {
+    output = write_slice_and_move_forward(b"{\"type\":\"", output);
+    output = write_slice_and_move_forward(name, output);
+    output = write_slice_and_move_forward(b"\",\"elts\":[", output);
+    let mut i = 0;
+    while i < elts.len() {
+        if i > 0 {
+            output = write_slice_and_move_forward(b",", output);
+        }
+        output = write_expr_and_move_forward(&elts[i], output);
+        i += 1;
+    }
+    write_slice_and_move_forward(b"]}", output)
+}
+
+const fn serialized_container_len_for_introspection(elts: &[PyStaticExpr]) -> usize {
+    let mut len = 21;
+    let mut i = 0;
+    while i < elts.len() {
+        if i > 0 {
+            len += 1;
+        }
+        len += serialized_len_for_introspection(&elts[i]);
+        i += 1;
+    }
+    len
+}
+
+fn fmt_elements(elts: &[PyStaticExpr], f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    for (i, elt) in elts.iter().enumerate() {
+        if i > 0 {
+            f.write_str(", ")?;
+        }
+        elt.fmt(f)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -258,38 +366,80 @@ mod tests {
 
     #[test]
     fn test_to_string() {
-        const T: TypeHint = TypeHint::subscript(
-            &TypeHint::builtin("dict"),
-            &[
-                TypeHint::union(&[
-                    TypeHint::builtin("int"),
-                    TypeHint::module_attr("builtins", "float"),
-                    TypeHint::local("weird"),
-                ]),
-                TypeHint::module_attr("datetime", "time"),
-            ],
+        const T: PyStaticExpr = type_hint_subscript!(
+            PyStaticExpr::Name {
+                id: "dict",
+                kind: PyStaticNameKind::Global
+            },
+            type_hint_union!(
+                PyStaticExpr::Name {
+                    id: "int",
+                    kind: PyStaticNameKind::Global
+                },
+                PyStaticExpr::Name {
+                    id: "weird",
+                    kind: PyStaticNameKind::Local
+                }
+            ),
+            type_hint_identifier!("datetime", "time")
         );
-        assert_eq!(T.to_string(), "dict[int | float | weird, datetime.time]")
+        assert_eq!(T.to_string(), "dict[int | weird, datetime.time]")
     }
 
     #[test]
     fn test_serialize_for_introspection() {
-        const T: TypeHint = TypeHint::subscript(
-            &TypeHint::builtin("dict"),
-            &[
-                TypeHint::union(&[TypeHint::builtin("int"), TypeHint::local("weird")]),
-                TypeHint::module_attr("datetime", "time"),
-            ],
+        fn check_serialization(expr: PyStaticExpr, expected: &str) {
+            let mut out = vec![0; serialized_len_for_introspection(&expr)];
+            serialize_for_introspection(&expr, &mut out);
+            assert_eq!(std::str::from_utf8(&out).unwrap(), expected)
+        }
+
+        check_serialization(
+            PyStaticExpr::Constant {
+                value: PyStaticConstant::None,
+            },
+            r#"{"type":"constant","kind":"none"}"#,
         );
-        const SER_LEN: usize = serialized_len_for_introspection(&T);
-        const SER: [u8; SER_LEN] = {
-            let mut out: [u8; SER_LEN] = [0; SER_LEN];
-            serialize_for_introspection(&T, &mut out);
-            out
-        };
-        assert_eq!(
-            std::str::from_utf8(&SER).unwrap(),
-            r#"{"type":"subscript","value":{"type":"builtin","id":"dict"},"slice":[{"type":"union","elts":[{"type":"builtin","id":"int"},{"type":"local","id":"weird"}]},{"type":"attribute","module":"datetime","attr":"time"}]}"#
-        )
+        check_serialization(
+            type_hint_identifier!("builtins", "int"),
+            r#"{"type":"name","kind":"global","id":"int"}"#,
+        );
+        check_serialization(
+            PyStaticExpr::Name {
+                id: "int",
+                kind: PyStaticNameKind::Local,
+            },
+            r#"{"type":"name","kind":"local","id":"int"}"#,
+        );
+        check_serialization(
+            type_hint_identifier!("datetime", "date"),
+            r#"{"type":"attribute","value":{"type":"name","kind":"global","id":"datetime"},"attr":"date"}"#,
+        );
+        check_serialization(
+            type_hint_union!(
+                type_hint_identifier!("builtins", "int"),
+                type_hint_identifier!("builtins", "float")
+            ),
+            r#"{"type":"binop","left":{"type":"name","kind":"global","id":"int"},"op":"bitor","right":{"type":"name","kind":"global","id":"float"}}"#,
+        );
+        check_serialization(
+            PyStaticExpr::Tuple {
+                elts: &[type_hint_identifier!("builtins", "list")],
+            },
+            r#"{"type":"tuple","elts":[{"type":"name","kind":"global","id":"list"}]}"#,
+        );
+        check_serialization(
+            PyStaticExpr::List {
+                elts: &[type_hint_identifier!("builtins", "list")],
+            },
+            r#"{"type":"list","elts":[{"type":"name","kind":"global","id":"list"}]}"#,
+        );
+        check_serialization(
+            type_hint_subscript!(
+                type_hint_identifier!("builtins", "list"),
+                type_hint_identifier!("builtins", "int")
+            ),
+            r#"{"type":"subscript","value":{"type":"name","kind":"global","id":"list"},"slice":{"type":"name","kind":"global","id":"int"}}"#,
+        );
     }
 }
