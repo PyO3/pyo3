@@ -953,6 +953,9 @@ impl r#RawIdents {
         self.r#subtype = r#subtype;
     }
 
+    #[deleter(r#subtype)]
+    pub fn r#del_subtype(&mut self) {}
+
     #[getter]
     pub fn r#get_subsubtype(&self, py: Python<'_>) -> Py<PyAny> {
         self.r#subsubtype.clone_ref(py)
@@ -962,6 +965,9 @@ impl r#RawIdents {
     pub fn r#set_subsubtype(&mut self, r#subsubtype: Py<PyAny>) {
         self.r#subsubtype = r#subsubtype;
     }
+
+    #[deleter]
+    pub fn r#delete_subsubtype(&mut self) {}
 
     pub fn r#__call__(&mut self, r#type: Py<PyAny>) {
         self.r#type = r#type;
@@ -1013,6 +1019,9 @@ fn test_raw_idents() {
             assert instance.type == 1
             assert instance.subtype == 2
             assert instance.subsubtype == 3
+
+            del instance.subtype
+            del instance.subsubtype
 
             assert raw_idents_type.static_method(type=30) == 30
             assert instance.class_method(type=40) == 40
@@ -1133,6 +1142,9 @@ issue_1506!(
 
         #[setter("foo")]
         fn issue_1506_setter(&self, _py: Python<'_>, _value: i32) {}
+
+        #[deleter("foo")]
+        fn issue_1506_deleter(&self, _py: Python<'_>) {}
 
         #[staticmethod]
         #[pyo3(signature = (_arg, _args, _kwargs=None))]
@@ -1270,6 +1282,10 @@ fn test_pymethods_warn() {
             self.value = value;
         }
 
+        #[deleter]
+        #[pyo3(warn(message = "this deleter raises warning"))]
+        fn delete_value(&mut self) {}
+
         #[pyo3(warn(message = "this subscript op method raises warning"))]
         fn __getitem__(&self, _key: i32) -> i32 {
             0
@@ -1366,6 +1382,14 @@ fn test_pymethods_warn() {
             obj,
             "obj.value = 10",
             [("this setter raises warning", PyUserWarning)]
+        );
+
+        // #[deleter], FnType::Deleter
+        py_expect_warning!(
+            py,
+            obj,
+            "del obj.value",
+            [("this deleter raises warning", PyUserWarning)]
         );
 
         // PyMethodProtoKind::Slot
