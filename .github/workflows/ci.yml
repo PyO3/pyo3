@@ -459,6 +459,8 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
+          # TODO change back to latest once 1.93.0 is marked stable
+          toolchain: beta
           targets: wasm32-unknown-emscripten
           components: rust-src
       - uses: actions/setup-node@v6

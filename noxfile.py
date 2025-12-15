@@ -444,7 +444,7 @@ def test_emscripten(session: nox.Session):
     session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
     session.env["CARGO_BUILD_TARGET"] = target
     session.env["PYO3_CROSS_LIB_DIR"] = pythonlibdir
-    _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
+    _run(session, "rustup", "target", "add", target, "--toolchain", "beta")
     _run(
         session,
         "bash",
