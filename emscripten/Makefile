@@ -40,10 +40,9 @@ $(BUILDROOT)/.exists:
 
 
 # Install emscripten
-$(EMSDKDIR): $(CURDIR)/emscripten_patches/* $(BUILDROOT)/.exists
+$(EMSDKDIR): $(BUILDROOT)/.exists
 	git clone https://github.com/emscripten-core/emsdk.git --depth 1 --branch $(EMSCRIPTEN_VERSION) $(EMSDKDIR)
 	$(EMSDKDIR)/emsdk install $(EMSCRIPTEN_VERSION)
-	cd $(EMSDKDIR)/upstream/emscripten && cat $(CURDIR)/emscripten_patches/* | patch -p1
 	$(EMSDKDIR)/emsdk activate $(EMSCRIPTEN_VERSION)
 
 
