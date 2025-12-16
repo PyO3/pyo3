@@ -262,16 +262,12 @@ impl FnType {
     ) -> Option<TokenStream> {
         let Ctx { pyo3_path, .. } = ctx;
         match self {
-            FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) => {
-                let mut receiver = st.receiver(
-                    cls.expect("no class given for Fn with a \"self\" receiver"),
-                    error_mode,
-                    holders,
-                    ctx,
-                );
-                syn::Token![,](Span::call_site()).to_tokens(&mut receiver);
-                Some(receiver)
-            }
+            FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) => Some(st.receiver(
+                cls.expect("no class given for Fn with a \"self\" receiver"),
+                error_mode,
+                holders,
+                ctx,
+            )),
             FnType::FnClass(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
@@ -283,7 +279,7 @@ impl FnType {
                             .cast_unchecked::<#pyo3_path::types::PyType>()
                     )
                 };
-                Some(quote! { unsafe { #ret }, })
+                Some(quote! { unsafe { #ret } })
             }
             FnType::FnModule(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
@@ -296,7 +292,7 @@ impl FnType {
                             .cast_unchecked::<#pyo3_path::types::PyModule>()
                     )
                 };
-                Some(quote! { unsafe { #ret }, })
+                Some(quote! { unsafe { #ret } })
             }
             FnType::FnStatic | FnType::ClassAttribute => None,
         }
@@ -664,36 +660,45 @@ impl<'a> FnSpec<'a> {
                     Some(cls) => quote!(Some(<#cls as #pyo3_path::PyClass>::NAME)),
                     None => quote!(None),
                 };
-                let arg_names = (0..args.len())
-                    .map(|i| format_ident!("arg_{}", i))
-                    .collect::<Vec<_>>();
                 let future = match self.tp {
-                    FnType::Fn(SelfType::Receiver { mutable: false, .. }) => {
+                    // If extracting `self`, we move the `_slf` pointer into the async block. This reduces the lifetime for which the Rust state is considered "borrowed"
+                    // to just when the async block is executing.
+                    //
+                    // TODO: we should do this with all arguments, not just `self`, e.g. https://github.com/PyO3/pyo3/issues/5681
+                    FnType::Fn(SelfType::Receiver { mutable, .. }) => {
+                        let arg_names = (0..args.len())
+                            .map(|i| format_ident!("arg_{}", i))
+                            .collect::<Vec<_>>();
+                        let method = syn::Ident::new(
+                            if mutable {
+                                "extract_pyclass_ref_mut"
+                            } else {
+                                "extract_pyclass_ref"
+                            },
+                            Span::call_site(),
+                        );
                         quote! {{
+                            let _slf = unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf) }.to_owned().unbind();
                             #(let #arg_names = #args;)*
-                            let __guard = unsafe { #pyo3_path::impl_::coroutine::RefGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))? };
-                            async move { function(&__guard, #(#arg_names),*).await }
-                        }}
-                    }
-                    FnType::Fn(SelfType::Receiver { mutable: true, .. }) => {
-                        quote! {{
-                            #(let #arg_names = #args;)*
-                            let mut __guard = unsafe { #pyo3_path::impl_::coroutine::RefMutGuard::<#cls>::new(&#pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf))? };
-                            async move { function(&mut __guard, #(#arg_names),*).await }
+                            async move {
+                                // SAFETY: attached when future is polled (see `Coroutine::poll`)
+                                let assume_attached = unsafe { #pyo3_path::impl_::coroutine::AssumeAttachedInCoroutine::new() };
+                                let py = assume_attached.py();
+                                let mut holder = None;
+                                let future = function(
+                                    #pyo3_path::impl_::extract_argument::#method(_slf.bind(py), &mut holder)?,
+                                    #(#arg_names),*
+                                );
+                                drop(py);
+                                let result = future.await;
+                                let result: #pyo3_path::PyResult<_> = #pyo3_path::impl_::wrap::converter(&result).wrap(result).map_err(::std::convert::Into::into);
+                                result
+                            }
                         }}
                     }
                     _ => {
-                        if let Some(self_arg) = self_arg() {
-                            quote! {
-                                function(
-                                    // NB #self_arg includes a comma, so none inserted here
-                                    #self_arg
-                                    #(#args),*
-                                )
-                            }
-                        } else {
-                            quote! { function(#(#args),*) }
-                        }
+                        let args = self_arg().into_iter().chain(args);
+                        quote! { function(#(#args),*) }
                     }
                 };
                 let mut call = quote! {{
@@ -703,8 +708,11 @@ impl<'a> FnSpec<'a> {
                         #qualname_prefix,
                         #throw_callback,
                         async move {
-                            let fut = future.await;
-                            #pyo3_path::impl_::wrap::converter(&fut).wrap(fut)
+                            // SAFETY: attached when future is polled (see `Coroutine::poll`)
+                            let assume_attached = unsafe { #pyo3_path::impl_::coroutine::AssumeAttachedInCoroutine::new() };
+                            let output = future.await;
+                            let res = #pyo3_path::impl_::wrap::converter(&output).wrap(output).map_err(::std::convert::Into::into);
+                            #pyo3_path::impl_::wrap::converter(&res).map_into_pyobject(assume_attached.py(), res)
                         },
                     )
                 }};
@@ -716,15 +724,8 @@ impl<'a> FnSpec<'a> {
                     }};
                 }
                 call
-            } else if let Some(self_arg) = self_arg() {
-                quote! {
-                    function(
-                        // NB #self_arg includes a comma, so none inserted here
-                        #self_arg
-                        #(#args),*
-                    )
-                }
             } else {
+                let args = self_arg().into_iter().chain(args);
                 quote! { function(#(#args),*) }
             };
 

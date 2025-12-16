@@ -39,6 +39,18 @@ fn noop_coroutine() {
 }
 
 #[test]
+fn test_async_function_returns_unit_none() {
+    #[pyfunction]
+    async fn returns_unit() {}
+
+    Python::attach(|py| {
+        let returns_unit = wrap_pyfunction!(returns_unit, py).unwrap();
+        let test = "import asyncio; assert asyncio.run(returns_unit()) is None";
+        pyo3::py_run!(py, returns_unit, &handle_windows(test));
+    });
+}
+
+#[test]
 fn test_coroutine_qualname() {
     #[pyfunction]
     async fn my_fn() {}
@@ -266,10 +278,18 @@ fn test_async_method_receiver() {
         fn new() -> Self {
             Self(0)
         }
-        async fn get(&self) -> usize {
+        async fn get(&self, resolve: bool) -> usize {
+            if !resolve {
+                // hang the future to test borrow checking
+                std::future::pending().await
+            }
             self.0
         }
-        async fn incr(&mut self) -> usize {
+        async fn incr(&mut self, resolve: bool) -> usize {
+            if !resolve {
+                // hang the future to test borrow checking
+                std::future::pending().await
+            }
             self.0 += 1;
             self.0
         }
@@ -288,30 +308,23 @@ fn test_async_method_receiver() {
         import asyncio
 
         obj = Counter()
-        coro1 = obj.get()
-        coro2 = obj.get()
-        try:
-            obj.incr()  # borrow checking should fail
-        except RuntimeError as err:
-            pass
-        else:
-            assert False
-        assert asyncio.run(coro1) == 0
-        coro2.close()
-        coro3 = obj.incr()
-        try:
-            obj.incr()  # borrow checking should fail
-        except RuntimeError as err:
-            pass
-        else:
-            assert False
-        try:
-            obj.get() # borrow checking should fail
-        except RuntimeError as err:
-            pass
-        else:
-            assert False
-        assert asyncio.run(coro3) == 1
+
+        assert asyncio.run(obj.get(True)) == 0
+        assert asyncio.run(obj.incr(True)) == 1
+
+        for left in [obj.get, obj.incr]:
+            for right in [obj.get, obj.incr]:
+                # first future will not resolve to hold the borrow
+                coro1 = left(False)
+                coro2 = right(True)
+                try:
+                    asyncio.run(asyncio.gather(coro1, coro2))
+                except RuntimeError as err:
+                    ran = False
+                else:
+                    ran = True
+                if left is obj.incr or right is obj.incr:
+                    assert not ran, "mutable method calls should not run concurrently with other method calls"
         "#;
         let locals = [("Counter", py.get_type::<Counter>())]
             .into_py_dict(py)

@@ -148,7 +148,16 @@ impl PythonTypeHint {
                 }
             }
             PythonTypeHintVariant::ReturnType(t) => {
-                quote! { <#t as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE }
+                quote! {{
+                    #[allow(unused_imports)]
+                    use #pyo3_crate_path::impl_::pyclass::Probe as _;
+                    const TYPE: #pyo3_crate_path::inspect::TypeHint = if #pyo3_crate_path::impl_::pyclass::IsReturningEmptyTuple::<#t>::VALUE {
+                        #pyo3_crate_path::inspect::TypeHint::builtin("None")
+                    } else {
+                        <#t as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE
+                    };
+                    TYPE
+                }}
             }
             PythonTypeHintVariant::Type(t) => {
                 quote! { <#t as #pyo3_crate_path::type_object::PyTypeCheck>::TYPE_HINT }
