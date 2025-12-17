@@ -80,8 +80,8 @@ pub fn impl_arg_params(
             .collect();
         return (
             quote! {
-                let _args = unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_args) };
-                let _kwargs = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr_or_opt(py, &_kwargs);
+                let _args = unsafe { #pyo3_path::impl_::extract_argument::cast_function_argument(py, _args) };
+                let _kwargs = unsafe { #pyo3_path::impl_::extract_argument::cast_optional_function_argument(py, _kwargs) };
                 #from_py_with
             },
             arg_convert,
@@ -191,7 +191,7 @@ fn impl_arg_param(
     match arg {
         FnArg::Regular(arg) => {
             let from_py_with = format_ident!("from_py_with_{}", pos);
-            let arg_value = quote!(#args_array[#option_pos].as_deref());
+            let arg_value = quote!(#args_array[#option_pos]);
             *option_pos += 1;
             impl_regular_arg_param(arg, from_py_with, arg_value, holders, ctx)
         }
@@ -200,7 +200,7 @@ fn impl_arg_param(
             let name_str = arg.name.to_string();
             quote_spanned! { arg.name.span() =>
                 #pyo3_path::impl_::extract_argument::extract_argument(
-                    &_args,
+                    _args.as_any().as_borrowed(),
                     &mut #holder,
                     #name_str
                 )?
@@ -211,7 +211,7 @@ fn impl_arg_param(
             let name_str = arg.name.to_string();
             quote_spanned! { arg.name.span() =>
                 #pyo3_path::impl_::extract_argument::extract_argument_with_default(
-                    _kwargs.as_deref(),
+                    _kwargs.as_ref().map(|d| d.as_any().as_borrowed()),
                     &mut #holder,
                     #name_str,
                     || ::std::option::Option::None
@@ -261,7 +261,7 @@ pub(crate) fn impl_regular_arg_param(
         if let Some(default) = default {
             quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::from_py_with_with_default(
-                    #arg_value,
+                    #arg_value.as_deref(),
                     #name_str,
                     #extractor,
                     #[allow(clippy::redundant_closure, reason = "wrapping user-provided default expression")]
@@ -271,7 +271,7 @@ pub(crate) fn impl_regular_arg_param(
                 )?
             }
         } else {
-            let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value) }};
+            let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument_bound(#arg_value.as_deref()) }};
             quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::from_py_with(
                     #unwrap,
