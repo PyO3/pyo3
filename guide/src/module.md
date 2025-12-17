@@ -104,7 +104,7 @@ fn func() -> String {
 #
 #      py.run(c"assert parent_module.child_module.func() == 'func'", None, Some(&ctx)).unwrap();
 #   })
-}
+# }
 ```
 
 Note that this does not define a package, so this won’t allow Python code to directly import submodules by using `from parent_module import child_module`.
