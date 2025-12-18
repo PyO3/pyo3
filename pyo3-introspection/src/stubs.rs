@@ -138,7 +138,7 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
         buffer.push(')');
     }
     buffer.push(':');
-    if class.methods.is_empty() && class.attributes.is_empty() {
+    if class.methods.is_empty() && class.attributes.is_empty() && class.inner_classes.is_empty() {
         buffer.push_str(" ...");
         return buffer;
     }
@@ -151,6 +151,11 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
         // We do the indentation
         buffer.push_str("\n    ");
         buffer.push_str(&function_stubs(method, imports).replace('\n', "\n    "));
+    }
+    for inner_class in &class.inner_classes {
+        // We do the indentation
+        buffer.push_str("\n    ");
+        buffer.push_str(&class_stubs(inner_class, imports).replace('\n', "\n    "));
     }
     buffer
 }
@@ -690,6 +695,7 @@ mod tests {
                         module: Some("typing".into()),
                         name: "final".into(),
                     }],
+                    inner_classes: Vec::new(),
                 }],
                 functions: vec![Function {
                     name: String::new(),

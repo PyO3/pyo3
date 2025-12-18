@@ -62,6 +62,7 @@ pub fn class_introspection_code(
     name: &str,
     extends: Option<PythonTypeHint>,
     is_final: bool,
+    parent: Option<&Type>,
 ) -> TokenStream {
     let mut desc = HashMap::from([
         ("type", IntrospectionNode::String("class".into())),
@@ -78,6 +79,12 @@ pub fn class_introspection_code(
         desc.insert(
             "decorators",
             IntrospectionNode::List(vec![PythonTypeHint::module_attr("typing", "final").into()]),
+        );
+    }
+    if let Some(parent) = parent {
+        desc.insert(
+            "parent",
+            IntrospectionNode::IntrospectionId(Some(Cow::Borrowed(parent))),
         );
     }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
