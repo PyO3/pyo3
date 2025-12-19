@@ -29,6 +29,7 @@ mod impls;
 pub use cast_error::{CastError, CastIntoError};
 #[allow(deprecated)]
 pub use downcast_error::{DowncastError, DowncastIntoError};
+pub(crate) use impls::Utf8ErrorWithBytes;
 
 /// Represents a Python exception.
 ///
