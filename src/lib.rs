@@ -470,6 +470,7 @@ pub mod inspect;
 
 // Putting the declaration of prelude at the end seems to help encourage rustc and rustdoc to prefer using
 // other paths to the same items. (e.g. `pyo3::types::PyAnyMethods` instead of `pyo3::prelude::PyAnyMethods`).
+mod byteswriter;
 pub mod prelude;
 
 /// Test readme and user guide
