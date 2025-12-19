@@ -2,6 +2,8 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::{type_hint_subscript, PyStaticExpr};
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 #[cfg(feature = "experimental-inspect")]
@@ -614,9 +616,9 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         type Error = PyErr;
 
         #[cfg(feature = "experimental-inspect")]
-        const OUTPUT_TYPE: crate::inspect::TypeHint = crate::inspect::TypeHint::subscript(
-            &PyTuple::TYPE_HINT,
-            &[$($T::OUTPUT_TYPE ),+]
+        const OUTPUT_TYPE: PyStaticExpr = type_hint_subscript!(
+            PyTuple::TYPE_HINT,
+            $($T::OUTPUT_TYPE),+
         );
 
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -638,9 +640,9 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         type Error = PyErr;
 
         #[cfg(feature = "experimental-inspect")]
-        const OUTPUT_TYPE: crate::inspect::TypeHint = crate::inspect::TypeHint::subscript(
-            &PyTuple::TYPE_HINT,
-            &[$(<&$T>::OUTPUT_TYPE ),+]
+        const OUTPUT_TYPE: PyStaticExpr = type_hint_subscript!(
+            PyTuple::TYPE_HINT,
+            $(<&$T>::OUTPUT_TYPE ),+
         );
 
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -914,9 +916,9 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         type Error = PyErr;
 
         #[cfg(feature = "experimental-inspect")]
-        const INPUT_TYPE: crate::inspect::TypeHint = crate::inspect::TypeHint::subscript(
-            &PyTuple::TYPE_HINT,
-            &[$($T::INPUT_TYPE ),+]
+        const INPUT_TYPE: PyStaticExpr = type_hint_subscript!(
+            PyTuple::TYPE_HINT,
+            $($T::INPUT_TYPE ),+
         );
 
         fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error>

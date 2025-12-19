@@ -101,7 +101,11 @@ impl<'a> Enum<'a> {
 
     #[cfg(feature = "experimental-inspect")]
     fn input_type(&self) -> PythonTypeHint {
-        PythonTypeHint::union(self.variants.iter().map(|var| var.input_type()))
+        self.variants
+            .iter()
+            .map(|var| var.input_type())
+            .reduce(PythonTypeHint::union)
+            .expect("Empty enum")
     }
 }
 
@@ -463,9 +467,9 @@ impl<'a> Container<'a> {
             }
             ContainerType::Tuple(tups) => PythonTypeHint::subscript(
                 PythonTypeHint::builtin("tuple"),
-                tups.iter().map(|TupleStructField { from_py_with, ty }| {
+                PythonTypeHint::tuple(tups.iter().map(|TupleStructField { from_py_with, ty }| {
                     Self::field_input_type(from_py_with, ty)
-                }),
+                })),
             ),
             ContainerType::Struct(_) => {
                 // TODO: implement using a Protocol?
@@ -577,7 +581,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
             PythonTypeHint::module_attr("_typeshed", "Incomplete")
         }
         .to_introspection_token_stream(pyo3_crate_path);
-        quote! { const INPUT_TYPE: #pyo3_crate_path::inspect::TypeHint = #input_type; }
+        quote! { const INPUT_TYPE: #pyo3_crate_path::inspect::PyStaticExpr = #input_type; }
     };
     #[cfg(not(feature = "experimental-inspect"))]
     let input_type = quote! {};

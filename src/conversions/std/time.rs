@@ -1,7 +1,7 @@
 use crate::conversion::IntoPyObject;
 use crate::exceptions::{PyOverflowError, PyValueError};
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
 #[cfg(Py_LIMITED_API)]
 use crate::intern;
 use crate::sync::PyOnceLock;
@@ -20,7 +20,7 @@ impl FromPyObject<'_, '_> for Duration {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyDelta::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyDelta::TYPE_HINT;
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let delta = obj.cast::<PyDelta>()?;
@@ -65,7 +65,7 @@ impl<'py> IntoPyObject<'py> for Duration {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyDelta::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyDelta::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let days = self.as_secs() / SECONDS_PER_DAY;
@@ -88,7 +88,7 @@ impl<'py> IntoPyObject<'py> for &Duration {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = Duration::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = Duration::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -106,7 +106,7 @@ impl FromPyObject<'_, '_> for SystemTime {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyDateTime::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let duration_since_unix_epoch: Duration = obj.sub(unix_epoch_py(obj.py())?)?.extract()?;
@@ -124,7 +124,7 @@ impl<'py> IntoPyObject<'py> for SystemTime {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyDateTime::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let duration_since_unix_epoch =
@@ -142,7 +142,7 @@ impl<'py> IntoPyObject<'py> for &SystemTime {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = SystemTime::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = SystemTime::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
