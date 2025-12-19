@@ -235,7 +235,7 @@ impl PySetterDef {
 }
 
 impl PyDeleterDef {
-    /// Define a setter.
+    /// Define a deleter.
     pub const fn new(name: &'static CStr, deleter: Deleter, doc: &'static CStr) -> Self {
         Self {
             name,
