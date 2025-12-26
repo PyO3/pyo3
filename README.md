@@ -199,6 +199,7 @@ about this topic.
 - [deltalake-python](https://github.com/delta-io/delta-rs/tree/main/python) _Native Delta Lake Python binding based on delta-rs with Pandas integration._
 - [fastbloom](https://github.com/yankun1992/fastbloom) _A fast [bloom filter](https://github.com/yankun1992/fastbloom#BloomFilter) | [counting bloom filter](https://github.com/yankun1992/fastbloom#countingbloomfilter) implemented by Rust for Rust and Python!_
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
+- [fast-paseto](https://github.com/CodingCogs-OSS/Fast-Paseto) _High-performance PASETO (Platform-Agnostic Security Tokens) implementation with Python bindings._
 - [feos](https://github.com/feos-org/feos) _Lightning fast thermodynamic modeling in Rust with fully developed Python interface._
 - [finalytics](https://github.com/Nnamdi-sys/finalytics) _Investment Analysis library in Rust | Python._
 - [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
