@@ -444,7 +444,7 @@ enum RustyEnum {
 # }
 ```
 
-If the input is neither a string nor an integer, the error message will be: `"'<INPUT_TYPE>' cannot be cast as 'str | int'"`.
+If the input is neither a string nor an integer, the error message will be: `"'<INPUT_TYPE>' is not an instance of 'str | int'"`.
 
 ### `#[derive(FromPyObject)]` Container Attributes
 
