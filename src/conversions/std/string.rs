@@ -1,7 +1,7 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
@@ -16,7 +16,7 @@ impl<'py> IntoPyObject<'py> for &str {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = String::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -35,7 +35,7 @@ impl<'py> IntoPyObject<'py> for &&str {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = String::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -54,7 +54,7 @@ impl<'py> IntoPyObject<'py> for Cow<'_, str> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = String::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -73,7 +73,7 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, str> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = String::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -92,7 +92,7 @@ impl<'py> IntoPyObject<'py> for char {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = String::OUTPUT_TYPE;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let mut bytes = [0u8; 4];
@@ -111,7 +111,7 @@ impl<'py> IntoPyObject<'py> for &char {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = String::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -130,7 +130,7 @@ impl<'py> IntoPyObject<'py> for String {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyString::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new(py, &self))
@@ -148,7 +148,7 @@ impl<'py> IntoPyObject<'py> for &String {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = String::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = String::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -166,7 +166,7 @@ impl<'a> crate::conversion::FromPyObject<'a, '_> for &'a str {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyString::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
 
     fn extract(ob: crate::Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         ob.cast::<PyString>()?.to_str()
@@ -182,7 +182,7 @@ impl<'a> crate::conversion::FromPyObject<'a, '_> for Cow<'a, str> {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyString::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
 
     fn extract(ob: crate::Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         ob.cast::<PyString>()?.to_cow()
@@ -200,7 +200,7 @@ impl FromPyObject<'_, '_> for String {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyString::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         obj.cast::<PyString>()?.to_cow().map(Cow::into_owned)
@@ -216,7 +216,7 @@ impl FromPyObject<'_, '_> for char {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyString::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let s = obj.cast::<PyString>()?.to_cow()?;
