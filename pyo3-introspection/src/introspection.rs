@@ -32,7 +32,8 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
     let mut chunks_by_parent = HashMap::<&str, Vec<&Chunk>>::new();
     for chunk in chunks {
         let (id, parent) = match chunk {
-            Chunk::Module { id, .. } | Chunk::Class { id, .. } => (Some(id.as_str()), None),
+            Chunk::Module { id, .. } => (Some(id.as_str()), None),
+            Chunk::Class { id, parent, .. } => (Some(id.as_str()), parent.as_deref()),
             Chunk::Function { id, parent, .. } | Chunk::Attribute { id, parent, .. } => {
                 (id.as_deref(), parent.as_deref())
             }
@@ -136,6 +137,7 @@ fn convert_members<'a>(
                 id,
                 bases,
                 decorators,
+                parent: _,
             } => classes.push(convert_class(
                 id,
                 name,
@@ -209,10 +211,6 @@ fn convert_class(
         nested_modules.is_empty(),
         "Classes cannot contain nested modules"
     );
-    ensure!(
-        nested_classes.is_empty(),
-        "Nested classes are not supported yet"
-    );
     Ok(Class {
         name: name.into(),
         bases: bases
@@ -225,6 +223,7 @@ fn convert_class(
             .iter()
             .map(convert_python_identifier)
             .collect::<Result<_>>()?,
+        inner_classes: nested_classes,
     })
 }
 
@@ -479,6 +478,8 @@ enum Chunk {
         bases: Vec<ChunkTypeHint>,
         #[serde(default)]
         decorators: Vec<ChunkTypeHint>,
+        #[serde(default)]
+        parent: Option<String>,
     },
     Function {
         #[serde(default)]
