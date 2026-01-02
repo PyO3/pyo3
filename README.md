@@ -231,6 +231,7 @@ about this topic.
 - [tiktoken](https://github.com/openai/tiktoken) _A fast BPE tokeniser for use with OpenAI's models._
 - [tokenizers](https://github.com/huggingface/tokenizers/tree/main/bindings/python) _Python bindings to the Hugging Face tokenizers (NLP) written in Rust._
 - [tzfpy](http://github.com/ringsaturn/tzfpy) _A fast package to convert longitude/latitude to timezone name._
+- [toml-rs](https://github.com/lava-sh/toml-rs) _A High-Performance TOML v1.0.0 and v1.1.0 parser for Python written in Rust._
 - [utiles](https://github.com/jessekrubin/utiles) _Fast Python web-map tile utilities_
 
 ## Articles and other media
