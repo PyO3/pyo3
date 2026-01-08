@@ -246,7 +246,7 @@ fn test_function_with_custom_conversion_error() {
             custom_conv_func,
             "custom_conv_func(['a'])",
             PyTypeError,
-            "argument 'timestamp': 'list' object cannot be cast as 'datetime'"
+            "argument 'timestamp': 'list' object is not an instance of 'datetime'"
         );
     });
 }
@@ -318,14 +318,14 @@ fn test_conversion_error() {
             conversion_error,
             "conversion_error(None, None, None, None, None)",
             PyTypeError,
-            "argument 'str_arg': 'NoneType' object cannot be cast as 'str'"
+            "argument 'str_arg': 'None' is not an instance of 'str'"
         );
         py_expect_exception!(
             py,
             conversion_error,
             "conversion_error(100, None, None, None, None)",
             PyTypeError,
-            "argument 'str_arg': 'int' object cannot be cast as 'str'"
+            "argument 'str_arg': 'int' object is not an instance of 'str'"
         );
         py_expect_exception!(
             py,
@@ -339,7 +339,7 @@ fn test_conversion_error() {
             conversion_error,
             "conversion_error('string1', -100, 'string2', None, None)",
             PyTypeError,
-            "argument 'tuple_arg': 'str' object cannot be cast as 'tuple'"
+            "argument 'tuple_arg': 'str' object is not an instance of 'tuple'"
         );
         py_expect_exception!(
             py,

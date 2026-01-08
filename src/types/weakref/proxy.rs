@@ -447,7 +447,7 @@ mod tests {
                             .cast_into::<PyWeakrefProxy>()
                             .unwrap_err()
                             .to_string(),
-                        "'int' object cannot be cast as 'ProxyType | CallableProxyType'"
+                        "'int' object is not an instance of 'ProxyType | CallableProxyType'"
                     );
                     Ok(())
                 })
