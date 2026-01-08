@@ -3,7 +3,7 @@ use crate::object::PyObject;
 use crate::pytypedefs::{PyInterpreterState, PyThreadState};
 use std::ffi::c_int;
 
-#[cfg(all(Py_3_10, not(PyPy), not(Py_LIMITED_API)))]
+#[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
 use crate::PyFrameObject;
 
 #[cfg(not(PyPy))]

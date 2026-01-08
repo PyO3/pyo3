@@ -1,5 +1,5 @@
 use crate::object::PyObject;
-use crate::pystate::PyThreadState;
+use crate::pytypedefs::PyThreadState;
 use std::ffi::{c_char, c_int, c_void};
 
 extern "C" {

@@ -1,4 +1,4 @@
-use crate::pystate::PyThreadState;
+use crate::pytypedefs::PyThreadState;
 
 use libc::wchar_t;
 use std::ffi::{c_char, c_int};
