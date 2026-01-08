@@ -330,14 +330,14 @@ pub unsafe fn cast_function_argument<'py>(
     unsafe { Borrowed::from_ptr_unchecked(py, raw_arg) }
 }
 
-/// Cast a raw `*mut ffi::PyObject` to a `PyArg`. This is used to access safer PyO3
+/// Cast a `NonNull<ffi::PyObject>` to a `PyArg`. This is used to access safer PyO3
 /// APIs with the assumption that the borrowed argument is valid for the lifetime `'py`.
 ///
 /// This has the effect of limiting the lifetime of function arguments to `'py`, i.e.
 /// avoiding accidentally creating `'static` lifetimes from raw pointers.
 ///
 /// # Safety
-/// - `raw_arg` must be a valid `*mut ffi::PyObject` for the lifetime `'py`.
+/// - `raw_arg` must be a valid `NonNull<ffi::PyObject>` for the lifetime `'py`.
 #[inline]
 pub unsafe fn cast_non_null_function_argument<'py>(
     py: Python<'py>,
