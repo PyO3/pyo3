@@ -338,7 +338,6 @@ pub unsafe fn cast_function_argument<'py>(
 ///
 /// # Safety
 /// - `raw_arg` must be a valid `*mut ffi::PyObject` for the lifetime `'py`.
-/// - `raw_arg` must not be NULL.
 #[inline]
 pub unsafe fn cast_non_null_function_argument<'py>(
     py: Python<'py>,
