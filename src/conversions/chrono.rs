@@ -780,11 +780,11 @@ mod tests {
             let none = py.None().into_bound(py);
             assert_eq!(
                 none.extract::<Duration>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object is not an instance of 'timedelta'"
+                "TypeError: 'None' is not an instance of 'timedelta'"
             );
             assert_eq!(
                 none.extract::<FixedOffset>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object is not an instance of 'tzinfo'"
+                "TypeError: 'None' is not an instance of 'tzinfo'"
             );
             assert_eq!(
                 none.extract::<Utc>().unwrap_err().to_string(),
@@ -792,25 +792,25 @@ mod tests {
             );
             assert_eq!(
                 none.extract::<NaiveTime>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object is not an instance of 'time'"
+                "TypeError: 'None' is not an instance of 'time'"
             );
             assert_eq!(
                 none.extract::<NaiveDate>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object is not an instance of 'date'"
+                "TypeError: 'None' is not an instance of 'date'"
             );
             assert_eq!(
                 none.extract::<NaiveDateTime>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object is not an instance of 'datetime'"
+                "TypeError: 'None' is not an instance of 'datetime'"
             );
             assert_eq!(
                 none.extract::<DateTime<Utc>>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object is not an instance of 'datetime'"
+                "TypeError: 'None' is not an instance of 'datetime'"
             );
             assert_eq!(
                 none.extract::<DateTime<FixedOffset>>()
                     .unwrap_err()
                     .to_string(),
-                "TypeError: 'NoneType' object is not an instance of 'datetime'"
+                "TypeError: 'None' is not an instance of 'datetime'"
             );
         });
     }

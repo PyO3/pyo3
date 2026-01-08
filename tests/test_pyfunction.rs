@@ -318,7 +318,7 @@ fn test_conversion_error() {
             conversion_error,
             "conversion_error(None, None, None, None, None)",
             PyTypeError,
-            "argument 'str_arg': 'NoneType' object is not an instance of 'str'"
+            "argument 'str_arg': 'None' is not an instance of 'str'"
         );
         py_expect_exception!(
             py,
