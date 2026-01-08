@@ -649,7 +649,7 @@ pub fn impl_py_setter_def(
             let extract = impl_regular_arg_param(
                 arg,
                 ident,
-                quote!(::std::option::Option::Some(_value.into())),
+                quote!(::std::option::Option::Some(_value)),
                 &mut holders,
                 ctx,
             );
@@ -671,7 +671,7 @@ pub fn impl_py_setter_def(
             quote! {
                 #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
                 use #pyo3_path::impl_::pyclass::Probe as _;
-                let _val = #pyo3_path::impl_::extract_argument::extract_argument(_value.into(), &mut #holder, #name)?;
+                let _val = #pyo3_path::impl_::extract_argument::extract_argument(_value, &mut #holder, #name)?;
             }
         }
     };
@@ -702,7 +702,7 @@ pub fn impl_py_setter_def(
             _value: *mut #pyo3_path::ffi::PyObject,
         ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
             use ::std::convert::Into;
-            let _value = #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_value);
+            let _value = #pyo3_path::impl_::extract_argument::cast_function_argument(py, _value);
             #init_holders
             #extract
             #warnings
@@ -1086,7 +1086,8 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
-                format_ident!("ref_from_ptr"),
+                REF_FROM_PTR,
+                CAST_FUNCTION_ARGUMENT,
                 quote! { #ident },
                 ctx
             ),
@@ -1094,7 +1095,8 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
-                format_ident!("ref_from_ptr"),
+                REF_FROM_PTR,
+                CAST_FUNCTION_ARGUMENT,
                 quote! {
                     if #ident.is_null() {
                         #pyo3_path::ffi::Py_None()
@@ -1108,7 +1110,8 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
-                format_ident!("ref_from_non_null"),
+                REF_FROM_NON_NULL,
+                CAST_NON_NULL_FUNCTION_ARGUMENT,
                 quote! { #ident },
                 ctx
             ),
@@ -1116,7 +1119,8 @@ impl Ty {
                 extract_error_mode,
                 holders,
                 arg,
-                format_ident!("ref_from_ptr"),
+                REF_FROM_PTR,
+                CAST_FUNCTION_ARGUMENT,
                 quote! { #ident.as_ptr() },
                 ctx
             ),
@@ -1142,11 +1146,19 @@ impl Ty {
     }
 }
 
+const REF_FROM_PTR: StaticIdent = StaticIdent::new("ref_from_ptr");
+const REF_FROM_NON_NULL: StaticIdent = StaticIdent::new("ref_from_non_null");
+
+const CAST_FUNCTION_ARGUMENT: StaticIdent = StaticIdent::new("cast_function_argument");
+const CAST_NON_NULL_FUNCTION_ARGUMENT: StaticIdent =
+    StaticIdent::new("cast_non_null_function_argument");
+
 fn extract_object(
     extract_error_mode: ExtractErrorMode,
     holders: &mut Holders,
     arg: &FnArg<'_>,
-    ref_from_method: Ident,
+    ref_from_method: StaticIdent,
+    cast_method: StaticIdent,
     source_ptr: TokenStream,
     ctx: &Ctx,
 ) -> TokenStream {
@@ -1175,7 +1187,7 @@ fn extract_object(
             #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
             use #pyo3_path::impl_::pyclass::Probe as _;
             #pyo3_path::impl_::extract_argument::extract_argument(
-                unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },
+                unsafe { #pyo3_path::impl_::extract_argument::#cast_method(py, #source_ptr) },
                 &mut #holder,
                 #name
             )

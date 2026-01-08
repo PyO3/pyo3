@@ -346,10 +346,9 @@ impl SelfType {
         let py = syn::Ident::new("py", Span::call_site());
         let slf = syn::Ident::new("_slf", Span::call_site());
         let Ctx { pyo3_path, .. } = ctx;
-        let bound_ref =
-            quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf) } };
         match self {
             SelfType::Receiver { span, mutable } => {
+                let arg = quote! { unsafe { #pyo3_path::impl_::extract_argument::cast_function_argument(#py, #slf) } };
                 let method = if *mutable {
                     syn::Ident::new("extract_pyclass_ref_mut", *span)
                 } else {
@@ -360,7 +359,7 @@ impl SelfType {
                 error_mode.handle_error(
                     quote_spanned! { *span =>
                         #pyo3_path::impl_::extract_argument::#method::<#cls>(
-                            #bound_ref.0,
+                            #arg,
                             &mut #holder,
                         )
                     },
@@ -368,6 +367,7 @@ impl SelfType {
                 )
             }
             SelfType::TryFromBoundRef(span) => {
+                let bound_ref = quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf) } };
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
                     quote_spanned! { *span =>
@@ -698,7 +698,7 @@ impl<'a> FnSpec<'a> {
                             Span::call_site(),
                         );
                         quote! {{
-                            let _slf = unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf) }.to_owned().unbind();
+                            let _slf = unsafe { #pyo3_path::impl_::extract_argument::cast_function_argument(py, _slf) }.to_owned().unbind();
                             #(let #arg_names = #args;)*
                             async move {
                                 // SAFETY: attached when future is polled (see `Coroutine::poll`)
@@ -706,7 +706,7 @@ impl<'a> FnSpec<'a> {
                                 let py = assume_attached.py();
                                 let mut holder = None;
                                 let future = function(
-                                    #pyo3_path::impl_::extract_argument::#method(_slf.bind(py), &mut holder)?,
+                                    #pyo3_path::impl_::extract_argument::#method(_slf.bind_borrowed(py), &mut holder)?,
                                     #(#arg_names),*
                                 );
                                 drop(py);

@@ -95,6 +95,12 @@ impl<'a, T: PyClass> PyClassGuard<'a, T> {
         Self::try_from_class_object(obj.get_class_object())
     }
 
+    pub(crate) fn try_borrow_from_borrowed(
+        obj: Borrowed<'a, '_, T>,
+    ) -> Result<Self, PyBorrowError> {
+        Self::try_from_class_object(obj.get_class_object())
+    }
+
     fn try_from_class_object(obj: &'a PyClassObject<T>) -> Result<Self, PyBorrowError> {
         obj.ensure_threadsafe();
         obj.borrow_checker().try_borrow().map(|_| Self {
@@ -429,7 +435,7 @@ impl From<PyClassGuardError<'_, '_>> for PyErr {
 ///         let mut holder_0 = ::pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT;
 ///         let result = {
 ///             let ret = function(::pyo3::impl_::extract_argument::extract_pyclass_ref_mut::<Number>(
-///                 unsafe { ::pyo3::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf) }.0,
+///                 unsafe { ::pyo3::impl_::extract_argument::cast_function_argument(py, _slf) },
 ///                 &mut holder_0,
 ///             )?);
 ///             {
@@ -588,6 +594,12 @@ pub struct PyClassGuardMut<'a, T: PyClass<Frozen = False>> {
 
 impl<'a, T: PyClass<Frozen = False>> PyClassGuardMut<'a, T> {
     pub(crate) fn try_borrow_mut(obj: &'a Py<T>) -> Result<Self, PyBorrowMutError> {
+        Self::try_from_class_object(obj.get_class_object())
+    }
+
+    pub(crate) fn try_borrow_mut_from_borrowed(
+        obj: Borrowed<'a, '_, T>,
+    ) -> Result<Self, PyBorrowMutError> {
         Self::try_from_class_object(obj.get_class_object())
     }
 
