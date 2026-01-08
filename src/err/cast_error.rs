@@ -2,8 +2,10 @@ use std::borrow::Cow;
 
 use crate::{
     exceptions,
-    types::{PyAnyMethods, PyStringMethods, PyTuple, PyTupleMethods, PyType, PyTypeMethods},
-    Borrowed, Bound, IntoPyObjectExt, Py, PyAny, PyErr, PyErrArguments, Python,
+    types::{
+        PyAnyMethods, PyNone, PyStringMethods, PyTuple, PyTupleMethods, PyType, PyTypeMethods,
+    },
+    Borrowed, Bound, IntoPyObjectExt, Py, PyAny, PyErr, PyErrArguments, PyTypeInfo, Python,
 };
 
 /// Error that indicates an object was not an instance of a given target type.
@@ -59,7 +61,7 @@ impl<'py> CastIntoError<'py> {
 }
 
 struct CastErrorArguments {
-    from: Py<PyType>,
+    from: Py<PyAny>,
     classinfo: Py<PyAny>,
 }
 
@@ -81,7 +83,7 @@ impl PyErrArguments for CastErrorArguments {
 impl std::convert::From<CastError<'_, '_>> for PyErr {
     fn from(err: CastError<'_, '_>) -> PyErr {
         let args = CastErrorArguments {
-            from: err.from.get_type().unbind(),
+            from: err.from.to_owned().unbind(),
             classinfo: err.classinfo.unbind(),
         };
 
@@ -94,7 +96,7 @@ impl std::error::Error for CastError<'_, '_> {}
 impl std::fmt::Display for CastError<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         DisplayCastError {
-            from: &self.from.get_type(),
+            from: &self.from,
             classinfo: &self.classinfo,
         }
         .fmt(f)
@@ -105,7 +107,7 @@ impl std::fmt::Display for CastError<'_, '_> {
 impl std::convert::From<CastIntoError<'_>> for PyErr {
     fn from(err: CastIntoError<'_>) -> PyErr {
         let args = CastErrorArguments {
-            from: err.from.get_type().unbind(),
+            from: err.from.to_owned().unbind(),
             classinfo: err.classinfo.unbind(),
         };
 
@@ -118,7 +120,7 @@ impl std::error::Error for CastIntoError<'_> {}
 impl std::fmt::Display for CastIntoError<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         DisplayCastError {
-            from: &self.from.get_type(),
+            from: &self.from.to_owned(),
             classinfo: &self.classinfo,
         }
         .fmt(f)
@@ -126,19 +128,23 @@ impl std::fmt::Display for CastIntoError<'_> {
 }
 
 struct DisplayCastError<'a, 'py> {
-    from: &'a Bound<'py, PyType>,
+    from: &'a Bound<'py, PyAny>,
     classinfo: &'a Bound<'py, PyAny>,
 }
 
 impl std::fmt::Display for DisplayCastError<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let from = self.from.qualname();
-        let from = from
-            .as_ref()
-            .map(|name| name.to_string_lossy())
-            .unwrap_or(Cow::Borrowed("<failed to extract type name>"));
         let to = DisplayClassInfo(self.classinfo);
-        write!(f, "'{from}' object is not an instance of '{to}'")
+        if self.from.is_none() {
+            write!(f, "'None' is not an instance of '{to}'")
+        } else {
+            let from = self.from.get_type().qualname();
+            let from = from
+                .as_ref()
+                .map(|name| name.to_string_lossy())
+                .unwrap_or(Cow::Borrowed("<failed to extract type name>"));
+            write!(f, "'{from}' object is not an instance of '{to}'")
+        }
     }
 }
 
@@ -147,10 +153,14 @@ struct DisplayClassInfo<'a, 'py>(&'a Bound<'py, PyAny>);
 impl std::fmt::Display for DisplayClassInfo<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Ok(t) = self.0.cast::<PyType>() {
-            t.qualname()
-                .map_err(|_| std::fmt::Error)?
-                .to_string_lossy()
-                .fmt(f)
+            if t.is(PyNone::type_object(t.py())) {
+                f.write_str("None")
+            } else {
+                t.qualname()
+                    .map_err(|_| std::fmt::Error)?
+                    .to_string_lossy()
+                    .fmt(f)
+            }
         } else if let Ok(t) = self.0.cast::<PyTuple>() {
             for (i, t) in t.iter().enumerate() {
                 if i > 0 {
@@ -167,40 +177,50 @@ impl std::fmt::Display for DisplayClassInfo<'_, '_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::PyTypeInfo;
+    use crate::{
+        types::{PyBool, PyString},
+        PyTypeInfo,
+    };
 
     use super::*;
 
     #[test]
     fn test_display_cast_error() {
         Python::attach(|py| {
+            let obj = PyBool::new(py, true).to_any();
+            let classinfo = py.get_type::<PyString>().into_any();
+            let err = CastError::new(obj, classinfo);
+            assert_eq!(err.to_string(), "'bool' object is not an instance of 'str'");
+        })
+    }
+
+    #[test]
+    fn test_display_cast_error_with_none() {
+        Python::attach(|py| {
             let obj = py.None().into_bound(py);
-            let classinfo = py.get_type::<crate::types::PyInt>().into_any();
+            let classinfo = py.get_type::<PyString>().into_any();
             let err = CastError::new(obj.as_borrowed(), classinfo);
-            assert_eq!(
-                err.to_string(),
-                "'NoneType' object is not an instance of 'int'"
-            );
+            assert_eq!(err.to_string(), "'None' is not an instance of 'str'");
         })
     }
 
     #[test]
     fn test_display_cast_error_with_tuple() {
         Python::attach(|py| {
-            let obj = py.None().into_bound(py);
+            let obj = PyBool::new(py, true).to_any();
             let classinfo = PyTuple::new(
                 py,
                 &[
-                    py.get_type::<crate::types::PyInt>().into_any(),
+                    py.get_type::<PyString>().into_any(),
                     crate::types::PyNone::type_object(py).into_any(),
                 ],
             )
             .unwrap()
             .into_any();
-            let err = CastError::new(obj.as_borrowed(), classinfo);
+            let err = CastError::new(obj, classinfo);
             assert_eq!(
                 err.to_string(),
-                "'NoneType' object is not an instance of 'int | NoneType'"
+                "'bool' object is not an instance of 'str | None'"
             );
         })
     }
@@ -208,26 +228,23 @@ mod tests {
     #[test]
     fn test_display_cast_into_error() {
         Python::attach(|py| {
-            let obj = py.None().into_bound(py);
-            let classinfo = py.get_type::<crate::types::PyInt>().into_any();
-            let err = CastIntoError::new(obj, classinfo);
-            assert_eq!(
-                err.to_string(),
-                "'NoneType' object is not an instance of 'int'"
-            );
+            let obj = PyBool::new(py, true).to_any();
+            let classinfo = py.get_type::<PyString>().into_any();
+            let err = CastIntoError::new(obj.to_owned(), classinfo);
+            assert_eq!(err.to_string(), "'bool' object is not an instance of 'str'");
         })
     }
 
     #[test]
     fn test_pyerr_from_cast_error() {
         Python::attach(|py| {
-            let obj = py.None().into_bound(py);
-            let classinfo = py.get_type::<crate::types::PyInt>().into_any();
-            let err = CastError::new(obj.as_borrowed(), classinfo);
+            let obj = PyBool::new(py, true).to_any();
+            let classinfo = py.get_type::<PyString>().into_any();
+            let err = CastError::new(obj, classinfo);
             let py_err: PyErr = err.into();
             assert_eq!(
                 py_err.to_string(),
-                "TypeError: 'NoneType' object is not an instance of 'int'"
+                "TypeError: 'bool' object is not an instance of 'str'"
             );
         })
     }
@@ -235,13 +252,13 @@ mod tests {
     #[test]
     fn test_pyerr_from_cast_into_error() {
         Python::attach(|py| {
-            let obj = py.None().into_bound(py);
-            let classinfo = py.get_type::<crate::types::PyInt>().into_any();
-            let err = CastIntoError::new(obj, classinfo);
+            let obj = PyBool::new(py, true).to_any();
+            let classinfo = py.get_type::<PyString>().into_any();
+            let err = CastIntoError::new(obj.to_owned(), classinfo);
             let py_err: PyErr = err.into();
             assert_eq!(
                 py_err.to_string(),
-                "TypeError: 'NoneType' object is not an instance of 'int'"
+                "TypeError: 'bool' object is not an instance of 'str'"
             );
         })
     }
