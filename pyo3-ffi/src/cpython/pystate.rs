@@ -1,4 +1,3 @@
-#[cfg(not(PyPy))]
 use crate::PyThreadState;
 use crate::{PyFrameObject, PyInterpreterState, PyObject};
 use std::ffi::c_int;
