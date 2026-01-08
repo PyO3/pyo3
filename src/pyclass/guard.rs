@@ -435,7 +435,7 @@ impl From<PyClassGuardError<'_, '_>> for PyErr {
 ///         let mut holder_0 = ::pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT;
 ///         let result = {
 ///             let ret = function(::pyo3::impl_::extract_argument::extract_pyclass_ref_mut::<Number>(
-///                 unsafe { ::pyo3::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf) }.0,
+///                 unsafe { ::pyo3::impl_::extract_argument::cast_function_argument(py, _slf) },
 ///                 &mut holder_0,
 ///             )?);
 ///             {
