@@ -1,3 +1,5 @@
+use crate::exceptions::PyAttributeError;
+use crate::impl_::pymethods::{Deleter, PyDeleterDef};
 #[cfg(not(Py_3_10))]
 use crate::types::typeobject::PyTypeMethods;
 use crate::{
@@ -201,6 +203,11 @@ impl PyTypeBuilder {
                 .entry(setter.name)
                 .or_default()
                 .add_setter(setter),
+            PyMethodDefType::Deleter(deleter) => self
+                .getset_builders
+                .entry(deleter.name)
+                .or_default()
+                .add_deleter(deleter),
             PyMethodDefType::Method(def) => self.method_defs.push(def.into_raw()),
             // These class attributes are added after the type gets created by LazyStaticType
             PyMethodDefType::ClassAttribute(_) => {}
@@ -584,6 +591,7 @@ struct GetSetDefBuilder {
     doc: Option<&'static CStr>,
     getter: Option<Getter>,
     setter: Option<Setter>,
+    deleter: Option<Deleter>,
 }
 
 impl GetSetDefBuilder {
@@ -605,15 +613,28 @@ impl GetSetDefBuilder {
         self.setter = Some(setter.meth)
     }
 
+    fn add_deleter(&mut self, deleter: &PyDeleterDef) {
+        // TODO: be smarter about merging getter, setter and deleter docs
+        if self.doc.is_none() {
+            self.doc = Some(deleter.doc);
+        }
+        // TODO: return an error if deleter already defined?
+        self.deleter = Some(deleter.meth)
+    }
+
     fn as_get_set_def(&self, name: &'static CStr) -> (ffi::PyGetSetDef, GetSetDefType) {
-        let getset_type = match (self.getter, self.setter) {
-            (Some(getter), None) => GetSetDefType::Getter(getter),
-            (None, Some(setter)) => GetSetDefType::Setter(setter),
-            (Some(getter), Some(setter)) => {
-                GetSetDefType::GetterAndSetter(Box::new(GetterAndSetter { getter, setter }))
-            }
-            (None, None) => {
+        let getset_type = match (self.getter, self.setter, self.deleter) {
+            (None, None, None) => {
                 unreachable!("GetSetDefBuilder expected to always have either getter or setter")
+            }
+            (Some(getter), None, None) => GetSetDefType::Getter(getter),
+            (None, Some(setter), None) => GetSetDefType::Setter(setter),
+            (getter, setter, deleter) => {
+                GetSetDefType::Combination(Box::new(GetSetDeleteCombination {
+                    getter,
+                    setter,
+                    deleter,
+                }))
             }
         };
 
@@ -626,14 +647,15 @@ impl GetSetDefBuilder {
 enum GetSetDefType {
     Getter(Getter),
     Setter(Setter),
-    // The box is here so that the `GetterAndSetter` has a stable
-    // memory address even if the `GetSetDefType` enum is moved
-    GetterAndSetter(Box<GetterAndSetter>),
+    // The box is here so that the `GetSetDeleteCombination` has a stable
+    // memory address even if the `GetSetDeleteCombination` enum is moved
+    Combination(Box<GetSetDeleteCombination>),
 }
 
-pub(crate) struct GetterAndSetter {
-    getter: Getter,
-    setter: Setter,
+pub(crate) struct GetSetDeleteCombination {
+    getter: Option<Getter>,
+    setter: Option<Setter>,
+    deleter: Option<Deleter>,
 }
 
 impl GetSetDefType {
@@ -666,17 +688,26 @@ impl GetSetDefType {
                     ) -> c_int {
                         // Safety: PyO3 sets the closure when constructing the ffi setter so this cast should always be valid
                         let setter: Setter = unsafe { std::mem::transmute(closure) };
-                        unsafe { trampoline(|py| setter(py, slf, value)) }
+                        unsafe {
+                            trampoline(|py| {
+                                if value.is_null() {
+                                    Err(PyAttributeError::new_err("property has no deleter"))
+                                } else {
+                                    setter(py, slf, value)
+                                }
+                            })
+                        }
                     }
                     (None, Some(setter), closure as Setter as _)
                 }
-                Self::GetterAndSetter(closure) => {
+                Self::Combination(closure) => {
                     unsafe extern "C" fn getset_getter(
                         slf: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> *mut ffi::PyObject {
-                        let getset: &GetterAndSetter = unsafe { &*closure.cast() };
-                        unsafe { trampoline(|py| (getset.getter)(py, slf)) }
+                        let getset: &GetSetDeleteCombination = unsafe { &*closure.cast() };
+                        // we only call this method if getter is set
+                        unsafe { trampoline(|py| getset.getter.unwrap_unchecked()(py, slf)) }
                     }
 
                     unsafe extern "C" fn getset_setter(
@@ -684,13 +715,25 @@ impl GetSetDefType {
                         value: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> c_int {
-                        let getset: &GetterAndSetter = unsafe { &*closure.cast() };
-                        unsafe { trampoline(|py| (getset.setter)(py, slf, value)) }
+                        let getset: &GetSetDeleteCombination = unsafe { &*closure.cast() };
+                        unsafe {
+                            trampoline(|py| {
+                                if value.is_null() {
+                                    getset.deleter.ok_or_else(|| {
+                                        PyAttributeError::new_err("property has no deleter")
+                                    })?(py, slf)
+                                } else {
+                                    getset.setter.ok_or_else(|| {
+                                        PyAttributeError::new_err("property has no setter")
+                                    })?(py, slf, value)
+                                }
+                            })
+                        }
                     }
                     (
-                        Some(getset_getter),
+                        closure.getter.is_some().then_some(getset_getter),
                         Some(getset_setter),
-                        NonNull::<GetterAndSetter>::from(closure.as_ref())
+                        NonNull::<GetSetDeleteCombination>::from(closure.as_ref())
                             .cast()
                             .as_ptr(),
                     )

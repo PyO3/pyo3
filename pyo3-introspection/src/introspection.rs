@@ -72,18 +72,25 @@ fn convert_module(
     id: &str,
     name: &str,
     members: &[String],
-    incomplete: bool,
+    mut incomplete: bool,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
 ) -> Result<Module> {
-    let (modules, classes, functions, attributes) = convert_members(
-        members
-            .iter()
-            .filter_map(|id| chunks_by_id.get(id.as_str()).copied())
-            .chain(chunks_by_parent.get(&id).into_iter().flatten().copied()),
-        chunks_by_id,
-        chunks_by_parent,
-    )?;
+    let mut member_chunks = chunks_by_parent
+        .get(&id)
+        .into_iter()
+        .flatten()
+        .copied()
+        .collect::<Vec<_>>();
+    for member in members {
+        if let Some(c) = chunks_by_id.get(member.as_str()) {
+            member_chunks.push(*c);
+        } else {
+            incomplete = true; // We don't find an element
+        }
+    }
+    let (modules, classes, functions, attributes) =
+        convert_members(member_chunks, chunks_by_id, chunks_by_parent)?;
 
     Ok(Module {
         name: name.into(),

@@ -282,6 +282,13 @@ pub fn gen_py_method(
             },
             ctx,
         )?),
+        (_, FnType::Deleter(self_type)) => GeneratedPyMethod::Method(impl_py_deleter_def(
+            cls,
+            self_type,
+            spec,
+            spec.get_doc(meth_attrs, ctx)?,
+            ctx,
+        )?),
         (_, FnType::FnModule(_)) => {
             unreachable!("methods cannot be FnModule")
         }
@@ -695,10 +702,7 @@ pub fn impl_py_setter_def(
             _value: *mut #pyo3_path::ffi::PyObject,
         ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
             use ::std::convert::Into;
-            let _value = #pyo3_path::impl_::extract_argument::cast_optional_function_argument(py, _value)
-                .ok_or_else(|| {
-                    #pyo3_path::exceptions::PyAttributeError::new_err("can't delete attribute")
-                })?;
+            let _value = #pyo3_path::impl_::extract_argument::cast_function_argument(py, _value);
             #init_holders
             #extract
             #warnings
@@ -854,6 +858,74 @@ pub fn impl_py_getter_def(
     }
 }
 
+pub fn impl_py_deleter_def(
+    cls: &syn::Type,
+    self_type: &SelfType,
+    spec: &FnSpec<'_>,
+    doc: PythonDoc,
+    ctx: &Ctx,
+) -> Result<MethodAndMethodDef> {
+    let Ctx { pyo3_path, .. } = ctx;
+    let python_name = spec.null_terminated_python_name();
+    let mut holders = Holders::new();
+    let deleter_impl = impl_call_deleter(cls, spec, self_type, &mut holders, ctx)?;
+    let wrapper_ident = format_ident!("__pymethod_delete_{}__", spec.name);
+    let warnings = spec.warnings.build_py_warning(ctx);
+    let init_holders = holders.init_holders(ctx);
+    let associated_method = quote! {
+        unsafe fn #wrapper_ident(
+            py: #pyo3_path::Python<'_>,
+            _slf: *mut #pyo3_path::ffi::PyObject,
+        ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
+            #init_holders
+            #warnings
+            let result = #deleter_impl;
+            #pyo3_path::impl_::callback::convert(py, result)
+        }
+    };
+
+    let method_def = quote! {
+        #pyo3_path::impl_::pymethods::PyMethodDefType::Deleter(
+            #pyo3_path::impl_::pymethods::PyDeleterDef::new(
+                #python_name,
+                #cls::#wrapper_ident,
+                #doc
+            )
+        )
+    };
+
+    Ok(MethodAndMethodDef {
+        associated_method,
+        method_def,
+    })
+}
+
+fn impl_call_deleter(
+    cls: &syn::Type,
+    spec: &FnSpec<'_>,
+    self_type: &SelfType,
+    holders: &mut Holders,
+    ctx: &Ctx,
+) -> Result<TokenStream> {
+    let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
+    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders, ctx);
+
+    if !args.is_empty() {
+        bail_spanned!(spec.name.span() =>
+            "deleter function can have at most one argument ([pyo3::Python,])"
+        );
+    }
+
+    let name = &spec.name;
+    let fncall = if py_arg.is_some() {
+        quote!(#cls::#name(#slf, py))
+    } else {
+        quote!(#cls::#name(#slf))
+    };
+
+    Ok(fncall)
+}
+
 /// Split an argument of pyo3::Python from the front of the arg list, if present
 fn split_off_python_arg<'a, 'b>(args: &'a [FnArg<'b>]) -> (Option<&'a PyArg<'b>>, &'a [FnArg<'b>]) {
     match args {
@@ -865,7 +937,7 @@ fn split_off_python_arg<'a, 'b>(args: &'a [FnArg<'b>]) -> (Option<&'a PyArg<'b>>
 pub enum PropertyType<'a> {
     Descriptor {
         field_index: usize,
-        field: &'a syn::Field,
+        field: &'a Field,
         python_name: Option<&'a NameAttribute>,
         renaming_rule: Option<RenamingRule>,
     },

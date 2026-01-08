@@ -14,6 +14,7 @@ Below is a list of links to the relevant section of this chapter for each:
   - [`#[new]`](#constructor)
   - [`#[getter]`](#object-properties-using-getter-and-setter)
   - [`#[setter]`](#object-properties-using-getter-and-setter)
+  - [`#[deleter]`](#object-properties-using-getter-and-setter)
   - [`#[staticmethod]`](#static-methods)
   - [`#[classmethod]`](#class-methods)
   - [`#[classattr]`](#class-attributes)
@@ -620,7 +621,7 @@ Here, the `args` and `kwargs` allow creating instances of the subclass passing i
 PyO3 supports two ways to add properties to your `#[pyclass]`:
 
 - For simple struct fields with no side effects, a `#[pyo3(get, set)]` attribute can be added directly to the field definition in the `#[pyclass]`.
-- For properties which require computation you can define `#[getter]` and `#[setter]` functions in the [`#[pymethods]`](#instance-methods) block.
+- For properties which require computation you can define `#[getter]`, `#[setter]` and `#[deleter]` functions in the [`#[pymethods]`](#instance-methods) block.
 
 We'll cover each of these in the following sections.
 
@@ -670,13 +671,43 @@ impl MyClass {
     fn num(&self) -> PyResult<i32> {
         Ok(self.num)
     }
+
+    #[setter]
+    fn set_num(&mut self, num: i32) {
+        self.num = num;
+    }
 }
 ```
 
-A getter or setter's function name is used as the property name by default.
+The `#[deleter]` attribute is also available to delete the property.
+This corresponds to the `del my_object.my_property` python operation.
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::exceptions::PyAttributeError;
+#[pyclass]
+struct MyClass {
+    num: Option<i32>,
+}
+
+#[pymethods]
+impl MyClass {
+    #[getter]
+    fn num(&self) -> PyResult<i32> {
+        self.num.ok_or_else(|| PyAttributeError::new_err("num has been deleted"))
+    }
+
+    #[deleter]
+    fn delete_num(&mut self) {
+        self.num = None;
+    }
+}
+```
+
+A getter, setter or deleters's function name is used as the property name by default.
 There are several ways how to override the name.
 
-If a function name starts with `get_` or `set_` for getter or setter respectively, the descriptor name becomes the function name with this prefix removed.
+If a function name starts with `get_`, `set_` or `delete_` for getter, setter or deleter, respectively, the descriptor name becomes the function name with this prefix removed.
 This is also useful in case of Rust keywords like `type` ([raw identifiers](https://doc.rust-lang.org/edition-guide/rust-2018/module-system/raw-identifiers.html) can be used since Rust 2018).
 
 ```rust
@@ -702,7 +733,7 @@ impl MyClass {
 
 In this case, a property `num` is defined and available from Python code as `self.num`.
 
-Both the `#[getter]` and `#[setter]` attributes accept one parameter.
+The `#[getter]`, `#[setter]` and `#[deleter]` attributes accept one parameter.
 If this parameter is specified, it is used as the property name, i.e.
 
 ```rust
@@ -727,9 +758,6 @@ impl MyClass {
 ```
 
 In this case, the property `number` is defined and available from Python code as `self.number`.
-
-Attributes defined by `#[setter]` or `#[pyo3(set)]` will always raise `AttributeError` on `del` operations.
-Support for defining custom `del` behavior is tracked in [#1778](https://github.com/PyO3/pyo3/issues/1778).
 
 ## Instance methods
 
