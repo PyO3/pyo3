@@ -127,6 +127,6 @@ compat_function!(
     #[inline]
     pub unsafe fn PyThreadState_GetUnchecked(
     ) -> *mut crate::PyThreadState {
-        create::_PyThreadState_UncheckedGet()
+        crate::_PyThreadState_UncheckedGet()
     }
 );
