@@ -9,9 +9,12 @@ use crate::{
     },
     Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo, Python,
 };
-use std::{convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
+use std::{borrow::Borrow, convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
 
-/// A wrapper around `str` where the storage is owned by a Python `bytes` or `str` object.
+/// An equivalent to `String` where the storage is owned by a Python `bytes` or `str` object.
+///
+/// On Python 3.10+ or when not using the stable API, this type is guaranteed to contain a Python `str`
+/// for the underlying data.
 ///
 /// This type gives access to the underlying data via a `Deref` implementation.
 #[cfg_attr(feature = "py-clone", derive(Clone))]
@@ -27,31 +30,57 @@ impl PyBackedStr {
     /// Clones this by incrementing the reference count of the underlying Python object.
     ///
     /// Similar to [`Py::clone_ref`], this method is always available, even when the `py-clone` feature is disabled.
+    #[inline]
     pub fn clone_ref(&self, py: Python<'_>) -> Self {
         Self {
             storage: self.storage.clone_ref(py),
             data: self.data,
         }
     }
+
+    /// Returns the underlying data as a `&str` slice.
+    #[inline]
+    pub fn as_str(&self) -> &str {
+        // Safety: `data` is known to be immutable and owned by self
+        unsafe { self.data.as_ref() }
+    }
+
+    /// Returns the underlying data as a Python `str`.
+    ///
+    /// Older versions of the Python stable API do not support this zero-cost conversion.
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    #[inline]
+    pub fn as_py_str(&self) -> &Py<PyString> {
+        &self.storage
+    }
 }
 
 impl Deref for PyBackedStr {
     type Target = str;
+    #[inline]
     fn deref(&self) -> &str {
-        // Safety: `data` is known to be immutable and owned by self
-        unsafe { self.data.as_ref() }
+        self.as_str()
     }
 }
 
 impl AsRef<str> for PyBackedStr {
+    #[inline]
     fn as_ref(&self) -> &str {
         self
     }
 }
 
 impl AsRef<[u8]> for PyBackedStr {
+    #[inline]
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
+    }
+}
+
+impl Borrow<str> for PyBackedStr {
+    #[inline]
+    fn borrow(&self) -> &str {
+        self
     }
 }
 
@@ -61,6 +90,7 @@ unsafe impl Send for PyBackedStr {}
 unsafe impl Sync for PyBackedStr {}
 
 impl std::fmt::Display for PyBackedStr {
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.deref().fmt(f)
     }
@@ -99,6 +129,7 @@ impl FromPyObject<'_, '_> for PyBackedStr {
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: TypeHint = PyString::TYPE_HINT;
 
+    #[inline]
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let py_string = obj.cast::<PyString>()?.to_owned();
         Self::try_from(py_string)
@@ -114,6 +145,7 @@ impl<'py> IntoPyObject<'py> for PyBackedStr {
     const OUTPUT_TYPE: TypeHint = PyString::TYPE_HINT;
 
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(self.storage.into_bound(py))
     }
@@ -305,36 +337,42 @@ impl<'py> IntoPyObject<'py> for &PyBackedBytes {
 macro_rules! impl_traits {
     ($slf:ty, $equiv:ty) => {
         impl std::fmt::Debug for $slf {
+            #[inline]
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 self.deref().fmt(f)
             }
         }
 
         impl PartialEq for $slf {
+            #[inline]
             fn eq(&self, other: &Self) -> bool {
                 self.deref() == other.deref()
             }
         }
 
         impl PartialEq<$equiv> for $slf {
+            #[inline]
             fn eq(&self, other: &$equiv) -> bool {
                 self.deref() == other
             }
         }
 
         impl PartialEq<&$equiv> for $slf {
+            #[inline]
             fn eq(&self, other: &&$equiv) -> bool {
                 self.deref() == *other
             }
         }
 
         impl PartialEq<$slf> for $equiv {
+            #[inline]
             fn eq(&self, other: &$slf) -> bool {
                 self == other.deref()
             }
         }
 
         impl PartialEq<$slf> for &$equiv {
+            #[inline]
             fn eq(&self, other: &$slf) -> bool {
                 self == &other.deref()
             }
@@ -343,30 +381,35 @@ macro_rules! impl_traits {
         impl Eq for $slf {}
 
         impl PartialOrd for $slf {
+            #[inline]
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
                 Some(self.cmp(other))
             }
         }
 
         impl PartialOrd<$equiv> for $slf {
+            #[inline]
             fn partial_cmp(&self, other: &$equiv) -> Option<std::cmp::Ordering> {
                 self.deref().partial_cmp(other)
             }
         }
 
         impl PartialOrd<$slf> for $equiv {
+            #[inline]
             fn partial_cmp(&self, other: &$slf) -> Option<std::cmp::Ordering> {
                 self.partial_cmp(other.deref())
             }
         }
 
         impl Ord for $slf {
+            #[inline]
             fn cmp(&self, other: &Self) -> std::cmp::Ordering {
                 self.deref().cmp(other.deref())
             }
         }
 
         impl std::hash::Hash for $slf {
+            #[inline]
             fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
                 self.deref().hash(state)
             }
@@ -569,6 +612,39 @@ mod test {
 
             assert_eq!(a, b);
         })
+    }
+
+    #[test]
+    fn test_backed_str_map_key() {
+        Python::attach(|py| {
+            use std::collections::HashMap;
+
+            let mut map: HashMap<PyBackedStr, usize> = HashMap::new();
+            let s: PyBackedStr = PyString::new(py, "key1").try_into().unwrap();
+
+            map.insert(s, 1);
+
+            assert_eq!(map.get("key1"), Some(&1));
+        });
+    }
+
+    #[test]
+    fn test_backed_str_as_str() {
+        Python::attach(|py| {
+            let s: PyBackedStr = PyString::new(py, "hello").try_into().unwrap();
+            assert_eq!(s.as_str(), "hello");
+        });
+    }
+
+    #[test]
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    fn test_backed_str_as_py_str() {
+        Python::attach(|py| {
+            let s: PyBackedStr = PyString::new(py, "hello").try_into().unwrap();
+            let py_str = s.as_py_str().bind(py);
+            assert!(py_str.is(&s.storage));
+            assert_eq!(py_str.to_str().unwrap(), "hello");
+        });
     }
 
     #[cfg(feature = "py-clone")]
