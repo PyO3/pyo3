@@ -80,7 +80,10 @@ pub const _PyObject_MIN_ALIGNMENT: usize = 1 << _PyGC_PREV_SHIFT;
 // PyObject_HEAD_INIT comes before the PyObject definition in object.h
 // but we put it after PyObject because HEAD_INIT uses PyObject
 
-#[repr(C)]
+// use a macro to substitute _PyObject_MIN_ALIGNMENT definition above?
+
+#[cfg_attr(not(Py_3_15), repr(C))]
+#[cfg_attr(Py_3_15, repr(C, align(4)))]
 #[derive(Debug)]
 pub struct PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
@@ -108,6 +111,16 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
+// Flag values for ob_flags
+//
+// These are defined before Py_CONSTANT_NONE in object.h but are defined here
+// because one is needed in PyObject_HEAD_INIT
+
+// skipped private _Py_IMMORTAL_FLAGS
+// skipped private _Py_LEGACY_ABI_CHECK_FLAG
+pub const _Py_STATICALLY_ALLOCATED_FLAG: u16 = 1 << 2;
+// skipped private _Py_TYPE_REVEALED_FLAG
+
 #[allow(
     clippy::declare_interior_mutable_const,
     reason = "contains atomic refcount on free-threaded builds"
@@ -121,8 +134,10 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_tid: 0,
     #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
     ob_tid: 0,
-    #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_3_15)))]
     ob_flags: 0,
+    #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
+    ob_flags: _Py_STATICALLY_ALLOCATED_FLAG,
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
     _padding: 0,
     #[cfg(Py_GIL_DISABLED)]

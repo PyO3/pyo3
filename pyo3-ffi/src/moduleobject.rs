@@ -93,6 +93,8 @@ pub const Py_mod_exec: c_int = 2;
 pub const Py_mod_multiple_interpreters: c_int = 3;
 #[cfg(Py_3_13)]
 pub const Py_mod_gil: c_int = 4;
+#[cfg(Py_3_15)]
+pub const Py_mod_abi: c_int = 5;
 
 // skipped private _Py_mod_LAST_SLOT
 
