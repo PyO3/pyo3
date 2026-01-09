@@ -1,4 +1,7 @@
 use crate::conversion::IntoPyObject;
+#[cfg(not(target_os = "wasi"))]
+use crate::ffi;
+#[cfg(not(target_os = "wasi"))]
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::TypeHint;
@@ -6,7 +9,7 @@ use crate::instance::Bound;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::PyString;
-use crate::{ffi, Borrowed, FromPyObject, PyAny, PyErr, Python};
+use crate::{Borrowed, FromPyObject, PyAny, PyErr, Python};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::ffi::{OsStr, OsString};
@@ -21,19 +24,23 @@ impl<'py> IntoPyObject<'py> for &OsStr {
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         // If the string is UTF-8, take the quick and easy shortcut
+        #[cfg(not(target_os = "wasi"))]
         if let Some(valid_utf8_path) = self.to_str() {
             return valid_utf8_path.into_pyobject(py);
         }
 
-        // All targets besides windows support the std::os::unix::ffi::OsStrExt API:
-        // https://doc.rust-lang.org/src/std/sys_common/mod.rs.html#59
-        #[cfg(not(windows))]
+        #[cfg(target_os = "wasi")]
         {
-            #[cfg(target_os = "wasi")]
-            let bytes = self.to_str().expect("wasi strings are UTF8").as_bytes();
-            #[cfg(not(target_os = "wasi"))]
-            let bytes = std::os::unix::ffi::OsStrExt::as_bytes(self);
+            self.to_str()
+                .expect("wasi strings are UTF8")
+                .into_pyobject(py)
+        }
 
+        #[cfg(any(unix, target_os = "emscripten"))]
+        {
+            use std::os::unix::ffi::OsStrExt;
+
+            let bytes = self.as_bytes();
             let ptr = bytes.as_ptr().cast();
             let len = bytes.len() as ffi::Py_ssize_t;
             unsafe {
@@ -41,14 +48,15 @@ impl<'py> IntoPyObject<'py> for &OsStr {
                 // parse os strings losslessly (i.e. surrogateescape most of the time)
                 Ok(ffi::PyUnicode_DecodeFSDefaultAndSize(ptr, len)
                     .assume_owned(py)
-                    .cast_into_unchecked::<PyString>())
+                    .cast_into_unchecked())
             }
         }
 
         #[cfg(windows)]
         {
-            let wstr: Vec<u16> = std::os::windows::ffi::OsStrExt::encode_wide(self).collect();
+            use std::os::windows::ffi::OsStrExt;
 
+            let wstr: Vec<u16> = self.encode_wide().collect();
             unsafe {
                 // This will not panic because the data from encode_wide is well-formed Windows
                 // string data
@@ -56,7 +64,7 @@ impl<'py> IntoPyObject<'py> for &OsStr {
                 Ok(
                     ffi::PyUnicode_FromWideChar(wstr.as_ptr(), wstr.len() as ffi::Py_ssize_t)
                         .assume_owned(py)
-                        .cast_into_unchecked::<PyString>(),
+                        .cast_into_unchecked(),
                 )
             }
         }
@@ -86,9 +94,15 @@ impl FromPyObject<'_, '_> for OsString {
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let pystring = ob.cast::<PyString>()?;
 
-        #[cfg(not(windows))]
+        #[cfg(target_os = "wasi")]
+        {
+            Ok(pystring.to_cow()?.into_owned().into())
+        }
+
+        #[cfg(any(unix, target_os = "emscripten"))]
         {
             use crate::types::{PyBytes, PyBytesMethods};
+            use std::os::unix::ffi::OsStrExt;
 
             // Decode from Python's lossless bytes string representation back into raw bytes
             // SAFETY: PyUnicode_EncodeFSDefault returns a new reference or null on error, known to
@@ -100,13 +114,7 @@ impl FromPyObject<'_, '_> for OsString {
             };
 
             // Create an OsStr view into the raw bytes from Python
-            //
-            // For WASI: OS strings are UTF-8 by definition.
-            #[cfg(target_os = "wasi")]
-            let os_str: &OsStr = OsStr::new(std::str::from_utf8(fs_encoded_bytes.as_bytes())?);
-            #[cfg(not(target_os = "wasi"))]
-            let os_str: &OsStr =
-                std::os::unix::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes());
+            let os_str: &OsStr = OsStrExt::from_bytes(fs_encoded_bytes.as_bytes());
 
             Ok(os_str.to_os_string())
         }
