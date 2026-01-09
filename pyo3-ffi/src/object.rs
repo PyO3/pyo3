@@ -132,12 +132,12 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     _ob_prev: std::ptr::null_mut(),
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_15)))]
     ob_tid: 0,
-    #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
+    #[cfg(Py_GIL_DISABLED)]
     ob_tid: 0,
-    #[cfg(all(Py_GIL_DISABLED, not(Py_3_15)))]
-    ob_flags: 0,
     #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
     ob_flags: _Py_STATICALLY_ALLOCATED_FLAG,
+    #[cfg(all(Py_GIL_DISABLED, not(Py_3_15)))]
+    ob_flags: 0,
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
     _padding: 0,
     #[cfg(Py_GIL_DISABLED)]
