@@ -16,6 +16,7 @@ pub struct Class {
     pub attributes: Vec<Attribute>,
     /// decorator like 'typing.final'
     pub decorators: Vec<PythonIdentifier>,
+    pub inner_classes: Vec<Class>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
