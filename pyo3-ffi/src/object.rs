@@ -130,8 +130,6 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     _ob_next: std::ptr::null_mut(),
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     _ob_prev: std::ptr::null_mut(),
-    #[cfg(all(Py_GIL_DISABLED, not(Py_3_15)))]
-    ob_tid: 0,
     #[cfg(Py_GIL_DISABLED)]
     ob_tid: 0,
     #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
