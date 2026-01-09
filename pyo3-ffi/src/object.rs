@@ -111,16 +111,6 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
-// Flag values for ob_flags
-//
-// These are defined before Py_CONSTANT_NONE in object.h but are defined here
-// because one is needed in PyObject_HEAD_INIT
-
-// skipped private _Py_IMMORTAL_FLAGS
-// skipped private _Py_LEGACY_ABI_CHECK_FLAG
-pub const _Py_STATICALLY_ALLOCATED_FLAG: u16 = 1 << 2;
-// skipped private _Py_TYPE_REVEALED_FLAG
-
 #[allow(
     clippy::declare_interior_mutable_const,
     reason = "contains atomic refcount on free-threaded builds"
@@ -132,9 +122,9 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     _ob_prev: std::ptr::null_mut(),
     #[cfg(Py_GIL_DISABLED)]
     ob_tid: 0,
-    #[cfg(all(Py_GIL_DISABLED, all(Py_3_15, not(Py_3_14))))]
-    ob_flags: _Py_STATICALLY_ALLOCATED_FLAG,
-    #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
+    #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
+    ob_flags: refcount::_Py_STATICALLY_ALLOCATED_FLAG as u16,
+    #[cfg(all(Py_GIL_DISABLED, all(Py_3_14, not(Py_3_15))))]
     ob_flags: 0,
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
     _padding: 0,
