@@ -27,9 +27,9 @@ error[E0277]: `AtomicPtr<()>` cannot be used as a Python function argument
   = note: implement `FromPyObject` to enable using `AtomicPtr<()>` as a function argument
   = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
   = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
-            `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, '_, 'py, false>`
             `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
             `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
+            `&'holder pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
             `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
   = note: required for `AtomicPtr<()>` to implement `FromPyObject<'_, '_>`
   = note: required for `AtomicPtr<()>` to implement `PyFunctionArgument<'_, '_, '_, true>`
@@ -51,9 +51,9 @@ error[E0277]: `AtomicPtr<()>` cannot be used as a Python function argument
   = note: implement `FromPyObject` to enable using `AtomicPtr<()>` as a function argument
   = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
   = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
-            `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, '_, 'py, false>`
             `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
             `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
+            `&'holder pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
             `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
   = note: required for `AtomicPtr<()>` to implement `FromPyObject<'_, '_>`
   = note: required for `AtomicPtr<()>` to implement `PyFunctionArgument<'_, '_, '_, true>`
@@ -80,9 +80,9 @@ help: the trait `ExtractPyClassWithClone` is not implemented for `Foo`
    = note: implement `FromPyObject` to enable using `Foo` as a function argument
    = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
    = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
-             `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, '_, 'py, false>`
              `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
              `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
+             `&'holder pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
              `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
    = note: required for `Foo` to implement `FromPyObject<'_, '_>`
    = note: required for `Foo` to implement `PyFunctionArgument<'_, '_, '_, true>`
