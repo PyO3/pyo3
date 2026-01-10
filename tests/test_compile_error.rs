@@ -49,7 +49,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pyfunctions.rs");
     t.compile_fail("tests/ui/invalid_pymethods.rs");
     // output changes with async feature
-    #[cfg(all(Py_LIMITED_API, feature = "experimental-async"))]
+    #[cfg(all(not(Py_3_12), Py_LIMITED_API, feature = "experimental-async"))]
     t.compile_fail("tests/ui/abi3_nativetype_inheritance.rs");
     #[cfg(not(feature = "experimental-async"))]
     t.compile_fail("tests/ui/invalid_async.rs");
