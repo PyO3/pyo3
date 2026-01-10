@@ -102,7 +102,6 @@ impl<'py> Iterator for Bound<'py, PyIterator> {
     /// If an exception occurs, returns `Some(Err(..))`.
     /// Further `next()` calls after an exception occurs are likely
     /// to repeatedly result in the same exception.
-    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let py = self.py();
         let mut item = std::ptr::null_mut();
