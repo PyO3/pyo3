@@ -25,6 +25,9 @@ pub const PyTrace_OPCODE: c_int = 7;
 // skipped private _PyRemoteDebuggerSupport
 
 /// Private structure used inline in `PyGenObject`
+///
+/// `PyGenObject` was made opaque in Python 3.14, so we don't bother defining this
+/// structure for that version and later.
 #[cfg(not(any(PyPy, Py_3_14)))]
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -49,8 +52,10 @@ extern "C" {
     #[cfg(not(Py_3_13))]
     pub(crate) fn _PyThreadState_UncheckedGet() -> *mut PyThreadState;
 
-    // skipped PyThreadState_EnterTracing
-    // skipped PyThreadState_LeaveTracing
+    #[cfg(Py_3_11)]
+    pub fn PyThreadState_EnterTracing(state: *mut PyThreadState);
+    #[cfg(Py_3_11)]
+    pub fn PyThreadState_LeaveTracing(state: *mut PyThreadState);
 
     #[cfg_attr(PyPy, link_name = "PyPyGILState_Check")]
     pub fn PyGILState_Check() -> c_int;
