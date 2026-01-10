@@ -300,6 +300,33 @@ mod inheriting_native_type {
             )
         })
     }
+
+    #[test]
+    #[cfg(Py_3_12)]
+    fn inherit_list() {
+        #[pyclass(extends=pyo3::types::PyList)]
+        struct ListWithName {
+            #[pyo3(get)]
+            name: &'static str,
+        }
+
+        #[pymethods]
+        impl ListWithName {
+            #[new]
+            fn new() -> Self {
+                Self { name: "Hello :)" }
+            }
+        }
+
+        Python::attach(|py| {
+            let list_sub = pyo3::Bound::new(py, ListWithName::new()).unwrap();
+            py_run!(
+                py,
+                list_sub,
+                r#"list_sub.append(1); assert list_sub[0] == 1; assert list_sub.name == "Hello :)""#
+            );
+        });
+    }
 }
 
 #[pyclass(subclass)]

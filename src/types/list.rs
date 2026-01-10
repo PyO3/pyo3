@@ -19,7 +19,22 @@ use std::num::NonZero;
 #[repr(transparent)]
 pub struct PyList(PyAny);
 
-pyobject_native_type_core!(PyList, pyobject_native_static_type_object!(ffi::PyList_Type), "builtins", "list", #checkfunction=ffi::PyList_Check);
+pyobject_native_type_core!(
+    PyList,
+    pyobject_native_static_type_object!(ffi::PyList_Type),
+    "builtins", "list",
+    #checkfunction=ffi::PyList_Check
+);
+
+#[cfg(Py_3_12)]
+impl crate::impl_::pyclass::PyClassBaseType for PyList {
+    type LayoutAsBase = crate::impl_::pycell::PyVariableClassObjectBase;
+    type BaseNativeType = Self;
+    type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+    type PyClassMutability = crate::pycell::impl_::ImmutableClass;
+    type Layout<T: crate::impl_::pyclass::PyClassImpl> =
+        crate::impl_::pycell::PyVariableClassObject<T>;
+}
 
 #[inline]
 #[track_caller]
