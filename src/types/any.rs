@@ -4,6 +4,7 @@ use crate::conversion::{FromPyObject, IntoPyObject};
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::pycell::PyStaticClassObject;
 use crate::instance::Bound;
 use crate::internal::get_slot::TP_DESCR_GET;
 use crate::py_result_ext::PyResultExt;
@@ -46,6 +47,7 @@ pyobject_native_type_info!(
     "typing",
     "Any",
     Some("builtins"),
+    PyStaticClassObject<T>,
     #checkfunction=PyObject_Check
 );
 
