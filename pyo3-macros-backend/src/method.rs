@@ -3,7 +3,7 @@ use std::ffi::CString;
 use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
@@ -666,99 +666,116 @@ impl<'a> FnSpec<'a> {
             }
         }
 
-        let rust_call = |args: Vec<TokenStream>, holders: &mut Holders| {
-            let mut self_arg = || self.tp.self_arg(cls, ExtractErrorMode::Raise, holders, ctx);
+        let rust_call = |args: Vec<TokenStream>, mut holders: Holders| {
+            let self_arg = self
+                .tp
+                .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+            let init_holders = holders.init_holders(ctx);
 
-            let call = if self.asyncness.is_some() {
-                let throw_callback = if cancel_handle.is_some() {
-                    quote! { Some(__throw_callback) }
+            // We must assign the output_span to the return value of the call,
+            // but *not* of the call itself otherwise the spans get really weird
+            let ret_ident = Ident::new("ret", *output_span);
+
+            if self.asyncness.is_some() {
+                // For async functions, we need to build up a coroutine object to return from the initial function call.
+                //
+                // Extraction of the call signature (positional & keyword arguments) happens as part of the initial function
+                // call. The Python objects are then moved into the Rust future that will be executed when the coroutine is
+                // awaited.
+                //
+                // The argument extraction from Python objects to Rust values then happens inside the future, this allows
+                // things like extraction to `&MyClass` which needs a holder (for the class guard) to work properly inside
+                // async code.
+                //
+                // It *might* be possible in the future to do the extraction before the coroutine is created, but that would require
+                // changing argument extraction code to first create holders and then read the values from them later.
+                let (throw_callback, init_throw_callback) = if cancel_handle.is_some() {
+                    (
+                        quote! { Some(__throw_callback) },
+                        Some(
+                            quote! { let __cancel_handle = #pyo3_path::coroutine::CancelHandle::new();
+                            let __throw_callback = __cancel_handle.throw_callback(); },
+                        ),
+                    )
                 } else {
-                    quote! { None }
+                    (quote! { None }, None)
                 };
                 let python_name = &self.python_name;
                 let qualname_prefix = match cls {
                     Some(cls) => quote!(Some(<#cls as #pyo3_path::PyClass>::NAME)),
                     None => quote!(None),
                 };
-                let future = match self.tp {
-                    // If extracting `self`, we move the `_slf` pointer into the async block. This reduces the lifetime for which the Rust state is considered "borrowed"
-                    // to just when the async block is executing.
-                    //
-                    // TODO: we should do this with all arguments, not just `self`, e.g. https://github.com/PyO3/pyo3/issues/5681
-                    FnType::Fn(SelfType::Receiver { mutable, .. }) => {
-                        let arg_names = (0..args.len())
-                            .map(|i| format_ident!("arg_{}", i))
-                            .collect::<Vec<_>>();
-                        let method = syn::Ident::new(
-                            if mutable {
-                                "extract_pyclass_ref_mut"
-                            } else {
-                                "extract_pyclass_ref"
-                            },
-                            Span::call_site(),
-                        );
-                        quote! {{
-                            let _slf = unsafe { #pyo3_path::impl_::extract_argument::cast_function_argument(py, _slf) }.to_owned().unbind();
-                            #(let #arg_names = #args;)*
-                            async move {
-                                // SAFETY: attached when future is polled (see `Coroutine::poll`)
-                                let assume_attached = unsafe { #pyo3_path::impl_::coroutine::AssumeAttachedInCoroutine::new() };
-                                let py = assume_attached.py();
-                                let mut holder = None;
-                                let future = function(
-                                    #pyo3_path::impl_::extract_argument::#method(_slf.bind_borrowed(py), &mut holder)?,
-                                    #(#arg_names),*
-                                );
-                                drop(py);
-                                let result = future.await;
-                                let result: #pyo3_path::PyResult<_> = #pyo3_path::impl_::wrap::converter(&result).wrap(result).map_err(::std::convert::Into::into);
-                                result
-                            }
-                        }}
-                    }
-                    _ => {
-                        let args = self_arg().into_iter().chain(args);
-                        quote! { function(#(#args),*) }
-                    }
-                };
-                let mut call = quote! {{
-                    let future = #future;
-                    #pyo3_path::impl_::coroutine::new_coroutine(
-                        #pyo3_path::intern!(py, stringify!(#python_name)),
-                        #qualname_prefix,
-                        #throw_callback,
-                        async move {
-                            // SAFETY: attached when future is polled (see `Coroutine::poll`)
-                            let assume_attached = unsafe { #pyo3_path::impl_::coroutine::AssumeAttachedInCoroutine::new() };
-                            let output = future.await;
-                            let res = #pyo3_path::impl_::wrap::converter(&output).wrap(output).map_err(::std::convert::Into::into);
-                            #pyo3_path::impl_::wrap::converter(&res).map_into_pyobject(assume_attached.py(), res)
-                        },
+                // copy self arg into async block
+                // slf_py will create the owned value to store in the future
+                // slf_ptr recreates the raw pointer temporarily when building the future
+                let (slf_py, slf_ptr) = if self_arg.is_some() {
+                    (
+                        Some(
+                            quote! { let _slf = #pyo3_path::Borrowed::from_ptr(py, _slf).to_owned().unbind(); },
+                        ),
+                        Some(quote! { let _slf = _slf.as_ptr(); }),
                     )
-                }};
-                if cancel_handle.is_some() {
-                    call = quote! {{
-                        let __cancel_handle = #pyo3_path::coroutine::CancelHandle::new();
-                        let __throw_callback = __cancel_handle.throw_callback();
-                        #call
-                    }};
+                } else {
+                    (None, None)
+                };
+                // copy extracted arguments into async block
+                // output_py will create the owned arguments to store in the future
+                // output_args recreates the borrowed objects temporarily when building the future
+                let (output_py, output_args) = if !matches!(convention, CallingConvention::Noargs) {
+                    (
+                        Some(quote! {
+                            let output = output.map(|o| o.map(Py::from));
+                        }),
+                        Some(quote! {
+                            let output = output.each_ref().map(|o| o.as_ref().map(|obj| obj.bind_borrowed(assume_attached.py())));
+                        }),
+                    )
+                } else {
+                    (None, None)
+                };
+                let args = self_arg.into_iter().chain(args);
+                let ok_wrap = quotes::ok_wrap(ret_ident.to_token_stream(), ctx);
+                quote! {
+                    {
+                        let coroutine = {
+                            #slf_py
+                            #output_py
+                            #init_throw_callback
+                            #pyo3_path::impl_::coroutine::new_coroutine(
+                                #pyo3_path::intern!(py, stringify!(#python_name)),
+                                #qualname_prefix,
+                                #throw_callback,
+                                async move {
+                                    // SAFETY: attached when future is polled (see `Coroutine::poll`)
+                                    let assume_attached = unsafe { #pyo3_path::impl_::coroutine::AssumeAttachedInCoroutine::new() };
+                                    #init_holders
+                                    let future = {
+                                        let py = assume_attached.py();
+                                        #slf_ptr
+                                        #output_args
+                                        function(#(#args),*)
+                                    };
+                                    let #ret_ident = future.await;
+                                    let #ret_ident = #ok_wrap;
+                                    #pyo3_path::impl_::wrap::converter(&#ret_ident).map_into_pyobject(assume_attached.py(), #ret_ident)
+                                },
+                            )
+                        };
+                        #pyo3_path::Py::new(py, coroutine).map(#pyo3_path::Py::into_ptr)
+                    }
                 }
-                call
             } else {
-                let args = self_arg().into_iter().chain(args);
-                quote! { function(#(#args),*) }
-            };
-
-            // We must assign the output_span to the return value of the call,
-            // but *not* of the call itself otherwise the spans get really weird
-            let ret_ident = Ident::new("ret", *output_span);
-            let ret_expr = quote! { let #ret_ident = #call; };
-            let return_conversion =
-                quotes::map_result_into_ptr(quotes::ok_wrap(ret_ident.to_token_stream(), ctx), ctx);
-            quote! {
-                {
-                    #ret_expr
-                    #return_conversion
+                let args = self_arg.into_iter().chain(args);
+                let return_conversion = quotes::map_result_into_ptr(
+                    quotes::ok_wrap(ret_ident.to_token_stream(), ctx),
+                    ctx,
+                );
+                quote! {
+                    {
+                        #init_holders
+                        let #ret_ident = function(#(#args),*);
+                        #return_conversion
+                    }
                 }
             }
         };
@@ -771,10 +788,10 @@ impl<'a> FnSpec<'a> {
         };
 
         let warnings = self.warnings.build_py_warning(ctx);
+        let mut holders = Holders::new();
 
         Ok(match convention {
             CallingConvention::Noargs => {
-                let mut holders = Holders::new();
                 let args = self
                     .signature
                     .arguments
@@ -785,15 +802,13 @@ impl<'a> FnSpec<'a> {
                         _ => unreachable!("`CallingConvention::Noargs` should not contain any arguments (reaching Python) except for `self`, which is handled below."),
                     })
                     .collect();
-                let call = rust_call(args, &mut holders);
-                let init_holders = holders.init_holders(ctx);
+                let call = rust_call(args, holders);
                 quote! {
                     unsafe fn #ident<'py>(
                         py: #pyo3_path::Python<'py>,
                         _slf: *mut #pyo3_path::ffi::PyObject,
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
-                        #init_holders
                         #warnings
                         let result = #call;
                         result
@@ -801,10 +816,8 @@ impl<'a> FnSpec<'a> {
                 }
             }
             CallingConvention::Fastcall => {
-                let mut holders = Holders::new();
                 let (arg_convert, args) = impl_arg_params(self, cls, true, &mut holders, ctx);
-                let call = rust_call(args, &mut holders);
-                let init_holders = holders.init_holders(ctx);
+                let call = rust_call(args, holders);
 
                 quote! {
                     unsafe fn #ident<'py>(
@@ -816,7 +829,6 @@ impl<'a> FnSpec<'a> {
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
-                        #init_holders
                         #warnings
                         let result = #call;
                         result
@@ -824,10 +836,8 @@ impl<'a> FnSpec<'a> {
                 }
             }
             CallingConvention::Varargs => {
-                let mut holders = Holders::new();
                 let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx);
-                let call = rust_call(args, &mut holders);
-                let init_holders = holders.init_holders(ctx);
+                let call = rust_call(args, holders);
 
                 quote! {
                     unsafe fn #ident<'py>(
@@ -838,7 +848,6 @@ impl<'a> FnSpec<'a> {
                     ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                         let function = #rust_name; // Shadow the function name to avoid #3017
                         #arg_convert
-                        #init_holders
                         #warnings
                         let result = #call;
                         result
