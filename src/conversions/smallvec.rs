@@ -20,7 +20,7 @@ use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PySequence, PyString};
 use crate::{
@@ -38,7 +38,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = A::Item::SEQUENCE_OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = A::Item::SEQUENCE_OUTPUT_TYPE;
 
     /// Turns [`SmallVec<u8>`] into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///

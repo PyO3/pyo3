@@ -1,5 +1,9 @@
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::{type_hint_union, PyStaticExpr};
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::types::PyNone;
 use crate::{
     conversion::IntoPyObject, types::any::PyAnyMethods, BoundObject, FromPyObject, PyAny, Python,
 };
@@ -13,7 +17,7 @@ where
     type Output = Bound<'py, Self::Target>;
     type Error = T::Error;
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = TypeHint::union(&[T::OUTPUT_TYPE, TypeHint::builtin("None")]);
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_union!(&T::OUTPUT_TYPE, PyNone::TYPE_HINT);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.map_or_else(
@@ -35,7 +39,7 @@ where
     type Output = Bound<'py, Self::Target>;
     type Error = <&'a T as IntoPyObject<'py>>::Error;
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = <Option<&T>>::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = <Option<&T>>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -49,7 +53,7 @@ where
 {
     type Error = T::Error;
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::union(&[T::INPUT_TYPE, TypeHint::builtin("None")]);
+    const INPUT_TYPE: PyStaticExpr = type_hint_union!(T::INPUT_TYPE, PyNone::TYPE_HINT);
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if obj.is_none() {

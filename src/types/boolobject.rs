@@ -3,7 +3,7 @@ use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::PyErr;
@@ -147,7 +147,7 @@ impl<'py> IntoPyObject<'py> for bool {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyBool::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyBool::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -166,7 +166,7 @@ impl<'py> IntoPyObject<'py> for &bool {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = bool::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = bool::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -186,7 +186,7 @@ impl FromPyObject<'_, '_> for bool {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyBool::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyBool::TYPE_HINT;
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let err = match obj.cast::<PyBool>() {
