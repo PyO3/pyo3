@@ -188,18 +188,11 @@ impl<'py> IntoIterator for &Bound<'py, PyFrozenSet> {
 }
 
 /// PyO3 implementation of an iterator for a Python `frozenset` object.
-pub struct BoundFrozenSetIterator<'p> {
-    it: Bound<'p, PyIterator>,
-    // Remaining elements in the frozenset
-    remaining: usize,
-}
+pub struct BoundFrozenSetIterator<'py>(Bound<'py, PyIterator>);
 
 impl<'py> BoundFrozenSetIterator<'py> {
     pub(super) fn new(set: Bound<'py, PyFrozenSet>) -> Self {
-        Self {
-            it: PyIterator::from_object(&set).unwrap(),
-            remaining: set.len(),
-        }
+        Self(PyIterator::from_object(&set).expect("frozenset should always be iterable"))
     }
 }
 
@@ -208,12 +201,14 @@ impl<'py> Iterator for BoundFrozenSetIterator<'py> {
 
     /// Advances the iterator and returns the next value.
     fn next(&mut self) -> Option<Self::Item> {
-        self.remaining = self.remaining.saturating_sub(1);
-        self.it.next().map(Result::unwrap)
+        self.0
+            .next()
+            .map(|result| result.expect("frozenset iteration should be infallible"))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.remaining, Some(self.remaining))
+        let len = ExactSizeIterator::len(self);
+        (len, Some(len))
     }
 
     #[inline]
@@ -227,7 +222,7 @@ impl<'py> Iterator for BoundFrozenSetIterator<'py> {
 
 impl ExactSizeIterator for BoundFrozenSetIterator<'_> {
     fn len(&self) -> usize {
-        self.remaining
+        self.0.size_hint().0
     }
 }
 

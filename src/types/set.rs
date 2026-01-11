@@ -222,19 +222,11 @@ impl<'py> IntoIterator for &Bound<'py, PySet> {
 }
 
 /// PyO3 implementation of an iterator for a Python `set` object.
-pub struct BoundSetIterator<'p> {
-    it: Bound<'p, PyIterator>,
-    // Remaining elements in the set. This is fine to store because
-    // Python will error if the set changes size during iteration.
-    remaining: usize,
-}
+pub struct BoundSetIterator<'py>(Bound<'py, PyIterator>);
 
 impl<'py> BoundSetIterator<'py> {
     pub(super) fn new(set: Bound<'py, PySet>) -> Self {
-        Self {
-            it: PyIterator::from_object(&set).unwrap(),
-            remaining: set.len(),
-        }
+        Self(PyIterator::from_object(&set).expect("set should always be iterable"))
     }
 }
 
@@ -243,12 +235,14 @@ impl<'py> Iterator for BoundSetIterator<'py> {
 
     /// Advances the iterator and returns the next value.
     fn next(&mut self) -> Option<Self::Item> {
-        self.remaining = self.remaining.saturating_sub(1);
-        self.it.next().map(Result::unwrap)
+        self.0
+            .next()
+            .map(|result| result.expect("set iteration should be infallible"))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.remaining, Some(self.remaining))
+        let len = ExactSizeIterator::len(self);
+        (len, Some(len))
     }
 
     #[inline]
@@ -262,7 +256,7 @@ impl<'py> Iterator for BoundSetIterator<'py> {
 
 impl ExactSizeIterator for BoundSetIterator<'_> {
     fn len(&self) -> usize {
-        self.remaining
+        self.0.size_hint().0
     }
 }
 
