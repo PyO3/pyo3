@@ -388,7 +388,7 @@ pub struct PyStaticClassObject<T: PyClassImpl> {
     contents: PyClassObjectContents<T>,
 }
 
-impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
+impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyStaticClassObject<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset = {
         let offset = offset_of!(Self, contents);
@@ -446,16 +446,14 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
     }
 
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
-        // Safety: T::Layout must be PyStaticClassObject<T>
-        let slf: &T::Layout = unsafe { std::mem::transmute(self) };
-        T::PyClassMutability::borrow_checker(slf)
+        T::PyClassMutability::borrow_checker(self)
     }
 }
 
 unsafe impl<T: PyClassImpl> PyLayout<T> for PyStaticClassObject<T> {}
 impl<T: PyClass> PySizedLayout<T> for PyStaticClassObject<T> {}
 
-impl<T: PyClassImpl> PyClassObjectBaseLayout<T> for PyStaticClassObject<T>
+impl<T: PyClassImpl<Layout = Self>> PyClassObjectBaseLayout<T> for PyStaticClassObject<T>
 where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {
@@ -486,8 +484,8 @@ pub struct PyVariableClassObject<T: PyClassImpl> {
     ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
 }
 
-impl<T: PyClassImpl> PyVariableClassObject<T> {
-    #[cfg(Py_3_12)]
+#[cfg(Py_3_12)]
+impl<T: PyClassImpl<Layout = Self>> PyVariableClassObject<T> {
     fn get_contents_of_obj(obj: *mut ffi::PyObject) -> *mut PyClassObjectContents<T> {
         // https://peps.python.org/pep-0697/
         let type_obj = unsafe { ffi::Py_TYPE(obj) };
@@ -495,14 +493,13 @@ impl<T: PyClassImpl> PyVariableClassObject<T> {
         pointer.cast()
     }
 
-    #[cfg(Py_3_12)]
     fn get_contents_ptr(&self) -> *mut PyClassObjectContents<T> {
         Self::get_contents_of_obj(self as *const PyVariableClassObject<T> as *mut ffi::PyObject)
     }
 }
 
 #[cfg(Py_3_12)]
-impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T> {
+impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassObject<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Relative(0);
     const BASIC_SIZE: ffi::Py_ssize_t = {
@@ -547,16 +544,14 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T> {
     }
 
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
-        // Safety: T::Layout must be PyStaticClassObject<T>
-        let slf: &T::Layout = unsafe { std::mem::transmute(self) };
-        T::PyClassMutability::borrow_checker(slf)
+        T::PyClassMutability::borrow_checker(self)
     }
 }
 
 unsafe impl<T: PyClassImpl> PyLayout<T> for PyVariableClassObject<T> {}
 
 #[cfg(Py_3_12)]
-impl<T: PyClassImpl> PyClassObjectBaseLayout<T> for PyVariableClassObject<T>
+impl<T: PyClassImpl<Layout = Self>> PyClassObjectBaseLayout<T> for PyVariableClassObject<T>
 where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {
