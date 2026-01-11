@@ -261,6 +261,16 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset;
 
+    /// Used to set `PyType_Spec::basicsize`
+    /// ([docs](https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize))
+    const BASIC_SIZE: ffi::Py_ssize_t;
+
+    /// Gets the offset of the dictionary from the start of the struct in bytes.
+    const DICT_OFFSET: PyObjectOffset;
+
+    /// Gets the offset of the weakref list from the start of the struct in bytes.
+    const WEAKLIST_OFFSET: PyObjectOffset;
+
     /// Obtain a pointer to the contents of an uninitialized PyObject of this type.
     ///
     /// Safety: the provided object must have the layout that the implementation is expecting
@@ -279,16 +289,6 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
 
     /// obtain a reference to the data at the start of the PyObject.
     fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase;
-
-    /// Used to set `PyType_Spec::basicsize`
-    /// ([docs](https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize))
-    fn basicsize() -> ffi::Py_ssize_t;
-
-    /// Gets the offset of the dictionary from the start of the struct in bytes.
-    fn dict_offset() -> PyObjectOffset;
-
-    /// Gets the offset of the weakref list from the start of the struct in bytes.
-    fn weaklist_offset() -> PyObjectOffset;
 
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
@@ -392,10 +392,29 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset = {
         let offset = offset_of!(Self, contents);
-
         // Py_ssize_t may not be equal to isize on all platforms
         assert!(offset <= ffi::Py_ssize_t::MAX as usize);
         PyObjectOffset::Absolute(offset as ffi::Py_ssize_t)
+    };
+
+    const BASIC_SIZE: ffi::Py_ssize_t = {
+        let size = std::mem::size_of::<Self>();
+        assert!(size <= ffi::Py_ssize_t::MAX as usize);
+        size as _
+    };
+
+    const DICT_OFFSET: PyObjectOffset = {
+        let offset = offset_of!(PyStaticClassObject<T>, contents)
+            + offset_of!(PyClassObjectContents<T>, dict);
+        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
+        PyObjectOffset::Absolute(offset as _)
+    };
+
+    const WEAKLIST_OFFSET: PyObjectOffset = {
+        let offset = offset_of!(PyStaticClassObject<T>, contents)
+            + offset_of!(PyClassObjectContents<T>, weakref);
+        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
+        PyObjectOffset::Absolute(offset as _)
     };
 
     unsafe fn contents_uninitialised(
@@ -424,36 +443,6 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
 
     fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase {
         &self.ob_base
-    }
-
-    fn basicsize() -> ffi::Py_ssize_t {
-        let size = std::mem::size_of::<Self>();
-
-        // Py_ssize_t may not be equal to isize on all platforms
-        #[allow(clippy::useless_conversion)]
-        size.try_into().expect("size should fit in Py_ssize_t")
-    }
-
-    fn dict_offset() -> PyObjectOffset {
-        let offset = offset_of!(PyStaticClassObject<T>, contents)
-            + offset_of!(PyClassObjectContents<T>, dict);
-
-        #[allow(
-            clippy::useless_conversion,
-            reason = "Py_ssize_t may not be isize on all platforms"
-        )]
-        PyObjectOffset::Absolute(offset.try_into().expect("offset should fit in Py_ssize_t"))
-    }
-
-    fn weaklist_offset() -> PyObjectOffset {
-        let offset = offset_of!(PyStaticClassObject<T>, contents)
-            + offset_of!(PyClassObjectContents<T>, weakref);
-
-        #[allow(
-            clippy::useless_conversion,
-            reason = "Py_ssize_t may not be isize on all platforms"
-        )]
-        PyObjectOffset::Absolute(offset.try_into().expect("offset should fit in Py_ssize_t"))
     }
 
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
@@ -516,6 +505,22 @@ impl<T: PyClassImpl> PyVariableClassObject<T> {
 impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Relative(0);
+    const BASIC_SIZE: ffi::Py_ssize_t = {
+        let size = std::mem::size_of::<PyClassObjectContents<T>>();
+        assert!(size <= ffi::Py_ssize_t::MAX as usize);
+        // negative to indicate 'extra' space that cpython will allocate for us
+        -(size as ffi::Py_ssize_t)
+    };
+    const DICT_OFFSET: PyObjectOffset = {
+        let offset = offset_of!(PyClassObjectContents<T>, dict);
+        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
+        PyObjectOffset::Relative(offset as _)
+    };
+    const WEAKLIST_OFFSET: PyObjectOffset = {
+        let offset = offset_of!(PyClassObjectContents<T>, weakref);
+        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
+        PyObjectOffset::Relative(offset as _)
+    };
 
     unsafe fn contents_uninitialised(
         obj: *mut ffi::PyObject,
@@ -539,30 +544,6 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T> {
     fn contents_mut(&mut self) -> &mut PyClassObjectContents<T> {
         unsafe { self.get_contents_ptr().as_mut() }
             .expect("should be able to cast PyClassObjectContents pointer")
-    }
-
-    fn basicsize() -> ffi::Py_ssize_t {
-        let size = std::mem::size_of::<PyClassObjectContents<T>>();
-        // negative to indicate 'extra' space that cpython will allocate for us
-        -ffi::Py_ssize_t::try_from(size).expect("offset should fit in Py_ssize_t")
-    }
-
-    fn dict_offset() -> PyObjectOffset {
-        let offset = offset_of!(PyClassObjectContents<T>, dict);
-        #[allow(
-            clippy::useless_conversion,
-            reason = "Py_ssize_t may not be isize on all platforms"
-        )]
-        PyObjectOffset::Relative(offset.try_into().expect("offset should fit in Py_ssize_t"))
-    }
-
-    fn weaklist_offset() -> PyObjectOffset {
-        let offset = offset_of!(PyClassObjectContents<T>, weakref);
-        #[allow(
-            clippy::useless_conversion,
-            reason = "Py_ssize_t may not be isize on all platforms"
-        )]
-        PyObjectOffset::Relative(offset.try_into().expect("offset should fit in Py_ssize_t"))
     }
 
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
@@ -658,13 +639,13 @@ mod tests {
 
     #[test]
     fn test_inherited_size() {
-        let base_size = PyStaticClassObject::<BaseWithData>::basicsize();
+        let base_size = PyStaticClassObject::<BaseWithData>::BASIC_SIZE;
         assert!(base_size > 0); // negative indicates variable sized
         assert_eq!(
             base_size,
-            PyStaticClassObject::<ChildWithoutData>::basicsize()
+            PyStaticClassObject::<ChildWithoutData>::BASIC_SIZE
         );
-        assert!(base_size < PyStaticClassObject::<ChildWithData>::basicsize());
+        assert!(base_size < PyStaticClassObject::<ChildWithData>::BASIC_SIZE);
     }
 
     fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}

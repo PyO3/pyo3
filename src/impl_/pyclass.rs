@@ -34,14 +34,14 @@ pub use probes::*;
 
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
-pub fn dict_offset<T: PyClass>() -> PyObjectOffset {
-    <T as PyClassImpl>::Layout::dict_offset()
+pub const fn dict_offset<T: PyClass>() -> PyObjectOffset {
+    <T as PyClassImpl>::Layout::DICT_OFFSET
 }
 
 /// Gets the offset of the weakref list from the start of the object in bytes.
 #[inline]
-pub fn weaklist_offset<T: PyClass>() -> PyObjectOffset {
-    <T as PyClassImpl>::Layout::weaklist_offset()
+pub const fn weaklist_offset<T: PyClass>() -> PyObjectOffset {
+    <T as PyClassImpl>::Layout::WEAKLIST_OFFSET
 }
 
 mod sealed {

@@ -107,7 +107,7 @@ where
             T::items_iter(),
             <T as PyClass>::NAME,
             <T as PyClassImpl>::MODULE,
-            <T as PyClassImpl>::Layout::basicsize(),
+            <T as PyClassImpl>::Layout::BASIC_SIZE,
         )
     }
 }
