@@ -1118,6 +1118,8 @@ pub trait PyClassBaseType: Sized {
     type BaseNativeType;
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;
+    /// The type of object layout to use for ancestors or descendants of this type.
+    type Layout<T: PyClassImpl>: PyClassObjectLayout<T>;
 }
 
 /// Implementation of tp_dealloc for pyclasses without gc

@@ -47,7 +47,6 @@ pyobject_native_type_info!(
     "typing",
     "Any",
     Some("builtins"),
-    PyStaticClassObject<T>,
     #checkfunction=PyObject_Check
 );
 
@@ -58,6 +57,7 @@ impl crate::impl_::pyclass::PyClassBaseType for PyAny {
     type BaseNativeType = PyAny;
     type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
     type PyClassMutability = crate::pycell::impl_::ImmutableClass;
+    type Layout<T: crate::impl_::pyclass::PyClassImpl> = PyStaticClassObject<T>;
 }
 
 /// This trait represents the Python APIs which are usable on all Python objects.
