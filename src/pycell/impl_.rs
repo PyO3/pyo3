@@ -273,8 +273,8 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
 
     /// Obtain a pointer to the contents of an uninitialized PyObject of this type.
     ///
-    /// Safety: the provided object must have the layout that the implementation is expecting
-    unsafe fn contents_uninitialised(
+    /// SAFETY: `obj` must have the layout that the implementation is expecting
+    unsafe fn contents_uninit(
         obj: *mut ffi::PyObject,
     ) -> *mut MaybeUninit<PyClassObjectContents<T>>;
 
@@ -417,7 +417,7 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyStaticClassObject<T> {
         PyObjectOffset::Absolute(offset as _)
     };
 
-    unsafe fn contents_uninitialised(
+    unsafe fn contents_uninit(
         obj: *mut ffi::PyObject,
     ) -> *mut MaybeUninit<PyClassObjectContents<T>> {
         #[repr(C)]
@@ -522,7 +522,7 @@ impl<T: PyClassImpl> PyClassObjectLayout<T> for PyVariableClassObject<T> {
         PyObjectOffset::Relative(offset as _)
     };
 
-    unsafe fn contents_uninitialised(
+    unsafe fn contents_uninit(
         obj: *mut ffi::PyObject,
     ) -> *mut MaybeUninit<PyClassObjectContents<T>> {
         Self::get_contents_of_obj(obj).cast()

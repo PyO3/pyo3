@@ -165,7 +165,10 @@ impl<T: PyClass> PyClassInitializer<T> {
 
         let obj = unsafe { super_init.into_new_object(py, target_type)? };
 
-        let contents = unsafe { <T as PyClassImpl>::Layout::contents_uninitialised(obj) };
+        // SAFETY: `obj` is constructed using `T::Layout` but has not been initialized yet
+        let contents = unsafe { <T as PyClassImpl>::Layout::contents_uninit(obj) };
+        // SAFETY: `contents` is a non-null pointer to the space allocated for our
+        // `PyClassObjectContents` (either statically in Rust or dynamically by Python)
         unsafe { (*contents).write(PyClassObjectContents::new(init)) };
 
         // Safety: obj is a valid pointer to an object of type `target_type`, which` is a known
