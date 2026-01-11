@@ -241,7 +241,7 @@ impl<'py> Iterator for BoundSetIterator<'py> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.len();
+        let len = ExactSizeIterator::len(self);
         (len, Some(len))
     }
 
