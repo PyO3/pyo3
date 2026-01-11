@@ -74,10 +74,16 @@ impl std::fmt::Debug for PyObjectObRefcnt {
 #[cfg(all(not(Py_3_12), not(Py_GIL_DISABLED)))]
 pub type PyObjectObRefcnt = Py_ssize_t;
 
+const _PyGC_PREV_SHIFT: usize = 2;
+pub const _PyObject_MIN_ALIGNMENT: usize = 1 << _PyGC_PREV_SHIFT;
+
 // PyObject_HEAD_INIT comes before the PyObject definition in object.h
 // but we put it after PyObject because HEAD_INIT uses PyObject
 
-#[repr(C)]
+// use a macro to substitute _PyObject_MIN_ALIGNMENT definition above?
+
+#[cfg_attr(not(Py_3_15), repr(C))]
+#[cfg_attr(Py_3_15, repr(C, align(4)))]
 #[derive(Debug)]
 pub struct PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
@@ -116,7 +122,9 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     _ob_prev: std::ptr::null_mut(),
     #[cfg(Py_GIL_DISABLED)]
     ob_tid: 0,
-    #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
+    #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
+    ob_flags: refcount::_Py_STATICALLY_ALLOCATED_FLAG as u16,
+    #[cfg(all(Py_GIL_DISABLED, all(Py_3_14, not(Py_3_15))))]
     ob_flags: 0,
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
     _padding: 0,
