@@ -135,6 +135,7 @@ pub(crate) fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(target_os = "wasi"))]
     use std::{
         panic,
         sync::atomic::{AtomicUsize, Ordering},
@@ -147,6 +148,7 @@ mod tests {
     use crate::{types::PyList, PyResult, Python};
 
     #[test]
+    #[cfg(not(target_os = "wasi"))]
     fn array_try_from_fn() {
         static DROP_COUNTER: AtomicUsize = AtomicUsize::new(0);
         struct CountDrop;
@@ -303,6 +305,7 @@ mod tests {
     }
 
     // https://stackoverflow.com/a/59211505
+    #[cfg(not(target_os = "wasi"))]
     fn catch_unwind_silent<F, R>(f: F) -> std::thread::Result<R>
     where
         F: FnOnce() -> R + panic::UnwindSafe,
