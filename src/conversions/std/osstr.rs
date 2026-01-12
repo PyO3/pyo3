@@ -225,10 +225,12 @@ impl<'py> IntoPyObject<'py> for &OsString {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "wasi")]
+    use crate::exceptions::PyFileNotFoundError;
     use crate::types::{PyAnyMethods, PyString, PyStringMethods};
     use crate::{Bound, BoundObject, IntoPyObject, Python};
     use std::fmt::Debug;
-    #[cfg(unix)]
+    #[cfg(any(unix, target_os = "emscripten"))]
     use std::os::unix::ffi::OsStringExt;
     #[cfg(windows)]
     use std::os::windows::ffi::OsStringExt;
@@ -238,13 +240,10 @@ mod tests {
     };
 
     #[test]
-    #[cfg(not(windows))]
+    #[cfg(any(unix, target_os = "emscripten"))]
     fn test_non_utf8_conversion() {
         Python::attach(|py| {
-            #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;
-            #[cfg(target_os = "wasi")]
-            use std::os::wasi::ffi::OsStrExt;
 
             // this is not valid UTF-8
             let payload = &[250, 251, 252, 253, 254, 255, 0, 255];
@@ -254,6 +253,26 @@ mod tests {
             let py_str = os_str.into_pyobject(py).unwrap();
             let os_str_2: OsString = py_str.extract().unwrap();
             assert_eq!(os_str, os_str_2);
+        });
+    }
+
+    #[test]
+    #[cfg(target_os = "wasi")]
+    fn test_extract_non_utf8_wasi_should_error() {
+        Python::attach(|py| {
+            // Non utf-8 strings are not valid wasi paths
+            let open_result = py.run(c"open('\\udcff', 'rb')", None, None).unwrap_err();
+            assert!(
+                !open_result.is_instance_of::<PyFileNotFoundError>(py),
+                "Opening invalid utf8 will error with OSError, not FileNotFoundError"
+            );
+
+            // Create a Python string with not valid UTF-8: &[255]
+            let py_str = py.eval(c"'\\udcff'", None, None).unwrap();
+            assert!(
+                py_str.extract::<OsString>().is_err(),
+                "Extracting invalid UTF-8 as OsString should error"
+            );
         });
     }
 
@@ -334,11 +353,11 @@ mod tests {
                 OsString::from_wide(&['A' as u16, 0xD800, 'B' as u16])
             };
 
-            #[cfg(unix)]
+            #[cfg(any(unix, target_os = "emscripten"))]
             let os_str = { OsString::from_vec(vec![250, 251, 252, 253, 254, 255, 0, 255]) };
 
             // This cannot be borrowed because it is not valid UTF-8
-            #[cfg(any(windows, unix))]
+            #[cfg(any(windows, unix, target_os = "emscripten"))]
             test_extract::<OsStr>(py, &os_str, false);
         });
     }
