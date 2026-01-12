@@ -963,10 +963,12 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.16")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        # 3.15 CPython should build if abi3 is explicitly requested
+        # 3.16 CPython should build if abi3 is explicitly requested
         _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
 
         # 3.15 CPython should build with forward compatibility
+        # TODO: check on 3.16 when adding abi3-py315 support
+        config_file.set("CPython", "3.15")
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
@@ -1012,6 +1014,10 @@ def check_feature_powerset(session: nox.Session):
     EXPECTED_ABI3_FEATURES = {
         f"abi3-py3{ver.split('.')[1]}" for ver in PY_VERSIONS if not ver.endswith("t")
     }
+
+    # We don't yet support abi3-py315 but do support cp315 and cp315t
+    # version-specific builds
+    EXPECTED_ABI3_FEATURES.remove("abi3-py315")
 
     EXCLUDED_FROM_FULL = {
         "nightly",
