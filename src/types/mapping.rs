@@ -2,7 +2,7 @@ use crate::conversion::IntoPyObject;
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::{type_hint_identifier, PyStaticExpr};
 use crate::instance::Bound;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
@@ -28,7 +28,7 @@ unsafe impl PyTypeInfo for PyMapping {
     const MODULE: Option<&'static str> = Some("collections.abc");
 
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: TypeHint = TypeHint::module_attr("collections.abc", "Mapping");
+    const TYPE_HINT: PyStaticExpr = type_hint_identifier!("collections.abc", "Mapping");
 
     #[inline]
     #[allow(clippy::redundant_closure_call)]

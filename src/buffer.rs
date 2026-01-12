@@ -19,7 +19,7 @@
 
 //! `PyBuffer` implementation
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::{type_hint_identifier, PyStaticExpr};
 use crate::{err, exceptions::PyBufferError, ffi, FromPyObject, PyAny, PyResult, Python};
 use crate::{Borrowed, Bound, PyErr};
 use std::ffi::{
@@ -202,7 +202,7 @@ impl<T: Element> FromPyObject<'_, '_> for PyBuffer<T> {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::module_attr("collections.abc", "Buffer");
+    const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("collections.abc", "Buffer");
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<PyBuffer<T>, Self::Error> {
         Self::get(&obj)

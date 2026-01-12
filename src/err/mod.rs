@@ -1,7 +1,7 @@
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
 use crate::instance::Bound;
 #[cfg(Py_3_11)]
 use crate::intern;
@@ -683,7 +683,7 @@ impl<'py> IntoPyObject<'py> for PyErr {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyBaseException::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyBaseException::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -697,7 +697,7 @@ impl<'py> IntoPyObject<'py> for &PyErr {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyErr::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = PyErr::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {

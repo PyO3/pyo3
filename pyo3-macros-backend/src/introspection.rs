@@ -160,7 +160,7 @@ pub fn attribute_introspection_code(
             if is_final {
                 PythonTypeHint::subscript(
                     PythonTypeHint::module_attr("typing", "Final"),
-                    [PythonTypeHint::from_return_type(rust_type, parent)],
+                    PythonTypeHint::from_return_type(rust_type, parent),
                 )
                 .into()
             } else {
@@ -395,7 +395,7 @@ impl From<PythonTypeHint> for IntrospectionNode<'static> {
 
 fn serialize_type_hint(hint: TokenStream, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
     quote! {{
-        const TYPE_HINT: #pyo3_crate_path::inspect::TypeHint = #hint;
+        const TYPE_HINT: #pyo3_crate_path::inspect::PyStaticExpr = #hint;
         const TYPE_HINT_LEN: usize = #pyo3_crate_path::inspect::serialized_len_for_introspection(&TYPE_HINT);
         const TYPE_HINT_SER: [u8; TYPE_HINT_LEN] = {
             let mut result: [u8; TYPE_HINT_LEN] = [0; TYPE_HINT_LEN];

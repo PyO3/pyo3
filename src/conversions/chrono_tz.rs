@@ -37,7 +37,7 @@
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
 use crate::pybacked::PyBackedStr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
@@ -52,7 +52,7 @@ impl<'py> IntoPyObject<'py> for Tz {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyTzInfo::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyTzInfo::timezone(py, self.name())
@@ -65,7 +65,7 @@ impl<'py> IntoPyObject<'py> for &Tz {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = Tz::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = Tz::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {

@@ -1,7 +1,7 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::{type_hint_union, PyStaticExpr};
 use crate::sync::PyOnceLock;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAny;
@@ -24,10 +24,10 @@ unsafe impl PyTypeCheck for PyWeakref {
     const NAME: &'static str = "weakref";
 
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: TypeHint = TypeHint::union(&[
+    const TYPE_HINT: PyStaticExpr = type_hint_union!(
         PyWeakrefProxy::TYPE_HINT,
-        <PyWeakrefReference as PyTypeCheck>::TYPE_HINT,
-    ]);
+        <PyWeakrefReference as PyTypeCheck>::TYPE_HINT
+    );
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {

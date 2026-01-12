@@ -44,7 +44,7 @@
 use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
 use crate::intern;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
@@ -75,7 +75,7 @@ impl<'py> IntoPyObject<'py> for Duration {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyDelta::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyDelta::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         // Total number of days
@@ -110,7 +110,7 @@ impl<'py> IntoPyObject<'py> for &Duration {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = Duration::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = Duration::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -122,7 +122,7 @@ impl FromPyObject<'_, '_> for Duration {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyDelta::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyDelta::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let delta = ob.cast::<PyDelta>()?;
@@ -161,7 +161,7 @@ impl<'py> IntoPyObject<'py> for NaiveDate {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyDate::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyDate::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let DateArgs { year, month, day } = (&self).into();
@@ -175,7 +175,7 @@ impl<'py> IntoPyObject<'py> for &NaiveDate {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = NaiveDate::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = NaiveDate::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -187,7 +187,7 @@ impl FromPyObject<'_, '_> for NaiveDate {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyDate::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyDate::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let date = &*ob.cast::<PyDate>()?;
@@ -201,7 +201,7 @@ impl<'py> IntoPyObject<'py> for NaiveTime {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyTime::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyTime::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let TimeArgs {
@@ -228,7 +228,7 @@ impl<'py> IntoPyObject<'py> for &NaiveTime {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = NaiveTime::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = NaiveTime::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -240,7 +240,7 @@ impl FromPyObject<'_, '_> for NaiveTime {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyTime::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyTime::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let time = &*ob.cast::<PyTime>()?;
@@ -254,7 +254,7 @@ impl<'py> IntoPyObject<'py> for NaiveDateTime {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyDateTime::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let DateArgs { year, month, day } = (&self.date()).into();
@@ -282,7 +282,7 @@ impl<'py> IntoPyObject<'py> for &NaiveDateTime {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = NaiveDateTime::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = NaiveDateTime::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -294,7 +294,7 @@ impl FromPyObject<'_, '_> for NaiveDateTime {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyDateTime::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn extract(dt: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let dt = &*dt.cast::<PyDateTime>()?;
@@ -321,7 +321,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = <&DateTime<Tz>>::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = <&DateTime<Tz>>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -338,7 +338,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyDateTime::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let tz = self.timezone().into_bound_py_any(py)?.cast_into()?;
@@ -385,7 +385,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyDateTime::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn extract(dt: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let dt = &*dt.cast::<PyDateTime>()?;
@@ -415,7 +415,7 @@ impl<'py> IntoPyObject<'py> for FixedOffset {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyTzInfo::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let seconds_offset = self.local_minus_utc();
@@ -430,7 +430,7 @@ impl<'py> IntoPyObject<'py> for &FixedOffset {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = FixedOffset::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = FixedOffset::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -442,7 +442,7 @@ impl FromPyObject<'_, '_> for FixedOffset {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyTzInfo::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
 
     /// Convert python tzinfo to rust [`FixedOffset`].
     ///
@@ -477,7 +477,7 @@ impl<'py> IntoPyObject<'py> for Utc {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyTzInfo::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyTzInfo::utc(py)
@@ -490,7 +490,7 @@ impl<'py> IntoPyObject<'py> for &Utc {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = Utc::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = Utc::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -518,7 +518,7 @@ impl<'py> IntoPyObject<'py> for Local {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyTzInfo::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static LOCAL_TZ: PyOnceLock<Py<PyTzInfo>> = PyOnceLock::new();
@@ -541,7 +541,7 @@ impl<'py> IntoPyObject<'py> for &Local {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = Local::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = Local::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
