@@ -49,6 +49,13 @@ pub struct PyObjectObFlagsAndRefcnt {
     pub ob_flags: u16,
 }
 
+// 4-byte alignment comes from value of _PyObject_MIN_ALIGNMENT
+
+#[cfg(all(not(Py_GIL_DISABLED), Py_3_15))]
+#[repr(C, align(4))]
+#[derive(Copy, Clone)]
+struct Aligner(c_char);
+
 #[repr(C)]
 #[derive(Copy, Clone)]
 #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
@@ -62,6 +69,8 @@ pub union PyObjectObRefcnt {
     pub ob_refcnt: Py_ssize_t,
     #[cfg(all(target_pointer_width = "64", not(Py_3_14)))]
     pub ob_refcnt_split: [crate::PY_UINT32_T; 2],
+    #[cfg(all(not(Py_GIL_DISABLED), Py_3_15))]
+    _aligner: Aligner,
 }
 
 #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
@@ -71,16 +80,22 @@ impl std::fmt::Debug for PyObjectObRefcnt {
     }
 }
 
+// repr(align(4)) corresponds to the use of _Py_ALIGNED_DEF in object.h. It is
+// not currently possible to use constant variables with repr(align()), see
+// https://github.com/rust-lang/rust/issues/52840
+
+const _PyObject_MIN_ALIGNMENT: usize = 4;
+
+#[cfg(all(Py_GIL_DISABLED, Py_3_15))]
+#[repr(C, align(4))]
+#[derive(Copy, Clone, Debug)]
+pub struct PyObjectObTid(libc::uintptr_t);
+
 #[cfg(all(not(Py_3_12), not(Py_GIL_DISABLED)))]
 pub type PyObjectObRefcnt = Py_ssize_t;
 
-const _PyGC_PREV_SHIFT: usize = 2;
-pub const _PyObject_MIN_ALIGNMENT: usize = 1 << _PyGC_PREV_SHIFT;
-
 // PyObject_HEAD_INIT comes before the PyObject definition in object.h
 // but we put it after PyObject because HEAD_INIT uses PyObject
-
-// use a macro to substitute _PyObject_MIN_ALIGNMENT definition above?
 
 #[cfg_attr(not(Py_3_15), repr(C))]
 #[cfg_attr(Py_3_15, repr(C, align(4)))]
@@ -90,8 +105,10 @@ pub struct PyObject {
     pub _ob_next: *mut PyObject,
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     pub _ob_prev: *mut PyObject,
-    #[cfg(Py_GIL_DISABLED)]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_3_15)))]
     pub ob_tid: libc::uintptr_t,
+    #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
+    pub ob_tid: PyObjectObTid,
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
     pub _padding: u16,
     #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
@@ -111,6 +128,8 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
+const _: () = assert!(std::mem::align_of::<PyObject>() >= _PyObject_MIN_ALIGNMENT);
+
 #[allow(
     clippy::declare_interior_mutable_const,
     reason = "contains atomic refcount on free-threaded builds"
@@ -120,8 +139,10 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     _ob_next: std::ptr::null_mut(),
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     _ob_prev: std::ptr::null_mut(),
-    #[cfg(Py_GIL_DISABLED)]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_3_15)))]
     ob_tid: 0,
+    #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
+    ob_tid: PyObjectObTid(0),
     #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
     ob_flags: refcount::_Py_STATICALLY_ALLOCATED_FLAG as u16,
     #[cfg(all(Py_GIL_DISABLED, all(Py_3_14, not(Py_3_15))))]
