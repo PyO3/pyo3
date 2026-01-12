@@ -153,7 +153,9 @@ fn convert_members<'a>(
                 decorators,
                 is_async,
                 returns,
-            } => functions.push(convert_function(name, arguments, decorators, returns, *is_async)),
+            } => functions.push(convert_function(
+                name, arguments, decorators, returns, *is_async,
+            )),
             Chunk::Attribute {
                 name,
                 id: _,
