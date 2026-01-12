@@ -910,7 +910,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(target_os = "wasi"))]
+    #[cfg(panic = "unwind")]
     fn test_detach_panics_safely() {
         Python::attach(|py| {
             let result = std::panic::catch_unwind(|| unsafe {

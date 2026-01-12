@@ -2454,10 +2454,10 @@ fn panic_on_null(py: Python<'_>) -> ! {
 #[cfg(test)]
 mod tests {
     use super::{Bound, IntoPyObject, Py};
-    #[cfg(all(feature = "macros", Py_3_8, not(target_os = "wasi")))]
+    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
     use crate::exceptions::PyValueError;
     use crate::test_utils::generate_unique_module_name;
-    #[cfg(all(feature = "macros", Py_3_8, not(target_os = "wasi")))]
+    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
     use crate::test_utils::UnraisableCapture;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, IntoPyObjectExt, PyAny, PyResult, Python};
@@ -2815,7 +2815,7 @@ a = A()
         });
     }
 
-    #[cfg(all(feature = "macros", Py_3_8, not(target_os = "wasi")))]
+    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
     #[test]
     fn test_constructors_panic_on_null() {
         Python::attach(|py| {

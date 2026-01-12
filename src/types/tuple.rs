@@ -1442,7 +1442,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(target_os = "wasi"))]
+    #[cfg(panic = "unwind")]
     fn bad_intopyobject_doesnt_cause_leaks() {
         use crate::types::PyInt;
         use std::convert::Infallible;
@@ -1505,7 +1505,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(target_os = "wasi"))]
+    #[cfg(panic = "unwind")]
     fn bad_intopyobject_doesnt_cause_leaks_2() {
         use crate::types::PyInt;
         use std::convert::Infallible;
