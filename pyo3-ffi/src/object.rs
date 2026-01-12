@@ -80,35 +80,28 @@ impl std::fmt::Debug for PyObjectObRefcnt {
     }
 }
 
-// repr(align(4)) corresponds to the use of _Py_ALIGNED_DEF in object.h. It is
-// not currently possible to use constant variables with repr(align()), see
-// https://github.com/rust-lang/rust/issues/52840
-
-const _PyObject_MIN_ALIGNMENT: usize = 4;
-
-#[cfg(all(Py_GIL_DISABLED, Py_3_15))]
-#[repr(C, align(4))]
-#[derive(Copy, Clone, Debug)]
-pub struct PyObjectObTid(libc::uintptr_t);
-
 #[cfg(all(not(Py_3_12), not(Py_GIL_DISABLED)))]
 pub type PyObjectObRefcnt = Py_ssize_t;
+
+const _PyObject_MIN_ALIGNMENT: usize = 4;
 
 // PyObject_HEAD_INIT comes before the PyObject definition in object.h
 // but we put it after PyObject because HEAD_INIT uses PyObject
 
-#[cfg_attr(not(Py_3_15), repr(C))]
-#[cfg_attr(Py_3_15, repr(C, align(4)))]
+// repr(align(4)) corresponds to the use of _Py_ALIGNED_DEF in object.h. It is
+// not currently possible to use constant variables with repr(align()), see
+// https://github.com/rust-lang/rust/issues/52840
+
+#[cfg_attr(not(all(Py_3_15, Py_GIL_DISABLED)), repr(C))]
+#[cfg_attr(all(Py_3_15, Py_GIL_DISABLED), repr(C, align(4)))]
 #[derive(Debug)]
 pub struct PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     pub _ob_next: *mut PyObject,
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     pub _ob_prev: *mut PyObject,
-    #[cfg(all(Py_GIL_DISABLED, not(Py_3_15)))]
+    #[cfg(Py_GIL_DISABLED)]
     pub ob_tid: libc::uintptr_t,
-    #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
-    pub ob_tid: PyObjectObTid,
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
     pub _padding: u16,
     #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
@@ -139,10 +132,8 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     _ob_next: std::ptr::null_mut(),
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     _ob_prev: std::ptr::null_mut(),
-    #[cfg(all(Py_GIL_DISABLED, not(Py_3_15)))]
+    #[cfg(Py_GIL_DISABLED)]
     ob_tid: 0,
-    #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
-    ob_tid: PyObjectObTid(0),
     #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
     ob_flags: refcount::_Py_STATICALLY_ALLOCATED_FLAG as u16,
     #[cfg(all(Py_GIL_DISABLED, all(Py_3_14, not(Py_3_15))))]
