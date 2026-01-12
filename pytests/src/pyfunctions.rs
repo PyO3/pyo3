@@ -88,6 +88,9 @@ fn with_custom_type_annotations<'py>(
     a
 }
 
+#[cfg(feature = "experimental-async")]
+async fn with_async() {}
+
 #[expect(clippy::too_many_arguments)]
 #[pyfunction(
     signature = (

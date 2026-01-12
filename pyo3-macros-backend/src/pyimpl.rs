@@ -463,6 +463,7 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
         first_argument,
         return_type,
         decorators,
+        spec.asyncness.is_some(),
         Some(parent),
     )
 }

@@ -26,6 +26,7 @@ pub struct Function {
     pub arguments: Arguments,
     /// return type
     pub returns: Option<TypeHint>,
+    pub is_async: bool,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
