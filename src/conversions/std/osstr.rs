@@ -9,10 +9,16 @@ use crate::instance::Bound;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::PyString;
+#[cfg(any(unix, target_os = "emscripten"))]
+use crate::types::{PyBytes, PyBytesMethods};
 use crate::{Borrowed, FromPyObject, PyAny, PyErr, Python};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::ffi::{OsStr, OsString};
+#[cfg(any(unix, target_os = "emscripten"))]
+use std::os::unix::ffi::OsStrExt;
+#[cfg(windows)]
+use std::os::windows::ffi::OsStrExt;
 
 impl<'py> IntoPyObject<'py> for &OsStr {
     type Target = PyString;
@@ -38,8 +44,6 @@ impl<'py> IntoPyObject<'py> for &OsStr {
 
         #[cfg(any(unix, target_os = "emscripten"))]
         {
-            use std::os::unix::ffi::OsStrExt;
-
             let bytes = self.as_bytes();
             let ptr = bytes.as_ptr().cast();
             let len = bytes.len() as ffi::Py_ssize_t;
@@ -54,8 +58,6 @@ impl<'py> IntoPyObject<'py> for &OsStr {
 
         #[cfg(windows)]
         {
-            use std::os::windows::ffi::OsStrExt;
-
             let wstr: Vec<u16> = self.encode_wide().collect();
             unsafe {
                 // This will not panic because the data from encode_wide is well-formed Windows
@@ -101,9 +103,6 @@ impl FromPyObject<'_, '_> for OsString {
 
         #[cfg(any(unix, target_os = "emscripten"))]
         {
-            use crate::types::{PyBytes, PyBytesMethods};
-            use std::os::unix::ffi::OsStrExt;
-
             // Decode from Python's lossless bytes string representation back into raw bytes
             // SAFETY: PyUnicode_EncodeFSDefault returns a new reference or null on error, known to
             // be a `bytes` object, thread is attached to the interpreter
