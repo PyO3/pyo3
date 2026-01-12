@@ -982,7 +982,9 @@ def test_version_limits(session: nox.Session):
 
     # attempt to build with latest version and check that abi3 version
     # configured matches the feature
-    max_minor_version = max(int(v.split(".")[1]) for v in ABI3_PY_VERSIONS if "t" not in v)
+    max_minor_version = max(
+        int(v.split(".")[1]) for v in ABI3_PY_VERSIONS if "t" not in v
+    )
     with tempfile.TemporaryFile() as stderr:
         env = os.environ.copy()
         env["PYO3_PRINT_CONFIG"] = "1"  # get diagnostics from the build
@@ -1016,7 +1018,9 @@ def check_feature_powerset(session: nox.Session):
 
     # free-threaded builds do not support ABI3 (yet)
     EXPECTED_ABI3_FEATURES = {
-        f"abi3-py3{ver.split('.')[1]}" for ver in ABI3_PY_VERSIONS if not ver.endswith("t")
+        f"abi3-py3{ver.split('.')[1]}"
+        for ver in ABI3_PY_VERSIONS
+        if not ver.endswith("t")
     }
 
     EXCLUDED_FROM_FULL = {
