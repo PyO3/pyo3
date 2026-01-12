@@ -88,7 +88,7 @@ fn with_custom_type_annotations<'py>(
     a
 }
 
-#[cfg(all(feature = "experimental-async", feature = "experimental-inspect"))]
+#[cfg(feature = "experimental-async")]
 #[pyfunction]
 async fn with_async() {}
 
@@ -140,7 +140,7 @@ fn many_keyword_arguments<'py>(
 
 #[pymodule]
 pub mod pyfunctions {
-    #[cfg(all(feature = "experimental-async", feature = "experimental-inspect"))]
+    #[cfg(feature = "experimental-async")]
     #[pymodule_export]
     use super::with_async;
     #[cfg(feature = "experimental-inspect")]
