@@ -135,21 +135,19 @@ mod tests {
         types::{PyAnyMethods, PyString},
         IntoPyObjectExt,
     };
+    #[cfg(not(target_os = "wasi"))]
     use std::ffi::OsStr;
     use std::fmt::Debug;
-    #[cfg(unix)]
+    #[cfg(any(unix, target_os = "emscripten"))]
     use std::os::unix::ffi::OsStringExt;
     #[cfg(windows)]
     use std::os::windows::ffi::OsStringExt;
 
     #[test]
-    #[cfg(not(windows))]
+    #[cfg(any(unix, target_os = "emscripten"))]
     fn test_non_utf8_conversion() {
         Python::attach(|py| {
-            #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;
-            #[cfg(target_os = "wasi")]
-            use std::os::wasi::ffi::OsStrExt;
 
             // this is not valid UTF-8
             let payload = &[250, 251, 252, 253, 254, 255, 0, 255];
@@ -219,11 +217,11 @@ mod tests {
                 OsString::from_wide(&['A' as u16, 0xD800, 'B' as u16])
             };
 
-            #[cfg(unix)]
+            #[cfg(any(unix, target_os = "emscripten"))]
             let os_str = { OsString::from_vec(vec![250, 251, 252, 253, 254, 255, 0, 255]) };
 
             // This cannot be borrowed because it is not valid UTF-8
-            #[cfg(any(unix, windows))]
+            #[cfg(any(unix, windows, target_os = "emscripten"))]
             test_extract::<OsStr>(py, &os_str, false);
         });
     }
