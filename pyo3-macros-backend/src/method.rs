@@ -220,6 +220,8 @@ pub enum FnType {
     Getter(SelfType),
     /// Represents a pymethod annotated with `#[setter]`
     Setter(SelfType),
+    /// Represents a pymethod annotated with `#[deleter]`
+    Deleter(SelfType),
     /// Represents a regular pymethod
     Fn(SelfType),
     /// Represents a pymethod annotated with `#[classmethod]`, like a `@classmethod`
@@ -237,6 +239,7 @@ impl FnType {
         match self {
             FnType::Getter(_)
             | FnType::Setter(_)
+            | FnType::Deleter(_)
             | FnType::Fn(_)
             | FnType::FnClass(_)
             | FnType::FnModule(_) => true,
@@ -247,9 +250,11 @@ impl FnType {
     pub fn signature_attribute_allowed(&self) -> bool {
         match self {
             FnType::Fn(_) | FnType::FnStatic | FnType::FnClass(_) | FnType::FnModule(_) => true,
-            // Setter, Getter and ClassAttribute all have fixed signatures (either take 0 or 1
+            // Getter, Setter and Deleter and ClassAttribute all have fixed signatures (either take 0 or 1
             // arguments) so cannot have a `signature = (...)` attribute.
-            FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => false,
+            FnType::Getter(_) | FnType::Setter(_) | FnType::Deleter(_) | FnType::ClassAttribute => {
+                false
+            }
         }
     }
 
@@ -262,12 +267,14 @@ impl FnType {
     ) -> Option<TokenStream> {
         let Ctx { pyo3_path, .. } = ctx;
         match self {
-            FnType::Getter(st) | FnType::Setter(st) | FnType::Fn(st) => Some(st.receiver(
-                cls.expect("no class given for Fn with a \"self\" receiver"),
-                error_mode,
-                holders,
-                ctx,
-            )),
+            FnType::Getter(st) | FnType::Setter(st) | FnType::Deleter(st) | FnType::Fn(st) => {
+                Some(st.receiver(
+                    cls.expect("no class given for Fn with a \"self\" receiver"),
+                    error_mode,
+                    holders,
+                    ctx,
+                ))
+            }
             FnType::FnClass(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
@@ -339,10 +346,9 @@ impl SelfType {
         let py = syn::Ident::new("py", Span::call_site());
         let slf = syn::Ident::new("_slf", Span::call_site());
         let Ctx { pyo3_path, .. } = ctx;
-        let bound_ref =
-            quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf) } };
         match self {
             SelfType::Receiver { span, mutable } => {
+                let arg = quote! { unsafe { #pyo3_path::impl_::extract_argument::cast_function_argument(#py, #slf) } };
                 let method = if *mutable {
                     syn::Ident::new("extract_pyclass_ref_mut", *span)
                 } else {
@@ -353,7 +359,7 @@ impl SelfType {
                 error_mode.handle_error(
                     quote_spanned! { *span =>
                         #pyo3_path::impl_::extract_argument::#method::<#cls>(
-                            #bound_ref.0,
+                            #arg,
                             &mut #holder,
                         )
                     },
@@ -361,6 +367,7 @@ impl SelfType {
                 )
             }
             SelfType::TryFromBoundRef(span) => {
+                let bound_ref = quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf) } };
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
                     quote_spanned! { *span =>
@@ -592,6 +599,19 @@ impl<'a> FnSpec<'a> {
 
                 FnType::Setter(parse_receiver("expected receiver for `#[setter]`")?)
             }
+            [MethodTypeAttribute::Deleter(_, name)] => {
+                if let Some(name) = name.take() {
+                    ensure_spanned!(
+                        python_name.replace(name).is_none(),
+                        python_name.span() => "`name` may only be specified once"
+                    );
+                } else if python_name.is_none() {
+                    // Strip off "delete_" prefix if needed
+                    *python_name = strip_fn_name("delete_");
+                }
+
+                FnType::Deleter(parse_receiver("expected receiver for `#[deleter]`")?)
+            }
             [first, rest @ .., last] => {
                 // Join as many of the spans together as possible
                 let span = rest
@@ -678,7 +698,7 @@ impl<'a> FnSpec<'a> {
                             Span::call_site(),
                         );
                         quote! {{
-                            let _slf = unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(py, &_slf) }.to_owned().unbind();
+                            let _slf = unsafe { #pyo3_path::impl_::extract_argument::cast_function_argument(py, _slf) }.to_owned().unbind();
                             #(let #arg_names = #args;)*
                             async move {
                                 // SAFETY: attached when future is polled (see `Coroutine::poll`)
@@ -686,7 +706,7 @@ impl<'a> FnSpec<'a> {
                                 let py = assume_attached.py();
                                 let mut holder = None;
                                 let future = function(
-                                    #pyo3_path::impl_::extract_argument::#method(_slf.bind(py), &mut holder)?,
+                                    #pyo3_path::impl_::extract_argument::#method(_slf.bind_borrowed(py), &mut holder)?,
                                     #(#arg_names),*
                                 );
                                 drop(py);
@@ -872,8 +892,10 @@ impl<'a> FnSpec<'a> {
     /// and/or attributes. Prepend the callable name to make a complete `__text_signature__`.
     pub fn text_signature_call_signature(&self) -> Option<String> {
         let self_argument = match &self.tp {
-            // Getters / Setters / ClassAttribute are not callables on the Python side
-            FnType::Getter(_) | FnType::Setter(_) | FnType::ClassAttribute => return None,
+            // Getters / Setters / deleter / ClassAttribute are not callables on the Python side
+            FnType::Getter(_) | FnType::Setter(_) | FnType::Deleter(_) | FnType::ClassAttribute => {
+                return None
+            }
             FnType::Fn(_) => Some("self"),
             FnType::FnModule(_) => Some("module"),
             FnType::FnClass(_) => Some("cls"),
@@ -894,6 +916,7 @@ enum MethodTypeAttribute {
     StaticMethod(Span),
     Getter(Span, Option<Ident>),
     Setter(Span, Option<Ident>),
+    Deleter(Span, Option<Ident>),
     ClassAttribute(Span),
 }
 
@@ -905,6 +928,7 @@ impl MethodTypeAttribute {
             | MethodTypeAttribute::StaticMethod(span)
             | MethodTypeAttribute::Getter(span, _)
             | MethodTypeAttribute::Setter(span, _)
+            | MethodTypeAttribute::Deleter(span, _)
             | MethodTypeAttribute::ClassAttribute(span) => *span,
         }
     }
@@ -973,6 +997,9 @@ impl MethodTypeAttribute {
         } else if path.is_ident("setter") {
             let name = extract_name(meta, "setter")?;
             Ok(Some(MethodTypeAttribute::Setter(path.span(), name)))
+        } else if path.is_ident("deleter") {
+            let name = extract_name(meta, "deleter")?;
+            Ok(Some(MethodTypeAttribute::Deleter(path.span(), name)))
         } else {
             Ok(None)
         }
@@ -981,14 +1008,15 @@ impl MethodTypeAttribute {
 
 impl Display for MethodTypeAttribute {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            MethodTypeAttribute::New(_) => "#[new]".fmt(f),
-            MethodTypeAttribute::ClassMethod(_) => "#[classmethod]".fmt(f),
-            MethodTypeAttribute::StaticMethod(_) => "#[staticmethod]".fmt(f),
-            MethodTypeAttribute::Getter(_, _) => "#[getter]".fmt(f),
-            MethodTypeAttribute::Setter(_, _) => "#[setter]".fmt(f),
-            MethodTypeAttribute::ClassAttribute(_) => "#[classattr]".fmt(f),
-        }
+        f.write_str(match self {
+            MethodTypeAttribute::New(_) => "#[new]",
+            MethodTypeAttribute::ClassMethod(_) => "#[classmethod]",
+            MethodTypeAttribute::StaticMethod(_) => "#[staticmethod]",
+            MethodTypeAttribute::Getter(_, _) => "#[getter]",
+            MethodTypeAttribute::Setter(_, _) => "#[setter]",
+            MethodTypeAttribute::Deleter(_, _) => "#[deleter]",
+            MethodTypeAttribute::ClassAttribute(_) => "#[classattr]",
+        })
     }
 }
 
@@ -1028,6 +1056,10 @@ fn ensure_signatures_on_valid_method(
                 debug_assert!(!fn_type.signature_attribute_allowed());
                 bail_spanned!(signature.kw.span() => "`signature` not allowed with `setter`")
             }
+            FnType::Deleter(_) => {
+                debug_assert!(!fn_type.signature_attribute_allowed());
+                bail_spanned!(signature.kw.span() => "`signature` not allowed with `deleter`")
+            }
             FnType::ClassAttribute => {
                 debug_assert!(!fn_type.signature_attribute_allowed());
                 bail_spanned!(signature.kw.span() => "`signature` not allowed with `classattr`")
@@ -1042,6 +1074,9 @@ fn ensure_signatures_on_valid_method(
             }
             FnType::Setter(_) => {
                 bail_spanned!(text_signature.kw.span() => "`text_signature` not allowed with `setter`")
+            }
+            FnType::Deleter(_) => {
+                bail_spanned!(text_signature.kw.span() => "`text_signature` not allowed with `deleter`")
             }
             FnType::ClassAttribute => {
                 bail_spanned!(text_signature.kw.span() => "`text_signature` not allowed with `classattr`")

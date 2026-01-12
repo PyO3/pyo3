@@ -1,6 +1,6 @@
 use std::{thread, time};
 
-use pyo3::exceptions::{PyStopIteration, PyValueError};
+use pyo3::exceptions::{PyAttributeError, PyStopIteration, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
@@ -137,7 +137,7 @@ impl SubClassWithInit {
 #[pyclass(skip_from_py_object)]
 #[derive(Clone)]
 struct ClassWithDecorators {
-    attr: usize,
+    attr: Option<usize>,
 }
 
 #[pymethods]
@@ -145,17 +145,23 @@ impl ClassWithDecorators {
     #[new]
     #[classmethod]
     fn new(_cls: Bound<'_, PyType>) -> Self {
-        Self { attr: 0 }
+        Self { attr: Some(0) }
     }
 
     #[getter]
-    fn get_attr(&self) -> usize {
+    fn get_attr(&self) -> PyResult<usize> {
         self.attr
+            .ok_or_else(|| PyAttributeError::new_err("attr is not set"))
     }
 
     #[setter]
     fn set_attr(&mut self, value: usize) {
-        self.attr = value;
+        self.attr = Some(value);
+    }
+
+    #[deleter]
+    fn delete_attr(&mut self) {
+        self.attr = None;
     }
 
     #[classmethod]

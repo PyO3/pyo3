@@ -413,6 +413,10 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
                 "setter",
             ));
         }
+        FnType::Deleter(_) => {
+            first_argument = Some("self");
+            decorators.push(PythonTypeHint::local(format!("{name}.deleter")));
+        }
         FnType::Fn(_) => {
             first_argument = Some("self");
         }

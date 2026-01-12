@@ -2,6 +2,8 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 
 #[cfg(not(GraalPy))]
+use crate::PyCodeObject;
+#[cfg(not(GraalPy))]
 use std::ffi::c_char;
 use std::ffi::{c_int, c_void};
 #[cfg(not(PyPy))]
@@ -31,13 +33,6 @@ use std::ptr::addr_of_mut;
 // skipped private _PyCoMonitoringData
 
 // skipped private _PyExecutorArray
-
-opaque_struct!(
-    #[doc = "A Python code object.\n"]
-    #[doc = "\n"]
-    #[doc = "`pyo3-ffi` does not expose the contents of this struct, as it has no stability guarantees."]
-    pub PyCodeObject
-);
 
 /* Masks for co_flags */
 pub const CO_OPTIMIZED: c_int = 0x0001;

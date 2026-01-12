@@ -386,8 +386,6 @@ pub use self::boolobject::*;
 pub use self::bytearrayobject::*;
 pub use self::bytesobject::*;
 pub use self::ceval::*;
-#[cfg(Py_LIMITED_API)]
-pub use self::code::*;
 pub use self::codecs::*;
 pub use self::compile::*;
 pub use self::complexobject::*;
@@ -455,8 +453,6 @@ mod bytesobject;
 // skipped cellobject.h
 mod ceval;
 // skipped classobject.h
-#[cfg(Py_LIMITED_API)]
-mod code;
 mod codecs;
 mod compile;
 mod complexobject;

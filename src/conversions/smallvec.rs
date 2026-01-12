@@ -138,7 +138,7 @@ mod tests {
             let sv: PyResult<SmallVec<[u64; 8]>> = dict.extract();
             assert_eq!(
                 sv.unwrap_err().to_string(),
-                "TypeError: 'dict' object cannot be cast as 'Sequence'"
+                "TypeError: 'dict' object is not an instance of 'Sequence'"
             );
         });
     }

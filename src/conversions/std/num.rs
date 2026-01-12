@@ -342,10 +342,12 @@ impl BytesSequenceExtractor<'_, '_> {
 
         match self {
             BytesSequenceExtractor::Bytes(b) => copy_slice(b.as_bytes()),
-            BytesSequenceExtractor::ByteArray(b) => crate::sync::with_critical_section(b, || {
-                // Safety: b is protected by a critical section
-                copy_slice(unsafe { b.as_bytes() })
-            }),
+            BytesSequenceExtractor::ByteArray(b) => {
+                crate::sync::critical_section::with_critical_section(b, || {
+                    // Safety: b is protected by a critical section
+                    copy_slice(unsafe { b.as_bytes() })
+                })
+            }
         }
     }
 }
