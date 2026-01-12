@@ -85,6 +85,7 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
                     }),
                     attr: "Incomplete".into(),
                 })),
+                is_async: false,
             },
             &imports,
         ));
@@ -187,6 +188,10 @@ fn function_stubs(function: &Function, imports: &Imports) -> String {
         imports.serialize_expr(decorator, &mut buffer);
         buffer.push('\n');
     }
+    if function.is_async {
+        buffer.push_str("async ");
+    }
+
     buffer.push_str("def ");
     buffer.push_str(&function.name);
     buffer.push('(');
@@ -633,6 +638,7 @@ mod tests {
                 }),
             },
             returns: Some(TypeHint::Plain("list[str]".into())),
+            is_async: false,
         };
         assert_eq!(
             "def func(posonly, /, arg, *varargs, karg: str, **kwarg: str) -> list[str]: ...",
@@ -665,9 +671,31 @@ mod tests {
                 kwarg: None,
             },
             returns: None,
+            is_async: false,
         };
         assert_eq!(
             "def afunc(posonly=1, /, arg=True, *, karg: str = \"foo\"): ...",
+            function_stubs(&function, &Imports::default())
+        )
+    }
+
+    #[test]
+    fn test_function_async() {
+        let function = Function {
+            name: "foo".into(),
+            decorators: Vec::new(),
+            arguments: Arguments {
+                positional_only_arguments: Vec::new(),
+                arguments: Vec::new(),
+                vararg: None,
+                keyword_only_arguments: Vec::new(),
+                kwarg: None,
+            },
+            returns: None,
+            is_async: true,
+        };
+        assert_eq!(
+            "async def foo(): ...",
             function_stubs(&function, &Imports::default())
         )
     }
@@ -776,6 +804,7 @@ mod tests {
                         kwarg: None,
                     },
                     returns: Some(TypeHint::Ast(big_type.clone())),
+                    is_async: false,
                 }],
                 attributes: Vec::new(),
                 incomplete: true,

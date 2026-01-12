@@ -92,11 +92,13 @@ pub fn function_introspection_code(
     first_argument: Option<&'static str>,
     returns: ReturnType,
     decorators: impl IntoIterator<Item = PythonTypeHint>,
+    is_async: bool,
     parent: Option<&Type>,
 ) -> TokenStream {
     let mut desc = HashMap::from([
         ("type", IntrospectionNode::String("function".into())),
         ("name", IntrospectionNode::String(name.into())),
+        ("async", IntrospectionNode::Bool(is_async)),
         (
             "arguments",
             arguments_introspection_data(signature, first_argument, parent),

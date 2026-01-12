@@ -151,8 +151,11 @@ fn convert_members<'a>(
                 arguments,
                 parent: _,
                 decorators,
+                is_async,
                 returns,
-            } => functions.push(convert_function(name, arguments, decorators, returns)),
+            } => functions.push(convert_function(
+                name, arguments, decorators, returns, *is_async,
+            )),
             Chunk::Attribute {
                 name,
                 id: _,
@@ -225,6 +228,7 @@ fn convert_function(
     arguments: &ChunkArguments,
     decorators: &[ChunkExpr],
     returns: &Option<ChunkTypeHint>,
+    is_async: bool,
 ) -> Function {
     Function {
         name: name.into(),
@@ -243,6 +247,7 @@ fn convert_function(
                 .map(convert_variable_length_argument),
         },
         returns: returns.as_ref().map(convert_type_hint),
+        is_async,
     }
 }
 
@@ -475,6 +480,8 @@ enum Chunk {
         decorators: Vec<ChunkExpr>,
         #[serde(default)]
         returns: Option<ChunkTypeHint>,
+        #[serde(default, rename = "async")]
+        is_async: bool,
     },
     Attribute {
         #[serde(default)]

@@ -396,6 +396,7 @@ pub fn impl_wrap_pyfunction(
         None,
         func.sig.output.clone(),
         empty(),
+        func.sig.asyncness.is_some(),
         None,
     );
     #[cfg(not(feature = "experimental-inspect"))]

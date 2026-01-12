@@ -1610,6 +1610,7 @@ fn generate_protocol_slot(
                         Some("self"),
                         parse_quote!(-> #returns),
                         [],
+                        spec.asyncness.is_some(),
                         Some(cls),
                     )
                 })
@@ -1954,6 +1955,7 @@ fn descriptors_to_items(
                     Some("self"),
                     parse_quote!(-> #return_type),
                     vec![PythonTypeHint::builtin("property")],
+                    false,
                     Some(&parse_quote!(#cls)),
                 ));
             }
@@ -2006,6 +2008,7 @@ fn descriptors_to_items(
                         ),
                         "setter",
                     )],
+                    false,
                     Some(&parse_quote!(#cls)),
                 ));
             }
