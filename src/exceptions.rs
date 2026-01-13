@@ -754,8 +754,30 @@ impl PyUnicodeDecodeError {
         input: &[u8],
         err: std::str::Utf8Error,
     ) -> PyResult<Bound<'py, PyUnicodeDecodeError>> {
-        let pos = err.valid_up_to();
-        PyUnicodeDecodeError::new(py, c"utf-8", input, pos..(pos + 1), c"invalid utf-8")
+        let start = err.valid_up_to();
+        let end = err.error_len().map_or(input.len(), |l| start + l);
+        PyUnicodeDecodeError::new(py, c"utf-8", input, start..end, c"invalid utf-8")
+    }
+
+    /// Create a new [`crate::PyErr`] of this type from a Rust UTF-8 decoding error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use pyo3::prelude::*;
+    /// use pyo3::exceptions::PyUnicodeDecodeError;
+    ///
+    /// let invalid_utf8 = b"fo\xd8o";
+    /// # #[expect(invalid_from_utf8)]
+    /// let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
+    /// let py_err = PyUnicodeDecodeError::new_err_from_utf8(invalid_utf8, err);
+    /// ```
+    pub fn new_err_from_utf8(bytes: &[u8], err: std::str::Utf8Error) -> crate::PyErr {
+        crate::err::Utf8ErrorWithBytes {
+            err,
+            bytes: bytes.to_vec(),
+        }
+        .into()
     }
 }
 
@@ -903,7 +925,7 @@ mod tests {
     use super::*;
     use crate::types::any::PyAnyMethods;
     use crate::types::{IntoPyDict, PyDict};
-    use crate::PyErr;
+    use crate::{IntoPyObjectExt as _, PyErr};
 
     import_exception!(socket, gaierror);
     import_exception!(email.errors, MessageError);
@@ -1200,4 +1222,56 @@ mod tests {
     test_exception!(PyBytesWarning);
     #[cfg(Py_3_10)]
     test_exception!(PyEncodingWarning);
+
+    #[test]
+    #[allow(invalid_from_utf8)]
+    fn unicode_decode_error_from_utf8() {
+        let bytes = b"abc\xffdef".to_vec();
+
+        let check_err = |py_err: PyErr| {
+            Python::attach(|py| {
+                let py_err = py_err.into_bound_py_any(py).unwrap();
+
+                assert!(py_err.is_instance_of::<PyUnicodeDecodeError>());
+                assert_eq!(
+                    py_err
+                        .getattr("encoding")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    "utf-8"
+                );
+                assert_eq!(
+                    py_err
+                        .getattr("object")
+                        .unwrap()
+                        .extract::<Vec<u8>>()
+                        .unwrap(),
+                    &*bytes
+                );
+                assert_eq!(
+                    py_err.getattr("start").unwrap().extract::<usize>().unwrap(),
+                    3
+                );
+                assert_eq!(
+                    py_err.getattr("end").unwrap().extract::<usize>().unwrap(),
+                    4
+                );
+                assert_eq!(
+                    py_err
+                        .getattr("reason")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    "invalid utf-8"
+                );
+            });
+        };
+
+        let utf8_err_with_bytes = PyUnicodeDecodeError::new_err_from_utf8(
+            &bytes,
+            std::str::from_utf8(&bytes).expect_err("\\xff is invalid utf-8"),
+        );
+        check_err(utf8_err_with_bytes);
+    }
 }

@@ -1,4 +1,6 @@
 use crate::conversion::IntoPyObject;
+#[cfg(target_os = "wasi")]
+use crate::exceptions::PyUnicodeDecodeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
@@ -103,7 +105,11 @@ impl FromPyObject<'_, '_> for OsString {
             //
             // For WASI: OS strings are UTF-8 by definition.
             #[cfg(target_os = "wasi")]
-            let os_str: &OsStr = OsStr::new(std::str::from_utf8(fs_encoded_bytes.as_bytes())?);
+            let os_str: &OsStr = OsStr::new(
+                std::str::from_utf8(fs_encoded_bytes.as_bytes()).map_err(|e| {
+                    PyUnicodeDecodeError::new_err_from_utf8(fs_encoded_bytes.as_bytes(), e)
+                })?,
+            );
             #[cfg(not(target_os = "wasi"))]
             let os_str: &OsStr =
                 std::os::unix::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes());

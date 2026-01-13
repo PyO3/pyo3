@@ -1,4 +1,4 @@
-use crate::{err::PyErrArguments, exceptions, PyErr, Python};
+use crate::{err::PyErrArguments, exceptions, types, PyErr, Python};
 use crate::{IntoPyObject, Py, PyAny};
 use std::io;
 
@@ -118,28 +118,82 @@ macro_rules! impl_to_pyerr {
     };
 }
 
+pub(crate) struct Utf8ErrorWithBytes {
+    pub(crate) err: std::str::Utf8Error,
+    pub(crate) bytes: Vec<u8>,
+}
+
+impl PyErrArguments for Utf8ErrorWithBytes {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
+        let Self { err, bytes } = self;
+        let start = err.valid_up_to();
+        let end = err.error_len().map_or(bytes.len(), |l| start + l);
+
+        let encoding = types::PyString::new(py, "utf-8").into_any();
+        let bytes = types::PyBytes::new(py, &bytes).into_any();
+        let start = types::PyInt::new(py, start).into_any();
+        let end = types::PyInt::new(py, end).into_any();
+        let reason = types::PyString::new(py, "invalid utf-8").into_any();
+
+        // FIXME(icxolu) remove unwrap
+        types::PyTuple::new(py, &[encoding, bytes, start, end, reason])
+            .unwrap()
+            .into_any()
+            .unbind()
+    }
+}
+
+impl std::convert::From<Utf8ErrorWithBytes> for PyErr {
+    fn from(err: Utf8ErrorWithBytes) -> PyErr {
+        exceptions::PyUnicodeDecodeError::new_err(err)
+    }
+}
+
+impl PyErrArguments for std::string::FromUtf8Error {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
+        Utf8ErrorWithBytes {
+            err: self.utf8_error(),
+            bytes: self.into_bytes(),
+        }
+        .arguments(py)
+    }
+}
+
+impl std::convert::From<std::string::FromUtf8Error> for PyErr {
+    fn from(err: std::string::FromUtf8Error) -> PyErr {
+        exceptions::PyUnicodeDecodeError::new_err(err)
+    }
+}
+
+impl PyErrArguments for std::ffi::IntoStringError {
+    fn arguments(self, py: Python<'_>) -> Py<PyAny> {
+        Utf8ErrorWithBytes {
+            err: self.utf8_error(),
+            bytes: self.into_cstring().into_bytes(),
+        }
+        .arguments(py)
+    }
+}
+
+impl std::convert::From<std::ffi::IntoStringError> for PyErr {
+    fn from(err: std::ffi::IntoStringError) -> PyErr {
+        exceptions::PyUnicodeDecodeError::new_err(err)
+    }
+}
+
 impl_to_pyerr!(std::array::TryFromSliceError, exceptions::PyValueError);
 impl_to_pyerr!(std::num::ParseIntError, exceptions::PyValueError);
 impl_to_pyerr!(std::num::ParseFloatError, exceptions::PyValueError);
 impl_to_pyerr!(std::num::TryFromIntError, exceptions::PyValueError);
 impl_to_pyerr!(std::str::ParseBoolError, exceptions::PyValueError);
-impl_to_pyerr!(std::ffi::IntoStringError, exceptions::PyUnicodeDecodeError);
 impl_to_pyerr!(std::ffi::NulError, exceptions::PyValueError);
-impl_to_pyerr!(std::str::Utf8Error, exceptions::PyUnicodeDecodeError);
-impl_to_pyerr!(std::string::FromUtf8Error, exceptions::PyUnicodeDecodeError);
-impl_to_pyerr!(
-    std::string::FromUtf16Error,
-    exceptions::PyUnicodeDecodeError
-);
-impl_to_pyerr!(
-    std::char::DecodeUtf16Error,
-    exceptions::PyUnicodeDecodeError
-);
 impl_to_pyerr!(std::net::AddrParseError, exceptions::PyValueError);
 
 #[cfg(test)]
 mod tests {
-    use crate::{PyErr, Python};
+    use super::*;
+
+    use crate::{types::PyAnyMethods, IntoPyObjectExt, PyErr, Python};
     use std::io;
 
     #[test]
@@ -178,5 +232,70 @@ mod tests {
         check_err(io::ErrorKind::TimedOut, "TimeoutError");
         check_err(io::ErrorKind::IsADirectory, "IsADirectoryError");
         check_err(io::ErrorKind::NotADirectory, "NotADirectoryError");
+    }
+
+    #[test]
+    #[allow(invalid_from_utf8)]
+    fn utf8_errors() {
+        let bytes = b"abc\xffdef".to_vec();
+
+        let check_err = |py_err: PyErr| {
+            Python::attach(|py| {
+                let py_err = py_err.into_bound_py_any(py).unwrap();
+
+                assert!(py_err.is_instance_of::<exceptions::PyUnicodeDecodeError>());
+                assert_eq!(
+                    py_err
+                        .getattr("encoding")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    "utf-8"
+                );
+                assert_eq!(
+                    py_err
+                        .getattr("object")
+                        .unwrap()
+                        .extract::<Vec<u8>>()
+                        .unwrap(),
+                    &*bytes
+                );
+                assert_eq!(
+                    py_err.getattr("start").unwrap().extract::<usize>().unwrap(),
+                    3
+                );
+                assert_eq!(
+                    py_err.getattr("end").unwrap().extract::<usize>().unwrap(),
+                    4
+                );
+                assert_eq!(
+                    py_err
+                        .getattr("reason")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    "invalid utf-8"
+                );
+            });
+        };
+
+        let utf8_err_with_bytes = Utf8ErrorWithBytes {
+            err: std::str::from_utf8(&bytes).expect_err("\\xff is invalid utf-8"),
+            bytes: bytes.clone(),
+        }
+        .into();
+        check_err(utf8_err_with_bytes);
+
+        let from_utf8_err = String::from_utf8(bytes.clone())
+            .expect_err("\\xff is invalid utf-8")
+            .into();
+        check_err(from_utf8_err);
+
+        let from_utf8_err = std::ffi::CString::new(bytes.clone())
+            .unwrap()
+            .into_string()
+            .expect_err("\\xff is invalid utf-8")
+            .into();
+        check_err(from_utf8_err);
     }
 }
