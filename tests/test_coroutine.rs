@@ -369,3 +369,86 @@ fn test_async_method_receiver_with_other_args() {
         py_run!(py, *locals, test);
     });
 }
+
+#[test]
+fn test_async_fn_borrowed_values() {
+    #[pyclass]
+    struct Data {
+        value: String,
+    }
+    #[pymethods]
+    impl Data {
+        #[new]
+        fn new(value: String) -> Self {
+            Self { value }
+        }
+        async fn borrow_value(&self) -> &str {
+            &self.value
+        }
+        async fn borrow_value_or_default<'a>(&'a self, default: &'a str) -> &'a str {
+            if self.value.is_empty() {
+                default
+            } else {
+                &self.value
+            }
+        }
+    }
+    Python::attach(|py| {
+        let test = r#"
+        import asyncio
+
+        v = Data('hello')
+        assert asyncio.run(v.borrow_value()) == 'hello'
+        assert asyncio.run(v.borrow_value_or_default('')) == 'hello'
+
+        v_empty = Data('')
+        assert asyncio.run(v_empty.borrow_value_or_default('default')) == 'default'
+        "#;
+        let locals = [("Data", py.get_type::<Data>())].into_py_dict(py).unwrap();
+        py_run!(py, *locals, test);
+    });
+}
+
+#[test]
+fn test_async_fn_class_values() {
+    #[pyclass]
+    struct Value(i32);
+
+    #[pymethods]
+    impl Value {
+        #[new]
+        fn new(x: i32) -> Self {
+            Self(x)
+        }
+
+        #[getter]
+        fn value(&self) -> i32 {
+            self.0
+        }
+    }
+
+    #[pyfunction]
+    async fn add_two_values(obj: &Value, obj2: &Value) -> Value {
+        Value(obj.0 + obj2.0)
+    }
+
+    Python::attach(|py| {
+        let test = r#"
+        import asyncio
+
+        v1 = Value(1)
+        v2 = Value(2)
+        assert asyncio.run(add_two_values(v1, v2)).value == 3
+        "#;
+        let locals = [
+            ("Value", py.get_type::<Value>().into_any()),
+            (
+                "add_two_values",
+                wrap_pyfunction!(add_two_values, py).unwrap().into_any(),
+            ),
+        ]
+        .into_py_dict(py)
+        .unwrap();
+        py_run!(py, *locals, test);
+    });
+}
