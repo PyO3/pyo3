@@ -473,6 +473,10 @@ impl ClassWithGCSupport {
 }
 ```
 
+> [!NOTE]
+> When a class inherits from either a Python builtins type or another type declared in Rust and implement either or both `__traverse__` and `__clear__`, the parent class `__traverse__` and `__clear__` is called automatically.
+> There is no need to explicitly call it from inside the class implementation.
+
 Usually, an implementation of `__traverse__` should do nothing but calls to `visit.call`.
 Most importantly, safe access to the interpreter is prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.
 
