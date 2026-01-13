@@ -2,7 +2,7 @@
 
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::{type_hint_identifier, PyStaticExpr};
 use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, Python};
 use std::ptr;
@@ -58,7 +58,7 @@ pub unsafe trait PyTypeInfo: Sized {
 
     /// Provides the full python type as a type hint.
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: TypeHint = TypeHint::module_attr("typing", "Any");
+    const TYPE_HINT: PyStaticExpr = type_hint_identifier!("typing", "Any");
 
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
@@ -115,7 +115,7 @@ pub unsafe trait PyTypeCheck {
 
     /// Provides the full python type of the allowed values as a Python type hint.
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: TypeHint;
+    const TYPE_HINT: PyStaticExpr;
 
     /// Checks if `object` is an instance of `Self`, which may include a subtype.
     ///
@@ -136,7 +136,7 @@ where
     const NAME: &'static str = T::NAME;
 
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: TypeHint = <T as PyTypeInfo>::TYPE_HINT;
+    const TYPE_HINT: PyStaticExpr = <T as PyTypeInfo>::TYPE_HINT;
 
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {

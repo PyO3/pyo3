@@ -11,7 +11,7 @@
 use crate::method::{FnArg, RegularArg};
 use crate::pyfunction::FunctionSignature;
 use crate::type_hint::PythonTypeHint;
-use crate::utils::PyO3CratePath;
+use crate::utils::{expr_to_python, PyO3CratePath};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
@@ -92,11 +92,13 @@ pub fn function_introspection_code(
     first_argument: Option<&'static str>,
     returns: ReturnType,
     decorators: impl IntoIterator<Item = PythonTypeHint>,
+    is_async: bool,
     parent: Option<&Type>,
 ) -> TokenStream {
     let mut desc = HashMap::from([
         ("type", IntrospectionNode::String("function".into())),
         ("name", IntrospectionNode::String(name.into())),
+        ("async", IntrospectionNode::Bool(is_async)),
         (
             "arguments",
             arguments_introspection_data(signature, first_argument, parent),
@@ -112,13 +114,7 @@ pub fn function_introspection_code(
             } else {
                 match returns {
                     ReturnType::Default => PythonTypeHint::builtin("None"),
-                    ReturnType::Type(_, ty) => match *ty {
-                        Type::Tuple(t) if t.elems.is_empty() => {
-                            // () is converted to None in return types
-                            PythonTypeHint::builtin("None")
-                        }
-                        ty => PythonTypeHint::from_return_type(ty, parent),
-                    },
+                    ReturnType::Type(_, ty) => PythonTypeHint::from_return_type(*ty, parent),
                 }
                 .into()
             },
@@ -166,7 +162,7 @@ pub fn attribute_introspection_code(
             if is_final {
                 PythonTypeHint::subscript(
                     PythonTypeHint::module_attr("typing", "Final"),
-                    [PythonTypeHint::from_return_type(rust_type, parent)],
+                    PythonTypeHint::from_return_type(rust_type, parent),
                 )
                 .into()
             } else {
@@ -291,10 +287,10 @@ fn argument_introspection_data<'a>(
     class_type: Option<&Type>,
 ) -> AttributedIntrospectionNode<'a> {
     let mut params: HashMap<_, _> = [("name", IntrospectionNode::String(name.into()))].into();
-    if desc.default_value.is_some() {
+    if let Some(expr) = &desc.default_value {
         params.insert(
             "default",
-            IntrospectionNode::String(desc.default_value().into()),
+            IntrospectionNode::String(expr_to_python(expr).into()),
         );
     }
 
@@ -401,7 +397,7 @@ impl From<PythonTypeHint> for IntrospectionNode<'static> {
 
 fn serialize_type_hint(hint: TokenStream, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
     quote! {{
-        const TYPE_HINT: #pyo3_crate_path::inspect::TypeHint = #hint;
+        const TYPE_HINT: #pyo3_crate_path::inspect::PyStaticExpr = #hint;
         const TYPE_HINT_LEN: usize = #pyo3_crate_path::inspect::serialized_len_for_introspection(&TYPE_HINT);
         const TYPE_HINT_SER: [u8; TYPE_HINT_LEN] = {
             let mut result: [u8; TYPE_HINT_LEN] = [0; TYPE_HINT_LEN];

@@ -404,6 +404,8 @@ impl Dummy {
     }
     #[setter]
     fn set(&mut self, _v: i32) {}
+    #[deleter]
+    fn delete(&mut self) {}
     #[classattr]
     fn class_attr() -> i32 {
         0
@@ -509,6 +511,12 @@ impl WarningDummy {
     #[pyo3(warn(message = "this setter raises warning"))]
     fn set_value(&mut self, value: i32) {
         self.value = value;
+    }
+
+    #[deleter]
+    #[pyo3(warn(message = "this deleter raises warning"))]
+    fn deleter_value(&mut self) {
+        self.value = 0;
     }
 
     #[pyo3(warn(message = "this subscript op method raises warning"))]

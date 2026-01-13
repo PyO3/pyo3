@@ -1,7 +1,7 @@
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::{type_hint_identifier, type_hint_union, PyStaticExpr};
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
@@ -13,10 +13,10 @@ impl FromPyObject<'_, '_> for IpAddr {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::union(&[
-        TypeHint::module_attr("ipaddress", "IPv4Address"),
-        TypeHint::module_attr("ipaddress", "IPv6Address"),
-    ]);
+    const INPUT_TYPE: PyStaticExpr = type_hint_union!(
+        type_hint_identifier!("ipaddress", "IPv4Address"),
+        type_hint_identifier!("ipaddress", "IPv6Address")
+    );
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         match obj.getattr(intern!(obj.py(), "packed")) {
@@ -43,7 +43,7 @@ impl<'py> IntoPyObject<'py> for Ipv4Addr {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = TypeHint::module_attr("ipaddress", "IPv4Address");
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("ipaddress", "IPv4Address");
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static IPV4_ADDRESS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
@@ -59,7 +59,7 @@ impl<'py> IntoPyObject<'py> for &Ipv4Addr {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = Ipv4Addr::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = Ipv4Addr::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -73,7 +73,7 @@ impl<'py> IntoPyObject<'py> for Ipv6Addr {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = TypeHint::module_attr("ipaddress", "IPv6Address");
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("ipaddress", "IPv6Address");
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static IPV6_ADDRESS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
@@ -89,7 +89,7 @@ impl<'py> IntoPyObject<'py> for &Ipv6Addr {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = Ipv6Addr::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = Ipv6Addr::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -103,7 +103,8 @@ impl<'py> IntoPyObject<'py> for IpAddr {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = TypeHint::union(&[Ipv4Addr::OUTPUT_TYPE, Ipv6Addr::OUTPUT_TYPE]);
+    const OUTPUT_TYPE: PyStaticExpr =
+        type_hint_union!(&Ipv4Addr::OUTPUT_TYPE, &Ipv6Addr::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self {
@@ -119,7 +120,7 @@ impl<'py> IntoPyObject<'py> for &IpAddr {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = IpAddr::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = IpAddr::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {

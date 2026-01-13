@@ -2,7 +2,7 @@ use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
-use crate::sync::with_critical_section;
+use crate::sync::critical_section::with_critical_section;
 use crate::{ffi, PyAny, Python};
 use std::slice;
 
@@ -132,7 +132,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::exceptions::PyRuntimeError;
-    /// use pyo3::sync::with_critical_section;
+    /// use pyo3::sync::critical_section::with_critical_section;
     /// use pyo3::types::PyByteArray;
     ///
     /// #[pyfunction]
@@ -461,7 +461,7 @@ mod tests {
     #[test]
     fn test_data_integrity_in_critical_section() {
         use crate::instance::Py;
-        use crate::sync::{with_critical_section, MutexExt};
+        use crate::sync::{critical_section::with_critical_section, MutexExt};
 
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Mutex;

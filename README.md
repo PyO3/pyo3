@@ -71,7 +71,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.27.1", features = ["extension-module"] }
+pyo3 = "0.27.2"
 ```
 
 **`src/lib.rs`**
@@ -137,7 +137,8 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.27.1"
+version = "0.27.2"
+# Enabling this cargo feature will cause PyO3 to start a Python interpreter on first call to `Python::attach`
 features = ["auto-initialize"]
 ```
 
@@ -198,6 +199,7 @@ about this topic.
 - [deltalake-python](https://github.com/delta-io/delta-rs/tree/main/python) _Native Delta Lake Python binding based on delta-rs with Pandas integration._
 - [fastbloom](https://github.com/yankun1992/fastbloom) _A fast [bloom filter](https://github.com/yankun1992/fastbloom#BloomFilter) | [counting bloom filter](https://github.com/yankun1992/fastbloom#countingbloomfilter) implemented by Rust for Rust and Python!_
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
+- [fast-paseto](https://github.com/CodingCogs-OSS/Fast-Paseto) _High-performance PASETO (Platform-Agnostic Security Tokens) implementation with Python bindings._
 - [feos](https://github.com/feos-org/feos) _Lightning fast thermodynamic modeling in Rust with fully developed Python interface._
 - [finalytics](https://github.com/Nnamdi-sys/finalytics) _Investment Analysis library in Rust | Python._
 - [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
@@ -229,6 +231,7 @@ about this topic.
 - [tiktoken](https://github.com/openai/tiktoken) _A fast BPE tokeniser for use with OpenAI's models._
 - [tokenizers](https://github.com/huggingface/tokenizers/tree/main/bindings/python) _Python bindings to the Hugging Face tokenizers (NLP) written in Rust._
 - [tzfpy](http://github.com/ringsaturn/tzfpy) _A fast package to convert longitude/latitude to timezone name._
+- [toml-rs](https://github.com/lava-sh/toml-rs) _A High-Performance TOML v1.0.0 and v1.1.0 parser for Python written in Rust._
 - [utiles](https://github.com/jessekrubin/utiles) _Fast Python web-map tile utilities_
 
 ## Articles and other media

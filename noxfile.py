@@ -1120,7 +1120,7 @@ def test_introspection(session: nox.Session):
         "-m",
         "./pytests/Cargo.toml",
         "--features",
-        "experimental-inspect",
+        "experimental-async,experimental-inspect",
         *options,
     )
     # We look for the built library

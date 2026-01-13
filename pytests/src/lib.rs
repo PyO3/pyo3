@@ -9,6 +9,7 @@ mod consts;
 pub mod datetime;
 pub mod dict_iter;
 pub mod enums;
+mod exception;
 pub mod misc;
 pub mod objstore;
 pub mod othermod;
@@ -27,8 +28,8 @@ mod pyo3_pytests {
     use buf_and_str::buf_and_str;
     #[pymodule_export]
     use {
-        comparisons::comparisons, consts::consts, enums::enums, pyclasses::pyclasses,
-        pyfunctions::pyfunctions, subclassing::subclassing,
+        comparisons::comparisons, consts::consts, enums::enums, exception::exception,
+        pyclasses::pyclasses, pyfunctions::pyfunctions, subclassing::subclassing,
     };
 
     // Inserting to sys.modules allows importing submodules nicely from Python

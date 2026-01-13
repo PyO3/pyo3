@@ -580,31 +580,31 @@ mod tests {
             let none = py.None().into_bound(py);
             assert_eq!(
                 none.extract::<Span>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be cast as 'timedelta'"
+                "TypeError: 'None' is not an instance of 'timedelta'"
             );
             assert_eq!(
                 none.extract::<Offset>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be cast as 'tzinfo'"
+                "TypeError: 'None' is not an instance of 'tzinfo'"
             );
             assert_eq!(
                 none.extract::<TimeZone>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be cast as 'tzinfo'"
+                "TypeError: 'None' is not an instance of 'tzinfo'"
             );
             assert_eq!(
                 none.extract::<Time>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be cast as 'time'"
+                "TypeError: 'None' is not an instance of 'time'"
             );
             assert_eq!(
                 none.extract::<Date>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be cast as 'date'"
+                "TypeError: 'None' is not an instance of 'date'"
             );
             assert_eq!(
                 none.extract::<DateTime>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be cast as 'datetime'"
+                "TypeError: 'None' is not an instance of 'datetime'"
             );
             assert_eq!(
                 none.extract::<Zoned>().unwrap_err().to_string(),
-                "TypeError: 'NoneType' object cannot be cast as 'datetime'"
+                "TypeError: 'None' is not an instance of 'datetime'"
             );
         });
     }

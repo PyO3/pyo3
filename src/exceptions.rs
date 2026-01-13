@@ -207,8 +207,8 @@ macro_rules! create_exception_type_object {
         $crate::pyobject_native_type_core!(
             $name,
             $name::type_object_raw,
-            stringify!($name),
             stringify!($module),
+            stringify!($name),
             #module=::std::option::Option::Some(stringify!($module))
         );
 
