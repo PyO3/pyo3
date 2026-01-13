@@ -1544,6 +1544,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(panic = "unwind")]
     fn bad_intopyobject_doesnt_cause_leaks() {
         use crate::types::PyInt;
         use std::convert::Infallible;

@@ -1,6 +1,6 @@
 use crate::conversion::{FromPyObjectOwned, FromPyObjectSequence, IntoPyObject};
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::{type_hint_subscript, PyStaticExpr};
 use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
 use crate::{err::CastError, ffi, FromPyObject, PyAny, PyResult, PyTypeInfo, Python};
@@ -15,7 +15,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = T::SEQUENCE_OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = T::SEQUENCE_OUTPUT_TYPE;
 
     /// Turns [`[u8; N]`](std::array) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///
@@ -36,7 +36,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = <&[T]>::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = <&[T]>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -51,7 +51,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::subscript(&PySequence::TYPE_HINT, &[T::INPUT_TYPE]);
+    const INPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySequence::TYPE_HINT, T::INPUT_TYPE);
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {
@@ -135,6 +135,7 @@ pub(crate) fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(panic = "unwind")]
     use std::{
         panic,
         sync::atomic::{AtomicUsize, Ordering},
@@ -147,6 +148,7 @@ mod tests {
     use crate::{types::PyList, PyResult, Python};
 
     #[test]
+    #[cfg(panic = "unwind")]
     fn array_try_from_fn() {
         static DROP_COUNTER: AtomicUsize = AtomicUsize::new(0);
         struct CountDrop;
@@ -303,6 +305,7 @@ mod tests {
     }
 
     // https://stackoverflow.com/a/59211505
+    #[cfg(panic = "unwind")]
     fn catch_unwind_silent<F, R>(f: F) -> std::thread::Result<R>
     where
         F: FnOnce() -> R + panic::UnwindSafe,

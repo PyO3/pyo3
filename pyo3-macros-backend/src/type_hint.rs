@@ -8,45 +8,49 @@ use syn::visit_mut::{visit_type_mut, VisitMut};
 use syn::{Lifetime, Type};
 
 #[derive(Clone)]
-pub struct PythonTypeHint(PythonTypeHintVariant);
+pub struct PythonTypeHint(PyExpr);
 
 #[derive(Clone)]
-enum PythonTypeHintVariant {
+enum PyExpr {
     /// The Python type hint of a FromPyObject implementation
-    FromPyObject(Type),
+    FromPyObjectType(Type),
     /// The Python type hint of a IntoPyObject implementation
-    IntoPyObject(Type),
+    IntoPyObjectType(Type),
     /// The Python type matching the given Rust type given as a function argument
     ArgumentType(Type),
     /// The Python type matching the given Rust type given as a function returned value
     ReturnType(Type),
     /// The Python type matching the given Rust type
     Type(Type),
-    /// A local type
-    Local(Cow<'static, str>),
-    /// A type in a module
-    ModuleAttribute {
-        module: Cow<'static, str>,
+    /// A name
+    Name { id: Cow<'static, str> },
+    /// An attribute `value.attr`
+    Attribute {
+        value: Box<Self>,
         attr: Cow<'static, str>,
     },
-    /// A union
-    Union(Vec<PythonTypeHint>),
-    /// A subscript
-    Subscript {
-        value: Box<PythonTypeHint>,
-        slice: Vec<PythonTypeHint>,
+    /// A binary operator
+    BinOp {
+        left: Box<Self>,
+        op: PyOperator,
+        right: Box<Self>,
     },
+    /// A tuple
+    Tuple { elts: Vec<Self> },
+    /// A subscript `value[slice]`
+    Subscript { value: Box<Self>, slice: Box<Self> },
+}
+
+#[derive(Clone, Copy)]
+enum PyOperator {
+    /// `|` operator
+    BitOr,
 }
 
 impl PythonTypeHint {
-    /// Build from a local name
-    pub fn local(name: impl Into<Cow<'static, str>>) -> Self {
-        Self(PythonTypeHintVariant::Local(name.into()))
-    }
-
     /// Build from a builtins name like `None`
     pub fn builtin(name: impl Into<Cow<'static, str>>) -> Self {
-        Self::module_attr("builtins", name)
+        Self(PyExpr::Name { id: name.into() })
     }
 
     /// Build from a module and a name like `collections.abc` and `Sequence`
@@ -54,89 +58,91 @@ impl PythonTypeHint {
         module: impl Into<Cow<'static, str>>,
         name: impl Into<Cow<'static, str>>,
     ) -> Self {
-        Self(PythonTypeHintVariant::ModuleAttribute {
-            module: module.into(),
-            attr: name.into(),
-        })
+        Self::attribute(Self(PyExpr::Name { id: module.into() }), name)
     }
 
     /// The type hint of a `FromPyObject` implementation as a function argument
     ///
     /// If self_type is set, self_type will replace Self in the given type
     pub fn from_from_py_object(t: Type, self_type: Option<&Type>) -> Self {
-        Self(PythonTypeHintVariant::FromPyObject(clean_type(
-            t, self_type,
-        )))
+        Self(PyExpr::FromPyObjectType(clean_type(t, self_type)))
     }
 
     /// The type hint of a `IntoPyObject` implementation as a function argument
     ///
     /// If self_type is set, self_type will replace Self in the given type
     pub fn from_into_py_object(t: Type, self_type: Option<&Type>) -> Self {
-        Self(PythonTypeHintVariant::IntoPyObject(clean_type(
-            t, self_type,
-        )))
+        Self(PyExpr::IntoPyObjectType(clean_type(t, self_type)))
     }
 
     /// The type hint of the Rust type used as a function argument
     ///
     /// If self_type is set, self_type will replace Self in the given type
     pub fn from_argument_type(t: Type, self_type: Option<&Type>) -> Self {
-        Self(PythonTypeHintVariant::ArgumentType(clean_type(
-            t, self_type,
-        )))
+        Self(PyExpr::ArgumentType(clean_type(t, self_type)))
     }
 
     /// The type hint of the Rust type used as a function output type
     ///
     /// If self_type is set, self_type will replace Self in the given type
     pub fn from_return_type(t: Type, self_type: Option<&Type>) -> Self {
-        Self(PythonTypeHintVariant::ReturnType(clean_type(t, self_type)))
+        Self(PyExpr::ReturnType(clean_type(t, self_type)))
     }
 
     /// The type hint of the Rust type `PyTypeCheck` trait.
     ///
     /// If self_type is set, self_type will replace Self in the given type
     pub fn from_type(t: Type, self_type: Option<&Type>) -> Self {
-        Self(PythonTypeHintVariant::Type(clean_type(t, self_type)))
+        Self(PyExpr::Type(clean_type(t, self_type)))
+    }
+
+    /// An attribute of a given value: `value.attr`
+    pub fn attribute(value: Self, attr: impl Into<Cow<'static, str>>) -> Self {
+        Self(PyExpr::Attribute {
+            value: Box::new(value.0),
+            attr: attr.into(),
+        })
     }
 
     /// Build the union of the different element
-    pub fn union(elements: impl IntoIterator<Item = Self>) -> Self {
-        let elements = elements.into_iter().collect::<Vec<_>>();
-        if elements.len() == 1 {
-            return elements.into_iter().next().unwrap();
-        }
-        Self(PythonTypeHintVariant::Union(elements))
+    pub fn union(left: Self, right: Self) -> Self {
+        Self(PyExpr::BinOp {
+            left: Box::new(left.0),
+            op: PyOperator::BitOr,
+            right: Box::new(right.0),
+        })
     }
 
-    /// Build the subscripted type value[slice[0], ..., slice[n]]
-    pub fn subscript(value: Self, slice: impl IntoIterator<Item = Self>) -> Self {
-        Self(crate::type_hint::PythonTypeHintVariant::Subscript {
-            value: Box::new(value),
-            slice: slice.into_iter().collect(),
+    /// Build the subscripted type value[slice]
+    pub fn subscript(value: Self, slice: Self) -> Self {
+        Self(PyExpr::Subscript {
+            value: Box::new(value.0),
+            slice: Box::new(slice.0),
+        })
+    }
+
+    /// Build a tuple
+    pub fn tuple(elts: impl IntoIterator<Item = Self>) -> Self {
+        Self(PyExpr::Tuple {
+            elts: elts.into_iter().map(|e| e.0).collect(),
         })
     }
 
     pub fn to_introspection_token_stream(&self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
-        match &self.0 {
-            PythonTypeHintVariant::Local(name) => {
-                quote! { #pyo3_crate_path::inspect::TypeHint::local(#name) }
-            }
-            PythonTypeHintVariant::ModuleAttribute { module, attr } => {
-                if module == "builtins" {
-                    quote! { #pyo3_crate_path::inspect::TypeHint::builtin(#attr) }
-                } else {
-                    quote! { #pyo3_crate_path::inspect::TypeHint::module_attr(#module, #attr) }
-                }
-            }
-            PythonTypeHintVariant::FromPyObject(t) => {
+        self.0.to_introspection_token_stream(pyo3_crate_path)
+    }
+}
+
+impl PyExpr {
+    fn to_introspection_token_stream(&self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
+        match self {
+            PyExpr::FromPyObjectType(t) => {
                 quote! { <#t as #pyo3_crate_path::FromPyObject<'_, '_>>::INPUT_TYPE }
             }
-            PythonTypeHintVariant::IntoPyObject(t) => {
+            PyExpr::IntoPyObjectType(t) => {
                 quote! { <#t as #pyo3_crate_path::IntoPyObject<'_>>::OUTPUT_TYPE }
             }
-            PythonTypeHintVariant::ArgumentType(t) => {
+            PyExpr::ArgumentType(t) => {
                 quote! {
                     <#t as #pyo3_crate_path::impl_::extract_argument::PyFunctionArgument<
                         {
@@ -147,33 +153,52 @@ impl PythonTypeHint {
                     >>::INPUT_TYPE
                 }
             }
-            PythonTypeHintVariant::ReturnType(t) => {
+            PyExpr::ReturnType(t) => {
                 quote! {{
                     #[allow(unused_imports)]
                     use #pyo3_crate_path::impl_::pyclass::Probe as _;
-                    const TYPE: #pyo3_crate_path::inspect::TypeHint = if #pyo3_crate_path::impl_::pyclass::IsReturningEmptyTuple::<#t>::VALUE {
-                        #pyo3_crate_path::inspect::TypeHint::builtin("None")
+                    const TYPE: #pyo3_crate_path::inspect::PyStaticExpr = if #pyo3_crate_path::impl_::pyclass::IsReturningEmptyTuple::<#t>::VALUE {
+                        <#pyo3_crate_path::types::PyNone as #pyo3_crate_path::type_object::PyTypeInfo>::TYPE_HINT
                     } else {
                         <#t as #pyo3_crate_path::impl_::introspection::PyReturnType>::OUTPUT_TYPE
                     };
                     TYPE
                 }}
             }
-            PythonTypeHintVariant::Type(t) => {
+            PyExpr::Type(t) => {
                 quote! { <#t as #pyo3_crate_path::type_object::PyTypeCheck>::TYPE_HINT }
             }
-            PythonTypeHintVariant::Union(elements) => {
-                let elements = elements
-                    .iter()
-                    .map(|elt| elt.to_introspection_token_stream(pyo3_crate_path));
-                quote! { #pyo3_crate_path::inspect::TypeHint::union(&[#(#elements),*]) }
+            PyExpr::Name { id } => {
+                quote! { #pyo3_crate_path::inspect::PyStaticExpr::Name { id: #id, kind: #pyo3_crate_path::inspect::PyStaticNameKind::Global } }
             }
-            PythonTypeHintVariant::Subscript { value, slice } => {
+            PyExpr::Attribute { value, attr } => {
                 let value = value.to_introspection_token_stream(pyo3_crate_path);
-                let slice = slice
+                quote! { #pyo3_crate_path::inspect::PyStaticExpr::Attribute { value: &#value, attr: #attr } }
+            }
+            PyExpr::BinOp { left, op, right } => {
+                let left = left.to_introspection_token_stream(pyo3_crate_path);
+                let op = match op {
+                    PyOperator::BitOr => quote!(#pyo3_crate_path::inspect::PyStaticOperator::BitOr),
+                };
+                let right = right.to_introspection_token_stream(pyo3_crate_path);
+                quote! {
+                    #pyo3_crate_path::inspect::PyStaticExpr::BinOp {
+                        left: &#left,
+                        op: #op,
+                        right: &#right,
+                    }
+                }
+            }
+            PyExpr::Subscript { value, slice } => {
+                let value = value.to_introspection_token_stream(pyo3_crate_path);
+                let slice = slice.to_introspection_token_stream(pyo3_crate_path);
+                quote! { #pyo3_crate_path::inspect::PyStaticExpr::Subscript { value: &#value, slice: &#slice } }
+            }
+            PyExpr::Tuple { elts } => {
+                let elts = elts
                     .iter()
-                    .map(|elt| elt.to_introspection_token_stream(pyo3_crate_path));
-                quote! { #pyo3_crate_path::inspect::TypeHint::subscript(&#value, &[#(#slice),*]) }
+                    .map(|e| e.to_introspection_token_stream(pyo3_crate_path));
+                quote! { #pyo3_crate_path::inspect::PyStaticExpr::Tuple { elts: &[#(#elts),*] } }
             }
         }
     }

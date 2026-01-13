@@ -4,7 +4,7 @@ use crate::ffi;
 #[cfg(not(target_os = "wasi"))]
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
 use crate::instance::Bound;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
@@ -26,7 +26,7 @@ impl<'py> IntoPyObject<'py> for &OsStr {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = PyString::TYPE_HINT;
+    const OUTPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         // If the string is UTF-8, take the quick and easy shortcut
@@ -79,7 +79,7 @@ impl<'py> IntoPyObject<'py> for &&OsStr {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = <&OsStr>::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = <&OsStr>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -91,7 +91,7 @@ impl FromPyObject<'_, '_> for OsString {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = PyString::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let pystring = ob.cast::<PyString>()?;
@@ -156,7 +156,7 @@ impl<'py> IntoPyObject<'py> for Cow<'_, OsStr> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = <&OsStr>::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = <&OsStr>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -170,7 +170,7 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, OsStr> {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = <&OsStr>::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = <&OsStr>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -182,7 +182,7 @@ impl<'a> FromPyObject<'a, '_> for Cow<'a, OsStr> {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = OsString::INPUT_TYPE;
+    const INPUT_TYPE: PyStaticExpr = OsString::INPUT_TYPE;
 
     fn extract(obj: Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -200,7 +200,7 @@ impl<'py> IntoPyObject<'py> for OsString {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = <&OsStr>::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = <&OsStr>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -214,7 +214,7 @@ impl<'py> IntoPyObject<'py> for &OsString {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = <&OsStr>::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = <&OsStr>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {

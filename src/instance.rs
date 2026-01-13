@@ -5,7 +5,7 @@ use crate::conversion::IntoPyObject;
 use crate::err::{PyErr, PyResult};
 use crate::impl_::pycell::PyClassObject;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
@@ -2249,7 +2249,7 @@ where
     type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
@@ -2264,7 +2264,7 @@ where
     type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
@@ -2454,10 +2454,10 @@ fn panic_on_null(py: Python<'_>) -> ! {
 #[cfg(test)]
 mod tests {
     use super::{Bound, IntoPyObject, Py};
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
     use crate::exceptions::PyValueError;
     use crate::test_utils::generate_unique_module_name;
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
     use crate::test_utils::UnraisableCapture;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, IntoPyObjectExt, PyAny, PyResult, Python};
@@ -2815,7 +2815,7 @@ a = A()
         });
     }
 
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
     #[test]
     fn test_constructors_panic_on_null() {
         Python::attach(|py| {

@@ -1,6 +1,6 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Function, Module, PythonIdentifier, TypeHint,
-    TypeHintExpr, VariableLengthArgument,
+    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, NameKind, Operator,
+    TypeHint, VariableLengthArgument,
 };
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use goblin::elf::section_header::SHN_XINDEX;
@@ -13,6 +13,7 @@ use goblin::Object;
 use serde::de::value::MapAccessDeserializer;
 use serde::de::{Error, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::Path;
@@ -150,8 +151,11 @@ fn convert_members<'a>(
                 arguments,
                 parent: _,
                 decorators,
+                is_async,
                 returns,
-            } => functions.push(convert_function(name, arguments, decorators, returns)?),
+            } => functions.push(convert_function(
+                name, arguments, decorators, returns, *is_async,
+            )),
             Chunk::Attribute {
                 name,
                 id: _,
@@ -166,25 +170,22 @@ fn convert_members<'a>(
     classes.sort_by(|l, r| l.name.cmp(&r.name));
     functions.sort_by(|l, r| match l.name.cmp(&r.name) {
         Ordering::Equal => {
-            // We put the getter before the setter. For that, we put @property before the other ones
-            if l.decorators
-                .iter()
-                .any(|d| d.name == "property" && d.module.as_deref() == Some("builtins"))
-            {
-                Ordering::Less
-            } else if r
-                .decorators
-                .iter()
-                .any(|d| d.name == "property" && d.module.as_deref() == Some("builtins"))
-            {
-                Ordering::Greater
-            } else {
-                // We pick an ordering based on decorators
-                l.decorators
-                    .iter()
-                    .map(|d| &d.name)
-                    .cmp(r.decorators.iter().map(|d| &d.name))
+            fn decorator_expr_key(expr: &Expr) -> (u32, Cow<'_, str>) {
+                // We put plain names before attributes for @property to be before @foo.property
+                match expr {
+                    Expr::Name { id, .. } => (0, Cow::Borrowed(id)),
+                    Expr::Attribute { value, attr } => {
+                        let (c, v) = decorator_expr_key(value);
+                        (c + 1, Cow::Owned(format!("{v}.{attr}")))
+                    }
+                    _ => (u32::MAX, Cow::Borrowed("")), // We don't care
+                }
             }
+            // We pick an ordering based on decorators
+            l.decorators
+                .iter()
+                .map(decorator_expr_key)
+                .cmp(r.decorators.iter().map(decorator_expr_key))
         }
         o => o,
     });
@@ -195,8 +196,8 @@ fn convert_members<'a>(
 fn convert_class(
     id: &str,
     name: &str,
-    bases: &[ChunkTypeHint],
-    decorators: &[ChunkTypeHint],
+    bases: &[ChunkExpr],
+    decorators: &[ChunkExpr],
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
 ) -> Result<Class> {
@@ -215,47 +216,23 @@ fn convert_class(
     );
     Ok(Class {
         name: name.into(),
-        bases: bases
-            .iter()
-            .map(convert_python_identifier)
-            .collect::<Result<_>>()?,
+        bases: bases.iter().map(convert_expr).collect(),
         methods,
         attributes,
-        decorators: decorators
-            .iter()
-            .map(convert_python_identifier)
-            .collect::<Result<_>>()?,
+        decorators: decorators.iter().map(convert_expr).collect(),
     })
-}
-
-fn convert_python_identifier(decorator: &ChunkTypeHint) -> Result<PythonIdentifier> {
-    match convert_type_hint(decorator) {
-        TypeHint::Plain(id) => Ok(PythonIdentifier {
-            module: None,
-            name: id.clone(),
-        }),
-        TypeHint::Ast(expr) => {
-            if let TypeHintExpr::Identifier(i) = expr {
-                Ok(i)
-            } else {
-                bail!("PyO3 introspection currently only support decorators that are identifiers of a Python function, got {expr:?}")
-            }
-        }
-    }
 }
 
 fn convert_function(
     name: &str,
     arguments: &ChunkArguments,
-    decorators: &[ChunkTypeHint],
+    decorators: &[ChunkExpr],
     returns: &Option<ChunkTypeHint>,
-) -> Result<Function> {
-    Ok(Function {
+    is_async: bool,
+) -> Function {
+    Function {
         name: name.into(),
-        decorators: decorators
-            .iter()
-            .map(convert_python_identifier)
-            .collect::<Result<_>>()?,
+        decorators: decorators.iter().map(convert_expr).collect(),
         arguments: Arguments {
             positional_only_arguments: arguments.posonlyargs.iter().map(convert_argument).collect(),
             arguments: arguments.args.iter().map(convert_argument).collect(),
@@ -270,7 +247,8 @@ fn convert_function(
                 .map(convert_variable_length_argument),
         },
         returns: returns.as_ref().map(convert_type_hint),
-    })
+        is_async,
+    }
 }
 
 fn convert_argument(arg: &ChunkArgument) -> Argument {
@@ -302,34 +280,45 @@ fn convert_attribute(
 
 fn convert_type_hint(arg: &ChunkTypeHint) -> TypeHint {
     match arg {
-        ChunkTypeHint::Ast(expr) => TypeHint::Ast(convert_type_hint_expr(expr)),
+        ChunkTypeHint::Ast(expr) => TypeHint::Ast(convert_expr(expr)),
         ChunkTypeHint::Plain(t) => TypeHint::Plain(t.clone()),
     }
 }
 
-fn convert_type_hint_expr(expr: &ChunkTypeHintExpr) -> TypeHintExpr {
+fn convert_expr(expr: &ChunkExpr) -> Expr {
     match expr {
-        ChunkTypeHintExpr::Local { id } => PythonIdentifier {
-            module: None,
-            name: id.clone(),
-        }
-        .into(),
-        ChunkTypeHintExpr::Builtin { id } => PythonIdentifier {
-            module: Some("builtins".into()),
-            name: id.clone(),
-        }
-        .into(),
-        ChunkTypeHintExpr::Attribute { module, attr } => PythonIdentifier {
-            module: Some(module.clone()),
-            name: attr.clone(),
-        }
-        .into(),
-        ChunkTypeHintExpr::Union { elts } => {
-            TypeHintExpr::Union(elts.iter().map(convert_type_hint_expr).collect())
-        }
-        ChunkTypeHintExpr::Subscript { value, slice } => TypeHintExpr::Subscript {
-            value: Box::new(convert_type_hint_expr(value)),
-            slice: slice.iter().map(convert_type_hint_expr).collect(),
+        ChunkExpr::Name { id, kind } => Expr::Name {
+            id: id.clone(),
+            kind: match kind {
+                ChunkNameKind::Local => NameKind::Local,
+                ChunkNameKind::Global => NameKind::Global,
+            },
+        },
+        ChunkExpr::Attribute { value, attr } => Expr::Attribute {
+            value: Box::new(convert_expr(value)),
+            attr: attr.clone(),
+        },
+        ChunkExpr::BinOp { left, op, right } => Expr::BinOp {
+            left: Box::new(convert_expr(left)),
+            op: match op {
+                ChunkOperator::BitOr => Operator::BitOr,
+            },
+            right: Box::new(convert_expr(right)),
+        },
+        ChunkExpr::Subscript { value, slice } => Expr::Subscript {
+            value: Box::new(convert_expr(value)),
+            slice: Box::new(convert_expr(slice)),
+        },
+        ChunkExpr::Tuple { elts } => Expr::Tuple {
+            elts: elts.iter().map(convert_expr).collect(),
+        },
+        ChunkExpr::List { elts } => Expr::List {
+            elts: elts.iter().map(convert_expr).collect(),
+        },
+        ChunkExpr::Constant { value } => Expr::Constant {
+            value: match value {
+                ChunkConstant::None => Constant::None,
+            },
         },
     }
 }
@@ -451,7 +440,7 @@ fn deserialize_chunk(
         })?;
     serde_json::from_slice(chunk).with_context(|| {
         format!(
-            "Failed to parse introspection chunk: '{}'",
+            "Failed to parse introspection chunk: {:?}",
             String::from_utf8_lossy(chunk)
         )
     })
@@ -476,9 +465,9 @@ enum Chunk {
         id: String,
         name: String,
         #[serde(default)]
-        bases: Vec<ChunkTypeHint>,
+        bases: Vec<ChunkExpr>,
         #[serde(default)]
-        decorators: Vec<ChunkTypeHint>,
+        decorators: Vec<ChunkExpr>,
     },
     Function {
         #[serde(default)]
@@ -488,9 +477,11 @@ enum Chunk {
         #[serde(default)]
         parent: Option<String>,
         #[serde(default)]
-        decorators: Vec<ChunkTypeHint>,
+        decorators: Vec<ChunkExpr>,
         #[serde(default)]
         returns: Option<ChunkTypeHint>,
+        #[serde(default, rename = "async")]
+        is_async: bool,
     },
     Attribute {
         #[serde(default)]
@@ -532,7 +523,7 @@ struct ChunkArgument {
 ///
 /// We keep separated type to allow them to evolve independently (this type will need to handle backward compatibility).
 enum ChunkTypeHint {
-    Ast(ChunkTypeHintExpr),
+    Ast(ChunkExpr),
     Plain(String),
 }
 
@@ -577,22 +568,45 @@ impl<'de> Deserialize<'de> for ChunkTypeHint {
 
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
-enum ChunkTypeHintExpr {
-    Local {
-        id: String,
+enum ChunkExpr {
+    /// A constant like `None` or `123`
+    Constant {
+        #[serde(flatten)]
+        value: ChunkConstant,
     },
-    Builtin {
-        id: String,
+    /// A name
+    Name { id: String, kind: ChunkNameKind },
+    /// An attribute `value.attr`
+    Attribute { value: Box<Self>, attr: String },
+    /// A binary operator
+    BinOp {
+        left: Box<Self>,
+        op: ChunkOperator,
+        right: Box<Self>,
     },
-    Attribute {
-        module: String,
-        attr: String,
-    },
-    Union {
-        elts: Vec<ChunkTypeHintExpr>,
-    },
-    Subscript {
-        value: Box<ChunkTypeHintExpr>,
-        slice: Vec<ChunkTypeHintExpr>,
-    },
+    /// A tuple
+    Tuple { elts: Vec<Self> },
+    /// A list
+    List { elts: Vec<Self> },
+    /// A subscript `value[slice]`
+    Subscript { value: Box<Self>, slice: Box<Self> },
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum ChunkNameKind {
+    Local,
+    Global,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum ChunkConstant {
+    None,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ChunkOperator {
+    BitOr,
 }

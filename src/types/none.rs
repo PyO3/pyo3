@@ -1,6 +1,6 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::{PyStaticConstant, PyStaticExpr};
 use crate::{ffi, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyTypeInfo, Python};
 
 /// Represents the Python `None` object.
@@ -30,7 +30,9 @@ unsafe impl PyTypeInfo for PyNone {
     const MODULE: Option<&'static str> = None;
 
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: TypeHint = TypeHint::builtin("None");
+    const TYPE_HINT: PyStaticExpr = PyStaticExpr::Constant {
+        value: PyStaticConstant::None,
+    };
 
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_None()) }

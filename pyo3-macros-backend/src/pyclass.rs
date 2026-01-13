@@ -443,9 +443,20 @@ fn get_class_type_hint(cls: &Ident, args: &PyClassArgs, ctx: &Ctx) -> TokenStrea
     let name = get_class_python_name(cls, args).to_string();
     if let Some(module) = &args.options.module {
         let module = module.value.value();
-        quote! { #pyo3_path::inspect::TypeHint::module_attr(#module, #name) }
+        quote! {
+            #pyo3_path::inspect::PyStaticExpr::Attribute {
+                value: &#pyo3_path::inspect::PyStaticExpr::Name {
+                    id: #module,
+                    kind: #pyo3_path::inspect::PyStaticNameKind::Local
+                },
+                attr: #name
+            }
+        }
     } else {
-        quote! { #pyo3_path::inspect::TypeHint::local(#name) }
+        quote! { #pyo3_path::inspect::PyStaticExpr::Name {
+            id: #name,
+            kind: #pyo3_path::inspect::PyStaticNameKind::Local
+        } }
     }
 }
 
@@ -1038,11 +1049,7 @@ fn impl_simple_enum(
     .doc(doc);
 
     let enum_into_pyobject_impl = {
-        let output_type = if cfg!(feature = "experimental-inspect") {
-            quote!(const OUTPUT_TYPE: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
-        } else {
-            TokenStream::new()
-        };
+        let output_type = get_conversion_type_hint(ctx, &format_ident!("OUTPUT_TYPE"), cls);
 
         let num = variants.len();
         let i = (0..num).map(proc_macro2::Literal::usize_unsuffixed);
@@ -1603,6 +1610,7 @@ fn generate_protocol_slot(
                         Some("self"),
                         parse_quote!(-> #returns),
                         [],
+                        spec.asyncness.is_some(),
                         Some(cls),
                     )
                 })
@@ -1947,6 +1955,7 @@ fn descriptors_to_items(
                     Some("self"),
                     parse_quote!(-> #return_type),
                     vec![PythonTypeHint::builtin("property")],
+                    false,
                     Some(&parse_quote!(#cls)),
                 ));
             }
@@ -1985,7 +1994,21 @@ fn descriptors_to_items(
                     })]),
                     Some("self"),
                     syn::ReturnType::Default,
-                    vec![PythonTypeHint::local(format!("{name}.setter"))],
+                    vec![PythonTypeHint::attribute(
+                        PythonTypeHint::attribute(
+                            PythonTypeHint::from_type(
+                                syn::TypePath {
+                                    qself: None,
+                                    path: cls.clone().into(),
+                                }
+                                .into(),
+                                None,
+                            ),
+                            name.clone(),
+                        ),
+                        "setter",
+                    )],
+                    false,
                     Some(&parse_quote!(#cls)),
                 ));
             }
@@ -2001,7 +2024,7 @@ fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStre
     #[cfg(feature = "experimental-inspect")]
     let type_hint = {
         let type_hint = get_class_type_hint(cls, attr, ctx);
-        quote! { const TYPE_HINT: #pyo3_path::inspect::TypeHint = #type_hint; }
+        quote! { const TYPE_HINT: #pyo3_path::inspect::PyStaticExpr = #type_hint; }
     };
     #[cfg(not(feature = "experimental-inspect"))]
     let type_hint = quote! {};
@@ -2815,7 +2838,7 @@ fn get_conversion_type_hint(
     cls: &Ident,
 ) -> TokenStream {
     if cfg!(feature = "experimental-inspect") {
-        quote!(const #konst: #pyo3_path::inspect::TypeHint = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
+        quote!(const #konst: #pyo3_path::inspect::PyStaticExpr = <#cls as #pyo3_path::PyTypeInfo>::TYPE_HINT;)
     } else {
         TokenStream::new()
     }
