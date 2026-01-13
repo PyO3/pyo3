@@ -1,6 +1,8 @@
-use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout as _};
+use crate::impl_::pycell::PyClassObjectBaseLayout as _;
+use crate::impl_::pyclass::PyClassImpl;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+use crate::pycell::impl_::PyClassObjectLayout as _;
 use crate::pycell::PyBorrowMutError;
 use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
 use crate::pyclass::boolean_struct::False;
@@ -101,7 +103,7 @@ impl<'a, T: PyClass> PyClassGuard<'a, T> {
         Self::try_from_class_object(obj.get_class_object())
     }
 
-    fn try_from_class_object(obj: &'a PyClassObject<T>) -> Result<Self, PyBorrowError> {
+    fn try_from_class_object(obj: &'a <T as PyClassImpl>::Layout) -> Result<Self, PyBorrowError> {
         obj.ensure_threadsafe();
         obj.borrow_checker().try_borrow().map(|_| Self {
             ptr: NonNull::from(obj).cast(),
@@ -109,7 +111,7 @@ impl<'a, T: PyClass> PyClassGuard<'a, T> {
         })
     }
 
-    pub(crate) fn as_class_object(&self) -> &'a PyClassObject<T> {
+    pub(crate) fn as_class_object(&self) -> &'a <T as PyClassImpl>::Layout {
         // SAFETY: `ptr` by construction points to a `PyClassObject<T>` and is
         // valid for at least 'a
         unsafe { self.ptr.cast().as_ref() }
@@ -294,7 +296,7 @@ impl<'a, 'py, T: PyClass> FromPyObject<'a, 'py> for PyClassGuard<'a, T> {
 
     fn extract(obj: Borrowed<'a, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
         Self::try_from_class_object(
-            obj.cast()
+            obj.cast::<T>()
                 .map_err(|e| PyClassGuardError(Some(e)))?
                 .get_class_object(),
         )
@@ -603,7 +605,9 @@ impl<'a, T: PyClass<Frozen = False>> PyClassGuardMut<'a, T> {
         Self::try_from_class_object(obj.get_class_object())
     }
 
-    fn try_from_class_object(obj: &'a PyClassObject<T>) -> Result<Self, PyBorrowMutError> {
+    fn try_from_class_object(
+        obj: &'a <T as PyClassImpl>::Layout,
+    ) -> Result<Self, PyBorrowMutError> {
         obj.ensure_threadsafe();
         obj.borrow_checker().try_borrow_mut().map(|_| Self {
             ptr: NonNull::from(obj).cast(),
@@ -611,7 +615,7 @@ impl<'a, T: PyClass<Frozen = False>> PyClassGuardMut<'a, T> {
         })
     }
 
-    pub(crate) fn as_class_object(&self) -> &'a PyClassObject<T> {
+    pub(crate) fn as_class_object(&self) -> &'a <T as PyClassImpl>::Layout {
         // SAFETY: `ptr` by construction points to a `PyClassObject<T>` and is
         // valid for at least 'a
         unsafe { self.ptr.cast().as_ref() }
@@ -708,7 +712,7 @@ impl<'a, 'py, T: PyClass<Frozen = False>> FromPyObject<'a, 'py> for PyClassGuard
 
     fn extract(obj: Borrowed<'a, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
         Self::try_from_class_object(
-            obj.cast()
+            obj.cast::<T>()
                 .map_err(|e| PyClassGuardMutError(Some(e)))?
                 .get_class_object(),
         )

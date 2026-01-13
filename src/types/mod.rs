@@ -208,6 +208,9 @@ macro_rules! pyobject_native_type_core {
         $crate::pyobject_native_type_named!($name $(;$generics)*);
         $crate::pyobject_native_type_info!($name, $typeobject, $type_hint_module, $type_hint_name, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
+    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=$module $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    };
     ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
@@ -223,6 +226,7 @@ macro_rules! pyobject_subclassable_native_type {
             type BaseNativeType = $name;
             type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
             type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
+            type Layout<T: $crate::impl_::pyclass::PyClassImpl> = $crate::impl_::pycell::PyStaticClassObject<T>;
         }
     }
 }

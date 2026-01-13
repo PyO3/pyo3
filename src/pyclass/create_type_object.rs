@@ -7,14 +7,14 @@ use crate::{
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     impl_::{
-        pycell::PyClassObject,
         pyclass::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-            tp_dealloc_with_gc, PyClassImpl, PyClassItemsIter,
+            tp_dealloc_with_gc, PyClassImpl, PyClassItemsIter, PyObjectOffset,
         },
         pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
     },
+    pycell::impl_::PyClassObjectLayout,
     types::PyType,
     Py, PyClass, PyResult, PyTypeInfo, Python,
 };
@@ -50,13 +50,13 @@ where
         is_sequence: bool,
         is_immutable_type: bool,
         doc: &'static CStr,
-        dict_offset: Option<ffi::Py_ssize_t>,
-        weaklist_offset: Option<ffi::Py_ssize_t>,
+        dict_offset: Option<PyObjectOffset>,
+        weaklist_offset: Option<PyObjectOffset>,
         is_basetype: bool,
         items_iter: PyClassItemsIter,
         name: &'static str,
         module: Option<&'static str>,
-        size_of: usize,
+        basicsize: ffi::Py_ssize_t,
     ) -> PyResult<PyClassTypeObject> {
         unsafe {
             PyTypeBuilder {
@@ -87,7 +87,7 @@ where
             .offsets(dict_offset, weaklist_offset)
             .set_is_basetype(is_basetype)
             .class_items(items_iter)
-            .build(py, name, module, size_of)
+            .build(py, name, module, basicsize)
         }
     }
 
@@ -107,7 +107,7 @@ where
             T::items_iter(),
             <T as PyClass>::NAME,
             <T as PyClassImpl>::MODULE,
-            std::mem::size_of::<PyClassObject<T>>(),
+            <T as PyClassImpl>::Layout::BASIC_SIZE,
         )
     }
 }
@@ -137,7 +137,7 @@ struct PyTypeBuilder {
     has_setitem: bool,
     has_traverse: bool,
     has_clear: bool,
-    dict_offset: Option<ffi::Py_ssize_t>,
+    dict_offset: Option<PyObjectOffset>,
     class_flags: c_ulong,
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
     #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
@@ -275,7 +275,8 @@ impl PyTypeBuilder {
                 }
 
                 get_dict = get_dict_impl;
-                closure = dict_offset as _;
+                let PyObjectOffset::Absolute(offset) = dict_offset;
+                closure = offset as _;
             }
 
             property_defs.push(ffi::PyGetSetDef {
@@ -367,20 +368,27 @@ impl PyTypeBuilder {
 
     fn offsets(
         mut self,
-        dict_offset: Option<ffi::Py_ssize_t>,
-        #[allow(unused_variables)] weaklist_offset: Option<ffi::Py_ssize_t>,
+        dict_offset: Option<PyObjectOffset>,
+        #[allow(unused_variables)] weaklist_offset: Option<PyObjectOffset>,
     ) -> Self {
         self.dict_offset = dict_offset;
 
         #[cfg(Py_3_9)]
         {
             #[inline(always)]
-            fn offset_def(name: &'static CStr, offset: ffi::Py_ssize_t) -> ffi::PyMemberDef {
+            fn offset_def(name: &'static CStr, offset: PyObjectOffset) -> ffi::PyMemberDef {
+                let (offset, flags) = match offset {
+                    PyObjectOffset::Absolute(offset) => (offset, ffi::Py_READONLY),
+                    #[cfg(Py_3_12)]
+                    PyObjectOffset::Relative(offset) => {
+                        (offset, ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET)
+                    }
+                };
                 ffi::PyMemberDef {
                     name: name.as_ptr().cast(),
                     type_code: ffi::Py_T_PYSSIZET,
                     offset,
-                    flags: ffi::Py_READONLY,
+                    flags,
                     doc: std::ptr::null_mut(),
                 }
             }
@@ -408,12 +416,17 @@ impl PyTypeBuilder {
                     (*(*type_object).tp_as_buffer).bf_releasebuffer =
                         builder.buffer_procs.bf_releasebuffer;
 
-                    if let Some(dict_offset) = dict_offset {
-                        (*type_object).tp_dictoffset = dict_offset;
+                    match dict_offset {
+                        Some(PyObjectOffset::Absolute(offset)) => {
+                            (*type_object).tp_dictoffset = offset;
+                        }
+                        None => {}
                     }
-
-                    if let Some(weaklist_offset) = weaklist_offset {
-                        (*type_object).tp_weaklistoffset = weaklist_offset;
+                    match weaklist_offset {
+                        Some(PyObjectOffset::Absolute(offset)) => {
+                            (*type_object).tp_weaklistoffset = offset;
+                        }
+                        None => {}
                     }
                 }));
         }
@@ -425,7 +438,7 @@ impl PyTypeBuilder {
         py: Python<'_>,
         name: &'static str,
         module_name: Option<&'static str>,
-        basicsize: usize,
+        basicsize: ffi::Py_ssize_t,
     ) -> PyResult<PyClassTypeObject> {
         // `c_ulong` and `c_uint` have the same size
         // on some platforms (like windows)

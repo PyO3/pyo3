@@ -207,7 +207,7 @@ use std::ptr::NonNull;
 pub(crate) mod impl_;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
-use impl_::{PyClassBorrowChecker, PyClassObjectLayout};
+use impl_::{PyClassBorrowChecker, PyClassObjectBaseLayout, PyClassObjectLayout};
 
 /// A wrapper type for an immutably borrowed value from a [`Bound<'py, T>`].
 ///

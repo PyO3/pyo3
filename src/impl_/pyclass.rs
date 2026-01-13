@@ -4,11 +4,11 @@ use crate::{
     ffi_ptr_ext::FfiPtrExt,
     impl_::{
         freelist::PyObjectFreeList,
-        pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectLayout},
+        pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout},
         pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
-    pycell::PyBorrowError,
+    pycell::{impl_::PyClassObjectLayout, PyBorrowError},
     types::{any::PyAnyMethods, PyBool},
     Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
     PyTypeCheck, PyTypeInfo, Python,
@@ -16,7 +16,6 @@ use crate::{
 use std::{
     ffi::CStr,
     marker::PhantomData,
-    mem::offset_of,
     os::raw::{c_int, c_void},
     ptr::{self, NonNull},
     sync::Mutex,
@@ -35,14 +34,14 @@ pub use probes::*;
 
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
-pub fn dict_offset<T: PyClass>() -> ffi::Py_ssize_t {
-    PyClassObject::<T>::dict_offset()
+pub const fn dict_offset<T: PyClass>() -> PyObjectOffset {
+    <T as PyClassImpl>::Layout::DICT_OFFSET
 }
 
 /// Gets the offset of the weakref list from the start of the object in bytes.
 #[inline]
-pub fn weaklist_offset<T: PyClass>() -> ffi::Py_ssize_t {
-    PyClassObject::<T>::weaklist_offset()
+pub const fn weaklist_offset<T: PyClass>() -> PyObjectOffset {
+    <T as PyClassImpl>::Layout::WEAKLIST_OFFSET
 }
 
 mod sealed {
@@ -178,6 +177,9 @@ pub trait PyClassImpl: Sized + 'static {
     /// #[pyclass(immutable_type)]
     const IS_IMMUTABLE_TYPE: bool = false;
 
+    /// Description of how this class is laid out in memory
+    type Layout: PyClassObjectLayout<Self>;
+
     /// Base class
     type BaseType: PyTypeInfo + PyClassBaseType;
 
@@ -219,13 +221,17 @@ pub trait PyClassImpl: Sized + 'static {
 
     fn items_iter() -> PyClassItemsIter;
 
+    /// Used to provide the __dictoffset__ slot
+    /// (equivalent to [tp_dictoffset](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_dictoffset))
     #[inline]
-    fn dict_offset() -> Option<ffi::Py_ssize_t> {
+    fn dict_offset() -> Option<PyObjectOffset> {
         None
     }
 
+    /// Used to provide the __weaklistoffset__ slot
+    /// (equivalent to [tp_weaklistoffset](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_weaklistoffset)
     #[inline]
-    fn weaklist_offset() -> Option<ffi::Py_ssize_t> {
+    fn weaklist_offset() -> Option<PyObjectOffset> {
         None
     }
 
@@ -886,8 +892,6 @@ macro_rules! generate_pyclass_richcompare_slot {
 }
 pub use generate_pyclass_richcompare_slot;
 
-use super::pycell::PyClassObject;
-
 /// Implements a freelist.
 ///
 /// Do not implement this trait manually. Instead, use `#[pyclass(freelist = N)]`
@@ -1110,15 +1114,17 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     )
 )]
 pub trait PyClassBaseType: Sized {
-    type LayoutAsBase: PyClassObjectLayout<Self>;
+    type LayoutAsBase: PyClassObjectBaseLayout<Self>;
     type BaseNativeType;
     type Initializer: PyObjectInit<Self>;
     type PyClassMutability: PyClassMutability;
+    /// The type of object layout to use for ancestors or descendants of this type.
+    type Layout<T: PyClassImpl>;
 }
 
 /// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
-    unsafe { crate::impl_::trampoline::dealloc(obj, PyClassObject::<T>::tp_dealloc) }
+    unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
 }
 
 /// Implementation of tp_dealloc for pyclasses with gc
@@ -1127,7 +1133,7 @@ pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::Py
     unsafe {
         ffi::PyObject_GC_UnTrack(obj.cast());
     }
-    unsafe { crate::impl_::trampoline::dealloc(obj, PyClassObject::<T>::tp_dealloc) }
+    unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
 }
 
 pub(crate) unsafe extern "C" fn get_sequence_item_from_mapping(
@@ -1160,6 +1166,34 @@ pub(crate) unsafe extern "C" fn assign_sequence_item_from_mapping(
         };
         ffi::Py_DECREF(index);
         result
+    }
+}
+
+/// Offset of a field within a PyObject in bytes.
+#[derive(Debug, Clone, Copy)]
+pub enum PyObjectOffset {
+    /// An offset relative to the start of the object
+    Absolute(ffi::Py_ssize_t),
+    /// An offset relative to the start of the subclass-specific data.
+    /// Only allowed when basicsize is negative (which is only allowed for python >=3.12).
+    /// <https://docs.python.org/3.12/c-api/structures.html#c.Py_RELATIVE_OFFSET>
+    #[cfg(Py_3_12)]
+    Relative(ffi::Py_ssize_t),
+}
+
+impl std::ops::Add<usize> for PyObjectOffset {
+    type Output = PyObjectOffset;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        // Py_ssize_t may not be equal to isize on all platforms
+        #[allow(clippy::useless_conversion)]
+        let rhs: ffi::Py_ssize_t = rhs.try_into().expect("offset should fit in Py_ssize_t");
+
+        match self {
+            PyObjectOffset::Absolute(offset) => PyObjectOffset::Absolute(offset + rhs),
+            #[cfg(Py_3_12)]
+            PyObjectOffset::Relative(offset) => PyObjectOffset::Relative(offset + rhs),
+        }
     }
 }
 
@@ -1226,11 +1260,19 @@ impl<
     pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
         use crate::pyclass::boolean_struct::private::Boolean;
         if ClassT::Frozen::VALUE {
+            let (offset, flags) = match <ClassT as PyClassImpl>::Layout::CONTENTS_OFFSET {
+                PyObjectOffset::Absolute(offset) => (offset, ffi::Py_READONLY),
+                #[cfg(Py_3_12)]
+                PyObjectOffset::Relative(offset) => {
+                    (offset, ffi::Py_READONLY | ffi::Py_RELATIVE_OFFSET)
+                }
+            };
+
             PyMethodDefType::StructMember(ffi::PyMemberDef {
                 name: name.as_ptr(),
                 type_code: ffi::Py_T_OBJECT_EX,
-                offset: (offset_of!(PyClassObject<ClassT>, contents) + OFFSET) as ffi::Py_ssize_t,
-                flags: ffi::Py_READONLY,
+                offset: offset + OFFSET as ffi::Py_ssize_t,
+                flags,
                 doc: doc.as_ptr(),
             })
         } else {
@@ -1315,7 +1357,7 @@ where
     /// - value of type `FieldT` must exist at the given offset within obj
     unsafe fn inner<FieldT>(
         py: Python<'_>,
-        obj: *mut ffi::PyObject,
+        obj: *const (),
         offset: usize,
     ) -> PyResult<*mut ffi::PyObject>
     where
@@ -1328,14 +1370,12 @@ where
 
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
+    let class_ptr = obj.cast::<<ClassT as PyClassImpl>::Layout>();
+    let class_obj = unsafe { &*class_ptr };
+    let contents_ptr = ptr::from_ref(class_obj.contents());
+
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe {
-        inner::<FieldT>(
-            py,
-            obj,
-            offset_of!(PyClassObject<ClassT>, contents) + OFFSET,
-        )
-    }
+    unsafe { inner::<FieldT>(py, contents_ptr.cast(), OFFSET) }
 }
 
 /// Gets a field value from a pyclass and produces a python value using `IntoPyObject` for `FieldT`,
@@ -1359,7 +1399,7 @@ where
     /// - value of type `FieldT` must exist at the given offset within obj
     unsafe fn inner<FieldT>(
         py: Python<'_>,
-        obj: *mut ffi::PyObject,
+        obj: *const (),
         offset: usize,
     ) -> PyResult<*mut ffi::PyObject>
     where
@@ -1372,14 +1412,12 @@ where
 
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
+    let class_ptr = obj.cast::<<ClassT as PyClassImpl>::Layout>();
+    let class_obj = unsafe { &*class_ptr };
+    let contents_ptr = ptr::from_ref(class_obj.contents());
+
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe {
-        inner::<FieldT>(
-            py,
-            obj,
-            offset_of!(PyClassObject<ClassT>, contents) + OFFSET,
-        )
-    }
+    unsafe { inner::<FieldT>(py, contents_ptr.cast(), OFFSET) }
 }
 
 pub struct ConvertField<
@@ -1412,7 +1450,10 @@ pub trait ExtractPyClassWithClone {}
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
+    use crate::pycell::impl_::PyClassObjectContents;
+
     use super::*;
+    use std::mem::offset_of;
 
     #[test]
     fn get_py_for_frozen_class() {
@@ -1437,10 +1478,15 @@ mod tests {
             Some(PyMethodDefType::StructMember(member)) => {
                 assert_eq!(unsafe { CStr::from_ptr(member.name) }, c"value");
                 assert_eq!(member.type_code, ffi::Py_T_OBJECT_EX);
+                #[repr(C)]
+                struct ExpectedLayout {
+                    ob_base: ffi::PyObject,
+                    contents: PyClassObjectContents<FrozenClass>,
+                }
                 assert_eq!(
                     member.offset,
-                    (offset_of!(PyClassObject<FrozenClass>, contents)
-                        + offset_of!(FrozenClass, value)) as ffi::Py_ssize_t
+                    (offset_of!(ExpectedLayout, contents) + offset_of!(FrozenClass, value))
+                        as ffi::Py_ssize_t
                 );
                 assert_eq!(member.flags, ffi::Py_READONLY);
             }
@@ -1551,9 +1597,15 @@ mod tests {
         // SAFETY: def.doc originated from a CStr
         assert_eq!(unsafe { CStr::from_ptr(def.doc) }, c"My field doc");
         assert_eq!(def.type_code, ffi::Py_T_OBJECT_EX);
+        #[allow(irrefutable_let_patterns)]
+        let PyObjectOffset::Absolute(contents_offset) =
+            <MyClass as PyClassImpl>::Layout::CONTENTS_OFFSET
+        else {
+            panic!()
+        };
         assert_eq!(
             def.offset,
-            (offset_of!(PyClassObject<MyClass>, contents) + FIELD_OFFSET) as ffi::Py_ssize_t
+            contents_offset + FIELD_OFFSET as ffi::Py_ssize_t
         );
         assert_eq!(def.flags, ffi::Py_READONLY);
     }

@@ -1526,6 +1526,7 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     const IS_SUBCLASS: bool = false;
     const IS_MAPPING: bool = false;
     const IS_SEQUENCE: bool = false;
+    type Layout = <Self::BaseNativeType as pyo3::impl_::pyclass::PyClassBaseType>::Layout<Self>;
     type BaseType = PyAny;
     type ThreadChecker = pyo3::impl_::pyclass::SendablePyClass<MyClass>;
     type PyClassMutability = <<pyo3::PyAny as pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as pyo3::impl_::pycell::PyClassMutability>::MutableChild;

@@ -3,16 +3,19 @@
 
 use std::cell::UnsafeCell;
 use std::marker::PhantomData;
-use std::mem::{offset_of, ManuallyDrop};
+use std::mem::{offset_of, ManuallyDrop, MaybeUninit};
+use std::ptr::addr_of_mut;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::impl_::pyclass::{
-    PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef,
+    PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
 use crate::internal::get_slot::TP_FREE;
 use crate::type_object::{PyLayout, PySizedLayout};
-use crate::types::{PyType, PyTypeMethods};
+use crate::types::PyType;
 use crate::{ffi, PyClass, PyTypeInfo, Python};
+
+use crate::types::PyTypeMethods;
 
 use super::{PyBorrowError, PyBorrowMutError};
 
@@ -178,34 +181,35 @@ impl PyClassBorrowChecker for BorrowChecker {
 
 pub trait GetBorrowChecker<T: PyClassImpl> {
     fn borrow_checker(
-        class_object: &PyClassObject<T>,
+        class_object: &T::Layout,
     ) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for MutableClass {
-    fn borrow_checker(class_object: &PyClassObject<T>) -> &BorrowChecker {
-        &class_object.contents.borrow_checker
+    fn borrow_checker(class_object: &T::Layout) -> &BorrowChecker {
+        &class_object.contents().borrow_checker
     }
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for ImmutableClass {
-    fn borrow_checker(class_object: &PyClassObject<T>) -> &EmptySlot {
-        &class_object.contents.borrow_checker
+    fn borrow_checker(class_object: &T::Layout) -> &EmptySlot {
+        &class_object.contents().borrow_checker
     }
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>, M: PyClassMutability> GetBorrowChecker<T>
     for ExtendsMutableAncestor<M>
 where
-    T::BaseType: PyClassImpl + PyClassBaseType<LayoutAsBase = PyClassObject<T::BaseType>>,
+    T::BaseType: PyClassImpl + PyClassBaseType<LayoutAsBase = <T::BaseType as PyClassImpl>::Layout>,
     <T::BaseType as PyClassImpl>::PyClassMutability: PyClassMutability<Checker = BorrowChecker>,
 {
-    fn borrow_checker(class_object: &PyClassObject<T>) -> &BorrowChecker {
-        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(&class_object.ob_base)
+    fn borrow_checker(class_object: &T::Layout) -> &BorrowChecker {
+        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(class_object.ob_base())
     }
 }
 
-/// Base layout of PyClassObject.
+/// Base layout of PyClassObject with a known sized base type.
+/// Corresponds to [PyObject](https://docs.python.org/3/c-api/structures.html#c.PyObject) from the C API.
 #[doc(hidden)]
 #[repr(C)]
 pub struct PyClassObjectBase<T> {
@@ -214,18 +218,7 @@ pub struct PyClassObjectBase<T> {
 
 unsafe impl<T, U> PyLayout<T> for PyClassObjectBase<U> where U: PySizedLayout<T> {}
 
-#[doc(hidden)]
-pub trait PyClassObjectLayout<T>: PyLayout<T> {
-    fn ensure_threadsafe(&self);
-    fn check_threadsafe(&self) -> Result<(), PyBorrowError>;
-    /// Implementation of tp_dealloc.
-    /// # Safety
-    /// - slf must be a valid pointer to an instance of a T or a subclass.
-    /// - slf must not be used after this call (as it will be freed).
-    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject);
-}
-
-impl<T, U> PyClassObjectLayout<T> for PyClassObjectBase<U>
+impl<T, U> PyClassObjectBaseLayout<T> for PyClassObjectBase<U>
 where
     U: PySizedLayout<T>,
     T: PyTypeInfo,
@@ -235,52 +228,128 @@ where
         Ok(())
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        unsafe {
-            // FIXME: there is potentially subtle issues here if the base is overwritten
-            // at runtime? To be investigated.
-            let type_obj = T::type_object(py);
-            let type_ptr = type_obj.as_type_ptr();
-            let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
-
-            // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
-            if std::ptr::eq(type_ptr, std::ptr::addr_of!(ffi::PyBaseObject_Type)) {
-                let tp_free = actual_type
-                    .get_slot(TP_FREE)
-                    .expect("PyBaseObject_Type should have tp_free");
-                return tp_free(slf.cast());
-            }
-
-            // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
-            #[cfg(not(Py_LIMITED_API))]
-            {
-                // FIXME: should this be using actual_type.tp_dealloc?
-                if let Some(dealloc) = (*type_ptr).tp_dealloc {
-                    // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
-                    // assumes the exception is currently GC tracked, so we have to re-track
-                    // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
-                    #[cfg(not(any(Py_3_11, PyPy)))]
-                    if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
-                        ffi::PyObject_GC_Track(slf.cast());
-                    }
-                    dealloc(slf);
-                } else {
-                    (*actual_type.as_type_ptr())
-                        .tp_free
-                        .expect("type missing tp_free")(slf.cast());
-                }
-            }
-
-            #[cfg(Py_LIMITED_API)]
-            unreachable!("subclassing native types is not possible with the `abi3` feature");
-        }
+        unsafe { tp_dealloc(slf, &T::type_object(py)) };
     }
 }
 
-/// The layout of a PyClass as a Python object
+/// Base layout of PyClassObject with an unknown sized base type.
+/// Corresponds to [PyVarObject](https://docs.python.org/3/c-api/structures.html#c.PyVarObject) from the C API.
+#[doc(hidden)]
 #[repr(C)]
-pub struct PyClassObject<T: PyClassImpl> {
-    pub(crate) ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
-    pub(crate) contents: PyClassObjectContents<T>,
+pub struct PyVariableClassObjectBase {
+    ob_base: ffi::PyVarObject,
+}
+
+unsafe impl<T> PyLayout<T> for PyVariableClassObjectBase {}
+
+impl<T: PyTypeInfo> PyClassObjectBaseLayout<T> for PyVariableClassObjectBase {
+    fn ensure_threadsafe(&self) {}
+    fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
+        Ok(())
+    }
+    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
+        unsafe { tp_dealloc(slf, &T::type_object(py)) };
+    }
+}
+
+/// Implementation of tp_dealloc.
+/// # Safety
+/// - `slf` must be a valid pointer to an instance of the type at `type_obj` or a subclass.
+/// - `slf` must not be used after this call (as it will be freed).
+unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType>) {
+    let py = type_obj.py();
+    unsafe {
+        // FIXME: there is potentially subtle issues here if the base is overwritten
+        // at runtime? To be investigated.
+        let type_ptr = type_obj.as_type_ptr();
+        let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
+
+        // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
+        if std::ptr::eq(type_ptr, std::ptr::addr_of!(ffi::PyBaseObject_Type)) {
+            let tp_free = actual_type
+                .get_slot(TP_FREE)
+                .expect("PyBaseObject_Type should have tp_free");
+            return tp_free(slf.cast());
+        }
+
+        // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            // FIXME: should this be using actual_type.tp_dealloc?
+            if let Some(dealloc) = (*type_ptr).tp_dealloc {
+                // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
+                // assumes the exception is currently GC tracked, so we have to re-track
+                // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
+                #[cfg(not(any(Py_3_11, PyPy)))]
+                if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
+                    ffi::PyObject_GC_Track(slf.cast());
+                }
+                dealloc(slf);
+            } else {
+                (*actual_type.as_type_ptr())
+                    .tp_free
+                    .expect("type missing tp_free")(slf.cast());
+            }
+        }
+
+        #[cfg(Py_LIMITED_API)]
+        unreachable!("subclassing native types is not possible with the `abi3` feature");
+    }
+}
+
+/// functionality common to all PyObjects regardless of the layout
+#[doc(hidden)]
+pub trait PyClassObjectBaseLayout<T>: PyLayout<T> {
+    fn ensure_threadsafe(&self);
+    fn check_threadsafe(&self) -> Result<(), PyBorrowError>;
+    /// Implementation of tp_dealloc.
+    /// # Safety
+    /// - slf must be a valid pointer to an instance of a T or a subclass.
+    /// - slf must not be used after this call (as it will be freed).
+    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject);
+}
+
+/// Functionality required for creating and managing the memory associated with a pyclass annotated struct.
+#[doc(hidden)]
+#[diagnostic::on_unimplemented(
+    message = "the class layout is not valid",
+    label = "required for `#[pyclass(extends=...)]`",
+    note = "the python version being built against influences which layouts are valid"
+)]
+pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
+    /// Gets the offset of the contents from the start of the struct in bytes.
+    const CONTENTS_OFFSET: PyObjectOffset;
+
+    /// Used to set `PyType_Spec::basicsize`
+    /// ([docs](https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize))
+    const BASIC_SIZE: ffi::Py_ssize_t;
+
+    /// Gets the offset of the dictionary from the start of the struct in bytes.
+    const DICT_OFFSET: PyObjectOffset;
+
+    /// Gets the offset of the weakref list from the start of the struct in bytes.
+    const WEAKLIST_OFFSET: PyObjectOffset;
+
+    /// Obtain a pointer to the contents of an uninitialized PyObject of this type.
+    ///
+    /// SAFETY: `obj` must have the layout that the implementation is expecting
+    unsafe fn contents_uninit(
+        obj: *mut ffi::PyObject,
+    ) -> *mut MaybeUninit<PyClassObjectContents<T>>;
+
+    /// Obtain a reference to the structure that contains the pyclass struct and associated metadata.
+    fn contents(&self) -> &PyClassObjectContents<T>;
+
+    /// Obtain a mutable reference to the structure that contains the pyclass struct and associated metadata.
+    fn contents_mut(&mut self) -> &mut PyClassObjectContents<T>;
+
+    /// Obtain a pointer to the pyclass struct.
+    fn get_ptr(&self) -> *mut T;
+
+    /// obtain a reference to the data at the start of the PyObject.
+    fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase;
+
+    fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
 #[repr(C)]
@@ -292,48 +361,101 @@ pub(crate) struct PyClassObjectContents<T: PyClassImpl> {
     pub(crate) weakref: T::WeakRef,
 }
 
-impl<T: PyClassImpl> PyClassObject<T> {
-    pub(crate) fn get_ptr(&self) -> *mut T {
-        self.contents.value.get()
+impl<T: PyClassImpl> PyClassObjectContents<T> {
+    pub(crate) fn new(init: T) -> Self {
+        PyClassObjectContents {
+            value: ManuallyDrop::new(UnsafeCell::new(init)),
+            borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage::new(),
+            thread_checker: T::ThreadChecker::new(),
+            dict: T::Dict::INIT,
+            weakref: T::WeakRef::INIT,
+        }
     }
 
-    /// Gets the offset of the dictionary from the start of the struct in bytes.
-    pub(crate) fn dict_offset() -> ffi::Py_ssize_t {
-        let offset =
-            offset_of!(PyClassObject<T>, contents) + offset_of!(PyClassObjectContents<T>, dict);
-
-        #[allow(
-            clippy::useless_conversion,
-            reason = "Py_ssize_t may not be isize on all platforms"
-        )]
-        offset.try_into().expect("offset should fit in Py_ssize_t")
-    }
-
-    /// Gets the offset of the weakref list from the start of the struct in bytes.
-    pub(crate) fn weaklist_offset() -> ffi::Py_ssize_t {
-        let offset =
-            offset_of!(PyClassObject<T>, contents) + offset_of!(PyClassObjectContents<T>, weakref);
-
-        #[allow(
-            clippy::useless_conversion,
-            reason = "Py_ssize_t may not be isize on all platforms"
-        )]
-        offset.try_into().expect("offset should fit in Py_ssize_t")
+    unsafe fn dealloc(&mut self, py: Python<'_>, py_object: *mut ffi::PyObject) {
+        if self.thread_checker.can_drop(py) {
+            unsafe { ManuallyDrop::drop(&mut self.value) };
+        }
+        self.dict.clear_dict(py);
+        unsafe { self.weakref.clear_weakrefs(py_object, py) };
     }
 }
 
-impl<T: PyClassImpl> PyClassObject<T> {
-    pub(crate) fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
+/// The layout of a PyClassObject with a known sized base class.
+#[repr(C)]
+pub struct PyStaticClassObject<T: PyClassImpl> {
+    ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
+    contents: PyClassObjectContents<T>,
+}
+
+impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyStaticClassObject<T> {
+    /// Gets the offset of the contents from the start of the struct in bytes.
+    const CONTENTS_OFFSET: PyObjectOffset = {
+        let offset = offset_of!(Self, contents);
+        // Py_ssize_t may not be equal to isize on all platforms
+        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
+        PyObjectOffset::Absolute(offset as ffi::Py_ssize_t)
+    };
+
+    const BASIC_SIZE: ffi::Py_ssize_t = {
+        let size = std::mem::size_of::<Self>();
+        assert!(size <= ffi::Py_ssize_t::MAX as usize);
+        size as _
+    };
+
+    const DICT_OFFSET: PyObjectOffset = {
+        let offset = offset_of!(PyStaticClassObject<T>, contents)
+            + offset_of!(PyClassObjectContents<T>, dict);
+        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
+        PyObjectOffset::Absolute(offset as _)
+    };
+
+    const WEAKLIST_OFFSET: PyObjectOffset = {
+        let offset = offset_of!(PyStaticClassObject<T>, contents)
+            + offset_of!(PyClassObjectContents<T>, weakref);
+        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
+        PyObjectOffset::Absolute(offset as _)
+    };
+
+    unsafe fn contents_uninit(
+        obj: *mut ffi::PyObject,
+    ) -> *mut MaybeUninit<PyClassObjectContents<T>> {
+        #[repr(C)]
+        struct PartiallyInitializedClassObject<T: PyClassImpl> {
+            _ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
+            contents: MaybeUninit<PyClassObjectContents<T>>,
+        }
+        let obj = obj.cast::<PartiallyInitializedClassObject<T>>();
+        unsafe { addr_of_mut!((*obj).contents) }
+    }
+
+    fn contents(&self) -> &PyClassObjectContents<T> {
+        &self.contents
+    }
+
+    fn contents_mut(&mut self) -> &mut PyClassObjectContents<T> {
+        &mut self.contents
+    }
+
+    fn get_ptr(&self) -> *mut T {
+        self.contents.value.get()
+    }
+
+    fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase {
+        &self.ob_base
+    }
+
+    fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
         T::PyClassMutability::borrow_checker(self)
     }
 }
 
-unsafe impl<T: PyClassImpl> PyLayout<T> for PyClassObject<T> {}
-impl<T: PyClass> PySizedLayout<T> for PyClassObject<T> {}
+unsafe impl<T: PyClassImpl> PyLayout<T> for PyStaticClassObject<T> {}
+impl<T: PyClass> PySizedLayout<T> for PyStaticClassObject<T> {}
 
-impl<T: PyClassImpl> PyClassObjectLayout<T> for PyClassObject<T>
+impl<T: PyClassImpl<Layout = Self>> PyClassObjectBaseLayout<T> for PyStaticClassObject<T>
 where
-    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectLayout<T::BaseType>,
+    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {
     fn ensure_threadsafe(&self) {
         self.contents.thread_checker.ensure();
@@ -347,15 +469,107 @@ where
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
         // Safety: Python only calls tp_dealloc when no references to the object remain.
-        let class_object = unsafe { &mut *(slf.cast::<PyClassObject<T>>()) };
-        if class_object.contents.thread_checker.can_drop(py) {
-            unsafe { ManuallyDrop::drop(&mut class_object.contents.value) };
+        let class_object = unsafe { &mut *(slf.cast::<T::Layout>()) };
+        unsafe { class_object.contents_mut().dealloc(py, slf) };
+        unsafe { <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf) }
+    }
+}
+
+/// A layout for a PyClassObject with an unknown sized base type.
+///
+/// Utilises [PEP-697](https://peps.python.org/pep-0697/)
+#[doc(hidden)]
+#[repr(C)]
+pub struct PyVariableClassObject<T: PyClassImpl> {
+    ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
+}
+
+#[cfg(Py_3_12)]
+impl<T: PyClassImpl<Layout = Self>> PyVariableClassObject<T> {
+    fn get_contents_of_obj(obj: *mut ffi::PyObject) -> *mut PyClassObjectContents<T> {
+        // https://peps.python.org/pep-0697/
+        let type_obj = unsafe { ffi::Py_TYPE(obj) };
+        let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
+        pointer.cast()
+    }
+
+    fn get_contents_ptr(&self) -> *mut PyClassObjectContents<T> {
+        Self::get_contents_of_obj(self as *const PyVariableClassObject<T> as *mut ffi::PyObject)
+    }
+}
+
+#[cfg(Py_3_12)]
+impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassObject<T> {
+    /// Gets the offset of the contents from the start of the struct in bytes.
+    const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Relative(0);
+    const BASIC_SIZE: ffi::Py_ssize_t = {
+        let size = std::mem::size_of::<PyClassObjectContents<T>>();
+        assert!(size <= ffi::Py_ssize_t::MAX as usize);
+        // negative to indicate 'extra' space that cpython will allocate for us
+        -(size as ffi::Py_ssize_t)
+    };
+    const DICT_OFFSET: PyObjectOffset = {
+        let offset = offset_of!(PyClassObjectContents<T>, dict);
+        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
+        PyObjectOffset::Relative(offset as _)
+    };
+    const WEAKLIST_OFFSET: PyObjectOffset = {
+        let offset = offset_of!(PyClassObjectContents<T>, weakref);
+        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
+        PyObjectOffset::Relative(offset as _)
+    };
+
+    unsafe fn contents_uninit(
+        obj: *mut ffi::PyObject,
+    ) -> *mut MaybeUninit<PyClassObjectContents<T>> {
+        Self::get_contents_of_obj(obj).cast()
+    }
+
+    fn get_ptr(&self) -> *mut T {
+        self.contents().value.get()
+    }
+
+    fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase {
+        &self.ob_base
+    }
+
+    fn contents(&self) -> &PyClassObjectContents<T> {
+        unsafe { self.get_contents_ptr().cast_const().as_ref() }
+            .expect("should be able to cast PyClassObjectContents pointer")
+    }
+
+    fn contents_mut(&mut self) -> &mut PyClassObjectContents<T> {
+        unsafe { self.get_contents_ptr().as_mut() }
+            .expect("should be able to cast PyClassObjectContents pointer")
+    }
+
+    fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
+        T::PyClassMutability::borrow_checker(self)
+    }
+}
+
+unsafe impl<T: PyClassImpl> PyLayout<T> for PyVariableClassObject<T> {}
+
+#[cfg(Py_3_12)]
+impl<T: PyClassImpl<Layout = Self>> PyClassObjectBaseLayout<T> for PyVariableClassObject<T>
+where
+    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
+{
+    fn ensure_threadsafe(&self) {
+        self.contents().thread_checker.ensure();
+        self.ob_base.ensure_threadsafe();
+    }
+    fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
+        if !self.contents().thread_checker.check() {
+            return Err(PyBorrowError { _private: () });
         }
-        class_object.contents.dict.clear_dict(py);
-        unsafe {
-            class_object.contents.weakref.clear_weakrefs(slf, py);
-            <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf)
-        }
+        self.ob_base.check_threadsafe()
+    }
+    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
+        // Safety: Python only calls tp_dealloc when no references to the object remain.
+        let class_object = unsafe { &mut *(slf.cast::<T::Layout>()) };
+        unsafe { class_object.contents_mut().dealloc(py, slf) };
+        unsafe { <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf) }
     }
 }
 
@@ -408,6 +622,26 @@ mod tests {
 
     #[pyclass(crate = "crate", extends = ImmutableChildOfImmutableBase, frozen)]
     struct ImmutableChildOfImmutableChildOfImmutableBase;
+
+    #[pyclass(crate = "crate", subclass)]
+    struct BaseWithData(#[allow(unused)] u64);
+
+    #[pyclass(crate = "crate", extends = BaseWithData)]
+    struct ChildWithData(#[allow(unused)] u64);
+
+    #[pyclass(crate = "crate", extends = BaseWithData)]
+    struct ChildWithoutData;
+
+    #[test]
+    fn test_inherited_size() {
+        let base_size = PyStaticClassObject::<BaseWithData>::BASIC_SIZE;
+        assert!(base_size > 0); // negative indicates variable sized
+        assert_eq!(
+            base_size,
+            PyStaticClassObject::<ChildWithoutData>::BASIC_SIZE
+        );
+        assert!(base_size < PyStaticClassObject::<ChildWithData>::BASIC_SIZE);
+    }
 
     fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}
     fn assert_immutable<T: PyClass<Frozen = True, PyClassMutability = ImmutableClass>>() {}

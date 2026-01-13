@@ -4,6 +4,7 @@ use crate::conversion::{FromPyObject, IntoPyObject};
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::pycell::PyStaticClassObject;
 use crate::instance::Bound;
 use crate::internal::get_slot::TP_DESCR_GET;
 use crate::py_result_ext::PyResultExt;
@@ -56,6 +57,7 @@ impl crate::impl_::pyclass::PyClassBaseType for PyAny {
     type BaseNativeType = PyAny;
     type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
     type PyClassMutability = crate::pycell::impl_::ImmutableClass;
+    type Layout<T: crate::impl_::pyclass::PyClassImpl> = PyStaticClassObject<T>;
 }
 
 /// This trait represents the Python APIs which are usable on all Python objects.

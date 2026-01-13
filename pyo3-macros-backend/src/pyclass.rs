@@ -2466,7 +2466,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         let dict_offset = if self.attr.options.dict.is_some() {
             quote! {
-                fn dict_offset() -> ::std::option::Option<#pyo3_path::ffi::Py_ssize_t> {
+                fn dict_offset() -> ::std::option::Option<#pyo3_path::impl_::pyclass::PyObjectOffset> {
                     ::std::option::Option::Some(#pyo3_path::impl_::pyclass::dict_offset::<Self>())
                 }
             }
@@ -2474,10 +2474,9 @@ impl<'a> PyClassImplsBuilder<'a> {
             TokenStream::new()
         };
 
-        // insert space for weak ref
         let weaklist_offset = if self.attr.options.weakref.is_some() {
             quote! {
-                fn weaklist_offset() -> ::std::option::Option<#pyo3_path::ffi::Py_ssize_t> {
+                fn weaklist_offset() -> ::std::option::Option<#pyo3_path::impl_::pyclass::PyObjectOffset> {
                     ::std::option::Option::Some(#pyo3_path::impl_::pyclass::weaklist_offset::<Self>())
                 }
             }
@@ -2562,10 +2561,11 @@ impl<'a> PyClassImplsBuilder<'a> {
         let pyclass_base_type_impl = attr.options.subclass.map(|subclass| {
             quote_spanned! { subclass.span() =>
                 impl #pyo3_path::impl_::pyclass::PyClassBaseType for #cls {
-                    type LayoutAsBase = #pyo3_path::impl_::pycell::PyClassObject<Self>;
+                    type LayoutAsBase = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::Layout;
                     type BaseNativeType = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::BaseNativeType;
                     type Initializer = #pyo3_path::pyclass_init::PyClassInitializer<Self>;
                     type PyClassMutability = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::PyClassMutability;
+                    type Layout<T: #pyo3_path::impl_::pyclass::PyClassImpl> = <Self::BaseNativeType as #pyo3_path::impl_::pyclass::PyClassBaseType>::Layout<T>;
                 }
             }
         });
@@ -2636,6 +2636,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 const IS_SEQUENCE: bool = #is_sequence;
                 const IS_IMMUTABLE_TYPE: bool = #is_immutable_type;
 
+                type Layout = <Self::BaseNativeType as #pyo3_path::impl_::pyclass::PyClassBaseType>::Layout<Self>;
                 type BaseType = #base;
                 type ThreadChecker = #thread_checker;
                 #inventory
