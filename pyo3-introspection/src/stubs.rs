@@ -1,8 +1,9 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, NameKind, Operator,
-    TypeHint, VariableLengthArgument,
+    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator, TypeHint,
+    VariableLengthArgument,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::iter::once;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -54,7 +55,7 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
         elements.push(class_stubs(class, &imports));
     }
     for function in &module.functions {
-        elements.push(function_stubs(function, &imports));
+        elements.push(function_stubs(function, &imports, None));
     }
 
     // We generate a __getattr__ method to tag incomplete stubs
@@ -69,10 +70,7 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
                     arguments: vec![Argument {
                         name: "name".to_string(),
                         default_value: None,
-                        annotation: Some(TypeHint::Ast(Expr::Name {
-                            id: "str".into(),
-                            kind: NameKind::Global,
-                        })),
+                        annotation: Some(TypeHint::Ast(Expr::Name { id: "str".into() })),
                     }],
                     vararg: None,
                     keyword_only_arguments: Vec::new(),
@@ -81,13 +79,13 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
                 returns: Some(TypeHint::Ast(Expr::Attribute {
                     value: Box::new(Expr::Name {
                         id: "_typeshed".into(),
-                        kind: NameKind::Global,
                     }),
                     attr: "Incomplete".into(),
                 })),
                 is_async: false,
             },
             &imports,
+            None,
         ));
     }
 
@@ -148,12 +146,13 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
     for method in &class.methods {
         // We do the indentation
         buffer.push_str("\n    ");
-        buffer.push_str(&function_stubs(method, imports).replace('\n', "\n    "));
+        buffer
+            .push_str(&function_stubs(method, imports, Some(&class.name)).replace('\n', "\n    "));
     }
     buffer
 }
 
-fn function_stubs(function: &Function, imports: &Imports) -> String {
+fn function_stubs(function: &Function, imports: &Imports, class_name: Option<&str>) -> String {
     // Signature
     let mut parameters = Vec::new();
     for argument in &function.arguments.positional_only_arguments {
@@ -185,7 +184,15 @@ fn function_stubs(function: &Function, imports: &Imports) -> String {
     let mut buffer = String::new();
     for decorator in &function.decorators {
         buffer.push('@');
-        imports.serialize_expr(decorator, &mut buffer);
+        // We remove the class name if it's a prefix to get nicer decorators
+        let mut decorator_buffer = String::new();
+        imports.serialize_expr(decorator, &mut decorator_buffer);
+        if let Some(class_name) = class_name {
+            if let Some(decorator) = decorator_buffer.strip_prefix(&format!("{class_name}.")) {
+                decorator_buffer = decorator.into();
+            }
+        }
+        buffer.push_str(&decorator_buffer);
         buffer.push('\n');
     }
     if function.is_async {
@@ -257,7 +264,7 @@ struct Imports {
     /// Import lines ready to use
     imports: Vec<String>,
     /// Renaming map: from module name and member name return the name to use in type hints
-    renaming: BTreeMap<(Option<String>, String), String>,
+    renaming: BTreeMap<(String, String), String>,
 }
 
 impl Imports {
@@ -276,55 +283,30 @@ impl Imports {
         let mut renaming = BTreeMap::new();
         let mut local_name_to_module_and_attribute = BTreeMap::new();
 
-        // We first process local elements, they are never aliased or imported
+        // We get the current module full name
+        let current_module_name = module_parents
+            .iter()
+            .copied()
+            .chain(once(module.name.as_str()))
+            .collect::<Vec<_>>()
+            .join(".");
+
+        // We first list local elements, they are never aliased or imported
         for name in module
             .classes
             .iter()
             .map(|c| c.name.clone())
             .chain(module.functions.iter().map(|f| f.name.clone()))
             .chain(module.attributes.iter().map(|a| a.name.clone()))
-            .chain(
-                elements_used_in_annotations
-                    .locals
-                    .remove(&None)
-                    .into_iter()
-                    .flatten(),
-            )
         {
-            local_name_to_module_and_attribute.insert(name.clone(), (None, name.clone()));
+            local_name_to_module_and_attribute
+                .insert(name.clone(), (current_module_name.clone(), name.clone()));
         }
-
-        // We compute the set of ways the current module or its parents can be named
-        let mut possible_current_module_names = vec![module.name.clone()];
-        let mut current_module_name = Some(module.name.clone());
-        for parent in module_parents.iter().rev() {
-            let path = if let Some(current) = current_module_name {
-                format!("{parent}.{current}")
-            } else {
-                parent.to_string()
-            };
-            possible_current_module_names.push(path.clone());
-            current_module_name = Some(path);
-        }
+        // We don't process the current module elements, no need to care about them
+        local_name_to_module_and_attribute.remove(&current_module_name);
 
         // We process then imports, normalizing local imports
-        for (module, attrs) in elements_used_in_annotations
-            .locals
-            .iter()
-            .chain(&elements_used_in_annotations.globals)
-        {
-            let normalized_module = if let Some(module) = module {
-                if possible_current_module_names.contains(module)
-                    || local_name_to_module_and_attribute.contains_key(module)
-                {
-                    // This is importing a local element or from a local element, don't import
-                    None
-                } else {
-                    Some(module.clone())
-                }
-            } else {
-                Some("builtins".into()) // This is fine because we have removed the local identifiers
-            };
+        for (module, attrs) in &elements_used_in_annotations.module_to_name {
             let mut import_for_module = Vec::new();
             for attr in attrs {
                 // We split nested classes A.B in "A" (the part that must be imported and can have naming conflicts) and ".B"
@@ -336,9 +318,7 @@ impl Imports {
                 while let Some((possible_conflict_module, possible_conflict_attr)) =
                     local_name_to_module_and_attribute.get(&local_name)
                 {
-                    if *possible_conflict_module == normalized_module
-                        && *possible_conflict_attr == root_attr
-                    {
+                    if possible_conflict_module == module && *possible_conflict_attr == root_attr {
                         // It's the same
                         already_imported = true;
                         break;
@@ -366,12 +346,9 @@ impl Imports {
                     },
                 );
                 if !already_imported {
-                    local_name_to_module_and_attribute.insert(
-                        local_name.clone(),
-                        (normalized_module.clone(), root_attr.to_owned()),
-                    );
-                    let is_not_aliased_builtin =
-                        normalized_module.as_deref() == Some("builtins") && local_name == root_attr;
+                    local_name_to_module_and_attribute
+                        .insert(local_name.clone(), (module.clone(), root_attr.to_owned()));
+                    let is_not_aliased_builtin = module == "builtins" && local_name == root_attr;
                     if !is_not_aliased_builtin {
                         import_for_module.push(if local_name == root_attr {
                             local_name
@@ -381,13 +358,11 @@ impl Imports {
                     }
                 }
             }
-            if let Some(module) = normalized_module {
-                if !import_for_module.is_empty() {
-                    imports.push(format!(
-                        "from {module} import {}",
-                        import_for_module.join(", ")
-                    ));
-                }
+            if !import_for_module.is_empty() {
+                imports.push(format!(
+                    "from {module} import {}",
+                    import_for_module.join(", ")
+                ));
             }
         }
         imports.sort(); // We make sure they are sorted
@@ -400,20 +375,18 @@ impl Imports {
             Expr::Constant { value } => match value {
                 Constant::None => buffer.push_str("None"),
             },
-            Expr::Name { id, kind } => {
-                buffer.push_str(match kind {
-                    NameKind::Global => self
-                        .renaming
-                        .get(&(None, id.clone()))
+            Expr::Name { id } => {
+                buffer.push_str(
+                    self.renaming
+                        .get(&("builtins".into(), id.clone()))
                         .expect("All type hint attributes should have been visited"),
-                    NameKind::Local => id,
-                });
+                );
             }
             Expr::Attribute { value, attr } => {
                 if let Expr::Name { id, .. } = &**value {
                     buffer.push_str(
                         self.renaming
-                            .get(&(Some(id.clone()), attr.clone()))
+                            .get(&(id.clone(), attr.clone()))
                             .expect("All type hint attributes should have been visited"),
                     );
                 } else {
@@ -469,17 +442,14 @@ impl Imports {
 
 /// Lists all the elements used in annotations
 struct ElementsUsedInAnnotations {
-    /// module -> name where module is global (from the root of the interpreter). `None` for builtins.
-    globals: BTreeMap<Option<String>, BTreeSet<String>>,
-    /// module -> name where module is local (relative to current module). `None` for elements of the current module.
-    locals: BTreeMap<Option<String>, BTreeSet<String>>,
+    /// module -> name where module is global (from the root of the interpreter).
+    module_to_name: BTreeMap<String, BTreeSet<String>>,
 }
 
 impl ElementsUsedInAnnotations {
     fn new() -> Self {
         Self {
-            globals: BTreeMap::new(),
-            locals: BTreeMap::new(),
+            module_to_name: BTreeMap::new(),
         }
     }
 
@@ -494,9 +464,12 @@ impl ElementsUsedInAnnotations {
             self.walk_function(function);
         }
         if module.incomplete {
-            self.globals.entry(None).or_default().insert("str".into());
-            self.globals
-                .entry(Some("_typeshed".into()))
+            self.module_to_name
+                .entry("builtins".into())
+                .or_default()
+                .insert("str".into());
+            self.module_to_name
+                .entry("_typeshed".into())
                 .or_default()
                 .insert("Incomplete".into());
         }
@@ -562,24 +535,18 @@ impl ElementsUsedInAnnotations {
 
     fn walk_expr(&mut self, expr: &Expr) {
         match expr {
-            Expr::Name { id, kind } => {
-                (match kind {
-                    NameKind::Global => &mut self.globals,
-                    NameKind::Local => &mut self.locals,
-                })
-                .entry(None)
-                .or_default()
-                .insert(id.clone());
+            Expr::Name { id } => {
+                self.module_to_name
+                    .entry("builtins".into())
+                    .or_default()
+                    .insert(id.clone());
             }
             Expr::Attribute { value, attr } => {
-                if let Expr::Name { id, kind } = &**value {
-                    (match kind {
-                        NameKind::Global => &mut self.globals,
-                        NameKind::Local => &mut self.locals,
-                    })
-                    .entry(Some(id.into()))
-                    .or_default()
-                    .insert(attr.clone());
+                if let Expr::Name { id } = &**value {
+                    self.module_to_name
+                        .entry(id.into())
+                        .or_default()
+                        .insert(attr.clone());
                 } else {
                     self.walk_expr(value)
                 }
@@ -642,7 +609,7 @@ mod tests {
         };
         assert_eq!(
             "def func(posonly, /, arg, *varargs, karg: str, **kwarg: str) -> list[str]: ...",
-            function_stubs(&function, &Imports::default())
+            function_stubs(&function, &Imports::default(), None)
         )
     }
 
@@ -675,7 +642,7 @@ mod tests {
         };
         assert_eq!(
             "def afunc(posonly=1, /, arg=True, *, karg: str = \"foo\"): ...",
-            function_stubs(&function, &Imports::default())
+            function_stubs(&function, &Imports::default(), None)
         )
     }
 
@@ -696,78 +663,51 @@ mod tests {
         };
         assert_eq!(
             "async def foo(): ...",
-            function_stubs(&function, &Imports::default())
+            function_stubs(&function, &Imports::default(), None)
         )
     }
 
     #[test]
     fn test_import() {
         let big_type = Expr::Subscript {
-            value: Box::new(Expr::Name {
-                id: "dict".into(),
-                kind: NameKind::Global,
-            }),
+            value: Box::new(Expr::Name { id: "dict".into() }),
             slice: Box::new(Expr::Tuple {
                 elts: vec![
                     Expr::Attribute {
                         value: Box::new(Expr::Name {
                             id: "foo.bar".into(),
-                            kind: NameKind::Local,
                         }),
                         attr: "A".into(),
                     },
                     Expr::Tuple {
                         elts: vec![
                             Expr::Attribute {
-                                value: Box::new(Expr::Name {
-                                    id: "bar".into(),
-                                    kind: NameKind::Local,
-                                }),
-                                attr: "A".into(),
-                            },
-                            Expr::Attribute {
-                                value: Box::new(Expr::Name {
-                                    id: "foo".into(),
-                                    kind: NameKind::Local,
-                                }),
+                                value: Box::new(Expr::Name { id: "foo".into() }),
                                 attr: "A.C".into(),
                             },
                             Expr::Attribute {
                                 value: Box::new(Expr::Attribute {
-                                    value: Box::new(Expr::Name {
-                                        id: "foo".into(),
-                                        kind: NameKind::Local,
-                                    }),
+                                    value: Box::new(Expr::Name { id: "foo".into() }),
                                     attr: "A".into(),
                                 }),
                                 attr: "D".into(),
                             },
                             Expr::Attribute {
-                                value: Box::new(Expr::Name {
-                                    id: "foo".into(),
-                                    kind: NameKind::Local,
-                                }),
+                                value: Box::new(Expr::Name { id: "foo".into() }),
                                 attr: "B".into(),
                             },
                             Expr::Attribute {
-                                value: Box::new(Expr::Name {
-                                    id: "bat".into(),
-                                    kind: NameKind::Local,
-                                }),
+                                value: Box::new(Expr::Name { id: "bat".into() }),
                                 attr: "A".into(),
                             },
-                            Expr::Name {
-                                id: "int".into(),
-                                kind: NameKind::Local,
+                            Expr::Attribute {
+                                value: Box::new(Expr::Name {
+                                    id: "foo.bar".into(),
+                                }),
+                                attr: "int".into(),
                             },
-                            Expr::Name {
-                                id: "int".into(),
-                                kind: NameKind::Global,
-                            },
-                            Expr::Name {
-                                id: "float".into(),
-                                kind: NameKind::Global,
-                            },
+                            Expr::Name { id: "int".into() },
+                            Expr::Name { id: "float".into() },
                         ],
                     },
                 ],
@@ -777,22 +717,27 @@ mod tests {
             &Module {
                 name: "bar".into(),
                 modules: Vec::new(),
-                classes: vec![Class {
-                    name: "A".into(),
-                    bases: vec![Expr::Name {
-                        id: "dict".into(),
-                        kind: NameKind::Global,
-                    }],
-                    methods: Vec::new(),
-                    attributes: Vec::new(),
-                    decorators: vec![Expr::Attribute {
-                        value: Box::new(Expr::Name {
-                            id: "typing".into(),
-                            kind: NameKind::Global,
-                        }),
-                        attr: "final".into(),
-                    }],
-                }],
+                classes: vec![
+                    Class {
+                        name: "A".into(),
+                        bases: vec![Expr::Name { id: "dict".into() }],
+                        methods: Vec::new(),
+                        attributes: Vec::new(),
+                        decorators: vec![Expr::Attribute {
+                            value: Box::new(Expr::Name {
+                                id: "typing".into(),
+                            }),
+                            attr: "final".into(),
+                        }],
+                    },
+                    Class {
+                        name: "int".into(),
+                        bases: Vec::new(),
+                        methods: Vec::new(),
+                        attributes: Vec::new(),
+                        decorators: Vec::new(),
+                    },
+                ],
                 functions: vec![Function {
                     name: String::new(),
                     decorators: Vec::new(),
@@ -823,6 +768,6 @@ mod tests {
         );
         let mut output = String::new();
         imports.serialize_expr(&big_type, &mut output);
-        assert_eq!(output, "dict[A, (A, A3.C, A3.D, B, A2, int, int2, float)]");
+        assert_eq!(output, "dict[A, (A3.C, A3.D, B, A2, int, int2, float)]");
     }
 }

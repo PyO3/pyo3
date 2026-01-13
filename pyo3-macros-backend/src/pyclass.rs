@@ -437,29 +437,6 @@ fn get_class_python_name<'a>(cls: &'a Ident, args: &'a PyClassArgs) -> Cow<'a, I
         .unwrap_or_else(|| Cow::Owned(cls.unraw()))
 }
 
-#[cfg(feature = "experimental-inspect")]
-fn get_class_type_hint(cls: &Ident, args: &PyClassArgs, ctx: &Ctx) -> TokenStream {
-    let pyo3_path = &ctx.pyo3_path;
-    let name = get_class_python_name(cls, args).to_string();
-    if let Some(module) = &args.options.module {
-        let module = module.value.value();
-        quote! {
-            #pyo3_path::inspect::PyStaticExpr::Attribute {
-                value: &#pyo3_path::inspect::PyStaticExpr::Name {
-                    id: #module,
-                    kind: #pyo3_path::inspect::PyStaticNameKind::Local
-                },
-                attr: #name
-            }
-        }
-    } else {
-        quote! { #pyo3_path::inspect::PyStaticExpr::Name {
-            id: #name,
-            kind: #pyo3_path::inspect::PyStaticNameKind::Local
-        } }
-    }
-}
-
 fn impl_class(
     cls: &syn::Ident,
     args: &PyClassArgs,
@@ -469,7 +446,7 @@ fn impl_class(
     ctx: &Ctx,
 ) -> syn::Result<TokenStream> {
     let Ctx { pyo3_path, .. } = ctx;
-    let pytypeinfo_impl = impl_pytypeinfo(cls, args, ctx);
+    let pytypeinfo_impl = impl_pytypeinfo(cls, ctx);
 
     if let Some(str) = &args.options.str {
         if str.value.is_some() {
@@ -965,7 +942,7 @@ fn impl_simple_enum(
     let cls = simple_enum.ident;
     let ty: syn::Type = syn::parse_quote!(#cls);
     let variants = simple_enum.variants;
-    let pytypeinfo = impl_pytypeinfo(cls, args, ctx);
+    let pytypeinfo = impl_pytypeinfo(cls, ctx);
 
     for variant in &variants {
         ensure_spanned!(variant.options.constructor.is_none(), variant.options.constructor.span() => "`constructor` can't be used on a simple enum variant");
@@ -1138,7 +1115,7 @@ fn impl_complex_enum(
     let ctx = &Ctx::new(&args.options.krate, None);
     let cls = complex_enum.ident;
     let variants = complex_enum.variants;
-    let pytypeinfo = impl_pytypeinfo(cls, &args, ctx);
+    let pytypeinfo = impl_pytypeinfo(cls, ctx);
 
     let (default_richcmp, default_richcmp_slot) = pyclass_richcmp(&args.options, &ty, ctx)?;
     let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
@@ -1234,7 +1211,7 @@ fn impl_complex_enum(
             },
         };
 
-        let variant_cls_pytypeinfo = impl_pytypeinfo(&variant_cls, &variant_args, ctx);
+        let variant_cls_pytypeinfo = impl_pytypeinfo(&variant_cls, ctx);
         variant_cls_pytypeinfos.push(variant_cls_pytypeinfo);
 
         let (variant_cls_impl, field_getters, mut slots) =
@@ -2018,18 +1995,17 @@ fn descriptors_to_items(
     Ok(items)
 }
 
-fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStream {
+fn impl_pytypeinfo(cls: &Ident, ctx: &Ctx) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
 
     #[cfg(feature = "experimental-inspect")]
-    let type_hint = {
-        let type_hint = get_class_type_hint(cls, attr, ctx);
-        quote! { const TYPE_HINT: #pyo3_path::inspect::PyStaticExpr = #type_hint; }
+    let type_hint = quote! {
+        const TYPE_HINT: #pyo3_path::inspect::PyStaticExpr = #pyo3_path::inspect::PyStaticExpr::IntrospectionId {
+            id: Self::_PYO3_INTROSPECTION_ID,
+        };
     };
     #[cfg(not(feature = "experimental-inspect"))]
     let type_hint = quote! {};
-    #[cfg(not(feature = "experimental-inspect"))]
-    let _ = attr;
 
     quote! {
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {

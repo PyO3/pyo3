@@ -21,17 +21,11 @@ pub mod types;
 #[macro_export]
 macro_rules! type_hint_identifier {
     ("builtins", $name:expr) => {
-        $crate::inspect::PyStaticExpr::Name {
-            id: $name,
-            kind: $crate::inspect::PyStaticNameKind::Global,
-        }
+        $crate::inspect::PyStaticExpr::Name { id: $name }
     };
     ($module:expr, $name:expr) => {
         $crate::inspect::PyStaticExpr::Attribute {
-            value: &$crate::inspect::PyStaticExpr::Name {
-                id: $module,
-                kind: $crate::inspect::PyStaticNameKind::Global,
-            },
+            value: &$crate::inspect::PyStaticExpr::Name { id: $module },
             attr: $name,
         }
     };
@@ -101,10 +95,7 @@ pub enum PyStaticExpr {
     /// A constant like `None` or `123`
     Constant { value: PyStaticConstant },
     /// A name
-    Name {
-        id: &'static str,
-        kind: PyStaticNameKind,
-    },
+    Name { id: &'static str },
     /// An attribute `value.attr`
     Attribute {
         value: &'static Self,
@@ -125,6 +116,11 @@ pub enum PyStaticExpr {
         value: &'static Self,
         slice: &'static Self,
     },
+    /// A type referred to using its introspection identifier
+    ///
+    /// Only for internal PyO3 use
+    #[doc(hidden)]
+    IntrospectionId { id: &'static str },
 }
 
 /// Serialize the type for introspection and return the number of written bytes
@@ -140,16 +136,8 @@ pub const fn serialize_for_introspection(expr: &PyStaticExpr, mut output: &mut [
                 )
             }
         },
-        PyStaticExpr::Name { id, kind } => {
-            output = write_slice_and_move_forward(b"{\"type\":\"name\",\"kind\":\"", output);
-            output = write_slice_and_move_forward(
-                match kind {
-                    PyStaticNameKind::Local => b"local",
-                    PyStaticNameKind::Global => b"global",
-                },
-                output,
-            );
-            output = write_slice_and_move_forward(b"\",\"id\":\"", output);
+        PyStaticExpr::Name { id } => {
+            output = write_slice_and_move_forward(b"{\"type\":\"name\",\"id\":\"", output);
             output = write_slice_and_move_forward(id.as_bytes(), output);
             output = write_slice_and_move_forward(b"\"}", output);
         }
@@ -187,6 +175,11 @@ pub const fn serialize_for_introspection(expr: &PyStaticExpr, mut output: &mut [
             output = write_expr_and_move_forward(slice, output);
             output = write_slice_and_move_forward(b"}", output);
         }
+        PyStaticExpr::IntrospectionId { id } => {
+            output = write_slice_and_move_forward(b"{\"type\":\"id\",\"id\":\"", output);
+            output = write_slice_and_move_forward(id.as_bytes(), output);
+            output = write_slice_and_move_forward(b"\"}", output);
+        }
     }
     original_len - output.len()
 }
@@ -198,12 +191,7 @@ pub const fn serialized_len_for_introspection(expr: &PyStaticExpr) -> usize {
         PyStaticExpr::Constant { value } => match value {
             PyStaticConstant::None => 33,
         },
-        PyStaticExpr::Name { id, kind } => {
-            (match kind {
-                PyStaticNameKind::Local => 38,
-                PyStaticNameKind::Global => 39,
-            }) + id.len()
-        }
+        PyStaticExpr::Name { id } => 23 + id.len(),
         PyStaticExpr::Attribute { value, attr } => {
             39 + serialized_len_for_introspection(value) + attr.len()
         }
@@ -219,6 +207,7 @@ pub const fn serialized_len_for_introspection(expr: &PyStaticExpr) -> usize {
         PyStaticExpr::Subscript { value, slice } => {
             38 + serialized_len_for_introspection(value) + serialized_len_for_introspection(slice)
         }
+        PyStaticExpr::IntrospectionId { id } => 21 + id.len(),
     }
 }
 
@@ -267,18 +256,9 @@ impl fmt::Display for PyStaticExpr {
                 }
                 f.write_char(']')
             }
+            Self::IntrospectionId { .. } => Err(fmt::Error), // Not supposed to be built by users
         }
     }
-}
-
-/// A PyO3 extension to the Python AST to know more about [`PyStaticExpr::Name`].
-#[derive(Clone, Copy)]
-#[non_exhaustive]
-pub enum PyStaticNameKind {
-    /// A local name, relative to the current module
-    Local,
-    /// A global name, can be a module like `datetime`, a builtin like `int`...
-    Global,
 }
 
 /// A PyO3 extension to the Python AST to know more about [`PyStaticExpr::Constant`].
@@ -367,23 +347,14 @@ mod tests {
     #[test]
     fn test_to_string() {
         const T: PyStaticExpr = type_hint_subscript!(
-            PyStaticExpr::Name {
-                id: "dict",
-                kind: PyStaticNameKind::Global
-            },
+            type_hint_identifier!("builtins", "dict"),
             type_hint_union!(
-                PyStaticExpr::Name {
-                    id: "int",
-                    kind: PyStaticNameKind::Global
-                },
-                PyStaticExpr::Name {
-                    id: "weird",
-                    kind: PyStaticNameKind::Local
-                }
+                type_hint_identifier!("builtins", "int"),
+                type_hint_identifier!("builtins", "float")
             ),
             type_hint_identifier!("datetime", "time")
         );
-        assert_eq!(T.to_string(), "dict[int | weird, datetime.time]")
+        assert_eq!(T.to_string(), "dict[int | float, datetime.time]")
     }
 
     #[test]
@@ -402,44 +373,41 @@ mod tests {
         );
         check_serialization(
             type_hint_identifier!("builtins", "int"),
-            r#"{"type":"name","kind":"global","id":"int"}"#,
-        );
-        check_serialization(
-            PyStaticExpr::Name {
-                id: "int",
-                kind: PyStaticNameKind::Local,
-            },
-            r#"{"type":"name","kind":"local","id":"int"}"#,
+            r#"{"type":"name","id":"int"}"#,
         );
         check_serialization(
             type_hint_identifier!("datetime", "date"),
-            r#"{"type":"attribute","value":{"type":"name","kind":"global","id":"datetime"},"attr":"date"}"#,
+            r#"{"type":"attribute","value":{"type":"name","id":"datetime"},"attr":"date"}"#,
         );
         check_serialization(
             type_hint_union!(
                 type_hint_identifier!("builtins", "int"),
                 type_hint_identifier!("builtins", "float")
             ),
-            r#"{"type":"binop","left":{"type":"name","kind":"global","id":"int"},"op":"bitor","right":{"type":"name","kind":"global","id":"float"}}"#,
+            r#"{"type":"binop","left":{"type":"name","id":"int"},"op":"bitor","right":{"type":"name","id":"float"}}"#,
         );
         check_serialization(
             PyStaticExpr::Tuple {
                 elts: &[type_hint_identifier!("builtins", "list")],
             },
-            r#"{"type":"tuple","elts":[{"type":"name","kind":"global","id":"list"}]}"#,
+            r#"{"type":"tuple","elts":[{"type":"name","id":"list"}]}"#,
         );
         check_serialization(
             PyStaticExpr::List {
                 elts: &[type_hint_identifier!("builtins", "list")],
             },
-            r#"{"type":"list","elts":[{"type":"name","kind":"global","id":"list"}]}"#,
+            r#"{"type":"list","elts":[{"type":"name","id":"list"}]}"#,
         );
         check_serialization(
             type_hint_subscript!(
                 type_hint_identifier!("builtins", "list"),
                 type_hint_identifier!("builtins", "int")
             ),
-            r#"{"type":"subscript","value":{"type":"name","kind":"global","id":"list"},"slice":{"type":"name","kind":"global","id":"int"}}"#,
+            r#"{"type":"subscript","value":{"type":"name","id":"list"},"slice":{"type":"name","id":"int"}}"#,
         );
+        check_serialization(
+            PyStaticExpr::IntrospectionId { id: "foo" },
+            r#"{"type":"id","id":"foo"}"#,
+        )
     }
 }

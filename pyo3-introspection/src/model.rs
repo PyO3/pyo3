@@ -86,7 +86,7 @@ pub enum Expr {
     /// A constant like `None` or `123`
     Constant { value: Constant },
     /// A name
-    Name { id: String, kind: NameKind },
+    Name { id: String },
     /// An attribute `value.attr`
     Attribute { value: Box<Self>, attr: String },
     /// A binary operator
@@ -101,15 +101,6 @@ pub enum Expr {
     List { elts: Vec<Self> },
     /// A subscript `value[slice]`
     Subscript { value: Box<Self>, slice: Box<Self> },
-}
-
-/// A PyO3 extension to the Python AST to know more about [`Expr::Name`].
-#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
-pub enum NameKind {
-    /// A local name, relative to the current module
-    Local,
-    /// A global name, can be a module like `datetime`, a builtin like `int`...
-    Global,
 }
 
 /// A PyO3 extension to the Python AST to know more about [`Expr::Constant`].
