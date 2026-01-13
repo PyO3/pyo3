@@ -1,5 +1,4 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 #[cfg(Py_LIMITED_API)]
@@ -105,9 +104,17 @@ impl<'py> Iterator for Bound<'py, PyIterator> {
     /// If an exception occurs, returns `Some(Err(..))`.
     /// Further `next()` calls after an exception occurs are likely
     /// to repeatedly result in the same exception.
-    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        Borrowed::from(&*self).next()
+        let py = self.py();
+        let mut item = std::ptr::null_mut();
+
+        // SAFETY: `self` is a valid iterator object, `item` is a valid pointer to receive the next item
+        match unsafe { ffi::compat::PyIter_NextItem(self.as_ptr(), &mut item) } {
+            std::ffi::c_int::MIN..=-1 => Some(Err(PyErr::fetch(py))),
+            0 => None,
+            // SAFETY: `item` is guaranteed to be a non-null strong reference
+            1..=std::ffi::c_int::MAX => Some(Ok(unsafe { item.assume_owned_unchecked(py) })),
+        }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -139,19 +146,6 @@ fn length_hint(iter: &Bound<'_, PyIterator>) -> PyResult<usize> {
     static LENGTH_HINT: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
     let length_hint = LENGTH_HINT.import(iter.py(), "operator", "length_hint")?;
     length_hint.call1((iter, 0))?.extract()
-}
-
-impl<'py> Borrowed<'_, 'py, PyIterator> {
-    // TODO: this method is on Borrowed so that &'py PyIterator can use this; once that
-    // implementation is deleted this method should be moved to the `Bound<'py, PyIterator> impl
-    fn next(self) -> Option<PyResult<Bound<'py, PyAny>>> {
-        let py = self.py();
-
-        match unsafe { ffi::PyIter_Next(self.as_ptr()).assume_owned_or_opt(py) } {
-            Some(obj) => Some(Ok(obj)),
-            None => PyErr::take(py).map(Err),
-        }
-    }
 }
 
 impl<'py> IntoIterator for &Bound<'py, PyIterator> {
