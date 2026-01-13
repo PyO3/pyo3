@@ -230,7 +230,7 @@ mod tests {
     };
 
     #[test]
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "wasi")))]
     fn test_non_utf8_conversion() {
         Python::attach(|py| {
             #[cfg(not(target_os = "wasi"))]

@@ -135,6 +135,7 @@ mod tests {
         types::{PyAnyMethods, PyString},
         IntoPyObjectExt,
     };
+    #[cfg(not(target_os = "wasi"))]
     use std::ffi::OsStr;
     use std::fmt::Debug;
     #[cfg(unix)]
@@ -143,7 +144,7 @@ mod tests {
     use std::os::windows::ffi::OsStringExt;
 
     #[test]
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "wasi")))]
     fn test_non_utf8_conversion() {
         Python::attach(|py| {
             #[cfg(not(target_os = "wasi"))]

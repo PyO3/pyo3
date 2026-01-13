@@ -487,6 +487,82 @@ jobs:
             .nox/emscripten
           key: emscripten-${{ hashFiles('emscripten/*') }}-${{ hashFiles('noxfile.py') }}-${{ steps.setup-python.outputs.python-path }}
 
+  wasm32-wasip1:
+    name: wasm32-wasip1
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    env:
+      WASI_SDK_PATH: "/opt/wasi-sdk"
+      CPYTHON_PATH: "${{ github.workspace }}/wasi/cpython"
+    steps:
+      - uses: actions/checkout@v6.0.1
+      - uses: actions/setup-python@v6
+        with:
+          python-version: 3.14
+        id: setup-python
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+          components: rust-src
+      - name: "Install wasmtime"
+        uses: bytecodealliance/actions/wasmtime/setup@v1
+      - name: "Install WASI SDK"
+        run: |
+          mkdir ${{ env.WASI_SDK_PATH }} && \
+          curl -s -S --location https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz | \
+          tar --strip-components 1 --directory ${{ env.WASI_SDK_PATH }} --extract --gunzip
+          $WASI_SDK_PATH/bin/clang --version
+      - uses: actions/cache/restore@v5
+        id: cache-wasip1-python
+        with:
+          path: ${{ env.CPYTHON_PATH }}/cross-build/
+          key: wasm32-wasip1-python
+      - uses: actions/checkout@v6.0.1
+        with:
+          repository: python/cpython
+          ref: 3.14
+          path: ${{ env.CPYTHON_PATH }}
+          fetch-depth: 1
+      - name: Build
+        run: |
+          cd ${{ env.CPYTHON_PATH }}
+          cat >> Tools/wasm/wasi/config.site-wasm32-wasi <<'EOF'
+
+          # Force-disable POSIX dynamic loading for WASI
+          ac_cv_func_dlopen=no
+          ac_cv_lib_dl_dlopen=no
+          EOF
+          python Tools/wasm/wasi build --quiet -- --config-cache
+          cp cross-build/wasm32-wasip1/libpython3.14.a \
+             cross-build/wasm32-wasip1/Modules/_hacl/libHacl_HMAC.a \
+             cross-build/wasm32-wasip1/Modules/_decimal/libmpdec/libmpdec.a \
+             cross-build/wasm32-wasip1/Modules/expat/libexpat.a \
+             cross-build/wasm32-wasip1/build/lib.wasi-wasm32-3.14/
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      - name: Test
+        env:
+          PYO3_CROSS_LIB_DIR: ${{ env.CPYTHON_PATH }}/cross-build/wasm32-wasip1/build/lib.wasi-wasm32-3.14/
+          CARGO_BUILD_TARGET: wasm32-wasip1
+          CARGO_TARGET_WASM32_WASIP1_RUNNER: wasmtime run --dir ${{ env.CPYTHON_PATH }}::/ --env PYTHONPATH=/lib
+          RUSTFLAGS: >
+            -C link-arg=-L${{ env.WASI_SDK_PATH }}/share/wasi-sysroot/lib/wasm32-wasi
+            -C link-arg=-lwasi-emulated-signal
+            -C link-arg=-lwasi-emulated-process-clocks
+            -C link-arg=-lwasi-emulated-getpid
+            -C link-arg=-lmpdec
+            -C link-arg=-lHacl_HMAC
+            -C link-arg=-lexpat
+        run: RUSTDOCFLAGS=$RUSTFLAGS cargo test
+      - uses: actions/cache/save@v5
+        if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+        with:
+          path: ${{ env.CPYTHON_PATH }}/cross-build/
+          key: ${{ steps.cache-wasip1-python.outputs.cache-primary-key }}
+
   test-debug:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
