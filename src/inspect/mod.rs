@@ -116,11 +116,11 @@ pub enum PyStaticExpr {
         value: &'static Self,
         slice: &'static Self,
     },
-    /// A type referred to using its introspection identifier
-    ///
-    /// Only for internal PyO3 use
-    #[doc(hidden)]
-    IntrospectionId { id: &'static str },
+    /// A type referred to using its introspection identifier for internal PyO3 use
+    WithIntrospectionId {
+        expr: &'static Self,
+        id: &'static str,
+    },
 }
 
 /// Serialize the type for introspection and return the number of written bytes
@@ -175,7 +175,7 @@ pub const fn serialize_for_introspection(expr: &PyStaticExpr, mut output: &mut [
             output = write_expr_and_move_forward(slice, output);
             output = write_slice_and_move_forward(b"}", output);
         }
-        PyStaticExpr::IntrospectionId { id } => {
+        PyStaticExpr::WithIntrospectionId { id, .. } => {
             output = write_slice_and_move_forward(b"{\"type\":\"id\",\"id\":\"", output);
             output = write_slice_and_move_forward(id.as_bytes(), output);
             output = write_slice_and_move_forward(b"\"}", output);
@@ -207,7 +207,7 @@ pub const fn serialized_len_for_introspection(expr: &PyStaticExpr) -> usize {
         PyStaticExpr::Subscript { value, slice } => {
             38 + serialized_len_for_introspection(value) + serialized_len_for_introspection(slice)
         }
-        PyStaticExpr::IntrospectionId { id } => 21 + id.len(),
+        PyStaticExpr::WithIntrospectionId { id, .. } => 21 + id.len(),
     }
 }
 
@@ -256,7 +256,7 @@ impl fmt::Display for PyStaticExpr {
                 }
                 f.write_char(']')
             }
-            Self::IntrospectionId { .. } => Err(fmt::Error), // Not supposed to be built by users
+            Self::WithIntrospectionId { expr, .. } => expr.fmt(f), // Not supposed to be built by users
         }
     }
 }
@@ -406,7 +406,10 @@ mod tests {
             r#"{"type":"subscript","value":{"type":"name","id":"list"},"slice":{"type":"name","id":"int"}}"#,
         );
         check_serialization(
-            PyStaticExpr::IntrospectionId { id: "foo" },
+            PyStaticExpr::WithIntrospectionId {
+                id: "foo",
+                expr: &type_hint_identifier!("builtins", "foo"),
+            },
             r#"{"type":"id","id":"foo"}"#,
         )
     }
