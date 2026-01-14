@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
-use crate::internal::get_slot::TP_FREE;
+use crate::internal::get_slot::{TP_DEALLOC, TP_FREE};
 use crate::type_object::{PyLayout, PySizedLayout};
 use crate::types::PyType;
 use crate::{ffi, PyClass, PyTypeInfo, Python};
@@ -273,27 +273,19 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         }
 
         // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            // FIXME: should this be using actual_type.tp_dealloc?
-            if let Some(dealloc) = (*type_ptr).tp_dealloc {
-                // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
-                // assumes the exception is currently GC tracked, so we have to re-track
-                // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
-                #[cfg(not(any(Py_3_11, PyPy)))]
-                if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
-                    ffi::PyObject_GC_Track(slf.cast());
-                }
-                dealloc(slf);
-            } else {
-                (*actual_type.as_type_ptr())
-                    .tp_free
-                    .expect("type missing tp_free")(slf.cast());
+        // FIXME: should this be using actual_type.tp_dealloc?
+        if let Some(dealloc) = type_obj.get_slot(TP_DEALLOC) {
+            // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
+            // assumes the exception is currently GC tracked, so we have to re-track
+            // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
+            #[cfg(not(any(Py_3_11, PyPy)))]
+            if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
+                ffi::PyObject_GC_Track(slf.cast());
             }
+            dealloc(slf);
+        } else {
+            type_obj.get_slot(TP_FREE).expect("type missing tp_free")(slf.cast());
         }
-
-        #[cfg(Py_LIMITED_API)]
-        unreachable!("subclassing native types is not possible with the `abi3` feature");
     }
 }
 

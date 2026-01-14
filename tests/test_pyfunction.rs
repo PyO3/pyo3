@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 use pyo3::exceptions::PyWarning;
 use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::prelude::*;
@@ -674,11 +674,11 @@ fn test_pyfunction_raw_ident() {
     })
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 #[pyclass(extends=PyWarning)]
 pub struct UserDefinedWarning {}
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 #[pymethods]
 impl UserDefinedWarning {
     #[new]
@@ -726,12 +726,12 @@ fn test_pyfunction_warn() {
         )]
     );
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
     #[pyfunction]
     #[pyo3(warn(message = "TPW: this function raises user-defined warning", category = UserDefinedWarning))]
     fn function_with_warning_and_user_defined_category() {}
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
     py_expect_warning_for_fn!(
         function_with_warning_and_user_defined_category,
         f,

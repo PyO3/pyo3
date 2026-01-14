@@ -133,7 +133,7 @@ If you need to create an exception with more complex behavior, you can also manu
 
 ```rust
 #![allow(dead_code)]
-# #[cfg(any(not(feature = "abi3")))] {
+# #[cfg(any(not(Py_LIMITED_API), Py_3_12))] {
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3::exceptions::PyException;

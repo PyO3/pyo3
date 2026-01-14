@@ -172,8 +172,8 @@ except Exception as e:
     });
 }
 
-// Subclassing builtin types is not allowed in the LIMITED API.
-#[cfg(not(Py_LIMITED_API))]
+// Subclassing builtin types is not possible in the LIMITED API before 3.12
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 mod inheriting_native_type {
     use super::*;
     use pyo3::exceptions::PyException;

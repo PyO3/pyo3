@@ -1,6 +1,6 @@
 #![cfg(feature = "macros")]
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 use pyo3::exceptions::PyWarning;
 use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::prelude::*;
@@ -1220,11 +1220,11 @@ fn test_issue_2988() {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 #[pyclass(extends=PyWarning)]
 pub struct UserDefinedWarning {}
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 #[pymethods]
 impl UserDefinedWarning {
     #[new]
@@ -1258,7 +1258,7 @@ fn test_pymethods_warn() {
         #[pyo3(warn(message = "this method raises warning", category = PyFutureWarning))]
         fn method_with_warning_and_custom_category(_slf: PyRef<'_, Self>) {}
 
-        #[cfg(not(Py_LIMITED_API))]
+        #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
         #[pyo3(warn(message = "this method raises user-defined warning", category = UserDefinedWarning))]
         fn method_with_warning_and_user_defined_category(&self) {}
 
@@ -1325,7 +1325,7 @@ fn test_pymethods_warn() {
         );
 
         // FnType::Fn, user-defined warning
-        #[cfg(not(Py_LIMITED_API))]
+        #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
         py_expect_warning!(
             py,
             obj,

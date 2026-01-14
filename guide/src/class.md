@@ -528,7 +528,7 @@ To convert between the Rust type and its native base class, you can take `slf` a
 To access the Rust fields use `slf.borrow()` or `slf.borrow_mut()`, and to access the base class use `slf.cast::<BaseClass>()`.
 
 ```rust
-# #[cfg(not(Py_LIMITED_API))] {
+# #[cfg(any(not(Py_LIMITED_API), Py_3_12))] {
 # use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::collections::HashMap;
@@ -588,7 +588,7 @@ Be sure to accept arguments in the `#[new]` method that you want the base class 
 
 ```rust
 # #[allow(dead_code)]
-# #[cfg(not(Py_LIMITED_API))] {
+# #[cfg(any(not(Py_LIMITED_API), Py_3_12))] {
 # use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
