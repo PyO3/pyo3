@@ -412,7 +412,7 @@ fn introspection_id_to_type_hint_for_root_module(
 ) -> HashMap<String, Expr> {
     fn add_introspection_id_to_type_hint_for_module(
         module_id: &str,
-        module_full_name: String,
+        module_full_name: &str,
         module_members: &[String],
         chunks_by_id: &HashMap<&str, &Chunk>,
         chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
@@ -436,7 +436,7 @@ fn introspection_id_to_type_hint_for_root_module(
                 } => {
                     add_introspection_id_to_type_hint_for_module(
                         id,
-                        format!("{}.{}", module_full_name, name),
+                        &format!("{}.{}", module_full_name, name),
                         members,
                         chunks_by_id,
                         chunks_by_parent,
@@ -448,7 +448,7 @@ fn introspection_id_to_type_hint_for_root_module(
                         id.clone(),
                         Expr::Attribute {
                             value: Box::new(Expr::Name {
-                                id: module_full_name.clone(),
+                                id: module_full_name.into(),
                             }),
                             attr: name.clone(),
                         },
@@ -468,7 +468,7 @@ fn introspection_id_to_type_hint_for_root_module(
     };
     add_introspection_id_to_type_hint_for_module(
         id,
-        name.into(),
+        name,
         members,
         chunks_by_id,
         chunks_by_parent,
