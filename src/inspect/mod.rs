@@ -116,11 +116,8 @@ pub enum PyStaticExpr {
         value: &'static Self,
         slice: &'static Self,
     },
-    /// A type referred to using its introspection identifier for internal PyO3 use
-    WithIntrospectionId {
-        expr: &'static Self,
-        id: &'static str,
-    },
+    /// A `#[pyclass]` type. This is separated type for introspection reasons.
+    PyClass(PyClassNameStaticExpr),
 }
 
 /// Serialize the type for introspection and return the number of written bytes
@@ -175,9 +172,9 @@ pub const fn serialize_for_introspection(expr: &PyStaticExpr, mut output: &mut [
             output = write_expr_and_move_forward(slice, output);
             output = write_slice_and_move_forward(b"}", output);
         }
-        PyStaticExpr::WithIntrospectionId { id, .. } => {
+        PyStaticExpr::PyClass(expr) => {
             output = write_slice_and_move_forward(b"{\"type\":\"id\",\"id\":\"", output);
-            output = write_slice_and_move_forward(id.as_bytes(), output);
+            output = write_slice_and_move_forward(expr.introspection_id.as_bytes(), output);
             output = write_slice_and_move_forward(b"\"}", output);
         }
     }
@@ -207,7 +204,7 @@ pub const fn serialized_len_for_introspection(expr: &PyStaticExpr) -> usize {
         PyStaticExpr::Subscript { value, slice } => {
             38 + serialized_len_for_introspection(value) + serialized_len_for_introspection(slice)
         }
-        PyStaticExpr::WithIntrospectionId { id, .. } => 21 + id.len(),
+        PyStaticExpr::PyClass(expr) => 21 + expr.introspection_id.len(),
     }
 }
 
@@ -256,7 +253,7 @@ impl fmt::Display for PyStaticExpr {
                 }
                 f.write_char(']')
             }
-            Self::WithIntrospectionId { expr, .. } => expr.fmt(f), // Not supposed to be built by users
+            Self::PyClass(expr) => expr.expr.fmt(f),
         }
     }
 }
@@ -340,6 +337,42 @@ fn fmt_elements(elts: &[PyStaticExpr], f: &mut fmt::Formatter<'_>) -> fmt::Resul
     Ok(())
 }
 
+/// The full name of a `#[pyclass]` inside a [`PyStaticExpr`].
+///
+/// To get the underlying [`PyStaticExpr`] use [`expr`](PyClassNameStaticExpr::expr).
+#[derive(Clone, Copy)]
+pub struct PyClassNameStaticExpr {
+    expr: &'static PyStaticExpr,
+    introspection_id: &'static str,
+}
+
+impl PyClassNameStaticExpr {
+    #[doc(hidden)]
+    #[inline]
+    pub const fn new(expr: &'static PyStaticExpr, introspection_id: &'static str) -> Self {
+        Self {
+            expr,
+            introspection_id,
+        }
+    }
+
+    /// The pyclass type as an expression like `module.name`
+    ///
+    /// This is based on the `name` and `module` parameter of the `#[pyclass]` macro.
+    /// The `module` part might not be a valid module from which the type can be imported.
+    #[inline]
+    pub const fn expr(&self) -> &'static PyStaticExpr {
+        self.expr
+    }
+}
+
+impl AsRef<PyStaticExpr> for PyClassNameStaticExpr {
+    #[inline]
+    fn as_ref(&self) -> &PyStaticExpr {
+        self.expr
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -406,10 +439,10 @@ mod tests {
             r#"{"type":"subscript","value":{"type":"name","id":"list"},"slice":{"type":"name","id":"int"}}"#,
         );
         check_serialization(
-            PyStaticExpr::WithIntrospectionId {
-                id: "foo",
-                expr: &type_hint_identifier!("builtins", "foo"),
-            },
+            PyStaticExpr::PyClass(PyClassNameStaticExpr::new(
+                &type_hint_identifier!("builtins", "foo"),
+                "foo",
+            )),
             r#"{"type":"id","id":"foo"}"#,
         )
     }
