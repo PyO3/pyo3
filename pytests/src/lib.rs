@@ -1,23 +1,22 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pyo3::wrap_pymodule;
 
-pub mod awaitable;
-pub mod buf_and_str;
-pub mod comparisons;
+mod awaitable;
+mod buf_and_str;
+mod comparisons;
 mod consts;
-pub mod datetime;
-pub mod dict_iter;
-pub mod enums;
+mod datetime;
+mod dict_iter;
+mod enums;
 mod exception;
-pub mod misc;
-pub mod objstore;
-pub mod othermod;
-pub mod path;
-pub mod pyclasses;
-pub mod pyfunctions;
-pub mod sequence;
-pub mod subclassing;
+mod misc;
+mod objstore;
+mod othermod;
+mod path;
+mod pyclasses;
+mod pyfunctions;
+mod sequence;
+mod subclassing;
 
 #[pymodule]
 mod pyo3_pytests {
@@ -26,29 +25,23 @@ mod pyo3_pytests {
     #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
     #[pymodule_export]
     use buf_and_str::buf_and_str;
+
+    #[cfg(not(Py_LIMITED_API))]
+    #[pymodule_export]
+    use datetime::datetime;
+
     #[pymodule_export]
     use {
-        comparisons::comparisons, consts::consts, enums::enums, exception::exception,
-        pyclasses::pyclasses, pyfunctions::pyfunctions, subclassing::subclassing,
+        awaitable::awaitable, comparisons::comparisons, consts::consts, dict_iter::dict_iter,
+        enums::enums, exception::exception, misc::misc, objstore::objstore, othermod::othermod,
+        path::path, pyclasses::pyclasses, pyfunctions::pyfunctions, sequence::sequence,
+        subclassing::subclassing,
     };
 
     // Inserting to sys.modules allows importing submodules nicely from Python
     // e.g. import pyo3_pytests.buf_and_str as bas
     #[pymodule_init]
     fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
-        m.add_wrapped(wrap_pymodule!(awaitable::awaitable))?;
-        #[cfg(not(Py_LIMITED_API))]
-        m.add_wrapped(wrap_pymodule!(datetime::datetime))?;
-        m.add_wrapped(wrap_pymodule!(dict_iter::dict_iter))?;
-        m.add_wrapped(wrap_pymodule!(misc::misc))?;
-        m.add_wrapped(wrap_pymodule!(objstore::objstore))?;
-        m.add_wrapped(wrap_pymodule!(othermod::othermod))?;
-        m.add_wrapped(wrap_pymodule!(path::path))?;
-        m.add_wrapped(wrap_pymodule!(sequence::sequence))?;
-
-        // Inserting to sys.modules allows importing submodules nicely from Python
-        // e.g. import pyo3_pytests.buf_and_str as bas
-
         let sys = PyModule::import(m.py(), "sys")?;
         let sys_modules = sys.getattr("modules")?.cast_into::<PyDict>()?;
         sys_modules.set_item("pyo3_pytests.awaitable", m.getattr("awaitable")?)?;

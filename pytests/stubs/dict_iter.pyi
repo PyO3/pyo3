@@ -1,0 +1,6 @@
+from typing import final
+
+@final
+class DictSize:
+    def __new__(cls, /, expected: int) -> DictSize: ...
+    def iter_dict(self, /, dict: dict) -> int: ...
