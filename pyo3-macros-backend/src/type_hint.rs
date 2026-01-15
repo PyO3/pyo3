@@ -169,7 +169,7 @@ impl PyExpr {
                 quote! { <#t as #pyo3_crate_path::type_object::PyTypeCheck>::TYPE_HINT }
             }
             PyExpr::Name { id } => {
-                quote! { #pyo3_crate_path::inspect::PyStaticExpr::Name { id: #id, kind: #pyo3_crate_path::inspect::PyStaticNameKind::Global } }
+                quote! { #pyo3_crate_path::inspect::PyStaticExpr::Name { id: #id } }
             }
             PyExpr::Attribute { value, attr } => {
                 let value = value.to_introspection_token_stream(pyo3_crate_path);
