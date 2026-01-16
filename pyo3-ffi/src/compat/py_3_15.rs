@@ -148,8 +148,6 @@ compat_function!(
         }
         let new_size = (*writer).size + size;
 
-        println!("Growing buffer to new size {}", new_size);
-
         if _PyBytesWriter_Resize_impl(writer, new_size, 1) < 0 {
             return -1;
         }
@@ -183,8 +181,6 @@ unsafe fn _PyBytesWriter_Resize_impl(
         crate::PyBytes_Size((*writer).obj)
     };
 
-    println!("Allocated size: {}", allocated);
-
     if size <= allocated {
         return 0;
     }
@@ -214,8 +210,6 @@ unsafe fn _PyBytesWriter_Resize_impl(
 
         if resize > 0 {
             assert!((size as usize) > std::mem::size_of_val(&(*writer).small_buffer));
-
-            println!("Copying small buffer to new bytes object, amount: {size}");
 
             std::ptr::copy_nonoverlapping(
                 (*writer).small_buffer.as_ptr(),
