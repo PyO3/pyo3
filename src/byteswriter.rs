@@ -1,7 +1,7 @@
-use crate::err::error_on_minusone;
 use crate::types::PyBytes;
 #[cfg(not(Py_LIMITED_API))]
 use crate::{
+    err::error_on_minusone,
     ffi::{
         self,
         compat::{
