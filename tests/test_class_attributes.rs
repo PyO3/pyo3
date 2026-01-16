@@ -151,7 +151,7 @@ fn recursive_class_attributes() {
 }
 
 #[test]
-#[cfg(Py_3_8)] // sys.unraisablehook not available until Python 3.8
+#[cfg(all(Py_3_8, panic = "unwind"))] // sys.unraisablehook not available until Python 3.8
 fn test_fallible_class_attribute() {
     use pyo3::exceptions::PyValueError;
     use test_utils::UnraisableCapture;

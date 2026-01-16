@@ -14,6 +14,7 @@ Below is a list of links to the relevant section of this chapter for each:
   - [`#[new]`](#constructor)
   - [`#[getter]`](#object-properties-using-getter-and-setter)
   - [`#[setter]`](#object-properties-using-getter-and-setter)
+  - [`#[deleter]`](#object-properties-using-getter-and-setter)
   - [`#[staticmethod]`](#static-methods)
   - [`#[classmethod]`](#class-methods)
   - [`#[classattr]`](#class-attributes)
@@ -145,7 +146,7 @@ There is a [detailed discussion on thread-safety](./class/thread-safety.md) late
 
 By default, it is not possible to create an instance of a custom class from Python code.
 To declare a constructor, you need to define a method and annotate it with the `#[new]` attribute.
-Only Python's `__new__` method can be specified, `__init__` is not available.
+A constructor is accessible as Python's `__new__` method.
 
 ```rust
 # #![allow(dead_code)]
@@ -192,6 +193,76 @@ If no method marked with `#[new]` is declared, object instances can only be crea
 
 For arguments, see the [`Method arguments`](#method-arguments) section below.
 
+## Initializer
+
+An initializer implements Python's `__init__` method.
+
+It may be required when it's needed to control an object initalization flow on the Rust code.
+If possible handling this in `__new__` should be preferred, but in some cases, like subclassing native types, overwriting `__init__` might be necessary.
+For example, you define a class that extends `PyDict` and don't want that the original `__init__` method of `PyDict` been called.
+In this case by defining an own `__init__` method it's possible to stop initialization flow.
+
+If you declare an `__init__` method you may need to call a super class' `__init__` method explicitly like in Python code.
+
+To declare an initializer, you need to define the `__init__` method.
+Like in Python `__init__` must have the `self` receiver as the first argument, followed by the same arguments as the constructor.
+It can either return `()` or `PyResult<()>`.
+
+```rust
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+use pyo3::types::{PyDict, PyTuple, PySuper};
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+use crate::pyo3::PyTypeInfo;
+
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+#[pyclass(extends = PyDict)]
+struct MyDict;
+
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+#[pymethods]
+impl MyDict {
+#   #[allow(unused_variables)]
+    #[new]
+    #[pyo3(signature = (*args, **kwargs))]
+    fn __new__(
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<Self> {
+        Ok(Self)
+    }
+
+    #[pyo3(signature = (*args, **kwargs))]
+    fn __init__(
+        slf: &Bound<'_, Self>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<()> {
+        // call the super types __init__
+        PySuper::new(&PyDict::type_object(slf.py()), slf)?
+            .call_method("__init__", args.to_owned(), kwargs)?;
+        // Note: if `MyDict` allows further subclassing, and this is called from such a subclass,
+        // then this will not that any overrides into account that such a subclass may have defined.
+        // In such a case it may be preferred to just call `slf.set_item` and let Python figure it out.
+        slf.as_super().set_item("my_key", "always insert this key")?;
+        Ok(())
+    }
+}
+
+# #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+# fn main() {
+#     Python::attach(|py| {
+#         let typeobj = py.get_type::<MyDict>();
+#         let obj = typeobj.call((), None).unwrap().cast_into::<MyDict>().unwrap();
+#         // check __init__ was called
+#         assert_eq!(obj.get_item("my_key").unwrap().extract::<&str>().unwrap(), "always insert this key");
+#     });
+# }
+# #[cfg(any(Py_LIMITED_API, GraalPy))]
+# fn main() {}
+```
+
 ## Adding the class to a module
 
 The next step is to create the Python module and add our class to it:
@@ -210,7 +281,7 @@ mod my_module {
 }
 ```
 
-## Bound<T> and interior mutability
+## `Bound<T>` and interior mutability { #bound-and-interior-mutability }
 
 It is often useful to turn a `#[pyclass]` type `T` into a Python object and access it from Rust code.
 The [`Py<T>`] and [`Bound<'py, T>`] smart pointers are the ways to represent a Python object in PyO3's API.
@@ -457,7 +528,7 @@ To convert between the Rust type and its native base class, you can take `slf` a
 To access the Rust fields use `slf.borrow()` or `slf.borrow_mut()`, and to access the base class use `slf.cast::<BaseClass>()`.
 
 ```rust
-# #[cfg(not(Py_LIMITED_API))] {
+# #[cfg(any(not(Py_LIMITED_API), Py_3_12))] {
 # use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::collections::HashMap;
@@ -517,7 +588,7 @@ Be sure to accept arguments in the `#[new]` method that you want the base class 
 
 ```rust
 # #[allow(dead_code)]
-# #[cfg(not(Py_LIMITED_API))] {
+# #[cfg(any(not(Py_LIMITED_API), Py_3_12))] {
 # use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
@@ -550,7 +621,7 @@ Here, the `args` and `kwargs` allow creating instances of the subclass passing i
 PyO3 supports two ways to add properties to your `#[pyclass]`:
 
 - For simple struct fields with no side effects, a `#[pyo3(get, set)]` attribute can be added directly to the field definition in the `#[pyclass]`.
-- For properties which require computation you can define `#[getter]` and `#[setter]` functions in the [`#[pymethods]`](#instance-methods) block.
+- For properties which require computation you can define `#[getter]`, `#[setter]` and `#[deleter]` functions in the [`#[pymethods]`](#instance-methods) block.
 
 We'll cover each of these in the following sections.
 
@@ -600,13 +671,43 @@ impl MyClass {
     fn num(&self) -> PyResult<i32> {
         Ok(self.num)
     }
+
+    #[setter]
+    fn set_num(&mut self, num: i32) {
+        self.num = num;
+    }
 }
 ```
 
-A getter or setter's function name is used as the property name by default.
+The `#[deleter]` attribute is also available to delete the property.
+This corresponds to the `del my_object.my_property` python operation.
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::exceptions::PyAttributeError;
+#[pyclass]
+struct MyClass {
+    num: Option<i32>,
+}
+
+#[pymethods]
+impl MyClass {
+    #[getter]
+    fn num(&self) -> PyResult<i32> {
+        self.num.ok_or_else(|| PyAttributeError::new_err("num has been deleted"))
+    }
+
+    #[deleter]
+    fn delete_num(&mut self) {
+        self.num = None;
+    }
+}
+```
+
+A getter, setter or deleters's function name is used as the property name by default.
 There are several ways how to override the name.
 
-If a function name starts with `get_` or `set_` for getter or setter respectively, the descriptor name becomes the function name with this prefix removed.
+If a function name starts with `get_`, `set_` or `delete_` for getter, setter or deleter, respectively, the descriptor name becomes the function name with this prefix removed.
 This is also useful in case of Rust keywords like `type` ([raw identifiers](https://doc.rust-lang.org/edition-guide/rust-2018/module-system/raw-identifiers.html) can be used since Rust 2018).
 
 ```rust
@@ -632,7 +733,7 @@ impl MyClass {
 
 In this case, a property `num` is defined and available from Python code as `self.num`.
 
-Both the `#[getter]` and `#[setter]` attributes accept one parameter.
+The `#[getter]`, `#[setter]` and `#[deleter]` attributes accept one parameter.
 If this parameter is specified, it is used as the property name, i.e.
 
 ```rust
@@ -657,9 +758,6 @@ impl MyClass {
 ```
 
 In this case, the property `number` is defined and available from Python code as `self.number`.
-
-Attributes defined by `#[setter]` or `#[pyo3(set)]` will always raise `AttributeError` on `del` operations.
-Support for defining custom `del` behavior is tracked in [#1778](https://github.com/PyO3/pyo3/issues/1778).
 
 ## Instance methods
 
@@ -807,10 +905,12 @@ Python::attach(|py| {
 });
 ```
 
-> Note: if the method has a `Result` return type and returns an `Err`, PyO3 will panic during
+> [!NOTE]
+> If the method has a `Result` return type and returns an `Err`, PyO3 will panic during
 class creation.
 
-> Note: `#[classattr]` does not work with [`#[pyo3(warn(...))]`](./function.md#warn) attribute.
+> [!NOTE]
+> `#[classattr]` does not work with [`#[pyo3(warn(...))]`](./function.md#warn) attribute.
 
 If the class attribute is defined with `const` code only, one can also annotate associated constants:
 
@@ -1409,21 +1509,24 @@ unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
             .unwrap_or_else(|e| pyo3::impl_::pyclass::type_object_init_failed(
                 py,
                 e,
-                <Self as pyo3::type_object::PyTypeInfo>::NAME
+                <Self as pyo3::PyClass>::NAME
             ))
             .as_type_ptr()
     }
 }
 
 impl pyo3::PyClass for MyClass {
+    const NAME: &str = "MyClass";
     type Frozen = pyo3::pyclass::boolean_struct::False;
 }
 
 impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
+    const MODULE: Option<&str> = None;
     const IS_BASETYPE: bool = false;
     const IS_SUBCLASS: bool = false;
     const IS_MAPPING: bool = false;
     const IS_SEQUENCE: bool = false;
+    type Layout = <Self::BaseNativeType as pyo3::impl_::pyclass::PyClassBaseType>::Layout<Self>;
     type BaseType = PyAny;
     type ThreadChecker = pyo3::impl_::pyclass::SendablePyClass<MyClass>;
     type PyClassMutability = <<pyo3::PyAny as pyo3::impl_::pyclass::PyClassBaseType>::PyClassMutability as pyo3::impl_::pycell::PyClassMutability>::MutableChild;

@@ -372,6 +372,7 @@ fn traverse_partial() {
 }
 
 #[test]
+#[cfg(panic = "unwind")]
 fn traverse_panic() {
     #[pyclass]
     struct PanickyTraverse {
@@ -407,6 +408,7 @@ fn traverse_panic() {
 }
 
 #[test]
+#[cfg(panic = "unwind")]
 fn tries_gil_in_traverse() {
     #[pyclass]
     struct TriesGILInTraverse {}

@@ -4,38 +4,36 @@
 
 use pyo3::prelude::*;
 
-#[pyclass]
-pub struct ModClass {
-    _somefield: String,
-}
+#[pymodule]
+pub mod othermod {
+    use pyo3::prelude::*;
 
-#[pymethods]
-impl ModClass {
-    #[new]
-    fn new() -> Self {
-        ModClass {
-            _somefield: String::from("contents"),
+    #[pyclass]
+    pub struct ModClass {
+        _somefield: String,
+    }
+
+    #[pymethods]
+    impl ModClass {
+        #[new]
+        fn new() -> Self {
+            ModClass {
+                _somefield: String::from("contents"),
+            }
+        }
+
+        fn noop(&self, x: usize) -> usize {
+            x
         }
     }
 
-    fn noop(&self, x: usize) -> usize {
-        x
+    #[pyfunction]
+    fn double(x: i32) -> i32 {
+        x * 2
     }
-}
 
-#[pyfunction]
-fn double(x: i32) -> i32 {
-    x * 2
-}
-
-#[pymodule]
-pub fn othermod(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(double, m)?)?;
-
-    m.add_class::<ModClass>()?;
-
-    m.add("USIZE_MIN", usize::MIN)?;
-    m.add("USIZE_MAX", usize::MAX)?;
-
-    Ok(())
+    #[pymodule_export]
+    pub const USIZE_MIN: usize = usize::MIN;
+    #[pymodule_export]
+    pub const USIZE_MAX: usize = usize::MAX;
 }

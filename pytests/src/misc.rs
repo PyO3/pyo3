@@ -55,11 +55,10 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
 }
 
 #[pymodule]
-pub fn misc(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(issue_219, m)?)?;
-    m.add_function(wrap_pyfunction!(hammer_attaching_in_thread, m)?)?;
-    m.add_function(wrap_pyfunction!(get_type_fully_qualified_name, m)?)?;
-    m.add_function(wrap_pyfunction!(accepts_bool, m)?)?;
-    m.add_function(wrap_pyfunction!(get_item_and_run_callback, m)?)?;
-    Ok(())
+pub mod misc {
+    #[pymodule_export]
+    use super::{
+        accepts_bool, get_item_and_run_callback, get_type_fully_qualified_name,
+        hammer_attaching_in_thread, issue_219,
+    };
 }

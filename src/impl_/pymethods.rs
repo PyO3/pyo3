@@ -1,10 +1,10 @@
 use crate::exceptions::PyStopAsyncIteration;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
-use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout};
+use crate::impl_::pycell::PyClassObjectBaseLayout;
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
 use crate::internal::state::ForbidAttaching;
-use crate::pycell::impl_::PyClassBorrowChecker as _;
+use crate::pycell::impl_::{PyClassBorrowChecker as _, PyClassObjectLayout};
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::PyType;
@@ -19,6 +19,7 @@ use std::marker::PhantomData;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr::{null_mut, NonNull};
 
+use super::pyclass::PyClassImpl;
 use super::trampoline;
 use crate::internal_tricks::{clear_eq, traverse_eq};
 
@@ -65,8 +66,10 @@ pub enum PyMethodDefType {
     ClassAttribute(PyClassAttributeDef),
     /// Represents getter descriptor, used by `#[getter]`
     Getter(PyGetterDef),
-    /// Represents setter descriptor, used by `#[setter]`
+    /// Represents setter descriptor, used by `#[setter]` and `#[deleter]`
     Setter(PySetterDef),
+    /// Represents deleter descriptor, used by `#[deleter]`
+    Deleter(PyDeleterDef),
     /// Represents a struct member
     StructMember(ffi::PyMemberDef),
 }
@@ -106,6 +109,13 @@ pub struct PyGetterDef {
 pub struct PySetterDef {
     pub(crate) name: &'static CStr,
     pub(crate) meth: Setter,
+    pub(crate) doc: &'static CStr,
+}
+
+#[derive(Copy, Clone)]
+pub struct PyDeleterDef {
+    pub(crate) name: &'static CStr,
+    pub(crate) meth: Deleter,
     pub(crate) doc: &'static CStr,
 }
 
@@ -201,6 +211,7 @@ pub(crate) type Getter =
     for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>;
 pub(crate) type Setter =
     for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject, *mut ffi::PyObject) -> PyResult<c_int>;
+pub(crate) type Deleter = for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<c_int>;
 
 impl PyGetterDef {
     /// Define a getter.
@@ -219,6 +230,17 @@ impl PySetterDef {
         Self {
             name,
             meth: setter,
+            doc,
+        }
+    }
+}
+
+impl PyDeleterDef {
+    /// Define a deleter.
+    pub const fn new(name: &'static CStr, deleter: Deleter, doc: &'static CStr) -> Self {
+        Self {
+            name,
+            meth: deleter,
             doc,
         }
     }
@@ -285,7 +307,7 @@ where
 
     // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
     // traversal is running so no mutations can occur.
-    let class_object: &PyClassObject<T> = unsafe { &*slf.cast() };
+    let class_object: &<T as PyClassImpl>::Layout = unsafe { &*slf.cast() };
 
     let retval =
     // `#[pyclass(unsendable)]` types can only be deallocated by their own thread, so
@@ -293,8 +315,8 @@ where
     if class_object.check_threadsafe().is_ok()
     // ... and we cannot traverse a type which might be being mutated by a Rust thread
     && class_object.borrow_checker().try_borrow().is_ok() {
-        struct TraverseGuard<'a, T: PyClass>(&'a PyClassObject<T>);
-        impl<T: PyClass> Drop for TraverseGuard<'_,  T> {
+        struct TraverseGuard<'a, T: PyClassImpl>(&'a T::Layout);
+        impl<T: PyClassImpl> Drop for TraverseGuard<'_, T> {
             fn drop(&mut self) {
                 self.0.borrow_checker().release_borrow()
             }
@@ -302,8 +324,8 @@ where
 
         // `.try_borrow()` above created a borrow, we need to release it when we're done
         // traversing the object. This allows us to read `instance` safely.
-        let _guard = TraverseGuard(class_object);
-        let instance = unsafe {&*class_object.contents.value.get()};
+        let _guard = TraverseGuard::<T>(class_object);
+        let instance = unsafe {&*class_object.contents().value.get()};
 
         let visit = PyVisit { visit, arg, _guard: PhantomData };
 

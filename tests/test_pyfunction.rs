@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 use pyo3::exceptions::PyWarning;
 use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::prelude::*;
@@ -45,6 +45,32 @@ fn test_optional_bool() {
         py_assert!(py, f, "f(True) == 'Some(true)'");
         py_assert!(py, f, "f(False) == 'Some(false)'");
         py_assert!(py, f, "f(None) == 'None'");
+    });
+}
+
+#[test]
+fn test_trailing_optional_no_signature() {
+    // Since PyO3 0.24, trailing optional arguments are treated like any other required argument
+    // (previously would get an implicit default of `None`)
+
+    #[pyfunction]
+    fn trailing_optional(x: i32, y: Option<i32>) -> String {
+        format!("x={x:?} y={y:?}")
+    }
+
+    Python::attach(|py| {
+        let f = wrap_pyfunction!(trailing_optional)(py).unwrap();
+
+        py_assert!(py, f, "f(1, 2) == 'x=1 y=Some(2)'");
+        py_assert!(py, f, "f(2, None) == 'x=2 y=None'");
+
+        py_expect_exception!(
+            py,
+            f,
+            "f(3)",
+            PyTypeError,
+            "trailing_optional() missing 1 required positional argument: 'y'"
+        );
     });
 }
 
@@ -220,7 +246,7 @@ fn test_function_with_custom_conversion_error() {
             custom_conv_func,
             "custom_conv_func(['a'])",
             PyTypeError,
-            "argument 'timestamp': 'list' object cannot be cast as 'datetime'"
+            "argument 'timestamp': 'list' object is not an instance of 'datetime'"
         );
     });
 }
@@ -292,14 +318,14 @@ fn test_conversion_error() {
             conversion_error,
             "conversion_error(None, None, None, None, None)",
             PyTypeError,
-            "argument 'str_arg': 'NoneType' object cannot be cast as 'str'"
+            "argument 'str_arg': 'None' is not an instance of 'str'"
         );
         py_expect_exception!(
             py,
             conversion_error,
             "conversion_error(100, None, None, None, None)",
             PyTypeError,
-            "argument 'str_arg': 'int' object cannot be cast as 'str'"
+            "argument 'str_arg': 'int' object is not an instance of 'str'"
         );
         py_expect_exception!(
             py,
@@ -313,7 +339,7 @@ fn test_conversion_error() {
             conversion_error,
             "conversion_error('string1', -100, 'string2', None, None)",
             PyTypeError,
-            "argument 'tuple_arg': 'str' object cannot be cast as 'tuple'"
+            "argument 'tuple_arg': 'str' object is not an instance of 'tuple'"
         );
         py_expect_exception!(
             py,
@@ -582,7 +608,10 @@ fn test_return_value_borrows_from_arguments() {
 
 #[test]
 fn test_some_wrap_arguments() {
-    // https://github.com/PyO3/pyo3/issues/3460
+    // Option<T> arguments get special treatment in pyfunction default values where it's
+    // valid to pass the inner type without wrapping in `Some()`.
+    //
+    // See also https://github.com/PyO3/pyo3/issues/3460
     const NONE: Option<u8> = None;
     #[pyfunction(signature = (a = 1, b = Some(2), c = None, d = NONE))]
     fn some_wrap_arguments(
@@ -645,11 +674,11 @@ fn test_pyfunction_raw_ident() {
     })
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 #[pyclass(extends=PyWarning)]
 pub struct UserDefinedWarning {}
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 #[pymethods]
 impl UserDefinedWarning {
     #[new]
@@ -697,12 +726,12 @@ fn test_pyfunction_warn() {
         )]
     );
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
     #[pyfunction]
     #[pyo3(warn(message = "TPW: this function raises user-defined warning", category = UserDefinedWarning))]
     fn function_with_warning_and_user_defined_category() {}
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
     py_expect_warning_for_fn!(
         function_with_warning_and_user_defined_category,
         f,

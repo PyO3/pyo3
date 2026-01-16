@@ -2,7 +2,9 @@ use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, Python,
 };
@@ -29,6 +31,8 @@ pyobject_native_type!(
     PyFloat,
     ffi::PyFloatObject,
     pyobject_native_static_type_object!(ffi::PyFloat_Type),
+    "builtins",
+    "float",
     #checkfunction=ffi::PyFloat_Check
 );
 
@@ -75,7 +79,7 @@ impl<'py> IntoPyObject<'py> for f64 {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = TypeHint::builtin("float");
+    const OUTPUT_TYPE: PyStaticExpr = PyFloat::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -94,7 +98,7 @@ impl<'py> IntoPyObject<'py> for &f64 {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = f64::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = f64::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -111,7 +115,7 @@ impl<'py> FromPyObject<'_, 'py> for f64 {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::builtin("float");
+    const INPUT_TYPE: PyStaticExpr = PyFloat::TYPE_HINT;
 
     // PyFloat_AsDouble returns -1.0 upon failure
     #[allow(clippy::float_cmp)]
@@ -148,7 +152,7 @@ impl<'py> IntoPyObject<'py> for f32 {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = TypeHint::builtin("float");
+    const OUTPUT_TYPE: PyStaticExpr = PyFloat::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -167,7 +171,7 @@ impl<'py> IntoPyObject<'py> for &f32 {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = f32::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = f32::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -184,7 +188,7 @@ impl<'a, 'py> FromPyObject<'a, 'py> for f32 {
     type Error = <f64 as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = TypeHint::builtin("float");
+    const INPUT_TYPE: PyStaticExpr = PyFloat::TYPE_HINT;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         Ok(obj.extract::<f64>()? as f32)

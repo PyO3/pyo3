@@ -790,7 +790,7 @@ impl DescrCounter {
 fn descr_getset() {
     Python::attach(|py| {
         let counter = py.get_type::<DescrCounter>();
-        let source = pyo3_ffi::c_str!(indoc::indoc!(
+        let source = pyo3_ffi::c_str!(
             r#"
 class Class:
     counter = Counter()
@@ -814,7 +814,7 @@ assert c.counter.count == 4
 del c.counter
 assert c.counter.count == 1
 "#
-        ));
+        );
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Counter", counter).unwrap();
         py.run(source, Some(&globals), None)

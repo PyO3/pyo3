@@ -1,7 +1,7 @@
 use std::cell::Cell;
 
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
 use crate::{conversion::IntoPyObject, Borrowed, FromPyObject, PyAny, Python};
 
 impl<'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for Cell<T> {
@@ -10,7 +10,7 @@ impl<'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for Cell<T> {
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = T::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = T::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -24,7 +24,7 @@ impl<'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for &Cell<T> {
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: TypeHint = T::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = T::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -36,7 +36,7 @@ impl<'a, 'py, T: FromPyObject<'a, 'py>> FromPyObject<'a, 'py> for Cell<T> {
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = T::INPUT_TYPE;
+    const INPUT_TYPE: PyStaticExpr = T::INPUT_TYPE;
 
     fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         ob.extract().map(Cell::new)

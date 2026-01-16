@@ -1,12 +1,16 @@
+#[cfg(not(GraalPy))]
 use crate::object::*;
+#[cfg(not(any(PyPy, GraalPy)))]
 use crate::pyport::Py_ssize_t;
 
+#[cfg(not(PyPy))]
 opaque_struct!(pub PyDictKeysObject);
 
 #[cfg(Py_3_11)]
+#[cfg(not(PyPy))]
 opaque_struct!(pub PyDictValues);
 
-#[cfg(not(GraalPy))]
+#[cfg(not(any(GraalPy, PyPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyDictObject {
@@ -27,37 +31,37 @@ pub struct PyDictObject {
     pub ma_values: *mut PyDictValues,
 }
 
-extern "C" {
-    // skipped _PyDict_GetItem_KnownHash
-    // skipped _PyDict_GetItemIdWithError
-    // skipped _PyDict_GetItemStringWithError
-    // skipped PyDict_SetDefault
-    // skipped private _PyDict_SetItem_KnownHash
-    // skipped _PyDict_DelItem_KnownHash
-    // skipped _PyDict_DelItemIf
-    // skipped _PyDict_NewKeysForClass
-    // skipped _PyDict_Next
-    // skipped PyDict_GET_SIZE
-    // skipped _PyDict_ContainsId
-    // skipped _PyDict_NewPresized
-    // skipped _PyDict_MaybeUntrack
-    // skipped _PyDict_HasOnlyStringKeys
-    // skipped _PyDict_KeysSize
-    // skipped _PyDict_SizeOf
-    // skipped _PyDict_Pop
-    // skipped _PyDict_Pop_KnownHash
-    // skipped _PyDict_FromKeys
-    // skipped _PyDict_HasSplitTable
-    // skipped _PyDict_MergeEx
-    // skipped _PyDict_SetItemId
-    // skipped _PyDict_DelItemId
-    // skipped _PyDict_DebugMallocStats
-    // skipped _PyObjectDict_SetItem
-    // skipped _PyDict_LoadGlobal
-    // skipped _PyDict_GetItemHint
-    // skipped _PyDictViewObject
-    // skipped _PyDictView_New
-    // skipped _PyDictView_Intersect
-
-    // skipped _PyDict_Contains_KnownHash
+#[cfg(PyPy)]
+#[repr(C)]
+#[derive(Debug)]
+pub struct PyDictObject {
+    pub ob_base: PyObject,
+    _tmpkeys: *mut PyObject,
 }
+
+// skipped private _PyDict_GetItem_KnownHash
+// skipped private _PyDict_GetItemStringWithError
+
+// skipped PyDict_SetDefault
+// skipped PyDict_SetDefaultRef
+
+// skipped PyDict_GET_SIZE
+// skipped PyDict_ContainsString
+
+// skipped private _PyDict_NewPresized
+
+// skipped PyDict_Pop
+// skipped PyDict_PopString
+
+// skipped private _PyDict_Pop
+
+// skipped PY_FOREACH_DICT_EVENT
+// skipped PyDict_WatchEvent
+
+// skipped PyDict_WatchCallback
+
+// skipped PyDict_AddWatcher
+// skipped PyDict_ClearWatcher
+
+// skipped PyDict_Watch
+// skipped PyDict_Unwatch

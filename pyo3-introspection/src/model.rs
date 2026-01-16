@@ -11,18 +11,22 @@ pub struct Module {
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Class {
     pub name: String,
+    pub bases: Vec<Expr>,
     pub methods: Vec<Function>,
     pub attributes: Vec<Attribute>,
+    /// decorator like 'typing.final'
+    pub decorators: Vec<Expr>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Function {
     pub name: String,
     /// decorator like 'property' or 'staticmethod'
-    pub decorators: Vec<String>,
+    pub decorators: Vec<Expr>,
     pub arguments: Arguments,
     /// return type
     pub returns: Option<TypeHint>,
+    pub is_async: bool,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -70,22 +74,47 @@ pub struct VariableLengthArgument {
 /// Might be a plain string or an AST fragment
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub enum TypeHint {
-    Ast(TypeHintExpr),
+    Ast(Expr),
     Plain(String),
 }
 
-/// A type hint annotation as an AST fragment
+/// A python expression
+///
+/// This is the `expr` production of the [Python `ast` module grammar](https://docs.python.org/3/library/ast.html#abstract-grammar)
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
-pub enum TypeHintExpr {
-    /// A Python builtin like `int`
-    Builtin { id: String },
-    /// The attribute of a python object like `{value}.{attr}`
-    Attribute { module: String, attr: String },
-    /// A union `{left} | {right}`
-    Union { elts: Vec<TypeHintExpr> },
-    /// A subscript `{value}[*slice]`
-    Subscript {
-        value: Box<TypeHintExpr>,
-        slice: Vec<TypeHintExpr>,
+pub enum Expr {
+    /// A constant like `None` or `123`
+    Constant { value: Constant },
+    /// A name
+    Name { id: String },
+    /// An attribute `value.attr`
+    Attribute { value: Box<Self>, attr: String },
+    /// A binary operator
+    BinOp {
+        left: Box<Self>,
+        op: Operator,
+        right: Box<Self>,
     },
+    /// A tuple
+    Tuple { elts: Vec<Self> },
+    /// A list
+    List { elts: Vec<Self> },
+    /// A subscript `value[slice]`
+    Subscript { value: Box<Self>, slice: Box<Self> },
+}
+
+/// A PyO3 extension to the Python AST to know more about [`Expr::Constant`].
+///
+/// This enables advanced features like escaping.
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
+pub enum Constant {
+    /// None
+    None,
+}
+
+/// An operator used in [`Expr::BinOp`].
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
+pub enum Operator {
+    /// `|` operator
+    BitOr,
 }

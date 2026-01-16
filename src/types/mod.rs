@@ -39,7 +39,6 @@ pub use self::mutex::{PyMutex, PyMutexGuard};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
 pub use self::num::PyInt;
-#[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
 pub use self::range::{PyRange, PyRangeMethods};
 pub use self::sequence::{PySequence, PySequenceMethods};
@@ -140,6 +139,23 @@ macro_rules! pyobject_native_static_type_object(
     };
 );
 
+/// Adds a TYPE_HINT constant if the `experimental-inspect`  feature is enabled.
+#[cfg(not(feature = "experimental-inspect"))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! pyobject_type_info_type_hint(
+    ($module:expr, $name:expr) => {};
+);
+
+#[cfg(feature = "experimental-inspect")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! pyobject_type_info_type_hint(
+    ($module:expr, $name:expr) => {
+        const TYPE_HINT: $crate::inspect::PyStaticExpr = $crate::type_hint_identifier!($module, $name);
+    };
+);
+
 /// Implements the `PyTypeInfo` trait for a native Python type.
 ///
 /// # Safety
@@ -150,11 +166,12 @@ macro_rules! pyobject_native_static_type_object(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_info(
-    ($name:ty, $typeobject:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         // SAFETY: macro caller has upheld the safety contracts
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
+            $crate::pyobject_type_info_type_hint!($type_hint_module, $type_hint_name);
 
             #[inline]
             #[allow(clippy::redundant_closure_call)]
@@ -187,12 +204,15 @@ macro_rules! pyobject_native_type_info(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_core {
-    ($name:ty, $typeobject:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_named!($name $(;$generics)*);
-        $crate::pyobject_native_type_info!($name, $typeobject, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_info!($name, $typeobject, $type_hint_module, $type_hint_name, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
-    ($name:ty, $typeobject:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!($name, $typeobject, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=$module $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    };
+    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
 }
 
@@ -206,6 +226,16 @@ macro_rules! pyobject_subclassable_native_type {
             type BaseNativeType = $name;
             type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
             type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
+            type Layout<T: $crate::impl_::pyclass::PyClassImpl> = $crate::impl_::pycell::PyStaticClassObject<T>;
+        }
+
+        #[cfg(all(Py_3_12, Py_LIMITED_API))]
+        impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
+            type LayoutAsBase = $crate::impl_::pycell::PyVariableClassObjectBase;
+            type BaseNativeType = Self;
+            type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+            type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
+            type Layout<T: $crate::impl_::pyclass::PyClassImpl> = $crate::impl_::pycell::PyVariableClassObject<T>;
         }
     }
 }
@@ -224,8 +254,8 @@ macro_rules! pyobject_native_type_sized {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type {
-    ($name:ty, $layout:path, $typeobject:expr $(, #module=$module:expr)? $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!($name, $typeobject $(, #module=$module)? $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    ($name:ty, $layout:path, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr $(, #module=$module:expr)? $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name $(, #module=$module)? $(, #checkfunction=$checkfunction)? $(;$generics)*);
         // To prevent inheriting native types with ABI3
         #[cfg(not(Py_LIMITED_API))]
         $crate::pyobject_native_type_sized!($name, $layout $(;$generics)*);
@@ -260,7 +290,6 @@ mod mutex;
 mod none;
 mod notimplemented;
 mod num;
-#[cfg(not(any(PyPy, GraalPy)))]
 mod pysuper;
 pub(crate) mod range;
 pub(crate) mod sequence;

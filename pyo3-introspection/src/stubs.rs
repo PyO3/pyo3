@@ -1,8 +1,9 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Function, Module, TypeHint, TypeHintExpr,
+    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator, TypeHint,
     VariableLengthArgument,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::iter::once;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -54,7 +55,7 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
         elements.push(class_stubs(class, &imports));
     }
     for function in &module.functions {
-        elements.push(function_stubs(function, &imports));
+        elements.push(function_stubs(function, &imports, None));
     }
 
     // We generate a __getattr__ method to tag incomplete stubs
@@ -69,18 +70,22 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
                     arguments: vec![Argument {
                         name: "name".to_string(),
                         default_value: None,
-                        annotation: Some(TypeHint::Ast(TypeHintExpr::Builtin { id: "str".into() })),
+                        annotation: Some(TypeHint::Ast(Expr::Name { id: "str".into() })),
                     }],
                     vararg: None,
                     keyword_only_arguments: Vec::new(),
                     kwarg: None,
                 },
-                returns: Some(TypeHint::Ast(TypeHintExpr::Attribute {
-                    module: "_typeshed".into(),
+                returns: Some(TypeHint::Ast(Expr::Attribute {
+                    value: Box::new(Expr::Name {
+                        id: "_typeshed".into(),
+                    }),
                     attr: "Incomplete".into(),
                 })),
+                is_async: false,
             },
             &imports,
+            None,
         ));
     }
 
@@ -110,7 +115,25 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
 }
 
 fn class_stubs(class: &Class, imports: &Imports) -> String {
-    let mut buffer = format!("class {}:", class.name);
+    let mut buffer = String::new();
+    for decorator in &class.decorators {
+        buffer.push('@');
+        imports.serialize_expr(decorator, &mut buffer);
+        buffer.push('\n');
+    }
+    buffer.push_str("class ");
+    buffer.push_str(&class.name);
+    if !class.bases.is_empty() {
+        buffer.push('(');
+        for (i, base) in class.bases.iter().enumerate() {
+            if i > 0 {
+                buffer.push_str(", ");
+            }
+            imports.serialize_expr(base, &mut buffer);
+        }
+        buffer.push(')');
+    }
+    buffer.push(':');
     if class.methods.is_empty() && class.attributes.is_empty() {
         buffer.push_str(" ...");
         return buffer;
@@ -123,12 +146,13 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
     for method in &class.methods {
         // We do the indentation
         buffer.push_str("\n    ");
-        buffer.push_str(&function_stubs(method, imports).replace('\n', "\n    "));
+        buffer
+            .push_str(&function_stubs(method, imports, Some(&class.name)).replace('\n', "\n    "));
     }
     buffer
 }
 
-fn function_stubs(function: &Function, imports: &Imports) -> String {
+fn function_stubs(function: &Function, imports: &Imports, class_name: Option<&str>) -> String {
     // Signature
     let mut parameters = Vec::new();
     for argument in &function.arguments.positional_only_arguments {
@@ -160,9 +184,21 @@ fn function_stubs(function: &Function, imports: &Imports) -> String {
     let mut buffer = String::new();
     for decorator in &function.decorators {
         buffer.push('@');
-        buffer.push_str(decorator);
+        // We remove the class name if it's a prefix to get nicer decorators
+        let mut decorator_buffer = String::new();
+        imports.serialize_expr(decorator, &mut decorator_buffer);
+        if let Some(class_name) = class_name {
+            if let Some(decorator) = decorator_buffer.strip_prefix(&format!("{class_name}.")) {
+                decorator_buffer = decorator.into();
+            }
+        }
+        buffer.push_str(&decorator_buffer);
         buffer.push('\n');
     }
+    if function.is_async {
+        buffer.push_str("async ");
+    }
+
     buffer.push_str("def ");
     buffer.push_str(&function.name);
     buffer.push('(');
@@ -217,7 +253,7 @@ fn variable_length_argument_stub(argument: &VariableLengthArgument, imports: &Im
 
 fn type_hint_stub(type_hint: &TypeHint, imports: &Imports, buffer: &mut String) {
     match type_hint {
-        TypeHint::Ast(t) => imports.serialize_type_hint(t, buffer),
+        TypeHint::Ast(t) => imports.serialize_expr(t, buffer),
         TypeHint::Plain(t) => buffer.push_str(t),
     }
 }
@@ -247,38 +283,30 @@ impl Imports {
         let mut renaming = BTreeMap::new();
         let mut local_name_to_module_and_attribute = BTreeMap::new();
 
-        // We first process local and built-ins elements, they are never aliased or imported
+        // We get the current module full name
+        let current_module_name = module_parents
+            .iter()
+            .copied()
+            .chain(once(module.name.as_str()))
+            .collect::<Vec<_>>()
+            .join(".");
+
+        // We first list local elements, they are never aliased or imported
         for name in module
             .classes
             .iter()
             .map(|c| c.name.clone())
             .chain(module.functions.iter().map(|f| f.name.clone()))
             .chain(module.attributes.iter().map(|a| a.name.clone()))
-            .chain(elements_used_in_annotations.builtins)
         {
-            local_name_to_module_and_attribute.insert(name.clone(), (None, name.clone()));
+            local_name_to_module_and_attribute
+                .insert(name.clone(), (current_module_name.clone(), name.clone()));
         }
-
-        // We compute the set of ways the current module can be named
-        let mut possible_current_module_names = vec![module.name.clone()];
-        let mut current_module_name = Some(module.name.clone());
-        for parent in module_parents.iter().rev() {
-            let path = if let Some(current) = current_module_name {
-                format!("{parent}.{current}")
-            } else {
-                parent.to_string()
-            };
-            possible_current_module_names.push(path.clone());
-            current_module_name = Some(path);
-        }
+        // We don't process the current module elements, no need to care about them
+        local_name_to_module_and_attribute.remove(&current_module_name);
 
         // We process then imports, normalizing local imports
-        for (module, attrs) in elements_used_in_annotations.module_members {
-            let normalized_module = if possible_current_module_names.contains(&module) {
-                None
-            } else {
-                Some(module.clone())
-            };
+        for (module, attrs) in &elements_used_in_annotations.module_to_name {
             let mut import_for_module = Vec::new();
             for attr in attrs {
                 // We split nested classes A.B in "A" (the part that must be imported and can have naming conflicts) and ".B"
@@ -290,9 +318,7 @@ impl Imports {
                 while let Some((possible_conflict_module, possible_conflict_attr)) =
                     local_name_to_module_and_attribute.get(&local_name)
                 {
-                    if *possible_conflict_module == normalized_module
-                        && *possible_conflict_attr == root_attr
-                    {
+                    if possible_conflict_module == module && *possible_conflict_attr == root_attr {
                         // It's the same
                         already_imported = true;
                         break;
@@ -320,73 +346,110 @@ impl Imports {
                     },
                 );
                 if !already_imported {
-                    local_name_to_module_and_attribute.insert(
-                        local_name.clone(),
-                        (normalized_module.clone(), root_attr.to_owned()),
-                    );
-                    import_for_module.push(if local_name == root_attr {
-                        local_name
-                    } else {
-                        format!("{root_attr} as {local_name}")
-                    });
+                    local_name_to_module_and_attribute
+                        .insert(local_name.clone(), (module.clone(), root_attr.to_owned()));
+                    let is_not_aliased_builtin = module == "builtins" && local_name == root_attr;
+                    if !is_not_aliased_builtin {
+                        import_for_module.push(if local_name == root_attr {
+                            local_name
+                        } else {
+                            format!("{root_attr} as {local_name}")
+                        });
+                    }
                 }
             }
-            if let Some(module) = normalized_module {
+            if !import_for_module.is_empty() {
                 imports.push(format!(
                     "from {module} import {}",
                     import_for_module.join(", ")
                 ));
             }
         }
+        imports.sort(); // We make sure they are sorted
 
         Self { imports, renaming }
     }
 
-    fn serialize_type_hint(&self, expr: &TypeHintExpr, buffer: &mut String) {
+    fn serialize_expr(&self, expr: &Expr, buffer: &mut String) {
         match expr {
-            TypeHintExpr::Builtin { id } => buffer.push_str(id),
-            TypeHintExpr::Attribute { module, attr } => {
-                let alias = self
-                    .renaming
-                    .get(&(module.clone(), attr.clone()))
-                    .expect("All type hint attributes should have been visited");
-                buffer.push_str(alias)
+            Expr::Constant { value } => match value {
+                Constant::None => buffer.push_str("None"),
+            },
+            Expr::Name { id } => {
+                buffer.push_str(
+                    self.renaming
+                        .get(&("builtins".into(), id.clone()))
+                        .expect("All type hint attributes should have been visited"),
+                );
             }
-            TypeHintExpr::Union { elts } => {
-                for (i, elt) in elts.iter().enumerate() {
-                    if i > 0 {
-                        buffer.push_str(" | ");
-                    }
-                    self.serialize_type_hint(elt, buffer);
+            Expr::Attribute { value, attr } => {
+                if let Expr::Name { id, .. } = &**value {
+                    buffer.push_str(
+                        self.renaming
+                            .get(&(id.clone(), attr.clone()))
+                            .expect("All type hint attributes should have been visited"),
+                    );
+                } else {
+                    self.serialize_expr(value, buffer);
+                    buffer.push('.');
+                    buffer.push_str(attr);
                 }
             }
-            TypeHintExpr::Subscript { value, slice } => {
-                self.serialize_type_hint(value, buffer);
+            Expr::BinOp { left, op, right } => {
+                self.serialize_expr(left, buffer);
+                buffer.push(' ');
+                buffer.push(match op {
+                    Operator::BitOr => '|',
+                });
+                self.serialize_expr(right, buffer);
+            }
+            Expr::Tuple { elts } => {
+                buffer.push('(');
+                self.serialize_elts(elts, buffer);
+                if elts.len() == 1 {
+                    buffer.push(',');
+                }
+                buffer.push(')')
+            }
+            Expr::List { elts } => {
                 buffer.push('[');
-                for (i, elt) in slice.iter().enumerate() {
-                    if i > 0 {
-                        buffer.push_str(", ");
-                    }
-                    self.serialize_type_hint(elt, buffer);
+                self.serialize_elts(elts, buffer);
+                buffer.push(']')
+            }
+            Expr::Subscript { value, slice } => {
+                self.serialize_expr(value, buffer);
+                buffer.push('[');
+                if let Expr::Tuple { elts } = &**slice {
+                    // We don't display the tuple parentheses
+                    self.serialize_elts(elts, buffer);
+                } else {
+                    self.serialize_expr(slice, buffer);
                 }
                 buffer.push(']');
             }
+        }
+    }
+
+    fn serialize_elts(&self, elts: &[Expr], buffer: &mut String) {
+        for (i, elt) in elts.iter().enumerate() {
+            if i > 0 {
+                buffer.push_str(", ");
+            }
+            self.serialize_expr(elt, buffer);
         }
     }
 }
 
 /// Lists all the elements used in annotations
 struct ElementsUsedInAnnotations {
-    /// module -> name
-    module_members: BTreeMap<String, BTreeSet<String>>,
-    builtins: BTreeSet<String>,
+    /// module -> name where module is global (from the root of the interpreter).
+    module_to_name: BTreeMap<String, BTreeSet<String>>,
 }
 
 impl ElementsUsedInAnnotations {
     fn new() -> Self {
         Self {
-            module_members: BTreeMap::new(),
-            builtins: BTreeSet::new(),
+            module_to_name: BTreeMap::new(),
         }
     }
 
@@ -401,8 +464,11 @@ impl ElementsUsedInAnnotations {
             self.walk_function(function);
         }
         if module.incomplete {
-            self.builtins.insert("str".into());
-            self.module_members
+            self.module_to_name
+                .entry("builtins".into())
+                .or_default()
+                .insert("str".into());
+            self.module_to_name
                 .entry("_typeshed".into())
                 .or_default()
                 .insert("Incomplete".into());
@@ -410,6 +476,12 @@ impl ElementsUsedInAnnotations {
     }
 
     fn walk_class(&mut self, class: &Class) {
+        for base in &class.bases {
+            self.walk_expr(base);
+        }
+        for decorator in &class.decorators {
+            self.walk_expr(decorator);
+        }
         for method in &class.methods {
             self.walk_function(method);
         }
@@ -426,7 +498,7 @@ impl ElementsUsedInAnnotations {
 
     fn walk_function(&mut self, function: &Function) {
         for decorator in &function.decorators {
-            self.builtins.insert(decorator.clone());
+            self.walk_expr(decorator);
         }
         for arg in function
             .arguments
@@ -457,32 +529,42 @@ impl ElementsUsedInAnnotations {
 
     fn walk_type_hint(&mut self, type_hint: &TypeHint) {
         if let TypeHint::Ast(type_hint) = type_hint {
-            self.walk_type_hint_expr(type_hint);
+            self.walk_expr(type_hint);
         }
     }
 
-    fn walk_type_hint_expr(&mut self, expr: &TypeHintExpr) {
+    fn walk_expr(&mut self, expr: &Expr) {
         match expr {
-            TypeHintExpr::Builtin { id } => {
-                self.builtins.insert(id.clone());
-            }
-            TypeHintExpr::Attribute { module, attr } => {
-                self.module_members
-                    .entry(module.clone())
+            Expr::Name { id } => {
+                self.module_to_name
+                    .entry("builtins".into())
                     .or_default()
-                    .insert(attr.clone());
+                    .insert(id.clone());
             }
-            TypeHintExpr::Union { elts } => {
+            Expr::Attribute { value, attr } => {
+                if let Expr::Name { id } = &**value {
+                    self.module_to_name
+                        .entry(id.into())
+                        .or_default()
+                        .insert(attr.clone());
+                } else {
+                    self.walk_expr(value)
+                }
+            }
+            Expr::BinOp { left, right, .. } => {
+                self.walk_expr(left);
+                self.walk_expr(right);
+            }
+            Expr::Subscript { value, slice } => {
+                self.walk_expr(value);
+                self.walk_expr(slice);
+            }
+            Expr::Tuple { elts } | Expr::List { elts } => {
                 for elt in elts {
-                    self.walk_type_hint_expr(elt)
+                    self.walk_expr(elt)
                 }
             }
-            TypeHintExpr::Subscript { value, slice } => {
-                self.walk_type_hint_expr(value);
-                for elt in slice {
-                    self.walk_type_hint_expr(elt);
-                }
-            }
+            Expr::Constant { .. } => (),
         }
     }
 }
@@ -523,10 +605,11 @@ mod tests {
                 }),
             },
             returns: Some(TypeHint::Plain("list[str]".into())),
+            is_async: false,
         };
         assert_eq!(
             "def func(posonly, /, arg, *varargs, karg: str, **kwarg: str) -> list[str]: ...",
-            function_stubs(&function, &Imports::default())
+            function_stubs(&function, &Imports::default(), None)
         )
     }
 
@@ -555,57 +638,106 @@ mod tests {
                 kwarg: None,
             },
             returns: None,
+            is_async: false,
         };
         assert_eq!(
             "def afunc(posonly=1, /, arg=True, *, karg: str = \"foo\"): ...",
-            function_stubs(&function, &Imports::default())
+            function_stubs(&function, &Imports::default(), None)
+        )
+    }
+
+    #[test]
+    fn test_function_async() {
+        let function = Function {
+            name: "foo".into(),
+            decorators: Vec::new(),
+            arguments: Arguments {
+                positional_only_arguments: Vec::new(),
+                arguments: Vec::new(),
+                vararg: None,
+                keyword_only_arguments: Vec::new(),
+                kwarg: None,
+            },
+            returns: None,
+            is_async: true,
+        };
+        assert_eq!(
+            "async def foo(): ...",
+            function_stubs(&function, &Imports::default(), None)
         )
     }
 
     #[test]
     fn test_import() {
-        let big_type = TypeHintExpr::Subscript {
-            value: Box::new(TypeHintExpr::Builtin { id: "dict".into() }),
-            slice: vec![
-                TypeHintExpr::Attribute {
-                    module: "foo.bar".into(),
-                    attr: "A".into(),
-                },
-                TypeHintExpr::Union {
-                    elts: vec![
-                        TypeHintExpr::Attribute {
-                            module: "bar".into(),
-                            attr: "A".into(),
-                        },
-                        TypeHintExpr::Attribute {
-                            module: "foo".into(),
-                            attr: "A.C".into(),
-                        },
-                        TypeHintExpr::Attribute {
-                            module: "foo".into(),
-                            attr: "A.D".into(),
-                        },
-                        TypeHintExpr::Attribute {
-                            module: "foo".into(),
-                            attr: "B".into(),
-                        },
-                        TypeHintExpr::Attribute {
-                            module: "bat".into(),
-                            attr: "A".into(),
-                        },
-                    ],
-                },
-            ],
+        let big_type = Expr::Subscript {
+            value: Box::new(Expr::Name { id: "dict".into() }),
+            slice: Box::new(Expr::Tuple {
+                elts: vec![
+                    Expr::Attribute {
+                        value: Box::new(Expr::Name {
+                            id: "foo.bar".into(),
+                        }),
+                        attr: "A".into(),
+                    },
+                    Expr::Tuple {
+                        elts: vec![
+                            Expr::Attribute {
+                                value: Box::new(Expr::Name { id: "foo".into() }),
+                                attr: "A.C".into(),
+                            },
+                            Expr::Attribute {
+                                value: Box::new(Expr::Attribute {
+                                    value: Box::new(Expr::Name { id: "foo".into() }),
+                                    attr: "A".into(),
+                                }),
+                                attr: "D".into(),
+                            },
+                            Expr::Attribute {
+                                value: Box::new(Expr::Name { id: "foo".into() }),
+                                attr: "B".into(),
+                            },
+                            Expr::Attribute {
+                                value: Box::new(Expr::Name { id: "bat".into() }),
+                                attr: "A".into(),
+                            },
+                            Expr::Attribute {
+                                value: Box::new(Expr::Name {
+                                    id: "foo.bar".into(),
+                                }),
+                                attr: "int".into(),
+                            },
+                            Expr::Name { id: "int".into() },
+                            Expr::Name { id: "float".into() },
+                        ],
+                    },
+                ],
+            }),
         };
         let imports = Imports::create(
             &Module {
                 name: "bar".into(),
                 modules: Vec::new(),
-                classes: vec![Class {
-                    name: "A".into(),
-                    methods: Vec::new(),
-                    attributes: Vec::new(),
-                }],
+                classes: vec![
+                    Class {
+                        name: "A".into(),
+                        bases: vec![Expr::Name { id: "dict".into() }],
+                        methods: Vec::new(),
+                        attributes: Vec::new(),
+                        decorators: vec![Expr::Attribute {
+                            value: Box::new(Expr::Name {
+                                id: "typing".into(),
+                            }),
+                            attr: "final".into(),
+                        }],
+                    },
+                    Class {
+                        name: "int".into(),
+                        bases: Vec::new(),
+                        methods: Vec::new(),
+                        attributes: Vec::new(),
+                        decorators: Vec::new(),
+                    },
+                ],
                 functions: vec![Function {
                     name: String::new(),
                     decorators: Vec::new(),
@@ -617,6 +749,7 @@ mod tests {
                         kwarg: None,
                     },
                     returns: Some(TypeHint::Ast(big_type.clone())),
+                    is_async: false,
                 }],
                 attributes: Vec::new(),
                 incomplete: true,
@@ -628,11 +761,13 @@ mod tests {
             &[
                 "from _typeshed import Incomplete",
                 "from bat import A as A2",
-                "from foo import A as A3, B"
+                "from builtins import int as int2",
+                "from foo import A as A3, B",
+                "from typing import final"
             ]
         );
         let mut output = String::new();
-        imports.serialize_type_hint(&big_type, &mut output);
-        assert_eq!(output, "dict[A, A | A3.C | A3.D | B | A2]");
+        imports.serialize_expr(&big_type, &mut output);
+        assert_eq!(output, "dict[A, (A3.C, A3.D, B, A2, int, int2, float)]");
     }
 }

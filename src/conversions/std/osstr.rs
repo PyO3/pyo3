@@ -1,32 +1,50 @@
 use crate::conversion::IntoPyObject;
+#[cfg(not(target_os = "wasi"))]
+use crate::ffi;
+#[cfg(not(target_os = "wasi"))]
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::PyStaticExpr;
 use crate::instance::Bound;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
 use crate::types::PyString;
-use crate::{ffi, Borrowed, FromPyObject, PyAny, PyErr, Python};
+#[cfg(any(unix, target_os = "emscripten"))]
+use crate::types::{PyBytes, PyBytesMethods};
+use crate::{Borrowed, FromPyObject, PyAny, PyErr, Python};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::ffi::{OsStr, OsString};
+#[cfg(any(unix, target_os = "emscripten"))]
+use std::os::unix::ffi::OsStrExt;
+#[cfg(windows)]
+use std::os::windows::ffi::OsStrExt;
 
 impl<'py> IntoPyObject<'py> for &OsStr {
     type Target = PyString;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         // If the string is UTF-8, take the quick and easy shortcut
+        #[cfg(not(target_os = "wasi"))]
         if let Some(valid_utf8_path) = self.to_str() {
             return valid_utf8_path.into_pyobject(py);
         }
 
-        // All targets besides windows support the std::os::unix::ffi::OsStrExt API:
-        // https://doc.rust-lang.org/src/std/sys_common/mod.rs.html#59
-        #[cfg(not(windows))]
+        #[cfg(target_os = "wasi")]
         {
-            #[cfg(target_os = "wasi")]
-            let bytes = self.to_str().expect("wasi strings are UTF8").as_bytes();
-            #[cfg(not(target_os = "wasi"))]
-            let bytes = std::os::unix::ffi::OsStrExt::as_bytes(self);
+            self.to_str()
+                .expect("wasi strings are UTF8")
+                .into_pyobject(py)
+        }
 
+        #[cfg(any(unix, target_os = "emscripten"))]
+        {
+            let bytes = self.as_bytes();
             let ptr = bytes.as_ptr().cast();
             let len = bytes.len() as ffi::Py_ssize_t;
             unsafe {
@@ -34,14 +52,13 @@ impl<'py> IntoPyObject<'py> for &OsStr {
                 // parse os strings losslessly (i.e. surrogateescape most of the time)
                 Ok(ffi::PyUnicode_DecodeFSDefaultAndSize(ptr, len)
                     .assume_owned(py)
-                    .cast_into_unchecked::<PyString>())
+                    .cast_into_unchecked())
             }
         }
 
         #[cfg(windows)]
         {
-            let wstr: Vec<u16> = std::os::windows::ffi::OsStrExt::encode_wide(self).collect();
-
+            let wstr: Vec<u16> = self.encode_wide().collect();
             unsafe {
                 // This will not panic because the data from encode_wide is well-formed Windows
                 // string data
@@ -49,7 +66,7 @@ impl<'py> IntoPyObject<'py> for &OsStr {
                 Ok(
                     ffi::PyUnicode_FromWideChar(wstr.as_ptr(), wstr.len() as ffi::Py_ssize_t)
                         .assume_owned(py)
-                        .cast_into_unchecked::<PyString>(),
+                        .cast_into_unchecked(),
                 )
             }
         }
@@ -61,6 +78,9 @@ impl<'py> IntoPyObject<'py> for &&OsStr {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = <&OsStr>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
@@ -70,13 +90,19 @@ impl<'py> IntoPyObject<'py> for &&OsStr {
 impl FromPyObject<'_, '_> for OsString {
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
+
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let pystring = ob.cast::<PyString>()?;
 
-        #[cfg(not(windows))]
+        #[cfg(target_os = "wasi")]
         {
-            use crate::types::{PyBytes, PyBytesMethods};
+            Ok(pystring.to_cow()?.into_owned().into())
+        }
 
+        #[cfg(any(unix, target_os = "emscripten"))]
+        {
             // Decode from Python's lossless bytes string representation back into raw bytes
             // SAFETY: PyUnicode_EncodeFSDefault returns a new reference or null on error, known to
             // be a `bytes` object, thread is attached to the interpreter
@@ -87,13 +113,7 @@ impl FromPyObject<'_, '_> for OsString {
             };
 
             // Create an OsStr view into the raw bytes from Python
-            //
-            // For WASI: OS strings are UTF-8 by definition.
-            #[cfg(target_os = "wasi")]
-            let os_str: &OsStr = OsStr::new(std::str::from_utf8(fs_encoded_bytes.as_bytes())?);
-            #[cfg(not(target_os = "wasi"))]
-            let os_str: &OsStr =
-                std::os::unix::ffi::OsStrExt::from_bytes(fs_encoded_bytes.as_bytes());
+            let os_str: &OsStr = OsStrExt::from_bytes(fs_encoded_bytes.as_bytes());
 
             Ok(os_str.to_os_string())
         }
@@ -135,6 +155,9 @@ impl<'py> IntoPyObject<'py> for Cow<'_, OsStr> {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = <&OsStr>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
@@ -146,6 +169,9 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, OsStr> {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = <&OsStr>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (&**self).into_pyobject(py)
@@ -154,6 +180,9 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, OsStr> {
 
 impl<'a> FromPyObject<'a, '_> for Cow<'a, OsStr> {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = OsString::INPUT_TYPE;
 
     fn extract(obj: Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -170,6 +199,9 @@ impl<'py> IntoPyObject<'py> for OsString {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = <&OsStr>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_os_str().into_pyobject(py)
@@ -181,6 +213,9 @@ impl<'py> IntoPyObject<'py> for &OsString {
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = <&OsStr>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_os_str().into_pyobject(py)
@@ -189,10 +224,12 @@ impl<'py> IntoPyObject<'py> for &OsString {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "wasi")]
+    use crate::exceptions::PyFileNotFoundError;
     use crate::types::{PyAnyMethods, PyString, PyStringMethods};
     use crate::{Bound, BoundObject, IntoPyObject, Python};
     use std::fmt::Debug;
-    #[cfg(unix)]
+    #[cfg(any(unix, target_os = "emscripten"))]
     use std::os::unix::ffi::OsStringExt;
     #[cfg(windows)]
     use std::os::windows::ffi::OsStringExt;
@@ -202,13 +239,10 @@ mod tests {
     };
 
     #[test]
-    #[cfg(not(windows))]
+    #[cfg(any(unix, target_os = "emscripten"))]
     fn test_non_utf8_conversion() {
         Python::attach(|py| {
-            #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;
-            #[cfg(target_os = "wasi")]
-            use std::os::wasi::ffi::OsStrExt;
 
             // this is not valid UTF-8
             let payload = &[250, 251, 252, 253, 254, 255, 0, 255];
@@ -218,6 +252,26 @@ mod tests {
             let py_str = os_str.into_pyobject(py).unwrap();
             let os_str_2: OsString = py_str.extract().unwrap();
             assert_eq!(os_str, os_str_2);
+        });
+    }
+
+    #[test]
+    #[cfg(target_os = "wasi")]
+    fn test_extract_non_utf8_wasi_should_error() {
+        Python::attach(|py| {
+            // Non utf-8 strings are not valid wasi paths
+            let open_result = py.run(c"open('\\udcff', 'rb')", None, None).unwrap_err();
+            assert!(
+                !open_result.is_instance_of::<PyFileNotFoundError>(py),
+                "Opening invalid utf8 will error with OSError, not FileNotFoundError"
+            );
+
+            // Create a Python string with not valid UTF-8: &[255]
+            let py_str = py.eval(c"'\\udcff'", None, None).unwrap();
+            assert!(
+                py_str.extract::<OsString>().is_err(),
+                "Extracting invalid UTF-8 as OsString should error"
+            );
         });
     }
 
@@ -298,11 +352,11 @@ mod tests {
                 OsString::from_wide(&['A' as u16, 0xD800, 'B' as u16])
             };
 
-            #[cfg(unix)]
+            #[cfg(any(unix, target_os = "emscripten"))]
             let os_str = { OsString::from_vec(vec![250, 251, 252, 253, 254, 255, 0, 255]) };
 
             // This cannot be borrowed because it is not valid UTF-8
-            #[cfg(any(windows, unix))]
+            #[cfg(any(windows, unix, target_os = "emscripten"))]
             test_extract::<OsStr>(py, &os_str, false);
         });
     }

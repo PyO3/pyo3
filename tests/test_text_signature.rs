@@ -146,48 +146,45 @@ fn test_auto_test_signature_function() {
         let _ = (a, b, c);
     }
 
+    #[pyfunction]
+    fn trailing_optional_required(a: i32, b: Option<i32>, c: Option<i32>) {
+        // Since PyO3 0.24, trailing optional arguments are treated like any other required argument
+        // (previously would get an implicit default of `None`)
+        let _ = (a, b, c);
+    }
+
+    macro_rules! assert_text_signature {
+        ($py:expr, $func:ident, $expected:expr) => {
+            assert_eq!(
+                wrap_pyfunction!($func, $py)
+                    .unwrap()
+                    .getattr("__text_signature__")
+                    .unwrap()
+                    .cast_into::<pyo3::types::PyString>()
+                    .unwrap(),
+                $expected
+            );
+        };
+    }
+
     Python::attach(|py| {
-        let f = wrap_pyfunction!(my_function)(py).unwrap();
-        py_assert!(
+        assert_text_signature!(py, my_function, "(a, b, c)");
+
+        assert_text_signature!(py, my_function_2, "($module, a, b, c)");
+
+        assert_text_signature!(py, my_function_3, "(a, /, b=None, *, c=5)");
+
+        assert_text_signature!(py, my_function_4, "(a, /, b=None, *args, c, d=5, **kwargs)");
+
+        assert_text_signature!(
             py,
-            f,
-            "f.__text_signature__ == '(a, b, c)', f.__text_signature__"
+            my_function_5,
+            "(a=1, /, b=None, c=1.5, d=5, e=\"pyo3\", f='f', h=True)"
         );
 
-        let f = wrap_pyfunction!(my_function_2)(py).unwrap();
-        py_assert!(
-            py,
-            f,
-            "f.__text_signature__ == '($module, a, b, c)', f.__text_signature__"
-        );
+        assert_text_signature!(py, my_function_6, "(a, b=None, c=None)");
 
-        let f = wrap_pyfunction!(my_function_3)(py).unwrap();
-        py_assert!(
-            py,
-            f,
-            "f.__text_signature__ == '(a, /, b=None, *, c=5)', f.__text_signature__"
-        );
-
-        let f = wrap_pyfunction!(my_function_4)(py).unwrap();
-        py_assert!(
-            py,
-            f,
-            "f.__text_signature__ == '(a, /, b=None, *args, c, d=5, **kwargs)', f.__text_signature__"
-        );
-
-        let f = wrap_pyfunction!(my_function_5)(py).unwrap();
-        py_assert!(
-            py,
-            f,
-            "f.__text_signature__ == '(a=1, /, b=None, c=1.5, d=5, e=\"pyo3\", f=\\'f\\', h=True)', f.__text_signature__"
-        );
-
-        let f = wrap_pyfunction!(my_function_6)(py).unwrap();
-        py_assert!(
-            py,
-            f,
-            "f.__text_signature__ == '(a, b=None, c=None)', f.__text_signature__"
-        );
+        assert_text_signature!(py, trailing_optional_required, "(a, b, c)");
     });
 }
 

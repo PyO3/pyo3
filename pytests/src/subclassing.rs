@@ -2,23 +2,56 @@
 
 use pyo3::prelude::*;
 
-#[pyclass(subclass)]
-pub struct Subclassable {}
+#[pymodule(gil_used = false)]
+pub mod subclassing {
+    use pyo3::prelude::*;
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+    use pyo3::types::PyDict;
 
-#[pymethods]
-impl Subclassable {
-    #[new]
-    fn new() -> Self {
-        Subclassable {}
+    #[pyclass(subclass)]
+    pub struct Subclassable {}
+
+    #[pymethods]
+    impl Subclassable {
+        #[new]
+        fn new() -> Self {
+            Subclassable {}
+        }
+
+        fn __str__(&self) -> &'static str {
+            "Subclassable"
+        }
     }
 
-    fn __str__(&self) -> &'static str {
-        "Subclassable"
-    }
-}
+    #[pyclass(extends = Subclassable)]
+    pub struct Subclass {}
 
-#[pymodule]
-pub fn subclassing(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Subclassable>()?;
-    Ok(())
+    #[pymethods]
+    impl Subclass {
+        #[new]
+        fn new() -> (Self, Subclassable) {
+            (Subclass {}, Subclassable::new())
+        }
+
+        fn __str__(&self) -> &'static str {
+            "Subclass"
+        }
+    }
+
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+    #[pyclass(extends = PyDict)]
+    pub struct SubDict {}
+
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+    #[pymethods]
+    impl SubDict {
+        #[new]
+        fn new() -> Self {
+            Self {}
+        }
+
+        fn __str__(&self) -> &'static str {
+            "SubDict"
+        }
+    }
 }
