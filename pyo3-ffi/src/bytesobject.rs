@@ -56,9 +56,6 @@ extern "C" {
     ) -> c_int;
 }
 
-#[cfg(not(Py_LIMITED_API))]
-opaque_struct!(pub PyBytesWriter);
-
 // skipped F_LJUST
 // skipped F_SIGN
 // skipped F_BLANK
