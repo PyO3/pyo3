@@ -213,4 +213,15 @@ mod tests {
             assert_eq!(bytes.as_bytes(), b"hallo world");
         })
     }
+
+    #[test]
+    fn test_large_data() {
+        Python::attach(|py| {
+            let mut writer = PyBytesWriter::with_capacity(py, 10).unwrap();
+            let large_data = vec![0; 1024]; // 1 KB
+            writer.write_all(&large_data).unwrap();
+            let bytes: Bound<'_, PyBytes> = writer.into();
+            assert_eq!(bytes.as_bytes(), &large_data[..]);
+        })
+    }
 }
