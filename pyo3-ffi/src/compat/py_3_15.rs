@@ -116,26 +116,16 @@ compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
-    pub unsafe fn PyBytesWriter_WriteBytes(writer: *mut crate::PyBytesWriter, bytes: *const std::ffi::c_void, size: crate::Py_ssize_t) -> std::ffi::c_int {
+    pub unsafe fn PyBytesWriter_Resize(writer: *mut crate::PyBytesWriter, size: crate::Py_ssize_t) -> std::ffi::c_int {
         let writer: *mut _PyBytesWriter = writer.cast();
-        let size = if size < 0 {
-            let len = libc::strlen(bytes as _);
-            if len > crate::PY_SSIZE_T_MAX as libc::size_t {
-                crate::PyErr_NoMemory();
-                return -1;
-            }
-            len as crate::Py_ssize_t
-        } else {
-            size
-        };
-
-        let pos = (*writer).size;
-        if PyBytesWriter_Grow(writer.cast(), size) < 0 {
+        if size < 0 {
+            crate::PyErr_SetString(crate::PyExc_ValueError, c"size must be >= 0".as_ptr());
             return -1;
         }
-
-        let buf = PyBytesWriter_GetData(writer.cast());
-        std::ptr::copy_nonoverlapping(bytes, buf.add(pos as usize), size as usize);
+        if _PyBytesWriter_Resize_impl(writer, size, 1) < 0 {
+            return -1;
+        }
+        (*writer).size = size;
         0
     }
 );
@@ -157,6 +147,8 @@ compat_function!(
             return -1;
         }
         let new_size = (*writer).size + size;
+
+        println!("Growing buffer to new size {}", new_size);
 
         if _PyBytesWriter_Resize_impl(writer, new_size, 1) < 0 {
             return -1;
@@ -191,6 +183,8 @@ unsafe fn _PyBytesWriter_Resize_impl(
         crate::PyBytes_Size((*writer).obj)
     };
 
+    println!("Allocated size: {}", allocated);
+
     if size <= allocated {
         return 0;
     }
@@ -220,6 +214,8 @@ unsafe fn _PyBytesWriter_Resize_impl(
 
         if resize > 0 {
             assert!((size as usize) > std::mem::size_of_val(&(*writer).small_buffer));
+
+            println!("Copying small buffer to new bytes object, amount: {size}");
 
             std::ptr::copy_nonoverlapping(
                 (*writer).small_buffer.as_ptr(),
