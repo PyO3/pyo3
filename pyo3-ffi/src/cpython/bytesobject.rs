@@ -55,11 +55,7 @@ extern "C" {
 
     pub fn PyBytesWriter_GetSize(writer: *mut PyBytesWriter) -> Py_ssize_t;
 
-    pub fn PyBytesWriter_WriteBytes(
-        writer: *mut PyBytesWriter,
-        bytes: *const c_void,
-        size: Py_ssize_t,
-    ) -> c_int;
+    pub fn PyBytesWriter_Resize(writer: *mut PyBytesWriter, size: Py_ssize_t) -> c_int;
 
     pub fn PyBytesWriter_Grow(writer: *mut PyBytesWriter, size: Py_ssize_t) -> c_int;
 }
