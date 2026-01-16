@@ -764,9 +764,17 @@ pub struct PythonVersion {
 }
 
 impl PythonVersion {
+    pub const PY315: Self = PythonVersion {
+        major: 3,
+        minor: 15,
+    };
     pub const PY313: Self = PythonVersion {
         major: 3,
         minor: 13,
+    };
+    pub const PY312: Self = PythonVersion {
+        major: 3,
+        minor: 12,
     };
     const PY310: Self = PythonVersion {
         major: 3,
