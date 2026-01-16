@@ -49,6 +49,13 @@ pub struct PyObjectObFlagsAndRefcnt {
     pub ob_flags: u16,
 }
 
+// 4-byte alignment comes from value of _PyObject_MIN_ALIGNMENT
+
+#[cfg(all(not(Py_GIL_DISABLED), Py_3_15))]
+#[repr(C, align(4))]
+#[derive(Copy, Clone)]
+struct Aligner(c_char);
+
 #[repr(C)]
 #[derive(Copy, Clone)]
 #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
@@ -62,6 +69,8 @@ pub union PyObjectObRefcnt {
     pub ob_refcnt: Py_ssize_t,
     #[cfg(all(target_pointer_width = "64", not(Py_3_14)))]
     pub ob_refcnt_split: [crate::PY_UINT32_T; 2],
+    #[cfg(all(not(Py_GIL_DISABLED), Py_3_15))]
+    _aligner: Aligner,
 }
 
 #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
@@ -74,10 +83,17 @@ impl std::fmt::Debug for PyObjectObRefcnt {
 #[cfg(all(not(Py_3_12), not(Py_GIL_DISABLED)))]
 pub type PyObjectObRefcnt = Py_ssize_t;
 
+const _PyObject_MIN_ALIGNMENT: usize = 4;
+
 // PyObject_HEAD_INIT comes before the PyObject definition in object.h
 // but we put it after PyObject because HEAD_INIT uses PyObject
 
-#[repr(C)]
+// repr(align(4)) corresponds to the use of _Py_ALIGNED_DEF in object.h. It is
+// not currently possible to use constant variables with repr(align()), see
+// https://github.com/rust-lang/rust/issues/52840
+
+#[cfg_attr(not(all(Py_3_15, Py_GIL_DISABLED)), repr(C))]
+#[cfg_attr(all(Py_3_15, Py_GIL_DISABLED), repr(C, align(4)))]
 #[derive(Debug)]
 pub struct PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
@@ -105,6 +121,8 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
+const _: () = assert!(std::mem::align_of::<PyObject>() >= _PyObject_MIN_ALIGNMENT);
+
 #[allow(
     clippy::declare_interior_mutable_const,
     reason = "contains atomic refcount on free-threaded builds"
@@ -116,7 +134,9 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     _ob_prev: std::ptr::null_mut(),
     #[cfg(Py_GIL_DISABLED)]
     ob_tid: 0,
-    #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
+    #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
+    ob_flags: refcount::_Py_STATICALLY_ALLOCATED_FLAG as u16,
+    #[cfg(all(Py_GIL_DISABLED, all(Py_3_14, not(Py_3_15))))]
     ob_flags: 0,
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
     _padding: 0,

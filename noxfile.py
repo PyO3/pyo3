@@ -82,6 +82,10 @@ def _supported_interpreter_versions(
 
 
 PY_VERSIONS = _supported_interpreter_versions("cpython")
+# We don't yet support abi3-py315 but do support cp315 and cp315t
+# version-specific builds
+ABI3_PY_VERSIONS = [p for p in PY_VERSIONS if not p.endswith("t")]
+ABI3_PY_VERSIONS.remove("3.15")
 PYPY_VERSIONS = _supported_interpreter_versions("pypy")
 
 
@@ -959,14 +963,16 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.6")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        assert "3.15" not in PY_VERSIONS
-        config_file.set("CPython", "3.15")
+        assert "3.16" not in PY_VERSIONS
+        config_file.set("CPython", "3.16")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        # 3.15 CPython should build if abi3 is explicitly requested
+        # 3.16 CPython should build if abi3 is explicitly requested
         _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
 
         # 3.15 CPython should build with forward compatibility
+        # TODO: check on 3.16 when adding abi3-py315 support
+        config_file.set("CPython", "3.15")
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
@@ -976,7 +982,7 @@ def test_version_limits(session: nox.Session):
 
     # attempt to build with latest version and check that abi3 version
     # configured matches the feature
-    max_minor_version = max(int(v.split(".")[1]) for v in PY_VERSIONS if "t" not in v)
+    max_minor_version = max(int(v.split(".")[1]) for v in ABI3_PY_VERSIONS)
     with tempfile.TemporaryFile() as stderr:
         env = os.environ.copy()
         env["PYO3_PRINT_CONFIG"] = "1"  # get diagnostics from the build
@@ -1010,7 +1016,7 @@ def check_feature_powerset(session: nox.Session):
 
     # free-threaded builds do not support ABI3 (yet)
     EXPECTED_ABI3_FEATURES = {
-        f"abi3-py3{ver.split('.')[1]}" for ver in PY_VERSIONS if not ver.endswith("t")
+        f"abi3-py3{ver.split('.')[1]}" for ver in ABI3_PY_VERSIONS
     }
 
     EXCLUDED_FROM_FULL = {
