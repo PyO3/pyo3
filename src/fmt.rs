@@ -2,7 +2,7 @@
 //! constructing Python strings using Rust's `fmt::Write` trait.
 //! It allows for incremental string construction, without the need for repeated allocations, and
 //! is particularly useful for building strings in a performance-sensitive context.
-#[cfg(Py_3_14)]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use {
     crate::ffi::{
         PyUnicodeWriter_Create, PyUnicodeWriter_Discard, PyUnicodeWriter_Finish,
@@ -37,7 +37,7 @@ macro_rules! py_format {
     }}
 }
 
-#[cfg(Py_3_14)]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 /// The `PyUnicodeWriter` is a utility for efficiently constructing Python strings
 pub(crate) struct PyUnicodeWriter<'py> {
     python: Python<'py>,
@@ -45,7 +45,7 @@ pub(crate) struct PyUnicodeWriter<'py> {
     last_error: Option<PyErr>,
 }
 
-#[cfg(Py_3_14)]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 impl<'py> PyUnicodeWriter<'py> {
     /// Creates a new `PyUnicodeWriter`.
     pub fn new(py: Python<'py>) -> PyResult<Self> {
@@ -97,7 +97,7 @@ impl<'py> PyUnicodeWriter<'py> {
     }
 }
 
-#[cfg(Py_3_14)]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 impl fmt::Write for PyUnicodeWriter<'_> {
     #[inline]
     fn write_str(&mut self, s: &str) -> fmt::Result {
@@ -124,7 +124,7 @@ impl fmt::Write for PyUnicodeWriter<'_> {
     }
 }
 
-#[cfg(Py_3_14)]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 impl Drop for PyUnicodeWriter<'_> {
     #[inline]
     fn drop(&mut self) {
@@ -134,7 +134,7 @@ impl Drop for PyUnicodeWriter<'_> {
     }
 }
 
-#[cfg(Py_3_14)]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 impl<'py> IntoPyObject<'py> for PyUnicodeWriter<'py> {
     type Target = PyString;
     type Output = Bound<'py, Self::Target>;
@@ -146,7 +146,7 @@ impl<'py> IntoPyObject<'py> for PyUnicodeWriter<'py> {
     }
 }
 
-#[cfg(Py_3_14)]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 impl<'py> TryInto<Bound<'py, PyString>> for PyUnicodeWriter<'py> {
     type Error = PyErr;
 
@@ -165,7 +165,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::write_literal)]
-    #[cfg(Py_3_14)]
+    #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
     fn unicode_writer_test() {
         use std::fmt::Write;
         Python::attach(|py| {

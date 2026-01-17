@@ -261,7 +261,7 @@ impl PyString {
             return Ok(PyString::new(py, static_string));
         };
 
-        #[cfg(Py_3_14)]
+        #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
         {
             use crate::fmt::PyUnicodeWriter;
             use std::fmt::Write as _;
@@ -273,7 +273,7 @@ impl PyString {
             writer.into_py_string()
         }
 
-        #[cfg(not(Py_3_14))]
+        #[cfg(any(not(Py_3_14), Py_LIMITED_API))]
         {
             Ok(PyString::new(py, &format!("{args}")))
         }
