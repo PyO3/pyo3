@@ -73,7 +73,7 @@ compat_function!(
         } else if (*writer).obj.is_null() {
             crate::PyBytes_FromStringAndSize((*writer).small_buffer.as_ptr(), size)
         } else {
-            if size != crate::PyBytes_Size((*writer).obj) && crate::_PyBytes_Resize(&mut (*writer).obj, size) < 0{
+            if size != crate::PyBytes_Size((*writer).obj) && crate::_PyBytes_Resize(&mut (*writer).obj, size) < 0 {
                     PyBytesWriter_Discard(writer.cast());
                     return std::ptr::null_mut();
             }
@@ -126,33 +126,6 @@ compat_function!(
             return -1;
         }
         (*writer).size = size;
-        0
-    }
-);
-
-#[cfg(not(Py_LIMITED_API))]
-compat_function!(
-    originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
-
-    #[inline]
-    pub unsafe fn PyBytesWriter_Grow(writer: *mut crate::PyBytesWriter, size: crate::Py_ssize_t) -> std::ffi::c_int {
-        let writer: *mut _PyBytesWriter = writer.cast();
-        if size < 0 && (*writer).size + size < 0 {
-            crate::PyErr_SetString(crate::PyExc_ValueError, c"invalid size".as_ptr());
-            return -1;
-        }
-
-        if size > crate::PY_SSIZE_T_MAX - (*writer).size {
-            crate::PyErr_NoMemory();
-            return -1;
-        }
-        let new_size = (*writer).size + size;
-
-        if _PyBytesWriter_Resize_impl(writer, new_size, 1) < 0 {
-            return -1;
-        }
-
-        (*writer).size = new_size;
         0
     }
 );

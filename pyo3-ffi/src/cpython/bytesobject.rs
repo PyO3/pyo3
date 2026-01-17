@@ -42,7 +42,7 @@ extern "C" {
 
     pub fn PyBytesWriter_Create(size: Py_ssize_t) -> *mut PyBytesWriter;
 
-    pub fn PyBytesWriter_Discard(writer: *mut PyBytesWriter) -> ();
+    pub fn PyBytesWriter_Discard(writer: *mut PyBytesWriter);
 
     pub fn PyBytesWriter_Finish(writer: *mut PyBytesWriter) -> *mut PyObject;
 

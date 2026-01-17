@@ -147,7 +147,7 @@ impl PyBytes {
     {
         let mut writer = PyBytesWriter::with_capacity(py, reserved_capacity)?;
         write(&mut writer)?;
-        Ok(writer.into())
+        writer.try_into()
     }
 
     /// Creates a new Python byte string object from a raw pointer and length.
