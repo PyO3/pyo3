@@ -9,8 +9,8 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::PyType;
 use crate::{
-    ffi, Bound, CastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyClassInitializer,
-    PyErr, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
+    ffi, Bound, CastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr, PyRef,
+    PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
 };
 use std::ffi::CStr;
 use std::ffi::{c_int, c_void};
@@ -724,14 +724,16 @@ impl<'py, T> std::ops::Deref for BoundRef<'_, 'py, T> {
     }
 }
 
-pub unsafe fn tp_new_impl<T: PyClass>(
-    py: Python<'_>,
-    initializer: PyClassInitializer<T>,
-    target_type: *mut ffi::PyTypeObject,
-) -> PyResult<*mut ffi::PyObject> {
+pub unsafe fn tp_new_impl<'py, T, const IS_PYCLASS: bool, const IS_INITIALIZER_TUPLE: bool>(
+    py: Python<'py>,
+    obj: T,
+    cls: *mut ffi::PyTypeObject,
+) -> PyResult<*mut ffi::PyObject>
+where
+    T: super::pyclass_init::PyClassInit<'py, IS_PYCLASS, IS_INITIALIZER_TUPLE>,
+{
     unsafe {
-        initializer
-            .create_class_object_of_type(py, target_type)
+        obj.init(crate::Borrowed::from_ptr_unchecked(py, cls.cast()).cast_unchecked())
             .map(Bound::into_ptr)
     }
 }
