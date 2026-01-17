@@ -16,8 +16,8 @@ use crate::{
 use crate::{quotes, utils};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
-use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, Field, Ident, Result};
+use syn::{parse_quote, LitCStr};
 
 /// Generated code for a single pymethod item.
 pub struct MethodAndMethodDef {
@@ -1460,15 +1460,23 @@ fn generate_method_body(
                 }
             });
 
+            let output = if let syn::ReturnType::Type(_, ty) = &spec.output {
+                ty
+            } else {
+                &parse_quote!(())
+            };
             let body = quote! {
                 #text_signature_impl
 
-                use #pyo3_path::impl_::callback::IntoPyCallbackOutput;
+                use #pyo3_path::impl_::pyclass::Probe as _;
                 #warnings
                 #arg_convert
                 let result = #call;
-                let initializer: #pyo3_path::PyClassInitializer::<#cls> = result.convert(py)?;
-                #pyo3_path::impl_::pymethods::tp_new_impl(py, initializer, _slf)
+                #pyo3_path::impl_::pymethods::tp_new_impl::<
+                    _,
+                    { #pyo3_path::impl_::pyclass::IsPyClass::<#output>::VALUE },
+                    { #pyo3_path::impl_::pyclass::IsInitializerTuple::<#output>::VALUE }
+                >(py, result, _slf)
             };
             (arg_idents, arg_types, body)
         }

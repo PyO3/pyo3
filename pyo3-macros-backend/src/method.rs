@@ -427,7 +427,6 @@ pub struct FnSpec<'a> {
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
     pub warnings: Vec<PyFunctionWarning>,
-    #[cfg(feature = "experimental-inspect")]
     pub output: syn::ReturnType,
 }
 
@@ -503,7 +502,6 @@ impl<'a> FnSpec<'a> {
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,
             warnings,
-            #[cfg(feature = "experimental-inspect")]
             output: sig.output.clone(),
         })
     }
