@@ -252,6 +252,7 @@ impl PyString {
     /// Creates a Python string using a format string.
     ///
     /// This function is similar to [`format!`], but it returns a Python string object instead of a Rust string.
+    #[inline]
     pub fn from_fmt<'py>(
         py: Python<'py>,
         args: fmt::Arguments<'_>,
