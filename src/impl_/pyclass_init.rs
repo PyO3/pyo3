@@ -1,9 +1,10 @@
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::pyclass::PyClassBaseType;
 use crate::internal::get_slot::TP_NEW;
 use crate::types::{PyTuple, PyType};
-use crate::{ffi, PyErr, PyResult, Python};
+use crate::{ffi, PyClass, PyClassInitializer, PyErr, PyResult, Python};
 use crate::{ffi::PyTypeObject, sealed::Sealed, type_object::PyTypeInfo};
 use std::marker::PhantomData;
 
@@ -19,9 +20,6 @@ pub trait PyObjectInit<T>: Sized + Sealed {
         py: Python<'_>,
         subtype: *mut PyTypeObject,
     ) -> PyResult<*mut ffi::PyObject>;
-
-    #[doc(hidden)]
-    fn can_be_subclassed(&self) -> bool;
 }
 
 /// Initializer for Python native types, like `PyDict`.
@@ -57,9 +55,84 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
         }
         unsafe { inner(py, T::type_object_raw(py), subtype) }
     }
+}
 
-    #[inline]
-    fn can_be_subclassed(&self) -> bool {
-        true
+pub trait PyClassInit<'py, const IS_PYCLASS: bool, const IS_INITIALIZER_TUPLE: bool> {
+    fn init(
+        self,
+        cls: crate::Borrowed<'_, 'py, crate::types::PyType>,
+    ) -> PyResult<crate::Bound<'py, crate::PyAny>>;
+}
+
+impl<'py, T> PyClassInit<'py, false, false> for T
+where
+    T: crate::IntoPyObject<'py>,
+{
+    fn init(
+        self,
+        cls: crate::Borrowed<'_, 'py, crate::types::PyType>,
+    ) -> PyResult<crate::Bound<'py, crate::PyAny>> {
+        self.into_pyobject(cls.py())
+            .map(crate::BoundObject::into_any)
+            .map(crate::BoundObject::into_bound)
+            .map_err(Into::into)
+    }
+}
+
+impl<'py, T> PyClassInit<'py, true, false> for T
+where
+    T: crate::PyClass,
+    T::BaseType:
+        super::pyclass::PyClassBaseType<Initializer = PyNativeTypeInitializer<T::BaseType>>,
+{
+    fn init(
+        self,
+        cls: crate::Borrowed<'_, 'py, crate::types::PyType>,
+    ) -> PyResult<crate::Bound<'py, crate::PyAny>> {
+        PyClassInitializer::from(self).init(cls)
+    }
+}
+
+impl<'py, T, E, const IS_PYCLASS: bool, const IS_INITIALIZER_TUPLE: bool>
+    PyClassInit<'py, IS_PYCLASS, IS_INITIALIZER_TUPLE> for Result<T, E>
+where
+    T: PyClassInit<'py, IS_PYCLASS, IS_INITIALIZER_TUPLE>,
+    E: Into<PyErr>,
+{
+    fn init(
+        self,
+        cls: crate::Borrowed<'_, 'py, crate::types::PyType>,
+    ) -> PyResult<crate::Bound<'py, crate::PyAny>> {
+        self.map_err(Into::into)?.init(cls)
+    }
+}
+
+impl<'py, T> PyClassInit<'py, false, false> for PyClassInitializer<T>
+where
+    T: PyClass,
+{
+    fn init(
+        self,
+        cls: crate::Borrowed<'_, 'py, crate::types::PyType>,
+    ) -> PyResult<crate::Bound<'py, crate::PyAny>> {
+        unsafe {
+            self.create_class_object_of_type(cls.py(), cls.as_ptr().cast())
+                .map(crate::Bound::into_any)
+        }
+    }
+}
+
+impl<'py, S, B> PyClassInit<'py, false, true> for (S, B)
+where
+    S: PyClass<BaseType = B>,
+    B: PyClass + PyClassBaseType<Initializer = PyClassInitializer<B>>,
+    B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
+{
+    fn init(
+        self,
+        cls: crate::Borrowed<'_, 'py, crate::types::PyType>,
+    ) -> PyResult<crate::Bound<'py, crate::PyAny>> {
+        let (sub, base) = self;
+        PyClassInitializer::from(base).add_subclass(sub).init(cls)
     }
 }
