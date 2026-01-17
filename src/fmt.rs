@@ -158,7 +158,7 @@ impl<'py> TryInto<Bound<'py, PyString>> for PyUnicodeWriter<'py> {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(Py_3_14)]
+    #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
     use super::*;
     use crate::types::PyStringMethods;
     use crate::{IntoPyObject, Python};
@@ -170,6 +170,20 @@ mod tests {
         use std::fmt::Write;
         Python::attach(|py| {
             let mut writer = PyUnicodeWriter::new(py).unwrap();
+            write!(writer, "Hello {}!", "world").unwrap();
+            writer.write_char('😎').unwrap();
+            let result = writer.into_py_string().unwrap();
+            assert_eq!(result.to_string(), "Hello world!😎");
+        });
+    }
+
+    #[test]
+    #[allow(clippy::write_literal)]
+    #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+    fn unicode_writer_with_capacity() {
+        use std::fmt::Write;
+        Python::attach(|py| {
+            let mut writer = PyUnicodeWriter::with_capacity(py, 10).unwrap();
             write!(writer, "Hello {}!", "world").unwrap();
             writer.write_char('😎').unwrap();
             let result = writer.into_py_string().unwrap();
