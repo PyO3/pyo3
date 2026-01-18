@@ -357,17 +357,6 @@ pub struct Python<'py>(PhantomData<&'py AttachGuard>, PhantomData<NotSend>);
 struct NotSend(PhantomData<*mut Python<'static>>);
 
 impl Python<'_> {
-    /// See [Python::attach]
-    #[inline]
-    #[track_caller]
-    #[deprecated(note = "use `Python::attach` instead", since = "0.26.0")]
-    pub fn with_gil<F, R>(f: F) -> R
-    where
-        F: for<'py> FnOnce(Python<'py>) -> R,
-    {
-        Self::attach(f)
-    }
-
     /// Acquires the global interpreter lock, allowing access to the Python interpreter. The
     /// provided closure `F` will be executed with the acquired `Python` marker token.
     ///
@@ -483,20 +472,6 @@ impl Python<'_> {
         crate::interpreter_lifecycle::initialize();
     }
 
-    /// See [Python::attach_unchecked]
-    /// # Safety
-    ///
-    /// If [`Python::attach`] would succeed, it is safe to call this function.
-    #[inline]
-    #[track_caller]
-    #[deprecated(note = "use `Python::attach_unchecked` instead", since = "0.26.0")]
-    pub unsafe fn with_gil_unchecked<F, R>(f: F) -> R
-    where
-        F: for<'py> FnOnce(Python<'py>) -> R,
-    {
-        unsafe { Self::attach_unchecked(f) }
-    }
-
     /// Like [`Python::attach`] except Python interpreter state checking is skipped.
     ///
     /// Normally when attaching to the Python interpreter, PyO3 checks that it is in
@@ -519,17 +494,6 @@ impl Python<'_> {
 }
 
 impl<'py> Python<'py> {
-    /// See [Python::detach]
-    #[inline]
-    #[deprecated(note = "use `Python::detach` instead", since = "0.26.0")]
-    pub fn allow_threads<T, F>(self, f: F) -> T
-    where
-        F: Ungil + FnOnce() -> T,
-        T: Ungil,
-    {
-        self.detach(f)
-    }
-
     /// Temporarily releases the GIL, thus allowing other Python threads to run. The GIL will be
     /// reacquired when `F`'s scope ends.
     ///
@@ -806,15 +770,6 @@ impl<'py> Python<'py> {
 }
 
 impl<'unbound> Python<'unbound> {
-    /// Deprecated version of [`Python::assume_attached`]
-    ///
-    /// # Safety
-    /// See [`Python::assume_attached`]
-    #[inline]
-    #[deprecated(since = "0.26.0", note = "use `Python::assume_attached` instead")]
-    pub unsafe fn assume_gil_acquired() -> Python<'unbound> {
-        unsafe { Self::assume_attached() }
-    }
     /// Unsafely creates a Python token with an unbounded lifetime.
     ///
     /// Many of PyO3 APIs use [`Python<'_>`] as proof that the calling thread is attached to the

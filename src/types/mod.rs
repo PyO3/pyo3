@@ -7,10 +7,7 @@ pub use self::bytes::{PyBytes, PyBytesMethods};
 pub use self::capsule::{CapsuleName, PyCapsule, PyCapsuleMethods};
 pub use self::code::{PyCode, PyCodeInput, PyCodeMethods};
 pub use self::complex::{PyComplex, PyComplexMethods};
-#[allow(deprecated)]
-pub use self::datetime::{
-    timezone_utc, PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess,
-};
+pub use self::datetime::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};

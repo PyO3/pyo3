@@ -2288,15 +2288,6 @@ impl<T> std::fmt::Debug for Py<T> {
     }
 }
 
-/// A commonly-used alias for `Py<PyAny>`.
-///
-/// This is an owned reference a Python object without any type information. This value can also be
-/// safely sent between threads.
-///
-/// See the documentation for [`Py`](struct.Py.html).
-#[deprecated(since = "0.26.0", note = "use `Py<PyAny>` instead")]
-pub type PyObject = Py<PyAny>;
-
 impl Py<PyAny> {
     /// Downcast this `Py<PyAny>` to a concrete Python type or pyclass.
     ///
