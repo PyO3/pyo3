@@ -114,6 +114,10 @@ where
     B: PyClass + PyClassBaseType<Initializer = PyClassInitializer<B>>,
     B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {
+    #[deprecated(
+        since = "0.28.0",
+        note = "Tuple syntax for super class initialization is phased out. Use `PyClassInitializer` instead."
+    )]
     pub const VALUE: bool = true;
 }
 impl<S, B, E> IsInitializerTuple<Result<(S, B), E>>
@@ -122,6 +126,10 @@ where
     B: PyClass + PyClassBaseType<Initializer = PyClassInitializer<B>>,
     B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {
+    #[deprecated(
+        since = "0.28.0",
+        note = "Tuple syntax for super class initialization is phased out. Use `PyClassInitializer` instead."
+    )]
     pub const VALUE: bool = true;
 }
 

@@ -35,8 +35,8 @@ struct SubWithoutInit;
 #[pymethods]
 impl SubWithoutInit {
     #[new]
-    fn new() -> (Self, Base) {
-        (Self, Base::new())
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from(Base::new()).add_subclass(Self)
     }
 }
 
@@ -60,8 +60,8 @@ struct SubWithInit;
 #[pymethods]
 impl SubWithInit {
     #[new]
-    fn new() -> (Self, Base) {
-        (Self, Base::new())
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from(Base::new()).add_subclass(Self)
     }
 
     fn __init__(mut slf: pyo3::PyClassGuardMut<'_, Self>) {

@@ -233,8 +233,9 @@ use impl_::{PyClassBorrowChecker, PyClassObjectBaseLayout, PyClassObjectLayout};
 /// #[pymethods]
 /// impl Child {
 ///     #[new]
-///     fn new() -> (Self, Parent) {
-///         (Child { name: "Caterpillar" }, Parent { basename: "Butterfly" })
+///     fn new() -> PyClassInitializer<Self> {
+///         PyClassInitializer::from(Parent { basename: "Butterfly" })
+///             .add_subclass(Child { name: "Caterpillar" })
 ///     }
 ///
 ///     fn format(slf: PyRef<'_, Self>) -> String {
@@ -430,8 +431,9 @@ where
     /// #[pymethods]
     /// impl Sub {
     ///     #[new]
-    ///     fn new() -> (Self, Base) {
-    ///         (Self { sub_name: "sub_name" }, Base { base_name: "base_name" })
+    ///     fn new() -> PyClassInitializer<Self> {
+    ///         PyClassInitializer::from(Base { base_name: "base_name" })
+    ///             .add_subclass(Self { sub_name: "sub_name" })
     ///     }
     ///     fn sub_name_len(&self) -> usize {
     ///         self.sub_name.len()

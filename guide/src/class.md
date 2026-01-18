@@ -403,8 +403,7 @@ Consult the table below to determine which type your constructor should return:
 |                             | **Cannot fail**           | **May fail**                      |
 |-----------------------------|---------------------------|-----------------------------------|
 |**No inheritance**           | `T`                       | `PyResult<T>`                     |
-|**Inheritance(T Inherits U)**| `(T, U)`                  | `PyResult<(T, U)>`                |
-|**Inheritance(General Case)**| [`PyClassInitializer<T>`] | `PyResult<PyClassInitializer<T>>` |
+|**Inheritance**              | [`PyClassInitializer<T>`] | `PyResult<PyClassInitializer<T>>` |
 
 ## Inheritance
 
@@ -412,8 +411,7 @@ By default, `object`, i.e. `PyAny` is used as the base class.
 To override this default, use the `extends` parameter for `pyclass` with the full path to the base class.
 Currently, only classes defined in Rust and builtins provided by PyO3 can be inherited from; inheriting from other classes defined in Python is not yet supported ([#991](https://github.com/PyO3/pyo3/issues/991)).
 
-For convenience, `(T, U)` implements `Into<PyClassInitializer<T>>` where `U` is the base class of `T`.
-But for a more deeply nested inheritance, you have to return `PyClassInitializer<T>` explicitly.
+To initialize a class, which inherits from another class, use the `PyClassInitializer` API.
 
 To get a parent class from a child, use [`PyRef`] instead of `&self` for methods, or [`PyRefMut`] instead of `&mut self`.
 Then you can access a parent class by `self_.as_super()` as `&PyRef<Self::BaseClass>`, or by `self_.into_super()` as `PyRef<Self::BaseClass>` (and similar for the `PyRefMut` case).
@@ -447,8 +445,9 @@ struct SubClass {
 #[pymethods]
 impl SubClass {
     #[new]
-    fn new() -> (Self, BaseClass) {
-        (SubClass { val2: 15 }, BaseClass::new())
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from(BaseClass::new())
+            .add_subclass(SubClass { val2: 15 })
     }
 
     fn method2(self_: PyRef<'_, Self>) -> PyResult<usize> {
