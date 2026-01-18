@@ -59,6 +59,35 @@ let _: Bound<'_, PyNone> = unsafe { Bound::from_owned_ptr(py, raw_ptr).cast_into
 # })
 ```
 
+### Removal of `From<Bound<'_, T>` and `From<Py<T>> for PyClassInitializer<T>`
+
+As part of refactoring the initialization code these impls were removed and its functionality was moved into the generated code for `#[new]`.
+As a small side side effect the following pattern will not be accepted anymore:
+
+```rust,ignore
+# use pyo3::prelude::*;
+# Python::attach(|py| {
+# let existing_py: Py<PyAny> = py.None();
+let obj_1 = Py::new(py, existing_py);
+
+# let existing_bound: Bound<'_, PyAny> = py.None().into_bound(py);
+let obj_2 = Bound::new(py, existing_bound);
+# })
+```
+
+To migrate use `clone` or `clone_ref`:
+
+```rust
+# use pyo3::prelude::*;
+# Python::attach(|py| {
+# let existing_py: Py<PyAny> = py.None();
+let obj_1 = existing_py.clone_ref(py);
+
+# let existing_bound: Bound<'_, PyAny> = py.None().into_bound(py);
+let obj_2 = existing_bound.clone();
+# })
+```
+
 ### Internal change to use multi-phase initialization
 
 [PEP 489](https://peps.python.org/pep-0489/) introduced "multi-phase initialization" for extension modules which provides ways to allocate and clean up per-module state.
