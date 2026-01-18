@@ -1,33 +1,9 @@
-use crate::{PyInterpreterState, PyObject};
+#[cfg(any(not(PyPy), Py_3_14))]
+use crate::PyObject;
+#[cfg(any(not(PyPy), Py_3_14))]
+use std::ffi::c_char;
 #[cfg(not(PyPy))]
-use std::ffi::c_uchar;
-use std::ffi::{c_char, c_int};
-
-// skipped PyInit__imp
-
-extern "C" {
-    pub fn _PyImport_IsInitialized(state: *mut PyInterpreterState) -> c_int;
-    // skipped _PyImport_GetModuleId
-    pub fn _PyImport_SetModule(name: *mut PyObject, module: *mut PyObject) -> c_int;
-    pub fn _PyImport_SetModuleString(name: *const c_char, module: *mut PyObject) -> c_int;
-    pub fn _PyImport_AcquireLock();
-    pub fn _PyImport_ReleaseLock() -> c_int;
-    #[cfg(not(Py_3_9))]
-    pub fn _PyImport_FindBuiltin(name: *const c_char, modules: *mut PyObject) -> *mut PyObject;
-    #[cfg(not(Py_3_11))]
-    pub fn _PyImport_FindExtensionObject(a: *mut PyObject, b: *mut PyObject) -> *mut PyObject;
-    pub fn _PyImport_FixupBuiltin(
-        module: *mut PyObject,
-        name: *const c_char,
-        modules: *mut PyObject,
-    ) -> c_int;
-    pub fn _PyImport_FixupExtensionObject(
-        a: *mut PyObject,
-        b: *mut PyObject,
-        c: *mut PyObject,
-        d: *mut PyObject,
-    ) -> c_int;
-}
+use std::ffi::{c_int, c_uchar};
 
 #[cfg(not(PyPy))]
 #[repr(C)]
@@ -41,9 +17,7 @@ pub struct _inittab {
 extern "C" {
     #[cfg(not(PyPy))]
     pub static mut PyImport_Inittab: *mut _inittab;
-}
 
-extern "C" {
     #[cfg(not(PyPy))]
     pub fn PyImport_ExtendInittab(newtab: *mut _inittab) -> c_int;
 }
@@ -65,8 +39,15 @@ pub struct _frozen {
 extern "C" {
     #[cfg(not(PyPy))]
     pub static mut PyImport_FrozenModules: *const _frozen;
-}
 
-// skipped _PyImport_FrozenBootstrap
-// skipped _PyImport_FrozenStdlib
-// skipped _PyImport_FrozenTest
+    #[cfg(Py_3_14)]
+    pub fn PyImport_ImportModuleAttr(
+        mod_name: *mut PyObject,
+        attr_name: *mut PyObject,
+    ) -> *mut PyObject;
+    #[cfg(Py_3_14)]
+    pub fn PyImport_ImportModuleAttrString(
+        mod_name: *const c_char,
+        attr_name: *const c_char,
+    ) -> *mut PyObject;
+}
