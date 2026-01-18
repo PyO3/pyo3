@@ -29,8 +29,8 @@ pub mod subclassing {
     #[pymethods]
     impl Subclass {
         #[new]
-        fn new() -> (Self, Subclassable) {
-            (Subclass {}, Subclassable::new())
+        fn new() -> PyClassInitializer<Self> {
+            PyClassInitializer::from(Subclassable::new()).add_subclass(Self {})
         }
 
         fn __str__(&self) -> &'static str {
