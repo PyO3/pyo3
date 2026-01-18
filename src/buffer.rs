@@ -361,7 +361,7 @@ impl<T: Element> PyBuffer<T> {
         if self.is_c_contiguous() {
             unsafe {
                 Some(slice::from_raw_parts(
-                    self.raw().buf as *mut ReadOnlyCell<T>,
+                    self.raw().buf.cast(),
                     self.item_count(),
                 ))
             }
@@ -384,7 +384,7 @@ impl<T: Element> PyBuffer<T> {
         if !self.readonly() && self.is_c_contiguous() {
             unsafe {
                 Some(slice::from_raw_parts(
-                    self.raw().buf as *mut cell::Cell<T>,
+                    self.raw().buf.cast(),
                     self.item_count(),
                 ))
             }
@@ -406,7 +406,7 @@ impl<T: Element> PyBuffer<T> {
         if mem::size_of::<T>() == self.item_size() && self.is_fortran_contiguous() {
             unsafe {
                 Some(slice::from_raw_parts(
-                    self.raw().buf as *mut ReadOnlyCell<T>,
+                    self.raw().buf.cast(),
                     self.item_count(),
                 ))
             }
@@ -429,7 +429,7 @@ impl<T: Element> PyBuffer<T> {
         if !self.readonly() && self.is_fortran_contiguous() {
             unsafe {
                 Some(slice::from_raw_parts(
-                    self.raw().buf as *mut cell::Cell<T>,
+                    self.raw().buf.cast(),
                     self.item_count(),
                 ))
             }
@@ -479,9 +479,7 @@ impl<T: Element> PyBuffer<T> {
                 #[cfg(Py_3_11)]
                 self.raw(),
                 #[cfg(not(Py_3_11))]
-                {
-                    self.raw() as *const ffi::Py_buffer as *mut ffi::Py_buffer
-                },
+                ptr::from_ref(self.raw()).cast_mut(),
                 self.raw().len,
                 fort as std::ffi::c_char,
             )
@@ -512,13 +510,11 @@ impl<T: Element> PyBuffer<T> {
         // Due to T:Copy, we don't need to be concerned with Drop impls.
         err::error_on_minusone(py, unsafe {
             ffi::PyBuffer_ToContiguous(
-                vec.as_ptr() as *mut c_void,
+                vec.as_mut_ptr().cast(),
                 #[cfg(Py_3_11)]
                 self.raw(),
                 #[cfg(not(Py_3_11))]
-                {
-                    self.raw() as *const ffi::Py_buffer as *mut ffi::Py_buffer
-                },
+                ptr::from_ref(self.raw()).cast_mut(),
                 self.raw().len,
                 fort as std::ffi::c_char,
             )
@@ -572,16 +568,14 @@ impl<T: Element> PyBuffer<T> {
                 #[cfg(Py_3_11)]
                 self.raw(),
                 #[cfg(not(Py_3_11))]
-                {
-                    self.raw() as *const ffi::Py_buffer as *mut ffi::Py_buffer
-                },
+                ptr::from_ref(self.raw()).cast_mut(),
                 #[cfg(Py_3_11)]
                 {
                     source.as_ptr().cast()
                 },
                 #[cfg(not(Py_3_11))]
                 {
-                    source.as_ptr() as *mut c_void
+                    source.as_ptr().cast::<c_void>().cast_mut()
                 },
                 self.raw().len,
                 fort as std::ffi::c_char,
@@ -691,17 +685,11 @@ impl PyUntypedBuffer {
                 #[cfg(Py_3_11)]
                 self.raw(),
                 #[cfg(not(Py_3_11))]
-                {
-                    ptr::from_ref(self.raw()).cast_mut()
-                },
+                ptr::from_ref(self.raw()).cast_mut(),
                 #[cfg(Py_3_11)]
-                {
-                    indices.as_ptr().cast()
-                },
+                indices.as_ptr().cast(),
                 #[cfg(not(Py_3_11))]
-                {
-                    indices.as_ptr().cast_mut()
-                },
+                indices.as_ptr().cast_mut(),
             )
         }
     }
@@ -808,19 +796,15 @@ impl RawBuffer {
 
 impl Drop for PyUntypedBuffer {
     fn drop(&mut self) {
-        fn inner(buf: &mut Pin<Box<RawBuffer>>) {
-            if Python::try_attach(|_| unsafe { buf.release() }).is_none()
-                && crate::internal::state::is_in_gc_traversal()
-            {
-                eprintln!("Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory.");
-            }
-            // If `try_attach` failed and `is_in_gc_traversal()` is false, then probably the interpreter has
-            // already finalized and we can just assume that the underlying memory has already been freed.
-            //
-            // So we don't handle that case here.
+        if Python::try_attach(|_| unsafe { self.0.release() }).is_none()
+            && crate::internal::state::is_in_gc_traversal()
+        {
+            eprintln!("Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory.");
         }
-
-        inner(&mut self.0);
+        // If `try_attach` failed and `is_in_gc_traversal()` is false, then probably the interpreter has
+        // already finalized and we can just assume that the underlying memory has already been freed.
+        //
+        // So we don't handle that case here.
     }
 }
 
@@ -1055,7 +1039,7 @@ mod tests {
             assert_eq!(slice[0].get(), b'a');
             assert_eq!(slice[2].get(), b'c');
 
-            assert_eq!(unsafe { *(buffer.get_ptr(&[1]) as *mut u8) }, b'b');
+            assert_eq!(unsafe { *(buffer.get_ptr(&[1]).cast::<u8>()) }, b'b');
 
             assert!(buffer.as_mut_slice(py).is_none());
 
