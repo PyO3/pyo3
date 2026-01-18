@@ -266,8 +266,7 @@ It exposes the same API as `GILOnceCell`, so should be a drop-in replacement wit
 
 Before:
 
-```rust
-# #![allow(deprecated)]
+```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::sync::GILOnceCell;
 # use pyo3::types::PyType;
@@ -307,8 +306,7 @@ Prefer to use concurrency primitives which are compatible with free-threaded Pyt
 
 Before:
 
-```rust
-# #![allow(deprecated)]
+```rust,ignore
 # use pyo3::prelude::*;
 # fn main() {
 # #[cfg(not(Py_GIL_DISABLED))] {
@@ -494,8 +492,7 @@ impl ToPyObject for MyPyObjectWrapper {
 
 After:
 
-```rust,no_run
-# #![allow(deprecated)]
+```rust,ignore
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 # struct MyPyObjectWrapper(PyObject);
