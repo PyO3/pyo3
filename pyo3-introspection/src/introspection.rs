@@ -1,18 +1,23 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Function, Module, VariableLengthArgument,
+    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator, TypeHint,
+    VariableLengthArgument,
 };
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
+use goblin::elf::section_header::SHN_XINDEX;
 use goblin::elf::Elf;
 use goblin::mach::load_command::CommandVariant;
 use goblin::mach::symbols::{NO_SECT, N_SECT};
 use goblin::mach::{Mach, MachO, SingleArch};
 use goblin::pe::PE;
 use goblin::Object;
-use serde::Deserialize;
+use serde::de::value::MapAccessDeserializer;
+use serde::de::{Error, MapAccess, Visitor};
+use serde::{Deserialize, Deserializer};
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
+use std::{fmt, fs, str};
 
 /// Introspect a cdylib built with PyO3 and returns the definition of a Python module.
 ///
@@ -50,6 +55,11 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
         } = chunk
         {
             if name == main_module_name {
+                let type_hint_for_annotation_id = introspection_id_to_type_hint_for_root_module(
+                    chunk,
+                    &chunks_by_id,
+                    &chunks_by_parent,
+                );
                 return convert_module(
                     id,
                     name,
@@ -57,6 +67,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
                     *incomplete,
                     &chunks_by_id,
                     &chunks_by_parent,
+                    &type_hint_for_annotation_id,
                 );
             }
         }
@@ -68,17 +79,29 @@ fn convert_module(
     id: &str,
     name: &str,
     members: &[String],
-    incomplete: bool,
+    mut incomplete: bool,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Result<Module> {
+    let mut member_chunks = chunks_by_parent
+        .get(&id)
+        .into_iter()
+        .flatten()
+        .copied()
+        .collect::<Vec<_>>();
+    for member in members {
+        if let Some(c) = chunks_by_id.get(member.as_str()) {
+            member_chunks.push(*c);
+        } else {
+            incomplete = true; // We don't find an element
+        }
+    }
     let (modules, classes, functions, attributes) = convert_members(
-        members
-            .iter()
-            .filter_map(|id| chunks_by_id.get(id.as_str()).copied())
-            .chain(chunks_by_parent.get(&id).into_iter().flatten().copied()),
+        member_chunks,
         chunks_by_id,
         chunks_by_parent,
+        type_hint_for_annotation_id,
     )?;
 
     Ok(Module {
@@ -98,6 +121,7 @@ fn convert_members<'a>(
     chunks: impl IntoIterator<Item = &'a Chunk>,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Result<Members> {
     let mut modules = Vec::new();
     let mut classes = Vec::new();
@@ -118,26 +142,51 @@ fn convert_members<'a>(
                     *incomplete,
                     chunks_by_id,
                     chunks_by_parent,
+                    type_hint_for_annotation_id,
                 )?);
             }
-            Chunk::Class { name, id } => {
-                classes.push(convert_class(id, name, chunks_by_id, chunks_by_parent)?)
-            }
+            Chunk::Class {
+                name,
+                id,
+                bases,
+                decorators,
+            } => classes.push(convert_class(
+                id,
+                name,
+                bases,
+                decorators,
+                chunks_by_id,
+                chunks_by_parent,
+                type_hint_for_annotation_id,
+            )?),
             Chunk::Function {
                 name,
                 id: _,
                 arguments,
                 parent: _,
                 decorators,
+                is_async,
                 returns,
-            } => functions.push(convert_function(name, arguments, decorators, returns)),
+            } => functions.push(convert_function(
+                name,
+                arguments,
+                decorators,
+                returns,
+                *is_async,
+                type_hint_for_annotation_id,
+            )),
             Chunk::Attribute {
                 name,
                 id: _,
                 parent: _,
                 value,
                 annotation,
-            } => attributes.push(convert_attribute(name, value, annotation)),
+            } => attributes.push(convert_attribute(
+                name,
+                value,
+                annotation,
+                type_hint_for_annotation_id,
+            )),
         }
     }
     // We sort elements to get a stable output
@@ -145,15 +194,22 @@ fn convert_members<'a>(
     classes.sort_by(|l, r| l.name.cmp(&r.name));
     functions.sort_by(|l, r| match l.name.cmp(&r.name) {
         Ordering::Equal => {
-            // We put the getter before the setter
-            if l.decorators.iter().any(|d| d == "property") {
-                Ordering::Less
-            } else if r.decorators.iter().any(|d| d == "property") {
-                Ordering::Greater
-            } else {
-                // We pick an ordering based on decorators
-                l.decorators.cmp(&r.decorators)
+            fn decorator_expr_key(expr: &Expr) -> (u32, Cow<'_, str>) {
+                // We put plain names before attributes for @property to be before @foo.property
+                match expr {
+                    Expr::Name { id, .. } => (0, Cow::Borrowed(id)),
+                    Expr::Attribute { value, attr } => {
+                        let (c, v) = decorator_expr_key(value);
+                        (c + 1, Cow::Owned(format!("{v}.{attr}")))
+                    }
+                    _ => (0, Cow::Borrowed("")), // We don't care
+                }
             }
+            // We pick an ordering based on decorators
+            l.decorators
+                .iter()
+                .map(decorator_expr_key)
+                .cmp(r.decorators.iter().map(decorator_expr_key))
         }
         o => o,
     });
@@ -164,13 +220,17 @@ fn convert_members<'a>(
 fn convert_class(
     id: &str,
     name: &str,
+    bases: &[ChunkExpr],
+    decorators: &[ChunkExpr],
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Result<Class> {
     let (nested_modules, nested_classes, methods, attributes) = convert_members(
         chunks_by_parent.get(&id).into_iter().flatten().copied(),
         chunks_by_id,
         chunks_by_parent,
+        type_hint_for_annotation_id,
     )?;
     ensure!(
         nested_modules.is_empty(),
@@ -182,58 +242,239 @@ fn convert_class(
     );
     Ok(Class {
         name: name.into(),
+        bases: bases
+            .iter()
+            .map(|e| convert_expr(e, type_hint_for_annotation_id))
+            .collect(),
         methods,
         attributes,
+        decorators: decorators
+            .iter()
+            .map(|e| convert_expr(e, type_hint_for_annotation_id))
+            .collect(),
     })
 }
 
 fn convert_function(
     name: &str,
     arguments: &ChunkArguments,
-    decorators: &[String],
-    returns: &Option<String>,
+    decorators: &[ChunkExpr],
+    returns: &Option<ChunkTypeHint>,
+    is_async: bool,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Function {
     Function {
         name: name.into(),
-        decorators: decorators.to_vec(),
+        decorators: decorators
+            .iter()
+            .map(|e| convert_expr(e, type_hint_for_annotation_id))
+            .collect(),
         arguments: Arguments {
-            positional_only_arguments: arguments.posonlyargs.iter().map(convert_argument).collect(),
-            arguments: arguments.args.iter().map(convert_argument).collect(),
+            positional_only_arguments: arguments
+                .posonlyargs
+                .iter()
+                .map(|a| convert_argument(a, type_hint_for_annotation_id))
+                .collect(),
+            arguments: arguments
+                .args
+                .iter()
+                .map(|a| convert_argument(a, type_hint_for_annotation_id))
+                .collect(),
             vararg: arguments
                 .vararg
                 .as_ref()
-                .map(convert_variable_length_argument),
-            keyword_only_arguments: arguments.kwonlyargs.iter().map(convert_argument).collect(),
+                .map(|a| convert_variable_length_argument(a, type_hint_for_annotation_id)),
+            keyword_only_arguments: arguments
+                .kwonlyargs
+                .iter()
+                .map(|e| convert_argument(e, type_hint_for_annotation_id))
+                .collect(),
             kwarg: arguments
                 .kwarg
                 .as_ref()
-                .map(convert_variable_length_argument),
+                .map(|a| convert_variable_length_argument(a, type_hint_for_annotation_id)),
         },
-        returns: returns.clone(),
+        returns: returns
+            .as_ref()
+            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
+        is_async,
     }
 }
 
-fn convert_argument(arg: &ChunkArgument) -> Argument {
+fn convert_argument(
+    arg: &ChunkArgument,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
+) -> Argument {
     Argument {
         name: arg.name.clone(),
         default_value: arg.default.clone(),
-        annotation: arg.annotation.clone(),
+        annotation: arg
+            .annotation
+            .as_ref()
+            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
     }
 }
 
-fn convert_variable_length_argument(arg: &ChunkArgument) -> VariableLengthArgument {
+fn convert_variable_length_argument(
+    arg: &ChunkArgument,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
+) -> VariableLengthArgument {
     VariableLengthArgument {
         name: arg.name.clone(),
-        annotation: arg.annotation.clone(),
+        annotation: arg
+            .annotation
+            .as_ref()
+            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
     }
 }
 
-fn convert_attribute(name: &str, value: &Option<String>, annotation: &Option<String>) -> Attribute {
+fn convert_attribute(
+    name: &str,
+    value: &Option<String>,
+    annotation: &Option<ChunkTypeHint>,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
+) -> Attribute {
     Attribute {
         name: name.into(),
         value: value.clone(),
-        annotation: annotation.clone(),
+        annotation: annotation
+            .as_ref()
+            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
     }
+}
+
+fn convert_type_hint(
+    arg: &ChunkTypeHint,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
+) -> TypeHint {
+    match arg {
+        ChunkTypeHint::Ast(expr) => TypeHint::Ast(convert_expr(expr, type_hint_for_annotation_id)),
+        ChunkTypeHint::Plain(t) => TypeHint::Plain(t.clone()),
+    }
+}
+
+fn convert_expr(expr: &ChunkExpr, type_hint_for_annotation_id: &HashMap<String, Expr>) -> Expr {
+    match expr {
+        ChunkExpr::Name { id } => Expr::Name { id: id.clone() },
+        ChunkExpr::Attribute { value, attr } => Expr::Attribute {
+            value: Box::new(convert_expr(value, type_hint_for_annotation_id)),
+            attr: attr.clone(),
+        },
+        ChunkExpr::BinOp { left, op, right } => Expr::BinOp {
+            left: Box::new(convert_expr(left, type_hint_for_annotation_id)),
+            op: match op {
+                ChunkOperator::BitOr => Operator::BitOr,
+            },
+            right: Box::new(convert_expr(right, type_hint_for_annotation_id)),
+        },
+        ChunkExpr::Subscript { value, slice } => Expr::Subscript {
+            value: Box::new(convert_expr(value, type_hint_for_annotation_id)),
+            slice: Box::new(convert_expr(slice, type_hint_for_annotation_id)),
+        },
+        ChunkExpr::Tuple { elts } => Expr::Tuple {
+            elts: elts
+                .iter()
+                .map(|e| convert_expr(e, type_hint_for_annotation_id))
+                .collect(),
+        },
+        ChunkExpr::List { elts } => Expr::List {
+            elts: elts
+                .iter()
+                .map(|e| convert_expr(e, type_hint_for_annotation_id))
+                .collect(),
+        },
+        ChunkExpr::Constant { value } => Expr::Constant {
+            value: match value {
+                ChunkConstant::None => Constant::None,
+            },
+        },
+        ChunkExpr::Id { id } => {
+            if let Some(expr) = type_hint_for_annotation_id.get(id) {
+                expr.clone()
+            } else {
+                // This is a pyclass not exposed, we fallback to Any
+                Expr::Attribute {
+                    value: Box::new(Expr::Name {
+                        id: "typing".into(),
+                    }),
+                    attr: "Any".to_string(),
+                }
+            }
+        }
+    }
+}
+
+/// Returns the type hint for each class introspection id defined in the module and its submodule
+fn introspection_id_to_type_hint_for_root_module(
+    module_chunk: &Chunk,
+    chunks_by_id: &HashMap<&str, &Chunk>,
+    chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+) -> HashMap<String, Expr> {
+    fn add_introspection_id_to_type_hint_for_module(
+        module_id: &str,
+        module_full_name: &str,
+        module_members: &[String],
+        chunks_by_id: &HashMap<&str, &Chunk>,
+        chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+        output: &mut HashMap<String, Expr>,
+    ) {
+        for member in chunks_by_parent
+            .get(&module_id)
+            .into_iter()
+            .flatten()
+            .chain(
+                module_members
+                    .iter()
+                    .filter_map(|id| chunks_by_id.get(id.as_str())),
+            )
+            .copied()
+            .collect::<Vec<_>>()
+        {
+            match member {
+                Chunk::Module {
+                    name, id, members, ..
+                } => {
+                    add_introspection_id_to_type_hint_for_module(
+                        id,
+                        &format!("{}.{}", module_full_name, name),
+                        members,
+                        chunks_by_id,
+                        chunks_by_parent,
+                        output,
+                    );
+                }
+                Chunk::Class { id, name, .. } => {
+                    output.insert(
+                        id.clone(),
+                        Expr::Attribute {
+                            value: Box::new(Expr::Name {
+                                id: module_full_name.into(),
+                            }),
+                            attr: name.clone(),
+                        },
+                    );
+                }
+                _ => (),
+            }
+        }
+    }
+
+    let mut output = HashMap::new();
+    let Chunk::Module {
+        id, name, members, ..
+    } = module_chunk
+    else {
+        unreachable!("The chunk must be a module")
+    };
+    add_introspection_id_to_type_hint_for_module(
+        id,
+        name,
+        members,
+        chunks_by_id,
+        chunks_by_parent,
+        &mut output,
+    );
+    output
 }
 
 fn find_introspection_chunks_in_binary_object(path: &Path) -> Result<Vec<Chunk>> {
@@ -268,13 +509,12 @@ fn find_introspection_chunks_in_elf(elf: &Elf<'_>, library_content: &[u8]) -> Re
     let mut chunks = Vec::new();
     for sym in &elf.syms {
         if is_introspection_symbol(elf.strtab.get_at(sym.st_name).unwrap_or_default()) {
+            ensure!(u32::try_from(sym.st_shndx)? != SHN_XINDEX, "Section names length is greater than SHN_LORESERVE in ELF, this is not supported by PyO3 yet");
             let section_header = &elf.section_headers[sym.st_shndx];
             let data_offset = sym.st_value + section_header.sh_offset - section_header.sh_addr;
-            chunks.push(read_symbol_value_with_ptr_and_len(
+            chunks.push(deserialize_chunk(
                 &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
-                0,
-                library_content,
-                elf.is_64,
+                elf.little_endian,
             )?);
         }
     }
@@ -311,11 +551,9 @@ fn find_introspection_chunks_in_macho(
         {
             let section = &sections[nlist.n_sect - 1]; // Sections are counted from 1
             let data_offset = nlist.n_value + u64::from(section.offset) - section.addr;
-            chunks.push(read_symbol_value_with_ptr_and_len(
+            chunks.push(deserialize_chunk(
                 &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
-                0,
-                library_content,
-                macho.is_64,
+                macho.little_endian,
             )?);
         }
     }
@@ -323,64 +561,40 @@ fn find_introspection_chunks_in_macho(
 }
 
 fn find_introspection_chunks_in_pe(pe: &PE<'_>, library_content: &[u8]) -> Result<Vec<Chunk>> {
-    let rdata_data_section = pe
-        .sections
-        .iter()
-        .find(|section| section.name().unwrap_or_default() == ".rdata")
-        .context("No .rdata section found")?;
-    let rdata_shift = usize::try_from(pe.image_base).context("image_base overflow")?
-        + usize::try_from(rdata_data_section.virtual_address)
-            .context(".rdata virtual_address overflow")?
-        - usize::try_from(rdata_data_section.pointer_to_raw_data)
-            .context(".rdata pointer_to_raw_data overflow")?;
-
     let mut chunks = Vec::new();
     for export in &pe.exports {
         if is_introspection_symbol(export.name.unwrap_or_default()) {
-            chunks.push(read_symbol_value_with_ptr_and_len(
+            chunks.push(deserialize_chunk(
                 &library_content[export.offset.context("No symbol offset")?..],
-                rdata_shift,
-                library_content,
-                pe.is_64,
+                true,
             )?);
         }
     }
     Ok(chunks)
 }
 
-fn read_symbol_value_with_ptr_and_len(
-    value_slice: &[u8],
-    shift: usize,
-    full_library_content: &[u8],
-    is_64: bool,
+fn deserialize_chunk(
+    content_with_chunk_at_the_beginning: &[u8],
+    is_little_endian: bool,
 ) -> Result<Chunk> {
-    let (ptr, len) = if is_64 {
-        let (ptr, len) = value_slice[..16].split_at(8);
-        let ptr = usize::try_from(u64::from_le_bytes(
-            ptr.try_into().context("Too short symbol value")?,
-        ))
-        .context("Pointer overflow")?;
-        let len = usize::try_from(u64::from_le_bytes(
-            len.try_into().context("Too short symbol value")?,
-        ))
-        .context("Length overflow")?;
-        (ptr, len)
+    let length = content_with_chunk_at_the_beginning
+        .split_at(4)
+        .0
+        .try_into()
+        .context("The introspection chunk must contain a length")?;
+    let length = if is_little_endian {
+        u32::from_le_bytes(length)
     } else {
-        let (ptr, len) = value_slice[..8].split_at(4);
-        let ptr = usize::try_from(u32::from_le_bytes(
-            ptr.try_into().context("Too short symbol value")?,
-        ))
-        .context("Pointer overflow")?;
-        let len = usize::try_from(u32::from_le_bytes(
-            len.try_into().context("Too short symbol value")?,
-        ))
-        .context("Length overflow")?;
-        (ptr, len)
+        u32::from_be_bytes(length)
     };
-    let chunk = &full_library_content[ptr - shift..ptr - shift + len];
+    let chunk = content_with_chunk_at_the_beginning
+        .get(4..4 + length as usize)
+        .ok_or_else(|| {
+            anyhow!("The introspection chunk length {length} is greater that the binary size")
+        })?;
     serde_json::from_slice(chunk).with_context(|| {
         format!(
-            "Failed to parse introspection chunk: '{}'",
+            "Failed to parse introspection chunk: {:?}",
             String::from_utf8_lossy(chunk)
         )
     })
@@ -389,7 +603,7 @@ fn read_symbol_value_with_ptr_and_len(
 fn is_introspection_symbol(name: &str) -> bool {
     name.strip_prefix('_')
         .unwrap_or(name)
-        .starts_with("PYO3_INTROSPECTION_0_")
+        .starts_with("PYO3_INTROSPECTION_1_")
 }
 
 #[derive(Deserialize)]
@@ -404,6 +618,10 @@ enum Chunk {
     Class {
         id: String,
         name: String,
+        #[serde(default)]
+        bases: Vec<ChunkExpr>,
+        #[serde(default)]
+        decorators: Vec<ChunkExpr>,
     },
     Function {
         #[serde(default)]
@@ -413,9 +631,11 @@ enum Chunk {
         #[serde(default)]
         parent: Option<String>,
         #[serde(default)]
-        decorators: Vec<String>,
+        decorators: Vec<ChunkExpr>,
         #[serde(default)]
-        returns: Option<String>,
+        returns: Option<ChunkTypeHint>,
+        #[serde(default, rename = "async")]
+        is_async: bool,
     },
     Attribute {
         #[serde(default)]
@@ -426,7 +646,7 @@ enum Chunk {
         #[serde(default)]
         value: Option<String>,
         #[serde(default)]
-        annotation: Option<String>,
+        annotation: Option<ChunkTypeHint>,
     },
 }
 
@@ -450,5 +670,92 @@ struct ChunkArgument {
     #[serde(default)]
     default: Option<String>,
     #[serde(default)]
-    annotation: Option<String>,
+    annotation: Option<ChunkTypeHint>,
+}
+
+/// Variant of [`TypeHint`] that implements deserialization.
+///
+/// We keep separated type to allow them to evolve independently (this type will need to handle backward compatibility).
+enum ChunkTypeHint {
+    Ast(ChunkExpr),
+    Plain(String),
+}
+
+impl<'de> Deserialize<'de> for ChunkTypeHint {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct AnnotationVisitor;
+
+        impl<'de> Visitor<'de> for AnnotationVisitor {
+            type Value = ChunkTypeHint;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("annotation")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                self.visit_string(v.into())
+            }
+
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                Ok(ChunkTypeHint::Plain(v))
+            }
+
+            fn visit_map<M: MapAccess<'de>>(self, map: M) -> Result<ChunkTypeHint, M::Error> {
+                Ok(ChunkTypeHint::Ast(Deserialize::deserialize(
+                    MapAccessDeserializer::new(map),
+                )?))
+            }
+        }
+
+        deserializer.deserialize_any(AnnotationVisitor)
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+enum ChunkExpr {
+    /// A constant like `None` or `123`
+    Constant {
+        #[serde(flatten)]
+        value: ChunkConstant,
+    },
+    /// A name
+    Name { id: String },
+    /// An attribute `value.attr`
+    Attribute { value: Box<Self>, attr: String },
+    /// A binary operator
+    BinOp {
+        left: Box<Self>,
+        op: ChunkOperator,
+        right: Box<Self>,
+    },
+    /// A tuple
+    Tuple { elts: Vec<Self> },
+    /// A list
+    List { elts: Vec<Self> },
+    /// A subscript `value[slice]`
+    Subscript { value: Box<Self>, slice: Box<Self> },
+    /// An introspection id
+    Id { id: String },
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum ChunkConstant {
+    None,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ChunkOperator {
+    BitOr,
 }

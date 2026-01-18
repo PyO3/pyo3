@@ -2,13 +2,13 @@
 name = "decorator"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.74"
+rust-version = "1.83"
 
 [lib]
 name = "decorator"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { path = "../../", features = ["extension-module"] }
+pyo3 = { path = "../../" }
 
 [workspace]

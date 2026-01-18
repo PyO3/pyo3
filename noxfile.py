@@ -38,7 +38,7 @@ try:
 except ImportError:
     requests = None
 
-nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "docs"]
+nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "rumdl", "docs"]
 
 PYO3_DIR = Path(__file__).parent
 PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).absolute()
@@ -82,6 +82,10 @@ def _supported_interpreter_versions(
 
 
 PY_VERSIONS = _supported_interpreter_versions("cpython")
+# We don't yet support abi3-py315 but do support cp315 and cp315t
+# version-specific builds
+ABI3_PY_VERSIONS = [p for p in PY_VERSIONS if not p.endswith("t")]
+ABI3_PY_VERSIONS.remove("3.15")
 PYPY_VERSIONS = _supported_interpreter_versions("pypy")
 
 
@@ -202,9 +206,20 @@ def ruff(session: nox.Session):
     _run(session, "ruff", "check", ".")
 
 
+@nox.session(name="rumdl", venv_backend="none")
+def rumdl(session: nox.Session):
+    """Run rumdl to check markdown formatting in the guide.
+
+    Can also run with uv directly, e.g. `uv run rumdl check guide`.
+    """
+    _run(
+        session, "uv", "run", "rumdl", "check", "guide", *session.posargs, external=True
+    )
+
+
 @nox.session(name="clippy", venv_backend="none")
 def clippy(session: nox.Session) -> bool:
-    if not _clippy(session) and _clippy_additional_workspaces(session):
+    if not (_clippy(session) and _clippy_additional_workspaces(session)):
         session.error("one or more jobs failed")
 
 
@@ -686,7 +701,7 @@ def _build_netlify_redirects(preview: bool) -> None:
             redirects_file.write(f"/ /v{current_version}/ 302\n")
 
 
-@nox.session(name="check-guide", venv_backend="none")
+@nox.session(name="check-guide")
 def check_guide(session: nox.Session):
     # reuse other sessions, but with default args
     posargs = [*session.posargs]
@@ -727,7 +742,10 @@ def check_guide(session: nox.Session):
         str(PYO3_GUIDE_SRC),
         *remap_args,
         "--accept=200,429",
+        "--cache",
+        "--max-cache-age=7d",
         *session.posargs,
+        external=True,
     )
     # check external links in the docs
     # (intra-doc links are checked by rustdoc)
@@ -743,7 +761,10 @@ def check_guide(session: nox.Session):
         "--accept=200,429",
         # reduce the concurrency to avoid rate-limit from `pyo3.rs`
         "--max-concurrency=32",
+        "--cache",
+        "--max-cache-age=7d",
         *session.posargs,
+        external=True,
     )
 
 
@@ -942,24 +963,26 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.6")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        assert "3.15" not in PY_VERSIONS
-        config_file.set("CPython", "3.15")
+        assert "3.16" not in PY_VERSIONS
+        config_file.set("CPython", "3.16")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        # 3.15 CPython should build if abi3 is explicitly requested
+        # 3.16 CPython should build if abi3 is explicitly requested
         _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
 
         # 3.15 CPython should build with forward compatibility
+        # TODO: check on 3.16 when adding abi3-py315 support
+        config_file.set("CPython", "3.15")
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
-        assert "3.8" not in PYPY_VERSIONS
-        config_file.set("PyPy", "3.8")
+        assert "3.10" not in PYPY_VERSIONS
+        config_file.set("PyPy", "3.10")
         _run_cargo(session, "check", env=env, expect_error=True)
 
     # attempt to build with latest version and check that abi3 version
     # configured matches the feature
-    max_minor_version = max(int(v.split(".")[1]) for v in PY_VERSIONS if "t" not in v)
+    max_minor_version = max(int(v.split(".")[1]) for v in ABI3_PY_VERSIONS)
     with tempfile.TemporaryFile() as stderr:
         env = os.environ.copy()
         env["PYO3_PRINT_CONFIG"] = "1"  # get diagnostics from the build
@@ -993,7 +1016,7 @@ def check_feature_powerset(session: nox.Session):
 
     # free-threaded builds do not support ABI3 (yet)
     EXPECTED_ABI3_FEATURES = {
-        f"abi3-py3{ver.split('.')[1]}" for ver in PY_VERSIONS if not ver.endswith("t")
+        f"abi3-py3{ver.split('.')[1]}" for ver in ABI3_PY_VERSIONS
     }
 
     EXCLUDED_FROM_FULL = {
@@ -1090,21 +1113,32 @@ def update_ui_tests(session: nox.Session):
 def test_introspection(session: nox.Session):
     session.install("maturin")
     session.install("ruff")
+    options = []
     target = os.environ.get("CARGO_BUILD_TARGET")
-    for options in ([], ["--release"]):
-        if target is not None:
-            options += ("--target", target)
-        session.run_always("maturin", "develop", "-m", "./pytests/Cargo.toml", *options)
-        # We look for the built library
-        lib_file = None
-        for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
-            if file.is_file():
-                lib_file = str(file.resolve())
-        _run_cargo_test(
-            session,
-            package="pyo3-introspection",
-            env={"PYO3_PYTEST_LIB_PATH": lib_file},
-        )
+    if target is not None:
+        options += ("--target", target)
+    profile = os.environ.get("CARGO_BUILD_PROFILE")
+    if profile == "release":
+        options.append("--release")
+    session.run_always(
+        "maturin",
+        "develop",
+        "-m",
+        "./pytests/Cargo.toml",
+        "--features",
+        "experimental-async,experimental-inspect",
+        *options,
+    )
+    # We look for the built library
+    lib_file = None
+    for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
+        if file.is_file():
+            lib_file = str(file.resolve())
+    _run_cargo_test(
+        session,
+        package="pyo3-introspection",
+        env={"PYO3_PYTEST_LIB_PATH": lib_file},
+    )
 
 
 def _build_docs_for_ffi_check(session: nox.Session) -> None:

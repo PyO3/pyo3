@@ -66,7 +66,7 @@ compat_function!(
 
         if !reference.is_null() && PyWeakref_Check(reference) == 0 {
             *pobj = std::ptr::null_mut();
-            PyErr_SetString(PyExc_TypeError, c_str!("expected a weakref").as_ptr());
+            PyErr_SetString(PyExc_TypeError, c"expected a weakref".as_ptr());
             return -1;
         }
         let obj = PyWeakref_GetObject(reference);
@@ -117,5 +117,16 @@ compat_function!(
         let result = crate::compat::PyModule_AddObjectRef(module, name, value);
         crate::Py_XDECREF(value);
         result
+    }
+);
+
+#[cfg(not(Py_LIMITED_API))]
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyThreadState_GetUnchecked(
+    ) -> *mut crate::PyThreadState {
+        crate::_PyThreadState_UncheckedGet()
     }
 );

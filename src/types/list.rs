@@ -19,7 +19,22 @@ use std::num::NonZero;
 #[repr(transparent)]
 pub struct PyList(PyAny);
 
-pyobject_native_type_core!(PyList, pyobject_native_static_type_object!(ffi::PyList_Type), #checkfunction=ffi::PyList_Check);
+pyobject_native_type_core!(
+    PyList,
+    pyobject_native_static_type_object!(ffi::PyList_Type),
+    "builtins", "list",
+    #checkfunction=ffi::PyList_Check
+);
+
+#[cfg(Py_3_12)]
+impl crate::impl_::pyclass::PyClassBaseType for PyList {
+    type LayoutAsBase = crate::impl_::pycell::PyVariableClassObjectBase;
+    type BaseNativeType = Self;
+    type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+    type PyClassMutability = crate::pycell::impl_::ImmutableClass;
+    type Layout<T: crate::impl_::pyclass::PyClassImpl> =
+        crate::impl_::pycell::PyVariableClassObject<T>;
+}
 
 #[inline]
 #[track_caller]
@@ -135,13 +150,18 @@ pub trait PyListMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn get_item(&self, index: usize) -> PyResult<Bound<'py, PyAny>>;
 
-    /// Gets the list item at the specified index. Undefined behavior on bad index. Use with caution.
+    /// Gets the list item at the specified index. Undefined behavior on bad index, or if the list
+    /// contains a null pointer at the specified index. Use with caution.
     ///
     /// # Safety
     ///
-    /// Caller must verify that the index is within the bounds of the list.
-    /// On the free-threaded build, caller must verify they have exclusive access to the list
-    /// via a lock or by holding the innermost critical section on the list.
+    /// - Caller must verify that the index is within the bounds of the list.
+    /// - A null pointer is only legal in a list which is in the process of being initialized, callers
+    ///   can typically assume the list item is non-null unless they are knowingly filling an
+    ///   uninitialized list. (If a list were to contain a null pointer element, accessing it from Python
+    ///   typically causes a segfault.)
+    /// - On the free-threaded build, caller must verify they have exclusive access to the list
+    ///   via a lock or by holding the innermost critical section on the list.
     #[cfg(not(Py_LIMITED_API))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
 
@@ -278,12 +298,13 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// Caller must verify that the index is within the bounds of the list.
     #[cfg(not(Py_LIMITED_API))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
-        // PyList_GET_ITEM return borrowed ptr; must make owned for safety (see #890).
+        // SAFETY: caller has upheld the safety contract
         unsafe {
             ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
-                .assume_borrowed(self.py())
-                .to_owned()
+                .assume_borrowed_unchecked(self.py())
         }
+        // PyList_GET_ITEM return borrowed ptr; must make owned for safety (see #890).
+        .to_owned()
     }
 
     /// Takes the slice `self[low:high]` and returns it as a new list.
@@ -421,7 +442,9 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     where
         F: Fn(Bound<'py, PyAny>) -> PyResult<()>,
     {
-        crate::sync::with_critical_section(self, || self.iter().try_for_each(closure))
+        crate::sync::critical_section::with_critical_section(self, || {
+            self.iter().try_for_each(closure)
+        })
     }
 
     /// Sorts the list in-place. Equivalent to the Python expression `l.sort()`.
@@ -620,7 +643,7 @@ impl<'py> BoundListIterator<'py> {
             length,
             list,
         } = self;
-        crate::sync::with_critical_section(list, || f(index, length, list))
+        crate::sync::critical_section::with_critical_section(list, || f(index, length, list))
     }
 }
 
@@ -939,7 +962,7 @@ mod tests {
     use crate::types::list::PyListMethods;
     use crate::types::sequence::PySequenceMethods;
     use crate::types::{PyList, PyTuple};
-    use crate::{ffi, IntoPyObject, PyResult, Python};
+    use crate::{IntoPyObject, PyResult, Python};
     #[cfg(feature = "nightly")]
     use std::num::NonZero;
 
@@ -1000,7 +1023,7 @@ mod tests {
     #[test]
     fn test_set_item_refcnt() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
             let cnt;
             {
                 let v = vec![2];
@@ -1035,7 +1058,7 @@ mod tests {
     fn test_insert_refcnt() {
         Python::attach(|py| {
             let cnt;
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
             {
                 let list = PyList::empty(py);
                 cnt = obj.get_refcnt();
@@ -1060,7 +1083,7 @@ mod tests {
     fn test_append_refcnt() {
         Python::attach(|py| {
             let cnt;
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
             {
                 let list = PyList::empty(py);
                 cnt = obj.get_refcnt();
@@ -1216,7 +1239,7 @@ mod tests {
                 -5
             });
             assert_eq!(sum, -5);
-            assert!(list.len() == 0);
+            assert_eq!(list.len(), 0);
         });
     }
 
@@ -1536,6 +1559,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(panic = "unwind")]
     fn bad_intopyobject_doesnt_cause_leaks() {
         use crate::types::PyInt;
         use std::convert::Infallible;

@@ -1,10 +1,12 @@
 use std::{thread, time};
 
-use pyo3::exceptions::{PyStopIteration, PyValueError};
+use pyo3::exceptions::{PyAttributeError, PyStopIteration, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyType;
+#[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+use pyo3::types::{PyDict, PyTuple};
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 struct EmptyClass {}
 
@@ -70,7 +72,7 @@ impl PyClassThreadIter {
 }
 
 /// Demonstrates a base class which can operate on the relevant subclass in its constructor.
-#[pyclass(subclass)]
+#[pyclass(subclass, skip_from_py_object)]
 #[derive(Clone, Debug)]
 struct AssertingBaseClass;
 
@@ -104,10 +106,38 @@ impl ClassWithDict {
     }
 }
 
-#[pyclass]
+#[cfg(not(any(Py_LIMITED_API, GraalPy)))] // Can't subclass native types on abi3 yet
+#[pyclass(extends = PyDict)]
+struct SubClassWithInit;
+
+#[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+#[pymethods]
+impl SubClassWithInit {
+    #[new]
+    #[pyo3(signature = (*args, **kwargs))]
+    #[allow(unused_variables)]
+    fn __new__(args: &Bound<'_, PyTuple>, kwargs: Option<&Bound<'_, PyDict>>) -> Self {
+        Self
+    }
+
+    #[pyo3(signature = (*args, **kwargs))]
+    fn __init__(
+        self_: &Bound<'_, Self>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<()> {
+        self_
+            .py_super()?
+            .call_method("__init__", args.to_owned(), kwargs)?;
+        self_.as_super().set_item("__init__", true)?;
+        Ok(())
+    }
+}
+
+#[pyclass(skip_from_py_object)]
 #[derive(Clone)]
 struct ClassWithDecorators {
-    attr: usize,
+    attr: Option<usize>,
 }
 
 #[pymethods]
@@ -115,17 +145,23 @@ impl ClassWithDecorators {
     #[new]
     #[classmethod]
     fn new(_cls: Bound<'_, PyType>) -> Self {
-        Self { attr: 0 }
+        Self { attr: Some(0) }
     }
 
     #[getter]
-    fn get_attr(&self) -> usize {
+    fn get_attr(&self) -> PyResult<usize> {
         self.attr
+            .ok_or_else(|| PyAttributeError::new_err("attr is not set"))
     }
 
     #[setter]
     fn set_attr(&mut self, value: usize) {
-        self.attr = value;
+        self.attr = Some(value);
+    }
+
+    #[deleter]
+    fn delete_attr(&mut self) {
+        self.attr = None;
     }
 
     #[classmethod]
@@ -168,11 +204,14 @@ fn map_a_class(cls: AClass) -> AClass {
     cls
 }
 
-#[pymodule(gil_used = false)]
+#[pymodule]
 pub mod pyclasses {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     #[pymodule_export]
     use super::ClassWithDict;
+    #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+    #[pymodule_export]
+    use super::SubClassWithInit;
     #[pymodule_export]
     use super::{
         map_a_class, AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass,

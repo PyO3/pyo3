@@ -1,7 +1,8 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
+#[cfg(Py_LIMITED_API)]
+use crate::types::PyAnyMethods;
 use crate::types::{PyType, PyTypeMethods};
 use crate::{ffi, Bound, Py, PyAny, PyErr, PyResult};
 
@@ -18,7 +19,7 @@ use crate::{ffi, Bound, Py, PyAny, PyErr, PyResult};
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::attach(|py| -> PyResult<()> {
-///     let list = py.eval(c_str!("iter([1, 2, 3, 4])"), None, None)?;
+///     let list = py.eval(c"iter([1, 2, 3, 4])", None, None)?;
 ///     let numbers: PyResult<Vec<usize>> = list
 ///         .try_iter()?
 ///         .map(|i| i.and_then(|i|i.extract::<usize>()))
@@ -40,6 +41,8 @@ pyobject_native_type_core!(
             .unwrap()
             .as_type_ptr()
     },
+    "collections.abc",
+    "Iterator",
     #module=Some("collections.abc"),
     #checkfunction=ffi::PyIter_Check
 );
@@ -58,19 +61,24 @@ impl PyIterator {
     }
 }
 
+/// Outcomes from sending a value into a python generator
 #[derive(Debug)]
 #[cfg(all(not(PyPy), Py_3_10))]
 pub enum PySendResult<'py> {
+    /// The generator yielded a new value
     Next(Bound<'py, PyAny>),
+    /// The generator completed, returning a (possibly None) final value
     Return(Bound<'py, PyAny>),
 }
 
 #[cfg(all(not(PyPy), Py_3_10))]
 impl<'py> Bound<'py, PyIterator> {
-    /// Sends a value into a python generator. This is the equivalent of calling `generator.send(value)` in Python.
-    /// This resumes the generator and continues its execution until the next `yield` or `return` statement.
-    /// If the generator exits without returning a value, this function returns a `StopException`.
-    /// The first call to `send` must be made with `None` as the argument to start the generator, failing to do so will raise a `TypeError`.
+    /// Sends a value into a python generator. This is the equivalent of calling
+    /// `generator.send(value)` in Python. This resumes the generator and continues its execution
+    /// until the next `yield` or `return` statement. When the generator completes, the (optional)
+    /// return value will be returned as `PySendResult::Return`. All subsequent calls will return
+    /// `PySendResult::Return(None)`. The first call to `send` must be made with `None` as the
+    /// argument to start the generator, failing to do so will raise a `TypeError`.
     #[inline]
     pub fn send(&self, value: &Bound<'py, PyAny>) -> PyResult<PySendResult<'py>> {
         let py = self.py();
@@ -96,29 +104,48 @@ impl<'py> Iterator for Bound<'py, PyIterator> {
     /// If an exception occurs, returns `Some(Err(..))`.
     /// Further `next()` calls after an exception occurs are likely
     /// to repeatedly result in the same exception.
-    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        Borrowed::from(&*self).next()
+        let py = self.py();
+        let mut item = std::ptr::null_mut();
+
+        // SAFETY: `self` is a valid iterator object, `item` is a valid pointer to receive the next item
+        match unsafe { ffi::compat::PyIter_NextItem(self.as_ptr(), &mut item) } {
+            std::ffi::c_int::MIN..=-1 => Some(Err(PyErr::fetch(py))),
+            0 => None,
+            // SAFETY: `item` is guaranteed to be a non-null strong reference
+            1..=std::ffi::c_int::MAX => Some(Ok(unsafe { item.assume_owned_unchecked(py) })),
+        }
     }
 
-    #[cfg(not(Py_LIMITED_API))]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let hint = unsafe { ffi::PyObject_LengthHint(self.as_ptr(), 0) };
-        (hint.max(0) as usize, None)
+        match length_hint(self) {
+            Ok(hint) => (hint, None),
+            Err(e) => {
+                e.write_unraisable(self.py(), Some(self));
+                (0, None)
+            }
+        }
     }
 }
 
-impl<'py> Borrowed<'_, 'py, PyIterator> {
-    // TODO: this method is on Borrowed so that &'py PyIterator can use this; once that
-    // implementation is deleted this method should be moved to the `Bound<'py, PyIterator> impl
-    fn next(self) -> Option<PyResult<Bound<'py, PyAny>>> {
-        let py = self.py();
-
-        match unsafe { ffi::PyIter_Next(self.as_ptr()).assume_owned_or_opt(py) } {
-            Some(obj) => Some(Ok(obj)),
-            None => PyErr::take(py).map(Err),
-        }
+#[cfg(not(Py_LIMITED_API))]
+fn length_hint(iter: &Bound<'_, PyIterator>) -> PyResult<usize> {
+    // SAFETY: `iter` is a valid iterator object
+    let hint = unsafe { ffi::PyObject_LengthHint(iter.as_ptr(), 0) };
+    if hint < 0 {
+        Err(PyErr::fetch(iter.py()))
+    } else {
+        Ok(hint as usize)
     }
+}
+
+/// On the limited API, we cannot use `PyObject_LengthHint`, so we fall back to calling
+/// `operator.length_hint()`, which is documented equivalent to calling `PyObject_LengthHint`.
+#[cfg(Py_LIMITED_API)]
+fn length_hint(iter: &Bound<'_, PyIterator>) -> PyResult<usize> {
+    static LENGTH_HINT: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+    let length_hint = LENGTH_HINT.import(iter.py(), "operator", "length_hint")?;
+    length_hint.call1((iter, 0))?.extract()
 }
 
 impl<'py> IntoIterator for &Bound<'py, PyIterator> {
@@ -139,7 +166,9 @@ mod tests {
     #[cfg(all(not(PyPy), Py_3_10))]
     use crate::types::PyNone;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
-    use crate::{ffi, IntoPyObject, PyTypeInfo, Python};
+    #[cfg(all(feature = "macros", Py_3_8))]
+    use crate::PyErr;
+    use crate::{IntoPyObject, PyTypeInfo, Python};
 
     #[test]
     fn vec_iter() {
@@ -185,7 +214,7 @@ mod tests {
     fn iter_item_refcnt() {
         Python::attach(|py| {
             let count;
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
             let list = {
                 let list = PyList::empty(py);
                 list.append(10).unwrap();
@@ -207,24 +236,20 @@ mod tests {
 
     #[test]
     fn fibonacci_generator() {
-        let fibonacci_generator = ffi::c_str!(
-            r#"
+        let fibonacci_generator = cr#"
 def fibonacci(target):
     a = 1
     b = 1
     for _ in range(target):
         yield a
         a, b = b, a + b
-"#
-        );
+"#;
 
         Python::attach(|py| {
             let context = PyDict::new(py);
             py.run(fibonacci_generator, None, Some(&context)).unwrap();
 
-            let generator = py
-                .eval(ffi::c_str!("fibonacci(5)"), None, Some(&context))
-                .unwrap();
+            let generator = py.eval(c"fibonacci(5)", None, Some(&context)).unwrap();
             for (actual, expected) in generator.try_iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
                 let actual = actual.unwrap().extract::<usize>().unwrap();
                 assert_eq!(actual, *expected)
@@ -235,22 +260,20 @@ def fibonacci(target):
     #[test]
     #[cfg(all(not(PyPy), Py_3_10))]
     fn send_generator() {
-        let generator = ffi::c_str!(
-            r#"
+        let generator = cr#"
 def gen():
     value = None
     while(True):
         value = yield value
         if value is None:
             return
-"#
-        );
+"#;
 
         Python::attach(|py| {
             let context = PyDict::new(py);
             py.run(generator, None, Some(&context)).unwrap();
 
-            let generator = py.eval(ffi::c_str!("gen()"), None, Some(&context)).unwrap();
+            let generator = py.eval(c"gen()", None, Some(&context)).unwrap();
 
             let one = 1i32.into_pyobject(py).unwrap();
             assert!(matches!(
@@ -273,23 +296,21 @@ def gen():
         use crate::types::any::PyAnyMethods;
         use crate::Bound;
 
-        let fibonacci_generator = ffi::c_str!(
-            r#"
+        let fibonacci_generator = cr#"
 def fibonacci(target):
     a = 1
     b = 1
     for _ in range(target):
         yield a
         a, b = b, a + b
-"#
-        );
+"#;
 
         Python::attach(|py| {
             let context = PyDict::new(py);
             py.run(fibonacci_generator, None, Some(&context)).unwrap();
 
             let generator: Bound<'_, PyIterator> = py
-                .eval(ffi::c_str!("fibonacci(5)"), None, Some(&context))
+                .eval(c"fibonacci(5)", None, Some(&context))
                 .unwrap()
                 .cast_into()
                 .unwrap();
@@ -354,7 +375,7 @@ def fibonacci(target):
 
             assert_eq!(
                 downcaster.borrow_mut(py).failed.take().unwrap().to_string(),
-                "TypeError: 'MySequence' object cannot be converted to 'PyIterator'"
+                "TypeError: 'MySequence' object is not an instance of 'Iterator'"
             );
         });
     }
@@ -385,10 +406,9 @@ def fibonacci(target):
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
     fn length_hint_becomes_size_hint_lower_bound() {
         Python::attach(|py| {
-            let list = py.eval(ffi::c_str!("[1, 2, 3]"), None, None).unwrap();
+            let list = py.eval(c"[1, 2, 3]", None, None).unwrap();
             let iter = list.try_iter().unwrap();
             let hint = iter.size_hint();
             assert_eq!(hint, (3, None));
@@ -396,10 +416,50 @@ def fibonacci(target):
     }
 
     #[test]
+    #[cfg(all(feature = "macros", Py_3_8))]
+    fn length_hint_error() {
+        #[crate::pyfunction(crate = "crate")]
+        fn test_size_hint(obj: &crate::Bound<'_, crate::PyAny>, should_error: bool) {
+            let iter = obj.cast::<PyIterator>().unwrap();
+            crate::test_utils::UnraisableCapture::enter(obj.py(), |capture| {
+                assert_eq!((0, None), iter.size_hint());
+                assert_eq!(should_error, capture.take_capture().is_some());
+            });
+            assert!(PyErr::take(obj.py()).is_none());
+        }
+
+        Python::attach(|py| {
+            let test_size_hint = crate::wrap_pyfunction!(test_size_hint, py).unwrap();
+            crate::py_run!(
+                py,
+                test_size_hint,
+                r#"
+                    class NoHintIter:
+                        def __next__(self):
+                            raise StopIteration
+
+                        def __length_hint__(self):
+                            return NotImplemented
+
+                    class ErrorHintIter:
+                        def __next__(self):
+                            raise StopIteration
+
+                        def __length_hint__(self):
+                            raise ValueError("bad hint impl")
+
+                    test_size_hint(NoHintIter(), False)
+                    test_size_hint(ErrorHintIter(), True)
+                "#
+            );
+        });
+    }
+
+    #[test]
     fn test_type_object() {
         Python::attach(|py| {
             let abc = PyIterator::type_object(py);
-            let iter = py.eval(ffi::c_str!("iter(())"), None, None).unwrap();
+            let iter = py.eval(c"iter(())", None, None).unwrap();
             assert!(iter.is_instance(&abc).unwrap());
         })
     }

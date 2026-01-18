@@ -36,7 +36,11 @@
 //! ```
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::PyStaticExpr;
 use crate::pybacked::PyBackedStr;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
 use crate::types::{any::PyAnyMethods, PyTzInfo};
 use crate::{intern, Borrowed, Bound, FromPyObject, PyAny, PyErr, Python};
 use chrono_tz::Tz;
@@ -47,6 +51,9 @@ impl<'py> IntoPyObject<'py> for Tz {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyTzInfo::timezone(py, self.name())
     }
@@ -56,6 +63,9 @@ impl<'py> IntoPyObject<'py> for &Tz {
     type Target = PyTzInfo;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = Tz::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -79,9 +89,12 @@ impl FromPyObject<'_, '_> for Tz {
 mod tests {
     use super::*;
     use crate::prelude::PyAnyMethods;
+    use crate::types::IntoPyDict;
     use crate::types::PyTzInfo;
     use crate::Bound;
     use crate::Python;
+    use chrono::offset::LocalResult;
+    use chrono::NaiveDate;
     use chrono::{DateTime, Utc};
     use chrono_tz::Tz;
 
@@ -146,6 +159,37 @@ mod tests {
                 "2020-10-25 01:00:00 GMT"
             ]
         );
+    }
+
+    #[test]
+    fn test_nonexistent_datetime_from_pyobject() {
+        // Pacific_Apia skipped the 30th of December 2011 entirely
+
+        let naive_dt = NaiveDate::from_ymd_opt(2011, 12, 30)
+            .unwrap()
+            .and_hms_opt(2, 0, 0)
+            .unwrap();
+        let tz = Tz::Pacific__Apia;
+
+        // sanity check
+        assert_eq!(naive_dt.and_local_timezone(tz), LocalResult::None);
+
+        Python::attach(|py| {
+            // create as a Python object manually
+            let py_tz = tz.into_pyobject(py).unwrap();
+            let py_dt_naive = naive_dt.into_pyobject(py).unwrap();
+            let py_dt = py_dt_naive
+                .call_method(
+                    "replace",
+                    (),
+                    Some(&[("tzinfo", py_tz)].into_py_dict(py).unwrap()),
+                )
+                .unwrap();
+
+            // now try to extract
+            let err = py_dt.extract::<DateTime<Tz>>().unwrap_err();
+            assert_eq!(err.to_string(), "ValueError: The datetime datetime.datetime(2011, 12, 30, 2, 0, tzinfo=zoneinfo.ZoneInfo(key='Pacific/Apia')) contains an incompatible timezone");
+        });
     }
 
     #[test]

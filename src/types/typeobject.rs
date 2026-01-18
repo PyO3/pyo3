@@ -19,7 +19,7 @@ use super::PyString;
 #[repr(transparent)]
 pub struct PyType(PyAny);
 
-pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyType_Type), #checkfunction=ffi::PyType_Check);
+pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyType_Type), "builtins", "type", #checkfunction=ffi::PyType_Check);
 
 impl PyType {
     /// Creates a new type object.
@@ -313,12 +313,10 @@ mod tests {
             let module_name = generate_unique_module_name("test_module");
             let module = PyModule::from_code(
                 py,
-                c_str!(
-                    r#"
+                cr#"
 class MyClass:
     pass
-"#
-                ),
+"#,
                 c_str!(file!()),
                 &module_name,
             )
@@ -355,13 +353,11 @@ class MyClass:
             let module_name = generate_unique_module_name("test_module");
             let module = PyModule::from_code(
                 py,
-                c_str!(
-                    r#"
+                cr#"
 class OuterClass:
     class InnerClass:
         pass
-"#
-                ),
+"#,
                 c_str!(file!()),
                 &module_name,
             )

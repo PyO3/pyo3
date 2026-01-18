@@ -2,7 +2,7 @@ use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
-use crate::sync::with_critical_section;
+use crate::sync::critical_section::with_critical_section;
 use crate::{ffi, PyAny, Python};
 use std::slice;
 
@@ -16,7 +16,7 @@ use std::slice;
 #[repr(transparent)]
 pub struct PyByteArray(PyAny);
 
-pyobject_native_type_core!(PyByteArray, pyobject_native_static_type_object!(ffi::PyByteArray_Type), #checkfunction=ffi::PyByteArray_Check);
+pyobject_native_type_core!(PyByteArray, pyobject_native_static_type_object!(ffi::PyByteArray_Type), "builtins", "bytearray", #checkfunction=ffi::PyByteArray_Check);
 
 impl PyByteArray {
     /// Creates a new Python bytearray object.
@@ -132,7 +132,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::exceptions::PyRuntimeError;
-    /// use pyo3::sync::with_critical_section;
+    /// use pyo3::sync::critical_section::with_critical_section;
     /// use pyo3::types::PyByteArray;
     ///
     /// #[pyfunction]
@@ -161,14 +161,13 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// #         let locals = pyo3::types::PyDict::new(py);
     /// #         locals.set_item("a_valid_function", fun)?;
     /// #
-    /// #         py.run(pyo3::ffi::c_str!(
-    /// # r#"b = bytearray(b"hello world")
+    /// #         py.run(cr#"b = bytearray(b"hello world")
     /// # a_valid_function(b)
     /// #
     /// # try:
     /// #     a_valid_function(bytearray())
     /// # except RuntimeError as e:
-    /// #     assert str(e) == 'input is not long enough'"#),
+    /// #     assert str(e) == 'input is not long enough'"#,
     /// #             None,
     /// #             Some(&locals),
     /// #         )?;
@@ -216,7 +215,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// Any other accesses of the `bytearray`'s buffer invalidate the slice. If it is used
     /// afterwards, the behavior is undefined. The safety requirements of [`PyByteArrayMethods::as_bytes`]
     /// apply to this function as well.
-    #[allow(clippy::mut_from_ref)]
+    #[expect(clippy::mut_from_ref)]
     unsafe fn as_bytes_mut(&self) -> &mut [u8];
 
     /// Copies the contents of the bytearray to a Rust vector.
@@ -265,7 +264,6 @@ impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
         unsafe { self.as_borrowed().as_bytes() }
     }
 
-    #[allow(clippy::mut_from_ref)]
     unsafe fn as_bytes_mut(&self) -> &mut [u8] {
         unsafe { self.as_borrowed().as_bytes_mut() }
     }
@@ -298,12 +296,10 @@ impl<'a> Borrowed<'a, '_, PyByteArray> {
         unsafe { ffi::PyByteArray_AsString(self.as_ptr()).cast() }
     }
 
-    #[allow(clippy::wrong_self_convention)]
     pub(crate) unsafe fn as_bytes(self) -> &'a [u8] {
         unsafe { slice::from_raw_parts(self.data(), self.len()) }
     }
 
-    #[allow(clippy::wrong_self_convention)]
     unsafe fn as_bytes_mut(self) -> &'a mut [u8] {
         unsafe { slice::from_raw_parts_mut(self.data(), self.len()) }
     }
@@ -465,7 +461,7 @@ mod tests {
     #[test]
     fn test_data_integrity_in_critical_section() {
         use crate::instance::Py;
-        use crate::sync::{with_critical_section, MutexExt};
+        use crate::sync::{critical_section::with_critical_section, MutexExt};
 
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Mutex;

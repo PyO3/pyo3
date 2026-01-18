@@ -1,17 +1,16 @@
 use crate::exceptions::PyStopAsyncIteration;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
-use crate::impl_::pycell::{PyClassObject, PyClassObjectLayout};
+use crate::impl_::pycell::PyClassObjectBaseLayout;
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
 use crate::internal::state::ForbidAttaching;
-use crate::pycell::impl_::PyClassBorrowChecker as _;
+use crate::pycell::impl_::{PyClassBorrowChecker as _, PyClassObjectLayout};
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::False;
 use crate::types::PyType;
 use crate::{
-    ffi, Bound, DowncastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
-    PyClassInitializer, PyErr, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit,
-    Python,
+    ffi, Bound, CastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyClassInitializer,
+    PyErr, PyRef, PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
 };
 use std::ffi::CStr;
 use std::ffi::{c_int, c_void};
@@ -20,6 +19,7 @@ use std::marker::PhantomData;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr::{null_mut, NonNull};
 
+use super::pyclass::PyClassImpl;
 use super::trampoline;
 use crate::internal_tricks::{clear_eq, traverse_eq};
 
@@ -58,20 +58,18 @@ impl IPowModulo {
 
 /// `PyMethodDefType` represents different types of Python callable objects.
 /// It is used by the `#[pymethods]` attribute.
-#[cfg_attr(test, derive(Clone))]
+#[derive(Copy, Clone)]
 pub enum PyMethodDefType {
-    /// Represents class method
-    Class(PyMethodDef),
-    /// Represents static method
-    Static(PyMethodDef),
-    /// Represents normal method
+    /// Represents a class method (might be `classmethod` or `staticmethod`, depends on `ml_flags`)
     Method(PyMethodDef),
     /// Represents class attribute, used by `#[attribute]`
     ClassAttribute(PyClassAttributeDef),
     /// Represents getter descriptor, used by `#[getter]`
     Getter(PyGetterDef),
-    /// Represents setter descriptor, used by `#[setter]`
+    /// Represents setter descriptor, used by `#[setter]` and `#[deleter]`
     Setter(PySetterDef),
+    /// Represents deleter descriptor, used by `#[deleter]`
+    Deleter(PyDeleterDef),
     /// Represents a struct member
     StructMember(ffi::PyMemberDef),
 }
@@ -86,10 +84,7 @@ pub enum PyMethodType {
 
 pub type PyClassAttributeFactory = for<'p> fn(Python<'p>) -> PyResult<Py<PyAny>>;
 
-// TODO: it would be nice to use CStr in these types, but then the constructors can't be const fn
-// until `CStr::from_bytes_with_nul_unchecked` is const fn.
-
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct PyMethodDef {
     pub(crate) ml_name: &'static CStr,
     pub(crate) ml_meth: PyMethodType,
@@ -103,25 +98,26 @@ pub struct PyClassAttributeDef {
     pub(crate) meth: PyClassAttributeFactory,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct PyGetterDef {
     pub(crate) name: &'static CStr,
     pub(crate) meth: Getter,
     pub(crate) doc: &'static CStr,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct PySetterDef {
     pub(crate) name: &'static CStr,
     pub(crate) meth: Setter,
     pub(crate) doc: &'static CStr,
 }
 
-unsafe impl Sync for PyMethodDef {}
-
-unsafe impl Sync for PyGetterDef {}
-
-unsafe impl Sync for PySetterDef {}
+#[derive(Copy, Clone)]
+pub struct PyDeleterDef {
+    pub(crate) name: &'static CStr,
+    pub(crate) meth: Deleter,
+    pub(crate) doc: &'static CStr,
+}
 
 impl PyMethodDef {
     /// Define a function with no `*args` and `**kwargs`.
@@ -172,8 +168,7 @@ impl PyMethodDef {
         self
     }
 
-    /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
-    pub(crate) fn as_method_def(&self) -> ffi::PyMethodDef {
+    pub const fn into_raw(self) -> ffi::PyMethodDef {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => ffi::PyMethodDefPointer { PyCFunction: meth },
             PyMethodType::PyCFunctionWithKeywords(meth) => ffi::PyMethodDefPointer {
@@ -216,6 +211,7 @@ pub(crate) type Getter =
     for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>;
 pub(crate) type Setter =
     for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject, *mut ffi::PyObject) -> PyResult<c_int>;
+pub(crate) type Deleter = for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<c_int>;
 
 impl PyGetterDef {
     /// Define a getter.
@@ -234,6 +230,17 @@ impl PySetterDef {
         Self {
             name,
             meth: setter,
+            doc,
+        }
+    }
+}
+
+impl PyDeleterDef {
+    /// Define a deleter.
+    pub const fn new(name: &'static CStr, deleter: Deleter, doc: &'static CStr) -> Self {
+        Self {
+            name,
+            meth: deleter,
             doc,
         }
     }
@@ -285,13 +292,11 @@ pub unsafe fn _call_traverse<T>(
 where
     T: PyClass,
 {
-    // It is important the implementation of `__traverse__` cannot safely access the GIL,
-    // c.f. https://github.com/PyO3/pyo3/issues/3165, and hence we do not expose our GIL
-    // token to the user code and lock safe methods for acquiring the GIL.
+    // It is important the implementation of `__traverse__` cannot safely access the interpreter,
+    // c.f. https://github.com/PyO3/pyo3/issues/3165, and hence we do not expose our Python
+    // token to the user code and forbid safe methods for attaching.
     // (This includes enforcing the `&self` method receiver as e.g. `PyRef<Self>` could
-    // reconstruct a GIL token via `PyRef::py`.)
-    // Since we do not create a `GILPool` at all, it is important that our usage of the GIL
-    // token does not produce any owned objects thereby calling into `register_owned`.
+    // reconstruct a Python token via `PyRef::py`.)
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
     let lock = ForbidAttaching::during_traverse();
 
@@ -302,7 +307,7 @@ where
 
     // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
     // traversal is running so no mutations can occur.
-    let class_object: &PyClassObject<T> = unsafe { &*slf.cast() };
+    let class_object: &<T as PyClassImpl>::Layout = unsafe { &*slf.cast() };
 
     let retval =
     // `#[pyclass(unsendable)]` types can only be deallocated by their own thread, so
@@ -310,8 +315,8 @@ where
     if class_object.check_threadsafe().is_ok()
     // ... and we cannot traverse a type which might be being mutated by a Rust thread
     && class_object.borrow_checker().try_borrow().is_ok() {
-        struct TraverseGuard<'a, T: PyClass>(&'a PyClassObject<T>);
-        impl<T: PyClass> Drop for TraverseGuard<'_,  T> {
+        struct TraverseGuard<'a, T: PyClassImpl>(&'a T::Layout);
+        impl<T: PyClassImpl> Drop for TraverseGuard<'_, T> {
             fn drop(&mut self) {
                 self.0.borrow_checker().release_borrow()
             }
@@ -319,8 +324,8 @@ where
 
         // `.try_borrow()` above created a borrow, we need to release it when we're done
         // traversing the object. This allows us to read `instance` safely.
-        let _guard = TraverseGuard(class_object);
-        let instance = unsafe {&*class_object.contents.value.get()};
+        let _guard = TraverseGuard::<T>(class_object);
+        let instance = unsafe {&*class_object.contents().value.get()};
 
         let visit = PyVisit { visit, arg, _guard: PhantomData };
 
@@ -649,11 +654,11 @@ impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
         unsafe { Self(Bound::ref_from_non_null(py, ptr)) }
     }
 
-    pub fn downcast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, DowncastError<'a, 'py>> {
+    pub fn cast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, CastError<'a, 'py>> {
         self.0.cast::<T>().map(BoundRef)
     }
 
-    pub unsafe fn downcast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
+    pub unsafe fn cast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
         unsafe { BoundRef(self.0.cast_unchecked::<T>()) }
     }
 }
@@ -737,10 +742,21 @@ mod tests {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn test_fastcall_function_with_keywords() {
         use super::PyMethodDef;
-        use crate::types::{PyAnyMethods, PyCFunction};
+        use crate::impl_::pyfunction::PyFunctionDef;
+        use crate::types::PyAnyMethods;
         use crate::{ffi, Python};
 
         Python::attach(|py| {
+            let def =
+                PyFunctionDef::from_method_def(PyMethodDef::fastcall_cfunction_with_keywords(
+                    c"test",
+                    accepts_no_arguments,
+                    c"doc",
+                ));
+            // leak to make it 'static
+            // deliberately done at runtime to have coverage of `PyFunctionDef::from_method_def`
+            let def = Box::leak(Box::new(def));
+
             unsafe extern "C" fn accepts_no_arguments(
                 _slf: *mut ffi::PyObject,
                 _args: *const *mut ffi::PyObject,
@@ -752,16 +768,7 @@ mod tests {
                 unsafe { Python::assume_attached().None().into_ptr() }
             }
 
-            let f = PyCFunction::internal_new(
-                py,
-                &PyMethodDef::fastcall_cfunction_with_keywords(
-                    ffi::c_str!("test"),
-                    accepts_no_arguments,
-                    ffi::c_str!("doc"),
-                ),
-                None,
-            )
-            .unwrap();
+            let f = def.create_py_c_function(py, None).unwrap();
 
             f.call0().unwrap();
         });

@@ -21,31 +21,30 @@ jobs:
     outputs:
       tag_name: ${{ steps.prepare_tag.outputs.tag_name }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6.0.1
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - uses: dtolnay/rust-toolchain@nightly
 
       - name: Setup mdBook
         uses: taiki-e/install-action@v2
         with:
-          tool: mdbook, mdbook-linkcheck
-
-      - name: Link Checker
-        id: lychee
-        uses: lycheeverse/lychee-action@v2
-        with:
-          # setup lychee but don't run it yet
-          args: --version
-          lycheeVersion: nightly
+          tool: mdbook@0.5, mdbook-tabs@0.3, lychee
 
       - name: Prepare tag
         id: prepare_tag
         run: |
           TAG_NAME="${GITHUB_REF##*/}"
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Restore lychee cache
+        id: restore-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .lycheecache
+          key: lychee
 
       # This builds the book in target/guide/.
       - name: Build the guide
@@ -56,6 +55,13 @@ jobs:
           PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
           # allows lychee to get better rate limits from github
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save lychee cache
+        uses: actions/cache/save@v5
+        if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+        with:
+          path: .lycheecache
+          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
       # We store the versioned guides on GitHub's gh-pages branch for convenience
       # (the full gh-pages branch is pulled in the build-netlify-site step)
@@ -80,7 +86,7 @@ jobs:
 
       # Upload the built site as an artifact for deploy workflow to consume
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: site
           path: ./netlify_build

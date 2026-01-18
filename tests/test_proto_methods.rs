@@ -580,8 +580,14 @@ struct ClassWithGetAttribute {
 
 #[pymethods]
 impl ClassWithGetAttribute {
-    fn __getattribute__(&self, _name: &str) -> u32 {
-        self.data * 2
+    fn __getattribute__(&self, name: &str) -> PyResult<u32> {
+        if name == "data" {
+            Ok(self.data * 2)
+        } else {
+            Err(PyAttributeError::new_err(
+                "this message will be swallowed by default `__getattr__`",
+            ))
+        }
     }
 }
 
@@ -590,7 +596,7 @@ fn getattribute_overrides_member() {
     Python::attach(|py| {
         let inst = Py::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 8");
-        py_assert!(py, inst, "inst.y == 8");
+        py_expect_exception!(py, inst, "inst.y == 8", PyAttributeError, "y");
     });
 }
 
@@ -669,8 +675,7 @@ impl OnceFuture {
 fn test_await() {
     Python::attach(|py| {
         let once = py.get_type::<OnceFuture>();
-        let source = pyo3_ffi::c_str!(
-            r#"
+        let source = cr#"
 import asyncio
 import sys
 
@@ -683,8 +688,7 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 asyncio.run(main())
-"#
-        );
+"#;
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
         py.run(source, Some(&globals), None)
@@ -721,8 +725,7 @@ impl AsyncIterator {
 fn test_anext_aiter() {
     Python::attach(|py| {
         let once = py.get_type::<OnceFuture>();
-        let source = pyo3_ffi::c_str!(
-            r#"
+        let source = cr#"
 import asyncio
 import sys
 
@@ -739,8 +742,7 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 asyncio.run(main())
-"#
-        );
+"#;
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
         globals
@@ -788,7 +790,7 @@ impl DescrCounter {
 fn descr_getset() {
     Python::attach(|py| {
         let counter = py.get_type::<DescrCounter>();
-        let source = pyo3_ffi::c_str!(pyo3::indoc::indoc!(
+        let source = pyo3_ffi::c_str!(
             r#"
 class Class:
     counter = Counter()
@@ -812,7 +814,7 @@ assert c.counter.count == 4
 del c.counter
 assert c.counter.count == 1
 "#
-        ));
+        );
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Counter", counter).unwrap();
         py.run(source, Some(&globals), None)

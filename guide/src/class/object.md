@@ -25,8 +25,7 @@ mod my_module {
 }
 ```
 
-At this point Python code can import the module, access the class and create class instances - but
-nothing else.
+At this point Python code can import the module, access the class and create class instances - but nothing else.
 
 ```python
 from my_module import Number
@@ -39,11 +38,11 @@ print(n)
 <builtins.Number object at 0x000002B4D185D7D0>
 ```
 
-### String representations
+## String representations
 
-It can't even print an user-readable representation of itself! We can fix that by defining the
-`__repr__` and `__str__` methods inside a `#[pymethods]` block. We do this by accessing the value
-contained inside `Number`.
+It can't even print an user-readable representation of itself!
+We can fix that by defining the `__repr__` and `__str__` methods inside a `#[pymethods]` block.
+We do this by accessing the value contained inside `Number`.
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -92,14 +91,14 @@ impl Display for Coordinate {
 }
 ```
 
-For convenience, a shorthand format string can be passed to `str` as `str="<format string>"` for **structs only**.  It expands and is passed into the `format!` macro in the following ways:
+For convenience, a shorthand format string can be passed to `str` as `str="<format string>"` for **structs only**.
+It expands and is passed into the `format!` macro in the following ways:
 
-* `"{x}"` -> `"{}", self.x`
-* `"{0}"` -> `"{}", self.0`
-* `"{x:?}"` -> `"{:?}", self.x`
+- `"{x}"` -> `"{}", self.x`
+- `"{0}"` -> `"{}", self.0`
+- `"{x:?}"` -> `"{:?}", self.x`
 
-*Note: Depending upon the format string you use, this may require implementation of the `Display` or `Debug` traits for the given Rust types.*
-*Note: the pyclass args `name` and `rename_all` are incompatible with the shorthand format string and will raise a compile time error.*
+*Note: Depending upon the format string you use, this may require implementation of the `Display` or `Debug` traits for the given Rust types.* *Note: the pyclass args `name` and `rename_all` are incompatible with the shorthand format string and will raise a compile time error.*
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -113,13 +112,12 @@ struct Coordinate {
 }
 ```
 
-#### Accessing the class name
+### Accessing the class name
 
-In the `__repr__`, we used a hard-coded class name. This is sometimes not ideal,
-because if the class is subclassed in Python, we would like the repr to reflect
-the subclass name. This is typically done in Python code by accessing
-`self.__class__.__name__`. In order to be able to access the Python type information
-*and* the Rust struct, we need to use a `Bound` as the `self` argument.
+In the `__repr__`, we used a hard-coded class name.
+This is sometimes not ideal, because if the class is subclassed in Python, we would like the repr to reflect the subclass name.
+This is typically done in Python code by accessing `self.__class__.__name__`.
+In order to be able to access the Python type information *and* the Rust struct, we need to use a `Bound` as the `self` argument.
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -142,9 +140,10 @@ impl Number {
 
 ### Hashing
 
-
-Let's also implement hashing. We'll just hash the `i32`. For that we need a [`Hasher`]. The one
-provided by `std` is [`DefaultHasher`], which uses the [SipHash] algorithm.
+Let's also implement hashing.
+We'll just hash the `i32`.
+For that we need a [`Hasher`].
+The one provided by `std` is [`DefaultHasher`], which uses the [SipHash] algorithm.
 
 ```rust,no_run
 use std::collections::hash_map::DefaultHasher;
@@ -167,11 +166,12 @@ impl Number {
     }
 }
 ```
+
 To implement `__hash__` using the Rust [`Hash`] trait implementation, the `hash` option can be used.
-This option is only available for `frozen` classes to prevent accidental hash changes from mutating the object. If you need
-an `__hash__` implementation for a mutable class, use the manual method from above. This option also requires `eq`: According to the
-[Python docs](https://docs.python.org/3/reference/datamodel.html#object.__hash__) "If a class does not define an `__eq__()`
-method it should not define a `__hash__()` operation either"
+This option is only available for `frozen` classes to prevent accidental hash changes from mutating the object.
+If you need an `__hash__` implementation for a mutable class, use the manual method from above.
+This option also requires `eq`: According to the [Python docs](https://docs.python.org/3/reference/datamodel.html#object.__hash__) "If a class does not define an `__eq__()` method it should not define a `__hash__()` operation either"
+
 ```rust,no_run
 # use pyo3::prelude::*;
 #
@@ -181,8 +181,8 @@ method it should not define a `__hash__()` operation either"
 struct Number(i32);
 ```
 
-
-> **Note**: When implementing `__hash__` and comparisons, it is important that the following property holds:
+> [!NOTE]
+> When implementing `__hash__` and comparisons, it is important that the following property holds:
 >
 > ```text
 > k1 == k2 -> hash(k1) == hash(k2)
@@ -210,8 +210,8 @@ struct Number(i32);
 
 ### Comparisons
 
-PyO3 supports the usual magic comparison methods available in Python such as `__eq__`, `__lt__`
-and so on. It is also possible to support all six operations at once with `__richcmp__`.
+PyO3 supports the usual magic comparison methods available in Python such as `__eq__`, `__lt__` and so on.
+It is also possible to support all six operations at once with `__richcmp__`.
 This method will be called with a value of `CompareOp` depending on the operation.
 
 ```rust,no_run
@@ -238,8 +238,7 @@ impl Number {
 }
 ```
 
-If you obtain the result by comparing two Rust values, as in this example, you
-can take a shortcut using `CompareOp::matches`:
+If you obtain the result by comparing two Rust values, as in this example, you can take a shortcut using `CompareOp::matches`:
 
 ```rust,no_run
 use pyo3::class::basic::CompareOp;
@@ -258,11 +257,9 @@ impl Number {
 }
 ```
 
-It checks that the `std::cmp::Ordering` obtained from Rust's `Ord` matches
-the given `CompareOp`.
+It checks that the `std::cmp::Ordering` obtained from Rust's `Ord` matches the given `CompareOp`.
 
 Alternatively, you can implement just equality using `__eq__`:
-
 
 ```rust
 # use pyo3::prelude::*;

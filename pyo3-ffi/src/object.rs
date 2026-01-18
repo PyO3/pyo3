@@ -19,7 +19,12 @@ pub use crate::cpython::object::PyTypeObject;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-#[cfg(all(Py_3_14, not(Py_GIL_DISABLED), target_endian = "big"))]
+#[cfg(all(
+    target_pointer_width = "64",
+    Py_3_14,
+    not(Py_GIL_DISABLED),
+    target_endian = "big"
+))]
 /// This struct is anonymous in CPython, so the name was given by PyO3 because
 /// Rust structs need a name.
 pub struct PyObjectObFlagsAndRefcnt {
@@ -30,7 +35,12 @@ pub struct PyObjectObFlagsAndRefcnt {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-#[cfg(all(Py_3_14, not(Py_GIL_DISABLED), target_endian = "little"))]
+#[cfg(all(
+    target_pointer_width = "64",
+    Py_3_14,
+    not(Py_GIL_DISABLED),
+    target_endian = "little"
+))]
 /// This struct is anonymous in CPython, so the name was given by PyO3 because
 /// Rust structs need a name.
 pub struct PyObjectObFlagsAndRefcnt {
@@ -38,6 +48,13 @@ pub struct PyObjectObFlagsAndRefcnt {
     pub ob_overflow: u16,
     pub ob_flags: u16,
 }
+
+// 4-byte alignment comes from value of _PyObject_MIN_ALIGNMENT
+
+#[cfg(all(not(Py_GIL_DISABLED), Py_3_15))]
+#[repr(C, align(4))]
+#[derive(Copy, Clone)]
+struct Aligner(c_char);
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -52,6 +69,8 @@ pub union PyObjectObRefcnt {
     pub ob_refcnt: Py_ssize_t,
     #[cfg(all(target_pointer_width = "64", not(Py_3_14)))]
     pub ob_refcnt_split: [crate::PY_UINT32_T; 2],
+    #[cfg(all(not(Py_GIL_DISABLED), Py_3_15))]
+    _aligner: Aligner,
 }
 
 #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
@@ -64,10 +83,17 @@ impl std::fmt::Debug for PyObjectObRefcnt {
 #[cfg(all(not(Py_3_12), not(Py_GIL_DISABLED)))]
 pub type PyObjectObRefcnt = Py_ssize_t;
 
+const _PyObject_MIN_ALIGNMENT: usize = 4;
+
 // PyObject_HEAD_INIT comes before the PyObject definition in object.h
 // but we put it after PyObject because HEAD_INIT uses PyObject
 
-#[repr(C)]
+// repr(align(4)) corresponds to the use of _Py_ALIGNED_DEF in object.h. It is
+// not currently possible to use constant variables with repr(align()), see
+// https://github.com/rust-lang/rust/issues/52840
+
+#[cfg_attr(not(all(Py_3_15, Py_GIL_DISABLED)), repr(C))]
+#[cfg_attr(all(Py_3_15, Py_GIL_DISABLED), repr(C, align(4)))]
 #[derive(Debug)]
 pub struct PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
@@ -95,7 +121,12 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
-#[allow(clippy::declare_interior_mutable_const)]
+const _: () = assert!(std::mem::align_of::<PyObject>() >= _PyObject_MIN_ALIGNMENT);
+
+#[allow(
+    clippy::declare_interior_mutable_const,
+    reason = "contains atomic refcount on free-threaded builds"
+)]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     _ob_next: std::ptr::null_mut(),
@@ -103,7 +134,9 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     _ob_prev: std::ptr::null_mut(),
     #[cfg(Py_GIL_DISABLED)]
     ob_tid: 0,
-    #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
+    #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
+    ob_flags: refcount::_Py_STATICALLY_ALLOCATED_FLAG as u16,
+    #[cfg(all(Py_GIL_DISABLED, all(Py_3_14, not(Py_3_15))))]
     ob_flags: 0,
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
     _padding: 0,
@@ -142,13 +175,13 @@ pub struct PyVarObject {
 // skipped private _PyVarObject_CAST
 
 #[inline]
-#[cfg(not(any(GraalPy, all(PyPy, Py_3_10))))]
+#[cfg(not(any(GraalPy, PyPy)))]
 #[cfg_attr(docsrs, doc(cfg(all())))]
 pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
     (x == y).into()
 }
 
-#[cfg(any(GraalPy, all(PyPy, Py_3_10)))]
+#[cfg(any(GraalPy, PyPy))]
 #[cfg_attr(docsrs, doc(cfg(all())))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPy_Is")]

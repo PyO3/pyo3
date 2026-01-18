@@ -9,7 +9,7 @@ mod test_utils;
 
 /// Assumes it's a file reader or so.
 /// Inspired by https://github.com/jothan/cordoba, thanks.
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Clone, Debug)]
 struct Reader {
     inner: HashMap<u8, String>,
@@ -58,7 +58,7 @@ struct Iter {
 
 #[pymethods]
 impl Iter {
-    #[allow(clippy::self_named_constructors)]
+    #[expect(clippy::self_named_constructors)]
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }

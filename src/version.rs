@@ -1,6 +1,6 @@
 /// Represents the major, minor, and patch (if any) versions of this interpreter.
 ///
-/// This struct is usually created with [`Python::version`].
+/// This struct is usually created with [`Python::version_info`].
 ///
 /// # Examples
 ///
@@ -13,7 +13,7 @@
 /// });
 /// ```
 ///
-/// [`Python::version`]: crate::marker::Python::version
+/// [`Python::version_info`]: crate::marker::Python::version_info
 #[derive(Debug)]
 pub struct PythonVersionInfo<'a> {
     /// Python major version (e.g. `3`).
@@ -128,12 +128,12 @@ mod test {
     fn test_python_version_info_parse() {
         assert!(PythonVersionInfo::from_str("3.5.0a1").unwrap() >= (3, 5, 0));
         assert!(PythonVersionInfo::from_str("3.5+").unwrap() >= (3, 5, 0));
-        assert!(PythonVersionInfo::from_str("3.5+").unwrap() == (3, 5, 0));
-        assert!(PythonVersionInfo::from_str("3.5+").unwrap() != (3, 5, 1));
+        assert_eq!(PythonVersionInfo::from_str("3.5+").unwrap(), (3, 5, 0));
+        assert_ne!(PythonVersionInfo::from_str("3.5+").unwrap(), (3, 5, 1));
         assert!(PythonVersionInfo::from_str("3.5.2a1+").unwrap() < (3, 5, 3));
-        assert!(PythonVersionInfo::from_str("3.5.2a1+").unwrap() == (3, 5, 2));
-        assert!(PythonVersionInfo::from_str("3.5.2a1+").unwrap() == (3, 5));
-        assert!(PythonVersionInfo::from_str("3.5+").unwrap() == (3, 5));
+        assert_eq!(PythonVersionInfo::from_str("3.5.2a1+").unwrap(), (3, 5, 2));
+        assert_eq!(PythonVersionInfo::from_str("3.5.2a1+").unwrap(), (3, 5));
+        assert_eq!(PythonVersionInfo::from_str("3.5+").unwrap(), (3, 5));
         assert!(PythonVersionInfo::from_str("3.5.2a1+").unwrap() < (3, 6));
         assert!(PythonVersionInfo::from_str("3.5.2a1+").unwrap() > (3, 4));
         assert!(PythonVersionInfo::from_str("3.11.3+chromium.29").unwrap() >= (3, 11, 3));

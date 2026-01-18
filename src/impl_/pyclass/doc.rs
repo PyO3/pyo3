@@ -1,6 +1,6 @@
 use std::{ffi::CStr, marker::PhantomData};
 
-use crate::{impl_::pyclass::PyClassImpl, PyClass, PyTypeInfo};
+use crate::{impl_::pyclass::PyClassImpl, PyClass};
 
 /// Trait implemented by classes with a known text signature for instantiation.
 ///
@@ -26,7 +26,7 @@ pub struct PyClassDocGenerator<
 
 impl<ClassT: PyClass + PyClassNewTextSignature> PyClassDocGenerator<ClassT, true> {
     pub const DOC_PIECES: &'static [&'static [u8]] = &[
-        <ClassT as PyTypeInfo>::NAME.as_bytes(),
+        <ClassT as PyClass>::NAME.as_bytes(),
         ClassT::TEXT_SIGNATURE.as_bytes(),
         b"\n--\n\n",
         <ClassT as PyClassImpl>::RAW_DOC.to_bytes_with_nul(),
@@ -60,9 +60,6 @@ pub const fn doc_bytes_as_cstr(bytes: &'static [u8]) -> &'static ::std::ffi::CSt
 
 #[cfg(test)]
 mod tests {
-
-    use crate::ffi;
-
     use super::*;
 
     #[test]
@@ -104,7 +101,7 @@ mod tests {
     #[test]
     fn test_doc_bytes_as_cstr() {
         let cstr = doc_bytes_as_cstr(b"MyClass\0");
-        assert_eq!(cstr, ffi::c_str!("MyClass"));
+        assert_eq!(cstr, c"MyClass");
     }
 
     #[test]

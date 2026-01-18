@@ -124,7 +124,8 @@ macro_rules! impl_slots {
 
 // Slots are implemented on-demand as needed.)
 impl_slots! {
-    TP_ALLOC: (Py_tp_alloc, tp_alloc) -> Option<ffi::allocfunc>,
+    TP_NEW: (Py_tp_new, tp_new) -> Option<ffi::newfunc>,
+    TP_DEALLOC: (Py_tp_dealloc, tp_dealloc) -> Option<ffi::destructor>,
     TP_BASE: (Py_tp_base, tp_base) -> *mut ffi::PyTypeObject,
     TP_CLEAR: (Py_tp_clear, tp_clear) -> Option<ffi::inquiry>,
     TP_DESCR_GET: (Py_tp_descr_get, tp_descr_get) -> Option<ffi::descrgetfunc>,

@@ -1,13 +1,16 @@
+use super::any::PyAnyMethods;
+use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::PyStaticExpr;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
+use crate::PyErr;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
     types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, Python,
 };
-
-use super::any::PyAnyMethods;
-use crate::conversion::IntoPyObject;
-use crate::PyErr;
 use std::convert::Infallible;
 use std::ptr;
 
@@ -21,7 +24,7 @@ use std::ptr;
 #[repr(transparent)]
 pub struct PyBool(PyAny);
 
-pyobject_native_type!(PyBool, ffi::PyObject, pyobject_native_static_type_object!(ffi::PyBool_Type), #checkfunction=ffi::PyBool_Check);
+pyobject_native_type!(PyBool, ffi::PyObject, pyobject_native_static_type_object!(ffi::PyBool_Type), "builtins", "bool", #checkfunction=ffi::PyBool_Check);
 
 impl PyBool {
     /// Depending on `val`, returns `true` or `false`.
@@ -31,9 +34,10 @@ impl PyBool {
     /// `False` singletons
     #[inline]
     pub fn new(py: Python<'_>, val: bool) -> Borrowed<'_, '_, Self> {
+        // SAFETY: `Py_True` and `Py_False` are global singletons which are known to be boolean objects
         unsafe {
             if val { ffi::Py_True() } else { ffi::Py_False() }
-                .assume_borrowed(py)
+                .assume_borrowed_unchecked(py)
                 .cast_unchecked()
         }
     }
@@ -143,7 +147,7 @@ impl<'py> IntoPyObject<'py> for bool {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = "bool";
+    const OUTPUT_TYPE: PyStaticExpr = PyBool::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -162,7 +166,7 @@ impl<'py> IntoPyObject<'py> for &bool {
     type Error = Infallible;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: &'static str = bool::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = bool::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -182,7 +186,7 @@ impl FromPyObject<'_, '_> for bool {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: &'static str = "bool";
+    const INPUT_TYPE: PyStaticExpr = PyBool::TYPE_HINT;
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let err = match obj.cast::<PyBool>() {

@@ -138,12 +138,12 @@ pub trait PyDeltaAccess {
     /// Returns the number of seconds, as an int from 0 through 86399.
     ///
     /// Implementations should conform to the upstream documentation:
-    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_DAYS>
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_SECONDS>
     fn get_seconds(&self) -> i32;
     /// Returns the number of microseconds, as an int from 0 through 999999.
     ///
     /// Implementations should conform to the upstream documentation:
-    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_DAYS>
+    /// <https://docs.python.org/3/c-api/datetime.html#c.PyDateTime_DELTA_GET_MICROSECONDS>
     fn get_microseconds(&self) -> i32;
 }
 
@@ -201,6 +201,8 @@ pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
     |py| expect_datetime_api(py).DateType,
+    "datetime",
+    "date",
     #module=Some("datetime"),
     #checkfunction=PyDate_Check
 );
@@ -214,6 +216,8 @@ pyobject_native_type_core!(
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "datetime", "date").unwrap().as_type_ptr()
     },
+    "datetime",
+    "date",
     #module=Some("datetime")
 );
 
@@ -287,6 +291,8 @@ pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
     |py| expect_datetime_api(py).DateTimeType,
+    "datetime",
+    "datetime",
     #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
 );
@@ -298,8 +304,12 @@ pyobject_native_type_core!(
     PyDateTime,
     |py| {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "datetime", "datetime").unwrap().as_type_ptr()
+        TYPE.import(py, "datetime", "datetime")
+            .unwrap()
+            .as_type_ptr()
     },
+    "datetime",
+    "datetime",
     #module=Some("datetime")
 );
 
@@ -519,6 +529,8 @@ pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
     |py| expect_datetime_api(py).TimeType,
+    "datetime",
+    "time",
     #module=Some("datetime"),
     #checkfunction=PyTime_Check
 );
@@ -532,6 +544,8 @@ pyobject_native_type_core!(
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "datetime", "time").unwrap().as_type_ptr()
     },
+    "datetime",
+    "time",
     #module=Some("datetime")
 );
 
@@ -689,6 +703,8 @@ pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
     |py| expect_datetime_api(py).TZInfoType,
+    "datetime",
+    "tzinfo",
     #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
 );
@@ -702,6 +718,8 @@ pyobject_native_type_core!(
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "datetime", "tzinfo").unwrap().as_type_ptr()
     },
+    "datetime",
+    "tzinfo",
     #module=Some("datetime")
 );
 
@@ -798,6 +816,8 @@ pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,
     |py| expect_datetime_api(py).DeltaType,
+    "datetime",
+    "timedelta",
     #module=Some("datetime"),
     #checkfunction=PyDelta_Check
 );
@@ -809,8 +829,12 @@ pyobject_native_type_core!(
     PyDelta,
     |py| {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "datetime", "timedelta").unwrap().as_type_ptr()
+        TYPE.import(py, "datetime", "timedelta")
+            .unwrap()
+            .as_type_ptr()
     },
+    "datetime",
+    "timedelta",
     #module=Some("datetime")
 );
 

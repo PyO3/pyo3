@@ -1,0 +1,6 @@
+from typing import Any, final
+
+@final
+class ObjStore:
+    def __new__(cls, /) -> ObjStore: ...
+    def push(self, /, obj: Any) -> None: ...

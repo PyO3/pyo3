@@ -5,10 +5,14 @@ version = "0.1.0"
 description = "Python-based tests for PyO3"
 edition = "2021"
 publish = false
-rust-version = "1.74"
+rust-version = "1.83"
+
+[features]
+experimental-async = ["pyo3/experimental-async"]
+experimental-inspect = ["pyo3/experimental-inspect"]
 
 [dependencies]
-pyo3 = { path = "../", features = ["experimental-inspect"] }
+pyo3.path = "../"
 
 [build-dependencies]
 pyo3-build-config = { path = "../pyo3-build-config" }

@@ -27,6 +27,8 @@ pyobject_native_type!(
     PyComplex,
     ffi::PyComplexObject,
     pyobject_native_static_type_object!(ffi::PyComplex_Type),
+    "builtins",
+    "complex",
     #checkfunction=ffi::PyComplex_Check
 );
 
@@ -257,8 +259,6 @@ mod tests {
 
     #[test]
     fn test_from_double() {
-        use assert_approx_eq::assert_approx_eq;
-
         Python::attach(|py| {
             let complex = PyComplex::from_doubles(py, 3.0, 1.2);
             assert_approx_eq!(complex.real(), 3.0);

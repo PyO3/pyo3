@@ -5,7 +5,6 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PyString;
 use pyo3::types::{IntoPyDict, PyDict, PyTuple};
-use pyo3_ffi::c_str;
 
 mod test_utils;
 
@@ -39,7 +38,7 @@ fn test_module_with_functions() {
     use pyo3::wrap_pymodule;
 
     /// This module is implemented in Rust.
-    #[pymodule(gil_used = false)]
+    #[pymodule]
     mod module_with_functions {
         use super::*;
 
@@ -126,7 +125,7 @@ fn test_module_with_pyfn() {
     use pyo3::wrap_pymodule;
 
     /// This module is implemented in Rust.
-    #[pymodule(gil_used = false)]
+    #[pymodule]
     fn module_with_pyfn(m: &Bound<'_, PyModule>) -> PyResult<()> {
         #[pyfn(m)]
         #[pyo3(name = "no_parameters")]
@@ -248,8 +247,8 @@ fn test_module_from_code_bound() {
     Python::attach(|py| {
         let adder_mod = PyModule::from_code(
             py,
-            c_str!("def add(a,b):\n\treturn a+b"),
-            c_str!("adder_mod.py"),
+            c"def add(a,b):\n\treturn a+b",
+            c"adder_mod.py",
             &test_utils::generate_unique_module_name("adder_mod"),
         )
         .expect("Module code should be loaded");
@@ -263,8 +262,6 @@ fn test_module_from_code_bound() {
             .expect("A value should be returned")
             .extract()
             .expect("The value should be able to be converted to an i32");
-
-        adder_mod.gil_used(false).expect("Disabling the GIL failed");
 
         assert_eq!(ret_value, 3);
     });
@@ -368,10 +365,10 @@ fn superfunction() -> String {
 #[pymodule]
 fn supermodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(superfunction, module)?)?;
-    let module_to_add = PyModule::new(module.py(), "submodule")?;
+    let module_to_add = PyModule::new(module.py(), "supermodule.submodule")?;
     submodule(&module_to_add)?;
     module.add_submodule(&module_to_add)?;
-    let module_to_add = PyModule::new(module.py(), "submodule_with_init_fn")?;
+    let module_to_add = PyModule::new(module.py(), "supermodule.submodule_with_init_fn")?;
     submodule_with_init_fn(&module_to_add)?;
     module.add_submodule(&module_to_add)?;
     Ok(())
@@ -398,6 +395,36 @@ fn test_module_nesting() {
             py,
             supermodule,
             "supermodule.submodule_with_init_fn.subfunction() == 'Subfunction'"
+        );
+
+        // submodule dunder name and attribute name
+        py_assert!(
+            py,
+            supermodule,
+            "supermodule.submodule.__name__ == 'supermodule.submodule'"
+        );
+        py_assert!(py, supermodule, "'submodule' in supermodule.__dict__");
+        py_assert!(
+            py,
+            supermodule,
+            "'supermodule.submodule' not in supermodule.__dict__"
+        );
+
+        // submodule_with_init_fn dunder name and attribute name
+        py_assert!(
+            py,
+            supermodule,
+            "supermodule.submodule_with_init_fn.__name__ == 'supermodule.submodule_with_init_fn'"
+        );
+        py_assert!(
+            py,
+            supermodule,
+            "'submodule_with_init_fn' in supermodule.__dict__"
+        );
+        py_assert!(
+            py,
+            supermodule,
+            "'supermodule.submodule_with_init_fn' not in supermodule.__dict__"
         );
     });
 }
@@ -525,7 +552,7 @@ fn test_module_functions_with_module() {
 #[test]
 fn test_module_doc_hidden() {
     #[doc(hidden)]
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     #[pymodule]
     fn my_module(_m: &Bound<'_, PyModule>) -> PyResult<()> {
         Ok(())

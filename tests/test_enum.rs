@@ -6,7 +6,7 @@ use pyo3::types::PyString;
 
 mod test_utils;
 
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, from_py_object)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum MyEnum {
     Variant,
@@ -54,7 +54,8 @@ fn test_return_enum() {
         let f = wrap_pyfunction!(return_enum)(py).unwrap();
         let mynum = py.get_type::<MyEnum>();
 
-        py_run!(py, f mynum, "assert f() == mynum.Variant")
+        py_run!(py, f mynum, "assert f() == mynum.Variant");
+        py_run!(py, f mynum, "assert f() is mynum.Variant");
     });
 }
 
@@ -73,7 +74,7 @@ fn test_enum_arg() {
     })
 }
 
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, skip_from_py_object)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 enum CustomDiscriminant {
     One = 1,
@@ -126,7 +127,7 @@ fn test_enum_compare_int() {
     })
 }
 
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, skip_from_py_object)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[repr(u8)]
 enum SmallEnum {
@@ -141,7 +142,7 @@ fn test_enum_compare_int_no_throw_when_overflow() {
     })
 }
 
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, skip_from_py_object)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[repr(usize)]
 #[allow(clippy::enum_clike_unportable_variant)]
@@ -160,7 +161,7 @@ fn test_big_enum_no_overflow() {
     })
 }
 
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, skip_from_py_object)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[repr(u16, align(8))]
 enum TestReprParse {
@@ -172,7 +173,7 @@ fn test_repr_parse() {
     assert_eq!(std::mem::align_of::<TestReprParse>(), 8);
 }
 
-#[pyclass(eq, eq_int, name = "MyEnum")]
+#[pyclass(eq, eq_int, name = "MyEnum", skip_from_py_object)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RenameEnum {
     Variant,
@@ -186,7 +187,7 @@ fn test_rename_enum_repr_correct() {
     })
 }
 
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, skip_from_py_object)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RenameVariantEnum {
     #[pyo3(name = "VARIANT")]
@@ -201,9 +202,9 @@ fn test_rename_variant_repr_correct() {
     })
 }
 
-#[pyclass(eq, eq_int, rename_all = "SCREAMING_SNAKE_CASE")]
+#[pyclass(eq, eq_int, rename_all = "SCREAMING_SNAKE_CASE", skip_from_py_object)]
 #[derive(Debug, PartialEq, Eq, Clone)]
-#[allow(clippy::enum_variant_names)]
+#[expect(clippy::enum_variant_names)]
 enum RenameAllVariantsEnum {
     VariantOne,
     VariantTwo,
@@ -244,7 +245,7 @@ fn test_custom_module() {
     });
 }
 
-#[pyclass(eq)]
+#[pyclass(eq, skip_from_py_object)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum EqOnly {
     VariantA,
@@ -369,7 +370,7 @@ fn custom_eq() {
     })
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Clone, Copy)]
 pub enum ComplexEnumWithRaw {
     Raw { r#type: i32 },

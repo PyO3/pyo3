@@ -6,6 +6,8 @@ use crate::introspection::{attribute_introspection_code, function_introspection_
 #[cfg(feature = "experimental-inspect")]
 use crate::method::{FnSpec, FnType};
 #[cfg(feature = "experimental-inspect")]
+use crate::type_hint::PythonTypeHint;
+#[cfg(feature = "experimental-inspect")]
 use crate::utils::expr_to_python;
 use crate::utils::{has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath};
 use crate::{
@@ -18,13 +20,13 @@ use crate::{
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-#[cfg(feature = "experimental-inspect")]
-use syn::Ident;
 use syn::{
     parse::{Parse, ParseStream},
     spanned::Spanned,
     ImplItemFn, Result,
 };
+#[cfg(feature = "experimental-inspect")]
+use syn::{parse_quote, Ident};
 
 /// The mechanism used to collect `#[pymethods]` into the type object
 #[derive(Copy, Clone)]
@@ -232,7 +234,7 @@ pub fn impl_methods(
 pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec, ctx: &Ctx) -> MethodAndMethodDef {
     let member = &spec.rust_ident;
     let wrapper_ident = format_ident!("__pymethod_{}__", member);
-    let python_name = spec.null_terminated_python_name(ctx);
+    let python_name = spec.null_terminated_python_name();
     let Ctx { pyo3_path, .. } = ctx;
 
     let associated_method = quote! {
@@ -242,14 +244,12 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec, ctx: &Ctx) -> MethodAndMe
     };
 
     let method_def = quote! {
-        #pyo3_path::impl_::pyclass::MaybeRuntimePyMethodDef::Static(
-            #pyo3_path::impl_::pymethods::PyMethodDefType::ClassAttribute({
-                #pyo3_path::impl_::pymethods::PyClassAttributeDef::new(
-                    #python_name,
-                    #cls::#wrapper_ident
-                )
-            })
-        )
+        #pyo3_path::impl_::pymethods::PyMethodDefType::ClassAttribute({
+            #pyo3_path::impl_::pymethods::PyClassAttributeDef::new(
+                #python_name,
+                #cls::#wrapper_ident
+            )
+        })
     };
 
     MethodAndMethodDef {
@@ -397,47 +397,73 @@ fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -
 
     // We introduce self/cls argument and setup decorators
     let mut first_argument = None;
-    let mut output = spec.output.clone();
     let mut decorators = Vec::new();
     match &spec.tp {
         FnType::Getter(_) => {
             first_argument = Some("self");
-            decorators.push("property".into());
+            decorators.push(PythonTypeHint::builtin("property"));
         }
         FnType::Setter(_) => {
             first_argument = Some("self");
-            decorators.push(format!("{name}.setter"));
+            decorators.push(PythonTypeHint::attribute(
+                PythonTypeHint::attribute(
+                    PythonTypeHint::from_type(parent.clone(), None),
+                    name.clone(),
+                ),
+                "setter",
+            ));
+        }
+        FnType::Deleter(_) => {
+            first_argument = Some("self");
+            decorators.push(PythonTypeHint::attribute(
+                PythonTypeHint::attribute(
+                    PythonTypeHint::from_type(parent.clone(), None),
+                    name.clone(),
+                ),
+                "deleter",
+            ));
         }
         FnType::Fn(_) => {
             first_argument = Some("self");
         }
-        FnType::FnNew | FnType::FnNewClass(_) => {
-            first_argument = Some("cls");
-            output = syn::ReturnType::Default; // The __new__ Python function return type is None
-        }
         FnType::FnClass(_) => {
             first_argument = Some("cls");
-            decorators.push("classmethod".into());
+            if spec.python_name != "__new__" {
+                // special case __new__ - does not get the decorator
+                decorators.push(PythonTypeHint::builtin("classmethod"));
+            }
         }
         FnType::FnStatic => {
-            decorators.push("staticmethod".into());
+            if spec.python_name != "__new__" {
+                decorators.push(PythonTypeHint::builtin("staticmethod"));
+            } else {
+                // special case __new__ - does not get the decorator and gets first argument
+                first_argument = Some("cls");
+            }
         }
         FnType::FnModule(_) => (), // TODO: not sure this can happen
         FnType::ClassAttribute => {
             first_argument = Some("cls");
             // TODO: this combination only works with Python 3.9-3.11 https://docs.python.org/3.11/library/functions.html#classmethod
-            decorators.push("classmethod".into());
-            decorators.push("property".into());
+            decorators.push(PythonTypeHint::builtin("classmethod"));
+            decorators.push(PythonTypeHint::builtin("property"));
         }
     }
+    let return_type = if spec.python_name == "__new__" {
+        // Hack to return Self while implementing IntoPyObject
+        parse_quote!(-> #pyo3_path::PyRef<Self>)
+    } else {
+        spec.output.clone()
+    };
     function_introspection_code(
         pyo3_path,
         None,
         &name,
         &spec.signature,
         first_argument,
-        output,
+        return_type,
         decorators,
+        spec.asyncness.is_some(),
         Some(parent),
     )
 }

@@ -16,12 +16,15 @@ use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 
+#[cfg(not(GraalPy))]
 pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
 
 pyobject_native_type!(
     PyDict,
     ffi::PyDictObject,
     pyobject_native_static_type_object!(ffi::PyDict_Type),
+    "builtins",
+    "dict",
     #checkfunction=ffi::PyDict_Check
 );
 
@@ -34,6 +37,8 @@ pub struct PyDictKeys(PyAny);
 pyobject_native_type_core!(
     PyDictKeys,
     pyobject_native_static_type_object!(ffi::PyDictKeys_Type),
+    "builtins",
+    "dict_keys",
     #checkfunction=ffi::PyDictKeys_Check
 );
 
@@ -46,6 +51,8 @@ pub struct PyDictValues(PyAny);
 pyobject_native_type_core!(
     PyDictValues,
     pyobject_native_static_type_object!(ffi::PyDictValues_Type),
+    "builtins",
+    "dict_values",
     #checkfunction=ffi::PyDictValues_Check
 );
 
@@ -58,6 +65,8 @@ pub struct PyDictItems(PyAny);
 pyobject_native_type_core!(
     PyDictItems,
     pyobject_native_static_type_object!(ffi::PyDictItems_Type),
+    "builtins",
+    "dict_items",
     #checkfunction=ffi::PyDictItems_Check
 );
 
@@ -351,7 +360,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
 
         #[cfg(not(feature = "nightly"))]
         {
-            crate::sync::with_critical_section(self, || {
+            crate::sync::critical_section::with_critical_section(self, || {
                 self.iter().try_for_each(|(key, value)| f(key, value))
             })
         }
@@ -490,7 +499,9 @@ impl DictIterImpl {
         F: FnOnce(&mut Self) -> R,
     {
         match self {
-            Self::DictIter { .. } => crate::sync::with_critical_section(dict, || f(self)),
+            Self::DictIter { .. } => {
+                crate::sync::critical_section::with_critical_section(dict, || f(self))
+            }
         }
     }
 }
@@ -718,7 +729,12 @@ mod borrowed_iter {
                 // Safety:
                 // - PyDict_Next returns borrowed values
                 // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
-                Some(unsafe { (key.assume_borrowed(py), value.assume_borrowed(py)) })
+                Some(unsafe {
+                    (
+                        key.assume_borrowed_unchecked(py),
+                        value.assume_borrowed_unchecked(py),
+                    )
+                })
             } else {
                 None
             }
@@ -1004,7 +1020,7 @@ mod tests {
     fn test_set_item_refcnt() {
         Python::attach(|py| {
             let cnt;
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
             {
                 cnt = obj.get_refcnt();
                 let _dict = [(10, &obj)].into_py_dict(py);

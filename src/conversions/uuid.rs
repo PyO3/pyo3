@@ -1,6 +1,6 @@
 #![cfg(feature = "uuid")]
 
-//! Conversions to and from [uuid](https://docs.rs/uuid/latest/uuid/)'s [`Uuid`] type.
+//! Conversions to and from [uuid](https://docs.rs/uuid/latest/uuid/)'s [`Uuid`] and [`NonNilUuid`] types.
 //!
 //! This is useful for converting Python's uuid.UUID into and from a native Rust type.
 //!
@@ -63,10 +63,10 @@
 //! returned_uuid = get_uuid(py_uuid)
 //! assert py_uuid == returned_uuid
 //! ```
-use uuid::Uuid;
+use uuid::{NonNilUuid, Uuid};
 
 use crate::conversion::IntoPyObject;
-use crate::exceptions::PyTypeError;
+use crate::exceptions::{PyTypeError, PyValueError};
 use crate::instance::Bound;
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
@@ -107,6 +107,35 @@ impl<'py> IntoPyObject<'py> for Uuid {
 }
 
 impl<'py> IntoPyObject<'py> for &Uuid {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
+impl FromPyObject<'_, '_> for NonNilUuid {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
+        let uuid: Uuid = obj.extract()?;
+        NonNilUuid::new(uuid).ok_or_else(|| PyValueError::new_err("UUID is nil"))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for NonNilUuid {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Uuid::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &NonNilUuid {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -183,4 +212,19 @@ mod tests {
         Uuid::parse_str("a6cc5730-2261-11ee-9c43-2eb5a363657c").unwrap(),
         "a6cc5730-2261-11ee-9c43-2eb5a363657c"
     );
+
+    #[test]
+    fn test_non_nil_uuid() {
+        Python::attach(|py| {
+            let rs_uuid = NonNilUuid::new(Uuid::max()).unwrap();
+            let py_uuid = rs_uuid.into_pyobject(py).unwrap();
+
+            let extract_uuid: NonNilUuid = py_uuid.extract().unwrap();
+            assert_eq!(extract_uuid, rs_uuid);
+
+            let nil_uuid = Uuid::nil().into_pyobject(py).unwrap();
+            let extract_nil: PyResult<NonNilUuid> = nil_uuid.extract();
+            assert!(extract_nil.is_err());
+        })
+    }
 }

@@ -1,5 +1,7 @@
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::{type_hint_identifier, PyStaticExpr};
 use crate::instance::Bound;
 use crate::internal_tricks::get_ssize_index;
 use crate::py_result_ext::PyResultExt;
@@ -24,8 +26,10 @@ unsafe impl PyTypeInfo for PySequence {
     const NAME: &'static str = "Sequence";
     const MODULE: Option<&'static str> = Some("collections.abc");
 
+    #[cfg(feature = "experimental-inspect")]
+    const TYPE_HINT: PyStaticExpr = type_hint_identifier!("collections.abc", "Sequence");
+
     #[inline]
-    #[allow(clippy::redundant_closure_call)]
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "collections.abc", "Sequence")
@@ -357,13 +361,13 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyList, PySequence, PySequenceMethods, PyTuple};
-    use crate::{ffi, IntoPyObject, Py, PyAny, PyTypeInfo, Python};
+    use crate::{IntoPyObject, Py, PyAny, PyTypeInfo, Python};
     use std::ptr;
 
     fn get_object() -> Py<PyAny> {
         // Convenience function for getting a single unique object
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
 
             obj.into_pyobject(py).unwrap().unbind()
         })

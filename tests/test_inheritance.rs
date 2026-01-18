@@ -2,8 +2,6 @@
 
 use pyo3::prelude::*;
 use pyo3::py_run;
-
-use pyo3::ffi;
 use pyo3::types::IntoPyDict;
 
 mod test_utils;
@@ -25,7 +23,7 @@ fn subclass() {
             .unwrap();
 
         py.run(
-            ffi::c_str!("class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)"),
+            c"class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)",
             None,
             Some(&d),
         )
@@ -102,7 +100,7 @@ fn mutation_fails() {
         let global = [("obj", obj)].into_py_dict(py).unwrap();
         let e = py
             .run(
-                ffi::c_str!("obj.base_set(lambda: obj.sub_set_and_ret(1))"),
+                c"obj.base_set(lambda: obj.sub_set_and_ret(1))",
                 Some(&global),
                 None,
             )
@@ -164,7 +162,7 @@ fn handle_result_in_new() {
             r#"
 try:
     subclass(-10)
-    assert Fals
+    assert False
 except ValueError as e:
     pass
 except Exception as e:
@@ -174,11 +172,12 @@ except Exception as e:
     });
 }
 
-// Subclassing builtin types is not allowed in the LIMITED API.
-#[cfg(not(Py_LIMITED_API))]
+// Subclassing builtin types is not possible in the LIMITED API before 3.12
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 mod inheriting_native_type {
     use super::*;
     use pyo3::exceptions::PyException;
+    #[cfg(not(GraalPy))]
     use pyo3::types::PyDict;
 
     #[cfg(not(any(PyPy, GraalPy)))]
@@ -211,6 +210,7 @@ mod inheriting_native_type {
         });
     }
 
+    #[cfg(not(GraalPy))]
     #[pyclass(extends=PyDict)]
     #[derive(Debug)]
     struct DictWithName {
@@ -218,6 +218,7 @@ mod inheriting_native_type {
         _name: &'static str,
     }
 
+    #[cfg(not(GraalPy))]
     #[pymethods]
     impl DictWithName {
         #[new]
@@ -226,6 +227,7 @@ mod inheriting_native_type {
         }
     }
 
+    #[cfg(not(GraalPy))]
     #[test]
     fn inherit_dict() {
         Python::attach(|py| {
@@ -238,13 +240,14 @@ mod inheriting_native_type {
         });
     }
 
+    #[cfg(not(GraalPy))]
     #[test]
     fn inherit_dict_drop() {
         Python::attach(|py| {
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
             assert_eq!(dict_sub.get_refcnt(py), 1);
 
-            let item = &py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let item = &py.eval(c"object()", None, None).unwrap();
             assert_eq!(item.get_refcnt(), 1);
 
             dict_sub.bind(py).set_item("foo", item).unwrap();
@@ -277,7 +280,7 @@ mod inheriting_native_type {
             let cls = py.get_type::<CustomException>();
             let dict = [("cls", &cls)].into_py_dict(py).unwrap();
             let res = py.run(
-            ffi::c_str!("e = cls('hello'); assert str(e) == 'hello'; assert e.context == 'Hello :)'; raise e"),
+            c"e = cls('hello'); assert str(e) == 'hello'; assert e.context == 'Hello :)'; raise e",
             None,
             Some(&dict)
             );
@@ -297,6 +300,33 @@ mod inheriting_native_type {
             )
         })
     }
+
+    #[test]
+    #[cfg(Py_3_12)]
+    fn inherit_list() {
+        #[pyclass(extends=pyo3::types::PyList)]
+        struct ListWithName {
+            #[pyo3(get)]
+            name: &'static str,
+        }
+
+        #[pymethods]
+        impl ListWithName {
+            #[new]
+            fn new() -> Self {
+                Self { name: "Hello :)" }
+            }
+        }
+
+        Python::attach(|py| {
+            let list_sub = pyo3::Bound::new(py, ListWithName::new()).unwrap();
+            py_run!(
+                py,
+                list_sub,
+                r#"list_sub.append(1); assert list_sub[0] == 1; assert list_sub.name == "Hello :)""#
+            );
+        });
+    }
 }
 
 #[pyclass(subclass)]
@@ -314,7 +344,7 @@ impl SimpleClass {
 fn test_subclass_ref_counts() {
     // regression test for issue #1363
     Python::attach(|py| {
-        #[allow(non_snake_case)]
+        #[expect(non_snake_case)]
         let SimpleClass = py.get_type::<SimpleClass>();
         py_run!(
             py,

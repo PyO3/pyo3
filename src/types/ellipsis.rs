@@ -1,3 +1,5 @@
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::{type_hint_identifier, PyStaticExpr};
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyTypeInfo,
     Python,
@@ -16,14 +18,21 @@ impl PyEllipsis {
     /// Returns the `Ellipsis` object.
     #[inline]
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyEllipsis> {
-        unsafe { ffi::Py_Ellipsis().assume_borrowed(py).cast_unchecked() }
+        // SAFETY: `Py_Ellipsis` is a global singleton which is known to be the ellipsis object
+        unsafe {
+            ffi::Py_Ellipsis()
+                .assume_borrowed_unchecked(py)
+                .cast_unchecked()
+        }
     }
 }
 
 unsafe impl PyTypeInfo for PyEllipsis {
     const NAME: &'static str = "ellipsis";
-
     const MODULE: Option<&'static str> = None;
+
+    #[cfg(feature = "experimental-inspect")]
+    const TYPE_HINT: PyStaticExpr = type_hint_identifier!("types", "EllipsisType");
 
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_Ellipsis()) }

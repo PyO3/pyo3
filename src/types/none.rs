@@ -1,4 +1,6 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::{PyStaticConstant, PyStaticExpr};
 use crate::{ffi, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyTypeInfo, Python};
 
 /// Represents the Python `None` object.
@@ -14,14 +16,23 @@ impl PyNone {
     /// Returns the `None` object.
     #[inline]
     pub fn get(py: Python<'_>) -> Borrowed<'_, '_, PyNone> {
-        unsafe { ffi::Py_None().assume_borrowed(py).cast_unchecked() }
+        // SAFETY: `Py_None` is a global singleton which is known to be the None object
+        unsafe {
+            ffi::Py_None()
+                .assume_borrowed_unchecked(py)
+                .cast_unchecked()
+        }
     }
 }
 
 unsafe impl PyTypeInfo for PyNone {
     const NAME: &'static str = "NoneType";
-
     const MODULE: Option<&'static str> = None;
+
+    #[cfg(feature = "experimental-inspect")]
+    const TYPE_HINT: PyStaticExpr = PyStaticExpr::Constant {
+        value: PyStaticConstant::None,
+    };
 
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_None()) }

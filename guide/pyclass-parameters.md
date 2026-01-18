@@ -9,6 +9,7 @@
 | `eq_int` | Implements `__eq__` using `__int__` for simple enums. |
 | <span style="white-space: pre">`extends = BaseType`</span>  | Use a custom baseclass. Defaults to [`PyAny`][params-1] |
 | <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][params-2] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
+| `from_py_object` | Implement `FromPyObject` for this pyclass. Requires the pyclass to be `Clone`. |
 | <span style="white-space: pre">`frozen`</span> | Declares that your pyclass is immutable. It removes the borrow checker overhead when retrieving a shared reference to the Rust struct, but disables the ability to get a mutable reference. |
 | `generic` | Implements runtime parametrization for the class following [PEP 560](https://peps.python.org/pep-0560/). |
 | `get_all` | Generates getters for all fields of the pyclass. |
@@ -21,13 +22,13 @@
 | `rename_all = "renaming_rule"` | Applies renaming rules to every getters and setters of a struct, or every variants of an enum. Possible values are: "camelCase", "kebab-case", "lowercase", "PascalCase", "SCREAMING-KEBAB-CASE", "SCREAMING_SNAKE_CASE", "snake_case", "UPPERCASE". |
 | `sequence` |  Inform PyO3 that this class is a [`Sequence`][params-sequence], and so leave its C-API mapping length slot empty. |
 | `set_all` | Generates setters for all fields of the pyclass. |
+| `skip_from_py_object` | Prevents this PyClass from participating in the `FromPyObject: PyClass + Clone` blanket implementation. This allows a custom `FromPyObject` impl, even if `self` is `Clone`. |
 | `str` | Implements `__str__` using the `Display` implementation of the underlying Rust datatype or by passing an optional format string `str="<format string>"`. *Note: The optional format string is only allowed for structs.  `name` and `rename_all` are incompatible with the optional format string.  Additional details can be found in the discussion on this [PR](https://github.com/PyO3/pyo3/pull/4233).* |
 | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class. Enums cannot be subclassed. |
 | `unsendable` | Required if your struct is not [`Send`][params-3]. Rather than using `unsendable`, consider implementing your struct in a thread-safe way by e.g. substituting [`Rc`][params-4] with [`Arc`][params-5]. By using `unsendable`, your class will panic when accessed by another thread. Also note the Python's GC is multi-threaded and while unsendable classes will not be traversed on foreign threads to avoid UB, this can lead to memory leaks. |
 | `weakref` | Allows this class to be [weakly referenceable][params-6]. |
 
-All of these parameters can either be passed directly on the `#[pyclass(...)]` annotation, or as one or
-more accompanying `#[pyo3(...)]` annotations, e.g.:
+All of these parameters can either be passed directly on the `#[pyclass(...)]` annotation, or as one or more accompanying `#[pyo3(...)]` annotations, e.g.:
 
 ```rust,ignore
 // Argument supplied directly to the `#[pyclass]` annotation.

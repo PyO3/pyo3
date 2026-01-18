@@ -1,15 +1,16 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::impl_::pyfunction::create_py_c_function;
 use crate::py_result_ext::PyResultExt;
 use crate::types::capsule::PyCapsuleMethods;
-use crate::types::module::PyModuleMethods;
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef},
-    types::{PyCapsule, PyDict, PyModule, PyString, PyTuple},
+    types::{PyCapsule, PyDict, PyModule, PyTuple},
 };
-use crate::{Bound, Py, PyAny, PyResult, Python};
+use crate::{Bound, PyAny, PyResult, Python};
 use std::cell::UnsafeCell;
 use std::ffi::CStr;
+use std::ptr::NonNull;
 
 /// Represents a builtin Python function object.
 ///
@@ -18,7 +19,7 @@ use std::ffi::CStr;
 #[repr(transparent)]
 pub struct PyCFunction(PyAny);
 
-pyobject_native_type_core!(PyCFunction, pyobject_native_static_type_object!(ffi::PyCFunction_Type), #checkfunction=ffi::PyCFunction_Check);
+pyobject_native_type_core!(PyCFunction, pyobject_native_static_type_object!(ffi::PyCFunction_Type), "builtins", "builtin_function_or_method", #checkfunction=ffi::PyCFunction_Check);
 
 impl PyCFunction {
     /// Create a new built-in function with keywords (*args and/or **kwargs).
@@ -32,11 +33,11 @@ impl PyCFunction {
         doc: &'static CStr,
         module: Option<&Bound<'py, PyModule>>,
     ) -> PyResult<Bound<'py, Self>> {
-        Self::internal_new(
-            py,
-            &PyMethodDef::cfunction_with_keywords(name, fun, doc),
-            module,
-        )
+        let def = PyMethodDef::cfunction_with_keywords(name, fun, doc).into_raw();
+        // FIXME: stop leaking the def
+        let def = Box::leak(Box::new(def));
+        // Safety: def is static
+        unsafe { create_py_c_function(py, def, module) }
     }
 
     /// Create a new built-in function which takes no arguments.
@@ -50,7 +51,11 @@ impl PyCFunction {
         doc: &'static CStr,
         module: Option<&Bound<'py, PyModule>>,
     ) -> PyResult<Bound<'py, Self>> {
-        Self::internal_new(py, &PyMethodDef::noargs(name, fun, doc), module)
+        let def = PyMethodDef::noargs(name, fun, doc).into_raw();
+        // FIXME: stop leaking the def
+        let def = Box::leak(Box::new(def));
+        // Safety: def is static
+        unsafe { create_py_c_function(py, def, module) }
     }
 
     /// Create a new function from a closure.
@@ -80,11 +85,11 @@ impl PyCFunction {
         F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
         for<'p> R: crate::impl_::callback::IntoPyCallbackOutput<'p, *mut ffi::PyObject>,
     {
-        let name = name.unwrap_or(ffi::c_str!("pyo3-closure"));
-        let doc = doc.unwrap_or(ffi::c_str!(""));
+        let name = name.unwrap_or(c"pyo3-closure");
+        let doc = doc.unwrap_or(c"");
         let method_def =
             pymethods::PyMethodDef::cfunction_with_keywords(name, run_closure::<F, R>, doc);
-        let def = method_def.as_method_def();
+        let def = method_def.into_raw();
 
         let capsule = PyCapsule::new(
             py,
@@ -95,46 +100,24 @@ impl PyCFunction {
             Some(CLOSURE_CAPSULE_NAME.to_owned()),
         )?;
 
-        // Safety: just created the capsule with type ClosureDestructor<F> above
-        let data = unsafe { capsule.reference::<ClosureDestructor<F>>() };
+        let data: NonNull<ClosureDestructor<F>> =
+            capsule.pointer_checked(Some(CLOSURE_CAPSULE_NAME))?.cast();
 
+        // SAFETY: The capsule has just been created with the value, and will exist as long as
+        // the function object exists.
+        let method_def = unsafe { data.as_ref().def.get() };
+
+        // SAFETY: The arguments to `PyCFunction_NewEx` are valid, we are attached to the
+        // interpreter and we know the function either returns a new reference or errors.
         unsafe {
-            ffi::PyCFunction_NewEx(data.def.get(), capsule.as_ptr(), std::ptr::null_mut())
-                .assume_owned_or_err(py)
-                .cast_into_unchecked()
-        }
-    }
-
-    #[doc(hidden)]
-    pub fn internal_new<'py>(
-        py: Python<'py>,
-        method_def: &PyMethodDef,
-        module: Option<&Bound<'py, PyModule>>,
-    ) -> PyResult<Bound<'py, Self>> {
-        let (mod_ptr, module_name): (_, Option<Py<PyString>>) = if let Some(m) = module {
-            let mod_ptr = m.as_ptr();
-            (mod_ptr, Some(m.name()?.unbind()))
-        } else {
-            (std::ptr::null_mut(), None)
-        };
-        let def = method_def.as_method_def();
-
-        // FIXME: stop leaking the def
-        let def = Box::into_raw(Box::new(def));
-
-        let module_name_ptr = module_name
-            .as_ref()
-            .map_or(std::ptr::null_mut(), Py::as_ptr);
-
-        unsafe {
-            ffi::PyCFunction_NewEx(def, mod_ptr, module_name_ptr)
+            ffi::PyCFunction_NewEx(method_def, capsule.as_ptr(), std::ptr::null_mut())
                 .assume_owned_or_err(py)
                 .cast_into_unchecked()
         }
     }
 }
 
-static CLOSURE_CAPSULE_NAME: &CStr = ffi::c_str!("pyo3-closure");
+static CLOSURE_CAPSULE_NAME: &CStr = c"pyo3-closure";
 
 unsafe extern "C" fn run_closure<F, R>(
     capsule_ptr: *mut ffi::PyObject,
@@ -146,7 +129,7 @@ where
     for<'py> R: crate::impl_::callback::IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
 {
     unsafe {
-        crate::impl_::trampoline::cfunction_with_keywords(
+        crate::impl_::trampoline::cfunction_with_keywords::inner(
             capsule_ptr,
             args,
             kwargs,
@@ -184,4 +167,4 @@ unsafe impl<F: Send> Send for ClosureDestructor<F> {}
 pub struct PyFunction(PyAny);
 
 #[cfg(not(Py_LIMITED_API))]
-pyobject_native_type_core!(PyFunction, pyobject_native_static_type_object!(ffi::PyFunction_Type), #checkfunction=ffi::PyFunction_Check);
+pyobject_native_type_core!(PyFunction, pyobject_native_static_type_object!(ffi::PyFunction_Type), "builtins", "function", #checkfunction=ffi::PyFunction_Check);

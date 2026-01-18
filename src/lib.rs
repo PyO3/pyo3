@@ -3,7 +3,7 @@
     feature = "nightly",
     feature(auto_traits, negative_impls, try_trait_v2, iter_advance_by)
 )]
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(unsafe_op_in_unsafe_fn)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
@@ -93,9 +93,6 @@
 //! [PEP 384] to be forward-compatible with future Python versions.
 //! - `auto-initialize`: Changes [`Python::attach`] to automatically initialize the Python
 //! interpreter if needed.
-//! - `extension-module`: This will tell the linker to keep the Python symbols unresolved, so that
-//! your module can also be used with statically linked Python interpreters. Use this feature when
-//! building an extension module.
 //! - `multiple-pymethods`: Enables the use of multiple [`#[pymethods]`](macro@crate::pymethods)
 //! blocks per [`#[pyclass]`](macro@crate::pyclass). This adds a dependency on the [inventory]
 //! crate, which is not supported on all platforms.
@@ -152,7 +149,7 @@
 //!
 //! PyO3 supports the following Python distributions:
 //!   - CPython 3.7 or greater
-//!   - PyPy 7.3 (Python 3.9+)
+//!   - PyPy 7.3 (Python 3.11+)
 //!   - GraalPy 24.0 or greater (Python 3.10+)
 //!
 //! # Example: Building a native Python module
@@ -181,9 +178,8 @@
 //! # crate-type = ["cdylib", "rlib"]
 //! crate-type = ["cdylib"]
 //!
-//! [dependencies.pyo3]
-#![doc = concat!("version = \"", env!("CARGO_PKG_VERSION"),  "\"")]
-//! features = ["extension-module"]
+//! [dependencies]
+#![doc = concat!("pyo3 = \"", env!("CARGO_PKG_VERSION"),  "\"")]
 //! ```
 //!
 //! **`src/lib.rs`**
@@ -260,7 +256,7 @@
 //!         let version: String = sys.getattr("version")?.extract()?;
 //!
 //!         let locals = [("os", py.import("os")?)].into_py_dict(py)?;
-//!         let code = c_str!("os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'");
+//!         let code = c"os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
 //!         let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 //!
 //!         println!("Hello {}, I'm Python {}", user, version);
@@ -342,7 +338,9 @@
 //! [`Ungil`]: crate::marker::Ungil
 pub use crate::class::*;
 pub use crate::conversion::{FromPyObject, IntoPyObject, IntoPyObjectExt};
-pub use crate::err::{DowncastError, DowncastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
+pub use crate::err::{CastError, CastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
+#[allow(deprecated)]
+pub use crate::err::{DowncastError, DowncastIntoError};
 #[allow(deprecated)]
 pub use crate::instance::PyObject;
 pub use crate::instance::{Borrowed, Bound, BoundObject, Py};
@@ -396,13 +394,6 @@ pub mod class {
     }
 }
 
-#[cfg(feature = "macros")]
-#[doc(hidden)]
-pub use {
-    indoc,    // Re-exported for py_run
-    unindent, // Re-exported for py_run
-};
-
 #[cfg(all(feature = "macros", feature = "multiple-pymethods"))]
 #[doc(hidden)]
 pub use inventory; // Re-exported for `#[pyclass]` and `#[pymethods]` with `multiple-pymethods`.
@@ -448,7 +439,10 @@ pub mod type_object;
 pub mod types;
 mod version;
 
-#[allow(unused_imports)] // with no features enabled this module has no public exports
+#[allow(
+    unused_imports,
+    reason = "with no features enabled this module has no public exports"
+)]
 pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]
