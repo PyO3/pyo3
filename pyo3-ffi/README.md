@@ -101,10 +101,8 @@ static mut METHODS: [PyMethodDef; 2] = [
 #[cfg(Py_3_15)]
 PyABIInfo_VAR!(ABI_INFO);
 
-const SLOTS_LEN: usize = 1
-    + if cfg!(Py_3_12) { 1 } else { 0 }
-    + if cfg!(Py_GIL_DISABLED) { 1 } else { 0 }
-    + if cfg!(Py_3_15) { 4 } else { 0 };
+const SLOTS_LEN: usize =
+    1 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize + 4 * (cfg!(Py_3_15) as usize);
 static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {

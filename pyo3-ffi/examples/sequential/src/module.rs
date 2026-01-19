@@ -18,10 +18,8 @@ pub static mut MODULE_DEF: PyModuleDef = PyModuleDef {
 #[cfg(Py_3_15)]
 PyABIInfo_VAR!(ABI_INFO);
 
-const SEQUENTIAL_SLOTS_LEN: usize = 2
-    + if cfg!(Py_3_12) { 1 } else { 0 }
-    + if cfg!(Py_GIL_DISABLED) { 1 } else { 0 }
-    + if cfg!(Py_3_15) { 7 } else { 0 };
+const SEQUENTIAL_SLOTS_LEN: usize =
+    2 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize + 7 * (cfg!(Py_3_15) as usize);
 pub static mut SEQUENTIAL_SLOTS: [PyModuleDef_Slot; SEQUENTIAL_SLOTS_LEN] = [
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {
