@@ -7,8 +7,6 @@ use crate::introspection::{attribute_introspection_code, function_introspection_
 use crate::method::{FnSpec, FnType};
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint::PythonTypeHint;
-#[cfg(feature = "experimental-inspect")]
-use crate::utils::expr_to_python;
 use crate::utils::{has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath};
 use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
@@ -192,7 +190,7 @@ pub fn impl_methods(
                             &ctx.pyo3_path,
                             Some(ty),
                             spec.python_name().to_string(),
-                            expr_to_python(&konst.expr),
+                            PythonTypeHint::constant_from_expression(&konst.expr),
                             konst.ty.clone(),
                             true,
                         ));

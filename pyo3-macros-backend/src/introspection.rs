@@ -110,7 +110,7 @@ pub fn function_introspection_code(
                 .as_ref()
                 .and_then(|attribute| attribute.value.returns.as_ref())
             {
-                IntrospectionNode::String(returns.to_python().into())
+                returns.as_type_hint().into()
             } else {
                 match returns {
                     ReturnType::Default => PythonTypeHint::builtin("None"),
@@ -143,7 +143,7 @@ pub fn attribute_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     parent: Option<&Type>,
     name: String,
-    value: String,
+    value: Option<PythonTypeHint>,
     rust_type: Type,
     is_final: bool,
 ) -> TokenStream {
@@ -155,7 +155,21 @@ pub fn attribute_introspection_code(
             IntrospectionNode::IntrospectionId(parent.map(Cow::Borrowed)),
         ),
     ]);
-    if value == "..." {
+    if let Some(value) = value {
+        desc.insert(
+            "annotation",
+            if is_final {
+                // Type checkers can infer the type from the value because it's typing.Literal[value]
+                // So, following stubs best practices, we only write typing.Final and not
+                // typing.Final[typing.literal[value]]
+                PythonTypeHint::module_attr("typing", "Final")
+            } else {
+                PythonTypeHint::from_return_type(rust_type, parent)
+            }
+            .into(),
+        );
+        desc.insert("value", value.into());
+    } else {
         // We need to set a type, but not need to set the value to ..., all attributes have a value
         desc.insert(
             "annotation",
@@ -169,20 +183,6 @@ pub fn attribute_introspection_code(
                 PythonTypeHint::from_return_type(rust_type, parent).into()
             },
         );
-    } else {
-        desc.insert(
-            "annotation",
-            if is_final {
-                // Type checkers can infer the type from the value because it's typing.Literal[value]
-                // So, following stubs best practices, we only write typing.Final and not
-                // typing.Final[typing.literal[value]]
-                PythonTypeHint::module_attr("typing", "Final")
-            } else {
-                PythonTypeHint::from_return_type(rust_type, parent)
-            }
-            .into(),
-        );
-        desc.insert("value", IntrospectionNode::String(value.into()));
     }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
@@ -239,7 +239,7 @@ fn arguments_introspection_data<'a>(
         };
         let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
         if let Some(annotation) = &arg_desc.annotation {
-            params.insert("annotation", IntrospectionNode::String(annotation.into()));
+            params.insert("annotation", annotation.clone().into());
         }
         vararg = Some(IntrospectionNode::Map(params));
     }
@@ -257,7 +257,7 @@ fn arguments_introspection_data<'a>(
         };
         let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
         if let Some(annotation) = &arg_desc.annotation {
-            params.insert("annotation", IntrospectionNode::String(annotation.into()));
+            params.insert("annotation", annotation.clone().into());
         }
         kwarg = Some(IntrospectionNode::Map(params));
     }
@@ -295,7 +295,7 @@ fn argument_introspection_data<'a>(
     }
 
     if let Some(annotation) = &desc.annotation {
-        params.insert("annotation", IntrospectionNode::String(annotation.into()));
+        params.insert("annotation", annotation.clone().into());
     } else if desc.from_py_with.is_none() {
         // If from_py_with is set we don't know anything on the input type
         params.insert(

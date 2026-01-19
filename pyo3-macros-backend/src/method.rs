@@ -9,6 +9,8 @@ use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::pyversions::is_abi3_before;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_hint::PythonTypeHint;
 use crate::utils::Ctx;
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
@@ -28,7 +30,7 @@ pub struct RegularArg<'a> {
     pub default_value: Option<syn::Expr>,
     pub option_wrapped_type: Option<&'a syn::Type>,
     #[cfg(feature = "experimental-inspect")]
-    pub annotation: Option<String>,
+    pub annotation: Option<PythonTypeHint>,
 }
 
 /// Pythons *args argument
@@ -37,7 +39,7 @@ pub struct VarargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
     #[cfg(feature = "experimental-inspect")]
-    pub annotation: Option<String>,
+    pub annotation: Option<PythonTypeHint>,
 }
 
 /// Pythons **kwarg argument
@@ -46,7 +48,7 @@ pub struct KwargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
     #[cfg(feature = "experimental-inspect")]
-    pub annotation: Option<String>,
+    pub annotation: Option<PythonTypeHint>,
 }
 
 #[derive(Clone, Debug)]
