@@ -93,6 +93,24 @@ pub const Py_mod_exec: c_int = 2;
 pub const Py_mod_multiple_interpreters: c_int = 3;
 #[cfg(Py_3_13)]
 pub const Py_mod_gil: c_int = 4;
+#[cfg(Py_3_15)]
+pub const Py_mod_abi: c_int = 5;
+#[cfg(Py_3_15)]
+pub const Py_mod_name: c_int = 6;
+#[cfg(Py_3_15)]
+pub const Py_mod_doc: c_int = 7;
+#[cfg(Py_3_15)]
+pub const Py_mod_state_size: c_int = 8;
+#[cfg(Py_3_15)]
+pub const Py_mod_methods: c_int = 9;
+#[cfg(Py_3_15)]
+pub const Py_mod_state_traverse: c_int = 10;
+#[cfg(Py_3_15)]
+pub const Py_mod_state_clear: c_int = 11;
+#[cfg(Py_3_15)]
+pub const Py_mod_state_free: c_int = 12;
+#[cfg(Py_3_15)]
+pub const Py_mod_token: c_int = 13;
 
 // skipped private _Py_mod_LAST_SLOT
 
@@ -119,6 +137,14 @@ pub const Py_MOD_GIL_NOT_USED: *mut c_void = 1 as *mut c_void;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 extern "C" {
     pub fn PyUnstable_Module_SetGIL(module: *mut PyObject, gil: *mut c_void) -> c_int;
+}
+
+#[cfg(Py_3_15)]
+extern "C" {
+    pub fn PyModule_FromSlotsAndSpec(slots: *const PyModuleDef_Slot, spec: *mut PyObject);
+    pub fn PyModule_Exec(_mod: *mut PyObject);
+    pub fn PyModule_GetStateSize(_mod: *mut PyObject, result: *mut Py_ssize_t);
+    pub fn PyModule_GetToken(module: *mut PyObject, result: *mut *mut c_void);
 }
 
 #[repr(C)]

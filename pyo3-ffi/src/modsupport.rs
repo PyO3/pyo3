@@ -86,7 +86,21 @@ extern "C" {
     #[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
     #[cfg_attr(PyPy, link_name = "PyPyModule_Create2")]
     pub fn PyModule_Create2(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject;
+}
 
+#[inline]
+pub unsafe fn PyModule_Create(module: *mut PyModuleDef) -> *mut PyObject {
+    PyModule_Create2(
+        module,
+        if cfg!(Py_LIMITED_API) {
+            PYTHON_ABI_VERSION
+        } else {
+            PYTHON_API_VERSION
+        },
+    )
+}
+
+extern "C" {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     fn PyModule_Create2TraceRefs(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject;
 
@@ -120,18 +134,6 @@ pub unsafe fn PyModule_FromDefAndSpec2(
     module_api_version: c_int,
 ) -> *mut PyObject {
     PyModule_FromDefAndSpec2TraceRefs(def, spec, module_api_version)
-}
-
-#[inline]
-pub unsafe fn PyModule_Create(module: *mut PyModuleDef) -> *mut PyObject {
-    PyModule_Create2(
-        module,
-        if cfg!(Py_LIMITED_API) {
-            PYTHON_ABI_VERSION
-        } else {
-            PYTHON_API_VERSION
-        },
-    )
 }
 
 #[inline]
