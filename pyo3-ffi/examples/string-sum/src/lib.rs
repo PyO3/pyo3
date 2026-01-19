@@ -1,4 +1,6 @@
-use std::ffi::{c_char, c_long, c_void};
+#[cfg(Py_3_15)]
+use std::ffi::c_void;
+use std::ffi::{c_char, c_long};
 use std::ptr;
 
 use pyo3_ffi::*;
