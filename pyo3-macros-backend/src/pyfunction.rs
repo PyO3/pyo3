@@ -415,7 +415,6 @@ pub fn impl_wrap_pyfunction(
         asyncness: func.sig.asyncness,
         unsafety: func.sig.unsafety,
         warnings,
-        #[cfg(feature = "experimental-inspect")]
         output: func.sig.output.clone(),
     };
 

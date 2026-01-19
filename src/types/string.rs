@@ -7,7 +7,7 @@ use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
 use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 use std::str;
 
 /// Represents raw data backing a Python `str`.
@@ -229,24 +229,6 @@ impl PyString {
                 .assume_owned_or_err(src.py())
                 .cast_into_unchecked()
         }
-    }
-
-    /// Deprecated form of `PyString::from_encoded_object`.
-    ///
-    /// This version took `&str` arguments for `encoding` and `errors`, which required a runtime
-    /// conversion to `CString` internally.
-    #[deprecated(
-        since = "0.25.0",
-        note = "replaced with to `PyString::from_encoded_object`"
-    )]
-    pub fn from_object<'py>(
-        src: &Bound<'py, PyAny>,
-        encoding: &str,
-        errors: &str,
-    ) -> PyResult<Bound<'py, PyString>> {
-        let encoding = CString::new(encoding)?;
-        let errors = CString::new(errors)?;
-        PyString::from_encoded_object(src, Some(&encoding), Some(&errors))
     }
 }
 
@@ -667,12 +649,6 @@ mod tests {
 
             let result = py_string.to_cow().unwrap();
             assert_eq!(result, "abcd");
-
-            #[allow(deprecated)]
-            let py_string = PyString::from_object(&py_bytes, "utf-8", "ignore").unwrap();
-
-            let result = py_string.to_cow().unwrap();
-            assert_eq!(result, "abcd");
         });
     }
 
@@ -695,14 +671,6 @@ mod tests {
                 err.to_string(),
                 "LookupError: unknown error handler name 'wat'"
             );
-
-            #[allow(deprecated)]
-            let result = PyString::from_object(&py_bytes, "utf\0-8", "ignore");
-            assert!(result.is_err());
-
-            #[allow(deprecated)]
-            let result = PyString::from_object(&py_bytes, "utf-8", "ign\0ore");
-            assert!(result.is_err());
         });
     }
 

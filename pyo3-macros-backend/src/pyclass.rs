@@ -1817,7 +1817,6 @@ fn complex_enum_struct_variant_new<'a>(
         asyncness: None,
         unsafety: None,
         warnings: vec![],
-        #[cfg(feature = "experimental-inspect")]
         output: syn::ReturnType::Default,
     };
 
@@ -1875,7 +1874,6 @@ fn complex_enum_tuple_variant_new<'a>(
         asyncness: None,
         unsafety: None,
         warnings: vec![],
-        #[cfg(feature = "experimental-inspect")]
         output: syn::ReturnType::Default,
     };
 
@@ -1903,7 +1901,6 @@ fn complex_enum_variant_field_getter<'a>(
         asyncness: None,
         unsafety: None,
         warnings: vec![],
-        #[cfg(feature = "experimental-inspect")]
         output: parse_quote!(-> #variant_cls_type),
     };
 

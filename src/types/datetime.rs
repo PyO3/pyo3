@@ -692,9 +692,12 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyTzInfo>`][crate::Py] or [`Bound<'py, PyTzInfo>`][Bound].
 ///
-/// This is an abstract base class and cannot be constructed directly.
-/// For concrete time zone implementations, see [`timezone_utc`] and
-/// the [`zoneinfo` module](https://docs.python.org/3/library/zoneinfo.html).
+/// This is an abstract base class, the primary implementations are
+/// [`datetime.timezone`](https://docs.python.org/3/library/datetime.html#timezone-objects)
+/// and the [`zoneinfo` module](https://docs.python.org/3/library/zoneinfo.html).
+///
+/// The constructors [`PyTzInfo::utc`], [`PyTzInfo::fixed_offset`] and [`PyTzInfo::timezone`]
+/// create these concrete subclasses.
 #[repr(transparent)]
 pub struct PyTzInfo(PyAny);
 
@@ -794,14 +797,6 @@ impl PyTzInfo {
                 .cast_into()?)
         }
     }
-}
-
-/// Equivalent to `datetime.timezone.utc`
-#[deprecated(since = "0.25.0", note = "use `PyTzInfo::utc` instead")]
-pub fn timezone_utc(py: Python<'_>) -> Bound<'_, PyTzInfo> {
-    PyTzInfo::utc(py)
-        .expect("failed to import datetime.timezone.utc")
-        .to_owned()
 }
 
 /// Bindings for `datetime.timedelta`.
