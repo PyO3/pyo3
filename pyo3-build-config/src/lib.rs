@@ -208,12 +208,10 @@ const HOST_CONFIG: &str = include_str!(concat!(env!("OUT_DIR"), "/pyo3-build-con
 #[doc(hidden)]
 #[cfg(feature = "resolve-config")]
 fn resolve_cross_compile_config_path() -> Option<PathBuf> {
-    env::var_os("TARGET").map(|target| {
-        let mut path = PathBuf::from(env!("OUT_DIR"));
-        path.push(Path::new(&target));
-        path.push("pyo3-build-config.txt");
-        path
-    })
+    let mut path = PathBuf::from(env::var_os("OUT_DIR")?);
+    path.push(Path::new(&env::var_os("TARGET")?));
+    path.push("pyo3-build-config.txt");
+    Some(path)
 }
 
 /// Helper to print a feature cfg with a minimum rust version required.
