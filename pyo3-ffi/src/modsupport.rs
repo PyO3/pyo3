@@ -148,3 +148,58 @@ pub unsafe fn PyModule_FromDefAndSpec(def: *mut PyModuleDef, spec: *mut PyObject
         },
     )
 }
+
+#[cfg(Py_3_15)]
+#[repr(C)]
+pub struct PyABIInfo {
+    pub abiinfo_major_version: u8,
+    pub abiinfo_minor_version: u8,
+    pub flags: u16,
+    pub build_version: u32,
+    pub abi_version: u32,
+}
+#[cfg(Py_3_15)]
+pub const PyABIInfo_STABLE: u16 = 0x0001;
+#[cfg(Py_3_15)]
+pub const PyABIInfo_GIL: u16 = 0x0002;
+#[cfg(Py_3_15)]
+pub const PyABIInfo_FREETHREADED: u16 = 0x0004;
+#[cfg(Py_3_15)]
+pub const PyABIInfo_INTERNAL: u16 = 0x0008;
+
+#[cfg(Py_3_15)]
+pub const PyABIInfo_FREETHREADING_AGNOSTIC: u16 = PyABIInfo_GIL | PyABIInfo_FREETHREADED;
+
+#[cfg(Py_3_15)]
+extern "C" {
+    pub fn PyABIInfo_Check(info: *mut PyABIInfo, module_name: *const c_char);
+}
+
+#[cfg(all(Py_LIMITED_API, Py_3_15))]
+const _PyABIInfo_DEFAULT_FLAG_STABLE: u16 = PyABIInfo_STABLE;
+#[cfg(all(Py_3_15, not(Py_LIMITED_API)))]
+const _PyABIInfo_DEFAULT_FLAG_STABLE: u16 = 0;
+
+// skipped PyABIInfo_DEFAULT_ABI_VERSION: depends on Py_VERSION_HEX
+
+#[cfg(all(Py_3_15, Py_GIL_DISABLED))]
+const _PyABIInfo_DEFAULT_FLAG_FT: u16 = PyABIInfo_FREETHREADED;
+#[cfg(all(Py_3_15, not(Py_GIL_DISABLED)))]
+const _PyABIInfo_DEFAULT_FLAG_FT: u16 = PyABIInfo_GIL;
+
+#[cfg(Py_3_15)]
+// has an alternate definition if Py_BUILD_CORE is set, ignore that
+const _PyABIInfo_DEFAULT_FLAG_INTERNAL: u16 = 0;
+
+#[cfg(Py_3_15)]
+pub const PyABIInfo_DEFAULT_FLAGS: u16 =
+    _PyABIInfo_DEFAULT_FLAG_STABLE | _PyABIInfo_DEFAULT_FLAG_FT | _PyABIInfo_DEFAULT_FLAG_INTERNAL;
+
+#[cfg(Py_3_15)]
+const _PyABIInfo_DEFAULT: PyABIInfo = PyABIInfo {
+    abiinfo_major_version: 1,
+    abiinfo_minor_version: 0,
+    flags: PyABIInfo_DEFAULT_FLAGS,
+    build_version: 0,
+    abi_version: 0,
+};
