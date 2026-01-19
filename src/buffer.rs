@@ -233,121 +233,6 @@ impl<T: Element> PyBuffer<T> {
         PyUntypedBuffer::get(obj)?.into_typed()
     }
 
-    /// Releases the buffer object, freeing the reference to the Python object
-    /// which owns the buffer.
-    ///
-    /// This will automatically be called on drop.
-    #[inline]
-    pub fn release(self, py: Python<'_>) {
-        self.0.release(py)
-    }
-
-    /// Gets the pointer to the start of the buffer memory.
-    ///
-    /// Warning: the buffer memory can be mutated by other code (including
-    /// other Python functions, if the GIL is released, or other extension
-    /// modules even if the GIL is held). You must either access memory
-    /// atomically, or ensure there are no data races yourself. See
-    /// [this blog post] for more details.
-    ///
-    /// [this blog post]: https://alexgaynor.net/2022/oct/23/buffers-on-the-edge/
-    #[inline]
-    pub fn buf_ptr(&self) -> *mut c_void {
-        self.0.buf_ptr()
-    }
-
-    /// Gets a pointer to the specified item.
-    ///
-    /// If `indices.len() < self.dimensions()`, returns the start address of the sub-array at the specified dimension.
-    #[inline]
-    pub fn get_ptr(&self, indices: &[usize]) -> *mut c_void {
-        self.0.get_ptr(indices)
-    }
-
-    /// Gets whether the underlying buffer is read-only.
-    #[inline]
-    pub fn readonly(&self) -> bool {
-        self.0.readonly()
-    }
-
-    /// Gets the size of a single element, in bytes.
-    /// Important exception: when requesting an unformatted buffer, item_size still has the value
-    #[inline]
-    pub fn item_size(&self) -> usize {
-        self.0.item_size()
-    }
-
-    /// Gets the total number of items.
-    #[inline]
-    pub fn item_count(&self) -> usize {
-        self.0.item_count()
-    }
-
-    /// `item_size() * item_count()`.
-    /// For contiguous arrays, this is the length of the underlying memory block.
-    /// For non-contiguous arrays, it is the length that the logical structure would have if it were copied to a contiguous representation.
-    #[inline]
-    pub fn len_bytes(&self) -> usize {
-        self.0.len_bytes()
-    }
-
-    /// Gets the number of dimensions.
-    ///
-    /// May be 0 to indicate a single scalar value.
-    #[inline]
-    pub fn dimensions(&self) -> usize {
-        self.0.dimensions()
-    }
-
-    /// Returns an array of length `dimensions`. `shape()[i]` is the length of the array in dimension number `i`.
-    ///
-    /// May return None for single-dimensional arrays or scalar values (`dimensions() <= 1`);
-    /// You can call `item_count()` to get the length of the single dimension.
-    ///
-    /// Despite Python using an array of signed integers, the values are guaranteed to be non-negative.
-    /// However, dimensions of length 0 are possible and might need special attention.
-    #[inline]
-    pub fn shape(&self) -> &[usize] {
-        self.0.shape()
-    }
-
-    /// Returns an array that holds, for each dimension, the number of bytes to skip to get to the next element in the dimension.
-    ///
-    /// Stride values can be any integer. For regular arrays, strides are usually positive,
-    /// but a consumer MUST be able to handle the case `strides[n] <= 0`.
-    #[inline]
-    pub fn strides(&self) -> &[isize] {
-        self.0.strides()
-    }
-
-    /// An array of length ndim.
-    /// If `suboffsets[n] >= 0`, the values stored along the nth dimension are pointers and the suboffset value dictates how many bytes to add to each pointer after de-referencing.
-    /// A suboffset value that is negative indicates that no de-referencing should occur (striding in a contiguous memory block).
-    ///
-    /// If all suboffsets are negative (i.e. no de-referencing is needed), then this field must be NULL (the default value).
-    #[inline]
-    pub fn suboffsets(&self) -> Option<&[isize]> {
-        self.0.suboffsets()
-    }
-
-    /// A string in struct module style syntax describing the contents of a single item.
-    #[inline]
-    pub fn format(&self) -> &CStr {
-        self.0.format()
-    }
-
-    /// Gets whether the buffer is contiguous in C-style order (last index varies fastest when visiting items in order of memory address).
-    #[inline]
-    pub fn is_c_contiguous(&self) -> bool {
-        self.0.is_c_contiguous()
-    }
-
-    /// Gets whether the buffer is contiguous in Fortran-style order (first index varies fastest when visiting items in order of memory address).
-    #[inline]
-    pub fn is_fortran_contiguous(&self) -> bool {
-        self.0.is_fortran_contiguous()
-    }
-
     /// Gets the buffer memory as a slice.
     ///
     /// This function succeeds if:
@@ -593,14 +478,14 @@ impl<T> std::ops::Deref for PyBuffer<T> {
 }
 
 impl PyUntypedBuffer {
-    /// See [`PyBuffer::get()`].
+    /// Gets the underlying buffer from the specified python object.
     pub fn get(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
         let buf = {
             let mut buf = Box::<RawBuffer>::new_uninit();
+            // SAFETY: RawBuffer is `#[repr(transparent)]` around FFI struct
             err::error_on_minusone(obj.py(), unsafe {
                 ffi::PyObject_GetBuffer(
                     obj.as_ptr(),
-                    // SAFETY: RawBuffer is `#[repr(transparent)]` around FFI struct
                     buf.as_mut_ptr().cast::<ffi::Py_buffer>(),
                     ffi::PyBUF_FULL_RO,
                 )
@@ -651,7 +536,10 @@ impl PyUntypedBuffer {
         }
     }
 
-    /// See [`PyBuffer::release()`].
+    /// Releases the buffer object, freeing the reference to the Python object
+    /// which owns the buffer.
+    ///
+    /// This will automatically be called on drop.
     pub fn release(self, _py: Python<'_>) {
         // First move self into a ManuallyDrop, so that PyBuffer::drop will
         // never be called. (It would attach to the interpreter and call PyBuffer_Release
@@ -668,13 +556,23 @@ impl PyUntypedBuffer {
         }
     }
 
-    /// See [`PyBuffer::buf_ptr()`].
+    /// Gets the pointer to the start of the buffer memory.
+    ///
+    /// Warning: the buffer memory can be mutated by other code (including
+    /// other Python functions, if the GIL is released, or other extension
+    /// modules even if the GIL is held). You must either access memory
+    /// atomically, or ensure there are no data races yourself. See
+    /// [this blog post] for more details.
+    ///
+    /// [this blog post]: https://alexgaynor.net/2022/oct/23/buffers-on-the-edge/
     #[inline]
     pub fn buf_ptr(&self) -> *mut c_void {
         self.raw().buf
     }
 
-    /// See [`PyBuffer::get_ptr()`].
+    /// Gets a pointer to the specified item.
+    ///
+    /// If `indices.len() < self.dimensions()`, returns the start address of the sub-array at the specified dimension.
     pub fn get_ptr(&self, indices: &[usize]) -> *mut c_void {
         let shape = &self.shape()[..indices.len()];
         for i in 0..indices.len() {
@@ -694,49 +592,67 @@ impl PyUntypedBuffer {
         }
     }
 
-    /// See [`PyBuffer::readonly()`].
+    /// Gets whether the underlying buffer is read-only.
     #[inline]
     pub fn readonly(&self) -> bool {
         self.raw().readonly != 0
     }
 
-    /// See [`PyBuffer::item_size()`].
+    /// Gets the size of a single element, in bytes.
+    /// Important exception: when requesting an unformatted buffer, item_size still has the value
     #[inline]
     pub fn item_size(&self) -> usize {
         self.raw().itemsize as usize
     }
 
-    /// See [`PyBuffer::item_count()`].
+    /// Gets the total number of items.
     #[inline]
     pub fn item_count(&self) -> usize {
         (self.raw().len as usize) / (self.raw().itemsize as usize)
     }
 
-    /// See [`PyBuffer::len_bytes()`].
+    /// `item_size() * item_count()`.
+    /// For contiguous arrays, this is the length of the underlying memory block.
+    /// For non-contiguous arrays, it is the length that the logical structure would have if it were copied to a contiguous representation.
     #[inline]
     pub fn len_bytes(&self) -> usize {
         self.raw().len as usize
     }
 
-    /// See [`PyBuffer::dimensions()`].
+    /// Gets the number of dimensions.
+    ///
+    /// May be 0 to indicate a single scalar value.
     #[inline]
     pub fn dimensions(&self) -> usize {
         self.raw().ndim as usize
     }
 
-    /// See [`PyBuffer::shape()`].
+    /// Returns an array of length `dimensions`. `shape()[i]` is the length of the array in dimension number `i`.
+    ///
+    /// May return None for single-dimensional arrays or scalar values (`dimensions() <= 1`);
+    /// You can call `item_count()` to get the length of the single dimension.
+    ///
+    /// Despite Python using an array of signed integers, the values are guaranteed to be non-negative.
+    /// However, dimensions of length 0 are possible and might need special attention.
     #[inline]
     pub fn shape(&self) -> &[usize] {
         unsafe { slice::from_raw_parts(self.raw().shape.cast(), self.raw().ndim as usize) }
     }
 
-    /// See [`PyBuffer::strides()`].
+    /// Returns an array that holds, for each dimension, the number of bytes to skip to get to the next element in the dimension.
+    ///
+    /// Stride values can be any integer. For regular arrays, strides are usually positive,
+    /// but a consumer MUST be able to handle the case `strides[n] <= 0`.
     #[inline]
     pub fn strides(&self) -> &[isize] {
         unsafe { slice::from_raw_parts(self.raw().strides, self.raw().ndim as usize) }
     }
 
-    /// See [`PyBuffer::suboffsets()`].
+    /// An array of length ndim.
+    /// If `suboffsets[n] >= 0`, the values stored along the nth dimension are pointers and the suboffset value dictates how many bytes to add to each pointer after de-referencing.
+    /// A suboffset value that is negative indicates that no de-referencing should occur (striding in a contiguous memory block).
+    ///
+    /// If all suboffsets are negative (i.e. no de-referencing is needed), then this field must be NULL (the default value).
     #[inline]
     pub fn suboffsets(&self) -> Option<&[isize]> {
         unsafe {
@@ -751,7 +667,7 @@ impl PyUntypedBuffer {
         }
     }
 
-    /// See [`PyBuffer::format()`].
+    /// A string in struct module style syntax describing the contents of a single item.
     #[inline]
     pub fn format(&self) -> &CStr {
         if self.raw().format.is_null() {
@@ -761,13 +677,13 @@ impl PyUntypedBuffer {
         }
     }
 
-    /// See [`PyBuffer::is_c_contiguous()`].
+    /// Gets whether the buffer is contiguous in C-style order (last index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_c_contiguous(&self) -> bool {
         unsafe { ffi::PyBuffer_IsContiguous(self.raw(), b'C' as std::ffi::c_char) != 0 }
     }
 
-    /// See [`PyBuffer::is_fortran_contiguous()`].
+    /// Gets whether the buffer is contiguous in Fortran-style order (first index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_fortran_contiguous(&self) -> bool {
         unsafe { ffi::PyBuffer_IsContiguous(self.raw(), b'F' as std::ffi::c_char) != 0 }

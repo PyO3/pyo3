@@ -59,6 +59,10 @@ let _: Bound<'_, PyNone> = unsafe { Bound::from_owned_ptr(py, raw_ptr).cast_into
 # })
 ```
 
+### Untyped buffer API moved to PyUntypedBuffer
+
+`PyBuffer<T>` now is a typed wrapper around `PyUntypedBuffer`. Many methods such as `PyBuffer::format` have been moved to `PyUntypedBuffer::format`. `PyBuffer<T>` dereferences to `PyUntypedBuffer`, so method call syntax will continue to work as-is. Users may need to update references to the moved functions.
+
 ### Internal change to use multi-phase initialization
 
 [PEP 489](https://peps.python.org/pep-0489/) introduced "multi-phase initialization" for extension modules which provides ways to allocate and clean up per-module state.
