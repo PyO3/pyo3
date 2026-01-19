@@ -62,6 +62,14 @@ note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetIte
    | |____________________________^
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
+error[E0282]: type annotations needed
+ --> tests/ui/invalid_pyclass_generic.rs:4:1
+  |
+4 | #[pyclass(generic)]
+  | ^^^^^^^^^^^^^^^^^^^ cannot infer type
+  |
+  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error[E0034]: multiple applicable items in scope
  --> tests/ui/invalid_pyclass_generic.rs:4:1
   |
@@ -121,6 +129,12 @@ note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetIte
 18 | |     ) -> PyResult<Py<PyAny>> {
    | |____________________________^
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0282]: type annotations needed
+  --> tests/ui/invalid_pyclass_generic.rs:17:9
+   |
+17 |         key: &Bound<'_, PyAny>,
+   |         ^^^ cannot infer type
 
 error[E0034]: multiple applicable items in scope
   --> tests/ui/invalid_pyclass_generic.rs:18:10

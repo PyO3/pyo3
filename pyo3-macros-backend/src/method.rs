@@ -349,20 +349,35 @@ impl SelfType {
         let slf = syn::Ident::new("_slf", Span::call_site());
         let Ctx { pyo3_path, .. } = ctx;
         match self {
-            SelfType::Receiver { span, .. } => {
-                let extractor = holders.push_extractor(*span);
+            SelfType::Receiver { span, mutable } => {
+                // NB it's possible to use type inference with "extractor" here, but then if the class is frozen
+                // the &mut self receivers get horrible error messages. This approach with concrete calls produces
+                // better error messages.
                 let holder = holders.push_holder(*span);
+                // unsafe cast done at call_site span to avoid user code being flagged as using unsafe
                 let arg = quote! { unsafe { #pyo3_path::impl_::extract_argument::cast_function_argument(#py, #slf) } };
-                Param::via_extractor(
-                    &extractor,
-                    &holder,
-                    error_mode.handle_error(
-                        quote_spanned! { *span =>
-                            #extractor.extract(#arg, "self")
-                        },
-                        ctx,
-                    ),
-                )
+                let (extract, unpack, mut_kw) = if *mutable {
+                    (
+                        Ident::new("extract_pyclass_guard_mut", *span),
+                        Ident::new("pyclass_guard_to_ref_mut", *span),
+                        Some(syn::Token![mut](*span)),
+                    )
+                } else {
+                    (
+                        Ident::new("extract_pyclass_guard", *span),
+                        Ident::new("pyclass_guard_to_ref", *span),
+                        None,
+                    )
+                };
+                let extract = error_mode.handle_error(
+                    quote_spanned! { *span => #pyo3_path::impl_::extract_argument::#extract::<#cls>(#arg) },
+                    ctx,
+                );
+                Param {
+                    resolve: quote_spanned! { *span => ::std::unreachable!() },
+                    extract: Some(quote_spanned! { *span => #holder = #extract; }),
+                    arg: quote_spanned! { *span => #pyo3_path::impl_::extract_argument::#unpack(& #mut_kw #holder) },
+                }
             }
             SelfType::TryFromBoundRef(span) => {
                 let bound_ref = quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf) } };

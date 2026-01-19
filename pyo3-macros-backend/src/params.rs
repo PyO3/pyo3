@@ -256,7 +256,7 @@ fn impl_arg_param(
                 &extractor,
                 &holder,
                 quote_spanned! { arg.name.span() =>
-                    #extractor.extract(_args.as_any().as_borrowed(), #name_str)?
+                    #extractor.extract_argument(_args.as_any().as_borrowed(), #name_str)?
                 },
             )
         }
@@ -269,7 +269,7 @@ fn impl_arg_param(
                 &extractor,
                 &holder,
                 quote_spanned! { arg.name.span() =>
-                    #extractor.extract_with_default(
+                    #extractor.extract_argument_with_default(
                         _kwargs.as_ref().map(|d| d.as_any().as_borrowed()),
                         || ::std::option::Option::None,
                         #name_str
@@ -366,7 +366,7 @@ pub(crate) fn impl_regular_arg_param(
             &extractor,
             &holder,
             quote_arg_span! {
-                #extractor.extract_with_default(
+                #extractor.extract_argument_with_default(
                     #arg_value,
                     #[allow(clippy::redundant_closure, reason = "wrapping user-provided default expression")]
                     { || #default },
@@ -383,7 +383,7 @@ pub(crate) fn impl_regular_arg_param(
             &extractor,
             &holder,
             quote_arg_span! {
-                #extractor.extract(#unwrap, #name_str)?
+                #extractor.extract_argument(#unwrap, #name_str)?
             },
         )
     }

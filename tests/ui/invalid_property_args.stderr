@@ -4,11 +4,13 @@ error: getter function can only have one argument (of type pyo3::Python)
 9 |     fn getter_with_arg(&self, _py: Python<'_>, _index: u32) {}
   |                                                        ^^^
 
-error: setter function expected to have one argument
-  --> tests/ui/invalid_property_args.rs:18:8
+error: custom attribute panicked
+  --> tests/ui/invalid_property_args.rs:15:1
    |
-18 |     fn setter_with_no_arg(&mut self, _py: Python<'_>) {}
-   |        ^^^^^^^^^^^^^^^^^^
+15 | #[pymethods]
+   | ^^^^^^^^^^^^
+   |
+   = help: message: index out of bounds: the len is 0 but the index is 0
 
 error: setter function can have at most two arguments ([pyo3::Python,] and value)
   --> tests/ui/invalid_property_args.rs:24:79
