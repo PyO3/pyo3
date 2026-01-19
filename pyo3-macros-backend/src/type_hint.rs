@@ -156,7 +156,7 @@ impl PythonTypeHint {
                 Lit::Int(i) => PyConstant::Int(i.base10_digits().into()),
                 Lit::Float(f) => PyConstant::Float(f.base10_digits().into()),
                 Lit::Bool(b) => PyConstant::Bool(b.value()),
-                _ => return None,
+                _ => return None, // TODO: implement ByteStr and CStr
             },
             Expr::Path(ExprPath { qself, path, .. })
                 if qself.is_none() && path.is_ident("None") =>
