@@ -196,10 +196,19 @@ pub const PyABIInfo_DEFAULT_FLAGS: u16 =
     _PyABIInfo_DEFAULT_FLAG_STABLE | _PyABIInfo_DEFAULT_FLAG_FT | _PyABIInfo_DEFAULT_FLAG_INTERNAL;
 
 #[cfg(Py_3_15)]
-const _PyABIInfo_DEFAULT: PyABIInfo = PyABIInfo {
+// must be pub because it is used by PyABIInfo_VAR
+pub const _PyABIInfo_DEFAULT: PyABIInfo = PyABIInfo {
     abiinfo_major_version: 1,
     abiinfo_minor_version: 0,
     flags: PyABIInfo_DEFAULT_FLAGS,
     build_version: 0,
     abi_version: 0,
 };
+
+#[cfg(Py_3_15)]
+#[macro_export]
+macro_rules! PyABIInfo_VAR {
+    ($name:ident) => {
+        static mut $name: PyABIInfo = _PyABIInfo_DEFAULT;
+    };
+}
