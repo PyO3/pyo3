@@ -20,5 +20,5 @@ pub unsafe extern "C" fn PyInit_sequential() -> *mut PyObject {
 #[allow(non_snake_case, reason = "must be named `PyModExport_<your_module>`")]
 #[no_mangle]
 pub unsafe extern "C" fn PyModExport_sequential() -> *mut PyModuleDef_Slot {
-    std::ptr::addr_of_mut!(SEQUENTIAL_SLOTS).cast()
+    ptr::addr_of_mut!(SEQUENTIAL_SLOTS).cast()
 }

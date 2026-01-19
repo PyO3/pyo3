@@ -16,7 +16,7 @@ pub static mut MODULE_DEF: PyModuleDef = PyModuleDef {
 };
 
 #[cfg(Py_3_15)]
-PyABIInfo_VAR!(abi_info);
+PyABIInfo_VAR!(ABI_INFO);
 
 const SEQUENTIAL_SLOTS_LEN: usize = 2
     + if cfg!(Py_3_12) { 1 } else { 0 }
@@ -26,7 +26,7 @@ pub static mut SEQUENTIAL_SLOTS: [PyModuleDef_Slot; SEQUENTIAL_SLOTS_LEN] = [
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {
         slot: Py_mod_abi,
-        value: std::ptr::addr_of_mut!(abi_info).cast(),
+        value: std::ptr::addr_of_mut!(ABI_INFO).cast(),
     },
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {
