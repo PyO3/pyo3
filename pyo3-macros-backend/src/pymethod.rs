@@ -681,7 +681,7 @@ pub fn impl_py_setter_def(
             Param::via_extractor(
                 &extractor,
                 &holder,
-                quote! { #extractor.extract_argument(_value.into(), #name)? },
+                quote! { #pyo3_path::impl_::extract_argument::extract_argument(#extractor, _value.into(), #name)? },
             )
         }
     };
@@ -1249,7 +1249,7 @@ fn extract_object(
             &holder,
             extract_error_mode.handle_error(
                 quote! {
-                    #extractor.extract_argument(#unwrap, #name)
+                    #pyo3_path::impl_::extract_argument::extract_argument(#extractor, #unwrap, #name)
                 },
                 ctx,
             ),

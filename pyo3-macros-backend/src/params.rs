@@ -50,7 +50,7 @@ impl Holders {
         let expression_idents = self.expressions.iter().map(|(e, _)| e);
         let expression_values = self.expressions.iter().map(|(_, v)| v);
         quote! {
-            #(let mut #extractors = #pyo3_path::impl_::extract_argument::TypeExtractor::new();)*
+            #(let mut #extractors = #pyo3_path::impl_::extract_argument::TypeResolver::new();)*
             #(let mut #holders;)*
             #(let #expression_idents = #expression_values;)*
         }
@@ -237,6 +237,7 @@ fn impl_arg_param(
     holders: &mut Holders,
     ctx: &Ctx,
 ) -> Param {
+    let Ctx { pyo3_path, .. } = ctx;
     let args_array = Ident::new("output", Span::call_site());
 
     match arg {
@@ -256,7 +257,7 @@ fn impl_arg_param(
                 &extractor,
                 &holder,
                 quote_spanned! { arg.name.span() =>
-                    #extractor.extract_argument(_args.as_any().as_borrowed(), #name_str)?
+                    #pyo3_path::impl_::extract_argument::extract_argument(#extractor, _args.as_any().as_borrowed(), #name_str)?
                 },
             )
         }
@@ -269,7 +270,8 @@ fn impl_arg_param(
                 &extractor,
                 &holder,
                 quote_spanned! { arg.name.span() =>
-                    #extractor.extract_argument_with_default(
+                    #pyo3_path::impl_::extract_argument::extract_argument_with_default(
+                        #extractor,
                         _kwargs.as_ref().map(|d| d.as_any().as_borrowed()),
                         || ::std::option::Option::None,
                         #name_str
@@ -366,7 +368,8 @@ pub(crate) fn impl_regular_arg_param(
             &extractor,
             &holder,
             quote_arg_span! {
-                #extractor.extract_argument_with_default(
+                #pyo3_path::impl_::extract_argument::extract_argument_with_default(
+                    #extractor,
                     #arg_value,
                     #[allow(clippy::redundant_closure, reason = "wrapping user-provided default expression")]
                     { || #default },
@@ -383,7 +386,7 @@ pub(crate) fn impl_regular_arg_param(
             &extractor,
             &holder,
             quote_arg_span! {
-                #extractor.extract_argument(#unwrap, #name_str)?
+                #pyo3_path::impl_::extract_argument::extract_argument(#extractor, #unwrap, #name_str)?
             },
         )
     }

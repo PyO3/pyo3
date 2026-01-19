@@ -1,44 +1,161 @@
-error[E0599]: the method `extract_argument` exists for struct `TypeExtractor<AtomicPtr<()>>`, but its trait bounds were not satisfied
+error[E0277]: `AtomicPtr<()>` cannot be used as a Python function argument
+ --> tests/ui/invalid_pyfunction_argument.rs:5:32
+  |
+5 | fn invalid_pyfunction_argument(arg: AtomicPtr<()>) {
+  |                                ^^^  --------- required by a bound introduced by this call
+  |                                |
+  |                                the trait `PyClass` is not implemented for `AtomicPtr<()>`
+  |
+  = note: implement `FromPyObject` to enable using `AtomicPtr<()>` as a function argument
+  = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
+  = help: the trait `PyClass` is implemented for `Foo`
+  = note: required for `AtomicPtr<()>` to implement `FromPyObject<'_, '_>`
+  = note: required for `AtomicPtr<()>` to implement `PyFunctionArgument<'_, '_, true>`
+note: required by a bound in `extract_argument`
+ --> src/impl_/extract_argument.rs
+  |
+  | pub fn extract_argument<'a, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+  |        ---------------- required by a bound in this function
+...
+  |     T: PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>,
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+
+error[E0277]: `AtomicPtr<()>` cannot be used as a Python function argument
+ --> tests/ui/invalid_pyfunction_argument.rs:5:32
+  |
+5 | fn invalid_pyfunction_argument(arg: AtomicPtr<()>) {
+  |                                ^^^  --------- required by a bound introduced by this call
+  |                                |
+  |                                the trait `Clone` is not implemented for `AtomicPtr<()>`
+  |
+  = note: implement `FromPyObject` to enable using `AtomicPtr<()>` as a function argument
+  = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
+  = help: the following other types implement trait `PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>`:
+            `&T` implements `PyFunctionArgument<'a, '_, false>`
+            `&mut T` implements `PyFunctionArgument<'a, '_, false>`
+            `&pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'py, false>`
+            `Option<T>` implements `PyFunctionArgument<'a, 'py, false>`
+  = note: required for `AtomicPtr<()>` to implement `FromPyObject<'_, '_>`
+  = note: required for `AtomicPtr<()>` to implement `PyFunctionArgument<'_, '_, true>`
+note: required by a bound in `extract_argument`
+ --> src/impl_/extract_argument.rs
+  |
+  | pub fn extract_argument<'a, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+  |        ---------------- required by a bound in this function
+...
+  |     T: PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>,
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+
+error[E0277]: `AtomicPtr<()>` cannot be used as a Python function argument
+ --> tests/ui/invalid_pyfunction_argument.rs:5:32
+  |
+5 | fn invalid_pyfunction_argument(arg: AtomicPtr<()>) {
+  |                                ^^^  --------- required by a bound introduced by this call
+  |                                |
+  |                                the trait `ExtractPyClassWithClone` is not implemented for `AtomicPtr<()>`
+  |
+  = note: implement `FromPyObject` to enable using `AtomicPtr<()>` as a function argument
+  = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
+  = help: the following other types implement trait `PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>`:
+            `&T` implements `PyFunctionArgument<'a, '_, false>`
+            `&mut T` implements `PyFunctionArgument<'a, '_, false>`
+            `&pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'py, false>`
+            `Option<T>` implements `PyFunctionArgument<'a, 'py, false>`
+  = note: required for `AtomicPtr<()>` to implement `FromPyObject<'_, '_>`
+  = note: required for `AtomicPtr<()>` to implement `PyFunctionArgument<'_, '_, true>`
+note: required by a bound in `extract_argument`
+ --> src/impl_/extract_argument.rs
+  |
+  | pub fn extract_argument<'a, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+  |        ---------------- required by a bound in this function
+...
+  |     T: PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>,
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+
+error[E0277]: the trait bound `AtomicPtr<()>: FromPyObject<'_, '_>` is not satisfied
  --> tests/ui/invalid_pyfunction_argument.rs:5:37
   |
 5 | fn invalid_pyfunction_argument(arg: AtomicPtr<()>) {
-  |                                     ^^^^^^^^^
+  |                                     ^^^^^^^^^ the trait `PyClass` is not implemented for `AtomicPtr<()>`
   |
- ::: $RUST/core/src/sync/atomic.rs
-  |
-  | pub struct AtomicPtr<T> {
-  | ----------------------- doesn't satisfy 5 bounds
-  |
-  = note: the following trait bounds were not satisfied:
-          `AtomicPtr<()>: PyFunctionArgument<'_, '_, false>`
-          `AtomicPtr<()>: PyClass`
-          which is required by `AtomicPtr<()>: FromPyObject<'_, '_>`
-          `AtomicPtr<()>: Clone`
-          which is required by `AtomicPtr<()>: FromPyObject<'_, '_>`
-          `AtomicPtr<()>: ExtractPyClassWithClone`
-          which is required by `AtomicPtr<()>: FromPyObject<'_, '_>`
+  = help: the trait `PyClass` is implemented for `Foo`
+  = note: required for `AtomicPtr<()>` to implement `FromPyObject<'_, '_>`
+  = note: required for `AtomicPtr<()>` to implement `PyFunctionArgument<'_, '_, true>`
 
-error[E0599]: the method `extract_argument` exists for struct `TypeExtractor<Foo>`, but its trait bounds were not satisfied
-  --> tests/ui/invalid_pyfunction_argument.rs:14:59
+error[E0277]: the trait bound `AtomicPtr<()>: FromPyObject<'_, '_>` is not satisfied
+ --> tests/ui/invalid_pyfunction_argument.rs:5:37
+  |
+5 | fn invalid_pyfunction_argument(arg: AtomicPtr<()>) {
+  |                                     ^^^^^^^^^ the trait `Clone` is not implemented for `AtomicPtr<()>`
+  |
+  = help: the following other types implement trait `PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>`:
+            `&T` implements `PyFunctionArgument<'a, '_, false>`
+            `&mut T` implements `PyFunctionArgument<'a, '_, false>`
+            `&pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'py, false>`
+            `Option<T>` implements `PyFunctionArgument<'a, 'py, false>`
+  = note: required for `AtomicPtr<()>` to implement `FromPyObject<'_, '_>`
+  = note: required for `AtomicPtr<()>` to implement `PyFunctionArgument<'_, '_, true>`
+
+error[E0277]: the trait bound `AtomicPtr<()>: FromPyObject<'_, '_>` is not satisfied
+ --> tests/ui/invalid_pyfunction_argument.rs:5:37
+  |
+5 | fn invalid_pyfunction_argument(arg: AtomicPtr<()>) {
+  |                                     ^^^^^^^^^ the trait `ExtractPyClassWithClone` is not implemented for `AtomicPtr<()>`
+  |
+  = help: the following other types implement trait `PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>`:
+            `&T` implements `PyFunctionArgument<'a, '_, false>`
+            `&mut T` implements `PyFunctionArgument<'a, '_, false>`
+            `&pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'py, false>`
+            `Option<T>` implements `PyFunctionArgument<'a, 'py, false>`
+  = note: required for `AtomicPtr<()>` to implement `FromPyObject<'_, '_>`
+  = note: required for `AtomicPtr<()>` to implement `PyFunctionArgument<'_, '_, true>`
+
+error[E0277]: `Foo` cannot be used as a Python function argument
+  --> tests/ui/invalid_pyfunction_argument.rs:14:54
+   |
+14 | fn skip_from_py_object_without_custom_from_py_object(arg: Foo) {
+   |                                                      ^^^  --- required by a bound introduced by this call
+   |                                                      |
+   |                                                      unsatisfied trait bound
+   |
+help: the trait `ExtractPyClassWithClone` is not implemented for `Foo`
+  --> tests/ui/invalid_pyfunction_argument.rs:11:1
    |
 11 | struct Foo;
-   | ---------- doesn't satisfy `Foo: ExtractPyClassWithClone`, `Foo: FromPyObject<'_, '_>` or `Foo: PyFunctionArgument<'_, '_, false>`
+   | ^^^^^^^^^^
+   = note: implement `FromPyObject` to enable using `Foo` as a function argument
+   = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
+   = help: the following other types implement trait `PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>`:
+             `&T` implements `PyFunctionArgument<'a, '_, false>`
+             `&mut T` implements `PyFunctionArgument<'a, '_, false>`
+             `&pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'py, false>`
+             `Option<T>` implements `PyFunctionArgument<'a, 'py, false>`
+   = note: required for `Foo` to implement `FromPyObject<'_, '_>`
+   = note: required for `Foo` to implement `PyFunctionArgument<'_, '_, true>`
+note: required by a bound in `extract_argument`
+  --> src/impl_/extract_argument.rs
+   |
+   | pub fn extract_argument<'a, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+   |        ---------------- required by a bound in this function
 ...
+   |     T: PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>,
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+
+error[E0277]: the trait bound `Foo: FromPyObject<'_, '_>` is not satisfied
+  --> tests/ui/invalid_pyfunction_argument.rs:14:59
+   |
 14 | fn skip_from_py_object_without_custom_from_py_object(arg: Foo) {
-   |                                                           ^^^
+   |                                                           ^^^ unsatisfied trait bound
    |
-   = note: the following trait bounds were not satisfied:
-           `Foo: PyFunctionArgument<'_, '_, false>`
-           `Foo: ExtractPyClassWithClone`
-           which is required by `Foo: FromPyObject<'_, '_>`
-note: the traits `ExtractPyClassWithClone` and `PyFunctionArgument` must be implemented
-  --> src/impl_/pyclass.rs
+help: the trait `ExtractPyClassWithClone` is not implemented for `Foo`
+  --> tests/ui/invalid_pyfunction_argument.rs:11:1
    |
-   |   pub trait ExtractPyClassWithClone {}
-   |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   |
-  ::: src/impl_/extract_argument.rs
-   |
-   | / pub trait PyFunctionArgument<'a, 'py, const IMPLEMENTS_FROMPYOBJECT: bool>:
-   | |     Sized + function_argument::Sealed<IMPLEMENTS_FROMPYOBJECT>
-   | |______________________________________________________________^
+11 | struct Foo;
+   | ^^^^^^^^^^
+   = help: the following other types implement trait `PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>`:
+             `&T` implements `PyFunctionArgument<'a, '_, false>`
+             `&mut T` implements `PyFunctionArgument<'a, '_, false>`
+             `&pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'py, false>`
+             `Option<T>` implements `PyFunctionArgument<'a, 'py, false>`
+   = note: required for `Foo` to implement `FromPyObject<'_, '_>`
+   = note: required for `Foo` to implement `PyFunctionArgument<'_, '_, true>`
