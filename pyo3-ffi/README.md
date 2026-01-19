@@ -99,7 +99,7 @@ static mut METHODS: [PyMethodDef; 2] = [
 ];
 
 #[cfg(Py_3_15)]
-PyABIInfo_VAR!(abi_info);
+PyABIInfo_VAR!(ABI_INFO);
 
 const SLOTS_LEN: usize = 1
     + if cfg!(Py_3_12) { 1 } else { 0 }
@@ -109,7 +109,7 @@ static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {
         slot: Py_mod_abi,
-        value: std::ptr::addr_of_mut!(abi_info).cast(),
+        value: std::ptr::addr_of_mut!(ABI_INFO).cast(),
     },
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {
