@@ -369,6 +369,7 @@ impl SelfType {
                         None,
                     )
                 };
+                let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let extract = error_mode.handle_error(
                     quote_spanned! { *span => #pyo3_path::impl_::extract_argument::#extract::<#cls>(#arg) },
                     ctx,
