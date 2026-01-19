@@ -8,30 +8,51 @@ use crate::{
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned};
 use syn::spanned::Spanned;
+use syn::Ident;
 
 pub struct Holders {
-    holders: Vec<syn::Ident>,
+    holders: Vec<Ident>,
+    extractors: Vec<Ident>,
+    // arbitrary expressions
+    expressions: Vec<(Ident, TokenStream)>,
 }
 
 impl Holders {
     pub fn new() -> Self {
         Holders {
             holders: Vec::new(),
+            extractors: Vec::new(),
+            expressions: Vec::new(),
         }
     }
 
-    pub fn push_holder(&mut self, span: Span) -> syn::Ident {
-        let holder = syn::Ident::new(&format!("holder_{}", self.holders.len()), span);
+    pub fn push_holder(&mut self, span: Span) -> Ident {
+        let holder = Ident::new(&format!("holder_{}", self.holders.len()), span);
         self.holders.push(holder.clone());
         holder
+    }
+
+    pub fn push_extractor(&mut self, span: Span) -> Ident {
+        let extractor = Ident::new(&format!("extractor_{}", self.extractors.len()), span);
+        self.extractors.push(extractor.clone());
+        extractor
+    }
+
+    /// Record an expression which needs to be assigned a temporary ident
+    pub fn push_expression(&mut self, ident: Ident, expression: TokenStream) {
+        self.expressions.push((ident, expression))
     }
 
     pub fn init_holders(&self, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
         let holders = &self.holders;
+        let extractors = &self.extractors;
+        let expression_idents = self.expressions.iter().map(|(e, _)| e);
+        let expression_values = self.expressions.iter().map(|(_, v)| v);
         quote! {
-            #[allow(clippy::let_unit_value, reason = "many holders are just `()`")]
-            #(let mut #holders = #pyo3_path::impl_::extract_argument::FunctionArgumentHolder::INIT;)*
+            #(let mut #extractors = #pyo3_path::impl_::extract_argument::TypeExtractor::new();)*
+            #(let mut #holders;)*
+            #(let #expression_idents = #expression_values;)*
         }
     }
 }
@@ -50,8 +71,8 @@ pub fn impl_arg_params(
     fastcall: bool,
     holders: &mut Holders,
     ctx: &Ctx,
-) -> (TokenStream, Vec<TokenStream>) {
-    let args_array = syn::Ident::new("output", Span::call_site());
+) -> (TokenStream, Vec<Param>) {
+    let args_array = Ident::new("output", Span::call_site());
     let Ctx { pyo3_path, .. } = ctx;
 
     let from_py_with = spec
@@ -71,7 +92,7 @@ pub fn impl_arg_params(
     if !fastcall && is_forwarded_args(&spec.signature) {
         // In the varargs convention, we can just pass though if the signature
         // is (*args, **kwds).
-        let arg_convert = spec
+        let params = spec
             .signature
             .arguments
             .iter()
@@ -84,7 +105,7 @@ pub fn impl_arg_params(
                 let _kwargs = unsafe { #pyo3_path::impl_::extract_argument::cast_optional_function_argument(py, _kwargs) };
                 #from_py_with
             },
-            arg_convert,
+            params,
         );
     };
 
@@ -178,15 +199,45 @@ pub fn impl_arg_params(
     )
 }
 
+pub struct Param {
+    // the fragment to use when resolving the parameter type
+    pub resolve: TokenStream,
+    // the extract expression (will populate a holder)
+    pub extract: Option<TokenStream>,
+    // the final argument passed to the function
+    pub arg: TokenStream,
+}
+
+impl Param {
+    pub fn arg_expr(arg: TokenStream) -> Self {
+        Param {
+            resolve: quote! { ::std::unreachable!() },
+            extract: None,
+            arg,
+        }
+    }
+
+    pub fn via_extractor(
+        extractor: &Ident,
+        holder: &Ident,
+        extract_expression: TokenStream,
+    ) -> Self {
+        Param {
+            resolve: quote! { #extractor.resolve_type() },
+            extract: Some(quote! { #holder = #extract_expression; }),
+            arg: quote! { #holder.unpack() },
+        }
+    }
+}
+
 fn impl_arg_param(
     arg: &FnArg<'_>,
     pos: usize,
     option_pos: &mut usize,
     holders: &mut Holders,
     ctx: &Ctx,
-) -> TokenStream {
-    let Ctx { pyo3_path, .. } = ctx;
-    let args_array = syn::Ident::new("output", Span::call_site());
+) -> Param {
+    let args_array = Ident::new("output", Span::call_site());
 
     match arg {
         FnArg::Regular(arg) => {
@@ -196,42 +247,69 @@ fn impl_arg_param(
             impl_regular_arg_param(arg, from_py_with, arg_value, holders, ctx)
         }
         FnArg::VarArgs(arg) => {
-            let holder = holders.push_holder(arg.name.span());
             let name_str = arg.name.to_string();
-            quote_spanned! { arg.name.span() =>
-                #pyo3_path::impl_::extract_argument::extract_argument(
-                    _args.as_any().as_borrowed(),
-                    &mut #holder,
-                    #name_str
-                )?
-            }
+
+            let extractor = holders.push_extractor(arg.name.span());
+            let holder = holders.push_holder(arg.name.span());
+
+            Param::via_extractor(
+                &extractor,
+                &holder,
+                quote_spanned! { arg.name.span() =>
+                    #extractor.extract(_args.as_any().as_borrowed(), #name_str)?
+                },
+            )
         }
         FnArg::KwArgs(arg) => {
-            let holder = holders.push_holder(arg.name.span());
+            // let holder = holders.push_holder(arg.name.span());
             let name_str = arg.name.to_string();
-            quote_spanned! { arg.name.span() =>
-                #pyo3_path::impl_::extract_argument::extract_argument_with_default(
-                    _kwargs.as_ref().map(|d| d.as_any().as_borrowed()),
-                    &mut #holder,
-                    #name_str,
-                    || ::std::option::Option::None
-                )?
-            }
+            let extractor = holders.push_extractor(arg.name.span());
+            let holder = holders.push_holder(arg.name.span());
+            Param::via_extractor(
+                &extractor,
+                &holder,
+                quote_spanned! { arg.name.span() =>
+                    #extractor.extract_with_default(
+                        _kwargs.as_ref().map(|d| d.as_any().as_borrowed()),
+                        || ::std::option::Option::None,
+                        #name_str
+                    )?
+                },
+            )
         }
-        FnArg::Py(..) => quote! { py },
-        FnArg::CancelHandle(..) => quote! { __cancel_handle },
+        FnArg::Py(..) => Param::arg_expr(quote! { py }),
+        FnArg::CancelHandle(..) => Param::arg_expr(quote! { __cancel_handle }),
     }
 }
+
+// pub fn extract_argument(
+//     span: Span,
+//     input: TokenStream,
+//     extract_error_mode: ExtractErrorMode,
+//     holders: &mut Holders,
+//     ctx: &Ctx,
+// ) -> Param {
+//     Param::via_extractor(
+//         &extractor,
+//         &holder,
+//         extract_error_mode.handle_error(
+//             quote_spanned! { span =>
+//                 type_extractor.extract(#input)
+//             },
+//             ctx,
+//         ),
+//     )
+// }
 
 /// Re option_pos: The option slice doesn't contain the py: Python argument, so the argument
 /// index and the index in option diverge when using py: Python
 pub(crate) fn impl_regular_arg_param(
     arg: &RegularArg<'_>,
-    from_py_with: syn::Ident,
-    arg_value: TokenStream, // expected type: Option<&'a Bound<'py, PyAny>>
+    from_py_with: Ident,
+    arg_value: TokenStream, // expected type: Option<Borrowed<'py, 'py, PyAny>>
     holders: &mut Holders,
     ctx: &Ctx,
-) -> TokenStream {
+) -> Param {
     let Ctx { pyo3_path, .. } = ctx;
     let pyo3_path = pyo3_path.to_tokens_spanned(arg.ty.span());
 
@@ -258,7 +336,7 @@ pub(crate) fn impl_regular_arg_param(
         let extractor = quote_spanned! { kw.span =>
             { let from_py_with: fn(_) -> _ = #from_py_with; from_py_with }
         };
-        if let Some(default) = default {
+        let arg_expr = if let Some(default) = default {
             quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::from_py_with_with_default(
                     #arg_value.as_deref(),
@@ -279,29 +357,34 @@ pub(crate) fn impl_regular_arg_param(
                     #extractor,
                 )?
             }
-        }
+        };
+        Param::arg_expr(arg_expr)
     } else if let Some(default) = default {
+        let extractor = holders.push_extractor(arg.name.span());
         let holder = holders.push_holder(arg.name.span());
-        quote_arg_span! {
-            #pyo3_path::impl_::extract_argument::extract_argument_with_default(
-                #arg_value,
-                &mut #holder,
-                #name_str,
-                #[allow(clippy::redundant_closure, reason = "wrapping user-provided default expression")]
-                {
-                    || #default
-                }
-            )?
-        }
+        Param::via_extractor(
+            &extractor,
+            &holder,
+            quote_arg_span! {
+                #extractor.extract_with_default(
+                    #arg_value,
+                    #[allow(clippy::redundant_closure, reason = "wrapping user-provided default expression")]
+                    { || #default },
+                    #name_str,
+                )?
+            },
+        )
     } else {
+        let extractor = holders.push_extractor(arg.name.span());
         let holder = holders.push_holder(arg.name.span());
         let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value) }};
-        quote_arg_span! {
-            #pyo3_path::impl_::extract_argument::extract_argument(
-                #unwrap,
-                &mut #holder,
-                #name_str
-            )?
-        }
+
+        Param::via_extractor(
+            &extractor,
+            &holder,
+            quote_arg_span! {
+                #extractor.extract(#unwrap, #name_str)?
+            },
+        )
     }
 }

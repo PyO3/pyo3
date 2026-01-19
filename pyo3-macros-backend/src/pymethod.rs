@@ -5,7 +5,7 @@ use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::unique_element_id;
 use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
-use crate::params::{impl_arg_params, impl_regular_arg_param, Holders};
+use crate::params::{impl_arg_params, impl_regular_arg_param, Holders, Param};
 use crate::pyfunction::WarningFactory;
 use crate::utils::PythonDoc;
 use crate::utils::{Ctx, StaticIdent};
@@ -462,11 +462,14 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
 
     let name = &spec.name;
     let holders = holders.init_holders(ctx);
-    let fncall = if py_arg.is_some() {
-        quote!(#cls::#name(#slf, py))
-    } else {
-        quote!(#cls::#name(#slf))
-    };
+
+    let py_arg = py_arg.map(|_| Param::arg_expr(quote! { py }));
+
+    let FnCall { setup, call } = type_inferred_fncall(
+        quote!(#cls::#name),
+        std::iter::once(&slf).chain(&py_arg),
+        ctx,
+    );
 
     let associated_method = quote! {
         pub unsafe extern "C" fn __pymethod___clear____(
@@ -474,7 +477,8 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
         ) -> ::std::ffi::c_int {
             #pyo3_path::impl_::pymethods::_call_clear(_slf, |py, _slf| {
                 #holders
-                let result = #fncall;
+                #setup
+                let result = #call;
                 let result = #pyo3_path::impl_::wrap::converter(&result).wrap(result)?;
                 ::std::result::Result::Ok(result)
             }, #cls::__pymethod___clear____)
@@ -490,6 +494,36 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
         associated_method,
         slot_def,
     })
+}
+
+pub struct FnCall {
+    /// setup which needs to happen before the actual function call, e.g.
+    /// extraction of arguments into holders, needs to go in statement position
+    pub setup: TokenStream,
+    /// final call expression, should go in expression position
+    pub call: TokenStream,
+}
+
+pub fn type_inferred_fncall<'a>(
+    function: TokenStream,
+    args: impl Iterator<Item = &'a Param> + Clone,
+    Ctx { pyo3_path, .. }: &Ctx,
+) -> FnCall {
+    let resolve_args = args.clone().map(|p| &p.resolve);
+    let extractions = args.clone().map(|p| &p.extract);
+    let call_args = args.map(|p| &p.arg);
+
+    FnCall {
+        setup: quote! {
+            use #pyo3_path::impl_::extract_argument::unpack_traits::*;
+            #[expect(unreachable_code)]
+            if false {
+                let _ = #function(#(#resolve_args),*);
+            }
+            #(#extractions)*
+        },
+        call: quote! { #function(#(#call_args),*) },
+    }
 }
 
 pub(crate) fn impl_py_class_attribute(
@@ -549,8 +583,9 @@ fn impl_call_setter(
     spec: &FnSpec<'_>,
     self_type: &SelfType,
     holders: &mut Holders,
+    param: Param,
     ctx: &Ctx,
-) -> syn::Result<TokenStream> {
+) -> syn::Result<FnCall> {
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
     let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders, ctx);
 
@@ -564,13 +599,15 @@ fn impl_call_setter(
     }
 
     let name = &spec.name;
-    let fncall = if py_arg.is_some() {
-        quote!(#cls::#name(#slf, py, _val))
-    } else {
-        quote!(#cls::#name(#slf, _val))
-    };
+    let py_arg = py_arg.map(|_| Param::arg_expr(quote! { py }));
 
-    Ok(fncall)
+    Ok(type_inferred_fncall(
+        quote!(#cls::#name),
+        std::iter::once(&slf)
+            .chain(&py_arg)
+            .chain(std::iter::once(&param)),
+        ctx,
+    ))
 }
 
 // Used here for PropertyType::Function, used in pyclass for descriptors.
@@ -583,28 +620,6 @@ pub fn impl_py_setter_def(
     let python_name = property_type.null_terminated_python_name()?;
     let doc = property_type.doc(ctx)?;
     let mut holders = Holders::new();
-    let setter_impl = match property_type {
-        PropertyType::Descriptor {
-            field_index, field, ..
-        } => {
-            let slf = SelfType::Receiver {
-                mutable: true,
-                span: Span::call_site(),
-            }
-            .receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
-            if let Some(ident) = &field.ident {
-                // named struct field
-                quote!({ #slf.#ident = _val; })
-            } else {
-                // tuple struct field
-                let index = syn::Index::from(field_index);
-                quote!({ #slf.#index = _val; })
-            }
-        }
-        PropertyType::Function {
-            spec, self_type, ..
-        } => impl_call_setter(cls, spec, self_type, &mut holders, ctx)?,
-    };
 
     let wrapper_ident = match property_type {
         PropertyType::Descriptor {
@@ -623,21 +638,20 @@ pub fn impl_py_setter_def(
         }
     };
 
-    let extract = match &property_type {
+    let param = match &property_type {
         PropertyType::Function { spec, .. } => {
             let (_, args) = split_off_python_arg(&spec.signature.arguments);
             let value_arg = &args[0];
-            let (from_py_with, ident) =
+            let from_py_with_ident =
                 if let Some(from_py_with) = &value_arg.from_py_with().as_ref().map(|f| &f.value) {
                     let ident = syn::Ident::new("from_py_with", from_py_with.span());
-                    (
-                        quote_spanned! { from_py_with.span() =>
-                            let #ident = #from_py_with;
-                        },
-                        ident,
-                    )
+                    holders.push_expression(
+                        ident.clone(),
+                        quote_spanned! { from_py_with.span() => #from_py_with },
+                    );
+                    ident
                 } else {
-                    (quote!(), syn::Ident::new("dummy", Span::call_site()))
+                    syn::Ident::new("dummy", Span::call_site())
                 };
 
             let arg = if let FnArg::Regular(arg) = &value_arg {
@@ -646,18 +660,13 @@ pub fn impl_py_setter_def(
                 bail_spanned!(value_arg.name().span() => "The #[setter] value argument can't be *args, **kwargs or `cancel_handle`.");
             };
 
-            let extract = impl_regular_arg_param(
+            impl_regular_arg_param(
                 arg,
-                ident,
+                from_py_with_ident,
                 quote!(::std::option::Option::Some(_value)),
                 &mut holders,
                 ctx,
-            );
-
-            quote! {
-                #from_py_with
-                let _val = #extract;
-            }
+            )
         }
         PropertyType::Descriptor { field, .. } => {
             let span = field.ty.span();
@@ -667,13 +676,56 @@ pub fn impl_py_setter_def(
                 .map(|i| i.to_string())
                 .unwrap_or_default();
 
+            let extractor = holders.push_extractor(span);
             let holder = holders.push_holder(span);
-            quote! {
-                #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
-                use #pyo3_path::impl_::pyclass::Probe as _;
-                let _val = #pyo3_path::impl_::extract_argument::extract_argument(_value, &mut #holder, #name)?;
-            }
+            Param::via_extractor(
+                &extractor,
+                &holder,
+                quote! { #extractor.extract(_value.into(), #name)? },
+            )
         }
+    };
+
+    let (set_function, FnCall { setup, call }) = match property_type {
+        PropertyType::Descriptor {
+            field_index, field, ..
+        } => {
+            // build a dummy function via a closure which is used to populate the field value,
+            // this allows us to keep the assigment consistent with the function call machinery
+            // used elsewhere in the code
+
+            let field = if let Some(ident) = &field.ident {
+                // named struct field
+                quote!(#ident)
+            } else {
+                // tuple struct field
+                let index = syn::Index::from(field_index);
+                quote!(#index)
+            };
+
+            let set_function = quote! {
+                let mut do_set = |this: &mut #cls, value| {
+                    this.#field = value;
+                };
+            };
+
+            let slf = SelfType::Receiver {
+                mutable: true,
+                span: Span::call_site(),
+            }
+            .receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+
+            (
+                Some(set_function),
+                type_inferred_fncall(quote!(do_set), [slf, param].iter(), ctx),
+            )
+        }
+        PropertyType::Function {
+            spec, self_type, ..
+        } => (
+            None,
+            impl_call_setter(cls, spec, self_type, &mut holders, param, ctx)?,
+        ),
     };
 
     let mut cfg_attrs = TokenStream::new();
@@ -704,9 +756,10 @@ pub fn impl_py_setter_def(
             use ::std::convert::Into;
             let _value = #pyo3_path::impl_::extract_argument::cast_function_argument(py, _value);
             #init_holders
-            #extract
             #warnings
-            let result = #setter_impl;
+            #set_function
+            #setup
+            let result = #call;
             #pyo3_path::impl_::callback::convert(py, result)
         }
     };
@@ -734,7 +787,7 @@ fn impl_call_getter(
     self_type: &SelfType,
     holders: &mut Holders,
     ctx: &Ctx,
-) -> syn::Result<TokenStream> {
+) -> syn::Result<FnCall> {
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
     let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders, ctx);
     ensure_spanned!(
@@ -743,13 +796,13 @@ fn impl_call_getter(
     );
 
     let name = &spec.name;
-    let fncall = if py_arg.is_some() {
-        quote!(#cls::#name(#slf, py))
-    } else {
-        quote!(#cls::#name(#slf))
-    };
+    let py_arg = py_arg.map(|_| Param::arg_expr(quote! { py }));
 
-    Ok(fncall)
+    Ok(type_inferred_fncall(
+        quote!(#cls::#name),
+        std::iter::once(&slf).chain(&py_arg),
+        ctx,
+    ))
 }
 
 // Used here for PropertyType::Function, used in pyclass for descriptors.
@@ -818,7 +871,7 @@ pub fn impl_py_getter_def(
             spec, self_type, ..
         } => {
             let wrapper_ident = format_ident!("__pymethod_get_{}__", spec.name);
-            let call = impl_call_getter(cls, spec, self_type, &mut holders, ctx)?;
+            let FnCall { setup, call } = impl_call_getter(cls, spec, self_type, &mut holders, ctx)?;
             let body = quote! {
                 #pyo3_path::impl_::callback::convert(py, #call)
             };
@@ -834,6 +887,7 @@ pub fn impl_py_getter_def(
                 ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                     #init_holders
                     #warnings
+                    #setup
                     let result = #body;
                     result
                 }
@@ -868,7 +922,7 @@ pub fn impl_py_deleter_def(
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = spec.null_terminated_python_name();
     let mut holders = Holders::new();
-    let deleter_impl = impl_call_deleter(cls, spec, self_type, &mut holders, ctx)?;
+    let FnCall { setup, call } = impl_call_deleter(cls, spec, self_type, &mut holders, ctx)?;
     let wrapper_ident = format_ident!("__pymethod_delete_{}__", spec.name);
     let warnings = spec.warnings.build_py_warning(ctx);
     let init_holders = holders.init_holders(ctx);
@@ -879,7 +933,8 @@ pub fn impl_py_deleter_def(
         ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
             #init_holders
             #warnings
-            let result = #deleter_impl;
+            #setup
+            let result = #call;
             #pyo3_path::impl_::callback::convert(py, result)
         }
     };
@@ -906,7 +961,7 @@ fn impl_call_deleter(
     self_type: &SelfType,
     holders: &mut Holders,
     ctx: &Ctx,
-) -> Result<TokenStream> {
+) -> Result<FnCall> {
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
     let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders, ctx);
 
@@ -917,13 +972,13 @@ fn impl_call_deleter(
     }
 
     let name = &spec.name;
-    let fncall = if py_arg.is_some() {
-        quote!(#cls::#name(#slf, py))
-    } else {
-        quote!(#cls::#name(#slf))
-    };
+    let py_arg = py_arg.map(|_| Param::arg_expr(quote! { py }));
 
-    Ok(fncall)
+    Ok(type_inferred_fncall(
+        quote!(#cls::#name),
+        std::iter::once(&slf).chain(&py_arg),
+        ctx,
+    ))
 }
 
 /// Split an argument of pyo3::Python from the front of the arg list, if present
@@ -1079,7 +1134,7 @@ impl Ty {
         extract_error_mode: ExtractErrorMode,
         holders: &mut Holders,
         ctx: &Ctx,
-    ) -> TokenStream {
+    ) -> Param {
         let Ctx { pyo3_path, .. } = ctx;
         match self {
             Ty::Object => extract_object(
@@ -1124,24 +1179,24 @@ impl Ty {
                 quote! { #ident.as_ptr() },
                 ctx
             ),
-            Ty::CompareOp => extract_error_mode.handle_error(
+            Ty::CompareOp => Param::arg_expr(extract_error_mode.handle_error(
                 quote! {
                     #pyo3_path::class::basic::CompareOp::from_raw(#ident)
                         .ok_or_else(|| #pyo3_path::exceptions::PyValueError::new_err("invalid comparison operator"))
                 },
                 ctx
-            ),
+            )),
             Ty::PySsizeT => {
                 let ty = arg.ty();
-                extract_error_mode.handle_error(
+                Param::arg_expr(extract_error_mode.handle_error(
                     quote! {
                             ::std::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| #pyo3_path::exceptions::PyValueError::new_err(e.to_string()))
                     },
                     ctx
-                )
+                ))
             }
             // Just pass other types through unmodified
-            Ty::PyBuffer | Ty::Int | Ty::PyHashT | Ty::Void => quote! { #ident },
+            Ty::PyBuffer | Ty::Int | Ty::PyHashT | Ty::Void => Param::arg_expr(quote! { #ident }),
         }
     }
 }
@@ -1161,11 +1216,11 @@ fn extract_object(
     cast_method: StaticIdent,
     source_ptr: TokenStream,
     ctx: &Ctx,
-) -> TokenStream {
+) -> Param {
     let Ctx { pyo3_path, .. } = ctx;
     let name = arg.name().unraw().to_string();
 
-    let extract = if let Some(FromPyWithAttribute {
+    if let Some(FromPyWithAttribute {
         kw,
         value: extractor,
     }) = arg.from_py_with()
@@ -1174,28 +1229,32 @@ fn extract_object(
             { let from_py_with: fn(_) -> _ = #extractor; from_py_with }
         };
 
-        quote! {
+        let extract = quote! {
             #pyo3_path::impl_::extract_argument::from_py_with(
                 unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },
                 #name,
                 #extractor,
             )
-        }
-    } else {
-        let holder = holders.push_holder(Span::call_site());
-        quote! {{
-            #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
-            use #pyo3_path::impl_::pyclass::Probe as _;
-            #pyo3_path::impl_::extract_argument::extract_argument(
-                unsafe { #pyo3_path::impl_::extract_argument::#cast_method(py, #source_ptr) },
-                &mut #holder,
-                #name
-            )
-        }}
-    };
+        };
 
-    let extracted = extract_error_mode.handle_error(extract, ctx);
-    quote!(#extracted)
+        Param::arg_expr(extract_error_mode.handle_error(extract, ctx))
+    } else {
+        let extractor = &&holders.push_extractor(Span::call_site());
+        let holder = holders.push_holder(Span::call_site());
+        let unwrap = quote! {
+            unsafe { #pyo3_path::impl_::extract_argument::#cast_method(py, #source_ptr) }
+        };
+        Param::via_extractor(
+            &extractor,
+            &holder,
+            extract_error_mode.handle_error(
+                quote! {
+                    #extractor.extract(#unwrap, #name)
+                },
+                ctx,
+            ),
+        )
+    }
 }
 
 enum ReturnMode {
@@ -1445,8 +1504,9 @@ fn generate_method_body(
                 quote! { *mut #pyo3_path::ffi::PyObject },
             ];
             let (arg_convert, args) = impl_arg_params(spec, Some(cls), false, holders, ctx);
-            let args = self_arg.into_iter().chain(args);
-            let call = quote_spanned! {*output_span=> #cls::#rust_name(#(#args),*) };
+
+            let FnCall { setup, call } =
+                type_inferred_fncall(quote!(#cls::#rust_name), self_arg.iter().chain(&args), ctx);
 
             // Use just the text_signature_call_signature() because the class' Python name
             // isn't known to `#[pymethods]` - that has to be attached at runtime from the PyClassImpl
@@ -1471,6 +1531,7 @@ fn generate_method_body(
                 use #pyo3_path::impl_::pyclass::Probe as _;
                 #warnings
                 #arg_convert
+                #setup
                 let result = #call;
                 #pyo3_path::impl_::pymethods::tp_new_impl::<
                     _,
@@ -1492,20 +1553,20 @@ fn generate_method_body(
                 quote! { *mut #pyo3_path::ffi::PyObject },
             ];
             let (arg_convert, args) = impl_arg_params(spec, Some(cls), false, holders, ctx);
-            let args = self_arg.into_iter().chain(args);
-            let call = quote! {{
-                let r = #cls::#rust_name(#(#args),*);
-                #pyo3_path::impl_::wrap::converter(&r)
-                    .wrap(r)
-                    .map_err(::core::convert::Into::<#pyo3_path::PyErr>::into)?
-            }};
+
+            let FnCall { setup, call } =
+                type_inferred_fncall(quote!(#cls::#rust_name), self_arg.iter().chain(&args), ctx);
             let output = quote_spanned! { *output_span => result.convert(py) };
 
             let body = quote! {
                 use #pyo3_path::impl_::callback::IntoPyCallbackOutput;
                 #warnings
                 #arg_convert
+                #setup
                 let result = #call;
+                let result = #pyo3_path::impl_::wrap::converter(&result)
+                    .wrap(result)
+                    .map_err(::core::convert::Into::<#pyo3_path::PyErr>::into)?;
                 #output
             };
             (arg_idents, arg_types, body)
@@ -1519,8 +1580,8 @@ fn generate_method_body(
                 .collect();
 
             let args = extract_proto_arguments(spec, arguments, extract_error_mode, holders, ctx)?;
-            let args = self_arg.into_iter().chain(args);
-            let call = quote! { #cls::#rust_name(#(#args),*) };
+            let FnCall { setup, call } =
+                type_inferred_fncall(quote!(#cls::#rust_name), self_arg.iter().chain(&args), ctx);
             let result = if let Some(return_mode) = return_mode {
                 return_mode.return_call_output(call, ctx)
             } else {
@@ -1531,6 +1592,7 @@ fn generate_method_body(
             };
             let body = quote! {
                 #warnings
+                #setup
                 #result
             };
             (arg_idents, arg_types, body)
@@ -1720,20 +1782,20 @@ fn extract_proto_arguments(
     extract_error_mode: ExtractErrorMode,
     holders: &mut Holders,
     ctx: &Ctx,
-) -> Result<Vec<TokenStream>> {
+) -> Result<Vec<Param>> {
     let mut args = Vec::with_capacity(spec.signature.arguments.len());
     let mut non_python_args = 0;
 
     for arg in &spec.signature.arguments {
         if let FnArg::Py(..) = arg {
-            args.push(quote! { py });
+            args.push(Param::arg_expr(quote! { py }));
         } else {
             let ident = syn::Ident::new(&format!("arg{non_python_args}"), Span::call_site());
-            let conversions = proto_args.get(non_python_args)
+            let param = proto_args.get(non_python_args)
                 .ok_or_else(|| err_spanned!(arg.ty().span() => format!("Expected at most {} non-python arguments", proto_args.len())))?
                 .extract(&ident, arg, extract_error_mode, holders, ctx);
             non_python_args += 1;
-            args.push(conversions);
+            args.push(param);
         }
     }
 
