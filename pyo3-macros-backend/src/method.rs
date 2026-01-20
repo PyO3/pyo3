@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::ffi::CString;
 use std::fmt::Display;
 
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
@@ -354,6 +354,7 @@ impl SelfType {
                 // the &mut self receivers get horrible error messages. This approach with concrete calls produces
                 // better error messages.
                 let holder = holders.push_holder(*span);
+                let cls = locate_tokens_at(cls.to_token_stream(), *span);
                 // unsafe cast done at call_site span to avoid user code being flagged as using unsafe
                 let arg = quote! { unsafe { #pyo3_path::impl_::extract_argument::cast_function_argument(#py, #slf) } };
                 let (extract, unpack, mut_kw) = if *mutable {
@@ -398,6 +399,40 @@ impl SelfType {
             }
         }
     }
+}
+
+/// Adjusts a tokes stream so that the location for the stream comes from `Span`.
+///
+/// This affects where error messages will arise in the compiler output.
+fn locate_tokens_at(tokens: TokenStream, span: Span) -> TokenStream {
+    fn set_span_recursively(tokens: TokenStream, span: Span) -> TokenStream {
+        tokens
+            .into_iter()
+            .map(|tt| match tt {
+                TokenTree::Group(g) => {
+                    let inner = set_span_recursively(g.stream(), span);
+                    let mut new_group = proc_macro2::Group::new(g.delimiter(), inner);
+                    new_group.set_span(span);
+                    TokenTree::Group(new_group)
+                }
+                TokenTree::Ident(mut ident) => {
+                    ident.set_span(span);
+                    TokenTree::Ident(ident)
+                }
+                TokenTree::Punct(mut punct) => {
+                    punct.set_span(span);
+                    TokenTree::Punct(punct)
+                }
+                TokenTree::Literal(mut lit) => {
+                    lit.set_span(span);
+                    TokenTree::Literal(lit)
+                }
+            })
+            .collect()
+    }
+
+    let output_span = tokens.span().located_at(span);
+    set_span_recursively(tokens, output_span)
 }
 
 /// Determines which CPython calling convention a given FnSpec uses.
