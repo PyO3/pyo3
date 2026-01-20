@@ -7,10 +7,10 @@ use std::borrow::Cow;
 use syn::visit_mut::{visit_type_mut, VisitMut};
 use syn::{Expr, ExprLit, ExprPath, Lifetime, Lit, Type};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PythonTypeHint(PyExpr);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum PyExpr {
     /// The Python type hint of a FromPyObject implementation
     FromPyObjectType(Type),
@@ -43,13 +43,13 @@ enum PyExpr {
     Constant(PyConstant),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PyOperator {
     /// `|` operator
     BitOr,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum PyConstant {
     /// None
     None,
@@ -61,6 +61,8 @@ enum PyConstant {
     Float(String),
     /// `str` value unescaped and without quotes
     Str(String),
+    /// `...`
+    Ellipsis,
 }
 
 impl PythonTypeHint {
@@ -148,27 +150,32 @@ impl PythonTypeHint {
         self.0.to_introspection_token_stream(pyo3_crate_path)
     }
 
-    pub fn constant_from_expression(expr: &Expr) -> Option<Self> {
-        Some(Self(PyExpr::Constant(match expr {
+    pub fn constant_from_expression(expr: &Expr) -> Self {
+        Self(PyExpr::Constant(match expr {
             Expr::Lit(ExprLit { lit, .. }) => match lit {
                 Lit::Str(s) => PyConstant::Str(s.value()),
                 Lit::Char(c) => PyConstant::Str(c.value().into()),
                 Lit::Int(i) => PyConstant::Int(i.base10_digits().into()),
                 Lit::Float(f) => PyConstant::Float(f.base10_digits().into()),
                 Lit::Bool(b) => PyConstant::Bool(b.value()),
-                _ => return None, // TODO: implement ByteStr and CStr
+                _ => PyConstant::Ellipsis, // TODO: implement ByteStr and CStr
             },
             Expr::Path(ExprPath { qself, path, .. })
                 if qself.is_none() && path.is_ident("None") =>
             {
                 PyConstant::None
             }
-            _ => return None,
-        })))
+            _ => PyConstant::Ellipsis,
+        }))
     }
 
     pub fn str_constant(value: impl Into<String>) -> Self {
         Self(PyExpr::Constant(PyConstant::Str(value.into())))
+    }
+
+    /// `...`
+    pub fn ellipsis() -> Self {
+        Self(PyExpr::Constant(PyConstant::Ellipsis))
     }
 }
 
@@ -254,6 +261,9 @@ impl PyExpr {
                 }
                 PyConstant::Str(v) => {
                     quote! { #pyo3_crate_path::inspect::PyStaticExpr::Constant { value: #pyo3_crate_path::inspect::PyStaticConstant::Str(#v) } }
+                }
+                PyConstant::Ellipsis => {
+                    quote! { #pyo3_crate_path::inspect::PyStaticExpr::Constant { value: #pyo3_crate_path::inspect::PyStaticConstant::Ellipsis } }
                 }
             },
         }

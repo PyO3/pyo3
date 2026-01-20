@@ -166,6 +166,12 @@ pub const fn serialize_for_introspection(expr: &PyStaticExpr, mut output: &mut [
                 output = write_json_string_and_move_forward(value.as_bytes(), output);
                 output = write_slice_and_move_forward(b"}", output);
             }
+            PyStaticConstant::Ellipsis => {
+                output = write_slice_and_move_forward(
+                    b"{\"type\":\"constant\",\"kind\":\"ellipsis\"}",
+                    output,
+                )
+            }
         },
         PyStaticExpr::Name { id } => {
             output = write_slice_and_move_forward(b"{\"type\":\"name\",\"id\":\"", output);
@@ -225,6 +231,7 @@ pub const fn serialized_len_for_introspection(expr: &PyStaticExpr) -> usize {
             PyStaticConstant::Int(value) => 43 + value.len(),
             PyStaticConstant::Float(value) => 45 + value.len(),
             PyStaticConstant::Str(value) => 41 + serialized_json_string_len(value),
+            PyStaticConstant::Ellipsis => 37,
         },
         PyStaticExpr::Name { id } => 23 + id.len(),
         PyStaticExpr::Attribute { value, attr } => {
@@ -262,6 +269,7 @@ impl fmt::Display for PyStaticExpr {
                     Ok(())
                 }
                 PyStaticConstant::Str(value) => write!(f, "{value:?}"),
+                PyStaticConstant::Ellipsis => f.write_str("..."),
             },
             Self::Name { id, .. } => f.write_str(id),
             Self::Attribute { value, attr } => {
@@ -323,6 +331,8 @@ pub enum PyStaticConstant {
     Float(&'static str),
     /// `str` value unescaped and without quotes
     Str(&'static str),
+    /// `...` value
+    Ellipsis,
 }
 
 /// An operator used in [`PyStaticExpr::BinOp`].
@@ -537,11 +547,19 @@ mod tests {
             type_hint_identifier!("builtins", "dict"),
             type_hint_union!(
                 type_hint_identifier!("builtins", "int"),
-                type_hint_identifier!("builtins", "float")
+                type_hint_subscript!(
+                    type_hint_identifier!("typing", "Literal"),
+                    PyStaticExpr::Constant {
+                        value: PyStaticConstant::Str("\0\t\\\"")
+                    }
+                )
             ),
             type_hint_identifier!("datetime", "time")
         );
-        assert_eq!(T.to_string(), "dict[int | float, datetime.time]")
+        assert_eq!(
+            T.to_string(),
+            "dict[int | typing.Literal[\"\\0\\t\\\\\\\"\"], datetime.time]"
+        )
     }
 
     #[test]
@@ -640,6 +658,12 @@ mod tests {
                 value: PyStaticConstant::Str("\"\\/\x08\x0C\n\r\t\0\x19a"),
             },
             r#"{"type":"constant","kind":"str","value":"\"\\/\b\f\n\r\t\u0000\u0019a"}"#,
+        );
+        check_serialization(
+            PyStaticExpr::Constant {
+                value: PyStaticConstant::Ellipsis,
+            },
+            r#"{"type":"constant","kind":"ellipsis"}"#,
         );
     }
 }

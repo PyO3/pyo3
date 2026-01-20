@@ -238,7 +238,7 @@ fn argument_stub(argument: &Argument, imports: &Imports) -> String {
         } else {
             "="
         });
-        buffer.push_str(default_value);
+        imports.serialize_expr(default_value, &mut buffer);
     }
     buffer
 }
@@ -394,6 +394,7 @@ impl Imports {
                     }
                     buffer.push('"');
                 }
+                Constant::Ellipsis => buffer.push_str("..."),
             },
             Expr::Name { id } => {
                 buffer.push_str(
@@ -641,18 +642,24 @@ mod tests {
             arguments: Arguments {
                 positional_only_arguments: vec![Argument {
                     name: "posonly".into(),
-                    default_value: Some("1".into()),
+                    default_value: Some(Expr::Constant {
+                        value: Constant::Int("1".into()),
+                    }),
                     annotation: None,
                 }],
                 arguments: vec![Argument {
                     name: "arg".into(),
-                    default_value: Some("True".into()),
+                    default_value: Some(Expr::Constant {
+                        value: Constant::Bool(true),
+                    }),
                     annotation: None,
                 }],
                 vararg: None,
                 keyword_only_arguments: vec![Argument {
                     name: "karg".into(),
-                    default_value: Some("\"foo\"".into()),
+                    default_value: Some(Expr::Constant {
+                        value: Constant::Str("foo".into()),
+                    }),
                     annotation: Some(Expr::Constant {
                         value: Constant::Str("str".into()),
                     }),

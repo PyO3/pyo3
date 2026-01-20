@@ -11,7 +11,7 @@
 use crate::method::{FnArg, RegularArg};
 use crate::pyfunction::FunctionSignature;
 use crate::type_hint::PythonTypeHint;
-use crate::utils::{expr_to_python, PyO3CratePath};
+use crate::utils::PyO3CratePath;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
@@ -143,7 +143,7 @@ pub fn attribute_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     parent: Option<&Type>,
     name: String,
-    value: Option<PythonTypeHint>,
+    value: PythonTypeHint,
     rust_type: Type,
     is_final: bool,
 ) -> TokenStream {
@@ -155,21 +155,7 @@ pub fn attribute_introspection_code(
             IntrospectionNode::IntrospectionId(parent.map(Cow::Borrowed)),
         ),
     ]);
-    if let Some(value) = value {
-        desc.insert(
-            "annotation",
-            if is_final {
-                // Type checkers can infer the type from the value because it's typing.Literal[value]
-                // So, following stubs best practices, we only write typing.Final and not
-                // typing.Final[typing.literal[value]]
-                PythonTypeHint::module_attr("typing", "Final")
-            } else {
-                PythonTypeHint::from_return_type(rust_type, parent)
-            }
-            .into(),
-        );
-        desc.insert("value", value.into());
-    } else {
+    if value == PythonTypeHint::ellipsis() {
         // We need to set a type, but not need to set the value to ..., all attributes have a value
         desc.insert(
             "annotation",
@@ -183,6 +169,20 @@ pub fn attribute_introspection_code(
                 PythonTypeHint::from_return_type(rust_type, parent).into()
             },
         );
+    } else {
+        desc.insert(
+            "annotation",
+            if is_final {
+                // Type checkers can infer the type from the value because it's typing.Literal[value]
+                // So, following stubs best practices, we only write typing.Final and not
+                // typing.Final[typing.literal[value]]
+                PythonTypeHint::module_attr("typing", "Final")
+            } else {
+                PythonTypeHint::from_return_type(rust_type, parent)
+            }
+            .into(),
+        );
+        desc.insert("value", value.into());
     }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
@@ -290,7 +290,7 @@ fn argument_introspection_data<'a>(
     if let Some(expr) = &desc.default_value {
         params.insert(
             "default",
-            IntrospectionNode::String(expr_to_python(expr).into()),
+            PythonTypeHint::constant_from_expression(expr).into(),
         );
     }
 

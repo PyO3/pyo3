@@ -305,7 +305,10 @@ fn convert_argument(
 ) -> Argument {
     Argument {
         name: arg.name.clone(),
-        default_value: arg.default.clone(),
+        default_value: arg
+            .default
+            .as_ref()
+            .map(|e| convert_expr(e, type_hint_for_annotation_id)),
         annotation: arg
             .annotation
             .as_ref()
@@ -380,6 +383,7 @@ fn convert_expr(expr: &ChunkExpr, type_hint_for_annotation_id: &HashMap<String, 
                 ChunkConstant::Int { value } => Constant::Int(value.clone()),
                 ChunkConstant::Float { value } => Constant::Float(value.clone()),
                 ChunkConstant::Str { value } => Constant::Str(value.clone()),
+                ChunkConstant::Ellipsis => Constant::Ellipsis,
             },
         },
         ChunkExpr::Id { id } => {
@@ -662,7 +666,7 @@ struct ChunkArguments {
 struct ChunkArgument {
     name: String,
     #[serde(default)]
-    default: Option<String>,
+    default: Option<ChunkExpr>,
     #[serde(default)]
     annotation: Option<ChunkExpr>,
 }
@@ -703,6 +707,7 @@ pub enum ChunkConstant {
     Int { value: String },
     Float { value: String },
     Str { value: String },
+    Ellipsis,
 }
 
 #[derive(Deserialize)]

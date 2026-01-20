@@ -56,7 +56,7 @@ pub struct Arguments {
 pub struct Argument {
     pub name: String,
     /// Default value as a Python expression
-    pub default_value: Option<String>,
+    pub default_value: Option<Expr>,
     /// Type annotation as a Python expression
     pub annotation: Option<Expr>,
 }
@@ -99,7 +99,7 @@ pub enum Expr {
 /// This enables advanced features like escaping.
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub enum Constant {
-    /// None
+    /// `None`
     None,
     /// `True` or `False`
     Bool(bool),
@@ -109,6 +109,8 @@ pub enum Constant {
     Float(String),
     /// A string (unescaped!)
     Str(String),
+    /// `...`
+    Ellipsis,
 }
 
 /// An operator used in [`Expr::BinOp`].
