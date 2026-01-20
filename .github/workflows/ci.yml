@@ -500,8 +500,12 @@ jobs:
           - wasm32-wasip1
           - wasm32-wasip2
         include:
-          - python-version: 3.14
+          - target: wasm32-wasip1
+            python-version: 3.14
             wasi-sdk-version: 24
+          - target: wasm32-wasip2
+            python-version: 3.14
+            wasi-sdk-version: 29
     env:
       WASI_SDK_PATH: "/opt/wasi-sdk"
       CPYTHON_PATH: "${{ github.workspace }}/wasi/cpython"
