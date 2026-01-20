@@ -491,7 +491,7 @@ jobs:
 
   wasm32-wasi:
     name: python${{ matrix.python-version }}-${{ matrix.target }}
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+#    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
     runs-on: ubuntu-latest
     strategy:
