@@ -313,7 +313,8 @@ pub(crate) fn impl_regular_arg_param(
     ctx: &Ctx,
 ) -> Param {
     let Ctx { pyo3_path, .. } = ctx;
-    let pyo3_path = pyo3_path.to_tokens_spanned(arg.ty.span());
+    let arg_span = arg.ty.span();
+    let pyo3_path = pyo3_path.to_tokens_spanned(arg_span);
 
     // Use this macro inside this function, to ensure that all code generated here is associated
     // with the function argument
@@ -322,7 +323,7 @@ pub(crate) fn impl_regular_arg_param(
         use #pyo3_path::impl_::pyclass::Probe as _;
     };
     macro_rules! quote_arg_span {
-        ($($tokens:tt)*) => { quote_spanned!(arg.ty.span() => { #use_probe $($tokens)* }) }
+        ($($tokens:tt)*) => { quote_spanned!(arg_span => { #use_probe $($tokens)* }) }
     }
 
     let name_str = arg.name.to_string();
@@ -362,8 +363,8 @@ pub(crate) fn impl_regular_arg_param(
         };
         Param::arg_expr(arg_expr)
     } else if let Some(default) = default {
-        let extractor = holders.push_extractor(arg.name.span());
-        let holder = holders.push_holder(arg.name.span());
+        let extractor = holders.push_extractor(arg_span);
+        let holder = holders.push_holder(arg_span);
         Param::via_extractor(
             &extractor,
             &holder,
@@ -378,10 +379,9 @@ pub(crate) fn impl_regular_arg_param(
             },
         )
     } else {
-        let extractor = holders.push_extractor(arg.name.span());
-        let holder = holders.push_holder(arg.name.span());
         let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value) }};
-
+        let extractor = holders.push_extractor(arg_span);
+        let holder = holders.push_holder(arg_span);
         Param::via_extractor(
             &extractor,
             &holder,
