@@ -1,6 +1,8 @@
 error[E0277]: `AtomicPtr<()>` cannot be used as a Python function argument
  --> tests/ui/invalid_pyfunction_argument.rs:5:37
   |
+4 | #[pyfunction]
+  | ------------- in this attribute macro expansion
 5 | fn invalid_pyfunction_argument(arg: AtomicPtr<()>) {
   |                                     ^^^^^^^^^ the trait `PyClass` is not implemented for `AtomicPtr<()>`
   |
@@ -17,10 +19,13 @@ note: required by a bound in `extract_argument`
 ...
   |     T: PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>,
   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+  = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: `AtomicPtr<()>` cannot be used as a Python function argument
  --> tests/ui/invalid_pyfunction_argument.rs:5:37
   |
+4 | #[pyfunction]
+  | ------------- in this attribute macro expansion
 5 | fn invalid_pyfunction_argument(arg: AtomicPtr<()>) {
   |                                     ^^^^^^^^^ the trait `Clone` is not implemented for `AtomicPtr<()>`
   |
@@ -41,10 +46,13 @@ note: required by a bound in `extract_argument`
 ...
   |     T: PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>,
   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+  = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: `AtomicPtr<()>` cannot be used as a Python function argument
  --> tests/ui/invalid_pyfunction_argument.rs:5:37
   |
+4 | #[pyfunction]
+  | ------------- in this attribute macro expansion
 5 | fn invalid_pyfunction_argument(arg: AtomicPtr<()>) {
   |                                     ^^^^^^^^^ the trait `ExtractPyClassWithClone` is not implemented for `AtomicPtr<()>`
   |
@@ -65,10 +73,13 @@ note: required by a bound in `extract_argument`
 ...
   |     T: PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>,
   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+  = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: `Foo` cannot be used as a Python function argument
   --> tests/ui/invalid_pyfunction_argument.rs:14:59
    |
+13 | #[pyfunction]
+   | ------------- in this attribute macro expansion
 14 | fn skip_from_py_object_without_custom_from_py_object(arg: Foo) {
    |                                                           ^^^ unsatisfied trait bound
    |
@@ -94,3 +105,4 @@ note: required by a bound in `extract_argument`
 ...
    |     T: PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>,
    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)

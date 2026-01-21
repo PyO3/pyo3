@@ -133,8 +133,13 @@ note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetIte
 error[E0282]: type annotations needed
   --> tests/ui/invalid_pyclass_generic.rs:17:14
    |
+ 7 | #[pymethods]
+   | ------------ in this attribute macro expansion
+...
 17 |         key: &Bound<'_, PyAny>,
    |              ^ cannot infer type
+   |
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
   --> tests/ui/invalid_pyclass_generic.rs:18:10

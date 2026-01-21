@@ -313,7 +313,7 @@ pub(crate) fn impl_regular_arg_param(
     ctx: &Ctx,
 ) -> Param {
     let Ctx { pyo3_path, .. } = ctx;
-    let arg_span = arg.ty.span();
+    let arg_span = Span::call_site().located_at(arg.ty.span());
     let pyo3_path = pyo3_path.to_tokens_spanned(arg_span);
 
     // Use this macro inside this function, to ensure that all code generated here is associated
