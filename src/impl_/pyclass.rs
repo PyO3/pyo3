@@ -51,7 +51,7 @@ mod sealed {
     impl Sealed for super::PyClassDictSlot {}
     impl Sealed for super::PyClassWeakRefSlot {}
     impl Sealed for super::ThreadCheckerImpl {}
-    impl<T: Send> Sealed for super::SendablePyClass<T> {}
+    impl Sealed for super::NoopThreadChecker {}
 }
 
 /// Represents the `__dict__` field for `#[pyclass]`.
@@ -1028,14 +1028,10 @@ pub trait PyClassThreadChecker<T>: Sized + sealed::Sealed {
 }
 
 /// Default thread checker for `#[pyclass]`.
-///
-/// Keeping the T: Send bound here slightly improves the compile
-/// error message to hint to users to figure out what's wrong
-/// when `#[pyclass]` types do not implement `Send`.
 #[doc(hidden)]
-pub struct SendablePyClass<T: Send>(PhantomData<T>);
+pub struct NoopThreadChecker;
 
-impl<T: Send> PyClassThreadChecker<T> for SendablePyClass<T> {
+impl<T> PyClassThreadChecker<T> for NoopThreadChecker {
     fn ensure(&self) {}
     fn check(&self) -> bool {
         true
@@ -1045,7 +1041,7 @@ impl<T: Send> PyClassThreadChecker<T> for SendablePyClass<T> {
     }
     #[inline]
     fn new() -> Self {
-        SendablePyClass(PhantomData)
+        NoopThreadChecker
     }
 }
 

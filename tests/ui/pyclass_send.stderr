@@ -1,58 +1,8 @@
 error[E0277]: `*mut c_void` cannot be sent between threads safely
- --> tests/ui/pyclass_send.rs:4:1
-  |
-4 | #[pyclass]
-  | ^^^^^^^^^^ `*mut c_void` cannot be sent between threads safely
-  |
-  = help: within `NotSyncNotSend`, the trait `Send` is not implemented for `*mut c_void`
-help: the trait `pyo3::impl_::pyclass::PyClassThreadChecker<T>` is implemented for `SendablePyClass<T>`
- --> src/impl_/pyclass.rs
-  |
-  | impl<T: Send> PyClassThreadChecker<T> for SendablePyClass<T> {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: required because it appears within the type `NotSyncNotSend`
  --> tests/ui/pyclass_send.rs:5:8
   |
 5 | struct NotSyncNotSend(*mut c_void);
-  |        ^^^^^^^^^^^^^^
-  = note: required for `SendablePyClass<NotSyncNotSend>` to implement `pyo3::impl_::pyclass::PyClassThreadChecker<NotSyncNotSend>`
-note: required by a bound in `PyClassImpl::ThreadChecker`
- --> src/impl_/pyclass.rs
-  |
-  |     type ThreadChecker: PyClassThreadChecker<Self>;
-  |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::ThreadChecker`
-  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0277]: `*mut c_void` cannot be sent between threads safely
-  --> tests/ui/pyclass_send.rs:11:1
-   |
-11 | #[pyclass]
-   | ^^^^^^^^^^ `*mut c_void` cannot be sent between threads safely
-   |
-   = help: within `SyncNotSend`, the trait `Send` is not implemented for `*mut c_void`
-help: the trait `pyo3::impl_::pyclass::PyClassThreadChecker<T>` is implemented for `SendablePyClass<T>`
-  --> src/impl_/pyclass.rs
-   |
-   | impl<T: Send> PyClassThreadChecker<T> for SendablePyClass<T> {
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: required because it appears within the type `SyncNotSend`
-  --> tests/ui/pyclass_send.rs:12:8
-   |
-12 | struct SyncNotSend(*mut c_void);
-   |        ^^^^^^^^^^^
-   = note: required for `SendablePyClass<SyncNotSend>` to implement `pyo3::impl_::pyclass::PyClassThreadChecker<SyncNotSend>`
-note: required by a bound in `PyClassImpl::ThreadChecker`
-  --> src/impl_/pyclass.rs
-   |
-   |     type ThreadChecker: PyClassThreadChecker<Self>;
-   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::ThreadChecker`
-   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0277]: `*mut c_void` cannot be sent between threads safely
- --> tests/ui/pyclass_send.rs:4:1
-  |
-4 | #[pyclass]
-  | ^^^^^^^^^^ `*mut c_void` cannot be sent between threads safely
+  |        ^^^^^^^^^^^^^^ `*mut c_void` cannot be sent between threads safely
   |
   = help: within `NotSyncNotSend`, the trait `Send` is not implemented for `*mut c_void`
 note: required because it appears within the type `NotSyncNotSend`
@@ -60,31 +10,14 @@ note: required because it appears within the type `NotSyncNotSend`
   |
 5 | struct NotSyncNotSend(*mut c_void);
   |        ^^^^^^^^^^^^^^
-note: required by a bound in `SendablePyClass`
- --> src/impl_/pyclass.rs
+note: required by a bound in `assert_pyclass_send_sync`
+ --> src/impl_/pyclass/assertions.rs
   |
-  | pub struct SendablePyClass<T: Send>(PhantomData<T>);
-  |                               ^^^^ required by this bound in `SendablePyClass`
-  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0277]: `*mut c_void` cannot be sent between threads safely
-  --> tests/ui/pyclass_send.rs:11:1
-   |
-11 | #[pyclass]
-   | ^^^^^^^^^^ `*mut c_void` cannot be sent between threads safely
-   |
-   = help: within `SyncNotSend`, the trait `Send` is not implemented for `*mut c_void`
-note: required because it appears within the type `SyncNotSend`
-  --> tests/ui/pyclass_send.rs:12:8
-   |
-12 | struct SyncNotSend(*mut c_void);
-   |        ^^^^^^^^^^^
-note: required by a bound in `SendablePyClass`
-  --> src/impl_/pyclass.rs
-   |
-   | pub struct SendablePyClass<T: Send>(PhantomData<T>);
-   |                               ^^^^ required by this bound in `SendablePyClass`
-   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+  | pub const fn assert_pyclass_send_sync<T>()
+  |              ------------------------ required by a bound in this function
+  | where
+  |     T: Send + Sync,
+  |        ^^^^ required by this bound in `assert_pyclass_send_sync`
 
 error[E0277]: `*mut c_void` cannot be shared between threads safely
  --> tests/ui/pyclass_send.rs:5:8
@@ -98,14 +31,14 @@ note: required because it appears within the type `NotSyncNotSend`
   |
 5 | struct NotSyncNotSend(*mut c_void);
   |        ^^^^^^^^^^^^^^
-note: required by a bound in `assert_pyclass_sync`
+note: required by a bound in `assert_pyclass_send_sync`
  --> src/impl_/pyclass/assertions.rs
   |
-  | pub const fn assert_pyclass_sync<T>()
-  |              ------------------- required by a bound in this function
+  | pub const fn assert_pyclass_send_sync<T>()
+  |              ------------------------ required by a bound in this function
   | where
-  |     T: PyClassSync + Sync,
-  |                      ^^^^ required by this bound in `assert_pyclass_sync`
+  |     T: Send + Sync,
+  |               ^^^^ required by this bound in `assert_pyclass_send_sync`
 
 error[E0277]: `*mut c_void` cannot be shared between threads safely
  --> tests/ui/pyclass_send.rs:8:8
@@ -119,11 +52,32 @@ note: required because it appears within the type `SendNotSync`
   |
 8 | struct SendNotSync(*mut c_void);
   |        ^^^^^^^^^^^
-note: required by a bound in `assert_pyclass_sync`
+note: required by a bound in `assert_pyclass_send_sync`
  --> src/impl_/pyclass/assertions.rs
   |
-  | pub const fn assert_pyclass_sync<T>()
-  |              ------------------- required by a bound in this function
+  | pub const fn assert_pyclass_send_sync<T>()
+  |              ------------------------ required by a bound in this function
   | where
-  |     T: PyClassSync + Sync,
-  |                      ^^^^ required by this bound in `assert_pyclass_sync`
+  |     T: Send + Sync,
+  |               ^^^^ required by this bound in `assert_pyclass_send_sync`
+
+error[E0277]: `*mut c_void` cannot be sent between threads safely
+  --> tests/ui/pyclass_send.rs:12:8
+   |
+12 | struct SyncNotSend(*mut c_void);
+   |        ^^^^^^^^^^^ `*mut c_void` cannot be sent between threads safely
+   |
+   = help: within `SyncNotSend`, the trait `Send` is not implemented for `*mut c_void`
+note: required because it appears within the type `SyncNotSend`
+  --> tests/ui/pyclass_send.rs:12:8
+   |
+12 | struct SyncNotSend(*mut c_void);
+   |        ^^^^^^^^^^^
+note: required by a bound in `assert_pyclass_send_sync`
+  --> src/impl_/pyclass/assertions.rs
+   |
+   | pub const fn assert_pyclass_send_sync<T>()
+   |              ------------------------ required by a bound in this function
+   | where
+   |     T: Send + Sync,
+   |        ^^^^ required by this bound in `assert_pyclass_send_sync`
