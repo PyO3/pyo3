@@ -13,8 +13,8 @@ use crate::{
     ffi,
     pyclass::boolean_struct::False,
     types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
-    Borrowed, Bound, CastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr,
-    PyResult, PyTypeCheck, Python,
+    Borrowed, Bound, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr, PyResult,
+    PyTypeCheck, Python,
 };
 
 /// Helper type used to keep implementation more concise.
@@ -254,13 +254,12 @@ pub trait PyFunctionArgument<'a, 'py, const IMPLEMENTS_FROMPYOBJECT: bool>:
     Sized + function_argument::Sealed<IMPLEMENTS_FROMPYOBJECT>
 {
     type Holder: PyFunctionArgumentHolder<Self>;
-    type Error: Into<PyErr>;
 
     /// Provides the type hint information for which Python types are allowed.
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr;
 
-    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self::Holder, Self::Error>;
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self::Holder>;
 }
 
 /// Container for values extracted in function arguments.
@@ -277,14 +276,16 @@ where
     T: FromPyObject<'a, 'py>,
 {
     type Holder = SimpleHolder<T>;
-    type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = T::INPUT_TYPE;
 
     #[inline]
-    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self::Holder, Self::Error> {
-        obj.extract().map(SimpleHolder)
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self::Holder> {
+        match obj.extract() {
+            Ok(value) => Ok(SimpleHolder(value)),
+            Err(e) => Err(e.into()),
+        }
     }
 }
 
@@ -293,14 +294,16 @@ where
     T: PyTypeCheck,
 {
     type Holder = DerefHolder<Borrowed<'a, 'py, T>>;
-    type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
     #[inline]
-    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self::Holder, Self::Error> {
-        obj.cast().map(DerefHolder)
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self::Holder> {
+        match obj.cast() {
+            Ok(value) => Ok(DerefHolder(value)),
+            Err(e) => Err(e.into()),
+        }
     }
 }
 
@@ -322,13 +325,12 @@ where
     T: PyFunctionArgument<'a, 'py, false>,
 {
     type Holder = OptionHolder<T::Holder>;
-    type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = type_hint_union!(T::INPUT_TYPE, PyNone::TYPE_HINT);
 
     #[inline]
-    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self::Holder, Self::Error> {
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self::Holder> {
         if obj.is_none() {
             Ok(OptionHolder(None))
         } else {
@@ -355,7 +357,6 @@ where
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
 impl<'a, 'py> PyFunctionArgument<'a, 'py, false> for &'a str {
     type Holder = std::borrow::Cow<'a, str>;
-    type Error = <std::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
@@ -390,7 +391,6 @@ impl<'a> UnpackRef<'a> for std::borrow::Cow<'_, str> {
 
 impl<'a, T: PyClass> PyFunctionArgument<'a, '_, false> for &'_ T {
     type Holder = PyClassGuard<'a, T>;
-    type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
@@ -415,7 +415,6 @@ impl<'a, 'b, T: PyClass> PyFunctionArgumentHolder<&'a T> for PyClassGuard<'b, T>
 
 impl<'a, T: PyClass<Frozen = False>> PyFunctionArgument<'a, '_, false> for &'_ mut T {
     type Holder = PyClassGuardMut<'a, T>;
-    type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
@@ -480,7 +479,7 @@ where
 {
     match <T as PyFunctionArgument<IMPLEMENTS_FROMPYOBJECT>>::extract(obj) {
         Ok(holder) => Ok(holder),
-        Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e.into())),
+        Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e)),
     }
 }
 
