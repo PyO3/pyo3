@@ -2589,7 +2589,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         {
             quote! {
                 const _: () = {
-                    #[allow(unused_import)]
+                    #[allow(unused_imports)]
                     use #pyo3_path::impl_::pyclass::Probe as _;
                     #pyo3_path::impl_::deprecated::HasAutomaticFromPyObject::<{ #pyo3_path::impl_::pyclass::IsClone::<#cls>::VALUE }>::MSG
                 };

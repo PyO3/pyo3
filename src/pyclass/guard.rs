@@ -433,13 +433,11 @@ impl From<PyClassGuardError<'_, '_>> for PyErr {
 ///         _slf: *mut ::pyo3::ffi::PyObject,
 ///     ) -> ::pyo3::PyResult<*mut ::pyo3::ffi::PyObject> {
 ///         let function = Number::increment;
-/// #       #[allow(clippy::let_unit_value)]
-///         let mut holder_0 = ::pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT;
+///         let mut guard = ::pyo3::impl_::extract_argument::extract_pyclass_guard_mut::<Number>(
+///             unsafe { ::pyo3::impl_::extract_argument::cast_function_argument(py, _slf) }
+///         )?;
 ///         let result = {
-///             let ret = function(::pyo3::impl_::extract_argument::extract_pyclass_ref_mut::<Number>(
-///                 unsafe { ::pyo3::impl_::extract_argument::cast_function_argument(py, _slf) },
-///                 &mut holder_0,
-///             )?);
+///             let ret = function(&mut *guard);
 ///             {
 ///                 let result = {
 ///                     let obj = ret;
