@@ -43,36 +43,6 @@ impl<T> TypeResolver<T> {
     }
 }
 
-pub fn extract_argument<'a, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
-    _: TypeResolver<T>,
-    obj: Borrowed<'a, 'py, PyAny>,
-    arg_name: &str,
-) -> PyResult<T::Holder>
-where
-    T: PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>,
-{
-    match <T as PyFunctionArgument<IMPLEMENTS_FROMPYOBJECT>>::extract(obj) {
-        Ok(holder) => Ok(holder),
-        Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e.into())),
-    }
-}
-
-pub fn extract_argument_with_default<'a, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
-    resolver: TypeResolver<T>,
-    obj: Option<Borrowed<'a, 'py, PyAny>>,
-    default: fn() -> T,
-    arg_name: &str,
-) -> PyResult<<T::Holder as PyFunctionArgumentHolder<T>>::DefaultHolder>
-where
-    T: PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>,
-    T::Holder: PyFunctionArgumentHolder<T>,
-{
-    match obj {
-        Some(obj) => extract_argument(resolver, obj, arg_name).map(T::Holder::holder_for_extracted),
-        None => Ok(T::Holder::holder_for_default(default())),
-    }
-}
-
 pub struct SimpleHolder<T>(T);
 
 impl<T> PyFunctionArgumentHolder<T> for SimpleHolder<T> {
@@ -463,7 +433,7 @@ pub fn extract_pyclass_guard_mut<'a, T: PyClass<Frozen = False>>(
 }
 
 // The following methods exist to make error messages nicer; avoids the Deref message
-// being sent in compiler output and instead repeats the trait bound on T
+// being sent in compiler output when the pyclass is not mutable
 
 #[inline]
 pub fn pyclass_guard_to_ref<'a, T: PyClass>(guard: &'a PyClassGuard<'_, T>) -> &'a T {
@@ -477,36 +447,37 @@ pub fn pyclass_guard_to_ref_mut<'a, T: PyClass<Frozen = False>>(
     &mut *guard
 }
 
-// /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
-// pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
-//     obj: Borrowed<'a, 'py, PyAny>,
-//     holder: &'holder mut T::Holder,
-//     arg_name: &str,
-// ) -> PyResult<T>
-// where
-//     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
-// {
-//     match PyFunctionArgument::extract(obj, holder) {
-//         Ok(value) => Ok(value),
-//         Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e.into())),
-//     }
-// }
+/// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
+pub fn extract_argument<'a, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+    _: TypeResolver<T>,
+    obj: Borrowed<'a, 'py, PyAny>,
+    arg_name: &str,
+) -> PyResult<T::Holder>
+where
+    T: PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>,
+{
+    match <T as PyFunctionArgument<IMPLEMENTS_FROMPYOBJECT>>::extract(obj) {
+        Ok(holder) => Ok(holder),
+        Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e.into())),
+    }
+}
 
-// /// Alternative to [`extract_argument`] used when the argument has a default value provided by an annotation.
-// pub fn extract_argument_with_default<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
-//     obj: Option<Borrowed<'a, 'py, PyAny>>,
-//     holder: &'holder mut T::Holder,
-//     arg_name: &str,
-//     default: fn() -> T,
-// ) -> PyResult<T>
-// where
-//     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
-// {
-//     match obj {
-//         Some(obj) => extract_argument(obj, holder, arg_name),
-//         None => Ok(default()),
-//     }
-// }
+/// Alternative to [`extract_argument`] used when the argument has a default value provided by an annotation.
+pub fn extract_argument_with_default<'a, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+    resolver: TypeResolver<T>,
+    obj: Option<Borrowed<'a, 'py, PyAny>>,
+    default: fn() -> T,
+    arg_name: &str,
+) -> PyResult<<T::Holder as PyFunctionArgumentHolder<T>>::DefaultHolder>
+where
+    T: PyFunctionArgument<'a, 'py, IMPLEMENTS_FROMPYOBJECT>,
+    T::Holder: PyFunctionArgumentHolder<T>,
+{
+    match obj {
+        Some(obj) => extract_argument(resolver, obj, arg_name).map(T::Holder::holder_for_extracted),
+        None => Ok(T::Holder::holder_for_default(default())),
+    }
+}
 
 /// Alternative to [`extract_argument`] used when the argument has a `#[pyo3(from_py_with)]` annotation.
 pub fn from_py_with<'a, 'py, T>(
