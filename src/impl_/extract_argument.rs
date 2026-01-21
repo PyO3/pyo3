@@ -396,20 +396,6 @@ impl<'a, 'py> PyFunctionArgument<'a, 'py, false> for &'_ str {
     }
 }
 
-/// Trait for types which can be a function argument holder - they should
-/// to be able to const-initialize to an empty value.
-pub trait FunctionArgumentHolder: Sized {
-    const INIT: Self;
-}
-
-impl FunctionArgumentHolder for () {
-    const INIT: Self = ();
-}
-
-impl<T> FunctionArgumentHolder for Option<T> {
-    const INIT: Self = None;
-}
-
 impl<'a, T: PyClass> PyFunctionArgument<'a, '_, false> for &'_ T {
     type Holder = PyClassGuard<'a, T>;
     type Error = PyErr;

@@ -513,10 +513,14 @@ pub fn type_inferred_fncall<'a>(
     let extractions = args.clone().map(|p| &p.extract);
     let call_args = args.map(|p| &p.arg);
 
+    // unused_imports if the function takes no arguments so no holders to unpack
+    // unreachable_code because the if false block is for type inference only
+
     FnCall {
         setup: quote! {
+            #[allow(unused_imports)]
             use #pyo3_path::impl_::extract_argument::unpack_traits::*;
-            #[expect(unreachable_code)]
+            #[allow(unreachable_code)]
             if false {
                 let _ = #function(#(#resolve_args),*);
             }
@@ -583,23 +587,47 @@ fn impl_call_setter(
     spec: &FnSpec<'_>,
     self_type: &SelfType,
     holders: &mut Holders,
-    param: Param,
     ctx: &Ctx,
 ) -> syn::Result<FnCall> {
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
     let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders, ctx);
 
-    if args.is_empty() {
-        bail_spanned!(spec.name.span() => "setter function expected to have one argument");
-    } else if args.len() > 1 {
-        bail_spanned!(
-            args[1].ty().span() =>
+    let arg = match args {
+        [] => bail_spanned!(spec.name.span() => "setter function expected to have one argument"),
+        [arg] => arg,
+        [_, additional_arg, ..] => bail_spanned!(
+            additional_arg.ty().span() =>
             "setter function can have at most two arguments ([pyo3::Python,] and value)"
+        ),
+    };
+
+    let arg = if let FnArg::Regular(arg) = &arg {
+        arg
+    } else {
+        bail_spanned!(arg.name().span() => "The #[setter] value argument can't be *args, **kwargs or `cancel_handle`.");
+    };
+
+    let from_py_with_ident = if let Some(from_py_with) = arg.from_py_with.as_ref().map(|f| &f.value)
+    {
+        let ident = syn::Ident::new("from_py_with", from_py_with.span());
+        holders.push_expression(
+            ident.clone(),
+            quote_spanned! { from_py_with.span() => #from_py_with },
         );
-    }
+        ident
+    } else {
+        syn::Ident::new("dummy", Span::call_site())
+    };
 
     let name = &spec.name;
     let py_arg = py_arg.map(|_| Param::arg_expr(quote! { py }));
+    let param = impl_regular_arg_param(
+        arg,
+        from_py_with_ident,
+        quote!(::std::option::Option::Some(_value)),
+        holders,
+        ctx,
+    );
 
     Ok(type_inferred_fncall(
         quote!(#cls::#name),
@@ -638,37 +666,10 @@ pub fn impl_py_setter_def(
         }
     };
 
-    let param = match &property_type {
-        PropertyType::Function { spec, .. } => {
-            let (_, args) = split_off_python_arg(&spec.signature.arguments);
-            let value_arg = &args[0];
-            let from_py_with_ident =
-                if let Some(from_py_with) = &value_arg.from_py_with().as_ref().map(|f| &f.value) {
-                    let ident = syn::Ident::new("from_py_with", from_py_with.span());
-                    holders.push_expression(
-                        ident.clone(),
-                        quote_spanned! { from_py_with.span() => #from_py_with },
-                    );
-                    ident
-                } else {
-                    syn::Ident::new("dummy", Span::call_site())
-                };
-
-            let arg = if let FnArg::Regular(arg) = &value_arg {
-                arg
-            } else {
-                bail_spanned!(value_arg.name().span() => "The #[setter] value argument can't be *args, **kwargs or `cancel_handle`.");
-            };
-
-            impl_regular_arg_param(
-                arg,
-                from_py_with_ident,
-                quote!(::std::option::Option::Some(_value)),
-                &mut holders,
-                ctx,
-            )
-        }
-        PropertyType::Descriptor { field, .. } => {
+    let (set_function, FnCall { setup, call }) = match property_type {
+        PropertyType::Descriptor {
+            field_index, field, ..
+        } => {
             let span = field.ty.span();
             let name = field
                 .ident
@@ -676,24 +677,9 @@ pub fn impl_py_setter_def(
                 .map(|i| i.to_string())
                 .unwrap_or_default();
 
-            let extractor = holders.push_extractor(span);
-            let holder = holders.push_holder(span);
-            Param::via_extractor(
-                &extractor,
-                &holder,
-                quote! { #pyo3_path::impl_::extract_argument::extract_argument(#extractor, _value.into(), #name)? },
-            )
-        }
-    };
-
-    let (set_function, FnCall { setup, call }) = match property_type {
-        PropertyType::Descriptor {
-            field_index, field, ..
-        } => {
             // build a dummy function via a closure which is used to populate the field value,
             // this allows us to keep the assigment consistent with the function call machinery
             // used elsewhere in the code
-
             let field = if let Some(ident) = &field.ident {
                 // named struct field
                 quote!(#ident)
@@ -715,6 +701,14 @@ pub fn impl_py_setter_def(
             }
             .receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
 
+            let extractor = holders.push_extractor(span);
+            let holder = holders.push_holder(span);
+            let param = Param::via_extractor(
+                &extractor,
+                &holder,
+                quote! { #pyo3_path::impl_::extract_argument::extract_argument(#extractor, _value.into(), #name)? },
+            );
+
             (
                 Some(set_function),
                 type_inferred_fncall(quote!(do_set), [slf, param].iter(), ctx),
@@ -724,7 +718,7 @@ pub fn impl_py_setter_def(
             spec, self_type, ..
         } => (
             None,
-            impl_call_setter(cls, spec, self_type, &mut holders, param, ctx)?,
+            impl_call_setter(cls, spec, self_type, &mut holders, ctx)?,
         ),
     };
 

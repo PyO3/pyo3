@@ -239,6 +239,7 @@ fn impl_arg_param(
 ) -> Param {
     let Ctx { pyo3_path, .. } = ctx;
     let args_array = Ident::new("output", Span::call_site());
+    let arg_span = Span::call_site().located_at(arg.ty().span());
 
     match arg {
         FnArg::Regular(arg) => {
@@ -250,26 +251,25 @@ fn impl_arg_param(
         FnArg::VarArgs(arg) => {
             let name_str = arg.name.to_string();
 
-            let extractor = holders.push_extractor(arg.name.span());
-            let holder = holders.push_holder(arg.name.span());
+            let extractor = holders.push_extractor(arg_span);
+            let holder = holders.push_holder(arg_span);
 
             Param::via_extractor(
                 &extractor,
                 &holder,
-                quote_spanned! { arg.name.span() =>
+                quote_spanned! { arg_span =>
                     #pyo3_path::impl_::extract_argument::extract_argument(#extractor, _args.as_any().as_borrowed(), #name_str)?
                 },
             )
         }
         FnArg::KwArgs(arg) => {
-            // let holder = holders.push_holder(arg.name.span());
             let name_str = arg.name.to_string();
-            let extractor = holders.push_extractor(arg.name.span());
-            let holder = holders.push_holder(arg.name.span());
+            let extractor = holders.push_extractor(arg_span);
+            let holder = holders.push_holder(arg_span);
             Param::via_extractor(
                 &extractor,
                 &holder,
-                quote_spanned! { arg.name.span() =>
+                quote_spanned! { arg_span =>
                     #pyo3_path::impl_::extract_argument::extract_argument_with_default(
                         #extractor,
                         _kwargs.as_ref().map(|d| d.as_any().as_borrowed()),
@@ -283,25 +283,6 @@ fn impl_arg_param(
         FnArg::CancelHandle(..) => Param::arg_expr(quote! { __cancel_handle }),
     }
 }
-
-// pub fn extract_argument(
-//     span: Span,
-//     input: TokenStream,
-//     extract_error_mode: ExtractErrorMode,
-//     holders: &mut Holders,
-//     ctx: &Ctx,
-// ) -> Param {
-//     Param::via_extractor(
-//         &extractor,
-//         &holder,
-//         extract_error_mode.handle_error(
-//             quote_spanned! { span =>
-//                 type_extractor.extract(#input)
-//             },
-//             ctx,
-//         ),
-//     )
-// }
 
 /// Re option_pos: The option slice doesn't contain the py: Python argument, so the argument
 /// index and the index in option diverge when using py: Python
