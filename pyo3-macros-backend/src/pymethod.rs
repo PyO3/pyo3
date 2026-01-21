@@ -1233,7 +1233,7 @@ fn extract_object(
 
         Param::arg_expr(extract_error_mode.handle_error(extract, ctx))
     } else {
-        let extractor = &&holders.push_extractor(Span::call_site());
+        let extractor = holders.push_extractor(Span::call_site());
         let holder = holders.push_holder(Span::call_site());
         let unwrap = quote! {
             unsafe { #pyo3_path::impl_::extract_argument::#cast_method(py, #source_ptr) }

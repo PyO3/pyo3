@@ -353,8 +353,8 @@ where
 }
 
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
-impl<'a, 'py> PyFunctionArgument<'a, 'py, false> for &'_ str {
-    type Holder = DerefHolder<std::borrow::Cow<'a, str>>;
+impl<'a, 'py> PyFunctionArgument<'a, 'py, false> for &'a str {
+    type Holder = std::borrow::Cow<'a, str>;
     type Error = <std::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
@@ -362,7 +362,29 @@ impl<'a, 'py> PyFunctionArgument<'a, 'py, false> for &'_ str {
 
     #[inline]
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self::Holder> {
-        Ok(DerefHolder(obj.extract()?))
+        Ok(obj.extract()?)
+    }
+}
+
+#[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
+impl<'a> PyFunctionArgumentHolder<&'a str> for std::borrow::Cow<'a, str> {
+    type DefaultHolder = Self;
+
+    fn holder_for_default(value: &'a str) -> Self::DefaultHolder {
+        Self::Borrowed(value)
+    }
+
+    fn holder_for_extracted(value: Self) -> Self::DefaultHolder {
+        value
+    }
+}
+
+#[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
+impl<'a> UnpackRef<'a> for std::borrow::Cow<'_, str> {
+    type Output = &'a str;
+
+    fn unpack(&'a self) -> Self::Output {
+        self.as_ref()
     }
 }
 
@@ -520,8 +542,8 @@ pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -
     }
 }
 
-/// Unwraps the Option<Borrowed<PyAny>> produced by the FunctionDescription `extract_arguments_` methods.
-/// They check if required methods are all provided.
+/// Unwraps the `Option<Borrowed<PyAny>>` produced by the `FunctionDescription::extract_arguments_*` methods.
+/// They check if required arguments are all provided.
 ///
 /// # Safety
 /// `argument` must not be `None`

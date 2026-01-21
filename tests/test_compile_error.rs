@@ -19,6 +19,9 @@ fn test_compile_errors() {
     #[cfg(Py_3_9)]
     t.compile_fail("tests/ui/pyclass_generic_enum.rs");
     #[cfg(not(feature = "experimental-inspect"))]
+    // the hint for available function arguments includes &'a str on builds
+    // where &'a str does not implmement `FromPyObject`
+    #[cfg(not(all(Py_LIMITED_API, not(Py_3_10))))]
     t.compile_fail("tests/ui/invalid_pyfunction_argument.rs");
     t.compile_fail("tests/ui/invalid_pyfunction_definition.rs");
     t.compile_fail("tests/ui/invalid_pyfunction_signatures.rs");
