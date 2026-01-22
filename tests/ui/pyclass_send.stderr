@@ -5,7 +5,11 @@ error[E0277]: `*mut c_void` cannot be sent between threads safely
   | ^^^^^^^^^^ `*mut c_void` cannot be sent between threads safely
   |
   = help: within `NotSyncNotSend`, the trait `Send` is not implemented for `*mut c_void`
-  = help: the trait `pyo3::impl_::pyclass::PyClassThreadChecker<T>` is implemented for `SendablePyClass<T>`
+help: the trait `pyo3::impl_::pyclass::PyClassThreadChecker<T>` is implemented for `SendablePyClass<T>`
+ --> src/impl_/pyclass.rs
+  |
+  | impl<T: Send> PyClassThreadChecker<T> for SendablePyClass<T> {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: required because it appears within the type `NotSyncNotSend`
  --> tests/ui/pyclass_send.rs:5:8
   |
@@ -26,7 +30,11 @@ error[E0277]: `*mut c_void` cannot be sent between threads safely
    | ^^^^^^^^^^ `*mut c_void` cannot be sent between threads safely
    |
    = help: within `SyncNotSend`, the trait `Send` is not implemented for `*mut c_void`
-   = help: the trait `pyo3::impl_::pyclass::PyClassThreadChecker<T>` is implemented for `SendablePyClass<T>`
+help: the trait `pyo3::impl_::pyclass::PyClassThreadChecker<T>` is implemented for `SendablePyClass<T>`
+  --> src/impl_/pyclass.rs
+   |
+   | impl<T: Send> PyClassThreadChecker<T> for SendablePyClass<T> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: required because it appears within the type `SyncNotSend`
   --> tests/ui/pyclass_send.rs:12:8
    |
