@@ -55,7 +55,8 @@ extern "C" {
 #[repr(C)]
 pub struct PyModuleDef_Base {
     pub ob_base: PyObject,
-    pub m_init: *mut PyObject,
+    // Rust function pointers are non-null so an Option is needed here.
+    pub m_init: Option<extern "C" fn() -> *mut PyObject>,
     pub m_index: Py_ssize_t,
     pub m_copy: *mut PyObject,
 }
@@ -66,7 +67,7 @@ pub struct PyModuleDef_Base {
 )]
 pub const PyModuleDef_HEAD_INIT: PyModuleDef_Base = PyModuleDef_Base {
     ob_base: PyObject_HEAD_INIT,
-    m_init: std::ptr::null_mut(),
+    m_init: None,
     m_index: 0,
     m_copy: std::ptr::null_mut(),
 };
@@ -155,6 +156,7 @@ pub struct PyModuleDef {
     pub m_size: Py_ssize_t,
     pub m_methods: *mut PyMethodDef,
     pub m_slots: *mut PyModuleDef_Slot,
+    // Rust function pointers are non-null so an Option is needed here.
     pub m_traverse: Option<traverseproc>,
     pub m_clear: Option<inquiry>,
     pub m_free: Option<freefunc>,
