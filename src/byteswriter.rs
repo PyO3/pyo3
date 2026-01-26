@@ -22,7 +22,7 @@ use std::{
 pub struct PyBytesWriter<'py> {
     python: Python<'py>,
     #[cfg(not(Py_LIMITED_API))]
-    writer: NonNull<ffi::PyBytesWriter>,
+    writer: NonNull<ffi::compat::PyBytesWriter>,
     #[cfg(Py_LIMITED_API)]
     buffer: Vec<u8>,
 }

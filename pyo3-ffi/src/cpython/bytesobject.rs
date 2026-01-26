@@ -35,6 +35,7 @@ pub unsafe fn PyBytes_AS_STRING(op: *mut PyObject) -> *const c_char {
     return crate::PyBytes_AsString(op);
 }
 
+#[cfg(Py_3_15)]
 opaque_struct!(pub PyBytesWriter);
 
 #[cfg(Py_3_15)]

@@ -1,3 +1,6 @@
+#[cfg(all(Py_3_15, not(Py_LIMITED_API)))]
+pub use crate::PyBytesWriter;
+
 #[cfg(not(Py_LIMITED_API))]
 compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
@@ -5,14 +8,14 @@ compat_function!(
     #[inline]
     pub unsafe fn PyBytesWriter_Create(
         size: crate::Py_ssize_t,
-    ) -> *mut crate::PyBytesWriter {
+    ) -> *mut PyBytesWriter {
 
         if size < 0 {
             crate::PyErr_SetString(crate::PyExc_ValueError, c"size must be >= 0".as_ptr() as *const _);
             return std::ptr::null_mut();
         }
 
-        let writer: *mut _PyBytesWriter = crate::PyMem_Malloc(std::mem::size_of::<_PyBytesWriter>()).cast();
+        let writer: *mut PyBytesWriter = crate::PyMem_Malloc(std::mem::size_of::<PyBytesWriter>()).cast();
         if writer.is_null() {
             crate::PyErr_NoMemory();
             return std::ptr::null_mut();
@@ -23,14 +26,14 @@ compat_function!(
 
         if size >=1 {
             if _PyBytesWriter_Resize_impl(writer, size, 0) < 0 {
-                PyBytesWriter_Discard(writer.cast());
+                PyBytesWriter_Discard(writer);
                 return std::ptr::null_mut();
             }
 
             (*writer).size = size;
         }
 
-        writer.cast()
+        writer
     }
 );
 
@@ -39,8 +42,7 @@ compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
-    pub unsafe fn PyBytesWriter_Discard(writer: *mut crate::PyBytesWriter) -> () {
-        let writer: *mut _PyBytesWriter = writer.cast();
+    pub unsafe fn PyBytesWriter_Discard(writer: *mut PyBytesWriter) -> () {
         if writer.is_null() {
             return;
         }
@@ -55,9 +57,8 @@ compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
-    pub unsafe fn PyBytesWriter_Finish(writer: *mut crate::PyBytesWriter) -> *mut crate::PyObject {
-        let writer: *mut _PyBytesWriter = writer.cast();
-        PyBytesWriter_FinishWithSize(writer.cast(), (*writer).size)
+    pub unsafe fn PyBytesWriter_Finish(writer: *mut PyBytesWriter) -> *mut crate::PyObject {
+        PyBytesWriter_FinishWithSize(writer, (*writer).size)
     }
 );
 
@@ -66,21 +67,20 @@ compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
-    pub unsafe fn PyBytesWriter_FinishWithSize(writer: *mut crate::PyBytesWriter, size: crate::Py_ssize_t) -> *mut crate::PyObject {
-        let writer: *mut _PyBytesWriter = writer.cast();
+    pub unsafe fn PyBytesWriter_FinishWithSize(writer: *mut PyBytesWriter, size: crate::Py_ssize_t) -> *mut crate::PyObject {
         let result = if size == 0 {
             crate::PyBytes_FromStringAndSize(c"".as_ptr(), 0)
         } else if (*writer).obj.is_null() {
             crate::PyBytes_FromStringAndSize((*writer).small_buffer.as_ptr(), size)
         } else {
             if size != crate::PyBytes_Size((*writer).obj) && crate::_PyBytes_Resize(&mut (*writer).obj, size) < 0 {
-                    PyBytesWriter_Discard(writer.cast());
+                    PyBytesWriter_Discard(writer);
                     return std::ptr::null_mut();
             }
             std::mem::replace(&mut (*writer).obj, std::ptr::null_mut())
         };
 
-        PyBytesWriter_Discard(writer.cast());
+        PyBytesWriter_Discard(writer);
         result
     }
 );
@@ -90,8 +90,7 @@ compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
-    pub unsafe fn PyBytesWriter_GetData(writer: *mut crate::PyBytesWriter) -> *mut std::ffi::c_void {
-        let writer: *mut _PyBytesWriter = writer.cast();
+    pub unsafe fn PyBytesWriter_GetData(writer: *mut PyBytesWriter) -> *mut std::ffi::c_void {
         if (*writer).obj.is_null() {
             (*writer).small_buffer.as_ptr() as *mut _
         } else {
@@ -105,8 +104,7 @@ compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
-    pub unsafe fn PyBytesWriter_GetSize(writer: *mut crate::PyBytesWriter) -> crate::Py_ssize_t {
-        let writer: *mut _PyBytesWriter = writer.cast();
+    pub unsafe fn PyBytesWriter_GetSize(writer: *mut PyBytesWriter) -> crate::Py_ssize_t {
         (*writer).size
     }
 );
@@ -116,8 +114,7 @@ compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
-    pub unsafe fn PyBytesWriter_Resize(writer: *mut crate::PyBytesWriter, size: crate::Py_ssize_t) -> std::ffi::c_int {
-        let writer: *mut _PyBytesWriter = writer.cast();
+    pub unsafe fn PyBytesWriter_Resize(writer: *mut PyBytesWriter, size: crate::Py_ssize_t) -> std::ffi::c_int {
         if size < 0 {
             crate::PyErr_SetString(crate::PyExc_ValueError, c"size must be >= 0".as_ptr());
             return -1;
@@ -132,7 +129,7 @@ compat_function!(
 
 #[repr(C)]
 #[cfg(not(any(Py_3_15, Py_LIMITED_API)))]
-struct _PyBytesWriter {
+pub struct PyBytesWriter {
     small_buffer: [std::ffi::c_char; 256],
     obj: *mut crate::PyObject,
     size: crate::Py_ssize_t,
@@ -141,7 +138,7 @@ struct _PyBytesWriter {
 #[inline]
 #[cfg(not(any(Py_3_15, Py_LIMITED_API)))]
 unsafe fn _PyBytesWriter_Resize_impl(
-    writer: *mut _PyBytesWriter,
+    writer: *mut PyBytesWriter,
     mut size: crate::Py_ssize_t,
     resize: std::ffi::c_int,
 ) -> std::ffi::c_int {
