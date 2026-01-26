@@ -140,7 +140,7 @@ The macro **must** be invoked _before_ initializing Python.
 
 As an example, the below adds the module `foo` to the embedded interpreter:
 
-```rust
+```rust,no_run
 use pyo3::prelude::*;
 
 #[pymodule]
