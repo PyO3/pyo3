@@ -740,4 +740,7 @@ extern "C" {
 
     #[cfg(Py_3_14)]
     pub fn PyType_Freeze(tp: *mut crate::PyTypeObject) -> c_int;
+
+    #[cfg(Py_3_15)]
+    pub fn PyType_GetModuleByToken(_type: *mut PyTypeObject, token: *const c_void);
 }
