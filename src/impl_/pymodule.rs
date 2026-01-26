@@ -43,7 +43,8 @@ pub struct ModuleDef {
     name: &'static CStr,
     #[cfg(Py_3_15)]
     doc: &'static CStr,
-    slots: Option<&'static PyModuleSlots>,
+    #[cfg(Py_3_15)]
+    slots: &'static PyModuleSlots,
     /// Interpreter ID where module was initialized (not applicable on PyPy).
     #[cfg(all(
         not(any(PyPy, GraalPy)),
@@ -97,8 +98,6 @@ impl ModuleDef {
             doc,
             #[cfg(Py_3_15)]
             slots: Some(slots),
-            #[cfg(not(Py_3_15))]
-            slots: None,
             // -1 is never expected to be a valid interpreter ID
             #[cfg(all(
                 not(any(PyPy, GraalPy)),
@@ -222,11 +221,11 @@ impl ModuleDef {
     pub fn get_slots(&'static self) -> *mut ffi::PyModuleDef_Slot {
         #[cfg(Py_3_15)]
         {
-            self.slots.unwrap().0.get() as *mut ffi::PyModuleDef_Slot
+            self.slots.0.get() as *mut ffi::PyModuleDef_Slot
         }
         #[cfg(not(Py_3_15))]
         {
-            unsafe { *self.ffi_def.get() }.m_slots
+            unsafe { (*self.ffi_def.get()).m_slots }
         }
     }
 }
@@ -315,8 +314,6 @@ impl PyModuleSlotsBuilder {
 
         #[cfg(not(Py_3_15))]
         {
-            // Silence unused variable warning
-            let _ = abi_info;
             self
         }
     }
@@ -491,7 +488,7 @@ mod tests {
         {
             assert_eq!(module_def.name, NAME);
             assert_eq!(module_def.doc, DOC);
-            assert_eq!(module_def.slots.unwrap().0.get(), SLOTS.0.get());
+            assert_eq!(module_def.slots.0.get(), SLOTS.0.get());
         }
     }
 
