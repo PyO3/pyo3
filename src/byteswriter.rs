@@ -44,8 +44,10 @@ impl<'py> PyBytesWriter<'py> {
                 || Err(PyErr::fetch(py)),
                 |writer| {
                     let mut writer = PyBytesWriter { python: py, writer };
-                    // SAFETY: By setting the length to 0, we ensure no bytes are considered uninitialized.
-                    unsafe { writer.set_len(0)? };
+                    if capacity > 0 {
+                        // SAFETY: By setting the length to 0, we ensure no bytes are considered uninitialized.
+                        unsafe { writer.set_len(0)? };
+                    }
                     Ok(writer)
                 },
             )
