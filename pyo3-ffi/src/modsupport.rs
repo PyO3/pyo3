@@ -172,7 +172,7 @@ pub const PyABIInfo_FREETHREADING_AGNOSTIC: u16 = PyABIInfo_GIL | PyABIInfo_FREE
 
 #[cfg(Py_3_15)]
 extern "C" {
-    pub fn PyABIInfo_Check(info: *mut PyABIInfo, module_name: *const c_char);
+    pub fn PyABIInfo_Check(info: *mut PyABIInfo, module_name: *const c_char) -> c_int;
 }
 
 #[cfg(all(Py_LIMITED_API, Py_3_15))]
