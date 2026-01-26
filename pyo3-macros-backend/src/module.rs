@@ -531,7 +531,7 @@ fn module_initialization(
                 #pyo3_path::impl_::trampoline::module_exec(module, #module_exec)
             }
 
-            static SLOTS: impl_::PyModuleSlots<4> = impl_::PyModuleSlotsBuilder::new()
+            static SLOTS: impl_::PyModuleSlots = impl_::PyModuleSlotsBuilder::new()
                 .with_mod_exec(__pyo3_module_exec)
                 .with_gil_used(#gil_used)
                 .build();
