@@ -1,7 +1,7 @@
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
-use crate::{ffi, PyTypeInfo};
+use crate::PyTypeInfo;
 use crate::{PyAny, PyResult};
 
 /// Represents a Python `super` object.
@@ -11,9 +11,24 @@ use crate::{PyAny, PyResult};
 #[repr(transparent)]
 pub struct PySuper(PyAny);
 
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 pyobject_native_type_core!(
     PySuper,
-    pyobject_native_static_type_object!(ffi::PySuper_Type),
+    pyobject_native_static_type_object!(crate::ffi::PySuper_Type),
+    "builtins",
+    "super"
+);
+
+#[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
+pyobject_native_type_core!(
+    PySuper,
+    |py| {
+        use crate::sync::PyOnceLock;
+        use crate::types::{PyType, PyTypeMethods};
+        use crate::Py;
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "super").unwrap().as_type_ptr()
+    },
     "builtins",
     "super"
 );

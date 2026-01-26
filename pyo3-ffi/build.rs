@@ -54,7 +54,18 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 interpreter_config.version,
                 versions.min,
             );
-            if interpreter_config.version > versions.max {
+            let v_plus_1 = PythonVersion {
+                major: versions.max.major,
+                minor: versions.max.minor + 1,
+            };
+            if interpreter_config.version == v_plus_1 {
+                warn!(
+                    "Using experimental support for the Python {}.{} ABI. \
+                     Build artifacts may not be compatible with the final release of CPython, \
+                     so do not distribute them.",
+                    v_plus_1.major, v_plus_1.minor,
+                );
+            } else if interpreter_config.version > v_plus_1 {
                 let mut error = MaximumVersionExceeded::new(interpreter_config, versions.max);
                 if interpreter_config.is_free_threaded() {
                     error.add_help(

@@ -8,6 +8,7 @@ publish = false
 rust-version = "1.83"
 
 [features]
+experimental-async = ["pyo3/experimental-async"]
 experimental-inspect = ["pyo3/experimental-inspect"]
 
 [dependencies]

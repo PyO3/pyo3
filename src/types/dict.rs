@@ -16,6 +16,7 @@ use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 
+#[cfg(not(GraalPy))]
 pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
 
 pyobject_native_type!(
@@ -359,7 +360,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
 
         #[cfg(not(feature = "nightly"))]
         {
-            crate::sync::with_critical_section(self, || {
+            crate::sync::critical_section::with_critical_section(self, || {
                 self.iter().try_for_each(|(key, value)| f(key, value))
             })
         }
@@ -498,7 +499,9 @@ impl DictIterImpl {
         F: FnOnce(&mut Self) -> R,
     {
         match self {
-            Self::DictIter { .. } => crate::sync::with_critical_section(dict, || f(self)),
+            Self::DictIter { .. } => {
+                crate::sync::critical_section::with_critical_section(dict, || f(self))
+            }
         }
     }
 }

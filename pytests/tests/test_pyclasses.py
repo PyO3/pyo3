@@ -151,6 +151,15 @@ def test_setter(benchmark):
     benchmark(set_attr)
 
 
+def test_deleter():
+    obj = pyclasses.ClassWithDecorators()
+    del obj.attr
+    with pytest.raises(AttributeError):
+        _ = obj.attr
+    obj.attr = 42
+    assert obj.attr == 42
+
+
 def test_class_attribute(benchmark):
     cls = pyclasses.ClassWithDecorators
     benchmark(lambda: cls.cls_attribute)
@@ -164,3 +173,16 @@ def test_class_method(benchmark):
 def test_static_method(benchmark):
     cls = pyclasses.ClassWithDecorators
     benchmark(lambda: cls.static_method())
+
+
+def test_class_init_method():
+    try:
+        SubClassWithInit = pyclasses.SubClassWithInit
+    except AttributeError:
+        pytest.skip("not defined using abi3")
+
+    d = SubClassWithInit()
+    assert d == {"__init__": True}
+
+    d = SubClassWithInit({"a": 1}, b=2)
+    assert d == {"__init__": True, "a": 1, "b": 2}

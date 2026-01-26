@@ -3,6 +3,7 @@
 To get started using PyO3 you will need three things: a Rust toolchain, a Python environment, and a way to build.
 We'll cover each of these below.
 
+> [!TIP]
 > If you'd like to chat to the PyO3 maintainers and other PyO3 users, consider joining the [PyO3 Discord server](https://discord.gg/33kcChzH7f). We're keen to hear about your experience getting started, so we can make PyO3 as accessible as possible for everyone!
 
 ## Rust
@@ -138,7 +139,7 @@ name = "pyo3_example"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { {{#PYO3_CRATE_VERSION}}, features = ["extension-module"] }
+pyo3 = {{#PYO3_CRATE_VERSION}}
 ```
 
 ## pyproject.toml
@@ -147,7 +148,7 @@ You should also create a `pyproject.toml` with the following contents:
 
 ```toml
 [build-system]
-requires = ["maturin>=1,<2"]
+requires = ["maturin>=1.9.4,<2"]
 build-backend = "maturin"
 
 [project]

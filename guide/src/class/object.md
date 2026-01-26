@@ -181,7 +181,8 @@ This option also requires `eq`: According to the [Python docs](https://docs.pyth
 struct Number(i32);
 ```
 
-> **Note**: When implementing `__hash__` and comparisons, it is important that the following property holds:
+> [!NOTE]
+> When implementing `__hash__` and comparisons, it is important that the following property holds:
 >
 > ```text
 > k1 == k2 -> hash(k1) == hash(k2)

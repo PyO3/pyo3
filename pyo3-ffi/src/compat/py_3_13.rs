@@ -119,3 +119,14 @@ compat_function!(
         result
     }
 );
+
+#[cfg(not(Py_LIMITED_API))]
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyThreadState_GetUnchecked(
+    ) -> *mut crate::PyThreadState {
+        crate::_PyThreadState_UncheckedGet()
+    }
+);

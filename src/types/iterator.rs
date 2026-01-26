@@ -1,7 +1,8 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
+#[cfg(Py_LIMITED_API)]
+use crate::types::PyAnyMethods;
 use crate::types::{PyType, PyTypeMethods};
 use crate::{ffi, Bound, Py, PyAny, PyErr, PyResult};
 
@@ -103,36 +104,48 @@ impl<'py> Iterator for Bound<'py, PyIterator> {
     /// If an exception occurs, returns `Some(Err(..))`.
     /// Further `next()` calls after an exception occurs are likely
     /// to repeatedly result in the same exception.
-    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        Borrowed::from(&*self).next()
+        let py = self.py();
+        let mut item = std::ptr::null_mut();
+
+        // SAFETY: `self` is a valid iterator object, `item` is a valid pointer to receive the next item
+        match unsafe { ffi::compat::PyIter_NextItem(self.as_ptr(), &mut item) } {
+            std::ffi::c_int::MIN..=-1 => Some(Err(PyErr::fetch(py))),
+            0 => None,
+            // SAFETY: `item` is guaranteed to be a non-null strong reference
+            1..=std::ffi::c_int::MAX => Some(Ok(unsafe { item.assume_owned_unchecked(py) })),
+        }
     }
 
-    #[cfg(not(Py_LIMITED_API))]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        // SAFETY: `self` is a valid iterator object
-        let hint = unsafe { ffi::PyObject_LengthHint(self.as_ptr(), 0) };
-        if hint < 0 {
-            let py = self.py();
-            PyErr::fetch(py).write_unraisable(py, Some(self));
-            (0, None)
-        } else {
-            (hint as usize, None)
+        match length_hint(self) {
+            Ok(hint) => (hint, None),
+            Err(e) => {
+                e.write_unraisable(self.py(), Some(self));
+                (0, None)
+            }
         }
     }
 }
 
-impl<'py> Borrowed<'_, 'py, PyIterator> {
-    // TODO: this method is on Borrowed so that &'py PyIterator can use this; once that
-    // implementation is deleted this method should be moved to the `Bound<'py, PyIterator> impl
-    fn next(self) -> Option<PyResult<Bound<'py, PyAny>>> {
-        let py = self.py();
-
-        match unsafe { ffi::PyIter_Next(self.as_ptr()).assume_owned_or_opt(py) } {
-            Some(obj) => Some(Ok(obj)),
-            None => PyErr::take(py).map(Err),
-        }
+#[cfg(not(Py_LIMITED_API))]
+fn length_hint(iter: &Bound<'_, PyIterator>) -> PyResult<usize> {
+    // SAFETY: `iter` is a valid iterator object
+    let hint = unsafe { ffi::PyObject_LengthHint(iter.as_ptr(), 0) };
+    if hint < 0 {
+        Err(PyErr::fetch(iter.py()))
+    } else {
+        Ok(hint as usize)
     }
+}
+
+/// On the limited API, we cannot use `PyObject_LengthHint`, so we fall back to calling
+/// `operator.length_hint()`, which is documented equivalent to calling `PyObject_LengthHint`.
+#[cfg(Py_LIMITED_API)]
+fn length_hint(iter: &Bound<'_, PyIterator>) -> PyResult<usize> {
+    static LENGTH_HINT: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+    let length_hint = LENGTH_HINT.import(iter.py(), "operator", "length_hint")?;
+    length_hint.call1((iter, 0))?.extract()
 }
 
 impl<'py> IntoIterator for &Bound<'py, PyIterator> {
@@ -153,7 +166,7 @@ mod tests {
     #[cfg(all(not(PyPy), Py_3_10))]
     use crate::types::PyNone;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
-    #[cfg(all(feature = "macros", Py_3_8, not(Py_LIMITED_API)))]
+    #[cfg(all(feature = "macros", Py_3_8))]
     use crate::PyErr;
     use crate::{IntoPyObject, PyTypeInfo, Python};
 
@@ -362,7 +375,7 @@ def fibonacci(target):
 
             assert_eq!(
                 downcaster.borrow_mut(py).failed.take().unwrap().to_string(),
-                "TypeError: 'MySequence' object cannot be cast as 'Iterator'"
+                "TypeError: 'MySequence' object is not an instance of 'Iterator'"
             );
         });
     }
@@ -393,7 +406,6 @@ def fibonacci(target):
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
     fn length_hint_becomes_size_hint_lower_bound() {
         Python::attach(|py| {
             let list = py.eval(c"[1, 2, 3]", None, None).unwrap();
@@ -404,7 +416,7 @@ def fibonacci(target):
     }
 
     #[test]
-    #[cfg(all(feature = "macros", Py_3_8, not(Py_LIMITED_API)))]
+    #[cfg(all(feature = "macros", Py_3_8))]
     fn length_hint_error() {
         #[crate::pyfunction(crate = "crate")]
         fn test_size_hint(obj: &crate::Bound<'_, crate::PyAny>, should_error: bool) {

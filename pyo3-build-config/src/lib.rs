@@ -49,7 +49,7 @@ pub fn use_pyo3_cfgs() {
     }
 }
 
-/// Adds linker arguments suitable for PyO3's `extension-module` feature.
+/// Adds linker arguments suitable for linking an extension module.
 ///
 /// This should be called from a build script.
 ///
@@ -70,6 +70,44 @@ fn _add_extension_module_link_args(triple: &Triple, mut writer: impl std::io::Wr
     } else if triple == &Triple::from_str("wasm32-unknown-emscripten").unwrap() {
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-sSIDE_MODULE=2").unwrap();
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-sWASM_BIGINT").unwrap();
+    }
+}
+
+/// Adds linker arguments to set rpath when embedding Python within a Rust binary.
+///
+/// When running tests or binaries built with PyO3, the Python dynamic library needs
+/// to be found at runtime.
+///
+/// This can be done by setting environment variables like `DYLD_LIBRARY_PATH` on macOS,
+/// `LD_LIBRARY_PATH` on Linux, or `PATH` on Windows.
+///
+/// Altrnatively (as per this function) rpath can be set at link time to point to the
+/// directory containing the Python dynamic library. This avoids the need to set environment
+/// variables, so can be convenient, however may not be appropriate for binaries packaged
+/// for distribution.
+///
+#[doc = concat!("[See PyO3's guide](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution#dynamically-embedding-the-python-interpreter)")]
+/// for more details.
+#[cfg(feature = "resolve-config")]
+pub fn add_libpython_rpath_link_args() {
+    let target = impl_::target_triple_from_env();
+    _add_libpython_rpath_link_args(
+        get(),
+        impl_::is_linking_libpython_for_target(&target),
+        std::io::stdout(),
+    )
+}
+
+#[cfg(feature = "resolve-config")]
+fn _add_libpython_rpath_link_args(
+    interpreter_config: &InterpreterConfig,
+    is_linking_libpython: bool,
+    mut writer: impl std::io::Write,
+) {
+    if is_linking_libpython {
+        if let Some(lib_dir) = interpreter_config.lib_dir.as_ref() {
+            writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}").unwrap();
+        }
     }
 }
 

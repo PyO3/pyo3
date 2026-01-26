@@ -1,6 +1,6 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Function, Module, PythonIdentifier, TypeHint,
-    TypeHintExpr, VariableLengthArgument,
+    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator, TypeHint,
+    VariableLengthArgument,
 };
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use goblin::elf::section_header::SHN_XINDEX;
@@ -13,6 +13,7 @@ use goblin::Object;
 use serde::de::value::MapAccessDeserializer;
 use serde::de::{Error, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::Path;
@@ -54,6 +55,11 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
         } = chunk
         {
             if name == main_module_name {
+                let type_hint_for_annotation_id = introspection_id_to_type_hint_for_root_module(
+                    chunk,
+                    &chunks_by_id,
+                    &chunks_by_parent,
+                );
                 return convert_module(
                     id,
                     name,
@@ -61,6 +67,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
                     *incomplete,
                     &chunks_by_id,
                     &chunks_by_parent,
+                    &type_hint_for_annotation_id,
                 );
             }
         }
@@ -72,17 +79,29 @@ fn convert_module(
     id: &str,
     name: &str,
     members: &[String],
-    incomplete: bool,
+    mut incomplete: bool,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Result<Module> {
+    let mut member_chunks = chunks_by_parent
+        .get(&id)
+        .into_iter()
+        .flatten()
+        .copied()
+        .collect::<Vec<_>>();
+    for member in members {
+        if let Some(c) = chunks_by_id.get(member.as_str()) {
+            member_chunks.push(*c);
+        } else {
+            incomplete = true; // We don't find an element
+        }
+    }
     let (modules, classes, functions, attributes) = convert_members(
-        members
-            .iter()
-            .filter_map(|id| chunks_by_id.get(id.as_str()).copied())
-            .chain(chunks_by_parent.get(&id).into_iter().flatten().copied()),
+        member_chunks,
         chunks_by_id,
         chunks_by_parent,
+        type_hint_for_annotation_id,
     )?;
 
     Ok(Module {
@@ -102,6 +121,7 @@ fn convert_members<'a>(
     chunks: impl IntoIterator<Item = &'a Chunk>,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Result<Members> {
     let mut modules = Vec::new();
     let mut classes = Vec::new();
@@ -122,18 +142,22 @@ fn convert_members<'a>(
                     *incomplete,
                     chunks_by_id,
                     chunks_by_parent,
+                    type_hint_for_annotation_id,
                 )?);
             }
             Chunk::Class {
                 name,
                 id,
+                bases,
                 decorators,
             } => classes.push(convert_class(
                 id,
                 name,
+                bases,
                 decorators,
                 chunks_by_id,
                 chunks_by_parent,
+                type_hint_for_annotation_id,
             )?),
             Chunk::Function {
                 name,
@@ -141,15 +165,28 @@ fn convert_members<'a>(
                 arguments,
                 parent: _,
                 decorators,
+                is_async,
                 returns,
-            } => functions.push(convert_function(name, arguments, decorators, returns)?),
+            } => functions.push(convert_function(
+                name,
+                arguments,
+                decorators,
+                returns,
+                *is_async,
+                type_hint_for_annotation_id,
+            )),
             Chunk::Attribute {
                 name,
                 id: _,
                 parent: _,
                 value,
                 annotation,
-            } => attributes.push(convert_attribute(name, value, annotation)),
+            } => attributes.push(convert_attribute(
+                name,
+                value,
+                annotation,
+                type_hint_for_annotation_id,
+            )),
         }
     }
     // We sort elements to get a stable output
@@ -157,25 +194,22 @@ fn convert_members<'a>(
     classes.sort_by(|l, r| l.name.cmp(&r.name));
     functions.sort_by(|l, r| match l.name.cmp(&r.name) {
         Ordering::Equal => {
-            // We put the getter before the setter. For that, we put @property before the other ones
-            if l.decorators
-                .iter()
-                .any(|d| d.name == "property" && d.module.as_deref() == Some("builtins"))
-            {
-                Ordering::Less
-            } else if r
-                .decorators
-                .iter()
-                .any(|d| d.name == "property" && d.module.as_deref() == Some("builtins"))
-            {
-                Ordering::Greater
-            } else {
-                // We pick an ordering based on decorators
-                l.decorators
-                    .iter()
-                    .map(|d| &d.name)
-                    .cmp(r.decorators.iter().map(|d| &d.name))
+            fn decorator_expr_key(expr: &Expr) -> (u32, Cow<'_, str>) {
+                // We put plain names before attributes for @property to be before @foo.property
+                match expr {
+                    Expr::Name { id, .. } => (0, Cow::Borrowed(id)),
+                    Expr::Attribute { value, attr } => {
+                        let (c, v) = decorator_expr_key(value);
+                        (c + 1, Cow::Owned(format!("{v}.{attr}")))
+                    }
+                    _ => (0, Cow::Borrowed("")), // We don't care
+                }
             }
+            // We pick an ordering based on decorators
+            l.decorators
+                .iter()
+                .map(decorator_expr_key)
+                .cmp(r.decorators.iter().map(decorator_expr_key))
         }
         o => o,
     });
@@ -186,14 +220,17 @@ fn convert_members<'a>(
 fn convert_class(
     id: &str,
     name: &str,
-    decorators: &[ChunkTypeHint],
+    bases: &[ChunkExpr],
+    decorators: &[ChunkExpr],
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Result<Class> {
     let (nested_modules, nested_classes, methods, attributes) = convert_members(
         chunks_by_parent.get(&id).into_iter().flatten().copied(),
         chunks_by_id,
         chunks_by_parent,
+        type_hint_for_annotation_id,
     )?;
     ensure!(
         nested_modules.is_empty(),
@@ -205,72 +242,89 @@ fn convert_class(
     );
     Ok(Class {
         name: name.into(),
+        bases: bases
+            .iter()
+            .map(|e| convert_expr(e, type_hint_for_annotation_id))
+            .collect(),
         methods,
         attributes,
         decorators: decorators
             .iter()
-            .map(convert_decorator)
-            .collect::<Result<_>>()?,
+            .map(|e| convert_expr(e, type_hint_for_annotation_id))
+            .collect(),
     })
-}
-
-fn convert_decorator(decorator: &ChunkTypeHint) -> Result<PythonIdentifier> {
-    match convert_type_hint(decorator) {
-        TypeHint::Plain(id) => Ok(PythonIdentifier {
-            module: None,
-            name: id.clone(),
-        }),
-        TypeHint::Ast(expr) => {
-            if let TypeHintExpr::Identifier(i) = expr {
-                Ok(i)
-            } else {
-                bail!("PyO3 introspection currently only support decorators that are identifiers of a Python function")
-            }
-        }
-    }
 }
 
 fn convert_function(
     name: &str,
     arguments: &ChunkArguments,
-    decorators: &[ChunkTypeHint],
+    decorators: &[ChunkExpr],
     returns: &Option<ChunkTypeHint>,
-) -> Result<Function> {
-    Ok(Function {
+    is_async: bool,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
+) -> Function {
+    Function {
         name: name.into(),
         decorators: decorators
             .iter()
-            .map(convert_decorator)
-            .collect::<Result<_>>()?,
+            .map(|e| convert_expr(e, type_hint_for_annotation_id))
+            .collect(),
         arguments: Arguments {
-            positional_only_arguments: arguments.posonlyargs.iter().map(convert_argument).collect(),
-            arguments: arguments.args.iter().map(convert_argument).collect(),
+            positional_only_arguments: arguments
+                .posonlyargs
+                .iter()
+                .map(|a| convert_argument(a, type_hint_for_annotation_id))
+                .collect(),
+            arguments: arguments
+                .args
+                .iter()
+                .map(|a| convert_argument(a, type_hint_for_annotation_id))
+                .collect(),
             vararg: arguments
                 .vararg
                 .as_ref()
-                .map(convert_variable_length_argument),
-            keyword_only_arguments: arguments.kwonlyargs.iter().map(convert_argument).collect(),
+                .map(|a| convert_variable_length_argument(a, type_hint_for_annotation_id)),
+            keyword_only_arguments: arguments
+                .kwonlyargs
+                .iter()
+                .map(|e| convert_argument(e, type_hint_for_annotation_id))
+                .collect(),
             kwarg: arguments
                 .kwarg
                 .as_ref()
-                .map(convert_variable_length_argument),
+                .map(|a| convert_variable_length_argument(a, type_hint_for_annotation_id)),
         },
-        returns: returns.as_ref().map(convert_type_hint),
-    })
-}
-
-fn convert_argument(arg: &ChunkArgument) -> Argument {
-    Argument {
-        name: arg.name.clone(),
-        default_value: arg.default.clone(),
-        annotation: arg.annotation.as_ref().map(convert_type_hint),
+        returns: returns
+            .as_ref()
+            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
+        is_async,
     }
 }
 
-fn convert_variable_length_argument(arg: &ChunkArgument) -> VariableLengthArgument {
+fn convert_argument(
+    arg: &ChunkArgument,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
+) -> Argument {
+    Argument {
+        name: arg.name.clone(),
+        default_value: arg.default.clone(),
+        annotation: arg
+            .annotation
+            .as_ref()
+            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
+    }
+}
+
+fn convert_variable_length_argument(
+    arg: &ChunkArgument,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
+) -> VariableLengthArgument {
     VariableLengthArgument {
         name: arg.name.clone(),
-        annotation: arg.annotation.as_ref().map(convert_type_hint),
+        annotation: arg
+            .annotation
+            .as_ref()
+            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
     }
 }
 
@@ -278,46 +332,149 @@ fn convert_attribute(
     name: &str,
     value: &Option<String>,
     annotation: &Option<ChunkTypeHint>,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Attribute {
     Attribute {
         name: name.into(),
         value: value.clone(),
-        annotation: annotation.as_ref().map(convert_type_hint),
+        annotation: annotation
+            .as_ref()
+            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
     }
 }
 
-fn convert_type_hint(arg: &ChunkTypeHint) -> TypeHint {
+fn convert_type_hint(
+    arg: &ChunkTypeHint,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
+) -> TypeHint {
     match arg {
-        ChunkTypeHint::Ast(expr) => TypeHint::Ast(convert_type_hint_expr(expr)),
+        ChunkTypeHint::Ast(expr) => TypeHint::Ast(convert_expr(expr, type_hint_for_annotation_id)),
         ChunkTypeHint::Plain(t) => TypeHint::Plain(t.clone()),
     }
 }
 
-fn convert_type_hint_expr(expr: &ChunkTypeHintExpr) -> TypeHintExpr {
+fn convert_expr(expr: &ChunkExpr, type_hint_for_annotation_id: &HashMap<String, Expr>) -> Expr {
     match expr {
-        ChunkTypeHintExpr::Local { id } => PythonIdentifier {
-            module: None,
-            name: id.clone(),
-        }
-        .into(),
-        ChunkTypeHintExpr::Builtin { id } => PythonIdentifier {
-            module: Some("builtins".into()),
-            name: id.clone(),
-        }
-        .into(),
-        ChunkTypeHintExpr::Attribute { module, attr } => PythonIdentifier {
-            module: Some(module.clone()),
-            name: attr.clone(),
-        }
-        .into(),
-        ChunkTypeHintExpr::Union { elts } => {
-            TypeHintExpr::Union(elts.iter().map(convert_type_hint_expr).collect())
-        }
-        ChunkTypeHintExpr::Subscript { value, slice } => TypeHintExpr::Subscript {
-            value: Box::new(convert_type_hint_expr(value)),
-            slice: slice.iter().map(convert_type_hint_expr).collect(),
+        ChunkExpr::Name { id } => Expr::Name { id: id.clone() },
+        ChunkExpr::Attribute { value, attr } => Expr::Attribute {
+            value: Box::new(convert_expr(value, type_hint_for_annotation_id)),
+            attr: attr.clone(),
         },
+        ChunkExpr::BinOp { left, op, right } => Expr::BinOp {
+            left: Box::new(convert_expr(left, type_hint_for_annotation_id)),
+            op: match op {
+                ChunkOperator::BitOr => Operator::BitOr,
+            },
+            right: Box::new(convert_expr(right, type_hint_for_annotation_id)),
+        },
+        ChunkExpr::Subscript { value, slice } => Expr::Subscript {
+            value: Box::new(convert_expr(value, type_hint_for_annotation_id)),
+            slice: Box::new(convert_expr(slice, type_hint_for_annotation_id)),
+        },
+        ChunkExpr::Tuple { elts } => Expr::Tuple {
+            elts: elts
+                .iter()
+                .map(|e| convert_expr(e, type_hint_for_annotation_id))
+                .collect(),
+        },
+        ChunkExpr::List { elts } => Expr::List {
+            elts: elts
+                .iter()
+                .map(|e| convert_expr(e, type_hint_for_annotation_id))
+                .collect(),
+        },
+        ChunkExpr::Constant { value } => Expr::Constant {
+            value: match value {
+                ChunkConstant::None => Constant::None,
+            },
+        },
+        ChunkExpr::Id { id } => {
+            if let Some(expr) = type_hint_for_annotation_id.get(id) {
+                expr.clone()
+            } else {
+                // This is a pyclass not exposed, we fallback to Any
+                Expr::Attribute {
+                    value: Box::new(Expr::Name {
+                        id: "typing".into(),
+                    }),
+                    attr: "Any".to_string(),
+                }
+            }
+        }
     }
+}
+
+/// Returns the type hint for each class introspection id defined in the module and its submodule
+fn introspection_id_to_type_hint_for_root_module(
+    module_chunk: &Chunk,
+    chunks_by_id: &HashMap<&str, &Chunk>,
+    chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+) -> HashMap<String, Expr> {
+    fn add_introspection_id_to_type_hint_for_module(
+        module_id: &str,
+        module_full_name: &str,
+        module_members: &[String],
+        chunks_by_id: &HashMap<&str, &Chunk>,
+        chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+        output: &mut HashMap<String, Expr>,
+    ) {
+        for member in chunks_by_parent
+            .get(&module_id)
+            .into_iter()
+            .flatten()
+            .chain(
+                module_members
+                    .iter()
+                    .filter_map(|id| chunks_by_id.get(id.as_str())),
+            )
+            .copied()
+            .collect::<Vec<_>>()
+        {
+            match member {
+                Chunk::Module {
+                    name, id, members, ..
+                } => {
+                    add_introspection_id_to_type_hint_for_module(
+                        id,
+                        &format!("{}.{}", module_full_name, name),
+                        members,
+                        chunks_by_id,
+                        chunks_by_parent,
+                        output,
+                    );
+                }
+                Chunk::Class { id, name, .. } => {
+                    output.insert(
+                        id.clone(),
+                        Expr::Attribute {
+                            value: Box::new(Expr::Name {
+                                id: module_full_name.into(),
+                            }),
+                            attr: name.clone(),
+                        },
+                    );
+                }
+                _ => (),
+            }
+        }
+    }
+
+    let mut output = HashMap::new();
+    let Chunk::Module {
+        id, name, members, ..
+    } = module_chunk
+    else {
+        unreachable!("The chunk must be a module")
+    };
+    add_introspection_id_to_type_hint_for_module(
+        id,
+        name,
+        members,
+        chunks_by_id,
+        chunks_by_parent,
+        &mut output,
+    );
+    output
 }
 
 fn find_introspection_chunks_in_binary_object(path: &Path) -> Result<Vec<Chunk>> {
@@ -437,7 +594,7 @@ fn deserialize_chunk(
         })?;
     serde_json::from_slice(chunk).with_context(|| {
         format!(
-            "Failed to parse introspection chunk: '{}'",
+            "Failed to parse introspection chunk: {:?}",
             String::from_utf8_lossy(chunk)
         )
     })
@@ -462,7 +619,9 @@ enum Chunk {
         id: String,
         name: String,
         #[serde(default)]
-        decorators: Vec<ChunkTypeHint>,
+        bases: Vec<ChunkExpr>,
+        #[serde(default)]
+        decorators: Vec<ChunkExpr>,
     },
     Function {
         #[serde(default)]
@@ -472,9 +631,11 @@ enum Chunk {
         #[serde(default)]
         parent: Option<String>,
         #[serde(default)]
-        decorators: Vec<ChunkTypeHint>,
+        decorators: Vec<ChunkExpr>,
         #[serde(default)]
         returns: Option<ChunkTypeHint>,
+        #[serde(default, rename = "async")]
+        is_async: bool,
     },
     Attribute {
         #[serde(default)]
@@ -516,7 +677,7 @@ struct ChunkArgument {
 ///
 /// We keep separated type to allow them to evolve independently (this type will need to handle backward compatibility).
 enum ChunkTypeHint {
-    Ast(ChunkTypeHintExpr),
+    Ast(ChunkExpr),
     Plain(String),
 }
 
@@ -561,22 +722,40 @@ impl<'de> Deserialize<'de> for ChunkTypeHint {
 
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
-enum ChunkTypeHintExpr {
-    Local {
-        id: String,
+enum ChunkExpr {
+    /// A constant like `None` or `123`
+    Constant {
+        #[serde(flatten)]
+        value: ChunkConstant,
     },
-    Builtin {
-        id: String,
+    /// A name
+    Name { id: String },
+    /// An attribute `value.attr`
+    Attribute { value: Box<Self>, attr: String },
+    /// A binary operator
+    BinOp {
+        left: Box<Self>,
+        op: ChunkOperator,
+        right: Box<Self>,
     },
-    Attribute {
-        module: String,
-        attr: String,
-    },
-    Union {
-        elts: Vec<ChunkTypeHintExpr>,
-    },
-    Subscript {
-        value: Box<ChunkTypeHintExpr>,
-        slice: Vec<ChunkTypeHintExpr>,
-    },
+    /// A tuple
+    Tuple { elts: Vec<Self> },
+    /// A list
+    List { elts: Vec<Self> },
+    /// A subscript `value[slice]`
+    Subscript { value: Box<Self>, slice: Box<Self> },
+    /// An introspection id
+    Id { id: String },
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum ChunkConstant {
+    None,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ChunkOperator {
+    BitOr,
 }

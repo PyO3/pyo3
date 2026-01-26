@@ -15,7 +15,7 @@ use crate::{
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
     panic::PanicException,
     types::{string::PyStringMethods, PyIterator, PyString},
-    Bound, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
+    Bound, Py, PyAny, PyErr, PyResult, Python,
 };
 
 pub(crate) mod cancel;
@@ -47,27 +47,20 @@ impl Coroutine {
     /// (should always be `None` anyway).
     ///
     /// `Coroutine `throw` drop the wrapped future and reraise the exception passed
-    pub(crate) fn new<'py, F, T, E>(
+    pub(crate) fn new<'py, F>(
         name: Option<Bound<'py, PyString>>,
         qualname_prefix: Option<&'static str>,
         throw_callback: Option<ThrowCallback>,
         future: F,
     ) -> Self
     where
-        F: Future<Output = Result<T, E>> + Send + 'static,
-        T: IntoPyObject<'py>,
-        E: Into<PyErr>,
+        F: Future<Output = Result<Py<PyAny>, PyErr>> + Send + 'static,
     {
-        let wrap = async move {
-            let obj = future.await.map_err(Into::into)?;
-            // SAFETY: attached when future is polled (see `Coroutine::poll`)
-            obj.into_py_any(unsafe { Python::assume_attached() })
-        };
         Self {
             name: name.map(Bound::unbind),
             qualname_prefix,
             throw_callback,
-            future: Some(Box::pin(wrap)),
+            future: Some(Box::pin(future)),
             waker: None,
         }
     }

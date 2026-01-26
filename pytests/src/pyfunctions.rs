@@ -88,6 +88,10 @@ fn with_custom_type_annotations<'py>(
     a
 }
 
+#[cfg(feature = "experimental-async")]
+#[pyfunction]
+async fn with_async() {}
+
 #[expect(clippy::too_many_arguments)]
 #[pyfunction(
     signature = (
@@ -136,6 +140,9 @@ fn many_keyword_arguments<'py>(
 
 #[pymodule]
 pub mod pyfunctions {
+    #[cfg(feature = "experimental-async")]
+    #[pymodule_export]
+    use super::with_async;
     #[cfg(feature = "experimental-inspect")]
     #[pymodule_export]
     use super::with_custom_type_annotations;

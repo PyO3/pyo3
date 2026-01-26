@@ -1,5 +1,7 @@
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::{type_hint_identifier, type_hint_union, PyStaticExpr};
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python};
@@ -9,6 +11,12 @@ use std::path::{Path, PathBuf};
 
 impl FromPyObject<'_, '_> for PathBuf {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = type_hint_union!(
+        OsString::INPUT_TYPE,
+        type_hint_identifier!("os", "PathLike")
+    );
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         // We use os.fspath to get the underlying path as bytes or str
@@ -21,6 +29,9 @@ impl<'py> IntoPyObject<'py> for &Path {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("pathlib", "Path");
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -36,6 +47,9 @@ impl<'py> IntoPyObject<'py> for &&Path {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = <&Path>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
@@ -46,6 +60,9 @@ impl<'py> IntoPyObject<'py> for Cow<'_, Path> {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = <&Path>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -58,6 +75,9 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, Path> {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = <&Path>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (&**self).into_pyobject(py)
@@ -66,6 +86,9 @@ impl<'py> IntoPyObject<'py> for &Cow<'_, Path> {
 
 impl<'a> FromPyObject<'a, '_> for Cow<'a, Path> {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = PathBuf::INPUT_TYPE;
 
     fn extract(obj: Borrowed<'a, '_, PyAny>) -> Result<Self, Self::Error> {
         #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -82,6 +105,9 @@ impl<'py> IntoPyObject<'py> for PathBuf {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = <&Path>::OUTPUT_TYPE;
+
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (&self).into_pyobject(py)
@@ -92,6 +118,9 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = <&Path>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -106,21 +135,19 @@ mod tests {
         types::{PyAnyMethods, PyString},
         IntoPyObjectExt,
     };
+    #[cfg(not(target_os = "wasi"))]
     use std::ffi::OsStr;
     use std::fmt::Debug;
-    #[cfg(unix)]
+    #[cfg(any(unix, target_os = "emscripten"))]
     use std::os::unix::ffi::OsStringExt;
     #[cfg(windows)]
     use std::os::windows::ffi::OsStringExt;
 
     #[test]
-    #[cfg(not(windows))]
+    #[cfg(any(unix, target_os = "emscripten"))]
     fn test_non_utf8_conversion() {
         Python::attach(|py| {
-            #[cfg(not(target_os = "wasi"))]
             use std::os::unix::ffi::OsStrExt;
-            #[cfg(target_os = "wasi")]
-            use std::os::wasi::ffi::OsStrExt;
 
             // this is not valid UTF-8
             let payload = &[250, 251, 252, 253, 254, 255, 0, 255];
@@ -190,11 +217,11 @@ mod tests {
                 OsString::from_wide(&['A' as u16, 0xD800, 'B' as u16])
             };
 
-            #[cfg(unix)]
+            #[cfg(any(unix, target_os = "emscripten"))]
             let os_str = { OsString::from_vec(vec![250, 251, 252, 253, 254, 255, 0, 255]) };
 
             // This cannot be borrowed because it is not valid UTF-8
-            #[cfg(any(unix, windows))]
+            #[cfg(any(unix, windows, target_os = "emscripten"))]
             test_extract::<OsStr>(py, &os_str, false);
         });
     }

@@ -7,10 +7,7 @@ pub use self::bytes::{PyBytes, PyBytesMethods};
 pub use self::capsule::{CapsuleName, PyCapsule, PyCapsuleMethods};
 pub use self::code::{PyCode, PyCodeInput, PyCodeMethods};
 pub use self::complex::{PyComplex, PyComplexMethods};
-#[allow(deprecated)]
-pub use self::datetime::{
-    timezone_utc, PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess,
-};
+pub use self::datetime::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
@@ -39,7 +36,6 @@ pub use self::mutex::{PyMutex, PyMutexGuard};
 pub use self::none::PyNone;
 pub use self::notimplemented::PyNotImplemented;
 pub use self::num::PyInt;
-#[cfg(not(any(PyPy, GraalPy)))]
 pub use self::pysuper::PySuper;
 pub use self::range::{PyRange, PyRangeMethods};
 pub use self::sequence::{PySequence, PySequenceMethods};
@@ -153,7 +149,7 @@ macro_rules! pyobject_type_info_type_hint(
 #[macro_export]
 macro_rules! pyobject_type_info_type_hint(
     ($module:expr, $name:expr) => {
-        const TYPE_HINT: $crate::inspect::TypeHint = $crate::inspect::TypeHint::module_attr($module, $name);
+        const TYPE_HINT: $crate::inspect::PyStaticExpr = $crate::type_hint_identifier!($module, $name);
     };
 );
 
@@ -209,6 +205,9 @@ macro_rules! pyobject_native_type_core {
         $crate::pyobject_native_type_named!($name $(;$generics)*);
         $crate::pyobject_native_type_info!($name, $typeobject, $type_hint_module, $type_hint_name, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
+    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+        $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=$module $(, #checkfunction=$checkfunction)? $(;$generics)*);
+    };
     ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
@@ -224,6 +223,16 @@ macro_rules! pyobject_subclassable_native_type {
             type BaseNativeType = $name;
             type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
             type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
+            type Layout<T: $crate::impl_::pyclass::PyClassImpl> = $crate::impl_::pycell::PyStaticClassObject<T>;
+        }
+
+        #[cfg(all(Py_3_12, Py_LIMITED_API))]
+        impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
+            type LayoutAsBase = $crate::impl_::pycell::PyVariableClassObjectBase;
+            type BaseNativeType = Self;
+            type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+            type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
+            type Layout<T: $crate::impl_::pyclass::PyClassImpl> = $crate::impl_::pycell::PyVariableClassObject<T>;
         }
     }
 }
@@ -278,7 +287,6 @@ mod mutex;
 mod none;
 mod notimplemented;
 mod num;
-#[cfg(not(any(PyPy, GraalPy)))]
 mod pysuper;
 pub(crate) mod range;
 pub(crate) mod sequence;

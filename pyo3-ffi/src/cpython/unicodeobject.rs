@@ -686,6 +686,26 @@ extern "C" {
     // skipped PyUnicode_GetMax
 }
 
+#[cfg(Py_3_14)]
+opaque_struct!(pub PyUnicodeWriter);
+
+extern "C" {
+    #[cfg(Py_3_14)]
+    pub fn PyUnicodeWriter_Create(length: Py_ssize_t) -> *mut PyUnicodeWriter;
+    #[cfg(Py_3_14)]
+    pub fn PyUnicodeWriter_Finish(writer: *mut PyUnicodeWriter) -> *mut PyObject;
+    #[cfg(Py_3_14)]
+    pub fn PyUnicodeWriter_Discard(writer: *mut PyUnicodeWriter);
+    #[cfg(Py_3_14)]
+    pub fn PyUnicodeWriter_WriteChar(writer: *mut PyUnicodeWriter, ch: Py_UCS4) -> c_int;
+    #[cfg(Py_3_14)]
+    pub fn PyUnicodeWriter_WriteUTF8(
+        writer: *mut PyUnicodeWriter,
+        str: *const c_char,
+        size: Py_ssize_t,
+    ) -> c_int;
+}
+
 // skipped _PyUnicodeWriter
 // skipped _PyUnicodeWriter_Init
 // skipped _PyUnicodeWriter_Prepare

@@ -12,8 +12,8 @@
 use crate::{
     internal::state::SuspendAttach,
     sealed::Sealed,
-    types::{any::PyAnyMethods, PyAny, PyString},
-    Bound, Py, PyResult, PyTypeCheck, Python,
+    types::{PyAny, PyString},
+    Bound, Py, Python,
 };
 use std::{
     cell::UnsafeCell,
@@ -22,125 +22,39 @@ use std::{
     sync::{Once, OnceState},
 };
 
+pub mod critical_section;
 pub(crate) mod once_lock;
 
-#[cfg(not(Py_GIL_DISABLED))]
-use crate::PyVisit;
+/// Deprecated alias for [`pyo3::sync::critical_section::with_critical_section`][crate::sync::critical_section::with_critical_section]
+#[deprecated(
+    since = "0.28.0",
+    note = "use pyo3::sync::critical_section::with_critical_section instead"
+)]
+pub fn with_critical_section<F, R>(object: &Bound<'_, PyAny>, f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    crate::sync::critical_section::with_critical_section(object, f)
+}
 
+/// Deprecated alias for [`pyo3::sync::critical_section::with_critical_section2`][crate::sync::critical_section::with_critical_section2]
+#[deprecated(
+    since = "0.28.0",
+    note = "use pyo3::sync::critical_section::with_critical_section2 instead"
+)]
+pub fn with_critical_section2<F, R>(a: &Bound<'_, PyAny>, b: &Bound<'_, PyAny>, f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    crate::sync::critical_section::with_critical_section2(a, b, f)
+}
 pub use self::once_lock::PyOnceLock;
 
-/// Value with concurrent access protected by the GIL.
-///
-/// This is a synchronization primitive based on Python's global interpreter lock (GIL).
-/// It ensures that only one thread at a time can access the inner value via shared references.
-/// It can be combined with interior mutability to obtain mutable references.
-///
-/// This type is not defined for extensions built against the free-threaded CPython ABI.
-///
-/// # Example
-///
-/// Combining `GILProtected` with `RefCell` enables mutable access to static data:
-///
-/// ```
-/// # #![allow(deprecated)]
-/// # use pyo3::prelude::*;
-/// use pyo3::sync::GILProtected;
-/// use std::cell::RefCell;
-///
-/// static NUMBERS: GILProtected<RefCell<Vec<i32>>> = GILProtected::new(RefCell::new(Vec::new()));
-///
-/// Python::attach(|py| {
-///     NUMBERS.get(py).borrow_mut().push(42);
-/// });
-/// ```
 #[deprecated(
     since = "0.26.0",
-    note = "Prefer an interior mutability primitive compatible with free-threaded Python, such as `Mutex` in combination with the `MutexExt` trait"
+    note = "Now internal only, to be removed after https://github.com/PyO3/pyo3/pull/5341"
 )]
-#[cfg(not(Py_GIL_DISABLED))]
-pub struct GILProtected<T> {
-    value: T,
-}
-
-#[allow(deprecated)]
-#[cfg(not(Py_GIL_DISABLED))]
-impl<T> GILProtected<T> {
-    /// Place the given value under the protection of the GIL.
-    pub const fn new(value: T) -> Self {
-        Self { value }
-    }
-
-    /// Gain access to the inner value by giving proof of having acquired the GIL.
-    pub fn get<'py>(&'py self, _py: Python<'py>) -> &'py T {
-        &self.value
-    }
-
-    /// Gain access to the inner value by giving proof that garbage collection is happening.
-    pub fn traverse<'py>(&'py self, _visit: PyVisit<'py>) -> &'py T {
-        &self.value
-    }
-}
-
-#[allow(deprecated)]
-#[cfg(not(Py_GIL_DISABLED))]
-unsafe impl<T> Sync for GILProtected<T> where T: Send {}
-
-/// A write-once primitive similar to [`std::sync::OnceLock<T>`].
-///
-/// Unlike `OnceLock<T>` which blocks threads to achieve thread safety, `GilOnceCell<T>`
-/// allows calls to [`get_or_init`][GILOnceCell::get_or_init] and
-/// [`get_or_try_init`][GILOnceCell::get_or_try_init] to race to create an initialized value.
-/// (It is still guaranteed that only one thread will ever write to the cell.)
-///
-/// On Python versions that run with the Global Interpreter Lock (GIL), this helps to avoid
-/// deadlocks between initialization and the GIL. For an example of such a deadlock, see
-#[doc = concat!(
-    "[the FAQ section](https://pyo3.rs/v",
-    env!("CARGO_PKG_VERSION"),
-    "/faq.html#im-experiencing-deadlocks-using-pyo3-with-stdsynconcelock-stdsynclazylock-lazy_static-and-once_cell)"
-)]
-/// of the guide.
-///
-/// Note that because the GIL blocks concurrent execution, in practice the means that
-/// [`get_or_init`][GILOnceCell::get_or_init] and
-/// [`get_or_try_init`][GILOnceCell::get_or_try_init] may race if the initialization
-/// function leads to the GIL being released and a thread context switch. This can
-/// happen when importing or calling any Python code, as long as it releases the
-/// GIL at some point. On free-threaded Python without any GIL, the race is
-/// more likely since there is no GIL to prevent races. In the future, PyO3 may change
-/// the semantics of GILOnceCell to behave more like the GIL build in the future.
-///
-/// # Re-entrant initialization
-///
-/// [`get_or_init`][GILOnceCell::get_or_init] and
-/// [`get_or_try_init`][GILOnceCell::get_or_try_init] do not protect against infinite recursion
-/// from reentrant initialization.
-///
-/// # Examples
-///
-/// The following example shows how to use `GILOnceCell` to share a reference to a Python list
-/// between threads:
-///
-/// ```
-/// #![allow(deprecated)]
-/// use pyo3::sync::GILOnceCell;
-/// use pyo3::prelude::*;
-/// use pyo3::types::PyList;
-///
-/// static LIST_CELL: GILOnceCell<Py<PyList>> = GILOnceCell::new();
-///
-/// pub fn get_shared_list(py: Python<'_>) -> &Bound<'_, PyList> {
-///     LIST_CELL
-///         .get_or_init(py, || PyList::empty(py).unbind())
-///         .bind(py)
-/// }
-/// # Python::attach(|py| assert_eq!(get_shared_list(py).len(), 0));
-/// ```
-#[deprecated(
-    since = "0.26.0",
-    note = "Prefer `pyo3::sync::PyOnceLock`, which avoids the possibility of racing during initialization."
-)]
-pub struct GILOnceCell<T> {
+pub(crate) struct GILOnceCell<T> {
     once: Once,
     data: UnsafeCell<MaybeUninit<T>>,
 
@@ -205,24 +119,6 @@ impl<T> GILOnceCell<T> {
         }
     }
 
-    /// Get a reference to the contained value, initializing it if needed using the provided
-    /// closure.
-    ///
-    /// See the type-level documentation for detail on re-entrancy and concurrent initialization.
-    #[inline]
-    pub fn get_or_init<F>(&self, py: Python<'_>, f: F) -> &T
-    where
-        F: FnOnce() -> T,
-    {
-        if let Some(value) = self.get(py) {
-            return value;
-        }
-
-        // .unwrap() will never panic because the result is always Ok
-        self.init(py, || Ok::<T, std::convert::Infallible>(f()))
-            .unwrap()
-    }
-
     /// Like `get_or_init`, but accepts a fallible initialization function. If it fails, the cell
     /// is left uninitialized.
     ///
@@ -257,17 +153,6 @@ impl<T> GILOnceCell<T> {
         Ok(self.get(py).unwrap())
     }
 
-    /// Get the contents of the cell mutably. This is only possible if the reference to the cell is
-    /// unique.
-    pub fn get_mut(&mut self) -> Option<&mut T> {
-        if self.once.is_completed() {
-            // SAFETY: the cell has been written.
-            Some(unsafe { (*self.data.get()).assume_init_mut() })
-        } else {
-            None
-        }
-    }
-
     /// Set the value in the cell.
     ///
     /// If the cell has already been written, `Err(value)` will be returned containing the new
@@ -291,98 +176,6 @@ impl<T> GILOnceCell<T> {
             Some(value) => Err(value),
             None => Ok(()),
         }
-    }
-
-    /// Takes the value out of the cell, moving it back to an uninitialized state.
-    ///
-    /// Has no effect and returns None if the cell has not yet been written.
-    pub fn take(&mut self) -> Option<T> {
-        if self.once.is_completed() {
-            // Reset the cell to its default state so that it won't try to
-            // drop the value again.
-            self.once = Once::new();
-            // SAFETY: the cell has been written. `self.once` has been reset,
-            // so when `self` is dropped the value won't be read again.
-            Some(unsafe { self.data.get_mut().assume_init_read() })
-        } else {
-            None
-        }
-    }
-
-    /// Consumes the cell, returning the wrapped value.
-    ///
-    /// Returns None if the cell has not yet been written.
-    pub fn into_inner(mut self) -> Option<T> {
-        self.take()
-    }
-}
-
-#[allow(deprecated)]
-impl<T> GILOnceCell<Py<T>> {
-    /// Creates a new cell that contains a new Python reference to the same contained object.
-    ///
-    /// Returns an uninitialized cell if `self` has not yet been initialized.
-    pub fn clone_ref(&self, py: Python<'_>) -> Self {
-        let cloned = Self {
-            once: Once::new(),
-            data: UnsafeCell::new(MaybeUninit::uninit()),
-            _marker: PhantomData,
-        };
-        if let Some(value) = self.get(py) {
-            let _ = cloned.set(py, value.clone_ref(py));
-        }
-        cloned
-    }
-}
-
-#[allow(deprecated)]
-impl<T> GILOnceCell<Py<T>>
-where
-    T: PyTypeCheck,
-{
-    /// Get a reference to the contained Python type, initializing the cell if needed.
-    ///
-    /// This is a shorthand method for `get_or_init` which imports the type from Python on init.
-    ///
-    /// # Example: Using `GILOnceCell` to store a class in a static variable.
-    ///
-    /// `GILOnceCell` can be used to avoid importing a class multiple times:
-    /// ```
-    /// #![allow(deprecated)]
-    /// # use pyo3::prelude::*;
-    /// # use pyo3::sync::GILOnceCell;
-    /// # use pyo3::types::{PyDict, PyType};
-    /// # use pyo3::intern;
-    /// #
-    /// #[pyfunction]
-    /// fn create_ordered_dict<'py>(py: Python<'py>, dict: Bound<'py, PyDict>) -> PyResult<Bound<'py, PyAny>> {
-    ///     // Even if this function is called multiple times,
-    ///     // the `OrderedDict` class will be imported only once.
-    ///     static ORDERED_DICT: GILOnceCell<Py<PyType>> = GILOnceCell::new();
-    ///     ORDERED_DICT
-    ///         .import(py, "collections", "OrderedDict")?
-    ///         .call1((dict,))
-    /// }
-    ///
-    /// # Python::attach(|py| {
-    /// #     let dict = PyDict::new(py);
-    /// #     dict.set_item(intern!(py, "foo"), 42).unwrap();
-    /// #     let fun = wrap_pyfunction!(create_ordered_dict, py).unwrap();
-    /// #     let ordered_dict = fun.call1((&dict,)).unwrap();
-    /// #     assert!(dict.eq(ordered_dict).unwrap());
-    /// # });
-    /// ```
-    pub fn import<'py>(
-        &self,
-        py: Python<'py>,
-        module_name: &str,
-        attr_name: &str,
-    ) -> PyResult<&Bound<'py, T>> {
-        self.get_or_try_init(py, || {
-            let type_object = py.import(module_name)?.getattr(attr_name)?.cast_into()?;
-            Ok(type_object.unbind())
-        })
-        .map(|ty| ty.bind(py))
     }
 }
 
@@ -458,114 +251,6 @@ impl Interned {
             .get_or_init(py, || PyString::intern(py, self.0).into())
             .bind(py)
     }
-}
-
-/// Executes a closure with a Python critical section held on an object.
-///
-/// Acquires the per-object lock for the object `op` that is held
-/// until the closure `f` is finished.
-///
-/// This is structurally equivalent to the use of the paired
-/// Py_BEGIN_CRITICAL_SECTION and Py_END_CRITICAL_SECTION C-API macros.
-///
-/// A no-op on GIL-enabled builds, where the critical section API is exposed as
-/// a no-op by the Python C API.
-///
-/// Provides weaker locking guarantees than traditional locks, but can in some
-/// cases be used to provide guarantees similar to the GIL without the risk of
-/// deadlocks associated with traditional locks.
-///
-/// Many CPython C API functions do not acquire the per-object lock on objects
-/// passed to Python. You should not expect critical sections applied to
-/// built-in types to prevent concurrent modification. This API is most useful
-/// for user-defined types with full control over how the internal state for the
-/// type is managed.
-#[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section<F, R>(object: &Bound<'_, PyAny>, f: F) -> R
-where
-    F: FnOnce() -> R,
-{
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        struct Guard(crate::ffi::PyCriticalSection);
-
-        impl Drop for Guard {
-            fn drop(&mut self) {
-                unsafe {
-                    crate::ffi::PyCriticalSection_End(&mut self.0);
-                }
-            }
-        }
-
-        let mut guard = Guard(unsafe { std::mem::zeroed() });
-        unsafe { crate::ffi::PyCriticalSection_Begin(&mut guard.0, object.as_ptr()) };
-        f()
-    }
-    #[cfg(not(Py_GIL_DISABLED))]
-    {
-        f()
-    }
-}
-
-/// Executes a closure with a Python critical section held on two objects.
-///
-/// Acquires the per-object lock for the objects `a` and `b` that are held
-/// until the closure `f` is finished.
-///
-/// This is structurally equivalent to the use of the paired
-/// Py_BEGIN_CRITICAL_SECTION2 and Py_END_CRITICAL_SECTION2 C-API macros.
-///
-/// A no-op on GIL-enabled builds, where the critical section API is exposed as
-/// a no-op by the Python C API.
-///
-/// Provides weaker locking guarantees than traditional locks, but can in some
-/// cases be used to provide guarantees similar to the GIL without the risk of
-/// deadlocks associated with traditional locks.
-///
-/// Many CPython C API functions do not acquire the per-object lock on objects
-/// passed to Python. You should not expect critical sections applied to
-/// built-in types to prevent concurrent modification. This API is most useful
-/// for user-defined types with full control over how the internal state for the
-/// type is managed.
-#[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section2<F, R>(a: &Bound<'_, PyAny>, b: &Bound<'_, PyAny>, f: F) -> R
-where
-    F: FnOnce() -> R,
-{
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        struct Guard(crate::ffi::PyCriticalSection2);
-
-        impl Drop for Guard {
-            fn drop(&mut self) {
-                unsafe {
-                    crate::ffi::PyCriticalSection2_End(&mut self.0);
-                }
-            }
-        }
-
-        let mut guard = Guard(unsafe { std::mem::zeroed() });
-        unsafe { crate::ffi::PyCriticalSection2_Begin(&mut guard.0, a.as_ptr(), b.as_ptr()) };
-        f()
-    }
-    #[cfg(not(Py_GIL_DISABLED))]
-    {
-        f()
-    }
-}
-
-mod once_lock_ext_sealed {
-    pub trait Sealed {}
-    impl<T> Sealed for std::sync::OnceLock<T> {}
-}
-
-mod rwlock_ext_sealed {
-    pub trait Sealed {}
-    impl<T> Sealed for std::sync::RwLock<T> {}
-    #[cfg(feature = "lock_api")]
-    impl<R, T> Sealed for lock_api::RwLock<R, T> {}
-    #[cfg(feature = "arc_lock")]
-    impl<R, T> Sealed for std::sync::Arc<lock_api::RwLock<R, T>> {}
 }
 
 /// Extension trait for [`Once`] to help avoid deadlocking when using a [`Once`] when attached to a
@@ -1023,29 +708,38 @@ where
     value
 }
 
+mod once_lock_ext_sealed {
+    pub trait Sealed {}
+    impl<T> Sealed for std::sync::OnceLock<T> {}
+}
+
+mod rwlock_ext_sealed {
+    pub trait Sealed {}
+    impl<T> Sealed for std::sync::RwLock<T> {}
+    #[cfg(feature = "lock_api")]
+    impl<R, T> Sealed for lock_api::RwLock<R, T> {}
+    #[cfg(feature = "arc_lock")]
+    impl<R, T> Sealed for std::sync::Arc<lock_api::RwLock<R, T>> {}
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use crate::types::{PyDict, PyDictMethods};
-    #[cfg(not(target_arch = "wasm32"))]
-    use std::sync::Mutex;
+    use crate::types::{PyAnyMethods, PyDict, PyDictMethods};
     #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
-    use std::sync::{
-        atomic::{AtomicBool, Ordering},
-        Barrier,
-    };
+    use std::sync::atomic::{AtomicBool, Ordering};
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "macros")]
+    use std::sync::Barrier;
+    #[cfg(not(target_arch = "wasm32"))]
+    use std::sync::Mutex;
 
     #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
     #[crate::pyclass(crate = "crate")]
     struct BoolWrapper(AtomicBool);
-
-    #[cfg(not(target_arch = "wasm32"))]
-    #[cfg(feature = "macros")]
-    #[crate::pyclass(crate = "crate")]
-    struct VecWrapper(Vec<isize>);
 
     #[test]
     fn test_intern() {
@@ -1072,7 +766,7 @@ mod tests {
     #[allow(deprecated)]
     fn test_once_cell() {
         Python::attach(|py| {
-            let mut cell = GILOnceCell::new();
+            let cell = GILOnceCell::new();
 
             assert!(cell.get(py).is_none());
 
@@ -1083,14 +777,6 @@ mod tests {
             assert_eq!(cell.get(py), Some(&2));
 
             assert_eq!(cell.get_or_try_init(py, || Err(5)), Ok(&2));
-
-            assert_eq!(cell.take(), Some(2));
-            assert_eq!(cell.into_inner(), None);
-
-            let cell_py = GILOnceCell::new();
-            assert!(cell_py.clone_ref(py).get(py).is_none());
-            cell_py.get_or_init(py, || py.None());
-            assert!(cell_py.clone_ref(py).get(py).unwrap().is_none(py));
         })
     }
 
@@ -1115,178 +801,6 @@ mod tests {
             assert!(!*drop_container.0);
             drop(cell);
             assert!(dropped);
-        });
-    }
-
-    #[cfg(feature = "macros")]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
-    #[test]
-    fn test_critical_section() {
-        let barrier = Barrier::new(2);
-
-        let bool_wrapper = Python::attach(|py| -> Py<BoolWrapper> {
-            Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap()
-        });
-
-        std::thread::scope(|s| {
-            s.spawn(|| {
-                Python::attach(|py| {
-                    let b = bool_wrapper.bind(py);
-                    with_critical_section(b, || {
-                        barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
-                        b.borrow().0.store(true, Ordering::Release);
-                    })
-                });
-            });
-            s.spawn(|| {
-                barrier.wait();
-                Python::attach(|py| {
-                    let b = bool_wrapper.bind(py);
-                    // this blocks until the other thread's critical section finishes
-                    with_critical_section(b, || {
-                        assert!(b.borrow().0.load(Ordering::Acquire));
-                    });
-                });
-            });
-        });
-    }
-
-    #[cfg(feature = "macros")]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
-    #[test]
-    fn test_critical_section2() {
-        let barrier = Barrier::new(3);
-
-        let (bool_wrapper1, bool_wrapper2) = Python::attach(|py| {
-            (
-                Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap(),
-                Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap(),
-            )
-        });
-
-        std::thread::scope(|s| {
-            s.spawn(|| {
-                Python::attach(|py| {
-                    let b1 = bool_wrapper1.bind(py);
-                    let b2 = bool_wrapper2.bind(py);
-                    with_critical_section2(b1, b2, || {
-                        barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
-                        b1.borrow().0.store(true, Ordering::Release);
-                        b2.borrow().0.store(true, Ordering::Release);
-                    })
-                });
-            });
-            s.spawn(|| {
-                barrier.wait();
-                Python::attach(|py| {
-                    let b1 = bool_wrapper1.bind(py);
-                    // this blocks until the other thread's critical section finishes
-                    with_critical_section(b1, || {
-                        assert!(b1.borrow().0.load(Ordering::Acquire));
-                    });
-                });
-            });
-            s.spawn(|| {
-                barrier.wait();
-                Python::attach(|py| {
-                    let b2 = bool_wrapper2.bind(py);
-                    // this blocks until the other thread's critical section finishes
-                    with_critical_section(b2, || {
-                        assert!(b2.borrow().0.load(Ordering::Acquire));
-                    });
-                });
-            });
-        });
-    }
-
-    #[cfg(feature = "macros")]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
-    #[test]
-    fn test_critical_section2_same_object_no_deadlock() {
-        let barrier = Barrier::new(2);
-
-        let bool_wrapper = Python::attach(|py| -> Py<BoolWrapper> {
-            Py::new(py, BoolWrapper(AtomicBool::new(false))).unwrap()
-        });
-
-        std::thread::scope(|s| {
-            s.spawn(|| {
-                Python::attach(|py| {
-                    let b = bool_wrapper.bind(py);
-                    with_critical_section2(b, b, || {
-                        barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
-                        b.borrow().0.store(true, Ordering::Release);
-                    })
-                });
-            });
-            s.spawn(|| {
-                barrier.wait();
-                Python::attach(|py| {
-                    let b = bool_wrapper.bind(py);
-                    // this blocks until the other thread's critical section finishes
-                    with_critical_section(b, || {
-                        assert!(b.borrow().0.load(Ordering::Acquire));
-                    });
-                });
-            });
-        });
-    }
-
-    #[cfg(feature = "macros")]
-    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
-    #[test]
-    fn test_critical_section2_two_containers() {
-        let (vec1, vec2) = Python::attach(|py| {
-            (
-                Py::new(py, VecWrapper(vec![1, 2, 3])).unwrap(),
-                Py::new(py, VecWrapper(vec![4, 5])).unwrap(),
-            )
-        });
-
-        std::thread::scope(|s| {
-            s.spawn(|| {
-                Python::attach(|py| {
-                    let v1 = vec1.bind(py);
-                    let v2 = vec2.bind(py);
-                    with_critical_section2(v1, v2, || {
-                        // v2.extend(v1)
-                        v2.borrow_mut().0.extend(v1.borrow().0.iter());
-                    })
-                });
-            });
-            s.spawn(|| {
-                Python::attach(|py| {
-                    let v1 = vec1.bind(py);
-                    let v2 = vec2.bind(py);
-                    with_critical_section2(v1, v2, || {
-                        // v1.extend(v2)
-                        v1.borrow_mut().0.extend(v2.borrow().0.iter());
-                    })
-                });
-            });
-        });
-
-        Python::attach(|py| {
-            let v1 = vec1.bind(py);
-            let v2 = vec2.bind(py);
-            // execution order is not guaranteed, so we need to check both
-            // NB: extend should be atomic, items must not be interleaved
-            // v1.extend(v2)
-            // v2.extend(v1)
-            let expected1_vec1 = vec![1, 2, 3, 4, 5];
-            let expected1_vec2 = vec![4, 5, 1, 2, 3, 4, 5];
-            // v2.extend(v1)
-            // v1.extend(v2)
-            let expected2_vec1 = vec![1, 2, 3, 4, 5, 1, 2, 3];
-            let expected2_vec2 = vec![4, 5, 1, 2, 3];
-
-            assert!(
-                (v1.borrow().0.eq(&expected1_vec1) && v2.borrow().0.eq(&expected1_vec2))
-                    || (v1.borrow().0.eq(&expected2_vec1) && v2.borrow().0.eq(&expected2_vec2))
-            );
         });
     }
 

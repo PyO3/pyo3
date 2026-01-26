@@ -3,9 +3,10 @@
 use crate::call::PyCallArgs;
 use crate::conversion::IntoPyObject;
 use crate::err::{PyErr, PyResult};
-use crate::impl_::pycell::PyClassObject;
+use crate::impl_::pyclass::PyClassImpl;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::TypeHint;
+use crate::inspect::PyStaticExpr;
+use crate::pycell::impl_::PyClassObjectLayout;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
@@ -753,7 +754,7 @@ where
     }
 
     #[inline]
-    pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
+    pub(crate) fn get_class_object(&self) -> &<T as PyClassImpl>::Layout {
         self.1.get_class_object()
     }
 }
@@ -1079,11 +1080,11 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
 impl<'a, T: PyClass> Borrowed<'a, '_, T> {
     /// Get a view on the underlying `PyClass` contents.
     #[inline]
-    pub(crate) fn get_class_object(self) -> &'a PyClassObject<T> {
+    pub(crate) fn get_class_object(self) -> &'a <T as PyClassImpl>::Layout {
         // Safety: Borrowed<'a, '_, T: PyClass> is known to contain an object
         // which is laid out in memory as a PyClassObject<T> and lives for at
         // least 'a.
-        unsafe { &*self.as_ptr().cast::<PyClassObject<T>>() }
+        unsafe { &*self.as_ptr().cast::<<T as PyClassImpl>::Layout>() }
     }
 }
 
@@ -1683,10 +1684,10 @@ where
 
     /// Get a view on the underlying `PyClass` contents.
     #[inline]
-    pub(crate) fn get_class_object(&self) -> &PyClassObject<T> {
-        let class_object = self.as_ptr().cast::<PyClassObject<T>>();
+    pub(crate) fn get_class_object(&self) -> &<T as PyClassImpl>::Layout {
+        let class_object = self.as_ptr().cast::<<T as PyClassImpl>::Layout>();
         // Safety: Bound<T: PyClass> is known to contain an object which is laid out in memory as a
-        // PyClassObject<T>.
+        // <T as PyClassImpl>::Layout object
         unsafe { &*class_object }
     }
 }
@@ -2249,7 +2250,7 @@ where
     type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
@@ -2264,7 +2265,7 @@ where
     type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: TypeHint = T::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
@@ -2286,15 +2287,6 @@ impl<T> std::fmt::Debug for Py<T> {
         f.debug_tuple("Py").field(&self.0.as_ptr()).finish()
     }
 }
-
-/// A commonly-used alias for `Py<PyAny>`.
-///
-/// This is an owned reference a Python object without any type information. This value can also be
-/// safely sent between threads.
-///
-/// See the documentation for [`Py`](struct.Py.html).
-#[deprecated(since = "0.26.0", note = "use `Py<PyAny>` instead")]
-pub type PyObject = Py<PyAny>;
 
 impl Py<PyAny> {
     /// Downcast this `Py<PyAny>` to a concrete Python type or pyclass.
@@ -2454,10 +2446,10 @@ fn panic_on_null(py: Python<'_>) -> ! {
 #[cfg(test)]
 mod tests {
     use super::{Bound, IntoPyObject, Py};
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
     use crate::exceptions::PyValueError;
     use crate::test_utils::generate_unique_module_name;
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
     use crate::test_utils::UnraisableCapture;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, IntoPyObjectExt, PyAny, PyResult, Python};
@@ -2815,7 +2807,7 @@ a = A()
         });
     }
 
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
     #[test]
     fn test_constructors_panic_on_null() {
         Python::attach(|py| {
