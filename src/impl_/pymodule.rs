@@ -97,7 +97,7 @@ impl ModuleDef {
             #[cfg(Py_3_15)]
             doc,
             #[cfg(Py_3_15)]
-            slots: Some(slots),
+            slots,
             // -1 is never expected to be a valid interpreter ID
             #[cfg(all(
                 not(any(PyPy, GraalPy)),
