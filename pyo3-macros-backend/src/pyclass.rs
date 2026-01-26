@@ -1024,14 +1024,8 @@ fn impl_simple_enum(
         (int_impl, int_slot)
     };
 
-    let (default_richcmp, default_richcmp_slot) = pyclass_richcmp_simple_enum(
-        &args.options,
-        &ty,
-        repr_type,
-        #[cfg(feature = "experimental-inspect")]
-        &get_class_python_name(cls, args).to_string(),
-        ctx,
-    )?;
+    let (default_richcmp, default_richcmp_slot) =
+        pyclass_richcmp_simple_enum(&args.options, &ty, repr_type, ctx)?;
     let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
 
     let mut default_slots = vec![default_repr_slot, default_int_slot];
@@ -2114,7 +2108,6 @@ fn pyclass_richcmp_simple_enum(
     options: &PyClassPyO3Options,
     cls: &syn::Type,
     repr_type: &syn::Ident,
-    #[cfg(feature = "experimental-inspect")] class_name: &str,
     ctx: &Ctx,
 ) -> Result<(Option<syn::ImplItemFn>, Option<MethodAndSlotDef>)> {
     let Ctx { pyo3_path, .. } = ctx;
@@ -2183,14 +2176,15 @@ fn pyclass_richcmp_simple_enum(
                     from_py_with: None,
                     default_value: None,
                     option_wrapped_type: None,
-                    annotation: Some(match (options.eq.is_some(), options.eq_int.is_some()) {
-                        (true, true) => {
-                            format!("{class_name} | int")
-                        }
-                        (true, false) => class_name.into(),
-                        (false, true) => "int".into(),
-                        (false, false) => unreachable!(),
-                    }),
+                    annotation: Some(
+                        options
+                            .eq
+                            .map(|_| PythonTypeHint::from_type(cls.clone(), None))
+                            .into_iter()
+                            .chain(options.eq_int.map(|_| PythonTypeHint::builtin("int")))
+                            .reduce(PythonTypeHint::union)
+                            .expect("At least one must be defined"),
+                    ),
                 })],
                 returns: parse_quote! { ::std::primitive::bool },
             },

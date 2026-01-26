@@ -1,8 +1,9 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator, TypeHint,
+    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator,
     VariableLengthArgument,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fmt::Write;
 use std::iter::once;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -70,18 +71,18 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
                     arguments: vec![Argument {
                         name: "name".to_string(),
                         default_value: None,
-                        annotation: Some(TypeHint::Ast(Expr::Name { id: "str".into() })),
+                        annotation: Some(Expr::Name { id: "str".into() }),
                     }],
                     vararg: None,
                     keyword_only_arguments: Vec::new(),
                     kwarg: None,
                 },
-                returns: Some(TypeHint::Ast(Expr::Attribute {
+                returns: Some(Expr::Attribute {
                     value: Box::new(Expr::Name {
                         id: "_typeshed".into(),
                     }),
                     attr: "Incomplete".into(),
-                })),
+                }),
                 is_async: false,
             },
             &imports,
@@ -206,7 +207,7 @@ fn function_stubs(function: &Function, imports: &Imports, class_name: Option<&st
     buffer.push(')');
     if let Some(returns) = &function.returns {
         buffer.push_str(" -> ");
-        type_hint_stub(returns, imports, &mut buffer);
+        imports.serialize_expr(returns, &mut buffer);
     }
     buffer.push_str(": ...");
     buffer
@@ -216,11 +217,11 @@ fn attribute_stubs(attribute: &Attribute, imports: &Imports) -> String {
     let mut buffer = attribute.name.clone();
     if let Some(annotation) = &attribute.annotation {
         buffer.push_str(": ");
-        type_hint_stub(annotation, imports, &mut buffer);
+        imports.serialize_expr(annotation, &mut buffer);
     }
     if let Some(value) = &attribute.value {
         buffer.push_str(" = ");
-        buffer.push_str(value);
+        imports.serialize_expr(value, &mut buffer);
     }
     buffer
 }
@@ -229,7 +230,7 @@ fn argument_stub(argument: &Argument, imports: &Imports) -> String {
     let mut buffer = argument.name.clone();
     if let Some(annotation) = &argument.annotation {
         buffer.push_str(": ");
-        type_hint_stub(annotation, imports, &mut buffer);
+        imports.serialize_expr(annotation, &mut buffer);
     }
     if let Some(default_value) = &argument.default_value {
         buffer.push_str(if argument.annotation.is_some() {
@@ -237,7 +238,7 @@ fn argument_stub(argument: &Argument, imports: &Imports) -> String {
         } else {
             "="
         });
-        buffer.push_str(default_value);
+        imports.serialize_expr(default_value, &mut buffer);
     }
     buffer
 }
@@ -246,16 +247,9 @@ fn variable_length_argument_stub(argument: &VariableLengthArgument, imports: &Im
     let mut buffer = argument.name.clone();
     if let Some(annotation) = &argument.annotation {
         buffer.push_str(": ");
-        type_hint_stub(annotation, imports, &mut buffer);
+        imports.serialize_expr(annotation, &mut buffer);
     }
     buffer
-}
-
-fn type_hint_stub(type_hint: &TypeHint, imports: &Imports, buffer: &mut String) {
-    match type_hint {
-        TypeHint::Ast(t) => imports.serialize_expr(t, buffer),
-        TypeHint::Plain(t) => buffer.push_str(t),
-    }
 }
 
 /// Datastructure to deduplicate, validate and generate imports
@@ -374,6 +368,33 @@ impl Imports {
         match expr {
             Expr::Constant { value } => match value {
                 Constant::None => buffer.push_str("None"),
+                Constant::Bool(value) => buffer.push_str(if *value { "True" } else { "False" }),
+                Constant::Int(value) => buffer.push_str(value),
+                Constant::Float(value) => {
+                    buffer.push_str(value);
+                    if !value.contains(['.', 'e', 'E']) {
+                        buffer.push('.'); // We make sure it's not parsed as an int
+                    }
+                }
+                Constant::Str(value) => {
+                    buffer.push('"');
+                    for c in value.chars() {
+                        match c {
+                            '"' => buffer.push_str("\\\""),
+                            '\n' => buffer.push_str("\\n"),
+                            '\r' => buffer.push_str("\\r"),
+                            '\t' => buffer.push_str("\\t"),
+                            '\\' => buffer.push_str("\\\\"),
+                            '\0' => buffer.push_str("\\0"),
+                            c @ '\x00'..'\x20' => {
+                                write!(buffer, "\\x{:02x}", u32::from(c)).unwrap()
+                            }
+                            c => buffer.push(c),
+                        }
+                    }
+                    buffer.push('"');
+                }
+                Constant::Ellipsis => buffer.push_str("..."),
             },
             Expr::Name { id } => {
                 buffer.push_str(
@@ -492,7 +513,7 @@ impl ElementsUsedInAnnotations {
 
     fn walk_attribute(&mut self, attribute: &Attribute) {
         if let Some(type_hint) = &attribute.annotation {
-            self.walk_type_hint(type_hint);
+            self.walk_expr(type_hint);
         }
     }
 
@@ -508,7 +529,7 @@ impl ElementsUsedInAnnotations {
             .chain(&function.arguments.keyword_only_arguments)
         {
             if let Some(type_hint) = &arg.annotation {
-                self.walk_type_hint(type_hint);
+                self.walk_expr(type_hint);
             }
         }
         for arg in function
@@ -519,16 +540,10 @@ impl ElementsUsedInAnnotations {
             .chain(&function.arguments.kwarg.as_ref())
         {
             if let Some(type_hint) = &arg.annotation {
-                self.walk_type_hint(type_hint);
+                self.walk_expr(type_hint);
             }
         }
         if let Some(type_hint) = &function.returns {
-            self.walk_type_hint(type_hint);
-        }
-    }
-
-    fn walk_type_hint(&mut self, type_hint: &TypeHint) {
-        if let TypeHint::Ast(type_hint) = type_hint {
             self.walk_expr(type_hint);
         }
     }
@@ -597,18 +612,24 @@ mod tests {
                 keyword_only_arguments: vec![Argument {
                     name: "karg".into(),
                     default_value: None,
-                    annotation: Some(TypeHint::Plain("str".into())),
+                    annotation: Some(Expr::Constant {
+                        value: Constant::Str("str".into()),
+                    }),
                 }],
                 kwarg: Some(VariableLengthArgument {
                     name: "kwarg".into(),
-                    annotation: Some(TypeHint::Plain("str".into())),
+                    annotation: Some(Expr::Constant {
+                        value: Constant::Str("str".into()),
+                    }),
                 }),
             },
-            returns: Some(TypeHint::Plain("list[str]".into())),
+            returns: Some(Expr::Constant {
+                value: Constant::Str("list[str]".into()),
+            }),
             is_async: false,
         };
         assert_eq!(
-            "def func(posonly, /, arg, *varargs, karg: str, **kwarg: str) -> list[str]: ...",
+            "def func(posonly, /, arg, *varargs, karg: \"str\", **kwarg: \"str\") -> \"list[str]\": ...",
             function_stubs(&function, &Imports::default(), None)
         )
     }
@@ -621,19 +642,27 @@ mod tests {
             arguments: Arguments {
                 positional_only_arguments: vec![Argument {
                     name: "posonly".into(),
-                    default_value: Some("1".into()),
+                    default_value: Some(Expr::Constant {
+                        value: Constant::Int("1".into()),
+                    }),
                     annotation: None,
                 }],
                 arguments: vec![Argument {
                     name: "arg".into(),
-                    default_value: Some("True".into()),
+                    default_value: Some(Expr::Constant {
+                        value: Constant::Bool(true),
+                    }),
                     annotation: None,
                 }],
                 vararg: None,
                 keyword_only_arguments: vec![Argument {
                     name: "karg".into(),
-                    default_value: Some("\"foo\"".into()),
-                    annotation: Some(TypeHint::Plain("str".into())),
+                    default_value: Some(Expr::Constant {
+                        value: Constant::Str("foo".into()),
+                    }),
+                    annotation: Some(Expr::Constant {
+                        value: Constant::Str("str".into()),
+                    }),
                 }],
                 kwarg: None,
             },
@@ -641,7 +670,7 @@ mod tests {
             is_async: false,
         };
         assert_eq!(
-            "def afunc(posonly=1, /, arg=True, *, karg: str = \"foo\"): ...",
+            "def afunc(posonly=1, /, arg=True, *, karg: \"str\" = \"foo\"): ...",
             function_stubs(&function, &Imports::default(), None)
         )
     }
@@ -748,7 +777,7 @@ mod tests {
                         keyword_only_arguments: Vec::new(),
                         kwarg: None,
                     },
-                    returns: Some(TypeHint::Ast(big_type.clone())),
+                    returns: Some(big_type.clone()),
                     is_async: false,
                 }],
                 attributes: Vec::new(),

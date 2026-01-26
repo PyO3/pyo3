@@ -5,7 +5,7 @@ use crate::introspection::{
     attribute_introspection_code, introspection_id_const, module_introspection_code,
 };
 #[cfg(feature = "experimental-inspect")]
-use crate::utils::expr_to_python;
+use crate::type_hint::PythonTypeHint;
 use crate::{
     attributes::{
         self, kw, take_attributes, take_pyo3_options, CrateAttribute, GILUsedAttribute,
@@ -317,7 +317,7 @@ pub fn pymodule_module_impl(
                         pyo3_path,
                         None,
                         item.ident.unraw().to_string(),
-                        expr_to_python(&item.expr),
+                        PythonTypeHint::constant_from_expression(&item.expr),
                         (*item.ty).clone(),
                         true,
                     );

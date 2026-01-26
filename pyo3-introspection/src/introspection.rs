@@ -1,5 +1,5 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator, TypeHint,
+    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator,
     VariableLengthArgument,
 };
 use anyhow::{anyhow, bail, ensure, Context, Result};
@@ -10,14 +10,12 @@ use goblin::mach::symbols::{NO_SECT, N_SECT};
 use goblin::mach::{Mach, MachO, SingleArch};
 use goblin::pe::PE;
 use goblin::Object;
-use serde::de::value::MapAccessDeserializer;
-use serde::de::{Error, MapAccess, Visitor};
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::Path;
-use std::{fmt, fs, str};
+use std::{fs, str};
 
 /// Introspect a cdylib built with PyO3 and returns the definition of a Python module.
 ///
@@ -259,7 +257,7 @@ fn convert_function(
     name: &str,
     arguments: &ChunkArguments,
     decorators: &[ChunkExpr],
-    returns: &Option<ChunkTypeHint>,
+    returns: &Option<ChunkExpr>,
     is_async: bool,
     type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Function {
@@ -296,7 +294,7 @@ fn convert_function(
         },
         returns: returns
             .as_ref()
-            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
+            .map(|a| convert_expr(a, type_hint_for_annotation_id)),
         is_async,
     }
 }
@@ -307,11 +305,14 @@ fn convert_argument(
 ) -> Argument {
     Argument {
         name: arg.name.clone(),
-        default_value: arg.default.clone(),
+        default_value: arg
+            .default
+            .as_ref()
+            .map(|e| convert_expr(e, type_hint_for_annotation_id)),
         annotation: arg
             .annotation
             .as_ref()
-            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
+            .map(|a| convert_expr(a, type_hint_for_annotation_id)),
     }
 }
 
@@ -324,32 +325,24 @@ fn convert_variable_length_argument(
         annotation: arg
             .annotation
             .as_ref()
-            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
+            .map(|a| convert_expr(a, type_hint_for_annotation_id)),
     }
 }
 
 fn convert_attribute(
     name: &str,
-    value: &Option<String>,
-    annotation: &Option<ChunkTypeHint>,
+    value: &Option<ChunkExpr>,
+    annotation: &Option<ChunkExpr>,
     type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Attribute {
     Attribute {
         name: name.into(),
-        value: value.clone(),
+        value: value
+            .as_ref()
+            .map(|v| convert_expr(v, type_hint_for_annotation_id)),
         annotation: annotation
             .as_ref()
-            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
-    }
-}
-
-fn convert_type_hint(
-    arg: &ChunkTypeHint,
-    type_hint_for_annotation_id: &HashMap<String, Expr>,
-) -> TypeHint {
-    match arg {
-        ChunkTypeHint::Ast(expr) => TypeHint::Ast(convert_expr(expr, type_hint_for_annotation_id)),
-        ChunkTypeHint::Plain(t) => TypeHint::Plain(t.clone()),
+            .map(|a| convert_expr(a, type_hint_for_annotation_id)),
     }
 }
 
@@ -386,6 +379,11 @@ fn convert_expr(expr: &ChunkExpr, type_hint_for_annotation_id: &HashMap<String, 
         ChunkExpr::Constant { value } => Expr::Constant {
             value: match value {
                 ChunkConstant::None => Constant::None,
+                ChunkConstant::Bool { value } => Constant::Bool(*value),
+                ChunkConstant::Int { value } => Constant::Int(value.clone()),
+                ChunkConstant::Float { value } => Constant::Float(value.clone()),
+                ChunkConstant::Str { value } => Constant::Str(value.clone()),
+                ChunkConstant::Ellipsis => Constant::Ellipsis,
             },
         },
         ChunkExpr::Id { id } => {
@@ -633,7 +631,7 @@ enum Chunk {
         #[serde(default)]
         decorators: Vec<ChunkExpr>,
         #[serde(default)]
-        returns: Option<ChunkTypeHint>,
+        returns: Option<ChunkExpr>,
         #[serde(default, rename = "async")]
         is_async: bool,
     },
@@ -644,9 +642,9 @@ enum Chunk {
         parent: Option<String>,
         name: String,
         #[serde(default)]
-        value: Option<String>,
+        value: Option<ChunkExpr>,
         #[serde(default)]
-        annotation: Option<ChunkTypeHint>,
+        annotation: Option<ChunkExpr>,
     },
 }
 
@@ -668,56 +666,9 @@ struct ChunkArguments {
 struct ChunkArgument {
     name: String,
     #[serde(default)]
-    default: Option<String>,
+    default: Option<ChunkExpr>,
     #[serde(default)]
-    annotation: Option<ChunkTypeHint>,
-}
-
-/// Variant of [`TypeHint`] that implements deserialization.
-///
-/// We keep separated type to allow them to evolve independently (this type will need to handle backward compatibility).
-enum ChunkTypeHint {
-    Ast(ChunkExpr),
-    Plain(String),
-}
-
-impl<'de> Deserialize<'de> for ChunkTypeHint {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct AnnotationVisitor;
-
-        impl<'de> Visitor<'de> for AnnotationVisitor {
-            type Value = ChunkTypeHint;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("annotation")
-            }
-
-            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-            where
-                E: Error,
-            {
-                self.visit_string(v.into())
-            }
-
-            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-            where
-                E: Error,
-            {
-                Ok(ChunkTypeHint::Plain(v))
-            }
-
-            fn visit_map<M: MapAccess<'de>>(self, map: M) -> Result<ChunkTypeHint, M::Error> {
-                Ok(ChunkTypeHint::Ast(Deserialize::deserialize(
-                    MapAccessDeserializer::new(map),
-                )?))
-            }
-        }
-
-        deserializer.deserialize_any(AnnotationVisitor)
-    }
+    annotation: Option<ChunkExpr>,
 }
 
 #[derive(Deserialize)]
@@ -752,6 +703,11 @@ enum ChunkExpr {
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum ChunkConstant {
     None,
+    Bool { value: bool },
+    Int { value: String },
+    Float { value: String },
+    Str { value: String },
+    Ellipsis,
 }
 
 #[derive(Deserialize)]

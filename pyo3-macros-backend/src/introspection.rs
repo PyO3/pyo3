@@ -11,7 +11,7 @@
 use crate::method::{FnArg, RegularArg};
 use crate::pyfunction::FunctionSignature;
 use crate::type_hint::PythonTypeHint;
-use crate::utils::{expr_to_python, PyO3CratePath};
+use crate::utils::PyO3CratePath;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
@@ -110,7 +110,7 @@ pub fn function_introspection_code(
                 .as_ref()
                 .and_then(|attribute| attribute.value.returns.as_ref())
             {
-                IntrospectionNode::String(returns.to_python().into())
+                returns.as_type_hint().into()
             } else {
                 match returns {
                     ReturnType::Default => PythonTypeHint::builtin("None"),
@@ -143,7 +143,7 @@ pub fn attribute_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     parent: Option<&Type>,
     name: String,
-    value: String,
+    value: PythonTypeHint,
     rust_type: Type,
     is_final: bool,
 ) -> TokenStream {
@@ -155,7 +155,7 @@ pub fn attribute_introspection_code(
             IntrospectionNode::IntrospectionId(parent.map(Cow::Borrowed)),
         ),
     ]);
-    if value == "..." {
+    if value == PythonTypeHint::ellipsis() {
         // We need to set a type, but not need to set the value to ..., all attributes have a value
         desc.insert(
             "annotation",
@@ -182,7 +182,7 @@ pub fn attribute_introspection_code(
             }
             .into(),
         );
-        desc.insert("value", IntrospectionNode::String(value.into()));
+        desc.insert("value", value.into());
     }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
@@ -239,7 +239,7 @@ fn arguments_introspection_data<'a>(
         };
         let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
         if let Some(annotation) = &arg_desc.annotation {
-            params.insert("annotation", IntrospectionNode::String(annotation.into()));
+            params.insert("annotation", annotation.clone().into());
         }
         vararg = Some(IntrospectionNode::Map(params));
     }
@@ -257,7 +257,7 @@ fn arguments_introspection_data<'a>(
         };
         let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
         if let Some(annotation) = &arg_desc.annotation {
-            params.insert("annotation", IntrospectionNode::String(annotation.into()));
+            params.insert("annotation", annotation.clone().into());
         }
         kwarg = Some(IntrospectionNode::Map(params));
     }
@@ -290,12 +290,12 @@ fn argument_introspection_data<'a>(
     if let Some(expr) = &desc.default_value {
         params.insert(
             "default",
-            IntrospectionNode::String(expr_to_python(expr).into()),
+            PythonTypeHint::constant_from_expression(expr).into(),
         );
     }
 
     if let Some(annotation) = &desc.annotation {
-        params.insert("annotation", IntrospectionNode::String(annotation.into()));
+        params.insert("annotation", annotation.clone().into());
     } else if desc.from_py_with.is_none() {
         // If from_py_with is set we don't know anything on the input type
         params.insert(
