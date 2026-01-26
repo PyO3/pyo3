@@ -43,8 +43,7 @@ pub struct ModuleDef {
     name: &'static CStr,
     #[cfg(Py_3_15)]
     doc: &'static CStr,
-    #[cfg(Py_3_15)]
-    slots: &'static PyModuleSlots,
+    slots: Option<&'static PyModuleSlots>,
     /// Interpreter ID where module was initialized (not applicable on PyPy).
     #[cfg(all(
         not(any(PyPy, GraalPy)),
@@ -97,7 +96,9 @@ impl ModuleDef {
             #[cfg(Py_3_15)]
             doc,
             #[cfg(Py_3_15)]
-            slots,
+            slots: Some(slots),
+            #[cfg(not(Py_3_15))]
+            slots: None,
             // -1 is never expected to be a valid interpreter ID
             #[cfg(all(
                 not(any(PyPy, GraalPy)),
@@ -204,7 +205,7 @@ impl ModuleDef {
 
             self.module
                 .get_or_try_init(py, || {
-                    let slots = self.slots.0.get() as *const ffi::PyModuleDef_Slot;
+                    let slots = self.get_slots();
                     let module = unsafe { ffi::PyModule_FromSlotsAndSpec(slots, spec.as_ptr()) };
                     if unsafe { ffi::PyModule_SetDocString(module, doc.as_ptr()) } != 0 {
                         return Err(PyErr::fetch(py));
@@ -216,6 +217,16 @@ impl ModuleDef {
                     Ok(module.unbind())
                 })
                 .map(|py_module| py_module.clone_ref(py))
+        }
+    }
+    pub fn get_slots(&'static self) -> *mut ffi::PyModuleDef_Slot {
+        #[cfg(Py_3_15)]
+        {
+            self.slots.unwrap().0.get() as *mut ffi::PyModuleDef_Slot
+        }
+        #[cfg(not(Py_3_15))]
+        {
+            unsafe { *self.ffi_def.get() }.m_slots
         }
     }
 }
@@ -480,7 +491,7 @@ mod tests {
         {
             assert_eq!(module_def.name, NAME);
             assert_eq!(module_def.doc, DOC);
-            assert_eq!(module_def.slots.0.get(), SLOTS.0.get());
+            assert_eq!(module_def.slots.unwrap().0.get(), SLOTS.0.get());
         }
     }
 
