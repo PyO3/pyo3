@@ -209,6 +209,6 @@ pub const _PyABIInfo_DEFAULT: PyABIInfo = PyABIInfo {
 #[macro_export]
 macro_rules! PyABIInfo_VAR {
     ($name:ident) => {
-        static mut $name: PyABIInfo = _PyABIInfo_DEFAULT;
+        static mut $name: pyo3_ffi::PyABIInfo = pyo3_ffi::_PyABIInfo_DEFAULT;
     };
 }
