@@ -32,7 +32,7 @@ jobs:
     runs-on: ${{ inputs.os }}
     if: ${{ !(startsWith(inputs.python-version, 'graalpy') && startsWith(inputs.os, 'windows')) }}
     steps:
-      - uses: actions/checkout@v6.0.1
+      - uses: actions/checkout@v6.0.2
         with:
           # For PRs, we need to run on the real PR head, not the resultant merge of the PR into the target branch.
           #
