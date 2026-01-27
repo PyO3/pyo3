@@ -407,7 +407,7 @@ fn introspection_id_to_type_hint_for_root_module(
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
 ) -> HashMap<String, Expr> {
-    fn add_introspection_id_to_type_hint_for_module(
+    fn add_introspection_id_to_type_hint_for_module_members(
         module_id: &str,
         module_full_name: &str,
         module_members: &[String],
@@ -425,13 +425,12 @@ fn introspection_id_to_type_hint_for_root_module(
                     .filter_map(|id| chunks_by_id.get(id.as_str())),
             )
             .copied()
-            .collect::<Vec<_>>()
         {
             match member {
                 Chunk::Module {
                     name, id, members, ..
                 } => {
-                    add_introspection_id_to_type_hint_for_module(
+                    add_introspection_id_to_type_hint_for_module_members(
                         id,
                         &format!("{}.{}", module_full_name, name),
                         members,
@@ -450,8 +449,45 @@ fn introspection_id_to_type_hint_for_root_module(
                             attr: name.clone(),
                         },
                     );
+                    add_introspection_id_to_type_hint_for_class_subclasses(
+                        id,
+                        name,
+                        module_full_name,
+                        chunks_by_parent,
+                        output,
+                    );
                 }
                 _ => (),
+            }
+        }
+    }
+
+    fn add_introspection_id_to_type_hint_for_class_subclasses(
+        class_id: &str,
+        class_name: &str,
+        class_module: &str,
+        chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+        output: &mut HashMap<String, Expr>,
+    ) {
+        for member in chunks_by_parent.get(&class_id).into_iter().flatten() {
+            if let Chunk::Class { id, name, .. } = member {
+                let class_name = format!("{}.{}", class_name, name);
+                add_introspection_id_to_type_hint_for_class_subclasses(
+                    id,
+                    &class_name,
+                    class_module,
+                    chunks_by_parent,
+                    output,
+                );
+                output.insert(
+                    id.clone(),
+                    Expr::Attribute {
+                        value: Box::new(Expr::Name {
+                            id: class_module.into(),
+                        }),
+                        attr: class_name,
+                    },
+                );
             }
         }
     }
@@ -463,7 +499,7 @@ fn introspection_id_to_type_hint_for_root_module(
     else {
         unreachable!("The chunk must be a module")
     };
-    add_introspection_id_to_type_hint_for_module(
+    add_introspection_id_to_type_hint_for_module_members(
         id,
         name,
         members,

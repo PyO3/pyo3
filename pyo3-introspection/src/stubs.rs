@@ -514,6 +514,9 @@ impl ElementsUsedInAnnotations {
         for attr in &class.attributes {
             self.walk_attribute(attr);
         }
+        for class in &class.inner_classes {
+            self.walk_class(class);
+        }
     }
 
     fn walk_attribute(&mut self, attribute: &Attribute) {
@@ -762,15 +765,16 @@ mod tests {
                                 id: "typing".into(),
                             }),
                             attr: "final".into(),
-                    }],
-                    inner_classes: Vec::new(),
-                },
+                        }],
+                        inner_classes: Vec::new(),
+                    },
                     Class {
                         name: "int".into(),
                         bases: Vec::new(),
                         methods: Vec::new(),
                         attributes: Vec::new(),
                         decorators: Vec::new(),
+                        inner_classes: Vec::new(),
                     },
                 ],
                 functions: vec![Function {
