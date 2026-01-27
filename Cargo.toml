@@ -81,6 +81,7 @@ tempfile = "3.12.0"
 static_assertions = "1.1.0"
 uuid = { version = "1.10.0", features = ["v4"] }
 parking_lot = { version = "0.12.3", features = ["arc_lock"] }
+jiff-tzdb = "0.1"
 
 [build-dependencies]
 pyo3-build-config = { path = "pyo3-build-config", version = "=0.27.2", features = ["resolve-config"] }

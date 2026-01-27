@@ -85,7 +85,7 @@ impl FromPyObject<'_, '_> for Tz {
     }
 }
 
-#[cfg(all(test, not(windows)))] // Troubles loading timezones on Windows
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::prelude::PyAnyMethods;
@@ -102,12 +102,24 @@ mod tests {
     fn test_frompyobject() {
         Python::attach(|py| {
             assert_eq!(
-                new_zoneinfo(py, "Europe/Paris").extract::<Tz>().unwrap(),
+                PyTzInfo::timezone(py, "Europe/Paris")
+                    .unwrap()
+                    .extract::<Tz>()
+                    .unwrap(),
                 Tz::Europe__Paris
             );
-            assert_eq!(new_zoneinfo(py, "UTC").extract::<Tz>().unwrap(), Tz::UTC);
             assert_eq!(
-                new_zoneinfo(py, "Etc/GMT-5").extract::<Tz>().unwrap(),
+                PyTzInfo::timezone(py, "UTC")
+                    .unwrap()
+                    .extract::<Tz>()
+                    .unwrap(),
+                Tz::UTC
+            );
+            assert_eq!(
+                PyTzInfo::timezone(py, "Etc/GMT-5")
+                    .unwrap()
+                    .extract::<Tz>()
+                    .unwrap(),
                 Tz::Etc__GMTMinus5
             );
         });
@@ -202,17 +214,16 @@ mod tests {
 
             assert_eq(
                 Tz::Europe__Paris.into_pyobject(py).unwrap(),
-                new_zoneinfo(py, "Europe/Paris"),
+                PyTzInfo::timezone(py, "Europe/Paris").unwrap(),
             );
-            assert_eq(Tz::UTC.into_pyobject(py).unwrap(), new_zoneinfo(py, "UTC"));
+            assert_eq(
+                Tz::UTC.into_pyobject(py).unwrap(),
+                PyTzInfo::timezone(py, "UTC").unwrap(),
+            );
             assert_eq(
                 Tz::Etc__GMTMinus5.into_pyobject(py).unwrap(),
-                new_zoneinfo(py, "Etc/GMT-5"),
+                PyTzInfo::timezone(py, "Etc/GMT-5").unwrap(),
             );
         });
-    }
-
-    fn new_zoneinfo<'py>(py: Python<'py>, name: &str) -> Bound<'py, PyTzInfo> {
-        PyTzInfo::timezone(py, name).unwrap()
     }
 }

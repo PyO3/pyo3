@@ -705,27 +705,17 @@ fn py_datetime_to_datetime_with_timezone<Tz: TimeZone>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::any::PyAnyMethods;
     use crate::{test_utils::assert_warnings, types::PyTuple, BoundObject};
     use std::{cmp::Ordering, panic};
 
     #[test]
     // Only Python>=3.9 has the zoneinfo package
-    // We skip the test on windows too since we'd need to install
-    // tzdata there to make this work.
-    #[cfg(all(Py_3_9, not(target_os = "windows")))]
+    #[cfg(Py_3_9)]
     fn test_zoneinfo_is_not_fixed_offset() {
-        use crate::types::any::PyAnyMethods;
-        use crate::types::dict::PyDictMethods;
-
         Python::attach(|py| {
-            let locals = crate::types::PyDict::new(py);
-            py.run(
-                c"import zoneinfo; zi = zoneinfo.ZoneInfo('Europe/London')",
-                None,
-                Some(&locals),
-            )
-            .unwrap();
-            let result: PyResult<FixedOffset> = locals.get_item("zi").unwrap().unwrap().extract();
+            let result: PyResult<FixedOffset> =
+                PyTzInfo::timezone(py, "Europe/London").unwrap().extract();
             assert!(result.is_err());
             let res = result.err().unwrap();
             // Also check the error message is what we expect
@@ -739,8 +729,11 @@ mod tests {
         // Test that if a user tries to convert a python's timezone aware datetime into a naive
         // one, the conversion fails.
         Python::attach(|py| {
-            let py_datetime =
-                new_py_datetime_ob(py, "datetime", (2022, 1, 1, 1, 0, 0, 0, python_utc(py)));
+            let py_datetime = new_py_datetime_ob(
+                py,
+                "datetime",
+                (2022, 1, 1, 1, 0, 0, 0, PyTzInfo::utc(py).unwrap()),
+            );
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<NaiveDateTime> = py_datetime.extract();
             assert_eq!(
@@ -974,7 +967,7 @@ mod tests {
                             minute,
                             second,
                             py_ms,
-                            python_utc(py),
+                            PyTzInfo::utc(py).unwrap(),
                         ),
                     );
                     assert_eq!(
@@ -1037,7 +1030,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(Py_3_9, feature = "chrono-tz", not(windows)))]
+    #[cfg(all(Py_3_9, feature = "chrono-tz"))]
     fn test_pyo3_datetime_into_pyobject_tz() {
         Python::attach(|py| {
             let datetime = NaiveDate::from_ymd_opt(2024, 12, 11)
@@ -1058,7 +1051,7 @@ mod tests {
                     3,
                     13,
                     0,
-                    python_zoneinfo(py, "Europe/London"),
+                    PyTzInfo::timezone(py, "Europe/London").unwrap(),
                 ),
             );
             assert_eq!(datetime.compare(&py_datetime).unwrap(), Ordering::Equal);
@@ -1148,7 +1141,7 @@ mod tests {
                 "Extracting Utc from nonzero FixedOffset timezone will fail"
             );
 
-            let utc = python_utc(py);
+            let utc = PyTzInfo::utc(py).unwrap();
             let py_datetime_utc = new_py_datetime_ob(
                 py,
                 "datetime",
@@ -1200,15 +1193,15 @@ mod tests {
     fn test_pyo3_offset_utc_into_pyobject() {
         Python::attach(|py| {
             let utc = Utc.into_pyobject(py).unwrap();
-            let py_utc = python_utc(py);
-            assert!(utc.is(&py_utc));
+            let py_utc = PyTzInfo::utc(py).unwrap();
+            assert!(utc.is(py_utc));
         })
     }
 
     #[test]
     fn test_pyo3_offset_utc_frompyobject() {
         Python::attach(|py| {
-            let py_utc = python_utc(py);
+            let py_utc = PyTzInfo::utc(py).unwrap();
             let py_utc: Utc = py_utc.extract().unwrap();
             assert_eq!(Utc, py_utc);
 
@@ -1279,26 +1272,6 @@ mod tests {
             .unwrap()
     }
 
-    fn python_utc(py: Python<'_>) -> Bound<'_, PyAny> {
-        py.import("datetime")
-            .unwrap()
-            .getattr("timezone")
-            .unwrap()
-            .getattr("utc")
-            .unwrap()
-    }
-
-    #[cfg(all(Py_3_9, feature = "chrono-tz", not(windows)))]
-    fn python_zoneinfo<'py>(py: Python<'py>, timezone: &str) -> Bound<'py, PyAny> {
-        py.import("zoneinfo")
-            .unwrap()
-            .getattr("ZoneInfo")
-            .unwrap()
-            .call1((timezone,))
-            .unwrap()
-    }
-
-    #[cfg(not(any(target_arch = "wasm32")))]
     mod proptests {
         use super::*;
         use crate::test_utils::CatchWarnings;
@@ -1475,7 +1448,7 @@ mod tests {
             }
 
             #[test]
-            #[cfg(all(feature = "chrono-local", not(target_os = "windows")))]
+            #[cfg(all(feature = "chrono-local"))]
             fn test_local_datetime_roundtrip(
                 year in 1i32..=9999i32,
                 month in 1u32..=12u32,

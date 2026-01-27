@@ -757,19 +757,67 @@ impl PyTzInfo {
     where
         T: IntoPyObject<'py, Target = PyString>,
     {
+        #[cfg(not(all(test, any(windows, target_arch = "wasm32"))))]
+        {
+            static ZONE_INFO: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+
+            let zoneinfo = ZONE_INFO.import(py, "zoneinfo", "ZoneInfo");
+
+            #[cfg(not(Py_3_9))]
+            let zoneinfo = zoneinfo
+                .or_else(|_| ZONE_INFO.import(py, "backports.zoneinfo", "ZoneInfo"))
+                .map_err(|_| PyImportError::new_err("Could not import \"backports.zoneinfo.ZoneInfo\". ZoneInfo is required when converting timezone-aware DateTime's. Please install \"backports.zoneinfo\" on python < 3.9"));
+
+            zoneinfo?
+                .call1((iana_name,))?
+                .cast_into()
+                .map_err(Into::into)
+        }
+
+        #[cfg(all(test, any(windows, target_arch = "wasm32")))]
+        {
+            Self::test_timezone(
+                py,
+                iana_name
+                    .into_pyobject(py)
+                    .map_err(Into::into)?
+                    .into_bound(),
+            )
+        }
+    }
+
+    /// Test helper for loading timezones using jiff-tzdb.
+    /// jiff-tzdb is used to provide the timezone data since the system tzdata is not always
+    /// available without installing tzdata package.
+    #[cfg(all(test, any(windows, target_arch = "wasm32")))]
+    #[allow(clippy::incompatible_msrv)]
+    fn test_timezone<'py>(
+        py: Python<'py>,
+        iana_name: Bound<'py, PyString>,
+    ) -> PyResult<Bound<'py, PyTzInfo>> {
+        use crate::types::PyStringMethods;
+        use parking_lot::RwLock;
+        use std::collections::HashMap;
+        use std::hash::{BuildHasherDefault, DefaultHasher};
+
+        static CACHE: RwLock<
+            HashMap<&'static str, Py<PyTzInfo>, BuildHasherDefault<DefaultHasher>>,
+        > = RwLock::new(HashMap::with_hasher(BuildHasherDefault::new()));
         static ZONE_INFO: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
-        let zoneinfo = ZONE_INFO.import(py, "zoneinfo", "ZoneInfo");
+        let key = iana_name.to_cow()?;
+        if let Some(tz) = CACHE.read().get(&*key) {
+            return Ok(tz.bind(py).clone());
+        }
 
-        #[cfg(not(Py_3_9))]
-        let zoneinfo = zoneinfo
-            .or_else(|_| ZONE_INFO.import(py, "backports.zoneinfo", "ZoneInfo"))
-            .map_err(|_| PyImportError::new_err("Could not import \"backports.zoneinfo.ZoneInfo\". ZoneInfo is required when converting timezone-aware DateTime's. Please install \"backports.zoneinfo\" on python < 3.9"));
-
-        zoneinfo?
-            .call1((iana_name,))?
-            .cast_into()
-            .map_err(Into::into)
+        let (key, tzdata) = jiff_tzdb::get(&key).unwrap();
+        let bytes = py.import("io")?.getattr("BytesIO")?.call1((tzdata,))?;
+        let tz = ZONE_INFO
+            .import(py, "zoneinfo", "ZoneInfo")?
+            .call_method("from_file", (bytes, iana_name), None)
+            .cast_into()?;
+        CACHE.write().insert(key, tz.clone().unbind());
+        Ok(tz)
     }
 
     /// Equivalent to `datetime.timezone` constructor

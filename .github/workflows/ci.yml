@@ -558,7 +558,7 @@ jobs:
             -C link-arg=-lmpdec
             -C link-arg=-lHacl_HMAC
             -C link-arg=-lexpat
-        run: RUSTDOCFLAGS=$RUSTFLAGS cargo test
+        run: RUSTDOCFLAGS=$RUSTFLAGS cargo test --features=full
       - uses: actions/cache/save@v5
         if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
         with:
