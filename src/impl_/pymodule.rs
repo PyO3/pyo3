@@ -45,11 +45,10 @@ use crate::{ffi_ptr_ext::FfiPtrExt, PyErr};
 pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
-    #[cfg(Py_3_15)]
+    #[cfg_attr(not(Py_3_15), allow(dead_code))]
     name: &'static CStr,
-    #[cfg(Py_3_15)]
+    #[cfg_attr(not(Py_3_15), allow(dead_code))]
     doc: &'static CStr,
-    #[cfg(Py_3_15)]
     slots: &'static PyModuleSlots,
     /// Interpreter ID where module was initialized (not applicable on PyPy).
     #[cfg(all(
@@ -99,11 +98,8 @@ impl ModuleDef {
 
         ModuleDef {
             ffi_def,
-            #[cfg(Py_3_15)]
             name,
-            #[cfg(Py_3_15)]
             doc,
-            #[cfg(Py_3_15)]
             slots,
             // -1 is never expected to be a valid interpreter ID
             #[cfg(all(
@@ -218,14 +214,7 @@ impl ModuleDef {
         }
     }
     pub fn get_slots(&'static self) -> *mut ffi::PyModuleDef_Slot {
-        #[cfg(Py_3_15)]
-        {
-            self.slots.0.get() as *mut ffi::PyModuleDef_Slot
-        }
-        #[cfg(not(Py_3_15))]
-        {
-            unsafe { (*self.ffi_def.get()).m_slots }
-        }
+        self.slots.0.get() as *mut ffi::PyModuleDef_Slot
     }
 }
 
@@ -325,6 +314,8 @@ impl PyModuleSlotsBuilder {
 
         #[cfg(not(Py_3_15))]
         {
+            // Silence unused variable warning
+            let _ = doc;
             self
         }
     }
@@ -496,18 +487,14 @@ mod tests {
 
         let module_def: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS, &SLOTS);
 
-        #[cfg(not(Py_3_15))]
         unsafe {
             assert_eq!((*module_def.ffi_def.get()).m_name, NAME.as_ptr() as _);
             assert_eq!((*module_def.ffi_def.get()).m_doc, DOC.as_ptr() as _);
             assert_eq!((*module_def.ffi_def.get()).m_slots, SLOTS.0.get().cast());
         }
-        #[cfg(Py_3_15)]
-        {
-            assert_eq!(module_def.name, NAME);
-            assert_eq!(module_def.doc, DOC);
-            assert_eq!(module_def.slots.0.get(), SLOTS.0.get());
-        }
+        assert_eq!(module_def.name, NAME);
+        assert_eq!(module_def.doc, DOC);
+        assert_eq!(module_def.slots.0.get(), SLOTS.0.get());
     }
 
     #[test]
