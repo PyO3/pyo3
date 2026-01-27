@@ -44,7 +44,6 @@ use crate::{ffi_ptr_ext::FfiPtrExt, PyErr};
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
-    #[cfg(not(Py_3_15))]
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
     #[cfg(Py_3_15)]
     name: &'static CStr,
@@ -71,8 +70,11 @@ impl ModuleDef {
         name: &'static CStr,
         doc: &'static CStr,
         slots: &'static PyModuleSlots,
+        slots_with_no_name_or_doc: &'static PyModuleSlots,
     ) -> Self {
-        #[cfg(not(Py_3_15))]
+        // This is only used in PyO3 for append_to_inittab on Python 3.15 and newer.
+        // There could also be other tools that need the legacy init hook.
+        // Opaque PyObject builds won't be able to use this.
         #[allow(clippy::declare_interior_mutable_const)]
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
             m_base: ffi::PyModuleDef_HEAD_INIT,
@@ -86,18 +88,16 @@ impl ModuleDef {
             m_free: None,
         };
 
-        #[cfg(not(Py_3_15))]
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
             m_name: name.as_ptr(),
             m_doc: doc.as_ptr(),
             // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
             // but that requires mut ptr deref on MSRV.
-            m_slots: slots.0.get() as _,
+            m_slots: slots_with_no_name_or_doc.0.get() as _,
             ..INIT
         });
 
         ModuleDef {
-            #[cfg(not(Py_3_15))]
             ffi_def,
             #[cfg(Py_3_15)]
             name,
@@ -117,15 +117,7 @@ impl ModuleDef {
     }
 
     pub fn init_multi_phase(&'static self) -> *mut ffi::PyObject {
-        // SAFETY: `ffi_def` is correctly initialized in `new()`
-        #[cfg(not(Py_3_15))]
-        unsafe {
-            ffi::PyModuleDef_Init(self.ffi_def.get())
-        }
-        #[cfg(Py_3_15)]
-        unreachable!(
-            "Python shouldn't be calling an intialization function in Python 3.15 or newer"
-        )
+        unsafe { ffi::PyModuleDef_Init(self.ffi_def.get()) }
     }
 
     /// Builds a module object directly. Used for [`#[pymodule]`][crate::pymodule] submodules.
@@ -245,8 +237,8 @@ const MAX_SLOTS: usize =
     2 +
     // Py_mod_gil
     cfg!(Py_3_13) as usize +
-    // Py_mod_name and Py_mod_abi
-    2 * (cfg!(Py_3_15) as usize);
+    // Py_mod_name, Py_mod_doc, and Py_mod_abi
+    3 * (cfg!(Py_3_15) as usize);
 
 /// Builder to create `PyModuleSlots`. The size of the number of slots desired must
 /// be known up front, and N needs to be at least one greater than the number of
@@ -317,6 +309,18 @@ impl PyModuleSlotsBuilder {
         {
             ffi::PyABIInfo_VAR!(ABI_INFO);
             self.push(ffi::Py_mod_abi, std::ptr::addr_of_mut!(ABI_INFO).cast())
+        }
+
+        #[cfg(not(Py_3_15))]
+        {
+            self
+        }
+    }
+
+    pub const fn with_doc(self, doc: &'static CStr) -> Self {
+        #[cfg(Py_3_15)]
+        {
+            self.push(ffi::Py_mod_doc, doc.as_ptr() as *mut c_void)
         }
 
         #[cfg(not(Py_3_15))]
@@ -441,9 +445,16 @@ mod tests {
             .with_gil_used(false)
             .with_abi_info()
             .with_name(NAME)
+            .with_doc(DOC)
             .build();
 
-        static MODULE_DEF: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS);
+        static SLOTS_MINIMAL: PyModuleSlots = PyModuleSlotsBuilder::new()
+            .with_mod_exec(module_exec)
+            .with_gil_used(false)
+            .with_abi_info()
+            .build();
+
+        static MODULE_DEF: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS, &SLOTS_MINIMAL);
 
         Python::attach(|py| {
             let module = MODULE_DEF.make_module(py).unwrap().into_bound(py);
@@ -483,7 +494,7 @@ mod tests {
 
         static SLOTS: PyModuleSlots = PyModuleSlotsBuilder::new().build();
 
-        let module_def: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS);
+        let module_def: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS, &SLOTS);
 
         #[cfg(not(Py_3_15))]
         unsafe {
