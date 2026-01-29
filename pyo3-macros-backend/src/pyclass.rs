@@ -16,13 +16,14 @@ use crate::attributes::{
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{
-    class_introspection_code, function_introspection_code, introspection_id_const,
+    attribute_introspection_code, class_introspection_code, function_introspection_code,
+    introspection_id_const,
 };
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
-use crate::pyfunction::ConstructorAttribute;
+use crate::pyfunction::{ConstructorAttribute, FunctionSignature};
 #[cfg(feature = "experimental-inspect")]
-use crate::pyfunction::FunctionSignature;
+use crate::pyimpl::method_introspection_code;
 use crate::pyimpl::{gen_py_const, get_cfg_attributes, PyClassMethodsType};
 #[cfg(feature = "experimental-inspect")]
 use crate::pymethod::field_python_name;
@@ -473,7 +474,7 @@ fn impl_class(
     field_options: Vec<(&syn::Field, FieldPyO3Options)>,
     methods_type: PyClassMethodsType,
     ctx: &Ctx,
-) -> syn::Result<TokenStream> {
+) -> Result<TokenStream> {
     let Ctx { pyo3_path, .. } = ctx;
     let pytypeinfo_impl = impl_pytypeinfo(cls, args, ctx);
 
@@ -516,9 +517,18 @@ fn impl_class(
     slots.extend(default_hash_slot);
     slots.extend(default_str_slot);
 
-    let py_class_impl = PyClassImplsBuilder::new(cls, args, methods_type, default_methods, slots)
-        .doc(doc)
-        .impl_all(ctx)?;
+    let impl_builder =
+        PyClassImplsBuilder::new(cls, cls, args, methods_type, default_methods, slots).doc(doc);
+    let py_class_impl: TokenStream = [
+        impl_builder.impl_pyclass(ctx),
+        impl_builder.impl_into_py(ctx),
+        impl_builder.impl_pyclassimpl(ctx)?,
+        impl_builder.impl_add_to_module(ctx),
+        impl_builder.impl_freelist(ctx),
+        impl_builder.impl_introspection(ctx, None),
+    ]
+    .into_iter()
+    .collect();
 
     Ok(quote! {
         impl #pyo3_path::types::DerefToPyAny for #cls {}
@@ -998,7 +1008,18 @@ fn impl_simple_enum(
                 }
             }
         };
-        let repr_slot = generate_default_protocol_slot(&ty, &mut repr_impl, &__REPR__, ctx)?;
+        let repr_slot = generate_default_protocol_slot(
+            &ty,
+            &mut repr_impl,
+            &__REPR__,
+            #[cfg(feature = "experimental-inspect")]
+            FunctionIntrospectionData {
+                names: &["__repr__"],
+                arguments: Vec::new(),
+                returns: parse_quote! { &'static str },
+            },
+            ctx,
+        )?;
         (repr_impl, repr_slot)
     };
 
@@ -1020,7 +1041,18 @@ fn impl_simple_enum(
                 }
             }
         };
-        let int_slot = generate_default_protocol_slot(&ty, &mut int_impl, &__INT__, ctx)?;
+        let int_slot = generate_default_protocol_slot(
+            &ty,
+            &mut int_impl,
+            &__INT__,
+            #[cfg(feature = "experimental-inspect")]
+            FunctionIntrospectionData {
+                names: &["__int__"],
+                arguments: Vec::new(),
+                returns: parse_quote!(#repr_type),
+            },
+            ctx,
+        )?;
         (int_impl, int_slot)
     };
 
@@ -1034,6 +1066,7 @@ fn impl_simple_enum(
     default_slots.extend(default_str_slot);
 
     let impl_builder = PyClassImplsBuilder::new(
+        cls,
         cls,
         args,
         methods_type,
@@ -1090,7 +1123,7 @@ fn impl_simple_enum(
         impl_builder.impl_pyclassimpl(ctx)?,
         impl_builder.impl_add_to_module(ctx),
         impl_builder.impl_freelist(ctx),
-        impl_builder.impl_introspection(ctx),
+        impl_builder.impl_introspection(ctx, None),
     ]
     .into_iter()
     .collect();
@@ -1152,6 +1185,7 @@ fn impl_complex_enum(
 
     let impl_builder = PyClassImplsBuilder::new(
         cls,
+        cls,
         &args,
         methods_type,
         complex_enum_default_methods(
@@ -1204,7 +1238,7 @@ fn impl_complex_enum(
         impl_builder.impl_pyclassimpl(ctx)?,
         impl_builder.impl_add_to_module(ctx),
         impl_builder.impl_freelist(ctx),
-        impl_builder.impl_introspection(ctx),
+        impl_builder.impl_introspection(ctx, None),
     ]
     .into_iter()
     .collect();
@@ -1214,7 +1248,8 @@ fn impl_complex_enum(
     let mut variant_cls_pyclass_impls = vec![];
     let mut variant_cls_impls = vec![];
     for variant in variants {
-        let variant_cls = gen_complex_enum_variant_class_ident(cls, variant.get_ident());
+        let variant_name = variant.get_ident().clone();
+        let variant_cls = gen_complex_enum_variant_class_ident(cls, &variant_name);
 
         let variant_cls_zst = quote! {
             #[doc(hidden)]
@@ -1244,14 +1279,24 @@ fn impl_complex_enum(
         let variant_new = complex_enum_variant_new(cls, variant, ctx)?;
         slots.push(variant_new);
 
-        let pyclass_impl = PyClassImplsBuilder::new(
+        let impl_builder = PyClassImplsBuilder::new(
             &variant_cls,
+            &variant_name,
             &variant_args,
             methods_type,
             field_getters,
             slots,
-        )
-        .impl_all(ctx)?;
+        );
+        let pyclass_impl: TokenStream = [
+            impl_builder.impl_pyclass(ctx),
+            impl_builder.impl_into_py(ctx),
+            impl_builder.impl_pyclassimpl(ctx)?,
+            impl_builder.impl_add_to_module(ctx),
+            impl_builder.impl_freelist(ctx),
+            impl_builder.impl_introspection(ctx, Some(cls)),
+        ]
+        .into_iter()
+        .collect();
 
         variant_cls_pyclass_impls.push(pyclass_impl);
     }
@@ -1317,8 +1362,30 @@ fn impl_complex_enum_variant_match_args(
         &mut match_args_impl.attrs,
         Default::default(),
     )?;
-    let variant_match_args = impl_py_class_attribute(variant_cls_type, &spec, ctx)?;
-
+    #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
+    let mut variant_match_args = impl_py_class_attribute(variant_cls_type, &spec, ctx)?;
+    #[cfg(feature = "experimental-inspect")]
+    variant_match_args.add_introspection(attribute_introspection_code(
+        pyo3_path,
+        Some(variant_cls_type),
+        "__match_args__".into(),
+        PythonTypeHint::tuple(
+            field_names
+                .iter()
+                .map(|name| PythonTypeHint::str_constant(name.unraw().to_string())),
+        ),
+        syn::Type::Tuple(syn::TypeTuple {
+            paren_token: syn::token::Paren::default(),
+            elems: field_names
+                .iter()
+                .map(|_| {
+                    let t: syn::Type = parse_quote!(&'static str);
+                    t
+                })
+                .collect(),
+        }),
+        true,
+    ));
     Ok((variant_match_args, match_args_impl))
 }
 
@@ -1341,8 +1408,13 @@ fn impl_complex_enum_struct_variant_cls(
         let field_type = field.ty;
         let field_with_type = quote! { #field_name: #field_type };
 
-        let field_getter =
-            complex_enum_variant_field_getter(&variant_cls_type, field_name, field.span, ctx)?;
+        let field_getter = complex_enum_variant_field_getter(
+            &variant_cls_type,
+            field_name,
+            field_type,
+            field.span,
+            ctx,
+        )?;
 
         let field_getter_impl = quote! {
             fn #field_name(slf: #pyo3_path::PyClassGuard<'_, Self>, py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
@@ -1407,8 +1479,13 @@ fn impl_complex_enum_tuple_variant_field_getters(
         let field_name = format_ident!("_{}", index);
         let field_type = field.ty;
 
-        let field_getter =
-            complex_enum_variant_field_getter(variant_cls_type, &field_name, field.span, ctx)?;
+        let field_getter = complex_enum_variant_field_getter(
+            variant_cls_type,
+            &field_name,
+            field_type,
+            field.span,
+            ctx,
+        )?;
 
         // Generate the match arms needed to destructure the tuple and access the specific field
         let field_access_tokens: Vec<_> = (0..variant.fields.len())
@@ -1458,8 +1535,18 @@ fn impl_complex_enum_tuple_variant_len(
         }
     };
 
-    let variant_len =
-        generate_default_protocol_slot(variant_cls_type, &mut len_method_impl, &__LEN__, ctx)?;
+    let variant_len = generate_default_protocol_slot(
+        variant_cls_type,
+        &mut len_method_impl,
+        &__LEN__,
+        #[cfg(feature = "experimental-inspect")]
+        FunctionIntrospectionData {
+            names: &["__len__"],
+            arguments: Vec::new(),
+            returns: parse_quote! { ::std::primitive::usize },
+        },
+        ctx,
+    )?;
 
     Ok((variant_len, len_method_impl))
 }
@@ -1494,6 +1581,19 @@ fn impl_complex_enum_tuple_variant_getitem(
         variant_cls_type,
         &mut get_item_method_impl,
         &__GETITEM__,
+        #[cfg(feature = "experimental-inspect")]
+        FunctionIntrospectionData {
+            names: &["__getitem__"],
+            arguments: vec![FnArg::Regular(RegularArg {
+                name: Cow::Owned(Ident::new("key", variant_cls.span())),
+                ty: &parse_quote! { ::std::primitive::usize },
+                from_py_with: None,
+                default_value: None,
+                option_wrapped_type: None,
+                annotation: None,
+            })],
+            returns: parse_quote! { #pyo3_path::Py<#pyo3_path::PyAny> }, // TODO: figure out correct type
+        },
         ctx,
     )?;
 
@@ -1566,7 +1666,7 @@ fn impl_complex_enum_tuple_variant_cls(
     Ok((cls_impl, field_getters, slots))
 }
 
-fn gen_complex_enum_variant_class_ident(enum_: &syn::Ident, variant: &syn::Ident) -> syn::Ident {
+fn gen_complex_enum_variant_class_ident(enum_: &Ident, variant: &Ident) -> Ident {
     format_ident!("{}_{}", enum_, variant)
 }
 
@@ -1575,6 +1675,30 @@ struct FunctionIntrospectionData<'a> {
     names: &'a [&'a str],
     arguments: Vec<FnArg<'a>>,
     returns: syn::Type,
+}
+
+#[cfg(feature = "experimental-inspect")]
+impl FunctionIntrospectionData<'_> {
+    fn generate(self, ctx: &Ctx, cls: &syn::Type) -> TokenStream {
+        let signature = FunctionSignature::from_arguments(self.arguments);
+        let returns = self.returns;
+        self.names
+            .iter()
+            .flat_map(|name| {
+                function_introspection_code(
+                    &ctx.pyo3_path,
+                    None,
+                    name,
+                    &signature,
+                    Some("self"),
+                    parse_quote!(-> #returns),
+                    [],
+                    false,
+                    Some(cls),
+                )
+            })
+            .collect()
+    }
 }
 
 fn generate_protocol_slot(
@@ -1593,30 +1717,7 @@ fn generate_protocol_slot(
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
     let mut def = slot.generate_type_slot(&syn::parse_quote!(#cls), &spec, name, ctx)?;
     #[cfg(feature = "experimental-inspect")]
-    {
-        // We generate introspection data
-        let signature = FunctionSignature::from_arguments(introspection_data.arguments);
-        let returns = introspection_data.returns;
-        def.add_introspection(
-            introspection_data
-                .names
-                .iter()
-                .flat_map(|name| {
-                    function_introspection_code(
-                        &ctx.pyo3_path,
-                        None,
-                        name,
-                        &signature,
-                        Some("self"),
-                        parse_quote!(-> #returns),
-                        [],
-                        spec.asyncness.is_some(),
-                        Some(cls),
-                    )
-                })
-                .collect(),
-        );
-    }
+    def.add_introspection(introspection_data.generate(ctx, cls));
     Ok(def)
 }
 
@@ -1624,6 +1725,7 @@ fn generate_default_protocol_slot(
     cls: &syn::Type,
     method: &mut syn::ImplItemFn,
     slot: &SlotDef,
+    #[cfg(feature = "experimental-inspect")] introspection_data: FunctionIntrospectionData<'_>,
     ctx: &Ctx,
 ) -> syn::Result<MethodAndSlotDef> {
     let spec = FnSpec::parse(
@@ -1632,12 +1734,16 @@ fn generate_default_protocol_slot(
         PyFunctionOptions::default(),
     )?;
     let name = spec.name.to_string();
-    slot.generate_type_slot(
+    #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
+    let mut def = slot.generate_type_slot(
         &syn::parse_quote!(#cls),
         &spec,
         &format!("__default_{name}__"),
         ctx,
-    )
+    )?;
+    #[cfg(feature = "experimental-inspect")]
+    def.add_introspection(introspection_data.generate(ctx, cls));
+    Ok(def)
 }
 
 fn simple_enum_default_methods<'a>(
@@ -1651,7 +1757,7 @@ fn simple_enum_default_methods<'a>(
     >,
     ctx: &Ctx,
 ) -> Vec<MethodAndMethodDef> {
-    let cls_type = syn::parse_quote!(#cls);
+    let cls_type: syn::Type = syn::parse_quote!(#cls);
     let variant_to_attribute = |var_ident: &syn::Ident, py_ident: &syn::Ident| ConstSpec {
         rust_ident: var_ident.clone(),
         attributes: ConstAttributes {
@@ -1661,6 +1767,10 @@ fn simple_enum_default_methods<'a>(
                 value: NameLitStr(py_ident.clone()),
             }),
         },
+        #[cfg(feature = "experimental-inspect")]
+        expr: None,
+        #[cfg(feature = "experimental-inspect")]
+        ty: cls_type.clone(),
     };
     unit_variant_names
         .into_iter()
@@ -1692,15 +1802,23 @@ fn complex_enum_default_methods<'a>(
     ctx: &Ctx,
 ) -> Vec<MethodAndMethodDef> {
     let cls_type = syn::parse_quote!(#cls);
-    let variant_to_attribute = |var_ident: &syn::Ident, py_ident: &syn::Ident| ConstSpec {
-        rust_ident: var_ident.clone(),
-        attributes: ConstAttributes {
-            is_class_attr: true,
-            name: Some(NameAttribute {
-                kw: syn::parse_quote! { name },
-                value: NameLitStr(py_ident.clone()),
-            }),
-        },
+    let variant_to_attribute = |var_ident: &syn::Ident, py_ident: &syn::Ident| {
+        #[cfg(feature = "experimental-inspect")]
+        let variant_cls = gen_complex_enum_variant_class_ident(cls, py_ident);
+        ConstSpec {
+            rust_ident: var_ident.clone(),
+            attributes: ConstAttributes {
+                is_class_attr: true,
+                name: Some(NameAttribute {
+                    kw: syn::parse_quote! { name },
+                    value: NameLitStr(py_ident.clone()),
+                }),
+            },
+            #[cfg(feature = "experimental-inspect")]
+            expr: None,
+            #[cfg(feature = "experimental-inspect")]
+            ty: parse_quote!(#variant_cls),
+        }
     };
     variant_names
         .into_iter()
@@ -1721,7 +1839,7 @@ pub fn gen_complex_enum_variant_attr(
     let wrapper_ident = format_ident!("__pymethod_variant_cls_{}__", member);
     let python_name = spec.null_terminated_python_name();
 
-    let variant_cls = format_ident!("{}_{}", cls, member);
+    let variant_cls = gen_complex_enum_variant_class_ident(cls, member);
     let associated_method = quote! {
         fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
             ::std::result::Result::Ok(py.get_type::<#variant_cls>().into_any().unbind())
@@ -1764,7 +1882,7 @@ fn complex_enum_struct_variant_new<'a>(
     ctx: &Ctx,
 ) -> Result<MethodAndSlotDef> {
     let Ctx { pyo3_path, .. } = ctx;
-    let variant_cls = format_ident!("{}_{}", cls, variant.ident);
+    let variant_cls = gen_complex_enum_variant_class_ident(cls, variant.ident);
     let variant_cls_type: syn::Type = parse_quote!(#variant_cls);
 
     let arg_py_ident: syn::Ident = parse_quote!(py);
@@ -1794,12 +1912,9 @@ fn complex_enum_struct_variant_new<'a>(
     };
 
     let signature = if let Some(constructor) = variant.options.constructor {
-        crate::pyfunction::FunctionSignature::from_arguments_and_attribute(
-            args,
-            constructor.into_signature(),
-        )?
+        FunctionSignature::from_arguments_and_attribute(args, constructor.into_signature())?
     } else {
-        crate::pyfunction::FunctionSignature::from_arguments(args)
+        FunctionSignature::from_arguments(args)
     };
 
     let spec = FnSpec {
@@ -1814,7 +1929,12 @@ fn complex_enum_struct_variant_new<'a>(
         output: syn::ReturnType::Default,
     };
 
-    __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", ctx)
+    #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
+    let mut def =
+        __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", ctx)?;
+    #[cfg(feature = "experimental-inspect")]
+    def.add_introspection(method_introspection_code(&spec, &variant_cls_type, ctx));
+    Ok(def)
 }
 
 fn complex_enum_tuple_variant_new<'a>(
@@ -1824,7 +1944,7 @@ fn complex_enum_tuple_variant_new<'a>(
 ) -> Result<MethodAndSlotDef> {
     let Ctx { pyo3_path, .. } = ctx;
 
-    let variant_cls: Ident = format_ident!("{}_{}", cls, variant.ident);
+    let variant_cls = gen_complex_enum_variant_class_ident(cls, variant.ident);
     let variant_cls_type: syn::Type = parse_quote!(#variant_cls);
 
     let arg_py_ident: syn::Ident = parse_quote!(py);
@@ -1851,12 +1971,9 @@ fn complex_enum_tuple_variant_new<'a>(
     };
 
     let signature = if let Some(constructor) = variant.options.constructor {
-        crate::pyfunction::FunctionSignature::from_arguments_and_attribute(
-            args,
-            constructor.into_signature(),
-        )?
+        FunctionSignature::from_arguments_and_attribute(args, constructor.into_signature())?
     } else {
-        crate::pyfunction::FunctionSignature::from_arguments(args)
+        FunctionSignature::from_arguments(args)
     };
 
     let spec = FnSpec {
@@ -1871,18 +1988,24 @@ fn complex_enum_tuple_variant_new<'a>(
         output: syn::ReturnType::Default,
     };
 
-    __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", ctx)
+    #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
+    let mut def =
+        __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", ctx)?;
+    #[cfg(feature = "experimental-inspect")]
+    def.add_introspection(method_introspection_code(&spec, &variant_cls_type, ctx));
+    Ok(def)
 }
 
-fn complex_enum_variant_field_getter<'a>(
-    variant_cls_type: &'a syn::Type,
-    field_name: &'a syn::Ident,
+fn complex_enum_variant_field_getter(
+    variant_cls_type: &syn::Type,
+    field_name: &Ident,
+    field_type: &syn::Type,
     field_span: Span,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
     let mut arg = parse_quote!(py: Python<'_>);
     let py = FnArg::parse(&mut arg)?;
-    let signature = crate::pyfunction::FunctionSignature::from_arguments(vec![py]);
+    let signature = FunctionSignature::from_arguments(vec![py]);
 
     let self_type = crate::method::SelfType::TryFromBoundRef(field_span);
 
@@ -1895,16 +2018,19 @@ fn complex_enum_variant_field_getter<'a>(
         asyncness: None,
         unsafety: None,
         warnings: vec![],
-        output: parse_quote!(-> #variant_cls_type),
+        output: parse_quote!(-> #field_type),
     };
 
-    let property_type = crate::pymethod::PropertyType::Function {
+    let property_type = PropertyType::Function {
         self_type: &self_type,
         spec: &spec,
         doc: crate::get_doc(&[], None, ctx)?,
     };
 
-    let getter = crate::pymethod::impl_py_getter_def(variant_cls_type, property_type, ctx)?;
+    #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
+    let mut getter = impl_py_getter_def(variant_cls_type, property_type, ctx)?;
+    #[cfg(feature = "experimental-inspect")]
+    getter.add_introspection(method_introspection_code(&spec, variant_cls_type, ctx));
     Ok(getter)
 }
 
@@ -2015,7 +2141,7 @@ fn descriptors_to_items(
     Ok(items)
 }
 
-fn impl_pytypeinfo(cls: &syn::Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStream {
+fn impl_pytypeinfo(cls: &Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
 
     #[cfg(feature = "experimental-inspect")]
@@ -2160,6 +2286,29 @@ fn pyclass_richcmp_simple_enum(
             ::std::result::Result::Ok(py.NotImplemented())
         }
     };
+    #[cfg(feature = "experimental-inspect")]
+    let never = parse_quote!(!); // we need to set a type, let's pick something small, it is overridden by annotation anyway
+    #[cfg(feature = "experimental-inspect")]
+    let introspection = FunctionIntrospectionData {
+        names: &["__eq__", "__ne__"],
+        arguments: vec![FnArg::Regular(RegularArg {
+            name: Cow::Owned(format_ident!("other")),
+            ty: &never,
+            from_py_with: None,
+            default_value: None,
+            option_wrapped_type: None,
+            annotation: Some(
+                options
+                    .eq
+                    .map(|_| PythonTypeHint::from_type(cls.clone(), None))
+                    .into_iter()
+                    .chain(options.eq_int.map(|_| PythonTypeHint::builtin("int")))
+                    .reduce(PythonTypeHint::union)
+                    .expect("At least one must be defined"),
+            ),
+        })],
+        returns: parse_quote! { ::std::primitive::bool },
+    };
     let richcmp_slot = if options.eq.is_some() {
         generate_protocol_slot(
             cls,
@@ -2167,31 +2316,18 @@ fn pyclass_richcmp_simple_enum(
             &__RICHCMP__,
             "__richcmp__",
             #[cfg(feature = "experimental-inspect")]
-            FunctionIntrospectionData {
-                names: &["__eq__", "__ne__"],
-                arguments: vec![FnArg::Regular(RegularArg {
-                    name: Cow::Owned(format_ident!("other")),
-                    // we need to set a type, let's pick something small, it is overridden by annotation anyway
-                    ty: &parse_quote!(!),
-                    from_py_with: None,
-                    default_value: None,
-                    option_wrapped_type: None,
-                    annotation: Some(
-                        options
-                            .eq
-                            .map(|_| PythonTypeHint::from_type(cls.clone(), None))
-                            .into_iter()
-                            .chain(options.eq_int.map(|_| PythonTypeHint::builtin("int")))
-                            .reduce(PythonTypeHint::union)
-                            .expect("At least one must be defined"),
-                    ),
-                })],
-                returns: parse_quote! { ::std::primitive::bool },
-            },
+            introspection,
             ctx,
         )?
     } else {
-        generate_default_protocol_slot(cls, &mut richcmp_impl, &__RICHCMP__, ctx)?
+        generate_default_protocol_slot(
+            cls,
+            &mut richcmp_impl,
+            &__RICHCMP__,
+            #[cfg(feature = "experimental-inspect")]
+            introspection,
+            ctx,
+        )?
     };
     Ok((Some(richcmp_impl), Some(richcmp_slot)))
 }
@@ -2340,7 +2476,10 @@ fn pyclass_class_getitem(
 /// and attributes of `#[pyclass]`, and docstrings.
 /// Therefore it doesn't implement traits that depends on struct fields and enum variants.
 struct PyClassImplsBuilder<'a> {
-    cls: &'a syn::Ident,
+    /// Identifier of the class Rust struct
+    cls_ident: &'a Ident,
+    /// Name of the class in Python
+    cls_name: &'a Ident,
     attr: &'a PyClassArgs,
     methods_type: PyClassMethodsType,
     default_methods: Vec<MethodAndMethodDef>,
@@ -2350,14 +2489,16 @@ struct PyClassImplsBuilder<'a> {
 
 impl<'a> PyClassImplsBuilder<'a> {
     fn new(
-        cls: &'a syn::Ident,
+        cls_ident: &'a Ident,
+        cls_name: &'a Ident,
         attr: &'a PyClassArgs,
         methods_type: PyClassMethodsType,
         default_methods: Vec<MethodAndMethodDef>,
         default_slots: Vec<MethodAndSlotDef>,
     ) -> Self {
         Self {
-            cls,
+            cls_ident,
+            cls_name,
             attr,
             methods_type,
             default_methods,
@@ -2373,24 +2514,11 @@ impl<'a> PyClassImplsBuilder<'a> {
         }
     }
 
-    fn impl_all(&self, ctx: &Ctx) -> Result<TokenStream> {
-        Ok([
-            self.impl_pyclass(ctx),
-            self.impl_into_py(ctx),
-            self.impl_pyclassimpl(ctx)?,
-            self.impl_add_to_module(ctx),
-            self.impl_freelist(ctx),
-            self.impl_introspection(ctx),
-        ]
-        .into_iter()
-        .collect())
-    }
-
     fn impl_pyclass(&self, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
-        let cls = self.cls;
+        let cls = self.cls_ident;
 
-        let cls_name = get_class_python_name(cls, self.attr).to_string();
+        let cls_name = get_class_python_name(self.cls_name, self.attr).to_string();
 
         let frozen = if self.attr.options.frozen.is_some() {
             quote! { #pyo3_path::pyclass::boolean_struct::True }
@@ -2408,7 +2536,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
     fn impl_into_py(&self, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
-        let cls = self.cls;
+        let cls = self.cls_ident;
         let attr = self.attr;
         // If #cls is not extended type, we allow Self->PyObject conversion
         if attr.options.extends.is_none() {
@@ -2434,7 +2562,7 @@ impl<'a> PyClassImplsBuilder<'a> {
     }
     fn impl_pyclassimpl(&self, ctx: &Ctx) -> Result<TokenStream> {
         let Ctx { pyo3_path, .. } = ctx;
-        let cls = self.cls;
+        let cls = self.cls_ident;
         let doc = self
             .doc
             .as_ref()
@@ -2458,7 +2586,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         ensure_spanned!(
             !(is_mapping && is_sequence),
-            self.cls.span() => "a `#[pyclass]` cannot be both a `mapping` and a `sequence`"
+            cls.span() => "a `#[pyclass]` cannot be both a `mapping` and a `sequence`"
         );
 
         let dict_offset = if self.attr.options.dict.is_some() {
@@ -2534,7 +2662,6 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
         };
 
-        let cls = self.cls;
         let attr = self.attr;
         let dict = if attr.options.dict.is_some() {
             quote! { #pyo3_path::impl_::pyclass::PyClassDictSlot }
@@ -2689,7 +2816,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
     fn impl_add_to_module(&self, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
-        let cls = self.cls;
+        let cls = self.cls_ident;
         quote! {
             impl #cls {
                 #[doc(hidden)]
@@ -2699,7 +2826,7 @@ impl<'a> PyClassImplsBuilder<'a> {
     }
 
     fn impl_freelist(&self, ctx: &Ctx) -> TokenStream {
-        let cls = self.cls;
+        let cls = self.cls_ident;
         let Ctx { pyo3_path, .. } = ctx;
 
         self.attr.options.freelist.as_ref().map_or(quote! {}, |freelist| {
@@ -2718,7 +2845,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
     fn freelist_slots(&self, ctx: &Ctx) -> Vec<TokenStream> {
         let Ctx { pyo3_path, .. } = ctx;
-        let cls = self.cls;
+        let cls = self.cls_ident;
 
         if self.attr.options.freelist.is_some() {
             vec![
@@ -2741,10 +2868,10 @@ impl<'a> PyClassImplsBuilder<'a> {
     }
 
     #[cfg(feature = "experimental-inspect")]
-    fn impl_introspection(&self, ctx: &Ctx) -> TokenStream {
+    fn impl_introspection(&self, ctx: &Ctx, parent: Option<&Ident>) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
-        let name = get_class_python_name(self.cls, self.attr).to_string();
-        let ident = self.cls;
+        let name = get_class_python_name(self.cls_name, self.attr).to_string();
+        let ident = self.cls_ident;
         let static_introspection = class_introspection_code(
             pyo3_path,
             ident,
@@ -2760,6 +2887,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 )
             }),
             self.attr.options.subclass.is_none(),
+            parent.map(|p| parse_quote!(#p)).as_ref(),
         );
         let introspection_id = introspection_id_const();
         quote! {
@@ -2771,7 +2899,7 @@ impl<'a> PyClassImplsBuilder<'a> {
     }
 
     #[cfg(not(feature = "experimental-inspect"))]
-    fn impl_introspection(&self, _ctx: &Ctx) -> TokenStream {
+    fn impl_introspection(&self, _ctx: &Ctx, _parent: Option<&Ident>) -> TokenStream {
         quote! {}
     }
 }
