@@ -69,7 +69,6 @@ impl ModuleDef {
         name: &'static CStr,
         doc: &'static CStr,
         slots: &'static PyModuleSlots,
-        slots_with_no_name_or_doc: &'static PyModuleSlots,
     ) -> Self {
         // This is only used in PyO3 for append_to_inittab on Python 3.15 and newer.
         // There could also be other tools that need the legacy init hook.
@@ -88,11 +87,13 @@ impl ModuleDef {
         };
 
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
+            #[cfg(not(Py_3_15))]
             m_name: name.as_ptr(),
+            #[cfg(not(Py_3_15))]
             m_doc: doc.as_ptr(),
             // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
             // but that requires mut ptr deref on MSRV.
-            m_slots: slots_with_no_name_or_doc.0.get() as _,
+            m_slots: slots.0.get() as _,
             ..INIT
         });
 
@@ -439,13 +440,7 @@ mod tests {
             .with_doc(DOC)
             .build();
 
-        static SLOTS_MINIMAL: PyModuleSlots = PyModuleSlotsBuilder::new()
-            .with_mod_exec(module_exec)
-            .with_gil_used(false)
-            .with_abi_info()
-            .build();
-
-        static MODULE_DEF: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS, &SLOTS_MINIMAL);
+        static MODULE_DEF: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS);
 
         Python::attach(|py| {
             let module = MODULE_DEF.make_module(py).unwrap().into_bound(py);
@@ -485,11 +480,9 @@ mod tests {
 
         static SLOTS: PyModuleSlots = PyModuleSlotsBuilder::new().build();
 
-        let module_def: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS, &SLOTS);
+        let module_def: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS);
 
         unsafe {
-            assert_eq!((*module_def.ffi_def.get()).m_name, NAME.as_ptr() as _);
-            assert_eq!((*module_def.ffi_def.get()).m_doc, DOC.as_ptr() as _);
             assert_eq!((*module_def.ffi_def.get()).m_slots, SLOTS.0.get().cast());
         }
         assert_eq!(module_def.name, NAME);
