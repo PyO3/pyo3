@@ -22,6 +22,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.2
       - uses: astral-sh/setup-uv@v7
+        with:
+          activate-environment: true
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
@@ -44,4 +46,4 @@ jobs:
         with:
           run: uvx nox -s codspeed
           token: ${{ secrets.CODSPEED_TOKEN }}
-          mode: instrumentation
+          mode: simulation
