@@ -142,10 +142,13 @@ extern "C" {
 
 #[cfg(Py_3_15)]
 extern "C" {
-    pub fn PyModule_FromSlotsAndSpec(slots: *const PyModuleDef_Slot, spec: *mut PyObject);
-    pub fn PyModule_Exec(_mod: *mut PyObject);
-    pub fn PyModule_GetStateSize(_mod: *mut PyObject, result: *mut Py_ssize_t);
-    pub fn PyModule_GetToken(module: *mut PyObject, result: *mut *mut c_void);
+    pub fn PyModule_FromSlotsAndSpec(
+        slots: *const PyModuleDef_Slot,
+        spec: *mut PyObject,
+    ) -> *mut PyObject;
+    pub fn PyModule_Exec(_mod: *mut PyObject) -> c_int;
+    pub fn PyModule_GetStateSize(_mod: *mut PyObject, result: *mut Py_ssize_t) -> c_int;
+    pub fn PyModule_GetToken(module: *mut PyObject, result: *mut *mut c_void) -> c_int;
 }
 
 #[repr(C)]
