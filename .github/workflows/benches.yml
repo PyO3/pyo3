@@ -23,6 +23,7 @@ jobs:
       - uses: actions/checkout@v6.0.2
       - uses: astral-sh/setup-uv@v7
         with:
+          # codspeed action needs to be run from within the final Python environment
           activate-environment: true
       - uses: dtolnay/rust-toolchain@stable
         with:
