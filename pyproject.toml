@@ -14,7 +14,7 @@ dynamic = ["version"]
 
 [tool.towncrier]
 filename = "CHANGELOG.md"
-version = "0.27.2"
+version = "0.28.0"
 start_string = "<!-- towncrier release notes start -->\n"
 template = ".towncrier.template.md"
 title_format = "## [{version}] - {project_date}"
