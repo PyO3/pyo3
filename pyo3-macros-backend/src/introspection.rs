@@ -62,6 +62,7 @@ pub fn class_introspection_code(
     name: &str,
     extends: Option<PyExpr>,
     is_final: bool,
+    parent: Option<&Type>,
 ) -> TokenStream {
     let mut desc = HashMap::from([
         ("type", IntrospectionNode::String("class".into())),
@@ -78,6 +79,12 @@ pub fn class_introspection_code(
         desc.insert(
             "decorators",
             IntrospectionNode::List(vec![PyExpr::module_attr("typing", "final").into()]),
+        );
+    }
+    if let Some(parent) = parent {
+        desc.insert(
+            "parent",
+            IntrospectionNode::IntrospectionId(Some(Cow::Borrowed(parent))),
         );
     }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
@@ -98,7 +105,6 @@ pub fn function_introspection_code(
     let mut desc = HashMap::from([
         ("type", IntrospectionNode::String("function".into())),
         ("name", IntrospectionNode::String(name.into())),
-        ("async", IntrospectionNode::Bool(is_async)),
         (
             "arguments",
             arguments_introspection_data(signature, first_argument, parent),
@@ -120,6 +126,9 @@ pub fn function_introspection_code(
             },
         ),
     ]);
+    if is_async {
+        desc.insert("async", IntrospectionNode::Bool(true));
+    }
     if let Some(ident) = ident {
         desc.insert(
             "id",

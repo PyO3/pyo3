@@ -135,7 +135,7 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
         buffer.push(')');
     }
     buffer.push(':');
-    if class.methods.is_empty() && class.attributes.is_empty() {
+    if class.methods.is_empty() && class.attributes.is_empty() && class.inner_classes.is_empty() {
         buffer.push_str(" ...");
         return buffer;
     }
@@ -149,6 +149,11 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
         buffer.push_str("\n    ");
         buffer
             .push_str(&function_stubs(method, imports, Some(&class.name)).replace('\n', "\n    "));
+    }
+    for inner_class in &class.inner_classes {
+        // We do the indentation
+        buffer.push_str("\n    ");
+        buffer.push_str(&class_stubs(inner_class, imports).replace('\n', "\n    "));
     }
     buffer
 }
@@ -509,6 +514,9 @@ impl ElementsUsedInAnnotations {
         for attr in &class.attributes {
             self.walk_attribute(attr);
         }
+        for class in &class.inner_classes {
+            self.walk_class(class);
+        }
     }
 
     fn walk_attribute(&mut self, attribute: &Attribute) {
@@ -758,6 +766,7 @@ mod tests {
                             }),
                             attr: "final".into(),
                         }],
+                        inner_classes: Vec::new(),
                     },
                     Class {
                         name: "int".into(),
@@ -765,6 +774,7 @@ mod tests {
                         methods: Vec::new(),
                         attributes: Vec::new(),
                         decorators: Vec::new(),
+                        inner_classes: Vec::new(),
                     },
                 ],
                 functions: vec![Function {
