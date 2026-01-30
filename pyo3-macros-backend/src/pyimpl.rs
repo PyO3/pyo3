@@ -7,8 +7,6 @@ use crate::introspection::{attribute_introspection_code, function_introspection_
 use crate::method::{FnSpec, FnType};
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint::PythonTypeHint;
-#[cfg(feature = "experimental-inspect")]
-use crate::utils::expr_to_python;
 use crate::utils::{has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath};
 use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
@@ -172,6 +170,10 @@ pub fn impl_methods(
                         let spec = ConstSpec {
                             rust_ident: konst.ident.clone(),
                             attributes,
+                            #[cfg(feature = "experimental-inspect")]
+                            expr: Some(konst.expr.clone()),
+                            #[cfg(feature = "experimental-inspect")]
+                            ty: konst.ty.clone(),
                         };
                         let attrs = get_cfg_attributes(&konst.attrs);
                         let MethodAndMethodDef {
@@ -187,15 +189,6 @@ pub fn impl_methods(
                                 .attrs
                                 .push(syn::parse_quote!(#[allow(non_upper_case_globals)]));
                         }
-                        #[cfg(feature = "experimental-inspect")]
-                        extra_fragments.push(attribute_introspection_code(
-                            &ctx.pyo3_path,
-                            Some(ty),
-                            spec.python_name().to_string(),
-                            expr_to_python(&konst.expr),
-                            konst.ty.clone(),
-                            true,
-                        ));
                     }
                 }
                 syn::ImplItem::Macro(m) => bail_spanned!(
@@ -252,10 +245,26 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec, ctx: &Ctx) -> MethodAndMe
         })
     };
 
-    MethodAndMethodDef {
+    #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
+    let mut def = MethodAndMethodDef {
         associated_method,
         method_def,
-    }
+    };
+
+    #[cfg(feature = "experimental-inspect")]
+    def.add_introspection(attribute_introspection_code(
+        &ctx.pyo3_path,
+        Some(cls),
+        spec.python_name().to_string(),
+        spec.expr.as_ref().map_or_else(
+            PythonTypeHint::ellipsis,
+            PythonTypeHint::constant_from_expression,
+        ),
+        spec.ty.clone(),
+        true,
+    ));
+
+    def
 }
 
 fn impl_py_methods(
@@ -362,7 +371,7 @@ pub(crate) fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribut
 }
 
 #[cfg(feature = "experimental-inspect")]
-fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -> TokenStream {
+pub fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
 
     let name = spec.python_name.to_string();

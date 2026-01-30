@@ -1,3 +1,5 @@
+#[cfg(feature = "experimental-inspect")]
+use crate::type_hint::PythonTypeHint;
 use crate::{
     attributes::{kw, KeywordAttribute},
     method::FnArg,
@@ -250,8 +252,9 @@ impl ToTokens for PyTypeAnnotation {
 }
 
 impl PyTypeAnnotation {
-    pub fn to_python(&self) -> String {
-        self.0.value()
+    #[cfg(feature = "experimental-inspect")]
+    pub fn as_type_hint(&self) -> PythonTypeHint {
+        PythonTypeHint::str_constant(self.0.value())
     }
 }
 
@@ -507,7 +510,7 @@ impl<'a> FunctionSignature<'a> {
                         );
                         #[cfg(feature = "experimental-inspect")]
                         {
-                            fn_arg.annotation = Some(annotation.to_python());
+                            fn_arg.annotation = Some(annotation.as_type_hint());
                         }
                     }
                 }
@@ -532,7 +535,7 @@ impl<'a> FunctionSignature<'a> {
                                 once, this has to be a regular argument."
                                 );
                             };
-                            fn_arg.annotation = Some(annotation.to_python());
+                            fn_arg.annotation = Some(annotation.as_type_hint());
                         }
                     }
                 }
@@ -554,7 +557,7 @@ impl<'a> FunctionSignature<'a> {
                                 once, this has to be a regular argument."
                                 );
                             };
-                            fn_arg.annotation = Some(annotation.to_python());
+                            fn_arg.annotation = Some(annotation.as_type_hint());
                         }
                     }
                 }
