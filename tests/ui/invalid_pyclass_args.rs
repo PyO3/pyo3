@@ -205,4 +205,17 @@ struct NonPythonField {
     field: Box<dyn std::error::Error + Send + Sync>,
 }
 
+#[pyclass(new = "from_fields")]
+struct NewFromFieldsWithManualNew {
+    field: i32,
+}
+
+#[pymethods]
+impl NewFromFieldsWithManualNew {
+    #[new]
+    fn new(field: i32) -> Self {
+        Self { field }
+    }
+}
+
 fn main() {}

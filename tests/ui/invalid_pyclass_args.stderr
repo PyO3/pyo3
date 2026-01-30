@@ -181,6 +181,17 @@ help: consider annotating `StructFromPyObjectNoClone` with `#[derive(Clone)]`
 192 | struct StructFromPyObjectNoClone {
     |
 
+error[E0119]: conflicting implementations of trait `PyClassNewTextSignature` for type `NewFromFieldsWithManualNew`
+   --> tests/ui/invalid_pyclass_args.rs:213:1
+    |
+208 | #[pyclass(new = "from_fields")]
+    | ------------------------------- first implementation here
+...
+213 | #[pymethods]
+    | ^^^^^^^^^^^^ conflicting implementation for `NewFromFieldsWithManualNew`
+    |
+    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
    --> tests/ui/invalid_pyclass_args.rs:205:12
     |
@@ -242,6 +253,17 @@ error[E0592]: duplicate definitions with name `__pymethod___str____`
    | ------------ other definition for `__pymethod___str____`
    |
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `__pymethod___new____`
+   --> tests/ui/invalid_pyclass_args.rs:208:1
+    |
+208 | #[pyclass(new = "from_fields")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___new____`
+...
+213 | #[pymethods]
+    | ------------ other definition for `__pymethod___new____`
+    |
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0369]: binary operation `==` cannot be applied to type `&EqOptRequiresEq`
   --> tests/ui/invalid_pyclass_args.rs:34:11
@@ -446,7 +468,7 @@ error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Pyt
               EqOptRequiresEq
               HashOptAndManualHash
               HashOptRequiresHash
-              NonPythonField
+              NewFromFieldsWithManualNew
             and $N others
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `PyFunctionArgument<'_, '_, '_, true>`
@@ -475,7 +497,7 @@ error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Pyt
               EqOptRequiresEq
               HashOptAndManualHash
               HashOptRequiresHash
-              NonPythonField
+              NewFromFieldsWithManualNew
             and $N others
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `PyFunctionArgument<'_, '_, '_, true>`
@@ -525,3 +547,39 @@ note: required by a bound in `extract_argument`
 ...
     |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+
+error[E0034]: multiple applicable items in scope
+   --> tests/ui/invalid_pyclass_args.rs:208:1
+    |
+208 | #[pyclass(new = "from_fields")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `__pymethod___new____` found
+    |
+note: candidate #1 is defined in an impl for the type `NewFromFieldsWithManualNew`
+   --> tests/ui/invalid_pyclass_args.rs:208:1
+    |
+208 | #[pyclass(new = "from_fields")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `NewFromFieldsWithManualNew`
+   --> tests/ui/invalid_pyclass_args.rs:213:1
+    |
+213 | #[pymethods]
+    | ^^^^^^^^^^^^
+    = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+   --> tests/ui/invalid_pyclass_args.rs:213:1
+    |
+213 | #[pymethods]
+    | ^^^^^^^^^^^^ multiple `__pymethod___new____` found
+    |
+note: candidate #1 is defined in an impl for the type `NewFromFieldsWithManualNew`
+   --> tests/ui/invalid_pyclass_args.rs:208:1
+    |
+208 | #[pyclass(new = "from_fields")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `NewFromFieldsWithManualNew`
+   --> tests/ui/invalid_pyclass_args.rs:213:1
+    |
+213 | #[pymethods]
+    | ^^^^^^^^^^^^
+    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
