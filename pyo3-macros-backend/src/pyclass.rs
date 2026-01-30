@@ -12,7 +12,7 @@ use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
     ModuleAttribute, NameAttribute, NameLitStr, NewImplTypeAttribute, NewImplTypeAttributeValue,
-    RenameAllAttribute, StrFormatterAttribute,
+    RenameAllAttribute, StrFormatterAttribute, GetListAttribute
 };
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
@@ -97,6 +97,7 @@ pub struct PyClassPyO3Options {
     pub generic: Option<kw::generic>,
     pub from_py_object: Option<kw::from_py_object>,
     pub skip_from_py_object: Option<kw::skip_from_py_object>,
+    pub get: Option<GetListAttribute>
 }
 
 pub enum PyClassPyO3Option {
@@ -125,6 +126,7 @@ pub enum PyClassPyO3Option {
     Generic(kw::generic),
     FromPyObject(kw::from_py_object),
     SkipFromPyObject(kw::skip_from_py_object),
+    Get(GetListAttribute)
 }
 
 impl Parse for PyClassPyO3Option {
@@ -180,6 +182,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::FromPyObject)
         } else if lookahead.peek(attributes::kw::skip_from_py_object) {
             input.parse().map(PyClassPyO3Option::SkipFromPyObject)
+        } else if lookahead.peek(attributes::kw::get) {
+            input.parse().map(PyClassPyO3Option::Get)
         } else {
             Err(lookahead.error())
         }
@@ -274,6 +278,7 @@ impl PyClassPyO3Options {
                 );
                 set_option!(from_py_object)
             }
+            PyClassPyO3Option::Get(get) => set_option!(get)
         }
         Ok(())
     }
@@ -355,6 +360,24 @@ pub fn build_py_class(
         for (_, FieldPyO3Options { set, .. }) in &mut field_options {
             if let Some(old_set) = set.replace(Annotated::Struct(attr)) {
                 return Err(syn::Error::new(old_set.span(), DUPE_SET));
+            }
+        }
+    }
+
+    if let Some(get_list_attr) = &args.options.get {
+        // get_list_attr contains the list of desired field names (NameAttribute or Ident)
+        for name in get_list_attr.fields.iter() {
+            // find matching field in `field_options`:
+            if let Some((_, field_opts)) =
+                field_options.iter_mut().find(|(f, _)| match &f.ident {
+                    Some(ident) => ident == name,
+                    None => false,
+                }) {
+                if let Some(old_get) = field_opts.get.replace(Annotated::Struct(kw::get_all::default())) {
+                    return Err(syn::Error::new(old_get.span(), "duplicate get specified"));
+                }
+            } else {
+                return Err(syn::Error::new_spanned(get_list_attr.clone(), format!("no field named `{}`", name)));
             }
         }
     }

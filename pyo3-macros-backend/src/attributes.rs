@@ -1,5 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
+use syn::parenthesized;
 use syn::parse::Parser;
 use syn::{
     ext::IdentExt,
@@ -336,6 +337,57 @@ impl ToTokens for NewImplTypeAttributeValue {
                 tokens.extend(quote! { "from_fields" });
             }
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct GetListAttribute {
+    pub get_token: kw::get,
+    pub paren_token: syn::token::Paren,
+    pub fields: Punctuated<Ident, Token![,]>,
+}
+
+impl syn::parse::Parse for GetListAttribute {
+    fn parse(input: syn::parse::ParseStream<'_>) -> Result<Self> {
+        // Parse the keyword: get
+        let get_token: kw::get = input.parse()?;
+
+        // Parse the parentheses: ( ... )
+        let content;
+        let paren_token = parenthesized!(content in input);
+
+        // Parse identifiers inside: a, b, c
+        let fields =
+            content.parse_terminated(Ident::parse, Token![,])?;
+
+        // Reject empty list: get()
+        if fields.is_empty() {
+            return Err(syn::Error::new(
+                paren_token.span.join(),
+                "`get(...)` must contain at least one field name",
+            ));
+        }
+
+        Ok(GetListAttribute {
+            get_token,
+            paren_token,
+            fields,
+        })
+    }
+}
+
+impl ToTokens for GetListAttribute {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        // keyword `get`
+        self.get_token.to_tokens(tokens);
+
+        // parentheses
+        let paren_content = self.fields.iter().map(|f| quote::quote! { #f });
+        let paren_tokens = quote::quote! { ( #( #paren_content ),* ) };
+
+        tokens.extend(quote::quote! {
+            #paren_tokens
+        });
     }
 }
 
