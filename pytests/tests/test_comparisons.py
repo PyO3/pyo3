@@ -1,4 +1,4 @@
-from typing import Type, Union
+from typing import Type, TypeVar
 
 import sys
 import pytest
@@ -24,22 +24,25 @@ class PyEq:
         else:
             return NotImplemented
 
-    def __ne__(self, other: Self) -> bool:
+    def __ne__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return self.x != other.x
         else:
             return NotImplemented
 
 
+EqType = TypeVar("EqType", Eq, EqDerived, PyEq)
+
+
 @pytest.mark.skipif(
     sys.implementation.name == "graalpy"
-    and __graalpython__.get_graalvm_version().startswith("24.1"),  # noqa: F821
+    and __graalpython__.get_graalvm_version().startswith("24.1"),  # type: ignore[name-defined] # noqa: F821
     reason="Bug in GraalPy 24.1",
 )
 @pytest.mark.parametrize(
     "ty", (Eq, EqDerived, PyEq), ids=("rust", "rust-derived", "python")
 )
-def test_eq(ty: Type[Union[Eq, EqDerived, PyEq]]):
+def test_eq(ty: Type[EqType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
@@ -62,28 +65,31 @@ def test_eq(ty: Type[Union[Eq, EqDerived, PyEq]]):
     assert c != 1
 
     with pytest.raises(TypeError):
-        assert a <= b
+        assert a <= b  # type: ignore[operator]
 
     with pytest.raises(TypeError):
-        assert a >= b
+        assert a >= b  # type: ignore[operator]
 
     with pytest.raises(TypeError):
-        assert a < c
+        assert a < c  # type: ignore[operator]
 
     with pytest.raises(TypeError):
-        assert c > a
+        assert c > a  # type: ignore[operator]
 
 
 class PyEqDefaultNe:
     def __init__(self, x: int) -> None:
         self.x = x
 
-    def __eq__(self, other: Self) -> bool:
-        return self.x == other.x
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, self.__class__) and self.x == other.x
+
+
+EqDefaultType = TypeVar("EqDefaultType", EqDefaultNe, PyEqDefaultNe)
 
 
 @pytest.mark.parametrize("ty", (EqDefaultNe, PyEqDefaultNe), ids=("rust", "python"))
-def test_eq_default_ne(ty: Type[Union[EqDefaultNe, PyEqDefaultNe]]):
+def test_eq_default_ne(ty: Type[EqDefaultType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
@@ -99,16 +105,16 @@ def test_eq_default_ne(ty: Type[Union[EqDefaultNe, PyEqDefaultNe]]):
     assert not (b == c)
 
     with pytest.raises(TypeError):
-        assert a <= b
+        assert a <= b  # type: ignore[operator]
 
     with pytest.raises(TypeError):
-        assert a >= b
+        assert a >= b  # type: ignore[operator]
 
     with pytest.raises(TypeError):
-        assert a < c
+        assert a < c  # type: ignore[operator]
 
     with pytest.raises(TypeError):
-        assert c > a
+        assert c > a  # type: ignore[operator]
 
 
 class PyOrdered:
@@ -121,10 +127,14 @@ class PyOrdered:
     def __le__(self, other: Self) -> bool:
         return self.x <= other.x
 
-    def __eq__(self, other: Self) -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, self.__class__):
+            return NotImplemented
         return self.x == other.x
 
-    def __ne__(self, other: Self) -> bool:
+    def __ne__(self, other: object) -> bool:
+        if not isinstance(other, self.__class__):
+            return NotImplemented
         return self.x != other.x
 
     def __gt__(self, other: Self) -> bool:
@@ -134,12 +144,15 @@ class PyOrdered:
         return self.x >= other.x
 
 
+OrderedType = TypeVar("OrderedType", Ordered, OrderedDerived, OrderedRichCmp, PyOrdered)
+
+
 @pytest.mark.parametrize(
     "ty",
     (Ordered, OrderedDerived, OrderedRichCmp, PyOrdered),
     ids=("rust", "rust-derived", "rust-richcmp", "python"),
 )
-def test_ordered(ty: Type[Union[Ordered, OrderedDerived, OrderedRichCmp, PyOrdered]]):
+def test_ordered(ty: Type[OrderedType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
@@ -174,7 +187,9 @@ class PyOrderedDefaultNe:
     def __le__(self, other: Self) -> bool:
         return self.x <= other.x
 
-    def __eq__(self, other: Self) -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, self.__class__):
+            return NotImplemented
         return self.x == other.x
 
     def __gt__(self, other: Self) -> bool:
@@ -184,10 +199,13 @@ class PyOrderedDefaultNe:
         return self.x >= other.x
 
 
+OrderedDefaultType = TypeVar("OrderedDefaultType", OrderedDefaultNe, PyOrderedDefaultNe)
+
+
 @pytest.mark.parametrize(
     "ty", (OrderedDefaultNe, PyOrderedDefaultNe), ids=("rust", "python")
 )
-def test_ordered_default_ne(ty: Type[Union[OrderedDefaultNe, PyOrderedDefaultNe]]):
+def test_ordered_default_ne(ty: Type[OrderedDefaultType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)

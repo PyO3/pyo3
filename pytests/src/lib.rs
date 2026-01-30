@@ -5,6 +5,7 @@ mod awaitable;
 mod buf_and_str;
 mod comparisons;
 mod consts;
+#[cfg(not(Py_LIMITED_API))]
 mod datetime;
 mod dict_iter;
 mod enums;
