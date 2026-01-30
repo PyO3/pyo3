@@ -22,6 +22,7 @@
 | `rename_all = "renaming_rule"` | Applies renaming rules to every getters and setters of a struct, or every variants of an enum. Possible values are: "camelCase", "kebab-case", "lowercase", "PascalCase", "SCREAMING-KEBAB-CASE", "SCREAMING_SNAKE_CASE", "snake_case", "UPPERCASE". |
 | `sequence` |  Inform PyO3 that this class is a [`Sequence`][params-sequence], and so leave its C-API mapping length slot empty. |
 | `set_all` | Generates setters for all fields of the pyclass. |
+| `new = "from_fields"` | Generates a default `__new__` constructor with all fields as parameters in the `new()` method. |
 | `skip_from_py_object` | Prevents this PyClass from participating in the `FromPyObject: PyClass + Clone` blanket implementation. This allows a custom `FromPyObject` impl, even if `self` is `Clone`. |
 | `str` | Implements `__str__` using the `Display` implementation of the underlying Rust datatype or by passing an optional format string `str="<format string>"`. *Note: The optional format string is only allowed for structs.  `name` and `rename_all` are incompatible with the optional format string.  Additional details can be found in the discussion on this [PR](https://github.com/PyO3/pyo3/pull/4233).* |
 | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class. Enums cannot be subclassed. |
