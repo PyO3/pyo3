@@ -224,3 +224,7 @@ bare_urls = "warn"
 
 [lints]
 workspace = true
+
+# See https://github.com/dtolnay/trybuild/pull/325
+[patch.crates-io]
+trybuild = { git = "https://github.com/davidhewitt/trybuild", rev = "2a265aeb9dd3d1a06cb6543d356a06611f147402" }

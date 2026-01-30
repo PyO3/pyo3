@@ -185,9 +185,8 @@ error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Pyt
    --> tests/ui/invalid_pyclass_args.rs:205:12
     |
 205 |     field: Box<dyn std::error::Error + Send + Sync>,
-    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyFunctionArgument<'_, '_, '_, false>` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
     |
-    = help: the trait `PyFunctionArgument<'_, '_, '_, false>` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
     = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
     = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
 help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`
