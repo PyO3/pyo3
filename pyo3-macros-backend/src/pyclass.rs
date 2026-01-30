@@ -2612,7 +2612,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         let thread_checker = if self.attr.options.unsendable.is_some() {
             quote! { #pyo3_path::impl_::pyclass::ThreadCheckerImpl }
         } else {
-            quote! { #pyo3_path::impl_::pyclass::SendablePyClass<#cls> }
+            quote! { #pyo3_path::impl_::pyclass::NoopThreadChecker }
         };
 
         let (pymethods_items, inventory, inventory_class) = match self.methods_type {
@@ -2697,11 +2697,9 @@ impl<'a> PyClassImplsBuilder<'a> {
         let assertions = if attr.options.unsendable.is_some() {
             TokenStream::new()
         } else {
-            let assert = quote_spanned! { cls.span() => #pyo3_path::impl_::pyclass::assert_pyclass_sync::<#cls>(); };
+            let assert = quote_spanned! { cls.span() => #pyo3_path::impl_::pyclass::assert_pyclass_send_sync::<#cls>() };
             quote! {
-                const _: () = {
-                    #assert
-                };
+                const _: () = #assert;
             }
         };
 
