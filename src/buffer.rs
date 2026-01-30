@@ -587,7 +587,7 @@ impl PyUntypedBuffer {
                 #[cfg(Py_3_11)]
                 indices.as_ptr().cast(),
                 #[cfg(not(Py_3_11))]
-                indices.as_ptr().cast_mut(),
+                indices.as_ptr().cast_mut().cast(),
             )
         }
     }
