@@ -185,15 +185,31 @@ error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Pyt
    --> tests/ui/invalid_pyclass_args.rs:205:12
     |
 205 |     field: Box<dyn std::error::Error + Send + Sync>,
-    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyFunctionArgument<'_, '_, '_, false>` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
     |
+    = help: the trait `PyFunctionArgument<'_, '_, '_, false>` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
     = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
     = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
-    = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
-              `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, '_, 'py, false>`
-              `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
-              `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
-              `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`
+   --> src/impl_/extract_argument.rs
+    |
+    | / impl<'a, 'holder, 'py, T: 'a + 'py> PyFunctionArgument<'a, 'holder, 'py, false>
+    | |     for &'holder Bound<'py, T>
+    | | where
+    | |     T: PyTypeCheck,
+    | |___________________^ `&'holder pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+...
+    | / impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for Option<T>
+    | | where
+    | |     T: PyFunctionArgument<'a, 'holder, 'py, false>,
+    | |___________________________________________________^ `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+...
+    |   impl<'a, 'holder, T: PyClass> PyFunctionArgument<'a, 'holder, '_, false> for &'holder T {
+    |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
+...
+    | / impl<'a, 'holder, T: PyClass<Frozen = False>> PyFunctionArgument<'a, 'holder, '_, false>
+    | |     for &'holder mut T
+    | |______________________^ `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
 
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:37:1
@@ -419,11 +435,11 @@ error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Pyt
    --> tests/ui/invalid_pyclass_args.rs:205:12
     |
 205 |     field: Box<dyn std::error::Error + Send + Sync>,
-    |            ^^^ the trait `PyClass` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
+    |            ^^^ the trait `pyo3::PyClass` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
     |
     = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
     = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
-    = help: the following other types implement trait `PyClass`:
+    = help: the following other types implement trait `pyo3::PyClass`:
               Coord
               Coord2
               Coord3
@@ -479,11 +495,26 @@ error[E0277]: the trait bound `dyn std::error::Error + Send + Sync: Clone` is no
 205 |     field: Box<dyn std::error::Error + Send + Sync>,
     |            ^^^ the trait `Clone` is not implemented for `dyn std::error::Error + Send + Sync`
     |
-    = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
-              `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, '_, 'py, false>`
-              `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
-              `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
-              `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`
+   --> src/impl_/extract_argument.rs
+    |
+    | / impl<'a, 'holder, 'py, T: 'a + 'py> PyFunctionArgument<'a, 'holder, 'py, false>
+    | |     for &'holder Bound<'py, T>
+    | | where
+    | |     T: PyTypeCheck,
+    | |___________________^ `&'holder pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+...
+    | / impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for Option<T>
+    | | where
+    | |     T: PyFunctionArgument<'a, 'holder, 'py, false>,
+    | |___________________________________________________^ `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+...
+    |   impl<'a, 'holder, T: PyClass> PyFunctionArgument<'a, 'holder, '_, false> for &'holder T {
+    |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
+...
+    | / impl<'a, 'holder, T: PyClass<Frozen = False>> PyFunctionArgument<'a, 'holder, '_, false>
+    | |     for &'holder mut T
+    | |______________________^ `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `Clone`
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `PyFunctionArgument<'_, '_, '_, true>`
