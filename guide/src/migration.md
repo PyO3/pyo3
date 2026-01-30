@@ -69,6 +69,7 @@ let _: Bound<'_, PyNone> = unsafe { Bound::from_borrowed_ptr(py, raw_ptr).cast_i
 let _: Bound<'_, PyNone> = unsafe { Bound::from_owned_ptr(py, raw_ptr).cast_into_unchecked() };
 # })
 ```
+
 </details>
 
 ### Removal of `From<Bound<'_, T>` and `From<Py<T>> for PyClassInitializer<T>`
@@ -102,6 +103,7 @@ let obj_1 = existing_py.clone_ref(py);
 let obj_2 = existing_bound.clone();
 # })
 ```
+
 </details>
 
 ### Internal change to use multi-phase initialization
