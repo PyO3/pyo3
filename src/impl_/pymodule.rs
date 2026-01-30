@@ -45,9 +45,7 @@ use crate::{ffi_ptr_ext::FfiPtrExt, PyErr};
 pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
-    #[cfg_attr(not(Py_3_15), allow(dead_code))]
     name: &'static CStr,
-    #[cfg_attr(not(Py_3_15), allow(dead_code))]
     doc: &'static CStr,
     slots: &'static PyModuleSlots,
     /// Interpreter ID where module was initialized (not applicable on PyPy).
@@ -87,9 +85,7 @@ impl ModuleDef {
         };
 
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
-            #[cfg(not(Py_3_15))]
             m_name: name.as_ptr(),
-            #[cfg(not(Py_3_15))]
             m_doc: doc.as_ptr(),
             // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
             // but that requires mut ptr deref on MSRV.
