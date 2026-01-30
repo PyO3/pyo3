@@ -19,14 +19,6 @@ pub(crate) fn initialize() {
     });
 }
 
-/// See [Python::initialize]
-#[cfg(not(any(PyPy, GraalPy)))]
-#[inline]
-#[deprecated(note = "use `Python::initialize` instead", since = "0.26.0")]
-pub fn prepare_freethreaded_python() {
-    initialize();
-}
-
 /// Executes the provided closure with an embedded Python interpreter.
 ///
 /// This function initializes the Python interpreter, executes the provided closure, and then

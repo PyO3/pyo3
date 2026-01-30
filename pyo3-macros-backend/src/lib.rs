@@ -19,14 +19,14 @@ mod konst;
 mod method;
 mod module;
 mod params;
+#[cfg(feature = "experimental-inspect")]
+mod py_expr;
 mod pyclass;
 mod pyfunction;
 mod pyimpl;
 mod pymethod;
 mod pyversions;
 mod quotes;
-#[cfg(feature = "experimental-inspect")]
-mod type_hint;
 
 pub use frompyobject::build_derive_from_pyobject;
 pub use intopyobject::build_derive_into_pyobject;

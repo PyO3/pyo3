@@ -7,6 +7,8 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
+#[cfg(feature = "experimental-inspect")]
+use crate::py_expr::PyExpr;
 use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::pyversions::is_abi3_before;
 use crate::utils::Ctx;
@@ -28,7 +30,7 @@ pub struct RegularArg<'a> {
     pub default_value: Option<syn::Expr>,
     pub option_wrapped_type: Option<&'a syn::Type>,
     #[cfg(feature = "experimental-inspect")]
-    pub annotation: Option<String>,
+    pub annotation: Option<PyExpr>,
 }
 
 /// Pythons *args argument
@@ -37,7 +39,7 @@ pub struct VarargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
     #[cfg(feature = "experimental-inspect")]
-    pub annotation: Option<String>,
+    pub annotation: Option<PyExpr>,
 }
 
 /// Pythons **kwarg argument
@@ -46,7 +48,7 @@ pub struct KwargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
     #[cfg(feature = "experimental-inspect")]
-    pub annotation: Option<String>,
+    pub annotation: Option<PyExpr>,
 }
 
 #[derive(Clone, Debug)]
@@ -427,7 +429,6 @@ pub struct FnSpec<'a> {
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
     pub warnings: Vec<PyFunctionWarning>,
-    #[cfg(feature = "experimental-inspect")]
     pub output: syn::ReturnType,
 }
 
@@ -503,7 +504,6 @@ impl<'a> FnSpec<'a> {
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,
             warnings,
-            #[cfg(feature = "experimental-inspect")]
             output: sig.output.clone(),
         })
     }

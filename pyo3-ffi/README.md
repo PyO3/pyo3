@@ -65,11 +65,14 @@ fn main() {
 
 **`src/lib.rs`**
 ```rust,no_run
+#[cfg(Py_3_15)]
+use std::ffi::c_void;
 use std::ffi::{c_char, c_long};
 use std::ptr;
 
 use pyo3_ffi::*;
 
+#[cfg(not(Py_3_15))]
 static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_base: PyModuleDef_HEAD_INIT,
     m_name: c"string_sum".as_ptr(),
@@ -95,16 +98,39 @@ static mut METHODS: [PyMethodDef; 2] = [
     PyMethodDef::zeroed(),
 ];
 
-const SLOTS_LEN: usize = 1 + if cfg!(Py_3_12) { 1 } else { 0 } + if cfg!(Py_GIL_DISABLED) { 1 } else { 0 };
+#[cfg(Py_3_15)]
+PyABIInfo_VAR!(ABI_INFO);
+
+const SLOTS_LEN: usize =
+    1 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize + 4 * (cfg!(Py_3_15) as usize);
 static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
-    // NB: only include this slot if the module does not store any global state in `static` variables
-    // or other data which could cross between subinterpreters
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_abi,
+        value: std::ptr::addr_of_mut!(ABI_INFO).cast(),
+    },
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_name,
+        // safety: Python does not write to this field
+        value: c"string_sum".as_ptr() as *mut c_void,
+    },
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_doc,
+        // safety: Python does not write to this field
+        value: c"A Python module written in Rust.".as_ptr() as *mut c_void,
+    },
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_methods,
+        value: std::ptr::addr_of_mut!(METHODS).cast(),
+    },
     #[cfg(Py_3_12)]
     PyModuleDef_Slot {
         slot: Py_mod_multiple_interpreters,
         value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
     },
-    // NB: only include this slot if the module does not depend on the GIL for thread safety
     #[cfg(Py_GIL_DISABLED)]
     PyModuleDef_Slot {
         slot: Py_mod_gil,
@@ -116,11 +142,19 @@ static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
     },
 ];
 
-// The module initialization function, which must be named `PyInit_<your_module>`.
-#[allow(non_snake_case)]
+// The module initialization function
+#[cfg(not(Py_3_15))]
+#[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
 #[no_mangle]
 pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
     PyModuleDef_Init(ptr::addr_of_mut!(MODULE_DEF))
+}
+
+#[cfg(Py_3_15)]
+#[allow(non_snake_case, reason = "must be named `PyModExport_<your_module>`")]
+#[no_mangle]
+pub unsafe extern "C" fn PyModExport_string_sum() -> *mut PyModuleDef_Slot {
+    std::ptr::addr_of_mut!(SLOTS).cast()
 }
 
 /// A helper to parse function arguments
@@ -140,7 +174,10 @@ unsafe fn parse_arg_as_i32(obj: *mut PyObject, n_arg: usize) -> Option<i32> {
     let mut overflow = 0;
     let i_long: c_long = PyLong_AsLongAndOverflow(obj, &mut overflow);
 
-    #[allow(irrefutable_let_patterns)] // some platforms have c_long equal to i32
+    #[allow(
+        irrefutable_let_patterns,
+        reason = "some platforms have c_long equal to i32"
+    )]
     if overflow != 0 {
         raise_overflowerror(obj);
         None
@@ -200,10 +237,7 @@ pub unsafe extern "C" fn sum_as_string(
             PyUnicode_FromStringAndSize(string.as_ptr().cast::<c_char>(), string.len() as isize)
         }
         None => {
-            PyErr_SetString(
-                PyExc_OverflowError,
-                c"arguments too large to add".as_ptr(),
-            );
+            PyErr_SetString(PyExc_OverflowError, c"arguments too large to add".as_ptr());
             std::ptr::null_mut()
         }
     }

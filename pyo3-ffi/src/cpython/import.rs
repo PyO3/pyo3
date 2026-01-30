@@ -1,20 +1,9 @@
-use crate::{PyInterpreterState, PyObject};
+#[cfg(any(not(PyPy), Py_3_14))]
+use crate::PyObject;
+#[cfg(any(not(PyPy), Py_3_14))]
+use std::ffi::c_char;
 #[cfg(not(PyPy))]
-use std::ffi::c_uchar;
-use std::ffi::{c_char, c_int};
-
-// skipped PyInit__imp
-
-extern "C" {
-    // skipped private _PyImport_IsInitialized
-    // skipped _PyImport_GetModuleId
-    // skipped private _PyImport_SetModule
-    // skipped private _PyImport_SetModuleString
-    // skipped private _PyImport_AcquireLock
-    // skipped private _PyImport_ReleaseLock
-    // skipped private _PyImport_FixupBuiltin
-    // skipped private _PyImport_FixupExtensionObject
-}
+use std::ffi::{c_int, c_uchar};
 
 #[cfg(not(PyPy))]
 #[repr(C)]
@@ -28,9 +17,7 @@ pub struct _inittab {
 extern "C" {
     #[cfg(not(PyPy))]
     pub static mut PyImport_Inittab: *mut _inittab;
-}
 
-extern "C" {
     #[cfg(not(PyPy))]
     pub fn PyImport_ExtendInittab(newtab: *mut _inittab) -> c_int;
 }
@@ -52,8 +39,15 @@ pub struct _frozen {
 extern "C" {
     #[cfg(not(PyPy))]
     pub static mut PyImport_FrozenModules: *const _frozen;
-}
 
-// skipped _PyImport_FrozenBootstrap
-// skipped _PyImport_FrozenStdlib
-// skipped _PyImport_FrozenTest
+    #[cfg(Py_3_14)]
+    pub fn PyImport_ImportModuleAttr(
+        mod_name: *mut PyObject,
+        attr_name: *mut PyObject,
+    ) -> *mut PyObject;
+    #[cfg(Py_3_14)]
+    pub fn PyImport_ImportModuleAttrString(
+        mod_name: *const c_char,
+        attr_name: *const c_char,
+    ) -> *mut PyObject;
+}

@@ -49,7 +49,7 @@ workspace = true
 
 [package.metadata.cpython]
 min-version = "3.7"
-max-version = "3.14" # inclusive
+max-version = "3.15" # inclusive
 
 [package.metadata.pypy]
 min-version = "3.11"
