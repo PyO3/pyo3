@@ -1,0 +1,17 @@
+error: use of deprecated associated constant `pyo3::impl_::pyclass::probes::IsInitializerTuple::<(S, B)>::VALUE`: Tuple syntax for super class initialization is phased out. Use `PyClassInitializer` instead.
+  --> tests/ui/deprecated_super_init.rs:14:17
+   |
+14 |     fn new() -> (Sub1, Base) {
+   |                 ^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> tests/ui/deprecated_super_init.rs:1:9
+   |
+ 1 | #![deny(deprecated)]
+   |         ^^^^^^^^^^
+
+error: use of deprecated associated constant `pyo3::impl_::pyclass::probes::IsInitializerTuple::<std::result::Result<(S, B), E>>::VALUE`: Tuple syntax for super class initialization is phased out. Use `PyClassInitializer` instead.
+  --> tests/ui/deprecated_super_init.rs:25:17
+   |
+25 |     fn new() -> PyResult<(Sub1, Base)> {
+   |                 ^^^^^^^^

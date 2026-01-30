@@ -64,8 +64,8 @@ impl PySuper {
     /// #[pymethods]
     /// impl SubClass {
     ///     #[new]
-    ///     fn new() -> (Self, BaseClass) {
-    ///         (SubClass {}, BaseClass::new())
+    ///     fn new() -> PyClassInitializer<Self> {
+    ///         PyClassInitializer::from(BaseClass::new()).add_subclass(SubClass {})
     ///     }
     ///
     ///     fn method<'py>(self_: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {

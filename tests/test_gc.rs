@@ -256,11 +256,9 @@ fn inheritance_with_new_methods_with_drop() {
     #[pymethods]
     impl SubClassWithDrop {
         #[new]
-        fn new() -> (Self, BaseClassWithDrop) {
-            (
-                SubClassWithDrop { guard: None },
-                BaseClassWithDrop { guard: None },
-            )
+        fn new() -> PyClassInitializer<Self> {
+            PyClassInitializer::from(BaseClassWithDrop { guard: None })
+                .add_subclass(SubClassWithDrop { guard: None })
         }
     }
 

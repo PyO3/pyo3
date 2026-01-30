@@ -282,8 +282,8 @@ struct UnsendableChild {}
 #[pymethods]
 impl UnsendableChild {
     #[new]
-    fn new(value: usize) -> (UnsendableChild, UnsendableBase) {
-        (UnsendableChild {}, UnsendableBase::new(value))
+    fn new(value: usize) -> PyClassInitializer<Self> {
+        PyClassInitializer::from(UnsendableBase::new(value)).add_subclass(UnsendableChild {})
     }
 }
 
@@ -489,16 +489,11 @@ struct InheritDict {
 #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn inherited_dict() {
     Python::attach(|py| {
-        let inst = Py::new(
-            py,
-            (
-                InheritDict { _value: 0 },
-                DunderDictSupport {
-                    _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
-                },
-            ),
-        )
-        .unwrap();
+        let initializer = PyClassInitializer::from(DunderDictSupport {
+            _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+        })
+        .add_subclass(InheritDict { _value: 0 });
+        let inst = Py::new(py, initializer).unwrap();
         py_run!(
             py,
             inst,
@@ -572,16 +567,11 @@ struct InheritWeakRef {
 #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn inherited_weakref() {
     Python::attach(|py| {
-        let inst = Py::new(
-            py,
-            (
-                InheritWeakRef { _value: 0 },
-                WeakRefSupport {
-                    _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
-                },
-            ),
-        )
-        .unwrap();
+        let initializer = PyClassInitializer::from(WeakRefSupport {
+            _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+        })
+        .add_subclass(InheritWeakRef { _value: 0 });
+        let inst = Py::new(py, initializer).unwrap();
         py_run!(
             py,
             inst,

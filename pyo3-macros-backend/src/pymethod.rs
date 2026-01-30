@@ -1465,6 +1465,7 @@ fn generate_method_body(
             } else {
                 &parse_quote!(())
             };
+            let is_initializer_tuple = quote_spanned! { *output_span => #pyo3_path::impl_::pyclass::IsInitializerTuple::<#output>::VALUE };
             let body = quote! {
                 #text_signature_impl
 
@@ -1475,7 +1476,7 @@ fn generate_method_body(
                 #pyo3_path::impl_::pymethods::tp_new_impl::<
                     _,
                     { #pyo3_path::impl_::pyclass::IsPyClass::<#output>::VALUE },
-                    { #pyo3_path::impl_::pyclass::IsInitializerTuple::<#output>::VALUE }
+                    { #is_initializer_tuple }
                 >(py, result, _slf)
             };
             (arg_idents, arg_types, body)

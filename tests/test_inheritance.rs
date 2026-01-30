@@ -57,8 +57,8 @@ struct SubClass {
 #[pymethods]
 impl SubClass {
     #[new]
-    fn new() -> (Self, BaseClass) {
-        (SubClass { val2: 5 }, BaseClass { val1: 10 })
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from(BaseClass { val1: 10 }).add_subclass(SubClass { val2: 5 })
     }
     fn sub_method(&self, x: usize) -> usize {
         x * self.val2
@@ -146,9 +146,9 @@ struct SubClass2 {}
 #[pymethods]
 impl SubClass2 {
     #[new]
-    fn new(value: isize) -> PyResult<(Self, BaseClassWithResult)> {
+    fn new(value: isize) -> PyResult<PyClassInitializer<Self>> {
         let base = BaseClassWithResult::new(value)?;
-        Ok((Self {}, base))
+        Ok(PyClassInitializer::from(base).add_subclass(Self {}))
     }
 }
 

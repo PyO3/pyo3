@@ -88,6 +88,52 @@ let obj_2 = existing_bound.clone();
 # })
 ```
 
+### Deprecation of super class initialization from tuples
+
+Performing superclass initialitation from a subclass via a tuple is deprecated and will be removed in a future PyO3 version.
+This also includes the `From<(S, B)> for PyClassInitializer<S>` impl which we can't warn against.
+To migrate use `PyClassInitializer` directly:
+
+Before:
+
+```rust
+# #![allow(deprecated)]
+# use pyo3::prelude::*;
+#[pyclass(subclass)]
+struct Base;
+
+#[pyclass(extends=Base)]
+struct Sub;
+
+#[pymethods]
+impl Sub {
+    #[new]
+    fn new() -> (Self, Base) {
+        (Self, Base)
+    }
+}
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass(subclass)]
+struct Base;
+
+#[pyclass(extends=Base)]
+struct Sub;
+
+#[pymethods]
+impl Sub {
+    #[new]
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from(Base)
+            .add_subclass(Self)
+    }
+}
+```
+
 ### Internal change to use multi-phase initialization
 
 [PEP 489](https://peps.python.org/pep-0489/) introduced "multi-phase initialization" for extension modules which provides ways to allocate and clean up per-module state.
