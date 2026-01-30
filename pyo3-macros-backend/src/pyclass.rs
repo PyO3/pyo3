@@ -21,6 +21,8 @@ use crate::introspection::{
 };
 use crate::konst::{ConstAttributes, ConstSpec};
 use crate::method::{FnArg, FnSpec, PyArg, RegularArg};
+#[cfg(feature = "experimental-inspect")]
+use crate::py_expr::PyExpr;
 use crate::pyfunction::{ConstructorAttribute, FunctionSignature};
 #[cfg(feature = "experimental-inspect")]
 use crate::pyimpl::method_introspection_code;
@@ -33,8 +35,6 @@ use crate::pymethod::{
     __REPR__, __RICHCMP__, __STR__,
 };
 use crate::pyversions::{is_abi3_before, is_py_before};
-#[cfg(feature = "experimental-inspect")]
-use crate::type_hint::PythonTypeHint;
 use crate::utils::{self, apply_renaming_rule, Ctx, PythonDoc};
 use crate::PyFunctionOptions;
 
@@ -1369,10 +1369,10 @@ fn impl_complex_enum_variant_match_args(
         pyo3_path,
         Some(variant_cls_type),
         "__match_args__".into(),
-        PythonTypeHint::tuple(
+        PyExpr::tuple(
             field_names
                 .iter()
-                .map(|name| PythonTypeHint::str_constant(name.unraw().to_string())),
+                .map(|name| PyExpr::str_constant(name.unraw().to_string())),
         ),
         syn::Type::Tuple(syn::TypeTuple {
             paren_token: syn::token::Paren::default(),
@@ -2077,7 +2077,7 @@ fn descriptors_to_items(
                     &FunctionSignature::from_arguments(vec![]),
                     Some("self"),
                     parse_quote!(-> #return_type),
-                    vec![PythonTypeHint::builtin("property")],
+                    vec![PyExpr::builtin("property")],
                     false,
                     Some(&parse_quote!(#cls)),
                 ));
@@ -2117,9 +2117,9 @@ fn descriptors_to_items(
                     })]),
                     Some("self"),
                     syn::ReturnType::Default,
-                    vec![PythonTypeHint::attribute(
-                        PythonTypeHint::attribute(
-                            PythonTypeHint::from_type(
+                    vec![PyExpr::attribute(
+                        PyExpr::attribute(
+                            PyExpr::from_type(
                                 syn::TypePath {
                                     qself: None,
                                     path: cls.clone().into(),
@@ -2300,10 +2300,10 @@ fn pyclass_richcmp_simple_enum(
             annotation: Some(
                 options
                     .eq
-                    .map(|_| PythonTypeHint::from_type(cls.clone(), None))
+                    .map(|_| PyExpr::from_type(cls.clone(), None))
                     .into_iter()
-                    .chain(options.eq_int.map(|_| PythonTypeHint::builtin("int")))
-                    .reduce(PythonTypeHint::union)
+                    .chain(options.eq_int.map(|_| PyExpr::builtin("int")))
+                    .reduce(PyExpr::union)
                     .expect("At least one must be defined"),
             ),
         })],
@@ -2877,7 +2877,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             ident,
             &name,
             self.attr.options.extends.as_ref().map(|attr| {
-                PythonTypeHint::from_type(
+                PyExpr::from_type(
                     syn::TypePath {
                         qself: None,
                         path: attr.value.clone(),

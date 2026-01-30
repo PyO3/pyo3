@@ -6,7 +6,7 @@ use crate::introspection::{attribute_introspection_code, function_introspection_
 #[cfg(feature = "experimental-inspect")]
 use crate::method::{FnSpec, FnType};
 #[cfg(feature = "experimental-inspect")]
-use crate::type_hint::PythonTypeHint;
+use crate::py_expr::PyExpr;
 use crate::utils::{has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath};
 use crate::{
     attributes::{take_pyo3_options, CrateAttribute},
@@ -256,10 +256,9 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec, ctx: &Ctx) -> MethodAndMe
         &ctx.pyo3_path,
         Some(cls),
         spec.python_name().to_string(),
-        spec.expr.as_ref().map_or_else(
-            PythonTypeHint::ellipsis,
-            PythonTypeHint::constant_from_expression,
-        ),
+        spec.expr
+            .as_ref()
+            .map_or_else(PyExpr::ellipsis, PyExpr::constant_from_expression),
         spec.ty.clone(),
         true,
     ));
@@ -410,25 +409,19 @@ pub fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ct
     match &spec.tp {
         FnType::Getter(_) => {
             first_argument = Some("self");
-            decorators.push(PythonTypeHint::builtin("property"));
+            decorators.push(PyExpr::builtin("property"));
         }
         FnType::Setter(_) => {
             first_argument = Some("self");
-            decorators.push(PythonTypeHint::attribute(
-                PythonTypeHint::attribute(
-                    PythonTypeHint::from_type(parent.clone(), None),
-                    name.clone(),
-                ),
+            decorators.push(PyExpr::attribute(
+                PyExpr::attribute(PyExpr::from_type(parent.clone(), None), name.clone()),
                 "setter",
             ));
         }
         FnType::Deleter(_) => {
             first_argument = Some("self");
-            decorators.push(PythonTypeHint::attribute(
-                PythonTypeHint::attribute(
-                    PythonTypeHint::from_type(parent.clone(), None),
-                    name.clone(),
-                ),
+            decorators.push(PyExpr::attribute(
+                PyExpr::attribute(PyExpr::from_type(parent.clone(), None), name.clone()),
                 "deleter",
             ));
         }
@@ -439,12 +432,12 @@ pub fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ct
             first_argument = Some("cls");
             if spec.python_name != "__new__" {
                 // special case __new__ - does not get the decorator
-                decorators.push(PythonTypeHint::builtin("classmethod"));
+                decorators.push(PyExpr::builtin("classmethod"));
             }
         }
         FnType::FnStatic => {
             if spec.python_name != "__new__" {
-                decorators.push(PythonTypeHint::builtin("staticmethod"));
+                decorators.push(PyExpr::builtin("staticmethod"));
             } else {
                 // special case __new__ - does not get the decorator and gets first argument
                 first_argument = Some("cls");
@@ -454,8 +447,8 @@ pub fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ct
         FnType::ClassAttribute => {
             first_argument = Some("cls");
             // TODO: this combination only works with Python 3.9-3.11 https://docs.python.org/3.11/library/functions.html#classmethod
-            decorators.push(PythonTypeHint::builtin("classmethod"));
-            decorators.push(PythonTypeHint::builtin("property"));
+            decorators.push(PyExpr::builtin("classmethod"));
+            decorators.push(PyExpr::builtin("property"));
         }
     }
     let return_type = if spec.python_name == "__new__" {

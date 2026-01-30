@@ -1,5 +1,5 @@
 #[cfg(feature = "experimental-inspect")]
-use crate::type_hint::PythonTypeHint;
+use crate::py_expr::PyExpr;
 use crate::{
     attributes::{kw, KeywordAttribute},
     method::FnArg,
@@ -253,8 +253,8 @@ impl ToTokens for PyTypeAnnotation {
 
 impl PyTypeAnnotation {
     #[cfg(feature = "experimental-inspect")]
-    pub fn as_type_hint(&self) -> PythonTypeHint {
-        PythonTypeHint::str_constant(self.0.value())
+    pub fn as_type_hint(&self) -> PyExpr {
+        PyExpr::str_constant(self.0.value())
     }
 }
 
