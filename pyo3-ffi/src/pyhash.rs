@@ -3,7 +3,7 @@ use crate::pyport::{Py_hash_t, Py_ssize_t};
 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
 use std::ffi::c_void;
 
-use std::ffi::{c_int, c_ulong};
+use std::ffi::c_int;
 
 extern "C" {
     // skipped non-limited _Py_HashDouble
@@ -11,14 +11,12 @@ extern "C" {
     // skipped non-limited _Py_HashPointerRaw
 
     #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-    pub fn _Py_HashBytes(src: *const c_void, len: Py_ssize_t) -> Py_hash_t;
+    pub(crate) fn _Py_HashBytes(src: *const c_void, len: Py_ssize_t) -> Py_hash_t;
 }
 
-pub const _PyHASH_MULTIPLIER: c_ulong = 1000003;
-
-// skipped _PyHASH_BITS
-
-// skipped non-limited _Py_HashSecret_t
+// skipped private _PyHASH_MULTIPLIER
+// skipped private _PyHASH_BITS
+// skipped private _Py_HashSecret_t
 
 // skipped Py_HASH_CUTOFF
 
