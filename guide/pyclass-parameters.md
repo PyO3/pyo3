@@ -31,7 +31,6 @@
 | `get(foo, bar, ...)` | Applies `pyo3(get)` on given methods (i.e., on `foo` and `bar`). |
 | `set(foo, bar, ...)` | Applies `pyo3(set)` on given methods. |
 
-
 All of these parameters can either be passed directly on the `#[pyclass(...)]` annotation, or as one or more accompanying `#[pyo3(...)]` annotations, e.g.:
 
 ```rust,ignore
