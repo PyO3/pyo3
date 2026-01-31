@@ -340,7 +340,7 @@ impl ToTokens for NewImplTypeAttributeValue {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GetListAttribute {
     pub get_token: kw::get,
     pub paren_token: syn::token::Paren,
@@ -380,6 +380,57 @@ impl ToTokens for GetListAttribute {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         // keyword `get`
         self.get_token.to_tokens(tokens);
+
+        // parentheses
+        let paren_content = self.fields.iter().map(|f| quote::quote! { #f });
+        let paren_tokens = quote::quote! { ( #( #paren_content ),* ) };
+
+        tokens.extend(quote::quote! {
+            #paren_tokens
+        });
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SetListAttribute {
+    pub set_token: kw::set,
+    pub paren_token: syn::token::Paren,
+    pub fields: Punctuated<Ident, Token![,]>,
+}
+
+impl syn::parse::Parse for SetListAttribute {
+    fn parse(input: syn::parse::ParseStream<'_>) -> Result<Self> {
+        // Parse the keyword: set
+        let set_token: kw::set = input.parse()?;
+
+        // Parse the parentheses: ( ... )
+        let content;
+        let paren_token = parenthesized!(content in input);
+
+        // Parse identifiers inside: a, b, c
+        let fields =
+            content.parse_terminated(Ident::parse, Token![,])?;
+
+        // Reject empty list: set()
+        if fields.is_empty() {
+            return Err(syn::Error::new(
+                paren_token.span.join(),
+                "`set(...)` must contain at least one field name",
+            ));
+        }
+
+        Ok(SetListAttribute {
+            set_token,
+            paren_token,
+            fields,
+        })
+    }
+}
+
+impl ToTokens for SetListAttribute {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        // keyword `set`
+        self.set_token.to_tokens(tokens);
 
         // parentheses
         let paren_content = self.fields.iter().map(|f| quote::quote! { #f });

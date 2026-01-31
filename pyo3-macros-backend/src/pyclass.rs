@@ -12,7 +12,7 @@ use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
     ModuleAttribute, NameAttribute, NameLitStr, NewImplTypeAttribute, NewImplTypeAttributeValue,
-    RenameAllAttribute, StrFormatterAttribute, GetListAttribute
+    RenameAllAttribute, StrFormatterAttribute, GetListAttribute, SetListAttribute
 };
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
@@ -97,7 +97,8 @@ pub struct PyClassPyO3Options {
     pub generic: Option<kw::generic>,
     pub from_py_object: Option<kw::from_py_object>,
     pub skip_from_py_object: Option<kw::skip_from_py_object>,
-    pub get: Option<GetListAttribute>
+    pub get: Option<GetListAttribute>,
+    pub set: Option<SetListAttribute>
 }
 
 pub enum PyClassPyO3Option {
@@ -126,7 +127,8 @@ pub enum PyClassPyO3Option {
     Generic(kw::generic),
     FromPyObject(kw::from_py_object),
     SkipFromPyObject(kw::skip_from_py_object),
-    Get(GetListAttribute)
+    Get(GetListAttribute),
+    Set(SetListAttribute),
 }
 
 impl Parse for PyClassPyO3Option {
@@ -184,6 +186,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::SkipFromPyObject)
         } else if lookahead.peek(attributes::kw::get) {
             input.parse().map(PyClassPyO3Option::Get)
+        } else if lookahead.peek(attributes::kw::set) {
+            input.parse().map(PyClassPyO3Option::Set)
         } else {
             Err(lookahead.error())
         }
@@ -278,7 +282,8 @@ impl PyClassPyO3Options {
                 );
                 set_option!(from_py_object)
             }
-            PyClassPyO3Option::Get(get) => set_option!(get)
+            PyClassPyO3Option::Get(get) => set_option!(get),
+            PyClassPyO3Option::Set(set) => set_option!(set),
         }
         Ok(())
     }
@@ -378,6 +383,24 @@ pub fn build_py_class(
                 }
             } else {
                 return Err(syn::Error::new_spanned(get_list_attr.clone(), format!("no field named `{}`", name)));
+            }
+        }
+    }
+
+    if let Some(set_list_attr) = &args.options.set {
+        // get_list_attr contains the list of desired field names (NameAttribute or Ident)
+        for name in set_list_attr.fields.iter() {
+            // find matching field in `field_options`:
+            if let Some((_, field_opts)) =
+                field_options.iter_mut().find(|(f, _)| match &f.ident {
+                    Some(ident) => ident == name,
+                    None => false,
+                }) {
+                if let Some(old_set) = field_opts.set.replace(Annotated::Struct(kw::set_all::default())) {
+                    return Err(syn::Error::new(old_set.span(), "duplicate set specified"));
+                }
+            } else {
+                return Err(syn::Error::new_spanned(set_list_attr.clone(), format!("no field named `{}`", name)));
             }
         }
     }
