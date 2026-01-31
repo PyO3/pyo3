@@ -353,18 +353,23 @@ pub fn build_py_class(
     .into_iter()
     .try_combine_syn_errors()?;
 
+    let mut results: Vec<syn::Result<()>> = Vec::new();
     if let Some(attr) = args.options.get_all {
         for (_, FieldPyO3Options { get, .. }) in &mut field_options {
-            if let Some(old_get) = get.replace(Annotated::Struct(attr)) {
-                return Err(syn::Error::new(old_get.span(), DUPE_GET));
+            if let Some(old_get) =
+                get.replace(Annotated::Struct(FieldPyO3OptionsGetSource::GetAll(attr)))
+            {
+                results.push(Err(syn::Error::new(old_get.span(), DUPE_GET)));
             }
         }
     }
 
     if let Some(attr) = args.options.set_all {
         for (_, FieldPyO3Options { set, .. }) in &mut field_options {
-            if let Some(old_set) = set.replace(Annotated::Struct(attr)) {
-                return Err(syn::Error::new(old_set.span(), DUPE_SET));
+            if let Some(old_set) =
+                set.replace(Annotated::Struct(FieldPyO3OptionsSetSource::SetAll(attr)))
+            {
+                results.push(Err(syn::Error::new(old_set.span(), DUPE_SET)));
             }
         }
     }
@@ -379,15 +384,15 @@ pub fn build_py_class(
             }) {
                 if let Some(old_get) = field_opts
                     .get
-                    .replace(Annotated::Struct(kw::get_all::default()))
+                    .replace(Annotated::Struct(FieldPyO3OptionsGetSource::GetList(get_list_attr.clone())))
                 {
-                    return Err(syn::Error::new(old_get.span(), "duplicate get specified"));
+                    results.push(Err(syn::Error::new(old_get.span(), DUPE_GET)));
                 }
             } else {
-                return Err(syn::Error::new_spanned(
-                    get_list_attr.clone(),
+                results.push(Err(syn::Error::new_spanned(
+                    name,
                     format!("no field named `{}`", name),
-                ));
+                )));
             }
         }
     }
@@ -402,19 +407,20 @@ pub fn build_py_class(
             }) {
                 if let Some(old_set) = field_opts
                     .set
-                    .replace(Annotated::Struct(kw::set_all::default()))
+                    .replace(Annotated::Struct(FieldPyO3OptionsSetSource::SetList(set_list_attr.clone())))
                 {
-                    return Err(syn::Error::new(old_set.span(), "duplicate set specified"));
+                    results.push(Err(syn::Error::new(old_set.span(), DUPE_SET)));
                 }
             } else {
-                return Err(syn::Error::new_spanned(
-                    set_list_attr.clone(),
+                results.push(Err(syn::Error::new_spanned(
+                    name,
                     format!("no field named `{}`", name),
-                ));
+                )));
             }
         }
     }
 
+    results.into_iter().try_combine_syn_errors()?;
     impl_class(&class.ident, &args, doc, field_options, methods_type, ctx)
 }
 
@@ -432,10 +438,38 @@ impl<X: Spanned, Y: Spanned> Annotated<X, Y> {
     }
 }
 
+pub enum FieldPyO3OptionsGetSource {
+    GetAll(attributes::kw::get_all),
+    GetList(GetListAttribute),
+}
+
+impl ToTokens for FieldPyO3OptionsGetSource {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            FieldPyO3OptionsGetSource::GetAll(kw) => kw.to_tokens(tokens),
+            FieldPyO3OptionsGetSource::GetList(list_attr) => list_attr.to_tokens(tokens),
+        }
+    }
+}
+
+pub enum FieldPyO3OptionsSetSource {
+    SetAll(attributes::kw::set_all),
+    SetList(SetListAttribute)
+}
+
+impl ToTokens for FieldPyO3OptionsSetSource {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            FieldPyO3OptionsSetSource::SetAll(kw) => kw.to_tokens(tokens),
+            FieldPyO3OptionsSetSource::SetList(list_attr) => list_attr.to_tokens(tokens),
+        }
+    }
+}
+
 /// `#[pyo3()]` options for pyclass fields
 struct FieldPyO3Options {
-    get: Option<Annotated<kw::get, kw::get_all>>,
-    set: Option<Annotated<kw::set, kw::set_all>>,
+    get: Option<Annotated<kw::get, FieldPyO3OptionsGetSource>>,
+    set: Option<Annotated<kw::set, FieldPyO3OptionsSetSource>>,
     name: Option<NameAttribute>,
 }
 
@@ -3131,8 +3165,8 @@ const UNIQUE_GET: &str = "`get` may only be specified once";
 const UNIQUE_SET: &str = "`set` may only be specified once";
 const UNIQUE_NAME: &str = "`name` may only be specified once";
 
-const DUPE_SET: &str = "useless `set` - the struct is already annotated with `set_all`";
-const DUPE_GET: &str = "useless `get` - the struct is already annotated with `get_all`";
+const DUPE_SET: &str = "useless `set` - the struct is already annotated with `set_all or set(...)`";
+const DUPE_GET: &str = "useless `get` - the struct is already annotated with `get_all or get(...)`";
 const UNIT_GET: &str =
     "`get_all` on an unit struct does nothing, because unit structs have no fields";
 const UNIT_SET: &str =
