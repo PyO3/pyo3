@@ -371,7 +371,7 @@ pub fn build_py_class(
 
     if let Some(get_list_attr) = &args.options.get {
         // get_list_attr contains the list of desired field names (NameAttribute or Ident)
-        for name in get_list_attr.fields.iter() {
+        for name in &get_list_attr.fields {
             // find matching field in `field_options`:
             if let Some((_, field_opts)) = field_options.iter_mut().find(|(f, _)| match &f.ident {
                 Some(ident) => ident == name,
@@ -394,7 +394,7 @@ pub fn build_py_class(
 
     if let Some(set_list_attr) = &args.options.set {
         // get_list_attr contains the list of desired field names (NameAttribute or Ident)
-        for name in set_list_attr.fields.iter() {
+        for name in &set_list_attr.fields {
             // find matching field in `field_options`:
             if let Some((_, field_opts)) = field_options.iter_mut().find(|(f, _)| match &f.ident {
                 Some(ident) => ident == name,
