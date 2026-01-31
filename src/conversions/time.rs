@@ -58,7 +58,9 @@ use crate::types::datetime::{PyDateAccess, PyDeltaAccess};
 use crate::types::{PyAnyMethods, PyDate, PyDateTime, PyDelta, PyNone, PyTime, PyTzInfo};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyTimeAccess, PyTzInfoAccess};
-use crate::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{
+    py_format, Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python,
+};
 use time::{
     Date, Duration, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcDateTime, UtcOffset,
 };
@@ -378,9 +380,9 @@ impl FromPyObject<'_, '_> for UtcOffset {
         // Get the offset in seconds from the Python tzinfo
         let py_timedelta = ob.call_method1("utcoffset", (PyNone::get(ob.py()),))?;
         if py_timedelta.is_none() {
-            return Err(PyTypeError::new_err(format!(
-                "{ob:?} is not a fixed offset timezone"
-            )));
+            return Err(PyTypeError::new_err(
+                py_format!(ob.py(), "{ob:?} is not a fixed offset timezone")?.unbind(),
+            ));
         }
 
         let total_seconds: Duration = py_timedelta.extract()?;

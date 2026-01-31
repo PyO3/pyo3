@@ -14,14 +14,15 @@ use crate::{
     exceptions::PyRuntimeError,
     ffi,
     impl_::pymethods::PyMethodDefType,
+    py_format,
     pyclass::{create_type_object, PyClassTypeObject},
     types::PyType,
     Bound, Py, PyAny, PyClass, PyErr, PyResult, Python,
 };
 
-use std::sync::Mutex;
-
 use super::PyClassItemsIter;
+use crate::types::PyString;
+use std::sync::Mutex;
 
 /// Lazy type object for PyClass.
 #[doc(hidden)]
@@ -103,7 +104,7 @@ impl LazyTypeObjectInner {
             wrap_in_runtime_error(
                 py,
                 err,
-                format!("An error occurred while initializing class {name}"),
+                py_format!(py, "An error occurred while initializing class {name}").unwrap(),
             )
         })
     }
@@ -174,11 +175,13 @@ impl LazyTypeObjectInner {
                             return Err(wrap_in_runtime_error(
                                 py,
                                 err,
-                                format!(
+                                py_format!(
+                                    py,
                                     "An error occurred while initializing `{}.{}`",
                                     name,
                                     attr.name.to_str().unwrap()
-                                ),
+                                )
+                                .unwrap(),
                             ))
                         }
                     }
@@ -227,7 +230,7 @@ impl LazyTypeObjectInner {
             return Err(wrap_in_runtime_error(
                 py,
                 err,
-                format!("An error occurred while initializing `{name}.__dict__`"),
+                py_format!(py, "An error occurred while initializing `{name}.__dict__`").unwrap(),
             ));
         }
 
@@ -261,8 +264,8 @@ pub fn type_object_init_failed(py: Python<'_>, err: PyErr, type_name: &str) -> !
 }
 
 #[cold]
-fn wrap_in_runtime_error(py: Python<'_>, err: PyErr, message: String) -> PyErr {
-    let runtime_err = PyRuntimeError::new_err(message);
+fn wrap_in_runtime_error(py: Python<'_>, err: PyErr, message: Bound<'_, PyString>) -> PyErr {
+    let runtime_err = PyRuntimeError::new_err(message.unbind());
     runtime_err.set_cause(py, Some(err));
     runtime_err
 }

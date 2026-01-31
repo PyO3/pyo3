@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    exceptions,
+    exceptions, py_format,
     types::{PyAnyMethods, PyStringMethods, PyType, PyTypeMethods},
     Borrowed, Bound, IntoPyObject, Py, PyAny, PyErr, PyErrArguments, Python,
 };
@@ -66,8 +66,7 @@ impl PyErrArguments for DowncastErrorArguments {
             .as_ref()
             .map(|name| name.to_string_lossy())
             .unwrap_or(Cow::Borrowed("<failed to extract type name>"));
-        format!("'{}' object cannot be converted to '{}'", from, self.to)
-            .into_pyobject(py)
+        py_format!(py, "'{}' object cannot be converted to '{}'", from, self.to)
             .unwrap()
             .into_any()
             .unbind()

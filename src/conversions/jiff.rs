@@ -51,7 +51,9 @@ use crate::types::{PyAnyMethods, PyNone};
 use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
-use crate::{intern, Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{
+    intern, py_format, Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python,
+};
 use jiff::civil::{Date, DateTime, ISOWeekDate, Time};
 use jiff::tz::{Offset, TimeZone};
 use jiff::{SignedDuration, Span, Timestamp, Zoned};
@@ -400,9 +402,9 @@ impl<'py> FromPyObject<'_, 'py> for Offset {
 
         let py_timedelta = ob.call_method1(intern!(py, "utcoffset"), (PyNone::get(py),))?;
         if py_timedelta.is_none() {
-            return Err(PyTypeError::new_err(format!(
-                "{ob:?} is not a fixed offset timezone"
-            )));
+            return Err(PyTypeError::new_err(
+                py_format!(py, "{ob:?} is not a fixed offset timezone")?.unbind(),
+            ));
         }
 
         let total_seconds = py_timedelta.extract::<SignedDuration>()?.as_secs();

@@ -38,7 +38,8 @@ use {
 #[macro_export]
 macro_rules! py_format {
     ($py: expr, $($arg:tt)*) => {{
-        if let Some(static_string) = format_args!($($arg)*).as_str() {
+        let format_args = format_args!($($arg)*);
+        if let Some(static_string) = format_args.as_str() {
             static INTERNED: $crate::sync::PyOnceLock<$crate::Py<$crate::types::PyString>> = $crate::sync::PyOnceLock::new();
             Ok(
                 INTERNED
@@ -47,7 +48,7 @@ macro_rules! py_format {
                 .to_owned()
             )
         } else {
-            $crate::types::PyString::from_fmt($py, format_args!($($arg)*))
+            $crate::types::PyString::from_fmt($py, format_args)
         }
     }}
 }
