@@ -760,7 +760,9 @@ impl MyClass {
 In this case, the property `number` is defined and available from Python code as `self.number`.
 
 ### Object properties using `#[pyclass(get(...))]` and `#[pyclass(set(...))]`
+
 For cases where `cfg_attr` is used, getters and setters can be defined directly inside `#[pyclass]`:
+
 ```rust
 # use pyo3::prelude::*;
 #[cfg_attr(feature = "python-bindings", pyclass(get(foo, bar), set(foo, bar)))]
@@ -773,6 +775,7 @@ struct MyClass {
 In the above example, `get(foo)` will insert `#[pyo3(get)]` on top of the `foo` attribute, and `set(foo)` will insert `#[pyo3(set)]` on top of the `foo` attribute.
 
 Use in above example is equivalent to:
+
 ```rust
 # use pyo3::prelude::*;
 #[pyclass]
@@ -783,8 +786,8 @@ struct MyClass {
     bar: i32,
 }
 ```
-when the argument inside `cfg_attr` evaluates as true.
 
+when the argument inside `cfg_attr` evaluates as true.
 
 ## Instance methods
 
@@ -1508,8 +1511,7 @@ This implementation pattern enables the Rust compiler to use `#[pymethods]` impl
 
 This simple technique works for the case when there is zero or one implementations.
 To support multiple `#[pymethods]` for a `#[pyclass]` (in the [`multiple-pymethods`] feature), a registry mechanism provided by the [`inventory`](https://github.com/dtolnay/inventory) crate is used instead.
-This collects `impl`s at library load time, but isn't supported on all platforms.
-See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) for more details.
+This collects `impl`s at library load time, but isn't supported on all platforms. See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) for more details.
 
 The `#[pyclass]` macro expands to roughly the code seen below.
 The `PyClassImplCollector` is the type used internally by PyO3 for dtolnay specialization:
