@@ -382,9 +382,12 @@ pub fn build_py_class(
                 Some(ident) => ident == name,
                 None => false,
             }) {
-                if let Some(old_get) = field_opts
-                    .get
-                    .replace(Annotated::Struct(FieldPyO3OptionsGetSource::GetList(get_list_attr.clone())))
+                if let Some(old_get) =
+                    field_opts
+                        .get
+                        .replace(Annotated::Struct(FieldPyO3OptionsGetSource::GetList(
+                            get_list_attr.clone(),
+                        )))
                 {
                     results.push(Err(syn::Error::new(old_get.span(), DUPE_GET)));
                 }
@@ -405,9 +408,12 @@ pub fn build_py_class(
                 Some(ident) => ident == name,
                 None => false,
             }) {
-                if let Some(old_set) = field_opts
-                    .set
-                    .replace(Annotated::Struct(FieldPyO3OptionsSetSource::SetList(set_list_attr.clone())))
+                if let Some(old_set) =
+                    field_opts
+                        .set
+                        .replace(Annotated::Struct(FieldPyO3OptionsSetSource::SetList(
+                            set_list_attr.clone(),
+                        )))
                 {
                     results.push(Err(syn::Error::new(old_set.span(), DUPE_SET)));
                 }
@@ -454,7 +460,7 @@ impl ToTokens for FieldPyO3OptionsGetSource {
 
 pub enum FieldPyO3OptionsSetSource {
     SetAll(attributes::kw::set_all),
-    SetList(SetListAttribute)
+    SetList(SetListAttribute),
 }
 
 impl ToTokens for FieldPyO3OptionsSetSource {
