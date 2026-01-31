@@ -357,8 +357,7 @@ impl syn::parse::Parse for GetListAttribute {
         let paren_token = parenthesized!(content in input);
 
         // Parse identifiers inside: a, b, c
-        let fields =
-            content.parse_terminated(Ident::parse, Token![,])?;
+        let fields = content.parse_terminated(Ident::parse, Token![,])?;
 
         // Reject empty list: get()
         if fields.is_empty() {
@@ -408,8 +407,7 @@ impl syn::parse::Parse for SetListAttribute {
         let paren_token = parenthesized!(content in input);
 
         // Parse identifiers inside: a, b, c
-        let fields =
-            content.parse_terminated(Ident::parse, Token![,])?;
+        let fields = content.parse_terminated(Ident::parse, Token![,])?;
 
         // Reject empty list: set()
         if fields.is_empty() {

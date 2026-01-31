@@ -11,8 +11,8 @@ use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, ImplItemFn, Result
 use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, NewImplTypeAttribute, NewImplTypeAttributeValue,
-    RenameAllAttribute, StrFormatterAttribute, GetListAttribute, SetListAttribute
+    GetListAttribute, ModuleAttribute, NameAttribute, NameLitStr, NewImplTypeAttribute,
+    NewImplTypeAttributeValue, RenameAllAttribute, SetListAttribute, StrFormatterAttribute,
 };
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
@@ -98,7 +98,7 @@ pub struct PyClassPyO3Options {
     pub from_py_object: Option<kw::from_py_object>,
     pub skip_from_py_object: Option<kw::skip_from_py_object>,
     pub get: Option<GetListAttribute>,
-    pub set: Option<SetListAttribute>
+    pub set: Option<SetListAttribute>,
 }
 
 pub enum PyClassPyO3Option {
@@ -373,16 +373,21 @@ pub fn build_py_class(
         // get_list_attr contains the list of desired field names (NameAttribute or Ident)
         for name in get_list_attr.fields.iter() {
             // find matching field in `field_options`:
-            if let Some((_, field_opts)) =
-                field_options.iter_mut().find(|(f, _)| match &f.ident {
-                    Some(ident) => ident == name,
-                    None => false,
-                }) {
-                if let Some(old_get) = field_opts.get.replace(Annotated::Struct(kw::get_all::default())) {
+            if let Some((_, field_opts)) = field_options.iter_mut().find(|(f, _)| match &f.ident {
+                Some(ident) => ident == name,
+                None => false,
+            }) {
+                if let Some(old_get) = field_opts
+                    .get
+                    .replace(Annotated::Struct(kw::get_all::default()))
+                {
                     return Err(syn::Error::new(old_get.span(), "duplicate get specified"));
                 }
             } else {
-                return Err(syn::Error::new_spanned(get_list_attr.clone(), format!("no field named `{}`", name)));
+                return Err(syn::Error::new_spanned(
+                    get_list_attr.clone(),
+                    format!("no field named `{}`", name),
+                ));
             }
         }
     }
@@ -391,16 +396,21 @@ pub fn build_py_class(
         // get_list_attr contains the list of desired field names (NameAttribute or Ident)
         for name in set_list_attr.fields.iter() {
             // find matching field in `field_options`:
-            if let Some((_, field_opts)) =
-                field_options.iter_mut().find(|(f, _)| match &f.ident {
-                    Some(ident) => ident == name,
-                    None => false,
-                }) {
-                if let Some(old_set) = field_opts.set.replace(Annotated::Struct(kw::set_all::default())) {
+            if let Some((_, field_opts)) = field_options.iter_mut().find(|(f, _)| match &f.ident {
+                Some(ident) => ident == name,
+                None => false,
+            }) {
+                if let Some(old_set) = field_opts
+                    .set
+                    .replace(Annotated::Struct(kw::set_all::default()))
+                {
                     return Err(syn::Error::new(old_set.span(), "duplicate set specified"));
                 }
             } else {
-                return Err(syn::Error::new_spanned(set_list_attr.clone(), format!("no field named `{}`", name)));
+                return Err(syn::Error::new_spanned(
+                    set_list_attr.clone(),
+                    format!("no field named `{}`", name),
+                ));
             }
         }
     }
