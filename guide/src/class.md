@@ -763,7 +763,7 @@ In this case, the property `number` is defined and available from Python code as
 
 For cases where `cfg_attr` is used, getters and setters can be defined directly inside `#[pyclass]`:
 
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 #[cfg_attr(feature = "python-bindings", pyclass(get(foo, bar), set(foo, bar)))]
 struct MyClass {
