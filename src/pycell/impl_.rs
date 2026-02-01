@@ -345,7 +345,7 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
 }
 
 #[repr(C)]
-pub(crate) struct PyClassObjectContents<T: PyClassImpl> {
+pub struct PyClassObjectContents<T: PyClassImpl> {
     pub(crate) value: ManuallyDrop<UnsafeCell<T>>,
     pub(crate) borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage,
     pub(crate) thread_checker: T::ThreadChecker,
