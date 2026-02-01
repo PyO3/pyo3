@@ -126,24 +126,27 @@
 //!
 //! **`src/lib.rs`**
 //! ```rust,no_run
+//! #[cfg(Py_3_15)]
+//! use std::ffi::c_void;
 //! use std::ffi::{c_char, c_long};
 //! use std::ptr;
 //!
 //! use pyo3_ffi::*;
 //!
+//! #[cfg(not(Py_3_15))]
 //! static mut MODULE_DEF: PyModuleDef = PyModuleDef {
 //!     m_base: PyModuleDef_HEAD_INIT,
 //!     m_name: c"string_sum".as_ptr(),
 //!     m_doc: c"A Python module written in Rust.".as_ptr(),
 //!     m_size: 0,
-//!     m_methods: unsafe { METHODS as *const [PyMethodDef] as *mut PyMethodDef },
-//!     m_slots: std::ptr::null_mut(),
+//!     m_methods: std::ptr::addr_of_mut!(METHODS).cast(),
+//!     m_slots: std::ptr::addr_of_mut!(SLOTS).cast(),
 //!     m_traverse: None,
 //!     m_clear: None,
 //!     m_free: None,
 //! };
 //!
-//! static mut METHODS: &[PyMethodDef] = &[
+//! static mut METHODS: [PyMethodDef; 2] = [
 //!     PyMethodDef {
 //!         ml_name: c"sum_as_string".as_ptr(),
 //!         ml_meth: PyMethodDefPointer {
@@ -156,22 +159,63 @@
 //!     PyMethodDef::zeroed(),
 //! ];
 //!
-//! // The module initialization function.
+//! #[cfg(Py_3_15)]
+//! PyABIInfo_VAR!(ABI_INFO);
+//!
+//! const SLOTS_LEN: usize =
+//!     1 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize + 4 * (cfg!(Py_3_15) as usize);
+//! static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
+//!     #[cfg(Py_3_15)]
+//!     PyModuleDef_Slot {
+//!         slot: Py_mod_abi,
+//!         value: std::ptr::addr_of_mut!(ABI_INFO).cast(),
+//!     },
+//!     #[cfg(Py_3_15)]
+//!     PyModuleDef_Slot {
+//!         slot: Py_mod_name,
+//!         // safety: Python does not write to this field
+//!         value: c"string_sum".as_ptr() as *mut c_void,
+//!     },
+//!     #[cfg(Py_3_15)]
+//!     PyModuleDef_Slot {
+//!         slot: Py_mod_doc,
+//!         // safety: Python does not write to this field
+//!         value: c"A Python module written in Rust.".as_ptr() as *mut c_void,
+//!     },
+//!     #[cfg(Py_3_15)]
+//!     PyModuleDef_Slot {
+//!         slot: Py_mod_methods,
+//!         value: std::ptr::addr_of_mut!(METHODS).cast(),
+//!     },
+//!     #[cfg(Py_3_12)]
+//!     PyModuleDef_Slot {
+//!         slot: Py_mod_multiple_interpreters,
+//!         value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
+//!     },
+//!     #[cfg(Py_GIL_DISABLED)]
+//!     PyModuleDef_Slot {
+//!         slot: Py_mod_gil,
+//!         value: Py_MOD_GIL_NOT_USED,
+//!     },
+//!     PyModuleDef_Slot {
+//!         slot: 0,
+//!         value: ptr::null_mut(),
+//!     },
+//! ];
+//!
+//! // The module initialization function
+//! #[cfg(not(Py_3_15))]
 //! #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
 //! #[no_mangle]
 //! pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
-//!     let module = PyModule_Create(ptr::addr_of_mut!(MODULE_DEF));
-//!     if module.is_null() {
-//!         return module;
-//!     }
-//!     #[cfg(Py_GIL_DISABLED)]
-//!     {
-//!         if PyUnstable_Module_SetGIL(module, Py_MOD_GIL_NOT_USED) < 0 {
-//!             Py_DECREF(module);
-//!             return std::ptr::null_mut();
-//!         }
-//!     }
-//!     module
+//!     PyModuleDef_Init(ptr::addr_of_mut!(MODULE_DEF))
+//! }
+//!
+//! #[cfg(Py_3_15)]
+//! #[allow(non_snake_case, reason = "must be named `PyModExport_<your_module>`")]
+//! #[no_mangle]
+//! pub unsafe extern "C" fn PyModExport_string_sum() -> *mut PyModuleDef_Slot {
+//!     std::ptr::addr_of_mut!(SLOTS).cast()
 //! }
 //!
 //! /// A helper to parse function arguments
@@ -191,7 +235,10 @@
 //!     let mut overflow = 0;
 //!     let i_long: c_long = PyLong_AsLongAndOverflow(obj, &mut overflow);
 //!
-//!     #[allow(irrefutable_let_patterns, reason = "some platforms have c_long equal to i32")]
+//!     #[allow(
+//!         irrefutable_let_patterns,
+//!         reason = "some platforms have c_long equal to i32"
+//!     )]
 //!     if overflow != 0 {
 //!         raise_overflowerror(obj);
 //!         None
@@ -251,10 +298,7 @@
 //!             PyUnicode_FromStringAndSize(string.as_ptr().cast::<c_char>(), string.len() as isize)
 //!         }
 //!         None => {
-//!             PyErr_SetString(
-//!                 PyExc_OverflowError,
-//!                 c"arguments too large to add".as_ptr(),
-//!             );
+//!             PyErr_SetString(PyExc_OverflowError, c"arguments too large to add".as_ptr());
 //!             std::ptr::null_mut()
 //!         }
 //!     }

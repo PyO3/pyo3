@@ -61,7 +61,7 @@ pub trait IntoPyObject<'py>: Sized {
     /// For most types, the return value for this method will be identical to that of [`FromPyObject::INPUT_TYPE`].
     /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("typing", "Any");
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("_typeshed", "Incomplete");
 
     /// Performs the conversion.
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
@@ -416,7 +416,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
     /// For example, `Vec<u32>` would be `collections.abc.Sequence[int]`.
     /// The default value is `typing.Any`, which is correct for any type.
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("typing", "Any");
+    const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("_typeshed", "Incomplete");
 
     /// Extracts `Self` from the bound smart pointer `obj`.
     ///

@@ -8,7 +8,7 @@ pub mod consts {
     pub const PI: f64 = std::f64::consts::PI; // Exports PI constant as part of the module
 
     #[pymodule_export]
-    pub const SIMPLE: &str = "SIMPLE";
+    pub const ESCAPING: &str = "S\0\x01\t\n\r\"'\\";
 
     #[pyclass]
     struct ClassWithConst {}

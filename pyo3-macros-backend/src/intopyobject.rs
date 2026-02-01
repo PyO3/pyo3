@@ -1,7 +1,7 @@
 use crate::attributes::{IntoPyWithAttribute, RenamingRule};
 use crate::derive_attributes::{ContainerAttributes, FieldAttributes};
 #[cfg(feature = "experimental-inspect")]
-use crate::type_hint::PythonTypeHint;
+use crate::py_expr::PyExpr;
 use crate::utils::{self, Ctx};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
@@ -360,14 +360,14 @@ impl<'a, const REF: bool> Container<'a, REF> {
     }
 
     #[cfg(feature = "experimental-inspect")]
-    fn output_type(&self) -> PythonTypeHint {
+    fn output_type(&self) -> PyExpr {
         match &self.ty {
             ContainerType::StructNewtype(field) | ContainerType::TupleNewtype(field) => {
                 Self::field_output_type(&None, &field.ty)
             }
-            ContainerType::Tuple(tups) => PythonTypeHint::subscript(
-                PythonTypeHint::builtin("tuple"),
-                PythonTypeHint::tuple(tups.iter().map(
+            ContainerType::Tuple(tups) => PyExpr::subscript(
+                PyExpr::builtin("tuple"),
+                PyExpr::tuple(tups.iter().map(
                     |TupleStructField {
                          into_py_with,
                          field,
@@ -376,21 +376,18 @@ impl<'a, const REF: bool> Container<'a, REF> {
             ),
             ContainerType::Struct(_) => {
                 // TODO: implement using a Protocol?
-                PythonTypeHint::module_attr("_typeshed", "Incomplete")
+                PyExpr::module_attr("_typeshed", "Incomplete")
             }
         }
     }
 
     #[cfg(feature = "experimental-inspect")]
-    fn field_output_type(
-        into_py_with: &Option<IntoPyWithAttribute>,
-        ty: &syn::Type,
-    ) -> PythonTypeHint {
+    fn field_output_type(into_py_with: &Option<IntoPyWithAttribute>, ty: &syn::Type) -> PyExpr {
         if into_py_with.is_some() {
             // We don't know what into_py_with is doing
-            PythonTypeHint::module_attr("_typeshed", "Incomplete")
+            PyExpr::module_attr("_typeshed", "Incomplete")
         } else {
-            PythonTypeHint::from_into_py_object(ty.clone(), None)
+            PyExpr::from_into_py_object(ty.clone(), None)
         }
     }
 }
@@ -470,11 +467,11 @@ impl<'a, const REF: bool> Enum<'a, REF> {
     }
 
     #[cfg(feature = "experimental-inspect")]
-    fn output_type(&self) -> PythonTypeHint {
+    fn output_type(&self) -> PyExpr {
         self.variants
             .iter()
             .map(|var| var.output_type())
-            .reduce(PythonTypeHint::union)
+            .reduce(PyExpr::union)
             .expect("Empty enum")
     }
 }
@@ -592,13 +589,13 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
                 }
                 syn::Data::Union(_) => {
                     // Not supported at this point
-                    PythonTypeHint::module_attr("_typeshed", "Incomplete")
+                    PyExpr::module_attr("_typeshed", "Incomplete")
                 }
             }
         } else {
             // We don't know how to deal with generic parameters
             // Blocked by https://github.com/rust-lang/rust/issues/76560
-            PythonTypeHint::module_attr("_typeshed", "Incomplete")
+            PyExpr::module_attr("_typeshed", "Incomplete")
         }
         .to_introspection_token_stream(pyo3_crate_path);
         quote! { const OUTPUT_TYPE: #pyo3_path::inspect::PyStaticExpr = #output_type; }

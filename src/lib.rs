@@ -418,12 +418,14 @@ pub mod coroutine;
 mod err;
 pub mod exceptions;
 pub mod ffi;
+pub(crate) mod fmt;
 mod instance;
 mod interpreter_lifecycle;
 pub mod marker;
 pub mod marshal;
 #[macro_use]
 pub mod sync;
+pub(crate) mod byteswriter;
 pub mod panic;
 pub mod pybacked;
 pub mod pycell;
