@@ -9,6 +9,7 @@ fn test_compile_errors() {
     #[cfg(not(feature = "experimental-inspect"))]
     t.compile_fail("tests/ui/invalid_property_args.rs");
     t.compile_fail("tests/ui/invalid_proto_pymethods.rs");
+    #[cfg(not(all(Py_LIMITED_API, not(Py_3_10))))] // to avoid PyFunctionArgument for &str
     t.compile_fail("tests/ui/invalid_pyclass_args.rs");
     t.compile_fail("tests/ui/invalid_pyclass_doc.rs");
     t.compile_fail("tests/ui/invalid_pyclass_enum.rs");
@@ -19,6 +20,7 @@ fn test_compile_errors() {
     #[cfg(Py_3_9)]
     t.compile_fail("tests/ui/pyclass_generic_enum.rs");
     #[cfg(not(feature = "experimental-inspect"))]
+    #[cfg(not(all(Py_LIMITED_API, not(Py_3_10))))] // to avoid PyFunctionArgument for &str
     t.compile_fail("tests/ui/invalid_pyfunction_argument.rs");
     t.compile_fail("tests/ui/invalid_pyfunction_definition.rs");
     t.compile_fail("tests/ui/invalid_pyfunction_signatures.rs");

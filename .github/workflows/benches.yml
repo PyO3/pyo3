@@ -5,22 +5,23 @@ on:
     branches:
       - "main"
   pull_request:
-  # `workflow_dispatch` allows CodSpeed to trigger backtest
-  # performance analysis in order to generate initial data.
-  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name }}-${{ github.event.pull_request.number || github.sha }}-benches
   cancel-in-progress: true
+
+env:
+  UV_PYTHON: "3.14t"
 
 jobs:
   benchmarks:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.14"
+          # codspeed action needs to be run from within the final Python environment
+          activate-environment: true
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
@@ -38,12 +39,9 @@ jobs:
         with:
           tool: cargo-codspeed
 
-      - name: Install nox
-        run: pip install nox[uv]
-
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@v4
         with:
-          run: nox -s codspeed
+          run: uvx nox -s codspeed
           token: ${{ secrets.CODSPEED_TOKEN }}
-          mode: instrumentation
+          mode: simulation

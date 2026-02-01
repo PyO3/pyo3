@@ -11,7 +11,8 @@ use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, ImplItemFn, Result
 use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, RenameAllAttribute, StrFormatterAttribute,
+    ModuleAttribute, NameAttribute, NameLitStr, NewImplTypeAttribute, NewImplTypeAttributeValue,
+    RenameAllAttribute, StrFormatterAttribute,
 };
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
@@ -88,6 +89,7 @@ pub struct PyClassPyO3Options {
     pub rename_all: Option<RenameAllAttribute>,
     pub sequence: Option<kw::sequence>,
     pub set_all: Option<kw::set_all>,
+    pub new: Option<NewImplTypeAttribute>,
     pub str: Option<StrFormatterAttribute>,
     pub subclass: Option<kw::subclass>,
     pub unsendable: Option<kw::unsendable>,
@@ -115,6 +117,7 @@ pub enum PyClassPyO3Option {
     RenameAll(RenameAllAttribute),
     Sequence(kw::sequence),
     SetAll(kw::set_all),
+    New(NewImplTypeAttribute),
     Str(StrFormatterAttribute),
     Subclass(kw::subclass),
     Unsendable(kw::unsendable),
@@ -161,6 +164,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Sequence)
         } else if lookahead.peek(attributes::kw::set_all) {
             input.parse().map(PyClassPyO3Option::SetAll)
+        } else if lookahead.peek(attributes::kw::new) {
+            input.parse().map(PyClassPyO3Option::New)
         } else if lookahead.peek(attributes::kw::str) {
             input.parse().map(PyClassPyO3Option::Str)
         } else if lookahead.peek(attributes::kw::subclass) {
@@ -243,6 +248,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
             PyClassPyO3Option::SetAll(set_all) => set_option!(set_all),
+            PyClassPyO3Option::New(new) => set_option!(new),
             PyClassPyO3Option::Str(str) => set_option!(str),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
@@ -488,6 +494,13 @@ fn impl_class(
         }
     }
 
+    let (default_new, default_new_slot) = pyclass_new_impl(
+        &args.options,
+        &syn::parse_quote!(#cls),
+        field_options.iter().map(|(f, _)| f),
+        ctx,
+    )?;
+
     let mut default_methods = descriptors_to_items(
         cls,
         args.options.rename_all.as_ref(),
@@ -516,6 +529,7 @@ fn impl_class(
     slots.extend(default_richcmp_slot);
     slots.extend(default_hash_slot);
     slots.extend(default_str_slot);
+    slots.extend(default_new_slot);
 
     let impl_builder =
         PyClassImplsBuilder::new(cls, cls, args, methods_type, default_methods, slots).doc(doc);
@@ -543,6 +557,7 @@ fn impl_class(
             #default_richcmp
             #default_hash
             #default_str
+            #default_new
             #default_class_getitem
         }
     })
@@ -1711,11 +1726,11 @@ fn generate_protocol_slot(
 ) -> syn::Result<MethodAndSlotDef> {
     let spec = FnSpec::parse(
         &mut method.sig,
-        &mut Vec::new(),
+        &mut method.attrs,
         PyFunctionOptions::default(),
     )?;
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
-    let mut def = slot.generate_type_slot(&syn::parse_quote!(#cls), &spec, name, ctx)?;
+    let mut def = slot.generate_type_slot(cls, &spec, name, ctx)?;
     #[cfg(feature = "experimental-inspect")]
     def.add_introspection(introspection_data.generate(ctx, cls));
     Ok(def)
@@ -2431,6 +2446,94 @@ fn pyclass_hash(
     }
 }
 
+fn pyclass_new_impl<'a>(
+    options: &PyClassPyO3Options,
+    ty: &syn::Type,
+    fields: impl Iterator<Item = &'a &'a syn::Field>,
+    ctx: &Ctx,
+) -> Result<(Option<ImplItemFn>, Option<MethodAndSlotDef>)> {
+    if options
+        .new
+        .as_ref()
+        .is_some_and(|o| matches!(o.value, NewImplTypeAttributeValue::FromFields))
+    {
+        ensure_spanned!(
+            options.extends.is_none(), options.new.span() => "The `new=\"from_fields\"` option cannot be used with `extends`.";
+        );
+    }
+
+    let mut tuple_struct: bool = false;
+
+    match &options.new {
+        Some(opt) => {
+            let mut field_idents = vec![];
+            let mut field_types = vec![];
+            for (idx, field) in fields.enumerate() {
+                tuple_struct = field.ident.is_none();
+
+                field_idents.push(
+                    field
+                        .ident
+                        .clone()
+                        .unwrap_or_else(|| format_ident!("_{}", idx)),
+                );
+                field_types.push(&field.ty);
+            }
+
+            let mut new_impl = if tuple_struct {
+                parse_quote_spanned! { opt.span() =>
+                    #[new]
+                    fn __pyo3_generated____new__( #( #field_idents : #field_types ),* ) -> Self {
+                        Self (
+                            #( #field_idents, )*
+                        )
+                    }
+                }
+            } else {
+                parse_quote_spanned! { opt.span() =>
+                    #[new]
+                    fn __pyo3_generated____new__( #( #field_idents : #field_types ),* ) -> Self {
+                        Self {
+                            #( #field_idents, )*
+                        }
+                    }
+                }
+            };
+
+            let new_slot = generate_protocol_slot(
+                ty,
+                &mut new_impl,
+                &__NEW__,
+                "__new__",
+                #[cfg(feature = "experimental-inspect")]
+                FunctionIntrospectionData {
+                    names: &["__new__"],
+                    arguments: field_idents
+                        .iter()
+                        .zip(field_types.iter())
+                        .map(|(ident, ty)| {
+                            FnArg::Regular(RegularArg {
+                                name: Cow::Owned(ident.clone()),
+                                ty,
+                                from_py_with: None,
+                                default_value: None,
+                                option_wrapped_type: None,
+                                annotation: None,
+                            })
+                        })
+                        .collect(),
+                    returns: ty.clone(),
+                },
+                ctx,
+            )
+            .unwrap();
+
+            Ok((Some(new_impl), Some(new_slot)))
+        }
+        None => Ok((None, None)),
+    }
+}
+
 fn pyclass_class_getitem(
     options: &PyClassPyO3Options,
     cls: &syn::Type,
@@ -2612,7 +2715,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         let thread_checker = if self.attr.options.unsendable.is_some() {
             quote! { #pyo3_path::impl_::pyclass::ThreadCheckerImpl }
         } else {
-            quote! { #pyo3_path::impl_::pyclass::SendablePyClass<#cls> }
+            quote! { #pyo3_path::impl_::pyclass::NoopThreadChecker }
         };
 
         let (pymethods_items, inventory, inventory_class) = match self.methods_type {
@@ -2697,11 +2800,9 @@ impl<'a> PyClassImplsBuilder<'a> {
         let assertions = if attr.options.unsendable.is_some() {
             TokenStream::new()
         } else {
-            let assert = quote_spanned! { cls.span() => #pyo3_path::impl_::pyclass::assert_pyclass_sync::<#cls>(); };
+            let assert = quote_spanned! { cls.span() => #pyo3_path::impl_::pyclass::assert_pyclass_send_sync::<#cls>() };
             quote! {
-                const _: () = {
-                    #assert
-                };
+                const _: () = #assert;
             }
         };
 
