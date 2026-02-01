@@ -106,6 +106,16 @@ let obj_2 = existing_bound.clone();
 
 </details>
 
+### Untyped buffer API moved to PyUntypedBuffer
+
+<details open>
+<summary><small>Click to expand</small></summary>
+
+`PyBuffer<T>` now is a typed wrapper around `PyUntypedBuffer`.
+Many methods such as `PyBuffer::format` have been moved to `PyUntypedBuffer::format`. `PyBuffer<T>` dereferences to `PyUntypedBuffer`, so method call syntax will continue to work as-is.
+Users may need to update references to the moved functions.
+</details>
+
 ### Internal change to use multi-phase initialization
 
 <details open>
