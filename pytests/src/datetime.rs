@@ -188,6 +188,7 @@ impl TzClass {
         TzClass {}
     }
 
+    #[pyo3(signature = (_dt, /))]
     fn utcoffset<'py>(
         &self,
         _dt: Option<&Bound<'_, PyDateTime>>,
@@ -196,10 +197,12 @@ impl TzClass {
         PyDelta::new(py, 0, 3600, 0, true)
     }
 
+    #[pyo3(signature = (_dt, /))]
     fn tzname(&self, _dt: Option<&Bound<'_, PyDateTime>>) -> String {
         String::from("+01:00")
     }
 
+    #[pyo3(signature = (_dt, /))]
     fn dst(&self, _dt: Option<&Bound<'_, PyDateTime>>) -> Option<Bound<'static, PyDelta>> {
         None
     }
