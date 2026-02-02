@@ -9,6 +9,10 @@ class AssertingBaseClass:
 
 @final
 class ClassWithDecorators:
+    cls_attribute: int
+    """
+    A class attribute
+    """
     def __new__(cls, /) -> ClassWithDecorators: ...
     @property
     def attr(self, /) -> int:
@@ -24,12 +28,6 @@ class ClassWithDecorators:
     def attr(self, /, value: int) -> None:
         """
         A setter
-        """
-    @classmethod
-    @property
-    def cls_attribute(cls, /) -> int:
-        """
-        A class attribute
         """
     @classmethod
     def cls_method(cls, /) -> int:
