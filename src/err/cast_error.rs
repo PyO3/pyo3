@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 
 use crate::{
-    exceptions,
+    exceptions, py_format,
     types::{
         PyAnyMethods, PyNone, PyStringMethods, PyTuple, PyTupleMethods, PyType, PyTypeMethods,
     },
-    Borrowed, Bound, IntoPyObjectExt, Py, PyAny, PyErr, PyErrArguments, PyTypeInfo, Python,
+    Borrowed, Bound, Py, PyAny, PyErr, PyErrArguments, PyTypeInfo, Python,
 };
 
 /// Error that indicates an object was not an instance of a given target type.
@@ -67,15 +67,17 @@ struct CastErrorArguments {
 
 impl PyErrArguments for CastErrorArguments {
     fn arguments(self, py: Python<'_>) -> Py<PyAny> {
-        format!(
+        py_format!(
+            py,
             "{}",
             DisplayCastError {
                 from: &self.from.into_bound(py),
                 classinfo: &self.classinfo.into_bound(py),
             }
         )
-        .into_py_any(py)
         .expect("failed to create Python string")
+        .into_any()
+        .unbind()
     }
 }
 

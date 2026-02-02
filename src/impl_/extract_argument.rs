@@ -6,14 +6,7 @@ use crate::inspect::{type_hint_union, PyStaticExpr};
 use crate::types::PyNone;
 #[cfg(any(Py_3_10, not(Py_LIMITED_API), feature = "experimental-inspect"))]
 use crate::types::PyString;
-use crate::{
-    exceptions::PyTypeError,
-    ffi,
-    pyclass::boolean_struct::False,
-    types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
-    Borrowed, Bound, CastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr,
-    PyResult, PyTypeCheck, Python,
-};
+use crate::{exceptions::PyTypeError, ffi, py_format, pyclass::boolean_struct::False, types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple}, Borrowed, Bound, CastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr, PyResult, PyTypeCheck, Python};
 
 /// Helper type used to keep implementation more concise.
 ///
@@ -272,7 +265,7 @@ pub fn from_py_with_with_default<'a, 'py, T>(
 pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -> PyErr {
     if error.get_type(py).is(py.get_type::<PyTypeError>()) {
         let remapped_error =
-            PyTypeError::new_err(format!("argument '{}': {}", arg_name, error.value(py)));
+            PyTypeError::new_err(py_format!(py, "argument '{}': {}", arg_name, error.value(py)).unwrap().unbind());
         remapped_error.set_cause(py, error.cause(py));
         remapped_error
     } else {
@@ -565,6 +558,7 @@ impl FunctionDescription {
         );
         let mut positional_only_keyword_arguments = Vec::new();
         for (kwarg_name_py, value) in kwargs {
+            let py = value.py();
             // Safety: All keyword arguments should be UTF-8 strings, but if it's not, `.to_str()`
             // will return an error anyway.
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -585,7 +579,7 @@ impl FunctionDescription {
                         .replace(value)
                         .is_some()
                     {
-                        return Err(self.multiple_values_for_argument(kwarg_name));
+                        return Err(self.multiple_values_for_argument(py, kwarg_name));
                     }
                     continue;
                 }
@@ -600,7 +594,7 @@ impl FunctionDescription {
                             positional_only_keyword_arguments.push(kwarg_name_owned);
                         }
                     } else if output[i].replace(value).is_some() {
-                        return Err(self.multiple_values_for_argument(kwarg_name));
+                        return Err(self.multiple_values_for_argument(py, kwarg_name));
                     }
                     continue;
                 }
@@ -669,10 +663,10 @@ impl FunctionDescription {
     }
 
     #[cold]
-    fn too_many_positional_arguments(&self, args_provided: usize) -> PyErr {
+    fn too_many_positional_arguments(&self, py: Python<'_>, args_provided: usize) -> PyErr {
         let was = if args_provided == 1 { "was" } else { "were" };
         let msg = if self.required_positional_parameters != self.positional_parameter_names.len() {
-            format!(
+            py_format!(py,
                 "{} takes from {} to {} positional arguments but {} {} given",
                 self.full_name(),
                 self.required_positional_parameters,
@@ -681,7 +675,7 @@ impl FunctionDescription {
                 was
             )
         } else {
-            format!(
+            py_format!(py,
                 "{} takes {} positional arguments but {} {} given",
                 self.full_name(),
                 self.positional_parameter_names.len(),
@@ -689,35 +683,35 @@ impl FunctionDescription {
                 was
             )
         };
-        PyTypeError::new_err(msg)
+        PyTypeError::new_err(msg.unwrap().unbind())
     }
 
     #[cold]
-    fn multiple_values_for_argument(&self, argument: &str) -> PyErr {
-        PyTypeError::new_err(format!(
+    fn multiple_values_for_argument(&self, py: Python<'_>, argument: &str) -> PyErr {
+        PyTypeError::new_err(py_format!(py,
             "{} got multiple values for argument '{}'",
             self.full_name(),
             argument
-        ))
+        ).unwrap().unbind())
     }
 
     #[cold]
     fn unexpected_keyword_argument(&self, argument: PyArg<'_>) -> PyErr {
-        PyTypeError::new_err(format!(
+        PyTypeError::new_err(py_format!(argument.py(),
             "{} got an unexpected keyword argument '{}'",
             self.full_name(),
             argument.as_any()
-        ))
+        ).unwrap().unbind())
     }
 
     #[cold]
-    fn positional_only_keyword_arguments(&self, parameter_names: &[&str]) -> PyErr {
-        let mut msg = format!(
+    fn positional_only_keyword_arguments(&self, py: Python<'_>, parameter_names: &[&str]) -> PyErr {
+        let mut msg = py_format!(py,
             "{} got some positional-only arguments passed as keyword arguments: ",
             self.full_name()
-        );
+        ).unwrap();
         push_parameter_list(&mut msg, parameter_names);
-        PyTypeError::new_err(msg)
+        PyTypeError::new_err(msg.unbind())
     }
 
     #[cold]
@@ -800,13 +794,13 @@ impl<'py> VarargsHandler<'py> for NoVarargs {
 
     #[inline]
     fn handle_varargs_fastcall(
-        _py: Python<'py>,
+        py: Python<'py>,
         varargs: &[Option<PyArg<'py>>],
         function_description: &FunctionDescription,
     ) -> PyResult<Self::Varargs> {
         let extra_arguments = varargs.len();
         if extra_arguments > 0 {
-            return Err(function_description.too_many_positional_arguments(
+            return Err(function_description.too_many_positional_arguments(py,
                 function_description.positional_parameter_names.len() + extra_arguments,
             ));
         }
@@ -823,7 +817,7 @@ impl<'py> VarargsHandler<'py> for NoVarargs {
         if provided_args_count <= positional_parameter_count {
             Ok(())
         } else {
-            Err(function_description.too_many_positional_arguments(provided_args_count))
+            Err(function_description.too_many_positional_arguments(args.py(), provided_args_count))
         }
     }
 }
