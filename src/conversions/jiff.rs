@@ -46,21 +46,25 @@
 //! }
 //! ```
 use crate::exceptions::{PyTypeError, PyValueError};
-use crate::pybacked::PyBackedStr;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::PyStaticExpr;
 use crate::types::{PyAnyMethods, PyNone};
 use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 use crate::{intern, Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
+#[cfg(feature = "experimental-inspect")]
+use crate::{type_hint_identifier, PyTypeInfo};
 use jiff::civil::{Date, DateTime, ISOWeekDate, Time};
 use jiff::tz::{Offset, TimeZone};
 use jiff::{SignedDuration, Span, Timestamp, Zoned};
 #[cfg(feature = "jiff-02")]
 use jiff_02 as jiff;
+use std::borrow::Cow;
 
 fn datetime_to_pydatetime<'py>(
     py: Python<'py>,
-    datetime: &DateTime,
+    datetime: DateTime,
     fold: bool,
     timezone: Option<&TimeZone>,
 ) -> PyResult<Bound<'py, PyDateTime>> {
@@ -107,8 +111,11 @@ impl<'py> IntoPyObject<'py> for Timestamp {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = Zoned::OUTPUT_TYPE;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        (&self).into_pyobject(py)
+        self.to_zoned(TimeZone::UTC).into_pyobject(py)
     }
 }
 
@@ -117,13 +124,19 @@ impl<'py> IntoPyObject<'py> for &Timestamp {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = Timestamp::OUTPUT_TYPE;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        self.to_zoned(TimeZone::UTC).into_pyobject(py)
+        (*self).into_pyobject(py)
     }
 }
 
 impl<'a, 'py> FromPyObject<'a, 'py> for Timestamp {
     type Error = <Zoned as FromPyObject<'a, 'py>>::Error;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = Zoned::INPUT_TYPE;
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let zoned = ob.extract::<Zoned>()?;
@@ -136,15 +149,8 @@ impl<'py> IntoPyObject<'py> for Date {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        (&self).into_pyobject(py)
-    }
-}
-
-impl<'py> IntoPyObject<'py> for &Date {
-    type Target = PyDate;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = PyDate::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyDate::new(
@@ -156,8 +162,24 @@ impl<'py> IntoPyObject<'py> for &Date {
     }
 }
 
+impl<'py> IntoPyObject<'py> for &Date {
+    type Target = PyDate;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = Date::OUTPUT_TYPE;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 impl<'py> FromPyObject<'_, 'py> for Date {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = PyDate::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let date = ob.cast::<PyDate>()?;
@@ -188,15 +210,8 @@ impl<'py> IntoPyObject<'py> for Time {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        (&self).into_pyobject(py)
-    }
-}
-
-impl<'py> IntoPyObject<'py> for &Time {
-    type Target = PyTime;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = PyTime::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyTime::new(
@@ -210,8 +225,24 @@ impl<'py> IntoPyObject<'py> for &Time {
     }
 }
 
+impl<'py> IntoPyObject<'py> for &Time {
+    type Target = PyTime;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = Time::OUTPUT_TYPE;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
 impl<'py> FromPyObject<'_, 'py> for Time {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = PyTime::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let ob = ob.cast::<PyTime>()?;
@@ -225,8 +256,11 @@ impl<'py> IntoPyObject<'py> for DateTime {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        (&self).into_pyobject(py)
+        datetime_to_pydatetime(py, self, false, None)
     }
 }
 
@@ -235,13 +269,19 @@ impl<'py> IntoPyObject<'py> for &DateTime {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = DateTime::OUTPUT_TYPE;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        datetime_to_pydatetime(py, self, false, None)
+        (*self).into_pyobject(py)
     }
 }
 
 impl<'py> FromPyObject<'_, 'py> for DateTime {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn extract(dt: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let dt = dt.cast::<PyDateTime>()?;
@@ -261,15 +301,20 @@ impl<'py> IntoPyObject<'py> for Zoned {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = <&Self>::OUTPUT_TYPE;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (&self).into_pyobject(py)
     }
 }
-
 impl<'py> IntoPyObject<'py> for &Zoned {
     type Target = PyDateTime;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         fn fold(zoned: &Zoned) -> Option<bool> {
@@ -285,7 +330,7 @@ impl<'py> IntoPyObject<'py> for &Zoned {
 
         datetime_to_pydatetime(
             py,
-            &self.datetime(),
+            self.datetime(),
             fold(self).unwrap_or(false),
             Some(self.time_zone()),
         )
@@ -294,6 +339,9 @@ impl<'py> IntoPyObject<'py> for &Zoned {
 
 impl<'py> FromPyObject<'_, 'py> for Zoned {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn extract(dt: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let dt = dt.cast::<PyDateTime>()?;
@@ -329,6 +377,9 @@ impl<'py> IntoPyObject<'py> for TimeZone {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = <&Self>::OUTPUT_TYPE;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (&self).into_pyobject(py)
     }
@@ -338,6 +389,9 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
     type Target = PyTzInfo;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         if self == &TimeZone::UTC {
@@ -355,29 +409,20 @@ impl<'py> IntoPyObject<'py> for &TimeZone {
 impl<'py> FromPyObject<'_, 'py> for TimeZone {
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
+
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let ob = ob.cast::<PyTzInfo>()?;
 
         let attr = intern!(ob.py(), "key");
         if ob.hasattr(attr)? {
-            Ok(TimeZone::get(&ob.getattr(attr)?.extract::<PyBackedStr>()?)?)
+            Ok(TimeZone::get(
+                &ob.getattr(attr)?.extract::<Cow<'_, str>>()?,
+            )?)
         } else {
             Ok(ob.extract::<Offset>()?.to_time_zone())
         }
-    }
-}
-
-impl<'py> IntoPyObject<'py> for &Offset {
-    type Target = PyTzInfo;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        if self == &Offset::UTC {
-            return Ok(PyTzInfo::utc(py)?.to_owned());
-        }
-
-        PyTzInfo::fixed_offset(py, self.duration_since(Offset::UTC))
     }
 }
 
@@ -386,13 +431,36 @@ impl<'py> IntoPyObject<'py> for Offset {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("datetime", "timezone");
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        (&self).into_pyobject(py)
+        if self == Offset::UTC {
+            return Ok(PyTzInfo::utc(py)?.to_owned());
+        }
+
+        PyTzInfo::fixed_offset(py, self.duration_since(Offset::UTC))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &Offset {
+    type Target = PyTzInfo;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = Offset::OUTPUT_TYPE;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
     }
 }
 
 impl<'py> FromPyObject<'_, 'py> for Offset {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let py = ob.py();
@@ -416,10 +484,13 @@ impl<'py> FromPyObject<'_, 'py> for Offset {
     }
 }
 
-impl<'py> IntoPyObject<'py> for &SignedDuration {
+impl<'py> IntoPyObject<'py> for SignedDuration {
     type Target = PyDelta;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = PyDelta::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let total_seconds = self.as_secs();
@@ -431,18 +502,24 @@ impl<'py> IntoPyObject<'py> for &SignedDuration {
     }
 }
 
-impl<'py> IntoPyObject<'py> for SignedDuration {
+impl<'py> IntoPyObject<'py> for &SignedDuration {
     type Target = PyDelta;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = SignedDuration::OUTPUT_TYPE;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        (&self).into_pyobject(py)
+        (*self).into_pyobject(py)
     }
 }
 
 impl<'py> FromPyObject<'_, 'py> for SignedDuration {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = PyDelta::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let delta = ob.cast::<PyDelta>()?;
@@ -471,6 +548,9 @@ impl<'py> FromPyObject<'_, 'py> for SignedDuration {
 impl<'py> FromPyObject<'_, 'py> for Span {
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = SignedDuration::INPUT_TYPE;
+
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let duration = ob.extract::<SignedDuration>()?;
         Ok(duration.try_into()?)
@@ -482,6 +562,9 @@ impl<'py> IntoPyObject<'py> for ISOWeekDate {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = Date::OUTPUT_TYPE;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.date().into_pyobject(py)
     }
@@ -492,6 +575,9 @@ impl<'py> IntoPyObject<'py> for &ISOWeekDate {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = ISOWeekDate::OUTPUT_TYPE;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
     }
@@ -499,6 +585,9 @@ impl<'py> IntoPyObject<'py> for &ISOWeekDate {
 
 impl FromPyObject<'_, '_> for ISOWeekDate {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = Date::INPUT_TYPE;
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         Ok(ob.extract::<Date>()?.iso_week_date())

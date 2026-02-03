@@ -53,6 +53,8 @@
 
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::PyStaticExpr;
 use crate::types::PyFloat;
 use crate::{Borrowed, Bound, FromPyObject, PyAny, Python};
 use ordered_float::{NotNan, OrderedFloat};
@@ -62,6 +64,9 @@ macro_rules! float_conversions {
     ($wrapper:ident, $float_type:ty, $constructor:expr) => {
         impl<'a, 'py> FromPyObject<'a, 'py> for $wrapper<$float_type> {
             type Error = <$float_type as FromPyObject<'a, 'py>>::Error;
+
+            #[cfg(feature = "experimental-inspect")]
+            const INPUT_TYPE: PyStaticExpr = <$float_type>::INPUT_TYPE;
 
             fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let val: $float_type = obj.extract()?;
@@ -74,6 +79,9 @@ macro_rules! float_conversions {
             type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
 
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: PyStaticExpr = <$float_type>::OUTPUT_TYPE;
+
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 self.into_inner().into_pyobject(py)
             }
@@ -83,6 +91,9 @@ macro_rules! float_conversions {
             type Target = PyFloat;
             type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
+
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: PyStaticExpr = <$wrapper<$float_type>>::OUTPUT_TYPE;
 
             #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {

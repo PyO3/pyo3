@@ -45,11 +45,14 @@
 
 use crate::conversion::IntoPyObject;
 use crate::ffi;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::PyStaticExpr;
 use crate::sync::PyOnceLock;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_hint_identifier;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
 use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
-
 #[cfg(feature = "num-bigint")]
 use num_bigint::BigInt;
 use num_rational::Ratio;
@@ -64,6 +67,9 @@ macro_rules! rational_conversion {
     ($int: ty) => {
         impl<'py> FromPyObject<'_, 'py> for Ratio<$int> {
             type Error = PyErr;
+
+            #[cfg(feature = "experimental-inspect")]
+            const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("fractions", "Fraction");
 
             fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let py = obj.py();
@@ -89,6 +95,9 @@ macro_rules! rational_conversion {
             type Output = Bound<'py, Self::Target>;
             type Error = PyErr;
 
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: PyStaticExpr = <&Ratio<$int>>::OUTPUT_TYPE;
+
             #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (&self).into_pyobject(py)
@@ -99,6 +108,9 @@ macro_rules! rational_conversion {
             type Target = PyAny;
             type Output = Bound<'py, Self::Target>;
             type Error = PyErr;
+
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("fractions", "Fraction");
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 get_fraction_cls(py)?.call1((self.numer().clone(), self.denom().clone()))

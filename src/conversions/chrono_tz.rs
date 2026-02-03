@@ -38,12 +38,12 @@ use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
-use crate::pybacked::PyBackedStr;
 #[cfg(feature = "experimental-inspect")]
-use crate::type_object::PyTypeInfo;
+use crate::type_hint_identifier;
 use crate::types::{any::PyAnyMethods, PyTzInfo};
 use crate::{intern, Borrowed, Bound, FromPyObject, PyAny, PyErr, Python};
 use chrono_tz::Tz;
+use std::borrow::Cow;
 use std::str::FromStr;
 
 impl<'py> IntoPyObject<'py> for Tz {
@@ -52,7 +52,12 @@ impl<'py> IntoPyObject<'py> for Tz {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
+    #[cfg(Py_3_9)]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("zoneinfo", "ZoneInfo");
+
+    #[cfg(feature = "experimental-inspect")]
+    #[cfg(not(Py_3_9))]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("backports.zoneinfo", "ZoneInfo");
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyTzInfo::timezone(py, self.name())
@@ -76,10 +81,18 @@ impl<'py> IntoPyObject<'py> for &Tz {
 impl FromPyObject<'_, '_> for Tz {
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    #[cfg(Py_3_9)]
+    const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("zoneinfo", "ZoneInfo");
+
+    #[cfg(feature = "experimental-inspect")]
+    #[cfg(not(Py_3_9))]
+    const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("backports.zoneinfo", "ZoneInfo");
+
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         Tz::from_str(
             &ob.getattr(intern!(ob.py(), "key"))?
-                .extract::<PyBackedStr>()?,
+                .extract::<Cow<'_, str>>()?,
         )
         .map_err(|e| PyValueError::new_err(e.to_string()))
     }

@@ -16,6 +16,8 @@
 //!
 //! Note that you must use compatible versions of hashbrown and PyO3.
 //! The required hashbrown version may vary based on the version of PyO3.
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::PyStaticExpr;
 use crate::{
     conversion::{FromPyObjectOwned, IntoPyObject},
     types::{
@@ -27,17 +29,23 @@ use crate::{
     },
     Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
 };
-use std::{cmp, hash};
+#[cfg(feature = "experimental-inspect")]
+use crate::{type_hint_subscript, type_hint_union, PyTypeInfo};
+use std::hash;
 
 impl<'py, K, V, H> IntoPyObject<'py> for hashbrown::HashMap<K, V, H>
 where
-    K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    K: IntoPyObject<'py> + Eq + hash::Hash,
     V: IntoPyObject<'py>,
     H: hash::BuildHasher,
 {
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(PyDict::TYPE_HINT, K::OUTPUT_TYPE, V::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
@@ -50,13 +58,17 @@ where
 
 impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a hashbrown::HashMap<K, V, H>
 where
-    &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    &'a K: IntoPyObject<'py> + Eq + hash::Hash,
     &'a V: IntoPyObject<'py>,
     H: hash::BuildHasher,
 {
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(PyDict::TYPE_HINT, <&K>::OUTPUT_TYPE, <&V>::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
@@ -69,11 +81,15 @@ where
 
 impl<'py, K, V, S> FromPyObject<'_, 'py> for hashbrown::HashMap<K, V, S>
 where
-    K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
+    K: FromPyObjectOwned<'py> + Eq + hash::Hash,
     V: FromPyObjectOwned<'py>,
     S: hash::BuildHasher + Default,
 {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(PyDict::TYPE_HINT, K::INPUT_TYPE, V::INPUT_TYPE);
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.cast::<PyDict>()?;
@@ -90,12 +106,15 @@ where
 
 impl<'py, K, H> IntoPyObject<'py> for hashbrown::HashSet<K, H>
 where
-    K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    K: IntoPyObject<'py> + Eq + hash::Hash,
     H: hash::BuildHasher,
 {
     type Target = PySet;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySet::TYPE_HINT, K::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         try_new_from_iter(py, self)
@@ -104,12 +123,15 @@ where
 
 impl<'a, 'py, K, H> IntoPyObject<'py> for &'a hashbrown::HashSet<K, H>
 where
-    &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    &'a K: IntoPyObject<'py> + Eq + hash::Hash,
     H: hash::BuildHasher,
 {
     type Target = PySet;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySet::TYPE_HINT, <&K>::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         try_new_from_iter(py, self)
@@ -118,10 +140,16 @@ where
 
 impl<'py, K, S> FromPyObject<'_, 'py> for hashbrown::HashSet<K, S>
 where
-    K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
+    K: FromPyObjectOwned<'py> + Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = type_hint_union!(
+        type_hint_subscript!(PySet::TYPE_HINT, K::INPUT_TYPE),
+        type_hint_subscript!(PyFrozenSet::TYPE_HINT, K::INPUT_TYPE)
+    );
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         match ob.cast::<PySet>() {

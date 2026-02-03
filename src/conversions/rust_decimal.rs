@@ -51,16 +51,22 @@
 
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
+use crate::inspect::PyStaticExpr;
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
+use crate::{
+    type_hint_identifier, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python,
+};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
 impl FromPyObject<'_, '_> for Decimal {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("decimal", "Decimal");
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         // use the string representation to not be lossy
@@ -87,6 +93,9 @@ impl<'py> IntoPyObject<'py> for Decimal {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("decimal", "Decimal");
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dec_cls = get_decimal_cls(py)?;
         // now call the constructor with the Rust Decimal string-ified
@@ -99,6 +108,9 @@ impl<'py> IntoPyObject<'py> for &Decimal {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = Decimal::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
