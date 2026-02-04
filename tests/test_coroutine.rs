@@ -9,7 +9,7 @@ use pyo3::{
     coroutine::CancelHandle,
     prelude::*,
     py_run,
-    types::{IntoPyDict, PyDict, PyType},
+    types::{IntoPyDict, PyDict, PyTuple, PyType},
 };
 #[cfg(target_has_atomic = "64")]
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -447,6 +447,32 @@ fn test_async_fn_class_values() {
                 wrap_pyfunction!(add_two_values, py).unwrap().into_any(),
             ),
         ]
+        .into_py_dict(py)
+        .unwrap();
+        py_run!(py, *locals, test);
+    });
+}
+
+#[test]
+fn test_async_function_args_kwargs() {
+    #[pyfunction(signature = (*args, **kwargs))]
+    async fn args_kwargs(
+        args: Py<PyTuple>,
+        kwargs: Option<Py<PyDict>>,
+    ) -> (Py<PyTuple>, Option<Py<PyDict>>) {
+        (args, kwargs)
+    }
+
+    Python::attach(|py| {
+        let test = r#"
+        import asyncio
+
+        assert asyncio.run(args_kwargs(1, 2, a=3, b=4)) == ((1, 2), {'a': 3, 'b': 4})
+        "#;
+        let locals = [(
+            "args_kwargs",
+            wrap_pyfunction!(args_kwargs, py).unwrap().into_any(),
+        )]
         .into_py_dict(py)
         .unwrap();
         py_run!(py, *locals, test);

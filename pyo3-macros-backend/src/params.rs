@@ -196,9 +196,10 @@ fn impl_arg_param(
             impl_regular_arg_param(arg, from_py_with, arg_value, holders, ctx)
         }
         FnArg::VarArgs(arg) => {
-            let holder = holders.push_holder(arg.name.span());
+            let span = Span::call_site().located_at(arg.ty.span());
+            let holder = holders.push_holder(span);
             let name_str = arg.name.to_string();
-            quote_spanned! { arg.name.span() =>
+            quote_spanned! { span =>
                 #pyo3_path::impl_::extract_argument::extract_argument(
                     _args.as_any().as_borrowed(),
                     &mut #holder,
@@ -207,9 +208,10 @@ fn impl_arg_param(
             }
         }
         FnArg::KwArgs(arg) => {
-            let holder = holders.push_holder(arg.name.span());
+            let span = Span::call_site().located_at(arg.ty.span());
+            let holder = holders.push_holder(span);
             let name_str = arg.name.to_string();
-            quote_spanned! { arg.name.span() =>
+            quote_spanned! { span =>
                 #pyo3_path::impl_::extract_argument::extract_argument_with_default(
                     _kwargs.as_ref().map(|d| d.as_any().as_borrowed()),
                     &mut #holder,

@@ -1115,8 +1115,8 @@ fn impl_simple_enum(
                     <Self as #pyo3_path::conversion::IntoPyObject<'py>>::Error,
                 > {
                     // TODO(icxolu): switch this to lookup the variants on the type object, once that is immutable
-                    const LOCK: #pyo3_path::sync::PyOnceLock<#pyo3_path::Py<#cls>> = #pyo3_path::sync::PyOnceLock::<#pyo3_path::Py<#cls>>::new();
-                    static SINGLETON: [#pyo3_path::sync::PyOnceLock<#pyo3_path::Py<#cls>>; #num] = [LOCK; #num];
+                    static SINGLETON: [#pyo3_path::sync::PyOnceLock<#pyo3_path::Py<#cls>>; #num] =
+                        [const { #pyo3_path::sync::PyOnceLock::<#pyo3_path::Py<#cls>>::new() }; #num];
                     let idx: usize = match self {
                         #(
                             #(#cfgs)*
