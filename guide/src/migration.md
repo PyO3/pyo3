@@ -55,7 +55,7 @@ let _: Py<PyNone> = unsafe { Py::from_owned_ptr(py, raw_ptr) };
 # })
 ```
 
-Before:
+After:
 
 ```rust
 # use pyo3::prelude::*;
