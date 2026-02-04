@@ -1,3 +1,6 @@
+import shutil
+from pathlib import Path
+
 import nox
 import sys
 from nox.command import CommandFailed
@@ -34,3 +37,29 @@ def test(session: nox.Session):
 def bench(session: nox.Session):
     session.install(".[dev]")
     session.run("pytest", "--benchmark-enable", "--benchmark-only", *session.posargs)
+
+
+@nox.session
+def mypy(session: nox.Session):
+    session.env["MATURIN_PEP517_ARGS"] = "--profile=dev"
+    try:
+        # We move the stubs where maturin is expecting them to be
+        shutil.copytree("stubs", "pyo3_pytests")
+        (Path("pyo3_pytests") / "py.typed").touch()
+        session.install(".[dev]")
+
+        # TODO: remove --disable-error-code", "override" when __eq__ and __ne__ will always take object for input
+        # TODO: remove "--disable-error-code", "misc" when #[classattr] will be properly emitted
+        session.run_always(
+            "python",
+            "-m",
+            "mypy",
+            "tests",
+            "--disable-error-code",
+            "override",
+            "--disable-error-code",
+            "misc",
+        )
+        # TODO: enable stubtest when previously listed errors will be fixed session.run_always("python", "-m", "mypy.stubtest", "pyo3_pytests")
+    finally:
+        shutil.rmtree("pyo3_pytests")
