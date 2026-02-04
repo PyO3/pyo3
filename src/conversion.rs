@@ -451,7 +451,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
         impl<T> FromPyObjectSequence for NeverASequence<T> {
             type Target = T;
 
-            fn to_vec(&self) -> Vec<Self::Target> {
+            fn to_vec(&self) -> PyResult<Vec<Self::Target>> {
                 unreachable!()
             }
 
@@ -480,7 +480,7 @@ mod from_py_object_sequence {
     pub trait FromPyObjectSequence {
         type Target;
 
-        fn to_vec(&self) -> Vec<Self::Target>;
+        fn to_vec(&self) -> PyResult<Vec<Self::Target>>;
 
         fn to_array<const N: usize>(&self) -> PyResult<[Self::Target; N]>;
     }
