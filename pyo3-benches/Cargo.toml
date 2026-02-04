@@ -87,4 +87,8 @@ harness = false
 name = "bench_bigint"
 harness = false
 
+[[bench]]
+name = "bench_pystring_from_fmt"
+harness = false
+
 [workspace]

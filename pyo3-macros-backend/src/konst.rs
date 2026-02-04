@@ -14,6 +14,10 @@ use syn::{
 pub struct ConstSpec {
     pub rust_ident: syn::Ident,
     pub attributes: ConstAttributes,
+    #[cfg(feature = "experimental-inspect")]
+    pub expr: Option<syn::Expr>,
+    #[cfg(feature = "experimental-inspect")]
+    pub ty: syn::Type,
 }
 
 impl ConstSpec {

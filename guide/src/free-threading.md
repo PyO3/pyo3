@@ -225,16 +225,15 @@ Python::attach(|py| {
 });
 ```
 
-### `GILProtected` is not exposed
+### `GILProtected` has been removed
 
-[`GILProtected`] is a (deprecated) PyO3 type that allows mutable access to static data by leveraging the GIL to lock concurrent access from other threads.
-In free-threaded Python there is no GIL, so you will need to replace this type with some other form of locking.
-In many cases, a type from [`std::sync::atomic`](https://doc.rust-lang.org/std/sync/atomic/) or a [`std::sync::Mutex`](https://doc.rust-lang.org/std/sync/struct.Mutex.html) will be sufficient.
+[`GILProtected`] was a PyO3 type that allowed mutable access to static data by leveraging the GIL to lock concurrent access from other threads.
+In free-threaded Python there is no GIL, so this type had to be replaced with alternative forms of locking.
+In many cases, a type from [`std::sync::atomic`](https://doc.rust-lang.org/std/sync/atomic/) or a [`std::sync::Mutex`](https://doc.rust-lang.org/std/sync/struct.Mutex.html) was sufficient.
 
 Before:
 
-```rust
-# #![allow(deprecated)]
+```rust,ignore
 # fn main() {
 # #[cfg(not(Py_GIL_DISABLED))] {
 # use pyo3::prelude::*;
@@ -254,7 +253,7 @@ Python::attach(|py| {
 # }}
 ```
 
-After:
+After (using a `Mutex`):
 
 ```rust
 # use pyo3::prelude::*;

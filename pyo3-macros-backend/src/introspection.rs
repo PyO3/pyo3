@@ -9,9 +9,9 @@
 //! type that is used to parse them.
 
 use crate::method::{FnArg, RegularArg};
+use crate::py_expr::PyExpr;
 use crate::pyfunction::FunctionSignature;
-use crate::type_hint::PythonTypeHint;
-use crate::utils::{expr_to_python, PyO3CratePath};
+use crate::utils::PyO3CratePath;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
@@ -60,8 +60,9 @@ pub fn class_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     ident: &Ident,
     name: &str,
-    extends: Option<PythonTypeHint>,
+    extends: Option<PyExpr>,
     is_final: bool,
+    parent: Option<&Type>,
 ) -> TokenStream {
     let mut desc = HashMap::from([
         ("type", IntrospectionNode::String("class".into())),
@@ -77,7 +78,13 @@ pub fn class_introspection_code(
     if is_final {
         desc.insert(
             "decorators",
-            IntrospectionNode::List(vec![PythonTypeHint::module_attr("typing", "final").into()]),
+            IntrospectionNode::List(vec![PyExpr::module_attr("typing", "final").into()]),
+        );
+    }
+    if let Some(parent) = parent {
+        desc.insert(
+            "parent",
+            IntrospectionNode::IntrospectionId(Some(Cow::Borrowed(parent))),
         );
     }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
@@ -91,14 +98,13 @@ pub fn function_introspection_code(
     signature: &FunctionSignature<'_>,
     first_argument: Option<&'static str>,
     returns: ReturnType,
-    decorators: impl IntoIterator<Item = PythonTypeHint>,
+    decorators: impl IntoIterator<Item = PyExpr>,
     is_async: bool,
     parent: Option<&Type>,
 ) -> TokenStream {
     let mut desc = HashMap::from([
         ("type", IntrospectionNode::String("function".into())),
         ("name", IntrospectionNode::String(name.into())),
-        ("async", IntrospectionNode::Bool(is_async)),
         (
             "arguments",
             arguments_introspection_data(signature, first_argument, parent),
@@ -110,16 +116,19 @@ pub fn function_introspection_code(
                 .as_ref()
                 .and_then(|attribute| attribute.value.returns.as_ref())
             {
-                IntrospectionNode::String(returns.to_python().into())
+                returns.as_type_hint().into()
             } else {
                 match returns {
-                    ReturnType::Default => PythonTypeHint::builtin("None"),
-                    ReturnType::Type(_, ty) => PythonTypeHint::from_return_type(*ty, parent),
+                    ReturnType::Default => PyExpr::builtin("None"),
+                    ReturnType::Type(_, ty) => PyExpr::from_return_type(*ty, parent),
                 }
                 .into()
             },
         ),
     ]);
+    if is_async {
+        desc.insert("async", IntrospectionNode::Bool(true));
+    }
     if let Some(ident) = ident {
         desc.insert(
             "id",
@@ -143,7 +152,7 @@ pub fn attribute_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     parent: Option<&Type>,
     name: String,
-    value: String,
+    value: PyExpr,
     rust_type: Type,
     is_final: bool,
 ) -> TokenStream {
@@ -155,18 +164,18 @@ pub fn attribute_introspection_code(
             IntrospectionNode::IntrospectionId(parent.map(Cow::Borrowed)),
         ),
     ]);
-    if value == "..." {
+    if value == PyExpr::ellipsis() {
         // We need to set a type, but not need to set the value to ..., all attributes have a value
         desc.insert(
             "annotation",
             if is_final {
-                PythonTypeHint::subscript(
-                    PythonTypeHint::module_attr("typing", "Final"),
-                    PythonTypeHint::from_return_type(rust_type, parent),
+                PyExpr::subscript(
+                    PyExpr::module_attr("typing", "Final"),
+                    PyExpr::from_return_type(rust_type, parent),
                 )
                 .into()
             } else {
-                PythonTypeHint::from_return_type(rust_type, parent).into()
+                PyExpr::from_return_type(rust_type, parent).into()
             },
         );
     } else {
@@ -176,13 +185,13 @@ pub fn attribute_introspection_code(
                 // Type checkers can infer the type from the value because it's typing.Literal[value]
                 // So, following stubs best practices, we only write typing.Final and not
                 // typing.Final[typing.literal[value]]
-                PythonTypeHint::module_attr("typing", "Final")
+                PyExpr::module_attr("typing", "Final")
             } else {
-                PythonTypeHint::from_return_type(rust_type, parent)
+                PyExpr::from_return_type(rust_type, parent)
             }
             .into(),
         );
-        desc.insert("value", IntrospectionNode::String(value.into()));
+        desc.insert("value", value.into());
     }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
@@ -239,7 +248,7 @@ fn arguments_introspection_data<'a>(
         };
         let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
         if let Some(annotation) = &arg_desc.annotation {
-            params.insert("annotation", IntrospectionNode::String(annotation.into()));
+            params.insert("annotation", annotation.clone().into());
         }
         vararg = Some(IntrospectionNode::Map(params));
     }
@@ -257,7 +266,7 @@ fn arguments_introspection_data<'a>(
         };
         let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
         if let Some(annotation) = &arg_desc.annotation {
-            params.insert("annotation", IntrospectionNode::String(annotation.into()));
+            params.insert("annotation", annotation.clone().into());
         }
         kwarg = Some(IntrospectionNode::Map(params));
     }
@@ -288,19 +297,16 @@ fn argument_introspection_data<'a>(
 ) -> AttributedIntrospectionNode<'a> {
     let mut params: HashMap<_, _> = [("name", IntrospectionNode::String(name.into()))].into();
     if let Some(expr) = &desc.default_value {
-        params.insert(
-            "default",
-            IntrospectionNode::String(expr_to_python(expr).into()),
-        );
+        params.insert("default", PyExpr::constant_from_expression(expr).into());
     }
 
     if let Some(annotation) = &desc.annotation {
-        params.insert("annotation", IntrospectionNode::String(annotation.into()));
+        params.insert("annotation", annotation.clone().into());
     } else if desc.from_py_with.is_none() {
         // If from_py_with is set we don't know anything on the input type
         params.insert(
             "annotation",
-            PythonTypeHint::from_argument_type(desc.ty.clone(), class_type).into(),
+            PyExpr::from_argument_type(desc.ty.clone(), class_type).into(),
         );
     }
     IntrospectionNode::Map(params).into()
@@ -310,7 +316,7 @@ enum IntrospectionNode<'a> {
     String(Cow<'a, str>),
     Bool(bool),
     IntrospectionId(Option<Cow<'a, Type>>),
-    TypeHint(Cow<'a, PythonTypeHint>),
+    TypeHint(Cow<'a, PyExpr>),
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<AttributedIntrospectionNode<'a>>),
 }
@@ -389,8 +395,8 @@ impl IntrospectionNode<'_> {
     }
 }
 
-impl From<PythonTypeHint> for IntrospectionNode<'static> {
-    fn from(element: PythonTypeHint) -> Self {
+impl From<PyExpr> for IntrospectionNode<'static> {
+    fn from(element: PyExpr) -> Self {
         Self::TypeHint(Cow::Owned(element))
     }
 }
@@ -422,8 +428,8 @@ impl<'a> From<IntrospectionNode<'a>> for AttributedIntrospectionNode<'a> {
     }
 }
 
-impl<'a> From<PythonTypeHint> for AttributedIntrospectionNode<'a> {
-    fn from(node: PythonTypeHint) -> Self {
+impl<'a> From<PyExpr> for AttributedIntrospectionNode<'a> {
+    fn from(node: PyExpr) -> Self {
         IntrospectionNode::from(node).into()
     }
 }

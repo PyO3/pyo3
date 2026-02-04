@@ -1,8 +1,11 @@
+#[cfg(Py_3_15)]
+use std::ffi::c_void;
 use std::ffi::{c_char, c_long};
 use std::ptr;
 
 use pyo3_ffi::*;
 
+#[cfg(not(Py_3_15))]
 static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_base: PyModuleDef_HEAD_INIT,
     m_name: c"string_sum".as_ptr(),
@@ -28,9 +31,34 @@ static mut METHODS: [PyMethodDef; 2] = [
     PyMethodDef::zeroed(),
 ];
 
+#[cfg(Py_3_15)]
+PyABIInfo_VAR!(ABI_INFO);
+
 const SLOTS_LEN: usize =
-    1 + if cfg!(Py_3_12) { 1 } else { 0 } + if cfg!(Py_GIL_DISABLED) { 1 } else { 0 };
+    1 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize + 4 * (cfg!(Py_3_15) as usize);
 static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_abi,
+        value: std::ptr::addr_of_mut!(ABI_INFO).cast(),
+    },
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_name,
+        // safety: Python does not write to this field
+        value: c"string_sum".as_ptr() as *mut c_void,
+    },
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_doc,
+        // safety: Python does not write to this field
+        value: c"A Python module written in Rust.".as_ptr() as *mut c_void,
+    },
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_methods,
+        value: std::ptr::addr_of_mut!(METHODS).cast(),
+    },
     #[cfg(Py_3_12)]
     PyModuleDef_Slot {
         slot: Py_mod_multiple_interpreters,
@@ -48,10 +76,18 @@ static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
 ];
 
 // The module initialization function
+#[cfg(not(Py_3_15))]
 #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
 #[no_mangle]
 pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
     PyModuleDef_Init(ptr::addr_of_mut!(MODULE_DEF))
+}
+
+#[cfg(Py_3_15)]
+#[allow(non_snake_case, reason = "must be named `PyModExport_<your_module>`")]
+#[no_mangle]
+pub unsafe extern "C" fn PyModExport_string_sum() -> *mut PyModuleDef_Slot {
+    std::ptr::addr_of_mut!(SLOTS).cast()
 }
 
 /// A helper to parse function arguments

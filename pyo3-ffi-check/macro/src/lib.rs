@@ -4,11 +4,6 @@ use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use pyo3_build_config::PythonVersion;
 use quote::quote;
 
-const PY_3_12: PythonVersion = PythonVersion {
-    major: 3,
-    minor: 12,
-};
-
 /// Macro which expands to multiple macro calls, one per pyo3-ffi struct.
 #[proc_macro]
 pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -49,6 +44,12 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
             .unwrap()
             .strip_suffix(".html")
             .unwrap();
+
+        if pyo3_build_config::get().version < PythonVersion::PY315 && struct_name == "PyBytesWriter"
+        {
+            // PyBytesWriter was added in Python 3.15
+            continue;
+        }
 
         let struct_ident = Ident::new(struct_name, Span::call_site());
         output.extend(quote!(#macro_name!(#struct_ident);));
@@ -146,7 +147,7 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
 
         let field_ident = Ident::new(field_name, Span::call_site());
 
-        let bindgen_field_ident = if (pyo3_build_config::get().version >= PY_3_12)
+        let bindgen_field_ident = if (pyo3_build_config::get().version >= PythonVersion::PY312)
             && struct_name == "PyObject"
             && field_name == "ob_refcnt"
         {

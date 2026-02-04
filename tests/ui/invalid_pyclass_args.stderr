@@ -1,4 +1,4 @@
-error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `immutable_type`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `str`, `subclass`, `unsendable`, `weakref`, `generic`, `from_py_object`, `skip_from_py_object`
+error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `immutable_type`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `new`, `str`, `subclass`, `unsendable`, `weakref`, `generic`, `from_py_object`, `skip_from_py_object`
  --> tests/ui/invalid_pyclass_args.rs:4:11
   |
 4 | #[pyclass(extend=pyo3::types::PyDict)]
@@ -46,7 +46,7 @@ error: expected string literal
 25 | #[pyclass(module = my_module)]
    |                    ^^^^^^^^^
 
-error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `immutable_type`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `str`, `subclass`, `unsendable`, `weakref`, `generic`, `from_py_object`, `skip_from_py_object`
+error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `immutable_type`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `new`, `str`, `subclass`, `unsendable`, `weakref`, `generic`, `from_py_object`, `skip_from_py_object`
   --> tests/ui/invalid_pyclass_args.rs:28:11
    |
 28 | #[pyclass(weakrev)]
@@ -181,6 +181,46 @@ help: consider annotating `StructFromPyObjectNoClone` with `#[derive(Clone)]`
 192 | struct StructFromPyObjectNoClone {
     |
 
+error[E0119]: conflicting implementations of trait `PyClassNewTextSignature` for type `NewFromFieldsWithManualNew`
+   --> tests/ui/invalid_pyclass_args.rs:213:1
+    |
+208 | #[pyclass(new = "from_fields")]
+    | ------------------------------- first implementation here
+...
+213 | #[pymethods]
+    | ^^^^^^^^^^^^ conflicting implementation for `NewFromFieldsWithManualNew`
+    |
+    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
+   --> tests/ui/invalid_pyclass_args.rs:205:12
+    |
+205 |     field: Box<dyn std::error::Error + Send + Sync>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyFunctionArgument<'_, '_, '_, false>` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
+    |
+    = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
+    = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
+help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`
+   --> src/impl_/extract_argument.rs
+    |
+    | / impl<'a, 'holder, 'py, T: 'a + 'py> PyFunctionArgument<'a, 'holder, 'py, false>
+    | |     for &'holder Bound<'py, T>
+    | | where
+    | |     T: PyTypeCheck,
+    | |___________________^ `&'holder pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+...
+    | / impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for Option<T>
+    | | where
+    | |     T: PyFunctionArgument<'a, 'holder, 'py, false>,
+    | |___________________________________________________^ `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+...
+    |   impl<'a, 'holder, T: PyClass> PyFunctionArgument<'a, 'holder, '_, false> for &'holder T {
+    |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
+...
+    | / impl<'a, 'holder, T: PyClass<Frozen = False>> PyFunctionArgument<'a, 'holder, '_, false>
+    | |     for &'holder mut T
+    | |______________________^ `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
+
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
   --> tests/ui/invalid_pyclass_args.rs:37:1
    |
@@ -213,6 +253,17 @@ error[E0592]: duplicate definitions with name `__pymethod___str____`
    | ------------ other definition for `__pymethod___str____`
    |
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `__pymethod___new____`
+   --> tests/ui/invalid_pyclass_args.rs:208:1
+    |
+208 | #[pyclass(new = "from_fields")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___new____`
+...
+213 | #[pymethods]
+    | ------------ other definition for `__pymethod___new____`
+    |
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0369]: binary operation `==` cannot be applied to type `&EqOptRequiresEq`
   --> tests/ui/invalid_pyclass_args.rs:34:11
@@ -400,3 +451,135 @@ warning: use of deprecated associated constant `pyo3::impl_::deprecated::HasAuto
     |
     = note: `#[warn(deprecated)]` on by default
     = note: this warning originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
+   --> tests/ui/invalid_pyclass_args.rs:205:12
+    |
+205 |     field: Box<dyn std::error::Error + Send + Sync>,
+    |            ^^^ the trait `pyo3::PyClass` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
+    |
+    = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
+    = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
+    = help: the following other types implement trait `pyo3::PyClass`:
+              Coord
+              Coord2
+              Coord3
+              EqOptAndManualRichCmp
+              EqOptRequiresEq
+              HashOptAndManualHash
+              HashOptRequiresHash
+              NewFromFieldsWithManualNew
+            and $N others
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `PyFunctionArgument<'_, '_, '_, true>`
+note: required by a bound in `extract_argument`
+   --> src/impl_/extract_argument.rs
+    |
+    | pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+    |        ---------------- required by a bound in this function
+...
+    |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+
+error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
+   --> tests/ui/invalid_pyclass_args.rs:205:12
+    |
+205 |     field: Box<dyn std::error::Error + Send + Sync>,
+    |            ^^^ the trait `ExtractPyClassWithClone` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
+    |
+    = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
+    = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
+    = help: the following other types implement trait `ExtractPyClassWithClone`:
+              Coord
+              Coord2
+              Coord3
+              EqOptAndManualRichCmp
+              EqOptRequiresEq
+              HashOptAndManualHash
+              HashOptRequiresHash
+              NewFromFieldsWithManualNew
+            and $N others
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `PyFunctionArgument<'_, '_, '_, true>`
+note: required by a bound in `extract_argument`
+   --> src/impl_/extract_argument.rs
+    |
+    | pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+    |        ---------------- required by a bound in this function
+...
+    |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+
+error[E0277]: the trait bound `dyn std::error::Error + Send + Sync: Clone` is not satisfied
+   --> tests/ui/invalid_pyclass_args.rs:205:12
+    |
+205 |     field: Box<dyn std::error::Error + Send + Sync>,
+    |            ^^^ the trait `Clone` is not implemented for `dyn std::error::Error + Send + Sync`
+    |
+help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`
+   --> src/impl_/extract_argument.rs
+    |
+    | / impl<'a, 'holder, 'py, T: 'a + 'py> PyFunctionArgument<'a, 'holder, 'py, false>
+    | |     for &'holder Bound<'py, T>
+    | | where
+    | |     T: PyTypeCheck,
+    | |___________________^ `&'holder pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+...
+    | / impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for Option<T>
+    | | where
+    | |     T: PyFunctionArgument<'a, 'holder, 'py, false>,
+    | |___________________________________________________^ `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+...
+    |   impl<'a, 'holder, T: PyClass> PyFunctionArgument<'a, 'holder, '_, false> for &'holder T {
+    |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
+...
+    | / impl<'a, 'holder, T: PyClass<Frozen = False>> PyFunctionArgument<'a, 'holder, '_, false>
+    | |     for &'holder mut T
+    | |______________________^ `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `Clone`
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
+    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `PyFunctionArgument<'_, '_, '_, true>`
+note: required by a bound in `extract_argument`
+   --> src/impl_/extract_argument.rs
+    |
+    | pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+    |        ---------------- required by a bound in this function
+...
+    |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+
+error[E0034]: multiple applicable items in scope
+   --> tests/ui/invalid_pyclass_args.rs:208:1
+    |
+208 | #[pyclass(new = "from_fields")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `__pymethod___new____` found
+    |
+note: candidate #1 is defined in an impl for the type `NewFromFieldsWithManualNew`
+   --> tests/ui/invalid_pyclass_args.rs:208:1
+    |
+208 | #[pyclass(new = "from_fields")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `NewFromFieldsWithManualNew`
+   --> tests/ui/invalid_pyclass_args.rs:213:1
+    |
+213 | #[pymethods]
+    | ^^^^^^^^^^^^
+    = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+   --> tests/ui/invalid_pyclass_args.rs:213:1
+    |
+213 | #[pymethods]
+    | ^^^^^^^^^^^^ multiple `__pymethod___new____` found
+    |
+note: candidate #1 is defined in an impl for the type `NewFromFieldsWithManualNew`
+   --> tests/ui/invalid_pyclass_args.rs:208:1
+    |
+208 | #[pyclass(new = "from_fields")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `NewFromFieldsWithManualNew`
+   --> tests/ui/invalid_pyclass_args.rs:213:1
+    |
+213 | #[pymethods]
+    | ^^^^^^^^^^^^
+    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
