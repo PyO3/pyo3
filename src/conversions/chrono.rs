@@ -520,13 +520,11 @@ impl<'py> IntoPyObject<'py> for Local {
     type Output = Borrowed<'static, 'py, Self::Target>;
     type Error = PyErr;
 
-    #[cfg(feature = "experimental-inspect")]
-    #[cfg(Py_3_9)]
+    #[cfg(all(feature = "experimental-inspect", Py_3_9))]
     const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("zoneinfo", "ZoneInfo");
 
-    #[cfg(feature = "experimental-inspect")]
-    #[cfg(not(Py_3_9))]
-    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("backports.zoneinfo", "ZoneInfo");
+    #[cfg(all(feature = "experimental-inspect", not(Py_3_9)))]
+    const OUTPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static LOCAL_TZ: PyOnceLock<Py<PyTzInfo>> = PyOnceLock::new();
