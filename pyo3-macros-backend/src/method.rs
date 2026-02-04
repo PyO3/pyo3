@@ -1073,6 +1073,12 @@ fn ensure_signatures_on_valid_method(
     }
     if let Some(text_signature) = text_signature {
         match fn_type {
+            FnType::Getter(_) => {
+                bail_spanned!(text_signature.kw.span() => "`text_signature` not allowed with `getter`")
+            }
+            FnType::Setter(_) => {
+                bail_spanned!(text_signature.kw.span() => "`text_signature` not allowed with `setter`")
+            }
             FnType::Deleter(_) => {
                 bail_spanned!(text_signature.kw.span() => "`text_signature` not allowed with `deleter`")
             }
