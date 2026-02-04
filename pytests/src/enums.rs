@@ -12,6 +12,7 @@ pub mod enums {
 #[pyclass(eq, eq_int)]
 #[derive(PartialEq)]
 pub enum SimpleEnum {
+    /// A variant
     Sunday,
     Monday,
     Tuesday,
@@ -42,6 +43,7 @@ pub fn do_simple_stuff(thing: &SimpleEnum) -> SimpleEnum {
 
 #[pyclass]
 pub enum ComplexEnum {
+    /// A struct variant
     Int {
         i: i32,
     },
@@ -91,6 +93,7 @@ enum SimpleTupleEnum {
 
 #[pyclass]
 pub enum TupleEnum {
+    /// A tuple variant
     #[pyo3(constructor = (_0 = 1, _1 = 1.0, _2 = true))]
     FullWithDefault(i32, f64, bool),
     Full(i32, f64, bool),
