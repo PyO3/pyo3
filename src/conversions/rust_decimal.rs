@@ -51,14 +51,15 @@
 
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
+#[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 use crate::sync::PyOnceLock;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_hint_identifier;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
-use crate::{
-    type_hint_identifier, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python,
-};
+use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
