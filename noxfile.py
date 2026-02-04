@@ -643,39 +643,34 @@ def _build_netlify_redirects(preview: bool) -> None:
             redirects_file.write(
                 f"/v{version}/doc/* https://docs.rs/pyo3/{version}/:splat\n"
             )
-            if version != current_version:
-                # for old versions, mark the files in the latest version as the canonical URL
-                for file in glob(f"{d}/**", recursive=True):
-                    file_path = file.removeprefix(full_directory)
-                    # remove index.html and/or .html suffix to match the page URL on the
-                    # final netlfiy site
-                    url_path = file_path
-                    if file_path == "index.html":
-                        url_path = ""
 
-                    url_path = url_path.removesuffix(".html")
+            # for all versions, declare the /latest path as the canonical URL in google
+            for file in glob(f"{d}/**", recursive=True):
+                file_path = file.removeprefix(full_directory)
+                # remove index.html and/or .html suffix to match the page URL on the
+                # final netlfiy site
+                url_path = file_path
+                if file_path == "index.html":
+                    url_path = ""
 
-                    # if the file exists in the latest version, add a canonical
-                    # URL as a header
-                    for url in (
-                        f"/v{version}/{url_path}",
-                        *(
-                            (f"/v{version}/{file_path}",)
-                            if file_path != url_path
-                            else ()
-                        ),
+                url_path = url_path.removesuffix(".html")
+
+                for url in (
+                    f"/v{version}/{url_path}",
+                    *((f"/v{version}/{file_path}",) if file_path != url_path else ()),
+                ):
+                    headers_file.write(url + "\n")
+
+                    if version != current_version and not os.path.exists(
+                        f"netlify_build/v{current_version}/{file_path}"
                     ):
-                        headers_file.write(url + "\n")
-                        if os.path.exists(
-                            f"netlify_build/v{current_version}/{file_path}"
-                        ):
-                            headers_file.write(
-                                f'  Link: <https://pyo3.rs/v{current_version}/{url_path}>; rel="canonical"\n'
-                            )
-                        else:
-                            # this file doesn't exist in the latest guide, don't
-                            # index it
-                            headers_file.write("  X-Robots-Tag: noindex\n")
+                        # this file doesn't exist in the latest guide, don't index it
+                        headers_file.write("  X-Robots-Tag: noindex\n")
+                    else:
+                        # otherwise mark the /latest link as the canonical URL
+                        headers_file.write(
+                            f'  Link: <https://pyo3.rs/latest/{url_path}>; rel="canonical"\n'
+                        )
 
         # Add latest redirect
         if current_version is not None:

@@ -12,8 +12,8 @@
 use crate::{
     internal::state::SuspendAttach,
     sealed::Sealed,
-    types::{any::PyAnyMethods, PyAny, PyString},
-    Bound, Py, PyResult, PyTypeCheck, Python,
+    types::{PyAny, PyString},
+    Bound, Py, Python,
 };
 use std::{
     cell::UnsafeCell,
@@ -24,9 +24,6 @@ use std::{
 
 pub mod critical_section;
 pub(crate) mod once_lock;
-
-#[cfg(not(Py_GIL_DISABLED))]
-use crate::PyVisit;
 
 /// Deprecated alias for [`pyo3::sync::critical_section::with_critical_section`][crate::sync::critical_section::with_critical_section]
 #[deprecated(
@@ -53,118 +50,11 @@ where
 }
 pub use self::once_lock::PyOnceLock;
 
-/// Value with concurrent access protected by the GIL.
-///
-/// This is a synchronization primitive based on Python's global interpreter lock (GIL).
-/// It ensures that only one thread at a time can access the inner value via shared references.
-/// It can be combined with interior mutability to obtain mutable references.
-///
-/// This type is not defined for extensions built against the free-threaded CPython ABI.
-///
-/// # Example
-///
-/// Combining `GILProtected` with `RefCell` enables mutable access to static data:
-///
-/// ```
-/// # #![allow(deprecated)]
-/// # use pyo3::prelude::*;
-/// use pyo3::sync::GILProtected;
-/// use std::cell::RefCell;
-///
-/// static NUMBERS: GILProtected<RefCell<Vec<i32>>> = GILProtected::new(RefCell::new(Vec::new()));
-///
-/// Python::attach(|py| {
-///     NUMBERS.get(py).borrow_mut().push(42);
-/// });
-/// ```
 #[deprecated(
     since = "0.26.0",
-    note = "Prefer an interior mutability primitive compatible with free-threaded Python, such as `Mutex` in combination with the `MutexExt` trait"
+    note = "Now internal only, to be removed after https://github.com/PyO3/pyo3/pull/5341"
 )]
-#[cfg(not(Py_GIL_DISABLED))]
-pub struct GILProtected<T> {
-    value: T,
-}
-
-#[allow(deprecated)]
-#[cfg(not(Py_GIL_DISABLED))]
-impl<T> GILProtected<T> {
-    /// Place the given value under the protection of the GIL.
-    pub const fn new(value: T) -> Self {
-        Self { value }
-    }
-
-    /// Gain access to the inner value by giving proof of having acquired the GIL.
-    pub fn get<'py>(&'py self, _py: Python<'py>) -> &'py T {
-        &self.value
-    }
-
-    /// Gain access to the inner value by giving proof that garbage collection is happening.
-    pub fn traverse<'py>(&'py self, _visit: PyVisit<'py>) -> &'py T {
-        &self.value
-    }
-}
-
-#[allow(deprecated)]
-#[cfg(not(Py_GIL_DISABLED))]
-unsafe impl<T> Sync for GILProtected<T> where T: Send {}
-
-/// A write-once primitive similar to [`std::sync::OnceLock<T>`].
-///
-/// Unlike `OnceLock<T>` which blocks threads to achieve thread safety, `GilOnceCell<T>`
-/// allows calls to [`get_or_init`][GILOnceCell::get_or_init] and
-/// [`get_or_try_init`][GILOnceCell::get_or_try_init] to race to create an initialized value.
-/// (It is still guaranteed that only one thread will ever write to the cell.)
-///
-/// On Python versions that run with the Global Interpreter Lock (GIL), this helps to avoid
-/// deadlocks between initialization and the GIL. For an example of such a deadlock, see
-#[doc = concat!(
-    "[the FAQ section](https://pyo3.rs/v",
-    env!("CARGO_PKG_VERSION"),
-    "/faq.html#im-experiencing-deadlocks-using-pyo3-with-stdsynconcelock-stdsynclazylock-lazy_static-and-once_cell)"
-)]
-/// of the guide.
-///
-/// Note that because the GIL blocks concurrent execution, in practice the means that
-/// [`get_or_init`][GILOnceCell::get_or_init] and
-/// [`get_or_try_init`][GILOnceCell::get_or_try_init] may race if the initialization
-/// function leads to the GIL being released and a thread context switch. This can
-/// happen when importing or calling any Python code, as long as it releases the
-/// GIL at some point. On free-threaded Python without any GIL, the race is
-/// more likely since there is no GIL to prevent races. In the future, PyO3 may change
-/// the semantics of GILOnceCell to behave more like the GIL build in the future.
-///
-/// # Re-entrant initialization
-///
-/// [`get_or_init`][GILOnceCell::get_or_init] and
-/// [`get_or_try_init`][GILOnceCell::get_or_try_init] do not protect against infinite recursion
-/// from reentrant initialization.
-///
-/// # Examples
-///
-/// The following example shows how to use `GILOnceCell` to share a reference to a Python list
-/// between threads:
-///
-/// ```
-/// #![allow(deprecated)]
-/// use pyo3::sync::GILOnceCell;
-/// use pyo3::prelude::*;
-/// use pyo3::types::PyList;
-///
-/// static LIST_CELL: GILOnceCell<Py<PyList>> = GILOnceCell::new();
-///
-/// pub fn get_shared_list(py: Python<'_>) -> &Bound<'_, PyList> {
-///     LIST_CELL
-///         .get_or_init(py, || PyList::empty(py).unbind())
-///         .bind(py)
-/// }
-/// # Python::attach(|py| assert_eq!(get_shared_list(py).len(), 0));
-/// ```
-#[deprecated(
-    since = "0.26.0",
-    note = "Prefer `pyo3::sync::PyOnceLock`, which avoids the possibility of racing during initialization."
-)]
-pub struct GILOnceCell<T> {
+pub(crate) struct GILOnceCell<T> {
     once: Once,
     data: UnsafeCell<MaybeUninit<T>>,
 
@@ -229,24 +119,6 @@ impl<T> GILOnceCell<T> {
         }
     }
 
-    /// Get a reference to the contained value, initializing it if needed using the provided
-    /// closure.
-    ///
-    /// See the type-level documentation for detail on re-entrancy and concurrent initialization.
-    #[inline]
-    pub fn get_or_init<F>(&self, py: Python<'_>, f: F) -> &T
-    where
-        F: FnOnce() -> T,
-    {
-        if let Some(value) = self.get(py) {
-            return value;
-        }
-
-        // .unwrap() will never panic because the result is always Ok
-        self.init(py, || Ok::<T, std::convert::Infallible>(f()))
-            .unwrap()
-    }
-
     /// Like `get_or_init`, but accepts a fallible initialization function. If it fails, the cell
     /// is left uninitialized.
     ///
@@ -281,17 +153,6 @@ impl<T> GILOnceCell<T> {
         Ok(self.get(py).unwrap())
     }
 
-    /// Get the contents of the cell mutably. This is only possible if the reference to the cell is
-    /// unique.
-    pub fn get_mut(&mut self) -> Option<&mut T> {
-        if self.once.is_completed() {
-            // SAFETY: the cell has been written.
-            Some(unsafe { (*self.data.get()).assume_init_mut() })
-        } else {
-            None
-        }
-    }
-
     /// Set the value in the cell.
     ///
     /// If the cell has already been written, `Err(value)` will be returned containing the new
@@ -315,98 +176,6 @@ impl<T> GILOnceCell<T> {
             Some(value) => Err(value),
             None => Ok(()),
         }
-    }
-
-    /// Takes the value out of the cell, moving it back to an uninitialized state.
-    ///
-    /// Has no effect and returns None if the cell has not yet been written.
-    pub fn take(&mut self) -> Option<T> {
-        if self.once.is_completed() {
-            // Reset the cell to its default state so that it won't try to
-            // drop the value again.
-            self.once = Once::new();
-            // SAFETY: the cell has been written. `self.once` has been reset,
-            // so when `self` is dropped the value won't be read again.
-            Some(unsafe { self.data.get_mut().assume_init_read() })
-        } else {
-            None
-        }
-    }
-
-    /// Consumes the cell, returning the wrapped value.
-    ///
-    /// Returns None if the cell has not yet been written.
-    pub fn into_inner(mut self) -> Option<T> {
-        self.take()
-    }
-}
-
-#[allow(deprecated)]
-impl<T> GILOnceCell<Py<T>> {
-    /// Creates a new cell that contains a new Python reference to the same contained object.
-    ///
-    /// Returns an uninitialized cell if `self` has not yet been initialized.
-    pub fn clone_ref(&self, py: Python<'_>) -> Self {
-        let cloned = Self {
-            once: Once::new(),
-            data: UnsafeCell::new(MaybeUninit::uninit()),
-            _marker: PhantomData,
-        };
-        if let Some(value) = self.get(py) {
-            let _ = cloned.set(py, value.clone_ref(py));
-        }
-        cloned
-    }
-}
-
-#[allow(deprecated)]
-impl<T> GILOnceCell<Py<T>>
-where
-    T: PyTypeCheck,
-{
-    /// Get a reference to the contained Python type, initializing the cell if needed.
-    ///
-    /// This is a shorthand method for `get_or_init` which imports the type from Python on init.
-    ///
-    /// # Example: Using `GILOnceCell` to store a class in a static variable.
-    ///
-    /// `GILOnceCell` can be used to avoid importing a class multiple times:
-    /// ```
-    /// #![allow(deprecated)]
-    /// # use pyo3::prelude::*;
-    /// # use pyo3::sync::GILOnceCell;
-    /// # use pyo3::types::{PyDict, PyType};
-    /// # use pyo3::intern;
-    /// #
-    /// #[pyfunction]
-    /// fn create_ordered_dict<'py>(py: Python<'py>, dict: Bound<'py, PyDict>) -> PyResult<Bound<'py, PyAny>> {
-    ///     // Even if this function is called multiple times,
-    ///     // the `OrderedDict` class will be imported only once.
-    ///     static ORDERED_DICT: GILOnceCell<Py<PyType>> = GILOnceCell::new();
-    ///     ORDERED_DICT
-    ///         .import(py, "collections", "OrderedDict")?
-    ///         .call1((dict,))
-    /// }
-    ///
-    /// # Python::attach(|py| {
-    /// #     let dict = PyDict::new(py);
-    /// #     dict.set_item(intern!(py, "foo"), 42).unwrap();
-    /// #     let fun = wrap_pyfunction!(create_ordered_dict, py).unwrap();
-    /// #     let ordered_dict = fun.call1((&dict,)).unwrap();
-    /// #     assert!(dict.eq(ordered_dict).unwrap());
-    /// # });
-    /// ```
-    pub fn import<'py>(
-        &self,
-        py: Python<'py>,
-        module_name: &str,
-        attr_name: &str,
-    ) -> PyResult<&Bound<'py, T>> {
-        self.get_or_try_init(py, || {
-            let type_object = py.import(module_name)?.getattr(attr_name)?.cast_into()?;
-            Ok(type_object.unbind())
-        })
-        .map(|ty| ty.bind(py))
     }
 }
 
@@ -957,7 +726,7 @@ mod rwlock_ext_sealed {
 mod tests {
     use super::*;
 
-    use crate::types::{PyDict, PyDictMethods};
+    use crate::types::{PyAnyMethods, PyDict, PyDictMethods};
     #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -997,7 +766,7 @@ mod tests {
     #[allow(deprecated)]
     fn test_once_cell() {
         Python::attach(|py| {
-            let mut cell = GILOnceCell::new();
+            let cell = GILOnceCell::new();
 
             assert!(cell.get(py).is_none());
 
@@ -1008,14 +777,6 @@ mod tests {
             assert_eq!(cell.get(py), Some(&2));
 
             assert_eq!(cell.get_or_try_init(py, || Err(5)), Ok(&2));
-
-            assert_eq!(cell.take(), Some(2));
-            assert_eq!(cell.into_inner(), None);
-
-            let cell_py = GILOnceCell::new();
-            assert!(cell_py.clone_ref(py).get(py).is_none());
-            cell_py.get_or_init(py, || py.None());
-            assert!(cell_py.clone_ref(py).get(py).unwrap().is_none(py));
         })
     }
 

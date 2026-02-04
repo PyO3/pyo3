@@ -40,6 +40,7 @@ pub mod kw {
     syn::custom_keyword!(sequence);
     syn::custom_keyword!(set);
     syn::custom_keyword!(set_all);
+    syn::custom_keyword!(new);
     syn::custom_keyword!(signature);
     syn::custom_keyword!(str);
     syn::custom_keyword!(subclass);
@@ -311,6 +312,33 @@ impl ToTokens for TextSignatureAttributeValue {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum NewImplTypeAttributeValue {
+    FromFields,
+    // Future variant for 'default' should go here
+}
+
+impl Parse for NewImplTypeAttributeValue {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let string_literal: LitStr = input.parse()?;
+        if string_literal.value().as_str() == "from_fields" {
+            Ok(NewImplTypeAttributeValue::FromFields)
+        } else {
+            bail_spanned!(string_literal.span() => "expected \"from_fields\"")
+        }
+    }
+}
+
+impl ToTokens for NewImplTypeAttributeValue {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            NewImplTypeAttributeValue::FromFields => {
+                tokens.extend(quote! { "from_fields" });
+            }
+        }
+    }
+}
+
 pub type ExtendsAttribute = KeywordAttribute<kw::extends, Path>;
 pub type FreelistAttribute = KeywordAttribute<kw::freelist, Box<Expr>>;
 pub type ModuleAttribute = KeywordAttribute<kw::module, LitStr>;
@@ -318,6 +346,7 @@ pub type NameAttribute = KeywordAttribute<kw::name, NameLitStr>;
 pub type RenameAllAttribute = KeywordAttribute<kw::rename_all, RenamingRuleLitStr>;
 pub type StrFormatterAttribute = OptionalKeywordAttribute<kw::str, StringFormatter>;
 pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, TextSignatureAttributeValue>;
+pub type NewImplTypeAttribute = KeywordAttribute<kw::new, NewImplTypeAttributeValue>;
 pub type SubmoduleAttribute = kw::submodule;
 pub type GILUsedAttribute = KeywordAttribute<kw::gil_used, LitBool>;
 

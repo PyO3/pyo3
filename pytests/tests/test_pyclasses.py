@@ -61,18 +61,35 @@ def test_iter():
 )
 def test_parallel_iter():
     import concurrent.futures
+    import threading
 
-    i = pyclasses.PyClassThreadIter()
+    thread_iter = pyclasses.PyClassThreadIter()
+    max_workers = 2
+    b = threading.Barrier(max_workers)
+    error_happened = threading.Event()
 
     # the second thread attempts to borrow a reference to the instance's
     # state while the first thread is still sleeping, so we trigger a
     # runtime borrow-check error
-    with pytest.raises(RuntimeError, match="Already borrowed"):
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as tpe:
-            # should never reach 100 iterations, should error out as soon
-            # as the borrow error occurs
-            for _ in tpe.map(lambda _: next(i), range(100)):
-                pass
+    def closure(i):
+        b.wait()
+        # should never reach 100 iterations, the borrow error should
+        # happen relatively quickly because the loops are synchronized
+        for j in range(100):
+            if not error_happened.is_set():
+                try:
+                    next(thread_iter)
+                except RuntimeError as e:
+                    assert "Already borrowed" in str(e), str(e)
+                    error_happened.set()
+            else:
+                break
+        else:
+            assert False, "Should not be able to complete loop"
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as tpe:
+        for _ in tpe.map(closure, range(max_workers)):
+            pass
 
 
 class AssertingSubClass(pyclasses.AssertingBaseClass):

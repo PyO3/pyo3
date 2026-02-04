@@ -201,37 +201,82 @@ macro_rules! create_exception_type_object {
         $crate::create_exception_type_object!($module, $name, $base, ::std::option::Option::None);
     };
     ($module: expr, $name: ident, $base: ty, Some($doc: expr)) => {
-        $crate::create_exception_type_object!($module, $name, $base, ::std::option::Option::Some($crate::ffi::c_str!($doc)));
+        $crate::create_exception_type_object!(
+            $module,
+            $name,
+            $base,
+            ::std::option::Option::Some($crate::ffi::c_str!($doc))
+        );
     };
     ($module: expr, $name: ident, $base: ty, $doc: expr) => {
-        $crate::pyobject_native_type_core!(
-            $name,
-            $name::type_object_raw,
-            stringify!($module),
-            stringify!($name),
-            #module=::std::option::Option::Some(stringify!($module))
-        );
+        $crate::pyobject_native_type_named!($name);
 
-        impl $name {
+        // SAFETY: macro caller has upheld the safety contracts
+        unsafe impl $crate::type_object::PyTypeInfo for $name {
+            const NAME: &'static str = stringify!($name);
+            const MODULE: ::std::option::Option<&'static str> =
+                ::std::option::Option::Some(stringify!($module));
+            $crate::create_exception_type_hint!($module, $name);
+
+            #[inline]
+            #[allow(clippy::redundant_closure_call)]
             fn type_object_raw(py: $crate::Python<'_>) -> *mut $crate::ffi::PyTypeObject {
                 use $crate::sync::PyOnceLock;
                 static TYPE_OBJECT: PyOnceLock<$crate::Py<$crate::types::PyType>> =
                     PyOnceLock::new();
 
                 TYPE_OBJECT
-                    .get_or_init(py, ||
+                    .get_or_init(py, || {
                         $crate::PyErr::new_type(
                             py,
-                            $crate::ffi::c_str!(concat!(stringify!($module), ".", stringify!($name))),
+                            $crate::ffi::c_str!(concat!(
+                                stringify!($module),
+                                ".",
+                                stringify!($name)
+                            )),
                             $doc,
                             ::std::option::Option::Some(&py.get_type::<$base>()),
                             ::std::option::Option::None,
-                        ).expect("Failed to initialize new exception type.")
-                ).as_ptr() as *mut $crate::ffi::PyTypeObject
+                        )
+                        .expect("Failed to initialize new exception type.")
+                    })
+                    .as_ptr()
+                    .cast()
             }
+        }
+
+        impl $name {
+            #[doc(hidden)]
+            pub const _PYO3_DEF: $crate::impl_::pymodule::AddTypeToModule<Self> =
+                $crate::impl_::pymodule::AddTypeToModule::new();
+
+            #[allow(dead_code)]
+            #[doc(hidden)]
+            pub const _PYO3_INTROSPECTION_ID: &'static str =
+                concat!(stringify!($module), stringify!($name));
         }
     };
 }
+
+/// Adds a TYPE_HINT constant if the `experimental-inspect`  feature is enabled.
+#[cfg(not(feature = "experimental-inspect"))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! create_exception_type_hint(
+    ($module: expr, $name: ident) => {};
+);
+
+#[cfg(feature = "experimental-inspect")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! create_exception_type_hint(
+    ($module: expr, $name: ident) => {
+        const TYPE_HINT: $crate::inspect::PyStaticExpr = $crate::inspect::PyStaticExpr::PyClass($crate::inspect::PyClassNameStaticExpr::new(
+            &$crate::type_hint_identifier!(stringify!($module), stringify!($name)),
+            Self::_PYO3_INTROSPECTION_ID
+        ));
+    };
+);
 
 macro_rules! impl_native_exception (
     ($name:ident, $exc_name:ident, $python_name:expr, $doc:expr, $layout:path $(, #checkfunction=$checkfunction:path)?) => (

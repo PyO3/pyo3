@@ -7,6 +7,9 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
+use crate::params::is_forwarded_args;
+#[cfg(feature = "experimental-inspect")]
+use crate::py_expr::PyExpr;
 use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::pyversions::is_abi3_before;
 use crate::utils::Ctx;
@@ -28,7 +31,7 @@ pub struct RegularArg<'a> {
     pub default_value: Option<syn::Expr>,
     pub option_wrapped_type: Option<&'a syn::Type>,
     #[cfg(feature = "experimental-inspect")]
-    pub annotation: Option<String>,
+    pub annotation: Option<PyExpr>,
 }
 
 /// Pythons *args argument
@@ -37,7 +40,7 @@ pub struct VarargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
     #[cfg(feature = "experimental-inspect")]
-    pub annotation: Option<String>,
+    pub annotation: Option<PyExpr>,
 }
 
 /// Pythons **kwarg argument
@@ -46,7 +49,7 @@ pub struct KwargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
     #[cfg(feature = "experimental-inspect")]
-    pub annotation: Option<String>,
+    pub annotation: Option<PyExpr>,
 }
 
 #[derive(Clone, Debug)]
@@ -430,7 +433,6 @@ pub struct FnSpec<'a> {
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
     pub warnings: Vec<PyFunctionWarning>,
-    #[cfg(feature = "experimental-inspect")]
     pub output: syn::ReturnType,
 }
 
@@ -506,7 +508,6 @@ impl<'a> FnSpec<'a> {
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,
             warnings,
-            #[cfg(feature = "experimental-inspect")]
             output: sig.output.clone(),
         })
     }
@@ -724,13 +725,41 @@ impl<'a> FnSpec<'a> {
                 // copy extracted arguments into async block
                 // output_py will create the owned arguments to store in the future
                 // output_args recreates the borrowed objects temporarily when building the future
-                let (output_py, output_args) = if !matches!(convention, CallingConvention::Noargs) {
+                let (output_py, output_args) = if !matches!(convention, CallingConvention::Noargs)
+                    && !is_forwarded_args(&self.signature)
+                {
                     (
                         Some(quote! {
                             let output = output.map(|o| o.map(Py::from));
                         }),
                         Some(quote! {
                             let output = output.each_ref().map(|o| o.as_ref().map(|obj| obj.bind_borrowed(assume_attached.py())));
+                        }),
+                    )
+                } else {
+                    (None, None)
+                };
+                // if *args / **kwargs are present, treat the `Bound<'_, PyTuple>` / `Option<Bound<'_, PyDict>>` similarly
+                let (varargs_py, varargs_ptr) = if self.signature.python_signature.varargs.is_some()
+                {
+                    (
+                        Some(quote! {
+                            let _args = _args.to_owned().unbind();
+                        }),
+                        Some(quote! {
+                            let _args = _args.bind_borrowed(assume_attached.py());
+                        }),
+                    )
+                } else {
+                    (None, None)
+                };
+                let (kwargs_py, kwargs_ptr) = if self.signature.python_signature.kwargs.is_some() {
+                    (
+                        Some(quote! {
+                            let _kwargs = _kwargs.map(|k| k.to_owned().unbind());
+                        }),
+                        Some(quote! {
+                            let _kwargs = _kwargs.as_ref().map(|k| k.bind_borrowed(assume_attached.py()));
                         }),
                     )
                 } else {
@@ -743,6 +772,8 @@ impl<'a> FnSpec<'a> {
                         let coroutine = {
                             #slf_py
                             #output_py
+                            #varargs_py
+                            #kwargs_py
                             #init_throw_callback
                             #pyo3_path::impl_::coroutine::new_coroutine(
                                 #pyo3_path::intern!(py, stringify!(#python_name)),
@@ -756,6 +787,8 @@ impl<'a> FnSpec<'a> {
                                         let py = assume_attached.py();
                                         #slf_ptr
                                         #output_args
+                                        #varargs_ptr
+                                        #kwargs_ptr
                                         function(#(#args),*)
                                     };
                                     let #ret_ident = future.await;
