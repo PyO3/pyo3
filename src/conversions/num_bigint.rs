@@ -56,6 +56,10 @@ use crate::{
 
 use num_bigint::{BigInt, BigUint};
 
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::PyStaticExpr;
+#[cfg(feature = "experimental-inspect")]
+use crate::PyTypeInfo;
 #[cfg(not(Py_LIMITED_API))]
 use num_bigint::Sign;
 
@@ -68,6 +72,9 @@ macro_rules! bigint_conversion {
             type Output = Bound<'py, Self::Target>;
             type Error = PyErr;
 
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: PyStaticExpr = <&$rust_ty>::OUTPUT_TYPE;
+
             #[inline]
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (&self).into_pyobject(py)
@@ -79,6 +86,9 @@ macro_rules! bigint_conversion {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
             type Error = PyErr;
+
+            #[cfg(feature = "experimental-inspect")]
+            const OUTPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 use num_traits::ToBytes;
@@ -128,6 +138,9 @@ bigint_conversion!(BigInt, true);
 impl<'py> FromPyObject<'_, 'py> for BigInt {
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
+
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<BigInt, Self::Error> {
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Bound<'_, PyInt>;
@@ -176,6 +189,9 @@ impl<'py> FromPyObject<'_, 'py> for BigInt {
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
 impl<'py> FromPyObject<'_, 'py> for BigUint {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<BigUint, Self::Error> {
         // fast path - checking for subclass of `int` just checks a bit in the type object

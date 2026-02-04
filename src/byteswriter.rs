@@ -1,3 +1,7 @@
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::PyStaticExpr;
+#[cfg(feature = "experimental-inspect")]
+use crate::PyTypeInfo;
 #[cfg(not(Py_LIMITED_API))]
 use crate::{
     err::error_on_minusone,
@@ -123,6 +127,9 @@ impl<'py> IntoPyObject<'py> for PyBytesWriter<'py> {
     type Target = PyBytes;
     type Output = Bound<'py, PyBytes>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = PyBytes::TYPE_HINT;
 
     #[inline]
     fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {

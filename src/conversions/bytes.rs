@@ -65,13 +65,20 @@
 use bytes::Bytes;
 
 use crate::conversion::IntoPyObject;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::PyStaticExpr;
 use crate::instance::Bound;
 use crate::pybacked::PyBackedBytes;
 use crate::types::PyBytes;
+#[cfg(feature = "experimental-inspect")]
+use crate::PyTypeInfo;
 use crate::{Borrowed, CastError, FromPyObject, PyAny, PyErr, Python};
 
 impl<'a, 'py> FromPyObject<'a, 'py> for Bytes {
     type Error = CastError<'a, 'py>;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = PyBackedBytes::INPUT_TYPE;
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         Ok(Bytes::from_owner(obj.extract::<PyBackedBytes>()?))
@@ -83,6 +90,9 @@ impl<'py> IntoPyObject<'py> for Bytes {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = PyBytes::TYPE_HINT;
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyBytes::new(py, &self))
     }
@@ -92,6 +102,9 @@ impl<'py> IntoPyObject<'py> for &Bytes {
     type Target = PyBytes;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = PyBytes::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyBytes::new(py, self))

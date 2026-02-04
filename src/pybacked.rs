@@ -2,6 +2,8 @@
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_hint_union;
 use crate::{
     types::{
         bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
@@ -278,7 +280,7 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyBackedBytes {
     type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyBytes::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = type_hint_union!(PyBytes::TYPE_HINT, PyByteArray::TYPE_HINT);
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(bytes) = obj.cast::<PyBytes>() {
