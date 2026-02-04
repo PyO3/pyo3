@@ -17,6 +17,7 @@ pub mod consts {
 
     #[pymethods]
     impl ClassWithConst {
+        /// A constant
         #[classattr]
         const INSTANCE: Self = ClassWithConst {};
     }

@@ -319,7 +319,7 @@ pub fn pymodule_module_impl(
                         item.ident.unraw().to_string(),
                         PyExpr::constant_from_expression(&item.expr),
                         (*item.ty).clone(),
-                        doc.as_ref(),
+                        get_doc(&item.attrs, None).as_ref(),
                         true,
                     );
                     introspection_chunks.push(quote! {

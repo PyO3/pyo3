@@ -36,7 +36,7 @@ use crate::pymethod::{
     __REPR__, __RICHCMP__, __STR__,
 };
 use crate::pyversions::{is_abi3_before, is_py_before};
-use crate::utils::{self, apply_renaming_rule, Ctx, PythonDoc};
+use crate::utils::{self, apply_renaming_rule, get_doc, Ctx, PythonDoc};
 use crate::PyFunctionOptions;
 
 /// If the class is derived from a Rust `struct` or `enum`.
@@ -641,11 +641,10 @@ impl<'a> PyClassSimpleEnum<'a> {
                 _ => bail_spanned!(variant.span() => "Must be a unit variant."),
             };
             let options = EnumVariantPyO3Options::take_pyo3_options(&mut variant.attrs)?;
-            let cfg_attrs = get_cfg_attributes(&variant.attrs);
             Ok(PyClassEnumUnitVariant {
                 ident,
                 options,
-                cfg_attrs,
+                attrs: variant.attrs.clone(),
             })
         }
 
@@ -716,6 +715,7 @@ impl<'a> PyClassComplexEnum<'a> {
                             .map(|field| PyClassEnumVariantNamedField {
                                 ident: field.ident.as_ref().expect("named field has an identifier"),
                                 ty: &field.ty,
+                                attrs: &field.attrs,
                                 span: field.span(),
                             })
                             .collect();
@@ -724,6 +724,7 @@ impl<'a> PyClassComplexEnum<'a> {
                             ident,
                             fields,
                             options,
+                            attrs: variant.attrs.clone(),
                         })
                     }
                     Fields::Unnamed(types) => {
@@ -733,6 +734,7 @@ impl<'a> PyClassComplexEnum<'a> {
                             .map(|field| PyClassEnumVariantUnnamedField {
                                 ty: &field.ty,
                                 span: field.span(),
+                                attrs: &field.attrs,
                             })
                             .collect();
 
@@ -740,6 +742,7 @@ impl<'a> PyClassComplexEnum<'a> {
                             ident,
                             fields,
                             options,
+                            attrs: variant.attrs.clone(),
                         })
                     }
                 };
@@ -768,6 +771,7 @@ enum PyClassEnumVariant<'a> {
 trait EnumVariant {
     fn get_ident(&self) -> &syn::Ident;
     fn get_options(&self) -> &EnumVariantPyO3Options;
+    fn get_attrs(&self) -> &[syn::Attribute];
 
     fn get_python_name(&self, args: &PyClassArgs) -> Cow<'_, syn::Ident> {
         self.get_options()
@@ -789,15 +793,22 @@ trait EnumVariant {
 impl EnumVariant for PyClassEnumVariant<'_> {
     fn get_ident(&self) -> &syn::Ident {
         match self {
-            PyClassEnumVariant::Struct(struct_variant) => struct_variant.ident,
-            PyClassEnumVariant::Tuple(tuple_variant) => tuple_variant.ident,
+            Self::Struct(struct_variant) => struct_variant.ident,
+            Self::Tuple(tuple_variant) => tuple_variant.ident,
         }
     }
 
     fn get_options(&self) -> &EnumVariantPyO3Options {
         match self {
-            PyClassEnumVariant::Struct(struct_variant) => &struct_variant.options,
-            PyClassEnumVariant::Tuple(tuple_variant) => &tuple_variant.options,
+            Self::Struct(struct_variant) => &struct_variant.options,
+            Self::Tuple(tuple_variant) => &tuple_variant.options,
+        }
+    }
+
+    fn get_attrs(&self) -> &[syn::Attribute] {
+        match self {
+            Self::Struct(struct_variant) => &struct_variant.attrs,
+            Self::Tuple(tuple_variant) => &tuple_variant.attrs,
         }
     }
 }
@@ -806,7 +817,7 @@ impl EnumVariant for PyClassEnumVariant<'_> {
 struct PyClassEnumUnitVariant<'a> {
     ident: &'a syn::Ident,
     options: EnumVariantPyO3Options,
-    cfg_attrs: Vec<&'a syn::Attribute>,
+    attrs: Vec<syn::Attribute>,
 }
 
 impl EnumVariant for PyClassEnumUnitVariant<'_> {
@@ -817,6 +828,10 @@ impl EnumVariant for PyClassEnumUnitVariant<'_> {
     fn get_options(&self) -> &EnumVariantPyO3Options {
         &self.options
     }
+
+    fn get_attrs(&self) -> &[syn::Attribute] {
+        &self.attrs
+    }
 }
 
 /// A struct variant has named fields
@@ -824,22 +839,26 @@ struct PyClassEnumStructVariant<'a> {
     ident: &'a syn::Ident,
     fields: Vec<PyClassEnumVariantNamedField<'a>>,
     options: EnumVariantPyO3Options,
+    attrs: Vec<syn::Attribute>,
 }
 
 struct PyClassEnumTupleVariant<'a> {
     ident: &'a syn::Ident,
     fields: Vec<PyClassEnumVariantUnnamedField<'a>>,
     options: EnumVariantPyO3Options,
+    attrs: Vec<syn::Attribute>,
 }
 
 struct PyClassEnumVariantNamedField<'a> {
     ident: &'a syn::Ident,
     ty: &'a syn::Type,
+    attrs: &'a [syn::Attribute],
     span: Span,
 }
 
 struct PyClassEnumVariantUnnamedField<'a> {
     ty: &'a syn::Type,
+    attrs: &'a [syn::Attribute],
     span: Span,
 }
 
@@ -1010,7 +1029,7 @@ fn impl_simple_enum(
     let (default_repr, default_repr_slot) = {
         let variants_repr = variants.iter().map(|variant| {
             let variant_name = variant.ident;
-            let cfg_attrs = &variant.cfg_attrs;
+            let cfg_attrs = get_cfg_attributes(&variant.attrs);
             // Assuming all variants are unit variants because they are the only type we support.
             let repr = format!(
                 "{}.{}",
@@ -1049,7 +1068,7 @@ fn impl_simple_enum(
         // This implementation allows us to convert &T to #repr_type without implementing `Copy`
         let variants_to_int = variants.iter().map(|variant| {
             let variant_name = variant.ident;
-            let cfg_attrs = &variant.cfg_attrs;
+            let cfg_attrs = get_cfg_attributes(&variant.attrs);
             quote! { #(#cfg_attrs)* #cls::#variant_name => #cls::#variant_name as #repr_type, }
         });
         let mut int_impl: syn::ImplItemFn = syn::parse_quote! {
@@ -1092,7 +1111,7 @@ fn impl_simple_enum(
             cls,
             variants
                 .iter()
-                .map(|v| (v.ident, v.get_python_name(args), &v.cfg_attrs)),
+                .map(|v| (v.ident, v.get_python_name(args), v.attrs.as_slice())),
             ctx,
         ),
         default_slots,
@@ -1107,7 +1126,7 @@ fn impl_simple_enum(
         let num = variants.len();
         let i = (0..num).map(proc_macro2::Literal::usize_unsuffixed);
         let variant_idents = variants.iter().map(|v| v.ident);
-        let cfgs = variants.iter().map(|v| &v.cfg_attrs);
+        let cfgs = variants.iter().map(|v| get_cfg_attributes(&v.attrs));
         quote! {
             impl<'py> #pyo3_path::conversion::IntoPyObject<'py> for #cls {
                 type Target = Self;
@@ -1212,7 +1231,7 @@ fn impl_complex_enum(
             cls,
             variants
                 .iter()
-                .map(|v| (v.get_ident(), v.get_python_name(&args))),
+                .map(|v| (v.get_ident(), v.get_python_name(&args), v.get_attrs())),
             ctx,
         ),
         default_slots,
@@ -1298,10 +1317,11 @@ fn impl_complex_enum(
             impl_complex_enum_variant_cls(cls, &variant, ctx)?;
         variant_cls_impls.push(variant_cls_impl);
 
+        let variant_doc = get_doc(variant.get_attrs(), None);
         let variant_new = complex_enum_variant_new(cls, variant, ctx)?;
         slots.push(variant_new);
 
-        let impl_builder = PyClassImplsBuilder::new(
+        let mut impl_builder = PyClassImplsBuilder::new(
             &variant_cls,
             &variant_name,
             &variant_args,
@@ -1309,6 +1329,10 @@ fn impl_complex_enum(
             field_getters,
             slots,
         );
+        if let Some(doc) = variant_doc {
+            impl_builder = impl_builder.doc(doc);
+        }
+
         let pyclass_impl: TokenStream = [
             impl_builder.impl_pyclass(ctx),
             impl_builder.impl_into_py(ctx),
@@ -1435,6 +1459,7 @@ fn impl_complex_enum_struct_variant_cls(
             &variant_cls_type,
             field_name,
             field_type,
+            field.attrs,
             field.span,
             ctx,
         )?;
@@ -1506,6 +1531,7 @@ fn impl_complex_enum_tuple_variant_field_getters(
             variant_cls_type,
             &field_name,
             field_type,
+            field.attrs,
             field.span,
             ctx,
         )?;
@@ -1773,44 +1799,41 @@ fn generate_default_protocol_slot(
 fn simple_enum_default_methods<'a>(
     cls: &'a syn::Ident,
     unit_variant_names: impl IntoIterator<
-        Item = (
-            &'a syn::Ident,
-            Cow<'a, syn::Ident>,
-            &'a Vec<&'a syn::Attribute>,
-        ),
+        Item = (&'a syn::Ident, Cow<'a, syn::Ident>, &'a [syn::Attribute]),
     >,
     ctx: &Ctx,
 ) -> Vec<MethodAndMethodDef> {
     let cls_type: syn::Type = syn::parse_quote!(#cls);
-    let variant_to_attribute = |var_ident: &Ident, py_ident: &Ident| ConstSpec {
-        rust_ident: var_ident.clone(),
-        attributes: ConstAttributes {
-            is_class_attr: true,
-            name: Some(NameAttribute {
-                kw: syn::parse_quote! { name },
-                value: NameLitStr(py_ident.clone()),
-            }),
-        },
-        #[cfg(feature = "experimental-inspect")]
-        expr: None,
-        #[cfg(feature = "experimental-inspect")]
-        ty: cls_type.clone(),
-        #[cfg(feature = "experimental-inspect")]
-        doc: None,
-    };
     unit_variant_names
         .into_iter()
         .map(|(var, py_name, attrs)| {
-            let method = gen_py_const(&cls_type, &variant_to_attribute(var, &py_name), ctx);
+            let spec = ConstSpec {
+                rust_ident: var.clone(),
+                attributes: ConstAttributes {
+                    is_class_attr: true,
+                    name: Some(NameAttribute {
+                        kw: syn::parse_quote! { name },
+                        value: NameLitStr(py_name.into_owned()),
+                    }),
+                },
+                #[cfg(feature = "experimental-inspect")]
+                expr: None,
+                #[cfg(feature = "experimental-inspect")]
+                ty: cls_type.clone(),
+                #[cfg(feature = "experimental-inspect")]
+                doc: get_doc(attrs, None),
+            };
+            let method = gen_py_const(&cls_type, &spec, ctx);
             let associated_method_tokens = method.associated_method;
             let method_def_tokens = method.method_def;
+            let cfg_attrs = get_cfg_attributes(attrs);
 
             let associated_method = quote! {
-                #(#attrs)*
+                #(#cfg_attrs)*
                 #associated_method_tokens
             };
             let method_def = quote! {
-                #(#attrs)*
+                #(#cfg_attrs)*
                 #method_def_tokens
             };
 
@@ -1822,36 +1845,35 @@ fn simple_enum_default_methods<'a>(
         .collect()
 }
 
+#[cfg_attr(not(feature = "experimental-inspect"), expect(unused_variables))]
 fn complex_enum_default_methods<'a>(
     cls: &'a Ident,
-    variant_names: impl IntoIterator<Item = (&'a Ident, Cow<'a, Ident>)>,
+    variant_names: impl IntoIterator<Item = (&'a Ident, Cow<'a, Ident>, &'a [syn::Attribute])>,
     ctx: &Ctx,
 ) -> Vec<MethodAndMethodDef> {
     let cls_type = syn::parse_quote!(#cls);
-    let variant_to_attribute = |var_ident: &Ident, py_ident: &Ident| {
-        #[cfg(feature = "experimental-inspect")]
-        let variant_cls = gen_complex_enum_variant_class_ident(cls, py_ident);
-        ConstSpec {
-            rust_ident: var_ident.clone(),
-            attributes: ConstAttributes {
-                is_class_attr: true,
-                name: Some(NameAttribute {
-                    kw: syn::parse_quote! { name },
-                    value: NameLitStr(py_ident.clone()),
-                }),
-            },
-            #[cfg(feature = "experimental-inspect")]
-            expr: None,
-            #[cfg(feature = "experimental-inspect")]
-            ty: parse_quote!(#variant_cls),
-            #[cfg(feature = "experimental-inspect")]
-            doc: None,
-        }
-    };
     variant_names
         .into_iter()
-        .map(|(var, py_name)| {
-            gen_complex_enum_variant_attr(cls, &cls_type, &variant_to_attribute(var, &py_name), ctx)
+        .map(|(var, py_name, attrs)| {
+            #[cfg(feature = "experimental-inspect")]
+            let variant_cls = gen_complex_enum_variant_class_ident(cls, &py_name);
+            let spec = ConstSpec {
+                rust_ident: var.clone(),
+                attributes: ConstAttributes {
+                    is_class_attr: true,
+                    name: Some(NameAttribute {
+                        kw: syn::parse_quote! { name },
+                        value: NameLitStr(py_name.into_owned()),
+                    }),
+                },
+                #[cfg(feature = "experimental-inspect")]
+                expr: None,
+                #[cfg(feature = "experimental-inspect")]
+                ty: parse_quote!(#variant_cls),
+                #[cfg(feature = "experimental-inspect")]
+                doc: get_doc(attrs, None),
+            };
+            gen_complex_enum_variant_attr(cls, &cls_type, &spec, ctx)
         })
         .collect()
 }
@@ -2038,6 +2060,7 @@ fn complex_enum_variant_field_getter(
     variant_cls_type: &syn::Type,
     field_name: &Ident,
     field_type: &syn::Type,
+    field_attrs: &[syn::Attribute],
     field_span: Span,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
@@ -2062,13 +2085,18 @@ fn complex_enum_variant_field_getter(
     let property_type = PropertyType::Function {
         self_type: &self_type,
         spec: &spec,
-        doc: crate::get_doc(&[], None),
+        doc: get_doc(field_attrs, None),
     };
 
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
     let mut getter = impl_py_getter_def(variant_cls_type, property_type, ctx)?;
     #[cfg(feature = "experimental-inspect")]
-    getter.add_introspection(method_introspection_code(&spec, &[], variant_cls_type, ctx));
+    getter.add_introspection(method_introspection_code(
+        &spec,
+        field_attrs,
+        variant_cls_type,
+        ctx,
+    ));
     Ok(getter)
 }
 
@@ -3063,7 +3091,7 @@ fn generate_cfg_check(variants: &[PyClassEnumUnitVariant<'_>], cls: &syn::Ident)
     let mut conditions = Vec::new();
 
     for variant in variants {
-        let cfg_attrs = &variant.cfg_attrs;
+        let cfg_attrs = get_cfg_attributes(&variant.attrs);
 
         if cfg_attrs.is_empty() {
             // There's at least one variant of the enum without cfg attributes,

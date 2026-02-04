@@ -45,6 +45,7 @@ pub fn do_simple_stuff(thing: &SimpleEnum) -> SimpleEnum {
 pub enum ComplexEnum {
     /// A struct variant
     Int {
+        /// An integer
         i: i32,
     },
     Float {
