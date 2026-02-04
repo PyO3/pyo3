@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs};
 use tempfile::NamedTempFile;
-
 #[test]
 fn pytests_stubs() -> Result<()> {
     // We run the introspection
@@ -49,12 +48,30 @@ fn pytests_stubs() -> Result<()> {
         let actual_file_content = format_with_ruff(actual_file_content)?;
 
         // We normalize line jumps for compatibility with Windows
-        assert_eq!(
-            expected_file_content.replace('\r', ""),
-            actual_file_content.replace('\r', ""),
-            "The content of file {} is different",
+        let expected_file_content_fixed = expected_file_content.replace('\r', "");
+        let actual_file_content_fixed = actual_file_content.replace('\r', "");
+        let diff =
+            similar::TextDiff::from_lines(&expected_file_content_fixed, &actual_file_content_fixed);
+        let mut has_differences = false;
+        for op in diff.ops() {
+            for change in diff.iter_changes(op) {
+                let (sign, style) = match change.tag() {
+                    similar::ChangeTag::Delete => ("-", console::Style::new().red()),
+                    similar::ChangeTag::Insert => ("+", console::Style::new().green()),
+                    similar::ChangeTag::Equal => (" ", console::Style::new()),
+                };
+                if change.tag() == similar::ChangeTag::Equal {
+                    continue;
+                }
+                has_differences = true;
+                print!("{}{}", style.apply_to(sign).bold(), style.apply_to(change));
+            }
+        }
+        assert!(
+            !has_differences,
+            "The stub file {} differs from the expected one. See the diff above.",
             file_name.display()
-        )
+        );
     }
 
     Ok(())
@@ -76,7 +93,7 @@ fn add_dir_files(
                     .canonicalize()?
                     .strip_prefix(base_dir_path)?
                     .into(),
-                fs::read_to_string(entry.path())?,
+                format_with_ruff(&fs::read_to_string(entry.path())?)?,
             );
         }
     }

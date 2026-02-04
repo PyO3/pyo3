@@ -1,8 +1,17 @@
 from _typeshed import Incomplete
 from typing import final
 
+
 class AssertingBaseClass:
     def __new__(cls, /, expected_type: type) -> AssertingBaseClass: ...
+
+@final
+class ClassWithCustomGetterSetterSignature:
+    def __new__(cls, /) -> ClassWithCustomGetterSetterSignature: ...
+    @property
+    def foo(self, /) -> "int": ...
+    @foo.setter
+    def foo(self, /, value: "int") -> None: ...
 
 @final
 class ClassWithDecorators:
