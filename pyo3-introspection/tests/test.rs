@@ -52,26 +52,25 @@ fn pytests_stubs() -> Result<()> {
         let actual_file_content_fixed = actual_file_content.replace('\r', "");
         let diff =
             similar::TextDiff::from_lines(&expected_file_content_fixed, &actual_file_content_fixed);
-        let mut has_differences = false;
-        for op in diff.ops() {
-            for change in diff.iter_changes(op) {
-                let (sign, style) = match change.tag() {
-                    similar::ChangeTag::Delete => ("-", console::Style::new().red()),
-                    similar::ChangeTag::Insert => ("+", console::Style::new().green()),
-                    similar::ChangeTag::Equal => (" ", console::Style::new()),
-                };
-                if change.tag() == similar::ChangeTag::Equal {
-                    continue;
+        if diff
+            .iter_all_changes()
+            .any(|f| f.tag() == similar::ChangeTag::Delete || f.tag() == similar::ChangeTag::Insert)
+        {
+            for op in diff.ops() {
+                for change in diff.iter_changes(op) {
+                    let (sign, style) = match change.tag() {
+                        similar::ChangeTag::Delete => ("-", console::Style::new().red()),
+                        similar::ChangeTag::Insert => ("+", console::Style::new().green()),
+                        similar::ChangeTag::Equal => (" ", console::Style::new()),
+                    };
+                    print!("{}{}", style.apply_to(sign).bold(), style.apply_to(change));
                 }
-                has_differences = true;
-                print!("{}{}", style.apply_to(sign).bold(), style.apply_to(change));
             }
+            panic!(
+                "The stub file {} differs from the expected one. See the diff above.",
+                file_name.display()
+            );
         }
-        assert!(
-            !has_differences,
-            "The stub file {} differs from the expected one. See the diff above.",
-            file_name.display()
-        );
     }
 
     Ok(())

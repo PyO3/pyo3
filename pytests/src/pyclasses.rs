@@ -207,12 +207,13 @@ fn map_a_class(cls: AClass) -> AClass {
 #[pyclass]
 struct ClassWithCustomGetterSetterSignature {
     foo: usize,
+    bar: usize,
 }
 #[pymethods]
 impl ClassWithCustomGetterSetterSignature {
     #[new]
     fn new() -> Self {
-        Self { foo: 0 }
+        Self { foo: 0, bar: 10 }
     }
     #[getter]
     #[pyo3(signature = () -> "int")]
@@ -224,6 +225,15 @@ impl ClassWithCustomGetterSetterSignature {
     #[pyo3(signature = (value:"int"))]
     fn set_foo(&mut self, value: usize) {
         self.foo = value;
+    }
+
+    #[getter]
+    fn get_bar(&self) -> usize {
+        self.bar
+    }
+    #[setter]
+    fn set_bar(&mut self, value: usize) {
+        self.bar = value;
     }
 }
 
