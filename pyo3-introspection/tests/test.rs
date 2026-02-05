@@ -1,6 +1,7 @@
 use anyhow::{ensure, Result};
 use pyo3_introspection::{introspect_cdylib, module_stub_files};
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -52,10 +53,15 @@ fn pytests_stubs() -> Result<()> {
         let actual_file_content_fixed = actual_file_content.replace('\r', "");
         let diff =
             similar::TextDiff::from_lines(&expected_file_content_fixed, &actual_file_content_fixed);
-        if diff
-            .iter_all_changes()
-            .any(|f| f.tag() == similar::ChangeTag::Delete || f.tag() == similar::ChangeTag::Insert)
-        {
+        if actual_file_content_fixed != expected_file_content_fixed {
+            let mut buffer = String::new();
+            writeln!(
+                &mut buffer,
+                "The stub file {} differs from the expected one. See the diff below.",
+                file_name.display()
+            )?;
+            writeln!(&mut buffer, "============================")?;
+            writeln!(&mut buffer, "============================")?;
             for op in diff.ops() {
                 for change in diff.iter_changes(op) {
                     let (sign, style) = match change.tag() {
@@ -63,13 +69,15 @@ fn pytests_stubs() -> Result<()> {
                         similar::ChangeTag::Insert => ("+", console::Style::new().green()),
                         similar::ChangeTag::Equal => (" ", console::Style::new()),
                     };
-                    print!("{}{}", style.apply_to(sign).bold(), style.apply_to(change));
+                    write!(
+                        &mut buffer,
+                        "{}{}",
+                        style.apply_to(sign).bold(),
+                        style.apply_to(change)
+                    )?;
                 }
             }
-            panic!(
-                "The stub file {} differs from the expected one. See the diff above.",
-                file_name.display()
-            );
+            panic!("{}", buffer);
         }
     }
 
@@ -92,7 +100,7 @@ fn add_dir_files(
                     .canonicalize()?
                     .strip_prefix(base_dir_path)?
                     .into(),
-                format_with_ruff(&fs::read_to_string(entry.path())?)?,
+                fs::read_to_string(entry.path())?,
             );
         }
     }
