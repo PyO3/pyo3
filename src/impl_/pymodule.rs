@@ -322,7 +322,7 @@ impl PyModuleSlotsBuilder {
 
     const fn push(mut self, slot: c_int, value: *mut c_void) -> Self {
         assert!(
-            self.len <= MAX_SLOTS,
+            self.len + 1 <= MAX_SLOTS,
             "Cannot add more than MAX_SLOTS slots to a PyModuleSlots",
         );
         self.values[self.len] = ffi::PyModuleDef_Slot { slot, value };
@@ -409,7 +409,11 @@ mod tests {
         Python,
     };
 
-    use super::ModuleDef;
+    use super::{ModuleDef, MAX_SLOTS};
+
+    unsafe extern "C" fn module_exec(_module: *mut ffi::PyObject) -> c_int {
+        0
+    }
 
     #[test]
     fn module_init() {
@@ -492,19 +496,29 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn test_module_slots_builder_overflow_2() {
-        unsafe extern "C" fn module_exec(_module: *mut ffi::PyObject) -> c_int {
-            0
-        }
+    fn test_build_maximal_slots() {
+        let builder = PyModuleSlotsBuilder::new()
+            .with_mod_exec(module_exec)
+            .with_name(c"test_module")
+            .with_doc(c"some doc")
+            .with_gil_used(false)
+            .with_abi_info();
 
-        PyModuleSlotsBuilder::new()
-            .with_mod_exec(module_exec)
-            .with_mod_exec(module_exec)
-            .with_mod_exec(module_exec)
-            .with_mod_exec(module_exec)
-            .with_mod_exec(module_exec)
-            .with_mod_exec(module_exec)
-            .build();
+        assert!(builder.values[builder.len] == unsafe { std::mem::zeroed() });
+        assert!(builder.values[builder.len - 1] != unsafe { std::mem::zeroed() });
+        assert!(builder.len == MAX_SLOTS);
+
+        let result = std::panic::catch_unwind(|| builder.with_mod_exec(module_exec).build());
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_module_slots_builder_overflow() {
+        let mut builder = PyModuleSlotsBuilder::new();
+        for _ in 0..MAX_SLOTS + 1 {
+            builder = builder.with_mod_exec(module_exec);
+        }
     }
 }
