@@ -496,6 +496,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(panic = "unwind")]
     fn test_build_maximal_slots() {
         let builder = PyModuleSlotsBuilder::new()
             .with_mod_exec(module_exec)
