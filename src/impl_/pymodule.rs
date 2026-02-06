@@ -315,14 +315,14 @@ impl PyModuleSlotsBuilder {
     }
 
     pub const fn build(self) -> PyModuleSlots {
-        // Required to guarantee there's still a zeroed element
-        // at the end
         PyModuleSlots(UnsafeCell::new(self.values))
     }
 
     const fn push(mut self, slot: c_int, value: *mut c_void) -> Self {
+        // Required to guarantee there's still a zeroed element
+        // at the end
         assert!(
-            self.len + 1 <= MAX_SLOTS,
+            self.len < MAX_SLOTS,
             "Cannot add more than MAX_SLOTS slots to a PyModuleSlots",
         );
         self.values[self.len] = ffi::PyModuleDef_Slot { slot, value };
