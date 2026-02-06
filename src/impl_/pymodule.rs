@@ -215,19 +215,20 @@ impl ModuleDef {
 pub type ModuleExecSlot = unsafe extern "C" fn(*mut ffi::PyObject) -> c_int;
 
 const MAX_SLOTS: usize =
-    // Py_mod_exec and a trailing null entry
-    2 +
+    // Py_mod_exec
+    1 +
     // Py_mod_gil
     cfg!(Py_3_13) as usize +
     // Py_mod_name, Py_mod_doc, and Py_mod_abi
     3 * (cfg!(Py_3_15) as usize);
+const MAX_SLOTS_WITH_TRAILING_NULL: usize = MAX_SLOTS + 1;
 
 /// Builder to create `PyModuleSlots`. The size of the number of slots desired must
 /// be known up front, and N needs to be at least one greater than the number of
 /// actual slots pushed due to the need to have a zeroed element on the end.
 pub struct PyModuleSlotsBuilder {
     // values (initially all zeroed)
-    values: [ffi::PyModuleDef_Slot; MAX_SLOTS],
+    values: [ffi::PyModuleDef_Slot; MAX_SLOTS_WITH_TRAILING_NULL],
     // current length
     len: usize,
 }
@@ -242,7 +243,7 @@ impl PyModuleSlotsBuilder {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
-            values: [unsafe { std::mem::zeroed() }; MAX_SLOTS],
+            values: [unsafe { std::mem::zeroed() }; MAX_SLOTS_WITH_TRAILING_NULL],
             len: 0,
         }
     }
@@ -317,7 +318,7 @@ impl PyModuleSlotsBuilder {
         // Required to guarantee there's still a zeroed element
         // at the end
         assert!(
-            self.len < MAX_SLOTS,
+            self.len < MAX_SLOTS_WITH_TRAILING_NULL,
             "N must be greater than the number of slots pushed"
         );
         PyModuleSlots(UnsafeCell::new(self.values))
@@ -331,7 +332,7 @@ impl PyModuleSlotsBuilder {
 }
 
 /// Wrapper to safely store module slots, to be used in a `ModuleDef`.
-pub struct PyModuleSlots(UnsafeCell<[ffi::PyModuleDef_Slot; MAX_SLOTS]>);
+pub struct PyModuleSlots(UnsafeCell<[ffi::PyModuleDef_Slot; MAX_SLOTS_WITH_TRAILING_NULL]>);
 
 // It might be possible to avoid this with SyncUnsafeCell in the future
 //
