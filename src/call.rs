@@ -194,6 +194,8 @@ impl<'py> PyCallArgs<'py> for Borrowed<'_, 'py, PyTuple> {
         kwargs: Borrowed<'_, 'py, PyDict>,
         _: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
+        // Safety: `Borrowed`s are valid PyObject pointers,
+        // and the return pointer is a new reference or NULL on failure.
         unsafe {
             ffi::PyObject_Call(function.as_ptr(), self.as_ptr(), kwargs.as_ptr())
                 .assume_owned_or_err(function.py())
@@ -206,6 +208,9 @@ impl<'py> PyCallArgs<'py> for Borrowed<'_, 'py, PyTuple> {
         function: Borrowed<'_, 'py, PyAny>,
         _: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
+        // Safety: All parameters are valid PyObject pointers,
+        // `kw` is NULL to indicate no keyword arguments,
+        // and the return pointer is a new reference or NULL on failure.
         unsafe {
             ffi::PyObject_Call(function.as_ptr(), self.as_ptr(), std::ptr::null_mut())
                 .assume_owned_or_err(function.py())

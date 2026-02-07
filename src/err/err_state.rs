@@ -24,6 +24,8 @@ pub(crate) struct PyErrState {
 // Safety: The inner value is protected by locking to ensure that only the normalized state is
 // handed out as a reference.
 unsafe impl Send for PyErrState {}
+// Safety: The inner value is protected by locking to ensure that only the normalized state is
+// handed out as a reference.
 unsafe impl Sync for PyErrState {}
 #[cfg(feature = "nightly")]
 unsafe impl crate::marker::Ungil for PyErrState {}
@@ -70,10 +72,8 @@ impl PyErrState {
     #[inline]
     pub(crate) fn as_normalized(&self, py: Python<'_>) -> &PyErrStateNormalized {
         if self.normalized.is_completed() {
-            match unsafe {
-                // Safety: self.inner will never be written again once normalized.
-                &*self.inner.get()
-            } {
+            // Safety: self.inner will never be written again once normalized.
+            match unsafe { &*self.inner.get() } {
                 Some(PyErrStateInner::Normalized(n)) => return n,
                 _ => unreachable!(),
             }
@@ -122,10 +122,8 @@ impl PyErrState {
             })
         });
 
-        match unsafe {
-            // Safety: self.inner will never be written again once normalized.
-            &*self.inner.get()
-        } {
+        // Safety: self.inner will never be written again once normalized.
+        match unsafe { &*self.inner.get() } {
             Some(PyErrStateInner::Normalized(n)) => n,
             _ => unreachable!(),
         }
@@ -174,6 +172,7 @@ impl PyErrStateNormalized {
 
     #[cfg(Py_3_12)]
     pub(crate) fn ptraceback<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyTraceback>> {
+        // SAFETY: `PyException_GetTraceback` returns a new reference of the traceback object.
         unsafe {
             ffi::PyException_GetTraceback(self.pvalue.as_ptr())
                 .assume_owned_or_opt(py)
@@ -328,9 +327,9 @@ impl PyErrStateInner {
     fn restore(self, py: Python<'_>) {
         match self {
             PyErrStateInner::Lazy(lazy) => raise_lazy(py, lazy),
-            PyErrStateInner::Normalized(PyErrStateNormalized { pvalue }) => unsafe {
-                ffi::PyErr_SetRaisedException(pvalue.into_ptr())
-            },
+            PyErrStateInner::Normalized(PyErrStateNormalized { pvalue }) =>
+            // SAFETY: This function _steals_ a reference to pvalue, so we pass in the owned `Py` pointer.
+            unsafe { ffi::PyErr_SetRaisedException(pvalue.into_ptr()) },
         }
     }
 }
@@ -362,15 +361,19 @@ fn lazy_into_normalized_ffi_tuple(
 /// API in CPython.
 fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
     let PyErrStateLazyFnOutput { ptype, pvalue } = lazy(py);
-    unsafe {
-        if ffi::PyExceptionClass_Check(ptype.as_ptr()) == 0 {
+
+    // SAFETY: `PyExceptionClass_Check` always succeeds
+    if unsafe { ffi::PyExceptionClass_Check(ptype.as_ptr()) } == 0 {
+        // SAFETY: the type object is not a strong reference
+        unsafe {
             ffi::PyErr_SetString(
                 PyTypeError::type_object_raw(py).cast(),
                 c"exceptions must derive from BaseException".as_ptr(),
             )
-        } else {
-            ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr())
         }
+    } else {
+        // SAFETY: both `ptype` and `pvalue` are guaranteed to be valid pointers
+        unsafe { ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr()) }
     }
 }
 

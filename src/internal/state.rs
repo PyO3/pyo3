@@ -70,6 +70,7 @@ impl AttachGuard {
             Err(AttachError::NotInitialized) => {
                 // try to initialize the interpreter and try again
                 crate::interpreter_lifecycle::ensure_initialized();
+                // SAFETY: The interpreter is now initialized and the thread is not attached.
                 unsafe { Self::do_attach_unchecked() }
             }
             #[cfg(Py_3_13)]
@@ -127,9 +128,12 @@ impl AttachGuard {
     /// for a thread to be able to attach to it.
     pub(crate) unsafe fn attach_unchecked() -> Self {
         if thread_is_attached() {
+            // SAFETY: We just checked that the thread is already attached.
+            // And the caller promised that the interpreter is initialized.
             return unsafe { Self::assume() };
         }
 
+        // SAFETY: The caller promised that the interpreter is initialized.
         unsafe { Self::do_attach_unchecked() }
     }
 
@@ -166,6 +170,7 @@ impl Drop for AttachGuard {
     fn drop(&mut self) {
         match self {
             AttachGuard::Assumed => {}
+            // SAFETY: we are dropping an `AttachGuard` that previously called `PyGILState_Ensure`
             AttachGuard::Ensured { gstate } => unsafe {
                 // Drop the objects in the pool before attempting to release the thread state
                 ffi::PyGILState_Release(*gstate);
@@ -206,14 +211,17 @@ impl ReferencePool {
         drop(pending_decrefs);
 
         for ptr in decrefs {
+            // SAFETY: `ptr` is a valid owned reference that was registered via `register_decref`.
             unsafe { ffi::Py_DECREF(ptr.as_ptr()) };
         }
     }
 }
 
+// SAFETY: `ReferencePool` only contains a `Mutex`
 #[cfg(not(pyo3_disable_reference_pool))]
 unsafe impl Send for ReferencePool {}
 
+// SAFETY: `ReferencePool` only contains a `Mutex`
 #[cfg(not(pyo3_disable_reference_pool))]
 unsafe impl Sync for ReferencePool {}
 
@@ -243,6 +251,7 @@ pub(crate) struct SuspendAttach {
 impl SuspendAttach {
     pub(crate) unsafe fn new() -> Self {
         let count = ATTACH_COUNT.with(|c| c.replace(0));
+        // SAFETY: caller must ensure the thread is currently attached.
         let tstate = unsafe { ffi::PyEval_SaveThread() };
 
         Self { count, tstate }
@@ -252,6 +261,9 @@ impl SuspendAttach {
 impl Drop for SuspendAttach {
     fn drop(&mut self) {
         ATTACH_COUNT.with(|c| c.set(self.count));
+        // SAFETY: `self.tstate` is a valid thread state that was saved by `PyEval_SaveThread()`
+        // in `SuspendAttach::new()`. We restore the attach count before calling
+        // `PyEval_RestoreThread`, so `Python::assume_attached()` is valid after the restore.
         unsafe {
             ffi::PyEval_RestoreThread(self.tstate);
 
