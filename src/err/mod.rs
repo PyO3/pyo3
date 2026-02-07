@@ -240,6 +240,7 @@ impl PyErr {
         let normalized = self.normalized(py);
         let exc = normalized.pvalue.clone_ref(py);
         if let Some(tb) = normalized.ptraceback(py) {
+            // SAFETY: `ex` and `tb` are guaranteed to be valid pointers
             unsafe {
                 ffi::PyException_SetTraceback(exc.as_ptr(), tb.as_ptr());
             }
@@ -265,6 +266,7 @@ impl PyErr {
     /// Gets whether an error is present in the Python interpreter's global state.
     #[inline]
     pub fn occurred(_: Python<'_>) -> bool {
+        // SAFETY: Accessing the global error state is safe.
         unsafe { !ffi::PyErr_Occurred().is_null() }
     }
 
@@ -371,6 +373,7 @@ impl PyErr {
     /// Prints a standard traceback to `sys.stderr`.
     pub fn display(&self, py: Python<'_>) {
         #[cfg(Py_3_12)]
+        // SAFETY: `self.value(py)` is of type `Bound` and is guaranteed to be a valid pointer
         unsafe {
             ffi::PyErr_DisplayException(self.value(py).as_ptr())
         }
@@ -396,6 +399,7 @@ impl PyErr {
     /// Calls `sys.excepthook` and then prints a standard traceback to `sys.stderr`.
     pub fn print(&self, py: Python<'_>) {
         self.clone_ref(py).restore(py);
+        // SAFETY: The error has been written back to the global state.
         unsafe { ffi::PyErr_PrintEx(0) }
     }
 
@@ -404,6 +408,7 @@ impl PyErr {
     /// Additionally sets `sys.last_{type,value,traceback,exc}` attributes to this exception.
     pub fn print_and_set_sys_last_vars(&self, py: Python<'_>) {
         self.clone_ref(py).restore(py);
+        // SAFETY: The error has been written back to the global state.
         unsafe { ffi::PyErr_PrintEx(1) }
     }
 
@@ -422,6 +427,7 @@ impl PyErr {
     #[inline]
     pub fn is_instance(&self, py: Python<'_>, ty: &Bound<'_, PyAny>) -> bool {
         let type_bound = self.get_type(py);
+        // SAFETY: both `type_bound` and `ty` are guaranteed to be valid pointers
         (unsafe { ffi::PyErr_GivenExceptionMatches(type_bound.as_ptr(), ty.as_ptr()) }) != 0
     }
 
@@ -472,6 +478,7 @@ impl PyErr {
     #[inline]
     pub fn write_unraisable(self, py: Python<'_>, obj: Option<&Bound<'_, PyAny>>) {
         self.restore(py);
+        // SAFETY: The error has been written back to the global state.
         unsafe { ffi::PyErr_WriteUnraisable(obj.map_or(std::ptr::null_mut(), Bound::as_ptr)) }
     }
 
@@ -503,6 +510,8 @@ impl PyErr {
         message: &CStr,
         stacklevel: i32,
     ) -> PyResult<()> {
+        // SAFETY: `category` is guaranteed to be a valid pointer, `message` is a valid C string,
+        // and `stacklevel` is a valid size.
         error_on_minusone(py, unsafe {
             ffi::PyErr_WarnEx(
                 category.as_ptr(),
@@ -537,6 +546,7 @@ impl PyErr {
             None => std::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
         };
+        // SAFETY: Arguments are all valid and checked above.
         error_on_minusone(py, unsafe {
             ffi::PyErr_WarnExplicit(
                 category.as_ptr(),
@@ -575,6 +585,7 @@ impl PyErr {
     pub fn cause(&self, py: Python<'_>) -> Option<PyErr> {
         use crate::ffi_ptr_ext::FfiPtrExt;
         let obj =
+            // SAFETY: PyException_GetCause returns a new reference
             unsafe { ffi::PyException_GetCause(self.value(py).as_ptr()).assume_owned_or_opt(py) };
         // PyException_GetCause is documented as potentially returning PyNone, but only GraalPy seems to actually do that
         #[cfg(GraalPy)]
@@ -590,8 +601,9 @@ impl PyErr {
     pub fn set_cause(&self, py: Python<'_>, cause: Option<Self>) {
         let value = self.value(py);
         let cause = cause.map(|err| err.into_value(py));
+        // SAFETY: `PyException_SetCause` _steals_ a reference to cause,
+        // so we pass in the owned `Py` pointer.
         unsafe {
-            // PyException_SetCause _steals_ a reference to cause, so must use .into_ptr()
             ffi::PyException_SetCause(
                 value.as_ptr(),
                 cause.map_or(std::ptr::null_mut(), Py::into_ptr),
