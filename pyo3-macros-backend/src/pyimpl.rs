@@ -2,6 +2,8 @@ use std::collections::HashSet;
 
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
+use crate::get_doc;
+#[cfg(feature = "experimental-inspect")]
 use crate::introspection::{attribute_introspection_code, function_introspection_code};
 #[cfg(feature = "experimental-inspect")]
 use crate::method::{FnSpec, FnType};
@@ -138,7 +140,12 @@ pub fn impl_methods(
                     check_pyfunction(&ctx.pyo3_path, meth)?;
                     let method = PyMethod::parse(&mut meth.sig, &mut meth.attrs, fun_options)?;
                     #[cfg(feature = "experimental-inspect")]
-                    extra_fragments.push(method_introspection_code(&method.spec, ty, ctx));
+                    extra_fragments.push(method_introspection_code(
+                        &method.spec,
+                        &meth.attrs,
+                        ty,
+                        ctx,
+                    ));
                     match pymethod::gen_py_method(ty, method, &meth.attrs, ctx)? {
                         GeneratedPyMethod::Method(MethodAndMethodDef {
                             associated_method,
@@ -165,6 +172,8 @@ pub fn impl_methods(
                 }
                 syn::ImplItem::Const(konst) => {
                     let ctx = &Ctx::new(&options.krate, None);
+                    #[cfg(feature = "experimental-inspect")]
+                    let doc = get_doc(&konst.attrs, None);
                     let attributes = ConstAttributes::from_attrs(&mut konst.attrs)?;
                     if attributes.is_class_attr {
                         let spec = ConstSpec {
@@ -174,6 +183,8 @@ pub fn impl_methods(
                             expr: Some(konst.expr.clone()),
                             #[cfg(feature = "experimental-inspect")]
                             ty: konst.ty.clone(),
+                            #[cfg(feature = "experimental-inspect")]
+                            doc,
                         };
                         let attrs = get_cfg_attributes(&konst.attrs);
                         let MethodAndMethodDef {
@@ -260,6 +271,7 @@ pub fn gen_py_const(cls: &syn::Type, spec: &ConstSpec, ctx: &Ctx) -> MethodAndMe
             .as_ref()
             .map_or_else(PyExpr::ellipsis, PyExpr::constant_from_expression),
         spec.ty.clone(),
+        spec.doc.as_ref(),
         true,
     ));
 
@@ -370,7 +382,12 @@ pub(crate) fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribut
 }
 
 #[cfg(feature = "experimental-inspect")]
-pub fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ctx) -> TokenStream {
+pub fn method_introspection_code(
+    spec: &FnSpec<'_>,
+    attrs: &[syn::Attribute],
+    parent: &syn::Type,
+    ctx: &Ctx,
+) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
 
     let name = spec.python_name.to_string();
@@ -388,7 +405,7 @@ pub fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ct
                 // We cant to keep the first argument type, hence this hack
                 spec.signature.arguments.pop();
                 spec.signature.python_signature.positional_parameters.pop();
-                method_introspection_code(&spec, parent, ctx)
+                method_introspection_code(&spec, attrs, parent, ctx)
             })
             .collect();
     }
@@ -466,6 +483,7 @@ pub fn method_introspection_code(spec: &FnSpec<'_>, parent: &syn::Type, ctx: &Ct
         return_type,
         decorators,
         spec.asyncness.is_some(),
+        get_doc(attrs, None).as_ref(),
         Some(parent),
     )
 }

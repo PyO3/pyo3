@@ -15,10 +15,17 @@ class ComplexEnum:
 
     @final
     class Int(ComplexEnum):
+        """
+        A struct variant
+        """
+
         __match_args__: Final = ("i",)
         def __new__(cls, /, i: int) -> ComplexEnum.Int: ...
         @property
-        def i(self, /) -> int: ...
+        def i(self, /) -> int:
+            """
+            An integer
+            """
 
     @final
     class MultiFieldStruct(ComplexEnum):
@@ -70,6 +77,9 @@ class SimpleEnum:
     Monday: Final[SimpleEnum]
     Saturday: Final[SimpleEnum]
     Sunday: Final[SimpleEnum]
+    """
+    A variant
+    """
     Thursday: Final[SimpleEnum]
     Tuesday: Final[SimpleEnum]
     Wednesday: Final[SimpleEnum]
@@ -127,6 +137,10 @@ class TupleEnum:
 
     @final
     class FullWithDefault(TupleEnum):
+        """
+        A tuple variant
+        """
+
         __match_args__: Final = ("_0", "_1", "_2")
         @property
         def _0(self, /) -> int: ...

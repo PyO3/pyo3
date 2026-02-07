@@ -50,6 +50,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
             id,
             name,
             members,
+            doc,
             incomplete,
         } = chunk
         {
@@ -64,6 +65,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
                     name,
                     members,
                     *incomplete,
+                    doc.as_deref(),
                     &chunks_by_id,
                     &chunks_by_parent,
                     &type_hint_for_annotation_id,
@@ -74,11 +76,13 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
     bail!("No module named {main_module_name} found")
 }
 
+#[expect(clippy::too_many_arguments)]
 fn convert_module(
     id: &str,
     name: &str,
     members: &[String],
     mut incomplete: bool,
+    docstring: Option<&str>,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
     type_hint_for_annotation_id: &HashMap<String, Expr>,
@@ -110,6 +114,7 @@ fn convert_module(
         functions,
         attributes,
         incomplete,
+        docstring: docstring.map(Into::into),
     })
 }
 
@@ -133,12 +138,14 @@ fn convert_members<'a>(
                 id,
                 members,
                 incomplete,
+                doc,
             } => {
                 modules.push(convert_module(
                     id,
                     name,
                     members,
                     *incomplete,
+                    doc.as_deref(),
                     chunks_by_id,
                     chunks_by_parent,
                     type_hint_for_annotation_id,
@@ -149,12 +156,14 @@ fn convert_members<'a>(
                 id,
                 bases,
                 decorators,
+                doc,
                 parent: _,
             } => classes.push(convert_class(
                 id,
                 name,
                 bases,
                 decorators,
+                doc.as_deref(),
                 chunks_by_id,
                 chunks_by_parent,
                 type_hint_for_annotation_id,
@@ -167,12 +176,14 @@ fn convert_members<'a>(
                 decorators,
                 is_async,
                 returns,
+                doc,
             } => functions.push(convert_function(
                 name,
                 arguments,
                 decorators,
                 returns,
                 *is_async,
+                doc.as_deref(),
                 type_hint_for_annotation_id,
             )),
             Chunk::Attribute {
@@ -181,10 +192,12 @@ fn convert_members<'a>(
                 parent: _,
                 value,
                 annotation,
+                doc,
             } => attributes.push(convert_attribute(
                 name,
                 value,
                 annotation,
+                doc.as_deref(),
                 type_hint_for_annotation_id,
             )),
         }
@@ -217,11 +230,13 @@ fn convert_members<'a>(
     Ok((modules, classes, functions, attributes))
 }
 
+#[expect(clippy::too_many_arguments)]
 fn convert_class(
     id: &str,
     name: &str,
     bases: &[ChunkExpr],
     decorators: &[ChunkExpr],
+    docstring: Option<&str>,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
     type_hint_for_annotation_id: &HashMap<String, Expr>,
@@ -249,6 +264,7 @@ fn convert_class(
             .map(|e| convert_expr(e, type_hint_for_annotation_id))
             .collect(),
         inner_classes: nested_classes,
+        docstring: docstring.map(Into::into),
     })
 }
 
@@ -258,6 +274,7 @@ fn convert_function(
     decorators: &[ChunkExpr],
     returns: &Option<ChunkExpr>,
     is_async: bool,
+    docstring: Option<&str>,
     type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Function {
     Function {
@@ -295,6 +312,7 @@ fn convert_function(
             .as_ref()
             .map(|a| convert_expr(a, type_hint_for_annotation_id)),
         is_async,
+        docstring: docstring.map(Into::into),
     }
 }
 
@@ -332,6 +350,7 @@ fn convert_attribute(
     name: &str,
     value: &Option<ChunkExpr>,
     annotation: &Option<ChunkExpr>,
+    docstring: Option<&str>,
     type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Attribute {
     Attribute {
@@ -342,6 +361,7 @@ fn convert_attribute(
         annotation: annotation
             .as_ref()
             .map(|a| convert_expr(a, type_hint_for_annotation_id)),
+        docstring: docstring.map(ToString::to_string),
     }
 }
 
@@ -646,6 +666,8 @@ enum Chunk {
         id: String,
         name: String,
         members: Vec<String>,
+        #[serde(default)]
+        doc: Option<String>,
         incomplete: bool,
     },
     Class {
@@ -657,6 +679,8 @@ enum Chunk {
         decorators: Vec<ChunkExpr>,
         #[serde(default)]
         parent: Option<String>,
+        #[serde(default)]
+        doc: Option<String>,
     },
     Function {
         #[serde(default)]
@@ -671,6 +695,8 @@ enum Chunk {
         returns: Option<ChunkExpr>,
         #[serde(default, rename = "async")]
         is_async: bool,
+        #[serde(default)]
+        doc: Option<String>,
     },
     Attribute {
         #[serde(default)]
@@ -682,6 +708,8 @@ enum Chunk {
         value: Option<ChunkExpr>,
         #[serde(default)]
         annotation: Option<ChunkExpr>,
+        #[serde(default)]
+        doc: Option<String>,
     },
 }
 

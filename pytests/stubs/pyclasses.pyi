@@ -2,24 +2,45 @@ from _typeshed import Incomplete
 from typing import final
 
 class AssertingBaseClass:
+    """
+    Demonstrates a base class which can operate on the relevant subclass in its constructor.
+    """
     def __new__(cls, /, expected_type: type) -> AssertingBaseClass: ...
 
 @final
 class ClassWithDecorators:
     def __new__(cls, /) -> ClassWithDecorators: ...
     @property
-    def attr(self, /) -> int: ...
+    def attr(self, /) -> int:
+        """
+        A getter
+        """
     @attr.deleter
-    def attr(self, /) -> None: ...
+    def attr(self, /) -> None:
+        """
+        A deleter
+        """
     @attr.setter
-    def attr(self, /, value: int) -> None: ...
+    def attr(self, /, value: int) -> None:
+        """
+        A setter
+        """
     @classmethod
     @property
-    def cls_attribute(cls, /) -> int: ...
+    def cls_attribute(cls, /) -> int:
+        """
+        A class attribute
+        """
     @classmethod
-    def cls_method(cls, /) -> int: ...
+    def cls_method(cls, /) -> int:
+        """
+        A class method
+        """
     @staticmethod
-    def static_method() -> int: ...
+    def static_method() -> int:
+        """
+        A static method
+        """
 
 @final
 class ClassWithDict:
@@ -37,17 +58,35 @@ class EmptyClass:
 @final
 class PlainObject:
     @property
-    def bar(self, /) -> int: ...
+    def bar(self, /) -> int:
+        """
+        Bar
+        """
     @bar.setter
-    def bar(self, /, value: int) -> None: ...
+    def bar(self, /, value: int) -> None:
+        """
+        Bar
+        """
     @property
-    def foo(self, /) -> str: ...
+    def foo(self, /) -> str:
+        """
+        Foo
+        """
     @foo.setter
-    def foo(self, /, value: str) -> None: ...
+    def foo(self, /, value: str) -> None:
+        """
+        Foo
+        """
 
 @final
 class PyClassIter:
-    def __new__(cls, /) -> PyClassIter: ...
+    """
+    This is for demonstrating how to return a value from __next__
+    """
+    def __new__(cls, /) -> PyClassIter:
+        """
+        A constructor
+        """
     def __next__(self, /) -> int: ...
 
 @final

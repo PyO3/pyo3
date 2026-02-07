@@ -84,13 +84,18 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
                     attr: "Incomplete".into(),
                 }),
                 is_async: false,
+                docstring: None,
             },
             &imports,
             None,
         ));
     }
 
-    let mut final_elements = imports.imports;
+    let mut final_elements = Vec::new();
+    if let Some(docstring) = &module.docstring {
+        final_elements.push(format!("\"\"\"\n{docstring}\n\"\"\""));
+    }
+    final_elements.extend(imports.imports);
     final_elements.extend(elements);
 
     let mut output = String::new();
@@ -135,9 +140,20 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
         buffer.push(')');
     }
     buffer.push(':');
-    if class.methods.is_empty() && class.attributes.is_empty() && class.inner_classes.is_empty() {
+    if class.docstring.is_none()
+        && class.methods.is_empty()
+        && class.attributes.is_empty()
+        && class.inner_classes.is_empty()
+    {
         buffer.push_str(" ...");
-        return buffer;
+    }
+    if let Some(docstring) = &class.docstring {
+        buffer.push_str("\n    \"\"\"");
+        for line in docstring.lines() {
+            buffer.push_str("\n    ");
+            buffer.push_str(line);
+        }
+        buffer.push_str("\n    \"\"\"");
     }
     for attribute in &class.attributes {
         // We do the indentation
@@ -214,7 +230,16 @@ fn function_stubs(function: &Function, imports: &Imports, class_name: Option<&st
         buffer.push_str(" -> ");
         imports.serialize_expr(returns, &mut buffer);
     }
-    buffer.push_str(": ...");
+    if let Some(docstring) = &function.docstring {
+        buffer.push_str(":\n    \"\"\"");
+        for line in docstring.lines() {
+            buffer.push_str("\n    ");
+            buffer.push_str(line);
+        }
+        buffer.push_str("\n    \"\"\"");
+    } else {
+        buffer.push_str(": ...");
+    }
     buffer
 }
 
@@ -227,6 +252,14 @@ fn attribute_stubs(attribute: &Attribute, imports: &Imports) -> String {
     if let Some(value) = &attribute.value {
         buffer.push_str(" = ");
         imports.serialize_expr(value, &mut buffer);
+    }
+    if let Some(docstring) = &attribute.docstring {
+        buffer.push_str("\n\"\"\"");
+        for line in docstring.lines() {
+            buffer.push('\n');
+            buffer.push_str(line);
+        }
+        buffer.push_str("\n\"\"\"");
     }
     buffer
 }
@@ -635,6 +668,7 @@ mod tests {
                 value: Constant::Str("list[str]".into()),
             }),
             is_async: false,
+            docstring: None,
         };
         assert_eq!(
             "def func(posonly, /, arg, *varargs, karg: \"str\", **kwarg: \"str\") -> \"list[str]\": ...",
@@ -676,6 +710,7 @@ mod tests {
             },
             returns: None,
             is_async: false,
+            docstring: None,
         };
         assert_eq!(
             "def afunc(posonly=1, /, arg=True, *, karg: \"str\" = \"foo\"): ...",
@@ -697,6 +732,7 @@ mod tests {
             },
             returns: None,
             is_async: true,
+            docstring: None,
         };
         assert_eq!(
             "async def foo(): ...",
@@ -767,6 +803,7 @@ mod tests {
                             attr: "final".into(),
                         }],
                         inner_classes: Vec::new(),
+                        docstring: None,
                     },
                     Class {
                         name: "int".into(),
@@ -775,6 +812,7 @@ mod tests {
                         attributes: Vec::new(),
                         decorators: Vec::new(),
                         inner_classes: Vec::new(),
+                        docstring: None,
                     },
                 ],
                 functions: vec![Function {
@@ -789,9 +827,11 @@ mod tests {
                     },
                     returns: Some(big_type.clone()),
                     is_async: false,
+                    docstring: None,
                 }],
                 attributes: Vec::new(),
                 incomplete: true,
+                docstring: None,
             },
             &["foo"],
         );

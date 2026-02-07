@@ -611,7 +611,7 @@ impl GetSetDefBuilder {
     fn add_getter(&mut self, getter: &PyGetterDef) {
         // TODO: be smarter about merging getter and setter docs
         if self.doc.is_none() {
-            self.doc = Some(getter.doc);
+            self.doc = getter.doc;
         }
         // TODO: return an error if getter already defined?
         self.getter = Some(getter.meth)
@@ -620,7 +620,7 @@ impl GetSetDefBuilder {
     fn add_setter(&mut self, setter: &PySetterDef) {
         // TODO: be smarter about merging getter and setter docs
         if self.doc.is_none() {
-            self.doc = Some(setter.doc);
+            self.doc = setter.doc;
         }
         // TODO: return an error if setter already defined?
         self.setter = Some(setter.meth)
@@ -629,7 +629,7 @@ impl GetSetDefBuilder {
     fn add_deleter(&mut self, deleter: &PyDeleterDef) {
         // TODO: be smarter about merging getter, setter and deleter docs
         if self.doc.is_none() {
-            self.doc = Some(deleter.doc);
+            self.doc = deleter.doc;
         }
         // TODO: return an error if deleter already defined?
         self.deleter = Some(deleter.meth)
