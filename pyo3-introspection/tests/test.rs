@@ -1,12 +1,12 @@
 use anyhow::{ensure, Result};
 use pyo3_introspection::{introspect_cdylib, module_stub_files};
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs};
 use tempfile::NamedTempFile;
-
 #[test]
 fn pytests_stubs() -> Result<()> {
     // We run the introspection
@@ -49,12 +49,36 @@ fn pytests_stubs() -> Result<()> {
         let actual_file_content = format_with_ruff(actual_file_content)?;
 
         // We normalize line jumps for compatibility with Windows
-        assert_eq!(
-            expected_file_content.replace('\r', ""),
-            actual_file_content.replace('\r', ""),
-            "The content of file {} is different",
-            file_name.display()
-        )
+        let expected_file_content_fixed = expected_file_content.replace('\r', "");
+        let actual_file_content_fixed = actual_file_content.replace('\r', "");
+        let diff =
+            similar::TextDiff::from_lines(&expected_file_content_fixed, &actual_file_content_fixed);
+        if actual_file_content_fixed != expected_file_content_fixed {
+            let mut buffer = String::new();
+            writeln!(
+                &mut buffer,
+                "The stub file {} differs from the expected one. See the diff below.",
+                file_name.display()
+            )?;
+            writeln!(&mut buffer, "============================")?;
+            writeln!(&mut buffer, "============================")?;
+            for op in diff.ops() {
+                for change in diff.iter_changes(op) {
+                    let (sign, style) = match change.tag() {
+                        similar::ChangeTag::Delete => ("-", console::Style::new().red()),
+                        similar::ChangeTag::Insert => ("+", console::Style::new().green()),
+                        similar::ChangeTag::Equal => (" ", console::Style::new()),
+                    };
+                    write!(
+                        &mut buffer,
+                        "{}{}",
+                        style.apply_to(sign).bold(),
+                        style.apply_to(change)
+                    )?;
+                }
+            }
+            panic!("{}", buffer);
+        }
     }
 
     Ok(())
