@@ -44,6 +44,7 @@ impl<'py> PyBytesWriter<'py> {
     pub fn with_capacity(py: Python<'py>, capacity: usize) -> PyResult<Self> {
         #[cfg(not(Py_LIMITED_API))]
         {
+            // SAFETY: `capacity` is originally `usize` and matches `Py_ssize_t`.
             NonNull::new(unsafe { PyBytesWriter_Create(capacity as _) }).map_or_else(
                 || Err(PyErr::fetch(py)),
                 |writer| {
@@ -69,6 +70,7 @@ impl<'py> PyBytesWriter<'py> {
     /// Get the current length of the internal buffer.
     #[inline]
     pub fn len(&self) -> usize {
+        // SAFETY: `self.writer` is guaranteed to be a valid pointer to `PyBytesWriter`.
         #[cfg(not(Py_LIMITED_API))]
         unsafe {
             PyBytesWriter_GetSize(self.writer.as_ptr()) as _
@@ -83,6 +85,7 @@ impl<'py> PyBytesWriter<'py> {
     #[inline]
     #[cfg(not(Py_LIMITED_API))]
     fn as_mut_ptr(&mut self) -> *mut u8 {
+        // SAFETY: `self.writer` is guaranteed to be a valid pointer to `PyBytesWriter`.
         unsafe { PyBytesWriter_GetData(self.writer.as_ptr()) as _ }
     }
 
@@ -93,12 +96,12 @@ impl<'py> PyBytesWriter<'py> {
     #[inline]
     #[cfg(not(Py_LIMITED_API))]
     unsafe fn set_len(&mut self, new_len: usize) -> PyResult<()> {
-        unsafe {
-            error_on_minusone(
-                self.python,
-                PyBytesWriter_Resize(self.writer.as_ptr(), new_len as _),
-            )
-        }
+        error_on_minusone(
+            self.python,
+            // SAFETY: `self.writer` is guaranteed to be a valid pointer to `PyBytesWriter`.
+            // `capacity` is originally `usize` and matches `Py_ssize_t`.
+            unsafe { PyBytesWriter_Resize(self.writer.as_ptr(), new_len as _) },
+        )
     }
 }
 
@@ -110,6 +113,7 @@ impl<'py> TryFrom<PyBytesWriter<'py>> for Bound<'py, PyBytes> {
         let py = value.python;
 
         #[cfg(not(Py_LIMITED_API))]
+        // SAFETY: `self.writer` is guaranteed to be a valid pointer to `PyBytesWriter`.
         unsafe {
             PyBytesWriter_Finish(ManuallyDrop::new(value).writer.as_ptr())
                 .assume_owned_or_err(py)
@@ -141,6 +145,7 @@ impl<'py> IntoPyObject<'py> for PyBytesWriter<'py> {
 impl<'py> Drop for PyBytesWriter<'py> {
     #[inline]
     fn drop(&mut self) {
+        // SAFETY: `self.writer` is guaranteed to be a valid pointer to `PyBytesWriter`.
         unsafe { PyBytesWriter_Discard(self.writer.as_ptr()) }
     }
 }
