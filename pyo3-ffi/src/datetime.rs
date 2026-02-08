@@ -33,19 +33,10 @@ pub struct PyDateTime_Delta {
     pub microseconds: c_int,
 }
 
-// skipped non-limited PyDateTime_TZInfo
-// skipped non-limited _PyDateTime_BaseTZInfo
+// skipped PyDateTime_TZInfo
+// skipped private _PyDateTime_BaseTZInfo
 
-#[cfg(not(any(PyPy, GraalPy)))]
-#[repr(C)]
-#[derive(Debug)]
-/// Structure representing a `datetime.time` without a `tzinfo` member.
-pub struct _PyDateTime_BaseTime {
-    pub ob_base: PyObject,
-    pub hashcode: Py_hash_t,
-    pub hastzinfo: c_char,
-    pub data: [c_uchar; _PyDateTime_TIME_DATASIZE],
-}
+// skipped private _PyDateTime_BaseTime
 
 #[repr(C)]
 #[derive(Debug)]
@@ -79,16 +70,7 @@ pub struct PyDateTime_Date {
     pub data: [c_uchar; _PyDateTime_DATE_DATASIZE],
 }
 
-#[cfg(not(any(PyPy, GraalPy)))]
-#[repr(C)]
-#[derive(Debug)]
-/// Structure representing a `datetime.datetime` without a `tzinfo` member.
-pub struct _PyDateTime_BaseDateTime {
-    pub ob_base: PyObject,
-    pub hashcode: Py_hash_t,
-    pub hastzinfo: c_char,
-    pub data: [c_uchar; _PyDateTime_DATETIME_DATASIZE],
-}
+// skipped private _PyDateTime_BaseDateTime
 
 #[repr(C)]
 #[derive(Debug)]
@@ -469,7 +451,7 @@ pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
 
 #[cfg(PyPy)]
 extern "C" {
-    // skipped _PyDateTime_HAS_TZINFO (not in PyPy)
+    // skipped private _PyDateTime_HAS_TZINFO
     #[link_name = "PyPyDateTime_GET_YEAR"]
     pub fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int;
     #[link_name = "PyPyDateTime_GET_MONTH"]
