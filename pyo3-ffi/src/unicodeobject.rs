@@ -85,8 +85,12 @@ extern "C" {
     ) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromObject")]
     pub fn PyUnicode_FromObject(obj: *mut PyObject) -> *mut PyObject;
-    // #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromFormatV")]
-    // pub fn PyUnicode_FromFormatV(format: *const c_char, vargs: va_list) -> *mut PyObject;
+    #[cfg(feature = "nightly")]
+    #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromFormatV")]
+    pub fn PyUnicode_FromFormatV(
+        format: *const c_char,
+        vargs: std::ffi::VaList<'_>,
+    ) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromFormat")]
     pub fn PyUnicode_FromFormat(format: *const c_char, ...) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_InternInPlace")]
