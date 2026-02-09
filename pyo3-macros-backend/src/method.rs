@@ -27,8 +27,8 @@ use crate::{
 pub struct RegularArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
-    pub from_py_with: Option<FromPyWithAttribute>,
-    pub default_value: Option<syn::Expr>,
+    pub from_py_with: Option<Box<FromPyWithAttribute>>,
+    pub default_value: Option<Box<syn::Expr>>,
     pub option_wrapped_type: Option<&'a syn::Type>,
     #[cfg(feature = "experimental-inspect")]
     pub annotation: Option<PyExpr>,
@@ -64,7 +64,6 @@ pub struct PyArg<'a> {
     pub ty: &'a syn::Type,
 }
 
-#[allow(clippy::large_enum_variant)] // See #5039
 #[derive(Clone, Debug)]
 pub enum FnArg<'a> {
     Regular(RegularArg<'a>),
@@ -101,7 +100,7 @@ impl<'a> FnArg<'a> {
     )]
     pub fn from_py_with(&self) -> Option<&FromPyWithAttribute> {
         if let FnArg::Regular(RegularArg { from_py_with, .. }) = self {
-            from_py_with.as_ref()
+            from_py_with.as_deref()
         } else {
             None
         }
@@ -192,7 +191,7 @@ impl<'a> FnArg<'a> {
                 Ok(Self::Regular(RegularArg {
                     name: Cow::Borrowed(ident),
                     ty: &cap.ty,
-                    from_py_with,
+                    from_py_with: from_py_with.map(Box::new),
                     default_value: None,
                     option_wrapped_type: utils::option_type_argument(&cap.ty),
                     #[cfg(feature = "experimental-inspect")]

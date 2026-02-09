@@ -256,7 +256,7 @@ pub(crate) fn impl_regular_arg_param(
         default = default.map(|tokens| some_wrap(tokens, ctx));
     }
 
-    if let Some(FromPyWithAttribute { kw, .. }) = arg.from_py_with {
+    if let Some(FromPyWithAttribute { kw, .. }) = &arg.from_py_with.as_deref() {
         let extractor = quote_spanned! { kw.span =>
             { let from_py_with: fn(_) -> _ = #from_py_with; from_py_with }
         };

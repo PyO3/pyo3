@@ -501,7 +501,7 @@ impl<'a> FunctionSignature<'a> {
                         );
                     };
                     if let Some((_, default)) = &arg.eq_and_default {
-                        fn_arg.default_value = Some(default.clone());
+                        fn_arg.default_value = Some(Box::new(default.clone()));
                     }
                     if let Some((_, annotation)) = &arg.colon_and_annotation {
                         ensure_spanned!(
