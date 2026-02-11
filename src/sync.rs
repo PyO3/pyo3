@@ -13,8 +13,9 @@ use crate::{
     internal::state::SuspendAttach,
     sealed::Sealed,
     types::{PyAny, PyString},
-    Bound, Py, Python,
+    Borrowed, Bound, Py, Python,
 };
+use std::ffi::CStr;
 use std::{
     cell::UnsafeCell,
     marker::PhantomData,
@@ -229,27 +230,35 @@ impl<T> Drop for GILOnceCell<T> {
 #[macro_export]
 macro_rules! intern {
     ($py: expr, $text: expr) => {{
-        static INTERNED: $crate::sync::Interned = $crate::sync::Interned::new($text);
+        const _CSTR: &::std::ffi::CStr = {
+            match ::std::ffi::CStr::from_bytes_with_nul(concat!($text, "\0").as_bytes()) {
+                ::std::result::Result::Ok(s) => s,
+                ::std::result::Result::Err(_) => {
+                    ::std::panic!("interned string cannot contain interior null bytes")
+                }
+            }
+        };
+        static INTERNED: $crate::sync::Interned = $crate::sync::Interned::new(_CSTR);
         INTERNED.get($py)
     }};
 }
 
 /// Implementation detail for `intern!` macro.
 #[doc(hidden)]
-pub struct Interned(&'static str, PyOnceLock<Py<PyString>>);
+pub struct Interned(&'static CStr, PyOnceLock<Py<PyString>>);
 
 impl Interned {
     /// Creates an empty holder for an interned `str`.
-    pub const fn new(value: &'static str) -> Self {
+    pub const fn new(value: &'static CStr) -> Self {
         Interned(value, PyOnceLock::new())
     }
 
     /// Gets or creates the interned `str` value.
     #[inline]
-    pub fn get<'py>(&self, py: Python<'py>) -> &Bound<'py, PyString> {
+    pub fn get<'py>(&self, py: Python<'py>) -> Borrowed<'_, 'py, PyString> {
         self.1
-            .get_or_init(py, || PyString::intern(py, self.0).into())
-            .bind(py)
+            .get_or_init(py, || PyString::intern_cstr(py, self.0).unbind())
+            .bind_borrowed(py)
     }
 }
 
