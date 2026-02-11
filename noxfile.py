@@ -644,19 +644,19 @@ def _build_netlify_redirects(preview: bool) -> None:
                 f"/v{version}/doc/* https://docs.rs/pyo3/{version}/:splat\n"
             )
 
-            # for versions other than the latest version, set noindex
+            # for versions other than the current version, set noindex
             if version != current_version:
                 headers_file.write(f"/v{version}/*\n  X-Robots-Tag: noindex\n")
                 continue
 
-            # for the main version, index all files and set canonical links where possible
+            # for the current version, index all files and set canonical links where possible
             for file in glob(f"{d}/**", recursive=True):
-                file_path = file.removeprefix(full_directory)
+                file_path = file.removeprefix("netlify_build")
                 url_path = _url_path_from_file_path(file_path)
 
                 for path in _url_and_file_paths(url_path, file_path):
                     headers_file.write(
-                        f'/v{version}/{path}\n  Link: <https://pyo3.rs/latest/{url_path}>; rel="canonical"\n'
+                        f'{path}\n  Link: <https://pyo3.rs{url_path}>; rel="canonical"\n'
                     )
 
         # main files should be indexed and canonical
@@ -665,18 +665,12 @@ def _build_netlify_redirects(preview: bool) -> None:
             url_path = _url_path_from_file_path(file_path)
 
             for path in _url_and_file_paths(url_path, file_path):
-                headers_file.write(path + "\n")
                 headers_file.write(
-                    f'  Link: <https://pyo3.rs{url_path}>; rel="canonical"\n'
+                    f'{path}\n  Link: <https://pyo3.rs{url_path}>; rel="canonical"\n'
                 )
 
         # for internal docs, set noindex for all files
-        for file in glob("netlify_build/internal/**", recursive=True):
-            file_path = file.removeprefix("netlify_build")
-            url_path = _url_path_from_file_path(file_path)
-
-            for path in _url_and_file_paths(url_path, file_path):
-                headers_file.write(path + "\n  X-Robots-Tag: noindex\n")
+        headers_file.write(f"/internal/*\n  X-Robots-Tag: noindex\n")
 
         # Add latest redirect
         if current_version is not None:
