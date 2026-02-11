@@ -639,7 +639,6 @@ def _build_netlify_redirects(preview: bool) -> None:
         headers_file = stack.enter_context(open("netlify_build/_headers", "w"))
         for d in glob("netlify_build/v*"):
             version = d.removeprefix("netlify_build/v")
-            full_directory = d + "/"
             redirects_file.write(
                 f"/v{version}/doc/* https://docs.rs/pyo3/{version}/:splat\n"
             )
@@ -670,7 +669,7 @@ def _build_netlify_redirects(preview: bool) -> None:
                 )
 
         # for internal docs, set noindex for all files
-        headers_file.write(f"/internal/*\n  X-Robots-Tag: noindex\n")
+        headers_file.write("/internal/*\n  X-Robots-Tag: noindex\n")
 
         # Add latest redirect
         if current_version is not None:
