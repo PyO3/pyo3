@@ -1021,6 +1021,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_set_item_refcnt() {
         Python::attach(|py| {
             let obj = py.eval(c"object()", None, None).unwrap();
@@ -1055,6 +1056,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_insert_refcnt() {
         Python::attach(|py| {
             let cnt;
@@ -1080,6 +1082,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_append_refcnt() {
         Python::attach(|py| {
             let cnt;

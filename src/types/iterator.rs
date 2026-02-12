@@ -188,6 +188,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn iter_refcnt() {
         let (obj, count) = Python::attach(|py| {
             let obj = vec![10, 20].into_pyobject(py).unwrap();
@@ -211,6 +212,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn iter_item_refcnt() {
         Python::attach(|py| {
             let count;

@@ -242,6 +242,7 @@ mod inheriting_native_type {
 
     #[cfg(not(GraalPy))]
     #[test]
+    #[allow(deprecated)]
     fn inherit_dict_drop() {
         Python::attach(|py| {
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
