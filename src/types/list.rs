@@ -38,7 +38,7 @@ impl crate::impl_::pyclass::PyClassBaseType for PyList {
 
 #[inline]
 #[track_caller]
-pub(crate) fn try_new_from_iter<'py>(
+fn try_new_from_iter<'py>(
     py: Python<'py>,
     mut elements: impl ExactSizeIterator<Item = PyResult<Bound<'py, PyAny>>>,
 ) -> PyResult<Bound<'py, PyList>> {

@@ -7,7 +7,6 @@ use crate::inspect::types::TypeInfo;
 use crate::inspect::{type_hint_identifier, type_hint_subscript, PyStaticExpr};
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
-#[cfg(feature = "experimental-inspect")]
 use crate::types::PyList;
 use crate::types::PyTuple;
 use crate::{
@@ -90,9 +89,7 @@ pub trait IntoPyObject<'py>: Sized {
         I: IntoIterator<Item = Self> + AsRef<[Self]>,
         I::IntoIter: ExactSizeIterator<Item = Self>,
     {
-        let mut iter = iter.into_iter().map(|e| e.into_bound_py_any(py));
-        let list = crate::types::list::try_new_from_iter(py, &mut iter);
-        list.map(Bound::into_any)
+        Ok(PyList::new(py, iter)?.into_any())
     }
 
     /// Converts sequence of Self into a Python object. Used to specialize `&[u8]` and `Cow<[u8]>`
@@ -108,9 +105,7 @@ pub trait IntoPyObject<'py>: Sized {
         I: IntoIterator<Item = Self> + AsRef<[<Self as private::Reference>::BaseType]>,
         I::IntoIter: ExactSizeIterator<Item = Self>,
     {
-        let mut iter = iter.into_iter().map(|e| e.into_bound_py_any(py));
-        let list = crate::types::list::try_new_from_iter(py, &mut iter);
-        list.map(Bound::into_any)
+        Ok(PyList::new(py, iter)?.into_any())
     }
 
     /// The output type of [`IntoPyObject::owned_sequence_into_pyobject`] and [`IntoPyObject::borrowed_sequence_into_pyobject`]
