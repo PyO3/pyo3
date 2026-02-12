@@ -2,14 +2,6 @@ use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criter
 use pyo3::{py_format, Python};
 use std::hint::black_box;
 
-fn format_simple(b: &mut Bencher<'_>) {
-    Python::attach(|py| {
-        b.iter(|| {
-            py_format!(py, "Hello {}!", "world").unwrap()
-        });
-    });
-}
-
 fn format_complex(b: &mut Bencher<'_>) {
     Python::attach(|py| {
         b.iter(|| {
@@ -20,7 +12,6 @@ fn format_complex(b: &mut Bencher<'_>) {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("format_simple", format_simple);
     c.bench_function("format_complex", format_complex);
 }
 
