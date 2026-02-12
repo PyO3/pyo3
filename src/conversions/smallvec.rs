@@ -111,16 +111,12 @@ where
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
-    let seq = unsafe {
-        if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.cast_unchecked::<PySequence>()
-        } else {
-            return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
-        }
-    };
+    if unsafe { ffi::PySequence_Check(obj.as_ptr()) } == 0 {
+        return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
+    }
 
-    let mut sv = SmallVec::with_capacity(seq.len().unwrap_or(0));
-    for item in seq.try_iter()? {
+    let mut sv = SmallVec::with_capacity(obj.len().unwrap_or(0));
+    for item in obj.try_iter()? {
         sv.push(item?.extract::<A::Item>().map_err(Into::into)?);
     }
     Ok(sv)

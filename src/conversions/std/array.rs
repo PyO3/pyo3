@@ -68,19 +68,16 @@ where
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
-    let seq = unsafe {
-        if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.cast_unchecked::<PySequence>()
-        } else {
-            return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
-        }
-    };
-    let seq_len = seq.len()?;
+    if unsafe { ffi::PySequence_Check(obj.as_ptr()) } == 0 {
+        return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
+    }
+
+    let seq_len = obj.len()?;
     if seq_len != N {
         return Err(invalid_sequence_length(N, seq_len));
     }
     array_try_from_fn(|idx| {
-        seq.get_item(idx)
+        obj.get_item(idx)
             .and_then(|any| any.extract().map_err(Into::into))
     })
 }
