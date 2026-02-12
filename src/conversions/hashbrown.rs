@@ -21,10 +21,7 @@ use crate::inspect::PyStaticExpr;
 use crate::{
     conversion::{FromPyObjectOwned, IntoPyObject},
     types::{
-        any::PyAnyMethods,
-        dict::PyDictMethods,
-        frozenset::PyFrozenSetMethods,
-        set::{try_new_from_iter, PySetMethods},
+        any::PyAnyMethods, dict::PyDictMethods, frozenset::PyFrozenSetMethods, set::PySetMethods,
         PyDict, PyFrozenSet, PySet,
     },
     Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
@@ -117,7 +114,7 @@ where
     const OUTPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySet::TYPE_HINT, K::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(py, self)
+        PySet::new(py, self)
     }
 }
 
@@ -134,7 +131,7 @@ where
     const OUTPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySet::TYPE_HINT, <&K>::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(py, self)
+        PySet::new(py, self)
     }
 }
 
