@@ -332,7 +332,8 @@ Python::attach(|py| {
 ```
 
 A `Bound<'py, T>` is restricted to the Python lifetime `'py`.
-To make the object longer lived (for example, to store it in a struct on the Rust side), use `Py<T>`. `Py<T>` needs a `Python<'_>` token to allow access:
+To make the object longer lived (for example, to store it in a struct on the Rust side), use `Py<T>`.
+`Py<T>` needs a `Python<'_>` token to allow access:
 
 ```rust
 # use pyo3::prelude::*;
@@ -1307,7 +1308,9 @@ Python::attach(|py| {
 })
 ```
 
-Ordering of enum variants is optionally added using `#[pyo3(ord)]`. *Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument.  If not implemented, a compile time error is raised.*
+Ordering of enum variants is optionally added using `#[pyo3(ord)]`.
+*Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument.*
+*If not implemented, a compile time error is raised.*
 
 ```rust
 # use pyo3::prelude::*;
@@ -1411,7 +1414,7 @@ Python::attach(|py| {
 ```
 
 WARNING: `Py::new` and `.into_pyobject` are currently inconsistent.
-Note how the constructed value is _not_ an instance of the specific variant.
+Note how the constructed value is *not* an instance of the specific variant.
 For this reason, constructing values is only recommended using `.into_pyobject`.
 
 ```rust
@@ -1481,7 +1484,8 @@ This implementation pattern enables the Rust compiler to use `#[pymethods]` impl
 
 This simple technique works for the case when there is zero or one implementations.
 To support multiple `#[pymethods]` for a `#[pyclass]` (in the [`multiple-pymethods`] feature), a registry mechanism provided by the [`inventory`](https://github.com/dtolnay/inventory) crate is used instead.
-This collects `impl`s at library load time, but isn't supported on all platforms. See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) for more details.
+This collects `impl`s at library load time, but isn't supported on all platforms.
+See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) for more details.
 
 The `#[pyclass]` macro expands to roughly the code seen below.
 The `PyClassImplCollector` is the type used internally by PyO3 for dtolnay specialization:

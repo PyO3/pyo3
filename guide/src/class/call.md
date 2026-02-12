@@ -10,7 +10,7 @@ This method's signature must look like `__call__(<self>, ...) -> object` - here,
 The following pyclass is a basic decorator - its constructor takes a Python object as argument and calls that object when called.
 An equivalent Python implementation is linked at the end.
 
-An example crate containing this pyclass can be found [here](https://github.com/PyO3/pyo3/tree/main/examples/decorator)
+An example crate containing this pyclass can be found [in the PyO3 GitHub repository](https://github.com/PyO3/pyo3/tree/main/examples/decorator)
 
 ```rust,ignore
 {{#include ../../../examples/decorator/src/lib.rs}}
@@ -119,5 +119,8 @@ This shows the dangers of running arbitrary Python code - note that "running arb
 This is especially important if you are writing unsafe code; Python code must never be able to cause undefined behavior.
 You must ensure that your Rust code is in a consistent state before doing any of the above things.
 
+<!-- rumdl-disable MD057 -->
+<!-- TODO: investigate why this lint is being triggered -->
 [previous implementation]: <https://github.com/PyO3/pyo3/discussions/2598> "Thread Safe Decorator <Help Wanted> · Discussion #2598 · PyO3/pyo3"
 [`AtomicU64`]: <https://doc.rust-lang.org/std/sync/atomic/struct.AtomicU64.html> "AtomicU64 in std::sync::atomic - Rust"
+<!-- rumdl-enable MD057 -->

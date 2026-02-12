@@ -1,6 +1,7 @@
 # Using `async` and `await`
 
-*`async`/`await` support is currently being integrated in PyO3. See the [dedicated documentation](../async-await.md)*
+*`async`/`await` support is currently being integrated in PyO3.*
+*See the [dedicated documentation](../async-await.md)*
 
 If you are working with a Python library that makes use of async functions or wish to provide Python bindings for an async Rust library, [`pyo3-async-runtimes`](https://github.com/PyO3/pyo3-async-runtimes) likely has the tools you need.
 It provides conversions between async functions in both Python and Rust and was designed with first-class support for popular Rust runtimes such as [`tokio`](https://tokio.rs/) and [`async-std`](https://async.rs/).

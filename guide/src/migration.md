@@ -112,7 +112,8 @@ let obj_2 = existing_bound.clone();
 <summary><small>Click to expand</small></summary>
 
 `PyBuffer<T>` now is a typed wrapper around `PyUntypedBuffer`.
-Many methods such as `PyBuffer::format` have been moved to `PyUntypedBuffer::format`. `PyBuffer<T>` dereferences to `PyUntypedBuffer`, so method call syntax will continue to work as-is.
+Many methods such as `PyBuffer::format` have been moved to `PyUntypedBuffer::format`.
+`PyBuffer<T>` dereferences to `PyUntypedBuffer`, so method call syntax will continue to work as-is.
 Users may need to update references to the moved functions.
 </details>
 
@@ -262,7 +263,7 @@ where
 }
 ```
 
-This is very similar to `serde`s [`Deserialize`] and [`DeserializeOwned`] traits, see [here](https://serde.rs/lifetimes.html).
+This is very similar to `serde`s [`Deserialize`] and [`DeserializeOwned`] traits, see [the `serde` docs](https://serde.rs/lifetimes.html).
 
 [`Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
 [`DeserializeOwned`]: https://docs.rs/serde/latest/serde/de/trait.DeserializeOwned.html
@@ -1732,7 +1733,8 @@ PyO3 0.17 changes these downcast checks to explicitly test if the type is a subc
 Note this requires calling into Python, which may incur a performance penalty over the previous method.
 If this performance penalty is a problem, you may be able to perform your own checks and use `try_from_unchecked` (unsafe).
 
-Another side-effect is that a pyclass defined in Rust with PyO3 will need to be _registered_ with the corresponding Python abstract base class for downcasting to succeed. `PySequence::register` and `PyMapping:register` have been added to make it easy to do this from Rust code.
+Another side-effect is that a pyclass defined in Rust with PyO3 will need to be _registered_ with the corresponding Python abstract base class for downcasting to succeed.
+`PySequence::register` and `PyMapping:register` have been added to make it easy to do this from Rust code.
 These are equivalent to calling `collections.abc.Mapping.register(MappingPyClass)` or `collections.abc.Sequence.register(SequencePyClass)` from Python.
 
 For example, for a mapping class defined in Rust:
@@ -2112,7 +2114,8 @@ If you need this functionality, you must enable the `multiple-pymethods` feature
 <details>
 <summary><small>Click to expand</small></summary>
 
-Some protocol (aka `__dunder__`) methods such as `__bytes__` and `__format__` have been possible to implement two ways in PyO3 for some time: via a `#[pyproto]` (e.g. `PyObjectProtocol` for the methods listed here), or by writing them directly in `#[pymethods]`.
+Some protocol (aka `__dunder__`) methods such as `__bytes__` and `__format__` have been possible to implement two ways in PyO3 for some time: via a `#[pyproto]` (e.g.
+`PyObjectProtocol` for the methods listed here), or by writing them directly in `#[pymethods]`.
 This is only true for a handful of the `#[pyproto]` methods (for technical reasons to do with the way PyO3 currently interacts with the Python C-API).
 
 In the interest of having only one way to do things, the `#[pyproto]` forms of these methods have been deprecated.
@@ -2254,7 +2257,8 @@ let result: PyResult<()> = Err(PyTypeError::new_err("error message"));
 <summary><small>Click to expand</small></summary>
 
 Previously exception types were zero-sized marker types purely used to construct `PyErr`.
-In PyO3 0.12, these types have been replaced with full definitions and are usable in the same way as `PyAny`, `PyDict` etc. This makes it possible to interact with Python exception objects.
+In PyO3 0.12, these types have been replaced with full definitions and are usable in the same way as `PyAny`, `PyDict` etc.
+This makes it possible to interact with Python exception objects.
 
 The new types also have names starting with the "Py" prefix.
 For example, before:

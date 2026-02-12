@@ -71,5 +71,5 @@ package = false
 
 [dependency-groups]
 dev = [
-  "rumdl"
+  "rumdl",
 ]
