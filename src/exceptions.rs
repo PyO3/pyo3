@@ -294,23 +294,6 @@ macro_rules! impl_native_exception (
     )
 );
 
-#[cfg(windows)]
-macro_rules! impl_windows_native_exception (
-    ($name:ident, $exc_name:ident, $python_name:expr, $doc:expr, $layout:path) => (
-        #[cfg(windows)]
-        #[doc = $doc]
-        #[repr(transparent)]
-        #[allow(clippy::upper_case_acronyms, reason = "Python exception names")]
-        pub struct $name($crate::PyAny);
-
-        $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject }, "builtins", $python_name);
-    );
-    ($name:ident, $exc_name:ident, $python_name:expr, $doc:expr) => (
-        impl_windows_native_exception!($name, $exc_name, $python_name, $doc, $crate::ffi::PyBaseExceptionObject);
-    )
-);
-
 macro_rules! native_doc(
     ($name: literal, $alt: literal) => (
         concat!(
@@ -732,21 +715,15 @@ impl_native_exception!(
     native_doc!("TimeoutError")
 );
 
-impl_native_exception!(
-    PyEnvironmentError,
-    PyExc_EnvironmentError,
-    "EnvironmentError",
-    native_doc!("EnvironmentError")
-);
-impl_native_exception!(PyIOError, PyExc_IOError, "IOError", native_doc!("IOError"));
+/// Alias of `PyOSError`, corresponding to `EnvironmentError` alias in Python.
+pub type PyEnvironmentError = PyOSError;
+
+/// Alias of `PyOSError`, corresponding to `IOError` alias in Python.
+pub type PyIOError = PyOSError;
 
 #[cfg(windows)]
-impl_windows_native_exception!(
-    PyWindowsError,
-    PyExc_WindowsError,
-    "WindowsError",
-    native_doc!("WindowsError")
-);
+/// Alias of `PyOSError`, corresponding to `WindowsError` alias in Python.
+pub type PyWindowsError = PyOSError;
 
 impl PyUnicodeDecodeError {
     /// Creates a Python `UnicodeDecodeError`.
