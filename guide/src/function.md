@@ -263,16 +263,11 @@ This wrapper handles extraction of the regular arguments and the keyword argumen
 
 The `wrap_pyfunction` macro can be used to directly get a `Bound<PyCFunction>` given a `#[pyfunction]` and a `Bound<PyModule>`: `wrap_pyfunction!(rust_fun, module)`.
 
-<!-- rumdl-disable-next-line MD053 - false positive -->
 [`Bound<'_, PyAny>::is_callable`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods.html#tymethod.is_callable
-<!-- rumdl-disable-next-line MD053 - false positive -->
 [`Bound<'_, PyAny>::call`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods.html#tymethod.call
-<!-- rumdl-disable-next-line MD053 - false positive -->
 [`Bound<'_, PyAny>::call0`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods.html#tymethod.call0
-<!-- rumdl-disable-next-line MD053 - false positive -->
 [`Bound<'_, PyAny>::call1`]: {{#PYO3_DOCS_URL}}/pyo3/prelude/trait.PyAnyMethods.html#tymethod.call1
 [`wrap_pyfunction!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.wrap_pyfunction.html
 [`PyFunction`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyFunction.html
 [`PyCFunction`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyCFunction.html
-<!-- rumdl-disable-next-line MD053 - false positive -->
 [`inspect.signature`]: https://docs.python.org/3/library/inspect.html#inspect.signature

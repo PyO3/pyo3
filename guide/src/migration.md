@@ -263,7 +263,7 @@ where
 }
 ```
 
-This is very similar to `serde`s [`Deserialize`] and [`DeserializeOwned`] traits, see [here](https://serde.rs/lifetimes.html).
+This is very similar to `serde`s [`Deserialize`] and [`DeserializeOwned`] traits, see [the `serde` docs](https://serde.rs/lifetimes.html).
 
 [`Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
 [`DeserializeOwned`]: https://docs.rs/serde/latest/serde/de/trait.DeserializeOwned.html

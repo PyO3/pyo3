@@ -17,33 +17,33 @@ The table below contains the Python type and the corresponding function argument
 | `bytes`       | `Vec<u8>`, `&[u8]`, `Cow<[u8]>` | `PyBytes`           |
 | `bool`        | `bool`                          | `PyBool`            |
 | `int`         | `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, `usize`, `num_bigint::BigInt`[^1], `num_bigint::BigUint`[^1] | `PyInt` |
-| `float`       | `f32`, `f64`, `ordered_float::NotNan`[^10], `ordered_float::OrderedFloat`[^10]                    | `PyFloat`           |
-| `complex`     | `num_complex::Complex`[^2]      | `PyComplex`         |
-| `fractions.Fraction`| `num_rational::Ratio`[^8] | -         |
+| `float`       | `f32`, `f64`, `ordered_float::NotNan`[^2], `ordered_float::OrderedFloat`[^2]                    | `PyFloat`           |
+| `complex`     | `num_complex::Complex`[^3]      | `PyComplex`         |
+| `fractions.Fraction`| `num_rational::Ratio`[^4] | -         |
 | `list[T]`     | `Vec<T>`                        | `PyList`            |
-| `dict[K, V]`  | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^3], `indexmap::IndexMap<K, V>`[^4] | `PyDict` |
+| `dict[K, V]`  | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^5], `indexmap::IndexMap<K, V>`[^6] | `PyDict` |
 | `tuple[T, U]` | `(T, U)`, `Vec<T>`              | `PyTuple`           |
-| `set[T]`      | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^3] | `PySet` |
-| `frozenset[T]` | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^3] | `PyFrozenSet` |
+| `set[T]`      | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^5] | `PySet` |
+| `frozenset[T]` | `HashSet<T>`, `BTreeSet<T>`, `hashbrown::HashSet<T>`[^5] | `PyFrozenSet` |
 | `bytearray`   | `Vec<u8>`, `Cow<[u8]>`          | `PyByteArray`       |
 | `slice`       | -                               | `PySlice`           |
 | `type`        | -                               | `PyType`            |
 | `module`      | -                               | `PyModule`          |
 | `collections.abc.Buffer` | -                    | `PyBuffer<T>`        |
-| `datetime.datetime` | `SystemTime`, `chrono::DateTime<Tz>`[^5], `chrono::NaiveDateTime`[^5] | `PyDateTime`        |
-| `datetime.date` | `chrono::NaiveDate`[^5]       | `PyDate`            |
-| `datetime.time` | `chrono::NaiveTime`[^5]       | `PyTime`            |
-| `datetime.tzinfo` | `chrono::FixedOffset`[^5], `chrono::Utc`[^5], `chrono_tz::TimeZone`[^6] | `PyTzInfo`          |
-| `datetime.timedelta` | `Duration`, `chrono::Duration`[^5] | `PyDelta`           |
-| `decimal.Decimal` | `rust_decimal::Decimal`[^7] | -                    |
-| `decimal.Decimal` | `bigdecimal::BigDecimal`[^9] | -                   |
+| `datetime.datetime` | `SystemTime`, `chrono::DateTime<Tz>`[^7], `chrono::NaiveDateTime`[^7] | `PyDateTime`        |
+| `datetime.date` | `chrono::NaiveDate`[^7]       | `PyDate`            |
+| `datetime.time` | `chrono::NaiveTime`[^7]       | `PyTime`            |
+| `datetime.tzinfo` | `chrono::FixedOffset`[^7], `chrono::Utc`[^7], `chrono_tz::TimeZone`[^8] | `PyTzInfo`          |
+| `datetime.timedelta` | `Duration`, `chrono::Duration`[^7] | `PyDelta`           |
+| `decimal.Decimal` | `rust_decimal::Decimal`[^9] | -                    |
+| `decimal.Decimal` | `bigdecimal::BigDecimal`[^10] | -                   |
 | `ipaddress.IPv4Address` | `std::net::IpAddr`, `std::net::Ipv4Addr` | - |
 | `ipaddress.IPv6Address` | `std::net::IpAddr`, `std::net::Ipv6Addr` | - |
 | `os.PathLike` | `PathBuf`, `Path`              | `PyString` |
 | `pathlib.Path` | `PathBuf`, `Path`              | `PyString` |
 | `typing.Optional[T]` | `Option<T>`              | -                    |
 | `typing.Sequence[T]` | `Vec<T>`                 | `PySequence`        |
-| `typing.Mapping[K, V]` | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^3], `indexmap::IndexMap<K, V>`[^4] | `&PyMapping` |
+| `typing.Mapping[K, V]` | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^5], `indexmap::IndexMap<K, V>`[^6] | `&PyMapping` |
 | `typing.Iterator[Any]` | -                      | `PyIterator`        |
 | `typing.Union[...]` | See [`#[derive(FromPyObject)]`](traits.md#deriving-frompyobject-for-enums) | - |
 
@@ -110,20 +110,20 @@ Finally, the following Rust types are also able to convert to Python as return v
 
 [^1]: Requires the `num-bigint` optional feature.
 
-[^2]: Requires the `num-complex` optional feature.
+[^2]: Requires the `ordered-float` optional feature.
 
-[^3]: Requires the `hashbrown` optional feature.
+[^3]: Requires the `num-complex` optional feature.
 
-[^4]: Requires the `indexmap` optional feature.
+[^4]: Requires the `num-rational` optional feature.
 
-[^5]: Requires the `chrono` (and maybe `chrono-local`) optional feature(s).
+[^5]: Requires the `hashbrown` optional feature.
 
-[^6]: Requires the `chrono-tz` optional feature.
+[^6]: Requires the `indexmap` optional feature.
 
-[^7]: Requires the `rust_decimal` optional feature.
+[^7]: Requires the `chrono` (and maybe `chrono-local`) optional feature(s).
 
-[^8]: Requires the `num-rational` optional feature.
+[^8]: Requires the `chrono-tz` optional feature.
 
-[^9]: Requires the `bigdecimal` optional feature.
+[^9]: Requires the `rust_decimal` optional feature.
 
-[^10]: Requires the `ordered-float` optional feature.
+[^10]: Requires the `bigdecimal` optional feature.

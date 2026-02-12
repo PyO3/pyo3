@@ -33,7 +33,7 @@ The following sections list all magic methods for which PyO3 implements the nece
 The given signatures should be interpreted as follows:
 
 - All methods take a receiver as first argument, shown as `<self>`.
-   It can be `&self`, `&mut self` or a `Bound` reference like `self_: PyRef<'_, Self>` and `self_: PyRefMut<'_, Self>`, as described [here](../class.md#inheritance).
+   It can be `&self`, `&mut self` or a `Bound` reference like `self_: PyRef<'_, Self>` and `self_: PyRefMut<'_, Self>`, as described [in the parent section](../class.md#inheritance).
 - An optional `Python<'py>` argument is always allowed as the first argument.
 - Return values can be optionally wrapped in `PyResult`.
 - `object` means that any type is allowed that can be extracted from a Python
@@ -51,31 +51,37 @@ The given signatures should be interpreted as follows:
 - `__str__(<self>) -> object (str)`
 - `__repr__(<self>) -> object (str)`
 
+<!-- rumdl-disable MD013 -->
+<!-- TODO: report false positive -->
 - `__hash__(<self>) -> isize`
 
-    Objects that compare equal must have the same hash value.
-    Any type up to 64 bits may be returned instead of `isize`, PyO3 will convert to an isize automatically (wrapping unsigned types like `u64` and `usize`).
+  Objects that compare equal must have the same hash value.
+  Any type up to 64 bits may be returned instead of `isize`, PyO3 will convert to an isize automatically (wrapping unsigned types like `u64` and `usize`).
 
-    <details>
-    <summary>Disabling Python's default hash</summary>
+  <details>
+  <summary>Disabling Python's default hash</summary>
 
-    By default, all `#[pyclass]` types have a default hash implementation from Python. Types which should not be hashable can override this by setting `__hash__` to `None`. This is the same mechanism as for a pure-Python class. This is done like so:
+  By default, all `#[pyclass]` types have a default hash implementation from Python.
+  Types which should not be hashable can override this by setting `__hash__` to `None`.
+  This is the same mechanism as for a pure-Python class.
+  This is done like so:
 
+  ```rust,no_run
+  # use pyo3::prelude::*;
+  #
+  #[pyclass]
+  struct NotHashable {}
 
-    ```rust,no_run
-    # use pyo3::prelude::*;
-    #
-    #[pyclass]
-    struct NotHashable {}
+  #[pymethods]
+  impl NotHashable {
+      #[classattr]
+      const __hash__: Option<Py<PyAny>> = None;
+  }
+  ```
 
-    #[pymethods]
-    impl NotHashable {
-        #[classattr]
-        const __hash__: Option<Py<PyAny>> = None;
-    }
-    ```
+  </details>
 
-    </details>
+<!-- rumdl-enable MD013 -->
 
 - `__lt__(<self>, object) -> object`
 - `__le__(<self>, object) -> object`
@@ -86,7 +92,7 @@ The given signatures should be interpreted as follows:
 
     The implementations of Python's "rich comparison" operators `<`, `<=`, `==`, `!=`, `>` and `>=` respectively.
 
-    _Note that implementing any of these methods will cause Python not to generate a default `__hash__` implementation, so consider also implementing `__hash__`._
+    *Note that implementing any of these methods will cause Python not to generate a default `__hash__` implementation, so consider also implementing `__hash__`.*
 
     <details>
     <summary>Return type</summary>
@@ -94,15 +100,18 @@ The given signatures should be interpreted as follows:
     The return type will normally be `bool` or `PyResult<bool>`, however any Python object can be returned.
     </details>
 
+<!-- rumdl-disable MD013 -->
+<!-- TODO: report false positive -->
+
 - `__richcmp__(<self>, object, pyo3::basic::CompareOp) -> object`
 
     Implements Python comparison operations (`==`, `!=`, `<`, `<=`, `>`, and `>=`) in a single method.
     The `CompareOp` argument indicates the comparison operation being performed.
     You can use [`CompareOp::matches`] to adapt a Rust `std::cmp::Ordering` result to the requested comparison.
 
-    _This method cannot be implemented in combination with any of `__lt__`, `__le__`, `__eq__`, `__ne__`, `__gt__`, or `__ge__`._
+    *This method cannot be implemented in combination with any of `__lt__`, `__le__`, `__eq__`, `__ne__`, `__gt__`, or `__ge__`.*
 
-    _Note that implementing `__richcmp__` will cause Python not to generate a default `__hash__` implementation, so consider implementing `__hash__` when implementing `__richcmp__`._
+    *Note that implementing `__richcmp__` will cause Python not to generate a default `__hash__` implementation, so consider implementing `__hash__` when implementing `__richcmp__`.*
 
     <details>
     <summary>Return type</summary>
@@ -111,7 +120,6 @@ The given signatures should be interpreted as follows:
 
     If you want to leave some operations unimplemented, you can return `py.NotImplemented()`
     for some of the operations:
-
 
     ```rust,no_run
     use pyo3::class::basic::CompareOp;
@@ -137,6 +145,8 @@ The given signatures should be interpreted as follows:
 
     If the second argument `object` is not of the type specified in the signature, the generated code will automatically `return NotImplemented`.
     </details>
+
+<!-- rumdl-enable MD013 -->
 
 - `__getattr__(<self>, object) -> object`
 - `__getattribute__(<self>, object) -> object`
@@ -285,6 +295,9 @@ This will help libraries such as `numpy` recognise the class as a sequence, howe
 
     Implements the built-in function `len()`.
 
+<!-- rumdl-disable MD013 -->
+<!-- TODO: report false positive -->
+
 - `__contains__(<self>, object) -> bool`
 
     Implements membership test operators.
@@ -298,7 +311,6 @@ This will help libraries such as `numpy` recognise the class as a sequence, howe
     default implementation of the `in` operator. Types which do not want this
     can override this by setting `__contains__` to `None`. This is the same
     mechanism as for a pure-Python class. This is done like so:
-
 
     ```rust,no_run
     # use pyo3::prelude::*;
@@ -314,6 +326,8 @@ This will help libraries such as `numpy` recognise the class as a sequence, howe
     ```
 
     </details>
+
+<!-- rumdl-enable MD013 -->
 
 - `__getitem__(<self>, object) -> object`
 
@@ -485,5 +499,4 @@ Most importantly, safe access to the interpreter is prohibited inside implementa
 > These methods are part of the C API, PyPy does not necessarily honor them. If you are building for PyPy you should measure memory consumption to make sure you do not have runaway memory growth. See [this issue on the PyPy bug tracker](https://github.com/pypy/pypy/issues/3848).
 
 [`PySequence`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PySequence.html
-<!-- rumdl-disable-next-line MD053 - false positive -->
 [`CompareOp::matches`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/enum.CompareOp.html#method.matches
