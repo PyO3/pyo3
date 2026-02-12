@@ -443,7 +443,7 @@ error[E0609]: no field `162543` on type `&Coord3`
     |
     = note: available fields are: `0`, `1`, `2`
 
-warning: use of deprecated associated constant `pyo3::impl_::deprecated::HasAutomaticFromPyObject::<true>::MSG`: The automatically derived `FromPyObject` implementation for `#[pyclass]` types which implement `Clone` is being phased out. Use `from_py_object` to keep the automatic derive or `skip_from_py_object` to accept the new behaviour.
+warning: use of deprecated associated constant `pyo3::impl_::deprecated::HasAutomaticFromPyObject::<true>::MSG`: The `FromPyObject` implementation for `#[pyclass]` types which implement `Clone` is changing to an opt-in option. Use `#[pyclass(from_py_object)]` to opt-in to the `FromPyObject` derive now, or `#[pyclass(skip_from_py_object)]` to skip the `FromPyObject` implementation.
    --> tests/ui/invalid_pyclass_args.rs:196:1
     |
 196 | #[pyclass]
