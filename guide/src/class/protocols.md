@@ -53,11 +53,14 @@ The given signatures should be interpreted as follows:
 
 - `__hash__(<self>) -> isize`
 
-    Objects that compare equal must have the same hash value. Any type up to 64 bits may be returned instead of `isize`, PyO3 will convert to an isize automatically (wrapping unsigned types like `u64` and `usize`).
+    Objects that compare equal must have the same hash value.
+    Any type up to 64 bits may be returned instead of `isize`, PyO3 will convert to an isize automatically (wrapping unsigned types like `u64` and `usize`).
+
     <details>
     <summary>Disabling Python's default hash</summary>
 
     By default, all `#[pyclass]` types have a default hash implementation from Python. Types which should not be hashable can override this by setting `__hash__` to `None`. This is the same mechanism as for a pure-Python class. This is done like so:
+
 
     ```rust,no_run
     # use pyo3::prelude::*;
@@ -94,12 +97,13 @@ The given signatures should be interpreted as follows:
 - `__richcmp__(<self>, object, pyo3::basic::CompareOp) -> object`
 
     Implements Python comparison operations (`==`, `!=`, `<`, `<=`, `>`, and `>=`) in a single method.
-    The `CompareOp` argument indicates the comparison operation being performed. You can use
-    [`CompareOp::matches`] to adapt a Rust `std::cmp::Ordering` result to the requested comparison.
+    The `CompareOp` argument indicates the comparison operation being performed.
+    You can use [`CompareOp::matches`] to adapt a Rust `std::cmp::Ordering` result to the requested comparison.
 
     _This method cannot be implemented in combination with any of `__lt__`, `__le__`, `__eq__`, `__ne__`, `__gt__`, or `__ge__`._
 
     _Note that implementing `__richcmp__` will cause Python not to generate a default `__hash__` implementation, so consider implementing `__hash__` when implementing `__richcmp__`._
+
     <details>
     <summary>Return type</summary>
 
@@ -107,6 +111,7 @@ The given signatures should be interpreted as follows:
 
     If you want to leave some operations unimplemented, you can return `py.NotImplemented()`
     for some of the operations:
+
 
     ```rust,no_run
     use pyo3::class::basic::CompareOp;
@@ -130,8 +135,7 @@ The given signatures should be interpreted as follows:
     }
     ```
 
-    If the second argument `object` is not of the type specified in the
-    signature, the generated code will automatically `return NotImplemented`.
+    If the second argument `object` is not of the type specified in the signature, the generated code will automatically `return NotImplemented`.
     </details>
 
 - `__getattr__(<self>, object) -> object`
@@ -141,8 +145,8 @@ The given signatures should be interpreted as follows:
     <summary>Differences between <code>__getattr__</code> and <code>__getattribute__</code></summary>
 
     As in Python, `__getattr__` is only called if the attribute is not found
-    by normal attribute lookup.  `__getattribute__`, on the other hand, is
-    called for *every* attribute access.  If it wants to access existing
+    by normal attribute lookup. `__getattribute__`, on the other hand, is
+    called for *every* attribute access. If it wants to access existing
     attributes on `self`, it needs to be very careful not to introduce
     infinite recursion, and use `baseclass.__getattribute__()`.
     </details>
@@ -285,8 +289,7 @@ This will help libraries such as `numpy` recognise the class as a sequence, howe
 
     Implements membership test operators.
     Should return true if `item` is in `self`, false otherwise.
-    For objects that don’t define `__contains__()`, the membership test simply
-    traverses the sequence until it finds a match.
+    For objects that don’t define `__contains__()`, the membership test simply traverses the sequence until it finds a match.
 
     <details>
     <summary>Disabling Python's default contains</summary>
@@ -295,6 +298,7 @@ This will help libraries such as `numpy` recognise the class as a sequence, howe
     default implementation of the `in` operator. Types which do not want this
     can override this by setting `__contains__` to `None`. This is the same
     mechanism as for a pure-Python class. This is done like so:
+
 
     ```rust,no_run
     # use pyo3::prelude::*;
@@ -316,9 +320,7 @@ This will help libraries such as `numpy` recognise the class as a sequence, howe
     Implements retrieval of the `self[a]` element.
 
     *Note:* Negative integer indexes are not handled specially by PyO3.
-    However, for classes with `#[pyclass(sequence)]`, when a negative index is
-    accessed via `PySequence::get_item`, the underlying C API already adjusts
-    the index to be positive.
+    However, for classes with `#[pyclass(sequence)]`, when a negative index is accessed via `PySequence::get_item`, the underlying C API already adjusts the index to be positive.
 
 - `__setitem__(<self>, object, object) -> ()`
 
@@ -337,26 +339,22 @@ This will help libraries such as `numpy` recognise the class as a sequence, howe
 - `fn __concat__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
 
     Concatenates two sequences.
-    Used by the `+` operator, after trying the numeric addition via
-    the `__add__` and `__radd__` methods.
+    Used by the `+` operator, after trying the numeric addition via the `__add__` and `__radd__` methods.
 
 - `fn __repeat__(&self, count: isize) -> PyResult<impl ToPyObject>`
 
     Repeats the sequence `count` times.
-    Used by the `*` operator, after trying the numeric multiplication via
-    the `__mul__` and `__rmul__` methods.
+    Used by the `*` operator, after trying the numeric multiplication via the `__mul__` and `__rmul__` methods.
 
 - `fn __inplace_concat__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
 
     Concatenates two sequences.
-    Used by the `+=` operator, after trying the numeric addition via
-    the `__iadd__` method.
+    Used by the `+=` operator, after trying the numeric addition via the `__iadd__` method.
 
 - `fn __inplace_repeat__(&self, count: isize) -> PyResult<impl ToPyObject>`
 
     Concatenates two sequences.
-    Used by the `*=` operator, after trying the numeric multiplication via
-    the `__imul__` method.
+    Used by the `*=` operator, after trying the numeric multiplication via the `__imul__` method.
 
 ### Descriptors
 
@@ -432,13 +430,16 @@ Coercions:
 
 - `__getbuffer__(<self>, *mut ffi::Py_buffer, flags) -> ()`
 - `__releasebuffer__(<self>, *mut ffi::Py_buffer) -> ()` Errors returned from `__releasebuffer__` will be sent to `sys.unraiseablehook`.
-    It is strongly advised to never return an error from `__releasebuffer__`, and if it really is necessary, to make best effort to perform any required freeing operations before returning. `__releasebuffer__` will not be called a second time; anything not freed will be leaked.
+    It is strongly advised to never return an error from `__releasebuffer__`, and if it really is necessary, to make best effort to perform any required freeing operations before returning.
+    `__releasebuffer__` will not be called a second time; anything not freed will be leaked.
 
 ### Garbage Collector Integration
 
 If your type owns references to other Python objects, you will need to integrate with Python's garbage collector so that the GC is aware of those references.
 To do this, implement the two methods `__traverse__` and `__clear__`.
-These correspond to the slots `tp_traverse` and `tp_clear` in the Python C API. `__traverse__` must call `visit.call()` for each reference to another Python object.  `__clear__` must clear out any mutable references to other Python objects (thus breaking reference cycles).
+These correspond to the slots `tp_traverse` and `tp_clear` in the Python C API.
+`__traverse__` must call `visit.call()` for each reference to another Python object.
+`__clear__` must clear out any mutable references to other Python objects (thus breaking reference cycles).
 Immutable references do not have to be cleared, as every cycle must contain at least one mutable reference.
 
 - `__traverse__(<self>, pyo3::class::gc::PyVisit<'_>) -> Result<(), pyo3::class::gc::PyTraverseError>`
