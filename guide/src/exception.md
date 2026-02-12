@@ -172,7 +172,7 @@ Python::attach(|py| {
 
 ```
 
-Note that this is not possible when the ``abi3`` feature is enabled, as that prevents subclassing ``PyException``.
+Note that when the `abi3` feature is enabled, subclassing `PyException` is only possible on Python 3.12 or greater.
 
 [`create_exception!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.create_exception.html
 [`import_exception!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.import_exception.html
