@@ -1452,6 +1452,11 @@ fn impl_complex_enum_struct_variant_cls(
         field_getter_impls.push(field_getter_impl);
     }
 
+    let (qualname, qualname_impl) =
+        impl_complex_enum_variant_qualname(enum_name, variant_ident, &variant_cls_type, ctx)?;
+
+    field_getters.push(qualname);
+
     let (variant_match_args, match_args_const_impl) =
         impl_complex_enum_variant_match_args(ctx, &variant_cls_type, &field_names)?;
 
@@ -1468,6 +1473,8 @@ fn impl_complex_enum_struct_variant_cls(
             }
 
             #match_args_const_impl
+
+            #qualname_impl
 
             #(#field_getter_impls)*
         }
@@ -1641,6 +1648,11 @@ fn impl_complex_enum_tuple_variant_cls(
         &mut field_types,
     )?;
 
+    let (qualname, qualname_impl) =
+        impl_complex_enum_variant_qualname(enum_name, variant_ident, &variant_cls_type, ctx)?;
+
+    field_getters.push(qualname);
+
     let num_fields = variant.fields.len();
 
     let (variant_len, len_method_impl) =
@@ -1674,6 +1686,8 @@ fn impl_complex_enum_tuple_variant_cls(
 
             #match_args_method_impl
 
+            #qualname_impl
+
             #(#field_getter_impls)*
         }
     };
@@ -1683,6 +1697,34 @@ fn impl_complex_enum_tuple_variant_cls(
 
 fn gen_complex_enum_variant_class_ident(enum_: &Ident, variant: &Ident) -> Ident {
     format_ident!("{}_{}", enum_, variant)
+}
+
+fn impl_complex_enum_variant_qualname(
+    enum_name: &syn::Ident,
+    variant_ident: &syn::Ident,
+    variant_cls_type: &syn::Type,
+    ctx: &Ctx,
+) -> syn::Result<(MethodAndMethodDef, syn::ImplItemFn)> {
+    let Ctx { pyo3_path, .. } = ctx;
+    let qualname = format!("{}.{}", enum_name, variant_ident);
+    let mut qualname_impl: syn::ImplItemFn = {
+        parse_quote! {
+            #[classattr]
+            fn __qualname__(py: #pyo3_path::Python<'_>) -> &'static str {
+                #qualname
+            }
+        }
+    };
+
+    let spec = FnSpec::parse(
+        &mut qualname_impl.sig,
+        &mut qualname_impl.attrs,
+        Default::default(),
+    )?;
+
+    // NB: Deliberately add no introspection here, this is __qualname__
+    let qualname = impl_py_class_attribute(variant_cls_type, &spec, ctx)?;
+    Ok((qualname, qualname_impl))
 }
 
 #[cfg(feature = "experimental-inspect")]
