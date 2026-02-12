@@ -300,6 +300,7 @@ fn test_get_tzinfo() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn test_inc_dec_ref() {
     Python::attach(|py| {
         let obj = py.eval(c"object()", None, None).unwrap();
@@ -319,6 +320,7 @@ fn test_inc_dec_ref() {
 
 #[test]
 #[cfg(Py_3_12)]
+#[allow(deprecated)]
 fn test_inc_dec_ref_immortal() {
     Python::attach(|py| {
         let obj = py.None();

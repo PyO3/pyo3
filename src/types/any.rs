@@ -881,6 +881,10 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
         T: FromPyObject<'a, 'py>;
 
     /// Returns the reference count for the Python object.
+    #[deprecated(
+        since = "0.29.0",
+        note = "use `pyo3::ffi::Py_REFCNT(obj.as_ptr())` instead"
+    )]
     fn get_refcnt(&self) -> isize;
 
     /// Computes the "repr" representation of self.
