@@ -22,7 +22,7 @@ Modules now automatically allow use on free-threaded Python, unless they directl
 <summary><small>Click to expand</small></summary>
 
 `#[pyclass]` types which implement `Clone` used to also implement `FromPyObject` automatically.
-This behavior is phased out and replaced by an explicit opt-in.
+This behavior is being phased out and replaced by an explicit opt-in, which will allow [better error messages and more user control](https://github.com/PyO3/pyo3/issues/5419).
 Affected types will by marked by a deprecation message.
 
 To migrate use either
