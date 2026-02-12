@@ -1723,7 +1723,7 @@ fn impl_complex_enum_variant_qualname(
     )?;
 
     // NB: Deliberately add no introspection here, this is __qualname__
-    let qualname = impl_py_class_attribute(&variant_cls_type, &spec, ctx)?;
+    let qualname = impl_py_class_attribute(variant_cls_type, &spec, ctx)?;
     Ok((qualname, qualname_impl))
 }
 
