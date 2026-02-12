@@ -1,5 +1,3 @@
-#![cfg(not(Py_LIMITED_API))]
-
 use pyo3::prelude::*;
 use pyo3::types::{
     PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTuple,
@@ -190,15 +188,22 @@ impl TzClass {
         TzClass {}
     }
 
-    fn utcoffset<'py>(&self, dt: &Bound<'py, PyDateTime>) -> PyResult<Bound<'py, PyDelta>> {
-        PyDelta::new(dt.py(), 0, 3600, 0, true)
+    #[pyo3(signature = (_dt, /))]
+    fn utcoffset<'py>(
+        &self,
+        _dt: Option<&Bound<'_, PyDateTime>>,
+        py: Python<'py>,
+    ) -> PyResult<Bound<'py, PyDelta>> {
+        PyDelta::new(py, 0, 3600, 0, true)
     }
 
-    fn tzname(&self, _dt: &Bound<'_, PyDateTime>) -> String {
+    #[pyo3(signature = (_dt, /))]
+    fn tzname(&self, _dt: Option<&Bound<'_, PyDateTime>>) -> String {
         String::from("+01:00")
     }
 
-    fn dst<'py>(&self, _dt: &Bound<'py, PyDateTime>) -> Option<Bound<'py, PyDelta>> {
+    #[pyo3(signature = (_dt, /))]
+    fn dst(&self, _dt: Option<&Bound<'_, PyDateTime>>) -> Option<Bound<'static, PyDelta>> {
         None
     }
 }
