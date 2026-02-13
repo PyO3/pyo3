@@ -20,8 +20,7 @@ use portable_atomic::AtomicI64;
     not(all(windows, Py_LIMITED_API, not(Py_3_10))),
     target_has_atomic = "64",
 ))]
-use std::sync::atomic::AtomicI64;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicI64, Ordering};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
@@ -44,7 +43,9 @@ pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
     #[cfg(not(_Py_OPAQUE_PYOBJECT))]
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
+    #[cfg(Py_3_15)]
     name: &'static CStr,
+    #[cfg(Py_3_15)]
     doc: &'static CStr,
     slots: &'static PyModuleSlots,
     /// Interpreter ID where module was initialized (not applicable on PyPy).
@@ -97,7 +98,9 @@ impl ModuleDef {
         ModuleDef {
             #[cfg(not(_Py_OPAQUE_PYOBJECT))]
             ffi_def,
+            #[cfg(Py_3_15)]
             name,
+            #[cfg(Py_3_15)]
             doc,
             slots,
             // -1 is never expected to be a valid interpreter ID
@@ -489,7 +492,9 @@ mod tests {
         unsafe {
             assert_eq!((*module_def.ffi_def.get()).m_slots, SLOTS.0.get().cast());
         }
+        #[cfg(Py_3_15)]
         assert_eq!(module_def.name, NAME);
+        #[cfg(Py_3_15)]
         assert_eq!(module_def.doc, DOC);
         assert_eq!(module_def.slots.0.get(), SLOTS.0.get());
     }
