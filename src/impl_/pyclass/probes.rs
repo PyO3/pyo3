@@ -14,14 +14,20 @@ use crate::{FromPyObject, Py, PyClass, PyClassInitializer};
 /// The true case is defined in the zero-sized type's impl block, which is
 /// gated on some property like trait bound or only being implemented
 /// for fixed concrete types.
-pub trait Probe {
+pub trait Probe: probe::Sealed {
     const VALUE: bool = false;
+}
+
+/// Seals `Probe` so that types outside PyO3 cannot implement it.
+mod probe {
+    pub trait Sealed {}
 }
 
 macro_rules! probe {
     ($name:ident) => {
         pub struct $name<T>(PhantomData<T>);
         impl<T> Probe for $name<T> {}
+        impl<T> probe::Sealed for $name<T> {}
     };
 }
 
@@ -93,6 +99,7 @@ impl<E> IsReturningEmptyTuple<Result<(), E>> {
 }
 
 probe!(IsPyClass);
+
 impl<T> IsPyClass<T>
 where
     T: PyClass,
@@ -108,6 +115,7 @@ where
 }
 
 probe!(IsInitializerTuple);
+
 impl<S, B> IsInitializerTuple<(S, B)>
 where
     S: PyClass<BaseType = B>,
