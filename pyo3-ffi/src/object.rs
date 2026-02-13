@@ -414,9 +414,6 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
-    dbg!(ob);
-    dbg!(Py_TYPE(ob));
-    dbg!(tp);
     (Py_IS_TYPE(ob, tp) != 0 || PyType_IsSubtype(Py_TYPE(ob), tp) != 0) as c_int
 }
 
