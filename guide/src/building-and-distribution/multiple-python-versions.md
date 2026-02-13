@@ -76,8 +76,7 @@ This `#[cfg]` marks code that will only be present on Python versions before (bu
 #[cfg(not(Py_LIMITED_API))]
 ```
 
-This `#[cfg]` marks code that is only available when building for the unlimited Python API (i.e.
-PyO3's `abi3` feature is not enabled).
+This `#[cfg]` marks code that is only available when building for the unlimited Python API (i.e. PyO3's `abi3` feature is not enabled).
 This might be useful if you want to ship your extension module as an `abi3` wheel and also allow users to compile it from source to make use of optimizations only possible with the unlimited API.
 
 ```text

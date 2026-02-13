@@ -81,8 +81,7 @@ It can take any combination of the following options:
     It is then possible to use the module in the function body.
     The first argument **must** be of type `&Bound<'_, PyModule>`, `Bound<'_, PyModule>`, or `Py<PyModule>`.
 
-    The following example creates a function `pyfunction_with_module` which returns the containing module's name (i.e.
-    `module_with_fn`):
+    The following example creates a function `pyfunction_with_module` which returns the containing module's name (i.e. `module_with_fn`):
 
     ```rust,no_run
     #[pyo3::pymodule]
