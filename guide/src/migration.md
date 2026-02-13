@@ -2114,8 +2114,7 @@ If you need this functionality, you must enable the `multiple-pymethods` feature
 <details>
 <summary><small>Click to expand</small></summary>
 
-Some protocol (aka `__dunder__`) methods such as `__bytes__` and `__format__` have been possible to implement two ways in PyO3 for some time: via a `#[pyproto]` (e.g.
-`PyObjectProtocol` for the methods listed here), or by writing them directly in `#[pymethods]`.
+Some protocol (aka `__dunder__`) methods such as `__bytes__` and `__format__` have been possible to implement two ways in PyO3 for some time: via a `#[pyproto]` (e.g. `PyObjectProtocol` for the methods listed here), or by writing them directly in `#[pymethods]`.
 This is only true for a handful of the `#[pyproto]` methods (for technical reasons to do with the way PyO3 currently interacts with the Python C-API).
 
 In the interest of having only one way to do things, the `#[pyproto]` forms of these methods have been deprecated.
