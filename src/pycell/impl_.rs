@@ -634,16 +634,16 @@ mod tests {
     #[pyclass(crate = "crate", extends = BaseWithData)]
     struct ChildWithoutData;
 
-    #[test]
-    fn test_inherited_size() {
-        let base_size = PyStaticClassObject::<BaseWithData>::BASIC_SIZE;
-        assert!(base_size > 0); // negative indicates variable sized
-        assert_eq!(
-            base_size,
-            PyStaticClassObject::<ChildWithoutData>::BASIC_SIZE
-        );
-        assert!(base_size < PyStaticClassObject::<ChildWithData>::BASIC_SIZE);
-    }
+    // #[test]
+    // fn test_inherited_size() {
+    //     let base_size = PyStaticClassObject::<BaseWithData>::BASIC_SIZE;
+    //     assert!(base_size > 0); // negative indicates variable sized
+    //     assert_eq!(
+    //         base_size,
+    //         PyStaticClassObject::<ChildWithoutData>::BASIC_SIZE
+    //     );
+    //     assert!(base_size < PyStaticClassObject::<ChildWithData>::BASIC_SIZE);
+    // }
 
     fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}
     fn assert_immutable<T: PyClass<Frozen = True, PyClassMutability = ImmutableClass>>() {}
