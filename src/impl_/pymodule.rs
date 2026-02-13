@@ -5,8 +5,14 @@ use std::{
     ffi::CStr,
     marker::PhantomData,
     os::raw::{c_int, c_void},
-    sync::atomic::Ordering,
 };
+
+#[cfg(all(
+    not(any(PyPy, GraalPy)),
+    Py_3_9,
+    not(all(windows, Py_LIMITED_API, not(Py_3_10))),
+))]
+use std::sync::atomic::Ordering;
 
 #[cfg(all(
     not(any(PyPy, GraalPy)),
