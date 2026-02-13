@@ -150,9 +150,17 @@ impl<'a, 'holder, 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'holder 
     }
 }
 
+/// Seals `FunctionArgumentHolder` so that types outside PyO3 cannot implement it.
+mod function_argument_holder {
+    pub trait Sealed {}
+
+    impl Sealed for () {}
+    impl<T> Sealed for Option<T> {}
+}
+
 /// Trait for types which can be a function argument holder - they should
 /// to be able to const-initialize to an empty value.
-pub trait FunctionArgumentHolder: Sized {
+pub trait FunctionArgumentHolder: Sized + function_argument_holder::Sealed {
     const INIT: Self;
 }
 
@@ -774,8 +782,18 @@ impl FunctionDescription {
     }
 }
 
+/// Seals `VarargsHandler` so that types outside PyO3 cannot implement it.
+mod varargs_handler {
+    use crate::impl_::extract_argument::{NoVarargs, TupleVarargs};
+
+    pub trait Sealed {}
+
+    impl Sealed for NoVarargs {}
+    impl Sealed for TupleVarargs {}
+}
+
 /// A trait used to control whether to accept varargs in FunctionDescription::extract_argument_(method) functions.
-pub trait VarargsHandler<'py> {
+pub trait VarargsHandler<'py>: varargs_handler::Sealed {
     type Varargs;
     /// Called by `FunctionDescription::extract_arguments_fastcall` with any additional arguments.
     fn handle_varargs_fastcall(
@@ -852,8 +870,18 @@ impl<'py> VarargsHandler<'py> for TupleVarargs {
     }
 }
 
+/// Seals `VarkeywordsHandler` so that types outside PyO3 cannot implement it.
+mod varkeywords_halder {
+    use crate::impl_::extract_argument::{DictVarkeywords, NoVarkeywords};
+
+    pub trait Sealed {}
+
+    impl Sealed for DictVarkeywords {}
+    impl Sealed for NoVarkeywords {}
+}
+
 /// A trait used to control whether to accept varkeywords in FunctionDescription::extract_argument_(method) functions.
-pub trait VarkeywordsHandler<'py> {
+pub trait VarkeywordsHandler<'py>: varkeywords_halder::Sealed {
     type Varkeywords: Default;
     fn handle_varkeyword(
         varkeywords: &mut Self::Varkeywords,
