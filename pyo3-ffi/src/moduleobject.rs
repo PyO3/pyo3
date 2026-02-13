@@ -61,6 +61,7 @@ pub struct PyModuleDef_Base {
     pub m_copy: *mut PyObject,
 }
 
+#[cfg(not(_Py_OPAQUE_PYOBJECT))]
 #[allow(
     clippy::declare_interior_mutable_const,
     reason = "contains atomic refcount on free-threaded builds"

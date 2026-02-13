@@ -1,4 +1,5 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
+#[cfg(not(_Py_OPAQUE_PYOBJECT))]
 #[cfg(Py_GIL_DISABLED)]
 use crate::refcount;
 #[cfg(Py_GIL_DISABLED)]
@@ -6,6 +7,7 @@ use crate::PyMutex;
 use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::mem;
 use std::ptr;
+#[cfg(not(_Py_OPAQUE_PYOBJECT))]
 #[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::{AtomicIsize, AtomicU32};
 
@@ -92,6 +94,7 @@ const _PyObject_MIN_ALIGNMENT: usize = 4;
 // not currently possible to use constant variables with repr(align()), see
 // https://github.com/rust-lang/rust/issues/52840
 
+#[cfg(not(_Py_OPAQUE_PYOBJECT))]
 #[cfg_attr(not(all(Py_3_15, Py_GIL_DISABLED)), repr(C))]
 #[cfg_attr(all(Py_3_15, Py_GIL_DISABLED), repr(C, align(4)))]
 #[derive(Debug)]
@@ -121,8 +124,10 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
+#[cfg(not(_Py_OPAQUE_PYOBJECT))]
 const _: () = assert!(std::mem::align_of::<PyObject>() >= _PyObject_MIN_ALIGNMENT);
 
+#[cfg(not(_Py_OPAQUE_PYOBJECT))]
 #[allow(
     clippy::declare_interior_mutable_const,
     reason = "contains atomic refcount on free-threaded builds"
@@ -157,10 +162,14 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_type: std::ptr::null_mut(),
 };
 
+#[cfg(_Py_OPAQUE_PYOBJECT)]
+opaque_struct!(pub PyObject);
+
 // skipped _Py_UNOWNED_TID
 
 // skipped _PyObject_CAST
 
+#[cfg(not(_Py_OPAQUE_PYOBJECT))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyVarObject {
@@ -171,6 +180,9 @@ pub struct PyVarObject {
     #[cfg(GraalPy)]
     pub _ob_size_graalpy: Py_ssize_t,
 }
+
+#[cfg(_Py_OPAQUE_PYOBJECT)]
+opaque_struct!(pub PyVarObject);
 
 // skipped private _PyVarObject_CAST
 
@@ -219,6 +231,16 @@ extern "C" {
     pub fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject;
 }
 
+#[cfg_attr(windows, link(name = "pythonXY"))]
+#[cfg(all(Py_LIMITED_API, Py_3_15))]
+extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPy_SIZE")]
+    pub fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t;
+    #[cfg_attr(PyPy, link_name = "PyPy_IS_TYPE")]
+    pub fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int;
+    // skipped Py_SET_SIZE
+}
+
 // skip _Py_TYPE compat shim
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -229,6 +251,7 @@ extern "C" {
     pub static mut PyBool_Type: PyTypeObject;
 }
 
+#[cfg(not(all(Py_LIMITED_API, Py_3_15)))]
 #[inline]
 pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
     #[cfg(not(GraalPy))]
@@ -241,6 +264,7 @@ pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
     _Py_SIZE(ob)
 }
 
+#[cfg(not(all(Py_LIMITED_API, Py_3_15)))]
 #[inline]
 pub unsafe fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
     (Py_TYPE(ob) == tp) as c_int
@@ -390,6 +414,9 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
+    dbg!(ob);
+    dbg!(Py_TYPE(ob));
+    dbg!(tp);
     (Py_IS_TYPE(ob, tp) != 0 || PyType_IsSubtype(Py_TYPE(ob), tp) != 0) as c_int
 }
 
