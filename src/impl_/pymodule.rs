@@ -5,6 +5,7 @@ use std::{
     ffi::CStr,
     marker::PhantomData,
     os::raw::{c_int, c_void},
+    sync::atomic::Ordering,
 };
 
 #[cfg(all(
@@ -20,7 +21,7 @@ use portable_atomic::AtomicI64;
     not(all(windows, Py_LIMITED_API, not(Py_3_10))),
     target_has_atomic = "64",
 ))]
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::AtomicI64;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
