@@ -121,7 +121,12 @@ def test_rust(session: nox.Session):
         # We need to pass the feature set to the test command
         # so that it can be used in the test code
         # (e.g. for `#[cfg(feature = "abi3-py37")]`)
-        if feature_set and "abi3" in feature_set and FREE_THREADED_BUILD and sys.version_info < (3, 15):
+        if (
+            feature_set
+            and "abi3" in feature_set
+            and FREE_THREADED_BUILD
+            and sys.version_info < (3, 15)
+        ):
             # free-threaded builds don't support abi3 yet
             continue
 
