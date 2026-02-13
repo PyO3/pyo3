@@ -73,7 +73,7 @@ where
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {
-            return Ok(extractor.to_vec());
+            return extractor.to_vec();
         }
 
         if obj.is_instance_of::<PyString>() {

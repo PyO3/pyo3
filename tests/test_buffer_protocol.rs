@@ -6,7 +6,7 @@ use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyBufferError;
 use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
+use pyo3::types::{IntoPyDict, PyBytes, PyDict};
 use std::ffi::CString;
 use std::ffi::{c_int, c_void};
 use std::ptr;
@@ -14,6 +14,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 mod test_utils;
+
+#[pyfunction]
+fn vec_u8_to_pybytes(py: Python<'_>, bytes: Vec<u8>) -> Bound<'_, PyBytes> {
+    PyBytes::new(py, &bytes)
+}
 
 #[pyclass]
 struct TestBufferClass {
@@ -92,6 +97,44 @@ fn test_buffer_referenced() {
     });
 
     assert!(drop_called.load(Ordering::Relaxed));
+}
+
+#[test]
+fn test_extract_vec_u8_from_buffer_exporter() {
+    let drop_called = Arc::new(AtomicBool::new(false));
+
+    Python::attach(|py| {
+        let instance = Py::new(
+            py,
+            TestBufferClass {
+                vec: vec![b'A', b'B', b'C'],
+                drop_called: drop_called.clone(),
+            },
+        )
+        .unwrap();
+        let f = wrap_pyfunction!(vec_u8_to_pybytes)(py).unwrap();
+        let env = PyDict::new(py);
+        env.set_item("ob", instance).unwrap();
+        env.set_item("f", f).unwrap();
+        py_assert!(py, *env, "f(ob) == b'ABC'");
+    });
+
+    assert!(drop_called.load(Ordering::Relaxed));
+}
+
+#[test]
+fn test_extract_vec_u8_falls_back_when_buffer_incompatible() {
+    Python::attach(|py| {
+        let array_mod = py.import("array").unwrap();
+        let ob = array_mod
+            .call_method1("array", ("I", vec![65u32, 66u32, 67u32]))
+            .unwrap();
+        let f = wrap_pyfunction!(vec_u8_to_pybytes)(py).unwrap();
+        let env = PyDict::new(py);
+        env.set_item("ob", ob).unwrap();
+        env.set_item("f", f).unwrap();
+        py_assert!(py, *env, "f(ob) == b'ABC'");
+    });
 }
 
 #[test]
