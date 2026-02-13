@@ -22,12 +22,41 @@ Modules now automatically allow use on free-threaded Python, unless they directl
 <summary><small>Click to expand</small></summary>
 
 `#[pyclass]` types which implement `Clone` used to also implement `FromPyObject` automatically.
-This behaviour is phased out and replaced by an explicit opt-in.
+This behavior is being phased out and replaced by an explicit opt-in, which will allow [better error messages and more user control](https://github.com/PyO3/pyo3/issues/5419).
 Affected types will by marked by a deprecation message.
+
 To migrate use either
 
-- `from_py_object` to keep the automatic derive, or
-- `skip_from_py_object` to accept the new behaviour
+- `#[pyclass(from_py_object)]` to keep the automatic derive, or
+- `#[pyclass(skip_from_py_object)]` to accept the new behavior.
+
+Before:
+
+```rust
+# #![allow(deprecated)]
+# use pyo3::prelude::*;
+#[pyclass]
+#[derive(Clone)]
+struct PyClass {}
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+// If the automatic implementation of `FromPyObject` is desired, opt in:
+#[pyclass(from_py_object)]
+#[derive(Clone)]
+struct PyClass {}
+
+// or if the `FromPyObject` implementation is not needed:
+#[pyclass(skip_from_py_object)]
+#[derive(Clone)]
+struct PyClassWithoutFromPyObject {}
+```
+
+The `#[pyclass(skip_from_py_object)]` option will eventually be deprecated and removed as it becomes the default behavior.
+
 </details>
 
 ### Deprecation of `Py<T>` constructors from raw pointer
@@ -44,7 +73,7 @@ These should be used instead.
 Before:
 
 ```rust
-#![allow(deprecated)]
+# #![allow(deprecated)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyNone;
 # Python::attach(|py| {
