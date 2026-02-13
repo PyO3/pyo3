@@ -11,7 +11,6 @@ use crate::params::is_forwarded_args;
 #[cfg(feature = "experimental-inspect")]
 use crate::py_expr::PyExpr;
 use crate::pyfunction::{PyFunctionWarning, WarningFactory};
-use crate::pyversions::is_abi3_before;
 use crate::utils::Ctx;
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
@@ -391,8 +390,9 @@ impl SelfType {
 /// Determines which CPython calling convention a given FnSpec uses.
 #[derive(Clone, Debug, Copy)]
 pub enum CallingConvention {
-    Noargs,   // METH_NOARGS
-    Varargs,  // METH_VARARGS | METH_KEYWORDS
+    Noargs,  // METH_NOARGS
+    Varargs, // METH_VARARGS | METH_KEYWORDS
+    #[allow(dead_code)]
     Fastcall, // METH_FASTCALL | METH_KEYWORDS (not compatible with `abi3` feature before 3.10)
 }
 
@@ -404,12 +404,16 @@ impl CallingConvention {
     pub fn from_signature(signature: &FunctionSignature<'_>) -> Self {
         if signature.python_signature.has_no_args() {
             Self::Noargs
-        } else if signature.python_signature.kwargs.is_none() && !is_abi3_before(3, 10) {
-            // For functions that accept **kwargs, always prefer varargs for now based on
-            // historical performance testing.
-            //
-            // FASTCALL not compatible with `abi3` before 3.10
-            Self::Fastcall
+
+        // FIXME: temporarily disabled to test effect of removing pyo3_build_config
+        // from `pyo3-macros-backend`, should restore this before merge.
+
+        // } else if signature.python_signature.kwargs.is_none() && !is_abi3_before(3, 10) {
+        //     // For functions that accept **kwargs, always prefer varargs for now based on
+        //     // historical performance testing.
+        //     //
+        //     // FASTCALL not compatible with `abi3` before 3.10
+        //     Self::Fastcall
         } else {
             Self::Varargs
         }

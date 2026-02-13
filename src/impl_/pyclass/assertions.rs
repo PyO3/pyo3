@@ -7,6 +7,18 @@ where
 {
 }
 
+pub const DICT_SUPPORTED: bool = cfg!(any(not(Py_LIMITED_API), Py_3_9));
+pub const DICT_UNSUPPORTED_ERROR: &str =
+    "`dict` requires Python >= 3.9 when using the `abi3` feature";
+
+pub const WEAKREF_SUPPORTED: bool = cfg!(any(not(Py_LIMITED_API), Py_3_9));
+pub const WEAKREF_UNSUPPORTED_ERROR: &str =
+    "`weakref` requires Python >= 3.9 when using the `abi3` feature";
+
+pub const IMMUTABLE_TYPE_SUPPORTED: bool = cfg!(any(all(Py_3_10, not(Py_LIMITED_API)), Py_3_14));
+pub const IMMUTABLE_TYPE_UNSUPPORTED_ERROR: &str =
+    "`immutable_type` requires Python >= 3.10 or >= 3.14 (ABI3)";
+
 mod tests {
     #[cfg(feature = "macros")]
     #[test]
