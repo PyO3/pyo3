@@ -40,7 +40,7 @@ const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
 };
 
 /// Maximum Python version that can be used as minimum required Python version with abi3.
-pub(crate) const ABI3_MAX_MINOR: u8 = 14;
+pub(crate) const ABI3_MAX_MINOR: u8 = 15;
 
 #[cfg(test)]
 thread_local! {
@@ -190,8 +190,11 @@ impl InterpreterConfig {
         }
 
         // If Py_GIL_DISABLED is set, do not build with limited API support
-        if self.abi3 && !self.is_free_threaded() {
+        if self.abi3 && !(self.is_free_threaded()) {
             out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
+            if self.version.minor >= 15 {
+                out.push("cargo:rustc-cfg=_Py_OPAQUE_PYOBJECT".to_owned());
+            }
         }
 
         for flag in &self.build_flags.0 {
@@ -3201,6 +3204,31 @@ mod tests {
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=PyPy".to_owned(),
                 "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
+            ]
+        );
+
+        let interpreter_config = InterpreterConfig {
+            implementation: PythonImplementation::CPython,
+            version: PythonVersion {
+                major: 3,
+                minor: 15,
+            },
+            ..interpreter_config
+        };
+        assert_eq!(
+            interpreter_config.build_script_outputs(),
+            [
+                "cargo:rustc-cfg=Py_3_7".to_owned(),
+                "cargo:rustc-cfg=Py_3_8".to_owned(),
+                "cargo:rustc-cfg=Py_3_9".to_owned(),
+                "cargo:rustc-cfg=Py_3_10".to_owned(),
+                "cargo:rustc-cfg=Py_3_11".to_owned(),
+                "cargo:rustc-cfg=Py_3_12".to_owned(),
+                "cargo:rustc-cfg=Py_3_13".to_owned(),
+                "cargo:rustc-cfg=Py_3_14".to_owned(),
+                "cargo:rustc-cfg=Py_3_15".to_owned(),
+                "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
+                "cargo:rustc-cfg=_Py_OPAQUE_PYOBJECT".to_owned(),
             ]
         );
     }

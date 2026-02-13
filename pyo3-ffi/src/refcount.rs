@@ -1,6 +1,6 @@
 use crate::pyport::Py_ssize_t;
 use crate::PyObject;
-#[cfg(py_sys_config = "Py_REF_DEBUG")]
+#[cfg(all(not(Py_LIMITED_API), py_sys_config = "Py_REF_DEBUG"))]
 use std::ffi::c_char;
 #[cfg(Py_3_12)]
 use std::ffi::c_int;
@@ -11,7 +11,7 @@ use std::ffi::c_uint;
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
 use std::ffi::c_ulong;
 use std::ptr;
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
 use std::sync::atomic::Ordering::Relaxed;
 
 #[cfg(all(Py_3_14, not(Py_3_15)))]
@@ -116,6 +116,7 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     }
 }
 
+#[cfg(not(_Py_OPAQUE_PYOBJECT))]
 #[cfg(Py_3_12)]
 #[inline(always)]
 unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {

@@ -35,6 +35,7 @@ use target_lexicon::OperatingSystem;
 /// | ---- | ----------- |
 /// | `#[cfg(Py_3_7)]`, `#[cfg(Py_3_8)]`, `#[cfg(Py_3_9)]`, `#[cfg(Py_3_10)]` | These attributes mark code only for a given Python version and up. For example, `#[cfg(Py_3_7)]` marks code which can run on Python 3.7 **and newer**. |
 /// | `#[cfg(Py_LIMITED_API)]` | This marks code which is run when compiling with PyO3's `abi3` feature enabled. |
+/// | `#[cfg(Py_GIL_DISABLED)]` | This marks code which is run on the free-threaded interpreter. |
 /// | `#[cfg(PyPy)]` | This marks code which is run when compiling for PyPy. |
 /// | `#[cfg(GraalPy)]` | This marks code which is run when compiling for GraalPy. |
 ///
@@ -253,6 +254,7 @@ pub fn print_expected_cfgs() {
 
     println!("cargo:rustc-check-cfg=cfg(Py_LIMITED_API)");
     println!("cargo:rustc-check-cfg=cfg(Py_GIL_DISABLED)");
+    println!("cargo:rustc-check-cfg=cfg(_Py_OPAQUE_PYOBJECT)");
     println!("cargo:rustc-check-cfg=cfg(PyPy)");
     println!("cargo:rustc-check-cfg=cfg(GraalPy)");
     println!("cargo:rustc-check-cfg=cfg(py_sys_config, values(\"Py_DEBUG\", \"Py_REF_DEBUG\", \"Py_TRACE_REFS\", \"COUNT_ALLOCS\"))");
