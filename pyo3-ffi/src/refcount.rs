@@ -1,6 +1,6 @@
 use crate::pyport::Py_ssize_t;
 use crate::PyObject;
-#[cfg(py_sys_config = "Py_REF_DEBUG")]
+#[cfg(all(not(Py_LIMITED_API), py_sys_config = "Py_REF_DEBUG"))]
 use std::ffi::c_char;
 #[cfg(Py_3_12)]
 use std::ffi::c_int;
