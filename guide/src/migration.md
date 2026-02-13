@@ -52,7 +52,7 @@ struct PyClass {}
 // or if the `FromPyObject` implementation is not needed:
 #[pyclass(skip_from_py_object)]
 #[derive(Clone)]
-struct PyClass {}
+struct PyClassWithoutFromPyObject {}
 ```
 
 The `#[pyclass(skip_from_py_object)]` option will eventually be deprecated and removed as it becomes the default behavior.
