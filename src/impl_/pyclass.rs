@@ -1608,19 +1608,15 @@ mod tests {
         // SAFETY: def.doc originated from a CStr
         assert_eq!(unsafe { CStr::from_ptr(def.doc) }, c"My field doc");
         assert_eq!(def.type_code, ffi::Py_T_OBJECT_EX);
-        #[cfg(not(_Py_OPAQUE_PYOBJECT))]
-        {
-            #[allow(irrefutable_let_patterns)]
-            let PyObjectOffset::Absolute(contents_offset) =
-                <MyClass as PyClassImpl>::Layout::CONTENTS_OFFSET
-            else {
-                panic!()
-            };
-            assert_eq!(
-                def.offset,
-                contents_offset + FIELD_OFFSET as ffi::Py_ssize_t
-            );
-        }
+        #[allow(irrefutable_let_patterns)]
+        let contents_offset = match <MyClass as PyClassImpl>::Layout::CONTENTS_OFFSET {
+            PyObjectOffset::Absolute(contents_offset) => contents_offset,
+            PyObjectOffset::Relative(contents_offset) => contents_offset,
+        };
+        assert_eq!(
+            def.offset,
+            contents_offset + FIELD_OFFSET as ffi::Py_ssize_t
+        );
         assert_eq!(def.flags & ffi::Py_READONLY, ffi::Py_READONLY);
     }
 
