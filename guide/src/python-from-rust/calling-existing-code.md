@@ -154,6 +154,7 @@ mod foo {
     }
 }
 
+# #[cfg(not(_Py_OPAQUE_PYOBJECT))]
 fn main() -> PyResult<()> {
     pyo3::append_to_inittab!(foo);
     Python::attach(|py| Python::run(py, c"import foo; foo.add_one(6)", None, None))
