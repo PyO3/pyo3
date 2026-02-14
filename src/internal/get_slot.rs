@@ -51,6 +51,7 @@ pub(crate) unsafe fn get_slot<const S: c_int>(
 where
     Slot<S>: GetSlotImpl,
 {
+    // SAFETY: caller guarantees
     unsafe {
         slot.get_slot(
             ty,
@@ -95,7 +96,8 @@ macro_rules! impl_slots {
                 ) -> Self::Type {
                     #[cfg(not(Py_LIMITED_API))]
                     {
-                        unsafe {(*ty).$field }
+                        // SAFETY: caller guarantees
+                        unsafe { (*ty).$field }
                     }
 
                     #[cfg(Py_LIMITED_API)]
@@ -109,6 +111,7 @@ macro_rules! impl_slots {
                             // of the type objects for these historical versions.
                             if !is_runtime_3_10 && unsafe {ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE)} == 0
                             {
+                                // SAFETY: see above comment.
                                 return unsafe {(*ty.cast::<PyTypeObject39Snapshot>()).$field};
                             }
                         }

@@ -40,22 +40,26 @@ pub(crate) trait FfiPtrExt: Sealed {
 impl FfiPtrExt for *mut ffi::PyObject {
     #[inline]
     unsafe fn assume_owned_or_err(self, py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+        // SAFETY: Caller guarantees.
         unsafe { Bound::from_owned_ptr_or_err(py, self) }
     }
 
     #[inline]
     unsafe fn assume_owned_or_opt(self, py: Python<'_>) -> Option<Bound<'_, PyAny>> {
+        // SAFETY: Caller guarantees.
         unsafe { Bound::from_owned_ptr_or_opt(py, self) }
     }
 
     #[inline]
     #[track_caller]
     unsafe fn assume_owned(self, py: Python<'_>) -> Bound<'_, PyAny> {
+        // SAFETY: Caller guarantees.
         unsafe { Bound::from_owned_ptr(py, self) }
     }
 
     #[inline]
     unsafe fn assume_owned_unchecked(self, py: Python<'_>) -> Bound<'_, PyAny> {
+        // SAFETY: Caller guarantees.
         unsafe { Bound::from_owned_ptr_unchecked(py, self) }
     }
 
@@ -64,22 +68,26 @@ impl FfiPtrExt for *mut ffi::PyObject {
         self,
         py: Python<'_>,
     ) -> PyResult<Borrowed<'a, '_, PyAny>> {
+        // SAFETY: Caller guarantees.
         unsafe { Borrowed::from_ptr_or_err(py, self) }
     }
 
     #[inline]
     unsafe fn assume_borrowed_or_opt<'a>(self, py: Python<'_>) -> Option<Borrowed<'a, '_, PyAny>> {
+        // SAFETY: Caller guarantees.
         unsafe { Borrowed::from_ptr_or_opt(py, self) }
     }
 
     #[inline]
     #[track_caller]
     unsafe fn assume_borrowed<'a>(self, py: Python<'_>) -> Borrowed<'a, '_, PyAny> {
+        // SAFETY: Caller guarantees.
         unsafe { Borrowed::from_ptr(py, self) }
     }
 
     #[inline]
     unsafe fn assume_borrowed_unchecked<'a>(self, py: Python<'_>) -> Borrowed<'a, '_, PyAny> {
+        // SAFETY: Caller guarantees.
         unsafe { Borrowed::from_ptr_unchecked(py, self) }
     }
 }
