@@ -2,6 +2,7 @@
 //!
 //! Tracking issue: <https://github.com/PyO3/pyo3/issues/2454>.
 
+use crate::impl_::introspection::{escape_json_string, escaped_json_string_len};
 use std::fmt::{self, Display, Write};
 
 pub mod types;
@@ -163,7 +164,7 @@ pub const fn serialize_for_introspection(expr: &PyStaticExpr, mut output: &mut [
                     b"{\"type\":\"constant\",\"kind\":\"str\",\"value\":",
                     output,
                 );
-                output = write_json_string_and_move_forward(value.as_bytes(), output);
+                output = write_json_string_and_move_forward(value, output);
                 output = write_slice_and_move_forward(b"}", output);
             }
             PyStaticConstant::Ellipsis => {
@@ -230,7 +231,7 @@ pub const fn serialized_len_for_introspection(expr: &PyStaticExpr) -> usize {
             PyStaticConstant::Bool(value) => 42 + if *value { 4 } else { 5 },
             PyStaticConstant::Int(value) => 43 + value.len(),
             PyStaticConstant::Float(value) => 45 + value.len(),
-            PyStaticConstant::Str(value) => 41 + serialized_json_string_len(value),
+            PyStaticConstant::Str(value) => 43 + escaped_json_string_len(value),
             PyStaticConstant::Ellipsis => 37,
         },
         PyStaticExpr::Name { id } => 23 + id.len(),
@@ -353,87 +354,12 @@ const fn write_slice_and_move_forward<'a>(value: &[u8], output: &'a mut [u8]) ->
     output.split_at_mut(value.len()).1
 }
 
-const fn write_json_string_and_move_forward<'a>(
-    value: &[u8],
-    output: &'a mut [u8],
-) -> &'a mut [u8] {
-    let mut input_i = 0;
-    let mut output_i = 0;
-    output[output_i] = b'"';
-    output_i += 1;
-    while input_i < value.len() {
-        match value[input_i] {
-            b'\\' => {
-                output[output_i] = b'\\';
-                output_i += 1;
-                output[output_i] = b'\\';
-                output_i += 1;
-            }
-            b'"' => {
-                output[output_i] = b'\\';
-                output_i += 1;
-                output[output_i] = b'"';
-                output_i += 1;
-            }
-            0x08 => {
-                output[output_i] = b'\\';
-                output_i += 1;
-                output[output_i] = b'b';
-                output_i += 1;
-            }
-            0x0C => {
-                output[output_i] = b'\\';
-                output_i += 1;
-                output[output_i] = b'f';
-                output_i += 1;
-            }
-            b'\n' => {
-                output[output_i] = b'\\';
-                output_i += 1;
-                output[output_i] = b'n';
-                output_i += 1;
-            }
-            b'\r' => {
-                output[output_i] = b'\\';
-                output_i += 1;
-                output[output_i] = b'r';
-                output_i += 1;
-            }
-            b'\t' => {
-                output[output_i] = b'\\';
-                output_i += 1;
-                output[output_i] = b't';
-                output_i += 1;
-            }
-            c @ 0..32 => {
-                output[output_i] = b'\\';
-                output_i += 1;
-                output[output_i] = b'u';
-                output_i += 1;
-                output[output_i] = b'0';
-                output_i += 1;
-                output[output_i] = b'0';
-                output_i += 1;
-                output[output_i] = b'0' + (c / 16);
-                output_i += 1;
-                let remainer = c % 16;
-                output[output_i] = if remainer >= 10 {
-                    b'A' + remainer - 10
-                } else {
-                    b'0' + remainer
-                };
-                output_i += 1;
-            }
-            c => {
-                output[output_i] = c;
-                output_i += 1;
-            }
-        }
-        input_i += 1;
-    }
-    output[output_i] = b'"';
-    output_i += 1;
-    output.split_at_mut(output_i).1
+const fn write_json_string_and_move_forward<'a>(value: &str, output: &'a mut [u8]) -> &'a mut [u8] {
+    output[0] = b'"';
+    let output = output.split_at_mut(1).1;
+    let written = escape_json_string(value, output);
+    output[written] = b'"';
+    output.split_at_mut(written + 1).1
 }
 
 const fn write_expr_and_move_forward<'a>(
@@ -471,21 +397,6 @@ const fn serialized_container_len_for_introspection(elts: &[PyStaticExpr]) -> us
             len += 1;
         }
         len += serialized_len_for_introspection(&elts[i]);
-        i += 1;
-    }
-    len
-}
-
-const fn serialized_json_string_len(value: &str) -> usize {
-    let value = value.as_bytes();
-    let mut len = 2;
-    let mut i = 0;
-    while i < value.len() {
-        len += match value[i] {
-            b'\\' | b'"' | 0x08 | 0x0C | b'\n' | b'\r' | b'\t' => 2,
-            0..32 => 6,
-            _ => 1,
-        };
         i += 1;
     }
     len

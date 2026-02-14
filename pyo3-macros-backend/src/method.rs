@@ -894,10 +894,10 @@ impl<'a> FnSpec<'a> {
     pub fn get_methoddef(
         &self,
         wrapper: impl ToTokens,
-        doc: &PythonDoc,
+        doc: Option<&PythonDoc>,
         convention: CallingConvention,
         ctx: &Ctx,
-    ) -> TokenStream {
+    ) -> Result<TokenStream> {
         let Ctx { pyo3_path, .. } = ctx;
         let python_name = self.null_terminated_python_name();
         let flags = match self.tp {
@@ -912,21 +912,26 @@ impl<'a> FnSpec<'a> {
             }
             CallingConvention::Varargs => Ident::new("cfunction_with_keywords", Span::call_site()),
         };
-        quote! {
+        let doc = if let Some(doc) = doc {
+            doc.to_cstr_stream(ctx)?
+        } else {
+            c"".to_token_stream()
+        };
+        Ok(quote! {
             #pyo3_path::impl_::pymethods::PyMethodDef::#trampoline(
                 #python_name,
                 #pyo3_path::impl_::trampoline::get_trampoline_function!(#trampoline, #wrapper),
                 #doc,
             ) #flags
-        }
+        })
     }
 
     /// Forwards to [utils::get_doc] with the text signature of this spec.
-    pub fn get_doc(&self, attrs: &[syn::Attribute], ctx: &Ctx) -> syn::Result<PythonDoc> {
+    pub fn get_doc(&self, attrs: &[syn::Attribute]) -> Option<PythonDoc> {
         let text_signature = self
             .text_signature_call_signature()
             .map(|sig| format!("{}{}", self.python_name, sig));
-        utils::get_doc(attrs, text_signature, ctx)
+        utils::get_doc(attrs, text_signature)
     }
 
     /// Creates the parenthesised arguments list for `__text_signature__` snippet based on this spec's signature

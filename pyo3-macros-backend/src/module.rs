@@ -18,7 +18,7 @@ use crate::{
     utils::{has_attribute, has_attribute_with_namespace, Ctx, IdentOrStr, PythonDoc},
 };
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{quote, ToTokens};
 use std::ffi::CString;
 use syn::LitCStr;
 use syn::{
@@ -116,7 +116,7 @@ pub fn pymodule_module_impl(
     options.take_pyo3_options(attrs)?;
     let ctx = &Ctx::new(&options.krate, None);
     let Ctx { pyo3_path, .. } = ctx;
-    let doc = get_doc(attrs, None, ctx)?;
+    let doc = get_doc(attrs, None);
     let name = options
         .name
         .map_or_else(|| ident.unraw(), |name| name.value.0);
@@ -319,6 +319,7 @@ pub fn pymodule_module_impl(
                         item.ident.unraw().to_string(),
                         PyExpr::constant_from_expression(&item.expr),
                         (*item.ty).clone(),
+                        get_doc(&item.attrs, None).as_ref(),
                         true,
                     );
                     introspection_chunks.push(quote! {
@@ -380,6 +381,7 @@ pub fn pymodule_module_impl(
         &name.to_string(),
         &module_items,
         &module_items_cfg_attrs,
+        doc.as_ref(),
         pymodule_init.is_some(),
     );
     #[cfg(not(feature = "experimental-inspect"))]
@@ -398,8 +400,8 @@ pub fn pymodule_module_impl(
         quote! { __pyo3_pymodule },
         options.submodule.is_some(),
         gil_used,
-        doc,
-    );
+        doc.as_ref(),
+    )?;
 
     let module_consts_names = module_consts.iter().map(|i| i.unraw().to_string());
 
@@ -447,7 +449,7 @@ pub fn pymodule_function_impl(
         .name
         .map_or_else(|| ident.unraw(), |name| name.value.0);
     let vis = &function.vis;
-    let doc = get_doc(&function.attrs, None, ctx)?;
+    let doc = get_doc(&function.attrs, None);
 
     let gil_used = options.gil_used.is_some_and(|op| op.value.value);
 
@@ -458,12 +460,18 @@ pub fn pymodule_function_impl(
         quote! { ModuleExec::__pyo3_module_exec },
         false,
         gil_used,
-        doc,
-    );
+        doc.as_ref(),
+    )?;
 
     #[cfg(feature = "experimental-inspect")]
-    let introspection =
-        module_introspection_code(pyo3_path, &name.unraw().to_string(), &[], &[], true);
+    let introspection = module_introspection_code(
+        pyo3_path,
+        &name.unraw().to_string(),
+        &[],
+        &[],
+        doc.as_ref(),
+        true,
+    );
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
     #[cfg(feature = "experimental-inspect")]
@@ -507,11 +515,16 @@ fn module_initialization(
     module_exec: TokenStream,
     is_submodule: bool,
     gil_used: bool,
-    doc: PythonDoc,
-) -> TokenStream {
+    doc: Option<&PythonDoc>,
+) -> Result<TokenStream> {
     let Ctx { pyo3_path, .. } = ctx;
     let pyinit_symbol = format!("PyInit_{name}");
     let pyo3_name = LitCStr::new(&CString::new(full_name).unwrap(), Span::call_site());
+    let doc = if let Some(doc) = doc {
+        doc.to_cstr_stream(ctx)?
+    } else {
+        c"".into_token_stream()
+    };
 
     let mut result = quote! {
         #[doc(hidden)]
@@ -550,7 +563,7 @@ fn module_initialization(
             }
         });
     }
-    result
+    Ok(result)
 }
 
 /// Finds and takes care of the #[pyfn(...)] in `#[pymodule]`

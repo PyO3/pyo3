@@ -262,14 +262,14 @@ pub fn gen_py_method(
         }
         // ordinary functions (with some specialties)
         (_, FnType::Fn(_) | FnType::FnClass(_) | FnType::FnStatic) => GeneratedPyMethod::Method(
-            impl_py_method_def(cls, spec, &spec.get_doc(meth_attrs, ctx)?, ctx)?,
+            impl_py_method_def(cls, spec, spec.get_doc(meth_attrs).as_ref(), ctx)?,
         ),
         (_, FnType::Getter(self_type)) => GeneratedPyMethod::Method(impl_py_getter_def(
             cls,
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs, ctx)?,
+                doc: spec.get_doc(meth_attrs),
             },
             ctx,
         )?),
@@ -278,7 +278,7 @@ pub fn gen_py_method(
             PropertyType::Function {
                 self_type,
                 spec,
-                doc: spec.get_doc(meth_attrs, ctx)?,
+                doc: spec.get_doc(meth_attrs),
             },
             ctx,
         )?),
@@ -286,7 +286,7 @@ pub fn gen_py_method(
             cls,
             self_type,
             spec,
-            spec.get_doc(meth_attrs, ctx)?,
+            spec.get_doc(meth_attrs),
             ctx,
         )?),
         (_, FnType::FnModule(_)) => {
@@ -350,7 +350,7 @@ fn ensure_no_forbidden_protocol_attributes(
 pub fn impl_py_method_def(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
-    doc: &PythonDoc,
+    doc: Option<&PythonDoc>,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
@@ -363,7 +363,7 @@ pub fn impl_py_method_def(
         doc,
         calling_convention,
         ctx,
-    );
+    )?;
     let method_def = quote! {
         #pyo3_path::impl_::pymethods::PyMethodDefType::Method(#methoddef)
     };
@@ -581,7 +581,7 @@ pub fn impl_py_setter_def(
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name()?;
-    let doc = property_type.doc(ctx)?;
+    let doc = property_type.doc();
     let mut holders = Holders::new();
     let setter_impl = match property_type {
         PropertyType::Descriptor {
@@ -711,6 +711,7 @@ pub fn impl_py_setter_def(
         }
     };
 
+    let doc = doc_to_optional_cstr(doc.as_deref(), ctx)?;
     let method_def = quote! {
         #cfg_attrs
         #pyo3_path::impl_::pymethods::PyMethodDefType::Setter(
@@ -760,7 +761,7 @@ pub fn impl_py_getter_def(
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = property_type.null_terminated_python_name()?;
-    let doc = property_type.doc(ctx)?;
+    let doc = property_type.doc();
 
     let mut cfg_attrs = TokenStream::new();
     if let PropertyType::Descriptor { field, .. } = &property_type {
@@ -785,6 +786,7 @@ pub fn impl_py_getter_def(
                 syn::Index::from(field_index).to_token_stream()
             };
 
+            let doc = doc_to_optional_cstr(doc.as_deref(), ctx)?;
             let generator = quote_spanned! { ty.span() =>
                 GENERATOR.generate(#python_name, #doc)
             };
@@ -839,6 +841,7 @@ pub fn impl_py_getter_def(
                 }
             };
 
+            let doc = doc_to_optional_cstr(doc.as_deref(), ctx)?;
             let method_def = quote! {
                 #cfg_attrs
                 #pyo3_path::impl_::pymethods::PyMethodDefType::Getter(
@@ -862,7 +865,7 @@ pub fn impl_py_deleter_def(
     cls: &syn::Type,
     self_type: &SelfType,
     spec: &FnSpec<'_>,
-    doc: PythonDoc,
+    doc: Option<PythonDoc>,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
@@ -872,6 +875,7 @@ pub fn impl_py_deleter_def(
     let wrapper_ident = format_ident!("__pymethod_delete_{}__", spec.name);
     let warnings = spec.warnings.build_py_warning(ctx);
     let init_holders = holders.init_holders(ctx);
+    let doc = doc_to_optional_cstr(doc.as_ref(), ctx)?;
     let associated_method = quote! {
         unsafe fn #wrapper_ident(
             py: #pyo3_path::Python<'_>,
@@ -944,7 +948,7 @@ pub enum PropertyType<'a> {
     Function {
         self_type: &'a SelfType,
         spec: &'a FnSpec<'a>,
-        doc: PythonDoc,
+        doc: Option<PythonDoc>,
     },
 }
 
@@ -965,13 +969,13 @@ impl PropertyType<'_> {
         }
     }
 
-    fn doc(&self, ctx: &Ctx) -> Result<Cow<'_, PythonDoc>> {
-        match self {
+    fn doc(&self) -> Option<Cow<'_, PythonDoc>> {
+        Some(match self {
             PropertyType::Descriptor { field, .. } => {
-                utils::get_doc(&field.attrs, None, ctx).map(Cow::Owned)
+                Cow::Owned(utils::get_doc(&field.attrs, None)?)
             }
-            PropertyType::Function { doc, .. } => Ok(Cow::Borrowed(doc)),
-        }
+            PropertyType::Function { doc, .. } => Cow::Borrowed(doc.as_ref()?),
+        })
     }
 }
 
@@ -1771,4 +1775,13 @@ pub fn field_python_name(
         name = utils::apply_renaming_rule(rule, &name);
     }
     Ok(name)
+}
+
+fn doc_to_optional_cstr(doc: Option<&PythonDoc>, ctx: &Ctx) -> Result<TokenStream> {
+    Ok(if let Some(doc) = doc {
+        let doc = doc.to_cstr_stream(ctx)?;
+        quote!(::std::option::Option::Some(#doc))
+    } else {
+        quote!(::std::option::Option::None)
+    })
 }

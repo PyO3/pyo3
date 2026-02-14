@@ -19,6 +19,7 @@ mod pyfunctions;
 mod sequence;
 mod subclassing;
 
+#[doc = include_str!("../MODULE_DOC.md")]
 #[pymodule]
 mod pyo3_pytests {
     use super::*;
