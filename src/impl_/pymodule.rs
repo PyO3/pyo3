@@ -45,6 +45,11 @@ use crate::{ffi_ptr_ext::FfiPtrExt, PyErr};
 pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
+    #[cfg_attr(not(Py_3_15), allow(dead_code))]
+    name: &'static CStr,
+    #[cfg_attr(not(Py_3_15), allow(dead_code))]
+    doc: &'static CStr,
+    slots: &'static PyModuleSlots,
     /// Interpreter ID where module was initialized (not applicable on PyPy).
     #[cfg(all(
         not(any(PyPy, GraalPy)),
@@ -60,14 +65,15 @@ unsafe impl Sync for ModuleDef {}
 
 impl ModuleDef {
     /// Make new module definition with given module name.
-    pub const fn new<const N: usize>(
+    pub const fn new(
         name: &'static CStr,
         doc: &'static CStr,
-        // TODO: it might be nice to make this unsized and not need the
-        // const N generic parameter, however that might need unsized return values
-        // or other messy hacks.
-        slots: &'static PyModuleSlots<N>,
+        slots: &'static PyModuleSlots,
+        slots_with_no_name_or_doc: &'static PyModuleSlots,
     ) -> Self {
+        // This is only used in PyO3 for append_to_inittab on Python 3.15 and newer.
+        // There could also be other tools that need the legacy init hook.
+        // Opaque PyObject builds won't be able to use this.
         #[allow(clippy::declare_interior_mutable_const)]
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
             m_base: ffi::PyModuleDef_HEAD_INIT,
@@ -86,12 +92,15 @@ impl ModuleDef {
             m_doc: doc.as_ptr(),
             // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
             // but that requires mut ptr deref on MSRV.
-            m_slots: slots.0.get() as _,
+            m_slots: slots_with_no_name_or_doc.0.get() as _,
             ..INIT
         });
 
         ModuleDef {
             ffi_def,
+            name,
+            doc,
+            slots,
             // -1 is never expected to be a valid interpreter ID
             #[cfg(all(
                 not(any(PyPy, GraalPy)),
@@ -104,7 +113,6 @@ impl ModuleDef {
     }
 
     pub fn init_multi_phase(&'static self) -> *mut ffi::PyObject {
-        // SAFETY: `ffi_def` is correctly initialized in `new()`
         unsafe { ffi::PyModuleDef_Init(self.ffi_def.get()) }
     }
 
@@ -157,47 +165,92 @@ impl ModuleDef {
         static SIMPLE_NAMESPACE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
         let simple_ns = SIMPLE_NAMESPACE.import(py, "types", "SimpleNamespace")?;
 
-        let ffi_def = self.ffi_def.get();
+        #[cfg(not(Py_3_15))]
+        {
+            let ffi_def = self.ffi_def.get();
 
-        let name = unsafe { CStr::from_ptr((*ffi_def).m_name).to_str()? }.to_string();
-        let kwargs = PyDict::new(py);
-        kwargs.set_item("name", name)?;
-        let spec = simple_ns.call((), Some(&kwargs))?;
+            let name = unsafe { CStr::from_ptr((*ffi_def).m_name).to_str()? }.to_string();
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("name", name)?;
+            let spec = simple_ns.call((), Some(&kwargs))?;
 
-        self.module
-            .get_or_try_init(py, || {
-                let def = self.ffi_def.get();
-                let module = unsafe {
-                    ffi::PyModule_FromDefAndSpec(def, spec.as_ptr()).assume_owned_or_err(py)?
-                }
-                .cast_into()?;
-                if unsafe { ffi::PyModule_ExecDef(module.as_ptr(), def) } != 0 {
-                    return Err(PyErr::fetch(py));
-                }
-                Ok(module.unbind())
-            })
-            .map(|py_module| py_module.clone_ref(py))
+            self.module
+                .get_or_try_init(py, || {
+                    let def = self.ffi_def.get();
+                    let module = unsafe {
+                        ffi::PyModule_FromDefAndSpec(def, spec.as_ptr()).assume_owned_or_err(py)?
+                    }
+                    .cast_into()?;
+                    if unsafe { ffi::PyModule_ExecDef(module.as_ptr(), def) } != 0 {
+                        return Err(PyErr::fetch(py));
+                    }
+                    Ok(module.unbind())
+                })
+                .map(|py_module| py_module.clone_ref(py))
+        }
+
+        #[cfg(Py_3_15)]
+        {
+            let name = self.name;
+            let doc = self.doc;
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("name", name)?;
+            let spec = simple_ns.call((), Some(&kwargs))?;
+
+            self.module
+                .get_or_try_init(py, || {
+                    let slots = self.get_slots();
+                    let module = unsafe { ffi::PyModule_FromSlotsAndSpec(slots, spec.as_ptr()) };
+                    if unsafe { ffi::PyModule_SetDocString(module, doc.as_ptr()) } != 0 {
+                        return Err(PyErr::fetch(py));
+                    }
+                    let module = unsafe { module.assume_owned_or_err(py)? }.cast_into()?;
+                    if unsafe { ffi::PyModule_Exec(module.as_ptr()) } != 0 {
+                        return Err(PyErr::fetch(py));
+                    }
+                    Ok(module.unbind())
+                })
+                .map(|py_module| py_module.clone_ref(py))
+        }
+    }
+    pub fn get_slots(&'static self) -> *mut ffi::PyModuleDef_Slot {
+        self.slots.0.get() as *mut ffi::PyModuleDef_Slot
     }
 }
 
 /// Type of the exec slot used to initialise module contents
 pub type ModuleExecSlot = unsafe extern "C" fn(*mut ffi::PyObject) -> c_int;
 
+const MAX_SLOTS: usize =
+    // Py_mod_exec
+    1 +
+    // Py_mod_gil
+    cfg!(Py_3_13) as usize +
+    // Py_mod_name, Py_mod_doc, and Py_mod_abi
+    3 * (cfg!(Py_3_15) as usize);
+const MAX_SLOTS_WITH_TRAILING_NULL: usize = MAX_SLOTS + 1;
+
 /// Builder to create `PyModuleSlots`. The size of the number of slots desired must
 /// be known up front, and N needs to be at least one greater than the number of
 /// actual slots pushed due to the need to have a zeroed element on the end.
-pub struct PyModuleSlotsBuilder<const N: usize> {
+pub struct PyModuleSlotsBuilder {
     // values (initially all zeroed)
-    values: [ffi::PyModuleDef_Slot; N],
+    values: [ffi::PyModuleDef_Slot; MAX_SLOTS_WITH_TRAILING_NULL],
     // current length
     len: usize,
 }
 
-impl<const N: usize> PyModuleSlotsBuilder<N> {
+// note that macros cannot use conditional compilation,
+// so all implementations below must be available in all
+// Python versions
+// By handling it here we can avoid conditional
+// compilation within the macros; they can always emit
+// e.g. a `.with_gil_used()` call.
+impl PyModuleSlotsBuilder {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
-            values: [unsafe { std::mem::zeroed() }; N],
+            values: [unsafe { std::mem::zeroed() }; MAX_SLOTS_WITH_TRAILING_NULL],
             len: 0,
         }
     }
@@ -223,28 +276,62 @@ impl<const N: usize> PyModuleSlotsBuilder<N> {
         {
             // Silence unused variable warning
             let _ = gil_used;
-
-            // Py_mod_gil didn't exist before 3.13, can just make
-            // this function a noop.
-            //
-            // By handling it here we can avoid conditional
-            // compilation within the macros; they can always emit
-            // a `.with_gil_used()` call.
             self
         }
     }
 
-    pub const fn build(self) -> PyModuleSlots<N> {
-        // Required to guarantee there's still a zeroed element
-        // at the end
-        assert!(
-            self.len < N,
-            "N must be greater than the number of slots pushed"
-        );
+    pub const fn with_name(self, name: &'static CStr) -> Self {
+        #[cfg(Py_3_15)]
+        {
+            self.push(ffi::Py_mod_name, name.as_ptr() as *mut c_void)
+        }
+
+        #[cfg(not(Py_3_15))]
+        {
+            // Silence unused variable warning
+            let _ = name;
+            self
+        }
+    }
+
+    pub const fn with_abi_info(self) -> Self {
+        #[cfg(Py_3_15)]
+        {
+            ffi::PyABIInfo_VAR!(ABI_INFO);
+            self.push(ffi::Py_mod_abi, std::ptr::addr_of_mut!(ABI_INFO).cast())
+        }
+
+        #[cfg(not(Py_3_15))]
+        {
+            self
+        }
+    }
+
+    pub const fn with_doc(self, doc: &'static CStr) -> Self {
+        #[cfg(Py_3_15)]
+        {
+            self.push(ffi::Py_mod_doc, doc.as_ptr() as *mut c_void)
+        }
+
+        #[cfg(not(Py_3_15))]
+        {
+            // Silence unused variable warning
+            let _ = doc;
+            self
+        }
+    }
+
+    pub const fn build(self) -> PyModuleSlots {
         PyModuleSlots(UnsafeCell::new(self.values))
     }
 
     const fn push(mut self, slot: c_int, value: *mut c_void) -> Self {
+        // Required to guarantee there's still a zeroed element
+        // at the end
+        assert!(
+            self.len < MAX_SLOTS,
+            "Cannot add more than MAX_SLOTS slots to a PyModuleSlots",
+        );
         self.values[self.len] = ffi::PyModuleDef_Slot { slot, value };
         self.len += 1;
         self
@@ -252,13 +339,13 @@ impl<const N: usize> PyModuleSlotsBuilder<N> {
 }
 
 /// Wrapper to safely store module slots, to be used in a `ModuleDef`.
-pub struct PyModuleSlots<const N: usize>(UnsafeCell<[ffi::PyModuleDef_Slot; N]>);
+pub struct PyModuleSlots(UnsafeCell<[ffi::PyModuleDef_Slot; MAX_SLOTS_WITH_TRAILING_NULL]>);
 
 // It might be possible to avoid this with SyncUnsafeCell in the future
 //
 // SAFETY: the inner values are only accessed within a `ModuleDef`,
 // which only uses them to build the `ffi::ModuleDef`.
-unsafe impl<const N: usize> Sync for PyModuleSlots<N> {}
+unsafe impl Sync for PyModuleSlots {}
 
 /// Trait to add an element (class, function...) to a module.
 ///
@@ -329,7 +416,11 @@ mod tests {
         Python,
     };
 
-    use super::ModuleDef;
+    use super::{ModuleDef, MAX_SLOTS};
+
+    unsafe extern "C" fn module_exec(_module: *mut ffi::PyObject) -> c_int {
+        0
+    }
 
     #[test]
     fn module_init() {
@@ -342,10 +433,24 @@ mod tests {
             }
         }
 
-        static SLOTS: PyModuleSlots<2> = PyModuleSlotsBuilder::new()
+        static NAME: &CStr = c"test_module";
+        static DOC: &CStr = c"some doc";
+
+        static SLOTS: PyModuleSlots = PyModuleSlotsBuilder::new()
             .with_mod_exec(module_exec)
+            .with_gil_used(false)
+            .with_abi_info()
+            .with_name(NAME)
+            .with_doc(DOC)
             .build();
-        static MODULE_DEF: ModuleDef = ModuleDef::new(c"test_module", c"some doc", &SLOTS);
+
+        static SLOTS_MINIMAL: PyModuleSlots = PyModuleSlotsBuilder::new()
+            .with_mod_exec(module_exec)
+            .with_gil_used(false)
+            .with_abi_info()
+            .build();
+
+        static MODULE_DEF: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS, &SLOTS_MINIMAL);
 
         Python::attach(|py| {
             let module = MODULE_DEF.make_module(py).unwrap().into_bound(py);
@@ -383,36 +488,45 @@ mod tests {
         static NAME: &CStr = c"test_module";
         static DOC: &CStr = c"some doc";
 
-        static SLOTS: PyModuleSlots<2> = PyModuleSlotsBuilder::new().build();
+        static SLOTS: PyModuleSlots = PyModuleSlotsBuilder::new().build();
+
+        let module_def: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS, &SLOTS);
 
         unsafe {
-            let module_def: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS);
             assert_eq!((*module_def.ffi_def.get()).m_name, NAME.as_ptr() as _);
             assert_eq!((*module_def.ffi_def.get()).m_doc, DOC.as_ptr() as _);
             assert_eq!((*module_def.ffi_def.get()).m_slots, SLOTS.0.get().cast());
         }
+        assert_eq!(module_def.name, NAME);
+        assert_eq!(module_def.doc, DOC);
+        assert_eq!(module_def.slots.0.get(), SLOTS.0.get());
+    }
+
+    #[test]
+    #[cfg(panic = "unwind")]
+    fn test_build_maximal_slots() {
+        let builder = PyModuleSlotsBuilder::new()
+            .with_mod_exec(module_exec)
+            .with_name(c"test_module")
+            .with_doc(c"some doc")
+            .with_gil_used(false)
+            .with_abi_info();
+
+        assert!(builder.values[builder.len] == unsafe { std::mem::zeroed() });
+        assert!(builder.values[builder.len - 1] != unsafe { std::mem::zeroed() });
+        assert!(builder.len == MAX_SLOTS);
+
+        let result = std::panic::catch_unwind(|| builder.with_mod_exec(module_exec).build());
+
+        assert!(result.is_err());
     }
 
     #[test]
     #[should_panic]
     fn test_module_slots_builder_overflow() {
-        unsafe extern "C" fn module_exec(_module: *mut ffi::PyObject) -> c_int {
-            0
+        let mut builder = PyModuleSlotsBuilder::new();
+        for _ in 0..MAX_SLOTS + 1 {
+            builder = builder.with_mod_exec(module_exec);
         }
-
-        PyModuleSlotsBuilder::<0>::new().with_mod_exec(module_exec);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_module_slots_builder_overflow_2() {
-        unsafe extern "C" fn module_exec(_module: *mut ffi::PyObject) -> c_int {
-            0
-        }
-
-        PyModuleSlotsBuilder::<2>::new()
-            .with_mod_exec(module_exec)
-            .with_mod_exec(module_exec)
-            .build();
     }
 }
