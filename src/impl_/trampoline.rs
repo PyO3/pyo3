@@ -113,6 +113,7 @@ macro_rules! trampolines {
     }
 }
 
+// Trampolines used by `PyMethodDef` constructors
 trampolines!(
     pub fn fastcall_cfunction_with_keywords(
         slf: *mut ffi::PyObject,
@@ -127,6 +128,13 @@ trampolines!(
         kwargs: *mut ffi::PyObject,
     ) -> *mut ffi::PyObject;
 );
+
+/// "fastcall" method calls only avaible on abi3 in Python 3.10 and up, otherwise fall back to the older call convention.
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+pub use self::fastcall_cfunction_with_keywords as maybe_fastcall_cfunction_with_keywords;
+
+#[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
+pub use self::cfunction_with_keywords as maybe_fastcall_cfunction_with_keywords;
 
 // Trampolines used by slot methods
 trampolines!(
