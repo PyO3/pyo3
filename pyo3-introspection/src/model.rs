@@ -6,6 +6,7 @@ pub struct Module {
     pub functions: Vec<Function>,
     pub attributes: Vec<Attribute>,
     pub incomplete: bool,
+    pub docstring: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -17,6 +18,7 @@ pub struct Class {
     /// decorator like 'typing.final'
     pub decorators: Vec<Expr>,
     pub inner_classes: Vec<Class>,
+    pub docstring: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -28,6 +30,7 @@ pub struct Function {
     /// return type
     pub returns: Option<Expr>,
     pub is_async: bool,
+    pub docstring: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -37,6 +40,7 @@ pub struct Attribute {
     pub value: Option<Expr>,
     /// Type annotation as a Python expression
     pub annotation: Option<Expr>,
+    pub docstring: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]

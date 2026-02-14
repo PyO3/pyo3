@@ -11,12 +11,13 @@
 use crate::method::{FnArg, RegularArg};
 use crate::py_expr::PyExpr;
 use crate::pyfunction::FunctionSignature;
-use crate::utils::PyO3CratePath;
+use crate::utils::{PyO3CratePath, PythonDoc, StrOrExpr};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -29,31 +30,32 @@ pub fn module_introspection_code<'a>(
     name: &str,
     members: impl IntoIterator<Item = &'a Ident>,
     members_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
+    doc: Option<&PythonDoc>,
     incomplete: bool,
 ) -> TokenStream {
-    IntrospectionNode::Map(
-        [
-            ("type", IntrospectionNode::String("module".into())),
-            ("id", IntrospectionNode::IntrospectionId(None)),
-            ("name", IntrospectionNode::String(name.into())),
-            (
-                "members",
-                IntrospectionNode::List(
-                    members
-                        .into_iter()
-                        .zip(members_cfg_attrs)
-                        .map(|(member, attributes)| AttributedIntrospectionNode {
-                            node: IntrospectionNode::IntrospectionId(Some(ident_to_type(member))),
-                            attributes,
-                        })
-                        .collect(),
-                ),
+    let mut desc = HashMap::from([
+        ("type", IntrospectionNode::String("module".into())),
+        ("id", IntrospectionNode::IntrospectionId(None)),
+        ("name", IntrospectionNode::String(name.into())),
+        (
+            "members",
+            IntrospectionNode::List(
+                members
+                    .into_iter()
+                    .zip(members_cfg_attrs)
+                    .map(|(member, attributes)| AttributedIntrospectionNode {
+                        node: IntrospectionNode::IntrospectionId(Some(ident_to_type(member))),
+                        attributes,
+                    })
+                    .collect(),
             ),
-            ("incomplete", IntrospectionNode::Bool(incomplete)),
-        ]
-        .into(),
-    )
-    .emit(pyo3_crate_path)
+        ),
+        ("incomplete", IntrospectionNode::Bool(incomplete)),
+    ]);
+    if let Some(doc) = doc {
+        desc.insert("doc", IntrospectionNode::Doc(doc));
+    }
+    IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
 
 pub fn class_introspection_code(
@@ -63,6 +65,7 @@ pub fn class_introspection_code(
     extends: Option<PyExpr>,
     is_final: bool,
     parent: Option<&Type>,
+    doc: Option<&PythonDoc>,
 ) -> TokenStream {
     let mut desc = HashMap::from([
         ("type", IntrospectionNode::String("class".into())),
@@ -87,6 +90,9 @@ pub fn class_introspection_code(
             IntrospectionNode::IntrospectionId(Some(Cow::Borrowed(parent))),
         );
     }
+    if let Some(doc) = &doc {
+        desc.insert("doc", IntrospectionNode::Doc(doc));
+    }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
 
@@ -100,6 +106,7 @@ pub fn function_introspection_code(
     returns: ReturnType,
     decorators: impl IntoIterator<Item = PyExpr>,
     is_async: bool,
+    doc: Option<&PythonDoc>,
     parent: Option<&Type>,
 ) -> TokenStream {
     let mut desc = HashMap::from([
@@ -139,6 +146,9 @@ pub fn function_introspection_code(
     if !decorators.is_empty() {
         desc.insert("decorators", IntrospectionNode::List(decorators));
     }
+    if let Some(doc) = doc {
+        desc.insert("doc", IntrospectionNode::Doc(doc));
+    }
     if let Some(parent) = parent {
         desc.insert(
             "parent",
@@ -154,6 +164,7 @@ pub fn attribute_introspection_code(
     name: String,
     value: PyExpr,
     rust_type: Type,
+    doc: Option<&PythonDoc>,
     is_final: bool,
 ) -> TokenStream {
     let mut desc = HashMap::from([
@@ -192,6 +203,9 @@ pub fn attribute_introspection_code(
             .into(),
         );
         desc.insert("value", value.into());
+    }
+    if let Some(doc) = doc {
+        desc.insert("doc", IntrospectionNode::Doc(doc));
     }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
@@ -317,6 +331,7 @@ enum IntrospectionNode<'a> {
     Bool(bool),
     IntrospectionId(Option<Cow<'a, Type>>),
     TypeHint(Cow<'a, PyExpr>),
+    Doc(&'a PythonDoc),
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<AttributedIntrospectionNode<'a>>),
 }
@@ -355,6 +370,25 @@ impl IntrospectionNode<'_> {
                     hint.to_introspection_token_stream(pyo3_crate_path),
                     pyo3_crate_path,
                 ));
+            }
+            Self::Doc(doc) => {
+                content.push_str("\"");
+                for part in &doc.parts {
+                    match part {
+                        StrOrExpr::Str {value, ..} => content.push_str(&escape_json_string(value)),
+                        StrOrExpr::Expr(value) => content.push_tokens(quote! {{
+                            const DOC: &str = #value;
+                            const DOC_LEN: usize = #pyo3_crate_path::impl_::introspection::escaped_json_string_len(&DOC);
+                            const DOC_SER: [u8; DOC_LEN] = {
+                                let mut result: [u8; DOC_LEN] = [0; DOC_LEN];
+                                #pyo3_crate_path::impl_::introspection::escape_json_string(&DOC, &mut result);
+                                result
+                            };
+                            &DOC_SER
+                        }}),
+                    }
+                }
+                content.push_str("\"");
             }
             Self::Map(map) => {
                 content.push_str("{");
@@ -556,4 +590,24 @@ fn ident_to_type(ident: &Ident) -> Cow<'static, Type> {
         }
         .into(),
     )
+}
+
+fn escape_json_string(value: &str) -> String {
+    let mut output = String::with_capacity(value.len());
+    for c in value.chars() {
+        match c {
+            '\\' => output.push_str("\\\\"),
+            '"' => output.push_str("\\\""),
+            '\x08' => output.push_str("\\b"),
+            '\x0C' => output.push_str("\\f"),
+            '\n' => output.push_str("\\n"),
+            '\r' => output.push_str("\\r"),
+            '\t' => output.push_str("\\t"),
+            c @ '\0'..='\x1F' => {
+                write!(output, "\\u{:0>4x}", u32::from(c)).unwrap();
+            }
+            c => output.push(c),
+        }
+    }
+    output
 }

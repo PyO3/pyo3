@@ -33,6 +33,7 @@ struct PyClassIter {
 
 #[pymethods]
 impl PyClassIter {
+    /// A constructor
     #[new]
     pub fn new() -> Self {
         Default::default()
@@ -148,32 +149,38 @@ impl ClassWithDecorators {
         Self { attr: Some(0) }
     }
 
+    /// A getter
     #[getter]
     fn get_attr(&self) -> PyResult<usize> {
         self.attr
             .ok_or_else(|| PyAttributeError::new_err("attr is not set"))
     }
 
+    /// A setter
     #[setter]
     fn set_attr(&mut self, value: usize) {
         self.attr = Some(value);
     }
 
+    /// A deleter
     #[deleter]
     fn delete_attr(&mut self) {
         self.attr = None;
     }
 
+    /// A class method
     #[classmethod]
     fn cls_method(_cls: &Bound<'_, PyType>) -> usize {
         1
     }
 
+    /// A static method
     #[staticmethod]
     fn static_method() -> usize {
         2
     }
 
+    /// A class attribute
     #[classattr]
     fn cls_attribute() -> usize {
         3
@@ -182,7 +189,9 @@ impl ClassWithDecorators {
 
 #[pyclass(get_all, set_all)]
 struct PlainObject {
+    /// Foo
     foo: String,
+    /// Bar
     bar: usize,
 }
 

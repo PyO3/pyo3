@@ -102,21 +102,21 @@ pub struct PyClassAttributeDef {
 pub struct PyGetterDef {
     pub(crate) name: &'static CStr,
     pub(crate) meth: Getter,
-    pub(crate) doc: &'static CStr,
+    pub(crate) doc: Option<&'static CStr>,
 }
 
 #[derive(Copy, Clone)]
 pub struct PySetterDef {
     pub(crate) name: &'static CStr,
     pub(crate) meth: Setter,
-    pub(crate) doc: &'static CStr,
+    pub(crate) doc: Option<&'static CStr>,
 }
 
 #[derive(Copy, Clone)]
 pub struct PyDeleterDef {
     pub(crate) name: &'static CStr,
     pub(crate) meth: Deleter,
-    pub(crate) doc: &'static CStr,
+    pub(crate) doc: Option<&'static CStr>,
 }
 
 /// Abstraction around fastcall calling convention, which is only available in Python 3.10 and up,
@@ -307,7 +307,7 @@ pub(crate) type Deleter = for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) ->
 
 impl PyGetterDef {
     /// Define a getter.
-    pub const fn new(name: &'static CStr, getter: Getter, doc: &'static CStr) -> Self {
+    pub const fn new(name: &'static CStr, getter: Getter, doc: Option<&'static CStr>) -> Self {
         Self {
             name,
             meth: getter,
@@ -318,7 +318,7 @@ impl PyGetterDef {
 
 impl PySetterDef {
     /// Define a setter.
-    pub const fn new(name: &'static CStr, setter: Setter, doc: &'static CStr) -> Self {
+    pub const fn new(name: &'static CStr, setter: Setter, doc: Option<&'static CStr>) -> Self {
         Self {
             name,
             meth: setter,
@@ -329,7 +329,7 @@ impl PySetterDef {
 
 impl PyDeleterDef {
     /// Define a deleter.
-    pub const fn new(name: &'static CStr, deleter: Deleter, doc: &'static CStr) -> Self {
+    pub const fn new(name: &'static CStr, deleter: Deleter, doc: Option<&'static CStr>) -> Self {
         Self {
             name,
             meth: deleter,

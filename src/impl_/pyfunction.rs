@@ -39,8 +39,20 @@ impl PyFunctionDef {
 
 /// Trait to enable the use of `wrap_pyfunction` with both `Python` and `PyModule`,
 /// and also to infer the return type of either `&'py PyCFunction` or `Bound<'py, PyCFunction>`.
-pub trait WrapPyFunctionArg<'py, T> {
+pub trait WrapPyFunctionArg<'py, T>: wrap_pyfunctionarg::Sealed {
     fn wrap_pyfunction(self, function_def: &'static PyFunctionDef) -> PyResult<T>;
+}
+
+/// Seals `WrapPyFunctionArg` so that types outside PyO3 cannot implement it.
+mod wrap_pyfunctionarg {
+    use crate::{types::PyModule, Borrowed, Bound, Python};
+
+    pub trait Sealed {}
+    impl<'py> Sealed for Bound<'py, PyModule> {}
+    impl<'py> Sealed for &Bound<'py, PyModule> {}
+    impl<'a, 'py> Sealed for Borrowed<'a, 'py, PyModule> {}
+    impl<'a, 'py> Sealed for &Borrowed<'a, 'py, PyModule> {}
+    impl<'py> Sealed for Python<'py> {}
 }
 
 impl<'py> WrapPyFunctionArg<'py, Bound<'py, PyCFunction>> for Bound<'py, PyModule> {
