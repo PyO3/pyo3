@@ -1017,6 +1017,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_set_item_refcnt() {
         Python::attach(|py| {
             let cnt;

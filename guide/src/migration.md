@@ -2511,7 +2511,7 @@ There can be two fixes:
 <details>
 <summary><small>Click to expand</small></summary>
 
-Previously, a few methods such as `Object::get_refcnt` did not take `Python` as an argument (to ensure that the Python GIL was held by the current thread).
+Previously, a few methods such as `Object::is_none` did not take `Python` as an argument (to ensure that the Python GIL was held by the current thread).
 Technically, this was not sound.
 To migrate, just pass a `py` argument to any calls to these methods.
 
@@ -2519,7 +2519,7 @@ Before:
 
 ```rust,compile_fail
 # pyo3::Python::attach(|py| {
-py.None().get_refcnt();
+py.None().is_none();
 # })
 ```
 
@@ -2527,7 +2527,7 @@ After:
 
 ```rust
 # pyo3::Python::attach(|py| {
-py.None().get_refcnt(py);
+py.None().is_none(py);
 # })
 ```
 

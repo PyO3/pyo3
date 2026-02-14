@@ -389,6 +389,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_pyobject_drop_attached_decreases_refcnt() {
         Python::attach(|py| {
             let obj = get_object(py);
@@ -410,6 +411,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     #[cfg(all(not(pyo3_disable_reference_pool), not(target_arch = "wasm32")))] // We are building wasm Python with pthreads disabled
     fn test_pyobject_drop_detached_doesnt_decrease_refcnt() {
         let obj = Python::attach(|py| {
@@ -497,6 +499,7 @@ mod tests {
     #[cfg(feature = "py-clone")]
     #[test]
     #[should_panic]
+    #[allow(deprecated)]
     fn test_detach_updates_refcounts() {
         Python::attach(|py| {
             // Make a simple object with 1 reference
@@ -508,6 +511,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn recursive_attach_ok() {
         Python::attach(|py| {
             let obj = Python::attach(|_| py.eval(c"object()", None, None).unwrap());
@@ -517,6 +521,7 @@ mod tests {
 
     #[cfg(feature = "py-clone")]
     #[test]
+    #[allow(deprecated)]
     fn test_clone_attached() {
         Python::attach(|py| {
             let obj = get_object(py);

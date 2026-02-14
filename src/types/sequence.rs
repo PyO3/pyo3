@@ -487,6 +487,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_seq_set_item_refcnt() {
         let obj = get_object();
 
