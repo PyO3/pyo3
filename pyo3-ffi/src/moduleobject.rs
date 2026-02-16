@@ -1,3 +1,4 @@
+#[cfg(not(_Py_OPAQUE_PYOBJECT))]
 use crate::methodobject::PyMethodDef;
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
@@ -52,6 +53,7 @@ extern "C" {
     pub static mut PyModuleDef_Type: PyTypeObject;
 }
 
+#[cfg(not(_Py_OPAQUE_PYOBJECT))]
 #[repr(C)]
 pub struct PyModuleDef_Base {
     pub ob_base: PyObject,
@@ -152,6 +154,7 @@ extern "C" {
     pub fn PyModule_GetToken(module: *mut PyObject, result: *mut *mut c_void) -> c_int;
 }
 
+#[cfg(not(_Py_OPAQUE_PYOBJECT))]
 #[repr(C)]
 pub struct PyModuleDef {
     pub m_base: PyModuleDef_Base,
@@ -165,3 +168,7 @@ pub struct PyModuleDef {
     pub m_clear: Option<inquiry>,
     pub m_free: Option<freefunc>,
 }
+
+// from pytypedefs.h
+#[cfg(_Py_OPAQUE_PYOBJECT)]
+opaque_struct!(pub PyModuleDef);
