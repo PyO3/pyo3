@@ -11,6 +11,7 @@ use std::ptr;
 #[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::{AtomicIsize, AtomicU32};
 
+// from pytypedefs.h
 #[cfg(Py_LIMITED_API)]
 opaque_struct!(pub PyTypeObject);
 
@@ -162,6 +163,7 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_type: std::ptr::null_mut(),
 };
 
+// from pytypedefs.h
 #[cfg(_Py_OPAQUE_PYOBJECT)]
 opaque_struct!(pub PyObject);
 
@@ -181,6 +183,7 @@ pub struct PyVarObject {
     pub _ob_size_graalpy: Py_ssize_t,
 }
 
+// from pytypedefs.h
 #[cfg(_Py_OPAQUE_PYOBJECT)]
 opaque_struct!(pub PyVarObject);
 
