@@ -69,11 +69,9 @@ pub fn bench_pyclass(c: &mut Criterion) {
     });
     c.bench_function("bench_str", |b| {
         Python::attach(|py| {
-            b.iter_batched(
-                || MyClass::new(vec![1, 2, 3]).into_py_any(py).unwrap(),
-                |inst| inst.bind(py).str(),
-                BatchSize::SmallInput,
-            );
+            let inst = MyClass::new(vec![1, 2, 3]).into_py_any(py).unwrap();
+            let bound = inst.bind(py);
+            b.iter(|| bound.str());
         });
     });
 }
