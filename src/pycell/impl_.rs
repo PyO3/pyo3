@@ -625,6 +625,9 @@ mod tests {
     #[pyclass(crate = "crate", extends = ImmutableChildOfImmutableBase, frozen)]
     struct ImmutableChildOfImmutableChildOfImmutableBase;
 
+    #[pyclass(crate = "crate")]
+    struct BaseWithoutData;
+
     #[pyclass(crate = "crate", subclass)]
     struct BaseWithData(#[allow(unused)] u64);
 
@@ -634,16 +637,35 @@ mod tests {
     #[pyclass(crate = "crate", extends = BaseWithData)]
     struct ChildWithoutData;
 
-    // #[test]
-    // fn test_inherited_size() {
-    //     let base_size = PyStaticClassObject::<BaseWithData>::BASIC_SIZE;
-    //     assert!(base_size > 0); // negative indicates variable sized
-    //     assert_eq!(
-    //         base_size,
-    //         PyStaticClassObject::<ChildWithoutData>::BASIC_SIZE
-    //     );
-    //     assert!(base_size < PyStaticClassObject::<ChildWithData>::BASIC_SIZE);
-    // }
+    #[test]
+    fn test_inherited_size() {
+        #[cfg(_Py_OPAQUE_PYOBJECT)]
+        type ClassObject<T> = PyVariableClassObject<T>;
+        #[cfg(not(_Py_OPAQUE_PYOBJECT))]
+        type ClassObject<T> = PyStaticClassObject<T>;
+
+        let base_without_data_size = ClassObject::<BaseWithoutData>::BASIC_SIZE;
+        let base_with_data_size = ClassObject::<BaseWithData>::BASIC_SIZE;
+        let child_without_data_size = ClassObject::<ChildWithoutData>::BASIC_SIZE;
+        let child_with_data_size = ClassObject::<ChildWithData>::BASIC_SIZE;
+        #[cfg(_Py_OPAQUE_PYOBJECT)]
+        {
+            assert!(base_without_data_size < 0); // negative indicates variable sized
+            assert!(base_with_data_size < base_without_data_size);
+            assert_eq!(child_without_data_size, 0);
+            assert_eq!(
+                base_with_data_size - base_without_data_size,
+                child_with_data_size
+            );
+        }
+        #[cfg(not(_Py_OPAQUE_PYOBJECT))]
+        {
+            assert!(base_without_data_size > 0);
+            assert!(base_with_data_size > base_without_data_size);
+            assert_eq!(base_with_data_size, child_without_data_size);
+            assert!(base_with_data_size < child_with_data_size);
+        }
+    }
 
     fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}
     fn assert_immutable<T: PyClass<Frozen = True, PyClassMutability = ImmutableClass>>() {}
