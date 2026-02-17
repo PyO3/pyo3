@@ -1,5 +1,5 @@
-error: `immutable_type` requires Python >= 3.10 or >= 3.14 (ABI3)
+error[E0080]: evaluation panicked: `immutable_type` requires Python >= 3.10 or >= 3.14 (ABI3)
  --> tests/ui/immutable_type.rs:3:11
   |
 3 | #[pyclass(immutable_type)]
-  |           ^^^^^^^^^^^^^^
+  |           ^^^^^^^^^^^^^^ evaluation of `_::ASSERT_IMMUTABLE_SUPPORTED` failed here
