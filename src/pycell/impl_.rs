@@ -11,9 +11,9 @@ use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
 use crate::internal::get_slot::{TP_DEALLOC, TP_FREE};
-use crate::type_object::{PyLayout, PySizedLayout};
+use crate::type_object::{PyLayout, PySizedLayout, PyTypeInfo};
 use crate::types::PyType;
-use crate::{ffi, PyClass, PyTypeInfo, Python};
+use crate::{ffi, PyClass, Python};
 
 use crate::types::PyTypeMethods;
 
@@ -477,21 +477,31 @@ pub struct PyVariableClassObject<T: PyClassImpl> {
 }
 
 #[cfg(Py_3_12)]
-impl<T: PyClassImpl<Layout = Self>> PyVariableClassObject<T> {
-    fn get_contents_of_obj(obj: *mut ffi::PyObject) -> *mut PyClassObjectContents<T> {
-        // https://peps.python.org/pep-0697/
-        let type_obj = unsafe { ffi::Py_TYPE(obj) };
+impl<T: PyClass<Layout = Self>> PyVariableClassObject<T> {
+    /// # Safety
+    /// - `obj` must have the layout that the implementation is expecting
+    /// - thread must be attached to the interpreter
+    unsafe fn get_contents_of_obj(
+        obj: *mut ffi::PyObject,
+    ) -> *mut MaybeUninit<PyClassObjectContents<T>> {
+        // TODO: it would be nice to eventually avoid coupling to the PyO3 statics here, maybe using
+        // 3.14's PyType_GetBaseByToken, to support PEP 587 / multiple interpreters better
+        // SAFETY: caller guarantees attached to the interpreter
+        let type_obj = T::type_object_raw(unsafe { Python::assume_attached() });
         let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
         pointer.cast()
     }
 
     fn get_contents_ptr(&self) -> *mut PyClassObjectContents<T> {
-        Self::get_contents_of_obj(self as *const PyVariableClassObject<T> as *mut ffi::PyObject)
+        unsafe {
+            Self::get_contents_of_obj(self as *const PyVariableClassObject<T> as *mut ffi::PyObject)
+        }
+        .cast()
     }
 }
 
 #[cfg(Py_3_12)]
-impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassObject<T> {
+impl<T: PyClass<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassObject<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Relative(0);
     const BASIC_SIZE: ffi::Py_ssize_t = {
@@ -514,7 +524,7 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassOb
     unsafe fn contents_uninit(
         obj: *mut ffi::PyObject,
     ) -> *mut MaybeUninit<PyClassObjectContents<T>> {
-        Self::get_contents_of_obj(obj).cast()
+        unsafe { Self::get_contents_of_obj(obj) }
     }
 
     fn get_ptr(&self) -> *mut T {
@@ -543,7 +553,7 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassOb
 unsafe impl<T: PyClassImpl> PyLayout<T> for PyVariableClassObject<T> {}
 
 #[cfg(Py_3_12)]
-impl<T: PyClassImpl<Layout = Self>> PyClassObjectBaseLayout<T> for PyVariableClassObject<T>
+impl<T: PyClass<Layout = Self>> PyClassObjectBaseLayout<T> for PyVariableClassObject<T>
 where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {
