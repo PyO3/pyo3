@@ -159,6 +159,8 @@ fn main() -> PyResult<()> {
     pyo3::append_to_inittab!(foo);
     Python::attach(|py| Python::run(py, c"import foo; foo.add_one(6)", None, None))
 }
+# #[cfg(_Py_OPAQUE_PYOBJECT)]
+# fn main() -> () {}
 ```
 
 If `append_to_inittab` cannot be used due to constraints in the program, an alternative is to create a module using [`PyModule::new`] and insert it manually into `sys.modules`:
