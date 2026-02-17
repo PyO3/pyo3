@@ -39,6 +39,10 @@ name = "bench_comparisons"
 harness = false
 
 [[bench]]
+name = "bench_critical_sections"
+harness = false
+
+[[bench]]
 name = "bench_err"
 harness = false
 
