@@ -304,7 +304,7 @@ mod inheriting_native_type {
     #[test]
     #[cfg(Py_3_12)]
     fn inherit_list() {
-        #[pyclass(extends=pyo3::types::PyList)]
+        #[pyclass(extends=pyo3::types::PyList, subclass)]
         struct ListWithName {
             #[pyo3(get)]
             name: &'static str,
@@ -318,12 +318,38 @@ mod inheriting_native_type {
             }
         }
 
+        #[pyclass(extends=ListWithName)]
+        struct SubListWithName {
+            #[pyo3(get)]
+            sub_name: &'static str,
+        }
+
+        #[pymethods]
+        impl SubListWithName {
+            #[new]
+            fn new() -> PyClassInitializer<Self> {
+                PyClassInitializer::from(ListWithName::new()).add_subclass(Self {
+                    sub_name: "Sublist",
+                })
+            }
+        }
+
         Python::attach(|py| {
-            let list_sub = pyo3::Bound::new(py, ListWithName::new()).unwrap();
+            let list_with_name = pyo3::Bound::new(py, ListWithName::new()).unwrap();
+            let sub_list_with_name = pyo3::Bound::new(py, SubListWithName::new()).unwrap();
             py_run!(
                 py,
-                list_sub,
-                r#"list_sub.append(1); assert list_sub[0] == 1; assert list_sub.name == "Hello :)""#
+                list_with_name sub_list_with_name,
+                r#"
+                    list_with_name.append(1)
+                    assert list_with_name[0] == 1
+                    assert list_with_name.name == "Hello :)", list_with_name.name
+
+                    sub_list_with_name.append(1)
+                    assert sub_list_with_name[0] == 1
+                    assert sub_list_with_name.name == "Hello :)", sub_list_with_name.name
+                    assert sub_list_with_name.sub_name == "Sublist", sub_list_with_name.sub_name
+                "#
             );
         });
     }
