@@ -1147,7 +1147,7 @@ pub fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
 pub enum BuildFlag {
     Py_DEBUG,
     Py_REF_DEBUG,
-    #[deprecated = "Not supported since Python 3.13"]
+    #[deprecated(since = "0.29.0", note = "no longer supported by PyO3")]
     Py_TRACE_REFS,
     Py_GIL_DISABLED,
     COUNT_ALLOCS,
