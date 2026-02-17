@@ -96,10 +96,6 @@ const _PyObject_MIN_ALIGNMENT: usize = 4;
 #[cfg_attr(all(Py_3_15, Py_GIL_DISABLED), repr(C, align(4)))]
 #[derive(Debug)]
 pub struct PyObject {
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    pub _ob_next: *mut PyObject,
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    pub _ob_prev: *mut PyObject,
     #[cfg(Py_GIL_DISABLED)]
     pub ob_tid: libc::uintptr_t,
     #[cfg(all(Py_GIL_DISABLED, not(Py_3_14)))]
@@ -128,10 +124,6 @@ const _: () = assert!(std::mem::align_of::<PyObject>() >= _PyObject_MIN_ALIGNMEN
     reason = "contains atomic refcount on free-threaded builds"
 )]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    _ob_next: std::ptr::null_mut(),
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    _ob_prev: std::ptr::null_mut(),
     #[cfg(Py_GIL_DISABLED)]
     ob_tid: 0,
     #[cfg(all(Py_GIL_DISABLED, Py_3_15))]
