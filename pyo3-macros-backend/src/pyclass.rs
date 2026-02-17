@@ -842,11 +842,31 @@ struct PyClassEnumStructVariant<'a> {
     attrs: Vec<syn::Attribute>,
 }
 
+impl PyClassEnumStructVariant<'_> {
+    fn python_name(&self) -> Cow<'_, syn::Ident> {
+        self.options
+            .name
+            .as_ref()
+            .map(|name_attr| Cow::Borrowed(&name_attr.value.0))
+            .unwrap_or_else(|| Cow::Owned(self.ident.unraw()))
+    }
+}
+
 struct PyClassEnumTupleVariant<'a> {
     ident: &'a syn::Ident,
     fields: Vec<PyClassEnumVariantUnnamedField<'a>>,
     options: EnumVariantPyO3Options,
     attrs: Vec<syn::Attribute>,
+}
+
+impl PyClassEnumTupleVariant<'_> {
+    fn python_name(&self) -> Cow<'_, syn::Ident> {
+        self.options
+            .name
+            .as_ref()
+            .map(|name_attr| Cow::Borrowed(&name_attr.value.0))
+            .unwrap_or_else(|| Cow::Owned(self.ident.unraw()))
+    }
 }
 
 struct PyClassEnumVariantNamedField<'a> {
@@ -1314,7 +1334,7 @@ fn impl_complex_enum(
         variant_cls_pytypeinfos.push(variant_cls_pytypeinfo);
 
         let (variant_cls_impl, field_getters, mut slots) =
-            impl_complex_enum_variant_cls(cls, &variant, ctx)?;
+            impl_complex_enum_variant_cls(cls, &args, &variant, ctx)?;
         variant_cls_impls.push(variant_cls_impl);
 
         let variant_doc = get_doc(variant.get_attrs(), None);
@@ -1372,15 +1392,16 @@ fn impl_complex_enum(
 
 fn impl_complex_enum_variant_cls(
     enum_name: &syn::Ident,
+    args: &PyClassArgs,
     variant: &PyClassEnumVariant<'_>,
     ctx: &Ctx,
 ) -> Result<(TokenStream, Vec<MethodAndMethodDef>, Vec<MethodAndSlotDef>)> {
     match variant {
         PyClassEnumVariant::Struct(struct_variant) => {
-            impl_complex_enum_struct_variant_cls(enum_name, struct_variant, ctx)
+            impl_complex_enum_struct_variant_cls(enum_name, args, struct_variant, ctx)
         }
         PyClassEnumVariant::Tuple(tuple_variant) => {
-            impl_complex_enum_tuple_variant_cls(enum_name, tuple_variant, ctx)
+            impl_complex_enum_tuple_variant_cls(enum_name, args, tuple_variant, ctx)
         }
     }
 }
@@ -1438,6 +1459,7 @@ fn impl_complex_enum_variant_match_args(
 
 fn impl_complex_enum_struct_variant_cls(
     enum_name: &syn::Ident,
+    args: &PyClassArgs,
     variant: &PyClassEnumStructVariant<'_>,
     ctx: &Ctx,
 ) -> Result<(TokenStream, Vec<MethodAndMethodDef>, Vec<MethodAndSlotDef>)> {
@@ -1485,8 +1507,12 @@ fn impl_complex_enum_struct_variant_cls(
         field_getter_impls.push(field_getter_impl);
     }
 
-    let (qualname, qualname_impl) =
-        impl_complex_enum_variant_qualname(enum_name, variant_ident, &variant_cls_type, ctx)?;
+    let (qualname, qualname_impl) = impl_complex_enum_variant_qualname(
+        &get_class_python_name(enum_name, args),
+        &variant.python_name(),
+        &variant_cls_type,
+        ctx,
+    )?;
 
     field_getters.push(qualname);
 
@@ -1658,6 +1684,7 @@ fn impl_complex_enum_tuple_variant_getitem(
 
 fn impl_complex_enum_tuple_variant_cls(
     enum_name: &syn::Ident,
+    args: &PyClassArgs,
     variant: &PyClassEnumTupleVariant<'_>,
     ctx: &Ctx,
 ) -> Result<(TokenStream, Vec<MethodAndMethodDef>, Vec<MethodAndSlotDef>)> {
@@ -1682,8 +1709,12 @@ fn impl_complex_enum_tuple_variant_cls(
         &mut field_types,
     )?;
 
-    let (qualname, qualname_impl) =
-        impl_complex_enum_variant_qualname(enum_name, variant_ident, &variant_cls_type, ctx)?;
+    let (qualname, qualname_impl) = impl_complex_enum_variant_qualname(
+        &get_class_python_name(enum_name, args),
+        &variant.python_name(),
+        &variant_cls_type,
+        ctx,
+    )?;
 
     field_getters.push(qualname);
 
