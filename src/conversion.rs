@@ -127,7 +127,7 @@ pub(crate) mod private {
     }
 }
 
-impl<'py, T: PyTypeCheck> IntoPyObject<'py> for Bound<'py, T> {
+impl<'py, T: PyTypeCheck> IntoPyObject<'py> for Bound<'_, T> {
     type Target = T;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;
@@ -135,12 +135,12 @@ impl<'py, T: PyTypeCheck> IntoPyObject<'py> for Bound<'py, T> {
     #[cfg(feature = "experimental-inspect")]
     const OUTPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
-    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(self)
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.unbind().into_bound(py))
     }
 }
 
-impl<'a, 'py, T: PyTypeCheck> IntoPyObject<'py> for &'a Bound<'py, T> {
+impl<'a, 'py, T: PyTypeCheck> IntoPyObject<'py> for &'a Bound<'_, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, Self::Target>;
     type Error = Infallible;
@@ -148,12 +148,12 @@ impl<'a, 'py, T: PyTypeCheck> IntoPyObject<'py> for &'a Bound<'py, T> {
     #[cfg(feature = "experimental-inspect")]
     const OUTPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
-    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(self.as_borrowed())
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.as_unbound().bind_borrowed(py))
     }
 }
 
-impl<'a, 'py, T: PyTypeCheck> IntoPyObject<'py> for Borrowed<'a, 'py, T> {
+impl<'a, 'py, T: PyTypeCheck> IntoPyObject<'py> for Borrowed<'a, '_, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, Self::Target>;
     type Error = Infallible;
@@ -161,12 +161,12 @@ impl<'a, 'py, T: PyTypeCheck> IntoPyObject<'py> for Borrowed<'a, 'py, T> {
     #[cfg(feature = "experimental-inspect")]
     const OUTPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
-    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(self)
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.as_unbound().bind_borrowed(py))
     }
 }
 
-impl<'a, 'py, T: PyTypeCheck> IntoPyObject<'py> for &Borrowed<'a, 'py, T> {
+impl<'a, 'py, T: PyTypeCheck> IntoPyObject<'py> for &Borrowed<'a, '_, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, Self::Target>;
     type Error = Infallible;
@@ -174,8 +174,8 @@ impl<'a, 'py, T: PyTypeCheck> IntoPyObject<'py> for &Borrowed<'a, 'py, T> {
     #[cfg(feature = "experimental-inspect")]
     const OUTPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
 
-    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(*self)
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(self.as_unbound().bind_borrowed(py))
     }
 }
 
