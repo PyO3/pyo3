@@ -381,8 +381,8 @@ extern "C" {
     pub fn PyObject_GetTypeData(obj: *mut PyObject, cls: *mut PyTypeObject) -> *mut c_void;
 
     #[cfg(Py_3_12)]
-    #[cfg_attr(PyPy, link_name = "PyPyObject_GetTypeDataSize")]
-    pub fn PyObject_GetTypeDataSize(cls: *mut PyTypeObject) -> Py_ssize_t;
+    #[cfg_attr(PyPy, link_name = "PyPyType_GetTypeDataSize")]
+    pub fn PyType_GetTypeDataSize(cls: *mut PyTypeObject) -> Py_ssize_t;
 
     #[cfg_attr(PyPy, link_name = "PyPyType_IsSubtype")]
     pub fn PyType_IsSubtype(a: *mut PyTypeObject, b: *mut PyTypeObject) -> c_int;
