@@ -398,3 +398,23 @@ extern "C" {
 // skipped PyRefTracer
 // skipped PyRefTracer_SetTracer
 // skipped PyRefTracer_GetTracer
+
+extern "C" {
+    // skipped PyUnstable_Object_EnableDeferredRefcount
+
+    #[cfg(Py_3_14)]
+    pub fn PyUnstable_Object_IsUniqueReferencedTemporary(obj: *mut PyObject) -> c_int;
+
+    // skipped PyUnstable_IsImmortal
+
+    #[cfg(Py_3_14)]
+    pub fn PyUnstable_TryIncRef(obj: *mut PyObject) -> c_int;
+
+    #[cfg(Py_3_14)]
+    pub fn PyUnstable_EnableTryIncRef(obj: *mut PyObject) -> c_void;
+
+    #[cfg(Py_3_14)]
+    pub fn PyUnstable_Object_IsUniquelyReferenced(op: *mut PyObject) -> c_int;
+
+    // skipped PyUnstable_SetImmortal
+}
