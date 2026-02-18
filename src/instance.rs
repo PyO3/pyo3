@@ -1075,14 +1075,6 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     pub unsafe fn cast_unchecked<U>(self) -> Borrowed<'a, 'py, U> {
         Borrowed(self.0, PhantomData, self.2)
     }
-
-    /// Removes the connection for this `Borrowed<T>` from the [`Python<'py>`] token,
-    /// allowing it to cross thread boundaries, without transferring ownership.
-    #[inline]
-    pub fn as_unbound(&self) -> &'a Py<T> {
-        // Safety: NonNull<ffi::PyObject> is layout-compatible with Py<T>
-        unsafe { NonNull::from(&self.0).cast().as_ref() }
-    }
 }
 
 impl<'a, T: PyClass> Borrowed<'a, '_, T> {
