@@ -39,9 +39,6 @@ impl crate::impl_::pyclass::PyClassBaseType for PyList {
 impl PyList {
     /// Constructs a new list with the given elements.
     ///
-    /// If you want to create a [`PyList`] with elements of different or unknown types, or from an
-    /// iterable that doesn't implement [`ExactSizeIterator`], use [`PyListMethods::append`].
-    ///
     /// # Examples
     ///
     /// ```rust
@@ -60,7 +57,7 @@ impl PyList {
     ///
     /// # Panics
     ///
-    /// This function will panic if `element`'s [`ExactSizeIterator`] implementation is incorrect.
+    /// This function will panic if `element`'s [`Iterator::size_hint`] implementation is incorrect.
     /// All standard library structures implement this trait correctly, if they do, so calling this
     /// function with (for example) [`Vec`]`<T>` or `&[T]` will always succeed.
     #[track_caller]
@@ -1491,7 +1488,7 @@ mod tests {
 
     use std::ops::Range;
 
-    // An iterator that lies about its `ExactSizeIterator` implementation.
+    // An iterator that lies about its `size_hint` implementation.
     // See https://github.com/PyO3/pyo3/issues/2118
     struct FaultyIter(Range<usize>, usize);
 
@@ -1504,12 +1501,6 @@ mod tests {
 
         fn size_hint(&self) -> (usize, Option<usize>) {
             (self.1, Some(self.1))
-        }
-    }
-
-    impl ExactSizeIterator for FaultyIter {
-        fn len(&self) -> usize {
-            self.1
         }
     }
 
@@ -1575,11 +1566,9 @@ mod tests {
                     Bad(i)
                 })
             }
-        }
 
-        impl ExactSizeIterator for FaultyIter {
-            fn len(&self) -> usize {
-                self.1
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                (self.1, Some(self.1))
             }
         }
 
