@@ -1765,4 +1765,25 @@ mod tests {
             assert_eq!(list.iter().count(), 3);
         })
     }
+
+    #[test]
+    fn test_new_from_non_exact_iter() {
+        Python::attach(|py| {
+            let iter = (0..5)
+                .filter(|_| true) // Filter does not implement ExactSizeIterator
+                .map(|item| item.into_pyobject(py).unwrap());
+
+            assert!(
+                matches!(iter.size_hint(), (0, _)),
+                "size_hint lower bound should be 0 because we do not now the final size after filter"
+            );
+
+            let list = PyList::new(py, iter).unwrap();
+            assert_eq!(
+                list.len(),
+                5,
+                "list should contain all elements even though size_hint is 0"
+            );
+        })
+    }
 }
