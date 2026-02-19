@@ -10,6 +10,14 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.28.2] - 2026-02-18
+
+### Fixed
+
+- Fix complex enum `__qualname__` not using python name [#5815](https://github.com/PyO3/pyo3/pull/5815)
+- Fix FFI definition `PyType_GetTypeDataSize` (was incorrectly named `PyObject_GetTypeDataSize`). [#5819](https://github.com/PyO3/pyo3/pull/5819)
+- Fix memory corruption when subclassing native types with `abi3` feature on Python 3.12+ (newly enabled in PyO3 0.28.0). [#5823](https://github.com/PyO3/pyo3/pull/5823)
+
 ## [0.28.1] - 2026-02-14
 
 ### Fixed
@@ -18,6 +26,7 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 - Fix `clippy::declare_interior_mutable_const` warning inside `#[pyclass]` generated code on enums. [#5772](https://github.com/PyO3/pyo3/pull/5772)
 - Fix `ambiguous_associated_items` compilation error when deriving `FromPyObject` or using `#[pyclass(from_py_object)]` macro on enums with `Error` variant. [#5784](https://github.com/PyO3/pyo3/pull/5784)
 - Fix `__qualname__` for complex `#[pyclass]` enum variants to include the enum name. [#5796](https://github.com/PyO3/pyo3/pull/5796)
+- Fix missing `std::sync::atomic::Ordering` import for targets without atomic64. [#5808](https://github.com/PyO3/pyo3/pull/5808)
 
 ## [0.28.0] - 2026-02-01
 
@@ -2498,7 +2507,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.28.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.28.2...HEAD
+[0.28.2]: https://github.com/pyo3/pyo3/compare/v0.28.1...v0.28.2
 [0.28.1]: https://github.com/pyo3/pyo3/compare/v0.28.0...v0.28.1
 [0.28.0]: https://github.com/pyo3/pyo3/compare/v0.27.2...v0.28.0
 [0.27.2]: https://github.com/pyo3/pyo3/compare/v0.27.1...v0.27.2
