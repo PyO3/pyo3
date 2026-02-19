@@ -17,7 +17,6 @@ rust-version.workspace = true
 [dependencies]
 heck = "0.5"
 proc-macro2 = { version = "1.0.60", default-features = false }
-pyo3-build-config = { path = "../pyo3-build-config", version = "=0.28.2", features = ["resolve-config"] }
 quote = { version = "1.0.37", default-features = false }
 
 [dependencies.syn]
@@ -25,9 +24,6 @@ quote = { version = "1.0.37", default-features = false }
 version = "2.0.59"
 default-features = false
 features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-traits", "visit-mut"]
-
-[build-dependencies]
-pyo3-build-config = { path = "../pyo3-build-config", version = "=0.28.2" }
 
 [lints]
 workspace = true

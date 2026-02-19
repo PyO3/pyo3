@@ -11,7 +11,6 @@ use crate::params::is_forwarded_args;
 #[cfg(feature = "experimental-inspect")]
 use crate::py_expr::PyExpr;
 use crate::pyfunction::{PyFunctionWarning, WarningFactory};
-use crate::pyversions::is_abi3_before;
 use crate::utils::Ctx;
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
@@ -393,7 +392,7 @@ impl SelfType {
 pub enum CallingConvention {
     Noargs,   // METH_NOARGS
     Varargs,  // METH_VARARGS | METH_KEYWORDS
-    Fastcall, // METH_FASTCALL | METH_KEYWORDS (not compatible with `abi3` feature before 3.10)
+    Fastcall, // METH_FASTCALL | METH_KEYWORDS
 }
 
 impl CallingConvention {
@@ -404,11 +403,7 @@ impl CallingConvention {
     pub fn from_signature(signature: &FunctionSignature<'_>) -> Self {
         if signature.python_signature.has_no_args() {
             Self::Noargs
-        } else if signature.python_signature.kwargs.is_none() && !is_abi3_before(3, 10) {
-            // For functions that accept **kwargs, always prefer varargs for now based on
-            // historical performance testing.
-            //
-            // FASTCALL not compatible with `abi3` before 3.10
+        } else if signature.python_signature.kwargs.is_none() {
             Self::Fastcall
         } else {
             Self::Varargs
@@ -852,19 +847,15 @@ impl<'a> FnSpec<'a> {
                 let call = rust_call(args, holders);
 
                 quote! {
-                    unsafe fn #ident<'py>(
-                        py: #pyo3_path::Python<'py>,
-                        _slf: *mut #pyo3_path::ffi::PyObject,
-                        _args: *const *mut #pyo3_path::ffi::PyObject,
-                        _nargs: #pyo3_path::ffi::Py_ssize_t,
-                        _kwnames: *mut #pyo3_path::ffi::PyObject
-                    ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
-                        let function = #rust_name; // Shadow the function name to avoid #3017
-                        #arg_convert
-                        #warnings
-                        let result = #call;
-                        result
-                    }
+                    #pyo3_path::impl_::pymethods::maybe_define_fastcall_function_with_keywords!(
+                        #ident, py, _slf, _args, _nargs, _kwargs, {
+                            let function = #rust_name; // Shadow the function name to avoid #3017
+                            #arg_convert
+                            #warnings
+                            let result = #call;
+                            result
+                        }
+                    );
                 }
             }
             CallingConvention::Varargs => {
@@ -908,7 +899,7 @@ impl<'a> FnSpec<'a> {
         let trampoline = match convention {
             CallingConvention::Noargs => Ident::new("noargs", Span::call_site()),
             CallingConvention::Fastcall => {
-                Ident::new("fastcall_cfunction_with_keywords", Span::call_site())
+                Ident::new("maybe_fastcall_cfunction_with_keywords", Span::call_site())
             }
             CallingConvention::Varargs => Ident::new("cfunction_with_keywords", Span::call_site()),
         };

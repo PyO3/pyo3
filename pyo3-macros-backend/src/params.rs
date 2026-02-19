@@ -140,12 +140,15 @@ pub fn impl_arg_params(
 
     let extract_expression = if fastcall {
         quote! {
-            DESCRIPTION.extract_arguments_fastcall::<#args_handler, #kwargs_handler>(
+            #pyo3_path::impl_::pymethods::maybe_extract_arguments_fastcall!(
+                DESCRIPTION,
                 py,
                 _args,
                 _nargs,
-                _kwnames,
-                &mut #args_array
+                _kwargs,
+                #args_array,
+                #args_handler,
+                #kwargs_handler
             )?
         }
     } else {

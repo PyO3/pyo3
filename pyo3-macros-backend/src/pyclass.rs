@@ -35,8 +35,7 @@ use crate::pymethod::{
     MethodAndSlotDef, PropertyType, SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __NEW__,
     __REPR__, __RICHCMP__, __STR__,
 };
-use crate::pyversions::{is_abi3_before, is_py_before};
-use crate::utils::{self, apply_renaming_rule, get_doc, Ctx, PythonDoc};
+use crate::utils::{self, apply_renaming_rule, get_doc, locate_tokens_at, Ctx, PythonDoc};
 use crate::PyFunctionOptions;
 
 /// If the class is derived from a Rust `struct` or `enum`.
@@ -220,13 +219,7 @@ impl PyClassPyO3Options {
 
         match option {
             PyClassPyO3Option::Crate(krate) => set_option!(krate),
-            PyClassPyO3Option::Dict(dict) => {
-                ensure_spanned!(
-                    !is_abi3_before(3, 9),
-                    dict.span() => "`dict` requires Python >= 3.9 when using the `abi3` feature"
-                );
-                set_option!(dict);
-            }
+            PyClassPyO3Option::Dict(dict) => set_option!(dict),
             PyClassPyO3Option::Eq(eq) => set_option!(eq),
             PyClassPyO3Option::EqInt(eq_int) => set_option!(eq_int),
             PyClassPyO3Option::Extends(extends) => set_option!(extends),
@@ -234,10 +227,6 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Frozen(frozen) => set_option!(frozen),
             PyClassPyO3Option::GetAll(get_all) => set_option!(get_all),
             PyClassPyO3Option::ImmutableType(immutable_type) => {
-                ensure_spanned!(
-                    !(is_py_before(3, 10) || is_abi3_before(3, 14)),
-                    immutable_type.span() => "`immutable_type` requires Python >= 3.10 or >= 3.14 (ABI3)"
-                );
                 set_option!(immutable_type)
             }
             PyClassPyO3Option::Hash(hash) => set_option!(hash),
@@ -252,13 +241,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Str(str) => set_option!(str),
             PyClassPyO3Option::Subclass(subclass) => set_option!(subclass),
             PyClassPyO3Option::Unsendable(unsendable) => set_option!(unsendable),
-            PyClassPyO3Option::Weakref(weakref) => {
-                ensure_spanned!(
-                    !is_abi3_before(3, 9),
-                    weakref.span() => "`weakref` requires Python >= 3.9 when using the `abi3` feature"
-                );
-                set_option!(weakref);
-            }
+            PyClassPyO3Option::Weakref(weakref) => set_option!(weakref),
             PyClassPyO3Option::Generic(generic) => set_option!(generic),
             PyClassPyO3Option::SkipFromPyObject(skip_from_py_object) => {
                 ensure_spanned!(
@@ -2924,14 +2907,40 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
         });
 
-        let assertions = if attr.options.unsendable.is_some() {
-            TokenStream::new()
-        } else {
-            let assert = quote_spanned! { cls.span() => #pyo3_path::impl_::pyclass::assert_pyclass_send_sync::<#cls>() };
-            quote! {
-                const _: () = #assert;
-            }
+        let mut assertions = TokenStream::new();
+
+        // Classes must implement send / sync, unless `#[pyclass(unsendable)]` is used
+        if attr.options.unsendable.is_none() {
+            let pyo3_path = locate_tokens_at(pyo3_path.to_token_stream(), cls.span());
+            assertions.extend(quote_spanned! { cls.span() => #pyo3_path::impl_::pyclass::assert_pyclass_send_sync::<#cls>(); });
         };
+
+        if let Some(kw) = &attr.options.dict {
+            let pyo3_path = locate_tokens_at(pyo3_path.to_token_stream(), kw.span());
+            assertions.extend(quote_spanned! {
+                kw.span() =>
+                    const ASSERT_DICT_SUPPORTED: () = #pyo3_path::impl_::pyclass::assert_dict_supported();
+
+            });
+        }
+
+        if let Some(kw) = &attr.options.weakref {
+            let pyo3_path = locate_tokens_at(pyo3_path.to_token_stream(), kw.span());
+            assertions.extend(quote_spanned! {
+                kw.span() => {
+                    const ASSERT_WEAKREF_SUPPORTED: () = #pyo3_path::impl_::pyclass::assert_weakref_supported();
+                };
+            });
+        }
+
+        if let Some(kw) = &attr.options.immutable_type {
+            let pyo3_path = locate_tokens_at(pyo3_path.to_token_stream(), kw.span());
+            assertions.extend(quote_spanned! {
+                kw.span() => {
+                    const ASSERT_IMMUTABLE_SUPPORTED: () = #pyo3_path::impl_::pyclass::assert_immutable_type_supported();
+                };
+            });
+        }
 
         let deprecation = if self.attr.options.skip_from_py_object.is_none()
             && self.attr.options.from_py_object.is_none()
@@ -2976,7 +2985,10 @@ impl<'a> PyClassImplsBuilder<'a> {
 
             #extract_pyclass_with_clone
 
-            #assertions
+            #[allow(dead_code)]
+            const _: () ={
+                #assertions
+            };
 
             #pyclass_base_type_impl
 

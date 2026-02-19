@@ -119,8 +119,81 @@ pub struct PyDeleterDef {
     pub(crate) doc: Option<&'static CStr>,
 }
 
+/// Abstraction around fastcall calling convention, which is only available in Python 3.10 and up,
+/// can inline this directly into the proc macro when Python 3.10 support dropped
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! maybe_define_fastcall_function_with_keywords {
+    ($name:ident, $py:ident, $slf:ident, $args:ident, $nargs:ident, $kwargs:ident, $body:block) => {
+        #[allow(non_snake_case)]
+        unsafe fn $name<'py>(
+            $py: $crate::Python<'py>,
+            $slf: *mut $crate::ffi::PyObject,
+            $args: *const *mut $crate::ffi::PyObject,
+            $nargs: $crate::ffi::Py_ssize_t,
+            $kwargs: *mut $crate::ffi::PyObject
+        ) -> $crate::PyResult<*mut $crate::ffi::PyObject> $body
+    };
+}
+
+/// On older abi3 versions, required to use varargs calling convention
+#[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! maybe_define_fastcall_function_with_keywords {
+    ($name:ident, $py:ident, $slf:ident, $args:ident, $nargs:ident, $kwargs:ident, $body:block) => {
+        #[allow(non_snake_case)]
+        unsafe fn $name<'py>(
+            $py: $crate::Python<'py>,
+            $slf: *mut $crate::ffi::PyObject,
+            $args: *mut $crate::ffi::PyObject,
+            $kwargs: *mut $crate::ffi::PyObject
+        ) -> $crate::PyResult<*mut $crate::ffi::PyObject> $body
+    };
+}
+
+pub use crate::maybe_define_fastcall_function_with_keywords;
+
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! maybe_extract_arguments_fastcall {
+    ($description:ident, $py:ident, $args:ident, $nargs:ident, $kwargs:ident, $args_array:ident, $args_handler:ty, $kwargs_handler:ty) => {
+        // SAFETY: guaranteed by the proc macro that all args to extract_arguments_fastcall are valid
+        unsafe {
+            $description.extract_arguments_fastcall::<$args_handler, $kwargs_handler>(
+                $py,
+                $args,
+                $nargs,
+                $kwargs,
+                &mut $args_array,
+            )
+        }
+    };
+}
+
+#[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! maybe_extract_arguments_fastcall {
+    ($description:ident, $py:ident, $args:ident, $nargs:ident, $kwargs:ident, $args_array:ident, $args_handler:ty, $kwargs_handler:ty) => {
+        // SAFETY: guaranteed by the proc macro that all args to extract_arguments_tuple_dict are valid
+        unsafe {
+            $description.extract_arguments_tuple_dict::<$args_handler, $kwargs_handler>(
+                $py,
+                $args,
+                $kwargs,
+                &mut $args_array,
+            )
+        }
+    };
+}
+
+pub use crate::maybe_extract_arguments_fastcall;
+
 impl PyMethodDef {
-    /// Define a function with no `*args` and `**kwargs`.
+    /// Define a function that takes no arguments.
     pub const fn noargs(
         ml_name: &'static CStr,
         cfunction: ffi::PyCFunction,
@@ -134,7 +207,7 @@ impl PyMethodDef {
         }
     }
 
-    /// Define a function that can take `*args` and `**kwargs`.
+    /// Define a function that takes arbitrary arguments as a tuple and dict.
     pub const fn cfunction_with_keywords(
         ml_name: &'static CStr,
         cfunction: ffi::PyCFunctionWithKeywords,
@@ -148,7 +221,7 @@ impl PyMethodDef {
         }
     }
 
-    /// Define a function that can take `*args` and `**kwargs`.
+    /// Define a function that takes arbitrary arguments as a C-style array and tuple of keyword arguments.
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     pub const fn fastcall_cfunction_with_keywords(
         ml_name: &'static CStr,
@@ -160,6 +233,25 @@ impl PyMethodDef {
             ml_meth: PyMethodType::PyCFunctionFastWithKeywords(cfunction),
             ml_flags: ffi::METH_FASTCALL | ffi::METH_KEYWORDS,
             ml_doc,
+        }
+    }
+
+    /// Abstraction over fastcall to fall back to varargs on older Python versions.
+    pub const fn maybe_fastcall_cfunction_with_keywords(
+        ml_name: &'static CStr,
+        #[cfg(any(Py_3_10, not(Py_LIMITED_API)))] cfunction: ffi::PyCFunctionFastWithKeywords,
+        // on older abi3 versions, Fastcall not supported
+        #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))] cfunction: ffi::PyCFunctionWithKeywords,
+        ml_doc: &'static CStr,
+    ) -> Self {
+        #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+        {
+            Self::fastcall_cfunction_with_keywords(ml_name, cfunction, ml_doc)
+        }
+
+        #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
+        {
+            Self::cfunction_with_keywords(ml_name, cfunction, ml_doc)
         }
     }
 
