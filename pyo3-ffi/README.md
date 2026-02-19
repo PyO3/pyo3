@@ -41,12 +41,12 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3-ffi = "0.28.1"
+pyo3-ffi = "0.28.2"
 
 [build-dependencies]
 # This is only necessary if you need to configure your build based on
 # the Python version or the compile-time configuration for the interpreter.
-pyo3_build_config = "0.28.1"
+pyo3_build_config = "0.28.2"
 ```
 
 If you need to use conditional compilation based on Python version or how

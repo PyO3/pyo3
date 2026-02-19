@@ -1147,6 +1147,7 @@ pub fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
 pub enum BuildFlag {
     Py_DEBUG,
     Py_REF_DEBUG,
+    #[deprecated(since = "0.29.0", note = "no longer supported by PyO3")]
     Py_TRACE_REFS,
     Py_GIL_DISABLED,
     COUNT_ALLOCS,
@@ -1168,7 +1169,6 @@ impl FromStr for BuildFlag {
         match s {
             "Py_DEBUG" => Ok(BuildFlag::Py_DEBUG),
             "Py_REF_DEBUG" => Ok(BuildFlag::Py_REF_DEBUG),
-            "Py_TRACE_REFS" => Ok(BuildFlag::Py_TRACE_REFS),
             "Py_GIL_DISABLED" => Ok(BuildFlag::Py_GIL_DISABLED),
             "COUNT_ALLOCS" => Ok(BuildFlag::COUNT_ALLOCS),
             other => Ok(BuildFlag::Other(other.to_owned())),
@@ -1194,10 +1194,9 @@ impl FromStr for BuildFlag {
 pub struct BuildFlags(pub HashSet<BuildFlag>);
 
 impl BuildFlags {
-    const ALL: [BuildFlag; 5] = [
+    const ALL: [BuildFlag; 4] = [
         BuildFlag::Py_DEBUG,
         BuildFlag::Py_REF_DEBUG,
-        BuildFlag::Py_TRACE_REFS,
         BuildFlag::Py_GIL_DISABLED,
         BuildFlag::COUNT_ALLOCS,
     ];
