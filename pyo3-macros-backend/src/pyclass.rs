@@ -35,7 +35,7 @@ use crate::pymethod::{
     MethodAndSlotDef, PropertyType, SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __NEW__,
     __REPR__, __RICHCMP__, __STR__,
 };
-use crate::utils::{self, apply_renaming_rule, get_doc, Ctx, PythonDoc};
+use crate::utils::{self, apply_renaming_rule, get_doc, locate_tokens_at, Ctx, PythonDoc};
 use crate::PyFunctionOptions;
 
 /// If the class is derived from a Rust `struct` or `enum`.
@@ -2907,45 +2907,37 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
         });
 
-        let mut assertions = if attr.options.unsendable.is_some() {
-            TokenStream::new()
-        } else {
-            let assert = quote_spanned! { cls.span() => #pyo3_path::impl_::pyclass::assert_pyclass_send_sync::<#cls>() };
-            quote! {
-                const _: () = #assert;
-            }
+        let mut assertions = TokenStream::new();
+
+        // Classes must implement send / sync, unless `#[pyclass(unsendable)]` is used
+        if attr.options.unsendable.is_none() {
+            let pyo3_path = locate_tokens_at(pyo3_path.to_token_stream(), cls.span());
+            assertions.extend(quote_spanned! { cls.span() => #pyo3_path::impl_::pyclass::assert_pyclass_send_sync::<#cls>(); });
         };
 
         if let Some(kw) = &attr.options.dict {
+            let pyo3_path = locate_tokens_at(pyo3_path.to_token_stream(), kw.span());
             assertions.extend(quote_spanned! {
-                kw.span() => #[allow(dead_code)]
-                const _: () = {
-                    #[allow(dead_code)]
-                    const ASSERT_DICT_SUPPORTED: () = if !#pyo3_path::impl_::pyclass::DICT_SUPPORTED {
-                        ::std::panic!("{}", #pyo3_path::impl_::pyclass::DICT_UNSUPPORTED_ERROR);
-                    };
-                };
+                kw.span() =>
+                    const ASSERT_DICT_SUPPORTED: () = #pyo3_path::impl_::pyclass::assert_dict_supported();
+
             });
         }
 
         if let Some(kw) = &attr.options.weakref {
+            let pyo3_path = locate_tokens_at(pyo3_path.to_token_stream(), kw.span());
             assertions.extend(quote_spanned! {
-                kw.span() => const _: () = {
-                    #[allow(dead_code)]
-                    const ASSERT_WEAKREF_SUPPORTED: () = if !#pyo3_path::impl_::pyclass::WEAKREF_SUPPORTED {
-                        ::std::panic!("{}", #pyo3_path::impl_::pyclass::WEAKREF_UNSUPPORTED_ERROR);
-                    };
+                kw.span() => {
+                    const ASSERT_WEAKREF_SUPPORTED: () = #pyo3_path::impl_::pyclass::assert_weakref_supported();
                 };
             });
         }
 
         if let Some(kw) = &attr.options.immutable_type {
+            let pyo3_path = locate_tokens_at(pyo3_path.to_token_stream(), kw.span());
             assertions.extend(quote_spanned! {
-                kw.span() => const _: () = {
-                    #[allow(dead_code)]
-                    const ASSERT_IMMUTABLE_SUPPORTED: () = if !#pyo3_path::impl_::pyclass::IMMUTABLE_TYPE_SUPPORTED {
-                        ::std::panic!("{}", #pyo3_path::impl_::pyclass::IMMUTABLE_TYPE_UNSUPPORTED_ERROR);
-                    };
+                kw.span() => {
+                    const ASSERT_IMMUTABLE_SUPPORTED: () = #pyo3_path::impl_::pyclass::assert_immutable_type_supported();
                 };
             });
         }
@@ -2993,7 +2985,10 @@ impl<'a> PyClassImplsBuilder<'a> {
 
             #extract_pyclass_with_clone
 
-            #assertions
+            #[allow(dead_code)]
+            const _: () ={
+                #assertions
+            };
 
             #pyclass_base_type_impl
 

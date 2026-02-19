@@ -3,3 +3,5 @@ error[E0080]: evaluation panicked: `dict` requires Python >= 3.9 when using the 
   |
 4 | #[pyclass(dict)]
   |           ^^^^ evaluation of `_::ASSERT_DICT_SUPPORTED` failed here
+  |
+  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)

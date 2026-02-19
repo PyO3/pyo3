@@ -3,3 +3,5 @@ error[E0080]: evaluation panicked: `weakref` requires Python >= 3.9 when using t
   |
 4 | #[pyclass(weakref)]
   |           ^^^^^^^ evaluation of `_::ASSERT_WEAKREF_SUPPORTED` failed here
+  |
+  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
