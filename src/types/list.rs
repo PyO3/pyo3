@@ -1021,7 +1021,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn test_set_item_refcnt() {
         Python::attach(|py| {
             let obj = py.eval(c"object()", None, None).unwrap();
@@ -1030,11 +1029,11 @@ mod tests {
                 let v = vec![2];
                 let ob = v.into_pyobject(py).unwrap();
                 let list = ob.cast::<PyList>().unwrap();
-                cnt = obj.get_refcnt();
+                cnt = obj._get_refcnt();
                 list.set_item(0, &obj).unwrap();
             }
 
-            assert_eq!(cnt, obj.get_refcnt());
+            assert_eq!(cnt, obj._get_refcnt());
         });
     }
 
@@ -1056,18 +1055,17 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn test_insert_refcnt() {
         Python::attach(|py| {
             let cnt;
             let obj = py.eval(c"object()", None, None).unwrap();
             {
                 let list = PyList::empty(py);
-                cnt = obj.get_refcnt();
+                cnt = obj._get_refcnt();
                 list.insert(0, &obj).unwrap();
             }
 
-            assert_eq!(cnt, obj.get_refcnt());
+            assert_eq!(cnt, obj._get_refcnt());
         });
     }
 
@@ -1082,17 +1080,16 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn test_append_refcnt() {
         Python::attach(|py| {
             let cnt;
             let obj = py.eval(c"object()", None, None).unwrap();
             {
                 let list = PyList::empty(py);
-                cnt = obj.get_refcnt();
+                cnt = obj._get_refcnt();
                 list.append(&obj).unwrap();
             }
-            assert_eq!(cnt, obj.get_refcnt());
+            assert_eq!(cnt, obj._get_refcnt());
         });
     }
 

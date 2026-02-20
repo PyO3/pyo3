@@ -1,6 +1,8 @@
 use crate::ffi::*;
-use crate::types::any::PyAnyMethods;
 use crate::Python;
+
+#[cfg(not(Py_LIMITED_API))]
+use crate::types::any::PyAnyMethods;
 
 #[cfg(all(not(Py_LIMITED_API), any(not(any(PyPy, GraalPy)), feature = "macros")))]
 use crate::types::PyString;
@@ -300,40 +302,38 @@ fn test_get_tzinfo() {
 }
 
 #[test]
-#[allow(deprecated)]
 fn test_inc_dec_ref() {
     Python::attach(|py| {
         let obj = py.eval(c"object()", None, None).unwrap();
 
-        let ref_count = obj.get_refcnt();
+        let ref_count = obj._get_refcnt();
         let ptr = obj.as_ptr();
 
         unsafe { Py_INCREF(ptr) };
 
-        assert_eq!(obj.get_refcnt(), ref_count + 1);
+        assert_eq!(obj._get_refcnt(), ref_count + 1);
 
         unsafe { Py_DECREF(ptr) };
 
-        assert_eq!(obj.get_refcnt(), ref_count);
+        assert_eq!(obj._get_refcnt(), ref_count);
     })
 }
 
 #[test]
 #[cfg(Py_3_12)]
-#[allow(deprecated)]
 fn test_inc_dec_ref_immortal() {
     Python::attach(|py| {
         let obj = py.None();
 
-        let ref_count = obj.get_refcnt(py);
+        let ref_count = obj._get_refcnt(py);
         let ptr = obj.as_ptr();
 
         unsafe { Py_INCREF(ptr) };
 
-        assert_eq!(obj.get_refcnt(py), ref_count);
+        assert_eq!(obj._get_refcnt(py), ref_count);
 
         unsafe { Py_DECREF(ptr) };
 
-        assert_eq!(obj.get_refcnt(py), ref_count);
+        assert_eq!(obj._get_refcnt(py), ref_count);
     })
 }

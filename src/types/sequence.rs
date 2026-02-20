@@ -487,7 +487,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn test_seq_set_item_refcnt() {
         let obj = get_object();
 
@@ -500,7 +499,7 @@ mod tests {
         });
 
         Python::attach(move |py| {
-            assert_eq!(1, obj.get_refcnt(py));
+            assert_eq!(1, obj._get_refcnt(py));
         });
     }
 

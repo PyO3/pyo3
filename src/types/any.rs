@@ -1535,7 +1535,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     fn get_refcnt(&self) -> isize {
-        unsafe { ffi::Py_REFCNT(self.as_ptr()) }
+        self._get_refcnt()
     }
 
     fn repr(&self) -> PyResult<Bound<'py, PyString>> {
@@ -1655,6 +1655,11 @@ impl<'py> Bound<'py, PyAny> {
         } else {
             Ok(Some(attr))
         }
+    }
+
+    #[inline]
+    pub(crate) fn _get_refcnt(&self) -> isize {
+        unsafe { ffi::Py_REFCNT(self.as_ptr()) }
     }
 }
 
