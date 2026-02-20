@@ -1,10 +1,13 @@
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::internal::state::thread_is_attached;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::sequence::PySequenceMethods;
 use crate::types::{PySequence, PyTuple};
-use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python};
+use crate::{
+    Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, Python,
+};
 use std::iter::FusedIterator;
 #[cfg(feature = "nightly")]
 use std::num::NonZero;
@@ -448,6 +451,23 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
                 .assume_owned(self.py())
                 .cast_into_unchecked()
         }
+    }
+}
+
+impl<'py> FromIterator<Bound<'py, PyAny>> for Py<PyList> {
+    fn from_iter<T: IntoIterator<Item = Bound<'py, PyAny>>>(iter: T) -> Self {
+        let mut elements = iter.into_iter().peekable();
+        let py = elements.peek().map_or_else(
+            || {
+                assert!(thread_is_attached());
+                unsafe { Python::assume_attached() }
+            },
+            |item| item.py(),
+        );
+
+        PyList::new(py, elements)
+            .expect("Could not allocate enough memory to add elements to the list")
+            .unbind()
     }
 }
 
@@ -944,7 +964,7 @@ mod tests {
     use crate::types::list::PyListMethods;
     use crate::types::sequence::PySequenceMethods;
     use crate::types::{PyList, PyTuple};
-    use crate::{IntoPyObject, PyResult, Python};
+    use crate::{IntoPyObject, Py, PyResult, Python};
     #[cfg(feature = "nightly")]
     use std::num::NonZero;
 
@@ -1784,6 +1804,24 @@ mod tests {
                 5,
                 "list should contain all elements even though size_hint is 0"
             );
+        })
+    }
+
+    #[test]
+    fn test_from_iter() {
+        Python::attach(|py| {
+            let list = [py.None().into_bound(py)]
+                .into_iter()
+                .collect::<Py<PyList>>()
+                .into_bound(py);
+            assert_eq!(list.len(), 1);
+
+            let list = [Ok(py.None().into_bound(py))]
+                .into_iter()
+                .collect::<PyResult<Py<PyList>>>()
+                .unwrap()
+                .into_bound(py);
+            assert_eq!(list.len(), 1);
         })
     }
 }
