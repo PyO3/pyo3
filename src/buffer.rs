@@ -51,8 +51,9 @@ pub struct PyUntypedBuffer(
 #[repr(transparent)]
 struct RawBuffer(ffi::Py_buffer, PhantomPinned);
 
-// PyBuffer send & sync guarantees are upheld by Python.
+// SAFETY: PyBuffer send & sync guarantees are upheld by Python.
 unsafe impl Send for PyUntypedBuffer {}
+// SAFETY: PyBuffer send & sync guarantees are upheld by Python.
 unsafe impl Sync for PyUntypedBuffer {}
 
 impl<T> Debug for PyBuffer<T> {
@@ -244,6 +245,8 @@ impl<T: Element> PyBuffer<T> {
     /// to modify the values in the slice.
     pub fn as_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [ReadOnlyCell<T>]> {
         if self.is_c_contiguous() {
+            // SAFETY: raw contiguous `buf` pointer points to the beginning of the memory block,
+            // so creating a slice of `item_count()` elements is safe.
             unsafe {
                 Some(slice::from_raw_parts(
                     self.raw().buf.cast(),
@@ -267,6 +270,8 @@ impl<T: Element> PyBuffer<T> {
     /// to modify the values in the slice.
     pub fn as_mut_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [cell::Cell<T>]> {
         if !self.readonly() && self.is_c_contiguous() {
+            // SAFETY: raw contiguous `buf` pointer points to the beginning of the memory block,
+            // so creating a slice of `item_count()` elements is safe.
             unsafe {
                 Some(slice::from_raw_parts(
                     self.raw().buf.cast(),
@@ -289,6 +294,8 @@ impl<T: Element> PyBuffer<T> {
     /// to modify the values in the slice.
     pub fn as_fortran_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [ReadOnlyCell<T>]> {
         if mem::size_of::<T>() == self.item_size() && self.is_fortran_contiguous() {
+            // SAFETY: raw contiguous `buf` pointer points to the beginning of the memory block,
+            // so creating a slice of `item_count()` elements is safe.
             unsafe {
                 Some(slice::from_raw_parts(
                     self.raw().buf.cast(),
@@ -312,6 +319,8 @@ impl<T: Element> PyBuffer<T> {
     /// to modify the values in the slice.
     pub fn as_fortran_mut_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [cell::Cell<T>]> {
         if !self.readonly() && self.is_fortran_contiguous() {
+            // SAFETY: raw contiguous `buf` pointer points to the beginning of the memory block,
+            // so creating a slice of `item_count()` elements is safe.
             unsafe {
                 Some(slice::from_raw_parts(
                     self.raw().buf.cast(),
@@ -358,6 +367,8 @@ impl<T: Element> PyBuffer<T> {
             )));
         }
 
+        // SAFETY: `PyBuffer` guarantees the validity of the underlying raw buffer.
+        // The target slice has been checked to have the correct length.
         err::error_on_minusone(py, unsafe {
             ffi::PyBuffer_ToContiguous(
                 target.as_mut_ptr().cast(),
@@ -393,6 +404,7 @@ impl<T: Element> PyBuffer<T> {
 
         // Copy the buffer into the uninitialized space in the vector.
         // Due to T:Copy, we don't need to be concerned with Drop impls.
+        // SAFETY: `PyBuffer` guarantees the validity of the underlying raw buffer.
         err::error_on_minusone(py, unsafe {
             ffi::PyBuffer_ToContiguous(
                 vec.as_mut_ptr().cast(),
@@ -405,6 +417,7 @@ impl<T: Element> PyBuffer<T> {
             )
         })?;
         // set vector length to mark the now-initialized space as usable
+        // SAFETY: we have just initialized `item_count` elements in the vector.
         unsafe { vec.set_len(item_count) };
         Ok(vec)
     }
@@ -448,6 +461,9 @@ impl<T: Element> PyBuffer<T> {
             )));
         }
 
+        // SAFETY: `PyBuffer` guarantees the validity of the underlying raw buffer.
+        // The target slice has been checked to have the correct length.
+        // `fort` is either `b'C'` or `b'F'` per usage.
         err::error_on_minusone(py, unsafe {
             ffi::PyBuffer_FromContiguous(
                 #[cfg(Py_3_11)]
@@ -545,9 +561,10 @@ impl PyUntypedBuffer {
         // never be called. (It would attach to the interpreter and call PyBuffer_Release
         // again.)
         let mut mdself = mem::ManuallyDrop::new(self);
+
+        // SAFETY: Fine to get a mutable reference to the inner ffi::Py_buffer here, as we're destroying it.
         unsafe {
             // Next, make the actual PyBuffer_Release call.
-            // Fine to get a mutable reference to the inner ffi::Py_buffer here, as we're destroying it.
             mdself.0.release();
 
             // Finally, drop the contained Pin<Box<_>> in place, to free the
@@ -578,6 +595,7 @@ impl PyUntypedBuffer {
         for i in 0..indices.len() {
             assert!(indices[i] < shape[i]);
         }
+        // SAFETY: `indices` are within shape bounds.
         unsafe {
             ffi::PyBuffer_GetPointer(
                 #[cfg(Py_3_11)]
@@ -636,6 +654,7 @@ impl PyUntypedBuffer {
     /// However, dimensions of length 0 are possible and might need special attention.
     #[inline]
     pub fn shape(&self) -> &[usize] {
+        // SAFETY: `shape` is an array of length `ndim`.
         unsafe { slice::from_raw_parts(self.raw().shape.cast(), self.raw().ndim as usize) }
     }
 
@@ -645,6 +664,7 @@ impl PyUntypedBuffer {
     /// but a consumer MUST be able to handle the case `strides[n] <= 0`.
     #[inline]
     pub fn strides(&self) -> &[isize] {
+        // SAFETY: `strides` is an array of length `ndim`.
         unsafe { slice::from_raw_parts(self.raw().strides, self.raw().ndim as usize) }
     }
 
@@ -655,10 +675,12 @@ impl PyUntypedBuffer {
     /// If all suboffsets are negative (i.e. no de-referencing is needed), then this field must be NULL (the default value).
     #[inline]
     pub fn suboffsets(&self) -> Option<&[isize]> {
-        unsafe {
-            if self.raw().suboffsets.is_null() {
-                None
-            } else {
+        if self.raw().suboffsets.is_null() {
+            None
+        } else {
+            // SAFETY: `suboffsets` is an array of length `ndim` or a null pointer.
+            // The pointer is checked for null above.
+            unsafe {
                 Some(slice::from_raw_parts(
                     self.raw().suboffsets,
                     self.raw().ndim as usize,
@@ -673,6 +695,7 @@ impl PyUntypedBuffer {
         if self.raw().format.is_null() {
             ffi::c_str!("B")
         } else {
+            // SAFETY: `format`` is either null or a valid NULL-terminated C string.
             unsafe { CStr::from_ptr(self.raw().format) }
         }
     }
@@ -680,12 +703,14 @@ impl PyUntypedBuffer {
     /// Gets whether the buffer is contiguous in C-style order (last index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_c_contiguous(&self) -> bool {
+        // SAFETY: `PyBuffer_IsContiguous` expects a valid `Py_buffer` pointer.
         unsafe { ffi::PyBuffer_IsContiguous(self.raw(), b'C' as std::ffi::c_char) != 0 }
     }
 
     /// Gets whether the buffer is contiguous in Fortran-style order (first index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_fortran_contiguous(&self) -> bool {
+        // SAFETY: `PyBuffer_IsContiguous` expects a valid `Py_buffer` pointer.
         unsafe { ffi::PyBuffer_IsContiguous(self.raw(), b'F' as std::ffi::c_char) != 0 }
     }
 
@@ -704,6 +729,7 @@ impl RawBuffer {
     /// - Must be attached to the interpreter.
     ///
     unsafe fn release(self: &mut Pin<Box<Self>>) {
+        // SAFETY: Caller guarantees.
         unsafe {
             ffi::PyBuffer_Release(&mut Pin::get_unchecked_mut(self.as_mut()).0);
         }
@@ -712,6 +738,7 @@ impl RawBuffer {
 
 impl Drop for PyUntypedBuffer {
     fn drop(&mut self) {
+        // SAFETY: `Drop` implementation guarantees no further use of the buffer.
         if Python::try_attach(|_| unsafe { self.0.release() }).is_none()
             && crate::internal::state::is_in_gc_traversal()
         {
@@ -736,6 +763,9 @@ impl<T: Element> ReadOnlyCell<T> {
     /// Returns a copy of the current value.
     #[inline]
     pub fn get(&self) -> T {
+        // SAFETY: `T` is `Copy`, so we can safely read the value without concerns about
+        // invalidating other references. The `UnsafeCell` is guaranteed to be valid for
+        // the lifetime of `self`.
         unsafe { *self.0.get() }
     }
 
@@ -748,6 +778,7 @@ impl<T: Element> ReadOnlyCell<T> {
 
 macro_rules! impl_element(
     ($t:ty, $f:ident) => {
+        // SAFETY: Usage of this macro is restricted to types which are valid buffer elements.
         unsafe impl Element for $t {
             fn is_compatible_format(format: &CStr) -> bool {
                 let slice = format.to_bytes();
