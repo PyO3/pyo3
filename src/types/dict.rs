@@ -1022,11 +1022,11 @@ mod tests {
             let cnt;
             let obj = py.eval(c"object()", None, None).unwrap();
             {
-                cnt = obj.get_refcnt();
+                cnt = obj._get_refcnt();
                 let _dict = [(10, &obj)].into_py_dict(py);
             }
             {
-                assert_eq!(cnt, obj.get_refcnt());
+                assert_eq!(cnt, obj._get_refcnt());
             }
         });
     }

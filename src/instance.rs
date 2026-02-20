@@ -1728,7 +1728,16 @@ impl<T> Py<T> {
 
     /// Gets the reference count of the `ffi::PyObject` pointer.
     #[inline]
-    pub fn get_refcnt(&self, _py: Python<'_>) -> isize {
+    #[deprecated(
+        since = "0.29.0",
+        note = "use `pyo3::ffi::Py_REFCNT(obj.as_ptr())` instead"
+    )]
+    pub fn get_refcnt(&self, py: Python<'_>) -> isize {
+        self._get_refcnt(py)
+    }
+
+    #[inline]
+    pub(crate) fn _get_refcnt(&self, _py: Python<'_>) -> isize {
         // SAFETY: Self is a valid pointer to a PyObject
         unsafe { ffi::Py_REFCNT(self.0.as_ptr()) }
     }
@@ -2542,7 +2551,7 @@ mod tests {
         });
 
         Python::attach(move |py| {
-            assert_eq!(dict.get_refcnt(py), 1);
+            assert_eq!(dict._get_refcnt(py), 1);
         });
     }
 
@@ -2550,9 +2559,9 @@ mod tests {
     fn pyobject_from_py() {
         Python::attach(|py| {
             let dict: Py<PyDict> = PyDict::new(py).unbind();
-            let cnt = dict.get_refcnt(py);
+            let cnt = dict._get_refcnt(py);
             let p: Py<PyAny> = dict.into();
-            assert_eq!(p.get_refcnt(py), cnt);
+            assert_eq!(p._get_refcnt(py), cnt);
         });
     }
 
@@ -2786,11 +2795,11 @@ a = A()
             let object2 = object.clone_ref(py);
 
             assert_eq!(object.as_ptr(), object2.as_ptr());
-            assert_eq!(object.get_refcnt(py), 2);
+            assert_eq!(object._get_refcnt(py), 2);
 
             object.drop_ref(py);
 
-            assert_eq!(object2.get_refcnt(py), 1);
+            assert_eq!(object2._get_refcnt(py), 1);
 
             object2.drop_ref(py);
         });

@@ -881,6 +881,10 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
         T: FromPyObject<'a, 'py>;
 
     /// Returns the reference count for the Python object.
+    #[deprecated(
+        since = "0.29.0",
+        note = "use `pyo3::ffi::Py_REFCNT(obj.as_ptr())` instead"
+    )]
     fn get_refcnt(&self) -> isize;
 
     /// Computes the "repr" representation of self.
@@ -1531,7 +1535,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     fn get_refcnt(&self) -> isize {
-        unsafe { ffi::Py_REFCNT(self.as_ptr()) }
+        self._get_refcnt()
     }
 
     fn repr(&self) -> PyResult<Bound<'py, PyString>> {
@@ -1651,6 +1655,11 @@ impl<'py> Bound<'py, PyAny> {
         } else {
             Ok(Some(attr))
         }
+    }
+
+    #[inline]
+    pub(crate) fn _get_refcnt(&self) -> isize {
+        unsafe { ffi::Py_REFCNT(self.as_ptr()) }
     }
 }
 
