@@ -283,6 +283,8 @@ pub struct PyASCIIObject {
     pub length: Py_ssize_t,
     #[cfg(any(Py_3_11, not(PyPy)))]
     pub hash: Py_hash_t,
+    #[cfg(pyodide_js_string)]
+    pub js_string: usize,
     /// A bit field with various properties.
     ///
     /// Rust doesn't expose bitfields. So we have accessor functions for
