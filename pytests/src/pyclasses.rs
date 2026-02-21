@@ -213,6 +213,39 @@ fn map_a_class(cls: AClass) -> AClass {
     cls
 }
 
+#[pyclass]
+struct ClassWithCustomGetterSetterSignature {
+    foo: usize,
+    bar: usize,
+}
+#[pymethods]
+impl ClassWithCustomGetterSetterSignature {
+    #[new]
+    fn new() -> Self {
+        Self { foo: 0, bar: 10 }
+    }
+    #[getter]
+    #[pyo3(signature = () -> "int")]
+    fn get_foo(&self) -> usize {
+        self.foo
+    }
+
+    #[setter]
+    #[pyo3(signature = (value:"int"))]
+    fn set_foo(&mut self, value: usize) {
+        self.foo = value;
+    }
+
+    #[getter]
+    fn get_bar(&self) -> usize {
+        self.bar
+    }
+    #[setter]
+    fn set_bar(&mut self, value: usize) {
+        self.bar = value;
+    }
+}
+
 #[pymodule]
 pub mod pyclasses {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -223,7 +256,7 @@ pub mod pyclasses {
     use super::SubClassWithInit;
     #[pymodule_export]
     use super::{
-        map_a_class, AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass,
-        PlainObject, PyClassIter, PyClassThreadIter,
+        map_a_class, AssertingBaseClass, ClassWithCustomGetterSetterSignature, ClassWithDecorators,
+        ClassWithoutConstructor, EmptyClass, PlainObject, PyClassIter, PyClassThreadIter,
     };
 }

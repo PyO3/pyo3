@@ -250,12 +250,15 @@ impl FnType {
 
     pub fn signature_attribute_allowed(&self) -> bool {
         match self {
-            FnType::Fn(_) | FnType::FnStatic | FnType::FnClass(_) | FnType::FnModule(_) => true,
-            // Getter, Setter and Deleter and ClassAttribute all have fixed signatures (either take 0 or 1
+            FnType::Setter(_)
+            | FnType::Getter(_)
+            | FnType::Fn(_)
+            | FnType::FnStatic
+            | FnType::FnClass(_)
+            | FnType::FnModule(_) => true,
+            // Deleter and ClassAttribute all have fixed signatures (either take 0 or 1
             // arguments) so cannot have a `signature = (...)` attribute.
-            FnType::Getter(_) | FnType::Setter(_) | FnType::Deleter(_) | FnType::ClassAttribute => {
-                false
-            }
+            FnType::Deleter(_) | FnType::ClassAttribute => false,
         }
     }
 
@@ -1085,14 +1088,6 @@ fn ensure_signatures_on_valid_method(
 ) -> syn::Result<()> {
     if let Some(signature) = signature {
         match fn_type {
-            FnType::Getter(_) => {
-                debug_assert!(!fn_type.signature_attribute_allowed());
-                bail_spanned!(signature.kw.span() => "`signature` not allowed with `getter`")
-            }
-            FnType::Setter(_) => {
-                debug_assert!(!fn_type.signature_attribute_allowed());
-                bail_spanned!(signature.kw.span() => "`signature` not allowed with `setter`")
-            }
             FnType::Deleter(_) => {
                 debug_assert!(!fn_type.signature_attribute_allowed());
                 bail_spanned!(signature.kw.span() => "`signature` not allowed with `deleter`")
