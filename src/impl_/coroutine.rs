@@ -2,13 +2,12 @@ use std::future::Future;
 
 use crate::{
     coroutine::{cancel::ThrowCallback, Coroutine},
-    instance::Bound,
     types::PyString,
-    Py, PyAny, PyResult, Python,
+    Borrowed, Py, PyAny, PyResult, Python,
 };
 
 pub fn new_coroutine<'py, F>(
-    name: &Bound<'py, PyString>,
+    name: Borrowed<'_, 'py, PyString>,
     qualname_prefix: Option<&'static str>,
     throw_callback: Option<ThrowCallback>,
     future: F,
@@ -16,7 +15,12 @@ pub fn new_coroutine<'py, F>(
 where
     F: Future<Output = PyResult<Py<PyAny>>> + Send + 'static,
 {
-    Coroutine::new(Some(name.clone()), qualname_prefix, throw_callback, future)
+    Coroutine::new(
+        Some(name.to_owned()),
+        qualname_prefix,
+        throw_callback,
+        future,
+    )
 }
 
 /// Handle which assumes that the coroutine is attached to the thread. Unlike `Python<'_>`, this is `Send`.

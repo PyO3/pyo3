@@ -202,6 +202,18 @@ impl PyString {
         }
     }
 
+    /// Intern the given C string.
+    ///
+    /// Python may keep a reference to the returned string or make it immortal, preventing it from
+    /// being garbage collected.
+    pub fn intern_cstr<'py>(py: Python<'py>, s: &CStr) -> Bound<'py, PyString> {
+        unsafe {
+            ffi::PyUnicode_InternFromString(s.as_ptr())
+                .assume_owned(py)
+                .cast_into_unchecked()
+        }
+    }
+
     /// Attempts to create a Python string from a Python [bytes-like object].
     ///
     /// The `encoding` and `errors` parameters are optional:
