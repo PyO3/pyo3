@@ -565,7 +565,7 @@ Both `struct`s and `enum`s are supported.
 
 `struct`s will turn into a `PyDict` using the field names as keys, tuple `struct`s will turn convert into `PyTuple` with the fields in declaration order.
 
-```rust,no_run
+```rust
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use std::collections::HashMap;
@@ -576,7 +576,7 @@ Both `struct`s and `enum`s are supported.
 struct Struct {
     count: usize,
     obj: Py<PyAny>,
-}
+
 
 // tuple structs convert into `PyTuple`
 // lifetimes and generics are supported, the impl will be bounded by
@@ -585,9 +585,124 @@ struct Struct {
 struct Tuple<'a, K: Hash + Eq, V>(&'a str, HashMap<K, V>);
 ```
 
+Same as `FromPyObject`, the argument passed to `getattr` and `get_item` can also be configured:
+
+```rust
+# #![allow(dead_code)]
+use pyo3::prelude::*;
+# use pyo3::types::PyString;
+
+#[derive(IntoPyObject)]
+struct RustyStruct {
+    #[pyo3(item("key"))]
+    string_in_mapping: String,
+    #[pyo3(attribute("name"))]
+    string_attr: String,
+}
+
+# impl RustyStruct {
+#   fn new() -> Self {
+#     Self {
+#       string_in_mapping: String::from("test2"),
+#       string_attr: String::from("test"),
+#     }
+#   }
+# }
+#
+# fn main() -> PyResult<()> {
+#   Python::attach(|py| -> PyResult<()> {
+#     let rustystruct = RustyStruct::new();
+#     let python_dict = rustystruct.into_pyobject(py)?;
+#     assert_eq!(
+#       python_dict
+#               .call_method1("get_attribute", ("name",))
+#               .unwrap()
+#               .cast::<PyString>()
+#               .unwrap(),
+#       "test"
+#     );
+#     assert_eq!(
+#       python_dict
+#               .call_method1("get_item", ("key",))
+#               .unwrap()
+#               .cast::<PyString>()
+#               .unwrap(),
+#       "test2"
+#     );
+#
+#     Ok(())
+#   })
+# }
+```
+
+This tries to convert `string_attr` to the attribute `name` and `string_in_mapping` to a mapping with the key `"key"`.
+The arguments for `attribute` are restricted to non-empty string literals while `item` can take any valid literal that implements `ToBorrowedObject`.
+
+You can also use `#[pyo3(from_item_all)]` on a struct to convert every field to be used with `get_item` method.
+In this case, you can't use `#[pyo3(attribute)]` or barely use `#[pyo3(item)]` on any field.
+However, using `#[pyo3(item("key"))]` to specify the key for a field is still allowed.
+
+```rust
+# #![allow(dead_code)]
+use pyo3::prelude::*;
+# use pyo3::types::PyString;
+
+#[derive(IntoPyObject)]
+#[pyo3(from_item_all)]
+struct RustyStruct {
+    foo: String,
+    bar: String,
+    #[pyo3(item("foobar"))]
+    baz: String,
+}
+
+impl RustyStruct {
+  fn new() -> Self {
+    Self { 
+      foo: String::from("foo"),
+      bar: String::from("bar"),
+      baz: String::from("foobar") }
+  }
+}
+
+#
+# fn main() -> PyResult<()> {
+#   Python::attach(|py| -> PyResult<()> {
+#     let rustystruct = RustyStruct::new();
+#     let python_dict = rustystruct.into_pyobject(py)?;
+#     assert_eq!(
+#       python_dict
+#               .call_method1("get_item", ("foo",))
+#               .unwrap()
+#               .cast::<PyString>()
+#               .unwrap(),
+#       "foo"
+#     );
+#     assert_eq!(
+#       python_dict
+#               .call_method1("get_item", ("bar",))
+#               .unwrap()
+#               .cast::<PyString>()
+#               .unwrap(),
+#       "bar"
+#     );
+#     assert_eq!(
+#       python_dict
+#               .call_method1("get_item", ("foobar",))
+#               .unwrap()
+#               .cast::<PyString>()
+#               .unwrap(),
+#       "foobar"
+#     );
+#
+#     Ok(())
+#   })
+# }
+```
+
 For structs with a single field (newtype pattern) the `#[pyo3(transparent)]` option can be used to forward the implementation to the inner type.
 
-```rust,no_run
+```rust
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -604,7 +719,7 @@ struct TransparentStruct<'py> {
 
 For `enum`s each variant is converted according to the rules for `struct`s above.
 
-```rust,no_run
+```rust
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use std::collections::HashMap;
@@ -632,7 +747,7 @@ All the same rules from above apply as well.
     - `#[derive(IntoPyObject)]` will invoke the function with `Cow::Owned`
     - `#[derive(IntoPyObjectRef)]` will invoke the function with `Cow::Borrowed`
 
-    ```rust,no_run
+    ```rust
     # use pyo3::prelude::*;
     # use pyo3::IntoPyObjectExt;
     # use std::borrow::Cow;
@@ -655,7 +770,7 @@ All the same rules from above apply as well.
 
 If the derive macro is not suitable for your use case, `IntoPyObject` can be implemented manually as demonstrated below.
 
-```rust,no_run
+```rust
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 struct MyPyObjectWrapper(Py<PyAny>);
@@ -687,7 +802,7 @@ impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
 `IntoPyObject::into_py_object` returns either `Bound` or `Borrowed` depending on the implementation for a concrete type.
 For example, the `IntoPyObject` implementation for `u32` produces a `Bound<'py, PyInt>` and the `bool` implementation produces a `Borrowed<'py, 'py, PyBool>`:
 
-```rust,no_run
+```rust
 use pyo3::prelude::*;
 use pyo3::IntoPyObject;
 use pyo3::types::{PyBool, PyInt};
@@ -714,7 +829,7 @@ In this example if we wanted to combine `ints_as_pyints` and `bools_as_pybool` i
 
 Instead, we can write a function that generically converts vectors of either integers or bools into a vector of `Py<PyAny>` using the [`BoundObject`] trait:
 
-```rust,no_run
+```rust
 # use pyo3::prelude::*;
 # use pyo3::BoundObject;
 # use pyo3::IntoPyObject;
