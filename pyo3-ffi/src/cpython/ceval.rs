@@ -1,21 +1,13 @@
 use crate::cpython::pystate::Py_tracefunc;
-use crate::object::{freefunc, PyObject};
-use std::ffi::c_int;
+use crate::object::PyObject;
 
 extern "C" {
-    // skipped non-limited _PyEval_CallTracing
+    // skipped private _PyEval_CallTracing
 
-    #[cfg(not(Py_3_11))]
-    pub fn _PyEval_EvalFrameDefault(arg1: *mut crate::PyFrameObject, exc: c_int) -> *mut PyObject;
+    // skipped private _PyEval_EvalFrameDefault
 
-    #[cfg(Py_3_11)]
-    pub fn _PyEval_EvalFrameDefault(
-        tstate: *mut crate::PyThreadState,
-        frame: *mut crate::_PyInterpreterFrame,
-        exc: c_int,
-    ) -> *mut crate::PyObject;
+    // skipped private _PyEval_RequestCodeExtraIndex
 
-    pub fn _PyEval_RequestCodeExtraIndex(func: freefunc) -> c_int;
     pub fn PyEval_SetProfile(trace_func: Option<Py_tracefunc>, arg1: *mut PyObject);
     pub fn PyEval_SetTrace(trace_func: Option<Py_tracefunc>, arg1: *mut PyObject);
 }
