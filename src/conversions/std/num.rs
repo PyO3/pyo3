@@ -1,3 +1,5 @@
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+use crate::buffer::PyBuffer;
 use crate::conversion::private::Reference;
 use crate::conversion::{FromPyObjectSequence, IntoPyObject};
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -6,10 +8,14 @@ use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 use crate::py_result_ext::PyResultExt;
-#[cfg(feature = "experimental-inspect")]
-use crate::type_object::PyTypeInfo;
-use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
-use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
+use crate::types::sequence::PySequenceMethods;
+use crate::types::{
+    any::PyAnyMethods, PyByteArray, PyByteArrayMethods, PyBytes, PyInt, PySequence,
+};
+use crate::{
+    exceptions, ffi, Borrowed, Bound, CastError, FromPyObject, PyAny, PyErr, PyResult, PyTypeInfo,
+    Python,
+};
 use std::convert::Infallible;
 use std::ffi::c_long;
 use std::mem::MaybeUninit;
@@ -317,6 +323,10 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
         } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
             Some(BytesSequenceExtractor::ByteArray(byte_array))
         } else {
+            #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+            if unsafe { ffi::PyObject_CheckBuffer(obj.as_ptr()) != 0 } {
+                return Some(BytesSequenceExtractor::Buffer(obj.to_any()));
+            }
             None
         }
     }
@@ -325,6 +335,8 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
 pub(crate) enum BytesSequenceExtractor<'a, 'py> {
     Bytes(Borrowed<'a, 'py, PyBytes>),
     ByteArray(Borrowed<'a, 'py, PyByteArray>),
+    #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+    Buffer(Borrowed<'a, 'py, PyAny>),
 }
 
 impl BytesSequenceExtractor<'_, '_> {
@@ -348,6 +360,21 @@ impl BytesSequenceExtractor<'_, '_> {
                     copy_slice(unsafe { b.as_bytes() })
                 })
             }
+            #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+            BytesSequenceExtractor::Buffer(any) => {
+                // Fall back to sequence semantics if the buffer is incompatible with u8
+                // (e.g., array('I')).
+                if let Ok(buf) = PyBuffer::<u8>::get(any) {
+                    // Safety: we're about to write the entire `out` slice.
+                    let target = unsafe {
+                        std::slice::from_raw_parts_mut(out.as_mut_ptr().cast::<u8>(), out.len())
+                    };
+                    buf.copy_to_slice(any.py(), target)?;
+                    Ok(())
+                } else {
+                    fill_u8_slice_from_sequence(*any, out)
+                }
+            }
         }
     }
 }
@@ -355,11 +382,21 @@ impl BytesSequenceExtractor<'_, '_> {
 impl FromPyObjectSequence for BytesSequenceExtractor<'_, '_> {
     type Target = u8;
 
-    fn to_vec(&self) -> Vec<Self::Target> {
-        match self {
+    fn to_vec(&self) -> PyResult<Vec<Self::Target>> {
+        Ok(match self {
             BytesSequenceExtractor::Bytes(b) => b.as_bytes().to_vec(),
             BytesSequenceExtractor::ByteArray(b) => b.to_vec(),
-        }
+            #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+            BytesSequenceExtractor::Buffer(any) => {
+                // Fall back to sequence semantics if the buffer is incompatible with u8
+                // (e.g., array('I')).
+                if let Ok(buf) = PyBuffer::<u8>::get(any) {
+                    return buf.to_vec(any.py());
+                } else {
+                    return extract_u8_vec_from_sequence(*any);
+                }
+            }
+        })
     }
 
     fn to_array<const N: usize>(&self) -> PyResult<[u8; N]> {
@@ -375,6 +412,45 @@ impl FromPyObjectSequence for BytesSequenceExtractor<'_, '_> {
         // Safety: `out` is fully initialized
         Ok(unsafe { out.assume_init() })
     }
+}
+
+fn extract_u8_vec_from_sequence<'a, 'py>(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Vec<u8>> {
+    // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
+    // to support this function and if not, we will only fail extraction safely.
+    let seq = unsafe {
+        if ffi::PySequence_Check(obj.as_ptr()) != 0 {
+            obj.cast_unchecked::<PySequence>()
+        } else {
+            return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
+        }
+    };
+
+    let mut v = Vec::with_capacity(seq.len().unwrap_or(0));
+    for item in seq.try_iter()? {
+        v.push(item?.extract::<u8>()?);
+    }
+    Ok(v)
+}
+
+fn fill_u8_slice_from_sequence<'a, 'py>(
+    obj: Borrowed<'a, 'py, PyAny>,
+    out: &mut [MaybeUninit<u8>],
+) -> PyResult<()> {
+    let seq = unsafe {
+        if ffi::PySequence_Check(obj.as_ptr()) != 0 {
+            obj.cast_unchecked::<PySequence>()
+        } else {
+            return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
+        }
+    };
+    let seq_len = seq.len()?;
+    if seq_len != out.len() {
+        return Err(invalid_sequence_length(out.len(), seq_len));
+    }
+    for (idx, item) in seq.try_iter()?.enumerate() {
+        out[idx].write(item?.extract::<u8>()?);
+    }
+    Ok(())
 }
 
 int_fits_c_long!(i8);
