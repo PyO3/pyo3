@@ -566,8 +566,8 @@ Both `struct`s and `enum`s are supported.
 `struct`s will turn into a `PyDict` using the field names as keys, tuple `struct`s will turn convert into `PyTuple` with the fields in declaration order.
 
 ```rust
-# #![allow(dead_code)]
 # use pyo3::prelude::*;
+# use pyo3::types::{PyInt, PyString, PyDict};
 # use std::collections::HashMap;
 # use std::hash::Hash;
 
@@ -583,12 +583,79 @@ struct Struct {
 // `K: IntoPyObject, V: IntoPyObject`
 #[derive(IntoPyObject)]
 struct Tuple<'a, K: Hash + Eq, V>(&'a str, HashMap<K, V>);
+
+# impl Struct {
+#   fn new() -> Self {
+#     Python::attach(|py| Self {
+#       count: 0,
+#       obj: Py::from(PyString::new(py, "test")),
+#     })
+#   }
+# }
+
+# impl<K: Hash + Eq, V> Tuple<'_, K, V> {
+#   fn new() -> Self {
+#     Self("test2", HashMap::new())
+#   }
+# }
+#
+# fn main() -> PyResult<()> {
+#   Python::attach(|py| -> PyResult<()> {
+#     let rustystruct = Struct::new();
+#     let python_dict = rustystruct.into_pyobject(py)?;
+#     assert_eq!(
+#       python_dict
+#               .call_method1("__getitem__", ("count",))
+#               .unwrap()
+#               .cast::<PyInt>()
+#               .unwrap()
+#               .extract::<i64>()
+#               .unwrap(),
+#       0
+#     );
+#     assert_eq!(
+#       python_dict
+#               .call_method1("__getitem__", ("obj",))
+#               .unwrap()
+#               .cast::<PyString>()
+#               .unwrap(),
+#       "test"
+#     );
+#
+#     let mut rustytuple: Tuple<'_, String, i32> = Tuple::new();
+#     rustytuple.1.insert("foo".to_string(), 42);
+#     let python_tuple = rustytuple.into_pyobject(py)?;
+#
+#     assert_eq!(
+#       python_tuple
+#               .call_method1("__getitem__", (0,))
+#               .unwrap()
+#               .cast::<PyString>()
+#               .unwrap(),
+#       "test2"
+#     );
+#
+#     assert_eq!(
+#       python_tuple
+#               .call_method1("__getitem__", (1,))
+#               .unwrap()
+#               .cast::<PyDict>()
+#               .unwrap()
+#               .call_method0("__str__")
+#               .unwrap()
+#               .cast::<PyString>()
+#               .unwrap(),
+#       "{'foo': 42}"
+#     );
+#
+#     Ok(())
+#   })
+# }
 ```
 
 Similar to `FromPyObject`, the argument passed to `get_item` can also be configured:
 
 ```rust
-# #![allow(dead_code)]
 use pyo3::prelude::*;
 # use pyo3::types::PyString;
 
@@ -632,7 +699,6 @@ In this case, you can't use `#[pyo3(attribute)]` or barely use `#[pyo3(item)]` o
 However, using `#[pyo3(item("key"))]` to specify the key for a field is still allowed.
 
 ```rust
-# #![allow(dead_code)]
 use pyo3::prelude::*;
 # use pyo3::types::PyString;
 
