@@ -756,8 +756,8 @@ impl RustyStruct {
 For structs with a single field (newtype pattern) the `#[pyo3(transparent)]` option can be used to forward the implementation to the inner type.
 
 ```rust
-# #![allow(dead_code)]
 # use pyo3::prelude::*;
+# use pyo3::types::PyString;
 
 // newtype tuple structs are implicitly `transparent`
 #[derive(IntoPyObject)]
@@ -767,6 +767,43 @@ struct TransparentTuple(Py<PyAny>);
 #[pyo3(transparent)]
 struct TransparentStruct<'py> {
     inner: Bound<'py, PyAny>, // `'py` lifetime will be used as the Python lifetime
+}
+
+# impl<'py> TransparentStruct<'py> {
+#   fn new(py: Python<'py>) -> Self {
+#     Self {
+#       inner: PyString::new(py, "test").into_any(),
+#     }
+#   }
+# }
+#
+# impl TransparentTuple {
+#   fn new() -> Self {
+#     Python::attach(|py| Self(PyString::new(py, "test2").into()))
+#   }
+# }
+#
+# fn main() -> PyResult<()> {
+#   Python::attach(|py| -> PyResult<()> {
+#     let rustystruct = TransparentStruct::new(py);
+#     let python_obj1 = rustystruct.into_pyobject(py)?;
+#     let rustytuple = TransparentTuple::new();
+#     let python_obj2 = rustytuple.into_pyobject(py)?;
+#     assert_eq!(
+#       python_obj1
+#               .cast::<PyString>()
+#               .unwrap(),
+#       "test"
+#     );
+#     assert_eq!(
+#       python_obj2
+#               .cast::<PyString>()
+#               .unwrap(),
+#       "test2"
+#     );
+
+    Ok(())
+  })
 }
 ```
 
