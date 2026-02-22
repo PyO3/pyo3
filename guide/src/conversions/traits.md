@@ -691,12 +691,10 @@ struct RustyStruct {
 # }
 ```
 
-This tries to convert `doc_string` to the attribute `__doc__` and `string_in_mapping` to a mapping with the key `"key"`.
-The arguments for `attribute` are restricted to non-empty string literals while `item` can take any valid literal that implements `ToBorrowedObject`.
+This tries to convert a mapping with the key `"key"`. The `item` can take any valid literal that implements `ToBorrowedObject`.
 
 You can also use `#[pyo3(from_item_all)]` on a struct to convert every field to be used with `get_item` method.
-In this case, you can't use `#[pyo3(attribute)]` or barely use `#[pyo3(item)]` on any field.
-However, using `#[pyo3(item("key"))]` to specify the key for a field is still allowed.
+In this case, you don't need to use `#[pyo3(item)]` on each field. However, using `#[pyo3(item("key"))]` to specify the key for a field is still allowed.
 
 ```rust
 use pyo3::prelude::*;
