@@ -877,7 +877,7 @@ All the same rules from above apply as well.
     }
     ```
 
-    - `pyo3(default)`, `pyo3(default = ...)`
+- `pyo3(default)`, `pyo3(default = ...)`
   - if the argument is set, uses the given default value.
   - in this case, the argument must be a Rust expression returning a value of the desired Rust type.
   - if the argument is not set, [`Default::default`](https://doc.rust-lang.org/std/default/trait.Default.html#tymethod.default) is used.
