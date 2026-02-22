@@ -576,7 +576,7 @@ Both `struct`s and `enum`s are supported.
 struct Struct {
     count: usize,
     obj: Py<PyAny>,
-
+}
 
 // tuple structs convert into `PyTuple`
 // lifetimes and generics are supported, the impl will be bounded by
@@ -585,7 +585,7 @@ struct Struct {
 struct Tuple<'a, K: Hash + Eq, V>(&'a str, HashMap<K, V>);
 ```
 
-Same as `FromPyObject`, the argument passed to `getattr` and `get_item` can also be configured:
+Similar to `FromPyObject`, the argument passed to `get_item` can also be configured:
 
 ```rust
 # #![allow(dead_code)]
@@ -596,15 +596,12 @@ use pyo3::prelude::*;
 struct RustyStruct {
     #[pyo3(item("key"))]
     string_in_mapping: String,
-    #[pyo3(attribute("name"))]
-    string_attr: String,
 }
 
 # impl RustyStruct {
 #   fn new() -> Self {
 #     Self {
-#       string_in_mapping: String::from("test2"),
-#       string_attr: String::from("test"),
+#       string_in_mapping: String::from("test"),
 #     }
 #   }
 # }
@@ -615,19 +612,11 @@ struct RustyStruct {
 #     let python_dict = rustystruct.into_pyobject(py)?;
 #     assert_eq!(
 #       python_dict
-#               .call_method1("get_attribute", ("name",))
+#               .call_method1("__getitem__", ("key",))
 #               .unwrap()
 #               .cast::<PyString>()
 #               .unwrap(),
 #       "test"
-#     );
-#     assert_eq!(
-#       python_dict
-#               .call_method1("get_item", ("key",))
-#               .unwrap()
-#               .cast::<PyString>()
-#               .unwrap(),
-#       "test2"
 #     );
 #
 #     Ok(())
@@ -635,7 +624,7 @@ struct RustyStruct {
 # }
 ```
 
-This tries to convert `string_attr` to the attribute `name` and `string_in_mapping` to a mapping with the key `"key"`.
+This tries to convert `doc_string` to the attribute `__doc__` and `string_in_mapping` to a mapping with the key `"key"`.
 The arguments for `attribute` are restricted to non-empty string literals while `item` can take any valid literal that implements `ToBorrowedObject`.
 
 You can also use `#[pyo3(from_item_all)]` on a struct to convert every field to be used with `get_item` method.
@@ -672,7 +661,7 @@ impl RustyStruct {
 #     let python_dict = rustystruct.into_pyobject(py)?;
 #     assert_eq!(
 #       python_dict
-#               .call_method1("get_item", ("foo",))
+#               .call_method1("__getitem__", ("foo",))
 #               .unwrap()
 #               .cast::<PyString>()
 #               .unwrap(),
@@ -680,7 +669,7 @@ impl RustyStruct {
 #     );
 #     assert_eq!(
 #       python_dict
-#               .call_method1("get_item", ("bar",))
+#               .call_method1("__getitem__", ("bar",))
 #               .unwrap()
 #               .cast::<PyString>()
 #               .unwrap(),
@@ -688,7 +677,7 @@ impl RustyStruct {
 #     );
 #     assert_eq!(
 #       python_dict
-#               .call_method1("get_item", ("foobar",))
+#               .call_method1("__getitem__", ("foobar",))
 #               .unwrap()
 #               .cast::<PyString>()
 #               .unwrap(),
