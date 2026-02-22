@@ -691,10 +691,12 @@ struct RustyStruct {
 # }
 ```
 
-This tries to convert a mapping with the key `"key"`. The `item` can take any valid literal that implements `ToBorrowedObject`.
+This tries to convert a mapping with the key `"key"`.
+The `item` can take any valid literal that implements `ToBorrowedObject`.
 
 You can also use `#[pyo3(from_item_all)]` on a struct to convert every field to be used with `get_item` method.
-In this case, you don't need to use `#[pyo3(item)]` on each field. However, using `#[pyo3(item("key"))]` to specify the key for a field is still allowed.
+In this case, you don't need to use `#[pyo3(item)]` on each field.
+However, using `#[pyo3(item("key"))]` to specify the key for a field is still allowed.
 
 ```rust
 use pyo3::prelude::*;
@@ -843,7 +845,7 @@ All the same rules from above apply as well.
   - renames all item keys according to the specified renaming rule
   - Possible values are: "camelCase", "kebab-case", "lowercase", "PascalCase", "SCREAMING-KEBAB-CASE", "SCREAMING_SNAKE_CASE", "snake_case", "UPPERCASE".
   - fields with an explicit renaming via `item(...)` are not affected
-  
+
 #### `#[derive(IntoPyObject)]`/`#[derive(IntoPyObjectRef)]` Field Attributes
 
 - `pyo3(item)`, `pyo3(item("key"))`
@@ -874,6 +876,7 @@ All the same rules from above apply as well.
         not_into_py.0.into_bound_py_any(py)
     }
     ```
+
     - `pyo3(default)`, `pyo3(default = ...)`
   - if the argument is set, uses the given default value.
   - in this case, the argument must be a Rust expression returning a value of the desired Rust type.
