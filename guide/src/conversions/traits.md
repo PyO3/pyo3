@@ -828,8 +828,27 @@ enum Enum<'a, 'py, K: Hash + Eq, V> { // enums are supported and convert using t
 Additionally `IntoPyObject` can be derived for a reference to a struct or enum using the `IntoPyObjectRef` derive macro.
 All the same rules from above apply as well.
 
+#### `#[derive(IntoPyObject)]`/`#[derive(IntoPyObjectRef)]` Container Attributes
+
+- `pyo3(transparent)`
+  - convert the field directly to the object as `obj.extract()` instead of `get_item()` or
+    `getattr()`
+  - Newtype structs and tuple-variants are treated as transparent per default.
+  - only supported for single-field structs and enum variants
+- `pyo3(annotation = "name")`
+  - changes the name of the failed variant in the generated error message in case of failure.
+  - e.g. `pyo3("int")` reports the variant's type as `int`.
+  - only supported for enum variants
+- `pyo3(rename_all = "...")`
+  - renames all item keys according to the specified renaming rule
+  - Possible values are: "camelCase", "kebab-case", "lowercase", "PascalCase", "SCREAMING-KEBAB-CASE", "SCREAMING_SNAKE_CASE", "snake_case", "UPPERCASE".
+  - fields with an explicit renaming via `item(...)` are not affected
+  
 #### `#[derive(IntoPyObject)]`/`#[derive(IntoPyObjectRef)]` Field Attributes
 
+- `pyo3(item)`, `pyo3(item("key"))`
+  - convert the field to a mapping, possibly with the custom key specified as an argument.
+  - can be any literal that implements `ToBorrowedObject`
 - `pyo3(into_py_with = ...)`
   - apply a custom function to convert the field from Rust into Python.
   - the argument must be the function identifier
@@ -855,6 +874,13 @@ All the same rules from above apply as well.
         not_into_py.0.into_bound_py_any(py)
     }
     ```
+    - `pyo3(default)`, `pyo3(default = ...)`
+  - if the argument is set, uses the given default value.
+  - in this case, the argument must be a Rust expression returning a value of the desired Rust type.
+  - if the argument is not set, [`Default::default`](https://doc.rust-lang.org/std/default/trait.Default.html#tymethod.default) is used.
+  - note that the default value is only used if the field is not set.
+    If the field is set and the conversion function from Rust to Python fails, an exception is raised and the default value is not used.
+  - this attribute is only supported on named fields.
 
 ### manual implementation
 
