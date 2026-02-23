@@ -528,7 +528,7 @@ Over time this has turned out problematic for a few reasons, the major one being
 Over the next few releases the blanket implementation is gradually phased out, and eventually replaced by an opt-in option.
 As a first step of this migration a new `skip_from_py_object` option for `#[pyclass]` was introduced, to opt-out of the blanket implementation and allow downstream users to provide their own implementation:
 
-```rust
+```rust, no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
