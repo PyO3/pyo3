@@ -675,6 +675,7 @@ struct RustyStruct {
 #   fn new() -> Self {
 #     Self {
 #       string_in_mapping: String::from("test"),
+#       string_attr: String::from(""),
 #     }
 #   }
 # }
