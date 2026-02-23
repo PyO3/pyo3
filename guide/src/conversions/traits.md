@@ -125,7 +125,7 @@ struct RustyStruct {
 ```
 
 This tries to extract `string_attr` from the attribute `name` and `string_in_mapping` from a mapping with the key `"key"`.
-The arguments for `attribute` are restricted to non-empty string literals while `item` can take any valid literal that implements `ToBorrowedObject`.
+The arguments for `attribute` are restricted to non-empty string literals while `item` can take any valid literal.
 
 You can use `#[pyo3(from_item_all)]` on a struct to extract every field with `get_item` method.
 In this case, you can't use `#[pyo3(attribute)]` or barely use `#[pyo3(item)]` on any field.
@@ -461,6 +461,10 @@ If the input is neither a string nor an integer, the error message will be: `"'<
   - renames all attributes/item keys according to the specified renaming rule
   - Possible values are: "camelCase", "kebab-case", "lowercase", "PascalCase", "SCREAMING-KEBAB-CASE", "SCREAMING_SNAKE_CASE", "snake_case", "UPPERCASE".
   - fields with an explicit renaming via `attribute(...)`/`item(...)` are not affected
+- `#[pyo3(from_item_all)]`
+  - extract every field with `get_item` method.
+  - can't use `#[pyo3(attribute)]` or barely use `#[pyo3(item)]` on any field after.
+  - using `#[pyo3(item("key"))]` to specify the key for a field is still allowed.
 
 ### `#[derive(FromPyObject)]` Field Attributes
 
@@ -653,7 +657,7 @@ struct Tuple<'a, K: Hash + Eq, V>(&'a str, HashMap<K, V>);
 # }
 ```
 
-Similar to `FromPyObject`, the argument passed to `get_item` can also be configured:
+Similar to `FromPyObject`, the argument passed to `set_item` can also be configured:
 
 ```rust
 use pyo3::prelude::*;
@@ -663,6 +667,8 @@ use pyo3::prelude::*;
 struct RustyStruct {
     #[pyo3(item("key"))]
     string_in_mapping: String,
+    #[pyo3(attribute("name"))] // no effect on this field
+    string_attr: String,
 }
 
 # impl RustyStruct {
@@ -691,69 +697,7 @@ struct RustyStruct {
 # }
 ```
 
-This tries to convert a mapping with the key `"key"`.
-The `item` can take any valid literal that implements `ToBorrowedObject`.
-
-You can also use `#[pyo3(from_item_all)]` on a struct to convert every field to be used with `get_item` method.
-In this case, you don't need to use `#[pyo3(item)]` on each field.
-However, using `#[pyo3(item("key"))]` to specify the key for a field is still allowed.
-
-```rust
-use pyo3::prelude::*;
-# use pyo3::types::PyString;
-
-#[derive(IntoPyObject)]
-#[pyo3(from_item_all)]
-struct RustyStruct {
-    foo: String,
-    bar: String,
-    #[pyo3(item("foobar"))]
-    baz: String,
-}
-
-impl RustyStruct {
-  fn new() -> Self {
-    Self { 
-      foo: String::from("foo"),
-      bar: String::from("bar"),
-      baz: String::from("foobar") }
-  }
-}
-
-#
-# fn main() -> PyResult<()> {
-#   Python::attach(|py| -> PyResult<()> {
-#     let rustystruct = RustyStruct::new();
-#     let python_dict = rustystruct.into_pyobject(py)?;
-#     assert_eq!(
-#       python_dict
-#               .call_method1("__getitem__", ("foo",))
-#               .unwrap()
-#               .cast::<PyString>()
-#               .unwrap(),
-#       "foo"
-#     );
-#     assert_eq!(
-#       python_dict
-#               .call_method1("__getitem__", ("bar",))
-#               .unwrap()
-#               .cast::<PyString>()
-#               .unwrap(),
-#       "bar"
-#     );
-#     assert_eq!(
-#       python_dict
-#               .call_method1("__getitem__", ("foobar",))
-#               .unwrap()
-#               .cast::<PyString>()
-#               .unwrap(),
-#       "foobar"
-#     );
-#
-#     Ok(())
-#   })
-# }
-```
+This tries to convert a mapping with the key `"key"`. The `item` can take any valid literal.
 
 For structs with a single field (newtype pattern) the `#[pyo3(transparent)]` option can be used to forward the implementation to the inner type.
 
@@ -833,8 +777,7 @@ All the same rules from above apply as well.
 #### `#[derive(IntoPyObject)]`/`#[derive(IntoPyObjectRef)]` Container Attributes
 
 - `pyo3(transparent)`
-  - convert the field directly to the object as `obj.extract()` instead of `get_item()` or
-    `getattr()`
+  - convert the field directly to the object instead of `set_item()`
   - Newtype structs and tuple-variants are treated as transparent per default.
   - only supported for single-field structs and enum variants
 - `pyo3(annotation = "name")`
@@ -845,12 +788,19 @@ All the same rules from above apply as well.
   - renames all item keys according to the specified renaming rule
   - Possible values are: "camelCase", "kebab-case", "lowercase", "PascalCase", "SCREAMING-KEBAB-CASE", "SCREAMING_SNAKE_CASE", "snake_case", "UPPERCASE".
   - fields with an explicit renaming via `item(...)` are not affected
+- `#[pyo3(from_item_all)]`
+  - Added for avoid erroring when `FromPyObject` is dervived together
+  - It will be a no-op attribute for `#[derive(IntoPyObject)]`/`#[derive(IntoPyObjectRef)]`
 
 #### `#[derive(IntoPyObject)]`/`#[derive(IntoPyObjectRef)]` Field Attributes
 
+- `pyo3(attribute)`, `pyo3(attribute("name"))`
+  - Added for avoid erroring when `FromPyObject` is dervived together
+  - It will be a no-op attribute for `#[derive(IntoPyObject)]`/`#[derive(IntoPyObjectRef)]`
 - `pyo3(item)`, `pyo3(item("key"))`
   - convert the field to a mapping, possibly with the custom key specified as an argument.
-  - can be any literal that implements `ToBorrowedObject`
+  - `pyo3(item)` is used as default for `#[derive(IntoPyObject)]`/`#[derive(IntoPyObjectRef)]` fields
+  - can be any literal
 - `pyo3(into_py_with = ...)`
   - apply a custom function to convert the field from Rust into Python.
   - the argument must be the function identifier
@@ -858,7 +808,7 @@ All the same rules from above apply as well.
     - `#[derive(IntoPyObject)]` will invoke the function with `Cow::Owned`
     - `#[derive(IntoPyObjectRef)]` will invoke the function with `Cow::Borrowed`
 
-    ```rust
+    ```rust, no_run
     # use pyo3::prelude::*;
     # use pyo3::IntoPyObjectExt;
     # use std::borrow::Cow;
@@ -878,18 +828,14 @@ All the same rules from above apply as well.
     ```
 
 - `pyo3(default)`, `pyo3(default = ...)`
-  - if the argument is set, uses the given default value.
-  - in this case, the argument must be a Rust expression returning a value of the desired Rust type.
-  - if the argument is not set, [`Default::default`](https://doc.rust-lang.org/std/default/trait.Default.html#tymethod.default) is used.
-  - note that the default value is only used if the field is not set.
-    If the field is set and the conversion function from Rust to Python fails, an exception is raised and the default value is not used.
-  - this attribute is only supported on named fields.
+  - Added for avoid erroring when `FromPyObject` is dervived together
+  - It will be a no-op attribute for `#[derive(IntoPyObject)]`/`#[derive(IntoPyObjectRef)]`
 
 ### manual implementation
 
 If the derive macro is not suitable for your use case, `IntoPyObject` can be implemented manually as demonstrated below.
 
-```rust
+```rust, no_run
 # use pyo3::prelude::*;
 # #[allow(dead_code)]
 struct MyPyObjectWrapper(Py<PyAny>);
@@ -921,7 +867,7 @@ impl<'a, 'py> IntoPyObject<'py> for &'a MyPyObjectWrapper {
 `IntoPyObject::into_py_object` returns either `Bound` or `Borrowed` depending on the implementation for a concrete type.
 For example, the `IntoPyObject` implementation for `u32` produces a `Bound<'py, PyInt>` and the `bool` implementation produces a `Borrowed<'py, 'py, PyBool>`:
 
-```rust
+```rust, no_run
 use pyo3::prelude::*;
 use pyo3::IntoPyObject;
 use pyo3::types::{PyBool, PyInt};
@@ -948,7 +894,7 @@ In this example if we wanted to combine `ints_as_pyints` and `bools_as_pybool` i
 
 Instead, we can write a function that generically converts vectors of either integers or bools into a vector of `Py<PyAny>` using the [`BoundObject`] trait:
 
-```rust
+```rust, no_run
 # use pyo3::prelude::*;
 # use pyo3::BoundObject;
 # use pyo3::IntoPyObject;
