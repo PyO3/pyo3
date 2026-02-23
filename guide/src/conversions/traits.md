@@ -697,7 +697,8 @@ struct RustyStruct {
 # }
 ```
 
-This tries to convert a mapping with the key `"key"`. The `item` can take any valid literal.
+This tries to convert a mapping with the key `"key"`.
+The `item` can take any valid literal.
 
 For structs with a single field (newtype pattern) the `#[pyo3(transparent)]` option can be used to forward the implementation to the inner type.
 
@@ -755,7 +756,7 @@ struct TransparentStruct<'py> {
 
 For `enum`s each variant is converted according to the rules for `struct`s above.
 
-```rust
+```rust, no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 # use std::collections::HashMap;
