@@ -1,21 +1,36 @@
 #![deny(unused_imports)]
 use pyo3::prelude::*;
 
-#[pyclass]
-pub struct Probe {}
-
-#[pymethods]
-impl Probe {
-    #[new]
-    fn new() -> Self {
-        Self {}
+#[pymodule]
+mod probe_no_fields {
+    use pyo3::prelude::*;
+    #[pyclass]
+    pub struct Probe {}
+    
+    #[pymethods]
+    impl Probe {
+        #[new]
+        fn new() -> Self {
+            Self {}
+        }
     }
 }
 
 #[pymodule]
-fn probe(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Probe>()?;
-    Ok(())
+mod probe_with_fields {
+    use pyo3::prelude::*;
+    #[pyclass(get_all)]
+    pub struct Probe {
+        field: u8,
+    }
+    
+    #[pymethods]
+    impl Probe {
+        #[new]
+        fn new() -> Self {
+            Self { field: 0 }
+        }
+    }
 }
 
 #[pyclass]
