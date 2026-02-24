@@ -2829,7 +2829,11 @@ impl<'a> PyClassImplsBuilder<'a> {
         };
 
         let (pymethods_items, inventory, inventory_class) = match self.methods_type {
-            PyClassMethodsType::Specialization => (quote! { collector.py_methods() }, None, None),
+            PyClassMethodsType::Specialization => (
+                quote! {{ use #pyo3_path::impl_::pyclass::PyMethods as _; collector.py_methods() }},
+                None,
+                None,
+            ),
             PyClassMethodsType::Inventory => {
                 // To allow multiple #[pymethods] block, we define inventory types.
                 let inventory_class_name = syn::Ident::new(
@@ -3010,13 +3014,12 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type BaseNativeType = #base_nativetype;
 
                 fn items_iter() -> #pyo3_path::impl_::pyclass::PyClassItemsIter {
-                    use #pyo3_path::impl_::pyclass::*;
-                    let collector = PyClassImplCollector::<Self>::new();
-                    static INTRINSIC_ITEMS: PyClassItems = PyClassItems {
+                    let collector = #pyo3_path::impl_::pyclass::PyClassImplCollector::<Self>::new();
+                    static INTRINSIC_ITEMS: #pyo3_path::impl_::pyclass::PyClassItems = #pyo3_path::impl_::pyclass::PyClassItems {
                         methods: &[#(#default_method_defs),*],
                         slots: &[#(#default_slot_defs),* #(#freelist_slots),*],
                     };
-                    PyClassItemsIter::new(&INTRINSIC_ITEMS, #pymethods_items)
+                    #pyo3_path::impl_::pyclass::PyClassItemsIter::new(&INTRINSIC_ITEMS, #pymethods_items)
                 }
 
                 const RAW_DOC: &'static ::std::ffi::CStr = #doc;
