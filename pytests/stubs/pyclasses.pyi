@@ -1,5 +1,5 @@
 from _typeshed import Incomplete
-from typing import final
+from typing import Final, final
 
 class AssertingBaseClass:
     """
@@ -9,6 +9,10 @@ class AssertingBaseClass:
 
 @final
 class ClassWithDecorators:
+    cls_attribute: Final[int]
+    """
+    A class attribute
+    """
     def __new__(cls, /) -> ClassWithDecorators: ...
     @property
     def attr(self, /) -> int:
@@ -24,12 +28,6 @@ class ClassWithDecorators:
     def attr(self, /, value: int) -> None:
         """
         A setter
-        """
-    @classmethod
-    @property
-    def cls_attribute(cls, /) -> int:
-        """
-        A class attribute
         """
     @classmethod
     def cls_method(cls, /) -> int:
