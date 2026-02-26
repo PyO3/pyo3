@@ -356,3 +356,26 @@ test_case!(
     "FIELDONE",
     test_rename_all_uppercase
 );
+
+#[test]
+fn test_class_attribute_reentrancy() {
+    #[pyclass(subclass)]
+    struct Base;
+
+    #[pymethods]
+    impl Base {
+        #[classattr]
+        #[allow(non_snake_case)]
+        fn DERIVED(py: Python<'_>) -> Py<Derived> {
+            Py::new(py, (Derived, Base)).unwrap()
+        }
+    }
+
+    #[pyclass(extends = Base)]
+    struct Derived;
+
+    Python::attach(|py| {
+        let derived_class = py.get_type::<Derived>();
+        assert!(derived_class.getattr("DERIVED").is_ok());
+    })
+}
