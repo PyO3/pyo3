@@ -208,6 +208,24 @@ impl<'a> PyMethod<'a> {
             spec,
         })
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    pub fn is_returning_not_implemented_on_extraction_error(&self) -> bool {
+        match &self.kind {
+            PyMethodKind::Fn => false,
+            PyMethodKind::Proto(proto) => match proto {
+                PyMethodProtoKind::Slot(slot) => {
+                    matches!(slot.extract_error_mode, ExtractErrorMode::NotImplemented)
+                }
+                PyMethodProtoKind::SlotFragment(slot) => {
+                    matches!(slot.extract_error_mode, ExtractErrorMode::NotImplemented)
+                }
+                PyMethodProtoKind::Call
+                | PyMethodProtoKind::Traverse
+                | PyMethodProtoKind::Clear => false,
+            },
+        }
+    }
 }
 
 pub fn is_proto_method(name: &str) -> bool {

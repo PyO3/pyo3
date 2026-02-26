@@ -411,6 +411,7 @@ pub fn impl_wrap_pyfunction(
         func.sig.output.clone(),
         empty(),
         func.sig.asyncness.is_some(),
+        false,
         get_doc(&func.attrs, None).as_ref(),
         None,
     );
