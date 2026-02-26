@@ -9,12 +9,7 @@
 //! interpreter.
 //!
 //! This module provides synchronization primitives which are able to synchronize under these conditions.
-use crate::{
-    internal::state::SuspendAttach,
-    sealed::Sealed,
-    types::{PyAny, PyString},
-    Bound, Py, Python,
-};
+use crate::{internal::state::SuspendAttach, sealed::Sealed, types::PyAny, Bound, Python};
 use std::{
     cell::UnsafeCell,
     marker::PhantomData,
@@ -229,28 +224,25 @@ impl<T> Drop for GILOnceCell<T> {
 #[macro_export]
 macro_rules! intern {
     ($py: expr, $text: expr) => {{
-        static INTERNED: $crate::sync::Interned = $crate::sync::Interned::new($text);
-        INTERNED.get($py)
+        const STRING: ::std::result::Result<&::std::ffi::CStr, &str> = {
+            match ::std::ffi::CStr::from_bytes_with_nul(concat!($text, "\0").as_bytes()) {
+                ::std::result::Result::Ok(c_str) => ::std::result::Result::Ok(c_str),
+                ::std::result::Result::Err(_) => ::std::result::Result::Err($text),
+            }
+        };
+        static INTERNED: $crate::sync::PyOnceLock<$crate::Py<$crate::types::PyString>> =
+            $crate::sync::PyOnceLock::new();
+        INTERNED
+            .get_or_init($py, || match STRING {
+                ::std::result::Result::Ok(c_str) => {
+                    $crate::types::PyString::intern_cstr($py, c_str).unbind()
+                }
+                ::std::result::Result::Err(string) => {
+                    $crate::types::PyString::intern($py, string).unbind()
+                }
+            })
+            .bind_borrowed($py)
     }};
-}
-
-/// Implementation detail for `intern!` macro.
-#[doc(hidden)]
-pub struct Interned(&'static str, PyOnceLock<Py<PyString>>);
-
-impl Interned {
-    /// Creates an empty holder for an interned `str`.
-    pub const fn new(value: &'static str) -> Self {
-        Interned(value, PyOnceLock::new())
-    }
-
-    /// Gets or creates the interned `str` value.
-    #[inline]
-    pub fn get<'py>(&self, py: Python<'py>) -> &Bound<'py, PyString> {
-        self.1
-            .get_or_init(py, || PyString::intern(py, self.0).into())
-            .bind(py)
-    }
 }
 
 /// Extension trait for [`Once`] to help avoid deadlocking when using a [`Once`] when attached to a
@@ -727,6 +719,8 @@ mod tests {
     use super::*;
 
     use crate::types::{PyAnyMethods, PyDict, PyDictMethods};
+    #[cfg(feature = "macros")]
+    use crate::Py;
     #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
     use std::sync::atomic::{AtomicBool, Ordering};
