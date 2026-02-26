@@ -474,7 +474,7 @@ pub fn method_introspection_code(
                     parse_quote!(#pyo3_path::Py<#pyo3_path::types::PyNone>)
                 },
                 get_doc(attrs, None).as_ref(),
-                false,
+                true,
             );
         }
     }

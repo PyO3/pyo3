@@ -1,5 +1,5 @@
 from _typeshed import Incomplete
-from typing import final
+from typing import Final, final
 
 class AssertingBaseClass:
     """
@@ -9,7 +9,7 @@ class AssertingBaseClass:
 
 @final
 class ClassWithDecorators:
-    cls_attribute: int
+    cls_attribute: Final[int]
     """
     A class attribute
     """
