@@ -19,6 +19,9 @@ libc = "0.2.62"
 
 default = []
 
+# Add support for va_list based apis on nightly Rust.
+nightly = []
+
 # deprecated
 extension-module = ["pyo3-build-config/extension-module"]
 

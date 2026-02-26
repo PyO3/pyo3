@@ -11,16 +11,32 @@ extern "C" {
     pub fn PyArg_ParseTuple(arg1: *mut PyObject, arg2: *const c_char, ...) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyArg_ParseTupleAndKeywords")]
     pub fn PyArg_ParseTupleAndKeywords(
-        arg1: *mut PyObject,
-        arg2: *mut PyObject,
-        arg3: *const c_char,
-        #[cfg(not(Py_3_13))] arg4: *mut *mut c_char,
-        #[cfg(Py_3_13)] arg4: *const *const c_char,
+        args: *mut PyObject,
+        kw: *mut PyObject,
+        format: *const c_char,
+        #[cfg(not(Py_3_13))] keywords: *mut *mut c_char,
+        #[cfg(Py_3_13)] keywords: *const *const c_char,
         ...
     ) -> c_int;
 
-    // skipped PyArg_VaParse
-    // skipped PyArg_VaParseTupleAndKeywords
+    #[cfg(feature = "nightly")]
+    #[cfg_attr(PyPy, link_name = "PyPyArg_VaParse")]
+    pub fn PyArg_VaParse(
+        args: *mut PyObject,
+        format: *const c_char,
+        vargs: std::ffi::VaList<'_>,
+    ) -> c_int;
+
+    #[cfg(feature = "nightly")]
+    #[cfg_attr(PyPy, link_name = "PyPyArg_VaParseTupleAndKeywords")]
+    pub fn PyArg_VaParseTupleAndKeywords(
+        args: *mut PyObject,
+        kw: *mut PyObject,
+        format: *const c_char,
+        #[cfg(not(Py_3_13))] keywords: *mut *mut c_char,
+        #[cfg(Py_3_13)] keywords: *const *const c_char,
+        vargs: std::ffi::VaList<'_>,
+    ) -> c_int;
 
     pub fn PyArg_ValidateKeywordArguments(arg1: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyArg_UnpackTuple")]
@@ -33,8 +49,10 @@ extern "C" {
     ) -> c_int;
 
     #[cfg_attr(PyPy, link_name = "PyPy_BuildValue")]
-    pub fn Py_BuildValue(arg1: *const c_char, ...) -> *mut PyObject;
-    // skipped Py_VaBuildValue
+    pub fn Py_BuildValue(format: *const c_char, ...) -> *mut PyObject;
+    #[cfg(feature = "nightly")]
+    #[cfg_attr(PyPy, link_name = "PyPy_VaBuildValue")]
+    pub fn Py_VaBuildValue(format: *const c_char, vargs: std::ffi::VaList<'_>) -> *mut PyObject;
 
     #[cfg(Py_3_13)]
     pub fn PyModule_Add(module: *mut PyObject, name: *const c_char, value: *mut PyObject) -> c_int;

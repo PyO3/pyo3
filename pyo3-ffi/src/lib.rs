@@ -1,3 +1,4 @@
+#![cfg_attr(feature = "nightly", feature(c_variadic))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 //! Raw FFI declarations for Python's C API.
 //!
