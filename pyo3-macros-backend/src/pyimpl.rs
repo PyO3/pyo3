@@ -144,6 +144,7 @@ pub fn impl_methods(
                         &method.spec,
                         &meth.attrs,
                         ty,
+                        method.is_returning_not_implemented_on_extraction_error(),
                         ctx,
                     ));
                     match pymethod::gen_py_method(ty, method, &meth.attrs, ctx)? {
@@ -386,6 +387,7 @@ pub fn method_introspection_code(
     spec: &FnSpec<'_>,
     attrs: &[syn::Attribute],
     parent: &syn::Type,
+    is_returning_not_implemented_on_extraction_error: bool,
     ctx: &Ctx,
 ) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
@@ -405,7 +407,13 @@ pub fn method_introspection_code(
                 // We cant to keep the first argument type, hence this hack
                 spec.signature.arguments.pop();
                 spec.signature.python_signature.positional_parameters.pop();
-                method_introspection_code(&spec, attrs, parent, ctx)
+                method_introspection_code(
+                    &spec,
+                    attrs,
+                    parent,
+                    is_returning_not_implemented_on_extraction_error,
+                    ctx,
+                )
             })
             .collect();
     }
@@ -493,6 +501,7 @@ pub fn method_introspection_code(
         return_type,
         decorators,
         spec.asyncness.is_some(),
+        is_returning_not_implemented_on_extraction_error,
         get_doc(attrs, None).as_ref(),
         Some(parent),
     )
