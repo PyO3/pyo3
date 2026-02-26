@@ -1,0 +1,23 @@
+error: signature entry does not have a corresponding function argument
+  --> tests/ui/invalid_getter_setter_signatures.rs:11:25
+   |
+11 |     #[pyo3(signature = (extra_arg:"int"))]
+   |                         ^^^^^^^^^
+
+error: expected argument from function definition `value` but got argument `extra_arg`
+  --> tests/ui/invalid_getter_setter_signatures.rs:25:25
+   |
+25 |     #[pyo3(signature = (extra_arg:"int"))]
+   |                         ^^^^^^^^^
+
+error: missing signature entry for argument `value`
+  --> tests/ui/invalid_getter_setter_signatures.rs:39:12
+   |
+39 |     #[pyo3(signature = ())]
+   |            ^^^^^^^^^
+
+error: signature entry does not have a corresponding function argument
+  --> tests/ui/invalid_getter_setter_signatures.rs:53:38
+   |
+53 |     #[pyo3(signature = (value:"int", extra_arg:"int"))]
+   |                                      ^^^^^^^^^
