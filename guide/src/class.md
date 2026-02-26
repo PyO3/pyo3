@@ -969,8 +969,8 @@ fn increment_then_print_field(my_class: &Bound<'_, MyClass>) {
 // When the Python object smart pointer needs to be stored elsewhere prefer `Py<T>` over `Bound<'py, T>`
 // to avoid the lifetime restrictions.
 #[pyfunction]
-fn print_refcnt(my_class: Py<MyClass>, py: Python<'_>) {
-    println!("{}", my_class.get_refcnt(py));
+fn print_is_none(my_class: Py<MyClass>, py: Python<'_>) {
+    println!("{}", my_class.is_none(py));
 }
 ```
 

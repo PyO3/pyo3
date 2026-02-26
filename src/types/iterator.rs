@@ -191,7 +191,7 @@ mod tests {
     fn iter_refcnt() {
         let (obj, count) = Python::attach(|py| {
             let obj = vec![10, 20].into_pyobject(py).unwrap();
-            let count = obj.get_refcnt();
+            let count = obj._get_refcnt();
             (obj.unbind(), count)
         });
 
@@ -206,7 +206,7 @@ mod tests {
         });
 
         Python::attach(move |py| {
-            assert_eq!(count, obj.get_refcnt(py));
+            assert_eq!(count, obj._get_refcnt(py));
         });
     }
 
@@ -219,7 +219,7 @@ mod tests {
                 let list = PyList::empty(py);
                 list.append(10).unwrap();
                 list.append(&obj).unwrap();
-                count = obj.get_refcnt();
+                count = obj._get_refcnt();
                 list
             };
 
@@ -230,7 +230,7 @@ mod tests {
                 assert!(it.next().unwrap().is(&obj));
                 assert!(it.next().is_none());
             }
-            assert_eq!(count, obj.get_refcnt());
+            assert_eq!(count, obj._get_refcnt());
         });
     }
 

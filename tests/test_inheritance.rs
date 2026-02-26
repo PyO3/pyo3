@@ -177,8 +177,15 @@ except Exception as e:
 mod inheriting_native_type {
     use super::*;
     use pyo3::exceptions::PyException;
+
     #[cfg(not(GraalPy))]
-    use pyo3::types::PyDict;
+    use {
+        pyo3::types::{PyCapsule, PyDict},
+        std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        },
+    };
 
     #[cfg(not(any(PyPy, GraalPy)))]
     #[test]
@@ -244,17 +251,19 @@ mod inheriting_native_type {
     #[test]
     fn inherit_dict_drop() {
         Python::attach(|py| {
+            let dropped = Arc::new(AtomicBool::new(false));
+            let destructor_drop = Arc::clone(&dropped);
+            let item = PyCapsule::new_with_destructor(py, 0, None, move |_, _| {
+                destructor_drop.store(true, Ordering::Relaxed)
+            })
+            .unwrap();
+
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
-            assert_eq!(dict_sub.get_refcnt(py), 1);
-
-            let item = &py.eval(c"object()", None, None).unwrap();
-            assert_eq!(item.get_refcnt(), 1);
-
-            dict_sub.bind(py).set_item("foo", item).unwrap();
-            assert_eq!(item.get_refcnt(), 2);
-
+            dict_sub.bind(py).set_item("foo", &item).unwrap();
+            drop(item);
+            assert!(!dropped.load(Ordering::Relaxed));
             drop(dict_sub);
-            assert_eq!(item.get_refcnt(), 1);
+            assert!(dropped.load(Ordering::Relaxed));
         })
     }
 

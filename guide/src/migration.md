@@ -2525,7 +2525,7 @@ py.None().get_refcnt();
 
 After:
 
-```rust
+```rust,ignore
 # pyo3::Python::attach(|py| {
 py.None().get_refcnt(py);
 # })
