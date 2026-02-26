@@ -4,7 +4,8 @@ use crate::conversion::{FromPyObject, IntoPyObject};
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::{PyAttributeError, PyTypeError};
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::impl_::pycell::PyStaticClassObject;
+#[cfg(not(all(Py_3_12, Py_LIMITED_API)))]
+use crate::impl_::pycell::{PyClassObjectBase, PyStaticClassObject};
 use crate::instance::Bound;
 use crate::internal::get_slot::TP_DESCR_GET;
 use crate::py_result_ext::PyResultExt;
@@ -51,14 +52,18 @@ pyobject_native_type_info!(
 );
 
 pyobject_native_type_sized!(PyAny, ffi::PyObject);
-// We cannot use `pyobject_subclassable_native_type!()` because it cfgs out on `Py_LIMITED_API`.
+// We cannot use `pyobject_subclassable_native_type!()` because it cfgs out on `Py_LIMITED_API` for Python < 3.12.
+#[cfg(not(all(Py_3_12, Py_LIMITED_API)))]
 impl crate::impl_::pyclass::PyClassBaseType for PyAny {
-    type LayoutAsBase = crate::impl_::pycell::PyClassObjectBase<ffi::PyObject>;
+    type LayoutAsBase = PyClassObjectBase<ffi::PyObject>;
     type BaseNativeType = PyAny;
     type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
     type PyClassMutability = crate::pycell::impl_::ImmutableClass;
     type Layout<T: crate::impl_::pyclass::PyClassImpl> = PyStaticClassObject<T>;
 }
+
+#[cfg(all(Py_3_12, Py_LIMITED_API))]
+pyobject_subclassable_native_type!(PyAny, ffi::PyObject);
 
 /// This trait represents the Python APIs which are usable on all Python objects.
 ///

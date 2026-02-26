@@ -82,10 +82,7 @@ def _supported_interpreter_versions(
 
 
 PY_VERSIONS = _supported_interpreter_versions("cpython")
-# We don't yet support abi3-py315 but do support cp315 and cp315t
-# version-specific builds
 ABI3_PY_VERSIONS = [p for p in PY_VERSIONS if not p.endswith("t")]
-ABI3_PY_VERSIONS.remove("3.15")
 PYPY_VERSIONS = _supported_interpreter_versions("pypy")
 
 
@@ -124,7 +121,12 @@ def test_rust(session: nox.Session):
         # We need to pass the feature set to the test command
         # so that it can be used in the test code
         # (e.g. for `#[cfg(feature = "abi3-py37")]`)
-        if feature_set and "abi3" in feature_set and FREE_THREADED_BUILD:
+        if (
+            feature_set
+            and "abi3" in feature_set
+            and FREE_THREADED_BUILD
+            and sys.version_info < (3, 15)
+        ):
             # free-threaded builds don't support abi3 yet
             continue
 

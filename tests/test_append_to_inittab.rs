@@ -19,7 +19,7 @@ mod module_mod_with_functions {
     use super::foo;
 }
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, _Py_OPAQUE_PYOBJECT)))]
 #[test]
 fn test_module_append_to_inittab() {
     use pyo3::append_to_inittab;
