@@ -886,7 +886,28 @@ impl MyClass {
 
 ## Class attributes
 
-To create a class attribute (also called [class variable][classattr]), a method without any arguments can be annotated with the `#[classattr]` attribute.
+To create a class attribute (also called [class variable][classattr]), an associated constant can be annotated with the `#[classattr]` attribute.
+
+```rust,no_run
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {}
+#[pymethods]
+impl MyClass {
+    #[classattr]
+    const MY_ATTRIBUTE: &'static str = "foobar";
+}
+#
+# Python::attach(|py| {
+#    let my_class = py.get_type::<MyClass>();
+#    pyo3::py_run!(py, my_class, "assert my_class.MY_ATTRIBUTE == 'foobar'")
+# });
+```
+
+If `const` code is too limiting, a method without any arguments can be annotated with the `#[classattr]` attribute.
+
+> [!NOTE]
+> Here too, the class attribute value is computed once during the class creation and not each time the attribute is accessed.
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -899,11 +920,11 @@ impl MyClass {
         "hello".to_string()
     }
 }
-
-Python::attach(|py| {
-    let my_class = py.get_type::<MyClass>();
-    pyo3::py_run!(py, my_class, "assert my_class.my_attribute == 'hello'")
-});
+#
+# Python::attach(|py| {
+#    let my_class = py.get_type::<MyClass>();
+#    pyo3::py_run!(py, my_class, "assert my_class.my_attribute == 'hello'")
+# });
 ```
 
 > [!NOTE]
@@ -912,19 +933,6 @@ class creation.
 
 > [!NOTE]
 > `#[classattr]` does not work with [`#[pyo3(warn(...))]`](./function.md#warn) attribute.
-
-If the class attribute is defined with `const` code only, one can also annotate associated constants:
-
-```rust,no_run
-# use pyo3::prelude::*;
-# #[pyclass]
-# struct MyClass {}
-#[pymethods]
-impl MyClass {
-    #[classattr]
-    const MY_CONST_ATTRIBUTE: &'static str = "foobar";
-}
-```
 
 ## Classes as function arguments
 
