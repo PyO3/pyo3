@@ -760,6 +760,36 @@ impl MyClass {
 
 In this case, the property `number` is defined and available from Python code as `self.number`.
 
+### Object properties using `#[pyclass(get(...))]` and `#[pyclass(set(...))]`
+
+For cases where `cfg_attr` is used, getters and setters can be defined directly inside `#[pyclass]`:
+
+```rust,ignore
+# use pyo3::prelude::*;
+#[cfg_attr(feature = "python-bindings", pyclass(get(foo, bar), set(foo, bar)))]
+struct MyClass {
+    foo: i32,
+    bar: i32,
+}
+```
+
+In the above example, `get(foo)` will insert `#[pyo3(get)]` on top of the `foo` attribute, and `set(foo)` will insert `#[pyo3(set)]` on top of the `foo` attribute.
+
+Use in above example is equivalent to:
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+struct MyClass {
+    #[pyo3(get, set)]
+    foo: i32,
+    #[pyo3(get, set)]
+    bar: i32,
+}
+```
+
+when the argument inside `cfg_attr` evaluates as true.
+
 ## Instance methods
 
 To define a Python compatible method, an `impl` block for your struct has to be annotated with the `#[pymethods]` attribute.

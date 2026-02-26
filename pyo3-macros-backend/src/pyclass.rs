@@ -11,8 +11,8 @@ use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, ImplItemFn, Result
 use crate::attributes::kw::frozen;
 use crate::attributes::{
     self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, NewImplTypeAttribute, NewImplTypeAttributeValue,
-    RenameAllAttribute, StrFormatterAttribute,
+    GetListAttribute, ModuleAttribute, NameAttribute, NameLitStr, NewImplTypeAttribute,
+    NewImplTypeAttributeValue, RenameAllAttribute, SetListAttribute, StrFormatterAttribute,
 };
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
@@ -96,6 +96,8 @@ pub struct PyClassPyO3Options {
     pub generic: Option<kw::generic>,
     pub from_py_object: Option<kw::from_py_object>,
     pub skip_from_py_object: Option<kw::skip_from_py_object>,
+    pub get: Option<GetListAttribute>,
+    pub set: Option<SetListAttribute>,
 }
 
 pub enum PyClassPyO3Option {
@@ -124,6 +126,8 @@ pub enum PyClassPyO3Option {
     Generic(kw::generic),
     FromPyObject(kw::from_py_object),
     SkipFromPyObject(kw::skip_from_py_object),
+    Get(GetListAttribute),
+    Set(SetListAttribute),
 }
 
 impl Parse for PyClassPyO3Option {
@@ -179,6 +183,10 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::FromPyObject)
         } else if lookahead.peek(attributes::kw::skip_from_py_object) {
             input.parse().map(PyClassPyO3Option::SkipFromPyObject)
+        } else if lookahead.peek(attributes::kw::get) {
+            input.parse().map(PyClassPyO3Option::Get)
+        } else if lookahead.peek(attributes::kw::set) {
+            input.parse().map(PyClassPyO3Option::Set)
         } else {
             Err(lookahead.error())
         }
@@ -257,6 +265,8 @@ impl PyClassPyO3Options {
                 );
                 set_option!(from_py_object)
             }
+            PyClassPyO3Option::Get(get) => set_option!(get),
+            PyClassPyO3Option::Set(set) => set_option!(set),
         }
         Ok(())
     }
@@ -326,22 +336,80 @@ pub fn build_py_class(
     .into_iter()
     .try_combine_syn_errors()?;
 
+    let mut results: Vec<syn::Result<()>> = Vec::new();
     if let Some(attr) = args.options.get_all {
         for (_, FieldPyO3Options { get, .. }) in &mut field_options {
-            if let Some(old_get) = get.replace(Annotated::Struct(attr)) {
-                return Err(syn::Error::new(old_get.span(), DUPE_GET));
+            if let Some(old_get) =
+                get.replace(Annotated::Struct(FieldPyO3OptionsGetSource::GetAll(attr)))
+            {
+                results.push(Err(syn::Error::new(old_get.span(), DUPE_GET)));
             }
         }
     }
 
     if let Some(attr) = args.options.set_all {
         for (_, FieldPyO3Options { set, .. }) in &mut field_options {
-            if let Some(old_set) = set.replace(Annotated::Struct(attr)) {
-                return Err(syn::Error::new(old_set.span(), DUPE_SET));
+            if let Some(old_set) =
+                set.replace(Annotated::Struct(FieldPyO3OptionsSetSource::SetAll(attr)))
+            {
+                results.push(Err(syn::Error::new(old_set.span(), DUPE_SET)));
             }
         }
     }
 
+    if let Some(get_list_attr) = &args.options.get {
+        // get_list_attr contains the list of desired field names (NameAttribute or Ident)
+        for name in &get_list_attr.fields {
+            // find matching field in `field_options`:
+            if let Some((_, field_opts)) = field_options.iter_mut().find(|(f, _)| match &f.ident {
+                Some(ident) => ident == name,
+                None => false,
+            }) {
+                if let Some(old_get) =
+                    field_opts
+                        .get
+                        .replace(Annotated::Struct(FieldPyO3OptionsGetSource::GetList(
+                            get_list_attr.clone(),
+                        )))
+                {
+                    results.push(Err(syn::Error::new(old_get.span(), DUPE_GET)));
+                }
+            } else {
+                results.push(Err(syn::Error::new_spanned(
+                    name,
+                    format!("no field named `{}`", name),
+                )));
+            }
+        }
+    }
+
+    if let Some(set_list_attr) = &args.options.set {
+        // get_list_attr contains the list of desired field names (NameAttribute or Ident)
+        for name in &set_list_attr.fields {
+            // find matching field in `field_options`:
+            if let Some((_, field_opts)) = field_options.iter_mut().find(|(f, _)| match &f.ident {
+                Some(ident) => ident == name,
+                None => false,
+            }) {
+                if let Some(old_set) =
+                    field_opts
+                        .set
+                        .replace(Annotated::Struct(FieldPyO3OptionsSetSource::SetList(
+                            set_list_attr.clone(),
+                        )))
+                {
+                    results.push(Err(syn::Error::new(old_set.span(), DUPE_SET)));
+                }
+            } else {
+                results.push(Err(syn::Error::new_spanned(
+                    name,
+                    format!("no field named `{}`", name),
+                )));
+            }
+        }
+    }
+
+    results.into_iter().try_combine_syn_errors()?;
     impl_class(&class.ident, &args, doc, field_options, methods_type, ctx)
 }
 
@@ -359,10 +427,38 @@ impl<X: Spanned, Y: Spanned> Annotated<X, Y> {
     }
 }
 
+pub enum FieldPyO3OptionsGetSource {
+    GetAll(attributes::kw::get_all),
+    GetList(GetListAttribute),
+}
+
+impl ToTokens for FieldPyO3OptionsGetSource {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            FieldPyO3OptionsGetSource::GetAll(kw) => kw.to_tokens(tokens),
+            FieldPyO3OptionsGetSource::GetList(list_attr) => list_attr.to_tokens(tokens),
+        }
+    }
+}
+
+pub enum FieldPyO3OptionsSetSource {
+    SetAll(attributes::kw::set_all),
+    SetList(SetListAttribute),
+}
+
+impl ToTokens for FieldPyO3OptionsSetSource {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            FieldPyO3OptionsSetSource::SetAll(kw) => kw.to_tokens(tokens),
+            FieldPyO3OptionsSetSource::SetList(list_attr) => list_attr.to_tokens(tokens),
+        }
+    }
+}
+
 /// `#[pyo3()]` options for pyclass fields
 struct FieldPyO3Options {
-    get: Option<Annotated<kw::get, kw::get_all>>,
-    set: Option<Annotated<kw::set, kw::set_all>>,
+    get: Option<Annotated<kw::get, FieldPyO3OptionsGetSource>>,
+    set: Option<Annotated<kw::set, FieldPyO3OptionsSetSource>>,
     name: Option<NameAttribute>,
 }
 
@@ -3218,8 +3314,8 @@ const UNIQUE_GET: &str = "`get` may only be specified once";
 const UNIQUE_SET: &str = "`set` may only be specified once";
 const UNIQUE_NAME: &str = "`name` may only be specified once";
 
-const DUPE_SET: &str = "useless `set` - the struct is already annotated with `set_all`";
-const DUPE_GET: &str = "useless `get` - the struct is already annotated with `get_all`";
+const DUPE_SET: &str = "useless `set` - the struct is already annotated with `set_all or set(...)`";
+const DUPE_GET: &str = "useless `get` - the struct is already annotated with `get_all or get(...)`";
 const UNIT_GET: &str =
     "`get_all` on an unit struct does nothing, because unit structs have no fields";
 const UNIT_SET: &str =
