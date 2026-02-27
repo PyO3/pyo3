@@ -3,7 +3,7 @@ use std::ffi::CString;
 use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
@@ -354,7 +354,7 @@ impl SelfType {
                 // NB it's possible to use type inference with "extractor" here, but then if the class is frozen
                 // the &mut self receivers get horrible error messages. This approach with concrete calls produces
                 // better error messages.
-                let holder = holders.push_holder(*span);
+                let holder = format_ident!("holder0");
                 // when interpolating cls into expressions below, need to locate the span at the receiver span to
                 // avoid duplicate error messages
                 let cls = locate_tokens_at(cls.to_token_stream(), *span);
@@ -379,8 +379,7 @@ impl SelfType {
                     ctx,
                 );
                 Param {
-                    resolve: quote_spanned! { *span => ::std::unreachable!() },
-                    extract: Some(quote_spanned! { *span => #holder = #extract; }),
+                    extract: Some(quote_spanned! { *span => let mut #holder = #extract; }),
                     arg: quote_spanned! { *span => #pyo3_path::impl_::extract_argument::#unpack(& #mut_kw #holder) },
                 }
             }

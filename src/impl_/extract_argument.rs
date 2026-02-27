@@ -22,25 +22,33 @@ use crate::{
 /// (Function argument extraction borrows input arguments.)
 type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
 
-pub struct TypeResolver<T>(PhantomData<T>);
+// FIXME seal this trait
+pub trait GetExtractors<Extractors> {
+    fn get_extractors() -> Extractors;
+}
 
-impl<T> Clone for TypeResolver<T> {
-    fn clone(&self) -> Self {
-        *self
+impl GetExtractors<()> for () {
+    fn get_extractors() -> () {
+        ()
     }
 }
 
-impl<T> Copy for TypeResolver<T> {}
+pub struct Extractor<T>(PhantomData<T>);
 
-impl<T> TypeResolver<T> {
-    pub const fn new() -> Self {
-        Self(PhantomData)
+impl<T, Rest, RestExtractors> GetExtractors<(Extractor<T>, RestExtractors)> for (T, Rest)
+where
+    Rest: GetExtractors<RestExtractors>,
+{
+    fn get_extractors() -> (Extractor<T>, RestExtractors) {
+        (Extractor(PhantomData), Rest::get_extractors())
     }
+}
 
-    #[inline]
-    pub const fn resolve_type(self) -> T {
-        unreachable!()
-    }
+pub fn get_extractors<Args, Extractors>(_: impl FnOnce(Args)) -> Extractors
+where
+    Args: GetExtractors<Extractors>,
+{
+    <Args as GetExtractors<Extractors>>::get_extractors()
 }
 
 pub struct SimpleHolder<T>(T);
@@ -484,7 +492,7 @@ pub fn pyclass_guard_to_ref_mut<'a, T: PyClass<Frozen = False>>(
 
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
 pub fn extract_argument<'a, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
-    _: TypeResolver<T>,
+    _: Extractor<T>,
     obj: Borrowed<'a, 'py, PyAny>,
     arg_name: &str,
 ) -> PyResult<T::Holder>
@@ -499,7 +507,7 @@ where
 
 /// Alternative to [`extract_argument`] used when the argument has a default value provided by an annotation.
 pub fn extract_argument_with_default<'a, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
-    resolver: TypeResolver<T>,
+    resolver: Extractor<T>,
     obj: Option<Borrowed<'a, 'py, PyAny>>,
     default: fn() -> T,
     arg_name: &str,

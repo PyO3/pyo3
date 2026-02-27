@@ -45,13 +45,13 @@ impl Holders {
 
     pub fn init_holders(&self, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
-        let holders = &self.holders;
+        // let holders = &self.holders;
         let extractors = &self.extractors;
         let expression_idents = self.expressions.iter().map(|(e, _)| e);
         let expression_values = self.expressions.iter().map(|(_, v)| v);
         quote! {
             #(let mut #extractors = #pyo3_path::impl_::extract_argument::TypeResolver::new();)*
-            #(let mut #holders;)*
+            // #(let mut #holders;)*
             #(let #expression_idents = #expression_values;)*
         }
     }
@@ -138,7 +138,7 @@ pub fn impl_arg_params(
         .arguments
         .iter()
         .enumerate()
-        .map(|(i, arg)| impl_arg_param(arg, i, &mut option_pos, holders, ctx))
+        .map(|(i, arg)| impl_arg_param(arg, i + 1, &mut option_pos, holders, ctx))
         .collect();
 
     let args_handler = if spec.signature.python_signature.varargs.is_some() {
@@ -203,8 +203,6 @@ pub fn impl_arg_params(
 }
 
 pub struct Param {
-    // the fragment to use when resolving the parameter type
-    pub resolve: TokenStream,
     // the extract expression (will populate a holder)
     pub extract: Option<TokenStream>,
     // the final argument passed to the function
@@ -213,21 +211,12 @@ pub struct Param {
 
 impl Param {
     pub fn arg_expr(arg: TokenStream) -> Self {
-        Param {
-            resolve: quote! { ::std::unreachable!() },
-            extract: None,
-            arg,
-        }
+        Param { extract: None, arg }
     }
 
-    pub fn via_extractor(
-        extractor: &Ident,
-        holder: &Ident,
-        extract_expression: TokenStream,
-    ) -> Self {
+    pub fn via_extractor(holder: &Ident, extract_expression: TokenStream) -> Self {
         Param {
-            resolve: quote! { #extractor.resolve_type() },
-            extract: Some(quote! { #holder = #extract_expression; }),
+            extract: Some(quote! { let mut #holder = #extract_expression; }),
             arg: quote! { #holder.unpack() },
         }
     }
@@ -249,16 +238,16 @@ fn impl_arg_param(
             let from_py_with = format_ident!("from_py_with_{}", pos);
             let arg_value = quote!(#args_array[#option_pos]);
             *option_pos += 1;
-            impl_regular_arg_param(arg, from_py_with, arg_value, holders, ctx)
+            impl_regular_arg_param(arg, pos, from_py_with, arg_value, holders, ctx)
         }
         FnArg::VarArgs(arg) => {
             let name_str = arg.name.to_string();
 
             let extractor = holders.push_extractor(arg_span);
-            let holder = holders.push_holder(arg_span);
+            // let holder = holders.push_holder(arg_span);
+            let holder = format_ident!("holder{pos}");
 
             Param::via_extractor(
-                &extractor,
                 &holder,
                 quote_spanned! { arg_span =>
                     #pyo3_path::impl_::extract_argument::extract_argument(#extractor, _args.as_any().as_borrowed(), #name_str)?
@@ -266,11 +255,10 @@ fn impl_arg_param(
             )
         }
         FnArg::KwArgs(arg) => {
-            let extractor = holders.push_extractor(arg_span);
-            let holder = holders.push_holder(arg_span);
+            let extractor = format_ident!("e{pos}");
+            let holder = format_ident!("holder{pos}");
             let name_str = arg.name.to_string();
             Param::via_extractor(
-                &extractor,
                 &holder,
                 quote_spanned! { arg_span =>
                     #pyo3_path::impl_::extract_argument::extract_argument_with_default(
@@ -291,6 +279,7 @@ fn impl_arg_param(
 /// index and the index in option diverge when using py: Python
 pub(crate) fn impl_regular_arg_param(
     arg: &RegularArg<'_>,
+    pos: usize,
     from_py_with: Ident,
     arg_value: TokenStream, // expected type: Option<Borrowed<'py, 'py, PyAny>>
     holders: &mut Holders,
@@ -302,12 +291,8 @@ pub(crate) fn impl_regular_arg_param(
 
     // Use this macro inside this function, to ensure that all code generated here is associated
     // with the function argument
-    let use_probe = quote! {
-        #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
-        use #pyo3_path::impl_::pyclass::Probe as _;
-    };
     macro_rules! quote_arg_span {
-        ($($tokens:tt)*) => { quote_spanned!(arg_span => { #use_probe $($tokens)* }) }
+        ($($tokens:tt)*) => { quote_spanned!(arg_span => $($tokens)*) }
     }
 
     let name_str = arg.name.to_string();
@@ -347,10 +332,9 @@ pub(crate) fn impl_regular_arg_param(
         };
         Param::arg_expr(arg_expr)
     } else if let Some(default) = default {
-        let extractor = holders.push_extractor(arg_span);
-        let holder = holders.push_holder(arg_span);
+        let extractor = format_ident!("e{pos}");
+        let holder = format_ident!("holder{pos}");
         Param::via_extractor(
-            &extractor,
             &holder,
             quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::extract_argument_with_default(
@@ -364,10 +348,9 @@ pub(crate) fn impl_regular_arg_param(
         )
     } else {
         let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value) }};
-        let extractor = holders.push_extractor(arg_span);
-        let holder = holders.push_holder(arg_span);
+        let extractor = format_ident!("e{pos}");
+        let holder = format_ident!("holder{pos}");
         Param::via_extractor(
-            &extractor,
             &holder,
             quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::extract_argument(#extractor, #unwrap, #name_str)?

@@ -509,24 +509,35 @@ pub fn type_inferred_fncall<'a>(
     args: impl Iterator<Item = &'a Param> + Clone,
     Ctx { pyo3_path, .. }: &Ctx,
 ) -> FnCall {
-    let resolve_args = args.clone().map(|p| &p.resolve);
+    let arg_count = args.clone().count();
+
+    let extractor_idents: Vec<Ident> = (0..arg_count).map(|i| format_ident!("e{}", i)).collect();
+
+    // Build nested tuple pattern from inside out:
+    //   0 args: ()
+    //   1 arg:  (e0, ())
+    //   2 args: (e0, (e1, ()))
+    //   3 args: (e0, (e1, (e2, ())))
+    let mut extractors_pat: TokenStream = quote! { () };
+    for ident in extractor_idents.iter().rev() {
+        extractors_pat = quote! { (#ident, #extractors_pat) };
+    }
+
     let extractions = args.clone().map(|p| &p.extract);
     let call_args = args.map(|p| &p.arg);
 
     // unused_imports if the function takes no arguments so no holders to unpack
-    // unreachable_code because the if false block is for type inference only
 
     FnCall {
         setup: quote! {
-            #[allow(unused_imports)]
-            use #pyo3_path::impl_::extract_argument::unpack_traits::*;
-            #[allow(unreachable_code)]
-            if false {
-                let _ = #function(#(#resolve_args),*);
-            }
+            let #extractors_pat = #pyo3_path::impl_::extract_argument::get_extractors(|#extractors_pat| { #function(#(#extractor_idents),*); });
             #(#extractions)*
         },
-        call: quote! { #function(#(#call_args),*) },
+        call: quote!({
+            #[allow(unused_imports)]
+            use #pyo3_path::impl_::extract_argument::unpack_traits::*;
+            #function(#(#call_args),*)
+        }),
     }
 }
 
@@ -623,6 +634,7 @@ fn impl_call_setter(
     let py_arg = py_arg.map(|_| Param::arg_expr(quote! { py }));
     let param = impl_regular_arg_param(
         arg,
+        1,
         from_py_with_ident,
         quote!(::std::option::Option::Some(_value)),
         holders,
@@ -701,12 +713,10 @@ pub fn impl_py_setter_def(
             }
             .receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
 
-            let extractor = holders.push_extractor(span);
             let holder = holders.push_holder(span);
             let param = Param::via_extractor(
-                &extractor,
                 &holder,
-                quote! { #pyo3_path::impl_::extract_argument::extract_argument(#extractor, _value.into(), #name)? },
+                quote! { #pyo3_path::impl_::extract_argument::extract_argument(e1, _value.into(), #name)? },
             );
 
             (
@@ -1243,7 +1253,6 @@ fn extract_object(
             unsafe { #pyo3_path::impl_::extract_argument::#cast_method(py, #source_ptr) }
         };
         Param::via_extractor(
-            &extractor,
             &holder,
             extract_error_mode.handle_error(
                 quote! {
