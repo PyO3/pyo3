@@ -460,7 +460,7 @@ pub struct PyUnicodeObject {
 
 extern "C" {
     #[cfg(not(any(PyPy, GraalPy)))]
-    pub fn _PyUnicode_CheckConsistency(op: *mut PyObject, check_content: c_int) -> c_int;
+    fn _PyUnicode_CheckConsistency(op: *mut PyObject, check_content: c_int) -> c_int;
 }
 
 // skipped PyUnicode_GET_SIZE
@@ -538,9 +538,9 @@ pub unsafe fn PyUnicode_KIND(op: *mut PyObject) -> c_uint {
     (*(op as *mut PyASCIIObject)).kind()
 }
 
-#[cfg(not(any(GraalPy, Py_3_14)))]
+#[cfg(not(any(GraalPy, PyPy, Py_3_14)))]
 #[inline]
-pub unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
+unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
     if PyUnicode_IS_ASCII(op) != 0 {
         (op as *mut PyASCIIObject).offset(1) as *mut c_void
     } else {
@@ -548,9 +548,9 @@ pub unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
     }
 }
 
-#[cfg(not(any(GraalPy, PyPy)))]
+#[cfg(not(any(GraalPy, PyPy, Py_3_14)))]
 #[inline]
-pub unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
+unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
     debug_assert!(!(*(op as *mut PyUnicodeObject)).data.any.is_null());
 
     (*(op as *mut PyUnicodeObject)).data.any
@@ -628,7 +628,8 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_New")]
     pub fn PyUnicode_New(size: Py_ssize_t, maxchar: Py_UCS4) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "_PyPyUnicode_Ready")]
-    pub fn _PyUnicode_Ready(unicode: *mut PyObject) -> c_int;
+    #[cfg(not(any(Py_3_12, GraalPy)))]
+    fn _PyUnicode_Ready(unicode: *mut PyObject) -> c_int;
 
     // skipped _PyUnicode_Copy
 

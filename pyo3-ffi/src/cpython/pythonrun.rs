@@ -9,7 +9,7 @@ use std::ffi::{c_char, c_int};
 
 extern "C" {
     pub fn PyRun_SimpleStringFlags(arg1: *const c_char, arg2: *mut PyCompilerFlags) -> c_int;
-    pub fn _PyRun_SimpleFileObject(
+    fn _PyRun_SimpleFileObject(
         fp: *mut FILE,
         filename: *mut PyObject,
         closeit: c_int,
@@ -21,7 +21,7 @@ extern "C" {
         closeit: c_int,
         flags: *mut PyCompilerFlags,
     ) -> c_int;
-    pub fn _PyRun_AnyFileObject(
+    fn _PyRun_AnyFileObject(
         fp: *mut FILE,
         filename: *mut PyObject,
         closeit: c_int,
@@ -48,7 +48,7 @@ extern "C" {
         filename: *const c_char,
         flags: *mut PyCompilerFlags,
     ) -> c_int;
-    pub fn _PyRun_InteractiveLoopObject(
+    fn _PyRun_InteractiveLoopObject(
         fp: *mut FILE,
         filename: *mut PyObject,
         flags: *mut PyCompilerFlags,

@@ -1,5 +1,4 @@
 use crate::object::*;
-use crate::Py_ssize_t;
 #[cfg(not(Py_LIMITED_API))]
 use std::ffi::c_char;
 use std::ffi::c_int;
@@ -21,10 +20,7 @@ pub struct PyBytesObject {
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
 opaque_struct!(pub PyBytesObject);
 
-extern "C" {
-    #[cfg_attr(PyPy, link_name = "_PyPyBytes_Resize")]
-    pub fn _PyBytes_Resize(bytes: *mut *mut PyObject, newsize: Py_ssize_t) -> c_int;
-}
+// skipped private _PyBytes_Resize
 
 #[cfg(not(Py_LIMITED_API))]
 #[inline]

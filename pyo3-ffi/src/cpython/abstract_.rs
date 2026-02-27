@@ -14,17 +14,14 @@ use crate::{
 #[cfg(Py_3_8)]
 use libc::size_t;
 
-extern "C" {
-    #[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
-    pub fn _PyStack_AsDict(values: *const *mut PyObject, kwnames: *mut PyObject) -> *mut PyObject;
-}
+// skipped private _PyStack_AsDict
 
 #[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
 const _PY_FASTCALL_SMALL_STACK: size_t = 5;
 
 extern "C" {
     #[cfg(all(Py_3_8, not(PyPy)))]
-    pub fn _Py_CheckFunctionResult(
+    fn _Py_CheckFunctionResult(
         tstate: *mut PyThreadState,
         callable: *mut PyObject,
         result: *mut PyObject,
@@ -32,7 +29,7 @@ extern "C" {
     ) -> *mut PyObject;
 
     #[cfg(all(Py_3_8, not(PyPy)))]
-    pub fn _PyObject_MakeTpCall(
+    fn _PyObject_MakeTpCall(
         tstate: *mut PyThreadState,
         callable: *mut PyObject,
         args: *const *mut PyObject,
@@ -69,7 +66,7 @@ pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcal
 
 #[cfg(all(Py_3_8, not(PyPy)))]
 #[inline(always)]
-pub unsafe fn _PyObject_VectorcallTstate(
+unsafe fn _PyObject_VectorcallTstate(
     tstate: *mut PyThreadState,
     callable: *mut PyObject,
     args: *const *mut PyObject,
@@ -127,44 +124,9 @@ extern "C" {
     ) -> *mut PyObject;
 }
 
-#[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
-#[inline(always)]
-pub unsafe fn _PyObject_FastCallTstate(
-    tstate: *mut PyThreadState,
-    func: *mut PyObject,
-    args: *const *mut PyObject,
-    nargs: Py_ssize_t,
-) -> *mut PyObject {
-    _PyObject_VectorcallTstate(tstate, func, args, nargs as size_t, std::ptr::null_mut())
-}
-
-#[cfg(all(Py_3_8, not(any(PyPy, GraalPy))))]
-#[inline(always)]
-pub unsafe fn _PyObject_FastCall(
-    func: *mut PyObject,
-    args: *const *mut PyObject,
-    nargs: Py_ssize_t,
-) -> *mut PyObject {
-    _PyObject_FastCallTstate(PyThreadState_GET(), func, args, nargs)
-}
-
-#[cfg(all(Py_3_8, not(PyPy)))]
-#[inline(always)]
-pub unsafe fn _PyObject_CallNoArg(func: *mut PyObject) -> *mut PyObject {
-    _PyObject_VectorcallTstate(
-        PyThreadState_GET(),
-        func,
-        std::ptr::null_mut(),
-        0,
-        std::ptr::null_mut(),
-    )
-}
-
-extern "C" {
-    #[cfg(PyPy)]
-    #[link_name = "_PyPyObject_CallNoArg"]
-    pub fn _PyObject_CallNoArg(func: *mut PyObject) -> *mut PyObject;
-}
+// skipped private _PyObject_FastCallTstate
+// skipped private _PyObject_FastCall
+// skipped private _PyObject_CallNoArg
 
 #[cfg(all(Py_3_8, not(PyPy)))]
 #[inline(always)]
@@ -290,14 +252,7 @@ pub const PY_ITERSEARCH_COUNT: c_int = 1;
 pub const PY_ITERSEARCH_INDEX: c_int = 2;
 pub const PY_ITERSEARCH_CONTAINS: c_int = 3;
 
-extern "C" {
-    #[cfg(not(any(PyPy, GraalPy)))]
-    pub fn _PySequence_IterSearch(
-        seq: *mut PyObject,
-        obj: *mut PyObject,
-        operation: c_int,
-    ) -> Py_ssize_t;
-}
+// skipped private _PySequence_IterSearch
 
 // skipped _PyObject_RealIsInstance
 // skipped _PyObject_RealIsSubclass

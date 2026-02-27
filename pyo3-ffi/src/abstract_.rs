@@ -54,18 +54,10 @@ extern "C" {
         ...
     ) -> *mut PyObject;
 
-    #[cfg(not(Py_3_13))]
+    #[cfg(PyPy)]
     #[cfg_attr(PyPy, link_name = "_PyPyObject_CallFunction_SizeT")]
-    pub fn _PyObject_CallFunction_SizeT(
+    pub(crate) fn _PyObject_CallFunction_SizeT(
         callable_object: *mut PyObject,
-        format: *const c_char,
-        ...
-    ) -> *mut PyObject;
-    #[cfg(not(Py_3_13))]
-    #[cfg_attr(PyPy, link_name = "_PyPyObject_CallMethod_SizeT")]
-    pub fn _PyObject_CallMethod_SizeT(
-        o: *mut PyObject,
-        method: *const c_char,
         format: *const c_char,
         ...
     ) -> *mut PyObject;
