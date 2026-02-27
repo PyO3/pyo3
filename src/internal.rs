@@ -2,3 +2,4 @@
 
 pub(crate) mod get_slot;
 pub(crate) mod state;
+pub(crate) mod typemap;

@@ -4,6 +4,7 @@ use std::{
     cell::UnsafeCell,
     ffi::CStr,
     marker::PhantomData,
+    mem::MaybeUninit,
     os::raw::{c_int, c_void},
 };
 
@@ -31,10 +32,12 @@ use std::sync::atomic::AtomicI64;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
+use crate::exceptions::PyRuntimeError;
+use crate::impl_::trampoline::trampoline;
 use crate::prelude::PyTypeMethods;
 use crate::{
     ffi,
-    impl_::pyfunction::PyFunctionDef,
+    impl_::{pyfunction::PyFunctionDef, pymodule_state::ModuleState},
     sync::PyOnceLock,
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict, PyModule, PyModuleMethods},
     Bound, Py, PyAny, PyClass, PyResult, PyTypeInfo, Python,
@@ -84,9 +87,11 @@ impl ModuleDef {
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
             m_name: name.as_ptr(),
             m_doc: doc.as_ptr(),
+            m_size: std::mem::size_of::<ModuleState>() as _,
             // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
             // but that requires mut ptr deref on MSRV.
             m_slots: slots.0.get() as _,
+            m_free: Some(pyo3_module_state_free),
             ..INIT
         });
 
@@ -315,6 +320,40 @@ impl PyAddToModule for ModuleDef {
     }
 }
 
+/// Called during multi-phase initialization in order to create an instance of
+/// ModuleState on the memory area specific to modules.
+///
+/// Slot: [`Py_mod_exec`]
+///
+/// [`Py_mod_exec`]: https://docs.python.org/3/c-api/module.html#c.Py_mod_exec
+pub unsafe extern "C" fn pyo3_module_state_init(module: *mut ffi::PyObject) -> c_int {
+    unsafe {
+        trampoline(|_| {
+            let state: *mut MaybeUninit<ModuleState> = ffi::PyModule_GetState(module).cast();
+
+            // CPython builtins just assert this, but cross ffi panics are tricky, so we return an
+            // error instead
+            if state.is_null() {
+                return Err(PyRuntimeError::new_err("PyO3 per-module state was null. This is a bug in the Python interpreter runtime."));
+            }
+
+            (*state).write(ModuleState::new());
+
+            Ok(0)
+        })
+    }
+}
+
+/// Called during deallocation of the module object.
+///
+/// Used for the [`m_free`] field of [`PyModuleDef`].
+///
+/// [`m_free`]: https://docs.python.org/3/c-api/module.html#c.PyModuleDef.m_free
+/// [`PyModuleDef`]: https://docs.python.org/3/c-api/module.html#c.PyModuleDef
+pub unsafe extern "C" fn pyo3_module_state_free(module: *mut c_void) {
+    unsafe { ModuleState::pymodule_free_state(module.cast()) };
+}
+
 #[cfg(test)]
 mod tests {
     use std::{borrow::Cow, ffi::CStr, os::raw::c_int};
@@ -391,6 +430,63 @@ mod tests {
             assert_eq!((*module_def.ffi_def.get()).m_doc, DOC.as_ptr() as _);
             assert_eq!((*module_def.ffi_def.get()).m_slots, SLOTS.0.get().cast());
         }
+    }
+
+    #[test]
+    fn module_state_init() {
+        use super::{pyo3_module_state_init, ModuleState};
+        use crate::{PyAny, PyErr};
+
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        struct UserState(u64);
+
+        unsafe extern "C" fn state_test(module: *mut ffi::PyObject) -> c_int {
+            unsafe {
+                trampoline::module_exec(module, |module| {
+                    match ModuleState::pymodule_get_state(module.as_ptr()) {
+                        Some(_) => Ok(()),
+                        None => Err(PyErr::new::<PyAny, _>("failed to initialize ModuleState")),
+                    }
+                })
+            }
+        }
+
+        static SLOTS: PyModuleSlots<5> = PyModuleSlotsBuilder::new()
+            .with_gil_used(false)
+            .with_mod_exec(pyo3_module_state_init)
+            .with_mod_exec(state_test)
+            .build();
+        static MODULE_DEF: ModuleDef = ModuleDef::new(
+            c"test_module_state_init",
+            c"This test is for checking PyO3 ModuleState is initialized correctly",
+            &SLOTS,
+        );
+
+        Python::attach(|py| {
+            let mut module = MODULE_DEF
+                .make_module(py)
+                .expect("module to initialize without error")
+                .into_bound(py);
+            let mystate = UserState(42);
+
+            assert_eq!(
+                None,
+                module.state_ref::<UserState>(),
+                "no state has been added yet"
+            );
+
+            assert_eq!(
+                mystate,
+                *module.state_or_init(|| mystate),
+                "added state successfully"
+            );
+
+            assert_eq!(
+                Some(&mystate),
+                module.state_ref::<UserState>(),
+                "previously added state is referenceable"
+            );
+        })
     }
 
     #[test]
