@@ -14,12 +14,15 @@ error[E0521]: borrowed data escapes outside of function
 error[E0716]: temporary value dropped while borrowed
  --> tests/ui/static_ref.rs:4:1
   |
-4 | #[pyfunction]
-  | ^^^^^^^^^^^^-
-  | |           |
-  | |           temporary value is freed at the end of this statement
-  | creates a temporary value which is freed while still in use
-  | argument requires that borrow lasts for `'static`
+4 |   #[pyfunction]
+  |   ^------------
+  |   |           |
+  |   |           temporary value is freed at the end of this statement
+  |   argument requires that borrow lasts for `'static`
+  |  _in this attribute macro expansion
+  | |
+5 | | fn static_ref(list: &'static Bound<'_, PyList>) -> usize {
+  | |_____________________^ creates a temporary value which is freed while still in use
   |
   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
 
