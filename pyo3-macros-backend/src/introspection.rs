@@ -8,8 +8,10 @@
 //! The JSON blobs format must be synchronized with the `pyo3_introspection::introspection.rs::Chunk`
 //! type that is used to parse them.
 
+use crate::json::escape_json_string;
 use crate::method::{FnArg, RegularArg};
 use crate::py_expr::PyExpr;
+use crate::py_stubs::PyStubs;
 use crate::pyfunction::FunctionSignature;
 use crate::utils::{PyO3CratePath, PythonDoc, StrOrExpr};
 use proc_macro2::{Span, TokenStream};
@@ -17,7 +19,6 @@ use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
-use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -32,6 +33,7 @@ pub fn module_introspection_code<'a>(
     members_cfg_attrs: impl IntoIterator<Item = &'a Vec<Attribute>>,
     doc: Option<&PythonDoc>,
     incomplete: bool,
+    extra_stubs: Option<&PyStubs>,
 ) -> TokenStream {
     let mut desc = HashMap::from([
         ("type", IntrospectionNode::String("module".into())),
@@ -54,6 +56,9 @@ pub fn module_introspection_code<'a>(
     ]);
     if let Some(doc) = doc {
         desc.insert("doc", IntrospectionNode::Doc(doc));
+    }
+    if let Some(stubs) = extra_stubs {
+        desc.insert("stubs", IntrospectionNode::Stubs(stubs));
     }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
@@ -332,6 +337,7 @@ enum IntrospectionNode<'a> {
     IntrospectionId(Option<Cow<'a, Type>>),
     TypeHint(Cow<'a, PyExpr>),
     Doc(&'a PythonDoc),
+    Stubs(&'a PyStubs),
     Map(HashMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<AttributedIntrospectionNode<'a>>),
 }
@@ -389,6 +395,9 @@ impl IntrospectionNode<'_> {
                     }
                 }
                 content.push_str("\"");
+            }
+            Self::Stubs(stubs) => {
+                content.push_str(&stubs.as_json().to_string());
             }
             Self::Map(map) => {
                 content.push_str("{");
@@ -590,24 +599,4 @@ fn ident_to_type(ident: &Ident) -> Cow<'static, Type> {
         }
         .into(),
     )
-}
-
-fn escape_json_string(value: &str) -> String {
-    let mut output = String::with_capacity(value.len());
-    for c in value.chars() {
-        match c {
-            '\\' => output.push_str("\\\\"),
-            '"' => output.push_str("\\\""),
-            '\x08' => output.push_str("\\b"),
-            '\x0C' => output.push_str("\\f"),
-            '\n' => output.push_str("\\n"),
-            '\r' => output.push_str("\\r"),
-            '\t' => output.push_str("\\t"),
-            c @ '\0'..='\x1F' => {
-                write!(output, "\\u{:0>4x}", u32::from(c)).unwrap();
-            }
-            c => output.push(c),
-        }
-    }
-    output
 }
