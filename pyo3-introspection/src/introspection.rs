@@ -1,5 +1,5 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator, TypeHint,
+    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator,
     VariableLengthArgument,
 };
 use anyhow::{anyhow, bail, ensure, Context, Result};
@@ -10,14 +10,12 @@ use goblin::mach::symbols::{NO_SECT, N_SECT};
 use goblin::mach::{Mach, MachO, SingleArch};
 use goblin::pe::PE;
 use goblin::Object;
-use serde::de::value::MapAccessDeserializer;
-use serde::de::{Error, MapAccess, Visitor};
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::Path;
-use std::{fmt, fs, str};
+use std::{fs, str};
 
 /// Introspect a cdylib built with PyO3 and returns the definition of a Python module.
 ///
@@ -33,7 +31,8 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
     let mut chunks_by_parent = HashMap::<&str, Vec<&Chunk>>::new();
     for chunk in chunks {
         let (id, parent) = match chunk {
-            Chunk::Module { id, .. } | Chunk::Class { id, .. } => (Some(id.as_str()), None),
+            Chunk::Module { id, .. } => (Some(id.as_str()), None),
+            Chunk::Class { id, parent, .. } => (Some(id.as_str()), parent.as_deref()),
             Chunk::Function { id, parent, .. } | Chunk::Attribute { id, parent, .. } => {
                 (id.as_deref(), parent.as_deref())
             }
@@ -51,6 +50,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
             id,
             name,
             members,
+            doc,
             incomplete,
         } = chunk
         {
@@ -65,6 +65,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
                     name,
                     members,
                     *incomplete,
+                    doc.as_deref(),
                     &chunks_by_id,
                     &chunks_by_parent,
                     &type_hint_for_annotation_id,
@@ -75,11 +76,13 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
     bail!("No module named {main_module_name} found")
 }
 
+#[expect(clippy::too_many_arguments)]
 fn convert_module(
     id: &str,
     name: &str,
     members: &[String],
     mut incomplete: bool,
+    docstring: Option<&str>,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
     type_hint_for_annotation_id: &HashMap<String, Expr>,
@@ -111,6 +114,7 @@ fn convert_module(
         functions,
         attributes,
         incomplete,
+        docstring: docstring.map(Into::into),
     })
 }
 
@@ -134,12 +138,14 @@ fn convert_members<'a>(
                 id,
                 members,
                 incomplete,
+                doc,
             } => {
                 modules.push(convert_module(
                     id,
                     name,
                     members,
                     *incomplete,
+                    doc.as_deref(),
                     chunks_by_id,
                     chunks_by_parent,
                     type_hint_for_annotation_id,
@@ -150,11 +156,14 @@ fn convert_members<'a>(
                 id,
                 bases,
                 decorators,
+                doc,
+                parent: _,
             } => classes.push(convert_class(
                 id,
                 name,
                 bases,
                 decorators,
+                doc.as_deref(),
                 chunks_by_id,
                 chunks_by_parent,
                 type_hint_for_annotation_id,
@@ -167,12 +176,14 @@ fn convert_members<'a>(
                 decorators,
                 is_async,
                 returns,
+                doc,
             } => functions.push(convert_function(
                 name,
                 arguments,
                 decorators,
                 returns,
                 *is_async,
+                doc.as_deref(),
                 type_hint_for_annotation_id,
             )),
             Chunk::Attribute {
@@ -181,10 +192,12 @@ fn convert_members<'a>(
                 parent: _,
                 value,
                 annotation,
+                doc,
             } => attributes.push(convert_attribute(
                 name,
                 value,
                 annotation,
+                doc.as_deref(),
                 type_hint_for_annotation_id,
             )),
         }
@@ -217,11 +230,13 @@ fn convert_members<'a>(
     Ok((modules, classes, functions, attributes))
 }
 
+#[expect(clippy::too_many_arguments)]
 fn convert_class(
     id: &str,
     name: &str,
     bases: &[ChunkExpr],
     decorators: &[ChunkExpr],
+    docstring: Option<&str>,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
     type_hint_for_annotation_id: &HashMap<String, Expr>,
@@ -236,10 +251,6 @@ fn convert_class(
         nested_modules.is_empty(),
         "Classes cannot contain nested modules"
     );
-    ensure!(
-        nested_classes.is_empty(),
-        "Nested classes are not supported yet"
-    );
     Ok(Class {
         name: name.into(),
         bases: bases
@@ -252,6 +263,8 @@ fn convert_class(
             .iter()
             .map(|e| convert_expr(e, type_hint_for_annotation_id))
             .collect(),
+        inner_classes: nested_classes,
+        docstring: docstring.map(Into::into),
     })
 }
 
@@ -259,8 +272,9 @@ fn convert_function(
     name: &str,
     arguments: &ChunkArguments,
     decorators: &[ChunkExpr],
-    returns: &Option<ChunkTypeHint>,
+    returns: &Option<ChunkExpr>,
     is_async: bool,
+    docstring: Option<&str>,
     type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Function {
     Function {
@@ -296,8 +310,9 @@ fn convert_function(
         },
         returns: returns
             .as_ref()
-            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
+            .map(|a| convert_expr(a, type_hint_for_annotation_id)),
         is_async,
+        docstring: docstring.map(Into::into),
     }
 }
 
@@ -307,11 +322,14 @@ fn convert_argument(
 ) -> Argument {
     Argument {
         name: arg.name.clone(),
-        default_value: arg.default.clone(),
+        default_value: arg
+            .default
+            .as_ref()
+            .map(|e| convert_expr(e, type_hint_for_annotation_id)),
         annotation: arg
             .annotation
             .as_ref()
-            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
+            .map(|a| convert_expr(a, type_hint_for_annotation_id)),
     }
 }
 
@@ -324,32 +342,26 @@ fn convert_variable_length_argument(
         annotation: arg
             .annotation
             .as_ref()
-            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
+            .map(|a| convert_expr(a, type_hint_for_annotation_id)),
     }
 }
 
 fn convert_attribute(
     name: &str,
-    value: &Option<String>,
-    annotation: &Option<ChunkTypeHint>,
+    value: &Option<ChunkExpr>,
+    annotation: &Option<ChunkExpr>,
+    docstring: Option<&str>,
     type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Attribute {
     Attribute {
         name: name.into(),
-        value: value.clone(),
+        value: value
+            .as_ref()
+            .map(|v| convert_expr(v, type_hint_for_annotation_id)),
         annotation: annotation
             .as_ref()
-            .map(|a| convert_type_hint(a, type_hint_for_annotation_id)),
-    }
-}
-
-fn convert_type_hint(
-    arg: &ChunkTypeHint,
-    type_hint_for_annotation_id: &HashMap<String, Expr>,
-) -> TypeHint {
-    match arg {
-        ChunkTypeHint::Ast(expr) => TypeHint::Ast(convert_expr(expr, type_hint_for_annotation_id)),
-        ChunkTypeHint::Plain(t) => TypeHint::Plain(t.clone()),
+            .map(|a| convert_expr(a, type_hint_for_annotation_id)),
+        docstring: docstring.map(ToString::to_string),
     }
 }
 
@@ -386,6 +398,11 @@ fn convert_expr(expr: &ChunkExpr, type_hint_for_annotation_id: &HashMap<String, 
         ChunkExpr::Constant { value } => Expr::Constant {
             value: match value {
                 ChunkConstant::None => Constant::None,
+                ChunkConstant::Bool { value } => Constant::Bool(*value),
+                ChunkConstant::Int { value } => Constant::Int(value.clone()),
+                ChunkConstant::Float { value } => Constant::Float(value.clone()),
+                ChunkConstant::Str { value } => Constant::Str(value.clone()),
+                ChunkConstant::Ellipsis => Constant::Ellipsis,
             },
         },
         ChunkExpr::Id { id } => {
@@ -410,7 +427,7 @@ fn introspection_id_to_type_hint_for_root_module(
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
 ) -> HashMap<String, Expr> {
-    fn add_introspection_id_to_type_hint_for_module(
+    fn add_introspection_id_to_type_hint_for_module_members(
         module_id: &str,
         module_full_name: &str,
         module_members: &[String],
@@ -428,13 +445,12 @@ fn introspection_id_to_type_hint_for_root_module(
                     .filter_map(|id| chunks_by_id.get(id.as_str())),
             )
             .copied()
-            .collect::<Vec<_>>()
         {
             match member {
                 Chunk::Module {
                     name, id, members, ..
                 } => {
-                    add_introspection_id_to_type_hint_for_module(
+                    add_introspection_id_to_type_hint_for_module_members(
                         id,
                         &format!("{}.{}", module_full_name, name),
                         members,
@@ -453,8 +469,45 @@ fn introspection_id_to_type_hint_for_root_module(
                             attr: name.clone(),
                         },
                     );
+                    add_introspection_id_to_type_hint_for_class_subclasses(
+                        id,
+                        name,
+                        module_full_name,
+                        chunks_by_parent,
+                        output,
+                    );
                 }
                 _ => (),
+            }
+        }
+    }
+
+    fn add_introspection_id_to_type_hint_for_class_subclasses(
+        class_id: &str,
+        class_name: &str,
+        class_module: &str,
+        chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
+        output: &mut HashMap<String, Expr>,
+    ) {
+        for member in chunks_by_parent.get(&class_id).into_iter().flatten() {
+            if let Chunk::Class { id, name, .. } = member {
+                let class_name = format!("{}.{}", class_name, name);
+                add_introspection_id_to_type_hint_for_class_subclasses(
+                    id,
+                    &class_name,
+                    class_module,
+                    chunks_by_parent,
+                    output,
+                );
+                output.insert(
+                    id.clone(),
+                    Expr::Attribute {
+                        value: Box::new(Expr::Name {
+                            id: class_module.into(),
+                        }),
+                        attr: class_name,
+                    },
+                );
             }
         }
     }
@@ -466,7 +519,7 @@ fn introspection_id_to_type_hint_for_root_module(
     else {
         unreachable!("The chunk must be a module")
     };
-    add_introspection_id_to_type_hint_for_module(
+    add_introspection_id_to_type_hint_for_module_members(
         id,
         name,
         members,
@@ -613,6 +666,8 @@ enum Chunk {
         id: String,
         name: String,
         members: Vec<String>,
+        #[serde(default)]
+        doc: Option<String>,
         incomplete: bool,
     },
     Class {
@@ -622,6 +677,10 @@ enum Chunk {
         bases: Vec<ChunkExpr>,
         #[serde(default)]
         decorators: Vec<ChunkExpr>,
+        #[serde(default)]
+        parent: Option<String>,
+        #[serde(default)]
+        doc: Option<String>,
     },
     Function {
         #[serde(default)]
@@ -633,9 +692,11 @@ enum Chunk {
         #[serde(default)]
         decorators: Vec<ChunkExpr>,
         #[serde(default)]
-        returns: Option<ChunkTypeHint>,
+        returns: Option<ChunkExpr>,
         #[serde(default, rename = "async")]
         is_async: bool,
+        #[serde(default)]
+        doc: Option<String>,
     },
     Attribute {
         #[serde(default)]
@@ -644,9 +705,11 @@ enum Chunk {
         parent: Option<String>,
         name: String,
         #[serde(default)]
-        value: Option<String>,
+        value: Option<ChunkExpr>,
         #[serde(default)]
-        annotation: Option<ChunkTypeHint>,
+        annotation: Option<ChunkExpr>,
+        #[serde(default)]
+        doc: Option<String>,
     },
 }
 
@@ -668,56 +731,9 @@ struct ChunkArguments {
 struct ChunkArgument {
     name: String,
     #[serde(default)]
-    default: Option<String>,
+    default: Option<ChunkExpr>,
     #[serde(default)]
-    annotation: Option<ChunkTypeHint>,
-}
-
-/// Variant of [`TypeHint`] that implements deserialization.
-///
-/// We keep separated type to allow them to evolve independently (this type will need to handle backward compatibility).
-enum ChunkTypeHint {
-    Ast(ChunkExpr),
-    Plain(String),
-}
-
-impl<'de> Deserialize<'de> for ChunkTypeHint {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct AnnotationVisitor;
-
-        impl<'de> Visitor<'de> for AnnotationVisitor {
-            type Value = ChunkTypeHint;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("annotation")
-            }
-
-            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-            where
-                E: Error,
-            {
-                self.visit_string(v.into())
-            }
-
-            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-            where
-                E: Error,
-            {
-                Ok(ChunkTypeHint::Plain(v))
-            }
-
-            fn visit_map<M: MapAccess<'de>>(self, map: M) -> Result<ChunkTypeHint, M::Error> {
-                Ok(ChunkTypeHint::Ast(Deserialize::deserialize(
-                    MapAccessDeserializer::new(map),
-                )?))
-            }
-        }
-
-        deserializer.deserialize_any(AnnotationVisitor)
-    }
+    annotation: Option<ChunkExpr>,
 }
 
 #[derive(Deserialize)]
@@ -752,6 +768,11 @@ enum ChunkExpr {
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum ChunkConstant {
     None,
+    Bool { value: bool },
+    Int { value: String },
+    Float { value: String },
+    Str { value: String },
+    Ellipsis,
 }
 
 #[derive(Deserialize)]

@@ -5,13 +5,14 @@ pub mod enums {
     #[pymodule_export]
     use super::{
         do_complex_stuff, do_mixed_complex_stuff, do_simple_stuff, do_tuple_stuff, ComplexEnum,
-        MixedComplexEnum, SimpleEnum, SimpleTupleEnum, TupleEnum,
+        MixedComplexEnum, SimpleEnum, SimpleEnumWithoutDerive, SimpleTupleEnum, TupleEnum,
     };
 }
 
 #[pyclass(eq, eq_int)]
 #[derive(PartialEq)]
 pub enum SimpleEnum {
+    /// A variant
     Sunday,
     Monday,
     Tuesday,
@@ -19,6 +20,12 @@ pub enum SimpleEnum {
     Thursday,
     Friday,
     Saturday,
+}
+
+#[pyclass]
+pub enum SimpleEnumWithoutDerive {
+    A,
+    B,
 }
 
 #[pyfunction]
@@ -36,7 +43,9 @@ pub fn do_simple_stuff(thing: &SimpleEnum) -> SimpleEnum {
 
 #[pyclass]
 pub enum ComplexEnum {
+    /// A struct variant
     Int {
+        /// An integer
         i: i32,
     },
     Float {
@@ -85,6 +94,7 @@ enum SimpleTupleEnum {
 
 #[pyclass]
 pub enum TupleEnum {
+    /// A tuple variant
     #[pyo3(constructor = (_0 = 1, _1 = 1.0, _2 = true))]
     FullWithDefault(i32, f64, bool),
     Full(i32, f64, bool),

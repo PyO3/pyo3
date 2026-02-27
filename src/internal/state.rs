@@ -362,7 +362,7 @@ fn decrement_attach_count() {
 mod tests {
     use super::*;
 
-    use crate::{types::PyAnyMethods, Py, PyAny, Python};
+    use crate::{Py, PyAny, Python};
 
     fn get_object(py: Python<'_>) -> Py<PyAny> {
         py.eval(c"object()", None, None).unwrap().unbind()
@@ -396,14 +396,14 @@ mod tests {
             // Create a reference to drop while attached.
             let reference = obj.clone_ref(py);
 
-            assert_eq!(obj.get_refcnt(py), 2);
+            assert_eq!(obj._get_refcnt(py), 2);
             #[cfg(not(pyo3_disable_reference_pool))]
             assert!(pool_dec_refs_does_not_contain(&obj));
 
             // While attached, reference count will be decreased immediately.
             drop(reference);
 
-            assert_eq!(obj.get_refcnt(py), 1);
+            assert_eq!(obj._get_refcnt(py), 1);
             #[cfg(not(any(pyo3_disable_reference_pool)))]
             assert!(pool_dec_refs_does_not_contain(&obj));
         });
@@ -417,7 +417,7 @@ mod tests {
             // Create a reference to drop while detached.
             let reference = obj.clone_ref(py);
 
-            assert_eq!(obj.get_refcnt(py), 2);
+            assert_eq!(obj._get_refcnt(py), 2);
             assert!(pool_dec_refs_does_not_contain(&obj));
 
             // Drop reference in a separate (detached) thread.
@@ -425,7 +425,7 @@ mod tests {
 
             // The reference count should not have changed, it is remembered
             // to release later.
-            assert_eq!(obj.get_refcnt(py), 2);
+            assert_eq!(obj._get_refcnt(py), 2);
             #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
             obj
@@ -438,7 +438,7 @@ mod tests {
             // DECREFs after releasing the lock on the POOL, so the
             // refcnt could still be 2 when this assert happens
             #[cfg(not(Py_GIL_DISABLED))]
-            assert_eq!(obj.get_refcnt(py), 1);
+            assert_eq!(obj._get_refcnt(py), 1);
             assert!(pool_dec_refs_does_not_contain(&obj));
         });
     }
@@ -501,7 +501,7 @@ mod tests {
         Python::attach(|py| {
             // Make a simple object with 1 reference
             let obj = get_object(py);
-            assert_eq!(obj.get_refcnt(py), 1);
+            assert_eq!(obj._get_refcnt(py), 1);
             // Cloning the object when detached should panic
             py.detach(|| obj.clone());
         });
@@ -511,7 +511,7 @@ mod tests {
     fn recursive_attach_ok() {
         Python::attach(|py| {
             let obj = Python::attach(|_| py.eval(c"object()", None, None).unwrap());
-            assert_eq!(obj.get_refcnt(), 1);
+            assert_eq!(obj._get_refcnt(), 1);
         })
     }
 
@@ -520,12 +520,12 @@ mod tests {
     fn test_clone_attached() {
         Python::attach(|py| {
             let obj = get_object(py);
-            let count = obj.get_refcnt(py);
+            let count = obj._get_refcnt(py);
 
             // Cloning when attached should increase reference count immediately
             #[expect(clippy::redundant_clone)]
             let c = obj.clone();
-            assert_eq!(count + 1, c.get_refcnt(py));
+            assert_eq!(count + 1, c._get_refcnt(py));
         })
     }
 

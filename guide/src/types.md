@@ -202,7 +202,8 @@ let obj: &Py<PyAny> = bound.as_unbound();
 let obj: Py<PyAny> = bound.unbind();
 ```
 
-To convert between `Bound<'py, T>` and `Borrowed<'a, 'py, T>` use the `as_borrowed()` method. `Borrowed<'a, 'py, T>` has a deref coercion to `Bound<'py, T>`.
+To convert between `Bound<'py, T>` and `Borrowed<'a, 'py, T>` use the `as_borrowed()` method.
+`Borrowed<'a, 'py, T>` has a deref coercion to `Bound<'py, T>`.
 Use the `to_owned()` method to increment the Python reference count and to create a new `Bound<'py, T>` from the `Borrowed<'a, 'py, T>`.
 
 ```rust,ignore

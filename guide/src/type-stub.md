@@ -1,6 +1,7 @@
 # Type stub generation (`*.pyi` files) and introspection
 
-*This feature is still in active development. See [the related issue](https://github.com/PyO3/pyo3/issues/5137).*
+*This feature is still in active development.*
+*See [the related issue](https://github.com/PyO3/pyo3/issues/5137).*
 
 *For documentation on type stubs and how to use them with stable PyO3, refer to [this page](python-typing-hints.md)*
 

@@ -404,3 +404,36 @@ fn complex_enum_with_raw_pattern_match() {
         "#);
     });
 }
+
+#[test]
+fn complex_enum_variant_qualname() {
+    #[pyclass(skip_from_py_object)]
+    pub enum ComplexEnum {
+        A(i32),
+        B { msg: String },
+    }
+
+    Python::attach(|py| {
+        let cls = py.get_type::<ComplexEnum>();
+        py_assert!(py, cls, "cls.A.__qualname__ == 'ComplexEnum.A'");
+        py_assert!(py, cls, "cls.B.__qualname__ == 'ComplexEnum.B'");
+    });
+}
+
+#[test]
+fn complex_enum_renamed_variant_qualname() {
+    #[pyclass(name = "ComplexEnum", skip_from_py_object)]
+    pub enum PyComplexEnum {
+        #[pyo3(name = "A")]
+        PyA(i32),
+        B {
+            msg: String,
+        },
+    }
+
+    Python::attach(|py| {
+        let cls = py.get_type::<PyComplexEnum>();
+        py_assert!(py, cls, "cls.A.__qualname__ == 'ComplexEnum.A'");
+        py_assert!(py, cls, "cls.B.__qualname__ == 'ComplexEnum.B'");
+    });
+}

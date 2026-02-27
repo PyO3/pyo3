@@ -7,22 +7,62 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ### Default to supporting free-threaded Python
 
+<details open>
+<summary><small>Click to expand</small></summary>
+
 When PyO3 0.23 added support for free-threaded Python, this was as an opt-in feature for modules by annotating with `#[pymodule(gil_used = false)]`.
 
 As the support has matured and PyO3's own API has evolved to remove reliance on the GIL, the time is right to switch the default.
 Modules now automatically allow use on free-threaded Python, unless they directly state they require the GIL with `#[pymodule(gil_used = true)]`.
+</details>
 
 ### Deprecation of automatic `FromPyObject` for `#[pyclass]` types which implement `Clone`
 
+<details open>
+<summary><small>Click to expand</small></summary>
+
 `#[pyclass]` types which implement `Clone` used to also implement `FromPyObject` automatically.
-This behaviour is phased out and replaced by an explicit opt-in.
+This behavior is being phased out and replaced by an explicit opt-in, which will allow [better error messages and more user control](https://github.com/PyO3/pyo3/issues/5419).
 Affected types will by marked by a deprecation message.
+
 To migrate use either
 
-- `from_py_object` to keep the automatic derive, or
-- `skip_from_py_object` to accept the new behaviour
+- `#[pyclass(from_py_object)]` to keep the automatic derive, or
+- `#[pyclass(skip_from_py_object)]` to accept the new behavior.
+
+Before:
+
+```rust
+# #![allow(deprecated)]
+# use pyo3::prelude::*;
+#[pyclass]
+#[derive(Clone)]
+struct PyClass {}
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+// If the automatic implementation of `FromPyObject` is desired, opt in:
+#[pyclass(from_py_object)]
+#[derive(Clone)]
+struct PyClass {}
+
+// or if the `FromPyObject` implementation is not needed:
+#[pyclass(skip_from_py_object)]
+#[derive(Clone)]
+struct PyClassWithoutFromPyObject {}
+```
+
+The `#[pyclass(skip_from_py_object)]` option will eventually be deprecated and removed as it becomes the default behavior.
+
+</details>
 
 ### Deprecation of `Py<T>` constructors from raw pointer
+
+<details open>
+<summary><small>Click to expand</small></summary>
 
 The constructors `Py::from_owned_ptr`, `Py::from_owned_ptr_or_opt`, and `Py::from_owned_ptr_or_err` (and similar "borrowed" variants) perform an unchecked cast to the `Py<T>` target type `T`.
 This unchecked cast is a footgun on APIs where the primary concern is about constructing PyO3's safe smart pointer types correctly from the raw pointer value.
@@ -33,7 +73,7 @@ These should be used instead.
 Before:
 
 ```rust
-#![allow(deprecated)]
+# #![allow(deprecated)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyNone;
 # Python::attach(|py| {
@@ -44,7 +84,7 @@ let _: Py<PyNone> = unsafe { Py::from_owned_ptr(py, raw_ptr) };
 # })
 ```
 
-Before:
+After:
 
 ```rust
 # use pyo3::prelude::*;
@@ -59,7 +99,12 @@ let _: Bound<'_, PyNone> = unsafe { Bound::from_owned_ptr(py, raw_ptr).cast_into
 # })
 ```
 
+</details>
+
 ### Removal of `From<Bound<'_, T>` and `From<Py<T>> for PyClassInitializer<T>`
+
+<details open>
+<summary><small>Click to expand</small></summary>
 
 As part of refactoring the initialization code these impls were removed and its functionality was moved into the generated code for `#[new]`.
 As a small side side effect the following pattern will not be accepted anymore:
@@ -88,7 +133,23 @@ let obj_2 = existing_bound.clone();
 # })
 ```
 
+</details>
+
+### Untyped buffer API moved to PyUntypedBuffer
+
+<details open>
+<summary><small>Click to expand</small></summary>
+
+`PyBuffer<T>` now is a typed wrapper around `PyUntypedBuffer`.
+Many methods such as `PyBuffer::format` have been moved to `PyUntypedBuffer::format`.
+`PyBuffer<T>` dereferences to `PyUntypedBuffer`, so method call syntax will continue to work as-is.
+Users may need to update references to the moved functions.
+</details>
+
 ### Internal change to use multi-phase initialization
+
+<details open>
+<summary><small>Click to expand</small></summary>
 
 [PEP 489](https://peps.python.org/pep-0489/) introduced "multi-phase initialization" for extension modules which provides ways to allocate and clean up per-module state.
 This is a necessary step towards supporting Python "subinterpreters" which run on their own copy of state.
@@ -98,12 +159,13 @@ The possibility of creating and consuming per-module state (and supporting subin
 This should not require migration, nor is there expected to be breakage caused by the change.
 
 Nevertheless, this affects the order of initialization so seemed worth noting in this guide.
+</details>
 
 ## from 0.26.* to 0.27
 
 ### `FromPyObject` reworked for flexibility and efficiency
 
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 With the removal of the `gil-ref` API in PyO3 0.23 it is now possible to fully split the Python lifetime `'py` and the input lifetime `'a`.
@@ -230,13 +292,16 @@ where
 }
 ```
 
-This is very similar to `serde`s [`Deserialize`] and [`DeserializeOwned`] traits, see [here](https://serde.rs/lifetimes.html).
+This is very similar to `serde`s [`Deserialize`] and [`DeserializeOwned`] traits, see [the `serde` docs](https://serde.rs/lifetimes.html).
 
 [`Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
 [`DeserializeOwned`]: https://docs.rs/serde/latest/serde/de/trait.DeserializeOwned.html
 </details>
 
-## `.downcast()` and `DowncastError` replaced with `.cast()` and `CastError`
+### `.downcast()` and `DowncastError` replaced with `.cast()` and `CastError`
+
+<details>
+<summary><small>Click to expand</small></summary>
 
 The `.downcast()` family of functions were only available on `Bound<PyAny>`.
 In corner cases (particularly related to `.downcast_into()`) this would require use of `.as_any().downcast()` or `.into_any().downcast_into()` chains.
@@ -248,18 +313,23 @@ This produces a nicer experience for both PyO3 module authors and consumers.
 To migrate, replace `.downcast()` with `.cast()` and `DowncastError` with `CastError` (and similar with `.downcast_into()` / `DowncastIntoError` etc).
 
 `CastError` requires a Python `type` object (or other "classinfo" object compatible with `isinstance()`) as the second object, so in the rare case where `DowncastError` was manually constructed, small adjustments to code may apply.
+</details>
 
-## `PyTypeCheck` is now an `unsafe trait`
+### `PyTypeCheck` is now an `unsafe trait`
+
+<details>
+<summary><small>Click to expand</small></summary>
 
 Because `PyTypeCheck` is the trait used to guard the `.cast()` functions to treat Python objects as specific concrete types, the trait is `unsafe` to implement.
 
 This should always have been the case, it was an unfortunate omission from its original implementation which is being corrected in this release.
+</details>
 
 ## from 0.25.* to 0.26
 
 ### Rename of `Python::with_gil`, `Python::allow_threads`, and `pyo3::prepare_freethreaded_python`
 
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 The names for these APIs were created when the global interpreter lock (GIL) was mandatory.
@@ -274,7 +344,7 @@ For this reason, we chose to rename these to more modern terminology introduced 
 
 ### Deprecation of `PyObject` type alias
 
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 The type alias `PyObject` (aka `Py<PyAny>`) is often confused with the identically named FFI definition `pyo3::ffi::PyObject`.
@@ -284,7 +354,7 @@ To migrate simply replace its usage by the target type `Py<PyAny>`.
 
 ### Replacement of `GILOnceCell` with `PyOnceLock`
 
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 Similar to the above renaming of `Python::with_gil` and related APIs, the `GILOnceCell` type was designed for a Python interpreter which was limited by the GIL.
@@ -327,7 +397,7 @@ DECIMAL_TYPE.import(py, "decimal", "Decimal")?;
 
 ### Deprecation of `GILProtected`
 
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 As another cleanup related to concurrency primitives designed for a Python constrained by the GIL, the `GILProtected` type is now deprecated.
@@ -1692,7 +1762,8 @@ PyO3 0.17 changes these downcast checks to explicitly test if the type is a subc
 Note this requires calling into Python, which may incur a performance penalty over the previous method.
 If this performance penalty is a problem, you may be able to perform your own checks and use `try_from_unchecked` (unsafe).
 
-Another side-effect is that a pyclass defined in Rust with PyO3 will need to be _registered_ with the corresponding Python abstract base class for downcasting to succeed. `PySequence::register` and `PyMapping:register` have been added to make it easy to do this from Rust code.
+Another side-effect is that a pyclass defined in Rust with PyO3 will need to be _registered_ with the corresponding Python abstract base class for downcasting to succeed.
+`PySequence::register` and `PyMapping:register` have been added to make it easy to do this from Rust code.
 These are equivalent to calling `collections.abc.Mapping.register(MappingPyClass)` or `collections.abc.Sequence.register(SequencePyClass)` from Python.
 
 For example, for a mapping class defined in Rust:
@@ -2214,7 +2285,8 @@ let result: PyResult<()> = Err(PyTypeError::new_err("error message"));
 <summary><small>Click to expand</small></summary>
 
 Previously exception types were zero-sized marker types purely used to construct `PyErr`.
-In PyO3 0.12, these types have been replaced with full definitions and are usable in the same way as `PyAny`, `PyDict` etc. This makes it possible to interact with Python exception objects.
+In PyO3 0.12, these types have been replaced with full definitions and are usable in the same way as `PyAny`, `PyDict` etc.
+This makes it possible to interact with Python exception objects.
 
 The new types also have names starting with the "Py" prefix.
 For example, before:
@@ -2453,7 +2525,7 @@ py.None().get_refcnt();
 
 After:
 
-```rust
+```rust,ignore
 # pyo3::Python::attach(|py| {
 py.None().get_refcnt(py);
 # })

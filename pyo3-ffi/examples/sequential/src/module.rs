@@ -2,6 +2,7 @@ use core::{mem, ptr};
 use pyo3_ffi::*;
 use std::ffi::{c_int, c_void};
 
+#[cfg(not(Py_3_15))]
 pub static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_base: PyModuleDef_HEAD_INIT,
     m_name: c"sequential".as_ptr(),
@@ -14,9 +15,49 @@ pub static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_free: Some(sequential_free),
 };
 
+#[cfg(Py_3_15)]
+PyABIInfo_VAR!(ABI_INFO);
+
 const SEQUENTIAL_SLOTS_LEN: usize =
-    2 + if cfg!(Py_3_12) { 1 } else { 0 } + if cfg!(Py_GIL_DISABLED) { 1 } else { 0 };
-static mut SEQUENTIAL_SLOTS: [PyModuleDef_Slot; SEQUENTIAL_SLOTS_LEN] = [
+    2 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize + 7 * (cfg!(Py_3_15) as usize);
+pub static mut SEQUENTIAL_SLOTS: [PyModuleDef_Slot; SEQUENTIAL_SLOTS_LEN] = [
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_abi,
+        value: std::ptr::addr_of_mut!(ABI_INFO).cast(),
+    },
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_name,
+        // safety: Python does not write to this field
+        value: c"sequential".as_ptr() as *mut c_void,
+    },
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_doc,
+        // safety: Python does not write to this field
+        value: c"A library for generating sequential ids, written in Rust.".as_ptr() as *mut c_void,
+    },
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_state_size,
+        value: mem::size_of::<sequential_state>() as *mut c_void,
+    },
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_state_traverse,
+        value: sequential_traverse as *mut c_void,
+    },
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_state_clear,
+        value: sequential_clear as *mut c_void,
+    },
+    #[cfg(Py_3_15)]
+    PyModuleDef_Slot {
+        slot: Py_mod_state_free,
+        value: sequential_free as *mut c_void,
+    },
     PyModuleDef_Slot {
         slot: Py_mod_exec,
         value: sequential_exec as *mut c_void,

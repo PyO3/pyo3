@@ -599,8 +599,6 @@ def build_netlify_site(session: nox.Session):
     if preview:
         session.posargs.remove("--preview")
 
-    _build_netlify_redirects(preview)
-
     session.install("towncrier")
     # Save a copy of the changelog to restore later
     changelog = (PYO3_DIR / "CHANGELOG.md").read_text()
@@ -630,6 +628,8 @@ def build_netlify_site(session: nox.Session):
     docs(session, nightly=True, internal=True)
     PYO3_DOCS_TARGET.rename("netlify_build/internal")
 
+    _build_netlify_redirects(preview)
+
 
 def _build_netlify_redirects(preview: bool) -> None:
     current_version = os.environ.get("PYO3_VERSION")
@@ -639,43 +639,37 @@ def _build_netlify_redirects(preview: bool) -> None:
         headers_file = stack.enter_context(open("netlify_build/_headers", "w"))
         for d in glob("netlify_build/v*"):
             version = d.removeprefix("netlify_build/v")
-            full_directory = d + "/"
             redirects_file.write(
                 f"/v{version}/doc/* https://docs.rs/pyo3/{version}/:splat\n"
             )
+
+            # for versions other than the current version, set noindex
             if version != current_version:
-                # for old versions, mark the files in the latest version as the canonical URL
-                for file in glob(f"{d}/**", recursive=True):
-                    file_path = file.removeprefix(full_directory)
-                    # remove index.html and/or .html suffix to match the page URL on the
-                    # final netlfiy site
-                    url_path = file_path
-                    if file_path == "index.html":
-                        url_path = ""
+                headers_file.write(f"/v{version}/*\n  X-Robots-Tag: noindex\n")
+                continue
 
-                    url_path = url_path.removesuffix(".html")
+            # for the current version, index all files and set canonical links where possible
+            for file in glob(f"{d}/**", recursive=True):
+                file_path = file.removeprefix("netlify_build")
+                url_path = _url_path_from_file_path(file_path)
 
-                    # if the file exists in the latest version, add a canonical
-                    # URL as a header
-                    for url in (
-                        f"/v{version}/{url_path}",
-                        *(
-                            (f"/v{version}/{file_path}",)
-                            if file_path != url_path
-                            else ()
-                        ),
-                    ):
-                        headers_file.write(url + "\n")
-                        if os.path.exists(
-                            f"netlify_build/v{current_version}/{file_path}"
-                        ):
-                            headers_file.write(
-                                f'  Link: <https://pyo3.rs/v{current_version}/{url_path}>; rel="canonical"\n'
-                            )
-                        else:
-                            # this file doesn't exist in the latest guide, don't
-                            # index it
-                            headers_file.write("  X-Robots-Tag: noindex\n")
+                for path in _url_and_file_paths(url_path, file_path):
+                    headers_file.write(
+                        f'{path}\n  Link: <https://pyo3.rs{url_path}>; rel="canonical"\n'
+                    )
+
+        # main files should be indexed and canonical
+        for file in glob("netlify_build/main/**", recursive=True):
+            file_path = file.removeprefix("netlify_build")
+            url_path = _url_path_from_file_path(file_path)
+
+            for path in _url_and_file_paths(url_path, file_path):
+                headers_file.write(
+                    f'{path}\n  Link: <https://pyo3.rs{url_path}>; rel="canonical"\n'
+                )
+
+        # for internal docs, set noindex for all files
+        headers_file.write("/internal/*\n  X-Robots-Tag: noindex\n")
 
         # Add latest redirect
         if current_version is not None:
@@ -699,6 +693,24 @@ def _build_netlify_redirects(preview: bool) -> None:
             redirects_file.write("/ /main/ 302\n")
         else:
             redirects_file.write(f"/ /v{current_version}/ 302\n")
+
+
+def _url_path_from_file_path(file_path: str) -> str:
+    """Removes index.html and/or .html suffix to match the page URL on the final netlify site"""
+    url_path = file_path
+    if url_path.endswith("index.html"):
+        url_path = url_path[: -len("index.html")]
+    elif url_path.endswith(".html"):
+        url_path = url_path[: -len(".html")]
+    return url_path
+
+
+def _url_and_file_paths(url_path: str, file_path: str) -> Tuple[str, str]:
+    """Returns all combinations of url and file paths with and without index.html suffix"""
+    if url_path == file_path:
+        return (url_path,)
+    else:
+        return (url_path, file_path)
 
 
 @nox.session(name="check-guide")

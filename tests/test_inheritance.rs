@@ -177,8 +177,15 @@ except Exception as e:
 mod inheriting_native_type {
     use super::*;
     use pyo3::exceptions::PyException;
+
     #[cfg(not(GraalPy))]
-    use pyo3::types::PyDict;
+    use {
+        pyo3::types::{PyCapsule, PyDict},
+        std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        },
+    };
 
     #[cfg(not(any(PyPy, GraalPy)))]
     #[test]
@@ -244,17 +251,19 @@ mod inheriting_native_type {
     #[test]
     fn inherit_dict_drop() {
         Python::attach(|py| {
+            let dropped = Arc::new(AtomicBool::new(false));
+            let destructor_drop = Arc::clone(&dropped);
+            let item = PyCapsule::new_with_destructor(py, 0, None, move |_, _| {
+                destructor_drop.store(true, Ordering::Relaxed)
+            })
+            .unwrap();
+
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
-            assert_eq!(dict_sub.get_refcnt(py), 1);
-
-            let item = &py.eval(c"object()", None, None).unwrap();
-            assert_eq!(item.get_refcnt(), 1);
-
-            dict_sub.bind(py).set_item("foo", item).unwrap();
-            assert_eq!(item.get_refcnt(), 2);
-
+            dict_sub.bind(py).set_item("foo", &item).unwrap();
+            drop(item);
+            assert!(!dropped.load(Ordering::Relaxed));
             drop(dict_sub);
-            assert_eq!(item.get_refcnt(), 1);
+            assert!(dropped.load(Ordering::Relaxed));
         })
     }
 
@@ -304,7 +313,7 @@ mod inheriting_native_type {
     #[test]
     #[cfg(Py_3_12)]
     fn inherit_list() {
-        #[pyclass(extends=pyo3::types::PyList)]
+        #[pyclass(extends=pyo3::types::PyList, subclass)]
         struct ListWithName {
             #[pyo3(get)]
             name: &'static str,
@@ -318,12 +327,38 @@ mod inheriting_native_type {
             }
         }
 
+        #[pyclass(extends=ListWithName)]
+        struct SubListWithName {
+            #[pyo3(get)]
+            sub_name: &'static str,
+        }
+
+        #[pymethods]
+        impl SubListWithName {
+            #[new]
+            fn new() -> PyClassInitializer<Self> {
+                PyClassInitializer::from(ListWithName::new()).add_subclass(Self {
+                    sub_name: "Sublist",
+                })
+            }
+        }
+
         Python::attach(|py| {
-            let list_sub = pyo3::Bound::new(py, ListWithName::new()).unwrap();
+            let list_with_name = pyo3::Bound::new(py, ListWithName::new()).unwrap();
+            let sub_list_with_name = pyo3::Bound::new(py, SubListWithName::new()).unwrap();
             py_run!(
                 py,
-                list_sub,
-                r#"list_sub.append(1); assert list_sub[0] == 1; assert list_sub.name == "Hello :)""#
+                list_with_name sub_list_with_name,
+                r#"
+                    list_with_name.append(1)
+                    assert list_with_name[0] == 1
+                    assert list_with_name.name == "Hello :)", list_with_name.name
+
+                    sub_list_with_name.append(1)
+                    assert sub_list_with_name[0] == 1
+                    assert sub_list_with_name.name == "Hello :)", sub_list_with_name.name
+                    assert sub_list_with_name.sub_name == "Sublist", sub_list_with_name.sub_name
+                "#
             );
         });
     }

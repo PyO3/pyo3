@@ -34,7 +34,7 @@ Derivation for empty enums, enum variants and structs is not supported.
 
 ### Deriving [`FromPyObject`] for structs
 
-The derivation generates code that will attempt to access the attribute  `my_string` on the Python object, i.e. `obj.getattr("my_string")`, and call `extract()` on the attribute.
+The derivation generates code that will attempt to access the attribute `my_string` on the Python object, i.e. `obj.getattr("my_string")`, and call `extract()` on the attribute.
 
 ```rust
 use pyo3::prelude::*;

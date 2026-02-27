@@ -88,19 +88,27 @@
 //! ```
 
 use crate::conversion::{FromPyObjectOwned, IntoPyObject};
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::PyStaticExpr;
 use crate::types::*;
+#[cfg(feature = "experimental-inspect")]
+use crate::{type_hint_subscript, PyTypeInfo};
 use crate::{Borrowed, Bound, FromPyObject, PyErr, Python};
-use std::{cmp, hash};
+use std::hash;
 
 impl<'py, K, V, H> IntoPyObject<'py> for indexmap::IndexMap<K, V, H>
 where
-    K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    K: IntoPyObject<'py> + Eq + hash::Hash,
     V: IntoPyObject<'py>,
     H: hash::BuildHasher,
 {
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(PyDict::TYPE_HINT, K::OUTPUT_TYPE, V::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
@@ -113,13 +121,17 @@ where
 
 impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a indexmap::IndexMap<K, V, H>
 where
-    &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
+    &'a K: IntoPyObject<'py> + Eq + hash::Hash,
     &'a V: IntoPyObject<'py>,
     H: hash::BuildHasher,
 {
     type Target = PyDict;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(PyDict::TYPE_HINT, <&K>::OUTPUT_TYPE, <&V>::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
@@ -132,11 +144,15 @@ where
 
 impl<'py, K, V, S> FromPyObject<'_, 'py> for indexmap::IndexMap<K, V, S>
 where
-    K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
+    K: FromPyObjectOwned<'py> + Eq + hash::Hash,
     V: FromPyObjectOwned<'py>,
     S: hash::BuildHasher + Default,
 {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(PyDict::TYPE_HINT, K::INPUT_TYPE, V::INPUT_TYPE);
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let dict = ob.cast::<PyDict>()?;

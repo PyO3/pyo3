@@ -58,7 +58,7 @@ pub unsafe trait PyTypeInfo: Sized {
 
     /// Provides the full python type as a type hint.
     #[cfg(feature = "experimental-inspect")]
-    const TYPE_HINT: PyStaticExpr = type_hint_identifier!("typing", "Any");
+    const TYPE_HINT: PyStaticExpr = type_hint_identifier!("_typeshed", "Incomplete");
 
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;

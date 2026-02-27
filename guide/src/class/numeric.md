@@ -179,7 +179,7 @@ impl Number {
 ```
 
 We do not implement the in-place operations like `__iadd__` because we do not wish to mutate `Number`.
-Similarly we're not interested in supporting operations with different types, so we do not implement  the reflected operations like `__radd__` either.
+Similarly we're not interested in supporting operations with different types, so we do not implement the reflected operations like `__radd__` either.
 
 Now Python can use our `Number` class:
 

@@ -52,7 +52,11 @@ impl PySet {
     where
         T: IntoPyObject<'py>,
     {
-        try_new_from_iter(py, elements)
+        let set = Self::empty(py)?;
+        for e in elements {
+            set.add(e)?;
+        }
+        Ok(set)
     }
 
     /// Creates a new empty set.
@@ -258,31 +262,6 @@ impl ExactSizeIterator for BoundSetIterator<'_> {
     fn len(&self) -> usize {
         self.0.size_hint().0
     }
-}
-
-#[inline]
-pub(crate) fn try_new_from_iter<'py, T>(
-    py: Python<'py>,
-    elements: impl IntoIterator<Item = T>,
-) -> PyResult<Bound<'py, PySet>>
-where
-    T: IntoPyObject<'py>,
-{
-    let set = unsafe {
-        // We create the `Bound` pointer because its Drop cleans up the set if
-        // user code errors or panics.
-        ffi::PySet_New(std::ptr::null_mut())
-            .assume_owned_or_err(py)?
-            .cast_into_unchecked()
-    };
-    let ptr = set.as_ptr();
-
-    elements.into_iter().try_for_each(|element| {
-        let obj = element.into_pyobject_or_pyerr(py)?;
-        err::error_on_minusone(py, unsafe { ffi::PySet_Add(ptr, obj.as_ptr()) })
-    })?;
-
-    Ok(set)
 }
 
 #[cfg(test)]

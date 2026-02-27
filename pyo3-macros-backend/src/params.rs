@@ -161,12 +161,15 @@ pub fn impl_arg_params(
 
     let extract_expression = if fastcall {
         quote! {
-            DESCRIPTION.extract_arguments_fastcall::<#args_handler, #kwargs_handler>(
+            #pyo3_path::impl_::pymethods::maybe_extract_arguments_fastcall!(
+                DESCRIPTION,
                 py,
                 _args,
                 _nargs,
-                _kwnames,
-                &mut #args_array
+                _kwargs,
+                #args_array,
+                #args_handler,
+                #kwargs_handler
             )?
         }
     } else {
@@ -263,9 +266,9 @@ fn impl_arg_param(
             )
         }
         FnArg::KwArgs(arg) => {
-            let name_str = arg.name.to_string();
             let extractor = holders.push_extractor(arg_span);
             let holder = holders.push_holder(arg_span);
+            let name_str = arg.name.to_string();
             Param::via_extractor(
                 &extractor,
                 &holder,
@@ -316,7 +319,7 @@ pub(crate) fn impl_regular_arg_param(
         default = default.map(|tokens| some_wrap(tokens, ctx));
     }
 
-    if let Some(FromPyWithAttribute { kw, .. }) = arg.from_py_with {
+    if let Some(FromPyWithAttribute { kw, .. }) = &arg.from_py_with.as_deref() {
         let extractor = quote_spanned! { kw.span =>
             { let from_py_with: fn(_) -> _ = #from_py_with; from_py_with }
         };

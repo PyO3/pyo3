@@ -5,6 +5,7 @@ mod awaitable;
 mod buf_and_str;
 mod comparisons;
 mod consts;
+#[cfg(not(Py_LIMITED_API))]
 mod datetime;
 mod dict_iter;
 mod enums;
@@ -18,6 +19,7 @@ mod pyfunctions;
 mod sequence;
 mod subclassing;
 
+#[doc = include_str!("../MODULE_DOC.md")]
 #[pymodule]
 mod pyo3_pytests {
     use super::*;

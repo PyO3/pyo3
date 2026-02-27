@@ -51,7 +51,7 @@ mod sealed {
     impl Sealed for super::PyClassDictSlot {}
     impl Sealed for super::PyClassWeakRefSlot {}
     impl Sealed for super::ThreadCheckerImpl {}
-    impl<T: Send> Sealed for super::SendablePyClass<T> {}
+    impl Sealed for super::NoopThreadChecker {}
 }
 
 /// Represents the `__dict__` field for `#[pyclass]`.
@@ -1028,14 +1028,10 @@ pub trait PyClassThreadChecker<T>: Sized + sealed::Sealed {
 }
 
 /// Default thread checker for `#[pyclass]`.
-///
-/// Keeping the T: Send bound here slightly improves the compile
-/// error message to hint to users to figure out what's wrong
-/// when `#[pyclass]` types do not implement `Send`.
 #[doc(hidden)]
-pub struct SendablePyClass<T: Send>(PhantomData<T>);
+pub struct NoopThreadChecker;
 
-impl<T: Send> PyClassThreadChecker<T> for SendablePyClass<T> {
+impl<T> PyClassThreadChecker<T> for NoopThreadChecker {
     fn ensure(&self) {}
     fn check(&self) -> bool {
         true
@@ -1045,7 +1041,7 @@ impl<T: Send> PyClassThreadChecker<T> for SendablePyClass<T> {
     }
     #[inline]
     fn new() -> Self {
-        SendablePyClass(PhantomData)
+        NoopThreadChecker
     }
 }
 
@@ -1257,7 +1253,11 @@ impl<
     ///
     /// This is the most efficient operation the Python interpreter could possibly do to
     /// read a field, but it's only possible for us to allow this for frozen classes.
-    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
+    pub const fn generate(
+        &self,
+        name: &'static CStr,
+        doc: Option<&'static CStr>,
+    ) -> PyMethodDefType {
         use crate::pyclass::boolean_struct::private::Boolean;
         if ClassT::Frozen::VALUE {
             let (offset, flags) = match <ClassT as PyClassImpl>::Layout::CONTENTS_OFFSET {
@@ -1273,7 +1273,11 @@ impl<
                 type_code: ffi::Py_T_OBJECT_EX,
                 offset: offset + OFFSET as ffi::Py_ssize_t,
                 flags,
-                doc: doc.as_ptr(),
+                doc: if let Some(doc) = doc {
+                    doc.as_ptr()
+                } else {
+                    ptr::null()
+                },
             })
         } else {
             PyMethodDefType::Getter(PyGetterDef {
@@ -1293,7 +1297,11 @@ where
     ClassT: PyClass,
     for<'a, 'py> &'a FieldT: IntoPyObject<'py>,
 {
-    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType {
+    pub const fn generate(
+        &self,
+        name: &'static CStr,
+        doc: Option<&'static CStr>,
+    ) -> PyMethodDefType {
         PyMethodDefType::Getter(PyGetterDef {
             name,
             meth: pyo3_get_value_into_pyobject_ref::<ClassT, FieldT, OFFSET>,
@@ -1314,7 +1322,7 @@ impl<'py, T> PyO3GetField<'py> for T where T: IntoPyObject<'py> + Clone {}
 impl<ClassT: PyClass, FieldT, const OFFSET: usize, const IMPLEMENTS_INTOPYOBJECT: bool>
     PyClassGetterGenerator<ClassT, FieldT, OFFSET, false, false, IMPLEMENTS_INTOPYOBJECT>
 {
-    pub const fn generate(&self, name: &'static CStr, doc: &'static CStr) -> PyMethodDefType
+    pub const fn generate(&self, name: &'static CStr, doc: Option<&'static CStr>) -> PyMethodDefType
     // The bound goes here rather than on the block so that this impl is always available
     // if no specialization is used instead
     where
@@ -1516,7 +1524,7 @@ mod tests {
         match methods.first() {
             Some(PyMethodDefType::Getter(getter)) => {
                 assert_eq!(getter.name, c"value");
-                assert_eq!(getter.doc, c"");
+                assert_eq!(getter.doc, None);
                 // tests for the function pointer are in test_getter_setter.py
             }
             _ => panic!("Expected a StructMember"),
@@ -1537,12 +1545,13 @@ mod tests {
         let generator = unsafe {
             PyClassGetterGenerator::<MyClass, i32, FIELD_OFFSET, false, true, false>::new()
         };
-        let PyMethodDefType::Getter(def) = generator.generate(c"my_field", c"My field doc") else {
+        let PyMethodDefType::Getter(def) = generator.generate(c"my_field", Some(c"My field doc"))
+        else {
             panic!("Expected a Getter");
         };
 
         assert_eq!(def.name, c"my_field");
-        assert_eq!(def.doc, c"My field doc");
+        assert_eq!(def.doc, Some(c"My field doc"));
 
         #[cfg(fn_ptr_eq)]
         {
@@ -1559,11 +1568,12 @@ mod tests {
         let generator = unsafe {
             PyClassGetterGenerator::<MyClass, String, FIELD_OFFSET, false, false, true>::new()
         };
-        let PyMethodDefType::Getter(def) = generator.generate(c"my_field", c"My field doc") else {
+        let PyMethodDefType::Getter(def) = generator.generate(c"my_field", Some(c"My field doc"))
+        else {
             panic!("Expected a Getter");
         };
         assert_eq!(def.name, c"my_field");
-        assert_eq!(def.doc, c"My field doc");
+        assert_eq!(def.doc, Some(c"My field doc"));
 
         #[cfg(fn_ptr_eq)]
         {
@@ -1588,7 +1598,8 @@ mod tests {
         let generator = unsafe {
             PyClassGetterGenerator::<MyClass, Py<PyAny>, FIELD_OFFSET, true, true, true>::new()
         };
-        let PyMethodDefType::StructMember(def) = generator.generate(c"my_field", c"My field doc")
+        let PyMethodDefType::StructMember(def) =
+            generator.generate(c"my_field", Some(c"My field doc"))
         else {
             panic!("Expected a StructMember");
         };
@@ -1622,11 +1633,12 @@ mod tests {
         let generator = unsafe {
             PyClassGetterGenerator::<MyClass, Py<PyAny>, FIELD_OFFSET, true, true, true>::new()
         };
-        let PyMethodDefType::Getter(def) = generator.generate(c"my_field", c"My field doc") else {
+        let PyMethodDefType::Getter(def) = generator.generate(c"my_field", Some(c"My field doc"))
+        else {
             panic!("Expected a Getter");
         };
         assert_eq!(def.name, c"my_field");
-        assert_eq!(def.doc, c"My field doc");
+        assert_eq!(def.doc, Some(c"My field doc"));
 
         #[cfg(fn_ptr_eq)]
         {

@@ -98,7 +98,8 @@ It expands and is passed into the `format!` macro in the following ways:
 - `"{0}"` -> `"{}", self.0`
 - `"{x:?}"` -> `"{:?}", self.x`
 
-*Note: Depending upon the format string you use, this may require implementation of the `Display` or `Debug` traits for the given Rust types.* *Note: the pyclass args `name` and `rename_all` are incompatible with the shorthand format string and will raise a compile time error.*
+*Note: Depending upon the format string you use, this may require implementation of the `Display` or `Debug` traits for the given Rust types.*
+*Note: the pyclass args `name` and `rename_all` are incompatible with the shorthand format string and will raise a compile time error.*
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -296,7 +297,8 @@ To implement `__eq__` using the Rust [`PartialEq`] trait implementation, the `eq
 struct Number(i32);
 ```
 
-To implement `__lt__`, `__le__`, `__gt__`, & `__ge__` using the Rust `PartialOrd` trait implementation, the `ord` option can be used. *Note: Requires `eq`.*
+To implement `__lt__`, `__le__`, `__gt__`, & `__ge__` using the Rust `PartialOrd` trait implementation, the `ord` option can be used.
+*Note: Requires `eq`.*
 
 ```rust,no_run
 # use pyo3::prelude::*;

@@ -219,12 +219,12 @@ mod tests {
             let cnt;
             {
                 let none = py.None();
-                cnt = none.get_refcnt(py);
+                cnt = none._get_refcnt(py);
                 let dict = [(10, none)].into_py_dict(py).unwrap();
                 let _mappingproxy = PyMappingProxy::new(py, dict.as_mapping());
             }
             {
-                assert_eq!(cnt, py.None().get_refcnt(py));
+                assert_eq!(cnt, py.None()._get_refcnt(py));
             }
         });
     }

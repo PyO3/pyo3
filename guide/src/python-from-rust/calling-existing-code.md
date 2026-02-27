@@ -95,7 +95,8 @@ assert userdata.as_tuple() == userdata_as_tuple
 
 [`PyModule::from_code`]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.from_code) can be used to generate a Python module which can then be used just as if it was imported with `PyModule::import`.
 
-**Warning**: This will compile and execute code. **Never** pass untrusted code to this function!
+**Warning**: This will compile and execute code.
+**Never** pass untrusted code to this function!
 
 ```rust
 use pyo3::{prelude::*, types::IntoPyDict};

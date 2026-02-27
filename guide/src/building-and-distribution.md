@@ -102,7 +102,7 @@ To build a PyO3-based Python extension manually, start by running `cargo build` 
 Once built, symlink (or copy) and rename the shared library from Cargo's `target/` directory to your desired output directory:
 
 - on macOS, rename `libyour_module.dylib` to `your_module.so`.
-- on Windows, rename  `libyour_module.dll` to `your_module.pyd`.
+- on Windows, rename `libyour_module.dll` to `your_module.pyd`.
 - on Linux, rename `libyour_module.so` to `your_module.so`.
 
 You can then open a Python shell in the output directory and you'll be able to run `import your_module`.
@@ -246,7 +246,8 @@ There are three steps involved in making use of `abi3` when building Python pack
 #### Minimum Python version for `abi3`
 
 Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py37`, `abi3-py38`, `abi3-py39` etc. to set the minimum required Python version for your `abi3` wheel.
-For example, if you set the `abi3-py37` feature, your extension wheel can be used on all Python 3 versions from Python 3.7 and up. `maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp37-abi3-manylinux2020_x86_64.whl`.
+For example, if you set the `abi3-py37` feature, your extension wheel can be used on all Python 3 versions from Python 3.7 and up.
+`maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp37-abi3-manylinux2020_x86_64.whl`.
 
 As your extension module may be run with multiple different Python versions you may occasionally find you need to check the Python version at runtime to customize behavior.
 See [the relevant section of this guide](./building-and-distribution/multiple-python-versions.md#checking-the-python-version-at-runtime) on supporting multiple Python versions at runtime.
@@ -275,6 +276,7 @@ These are:
 - `#[pyo3(text_signature = "...")]` does not work on classes until Python 3.10 or greater.
 - The `dict` and `weakref` options on classes are not supported until Python 3.9 or greater.
 - The buffer API is not supported until Python 3.11 or greater.
+- Subclassing native types (e.g. `PyException`) is not supported until Python 3.12 or greater.
 - Optimizations which rely on knowledge of the exact Python version compiled against.
 
 ## Embedding Python in Rust
@@ -316,7 +318,8 @@ Static linking has a lot of complications, listed below.
 For these reasons PyO3 does not yet have first-class support for this embedding mode.
 See [issue 416 on PyO3's GitHub](https://github.com/PyO3/pyo3/issues/416) for more information and to discuss any issues you encounter.
 
-The [`auto-initialize`](features.md#auto-initialize) feature is deliberately disabled when embedding the interpreter statically because this is often unintentionally done by new users to PyO3 running test programs. Trying out PyO3 is much easier using dynamic embedding.
+The [`auto-initialize`](features.md#auto-initialize) feature is deliberately disabled when embedding the interpreter statically because this is often unintentionally done by new users to PyO3 running test programs.
+Trying out PyO3 is much easier using dynamic embedding.
 
 The known complications are:
 
@@ -368,8 +371,10 @@ When cross-compiling, PyO3's build script cannot execute the target Python inter
   CPython is assumed by default when this variable is not set, unless `PYO3_CROSS_LIB_DIR` is set for a Unix-like target and PyO3 can get the interpreter configuration from `_sysconfigdata*.py`.
 
 An experimental `pyo3` crate feature `generate-import-lib` enables the user to cross-compile extension modules for Windows targets without setting the `PYO3_CROSS_LIB_DIR` environment variable or providing any Windows Python library files.
-It uses an external [`python3-dll-a`] crate to generate import libraries for the Python DLL for MinGW-w64 and MSVC compile targets. `python3-dll-a` uses the binutils `dlltool` program to generate DLL import libraries for MinGW-w64 targets.
-It is possible to override the default `dlltool` command name for the cross target by setting `PYO3_MINGW_DLLTOOL` environment variable. *Note*: MSVC targets require LLVM binutils or MSVC build tools to be available on the host system.
+It uses an external [`python3-dll-a`] crate to generate import libraries for the Python DLL for MinGW-w64 and MSVC compile targets.
+`python3-dll-a` uses the binutils `dlltool` program to generate DLL import libraries for MinGW-w64 targets.
+It is possible to override the default `dlltool` command name for the cross target by setting `PYO3_MINGW_DLLTOOL` environment variable.
+*Note*: MSVC targets require LLVM binutils or MSVC build tools to be available on the host system.
 More specifically, `python3-dll-a` requires `llvm-dlltool` or `lib.exe` executable to be present in `PATH` when targeting `*-pc-windows-msvc`.
 The Zig compiler executable can be used in place of `llvm-dlltool` when the `ZIG_COMMAND` environment variable is set to the installed Zig program name (`"zig"` or `"python -m ziglang"`).
 

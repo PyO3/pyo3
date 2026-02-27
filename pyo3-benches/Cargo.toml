@@ -19,6 +19,9 @@ num-bigint = "0.4.3"
 rust_decimal = { version = "1.0.0", default-features = false }
 hashbrown = "0.16"
 
+[features]
+abi3 = ["pyo3-build-config/abi3"]
+
 [[bench]]
 name = "bench_any"
 harness = false
@@ -33,6 +36,10 @@ harness = false
 
 [[bench]]
 name = "bench_comparisons"
+harness = false
+
+[[bench]]
+name = "bench_critical_sections"
 harness = false
 
 [[bench]]

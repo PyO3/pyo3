@@ -1,6 +1,7 @@
 # Using `async` and `await`
 
-*This feature is still in active development. See [the related issue](https://github.com/PyO3/pyo3/issues/1632).*
+*This feature is still in active development.*
+*See [the related issue](https://github.com/PyO3/pyo3/issues/1632).*
 
 `#[pyfunction]` and `#[pymethods]` attributes also support `async fn`.
 
@@ -25,7 +26,8 @@ async fn sleep(seconds: f64, result: Option<Py<PyAny>>) -> Option<Py<PyAny>> {
 # }
 ```
 
-*Python awaitables instantiated with this method can only be awaited in `asyncio` context. Other Python async runtime may be supported in the future.*
+*Python awaitables instantiated with this method can only be awaited in `asyncio` context.*
+*Other Python async runtime may be supported in the future.*
 
 ## `Send + 'static` constraint
 

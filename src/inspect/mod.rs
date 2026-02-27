@@ -2,6 +2,7 @@
 //!
 //! Tracking issue: <https://github.com/PyO3/pyo3/issues/2454>.
 
+use crate::impl_::introspection::{escape_json_string, escaped_json_string_len};
 use std::fmt::{self, Display, Write};
 
 pub mod types;
@@ -132,6 +133,46 @@ pub const fn serialize_for_introspection(expr: &PyStaticExpr, mut output: &mut [
                     output,
                 )
             }
+            PyStaticConstant::Bool(value) => {
+                output = write_slice_and_move_forward(
+                    if *value {
+                        b"{\"type\":\"constant\",\"kind\":\"bool\",\"value\":true}"
+                    } else {
+                        b"{\"type\":\"constant\",\"kind\":\"bool\",\"value\":false}"
+                    },
+                    output,
+                )
+            }
+            PyStaticConstant::Int(value) => {
+                output = write_slice_and_move_forward(
+                    b"{\"type\":\"constant\",\"kind\":\"int\",\"value\":\"",
+                    output,
+                );
+                output = write_slice_and_move_forward(value.as_bytes(), output);
+                output = write_slice_and_move_forward(b"\"}", output);
+            }
+            PyStaticConstant::Float(value) => {
+                output = write_slice_and_move_forward(
+                    b"{\"type\":\"constant\",\"kind\":\"float\",\"value\":\"",
+                    output,
+                );
+                output = write_slice_and_move_forward(value.as_bytes(), output);
+                output = write_slice_and_move_forward(b"\"}", output);
+            }
+            PyStaticConstant::Str(value) => {
+                output = write_slice_and_move_forward(
+                    b"{\"type\":\"constant\",\"kind\":\"str\",\"value\":",
+                    output,
+                );
+                output = write_json_string_and_move_forward(value, output);
+                output = write_slice_and_move_forward(b"}", output);
+            }
+            PyStaticConstant::Ellipsis => {
+                output = write_slice_and_move_forward(
+                    b"{\"type\":\"constant\",\"kind\":\"ellipsis\"}",
+                    output,
+                )
+            }
         },
         PyStaticExpr::Name { id } => {
             output = write_slice_and_move_forward(b"{\"type\":\"name\",\"id\":\"", output);
@@ -187,6 +228,11 @@ pub const fn serialized_len_for_introspection(expr: &PyStaticExpr) -> usize {
     match expr {
         PyStaticExpr::Constant { value } => match value {
             PyStaticConstant::None => 33,
+            PyStaticConstant::Bool(value) => 42 + if *value { 4 } else { 5 },
+            PyStaticConstant::Int(value) => 43 + value.len(),
+            PyStaticConstant::Float(value) => 45 + value.len(),
+            PyStaticConstant::Str(value) => 43 + escaped_json_string_len(value),
+            PyStaticConstant::Ellipsis => 37,
         },
         PyStaticExpr::Name { id } => 23 + id.len(),
         PyStaticExpr::Attribute { value, attr } => {
@@ -213,6 +259,18 @@ impl fmt::Display for PyStaticExpr {
         match self {
             Self::Constant { value } => match value {
                 PyStaticConstant::None => f.write_str("None"),
+                PyStaticConstant::Bool(value) => f.write_str(if *value { "True" } else { "False" }),
+                PyStaticConstant::Int(value) => f.write_str(value),
+                PyStaticConstant::Float(value) => {
+                    f.write_str(value)?;
+                    if !value.contains(['.', 'e', 'E']) {
+                        // Makes sure it's not parsed as an int
+                        f.write_char('.')?;
+                    }
+                    Ok(())
+                }
+                PyStaticConstant::Str(value) => write!(f, "{value:?}"),
+                PyStaticConstant::Ellipsis => f.write_str("..."),
             },
             Self::Name { id, .. } => f.write_str(id),
             Self::Attribute { value, attr } => {
@@ -266,7 +324,16 @@ impl fmt::Display for PyStaticExpr {
 pub enum PyStaticConstant {
     /// None
     None,
-    // TODO: add Bool(bool), String(&'static str)... (is useful for Literal["foo", "bar"] types)
+    /// The `True` and `False` booleans
+    Bool(bool),
+    /// `int` value written in base 10 (`[+-]?[0-9]+`)
+    Int(&'static str),
+    /// `float` value written in base-10 (`[+-]?[0-9]*(.[0-9]*)*([eE])[0-9]*`), not including Inf and NaN
+    Float(&'static str),
+    /// `str` value unescaped and without quotes
+    Str(&'static str),
+    /// `...` value
+    Ellipsis,
 }
 
 /// An operator used in [`PyStaticExpr::BinOp`].
@@ -285,6 +352,14 @@ const fn write_slice_and_move_forward<'a>(value: &[u8], output: &'a mut [u8]) ->
         i += 1;
     }
     output.split_at_mut(value.len()).1
+}
+
+const fn write_json_string_and_move_forward<'a>(value: &str, output: &'a mut [u8]) -> &'a mut [u8] {
+    output[0] = b'"';
+    let output = output.split_at_mut(1).1;
+    let written = escape_json_string(value, output);
+    output[written] = b'"';
+    output.split_at_mut(written + 1).1
 }
 
 const fn write_expr_and_move_forward<'a>(
@@ -383,11 +458,19 @@ mod tests {
             type_hint_identifier!("builtins", "dict"),
             type_hint_union!(
                 type_hint_identifier!("builtins", "int"),
-                type_hint_identifier!("builtins", "float")
+                type_hint_subscript!(
+                    type_hint_identifier!("typing", "Literal"),
+                    PyStaticExpr::Constant {
+                        value: PyStaticConstant::Str("\0\t\\\"")
+                    }
+                )
             ),
             type_hint_identifier!("datetime", "time")
         );
-        assert_eq!(T.to_string(), "dict[int | float, datetime.time]")
+        assert_eq!(
+            T.to_string(),
+            "dict[int | typing.Literal[\"\\0\\t\\\\\\\"\"], datetime.time]"
+        )
     }
 
     #[test]
@@ -444,6 +527,54 @@ mod tests {
                 "foo",
             )),
             r#"{"type":"id","id":"foo"}"#,
-        )
+        );
+        check_serialization(
+            PyStaticExpr::Constant {
+                value: PyStaticConstant::Bool(true),
+            },
+            r#"{"type":"constant","kind":"bool","value":true}"#,
+        );
+        check_serialization(
+            PyStaticExpr::Constant {
+                value: PyStaticConstant::Bool(false),
+            },
+            r#"{"type":"constant","kind":"bool","value":false}"#,
+        );
+        check_serialization(
+            PyStaticExpr::Constant {
+                value: PyStaticConstant::Int("-123"),
+            },
+            r#"{"type":"constant","kind":"int","value":"-123"}"#,
+        );
+        check_serialization(
+            PyStaticExpr::Constant {
+                value: PyStaticConstant::Float("-2.1"),
+            },
+            r#"{"type":"constant","kind":"float","value":"-2.1"}"#,
+        );
+        check_serialization(
+            PyStaticExpr::Constant {
+                value: PyStaticConstant::Float("+2.1e10"),
+            },
+            r#"{"type":"constant","kind":"float","value":"+2.1e10"}"#,
+        );
+        check_serialization(
+            PyStaticExpr::Constant {
+                value: PyStaticConstant::Str("abc(1)"),
+            },
+            r#"{"type":"constant","kind":"str","value":"abc(1)"}"#,
+        );
+        check_serialization(
+            PyStaticExpr::Constant {
+                value: PyStaticConstant::Str("\"\\/\x08\x0C\n\r\t\0\x19a"),
+            },
+            r#"{"type":"constant","kind":"str","value":"\"\\/\b\f\n\r\t\u0000\u0019a"}"#,
+        );
+        check_serialization(
+            PyStaticExpr::Constant {
+                value: PyStaticConstant::Ellipsis,
+            },
+            r#"{"type":"constant","kind":"ellipsis"}"#,
+        );
     }
 }

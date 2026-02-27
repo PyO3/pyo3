@@ -7,10 +7,12 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
+use crate::params::is_forwarded_args;
 use crate::params::Param;
+#[cfg(feature = "experimental-inspect")]
+use crate::py_expr::PyExpr;
 use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::pymethod::{type_inferred_fncall, FnCall};
-use crate::pyversions::is_abi3_before;
 use crate::utils::{locate_tokens_at, Ctx};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
@@ -26,11 +28,11 @@ use crate::{
 pub struct RegularArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
-    pub from_py_with: Option<FromPyWithAttribute>,
-    pub default_value: Option<syn::Expr>,
+    pub from_py_with: Option<Box<FromPyWithAttribute>>,
+    pub default_value: Option<Box<syn::Expr>>,
     pub option_wrapped_type: Option<&'a syn::Type>,
     #[cfg(feature = "experimental-inspect")]
-    pub annotation: Option<String>,
+    pub annotation: Option<PyExpr>,
 }
 
 /// Pythons *args argument
@@ -39,7 +41,7 @@ pub struct VarargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
     #[cfg(feature = "experimental-inspect")]
-    pub annotation: Option<String>,
+    pub annotation: Option<PyExpr>,
 }
 
 /// Pythons **kwarg argument
@@ -48,7 +50,7 @@ pub struct KwargsArg<'a> {
     pub name: Cow<'a, syn::Ident>,
     pub ty: &'a syn::Type,
     #[cfg(feature = "experimental-inspect")]
-    pub annotation: Option<String>,
+    pub annotation: Option<PyExpr>,
 }
 
 #[derive(Clone, Debug)]
@@ -63,7 +65,6 @@ pub struct PyArg<'a> {
     pub ty: &'a syn::Type,
 }
 
-#[allow(clippy::large_enum_variant)] // See #5039
 #[derive(Clone, Debug)]
 pub enum FnArg<'a> {
     Regular(RegularArg<'a>),
@@ -100,7 +101,7 @@ impl<'a> FnArg<'a> {
     )]
     pub fn from_py_with(&self) -> Option<&FromPyWithAttribute> {
         if let FnArg::Regular(RegularArg { from_py_with, .. }) = self {
-            from_py_with.as_ref()
+            from_py_with.as_deref()
         } else {
             None
         }
@@ -191,7 +192,7 @@ impl<'a> FnArg<'a> {
                 Ok(Self::Regular(RegularArg {
                     name: Cow::Borrowed(ident),
                     ty: &cap.ty,
-                    from_py_with,
+                    from_py_with: from_py_with.map(Box::new),
                     default_value: None,
                     option_wrapped_type: utils::option_type_argument(&cap.ty),
                     #[cfg(feature = "experimental-inspect")]
@@ -408,7 +409,7 @@ impl SelfType {
 pub enum CallingConvention {
     Noargs,   // METH_NOARGS
     Varargs,  // METH_VARARGS | METH_KEYWORDS
-    Fastcall, // METH_FASTCALL | METH_KEYWORDS (not compatible with `abi3` feature before 3.10)
+    Fastcall, // METH_FASTCALL | METH_KEYWORDS
 }
 
 impl CallingConvention {
@@ -419,11 +420,7 @@ impl CallingConvention {
     pub fn from_signature(signature: &FunctionSignature<'_>) -> Self {
         if signature.python_signature.has_no_args() {
             Self::Noargs
-        } else if signature.python_signature.kwargs.is_none() && !is_abi3_before(3, 10) {
-            // For functions that accept **kwargs, always prefer varargs for now based on
-            // historical performance testing.
-            //
-            // FASTCALL not compatible with `abi3` before 3.10
+        } else if signature.python_signature.kwargs.is_none() {
             Self::Fastcall
         } else {
             Self::Varargs
@@ -740,7 +737,9 @@ impl<'a> FnSpec<'a> {
                 // copy extracted arguments into async block
                 // output_py will create the owned arguments to store in the future
                 // output_args recreates the borrowed objects temporarily when building the future
-                let (output_py, output_args) = if !matches!(convention, CallingConvention::Noargs) {
+                let (output_py, output_args) = if !matches!(convention, CallingConvention::Noargs)
+                    && !is_forwarded_args(&self.signature)
+                {
                     (
                         Some(quote! {
                             let output = output.map(|o| o.map(Py::from));
@@ -752,12 +751,39 @@ impl<'a> FnSpec<'a> {
                 } else {
                     (None, None)
                 };
-
+                // if *args / **kwargs are present, treat the `Bound<'_, PyTuple>` / `Option<Bound<'_, PyDict>>` similarly
+                let (varargs_py, varargs_ptr) = if self.signature.python_signature.varargs.is_some()
+                {
+                    (
+                        Some(quote! {
+                            let _args = _args.to_owned().unbind();
+                        }),
+                        Some(quote! {
+                            let _args = _args.bind_borrowed(assume_attached.py());
+                        }),
+                    )
+                } else {
+                    (None, None)
+                };
+                let (kwargs_py, kwargs_ptr) = if self.signature.python_signature.kwargs.is_some() {
+                    (
+                        Some(quote! {
+                            let _kwargs = _kwargs.map(|k| k.to_owned().unbind());
+                        }),
+                        Some(quote! {
+                            let _kwargs = _kwargs.as_ref().map(|k| k.bind_borrowed(assume_attached.py()));
+                        }),
+                    )
+                } else {
+                    (None, None)
+                };
                 quote! {
                     {
                         let coroutine = {
                             #slf_py
                             #output_py
+                            #varargs_py
+                            #kwargs_py
                             #init_throw_callback
                             #pyo3_path::impl_::coroutine::new_coroutine(
                                 #pyo3_path::intern!(py, stringify!(#python_name)),
@@ -771,6 +797,8 @@ impl<'a> FnSpec<'a> {
                                         let py = assume_attached.py();
                                         #slf_ptr
                                         #output_args
+                                        #varargs_ptr
+                                        #kwargs_ptr
                                         #setup
                                         #call
                                     };
@@ -836,19 +864,15 @@ impl<'a> FnSpec<'a> {
                 let call = rust_call(args, holders);
 
                 quote! {
-                    unsafe fn #ident<'py>(
-                        py: #pyo3_path::Python<'py>,
-                        _slf: *mut #pyo3_path::ffi::PyObject,
-                        _args: *const *mut #pyo3_path::ffi::PyObject,
-                        _nargs: #pyo3_path::ffi::Py_ssize_t,
-                        _kwnames: *mut #pyo3_path::ffi::PyObject
-                    ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
-                        let function = #rust_name; // Shadow the function name to avoid #3017
-                        #arg_convert
-                        #warnings
-                        let result = #call;
-                        result
-                    }
+                    #pyo3_path::impl_::pymethods::maybe_define_fastcall_function_with_keywords!(
+                        #ident, py, _slf, _args, _nargs, _kwargs, {
+                            let function = #rust_name; // Shadow the function name to avoid #3017
+                            #arg_convert
+                            #warnings
+                            let result = #call;
+                            result
+                        }
+                    );
                 }
             }
             CallingConvention::Varargs => {
@@ -878,10 +902,10 @@ impl<'a> FnSpec<'a> {
     pub fn get_methoddef(
         &self,
         wrapper: impl ToTokens,
-        doc: &PythonDoc,
+        doc: Option<&PythonDoc>,
         convention: CallingConvention,
         ctx: &Ctx,
-    ) -> TokenStream {
+    ) -> Result<TokenStream> {
         let Ctx { pyo3_path, .. } = ctx;
         let python_name = self.null_terminated_python_name();
         let flags = match self.tp {
@@ -892,25 +916,30 @@ impl<'a> FnSpec<'a> {
         let trampoline = match convention {
             CallingConvention::Noargs => Ident::new("noargs", Span::call_site()),
             CallingConvention::Fastcall => {
-                Ident::new("fastcall_cfunction_with_keywords", Span::call_site())
+                Ident::new("maybe_fastcall_cfunction_with_keywords", Span::call_site())
             }
             CallingConvention::Varargs => Ident::new("cfunction_with_keywords", Span::call_site()),
         };
-        quote! {
+        let doc = if let Some(doc) = doc {
+            doc.to_cstr_stream(ctx)?
+        } else {
+            c"".to_token_stream()
+        };
+        Ok(quote! {
             #pyo3_path::impl_::pymethods::PyMethodDef::#trampoline(
                 #python_name,
                 #pyo3_path::impl_::trampoline::get_trampoline_function!(#trampoline, #wrapper),
                 #doc,
             ) #flags
-        }
+        })
     }
 
     /// Forwards to [utils::get_doc] with the text signature of this spec.
-    pub fn get_doc(&self, attrs: &[syn::Attribute], ctx: &Ctx) -> syn::Result<PythonDoc> {
+    pub fn get_doc(&self, attrs: &[syn::Attribute]) -> Option<PythonDoc> {
         let text_signature = self
             .text_signature_call_signature()
             .map(|sig| format!("{}{}", self.python_name, sig));
-        utils::get_doc(attrs, text_signature, ctx)
+        utils::get_doc(attrs, text_signature)
     }
 
     /// Creates the parenthesised arguments list for `__text_signature__` snippet based on this spec's signature
