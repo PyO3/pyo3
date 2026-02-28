@@ -923,6 +923,9 @@ fn test_del_called_explicitly() {
     })
 }
 
+// On abi3, PyObject_CallFinalizerFromDealloc is not available, so __del__ is
+// not invoked during deallocation. These tests only apply to non-limited API.
+#[cfg(not(Py_LIMITED_API))]
 #[test]
 fn test_del_called_on_dealloc() {
     Python::attach(|py| {
@@ -946,13 +949,16 @@ impl ClassWithDelError {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 #[test]
 fn test_del_error_is_unraisable() {
     Python::attach(|py| {
         test_utils::UnraisableCapture::enter(py, |capture| {
             let obj = Bound::new(py, ClassWithDelError).unwrap();
             drop(obj);
-            let (err, _context) = capture.take_capture().expect("unraisable error should have been captured");
+            let (err, _context) = capture
+                .take_capture()
+                .expect("unraisable error should have been captured");
             assert!(err.is_instance_of::<pyo3::exceptions::PyRuntimeError>(py));
         });
     })
@@ -985,6 +991,7 @@ impl ClassWithDelAndTraverse {
     }
 }
 
+#[cfg(not(Py_LIMITED_API))]
 #[test]
 fn test_del_with_gc() {
     Python::attach(|py| {
