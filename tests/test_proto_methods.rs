@@ -893,3 +893,112 @@ fn test_contains_opt_out() {
         py_expect_exception!(py, no_contains, "'a' in no_contains", PyTypeError);
     })
 }
+
+
+// __del__ tests
+
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+#[pyclass]
+struct ClassWithDel {
+    flag: Arc<AtomicBool>,
+}
+
+#[pymethods]
+impl ClassWithDel {
+    fn __del__(&mut self) {
+        self.flag.store(true, Ordering::SeqCst);
+    }
+}
+
+#[test]
+fn test_del_called_explicitly() {
+    Python::attach(|py| {
+        let flag = Arc::new(AtomicBool::new(false));
+        let obj = Bound::new(py, ClassWithDel { flag: flag.clone() }).unwrap();
+        assert!(!flag.load(Ordering::SeqCst));
+        obj.call_method0("__del__").unwrap();
+        assert!(flag.load(Ordering::SeqCst));
+    })
+}
+
+#[test]
+fn test_del_called_on_dealloc() {
+    Python::attach(|py| {
+        let flag = Arc::new(AtomicBool::new(false));
+        let obj = Bound::new(py, ClassWithDel { flag: flag.clone() }).unwrap();
+        assert!(!flag.load(Ordering::SeqCst));
+        drop(obj);
+        assert!(flag.load(Ordering::SeqCst));
+    })
+}
+
+#[pyclass]
+struct ClassWithDelError;
+
+#[pymethods]
+impl ClassWithDelError {
+    fn __del__(&mut self) -> PyResult<()> {
+        Err(pyo3::exceptions::PyRuntimeError::new_err(
+            "error in __del__",
+        ))
+    }
+}
+
+#[test]
+fn test_del_error_is_unraisable() {
+    Python::attach(|py| {
+        test_utils::UnraisableCapture::enter(py, |capture| {
+            let obj = Bound::new(py, ClassWithDelError).unwrap();
+            drop(obj);
+            let (err, _context) = capture.take_capture().expect("unraisable error should have been captured");
+            assert!(err.is_instance_of::<pyo3::exceptions::PyRuntimeError>(py));
+        });
+    })
+}
+
+#[pyclass]
+struct ClassWithDelAndTraverse {
+    cycle: Option<Py<PyAny>>,
+    flag: Arc<AtomicBool>,
+}
+
+#[pymethods]
+impl ClassWithDelAndTraverse {
+    fn __traverse__(
+        &self,
+        visit: pyo3::class::gc::PyVisit<'_>,
+    ) -> Result<(), pyo3::class::gc::PyTraverseError> {
+        if let Some(ref obj) = self.cycle {
+            visit.call(obj)?;
+        }
+        Ok(())
+    }
+
+    fn __clear__(&mut self) {
+        self.cycle = None;
+    }
+
+    fn __del__(&mut self) {
+        self.flag.store(true, Ordering::SeqCst);
+    }
+}
+
+#[test]
+fn test_del_with_gc() {
+    Python::attach(|py| {
+        let flag = Arc::new(AtomicBool::new(false));
+        let obj = Bound::new(
+            py,
+            ClassWithDelAndTraverse {
+                cycle: None,
+                flag: flag.clone(),
+            },
+        )
+        .unwrap();
+        assert!(!flag.load(Ordering::SeqCst));
+        drop(obj);
+        assert!(flag.load(Ordering::SeqCst));
+    })
+}
