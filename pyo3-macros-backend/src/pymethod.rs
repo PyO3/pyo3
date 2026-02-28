@@ -126,6 +126,7 @@ impl PyMethodKind {
             "__ior__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IOR__)),
             "__getbuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__GETBUFFER__)),
             "__releasebuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__RELEASEBUFFER__)),
+            "__del__" => PyMethodKind::Proto(PyMethodProtoKind::Del),
             // Protocols implemented through traits
             "__getattribute__" => {
                 PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GETATTRIBUTE__))
@@ -186,6 +187,7 @@ enum PyMethodProtoKind {
     Call,
     Traverse,
     Clear,
+    Del,
     SlotFragment(&'static SlotFragmentDef),
 }
 
@@ -253,6 +255,9 @@ pub fn gen_py_method(
                 }
                 PyMethodProtoKind::Clear => {
                     GeneratedPyMethod::Proto(impl_clear_slot(cls, spec, ctx)?)
+                }
+                PyMethodProtoKind::Del => {
+                    GeneratedPyMethod::Proto(impl_del_slot(cls, spec, ctx)?)
                 }
                 PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
                     let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec, ctx)?;
@@ -484,6 +489,52 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_clear,
             pfunc: #cls::__pymethod___clear____ as #pyo3_path::ffi::inquiry as _
+        }
+    };
+    Ok(MethodAndSlotDef {
+        associated_method,
+        slot_def,
+    })
+}
+
+fn impl_del_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result<MethodAndSlotDef> {
+    let Ctx { pyo3_path, .. } = ctx;
+    let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
+    let self_type = match &spec.tp {
+        FnType::Fn(self_type) => self_type,
+        _ => bail_spanned!(spec.name.span() => "expected instance method for `__del__` function"),
+    };
+    let mut holders = Holders::new();
+    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+
+    if let [arg, ..] = args {
+        bail_spanned!(arg.ty().span() => "`__del__` function expected to have no arguments");
+    }
+
+    let name = &spec.name;
+    let holders = holders.init_holders(ctx);
+    let fncall = if py_arg.is_some() {
+        quote!(#cls::#name(#slf, py))
+    } else {
+        quote!(#cls::#name(#slf))
+    };
+
+    let associated_method = quote! {
+        #[allow(non_snake_case)]
+        unsafe fn __pymethod___del____(
+            py: #pyo3_path::Python<'_>,
+            _slf: *mut #pyo3_path::ffi::PyObject,
+        ) -> #pyo3_path::PyResult<()> {
+            #holders
+            let result = #fncall;
+            let result = #pyo3_path::impl_::wrap::converter(&result).wrap(result)?;
+            #pyo3_path::impl_::callback::convert(py, result)
+        }
+    };
+    let slot_def = quote! {
+        #pyo3_path::ffi::PyType_Slot {
+            slot: #pyo3_path::ffi::Py_tp_finalize,
+            pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(finalizefunc, #cls::__pymethod___del____) as #pyo3_path::ffi::destructor as _
         }
     };
     Ok(MethodAndSlotDef {
