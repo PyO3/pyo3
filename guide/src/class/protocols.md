@@ -177,10 +177,7 @@ The given signatures should be interpreted as follows:
     Called when the instance is about to be destroyed (the Python finalizer).
     Exceptions raised in `__del__` are ignored and written to `sys.unraisablehook`.
 
-    > Note: on `abi3` builds, `__del__` may not be called during normal deallocation due to
-    > `PyObject_CallFinalizerFromDealloc` not being part of the stable ABI. It will still be
-    > invoked by the cyclic garbage collector for GC-tracked types, and can be called explicitly
-    > via Python code.
+    > Note: on `abi3` builds, `__del__` may not be called during normal deallocation due to `PyObject_CallFinalizerFromDealloc` not being part of the stable ABI. > It will still be invoked by the cyclic garbage collector for GC-tracked types, and can be called explicitly via Python code.
 
 ### Iterable objects
 

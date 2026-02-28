@@ -894,7 +894,6 @@ fn test_contains_opt_out() {
     })
 }
 
-
 // __del__ tests
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -935,13 +934,7 @@ impl ClassWithDelPy {
 fn test_del_with_py_arg() {
     Python::attach(|py| {
         let flag = Arc::new(AtomicBool::new(false));
-        let obj = Bound::new(
-            py,
-            ClassWithDelPy {
-                flag: flag.clone(),
-            },
-        )
-        .unwrap();
+        let obj = Bound::new(py, ClassWithDelPy { flag: flag.clone() }).unwrap();
         assert!(!flag.load(Ordering::SeqCst));
         obj.call_method0("__del__").unwrap();
         assert!(flag.load(Ordering::SeqCst));
