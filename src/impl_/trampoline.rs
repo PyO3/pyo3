@@ -249,7 +249,7 @@ pub mod finalizefunc {
                     #[cfg(Py_3_12)]
                     let saved_exc = ffi::PyErr_GetRaisedException();
                     #[cfg(not(Py_3_12))]
-                    let (mut ptype, mut pvalue, mut ptraceback) = {
+                    let (ptype, pvalue, ptraceback) = {
                         let (mut ptype, mut pvalue, mut ptraceback) =
                             (std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut());
                         ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
