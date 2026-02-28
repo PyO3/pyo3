@@ -240,45 +240,52 @@ pub mod finalizefunc {
 
     #[inline]
     pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, f: Func) {
-        // We use trampoline_unraisable for its panic-catching behavior, but handle
-        // the __del__ error ourselves to match CPython's slot_tp_finalize semantics:
-        // save the current exception, call __del__, write any error as unraisable,
-        // then restore the original exception. We must do this inside the body
-        // (rather than letting trampoline_unraisable handle the Err) because
-        // trampoline_unraisable would call write_unraisable *after* we restore the
-        // saved exception, which would clobber it.
-        unsafe {
-            trampoline_unraisable(
-                |py| {
-                    // Save the current exception, if any.
-                    #[cfg(Py_3_12)]
-                    let saved_exc = ffi::PyErr_GetRaisedException();
-                    #[cfg(not(Py_3_12))]
-                    let (ptype, pvalue, ptraceback) = {
-                        let (mut ptype, mut pvalue, mut ptraceback) =
-                            (std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut());
-                        ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
-                        (ptype, pvalue, ptraceback)
-                    };
+        // Dedicated trampoline for tp_finalize (__del__), matching CPython's
+        // slot_tp_finalize semantics: save the current exception, call __del__,
+        // write any error as unraisable, then restore the original exception.
+        //
+        // We cannot use trampoline_unraisable here because the exception
+        // save/restore must happen *around* the catch_unwind boundary — if __del__
+        // panics, we still need to restore the saved exception state.
+        let trap = PanicTrap::new("uncaught panic at ffi boundary");
 
-                    let result = f(py, slf);
+        // SAFETY: Thread is known to be attached (tp_finalize is called from
+        // tp_dealloc or the cyclic GC, both of which hold the GIL).
+        let guard = unsafe { AttachGuard::assume() };
+        let py = guard.python();
 
-                    // If __del__ raised an exception, write it as unraisable
-                    if let Err(err) = result {
-                        err.write_unraisable(py, slf.assume_borrowed_or_opt(py).as_deref());
-                    }
+        // Save the current exception, if any.
+        #[cfg(Py_3_12)]
+        let saved_exc = unsafe { ffi::PyErr_GetRaisedException() };
+        #[cfg(not(Py_3_12))]
+        let (ptype, pvalue, ptraceback) = unsafe {
+            let (mut ptype, mut pvalue, mut ptraceback) =
+                (std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut());
+            ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
+            (ptype, pvalue, ptraceback)
+        };
 
-                    // Restore the saved exception
-                    #[cfg(Py_3_12)]
-                    ffi::PyErr_SetRaisedException(saved_exc);
-                    #[cfg(not(Py_3_12))]
-                    ffi::PyErr_Restore(ptype, pvalue, ptraceback);
+        // catch_unwind around just the user's __del__ call, so that the
+        // exception restore below always runs.
+        let result = panic::catch_unwind(move || unsafe { f(py, slf) })
+            .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)));
 
-                    Ok(())
-                },
-                slf,
-            )
+        // If __del__ raised an exception (or panicked), write it as unraisable
+        if let Err(err) = result {
+            err.write_unraisable(py, unsafe { slf.assume_borrowed_or_opt(py) }.as_deref());
         }
+
+        // Restore the saved exception — always reached, even after panic
+        #[cfg(Py_3_12)]
+        unsafe {
+            ffi::PyErr_SetRaisedException(saved_exc);
+        }
+        #[cfg(not(Py_3_12))]
+        unsafe {
+            ffi::PyErr_Restore(ptype, pvalue, ptraceback);
+        }
+
+        trap.disarm();
     }
 
     pub type Func = unsafe fn(Python<'_>, *mut ffi::PyObject) -> PyResult<()>;

@@ -919,6 +919,35 @@ impl ClassWithDel {
     }
 }
 
+#[pyclass]
+struct ClassWithDelPy {
+    flag: Arc<AtomicBool>,
+}
+
+#[pymethods]
+impl ClassWithDelPy {
+    fn __del__(&self, _py: Python<'_>) {
+        self.flag.store(true, Ordering::SeqCst);
+    }
+}
+
+#[test]
+fn test_del_with_py_arg() {
+    Python::attach(|py| {
+        let flag = Arc::new(AtomicBool::new(false));
+        let obj = Bound::new(
+            py,
+            ClassWithDelPy {
+                flag: flag.clone(),
+            },
+        )
+        .unwrap();
+        assert!(!flag.load(Ordering::SeqCst));
+        obj.call_method0("__del__").unwrap();
+        assert!(flag.load(Ordering::SeqCst));
+    })
+}
+
 #[test]
 fn test_del_called_explicitly() {
     Python::attach(|py| {
@@ -973,7 +1002,6 @@ fn test_del_error_is_unraisable() {
 
 #[pyclass]
 struct ClassWithDelAndTraverse {
-    #[pyo3(get, set)]
     cycle: Option<Py<PyAny>>,
     flag: Arc<AtomicBool>,
 }
@@ -1049,6 +1077,44 @@ fn test_del_via_cyclic_gc() {
             flag.load(Ordering::SeqCst),
             "__del__ should have been called by the cyclic GC"
         );
+    })
+}
+
+/// Test that a panic inside __del__ does not swallow a pre-existing Python exception.
+/// The trampoline must save/restore the exception state around catch_unwind so
+/// that a panic in the finalizer doesn't lose the active exception.
+#[pyclass]
+struct PanickingDel;
+
+#[pymethods]
+impl PanickingDel {
+    fn __del__(&self) {
+        panic!("panic in __del__");
+    }
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[test]
+fn test_del_panic_preserves_active_exception() {
+    Python::attach(|py| {
+        test_utils::UnraisableCapture::enter(py, |capture| {
+            // Create the object first, then set an active exception before dropping
+            let obj = Bound::new(py, PanickingDel).unwrap();
+            PyErr::new::<pyo3::exceptions::PyValueError, _>("original error").restore(py);
+            assert!(PyErr::occurred(py));
+
+            drop(obj);
+
+            // The panic should have been written as unraisable
+            let (err, _ctx) = capture
+                .take_capture()
+                .expect("panic in __del__ should produce an unraisable");
+            assert!(err.is_instance_of::<pyo3::panic::PanicException>(py));
+
+            // The original exception must still be set (not swallowed)
+            let original = PyErr::take(py).expect("original exception should still be active");
+            assert!(original.is_instance_of::<pyo3::exceptions::PyValueError>(py));
+        });
     })
 }
 
