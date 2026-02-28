@@ -259,8 +259,11 @@ pub mod finalizefunc {
         let saved_exc = unsafe { ffi::PyErr_GetRaisedException() };
         #[cfg(not(Py_3_12))]
         let (ptype, pvalue, ptraceback) = unsafe {
-            let (mut ptype, mut pvalue, mut ptraceback) =
-                (std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut());
+            let (mut ptype, mut pvalue, mut ptraceback) = (
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            );
             ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
             (ptype, pvalue, ptraceback)
         };

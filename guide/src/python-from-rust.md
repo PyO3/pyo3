@@ -54,7 +54,7 @@ Because of the lack of exclusive `&mut` references, PyO3's APIs for Python objec
 This is safe because Python objects have internal mechanisms to prevent data races (as of time of writing, the Python GIL).
 
 [attached]: https://docs.python.org/3.14/glossary.html#term-attached-thread-state
-[global interpreter lock]: https://docs.python.org/3/c-api/init.html#thread-state-and-the-global-interpreter-lock
+[global interpreter lock]: https://docs.python.org/3/c-api/threads.html#threads
 [smart-pointers]: https://doc.rust-lang.org/book/ch15-00-smart-pointers.html
 [obtaining-py]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#obtaining-a-python-token
 [`pyo3::sync`]: {{#PYO3_DOCS_URL}}/pyo3/sync/index.html

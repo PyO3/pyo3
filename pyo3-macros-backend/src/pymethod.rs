@@ -256,9 +256,7 @@ pub fn gen_py_method(
                 PyMethodProtoKind::Clear => {
                     GeneratedPyMethod::Proto(impl_clear_slot(cls, spec, ctx)?)
                 }
-                PyMethodProtoKind::Del => {
-                    GeneratedPyMethod::Proto(impl_del_slot(cls, spec, ctx)?)
-                }
+                PyMethodProtoKind::Del => GeneratedPyMethod::Proto(impl_del_slot(cls, spec, ctx)?),
                 PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
                     let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec, ctx)?;
                     GeneratedPyMethod::SlotTraitImpl(method.method_name, proto)
