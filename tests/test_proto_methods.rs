@@ -900,13 +900,20 @@ fn test_contains_opt_out() {
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-#[pyclass]
+#[pyclass(subclass)]
 struct ClassWithDel {
     flag: Arc<AtomicBool>,
 }
 
 #[pymethods]
 impl ClassWithDel {
+    #[new]
+    fn new() -> Self {
+        Self {
+            flag: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
     fn __del__(&mut self) {
         self.flag.store(true, Ordering::SeqCst);
     }
@@ -966,6 +973,7 @@ fn test_del_error_is_unraisable() {
 
 #[pyclass]
 struct ClassWithDelAndTraverse {
+    #[pyo3(get, set)]
     cycle: Option<Py<PyAny>>,
     flag: Arc<AtomicBool>,
 }
@@ -1007,5 +1015,78 @@ fn test_del_with_gc() {
         assert!(!flag.load(Ordering::SeqCst));
         drop(obj);
         assert!(flag.load(Ordering::SeqCst));
+    })
+}
+
+/// Test that __del__ is called by the cyclic garbage collector when an actual
+/// reference cycle exists. This exercises the GC's own tp_finalize invocation
+/// (not our tp_dealloc path), which works even on abi3 builds.
+#[test]
+fn test_del_via_cyclic_gc() {
+    Python::attach(|py| {
+        let flag = Arc::new(AtomicBool::new(false));
+        let obj = Bound::new(
+            py,
+            ClassWithDelAndTraverse {
+                cycle: None,
+                flag: flag.clone(),
+            },
+        )
+        .unwrap();
+
+        // Create a reference cycle: obj.cycle points back to obj
+        obj.borrow_mut().cycle = Some(obj.clone().unbind().into_any());
+
+        assert!(!flag.load(Ordering::SeqCst));
+
+        // Drop the Rust reference; the cycle keeps the object alive
+        drop(obj);
+
+        // Force the cyclic GC to break the cycle and finalize
+        py.import("gc").unwrap().call_method0("collect").unwrap();
+
+        assert!(
+            flag.load(Ordering::SeqCst),
+            "__del__ should have been called by the cyclic GC"
+        );
+    })
+}
+
+/// Test object resurrection: a Python subclass __del__ saves `self` to a global,
+/// preventing deallocation. PyObject_CallFinalizerFromDealloc returns -1 when
+/// the refcount stays above zero, and our tp_dealloc correctly aborts.
+#[cfg(not(Py_LIMITED_API))]
+#[test]
+fn test_del_resurrection() {
+    Python::attach(|py| {
+        let cls = py.get_type::<ClassWithDel>();
+        py_run!(
+            py,
+            cls,
+            r#"
+            import gc
+
+            resurrected = None
+
+            class Resurrector(cls):
+                def __del__(self):
+                    super().__del__()
+                    global resurrected
+                    resurrected = self
+
+            obj = Resurrector()
+            oid = id(obj)
+            del obj
+            gc.collect()
+
+            # The object should have been resurrected by __del__
+            assert resurrected is not None, "object should have been resurrected"
+            assert id(resurrected) == oid, "should be the same instance"
+
+            # Clean up
+            resurrected = None
+            gc.collect()
+            "#
+        );
     })
 }
