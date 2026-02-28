@@ -25,6 +25,7 @@ mod py_callback_output {
     impl Sealed for *mut PyObject {}
     impl Sealed for c_int {}
     impl Sealed for Py_ssize_t {}
+    impl Sealed for () {}
 }
 
 impl PyCallbackOutput for *mut ffi::PyObject {
@@ -37,6 +38,10 @@ impl PyCallbackOutput for std::ffi::c_int {
 
 impl PyCallbackOutput for ffi::Py_ssize_t {
     const ERR_VALUE: Self = -1;
+}
+
+impl PyCallbackOutput for () {
+    const ERR_VALUE: Self = ();
 }
 
 /// Convert the result of callback function into the appropriate return value.
