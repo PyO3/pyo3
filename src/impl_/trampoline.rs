@@ -240,12 +240,17 @@ pub mod finalizefunc {
 
     #[inline]
     pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, f: Func) {
+        // We use trampoline_unraisable for its panic-catching behavior, but handle
+        // the __del__ error ourselves to match CPython's slot_tp_finalize semantics:
+        // save the current exception, call __del__, write any error as unraisable,
+        // then restore the original exception. We must do this inside the body
+        // (rather than letting trampoline_unraisable handle the Err) because
+        // trampoline_unraisable would call write_unraisable *after* we restore the
+        // saved exception, which would clobber it.
         unsafe {
             trampoline_unraisable(
                 |py| {
                     // Save the current exception, if any.
-                    // This matches CPython's slot_tp_finalize which preserves
-                    // the exception state around __del__ calls.
                     #[cfg(Py_3_12)]
                     let saved_exc = ffi::PyErr_GetRaisedException();
                     #[cfg(not(Py_3_12))]
@@ -269,7 +274,6 @@ pub mod finalizefunc {
                     #[cfg(not(Py_3_12))]
                     ffi::PyErr_Restore(ptype, pvalue, ptraceback);
 
-                    // Always return Ok - we handled the error ourselves
                     Ok(())
                 },
                 slf,
