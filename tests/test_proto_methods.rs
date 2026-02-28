@@ -1044,8 +1044,9 @@ fn test_del_with_gc() {
 /// (not our tp_dealloc path), which works even on abi3 builds.
 #[test]
 fn test_del_via_cyclic_gc() {
+    let flag = Arc::new(AtomicBool::new(false));
+
     Python::attach(|py| {
-        let flag = Arc::new(AtomicBool::new(false));
         let obj = Bound::new(
             py,
             ClassWithDelAndTraverse {
@@ -1062,15 +1063,29 @@ fn test_del_via_cyclic_gc() {
 
         // Drop the Rust reference; the cycle keeps the object alive
         drop(obj);
+    });
 
-        // Force the cyclic GC to break the cycle and finalize
-        py.import("gc").unwrap().call_method0("collect").unwrap();
+    // Force the cyclic GC to break the cycle and finalize.
+    // On the free-threaded build the GC may run in a separate thread, so
+    // we detach between collections (by using Python::attach inside the
+    // loop) to give the GC thread a chance to run finalization.
+    for _ in 0..100 {
+        if flag.load(Ordering::SeqCst) {
+            break;
+        }
+        Python::attach(|py| {
+            py.import("gc").unwrap().call_method0("collect").unwrap();
+        });
+        #[cfg(Py_GIL_DISABLED)]
+        {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
 
-        assert!(
-            flag.load(Ordering::SeqCst),
-            "__del__ should have been called by the cyclic GC"
-        );
-    })
+    assert!(
+        flag.load(Ordering::SeqCst),
+        "__del__ should have been called by the cyclic GC"
+    );
 }
 
 /// Test that a panic inside __del__ does not swallow a pre-existing Python exception.
