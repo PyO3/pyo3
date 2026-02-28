@@ -224,6 +224,62 @@ pub mod releasebufferproc {
     pub type Func = unsafe fn(Python<'_>, *mut ffi::PyObject, *mut ffi::Py_buffer) -> PyResult<()>;
 }
 
+/// Destructor trampoline for tp_finalize (__del__).
+///
+/// tp_finalize is a `destructor` (returns void) but can produce Python exceptions
+/// that must become unraisable. Following CPython's `slot_tp_finalize`, the current
+/// exception is saved before calling the user's __del__ and restored afterwards.
+pub unsafe extern "C" fn finalizefunc<Meth: MethodDef<finalizefunc::Func>>(
+    slf: *mut ffi::PyObject,
+) {
+    unsafe { finalizefunc::inner(slf, Meth::METH) }
+}
+
+pub mod finalizefunc {
+    use super::*;
+
+    #[inline]
+    pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, f: Func) {
+        unsafe {
+            trampoline_unraisable(
+                |py| {
+                    // Save the current exception, if any.
+                    // This matches CPython's slot_tp_finalize which preserves
+                    // the exception state around __del__ calls.
+                    #[cfg(Py_3_12)]
+                    let saved_exc = ffi::PyErr_GetRaisedException();
+                    #[cfg(not(Py_3_12))]
+                    let (mut ptype, mut pvalue, mut ptraceback) = {
+                        let (mut ptype, mut pvalue, mut ptraceback) =
+                            (std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut());
+                        ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
+                        (ptype, pvalue, ptraceback)
+                    };
+
+                    let result = f(py, slf);
+
+                    // If __del__ raised an exception, write it as unraisable
+                    if let Err(err) = result {
+                        err.write_unraisable(py, slf.assume_borrowed_or_opt(py).as_deref());
+                    }
+
+                    // Restore the saved exception
+                    #[cfg(Py_3_12)]
+                    ffi::PyErr_SetRaisedException(saved_exc);
+                    #[cfg(not(Py_3_12))]
+                    ffi::PyErr_Restore(ptype, pvalue, ptraceback);
+
+                    // Always return Ok - we handled the error ourselves
+                    Ok(())
+                },
+                slf,
+            )
+        }
+    }
+
+    pub type Func = unsafe fn(Python<'_>, *mut ffi::PyObject) -> PyResult<()>;
+}
+
 #[inline]
 pub(crate) unsafe fn dealloc(
     slf: *mut ffi::PyObject,
