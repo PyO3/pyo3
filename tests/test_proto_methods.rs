@@ -978,7 +978,7 @@ impl ClassWithDelError {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(not(Py_LIMITED_API), Py_3_8))]
 #[test]
 fn test_del_error_is_unraisable() {
     Python::attach(|py| {
@@ -1086,7 +1086,7 @@ impl PanickingDel {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(not(Py_LIMITED_API), Py_3_8))]
 #[test]
 fn test_del_panic_preserves_active_exception() {
     Python::attach(|py| {
