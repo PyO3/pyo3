@@ -7,7 +7,6 @@ Because of the double-underscores surrounding their name, these are also known a
 PyO3 makes it possible for every magic method to be implemented in `#[pymethods]` just as they would be done in a regular Python class, with a few notable differences:
 
 - `__new__` is replaced by the [`#[new]` attribute](../class.md#constructor).
-- `__del__` is not yet supported, but may be in the future.
 - `__buffer__` and `__release_buffer__` are currently not supported and instead PyO3 supports [`__getbuffer__` and `__releasebuffer__`](#buffer-objects) methods (these predate [PEP 688](https://peps.python.org/pep-0688/#python-level-buffer-protocol)), again this may change in the future.
 - PyO3 adds [`__traverse__` and `__clear__`](#garbage-collector-integration) methods for controlling garbage collection.
 - The Python C-API which PyO3 is implemented upon requires many magic methods to have a specific function signature in C and be placed into special "slots" on the class type object.
@@ -172,6 +171,16 @@ The given signatures should be interpreted as follows:
 
 - `__call__(<self>, ...) -> object` - here, any argument list can be defined
     as for normal `pymethods`
+
+- `__del__(<self>) -> ()`
+
+    Called when the instance is about to be destroyed (the Python finalizer).
+    Exceptions raised in `__del__` are ignored and written to `sys.unraisablehook`.
+
+    > Note: on `abi3` builds, `__del__` may not be called during normal deallocation due to
+    > `PyObject_CallFinalizerFromDealloc` not being part of the stable ABI. It will still be
+    > invoked by the cyclic garbage collector for GC-tracked types, and can be called explicitly
+    > via Python code.
 
 ### Iterable objects
 
