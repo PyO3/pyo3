@@ -44,6 +44,7 @@ The table below contains the Python type and the corresponding function argument
 | `typing.Optional[T]` | `Option<T>`              | -                    |
 | `typing.Sequence[T]` | `Vec<T>`                 | `PySequence`        |
 | `typing.Mapping[K, V]` | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^5], `indexmap::IndexMap<K, V>`[^6] | `&PyMapping` |
+| `typing.Iterable[Any]` | -                      | `PyIterable`        |
 | `typing.Iterator[Any]` | -                      | `PyIterator`        |
 | `typing.Union[...]` | See [`#[derive(FromPyObject)]`](traits.md#deriving-frompyobject-for-enums) | - |
 
