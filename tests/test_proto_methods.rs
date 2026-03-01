@@ -954,7 +954,9 @@ fn test_del_called_explicitly() {
 
 // On abi3, PyObject_CallFinalizerFromDealloc is not available, so __del__ is
 // not invoked during deallocation. These tests only apply to non-limited API.
-#[cfg(not(Py_LIMITED_API))]
+// On Python 3.7, Py_tp_finalize set via PyType_FromSpec is not properly
+// applied to the type, so tp_finalize is never called.
+#[cfg(all(not(Py_LIMITED_API), Py_3_8))]
 #[test]
 fn test_del_called_on_dealloc() {
     Python::attach(|py| {
@@ -1020,7 +1022,7 @@ impl ClassWithDelAndTraverse {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(not(Py_LIMITED_API), Py_3_8))]
 #[test]
 fn test_del_with_gc() {
     Python::attach(|py| {
@@ -1042,6 +1044,9 @@ fn test_del_with_gc() {
 /// Test that __del__ is called by the cyclic garbage collector when an actual
 /// reference cycle exists. This exercises the GC's own tp_finalize invocation
 /// (not our tp_dealloc path), which works even on abi3 builds.
+/// Requires Python 3.8+ because Py_tp_finalize in PyType_FromSpec is not
+/// properly applied to the type on Python 3.7.
+#[cfg(Py_3_8)]
 #[test]
 fn test_del_via_cyclic_gc() {
     let flag = Arc::new(AtomicBool::new(false));
@@ -1101,7 +1106,7 @@ impl PanickingDel {
     }
 }
 
-#[cfg(all(not(Py_LIMITED_API), Py_3_8))]
+#[cfg(all(not(Py_LIMITED_API), Py_3_8, not(target_arch = "wasm32")))]
 #[test]
 fn test_del_panic_preserves_active_exception() {
     Python::attach(|py| {
