@@ -1,6 +1,6 @@
-use crate::instance::Bound;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::instance::Bound;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
