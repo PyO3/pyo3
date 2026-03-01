@@ -69,10 +69,15 @@ mod inner {
             err
         }};
         // Case3: idents & err_msg
-        ($py:expr, $($val:ident)+, $code:expr, $err:ident, $err_msg:literal) => {{
+        ($py:expr, $($val:ident)+, $code:expr, $err:ident, $err_msg:literal $(,$notes:literal)*) => {{
             let err = py_expect_exception!($py, $($val)+, $code, $err);
             // Suppose that the error message looks like 'TypeError: ~'
             assert_eq!(format!("Py{}", err), concat!(stringify!($err), ": ", $err_msg));
+            let notes = err.value($py).getattr("__notes__").map(|n| n.cast_into::<pyo3::types::PyList>().unwrap()).unwrap_or_else(|_| pyo3::types::PyList::empty($py));
+            let mut _notes_iter = notes.iter();
+            $(
+                assert_eq!(_notes_iter.next().as_ref().map(|v| v.extract::<std::borrow::Cow<'_, str>>().unwrap()).as_deref(), Some($notes));
+            )*
             err
         }};
         // Case4: dict & err_msg
