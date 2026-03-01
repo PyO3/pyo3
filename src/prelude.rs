@@ -33,6 +33,7 @@ pub use crate::types::complex::PyComplexMethods;
 pub use crate::types::dict::PyDictMethods;
 pub use crate::types::float::PyFloatMethods;
 pub use crate::types::frozenset::PyFrozenSetMethods;
+pub use crate::types::iterable::PyIterableMethods;
 pub use crate::types::list::PyListMethods;
 pub use crate::types::mapping::PyMappingMethods;
 pub use crate::types::mappingproxy::PyMappingProxyMethods;

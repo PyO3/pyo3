@@ -23,6 +23,7 @@ pub use self::function::PyCFunction;
 pub use self::function::PyFunction;
 #[cfg(Py_3_9)]
 pub use self::genericalias::PyGenericAlias;
+pub use self::iterable::{PyIterable, PyIterableMethods};
 pub use self::iterator::PyIterator;
 #[cfg(all(not(PyPy), Py_3_10))]
 pub use self::iterator::PySendResult;
@@ -276,6 +277,7 @@ pub(crate) mod frozenset;
 mod function;
 #[cfg(Py_3_9)]
 pub(crate) mod genericalias;
+pub(crate) mod iterable;
 pub(crate) mod iterator;
 pub(crate) mod list;
 pub(crate) mod mapping;
