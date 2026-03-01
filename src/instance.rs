@@ -646,7 +646,7 @@ where
     where
         T: PyClass<Frozen = True> + Sync,
     {
-        self.1.get()
+        self.as_borrowed().get()
     }
 
     /// Upcast this `Bound<PyClass>` to its base type by reference.
@@ -1074,6 +1074,40 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     #[inline]
     pub unsafe fn cast_unchecked<U>(self) -> Borrowed<'a, 'py, U> {
         Borrowed(self.0, PhantomData, self.2)
+    }
+
+    /// Provide an immutable borrow of the value `T`.
+    ///
+    /// This is available if the class is [`frozen`][macro@crate::pyclass] and [`Sync`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    /// # use pyo3::prelude::*;
+    ///
+    /// #[pyclass(frozen)]
+    /// struct FrozenCounter {
+    ///     value: AtomicUsize,
+    /// }
+    ///
+    /// Python::attach(|py| {
+    ///     let counter = FrozenCounter { value: AtomicUsize::new(0) };
+    ///
+    ///     let py_counter = Bound::new(py, counter).unwrap();
+    ///
+    ///     let py_counter_borrowed = py_counter.as_borrowed();
+    ///
+    ///     py_counter_borrowed.get().value.fetch_add(1, Ordering::Relaxed);
+    /// });
+    /// ```
+    #[inline]
+    pub fn get(self) -> &'a T
+    where
+        T: PyClass<Frozen = True> + Sync,
+    {
+        // Safety: The class itself is frozen and `Sync`
+        unsafe { &*self.get_class_object().get_ptr() }
     }
 }
 
@@ -2927,6 +2961,8 @@ a = A()
                     assert_eq!(instance.get().0, i);
 
                     assert_eq!(instance.bind(py).get().0, i);
+
+                    assert_eq!(instance.bind_borrowed(py).get().0, i);
                 }
             })
         }
