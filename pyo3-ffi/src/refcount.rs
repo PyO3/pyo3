@@ -2,7 +2,7 @@ use crate::pyport::Py_ssize_t;
 use crate::PyObject;
 #[cfg(all(not(Py_LIMITED_API), py_sys_config = "Py_REF_DEBUG"))]
 use std::ffi::c_char;
-#[cfg(Py_3_12)]
+#[cfg(any(Py_3_12, all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API))))]
 use std::ffi::c_int;
 #[cfg(all(Py_3_14, any(not(Py_GIL_DISABLED), target_pointer_width = "32")))]
 use std::ffi::c_long;
