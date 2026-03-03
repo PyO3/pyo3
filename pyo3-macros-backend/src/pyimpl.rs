@@ -26,7 +26,7 @@ use syn::{
     ImplItemFn, Result,
 };
 #[cfg(feature = "experimental-inspect")]
-use syn::{parse_quote, Ident};
+use syn::{parse_quote, Ident, ReturnType};
 
 /// The mechanism used to collect `#[pymethods]` into the type object
 #[derive(Copy, Clone)]
@@ -462,10 +462,20 @@ pub fn method_introspection_code(
         }
         FnType::FnModule(_) => (), // TODO: not sure this can happen
         FnType::ClassAttribute => {
-            first_argument = Some("cls");
-            // TODO: this combination only works with Python 3.9-3.11 https://docs.python.org/3.11/library/functions.html#classmethod
-            decorators.push(PyExpr::builtin("classmethod"));
-            decorators.push(PyExpr::builtin("property"));
+            // We return an attribute because there is no decorator for this case
+            return attribute_introspection_code(
+                pyo3_path,
+                Some(parent),
+                name,
+                PyExpr::ellipsis(),
+                if let ReturnType::Type(_, t) = &spec.output {
+                    (**t).clone()
+                } else {
+                    parse_quote!(#pyo3_path::Py<#pyo3_path::types::PyNone>)
+                },
+                get_doc(attrs, None).as_ref(),
+                true,
+            );
         }
     }
     let return_type = if spec.python_name == "__new__" {

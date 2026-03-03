@@ -49,7 +49,6 @@ def mypy(session: nox.Session):
         session.install(".[dev]")
 
         # TODO: remove --disable-error-code", "override" when __eq__ and __ne__ will always take object for input
-        # TODO: remove "--disable-error-code", "misc" when #[classattr] will be properly emitted
         session.run_always(
             "python",
             "-m",
@@ -57,8 +56,6 @@ def mypy(session: nox.Session):
             "tests",
             "--disable-error-code",
             "override",
-            "--disable-error-code",
-            "misc",
         )
         # TODO: enable stubtest when previously listed errors will be fixed session.run_always("python", "-m", "mypy.stubtest", "pyo3_pytests")
     finally:

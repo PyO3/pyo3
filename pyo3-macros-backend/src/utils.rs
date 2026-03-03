@@ -1,5 +1,5 @@
 use crate::attributes::{CrateAttribute, RenamingRule};
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::ffi::CString;
 use std::mem::take;
@@ -340,4 +340,38 @@ impl ToTokens for StaticIdent {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.append(syn::Ident::new(self.0, Span::call_site()));
     }
+}
+
+/// Adjusts a tokes stream so that the location for the stream comes from `Span`.
+///
+/// This affects where error messages will arise in the compiler output.
+pub(crate) fn locate_tokens_at(tokens: TokenStream, span: Span) -> TokenStream {
+    fn set_span_recursively(tokens: TokenStream, span: Span) -> TokenStream {
+        tokens
+            .into_iter()
+            .map(|tt| match tt {
+                TokenTree::Group(g) => {
+                    let inner = set_span_recursively(g.stream(), span);
+                    let mut new_group = proc_macro2::Group::new(g.delimiter(), inner);
+                    new_group.set_span(span);
+                    TokenTree::Group(new_group)
+                }
+                TokenTree::Ident(mut ident) => {
+                    ident.set_span(span);
+                    TokenTree::Ident(ident)
+                }
+                TokenTree::Punct(mut punct) => {
+                    punct.set_span(span);
+                    TokenTree::Punct(punct)
+                }
+                TokenTree::Literal(mut lit) => {
+                    lit.set_span(span);
+                    TokenTree::Literal(lit)
+                }
+            })
+            .collect()
+    }
+
+    let output_span = tokens.span().located_at(span);
+    set_span_recursively(tokens, output_span)
 }

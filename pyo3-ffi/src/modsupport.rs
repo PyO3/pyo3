@@ -83,7 +83,7 @@ pub const PYTHON_API_VERSION: i32 = 1013;
 pub const PYTHON_ABI_VERSION: i32 = 3;
 
 extern "C" {
-    #[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
+
     #[cfg_attr(PyPy, link_name = "PyPyModule_Create2")]
     pub fn PyModule_Create2(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject;
 }
@@ -101,10 +101,7 @@ pub unsafe fn PyModule_Create(module: *mut PyModuleDef) -> *mut PyObject {
 }
 
 extern "C" {
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    fn PyModule_Create2TraceRefs(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject;
 
-    #[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
     #[cfg_attr(PyPy, link_name = "PyPyModule_FromDefAndSpec2")]
     pub fn PyModule_FromDefAndSpec2(
         def: *mut PyModuleDef,
@@ -112,28 +109,6 @@ extern "C" {
         module_api_version: c_int,
     ) -> *mut PyObject;
 
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    fn PyModule_FromDefAndSpec2TraceRefs(
-        def: *mut PyModuleDef,
-        spec: *mut PyObject,
-        module_api_version: c_int,
-    ) -> *mut PyObject;
-}
-
-#[cfg(py_sys_config = "Py_TRACE_REFS")]
-#[inline]
-pub unsafe fn PyModule_Create2(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject {
-    PyModule_Create2TraceRefs(module, apiver)
-}
-
-#[cfg(py_sys_config = "Py_TRACE_REFS")]
-#[inline]
-pub unsafe fn PyModule_FromDefAndSpec2(
-    def: *mut PyModuleDef,
-    spec: *mut PyObject,
-    module_api_version: c_int,
-) -> *mut PyObject {
-    PyModule_FromDefAndSpec2TraceRefs(def, spec, module_api_version)
 }
 
 #[inline]

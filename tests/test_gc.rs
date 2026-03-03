@@ -160,9 +160,7 @@ impl CycleWithClear {
     }
 
     fn __clear__(slf: &Bound<'_, Self>) {
-        println!("clear run, refcount before {}", slf.get_refcnt());
         slf.borrow_mut().cycle = None;
-        println!("clear run, refcount after {}", slf.get_refcnt());
     }
 }
 

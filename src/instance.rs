@@ -646,7 +646,7 @@ where
     where
         T: PyClass<Frozen = True> + Sync,
     {
-        self.1.get()
+        self.as_borrowed().get()
     }
 
     /// Upcast this `Bound<PyClass>` to its base type by reference.
@@ -1074,6 +1074,40 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     #[inline]
     pub unsafe fn cast_unchecked<U>(self) -> Borrowed<'a, 'py, U> {
         Borrowed(self.0, PhantomData, self.2)
+    }
+
+    /// Provide an immutable borrow of the value `T`.
+    ///
+    /// This is available if the class is [`frozen`][macro@crate::pyclass] and [`Sync`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    /// # use pyo3::prelude::*;
+    ///
+    /// #[pyclass(frozen)]
+    /// struct FrozenCounter {
+    ///     value: AtomicUsize,
+    /// }
+    ///
+    /// Python::attach(|py| {
+    ///     let counter = FrozenCounter { value: AtomicUsize::new(0) };
+    ///
+    ///     let py_counter = Bound::new(py, counter).unwrap();
+    ///
+    ///     let py_counter_borrowed = py_counter.as_borrowed();
+    ///
+    ///     py_counter_borrowed.get().value.fetch_add(1, Ordering::Relaxed);
+    /// });
+    /// ```
+    #[inline]
+    pub fn get(self) -> &'a T
+    where
+        T: PyClass<Frozen = True> + Sync,
+    {
+        // Safety: The class itself is frozen and `Sync`
+        unsafe { &*self.get_class_object().get_ptr() }
     }
 }
 
@@ -1728,7 +1762,16 @@ impl<T> Py<T> {
 
     /// Gets the reference count of the `ffi::PyObject` pointer.
     #[inline]
-    pub fn get_refcnt(&self, _py: Python<'_>) -> isize {
+    #[deprecated(
+        since = "0.29.0",
+        note = "use `pyo3::ffi::Py_REFCNT(obj.as_ptr())` instead"
+    )]
+    pub fn get_refcnt(&self, py: Python<'_>) -> isize {
+        self._get_refcnt(py)
+    }
+
+    #[inline]
+    pub(crate) fn _get_refcnt(&self, _py: Python<'_>) -> isize {
         // SAFETY: Self is a valid pointer to a PyObject
         unsafe { ffi::Py_REFCNT(self.0.as_ptr()) }
     }
@@ -2542,7 +2585,7 @@ mod tests {
         });
 
         Python::attach(move |py| {
-            assert_eq!(dict.get_refcnt(py), 1);
+            assert_eq!(dict._get_refcnt(py), 1);
         });
     }
 
@@ -2550,9 +2593,9 @@ mod tests {
     fn pyobject_from_py() {
         Python::attach(|py| {
             let dict: Py<PyDict> = PyDict::new(py).unbind();
-            let cnt = dict.get_refcnt(py);
+            let cnt = dict._get_refcnt(py);
             let p: Py<PyAny> = dict.into();
-            assert_eq!(p.get_refcnt(py), cnt);
+            assert_eq!(p._get_refcnt(py), cnt);
         });
     }
 
@@ -2786,11 +2829,11 @@ a = A()
             let object2 = object.clone_ref(py);
 
             assert_eq!(object.as_ptr(), object2.as_ptr());
-            assert_eq!(object.get_refcnt(py), 2);
+            assert_eq!(object._get_refcnt(py), 2);
 
             object.drop_ref(py);
 
-            assert_eq!(object2.get_refcnt(py), 1);
+            assert_eq!(object2._get_refcnt(py), 1);
 
             object2.drop_ref(py);
         });
@@ -2918,6 +2961,8 @@ a = A()
                     assert_eq!(instance.get().0, i);
 
                     assert_eq!(instance.bind(py).get().0, i);
+
+                    assert_eq!(instance.bind_borrowed(py).get().0, i);
                 }
             })
         }
