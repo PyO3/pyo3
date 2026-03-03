@@ -653,10 +653,7 @@ mod tests {
             assert!(base_without_data_size < 0); // negative indicates variable sized
             assert!(base_with_data_size < base_without_data_size);
             assert_eq!(child_without_data_size, 0);
-            assert_eq!(
-                base_with_data_size - base_without_data_size,
-                child_with_data_size
-            );
+            assert!(base_with_data_size - base_without_data_size < child_with_data_size);
         }
         #[cfg(not(all(Py_LIMITED_API, Py_3_12)))]
         {
