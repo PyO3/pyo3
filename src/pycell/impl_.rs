@@ -625,7 +625,7 @@ mod tests {
     #[pyclass(crate = "crate", extends = ImmutableChildOfImmutableBase, frozen)]
     struct ImmutableChildOfImmutableChildOfImmutableBase;
 
-    #[pyclass(crate = "crate")]
+    #[pyclass(crate = "crate", subclass)]
     struct BaseWithoutData;
 
     #[pyclass(crate = "crate", subclass)]
