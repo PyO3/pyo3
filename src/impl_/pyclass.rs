@@ -1458,7 +1458,7 @@ pub trait ExtractPyClassWithClone {}
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
-    #[cfg(not(all(Py_LIMITED_API, Py_3_12)))]
+    #[cfg(not(_Py_OPAQUE_PYOBJECT))]
     use crate::pycell::impl_::PyClassObjectContents;
 
     use super::*;
@@ -1487,13 +1487,13 @@ mod tests {
             Some(PyMethodDefType::StructMember(member)) => {
                 assert_eq!(unsafe { CStr::from_ptr(member.name) }, c"value");
                 assert_eq!(member.type_code, ffi::Py_T_OBJECT_EX);
-                #[cfg(not(all(Py_LIMITED_API, Py_3_12)))]
+                #[cfg(not(_Py_OPAQUE_PYOBJECT))]
                 #[repr(C)]
                 struct ExpectedLayout {
                     ob_base: ffi::PyObject,
                     contents: PyClassObjectContents<FrozenClass>,
                 }
-                #[cfg(not(all(Py_LIMITED_API, Py_3_12)))]
+                #[cfg(not(_Py_OPAQUE_PYOBJECT))]
                 assert_eq!(
                     member.offset,
                     (offset_of!(ExpectedLayout, contents) + offset_of!(FrozenClass, value))

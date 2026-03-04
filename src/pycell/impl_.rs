@@ -639,23 +639,23 @@ mod tests {
 
     #[test]
     fn test_inherited_size() {
-        #[cfg(all(Py_LIMITED_API, Py_3_12))]
+        #[cfg(_Py_OPAQUE_PYOBJECT)]
         type ClassObject<T> = PyVariableClassObject<T>;
-        #[cfg(not(all(Py_LIMITED_API, Py_3_12)))]
+        #[cfg(not(_Py_OPAQUE_PYOBJECT))]
         type ClassObject<T> = PyStaticClassObject<T>;
 
         let base_without_data_size = ClassObject::<BaseWithoutData>::BASIC_SIZE;
         let base_with_data_size = ClassObject::<BaseWithData>::BASIC_SIZE;
         let child_without_data_size = ClassObject::<ChildWithoutData>::BASIC_SIZE;
         let child_with_data_size = ClassObject::<ChildWithData>::BASIC_SIZE;
-        #[cfg(all(Py_LIMITED_API, Py_3_12))]
+        #[cfg(_Py_OPAQUE_PYOBJECT)]
         {
             assert!(base_without_data_size < 0); // negative indicates variable sized
             assert!(base_with_data_size < base_without_data_size);
             assert_eq!(child_without_data_size, 0);
             assert!(base_with_data_size - base_without_data_size < child_with_data_size);
         }
-        #[cfg(not(all(Py_LIMITED_API, Py_3_12)))]
+        #[cfg(not(_Py_OPAQUE_PYOBJECT))]
         {
             assert!(base_without_data_size > 0);
             assert!(base_with_data_size > base_without_data_size);
