@@ -1,3 +1,9 @@
+#![allow(
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core,
+    reason = "this entire mod is only for std"
+)]
+
 use crate::conversion::IntoPyObject;
 #[cfg(not(target_os = "wasi"))]
 use crate::ffi;
@@ -128,7 +134,7 @@ impl FromPyObject<'_, '_> for OsString {
             // Get an owned allocated wide char buffer from PyString, which we have to deallocate
             // ourselves
             let size =
-                unsafe { ffi::PyUnicode_AsWideChar(pystring.as_ptr(), std::ptr::null_mut(), 0) };
+                unsafe { ffi::PyUnicode_AsWideChar(pystring.as_ptr(), core::ptr::null_mut(), 0) };
             crate::err::error_on_minusone(ob.py(), size)?;
 
             debug_assert!(

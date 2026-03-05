@@ -1,3 +1,9 @@
+#![allow(
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core,
+    reason = "this entire mod is only for std"
+)]
+
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]

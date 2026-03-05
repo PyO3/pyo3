@@ -131,6 +131,11 @@ pub(crate) fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core,
+    reason = "tests"
+)]
 mod tests {
     #[cfg(panic = "unwind")]
     use std::{

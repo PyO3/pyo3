@@ -1,4 +1,5 @@
-use std::{cmp, collections, hash};
+use alloc::collections;
+use core::{cmp, hash};
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
@@ -14,7 +15,8 @@ use crate::{
     Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
 };
 
-impl<'py, K, S> IntoPyObject<'py> for collections::HashSet<K, S>
+#[cfg(feature = "std")]
+impl<'py, K, S> IntoPyObject<'py> for std::collections::HashSet<K, S>
 where
     K: IntoPyObject<'py> + Eq + hash::Hash,
     S: hash::BuildHasher + Default,
@@ -36,7 +38,8 @@ where
     }
 }
 
-impl<'a, 'py, K, H> IntoPyObject<'py> for &'a collections::HashSet<K, H>
+#[cfg(feature = "std")]
+impl<'a, 'py, K, H> IntoPyObject<'py> for &'a std::collections::HashSet<K, H>
 where
     &'a K: IntoPyObject<'py> + Eq + hash::Hash,
     H: hash::BuildHasher,
@@ -57,7 +60,8 @@ where
     }
 }
 
-impl<'py, K, S> FromPyObject<'_, 'py> for collections::HashSet<K, S>
+#[cfg(feature = "std")]
+impl<'py, K, S> FromPyObject<'_, 'py> for std::collections::HashSet<K, S>
 where
     K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
@@ -173,7 +177,8 @@ where
 mod tests {
     use crate::types::{any::PyAnyMethods, PyFrozenSet, PySet};
     use crate::{IntoPyObject, Python};
-    use std::collections::{BTreeSet, HashSet};
+    use alloc::collections::BTreeSet;
+    use std::collections::HashSet;
 
     #[test]
     fn test_extract_hashset() {

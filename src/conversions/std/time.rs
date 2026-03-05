@@ -1,3 +1,5 @@
+#![allow(unused_imports, reason = "conditional compilation")]
+
 use crate::conversion::IntoPyObject;
 use crate::exceptions::{PyOverflowError, PyValueError};
 #[cfg(feature = "experimental-inspect")]
@@ -12,7 +14,9 @@ use crate::types::any::PyAnyMethods;
 use crate::types::PyDeltaAccess;
 use crate::types::{PyDateTime, PyDelta, PyTzInfo};
 use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use core::time::Duration;
+#[cfg(feature = "std")]
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 
@@ -102,6 +106,7 @@ impl<'py> IntoPyObject<'py> for &Duration {
 //
 // TODO: it might be nice to investigate using timestamps anyway, at least when the datetime is a safe range.
 
+#[cfg(feature = "std")]
 impl FromPyObject<'_, '_> for SystemTime {
     type Error = PyErr;
 
@@ -118,6 +123,7 @@ impl FromPyObject<'_, '_> for SystemTime {
     }
 }
 
+#[cfg(feature = "std")]
 impl<'py> IntoPyObject<'py> for SystemTime {
     type Target = PyDateTime;
     type Output = Bound<'py, Self::Target>;
@@ -136,6 +142,7 @@ impl<'py> IntoPyObject<'py> for SystemTime {
     }
 }
 
+#[cfg(feature = "std")]
 impl<'py> IntoPyObject<'py> for &SystemTime {
     type Target = PyDateTime;
     type Output = Bound<'py, Self::Target>;
@@ -150,6 +157,7 @@ impl<'py> IntoPyObject<'py> for &SystemTime {
     }
 }
 
+#[cfg(feature = "std")]
 fn unix_epoch_py(py: Python<'_>) -> PyResult<Borrowed<'_, '_, PyDateTime>> {
     static UNIX_EPOCH: PyOnceLock<Py<PyDateTime>> = PyOnceLock::new();
     Ok(UNIX_EPOCH
@@ -270,6 +278,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_time_frompyobject() {
         Python::attach(|py| {
             assert_eq!(
@@ -296,6 +305,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_time_frompyobject_before_epoch() {
         Python::attach(|py| {
             assert_eq!(
@@ -309,6 +319,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_time_intopyobject() {
         Python::attach(|py| {
             let assert_eq = |l: Bound<'_, PyDateTime>, r: Bound<'_, PyDateTime>| {
