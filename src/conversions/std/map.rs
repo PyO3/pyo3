@@ -1,3 +1,5 @@
+#![allow(unused_imports, reason = "conditional compilation")]
+
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]

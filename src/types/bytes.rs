@@ -457,6 +457,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_with_writer() {
         Python::attach(|py| {
             let bytes = PyBytes::new_with_writer(py, 0, |writer| {

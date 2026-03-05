@@ -273,7 +273,7 @@ impl Display for TypeInfo {
 
 #[cfg(test)]
 mod test {
-    use core::borrow::Cow;
+    use alloc::borrow::Cow;
 
     use crate::inspect::types::{ModuleName, TypeInfo};
 
@@ -403,9 +403,7 @@ mod test {
 
 #[cfg(test)]
 mod conversion {
-    use alloc::collections::HashSet;
-    #[cfg(feature = "std")]
-    use std::collection::HashMap;
+    use alloc::collections::{BTreeMap, BTreeSet};
 
     use crate::inspect::types::test::assert_display;
     use crate::{FromPyObject, IntoPyObject};
@@ -479,14 +477,11 @@ mod conversion {
         assert_display(&<Vec<usize>>::type_output(), "List[int]");
         assert_display(&<Vec<usize>>::type_input(), "Sequence[int]");
 
-        assert_display(&<HashSet<usize>>::type_output(), "Set[int]");
-        assert_display(&<HashSet<usize>>::type_input(), "Set[int]");
+        assert_display(&<BTreeSet<usize>>::type_output(), "Set[int]");
+        assert_display(&<BTreeSet<usize>>::type_input(), "Set[int]");
 
-        #[cfg(feature = "std")]
-        {
-            assert_display(&<HashMap<usize, f32>>::type_output(), "Dict[int, float]");
-            assert_display(&<HashMap<usize, f32>>::type_input(), "Mapping[int, float]");
-        }
+        assert_display(&<BTreeMap<usize, f32>>::type_output(), "Dict[int, float]");
+        assert_display(&<BTreeMap<usize, f32>>::type_input(), "Mapping[int, float]");
 
         assert_display(&<(usize, f32)>::type_input(), "Tuple[int, float]");
     }

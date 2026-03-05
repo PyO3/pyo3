@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 #![warn(unsafe_op_in_unsafe_fn)]
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
@@ -586,9 +586,9 @@ fn return_value_borrows_from_arguments<'py>(
     py: Python<'py>,
     key: &'py Key,
     value: &'py Value,
-) -> HashMap<&'py str, i32> {
+) -> BTreeMap<&'py str, i32> {
     py.detach(move || {
-        let mut map = HashMap::new();
+        let mut map = BTreeMap::new();
         map.insert(key.0.as_str(), value.0);
         map
     })

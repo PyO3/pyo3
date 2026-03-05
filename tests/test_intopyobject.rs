@@ -2,7 +2,7 @@
 
 use pyo3::types::{PyDict, PyList, PyString};
 use pyo3::{prelude::*, py_run, IntoPyObject, IntoPyObjectExt};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::hash::Hash;
 
 #[macro_use]
@@ -90,12 +90,12 @@ fn test_generic_transparent_named_field_struct() {
 }
 
 #[derive(Debug, IntoPyObject)]
-pub struct GenericWithBound<K: Hash + Eq, V>(HashMap<K, V>);
+pub struct GenericWithBound<K: Hash + Eq, V>(BTreeMap<K, V>);
 
 #[test]
 fn test_generic_with_bound() {
     Python::attach(|py| {
-        let mut hash_map = HashMap::<String, i32>::new();
+        let mut hash_map = BTreeMap::<String, i32>::new();
         hash_map.insert("1".into(), 1);
         hash_map.insert("2".into(), 2);
         let map = GenericWithBound(hash_map).into_pyobject(py).unwrap();

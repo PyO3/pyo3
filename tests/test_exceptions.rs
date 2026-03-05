@@ -4,13 +4,13 @@ use pyo3::prelude::*;
 use pyo3::{exceptions, py_run};
 use std::error::Error;
 use std::fmt;
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(feature = "std", not(target_os = "windows")))]
 use std::fs::File;
 
 mod test_utils;
 
 #[pyfunction]
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(feature = "std", not(target_os = "windows")))]
 fn fail_to_open_file() -> PyResult<()> {
     File::open("not_there.txt")?;
     Ok(())
@@ -18,7 +18,7 @@ fn fail_to_open_file() -> PyResult<()> {
 
 #[test]
 #[cfg_attr(target_arch = "wasm32", ignore)] // Not sure why this fails.
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(feature = "std", not(target_os = "windows")))]
 fn test_filenotfounderror() {
     Python::attach(|py| {
         let fail_to_open_file = wrap_pyfunction!(fail_to_open_file)(py).unwrap();
@@ -84,15 +84,16 @@ fn test_custom_error() {
 
 #[test]
 fn test_exception_nosegfault() {
-    use std::net::TcpListener;
+    #[cfg(feature = "std")]
     fn io_err() -> PyResult<()> {
-        TcpListener::bind("no:address")?;
+        std::net::TcpListener::bind("no:address")?;
         Ok(())
     }
     fn parse_int() -> PyResult<()> {
         "@_@".parse::<i64>()?;
         Ok(())
     }
+    #[cfg(feature = "std")]
     assert!(io_err().is_err());
     assert!(parse_int().is_err());
 }

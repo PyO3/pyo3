@@ -109,7 +109,7 @@ fn test_generic_transparent_named_field_struct() {
 }
 
 #[derive(Debug, FromPyObject)]
-pub struct GenericWithBound<K: std::hash::Hash + Eq, V>(std::collections::HashMap<K, V>);
+pub struct GenericWithBound<K: Ord + Eq, V>(std::collections::BTreeMap<K, V>);
 
 #[test]
 fn test_generic_with_bound() {

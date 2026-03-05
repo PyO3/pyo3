@@ -18,7 +18,7 @@ fn test_bad_datetime_module_panic() {
         let sys = py.import("sys").unwrap();
         sys.getattr("path")
             .unwrap()
-            .call_method1("insert", (0, tmpdir.path().as_os_str()))
+            .call_method1("insert", (0, tmpdir.path().to_str().unwrap()))
             .unwrap();
 
         // This should panic because the "datetime" module is empty

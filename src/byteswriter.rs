@@ -236,6 +236,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_pre_allocated() {
         Python::attach(|py| {
             let buf = b"hallo world";
@@ -248,6 +249,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_io_write_vectored() {
         Python::attach(|py| {
             let bufs = [IoSlice::new(b"hallo "), IoSlice::new(b"world")];
@@ -259,6 +261,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_large_data() {
         Python::attach(|py| {
             let mut writer = PyBytesWriter::new(py).unwrap();

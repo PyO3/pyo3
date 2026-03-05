@@ -307,7 +307,7 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// ```
     /// use core::ffi::c_void;
-    /// use core::sync::mpsc::{channel, Sender};
+    /// use std::sync::mpsc::{channel, Sender};
     /// use pyo3::{prelude::*, types::PyCapsule};
     ///
     /// let (tx, rx) = channel::<String>();

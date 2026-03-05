@@ -345,6 +345,7 @@ mod tests {
         });
     }
 
+    #[cfg(feature = "std")]
     #[expect(clippy::too_many_arguments)]
     fn new_datetime(
         py: Python<'_>,
@@ -371,6 +372,7 @@ mod tests {
         .unwrap()
     }
 
+    #[cfg(feature = "std")]
     fn max_datetime(py: Python<'_>) -> Bound<'_, PyDateTime> {
         let naive_max = datetime_class(py).getattr("max").unwrap();
         let kargs = PyDict::new(py);
@@ -385,6 +387,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_time_intopyobject_overflow() {
         let big_system_time = UNIX_EPOCH
             .checked_add(Duration::new(300000000000, 0))
@@ -405,6 +408,7 @@ mod tests {
             .unwrap()
     }
 
+    #[cfg(feature = "std")]
     fn datetime_class(py: Python<'_>) -> Bound<'_, PyAny> {
         py.import("datetime").unwrap().getattr("datetime").unwrap()
     }

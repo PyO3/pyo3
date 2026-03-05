@@ -847,8 +847,11 @@ mod tests {
                     .unwrap()
             );
             assert!(dict.get_item(8i32).unwrap().is_none());
-            let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
-            assert_eq!(map, dict.extract().unwrap());
+            #[cfg(feature = "std")]
+            {
+                let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
+                assert_eq!(map, dict.extract().unwrap());
+            }
             let map: BTreeMap<i32, i32> = [(7, 32)].iter().cloned().collect();
             assert_eq!(map, dict.extract().unwrap());
         });
@@ -876,9 +879,12 @@ mod tests {
                     .extract::<i32>()
                     .unwrap()
             );
-            let map: HashMap<String, i32> =
-                [("a".into(), 1), ("b".into(), 2)].into_iter().collect();
-            assert_eq!(map, dict.extract().unwrap());
+            #[cfg(feature = "std")]
+            {
+                let map: HashMap<String, i32> =
+                    [("a".into(), 1), ("b".into(), 2)].into_iter().collect();
+                assert_eq!(map, dict.extract().unwrap());
+            }
             let map: BTreeMap<String, i32> =
                 [("a".into(), 1), ("b".into(), 2)].into_iter().collect();
             assert_eq!(map, dict.extract().unwrap());
@@ -916,7 +922,7 @@ mod tests {
     #[test]
     fn test_len() {
         Python::attach(|py| {
-            let mut v = HashMap::<i32, i32>::new();
+            let mut v = BTreeMap::<i32, i32>::new();
             let dict = (&v).into_pyobject(py).unwrap();
             assert_eq!(0, dict.len());
             v.insert(7, 32);
@@ -928,7 +934,7 @@ mod tests {
     #[test]
     fn test_contains() {
         Python::attach(|py| {
-            let mut v = HashMap::new();
+            let mut v = BTreeMap::new();
             v.insert(7, 32);
             let dict = v.into_pyobject(py).unwrap();
             assert!(dict.contains(7i32).unwrap());
@@ -941,7 +947,7 @@ mod tests {
         Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             assert_eq!(
                 32,
                 dict.get_item(7i32)
@@ -995,7 +1001,7 @@ mod tests {
         Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             assert!(dict.set_item(7i32, 42i32).is_ok()); // change
             assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
             assert_eq!(
@@ -1035,7 +1041,7 @@ mod tests {
     #[test]
     fn test_set_item_does_not_update_original_object() {
         Python::attach(|py| {
-            let mut v = HashMap::new();
+            let mut v = BTreeMap::new();
             v.insert(7, 32);
             let dict = (&v).into_pyobject(py).unwrap();
             assert!(dict.set_item(7i32, 42i32).is_ok()); // change
@@ -1050,7 +1056,7 @@ mod tests {
         Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             assert!(dict.del_item(7i32).is_ok());
             assert_eq!(0, dict.len());
             assert!(dict.get_item(7i32).unwrap().is_none());
@@ -1060,7 +1066,7 @@ mod tests {
     #[test]
     fn test_del_item_does_not_update_original_object() {
         Python::attach(|py| {
-            let mut v = HashMap::new();
+            let mut v = BTreeMap::new();
             v.insert(7, 32);
             let dict = (&v).into_pyobject(py).unwrap();
             assert!(dict.del_item(7i32).is_ok()); // change
@@ -1075,7 +1081,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             let mut value_sum = 0;
@@ -1096,7 +1102,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             for el in dict.keys() {
@@ -1113,7 +1119,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut values_sum = 0;
             for el in dict.values() {
@@ -1130,7 +1136,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {
@@ -1149,7 +1155,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {
@@ -1169,7 +1175,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
 
-            let dict = (&v).into_pyobject(py).unwrap();
+            let dict = (&v).into_py_dict(py).unwrap();
 
             for (key, value) in &dict {
                 dict.set_item(key, value.extract::<i32>().unwrap() + 7)
@@ -1186,7 +1192,7 @@ mod tests {
             for i in 0..10 {
                 v.insert(i * 2, i * 2);
             }
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
 
             for (i, (key, value)) in dict.iter().enumerate() {
                 let key = key.extract::<i32>().unwrap();
@@ -1210,7 +1216,7 @@ mod tests {
             for i in 0..10 {
                 v.insert(i * 2, i * 2);
             }
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
 
             for (i, (key, value)) in dict.iter().enumerate() {
                 let key = key.extract::<i32>().unwrap();
@@ -1233,7 +1239,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = (&v).into_pyobject(py).unwrap();
+            let dict = (&v).into_py_dict(py).unwrap();
 
             let mut iter = dict.iter();
             assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
@@ -1258,7 +1264,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {

@@ -1,3 +1,5 @@
+#![allow(unused_imports, reason = "conditional compilation")]
+
 use alloc::collections;
 use core::{cmp, hash};
 
@@ -181,6 +183,7 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_extract_hashset() {
         Python::attach(|py| {
             let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
@@ -210,13 +213,15 @@ mod tests {
     fn test_set_into_pyobject() {
         Python::attach(|py| {
             let bt: BTreeSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
-            let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
-
             let bto = (&bt).into_pyobject(py).unwrap();
-            let hso = (&hs).into_pyobject(py).unwrap();
-
             assert_eq!(bt, bto.extract().unwrap());
-            assert_eq!(hs, hso.extract().unwrap());
+
+            #[cfg(feature = "std")]
+            {
+                let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
+                let hso = (&hs).into_pyobject(py).unwrap();
+                assert_eq!(hs, hso.extract().unwrap());
+            }
         });
     }
 }

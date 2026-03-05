@@ -476,7 +476,7 @@ pub mod inspect;
 pub mod prelude;
 
 /// Test readme and user guide
-#[cfg(doctest)]
+#[cfg(all(doctest, feature = "std"))]
 pub mod doc_test {
     macro_rules! doctests {
         ($($path:expr => $mod:ident),* $(,)?) => {

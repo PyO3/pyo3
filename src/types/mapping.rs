@@ -197,22 +197,24 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{exceptions::PyKeyError, types::PyTuple};
+    use crate::{
+        exceptions::PyKeyError,
+        types::{IntoPyDict, PyTuple},
+    };
 
     use super::*;
-    use crate::conversion::IntoPyObject;
 
     #[test]
     fn test_len() {
         Python::attach(|py| {
             let mut v = HashMap::<i32, i32>::new();
-            let ob = (&v).into_pyobject(py).unwrap();
+            let ob = (&v).into_py_dict(py).unwrap();
             let mapping = ob.cast::<PyMapping>().unwrap();
             assert_eq!(0, mapping.len().unwrap());
             assert!(mapping.is_empty().unwrap());
 
             v.insert(7, 32);
-            let ob = v.into_pyobject(py).unwrap();
+            let ob = v.into_py_dict(py).unwrap();
             let mapping2 = ob.cast::<PyMapping>().unwrap();
             assert_eq!(1, mapping2.len().unwrap());
             assert!(!mapping2.is_empty().unwrap());
@@ -224,7 +226,7 @@ mod tests {
         Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert("key0", 1234);
-            let ob = v.into_pyobject(py).unwrap();
+            let ob = v.into_py_dict(py).unwrap();
             let mapping = ob.cast::<PyMapping>().unwrap();
             mapping.set_item("key1", "foo").unwrap();
 
@@ -239,7 +241,7 @@ mod tests {
         Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let ob = v.into_pyobject(py).unwrap();
+            let ob = v.into_py_dict(py).unwrap();
             let mapping = ob.cast::<PyMapping>().unwrap();
             assert_eq!(
                 32,
@@ -257,7 +259,7 @@ mod tests {
         Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let ob = v.into_pyobject(py).unwrap();
+            let ob = v.into_py_dict(py).unwrap();
             let mapping = ob.cast::<PyMapping>().unwrap();
             assert!(mapping.set_item(7i32, 42i32).is_ok()); // change
             assert!(mapping.set_item(8i32, 123i32).is_ok()); // insert
@@ -277,7 +279,7 @@ mod tests {
         Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let ob = v.into_pyobject(py).unwrap();
+            let ob = v.into_py_dict(py).unwrap();
             let mapping = ob.cast::<PyMapping>().unwrap();
             assert!(mapping.del_item(7i32).is_ok());
             assert_eq!(0, mapping.len().unwrap());
@@ -295,7 +297,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let ob = v.into_pyobject(py).unwrap();
+            let ob = v.into_py_dict(py).unwrap();
             let mapping = ob.cast::<PyMapping>().unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
@@ -317,7 +319,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let ob = v.into_pyobject(py).unwrap();
+            let ob = v.into_py_dict(py).unwrap();
             let mapping = ob.cast::<PyMapping>().unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
@@ -335,7 +337,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let ob = v.into_pyobject(py).unwrap();
+            let ob = v.into_py_dict(py).unwrap();
             let mapping = ob.cast::<PyMapping>().unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut values_sum = 0;

@@ -141,10 +141,15 @@ impl PyModule {
     /// # Example: Load a file at runtime with [`std::fs::read_to_string`].
     ///
     /// ```rust
+    /// # extern crate alloc;
     /// use pyo3::prelude::*;
     /// use pyo3::ffi::c_str;
     /// use alloc::ffi::CString;
     ///
+    /// # #[cfg(not(feature = "std"))]
+    /// # fn main() {}
+    ///
+    /// # #[cfg(feature = "std")]
     /// # fn main() -> PyResult<()> {
     /// # #[cfg(not(target_arch = "wasm32"))]  // node fs doesn't see this file, maybe cwd wrong?
     /// # {

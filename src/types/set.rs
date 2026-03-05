@@ -266,12 +266,14 @@ impl ExactSizeIterator for BoundSetIterator<'_> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(unused_imports, reason = "conditional compilation")]
     use super::PySet;
     use crate::{
         conversion::IntoPyObject,
         types::{PyAnyMethods, PySetMethods},
         Python,
     };
+    #[cfg(feature = "std")]
     use std::collections::HashSet;
 
     #[test]
@@ -295,6 +297,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_set_len() {
         Python::attach(|py| {
             let mut v = HashSet::<i32>::new();
