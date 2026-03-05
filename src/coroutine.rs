@@ -1,12 +1,12 @@
 //! Python coroutine implementation, used notably when wrapping `async fn`
 //! with `#[pyfunction]`/`#[pymethods]`.
-use std::{
+use alloc::sync::Arc;
+use core::{
     future::Future,
-    panic,
     pin::Pin,
-    sync::Arc,
     task::{Context, Poll, Waker},
 };
+use std::panic;
 
 use pyo3_macros::{pyclass, pymethods};
 
