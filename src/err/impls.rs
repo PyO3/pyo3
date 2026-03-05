@@ -1,3 +1,5 @@
+#![allow(unused_imports, reason = "conditional compilation")]
+
 use crate::{err::PyErrArguments, exceptions, PyErr, Python};
 use crate::{IntoPyObject, Py, PyAny};
 #[cfg(feature = "std")]
