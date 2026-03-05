@@ -1,3 +1,5 @@
+#![allow(unused_imports, reason = "conditional compilation")]
+
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
@@ -16,12 +18,13 @@ use crate::{
     py_result_ext::PyResultExt,
 };
 use crate::{types::PyBytes, Bound, IntoPyObject, PyErr, PyResult, Python};
-use std::io::IoSlice;
 #[cfg(not(Py_LIMITED_API))]
-use std::{
+use core::{
     mem::ManuallyDrop,
     ptr::{self, NonNull},
 };
+#[cfg(feature = "std")]
+use std::io::IoSlice;
 
 pub struct PyBytesWriter<'py> {
     python: Python<'py>,
@@ -82,6 +85,7 @@ impl<'py> PyBytesWriter<'py> {
 
     #[inline]
     #[cfg(not(Py_LIMITED_API))]
+    #[cfg_attr(not(feature = "std"), allow(dead_code))]
     fn as_mut_ptr(&mut self) -> *mut u8 {
         unsafe { PyBytesWriter_GetData(self.writer.as_ptr()) as _ }
     }
@@ -146,6 +150,7 @@ impl<'py> Drop for PyBytesWriter<'py> {
 }
 
 #[cfg(not(Py_LIMITED_API))]
+#[cfg(feature = "std")]
 impl std::io::Write for PyBytesWriter<'_> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.write_all(buf)?;
@@ -189,6 +194,7 @@ impl std::io::Write for PyBytesWriter<'_> {
 }
 
 #[cfg(Py_LIMITED_API)]
+#[cfg(feature = "std")]
 impl std::io::Write for PyBytesWriter<'_> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.buffer.write(buf)
@@ -218,6 +224,7 @@ mod tests {
     use std::io::Write;
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_io_write() {
         Python::attach(|py| {
             let buf = b"hallo world";
