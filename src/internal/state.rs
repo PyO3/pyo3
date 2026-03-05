@@ -4,11 +4,13 @@
 use crate::impl_::panic::PanicTrap;
 use crate::{ffi, Python};
 
-use std::cell::Cell;
+use core::cell::Cell;
+#[cfg_attr(pyo3_disable_reference_pool, allow(unused_imports))]
+use core::{mem, ptr::NonNull};
+#[cfg_attr(pyo3_disable_reference_pool, allow(unused_imports))]
+use std::sync::Mutex;
 #[cfg(not(pyo3_disable_reference_pool))]
 use std::sync::OnceLock;
-#[cfg_attr(pyo3_disable_reference_pool, allow(unused_imports))]
-use std::{mem, ptr::NonNull, sync};
 
 std::thread_local! {
     /// This is an internal counter in pyo3 monitoring whether this thread is attached to the interpreter.
@@ -181,14 +183,14 @@ type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 #[cfg(not(pyo3_disable_reference_pool))]
 /// Thread-safe storage for objects which were dec_ref while not attached.
 struct ReferencePool {
-    pending_decrefs: sync::Mutex<PyObjVec>,
+    pending_decrefs: Mutex<PyObjVec>,
 }
 
 #[cfg(not(pyo3_disable_reference_pool))]
 impl ReferencePool {
     const fn new() -> Self {
         Self {
-            pending_decrefs: sync::Mutex::new(Vec::new()),
+            pending_decrefs: Mutex::new(Vec::new()),
         }
     }
 
@@ -551,7 +553,7 @@ mod tests {
 
                     Bound::from_owned_ptr(
                         pool.python(),
-                        ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _,
+                        ffi::PyCapsule_GetPointer(capsule, core::ptr::null()) as _,
                     )
                 };
             }
@@ -559,7 +561,7 @@ mod tests {
             let ptr = obj.into_ptr();
 
             let capsule =
-                unsafe { ffi::PyCapsule_New(ptr as _, std::ptr::null(), Some(capsule_drop)) };
+                unsafe { ffi::PyCapsule_New(ptr as _, core::ptr::null(), Some(capsule_drop)) };
 
             get_pool().register_decref(NonNull::new(capsule).unwrap());
 
