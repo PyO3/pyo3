@@ -1,8 +1,8 @@
 #[cfg(any(Py_3_11, not(PyPy)))]
 use crate::Py_hash_t;
 use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_ssize_t};
+use core::ffi::{c_char, c_int, c_uint, c_void};
 use libc::wchar_t;
-use std::ffi::{c_char, c_int, c_uint, c_void};
 
 // skipped Py_UNICODE_ISSPACE()
 // skipped Py_UNICODE_ISLOWER()
@@ -174,7 +174,7 @@ struct PyASCIIObjectState {
 impl PyASCIIObjectState {
     #[inline]
     unsafe fn interned(&self) -> c_uint {
-        std::mem::transmute(
+        core::mem::transmute(
             self.bitfield
                 .get(STATE_INTERNED_INDEX, STATE_INTERNED_WIDTH) as u32,
         )
@@ -182,43 +182,43 @@ impl PyASCIIObjectState {
 
     #[inline]
     unsafe fn set_interned(&mut self, val: c_uint) {
-        let val: u32 = std::mem::transmute(val);
+        let val: u32 = core::mem::transmute(val);
         self.bitfield
             .set(STATE_INTERNED_INDEX, STATE_INTERNED_WIDTH, val as u64)
     }
 
     #[inline]
     unsafe fn kind(&self) -> c_uint {
-        std::mem::transmute(self.bitfield.get(STATE_KIND_INDEX, STATE_KIND_WIDTH) as u32)
+        core::mem::transmute(self.bitfield.get(STATE_KIND_INDEX, STATE_KIND_WIDTH) as u32)
     }
 
     #[inline]
     unsafe fn set_kind(&mut self, val: c_uint) {
-        let val: u32 = std::mem::transmute(val);
+        let val: u32 = core::mem::transmute(val);
         self.bitfield
             .set(STATE_KIND_INDEX, STATE_KIND_WIDTH, val as u64)
     }
 
     #[inline]
     unsafe fn compact(&self) -> c_uint {
-        std::mem::transmute(self.bitfield.get(STATE_COMPACT_INDEX, STATE_COMPACT_WIDTH) as u32)
+        core::mem::transmute(self.bitfield.get(STATE_COMPACT_INDEX, STATE_COMPACT_WIDTH) as u32)
     }
 
     #[inline]
     unsafe fn set_compact(&mut self, val: c_uint) {
-        let val: u32 = std::mem::transmute(val);
+        let val: u32 = core::mem::transmute(val);
         self.bitfield
             .set(STATE_COMPACT_INDEX, STATE_COMPACT_WIDTH, val as u64)
     }
 
     #[inline]
     unsafe fn ascii(&self) -> c_uint {
-        std::mem::transmute(self.bitfield.get(STATE_ASCII_INDEX, STATE_ASCII_WIDTH) as u32)
+        core::mem::transmute(self.bitfield.get(STATE_ASCII_INDEX, STATE_ASCII_WIDTH) as u32)
     }
 
     #[inline]
     unsafe fn set_ascii(&mut self, val: c_uint) {
-        let val: u32 = std::mem::transmute(val);
+        let val: u32 = core::mem::transmute(val);
         self.bitfield
             .set(STATE_ASCII_INDEX, STATE_ASCII_WIDTH, val as u64)
     }
@@ -226,7 +226,7 @@ impl PyASCIIObjectState {
     #[cfg(Py_3_12)]
     #[inline]
     unsafe fn statically_allocated(&self) -> c_uint {
-        std::mem::transmute(self.bitfield.get(
+        core::mem::transmute(self.bitfield.get(
             STATE_STATICALLY_ALLOCATED_INDEX,
             STATE_STATICALLY_ALLOCATED_WIDTH,
         ) as u32)
@@ -235,7 +235,7 @@ impl PyASCIIObjectState {
     #[cfg(Py_3_12)]
     #[inline]
     unsafe fn set_statically_allocated(&mut self, val: c_uint) {
-        let val: u32 = std::mem::transmute(val);
+        let val: u32 = core::mem::transmute(val);
         self.bitfield.set(
             STATE_STATICALLY_ALLOCATED_INDEX,
             STATE_STATICALLY_ALLOCATED_WIDTH,
@@ -246,13 +246,13 @@ impl PyASCIIObjectState {
     #[cfg(not(Py_3_12))]
     #[inline]
     unsafe fn ready(&self) -> c_uint {
-        std::mem::transmute(self.bitfield.get(STATE_READY_INDEX, STATE_READY_WIDTH) as u32)
+        core::mem::transmute(self.bitfield.get(STATE_READY_INDEX, STATE_READY_WIDTH) as u32)
     }
 
     #[cfg(not(Py_3_12))]
     #[inline]
     unsafe fn set_ready(&mut self, val: c_uint) {
-        let val: u32 = std::mem::transmute(val);
+        let val: u32 = core::mem::transmute(val);
         self.bitfield
             .set(STATE_READY_INDEX, STATE_READY_WIDTH, val as u64)
     }

@@ -1,5 +1,5 @@
+use core::ffi::c_void;
 use libc::size_t;
-use std::ffi::c_void;
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyMem_RawMalloc")]

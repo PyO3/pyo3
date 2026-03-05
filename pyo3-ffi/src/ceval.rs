@@ -1,6 +1,6 @@
 use crate::object::PyObject;
 use crate::pytypedefs::PyThreadState;
-use std::ffi::{c_char, c_int, c_void};
+use core::ffi::{c_char, c_int, c_void};
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyEval_EvalCode")]
@@ -39,7 +39,7 @@ extern "C" {
 #[inline]
 pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
     #[allow(deprecated)]
-    PyEval_CallObjectWithKeywords(func, arg, std::ptr::null_mut())
+    PyEval_CallObjectWithKeywords(func, arg, core::ptr::null_mut())
 }
 
 extern "C" {

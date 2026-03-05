@@ -1,9 +1,9 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use libc::wchar_t;
-use std::ffi::{c_char, c_int, c_void};
+use core::ffi::{c_char, c_int, c_void};
 #[cfg(not(PyPy))]
-use std::ptr::addr_of_mut;
+use core::ptr::addr_of_mut;
+use libc::wchar_t;
 
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(

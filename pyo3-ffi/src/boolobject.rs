@@ -1,8 +1,8 @@
 #[cfg(not(GraalPy))]
 use crate::longobject::PyLongObject;
 use crate::object::*;
-use std::ffi::{c_int, c_long};
-use std::ptr::addr_of_mut;
+use core::ffi::{c_int, c_long};
+use core::ptr::addr_of_mut;
 
 #[inline]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {

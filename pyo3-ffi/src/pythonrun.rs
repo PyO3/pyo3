@@ -1,9 +1,9 @@
 use crate::object::*;
+#[cfg(any(Py_LIMITED_API, not(Py_3_10), PyPy, GraalPy))]
+use core::ffi::c_char;
+use core::ffi::c_int;
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 use libc::FILE;
-#[cfg(any(Py_LIMITED_API, not(Py_3_10), PyPy, GraalPy))]
-use std::ffi::c_char;
-use std::ffi::c_int;
 
 extern "C" {
     #[cfg(any(all(Py_LIMITED_API, not(PyPy)), GraalPy))]
@@ -33,13 +33,13 @@ pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int
             string: *const c_char,
             p: *const c_char,
             s: c_int,
-            f: *mut std::ffi::c_void, // Actually *mut Py_CompilerFlags in the real definition
+            f: *mut core::ffi::c_void, // Actually *mut Py_CompilerFlags in the real definition
         ) -> *mut PyObject;
     }
     #[cfg(not(Py_LIMITED_API))]
     use crate::Py_CompileStringFlags;
 
-    Py_CompileStringFlags(string, p, s, std::ptr::null_mut())
+    Py_CompileStringFlags(string, p, s, core::ptr::null_mut())
 }
 
 // skipped PyOS_InputHook

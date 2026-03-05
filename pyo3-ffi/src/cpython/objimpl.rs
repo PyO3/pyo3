@@ -1,9 +1,9 @@
+use core::ffi::c_int;
 #[cfg(not(all(Py_3_11, any(PyPy, GraalPy))))]
 use libc::size_t;
-use std::ffi::c_int;
 
 #[cfg(not(any(PyPy, GraalPy)))]
-use std::ffi::c_void;
+use core::ffi::c_void;
 
 use crate::object::*;
 
@@ -28,7 +28,7 @@ pub struct PyObjectArenaAllocator {
 impl Default for PyObjectArenaAllocator {
     #[inline]
     fn default() -> Self {
-        unsafe { std::mem::zeroed() }
+        unsafe { core::mem::zeroed() }
     }
 }
 

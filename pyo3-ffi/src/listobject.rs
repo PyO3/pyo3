@@ -1,7 +1,7 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::ffi::c_int;
-use std::ptr::addr_of_mut;
+use core::ffi::c_int;
+use core::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

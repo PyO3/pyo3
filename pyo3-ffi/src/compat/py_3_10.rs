@@ -24,9 +24,9 @@ compat_function!(
     #[inline]
     pub unsafe fn PyModule_AddObjectRef(
         module: *mut crate::PyObject,
-        name: *const std::ffi::c_char,
+        name: *const core::ffi::c_char,
         value: *mut crate::PyObject,
-    ) -> std::ffi::c_int {
+    ) -> core::ffi::c_int {
         if value.is_null() && crate::PyErr_Occurred().is_null() {
             crate::PyErr_SetString(
                 crate::PyExc_SystemError,

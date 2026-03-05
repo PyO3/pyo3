@@ -2,7 +2,7 @@
 #[cfg(any(Py_3_10, all(Py_3_9, not(Py_LIMITED_API))))]
 use crate::PyCodeObject;
 use crate::PyFrameObject;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 extern "C" {
     pub fn PyFrame_GetLineNumber(frame: *mut PyFrameObject) -> c_int;

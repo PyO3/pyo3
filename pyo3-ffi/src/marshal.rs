@@ -1,5 +1,5 @@
 use super::{PyObject, Py_ssize_t};
-use std::ffi::{c_char, c_int};
+use core::ffi::{c_char, c_int};
 
 // skipped Py_MARSHAL_VERSION
 // skipped PyMarshal_WriteLongToFile

@@ -1,9 +1,9 @@
 use crate::object::*;
 use crate::PyFrameObject;
 #[cfg(all(Py_3_11, not(any(PyPy, GraalPy, Py_3_14))))]
-use std::ffi::c_char;
-use std::ffi::c_int;
-use std::ptr::addr_of_mut;
+use core::ffi::c_char;
+use core::ffi::c_int;
+use core::ptr::addr_of_mut;
 
 #[cfg(not(any(PyPy, GraalPy, Py_3_14)))]
 #[repr(C)]

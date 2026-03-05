@@ -1,7 +1,7 @@
 use crate::object::*;
-use std::ffi::c_int;
+use core::ffi::c_int;
 #[cfg(not(PyPy))]
-use std::ptr::addr_of_mut;
+use core::ptr::addr_of_mut;
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Here")]

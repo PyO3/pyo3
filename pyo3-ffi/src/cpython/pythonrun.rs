@@ -4,8 +4,8 @@ use crate::pyarena::PyArena;
 use crate::PyCompilerFlags;
 #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
 use crate::{_mod, _node};
+use core::ffi::{c_char, c_int};
 use libc::FILE;
-use std::ffi::{c_char, c_int};
 
 extern "C" {
     pub fn PyRun_SimpleStringFlags(arg1: *const c_char, arg2: *mut PyCompilerFlags) -> c_int;
@@ -137,7 +137,7 @@ extern "C" {
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject {
-    Py_CompileStringExFlags(string, p, s, std::ptr::null_mut(), -1)
+    Py_CompileStringExFlags(string, p, s, core::ptr::null_mut(), -1)
 }
 
 #[inline]

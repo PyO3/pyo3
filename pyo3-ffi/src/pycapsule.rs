@@ -1,6 +1,6 @@
 use crate::object::*;
-use std::ffi::{c_char, c_int, c_void};
-use std::ptr::addr_of_mut;
+use core::ffi::{c_char, c_int, c_void};
+use core::ptr::addr_of_mut;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

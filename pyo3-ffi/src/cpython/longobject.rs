@@ -2,10 +2,10 @@ use crate::longobject::*;
 use crate::object::*;
 #[cfg(Py_3_13)]
 use crate::pyport::Py_ssize_t;
-use libc::size_t;
 #[cfg(Py_3_13)]
-use std::ffi::c_void;
-use std::ffi::{c_int, c_uchar};
+use core::ffi::c_void;
+use core::ffi::{c_int, c_uchar};
+use libc::size_t;
 
 #[cfg(Py_3_13)]
 extern "C" {

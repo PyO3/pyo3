@@ -1,6 +1,6 @@
 use crate::object::*;
-use std::ffi::{c_double, c_int};
-use std::ptr::addr_of_mut;
+use core::ffi::{c_double, c_int};
+use core::ptr::addr_of_mut;
 
 #[cfg(Py_LIMITED_API)]
 // TODO: remove (see https://github.com/PyO3/pyo3/pull/1341#issuecomment-751515985)

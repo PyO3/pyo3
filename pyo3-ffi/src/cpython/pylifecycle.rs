@@ -1,6 +1,6 @@
 use crate::{PyConfig, PyPreConfig, PyStatus, Py_ssize_t};
+use core::ffi::{c_char, c_int};
 use libc::wchar_t;
-use std::ffi::{c_char, c_int};
 
 extern "C" {
 
