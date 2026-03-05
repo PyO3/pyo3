@@ -151,4 +151,23 @@ mod tests {
             assert!(list.is_instance(&abc).unwrap());
         });
     }
+
+    #[test]
+    fn is_type_of_bad_instancecheck_returns_false() {
+        // Trigger the `unwrap_or_else` path in `is_type_of` by passing an object
+        // whose `__class__` property raises, causing `is_instance` to return an Err.
+        Python::attach(|py| {
+            let obj = py
+                .eval(
+                    c"type('Bad', (), {'__class__': property(lambda self: (_ for _ in ()).throw(RuntimeError('oops')))})()",
+                    None,
+                    None,
+                )
+                .unwrap();
+            // The object is not a PyIterator (fast-path skipped), and `is_instance`
+            // will fail due to the broken `__class__`, so `is_type_of` returns false.
+            assert!(!PyIterable::is_type_of(&obj));
+        });
+    }
+
 }
