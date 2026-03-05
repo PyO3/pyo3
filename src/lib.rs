@@ -337,6 +337,11 @@
 //! [Rust from Python]: https://github.com/PyO3/pyo3#using-rust-from-python
 #![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 //! [`Ungil`]: crate::marker::Ungil
+
+extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
+
 pub use crate::class::*;
 pub use crate::conversion::{FromPyObject, IntoPyObject, IntoPyObjectExt};
 pub use crate::err::{CastError, CastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
