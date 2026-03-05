@@ -1,5 +1,5 @@
+use core::cell::UnsafeCell;
 use std::{
-    cell::UnsafeCell,
     sync::{Mutex, Once},
     thread::ThreadId,
 };
@@ -417,7 +417,7 @@ mod tests {
                 // releasing the GIL potentially allows for other threads to deadlock
                 // with the normalization going on here
                 py.detach(|| {
-                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    std::thread::sleep(core::time::Duration::from_millis(10));
                 });
                 py.None()
             }

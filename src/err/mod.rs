@@ -17,9 +17,9 @@ use crate::types::{
 };
 use crate::{exceptions::PyBaseException, ffi};
 use crate::{BoundObject, Py, PyAny, Python};
+use core::convert::Infallible;
+use core::ffi::CStr;
 use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
-use std::convert::Infallible;
-use std::ffi::CStr;
 
 mod cast_error;
 mod downcast_error;
@@ -344,18 +344,18 @@ impl PyErr {
         dict: Option<Py<PyAny>>,
     ) -> PyResult<Py<PyType>> {
         let base: *mut ffi::PyObject = match base {
-            None => std::ptr::null_mut(),
+            None => core::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
         };
 
         let dict: *mut ffi::PyObject = match dict {
-            None => std::ptr::null_mut(),
+            None => core::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
         };
 
         let doc_ptr = match doc.as_ref() {
             Some(c) => c.as_ptr(),
-            None => std::ptr::null(),
+            None => core::ptr::null(),
         };
 
         // SAFETY: correct call to FFI function, return value is known to be a new
@@ -388,7 +388,7 @@ impl PyErr {
                 self.value(py).as_ptr(),
                 traceback
                     .as_ref()
-                    .map_or(std::ptr::null_mut(), |traceback| traceback.as_ptr()),
+                    .map_or(core::ptr::null_mut(), |traceback| traceback.as_ptr()),
             )
         }
     }
@@ -472,7 +472,7 @@ impl PyErr {
     #[inline]
     pub fn write_unraisable(self, py: Python<'_>, obj: Option<&Bound<'_, PyAny>>) {
         self.restore(py);
-        unsafe { ffi::PyErr_WriteUnraisable(obj.map_or(std::ptr::null_mut(), Bound::as_ptr)) }
+        unsafe { ffi::PyErr_WriteUnraisable(obj.map_or(core::ptr::null_mut(), Bound::as_ptr)) }
     }
 
     /// Issues a warning message.
@@ -530,11 +530,11 @@ impl PyErr {
         registry: Option<&Bound<'py, PyAny>>,
     ) -> PyResult<()> {
         let module_ptr = match module {
-            None => std::ptr::null_mut(),
+            None => core::ptr::null_mut(),
             Some(s) => s.as_ptr(),
         };
         let registry: *mut ffi::PyObject = match registry {
-            None => std::ptr::null_mut(),
+            None => core::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
         };
         error_on_minusone(py, unsafe {
@@ -594,7 +594,7 @@ impl PyErr {
             // PyException_SetCause _steals_ a reference to cause, so must use .into_ptr()
             ffi::PyException_SetCause(
                 value.as_ptr(),
-                cause.map_or(std::ptr::null_mut(), Py::into_ptr),
+                cause.map_or(core::ptr::null_mut(), Py::into_ptr),
             );
         }
     }
@@ -635,8 +635,8 @@ fn failed_to_fetch() -> PyErr {
     }
 }
 
-impl std::fmt::Debug for PyErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+impl core::fmt::Debug for PyErr {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         Python::attach(|py| {
             f.debug_struct("PyErr")
                 .field("type", &self.get_type(py))
@@ -660,11 +660,11 @@ impl std::fmt::Debug for PyErr {
     }
 }
 
-impl std::fmt::Display for PyErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for PyErr {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         Python::attach(|py| {
             let value = self.value(py);
-            let type_name = value.get_type().qualname().map_err(|_| std::fmt::Error)?;
+            let type_name = value.get_type().qualname().map_err(|_| core::fmt::Error)?;
             write!(f, "{type_name}")?;
             if let Ok(s) = value.str() {
                 write!(f, ": {}", &s.to_string_lossy())
@@ -675,7 +675,7 @@ impl std::fmt::Display for PyErr {
     }
 }
 
-impl std::error::Error for PyErr {}
+impl core::error::Error for PyErr {}
 
 impl<'py> IntoPyObject<'py> for PyErr {
     type Target = PyBaseException;
@@ -713,7 +713,7 @@ impl<'py> IntoPyObject<'py> for &PyErr {
 /// [`crate::import_exception!`] and [`crate::create_exception!`] macros.
 pub trait ToPyErr {}
 
-impl<'py, T> std::convert::From<Bound<'py, T>> for PyErr
+impl<'py, T> core::convert::From<Bound<'py, T>> for PyErr
 where
     T: ToPyErr,
 {
