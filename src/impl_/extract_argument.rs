@@ -135,8 +135,8 @@ where
 
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
 impl<'a, 'holder, 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'holder str {
-    type Holder = Option<core::borrow::Cow<'a, str>>;
-    type Error = <core::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
+    type Holder = Option<alloc::borrow::Cow<'a, str>>;
+    type Error = <alloc::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
@@ -144,7 +144,7 @@ impl<'a, 'holder, 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'holder 
     #[inline]
     fn extract(
         obj: Borrowed<'a, 'py, PyAny>,
-        holder: &'holder mut Option<core::borrow::Cow<'a, str>>,
+        holder: &'holder mut Option<alloc::borrow::Cow<'a, str>>,
     ) -> PyResult<Self> {
         Ok(holder.insert(obj.extract()?))
     }

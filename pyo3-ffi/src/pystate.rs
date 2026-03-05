@@ -86,7 +86,7 @@ struct HangThread;
 impl Drop for HangThread {
     fn drop(&mut self) {
         loop {
-            core::thread::park(); // Block forever.
+            std::thread::park(); // Block forever.
         }
     }
 }
