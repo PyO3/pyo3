@@ -533,7 +533,7 @@ pub(crate) use from_py_object_sequence::FromPyObjectSequence;
 /// ```
 ///
 /// [`PyList`]: crate::types::PyList
-/// [`Arc<T>`]: core::sync::Arc
+/// [`Arc<T>`]: alloc::sync::Arc
 pub trait FromPyObjectOwned<'py>: for<'a> FromPyObject<'a, 'py> {}
 impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py> {}
 
