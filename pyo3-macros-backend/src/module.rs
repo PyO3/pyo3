@@ -5,7 +5,7 @@ use crate::introspection::{
     attribute_introspection_code, introspection_id_const, module_introspection_code,
 };
 #[cfg(feature = "experimental-inspect")]
-use crate::utils::expr_to_python;
+use crate::py_expr::PyExpr;
 use crate::{
     attributes::{
         self, kw, take_attributes, take_pyo3_options, CrateAttribute, GILUsedAttribute,
@@ -15,11 +15,12 @@ use crate::{
     get_doc,
     pyclass::PyClassPyO3Option,
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
-    utils::{has_attribute, has_attribute_with_namespace, Ctx, IdentOrStr, LitCStr},
+    utils::{has_attribute, has_attribute_with_namespace, Ctx, IdentOrStr, PythonDoc},
 };
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{quote, ToTokens};
 use std::ffi::CString;
+use syn::LitCStr;
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
@@ -115,7 +116,7 @@ pub fn pymodule_module_impl(
     options.take_pyo3_options(attrs)?;
     let ctx = &Ctx::new(&options.krate, None);
     let Ctx { pyo3_path, .. } = ctx;
-    let doc = get_doc(attrs, None, ctx)?;
+    let doc = get_doc(attrs, None);
     let name = options
         .name
         .map_or_else(|| ident.unraw(), |name| name.value.0);
@@ -316,8 +317,9 @@ pub fn pymodule_module_impl(
                         pyo3_path,
                         None,
                         item.ident.unraw().to_string(),
-                        expr_to_python(&item.expr),
+                        PyExpr::constant_from_expression(&item.expr),
                         (*item.ty).clone(),
+                        get_doc(&item.attrs, None).as_ref(),
                         true,
                     );
                     introspection_chunks.push(quote! {
@@ -379,6 +381,7 @@ pub fn pymodule_module_impl(
         &name.to_string(),
         &module_items,
         &module_items_cfg_attrs,
+        doc.as_ref(),
         pymodule_init.is_some(),
     );
     #[cfg(not(feature = "experimental-inspect"))]
@@ -388,24 +391,17 @@ pub fn pymodule_module_impl(
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection_id = quote! {};
 
-    let module_def = quote! {{
-        use #pyo3_path::impl_::pymodule as impl_;
-        const INITIALIZER: impl_::ModuleInitializer = impl_::ModuleInitializer(__pyo3_pymodule);
-        unsafe {
-           impl_::ModuleDef::new(
-                __PYO3_NAME,
-                #doc,
-                INITIALIZER
-            )
-        }
-    }};
+    let gil_used = options.gil_used.is_some_and(|op| op.value.value);
+
     let initialization = module_initialization(
+        &full_name,
         &name,
         ctx,
-        module_def,
+        quote! { __pyo3_pymodule },
         options.submodule.is_some(),
-        options.gil_used.map_or(true, |op| op.value.value),
-    );
+        gil_used,
+        doc.as_ref(),
+    )?;
 
     let module_consts_names = module_consts.iter().map(|i| i.unraw().to_string());
 
@@ -453,19 +449,29 @@ pub fn pymodule_function_impl(
         .name
         .map_or_else(|| ident.unraw(), |name| name.value.0);
     let vis = &function.vis;
-    let doc = get_doc(&function.attrs, None, ctx)?;
+    let doc = get_doc(&function.attrs, None);
+
+    let gil_used = options.gil_used.is_some_and(|op| op.value.value);
 
     let initialization = module_initialization(
+        &name.to_string(),
         &name,
         ctx,
-        quote! { MakeDef::make_def() },
+        quote! { ModuleExec::__pyo3_module_exec },
         false,
-        options.gil_used.map_or(true, |op| op.value.value),
-    );
+        gil_used,
+        doc.as_ref(),
+    )?;
 
     #[cfg(feature = "experimental-inspect")]
-    let introspection =
-        module_introspection_code(pyo3_path, &name.unraw().to_string(), &[], &[], true);
+    let introspection = module_introspection_code(
+        pyo3_path,
+        &name.unraw().to_string(),
+        &[],
+        &[],
+        doc.as_ref(),
+        true,
+    );
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
     #[cfg(feature = "experimental-inspect")]
@@ -494,47 +500,57 @@ pub fn pymodule_function_impl(
         // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pymodule] is
         // inside a function body)
         #[allow(unknown_lints, non_local_definitions)]
-        impl #ident::MakeDef {
-            const fn make_def() -> #pyo3_path::impl_::pymodule::ModuleDef {
-                fn __pyo3_pymodule(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
-                    #ident(#(#module_args),*)
-                }
-
-                const INITIALIZER: #pyo3_path::impl_::pymodule::ModuleInitializer = #pyo3_path::impl_::pymodule::ModuleInitializer(__pyo3_pymodule);
-                unsafe {
-                    #pyo3_path::impl_::pymodule::ModuleDef::new(
-                        #ident::__PYO3_NAME,
-                        #doc,
-                        INITIALIZER
-                    )
-                }
+        impl #ident::ModuleExec {
+            fn __pyo3_module_exec(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
+                #ident(#(#module_args),*)
             }
         }
     })
 }
 
 fn module_initialization(
+    full_name: &str,
     name: &syn::Ident,
     ctx: &Ctx,
-    module_def: TokenStream,
+    module_exec: TokenStream,
     is_submodule: bool,
     gil_used: bool,
-) -> TokenStream {
+    doc: Option<&PythonDoc>,
+) -> Result<TokenStream> {
     let Ctx { pyo3_path, .. } = ctx;
     let pyinit_symbol = format!("PyInit_{name}");
-    let name = name.to_string();
-    let pyo3_name = LitCStr::new(CString::new(name).unwrap(), Span::call_site(), ctx);
+    let pyo3_name = LitCStr::new(&CString::new(full_name).unwrap(), Span::call_site());
+    let doc = if let Some(doc) = doc {
+        doc.to_cstr_stream(ctx)?
+    } else {
+        c"".into_token_stream()
+    };
 
     let mut result = quote! {
         #[doc(hidden)]
         pub const __PYO3_NAME: &'static ::std::ffi::CStr = #pyo3_name;
 
-        pub(super) struct MakeDef;
+        // This structure exists for `fn` modules declared within `fn` bodies, where due to the hidden
+        // module (used for importing) the `fn` to initialize the module cannot be seen from the #module_def
+        // declaration just below.
         #[doc(hidden)]
-        pub static _PYO3_DEF: #pyo3_path::impl_::pymodule::ModuleDef = #module_def;
+        pub(super) struct ModuleExec;
+
         #[doc(hidden)]
-        // so wrapped submodules can see what gil_used is
-        pub static __PYO3_GIL_USED: bool = #gil_used;
+        pub static _PYO3_DEF: #pyo3_path::impl_::pymodule::ModuleDef = {
+            use #pyo3_path::impl_::pymodule as impl_;
+
+            unsafe extern "C" fn __pyo3_module_exec(module: *mut #pyo3_path::ffi::PyObject) -> ::std::os::raw::c_int {
+                #pyo3_path::impl_::trampoline::module_exec(module, #module_exec)
+            }
+
+            static SLOTS: impl_::PyModuleSlots<4> = impl_::PyModuleSlotsBuilder::new()
+                .with_mod_exec(__pyo3_module_exec)
+                .with_gil_used(#gil_used)
+                .build();
+
+            impl_::ModuleDef::new(__PYO3_NAME, #doc, &SLOTS)
+        };
     };
     if !is_submodule {
         result.extend(quote! {
@@ -543,11 +559,11 @@ fn module_initialization(
             #[doc(hidden)]
             #[export_name = #pyinit_symbol]
             pub unsafe extern "C" fn __pyo3_init() -> *mut #pyo3_path::ffi::PyObject {
-                unsafe { #pyo3_path::impl_::trampoline::module_init(|py| _PYO3_DEF.make_module(py, #gil_used)) }
+                _PYO3_DEF.init_multi_phase()
             }
         });
     }
-    result
+    Ok(result)
 }
 
 /// Finds and takes care of the #[pyfn(...)] in `#[pymodule]`

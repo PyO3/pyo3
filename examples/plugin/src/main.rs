@@ -1,7 +1,6 @@
 use plugin_api::plugin_api as pylib_module;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
-use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     //"export" our API module to the python runtime
@@ -9,11 +8,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //spawn runtime
     Python::initialize();
     //import path for python
-    let path = Path::new("./python_plugin/");
+    let path = "./python_plugin/";
     //do useful work
     Python::attach(|py| {
         //add the current directory to import path of Python (do not use this in production!)
-        let syspath: Bound<PyList> = py.import("sys")?.getattr("path")?.extract()?;
+        let syspath: Bound<PyList> = py.import("sys")?.getattr("path")?.extract().map_err(PyErr::from)?;
         syspath.insert(0, &path)?;
         println!("Import path is: {:?}", syspath);
 
@@ -28,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         {
             //this scope will have mutable access to the gadget instance, which will be dropped on
             //scope exit so Python can access it again.
-            let mut gadget_rs: PyRefMut<'_, plugin_api::Gadget> = gadget.extract()?;
+            let mut gadget_rs: PyRefMut<'_, plugin_api::Gadget> = gadget.extract().map_err( PyErr::from)?;
             // we can now modify it as if it was a native rust struct
             gadget_rs.prop = 42;
             //which includes access to rust-only fields that are not visible to python

@@ -1,20 +1,4 @@
 error[E0277]: pyclass `PyException` cannot be subclassed
- --> tests/ui/abi3_inheritance.rs:4:19
-  |
-4 | #[pyclass(extends=PyException)]
-  |                   ^^^^^^^^^^^ required for `#[pyclass(extends=PyException)]`
-  |
-  = help: the trait `PyClassBaseType` is not implemented for `PyException`
-  = note: `PyException` must have `#[pyclass(subclass)]` to be eligible for subclassing
-  = note: with the `abi3` feature enabled, PyO3 does not support subclassing native types
-  = help: the trait `PyClassBaseType` is implemented for `PyAny`
-note: required by a bound in `PyClassImpl::BaseType`
- --> src/impl_/pyclass.rs
-  |
-  |     type BaseType: PyTypeInfo + PyClassBaseType;
-  |                                 ^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::BaseType`
-
-error[E0277]: pyclass `PyException` cannot be subclassed
  --> tests/ui/abi3_inheritance.rs:4:1
   |
 4 | #[pyclass(extends=PyException)]
@@ -23,5 +7,38 @@ error[E0277]: pyclass `PyException` cannot be subclassed
   = help: the trait `PyClassBaseType` is not implemented for `PyException`
   = note: `PyException` must have `#[pyclass(subclass)]` to be eligible for subclassing
   = note: with the `abi3` feature enabled, PyO3 does not support subclassing native types
-  = help: the trait `PyClassBaseType` is implemented for `PyAny`
+help: the trait `PyClassBaseType` is implemented for `PyAny`
+ --> src/types/any.rs
+  |
+  | impl crate::impl_::pyclass::PyClassBaseType for PyAny {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: pyclass `PyException` cannot be subclassed
+ --> tests/ui/abi3_inheritance.rs:4:19
+  |
+4 | #[pyclass(extends=PyException)]
+  |                   ^^^^^^^^^^^ required for `#[pyclass(extends=PyException)]`
+  |
+  = help: the trait `PyClassBaseType` is not implemented for `PyException`
+  = note: `PyException` must have `#[pyclass(subclass)]` to be eligible for subclassing
+  = note: with the `abi3` feature enabled, PyO3 does not support subclassing native types
+help: the trait `PyClassBaseType` is implemented for `PyAny`
+ --> src/types/any.rs
+  |
+  | impl crate::impl_::pyclass::PyClassBaseType for PyAny {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: required by a bound in `PyClassImpl::BaseType`
+ --> src/impl_/pyclass.rs
+  |
+  |     type BaseType: PyTypeInfo + PyClassBaseType;
+  |                                 ^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::BaseType`
+
+warning: use of deprecated associated constant `pyo3::impl_::deprecated::HasAutomaticFromPyObject::<true>::MSG`: The `FromPyObject` implementation for `#[pyclass]` types which implement `Clone` is changing to an opt-in option. Use `#[pyclass(from_py_object)]` to opt-in to the `FromPyObject` derive now, or `#[pyclass(skip_from_py_object)]` to skip the `FromPyObject` implementation.
+ --> tests/ui/abi3_inheritance.rs:4:1
+  |
+4 | #[pyclass(extends=PyException)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(deprecated)]` on by default
+  = note: this warning originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)

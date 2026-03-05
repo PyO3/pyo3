@@ -8,7 +8,7 @@ use pyo3::{
 };
 
 #[derive(FromPyObject)]
-#[allow(dead_code)]
+#[expect(dead_code)]
 enum ManyTypes {
     Int(i32),
     Bytes(Vec<u8>),

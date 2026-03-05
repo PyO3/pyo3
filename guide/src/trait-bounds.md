@@ -7,11 +7,13 @@ This tutorial explains how to convert a Rust function that takes a trait as argu
 
 Why is this useful?
 
-### Pros
+## Pros
+
 - Make your Rust code available to Python users
 - Code complex algorithms in Rust with the help of the borrow checker
 
 ### Cons
+
 - Not as fast as native Rust (type conversion has to be performed and one part of the code runs in Python)
 - You need to adapt your code to expose it
 
@@ -34,9 +36,12 @@ pub fn solve<T: Model>(model: &mut T) {
     println!("Magic solver that mutates the model into a resolved state");
 }
 ```
+
 Let's assume we have the following constraints:
+
 - We cannot change that code as it runs on many Rust models.
 - We also have many Python models that cannot be solved as this solver is not available in that language.
+
 Rewriting it in Python would be cumbersome and error-prone, as everything is already available in Rust.
 
 How could we expose this solver to Python thanks to PyO3 ?
@@ -155,8 +160,8 @@ impl Model for UserModel {
 }
 ```
 
-However, the previous code will not compile. The compilation error is the following one:
-`error: #[pymethods] cannot be used on trait impl blocks`
+However, the previous code will not compile.
+The compilation error is the following one: `error: #[pymethods] cannot be used on trait impl blocks`
 
 That's a bummer!
 However, we can write a second wrapper around these functions to call them directly.
@@ -230,8 +235,10 @@ impl UserModel {
     }
 }
 ```
+
 This wrapper handles the type conversion between the PyO3 requirements and the trait.
 In order to meet PyO3 requirements, this wrapper must:
+
 - return an object of type `PyResult`
 - use only values, not references in the method signatures
 
@@ -279,7 +286,6 @@ We will now expose the `solve` function, but before, let's talk about types erro
 ## Type errors in Python
 
 What happens if you have type errors when using Python and how can you improve the error messages?
-
 
 ### Wrong types in Python function arguments
 
@@ -439,8 +445,7 @@ impl Model for UserModel {
 
 By doing so, you catch the result of the Python computation and check its type in order to be able to deliver a better error message before performing the unwrapping.
 
-Of course, it does not cover all the possible wrong outputs:
-the user could return a list of strings instead of a list of floats.
+Of course, it does not cover all the possible wrong outputs: the user could return a list of strings instead of a list of floats.
 In this case, a runtime panic would still occur due to PyO3, but with an error message much more difficult to decipher for non-rust user.
 
 It is up to the developer exposing the rust code to decide how much effort to invest into Python type error handling and improved error messages.

@@ -1,6 +1,6 @@
 #![cfg(feature = "uuid")]
 
-//! Conversions to and from [uuid](https://docs.rs/uuid/latest/uuid/)'s [`Uuid`] type.
+//! Conversions to and from [uuid](https://docs.rs/uuid/latest/uuid/)'s [`Uuid`] and [`NonNilUuid`] types.
 //!
 //! This is useful for converting Python's uuid.UUID into and from a native Rust type.
 //!
@@ -63,12 +63,16 @@
 //! returned_uuid = get_uuid(py_uuid)
 //! assert py_uuid == returned_uuid
 //! ```
-use uuid::Uuid;
+use uuid::{NonNilUuid, Uuid};
 
 use crate::conversion::IntoPyObject;
-use crate::exceptions::PyTypeError;
+use crate::exceptions::{PyTypeError, PyValueError};
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::PyStaticExpr;
 use crate::instance::Bound;
 use crate::sync::PyOnceLock;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_hint_identifier;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
 use crate::{intern, Borrowed, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
@@ -80,6 +84,9 @@ fn get_uuid_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
 
 impl FromPyObject<'_, '_> for Uuid {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("uuid", "UUID");
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
         let py = obj.py();
@@ -99,6 +106,9 @@ impl<'py> IntoPyObject<'py> for Uuid {
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("uuid", "UUID");
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let uuid_cls = get_uuid_cls(py)?;
 
@@ -110,6 +120,47 @@ impl<'py> IntoPyObject<'py> for &Uuid {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = Uuid::OUTPUT_TYPE;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        (*self).into_pyobject(py)
+    }
+}
+
+impl FromPyObject<'_, '_> for NonNilUuid {
+    type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = Uuid::INPUT_TYPE;
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> PyResult<Self> {
+        let uuid: Uuid = obj.extract()?;
+        NonNilUuid::new(uuid).ok_or_else(|| PyValueError::new_err("UUID is nil"))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for NonNilUuid {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = Uuid::OUTPUT_TYPE;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Uuid::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &NonNilUuid {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = NonNilUuid::OUTPUT_TYPE;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
@@ -183,4 +234,19 @@ mod tests {
         Uuid::parse_str("a6cc5730-2261-11ee-9c43-2eb5a363657c").unwrap(),
         "a6cc5730-2261-11ee-9c43-2eb5a363657c"
     );
+
+    #[test]
+    fn test_non_nil_uuid() {
+        Python::attach(|py| {
+            let rs_uuid = NonNilUuid::new(Uuid::max()).unwrap();
+            let py_uuid = rs_uuid.into_pyobject(py).unwrap();
+
+            let extract_uuid: NonNilUuid = py_uuid.extract().unwrap();
+            assert_eq!(extract_uuid, rs_uuid);
+
+            let nil_uuid = Uuid::nil().into_pyobject(py).unwrap();
+            let extract_nil: PyResult<NonNilUuid> = nil_uuid.extract();
+            assert!(extract_nil.is_err());
+        })
+    }
 }

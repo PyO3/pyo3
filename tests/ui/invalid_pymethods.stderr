@@ -201,6 +201,11 @@ error[E0277]: the trait bound `NotATypeObject: From<BoundRef<'_, '_, PyType>>` i
   --> tests/ui/invalid_pymethods.rs:33:45
    |
 33 |     fn classmethod_wrong_first_argument(_t: NotATypeObject) -> Self {
-   |                                             ^^^^^^^^^^^^^^ the trait `From<BoundRef<'_, '_, PyType>>` is not implemented for `NotATypeObject`
+   |                                             ^^^^^^^^^^^^^^ unsatisfied trait bound
    |
+help: the trait `From<BoundRef<'_, '_, PyType>>` is not implemented for `NotATypeObject`
+  --> tests/ui/invalid_pymethods.rs:28:1
+   |
+28 | struct NotATypeObject;
+   | ^^^^^^^^^^^^^^^^^^^^^
    = note: required for `BoundRef<'_, '_, PyType>` to implement `Into<NotATypeObject>`

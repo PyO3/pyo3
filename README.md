@@ -4,7 +4,7 @@
 [![benchmark](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/PyO3/pyo3)
 [![codecov](https://img.shields.io/codecov/c/gh/PyO3/pyo3?logo=codecov)](https://codecov.io/gh/PyO3/pyo3)
 [![crates.io](https://img.shields.io/crates/v/pyo3?logo=rust)](https://crates.io/crates/pyo3)
-[![minimum rustc 1.63](https://img.shields.io/badge/rustc-1.63+-blue?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![minimum rustc 1.83](https://img.shields.io/badge/rustc-1.83+-blue?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![discord server](https://img.shields.io/discord/1209263839632424990?logo=discord)](https://discord.gg/33kcChzH7f)
 [![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green?logo=github)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
@@ -16,12 +16,12 @@
 
 ## Usage
 
-Requires Rust 1.74 or greater.
+Requires Rust 1.83 or greater.
 
 PyO3 supports the following Python distributions:
   - CPython 3.7 or greater
-  - PyPy 7.3 (Python 3.9+)
-  - GraalPy 24.2 or greater (Python 3.11+)
+  - PyPy 7.3 (Python 3.11+)
+  - GraalPy 25.0 or greater (Python 3.12+)
 
 You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.
 
@@ -71,27 +71,24 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.26.0", features = ["extension-module"] }
+pyo3 = "0.28.2"
 ```
 
 **`src/lib.rs`**
 
 ```rust
-use pyo3::prelude::*;
-
-/// Formats the sum of two numbers as string.
-#[pyfunction]
-fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-    Ok((a + b).to_string())
-}
-
-/// A Python module implemented in Rust. The name of this function must match
+/// A Python module implemented in Rust. The name of this module must match
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
-#[pymodule]
-fn string_sum(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
-    Ok(())
+#[pyo3::pymodule]
+mod string_sum {
+  use pyo3::prelude::*;
+
+  /// Formats the sum of two numbers as string.
+  #[pyfunction]
+  fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
+    Ok((a + b).to_string())
+  }
 }
 ```
 
@@ -140,7 +137,8 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.26.0"
+version = "0.28.2"
+# Enabling this cargo feature will cause PyO3 to start a Python interpreter on first call to `Python::attach`
 features = ["auto-initialize"]
 ```
 
@@ -149,7 +147,6 @@ Example program displaying the value of `sys.version` and the current user name:
 ```rust
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
-use pyo3::ffi::c_str;
 
 fn main() -> PyResult<()> {
     Python::attach(|py| {
@@ -157,7 +154,7 @@ fn main() -> PyResult<()> {
         let version: String = sys.getattr("version")?.extract()?;
 
         let locals = [("os", py.import("os")?)].into_py_dict(py)?;
-        let code = c_str!("os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'");
+        let code = c"os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
         let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 
         println!("Hello {}, I'm Python {}", user, version);
@@ -186,6 +183,7 @@ about this topic.
 
 ## Examples
 
+- [anise](https://github.com/nyx-space/anise) _A modern, high-performance toolkit for spacecraft mission design, notably used to help softly land Firefly Blue Ghost on the Moon on 02 Feb 2025._
 - [arro3](https://github.com/kylebarron/arro3) _A minimal Python library for Apache Arrow, connecting to the Rust arrow crate._
     - [arro3-compute](https://github.com/kylebarron/arro3/tree/main/arro3-compute) _`arro3-compute`_
     - [arro3-core](https://github.com/kylebarron/arro3/tree/main/arro3-core) _`arro3-core`_
@@ -202,12 +200,14 @@ about this topic.
 - [deltalake-python](https://github.com/delta-io/delta-rs/tree/main/python) _Native Delta Lake Python binding based on delta-rs with Pandas integration._
 - [fastbloom](https://github.com/yankun1992/fastbloom) _A fast [bloom filter](https://github.com/yankun1992/fastbloom#BloomFilter) | [counting bloom filter](https://github.com/yankun1992/fastbloom#countingbloomfilter) implemented by Rust for Rust and Python!_
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
+- [fast-paseto](https://github.com/CodingCogs-OSS/Fast-Paseto) _High-performance PASETO (Platform-Agnostic Security Tokens) implementation with Python bindings._
 - [feos](https://github.com/feos-org/feos) _Lightning fast thermodynamic modeling in Rust with fully developed Python interface._
 - [finalytics](https://github.com/Nnamdi-sys/finalytics) _Investment Analysis library in Rust | Python._
 - [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
 - [geo-index](https://github.com/kylebarron/geo-index) _A Rust crate and [Python library](https://github.com/kylebarron/geo-index/tree/main/python) for packed, immutable, zero-copy spatial indexes._
 - [granian](https://github.com/emmett-framework/granian) _A Rust HTTP server for Python applications._
 - [haem](https://github.com/BooleanCat/haem) _A Python library for working on Bioinformatics problems._
+- [hifitime](https://github.com/nyx-space/hifitime) _A high fidelity time management library for engineering and scientific applications where general relativity and time dilation matter._
 - [html2text-rs](https://github.com/deedy5/html2text_rs) _Python library for converting HTML to markup or plain text._
 - [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
 - [hudi-rs](https://github.com/apache/hudi-rs) _The native Rust implementation for Apache Hudi, with C++ & Python API bindings._
@@ -223,6 +223,7 @@ about this topic.
 - [pycrdt](https://github.com/jupyter-server/pycrdt) _Python bindings for the Rust CRDT implementation [Yrs](https://github.com/y-crdt/y-crdt)._
 - [pydantic-core](https://github.com/pydantic/pydantic-core) _Core validation logic for pydantic written in Rust._
 - [primp](https://github.com/deedy5/primp) _The fastest python HTTP client that can impersonate web browsers by mimicking their headers and TLS/JA3/JA4/HTTP2 fingerprints._
+- [radiate](https://github.com/pkalivas/radiate): _A high-performance evolution engine for genetic programming and evolutionary algorithms._
 - [rateslib](https://github.com/attack68/rateslib) _A fixed income library for Python using Rust extensions._
 - [river](https://github.com/online-ml/river) _Online machine learning in python, the computationally heavy statistics algorithms are implemented in Rust._
 - [robyn](https://github.com/sparckles/Robyn) A Super Fast Async Python Web Framework with a Rust runtime.
@@ -232,6 +233,7 @@ about this topic.
 - [tiktoken](https://github.com/openai/tiktoken) _A fast BPE tokeniser for use with OpenAI's models._
 - [tokenizers](https://github.com/huggingface/tokenizers/tree/main/bindings/python) _Python bindings to the Hugging Face tokenizers (NLP) written in Rust._
 - [tzfpy](http://github.com/ringsaturn/tzfpy) _A fast package to convert longitude/latitude to timezone name._
+- [toml-rs](https://github.com/lava-sh/toml-rs) _A High-Performance TOML v1.0.0 and v1.1.0 parser for Python written in Rust._
 - [utiles](https://github.com/jessekrubin/utiles) _Fast Python web-map tile utilities_
 
 ## Articles and other media

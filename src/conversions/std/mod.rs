@@ -1,8 +1,9 @@
 mod array;
 mod cell;
+mod cstring;
 mod ipaddr;
 mod map;
-mod num;
+pub(crate) mod num;
 mod option;
 mod osstr;
 mod path;

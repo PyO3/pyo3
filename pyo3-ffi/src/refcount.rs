@@ -1,8 +1,8 @@
 use crate::pyport::Py_ssize_t;
 use crate::PyObject;
-#[cfg(py_sys_config = "Py_REF_DEBUG")]
+#[cfg(all(not(Py_LIMITED_API), py_sys_config = "Py_REF_DEBUG"))]
 use std::ffi::c_char;
-#[cfg(Py_3_12)]
+#[cfg(any(Py_3_12, all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API))))]
 use std::ffi::c_int;
 #[cfg(all(Py_3_14, any(not(Py_GIL_DISABLED), target_pointer_width = "32")))]
 use std::ffi::c_long;
@@ -14,8 +14,10 @@ use std::ptr;
 #[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::Ordering::Relaxed;
 
-#[cfg(Py_3_14)]
+#[cfg(all(Py_3_14, not(Py_3_15)))]
 const _Py_STATICALLY_ALLOCATED_FLAG: c_int = 1 << 7;
+#[cfg(Py_3_15)]
+pub(crate) const _Py_STATICALLY_ALLOCATED_FLAG: c_int = 1 << 2;
 
 #[cfg(all(Py_3_12, not(Py_3_14)))]
 const _Py_IMMORTAL_REFCNT: Py_ssize_t = {

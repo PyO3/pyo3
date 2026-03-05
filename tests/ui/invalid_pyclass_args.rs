@@ -110,7 +110,7 @@ struct Coord(u32, u32, u32);
 #[derive(PartialEq)]
 struct Coord2(u32, u32, u32);
 
-#[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}")]
+#[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}", skip_from_py_object)]
 #[derive(PartialEq, Eq, Clone, PartialOrd)]
 pub struct Point {
     x: i32,
@@ -118,7 +118,7 @@ pub struct Point {
     z: i32,
 }
 
-#[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}")]
+#[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}", skip_from_py_object)]
 #[derive(PartialEq, Eq, Clone, PartialOrd)]
 pub struct Point2 {
     x: i32,
@@ -178,6 +178,43 @@ pub enum MyEnumInvalidStrFmt {
 impl Display for MyEnumInvalidStrFmt {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
+    }
+}
+
+#[pyclass(from_py_object, skip_from_py_object)]
+struct StructTooManyFromPyObject {
+    a: String,
+    b: String,
+}
+
+#[pyclass(from_py_object)]
+struct StructFromPyObjectNoClone {
+    a: String,
+    b: String,
+}
+
+#[pyclass]
+#[derive(Clone)]
+struct StructImplicitFromPyObjectDeprecated {
+    a: String,
+    b: String,
+}
+
+#[pyclass(new = "from_fields")]
+struct NonPythonField {
+    field: Box<dyn std::error::Error + Send + Sync>,
+}
+
+#[pyclass(new = "from_fields")]
+struct NewFromFieldsWithManualNew {
+    field: i32,
+}
+
+#[pymethods]
+impl NewFromFieldsWithManualNew {
+    #[new]
+    fn new(field: i32) -> Self {
+        Self { field }
     }
 }
 

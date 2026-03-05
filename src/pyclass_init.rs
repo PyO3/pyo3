@@ -1,18 +1,11 @@
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::impl_::callback::IntoPyCallbackOutput;
-use crate::impl_::pyclass::{PyClassBaseType, PyClassDict, PyClassThreadChecker, PyClassWeakRef};
+use crate::impl_::pyclass::{PyClassBaseType, PyClassImpl};
 use crate::impl_::pyclass_init::{PyNativeTypeInitializer, PyObjectInit};
-use crate::{ffi, Bound, Py, PyClass, PyResult, Python};
-use crate::{
-    ffi::PyTypeObject,
-    pycell::impl_::{PyClassBorrowChecker, PyClassMutability, PyClassObjectContents},
-};
-use std::{
-    cell::UnsafeCell,
-    marker::PhantomData,
-    mem::{ManuallyDrop, MaybeUninit},
-};
+use crate::pycell::impl_::PyClassObjectLayout;
+use crate::{ffi, Bound, PyClass, PyResult, Python};
+use crate::{ffi::PyTypeObject, pycell::impl_::PyClassObjectContents};
+use std::marker::PhantomData;
 
 /// Initializer for our `#[pyclass]` system.
 ///
@@ -63,14 +56,9 @@ use std::{
 ///     );
 /// });
 /// ```
-pub struct PyClassInitializer<T: PyClass>(PyClassInitializerImpl<T>);
-
-enum PyClassInitializerImpl<T: PyClass> {
-    Existing(Py<T>),
-    New {
-        init: T,
-        super_init: <T::BaseType as PyClassBaseType>::Initializer,
-    },
+pub struct PyClassInitializer<T: PyClass> {
+    init: T,
+    super_init: <T::BaseType as PyClassBaseType>::Initializer,
 }
 
 impl<T: PyClass> PyClassInitializer<T> {
@@ -80,12 +68,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     #[track_caller]
     #[inline]
     pub fn new(init: T, super_init: <T::BaseType as PyClassBaseType>::Initializer) -> Self {
-        // This is unsound; see https://github.com/PyO3/pyo3/issues/4452.
-        assert!(
-            super_init.can_be_subclassed(),
-            "you cannot add a subclass to an existing value",
-        );
-        Self(PyClassInitializerImpl::New { init, super_init })
+        Self { init, super_init }
     }
 
     /// Constructs a new initializer from an initializer for the base class.
@@ -138,8 +121,8 @@ impl<T: PyClass> PyClassInitializer<T> {
     #[inline]
     pub fn add_subclass<S>(self, subclass_value: S) -> PyClassInitializer<S>
     where
+        T: PyClassBaseType<Initializer = Self>,
         S: PyClass<BaseType = T>,
-        S::BaseType: PyClassBaseType<Initializer = Self>,
     {
         PyClassInitializer::new(subclass_value, self)
     }
@@ -164,34 +147,13 @@ impl<T: PyClass> PyClassInitializer<T> {
     where
         T: PyClass,
     {
-        /// Layout of a PyClassObject after base new has been called, but the contents have not yet been
-        /// written.
-        #[repr(C)]
-        struct PartiallyInitializedClassObject<T: PyClass> {
-            _ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
-            contents: MaybeUninit<PyClassObjectContents<T>>,
-        }
+        let obj = unsafe { self.super_init.into_new_object(py, target_type)? };
 
-        let (init, super_init) = match self.0 {
-            PyClassInitializerImpl::Existing(value) => return Ok(value.into_bound(py)),
-            PyClassInitializerImpl::New { init, super_init } => (init, super_init),
-        };
-
-        let obj = unsafe { super_init.into_new_object(py, target_type)? };
-
-        let part_init: *mut PartiallyInitializedClassObject<T> = obj.cast();
-        unsafe {
-            std::ptr::write(
-                (*part_init).contents.as_mut_ptr(),
-                PyClassObjectContents {
-                    value: ManuallyDrop::new(UnsafeCell::new(init)),
-                    borrow_checker: <T::PyClassMutability as PyClassMutability>::Storage::new(),
-                    thread_checker: T::ThreadChecker::new(),
-                    dict: T::Dict::INIT,
-                    weakref: T::WeakRef::INIT,
-                },
-            );
-        }
+        // SAFETY: `obj` is constructed using `T::Layout` but has not been initialized yet
+        let contents = unsafe { <T as PyClassImpl>::Layout::contents_uninit(obj) };
+        // SAFETY: `contents` is a non-null pointer to the space allocated for our
+        // `PyClassObjectContents` (either statically in Rust or dynamically by Python)
+        unsafe { (*contents).write(PyClassObjectContents::new(self.init)) };
 
         // Safety: obj is a valid pointer to an object of type `target_type`, which` is a known
         // subclass of `T`
@@ -209,11 +171,6 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
             self.create_class_object_of_type(py, subtype)
                 .map(Bound::into_ptr)
         }
-    }
-
-    #[inline]
-    fn can_be_subclassed(&self) -> bool {
-        !matches!(self.0, PyClassInitializerImpl::Existing(..))
     }
 }
 
@@ -239,56 +196,5 @@ where
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
         let (sub, base) = sub_and_base;
         PyClassInitializer::from(base).add_subclass(sub)
-    }
-}
-
-impl<T: PyClass> From<Py<T>> for PyClassInitializer<T> {
-    #[inline]
-    fn from(value: Py<T>) -> PyClassInitializer<T> {
-        PyClassInitializer(PyClassInitializerImpl::Existing(value))
-    }
-}
-
-impl<'py, T: PyClass> From<Bound<'py, T>> for PyClassInitializer<T> {
-    #[inline]
-    fn from(value: Bound<'py, T>) -> PyClassInitializer<T> {
-        PyClassInitializer::from(value.unbind())
-    }
-}
-
-// Implementation used by proc macros to allow anything convertible to PyClassInitializer<T> to be
-// the return value of pyclass #[new] method (optionally wrapped in `Result<U, E>`).
-impl<T, U> IntoPyCallbackOutput<'_, PyClassInitializer<T>> for U
-where
-    T: PyClass,
-    U: Into<PyClassInitializer<T>>,
-{
-    #[inline]
-    fn convert(self, _py: Python<'_>) -> PyResult<PyClassInitializer<T>> {
-        Ok(self.into())
-    }
-}
-
-#[cfg(all(test, feature = "macros"))]
-mod tests {
-    //! See https://github.com/PyO3/pyo3/issues/4452.
-
-    use crate::prelude::*;
-
-    #[pyclass(crate = "crate", subclass)]
-    struct BaseClass {}
-
-    #[pyclass(crate = "crate", extends=BaseClass)]
-    struct SubClass {
-        _data: i32,
-    }
-
-    #[test]
-    #[should_panic]
-    fn add_subclass_to_py_is_unsound() {
-        Python::attach(|py| {
-            let base = Py::new(py, BaseClass {}).unwrap();
-            let _subclass = PyClassInitializer::from(base).add_subclass(SubClass { _data: 42 });
-        });
     }
 }

@@ -1,6 +1,8 @@
-use crate::ffi::{self, *};
-use crate::types::any::PyAnyMethods;
+use crate::ffi::*;
 use crate::Python;
+
+#[cfg(not(Py_LIMITED_API))]
+use crate::types::any::PyAnyMethods;
 
 #[cfg(all(not(Py_LIMITED_API), any(not(any(PyPy, GraalPy)), feature = "macros")))]
 use crate::types::PyString;
@@ -24,7 +26,7 @@ fn test_datetime_fromtimestamp() {
         let locals = PyDict::new(py);
         locals.set_item("dt", dt).unwrap();
         py.run(
-            ffi::c_str!("import datetime; assert dt == datetime.datetime.fromtimestamp(100)"),
+            c"import datetime; assert dt == datetime.datetime.fromtimestamp(100)",
             None,
             Some(&locals),
         )
@@ -46,7 +48,7 @@ fn test_date_fromtimestamp() {
         let locals = PyDict::new(py);
         locals.set_item("dt", dt).unwrap();
         py.run(
-            ffi::c_str!("import datetime; assert dt == datetime.date.fromtimestamp(100)"),
+            c"import datetime; assert dt == datetime.date.fromtimestamp(100)",
             None,
             Some(&locals),
         )
@@ -66,7 +68,7 @@ fn test_utc_timezone() {
         let locals = PyDict::new(py);
         locals.set_item("utc_timezone", utc_timezone).unwrap();
         py.run(
-            ffi::c_str!("import datetime; assert utc_timezone is datetime.timezone.utc"),
+            c"import datetime; assert utc_timezone is datetime.timezone.utc",
             None,
             Some(&locals),
         )
@@ -262,7 +264,6 @@ fn ucs4() {
 #[test]
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
-#[cfg(not(all(PyPy, not(Py_3_10))))]
 fn test_get_tzinfo() {
     use crate::types::PyTzInfo;
 
@@ -303,18 +304,18 @@ fn test_get_tzinfo() {
 #[test]
 fn test_inc_dec_ref() {
     Python::attach(|py| {
-        let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+        let obj = py.eval(c"object()", None, None).unwrap();
 
-        let ref_count = obj.get_refcnt();
+        let ref_count = obj._get_refcnt();
         let ptr = obj.as_ptr();
 
         unsafe { Py_INCREF(ptr) };
 
-        assert_eq!(obj.get_refcnt(), ref_count + 1);
+        assert_eq!(obj._get_refcnt(), ref_count + 1);
 
         unsafe { Py_DECREF(ptr) };
 
-        assert_eq!(obj.get_refcnt(), ref_count);
+        assert_eq!(obj._get_refcnt(), ref_count);
     })
 }
 
@@ -324,15 +325,15 @@ fn test_inc_dec_ref_immortal() {
     Python::attach(|py| {
         let obj = py.None();
 
-        let ref_count = obj.get_refcnt(py);
+        let ref_count = obj._get_refcnt(py);
         let ptr = obj.as_ptr();
 
         unsafe { Py_INCREF(ptr) };
 
-        assert_eq!(obj.get_refcnt(py), ref_count);
+        assert_eq!(obj._get_refcnt(py), ref_count);
 
         unsafe { Py_DECREF(ptr) };
 
-        assert_eq!(obj.get_refcnt(py), ref_count);
+        assert_eq!(obj._get_refcnt(py), ref_count);
     })
 }

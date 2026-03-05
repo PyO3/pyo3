@@ -5,10 +5,9 @@ use std::collections::HashMap;
 
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 use pyo3::exceptions::PyWarning;
 use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
-use pyo3::ffi::c_str;
 use pyo3::prelude::*;
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::types::PyDateTime;
@@ -46,6 +45,32 @@ fn test_optional_bool() {
         py_assert!(py, f, "f(True) == 'Some(true)'");
         py_assert!(py, f, "f(False) == 'Some(false)'");
         py_assert!(py, f, "f(None) == 'None'");
+    });
+}
+
+#[test]
+fn test_trailing_optional_no_signature() {
+    // Since PyO3 0.24, trailing optional arguments are treated like any other required argument
+    // (previously would get an implicit default of `None`)
+
+    #[pyfunction]
+    fn trailing_optional(x: i32, y: Option<i32>) -> String {
+        format!("x={x:?} y={y:?}")
+    }
+
+    Python::attach(|py| {
+        let f = wrap_pyfunction!(trailing_optional)(py).unwrap();
+
+        py_assert!(py, f, "f(1, 2) == 'x=1 y=Some(2)'");
+        py_assert!(py, f, "f(2, None) == 'x=2 y=None'");
+
+        py_expect_exception!(
+            py,
+            f,
+            "f(3)",
+            PyTypeError,
+            "trailing_optional() missing 1 required positional argument: 'y'"
+        );
     });
 }
 
@@ -221,7 +246,7 @@ fn test_function_with_custom_conversion_error() {
             custom_conv_func,
             "custom_conv_func(['a'])",
             PyTypeError,
-            "argument 'timestamp': 'list' object cannot be converted to 'PyDateTime'"
+            "argument 'timestamp': 'list' object is not an instance of 'datetime'"
         );
     });
 }
@@ -293,14 +318,14 @@ fn test_conversion_error() {
             conversion_error,
             "conversion_error(None, None, None, None, None)",
             PyTypeError,
-            "argument 'str_arg': 'NoneType' object cannot be converted to 'PyString'"
+            "argument 'str_arg': 'None' is not an instance of 'str'"
         );
         py_expect_exception!(
             py,
             conversion_error,
             "conversion_error(100, None, None, None, None)",
             PyTypeError,
-            "argument 'str_arg': 'int' object cannot be converted to 'PyString'"
+            "argument 'str_arg': 'int' object is not an instance of 'str'"
         );
         py_expect_exception!(
             py,
@@ -314,7 +339,7 @@ fn test_conversion_error() {
             conversion_error,
             "conversion_error('string1', -100, 'string2', None, None)",
             PyTypeError,
-            "argument 'tuple_arg': 'str' object cannot be converted to 'PyTuple'"
+            "argument 'tuple_arg': 'str' object is not an instance of 'tuple'"
         );
         py_expect_exception!(
             py,
@@ -385,8 +410,8 @@ fn test_pycfunction_new() {
         let py_fn = PyCFunction::new(
             py,
             c_fn,
-            c_str!("py_fn"),
-            c_str!("py_fn for test (this is the docstring)"),
+            c"py_fn",
+            c"py_fn for test (this is the docstring)",
             None,
         )
         .unwrap();
@@ -423,17 +448,13 @@ fn test_pycfunction_new_with_keywords() {
             let mut args_names = [foo_name.into_raw(), kw_bar_name.into_raw(), ptr::null_mut()];
 
             #[cfg(Py_3_13)]
-            let args_names = [
-                c_str!("foo").as_ptr(),
-                c_str!("kw_bar").as_ptr(),
-                ptr::null_mut(),
-            ];
+            let args_names = [c"foo".as_ptr(), c"kw_bar".as_ptr(), ptr::null_mut()];
 
             unsafe {
                 ffi::PyArg_ParseTupleAndKeywords(
                     args,
                     kwds,
-                    c_str!("l|l").as_ptr(),
+                    c"l|l".as_ptr(),
                     #[cfg(Py_3_13)]
                     args_names.as_ptr(),
                     #[cfg(not(Py_3_13))]
@@ -454,8 +475,8 @@ fn test_pycfunction_new_with_keywords() {
         let py_fn = PyCFunction::new_with_keywords(
             py,
             c_fn,
-            c_str!("py_fn"),
-            c_str!("py_fn for test (this is the docstring)"),
+            c"py_fn",
+            c"py_fn for test (this is the docstring)",
             None,
         )
         .unwrap();
@@ -496,8 +517,7 @@ fn test_closure() {
             })
         };
         let closure_py =
-            PyCFunction::new_closure(py, Some(c_str!("test_fn")), Some(c_str!("test_fn doc")), f)
-                .unwrap();
+            PyCFunction::new_closure(py, Some(c"test_fn"), Some(c"test_fn doc"), f).unwrap();
 
         py_assert!(py, closure_py, "closure_py(42) == [43]");
         py_assert!(py, closure_py, "closure_py.__name__ == 'test_fn'");
@@ -588,8 +608,10 @@ fn test_return_value_borrows_from_arguments() {
 
 #[test]
 fn test_some_wrap_arguments() {
-    // https://github.com/PyO3/pyo3/issues/3460
-    #[allow(unused)]
+    // Option<T> arguments get special treatment in pyfunction default values where it's
+    // valid to pass the inner type without wrapping in `Some()`.
+    //
+    // See also https://github.com/PyO3/pyo3/issues/3460
     const NONE: Option<u8> = None;
     #[pyfunction(signature = (a = 1, b = Some(2), c = None, d = NONE))]
     fn some_wrap_arguments(
@@ -652,11 +674,11 @@ fn test_pyfunction_raw_ident() {
     })
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 #[pyclass(extends=PyWarning)]
 pub struct UserDefinedWarning {}
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 #[pymethods]
 impl UserDefinedWarning {
     #[new]
@@ -669,52 +691,52 @@ impl UserDefinedWarning {
 #[test]
 fn test_pyfunction_warn() {
     #[pyfunction]
-    #[pyo3(warn(message = "this function raises warning"))]
+    #[pyo3(warn(message = "TPW: this function raises warning"))]
     fn function_with_warning() {}
 
     py_expect_warning_for_fn!(
         function_with_warning,
         f,
-        [("this function raises warning", PyUserWarning)]
+        [("TPW: this function raises warning", PyUserWarning)]
     );
 
     #[pyfunction]
-    #[pyo3(warn(message = "this function raises warning with category", category = PyFutureWarning))]
+    #[pyo3(warn(message = "TPW: this function raises warning with category", category = PyFutureWarning))]
     fn function_with_warning_with_category() {}
 
     py_expect_warning_for_fn!(
         function_with_warning_with_category,
         f,
         [(
-            "this function raises warning with category",
+            "TPW: this function raises warning with category",
             PyFutureWarning
         )]
     );
 
     #[pyfunction]
-    #[pyo3(warn(message = "custom deprecated category", category = pyo3::exceptions::PyDeprecationWarning))]
+    #[pyo3(warn(message = "TPW: custom deprecated category", category = pyo3::exceptions::PyDeprecationWarning))]
     fn function_with_warning_with_custom_category() {}
 
     py_expect_warning_for_fn!(
         function_with_warning_with_custom_category,
         f,
         [(
-            "custom deprecated category",
+            "TPW: custom deprecated category",
             pyo3::exceptions::PyDeprecationWarning
         )]
     );
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
     #[pyfunction]
-    #[pyo3(warn(message = "this function raises user-defined warning", category = UserDefinedWarning))]
+    #[pyo3(warn(message = "TPW: this function raises user-defined warning", category = UserDefinedWarning))]
     fn function_with_warning_and_user_defined_category() {}
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
     py_expect_warning_for_fn!(
         function_with_warning_and_user_defined_category,
         f,
         [(
-            "this function raises user-defined warning",
+            "TPW: this function raises user-defined warning",
             UserDefinedWarning
         )]
     );
@@ -723,23 +745,23 @@ fn test_pyfunction_warn() {
 #[test]
 fn test_pyfunction_multiple_warnings() {
     #[pyfunction]
-    #[pyo3(warn(message = "this function raises warning"))]
-    #[pyo3(warn(message = "this function raises FutureWarning", category = PyFutureWarning))]
+    #[pyo3(warn(message = "TPMW: this function raises warning"))]
+    #[pyo3(warn(message = "TPMW: this function raises FutureWarning", category = PyFutureWarning))]
     fn function_with_multiple_warnings() {}
 
     py_expect_warning_for_fn!(
         function_with_multiple_warnings,
         f,
         [
-            ("this function raises warning", PyUserWarning),
-            ("this function raises FutureWarning", PyFutureWarning)
+            ("TPMW: this function raises warning", PyUserWarning),
+            ("TPMW: this function raises FutureWarning", PyFutureWarning)
         ]
     );
 
     #[cfg(not(Py_LIMITED_API))]
     #[pyfunction]
-    #[pyo3(warn(message = "this function raises FutureWarning", category = PyFutureWarning))]
-    #[pyo3(warn(message = "this function raises user-defined warning", category = UserDefinedWarning))]
+    #[pyo3(warn(message = "TPMW: this function raises FutureWarning", category = PyFutureWarning))]
+    #[pyo3(warn(message = "TPMW: this function raises user-defined warning", category = UserDefinedWarning))]
     fn function_with_multiple_custom_warnings() {}
 
     #[cfg(not(Py_LIMITED_API))]
@@ -747,9 +769,9 @@ fn test_pyfunction_multiple_warnings() {
         function_with_multiple_custom_warnings,
         f,
         [
-            ("this function raises FutureWarning", PyFutureWarning),
+            ("TPMW: this function raises FutureWarning", PyFutureWarning),
             (
-                "this function raises user-defined warning",
+                "TPMW: this function raises user-defined warning",
                 UserDefinedWarning
             )
         ]

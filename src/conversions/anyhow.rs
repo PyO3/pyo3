@@ -120,8 +120,8 @@ impl From<anyhow::Error> for PyErr {
 #[cfg(test)]
 mod test_anyhow {
     use crate::exceptions::{PyRuntimeError, PyValueError};
+    use crate::prelude::*;
     use crate::types::IntoPyDict;
-    use crate::{ffi, prelude::*};
 
     use anyhow::{anyhow, bail, Context, Result};
 
@@ -146,9 +146,7 @@ mod test_anyhow {
 
         Python::attach(|py| {
             let locals = [("err", pyerr)].into_py_dict(py).unwrap();
-            let pyerr = py
-                .run(ffi::c_str!("raise err"), None, Some(&locals))
-                .unwrap_err();
+            let pyerr = py.run(c"raise err", None, Some(&locals)).unwrap_err();
             assert_eq!(pyerr.value(py).to_string(), expected_contents);
         })
     }
@@ -165,9 +163,7 @@ mod test_anyhow {
 
         Python::attach(|py| {
             let locals = [("err", pyerr)].into_py_dict(py).unwrap();
-            let pyerr = py
-                .run(ffi::c_str!("raise err"), None, Some(&locals))
-                .unwrap_err();
+            let pyerr = py.run(c"raise err", None, Some(&locals)).unwrap_err();
             assert_eq!(pyerr.value(py).to_string(), expected_contents);
         })
     }

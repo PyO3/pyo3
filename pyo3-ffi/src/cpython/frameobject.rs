@@ -1,10 +1,10 @@
 #[cfg(not(GraalPy))]
-use crate::cpython::code::PyCodeObject;
-#[cfg(not(GraalPy))]
 use crate::object::*;
 #[cfg(not(GraalPy))]
-use crate::pystate::PyThreadState;
+use crate::PyCodeObject;
 use crate::PyFrameObject;
+#[cfg(not(GraalPy))]
+use crate::PyThreadState;
 #[cfg(not(any(PyPy, GraalPy, Py_3_11)))]
 use std::ffi::c_char;
 use std::ffi::c_int;

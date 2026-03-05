@@ -73,28 +73,20 @@ def test_complex_enum_field_getters():
 )
 def test_complex_enum_desugared_match(variant: enums.ComplexEnum):
     if isinstance(variant, enums.ComplexEnum.Int):
-        x = variant.i
-        assert x == 42
+        assert variant.i == 42
     elif isinstance(variant, enums.ComplexEnum.Float):
-        x = variant.f
-        assert x == 3.14
+        assert variant.f == 3.14
     elif isinstance(variant, enums.ComplexEnum.Str):
-        x = variant.s
-        assert x == "hello"
+        assert variant.s == "hello"
     elif isinstance(variant, enums.ComplexEnum.EmptyStruct):
         assert True
     elif isinstance(variant, enums.ComplexEnum.MultiFieldStruct):
-        x = variant.a
-        y = variant.b
-        z = variant.c
-        assert x == 42
-        assert y == 3.14
-        assert z is True
+        assert variant.a == 42
+        assert variant.b == 3.14
+        assert variant.c is True
     elif isinstance(variant, enums.ComplexEnum.VariantWithDefault):
-        x = variant.a
-        y = variant.b
-        assert x == 42
-        assert y is None
+        assert variant.a == 42
+        assert variant.b is None
     else:
         assert False
 
@@ -113,28 +105,20 @@ def test_complex_enum_desugared_match(variant: enums.ComplexEnum):
 def test_complex_enum_pyfunction_in_out_desugared_match(variant: enums.ComplexEnum):
     variant = enums.do_complex_stuff(variant)
     if isinstance(variant, enums.ComplexEnum.Int):
-        x = variant.i
-        assert x == 5
+        assert variant.i == 5
     elif isinstance(variant, enums.ComplexEnum.Float):
-        x = variant.f
-        assert x == 9.8596
+        assert variant.f == 9.8596
     elif isinstance(variant, enums.ComplexEnum.Str):
-        x = variant.s
-        assert x == "42"
+        assert variant.s == "42"
     elif isinstance(variant, enums.ComplexEnum.EmptyStruct):
         assert True
     elif isinstance(variant, enums.ComplexEnum.MultiFieldStruct):
-        x = variant.a
-        y = variant.b
-        z = variant.c
-        assert x == 42
-        assert y == 3.14
-        assert z is True
+        assert variant.a == 42
+        assert variant.b == 3.14
+        assert variant.c is True
     elif isinstance(variant, enums.ComplexEnum.VariantWithDefault):
-        x = variant.a
-        y = variant.b
-        assert x == 84
-        assert y == "HELLO"
+        assert variant.a == 84
+        assert variant.b == "HELLO"
     else:
         assert False
 

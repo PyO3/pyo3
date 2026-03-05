@@ -219,7 +219,7 @@ mod nightly {
         /// });
         /// ```
         ///
-        /// This applies to the GIL token `Python` itself as well, e.g.
+        /// This applies to the [`Python`] token itself as well, e.g.
         ///
         /// ```compile_fail
         /// # use pyo3::prelude::*;
@@ -357,17 +357,6 @@ pub struct Python<'py>(PhantomData<&'py AttachGuard>, PhantomData<NotSend>);
 struct NotSend(PhantomData<*mut Python<'static>>);
 
 impl Python<'_> {
-    /// See [Python::attach]
-    #[inline]
-    #[track_caller]
-    #[deprecated(note = "use `Python::attach` instead", since = "0.26.0")]
-    pub fn with_gil<F, R>(f: F) -> R
-    where
-        F: for<'py> FnOnce(Python<'py>) -> R,
-    {
-        Self::attach(f)
-    }
-
     /// Acquires the global interpreter lock, allowing access to the Python interpreter. The
     /// provided closure `F` will be executed with the acquired `Python` marker token.
     ///
@@ -393,7 +382,8 @@ impl Python<'_> {
     /// - If the [`auto-initialize`] feature is not enabled and the Python interpreter is not
     ///   initialized.
     /// - If the Python interpreter is in the process of [shutting down].
-    /// - If the middle of GC traversal.
+    /// - If the current thread is currently in the middle of a GC traversal (i.e. called from
+    ///   within a `__traverse__` method).
     ///
     /// To avoid possible initialization or panics if calling in a context where the Python
     /// interpreter might be unavailable, consider using [`Python::try_attach`].
@@ -406,7 +396,7 @@ impl Python<'_> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
-    ///     let x: i32 = py.eval(c_str!("5"), None, None)?.extract()?;
+    ///     let x: i32 = py.eval(c"5", None, None)?.extract()?;
     ///     assert_eq!(x, 5);
     ///     Ok(())
     /// })
@@ -427,9 +417,14 @@ impl Python<'_> {
 
     /// Variant of [`Python::attach`] which will return without attaching to the Python
     /// interpreter if the interpreter is in a state where it cannot be attached to:
-    /// - in the middle of GC traversal
-    /// - in the process of shutting down
-    /// - not initialized
+    ///
+    /// - If the Python interpreter is not initialized.
+    /// - If the Python interpreter is in the process of [shutting down].
+    /// - If the current thread is currently in the middle of a GC traversal (i.e. called from
+    ///   within a `__traverse__` method).
+    ///
+    /// Unlike `Python::attach`, this function will not initialize the Python interpreter,
+    /// even if the [`auto-initialize`] feature is enabled.
     ///
     /// Note that due to the nature of the underlying Python APIs used to implement this,
     /// the behavior is currently provided on a best-effort basis; it is expected that a
@@ -437,6 +432,9 @@ impl Python<'_> {
     /// function is still recommended for use in the meanwhile as it provides the best
     /// possible behaviour and should transparently change to an optimal implementation
     /// once such APIs are available.
+    ///
+    /// [`auto-initialize`]: https://pyo3.rs/main/features.html#auto-initialize
+    /// [shutting down]: https://docs.python.org/3/glossary.html#term-interpreter-shutdown
     #[inline]
     #[track_caller]
     pub fn try_attach<F, R>(f: F) -> Option<R>
@@ -466,26 +464,12 @@ impl Python<'_> {
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::initialize();
-    /// Python::attach(|py| py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None))
+    /// Python::attach(|py| py.run(c"print('Hello World')", None, None))
     /// # }
     /// ```
     #[cfg(not(any(PyPy, GraalPy)))]
     pub fn initialize() {
         crate::interpreter_lifecycle::initialize();
-    }
-
-    /// See [Python::attach_unchecked]
-    /// # Safety
-    ///
-    /// If [`Python::attach`] would succeed, it is safe to call this function.
-    #[inline]
-    #[track_caller]
-    #[deprecated(note = "use `Python::attach_unchecked` instead", since = "0.26.0")]
-    pub unsafe fn with_gil_unchecked<F, R>(f: F) -> R
-    where
-        F: for<'py> FnOnce(Python<'py>) -> R,
-    {
-        unsafe { Self::attach_unchecked(f) }
     }
 
     /// Like [`Python::attach`] except Python interpreter state checking is skipped.
@@ -510,17 +494,6 @@ impl Python<'_> {
 }
 
 impl<'py> Python<'py> {
-    /// See [Python::detach]
-    #[inline]
-    #[deprecated(note = "use `Python::detach` instead", since = "0.26.0")]
-    pub fn allow_threads<T, F>(self, f: F) -> T
-    where
-        F: Ungil + FnOnce() -> T,
-        T: Ungil,
-    {
-        self.detach(f)
-    }
-
     /// Temporarily releases the GIL, thus allowing other Python threads to run. The GIL will be
     /// reacquired when `F`'s scope ends.
     ///
@@ -609,7 +582,7 @@ impl<'py> Python<'py> {
     /// # use pyo3::prelude::*;
     /// # use pyo3::ffi::c_str;
     /// # Python::attach(|py| {
-    /// let result = py.eval(c_str!("[i * 10 for i in range(5)]"), None, None).unwrap();
+    /// let result = py.eval(c"[i * 10 for i in range(5)]", None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
     /// assert_eq!(res, vec![0, 10, 20, 30, 40])
     /// # });
@@ -620,12 +593,7 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let code = PyCode::compile(
-            self,
-            code,
-            ffi::c_str!("<string>"),
-            crate::types::PyCodeInput::Eval,
-        )?;
+        let code = PyCode::compile(self, code, c"<string>", crate::types::PyCodeInput::Eval)?;
         code.run(globals, locals)
     }
 
@@ -646,12 +614,11 @@ impl<'py> Python<'py> {
     /// };
     /// Python::attach(|py| {
     ///     let locals = PyDict::new(py);
-    ///     py.run(c_str!(
-    ///         r#"
+    ///     py.run(cr#"
     /// import base64
     /// s = 'Hello Rust!'
     /// ret = base64.b64encode(s.encode('utf-8'))
-    /// "#),
+    /// "#,
     ///         None,
     ///         Some(&locals),
     ///     )
@@ -670,12 +637,7 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
-        let code = PyCode::compile(
-            self,
-            code,
-            ffi::c_str!("<string>"),
-            crate::types::PyCodeInput::File,
-        )?;
+        let code = PyCode::compile(self, code, c"<string>", crate::types::PyCodeInput::File)?;
         code.run(globals, locals).map(|obj| {
             debug_assert!(obj.is_none());
         })
@@ -808,15 +770,6 @@ impl<'py> Python<'py> {
 }
 
 impl<'unbound> Python<'unbound> {
-    /// Deprecated version of [`Python::assume_attached`]
-    ///
-    /// # Safety
-    /// See [`Python::assume_attached`]
-    #[inline]
-    #[deprecated(since = "0.26.0", note = "use `Python::assume_attached` instead")]
-    pub unsafe fn assume_gil_acquired() -> Python<'unbound> {
-        unsafe { Self::assume_attached() }
-    }
     /// Unsafely creates a Python token with an unbounded lifetime.
     ///
     /// Many of PyO3 APIs use [`Python<'_>`] as proof that the calling thread is attached to the
@@ -852,7 +805,7 @@ mod tests {
         Python::attach(|py| {
             // Make sure builtin names are accessible
             let v: i32 = py
-                .eval(ffi::c_str!("min(1, 2)"), None, None)
+                .eval(c"min(1, 2)", None, None)
                 .map_err(|e| e.display(py))
                 .unwrap()
                 .extract()
@@ -863,7 +816,7 @@ mod tests {
 
             // Inject our own global namespace
             let v: i32 = py
-                .eval(ffi::c_str!("foo + 29"), Some(&d), None)
+                .eval(c"foo + 29", Some(&d), None)
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -871,7 +824,7 @@ mod tests {
 
             // Inject our own local namespace
             let v: i32 = py
-                .eval(ffi::c_str!("foo + 29"), None, Some(&d))
+                .eval(c"foo + 29", None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -879,7 +832,7 @@ mod tests {
 
             // Make sure builtin names are still accessible when using a local namespace
             let v: i32 = py
-                .eval(ffi::c_str!("min(foo, 2)"), None, Some(&d))
+                .eval(c"min(foo, 2)", None, Some(&d))
                 .unwrap()
                 .extract()
                 .unwrap();
@@ -912,6 +865,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(panic = "unwind")]
     fn test_detach_panics_safely() {
         Python::attach(|py| {
             let result = std::panic::catch_unwind(|| unsafe {
@@ -976,7 +930,7 @@ mod tests {
             assert_eq!(py.Ellipsis().to_string(), "Ellipsis");
 
             let v = py
-                .eval(ffi::c_str!("..."), None, None)
+                .eval(c"...", None, None)
                 .map_err(|e| e.display(py))
                 .unwrap();
 
@@ -991,7 +945,7 @@ mod tests {
         Python::attach(|py| {
             let namespace = PyDict::new(py);
             py.run(
-                ffi::c_str!("class Foo: pass\na = int(3)"),
+                c"class Foo: pass\na = int(3)",
                 Some(&namespace),
                 Some(&namespace),
             )
@@ -1009,7 +963,7 @@ mod tests {
     fn test_py_run_inserts_globals_2() {
         use std::ffi::CString;
 
-        #[crate::pyclass(crate = "crate")]
+        #[crate::pyclass(crate = "crate", skip_from_py_object)]
         #[derive(Clone)]
         struct CodeRunner {
             code: CString,

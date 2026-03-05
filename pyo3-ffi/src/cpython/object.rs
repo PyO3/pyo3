@@ -268,10 +268,8 @@ pub struct PyTypeObject {
     pub tp_vectorcall: Option<vectorcallfunc>,
     #[cfg(Py_3_12)]
     pub tp_watched: c_char,
-    #[cfg(any(all(PyPy, Py_3_8, not(Py_3_10)), all(not(PyPy), Py_3_8, not(Py_3_9))))]
+    #[cfg(all(not(PyPy), Py_3_8, not(Py_3_9)))]
     pub tp_print: Option<printfunc>,
-    #[cfg(all(PyPy, not(Py_3_10)))]
-    pub tp_pypy_flags: std::ffi::c_long,
     #[cfg(py_sys_config = "COUNT_ALLOCS")]
     pub tp_allocs: Py_ssize_t,
     #[cfg(py_sys_config = "COUNT_ALLOCS")]
@@ -400,3 +398,23 @@ extern "C" {
 // skipped PyRefTracer
 // skipped PyRefTracer_SetTracer
 // skipped PyRefTracer_GetTracer
+
+#[cfg(Py_3_14)]
+extern "C" {
+    // skipped PyUnstable_Object_EnableDeferredRefcount
+
+    pub fn PyUnstable_Object_IsUniqueReferencedTemporary(obj: *mut PyObject) -> c_int;
+
+    // skipped PyUnstable_IsImmortal
+
+    pub fn PyUnstable_TryIncRef(obj: *mut PyObject) -> c_int;
+
+    pub fn PyUnstable_EnableTryIncRef(obj: *mut PyObject) -> c_void;
+
+    pub fn PyUnstable_Object_IsUniquelyReferenced(op: *mut PyObject) -> c_int;
+}
+
+#[cfg(Py_3_15)]
+extern "C" {
+    pub fn PyUnstable_SetImmortal(op: *mut PyObject) -> c_int;
+}

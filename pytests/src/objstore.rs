@@ -1,24 +1,24 @@
 use pyo3::prelude::*;
 
-#[pyclass]
-#[derive(Default)]
-pub struct ObjStore {
-    obj: Vec<Py<PyAny>>,
-}
+#[pymodule]
+pub mod objstore {
+    use pyo3::prelude::*;
 
-#[pymethods]
-impl ObjStore {
-    #[new]
-    fn new() -> Self {
-        ObjStore::default()
+    #[pyclass]
+    #[derive(Default)]
+    pub struct ObjStore {
+        obj: Vec<Py<PyAny>>,
     }
 
-    fn push(&mut self, obj: &Bound<'_, PyAny>) {
-        self.obj.push(obj.clone().unbind());
-    }
-}
+    #[pymethods]
+    impl ObjStore {
+        #[new]
+        fn new() -> Self {
+            ObjStore::default()
+        }
 
-#[pymodule(gil_used = false)]
-pub fn objstore(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<ObjStore>()
+        fn push(&mut self, obj: &Bound<'_, PyAny>) {
+            self.obj.push(obj.clone().unbind());
+        }
+    }
 }

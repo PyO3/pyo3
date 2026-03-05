@@ -19,50 +19,25 @@ use std::num::NonZero;
 #[repr(transparent)]
 pub struct PyList(PyAny);
 
-pyobject_native_type_core!(PyList, pyobject_native_static_type_object!(ffi::PyList_Type), #checkfunction=ffi::PyList_Check);
+pyobject_native_type_core!(
+    PyList,
+    pyobject_native_static_type_object!(ffi::PyList_Type),
+    "builtins", "list",
+    #checkfunction=ffi::PyList_Check
+);
 
-#[inline]
-#[track_caller]
-pub(crate) fn try_new_from_iter<'py>(
-    py: Python<'py>,
-    mut elements: impl ExactSizeIterator<Item = PyResult<Bound<'py, PyAny>>>,
-) -> PyResult<Bound<'py, PyList>> {
-    unsafe {
-        // PyList_New checks for overflow but has a bad error message, so we check ourselves
-        let len: Py_ssize_t = elements
-            .len()
-            .try_into()
-            .expect("out of range integral type conversion attempted on `elements.len()`");
-
-        let ptr = ffi::PyList_New(len);
-
-        // We create the `Bound` pointer here for two reasons:
-        // - panics if the ptr is null
-        // - its Drop cleans up the list if user code or the asserts panic.
-        let list = ptr.assume_owned(py).cast_into_unchecked();
-
-        let count = (&mut elements)
-            .take(len as usize)
-            .try_fold(0, |count, item| {
-                #[cfg(not(Py_LIMITED_API))]
-                ffi::PyList_SET_ITEM(ptr, count, item?.into_ptr());
-                #[cfg(Py_LIMITED_API)]
-                ffi::PyList_SetItem(ptr, count, item?.into_ptr());
-                Ok::<_, PyErr>(count + 1)
-            })?;
-
-        assert!(elements.next().is_none(), "Attempted to create PyList but `elements` was larger than reported by its `ExactSizeIterator` implementation.");
-        assert_eq!(len, count, "Attempted to create PyList but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
-
-        Ok(list)
-    }
+#[cfg(Py_3_12)]
+impl crate::impl_::pyclass::PyClassBaseType for PyList {
+    type LayoutAsBase = crate::impl_::pycell::PyVariableClassObjectBase;
+    type BaseNativeType = Self;
+    type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+    type PyClassMutability = crate::pycell::impl_::ImmutableClass;
+    type Layout<T: crate::impl_::pyclass::PyClassImpl> =
+        crate::impl_::pycell::PyVariableClassObject<T>;
 }
 
 impl PyList {
     /// Constructs a new list with the given elements.
-    ///
-    /// If you want to create a [`PyList`] with elements of different or unknown types, or from an
-    /// iterable that doesn't implement [`ExactSizeIterator`], use [`PyListMethods::append`].
     ///
     /// # Examples
     ///
@@ -82,20 +57,42 @@ impl PyList {
     ///
     /// # Panics
     ///
-    /// This function will panic if `element`'s [`ExactSizeIterator`] implementation is incorrect.
+    /// This function will panic if `element`'s [`Iterator::size_hint`] implementation is incorrect.
     /// All standard library structures implement this trait correctly, if they do, so calling this
     /// function with (for example) [`Vec`]`<T>` or `&[T]` will always succeed.
     #[track_caller]
-    pub fn new<'py, T, U>(
+    pub fn new<'py, T>(
         py: Python<'py>,
-        elements: impl IntoIterator<Item = T, IntoIter = U>,
+        elements: impl IntoIterator<Item = T>,
     ) -> PyResult<Bound<'py, PyList>>
     where
         T: IntoPyObject<'py>,
-        U: ExactSizeIterator<Item = T>,
     {
-        let iter = elements.into_iter().map(|e| e.into_bound_py_any(py));
-        try_new_from_iter(py, iter)
+        let mut elements = elements.into_iter().map(|e| e.into_bound_py_any(py));
+        let (min_len, _) = elements.size_hint();
+
+        // PyList_New checks for overflow but has a bad error message, so we check ourselves
+        let len: Py_ssize_t = min_len
+            .try_into()
+            .expect("out of range integral type conversion attempted on `elements.len()`");
+
+        let list = unsafe { ffi::PyList_New(len).assume_owned(py).cast_into_unchecked() };
+
+        let count = (&mut elements)
+            .take(len as usize)
+            .try_fold(0, |count, item| unsafe {
+                #[cfg(not(Py_LIMITED_API))]
+                ffi::PyList_SET_ITEM(list.as_ptr(), count, item?.into_ptr());
+                #[cfg(Py_LIMITED_API)]
+                ffi::PyList_SetItem(list.as_ptr(), count, item?.into_ptr());
+                Ok::<_, PyErr>(count + 1)
+            })?;
+
+        assert_eq!(len, count, "Attempted to create PyList but `elements` was smaller than reported by its `size_hint` implementation.");
+
+        elements.try_for_each(|item| list.append(item?))?;
+
+        Ok(list)
     }
 
     /// Constructs a new empty list.
@@ -135,13 +132,18 @@ pub trait PyListMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn get_item(&self, index: usize) -> PyResult<Bound<'py, PyAny>>;
 
-    /// Gets the list item at the specified index. Undefined behavior on bad index. Use with caution.
+    /// Gets the list item at the specified index. Undefined behavior on bad index, or if the list
+    /// contains a null pointer at the specified index. Use with caution.
     ///
     /// # Safety
     ///
-    /// Caller must verify that the index is within the bounds of the list.
-    /// On the free-threaded build, caller must verify they have exclusive access to the list
-    /// via a lock or by holding the innermost critical section on the list.
+    /// - Caller must verify that the index is within the bounds of the list.
+    /// - A null pointer is only legal in a list which is in the process of being initialized, callers
+    ///   can typically assume the list item is non-null unless they are knowingly filling an
+    ///   uninitialized list. (If a list were to contain a null pointer element, accessing it from Python
+    ///   typically causes a segfault.)
+    /// - On the free-threaded build, caller must verify they have exclusive access to the list
+    ///   via a lock or by holding the innermost critical section on the list.
     #[cfg(not(Py_LIMITED_API))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
 
@@ -278,12 +280,13 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// Caller must verify that the index is within the bounds of the list.
     #[cfg(not(Py_LIMITED_API))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
-        // PyList_GET_ITEM return borrowed ptr; must make owned for safety (see #890).
+        // SAFETY: caller has upheld the safety contract
         unsafe {
             ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
-                .assume_borrowed(self.py())
-                .to_owned()
+                .assume_borrowed_unchecked(self.py())
         }
+        // PyList_GET_ITEM return borrowed ptr; must make owned for safety (see #890).
+        .to_owned()
     }
 
     /// Takes the slice `self[low:high]` and returns it as a new list.
@@ -421,7 +424,9 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     where
         F: Fn(Bound<'py, PyAny>) -> PyResult<()>,
     {
-        crate::sync::with_critical_section(self, || self.iter().try_for_each(closure))
+        crate::sync::critical_section::with_critical_section(self, || {
+            self.iter().try_for_each(closure)
+        })
     }
 
     /// Sorts the list in-place. Equivalent to the Python expression `l.sort()`.
@@ -620,7 +625,7 @@ impl<'py> BoundListIterator<'py> {
             length,
             list,
         } = self;
-        crate::sync::with_critical_section(list, || f(index, length, list))
+        crate::sync::critical_section::with_critical_section(list, || f(index, length, list))
     }
 }
 
@@ -939,7 +944,7 @@ mod tests {
     use crate::types::list::PyListMethods;
     use crate::types::sequence::PySequenceMethods;
     use crate::types::{PyList, PyTuple};
-    use crate::{ffi, IntoPyObject, PyResult, Python};
+    use crate::{IntoPyObject, PyResult, Python};
     #[cfg(feature = "nightly")]
     use std::num::NonZero;
 
@@ -1000,17 +1005,17 @@ mod tests {
     #[test]
     fn test_set_item_refcnt() {
         Python::attach(|py| {
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
             let cnt;
             {
                 let v = vec![2];
                 let ob = v.into_pyobject(py).unwrap();
                 let list = ob.cast::<PyList>().unwrap();
-                cnt = obj.get_refcnt();
+                cnt = obj._get_refcnt();
                 list.set_item(0, &obj).unwrap();
             }
 
-            assert_eq!(cnt, obj.get_refcnt());
+            assert_eq!(cnt, obj._get_refcnt());
         });
     }
 
@@ -1035,14 +1040,14 @@ mod tests {
     fn test_insert_refcnt() {
         Python::attach(|py| {
             let cnt;
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
             {
                 let list = PyList::empty(py);
-                cnt = obj.get_refcnt();
+                cnt = obj._get_refcnt();
                 list.insert(0, &obj).unwrap();
             }
 
-            assert_eq!(cnt, obj.get_refcnt());
+            assert_eq!(cnt, obj._get_refcnt());
         });
     }
 
@@ -1060,13 +1065,13 @@ mod tests {
     fn test_append_refcnt() {
         Python::attach(|py| {
             let cnt;
-            let obj = py.eval(ffi::c_str!("object()"), None, None).unwrap();
+            let obj = py.eval(c"object()", None, None).unwrap();
             {
                 let list = PyList::empty(py);
-                cnt = obj.get_refcnt();
+                cnt = obj._get_refcnt();
                 list.append(&obj).unwrap();
             }
-            assert_eq!(cnt, obj.get_refcnt());
+            assert_eq!(cnt, obj._get_refcnt());
         });
     }
 
@@ -1216,7 +1221,7 @@ mod tests {
                 -5
             });
             assert_eq!(sum, -5);
-            assert!(list.len() == 0);
+            assert_eq!(list.len(), 0);
         });
     }
 
@@ -1483,7 +1488,7 @@ mod tests {
 
     use std::ops::Range;
 
-    // An iterator that lies about its `ExactSizeIterator` implementation.
+    // An iterator that lies about its `size_hint` implementation.
     // See https://github.com/PyO3/pyo3/issues/2118
     struct FaultyIter(Range<usize>, usize);
 
@@ -1493,28 +1498,15 @@ mod tests {
         fn next(&mut self) -> Option<Self::Item> {
             self.0.next()
         }
-    }
 
-    impl ExactSizeIterator for FaultyIter {
-        fn len(&self) -> usize {
-            self.1
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (self.1, Some(self.1))
         }
     }
 
     #[test]
     #[should_panic(
-        expected = "Attempted to create PyList but `elements` was larger than reported by its `ExactSizeIterator` implementation."
-    )]
-    fn too_long_iterator() {
-        Python::attach(|py| {
-            let iter = FaultyIter(0..usize::MAX, 73);
-            let _list = PyList::new(py, iter).unwrap();
-        })
-    }
-
-    #[test]
-    #[should_panic(
-        expected = "Attempted to create PyList but `elements` was smaller than reported by its `ExactSizeIterator` implementation."
+        expected = "Attempted to create PyList but `elements` was smaller than reported by its `size_hint` implementation."
     )]
     fn too_short_iterator() {
         Python::attach(|py| {
@@ -1536,6 +1528,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(panic = "unwind")]
     fn bad_intopyobject_doesnt_cause_leaks() {
         use crate::types::PyInt;
         use std::convert::Infallible;
@@ -1573,11 +1566,9 @@ mod tests {
                     Bad(i)
                 })
             }
-        }
 
-        impl ExactSizeIterator for FaultyIter {
-            fn len(&self) -> usize {
-                self.1
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                (self.1, Some(self.1))
             }
         }
 
@@ -1772,6 +1763,27 @@ mod tests {
         Python::attach(|py| {
             let list = PyList::new(py, vec![1, 2, 3]).unwrap();
             assert_eq!(list.iter().count(), 3);
+        })
+    }
+
+    #[test]
+    fn test_new_from_non_exact_iter() {
+        Python::attach(|py| {
+            let iter = (0..5)
+                .filter(|_| true) // Filter does not implement ExactSizeIterator
+                .map(|item| item.into_pyobject(py).unwrap());
+
+            assert!(
+                matches!(iter.size_hint(), (0, _)),
+                "size_hint lower bound should be 0 because we do not now the final size after filter"
+            );
+
+            let list = PyList::new(py, iter).unwrap();
+            assert_eq!(
+                list.len(),
+                5,
+                "list should contain all elements even though size_hint is 0"
+            );
         })
     }
 }

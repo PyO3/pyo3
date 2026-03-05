@@ -1,5 +1,3 @@
-#[allow(unused_imports)]
-use crate::object::PyObject;
 #[cfg(not(GraalPy))]
 #[cfg(any(Py_3_10, all(Py_3_9, not(Py_LIMITED_API))))]
 use crate::PyCodeObject;

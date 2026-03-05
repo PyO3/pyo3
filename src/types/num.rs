@@ -13,7 +13,7 @@ use std::convert::Infallible;
 #[repr(transparent)]
 pub struct PyInt(PyAny);
 
-pyobject_native_type_core!(PyInt, pyobject_native_static_type_object!(ffi::PyLong_Type), #checkfunction=ffi::PyLong_Check);
+pyobject_native_type_core!(PyInt, pyobject_native_static_type_object!(ffi::PyLong_Type), "builtins", "int", #checkfunction=ffi::PyLong_Check);
 
 impl PyInt {
     /// Creates a new Python int object.

@@ -8,7 +8,7 @@ use pyo3::types::IntoPyDict;
 
 macro_rules! test_module {
     ($py:ident, $code:literal) => {
-        PyModule::from_code($py, c_str!($code), c_str!(file!()), c_str!("test_module"))
+        PyModule::from_code($py, c_str!($code), c_str!(file!()), c"test_module")
             .expect("module creation failed")
     };
 }

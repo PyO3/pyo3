@@ -19,14 +19,6 @@ pub(crate) fn initialize() {
     });
 }
 
-/// See [Python::initialize]
-#[cfg(not(any(PyPy, GraalPy)))]
-#[inline]
-#[deprecated(note = "use `Python::initialize` instead", since = "0.26.0")]
-pub fn prepare_freethreaded_python() {
-    initialize();
-}
-
 /// Executes the provided closure with an embedded Python interpreter.
 ///
 /// This function initializes the Python interpreter, executes the provided closure, and then
@@ -51,7 +43,7 @@ pub fn prepare_freethreaded_python() {
 /// ```rust
 /// unsafe {
 ///     pyo3::with_embedded_python_interpreter(|py| {
-///         if let Err(e) = py.run(pyo3::ffi::c_str!("print('Hello World')"), None, None) {
+///         if let Err(e) = py.run(c"print('Hello World')", None, None) {
 ///             // We must make sure to not return a `PyErr`!
 ///             e.print(py);
 ///         }

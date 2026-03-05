@@ -30,7 +30,7 @@ compat_function!(
         if value.is_null() && crate::PyErr_Occurred().is_null() {
             crate::PyErr_SetString(
                 crate::PyExc_SystemError,
-                c_str!("PyModule_AddObjectRef() must be called with an exception raised if value is NULL").as_ptr(),
+                c"PyModule_AddObjectRef() must be called with an exception raised if value is NULL".as_ptr(),
             );
             return -1;
         }

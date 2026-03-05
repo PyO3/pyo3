@@ -156,7 +156,7 @@ impl SuperClass {
 fn subclass_new() {
     Python::attach(|py| {
         let super_cls = py.get_type::<SuperClass>();
-        let source = pyo3_ffi::c_str!(pyo3::indoc::indoc!(
+        let source = pyo3_ffi::c_str!(
             r#"
 class Class(SuperClass):
     def __new__(cls):
@@ -168,7 +168,7 @@ class Class(SuperClass):
 c = Class()
 assert c.from_rust is False
 "#
-        ));
+        );
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("SuperClass", super_cls).unwrap();
         py.run(source, Some(&globals), None)
@@ -244,12 +244,12 @@ fn test_new_existing() {
         let obj5 = typeobj.call1((2,)).unwrap();
         let obj6 = typeobj.call1((2,)).unwrap();
 
-        assert!(obj1.getattr("num").unwrap().extract::<u32>().unwrap() == 0);
-        assert!(obj2.getattr("num").unwrap().extract::<u32>().unwrap() == 0);
-        assert!(obj3.getattr("num").unwrap().extract::<u32>().unwrap() == 1);
-        assert!(obj4.getattr("num").unwrap().extract::<u32>().unwrap() == 1);
-        assert!(obj5.getattr("num").unwrap().extract::<u32>().unwrap() == 2);
-        assert!(obj6.getattr("num").unwrap().extract::<u32>().unwrap() == 2);
+        assert_eq!(obj1.getattr("num").unwrap().extract::<u32>().unwrap(), 0);
+        assert_eq!(obj2.getattr("num").unwrap().extract::<u32>().unwrap(), 0);
+        assert_eq!(obj3.getattr("num").unwrap().extract::<u32>().unwrap(), 1);
+        assert_eq!(obj4.getattr("num").unwrap().extract::<u32>().unwrap(), 1);
+        assert_eq!(obj5.getattr("num").unwrap().extract::<u32>().unwrap(), 2);
+        assert_eq!(obj6.getattr("num").unwrap().extract::<u32>().unwrap(), 2);
 
         assert!(obj1.is(&obj2));
         assert!(obj3.is(&obj4));

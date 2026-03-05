@@ -49,7 +49,7 @@ fn test_enum_class_fmt() {
     })
 }
 
-#[pyclass(str = "X: {x}, Y: {y}, Z: {z}")]
+#[pyclass(str = "X: {x}, Y: {y}, Z: {z}", skip_from_py_object)]
 #[derive(PartialEq, Eq, Clone, PartialOrd)]
 pub struct Point {
     x: i32,
@@ -65,7 +65,7 @@ fn test_custom_struct_custom_str() {
     })
 }
 
-#[pyclass(str)]
+#[pyclass(str, skip_from_py_object)]
 #[derive(PartialEq, Eq, Clone, PartialOrd)]
 pub struct Point2 {
     x: i32,

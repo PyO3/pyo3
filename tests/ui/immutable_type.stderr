@@ -1,5 +1,7 @@
-error: `immutable_type` requires Python >= 3.10 or >= 3.14 (ABI3)
+error[E0080]: evaluation panicked: `immutable_type` requires Python >= 3.10 (or >= 3.14 when using the `abi3` feature)
  --> tests/ui/immutable_type.rs:3:11
   |
 3 | #[pyclass(immutable_type)]
-  |           ^^^^^^^^^^^^^^
+  |           ^^^^^^^^^^^^^^ evaluation of `_::ASSERT_IMMUTABLE_SUPPORTED` failed here
+  |
+  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)

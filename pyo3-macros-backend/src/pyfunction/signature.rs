@@ -1,6 +1,9 @@
+#[cfg(feature = "experimental-inspect")]
+use crate::py_expr::PyExpr;
 use crate::{
     attributes::{kw, KeywordAttribute},
-    method::{FnArg, RegularArg},
+    method::FnArg,
+    utils::expr_to_python,
 };
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
@@ -9,7 +12,7 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
-    Token,
+    Expr, Token,
 };
 
 #[derive(Clone)]
@@ -249,8 +252,9 @@ impl ToTokens for PyTypeAnnotation {
 }
 
 impl PyTypeAnnotation {
-    pub fn to_python(&self) -> String {
-        self.0.value()
+    #[cfg(feature = "experimental-inspect")]
+    pub fn as_type_hint(&self) -> PyExpr {
+        PyExpr::str_constant(self.0.value())
     }
 }
 
@@ -270,10 +274,11 @@ impl ConstructorAttribute {
 pub struct PythonSignature {
     pub positional_parameters: Vec<String>,
     pub positional_only_parameters: usize,
-    pub required_positional_parameters: usize,
+    /// Vector of expressions representing positional defaults
+    pub default_positional_parameters: Vec<Expr>,
     pub varargs: Option<String>,
-    // Tuples of keyword name and whether it is required
-    pub keyword_only_parameters: Vec<(String, bool)>,
+    // Tuples of keyword name and optional default value
+    pub keyword_only_parameters: Vec<(String, Option<Expr>)>,
     pub kwargs: Option<String>,
 }
 
@@ -283,6 +288,13 @@ impl PythonSignature {
             && self.keyword_only_parameters.is_empty()
             && self.varargs.is_none()
             && self.kwargs.is_none()
+    }
+
+    pub fn required_positional_parameters(&self) -> usize {
+        self.positional_parameters
+            .len()
+            .checked_sub(self.default_positional_parameters.len())
+            .expect("should always have positional defaults <= positional parameters")
     }
 }
 
@@ -309,23 +321,24 @@ impl ParseState {
         &mut self,
         signature: &mut PythonSignature,
         name: String,
-        required: bool,
+        default_value: Option<Expr>,
         span: Span,
     ) -> syn::Result<()> {
         match self {
             ParseState::Positional | ParseState::PositionalAfterPosargs => {
                 signature.positional_parameters.push(name);
-                if required {
-                    signature.required_positional_parameters += 1;
-                    ensure_spanned!(
-                        signature.required_positional_parameters == signature.positional_parameters.len(),
-                        span => "cannot have required positional parameter after an optional parameter"
-                    );
+                if let Some(default_value) = default_value {
+                    signature.default_positional_parameters.push(default_value);
+                    // Now all subsequent positional parameters must also have defaults
+                } else if !signature.default_positional_parameters.is_empty() {
+                    bail_spanned!(span => "cannot have required positional parameter after an optional parameter")
                 }
                 Ok(())
             }
             ParseState::Keywords => {
-                signature.keyword_only_parameters.push((name, required));
+                signature
+                    .keyword_only_parameters
+                    .push((name, default_value));
                 Ok(())
             }
             ParseState::Done => {
@@ -475,7 +488,9 @@ impl<'a> FunctionSignature<'a> {
                     parse_state.add_argument(
                         &mut python_signature,
                         arg.ident.unraw().to_string(),
-                        arg.eq_and_default.is_none(),
+                        arg.eq_and_default
+                            .as_ref()
+                            .map(|(_, default)| default.clone()),
                         arg.span(),
                     )?;
                     let FnArg::Regular(fn_arg) = fn_arg else {
@@ -486,7 +501,7 @@ impl<'a> FunctionSignature<'a> {
                         );
                     };
                     if let Some((_, default)) = &arg.eq_and_default {
-                        fn_arg.default_value = Some(default.clone());
+                        fn_arg.default_value = Some(Box::new(default.clone()));
                     }
                     if let Some((_, annotation)) = &arg.colon_and_annotation {
                         ensure_spanned!(
@@ -495,7 +510,7 @@ impl<'a> FunctionSignature<'a> {
                         );
                         #[cfg(feature = "experimental-inspect")]
                         {
-                            fn_arg.annotation = Some(annotation.to_python());
+                            fn_arg.annotation = Some(annotation.as_type_hint());
                         }
                     }
                 }
@@ -520,7 +535,7 @@ impl<'a> FunctionSignature<'a> {
                                 once, this has to be a regular argument."
                                 );
                             };
-                            fn_arg.annotation = Some(annotation.to_python());
+                            fn_arg.annotation = Some(annotation.as_type_hint());
                         }
                     }
                 }
@@ -542,7 +557,7 @@ impl<'a> FunctionSignature<'a> {
                                 once, this has to be a regular argument."
                                 );
                             };
-                            fn_arg.annotation = Some(annotation.to_python());
+                            fn_arg.annotation = Some(annotation.as_type_hint());
                         }
                     }
                 }
@@ -577,17 +592,6 @@ impl<'a> FunctionSignature<'a> {
                 continue;
             }
 
-            if let FnArg::Regular(RegularArg { .. }) = arg {
-                // This argument is required, all previous arguments must also have been required
-                assert_eq!(
-                    python_signature.required_positional_parameters,
-                    python_signature.positional_parameters.len(),
-                );
-
-                python_signature.required_positional_parameters =
-                    python_signature.positional_parameters.len() + 1;
-            }
-
             python_signature
                 .positional_parameters
                 .push(arg.name().unraw().to_string());
@@ -597,14 +601,6 @@ impl<'a> FunctionSignature<'a> {
             arguments,
             python_signature,
             attribute: None,
-        }
-    }
-
-    fn default_value_for_parameter(&self, parameter: &str) -> String {
-        if let Some(fn_arg) = self.arguments.iter().find(|arg| arg.name() == parameter) {
-            fn_arg.default_value()
-        } else {
-            "...".to_string()
         }
     }
 
@@ -630,14 +626,19 @@ impl<'a> FunctionSignature<'a> {
 
         let py_sig = &self.python_signature;
 
-        for (i, parameter) in py_sig.positional_parameters.iter().enumerate() {
+        let defaults = std::iter::repeat_n(None, py_sig.required_positional_parameters())
+            .chain(py_sig.default_positional_parameters.iter().map(Some));
+
+        for (i, (parameter, default)) in
+            std::iter::zip(&py_sig.positional_parameters, defaults).enumerate()
+        {
             maybe_push_comma(&mut output);
 
             output.push_str(parameter);
 
-            if i >= py_sig.required_positional_parameters {
+            if let Some(expr) = default {
                 output.push('=');
-                output.push_str(&self.default_value_for_parameter(parameter));
+                output.push_str(&expr_to_python(expr));
             }
 
             if py_sig.positional_only_parameters > 0 && i + 1 == py_sig.positional_only_parameters {
@@ -654,12 +655,12 @@ impl<'a> FunctionSignature<'a> {
             output.push('*');
         }
 
-        for (parameter, required) in &py_sig.keyword_only_parameters {
+        for (parameter, default) in &py_sig.keyword_only_parameters {
             maybe_push_comma(&mut output);
             output.push_str(parameter);
-            if !required {
+            if let Some(expr) = default {
                 output.push('=');
-                output.push_str(&self.default_value_for_parameter(parameter));
+                output.push_str(&expr_to_python(expr));
             }
         }
 
