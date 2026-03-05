@@ -125,7 +125,7 @@
 //! # }
 //! #[pyfunction]
 //! fn swap_numbers(a: &mut Number, b: &mut Number) {
-//!     std::mem::swap(&mut a.inner, &mut b.inner);
+//!     core::mem::swap(&mut a.inner, &mut b.inner);
 //! }
 //! # fn main() {
 //! #     Python::attach(|py| {
@@ -159,7 +159,7 @@
 //! fn swap_numbers(a: &PyCell<Number>, b: &PyCell<Number>) {
 //!     // Check that the pointers are unequal
 //!     if !a.is(b) {
-//!         std::mem::swap(&mut a.borrow_mut().inner, &mut b.borrow_mut().inner);
+//!         core::mem::swap(&mut a.borrow_mut().inner, &mut b.borrow_mut().inner);
 //!     } else {
 //!         // Do nothing - they are the same object, so don't need swapping.
 //!     }
@@ -198,11 +198,11 @@ use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::pyclass::{boolean_struct::False, PyClass};
 use crate::{ffi, Borrowed, Bound, PyErr, Python};
-use std::convert::Infallible;
-use std::fmt;
-use std::mem::ManuallyDrop;
-use std::ops::{Deref, DerefMut};
-use std::ptr::NonNull;
+use core::convert::Infallible;
+use core::fmt;
+use core::mem::ManuallyDrop;
+use core::ops::{Deref, DerefMut};
+use core::ptr::NonNull;
 
 pub(crate) mod impl_;
 #[cfg(feature = "experimental-inspect")]
