@@ -353,11 +353,11 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
 
 impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakref> {
     fn upgrade(&self) -> Option<Bound<'py, PyAny>> {
-        let mut obj: *mut ffi::PyObject = std::ptr::null_mut();
+        let mut obj: *mut ffi::PyObject = core::ptr::null_mut();
         match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
-            std::ffi::c_int::MIN..=-1 => panic!("The 'weakref' weak reference instance should be valid (non-null and actually a weakref reference)"),
+            core::ffi::c_int::MIN..=-1 => panic!("The 'weakref' weak reference instance should be valid (non-null and actually a weakref reference)"),
             0 => None,
-            1..=std::ffi::c_int::MAX => Some(unsafe { obj.assume_owned_unchecked(self.py()) }),
+            1..=core::ffi::c_int::MAX => Some(unsafe { obj.assume_owned_unchecked(self.py()) }),
         }
     }
 }
@@ -384,7 +384,7 @@ mod tests {
         use crate::types::PyInt;
         use crate::PyTypeCheck;
         use crate::{py_result_ext::PyResultExt, types::PyType};
-        use std::ptr;
+        use core::ptr;
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
             py.run(c"class A:\n    pass\n", None, None)?;
@@ -551,7 +551,7 @@ mod tests {
     mod pyo3_pyclass {
         use super::*;
         use crate::{pyclass, Py};
-        use std::ptr;
+        use core::ptr;
 
         #[pyclass(weakref, crate = "crate")]
         struct WeakrefablePyClass {}

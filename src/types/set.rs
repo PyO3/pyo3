@@ -6,7 +6,7 @@ use crate::{
     py_result_ext::PyResultExt,
 };
 use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python};
-use std::ptr;
+use core::ptr;
 
 /// Represents a Python `set`.
 ///

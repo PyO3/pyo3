@@ -11,8 +11,8 @@ use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
     types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, Python,
 };
-use std::convert::Infallible;
-use std::ptr;
+use core::convert::Infallible;
+use core::ptr;
 
 /// Represents a Python `bool`.
 ///

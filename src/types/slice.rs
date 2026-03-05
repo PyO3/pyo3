@@ -7,7 +7,7 @@ use crate::inspect::PyStaticExpr;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyRange, PyRangeMethods};
 use crate::{Bound, IntoPyObject, PyAny, Python};
-use std::convert::Infallible;
+use core::convert::Infallible;
 
 /// Represents a Python `slice`.
 ///

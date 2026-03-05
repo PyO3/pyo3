@@ -5,9 +5,9 @@ use crate::internal_tricks::get_ssize_index;
 use crate::types::sequence::PySequenceMethods;
 use crate::types::{PySequence, PyTuple};
 use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python};
-use std::iter::FusedIterator;
+use core::iter::FusedIterator;
 #[cfg(feature = "nightly")]
-use std::num::NonZero;
+use core::num::NonZero;
 
 /// Represents a Python `list`.
 ///
@@ -701,7 +701,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     where
         Self: Sized,
         F: FnMut(B, Self::Item) -> R,
-        R: std::ops::Try<Output = B>,
+        R: core::ops::Try<Output = B>,
     {
         self.with_critical_section(|index, length, list| {
             let mut accum = init;
@@ -874,7 +874,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
     where
         Self: Sized,
         F: FnMut(B, Self::Item) -> R,
-        R: std::ops::Try<Output = B>,
+        R: core::ops::Try<Output = B>,
     {
         self.with_critical_section(|index, length, list| {
             let mut accum = init;
@@ -946,7 +946,7 @@ mod tests {
     use crate::types::{PyList, PyTuple};
     use crate::{IntoPyObject, PyResult, Python};
     #[cfg(feature = "nightly")]
-    use std::num::NonZero;
+    use core::num::NonZero;
 
     #[test]
     fn test_new() {
@@ -1486,7 +1486,7 @@ mod tests {
         });
     }
 
-    use std::ops::Range;
+    use core::ops::Range;
 
     // An iterator that lies about its `size_hint` implementation.
     // See https://github.com/PyO3/pyo3/issues/2118
@@ -1531,8 +1531,8 @@ mod tests {
     #[cfg(panic = "unwind")]
     fn bad_intopyobject_doesnt_cause_leaks() {
         use crate::types::PyInt;
-        use std::convert::Infallible;
-        use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+        use core::convert::Infallible;
+        use core::sync::atomic::{AtomicUsize, Ordering::SeqCst};
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
 
         struct Bad(usize);

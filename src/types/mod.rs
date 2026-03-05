@@ -132,7 +132,7 @@ macro_rules! pyobject_native_type_named (
 #[macro_export]
 macro_rules! pyobject_native_static_type_object(
     ($typeobject:expr) => {
-        |_py| ::std::ptr::addr_of_mut!($typeobject)
+        |_py| ::core::ptr::addr_of_mut!($typeobject)
     };
 );
 
@@ -167,7 +167,7 @@ macro_rules! pyobject_native_type_info(
         // SAFETY: macro caller has upheld the safety contracts
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
-            const MODULE: ::std::option::Option<&'static str> = $module;
+            const MODULE: ::core::option::Option<&'static str> = $module;
             $crate::pyobject_type_info_type_hint!($type_hint_module, $type_hint_name);
 
             #[inline]
@@ -209,7 +209,7 @@ macro_rules! pyobject_native_type_core {
         $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=$module $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
     ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
-        $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=::std::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
+        $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=::core::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
 }
 

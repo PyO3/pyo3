@@ -8,9 +8,9 @@ use crate::{
     types::{PyCapsule, PyDict, PyModule, PyTuple},
 };
 use crate::{Bound, PyAny, PyResult, Python};
-use std::cell::UnsafeCell;
-use std::ffi::CStr;
-use std::ptr::NonNull;
+use core::cell::UnsafeCell;
+use core::ffi::CStr;
+use core::ptr::NonNull;
 
 /// Represents a builtin Python function object.
 ///
@@ -110,7 +110,7 @@ impl PyCFunction {
         // SAFETY: The arguments to `PyCFunction_NewEx` are valid, we are attached to the
         // interpreter and we know the function either returns a new reference or errors.
         unsafe {
-            ffi::PyCFunction_NewEx(method_def, capsule.as_ptr(), std::ptr::null_mut())
+            ffi::PyCFunction_NewEx(method_def, capsule.as_ptr(), core::ptr::null_mut())
                 .assume_owned_or_err(py)
                 .cast_into_unchecked()
         }
