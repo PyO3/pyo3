@@ -47,11 +47,12 @@
 //! assert n + 1 == value
 //! ```
 
+use super::std::num::nb_index;
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
-    conversion::IntoPyObject, std::num::nb_index, types::PyInt, Borrowed, Bound, FromPyObject,
-    PyAny, PyErr, PyResult, Python,
+    conversion::IntoPyObject, types::PyInt, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult,
+    Python,
 };
 
 use num_bigint::{BigInt, BigUint};
