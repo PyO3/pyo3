@@ -1,6 +1,6 @@
 #[crate::pyclass(from_py_object)]
 #[pyo3(crate = "crate")]
-#[derive(::std::clone::Clone)]
+#[derive(::core::clone::Clone)]
 pub struct Foo;
 
 #[crate::pyclass]
@@ -32,7 +32,7 @@ pub struct Bar {
     #[pyo3(get, set)]
     b: Foo,
     #[pyo3(set)]
-    c: ::std::option::Option<crate::Py<Foo2>>,
+    c: ::core::option::Option<crate::Py<Foo2>>,
 }
 
 #[crate::pyclass(eq, eq_int)]
@@ -146,9 +146,9 @@ pub struct Point {
     z: i32,
 }
 
-impl ::std::fmt::Display for Point {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::std::write!(f, "({}, {}, {})", self.x, self.y, self.z)
+impl ::core::fmt::Display for Point {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+        ::core::write!(f, "({}, {}, {})", self.x, self.y, self.z)
     }
 }
 
