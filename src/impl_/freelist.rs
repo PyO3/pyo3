@@ -9,7 +9,7 @@
 //! [1]: https://en.wikipedia.org/wiki/Free_list
 
 use crate::ffi;
-use std::mem;
+use core::mem;
 
 /// Represents a slot of a [`PyObjectFreeList`].
 enum PyObjectSlot {
