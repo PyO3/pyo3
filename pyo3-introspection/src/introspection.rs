@@ -552,8 +552,8 @@ fn find_introspection_chunks_in_binary_object(path: &Path) -> Result<Vec<Chunk>>
             bail!("No Mach-o chunk found in the multi-arch Mach-o container")
         }
         Object::PE(pe) => find_introspection_chunks_in_pe(&pe, &library_content),
-        _ => {
-            bail!("Only ELF, Mach-o and PE containers can be introspected")
+        other => {
+            bail!("Only ELF, Mach-o and PE containers can be introspected, got {other:?}")
         }
     }
 }
