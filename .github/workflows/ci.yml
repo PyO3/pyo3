@@ -592,6 +592,21 @@ jobs:
           echo PYO3_PYTHON=$(pwd)/python/install/bin/python3 >> $GITHUB_ENV
       - run: python3 -m sysconfig
       - run: python3 -m pip install --upgrade pip && pip install nox[uv]
+      - run: |
+          PYO3_CONFIG_FILE=$(mktemp)
+          cat > $PYO3_CONFIG_FILE << EOF
+          implementation=CPython
+          version=3.14
+          shared=true
+          abi3=false
+          lib_name=python3.14d
+          lib_dir=${{ github.workspace }}/python/install/lib
+          executable=${{ github.workspace }}/python/install/bin/python3
+          pointer_width=64
+          build_flags=Py_DEBUG,Py_REF_DEBUG
+          suppress_build_script_link_lines=false
+          EOF
+          echo PYO3_CONFIG_FILE=$PYO3_CONFIG_FILE >> $GITHUB_ENV
       - run: python3 -m nox -s test
 
   test-debug-min-version:
@@ -621,6 +636,21 @@ jobs:
           echo PYO3_PYTHON=$(pwd)/python/install/bin/python3 >> $GITHUB_ENV
       - run: python3 -m sysconfig
       - run: python3 -m pip install --upgrade pip && pip install nox[uv]
+      - run: |
+          PYO3_CONFIG_FILE=$(mktemp)
+          cat > $PYO3_CONFIG_FILE << EOF
+          implementation=CPython
+          version=3.10
+          shared=true
+          abi3=false
+          lib_name=python3.10d
+          lib_dir=${{ github.workspace }}/python/install/lib
+          executable=${{ github.workspace }}/python/install/bin/python3
+          pointer_width=64
+          build_flags=Py_DEBUG,Py_REF_DEBUG
+          suppress_build_script_link_lines=false
+          EOF
+          echo PYO3_CONFIG_FILE=$PYO3_CONFIG_FILE >> $GITHUB_ENV
       - run: python3 -m nox -s test
 
   test-version-limits:
