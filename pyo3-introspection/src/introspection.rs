@@ -553,7 +553,10 @@ fn find_introspection_chunks_in_binary_object(path: &Path) -> Result<Vec<Chunk>>
         }
         Object::PE(pe) => find_introspection_chunks_in_pe(&pe, &library_content),
         other => {
-            bail!("Only ELF, Mach-o and PE containers can be introspected, got {other:?}")
+            bail!(
+                "Only ELF, Mach-o and PE containers can be introspected, got {other:?} from file {path:?}",
+                path = path.display()
+            )
         }
     }
 }
