@@ -3,15 +3,17 @@ use std::ffi::CString;
 use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 
 use crate::params::is_forwarded_args;
+use crate::params::Param;
 #[cfg(feature = "experimental-inspect")]
 use crate::py_expr::PyExpr;
 use crate::pyfunction::{PyFunctionWarning, WarningFactory};
-use crate::utils::Ctx;
+use crate::pymethod::{type_inferred_fncall, FnCall};
+use crate::utils::{locate_tokens_at, Ctx};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     params::{impl_arg_params, Holders},
@@ -265,7 +267,7 @@ impl FnType {
         error_mode: ExtractErrorMode,
         holders: &mut Holders,
         ctx: &Ctx,
-    ) -> Option<TokenStream> {
+    ) -> Option<Param> {
         let Ctx { pyo3_path, .. } = ctx;
         match self {
             FnType::Getter(st) | FnType::Setter(st) | FnType::Deleter(st) | FnType::Fn(st) => {
@@ -287,7 +289,7 @@ impl FnType {
                             .cast_unchecked::<#pyo3_path::types::PyType>()
                     )
                 };
-                Some(quote! { unsafe { #ret } })
+                Some(Param::arg_expr(quote! { unsafe { #ret } }))
             }
             FnType::FnModule(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
@@ -300,7 +302,7 @@ impl FnType {
                             .cast_unchecked::<#pyo3_path::types::PyModule>()
                     )
                 };
-                Some(quote! { unsafe { #ret } })
+                Some(Param::arg_expr(quote! { unsafe { #ret } }))
             }
             FnType::FnStatic | FnType::ClassAttribute => None,
         }
@@ -341,7 +343,7 @@ impl SelfType {
         error_mode: ExtractErrorMode,
         holders: &mut Holders,
         ctx: &Ctx,
-    ) -> TokenStream {
+    ) -> Param {
         // Due to use of quote_spanned in this function, need to bind these idents to the
         // main macro callsite.
         let py = syn::Ident::new("py", Span::call_site());
@@ -349,28 +351,42 @@ impl SelfType {
         let Ctx { pyo3_path, .. } = ctx;
         match self {
             SelfType::Receiver { span, mutable } => {
+                // NB it's possible to use type inference with "extractor" here, but then if the class is frozen
+                // the &mut self receivers get horrible error messages. This approach with concrete calls produces
+                // better error messages.
+                let holder = format_ident!("holder0");
+                // when interpolating cls into expressions below, need to locate the span at the receiver span to
+                // avoid duplicate error messages
+                let cls = locate_tokens_at(cls.to_token_stream(), *span);
+                // unsafe cast done at call_site span to avoid user code being flagged as using unsafe
                 let arg = quote! { unsafe { #pyo3_path::impl_::extract_argument::cast_function_argument(#py, #slf) } };
-                let method = if *mutable {
-                    syn::Ident::new("extract_pyclass_ref_mut", *span)
+                let (extract, unpack, mut_kw) = if *mutable {
+                    (
+                        Ident::new("extract_pyclass_guard_mut", *span),
+                        Ident::new("pyclass_guard_to_ref_mut", *span),
+                        Some(syn::Token![mut](*span)),
+                    )
                 } else {
-                    syn::Ident::new("extract_pyclass_ref", *span)
+                    (
+                        Ident::new("extract_pyclass_guard", *span),
+                        Ident::new("pyclass_guard_to_ref", *span),
+                        None,
+                    )
                 };
-                let holder = holders.push_holder(*span);
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
-                error_mode.handle_error(
-                    quote_spanned! { *span =>
-                        #pyo3_path::impl_::extract_argument::#method::<#cls>(
-                            #arg,
-                            &mut #holder,
-                        )
-                    },
+                let extract = error_mode.handle_error(
+                    quote_spanned! { *span => #pyo3_path::impl_::extract_argument::#extract::<#cls>(#arg) },
                     ctx,
-                )
+                );
+                Param {
+                    extract: Some(quote_spanned! { *span => let mut #holder = #extract; }),
+                    arg: quote_spanned! { *span => #pyo3_path::impl_::extract_argument::#unpack(& #mut_kw #holder) },
+                }
             }
             SelfType::TryFromBoundRef(span) => {
                 let bound_ref = quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf) } };
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
-                error_mode.handle_error(
+                Param::arg_expr(error_mode.handle_error(
                     quote_spanned! { *span =>
                         #bound_ref.cast::<#cls>()
                             .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
@@ -381,7 +397,7 @@ impl SelfType {
 
                     },
                     ctx
-                )
+                ))
             }
         }
     }
@@ -661,7 +677,7 @@ impl<'a> FnSpec<'a> {
             }
         }
 
-        let rust_call = |args: Vec<TokenStream>, mut holders: Holders| {
+        let rust_call = |args: Vec<Param>, mut holders: Holders| {
             let self_arg = self
                 .tp
                 .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);
@@ -670,6 +686,10 @@ impl<'a> FnSpec<'a> {
             // We must assign the output_span to the return value of the call,
             // but *not* of the call itself otherwise the spans get really weird
             let ret_ident = Ident::new("ret", *output_span);
+
+            let FnCall { setup, call } =
+                type_inferred_fncall(quote!(function), self_arg.iter().chain(&args), ctx);
+            let ok_wrap = quotes::ok_wrap(ret_ident.to_token_stream(), ctx);
 
             if self.asyncness.is_some() {
                 // For async functions, we need to build up a coroutine object to return from the initial function call.
@@ -756,8 +776,6 @@ impl<'a> FnSpec<'a> {
                 } else {
                     (None, None)
                 };
-                let args = self_arg.into_iter().chain(args);
-                let ok_wrap = quotes::ok_wrap(ret_ident.to_token_stream(), ctx);
                 quote! {
                     {
                         let coroutine = {
@@ -780,7 +798,8 @@ impl<'a> FnSpec<'a> {
                                         #output_args
                                         #varargs_ptr
                                         #kwargs_ptr
-                                        function(#(#args),*)
+                                        #setup
+                                        #call
                                     };
                                     let #ret_ident = future.await;
                                     let #ret_ident = #ok_wrap;
@@ -792,15 +811,12 @@ impl<'a> FnSpec<'a> {
                     }
                 }
             } else {
-                let args = self_arg.into_iter().chain(args);
-                let return_conversion = quotes::map_result_into_ptr(
-                    quotes::ok_wrap(ret_ident.to_token_stream(), ctx),
-                    ctx,
-                );
+                let return_conversion = quotes::map_result_into_ptr(ok_wrap, ctx);
                 quote! {
                     {
                         #init_holders
-                        let #ret_ident = function(#(#args),*);
+                        #setup
+                        let #ret_ident = #call;
                         #return_conversion
                     }
                 }
@@ -824,8 +840,8 @@ impl<'a> FnSpec<'a> {
                     .arguments
                     .iter()
                     .map(|arg| match arg {
-                        FnArg::Py(..) => quote!(py),
-                        FnArg::CancelHandle(..) => quote!(__cancel_handle),
+                        FnArg::Py(..) => Param::arg_expr(quote!(py)),
+                        FnArg::CancelHandle(..) => Param::arg_expr(quote!(__cancel_handle)),
                         _ => unreachable!("`CallingConvention::Noargs` should not contain any arguments (reaching Python) except for `self`, which is handled below."),
                     })
                     .collect();
