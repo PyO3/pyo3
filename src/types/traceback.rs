@@ -44,13 +44,13 @@ impl PyTraceback {
     /// The frames should be ordered from newest to oldest, i.e. the first frame in the iterator
     /// will be the innermost frame in the traceback.
     #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
-    pub fn from_frames<'py, I, F>(
+    pub fn from_frames<'py, I>(
         py: Python<'py>,
         frames: I,
     ) -> PyResult<Option<Bound<'py, PyTraceback>>>
     where
-        I: IntoIterator<Item = F>,
-        F: IntoPyObject<'py, Target = PyFrame>,
+        I: IntoIterator,
+        I::Item: IntoPyObject<'py, Target = PyFrame>,
     {
         frames.into_iter().try_fold(None, |prev, frame| {
             let frame = frame.into_pyobject(py).map_err(Into::into)?.into_bound();
