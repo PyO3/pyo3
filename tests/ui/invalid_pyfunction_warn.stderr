@@ -5,43 +5,46 @@ error: unexpected end of input, expected parentheses
   |            ^
 
 error: missing `message` in `warn` attribute
- --> tests/ui/invalid_pyfunction_warn.rs:8:13
+ --> tests/ui/invalid_pyfunction_warn.rs:9:13
   |
-8 | #[pyo3(warn())]
+9 | #[pyo3(warn())]
   |             ^
 
 error: missing `message` in `warn` attribute
-  --> tests/ui/invalid_pyfunction_warn.rs:12:62
+  --> tests/ui/invalid_pyfunction_warn.rs:14:62
    |
-12 | #[pyo3(warn(category = pyo3::exceptions::PyDeprecationWarning))]
+14 | #[pyo3(warn(category = pyo3::exceptions::PyDeprecationWarning))]
    |                                                              ^
 
 error: expected string literal
-  --> tests/ui/invalid_pyfunction_warn.rs:16:74
+  --> tests/ui/invalid_pyfunction_warn.rs:19:74
    |
-16 | #[pyo3(warn(category = pyo3::exceptions::PyDeprecationWarning, message = ,))]
+19 | #[pyo3(warn(category = pyo3::exceptions::PyDeprecationWarning, message = ,))]
    |                                                                          ^
 
 error: expected identifier
-  --> tests/ui/invalid_pyfunction_warn.rs:20:57
+  --> tests/ui/invalid_pyfunction_warn.rs:24:57
    |
-20 | #[pyo3(warn(message = "deprecated function", category = ,))]
+24 | #[pyo3(warn(message = "deprecated function", category = ,))]
    |                                                         ^
 
 error: expected `message` or `category`
-  --> tests/ui/invalid_pyfunction_warn.rs:24:46
+  --> tests/ui/invalid_pyfunction_warn.rs:29:46
    |
-24 | #[pyo3(warn(message = "deprecated function", random_key))]
+29 | #[pyo3(warn(message = "deprecated function", random_key))]
    |                                              ^^^^^^^^^^
 
 error: #[classattr] cannot be used with #[pyo3(warn)]
-  --> tests/ui/invalid_pyfunction_warn.rs:33:12
+  --> tests/ui/invalid_pyfunction_warn.rs:39:12
    |
-33 |     #[pyo3(warn(message = "deprecated class attr"))]
+39 |     #[pyo3(warn(message = "deprecated class attr"))]
    |            ^^^^
 
 error: __traverse__ cannot be used with #[pyo3(warn)]
-  --> tests/ui/invalid_pyfunction_warn.rs:41:12
+  --> tests/ui/invalid_pyfunction_warn.rs:48:12
    |
-41 |     #[pyo3(warn(message = "deprecated __traverse__"))]
+48 |     #[pyo3(warn(message = "deprecated __traverse__"))]
    |            ^^^^
+
+error: aborting due to 8 previous errors
+

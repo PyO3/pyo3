@@ -3,3 +3,6 @@ error: functions inside #[pymethods] do not need to be annotated with #[pyfuncti
    |
 11 |         fn bug() {}
    |         ^^
+
+error: aborting due to 1 previous error
+

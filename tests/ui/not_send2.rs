@@ -6,6 +6,7 @@ fn main() {
         let string = PyString::new(py, "foo");
 
         py.detach(|| {
+//~^ ERROR: `*mut pyo3::Python<'static>` cannot be shared between threads safely
             println!("{:?}", string);
         });
     });

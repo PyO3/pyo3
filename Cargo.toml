@@ -80,6 +80,8 @@ tempfile = "3.12.0"
 static_assertions = "1.1.0"
 uuid = { version = "1.10.0", features = ["v4"] }
 parking_lot = { version = "0.12.3", features = ["arc_lock"] }
+ui_test = "0.30.4"
+ctrlc = "3.5.2"
 
 [build-dependencies]
 pyo3-build-config = { path = "pyo3-build-config", version = "=0.28.2", features = ["resolve-config"] }
@@ -181,6 +183,7 @@ members = [
     "pyo3-macros",
     "pyo3-macros-backend",
     "pyo3-introspection",
+    "tests/ui/base",
     "pytests",
     "examples",
 ]

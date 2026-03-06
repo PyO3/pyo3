@@ -13,5 +13,9 @@ error[E0277]: the trait bound `PyErr: From<MyError>` is not satisfied
              `PyErr` implements `From<DowncastIntoError<'_>>`
              `PyErr` implements `From<FromUtf16Error>`
              `PyErr` implements `From<FromUtf8Error>`
-           and $N others
+           and 16 others
    = note: required for `MyError` to implement `Into<PyErr>`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0277`.

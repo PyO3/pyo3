@@ -3,3 +3,6 @@ error: Python doc may not contain nul byte, found nul at position 5
   |
 3 | #[doc = "This \0 contains a nul byte!"]
   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: aborting due to 1 previous error
+

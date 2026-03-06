@@ -3,3 +3,6 @@ error: Return type annotation in the signature is only supported with the `exper
   |
 4 | #[pyo3(signature = (a) -> "int")]
   |                           ^^^^^
+
+error: aborting due to 1 previous error
+

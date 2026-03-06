@@ -3,3 +3,6 @@ error: Type annotations in the signature is only supported with the `experimenta
   |
 4 | #[pyo3(signature = (a: "int"))]
   |                        ^^^^^
+
+error: aborting due to 1 previous error
+

@@ -5,7 +5,10 @@ error: enums do not support #[pyclass(generic)]
   |           ^^^^^^^
 
 error: enums do not support #[pyclass(generic)]
- --> tests/ui/pyclass_generic_enum.rs:9:11
-  |
-9 | #[pyclass(generic)]
-  |           ^^^^^^^
+  --> tests/ui/pyclass_generic_enum.rs:10:11
+   |
+10 | #[pyclass(generic)]
+   |           ^^^^^^^
+
+error: aborting due to 2 previous errors
+
