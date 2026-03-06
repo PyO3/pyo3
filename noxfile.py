@@ -1141,11 +1141,12 @@ def test_introspection(session: nox.Session):
         "experimental-async,experimental-inspect",
         *options,
     )
-    # We look for the built library
-    lib_file = None
-    for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
-        if file.is_file():
-            lib_file = str(file.resolve())
+    lib_file = session.run(
+        "python",
+        "-c",
+        "import pyo3_pytests; print(pyo3_pytests.pyo3_pytests.__file__)",
+        silent=True,
+    ).strip()
     _run_cargo_test(
         session,
         package="pyo3-introspection",
