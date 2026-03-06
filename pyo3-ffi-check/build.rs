@@ -24,6 +24,11 @@ fn main() {
 
     let config = pyo3_build_config::get();
 
+    // Forward config into this crate's compilation, so that `ffi-check` macro can consume it.
+    let pyo3_config_raw =
+        std::env::var("DEP_PYTHON_PYO3_CONFIG").expect("PYO3_CONFIG environment variable not set");
+    println!("cargo:rustc-env=DEP_PYTHON_PYO3_CONFIG={pyo3_config_raw}");
+
     let python_include_dir = config
         .run_python_script(
             "import sysconfig; print(sysconfig.get_config_var('INCLUDEPY'), end='');",
