@@ -1,3 +1,4 @@
+//@check-pass
 use pyo3::prelude::*;
 
 #[pyclass(eq)]

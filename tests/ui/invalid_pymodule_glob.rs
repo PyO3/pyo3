@@ -11,6 +11,7 @@ fn foo() -> usize {
 mod module {
     #[pymodule_export]
     use super::*;
+//~^ ERROR: #[pymodule] cannot import glob statements
 }
 
 fn main() {}

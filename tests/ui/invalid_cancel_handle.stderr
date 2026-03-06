@@ -4,94 +4,64 @@ error: `cancel_handle` may only be specified once per argument
 4 | async fn cancel_handle_repeated(#[pyo3(cancel_handle, cancel_handle)] _param: String) {}
   |                                                       ^^^^^^^^^^^^^
 
-error: `cancel_handle` may only be specified once
- --> tests/ui/invalid_cancel_handle.rs:9:28
+error: async functions are only supported with the `experimental-async` feature
+ --> tests/ui/invalid_cancel_handle.rs:8:1
   |
-9 |     #[pyo3(cancel_handle)] _param2: String,
-  |                            ^^^^^^^
+8 | async fn cancel_handle_repeated2(
+  | ^^^^^
 
 error: `cancel_handle` attribute can only be used with `async fn`
-  --> tests/ui/invalid_cancel_handle.rs:14:53
+  --> tests/ui/invalid_cancel_handle.rs:16:53
    |
-14 | fn cancel_handle_synchronous(#[pyo3(cancel_handle)] _param: String) {}
+16 | fn cancel_handle_synchronous(#[pyo3(cancel_handle)] _param: String) {}
    |                                                     ^^^^^^
 
-error: `from_py_with` and `cancel_handle` cannot be specified together
-  --> tests/ui/invalid_cancel_handle.rs:24:12
+error: async functions are only supported with the `experimental-async` feature
+  --> tests/ui/invalid_cancel_handle.rs:20:1
    |
-24 |     #[pyo3(cancel_handle, from_py_with = cancel_handle)] _param: pyo3::coroutine::CancelHandle,
+20 | async fn cancel_handle_wrong_type(#[pyo3(cancel_handle)] _param: String) {}
+   | ^^^^^
+
+error: async functions are only supported with the `experimental-async` feature
+  --> tests/ui/invalid_cancel_handle.rs:24:1
+   |
+24 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
+   | ^^^^^
+
+error: `from_py_with` and `cancel_handle` cannot be specified together
+  --> tests/ui/invalid_cancel_handle.rs:30:12
+   |
+30 |     #[pyo3(cancel_handle, from_py_with = cancel_handle)] _param: pyo3::coroutine::CancelHandle,
    |            ^^^^^^^^^^^^^
 
-error[E0308]: mismatched types
-  --> tests/ui/invalid_cancel_handle.rs:16:1
-   |
-16 | #[pyfunction]
-   | ^^^^^^^^^^^^^
-   | |
-   | expected `String`, found `CancelHandle`
-   | arguments to this function are incorrect
-   |
-note: function defined here
-  --> tests/ui/invalid_cancel_handle.rs:17:10
-   |
-17 | async fn cancel_handle_wrong_type(#[pyo3(cancel_handle)] _param: String) {}
-   |          ^^^^^^^^^^^^^^^^^^^^^^^^                        --------------
-   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
+error[E0433]: failed to resolve: could not find `coroutine` in `pyo3`
+   --> tests/ui/invalid_cancel_handle.rs:24:56
+    |
+ 24 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
+    |                                                        ^^^^^^^^^ could not find `coroutine` in `pyo3`
+    |
+note: found an item that was configured out
+   --> src/lib.rs:417:9
+    |
+416 | #[cfg(feature = "experimental-async")]
+    |       ------------------------------ the item is gated behind the `experimental-async` feature
+417 | pub mod coroutine;
+    |         ^^^^^^^^^
 
-error[E0277]: `CancelHandle` cannot be used as a Python function argument
-  --> tests/ui/invalid_cancel_handle.rs:20:50
-   |
-20 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
-   |                                                  ^^^^ the trait `PyClass` is not implemented for `CancelHandle`
-   |
-   = note: implement `FromPyObject` to enable using `CancelHandle` as a function argument
-   = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
-   = help: the trait `PyClass` is implemented for `pyo3::coroutine::Coroutine`
-   = note: required for `CancelHandle` to implement `FromPyObject<'_, '_>`
-   = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, '_, true>`
-note: required by a bound in `extract_argument`
-  --> src/impl_/extract_argument.rs
-   |
-   | pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
-   |        ---------------- required by a bound in this function
-...
-   |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
-   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+error[E0433]: failed to resolve: could not find `coroutine` in `pyo3`
+   --> tests/ui/invalid_cancel_handle.rs:30:72
+    |
+ 30 |     #[pyo3(cancel_handle, from_py_with = cancel_handle)] _param: pyo3::coroutine::CancelHandle,
+    |                                                                        ^^^^^^^^^ could not find `coroutine` in `pyo3`
+    |
+note: found an item that was configured out
+   --> src/lib.rs:417:9
+    |
+416 | #[cfg(feature = "experimental-async")]
+    |       ------------------------------ the item is gated behind the `experimental-async` feature
+417 | pub mod coroutine;
+    |         ^^^^^^^^^
 
-error[E0277]: `CancelHandle` cannot be used as a Python function argument
-  --> tests/ui/invalid_cancel_handle.rs:20:50
-   |
-20 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
-   |                                                  ^^^^ the trait `Clone` is not implemented for `CancelHandle`
-   |
-   = note: implement `FromPyObject` to enable using `CancelHandle` as a function argument
-   = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
-   = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
-             `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, '_, 'py, false>`
-             `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
-             `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
-             `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
-   = note: required for `CancelHandle` to implement `FromPyObject<'_, '_>`
-   = note: required for `CancelHandle` to implement `PyFunctionArgument<'_, '_, '_, true>`
-note: required by a bound in `extract_argument`
-  --> src/impl_/extract_argument.rs
-   |
-   | pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
-   |        ---------------- required by a bound in this function
-...
-   |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
-   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+error: aborting due to 8 previous errors
 
-error[E0277]: `CancelHandle` cannot be used as a Python function argument
-  --> tests/ui/invalid_cancel_handle.rs:20:50
-   |
-20 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
-   |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyFunctionArgument<'_, '_, '_, false>` is not implemented for `CancelHandle`
-   |
-   = note: implement `FromPyObject` to enable using `CancelHandle` as a function argument
-   = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
-   = help: the following other types implement trait `PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
-             `&'a pyo3::Bound<'py, T>` implements `PyFunctionArgument<'a, '_, 'py, false>`
-             `&'holder T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
-             `&'holder mut T` implements `PyFunctionArgument<'a, 'holder, '_, false>`
-             `Option<T>` implements `PyFunctionArgument<'a, 'holder, 'py, false>`
+For more information about this error, try `rustc --explain E0433`.
