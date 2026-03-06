@@ -1,6 +1,12 @@
 use crate::err::{error_on_minusone, PyResult};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, PyString};
 use crate::{ffi, Bound, PyAny};
+#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+use crate::{
+    sync::PyOnceLock,
+    types::{frame::PyFrameMethods, PyFrame, PyType},
+    BoundObject, IntoPyObject, Py, Python,
+};
 
 /// Represents a Python traceback.
 ///
@@ -19,6 +25,43 @@ pyobject_native_type_core!(
     "traceback",
     #checkfunction=ffi::PyTraceBack_Check
 );
+
+impl PyTraceback {
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+    pub(crate) fn new<'py>(
+        py: Python<'py>,
+        next: Option<Bound<'py, PyTraceback>>,
+        frame: Bound<'py, PyFrame>,
+        instruction_index: i32,
+        line_number: i32,
+    ) -> PyResult<Bound<'py, PyTraceback>> {
+        static TRACEBACK: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+
+        Ok(TRACEBACK
+            .import(py, "types", "TracebackType")?
+            .call1((next, frame, instruction_index, line_number))?
+            .cast_into()?)
+    }
+
+    /// Creates a new traceback object from an iterator of frames.
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+    pub fn from_frames<'py, I, F>(py: Python<'py>, frames: I) -> PyResult<Bound<'py, PyTraceback>>
+    where
+        I: IntoIterator<Item = F>,
+        F: IntoPyObject<'py, Target = PyFrame>,
+    {
+        let traceback = frames
+            .into_iter()
+            .try_fold(None, |prev, frame| {
+                let frame = frame.into_pyobject(py).map_err(Into::into)?.into_bound();
+                let line_number = frame.line_number();
+                PyTraceback::new(py, prev, frame, 0, line_number).map(Some)
+            })?
+            .expect("at least one frame is required to create a traceback");
+
+        Ok(traceback)
+    }
+}
 
 /// Implementation of functionality for [`PyTraceback`].
 ///
@@ -82,9 +125,10 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::IntoPyObject;
     use crate::{
-        types::{any::PyAnyMethods, dict::PyDictMethods, traceback::PyTracebackMethods, PyDict},
+        types::{dict::PyDictMethods, PyDict},
         PyErr, Python,
     };
 
@@ -144,6 +188,23 @@ def f():
             let err_object = err.clone_ref(py).into_pyobject(py).unwrap();
 
             assert!(err_object.getattr("__traceback__").unwrap().is(&traceback));
+        })
+    }
+
+    #[test]
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+    fn test_create_traceback() {
+        Python::attach(|py| {
+            let frames = [
+                PyFrame::new(py, c"file1.py", c"func1", 10).unwrap(),
+                PyFrame::new(py, c"file2.py", c"func2", 20).unwrap(),
+                PyFrame::new(py, c"file3.py", c"func3", 30).unwrap(),
+            ];
+
+            let traceback = PyTraceback::from_frames(py, frames).unwrap();
+            assert_eq!(
+                traceback.format().unwrap(), "Traceback (most recent call last):\n  File \"file3.py\", line 30, in func3\n  File \"file2.py\", line 20, in func2\n  File \"file1.py\", line 10, in func1\n"
+            );
         })
     }
 }
