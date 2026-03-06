@@ -104,7 +104,7 @@ pub fn add_libpython_rpath_link_args() {
         get(),
         // webassembly targets generally don't support rpath, emscripten is the only exception currently aware of:
         // https://github.com/emscripten-core/emscripten/issues/22126
-        is_linking_libpython && !(is_wasm && !is_emscripten),
+        is_linking_libpython && (!is_wasm || is_emscripten),
         std::io::stdout(),
     )
 }
