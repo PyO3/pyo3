@@ -1,11 +1,25 @@
 from _typeshed import Incomplete
 from typing import Final, final
 
+
+
 class AssertingBaseClass:
     """
     Demonstrates a base class which can operate on the relevant subclass in its constructor.
     """
     def __new__(cls, /, expected_type: type) -> AssertingBaseClass: ...
+
+@final
+class ClassWithCustomGetterSetterSignature:
+    def __new__(cls, /) -> ClassWithCustomGetterSetterSignature: ...
+    @property
+    def bar(self, /) -> int: ...
+    @bar.setter
+    def bar(self, /, value: int) -> None: ...
+    @property
+    def foo(self, /) -> "int": ...
+    @foo.setter
+    def foo(self, /, value: "int") -> None: ...
 
 @final
 class ClassWithDecorators:
