@@ -16,7 +16,7 @@ pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
 pub use self::ellipsis::PyEllipsis;
 pub use self::float::{PyFloat, PyFloatMethods};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
-pub use self::frame::PyFrame;
+pub use self::frame::{PyFrame, PyFrameMethods};
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
 #[cfg(not(Py_LIMITED_API))]
