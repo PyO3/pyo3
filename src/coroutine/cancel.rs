@@ -1,8 +1,9 @@
 use crate::{Py, PyAny};
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll, Waker};
+use alloc::sync::Arc;
+use core::future::Future;
+use core::pin::Pin;
+use core::task::{Context, Poll, Waker};
+use std::sync::Mutex;
 
 #[derive(Debug, Default)]
 struct Inner {

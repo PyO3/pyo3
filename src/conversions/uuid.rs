@@ -172,7 +172,7 @@ mod tests {
     use super::*;
     use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
-    use std::ffi::CString;
+    use alloc::ffi::CString;
     use uuid::Uuid;
 
     macro_rules! convert_constants {

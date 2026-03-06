@@ -57,8 +57,8 @@ use crate::exceptions::PyValueError;
 use crate::inspect::PyStaticExpr;
 use crate::types::PyFloat;
 use crate::{Borrowed, Bound, FromPyObject, PyAny, Python};
+use core::convert::Infallible;
 use ordered_float::{NotNan, OrderedFloat};
-use std::convert::Infallible;
 
 macro_rules! float_conversions {
     ($wrapper:ident, $float_type:ty, $constructor:expr) => {
@@ -114,8 +114,8 @@ mod test_ordered_float {
     use super::*;
     use crate::types::dict::IntoPyDict;
     use crate::types::PyAnyMethods;
-    use std::ffi::CStr;
-    use std::ffi::CString;
+    use alloc::ffi::CString;
+    use core::ffi::CStr;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;

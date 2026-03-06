@@ -212,7 +212,7 @@ impl std::io::Write for PyBytesWriter<'_> {
         self.buffer.write_all(buf)
     }
 
-    fn write_fmt(&mut self, args: std::fmt::Arguments<'_>) -> std::io::Result<()> {
+    fn write_fmt(&mut self, args: core::fmt::Arguments<'_>) -> std::io::Result<()> {
         self.buffer.write_fmt(args)
     }
 }

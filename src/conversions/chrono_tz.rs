@@ -44,9 +44,9 @@ use crate::types::{any::PyAnyMethods, PyTzInfo};
 #[cfg(all(feature = "experimental-inspect", not(Py_3_9)))]
 use crate::PyTypeInfo;
 use crate::{intern, Borrowed, Bound, FromPyObject, PyAny, PyErr, Python};
+use alloc::borrow::Cow;
 use chrono_tz::Tz;
-use std::borrow::Cow;
-use std::str::FromStr;
+use core::str::FromStr;
 
 impl<'py> IntoPyObject<'py> for Tz {
     type Target = PyTzInfo;
