@@ -12,6 +12,7 @@ concurrency:
 
 env:
   UV_PYTHON: "3.14t"
+  RUSTFLAGS: "-C linker=clang -C link-arg=-fuse-ld=mold"
 
 jobs:
   benchmarks:
@@ -19,6 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.2
       - uses: rui314/setup-mold@v1
+        with:
+          default: false
       - uses: astral-sh/setup-uv@v7
         with:
           # codspeed action needs to be run from within the final Python environment
