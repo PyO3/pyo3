@@ -3,9 +3,8 @@ use crate::types::{any::PyAnyMethods, string::PyStringMethods, PyString};
 use crate::{ffi, Bound, PyAny};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 use crate::{
-    sync::PyOnceLock,
-    types::{frame::PyFrameMethods, PyFrame, PyType},
-    BoundObject, IntoPyObject, Py, Python,
+    types::{frame::PyFrameMethods, PyFrame},
+    BoundObject, IntoPyObject, PyTypeCheck, Python,
 };
 
 /// Represents a Python traceback.
@@ -35,10 +34,7 @@ impl PyTraceback {
         instruction_index: i32,
         line_number: i32,
     ) -> PyResult<Bound<'py, PyTraceback>> {
-        static TRACEBACK: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-
-        Ok(TRACEBACK
-            .import(py, "types", "TracebackType")?
+        Ok(PyTraceback::classinfo_object(py)
             .call1((next, frame, instruction_index, line_number))?
             .cast_into()?)
     }
