@@ -40,6 +40,9 @@ impl PyTraceback {
     }
 
     /// Creates a new traceback object from an iterator of frames.
+    ///
+    /// The frames should be ordered from newest to oldest, i.e. the first frame in the iterator
+    /// will be the innermost frame in the traceback.
     #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
     pub fn from_frames<'py, I, F>(py: Python<'py>, frames: I) -> PyResult<Bound<'py, PyTraceback>>
     where
@@ -191,15 +194,16 @@ def f():
     #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
     fn test_create_traceback() {
         Python::attach(|py| {
+            // most recent frame first, oldest frame last
             let frames = [
-                PyFrame::new(py, c"file1.py", c"func1", 10).unwrap(),
-                PyFrame::new(py, c"file2.py", c"func2", 20).unwrap(),
                 PyFrame::new(py, c"file3.py", c"func3", 30).unwrap(),
+                PyFrame::new(py, c"file2.py", c"func2", 20).unwrap(),
+                PyFrame::new(py, c"file1.py", c"func1", 10).unwrap(),
             ];
 
             let traceback = PyTraceback::from_frames(py, frames).unwrap();
             assert_eq!(
-                traceback.format().unwrap(), "Traceback (most recent call last):\n  File \"file3.py\", line 30, in func3\n  File \"file2.py\", line 20, in func2\n  File \"file1.py\", line 10, in func1\n"
+                traceback.format().unwrap(), "Traceback (most recent call last):\n  File \"file1.py\", line 10, in func1\n  File \"file2.py\", line 20, in func2\n  File \"file3.py\", line 30, in func3\n"
             );
         })
     }
