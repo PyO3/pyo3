@@ -18,7 +18,7 @@ impl PyMutex {
     }
 }
 
-extern "C" {
+extern_python_dll! {
     pub fn PyMutex_Lock(m: *mut PyMutex);
     pub fn PyMutex_Unlock(m: *mut PyMutex);
     #[cfg(Py_3_14)]

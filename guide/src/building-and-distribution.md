@@ -262,11 +262,7 @@ E.g., if you set `abi3-py38` and try to compile the crate with a host of Python 
 
 As an advanced feature, you can build PyO3 wheel without calling Python interpreter with the environment variable `PYO3_NO_PYTHON` set.
 Also, if the build host Python interpreter is not found or is too old or otherwise unusable, PyO3 will still attempt to compile `abi3` extension modules after displaying a warning message.
-On Unix-like systems this works unconditionally; on Windows you must also set the `RUSTFLAGS` environment variable to contain `-L native=/path/to/python/libs` so that the linker can find `python3.lib`.
-
-If the `python3.dll` import library is not available, an experimental `generate-import-lib` crate feature may be enabled, and the required library will be created and used by PyO3 automatically.
-
-*Note*: MSVC targets require LLVM binutils (`llvm-dlltool`) to be available in `PATH` for the automatic import library generation feature to work.
+On Unix-like systems this works unconditionally; on Windows this also works unconditionally thanks to `raw-dylib` linking, which eliminates the need for import library (`.lib`) files.
 
 #### Missing features
 
@@ -363,20 +359,15 @@ PyO3's build script will detect that you are attempting a cross-compile based on
 When cross-compiling, PyO3's build script cannot execute the target Python interpreter to query the configuration, so there are a few additional environment variables you may need to set:
 
 - `PYO3_CROSS`: If present this variable forces PyO3 to configure as a cross-compilation.
-- `PYO3_CROSS_LIB_DIR`: This variable can be set to the directory containing the target's libpython DSO and the associated `_sysconfigdata*.py` file for Unix-like targets, or the Python DLL import libraries for the Windows target.
-  This variable is only needed when the output binary must link to libpython explicitly (e.g. when targeting Windows and Android or embedding a Python interpreter), or when it is absolutely required to get the interpreter configuration from `_sysconfigdata*.py`.
+- `PYO3_CROSS_LIB_DIR`: This variable can be set to the directory containing the target's libpython DSO and the associated `_sysconfigdata*.py` file for Unix-like targets.
+  This variable is only needed when the output binary must link to libpython explicitly (e.g. when targeting Android or embedding a Python interpreter), or when it is absolutely required to get the interpreter configuration from `_sysconfigdata*.py`.
+  On Windows, this variable is not needed because PyO3 uses `raw-dylib` linking.
 - `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python installation.
   This variable is only needed if PyO3 cannot determine the version to target from `abi3-py3*` features, or if `PYO3_CROSS_LIB_DIR` is not set, or if there are multiple versions of Python present in `PYO3_CROSS_LIB_DIR`.
 - `PYO3_CROSS_PYTHON_IMPLEMENTATION`: Python implementation name ("CPython" or "PyPy") of the target Python installation.
   CPython is assumed by default when this variable is not set, unless `PYO3_CROSS_LIB_DIR` is set for a Unix-like target and PyO3 can get the interpreter configuration from `_sysconfigdata*.py`.
 
-An experimental `pyo3` crate feature `generate-import-lib` enables the user to cross-compile extension modules for Windows targets without setting the `PYO3_CROSS_LIB_DIR` environment variable or providing any Windows Python library files.
-It uses an external [`python3-dll-a`] crate to generate import libraries for the Python DLL for MinGW-w64 and MSVC compile targets.
-`python3-dll-a` uses the binutils `dlltool` program to generate DLL import libraries for MinGW-w64 targets.
-It is possible to override the default `dlltool` command name for the cross target by setting `PYO3_MINGW_DLLTOOL` environment variable.
-*Note*: MSVC targets require LLVM binutils or MSVC build tools to be available on the host system.
-More specifically, `python3-dll-a` requires `llvm-dlltool` or `lib.exe` executable to be present in `PATH` when targeting `*-pc-windows-msvc`.
-The Zig compiler executable can be used in place of `llvm-dlltool` when the `ZIG_COMMAND` environment variable is set to the installed Zig program name (`"zig"` or `"python -m ziglang"`).
+When cross compiling for Windows targets, `PYO3_CROSS_LIB_DIR` is not needed because PyO3 uses Rust's `raw-dylib` linking feature, which eliminates the need for import library (`.lib`) files entirely.
 
 An example might look like the following (assuming your target's sysroot is at `/home/pyo3/cross/sysroot` and that your target is `armv7`):
 
@@ -395,18 +386,17 @@ export PYO3_CROSS_LIB_DIR="/home/pyo3/cross/sysroot/usr/lib"
 cargo build --target armv7-unknown-linux-gnueabihf
 ```
 
-Or another example with the same sys root but building for Windows:
+Or another example building for Windows (no `PYO3_CROSS_LIB_DIR` needed thanks to `raw-dylib`):
 
 ```sh
 export PYO3_CROSS_PYTHON_VERSION=3.9
-export PYO3_CROSS_LIB_DIR="/home/pyo3/cross/sysroot/usr/lib"
 
 cargo build --target x86_64-pc-windows-gnu
 ```
 
 Any of the `abi3-py3*` features can be enabled instead of setting `PYO3_CROSS_PYTHON_VERSION` in the above examples.
 
-`PYO3_CROSS_LIB_DIR` can often be omitted when cross compiling extension modules for Unix and macOS targets, or when cross compiling extension modules for Windows and the experimental `generate-import-lib` crate feature is enabled.
+`PYO3_CROSS_LIB_DIR` can often be omitted when cross compiling extension modules for Unix, macOS, and Windows targets.
 
 The following resources may also be useful for cross-compiling:
 
@@ -419,4 +409,3 @@ The following resources may also be useful for cross-compiling:
 [`maturin`]: https://github.com/PyO3/maturin
 [`setuptools-rust`]: https://github.com/PyO3/setuptools-rust
 [PyOxidizer]: https://github.com/indygreg/PyOxidizer
-[`python3-dll-a`]: https://docs.rs/python3-dll-a/latest/python3_dll_a/

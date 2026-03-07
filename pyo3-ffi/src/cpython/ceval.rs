@@ -2,7 +2,7 @@ use crate::cpython::pystate::Py_tracefunc;
 use crate::object::{freefunc, PyObject};
 use std::ffi::c_int;
 
-extern "C" {
+extern_python_dll! {
     // skipped non-limited _PyEval_CallTracing
 
     #[cfg(not(Py_3_11))]

@@ -2,7 +2,7 @@ use crate::object::PyObject;
 use libc::wchar_t;
 use std::ffi::{c_char, c_int};
 
-extern "C" {
+extern_python_dll! {
     #[cfg_attr(PyPy, link_name = "PyPySys_GetObject")]
     pub fn PySys_GetObject(arg1: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPySys_SetObject")]

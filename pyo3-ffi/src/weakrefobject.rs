@@ -9,8 +9,7 @@ opaque_struct!(pub PyWeakReference);
 #[cfg(all(not(PyPy), not(Py_LIMITED_API), not(GraalPy)))]
 pub use crate::_PyWeakReference as PyWeakReference;
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_python_dll! {
     // TODO: PyO3 is depending on this symbol in `reference.rs`, we should change this and
     // remove the export as this is a private symbol.
     pub static mut _PyWeakref_RefType: PyTypeObject;
@@ -54,7 +53,7 @@ pub unsafe fn PyWeakref_Check(op: *mut PyObject) -> c_int {
     (PyWeakref_CheckRef(op) != 0 || PyWeakref_CheckProxy(op) != 0) as c_int
 }
 
-extern "C" {
+extern_python_dll! {
     #[cfg_attr(PyPy, link_name = "PyPyWeakref_NewRef")]
     pub fn PyWeakref_NewRef(ob: *mut PyObject, callback: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyWeakref_NewProxy")]
