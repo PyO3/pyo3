@@ -1120,12 +1120,36 @@ pub trait PyClassBaseType: Sized {
 
 /// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
+    // Call tp_finalize if defined, matching CPython's subtype_dealloc behavior.
+    // PyO3 replaces the default subtype_dealloc with its own tp_dealloc, so we
+    // must explicitly invoke tp_finalize here.
+    #[cfg(not(Py_LIMITED_API))]
+    if unsafe { ffi::PyObject_CallFinalizerFromDealloc(obj) } < 0 {
+        // Object was resurrected by the finalizer; abort deallocation.
+        return;
+    }
     unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
 }
 
 /// Implementation of tp_dealloc for pyclasses with gc
 pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::PyObject) {
     #[cfg(not(PyPy))]
+    unsafe {
+        ffi::PyObject_GC_UnTrack(obj.cast());
+    }
+    // For GC types, CPython's subtype_dealloc re-tracks the object before calling
+    // tp_finalize (the finalizer might make the object visible to the GC again),
+    // then un-tracks it afterwards. We mirror that behavior here.
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
+    unsafe {
+        ffi::PyObject_GC_Track(obj.cast());
+    }
+    #[cfg(not(Py_LIMITED_API))]
+    if unsafe { ffi::PyObject_CallFinalizerFromDealloc(obj) } < 0 {
+        // Object was resurrected by the finalizer and is GC-tracked; abort deallocation.
+        return;
+    }
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
     unsafe {
         ffi::PyObject_GC_UnTrack(obj.cast());
     }

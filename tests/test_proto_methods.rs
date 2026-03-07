@@ -893,3 +893,279 @@ fn test_contains_opt_out() {
         py_expect_exception!(py, no_contains, "'a' in no_contains", PyTypeError);
     })
 }
+
+// __del__ tests
+
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+#[pyclass(subclass)]
+struct ClassWithDel {
+    flag: Arc<AtomicBool>,
+}
+
+#[pymethods]
+impl ClassWithDel {
+    #[new]
+    fn new() -> Self {
+        Self {
+            flag: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    fn __del__(&mut self) {
+        self.flag.store(true, Ordering::SeqCst);
+    }
+}
+
+#[pyclass]
+struct ClassWithDelPy {
+    flag: Arc<AtomicBool>,
+}
+
+#[pymethods]
+impl ClassWithDelPy {
+    fn __del__(&self, _py: Python<'_>) {
+        self.flag.store(true, Ordering::SeqCst);
+    }
+}
+
+#[test]
+fn test_del_with_py_arg() {
+    Python::attach(|py| {
+        let flag = Arc::new(AtomicBool::new(false));
+        let obj = Bound::new(py, ClassWithDelPy { flag: flag.clone() }).unwrap();
+        assert!(!flag.load(Ordering::SeqCst));
+        obj.call_method0("__del__").unwrap();
+        assert!(flag.load(Ordering::SeqCst));
+    })
+}
+
+#[test]
+fn test_del_called_explicitly() {
+    Python::attach(|py| {
+        let flag = Arc::new(AtomicBool::new(false));
+        let obj = Bound::new(py, ClassWithDel { flag: flag.clone() }).unwrap();
+        assert!(!flag.load(Ordering::SeqCst));
+        obj.call_method0("__del__").unwrap();
+        assert!(flag.load(Ordering::SeqCst));
+    })
+}
+
+// On abi3, PyObject_CallFinalizerFromDealloc is not available, so __del__ is
+// not invoked during deallocation. These tests only apply to non-limited API.
+// On Python 3.7, Py_tp_finalize set via PyType_FromSpec is not properly
+// applied to the type, so tp_finalize is never called.
+#[cfg(all(not(Py_LIMITED_API), Py_3_8))]
+#[test]
+fn test_del_called_on_dealloc() {
+    Python::attach(|py| {
+        let flag = Arc::new(AtomicBool::new(false));
+        let obj = Bound::new(py, ClassWithDel { flag: flag.clone() }).unwrap();
+        assert!(!flag.load(Ordering::SeqCst));
+        drop(obj);
+        assert!(flag.load(Ordering::SeqCst));
+    })
+}
+
+#[pyclass]
+struct ClassWithDelError;
+
+#[pymethods]
+impl ClassWithDelError {
+    fn __del__(&mut self) -> PyResult<()> {
+        Err(pyo3::exceptions::PyRuntimeError::new_err(
+            "error in __del__",
+        ))
+    }
+}
+
+#[cfg(all(not(Py_LIMITED_API), Py_3_8))]
+#[test]
+fn test_del_error_is_unraisable() {
+    Python::attach(|py| {
+        test_utils::UnraisableCapture::enter(py, |capture| {
+            let obj = Bound::new(py, ClassWithDelError).unwrap();
+            drop(obj);
+            let (err, _context) = capture
+                .take_capture()
+                .expect("unraisable error should have been captured");
+            assert!(err.is_instance_of::<pyo3::exceptions::PyRuntimeError>(py));
+        });
+    })
+}
+
+#[pyclass]
+struct ClassWithDelAndTraverse {
+    cycle: Option<Py<PyAny>>,
+    flag: Arc<AtomicBool>,
+}
+
+#[pymethods]
+impl ClassWithDelAndTraverse {
+    fn __traverse__(
+        &self,
+        visit: pyo3::class::gc::PyVisit<'_>,
+    ) -> Result<(), pyo3::class::gc::PyTraverseError> {
+        if let Some(ref obj) = self.cycle {
+            visit.call(obj)?;
+        }
+        Ok(())
+    }
+
+    fn __clear__(&mut self) {
+        self.cycle = None;
+    }
+
+    fn __del__(&mut self) {
+        self.flag.store(true, Ordering::SeqCst);
+    }
+}
+
+#[cfg(all(not(Py_LIMITED_API), Py_3_8))]
+#[test]
+fn test_del_with_gc() {
+    Python::attach(|py| {
+        let flag = Arc::new(AtomicBool::new(false));
+        let obj = Bound::new(
+            py,
+            ClassWithDelAndTraverse {
+                cycle: None,
+                flag: flag.clone(),
+            },
+        )
+        .unwrap();
+        assert!(!flag.load(Ordering::SeqCst));
+        drop(obj);
+        assert!(flag.load(Ordering::SeqCst));
+    })
+}
+
+/// Test that __del__ is called by the cyclic garbage collector when an actual
+/// reference cycle exists. This exercises the GC's own tp_finalize invocation
+/// (not our tp_dealloc path), which works even on abi3 builds.
+/// Requires Python 3.8+ because Py_tp_finalize in PyType_FromSpec is not
+/// properly applied to the type on Python 3.7.
+#[cfg(Py_3_8)]
+#[test]
+fn test_del_via_cyclic_gc() {
+    let flag = Arc::new(AtomicBool::new(false));
+
+    Python::attach(|py| {
+        let obj = Bound::new(
+            py,
+            ClassWithDelAndTraverse {
+                cycle: None,
+                flag: flag.clone(),
+            },
+        )
+        .unwrap();
+
+        // Create a reference cycle: obj.cycle points back to obj
+        obj.borrow_mut().cycle = Some(obj.clone().unbind().into_any());
+
+        assert!(!flag.load(Ordering::SeqCst));
+
+        // Drop the Rust reference; the cycle keeps the object alive
+        drop(obj);
+    });
+
+    // Force the cyclic GC to break the cycle and finalize.
+    // On the free-threaded build the GC may run in a separate thread, so
+    // we detach between collections (by using Python::attach inside the
+    // loop) to give the GC thread a chance to run finalization.
+    for _ in 0..100 {
+        if flag.load(Ordering::SeqCst) {
+            break;
+        }
+        Python::attach(|py| {
+            py.import("gc").unwrap().call_method0("collect").unwrap();
+        });
+        #[cfg(Py_GIL_DISABLED)]
+        {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
+
+    assert!(
+        flag.load(Ordering::SeqCst),
+        "__del__ should have been called by the cyclic GC"
+    );
+}
+
+/// Test that a panic inside __del__ does not swallow a pre-existing Python exception.
+/// The trampoline must save/restore the exception state around catch_unwind so
+/// that a panic in the finalizer doesn't lose the active exception.
+#[pyclass]
+struct PanickingDel;
+
+#[pymethods]
+impl PanickingDel {
+    fn __del__(&self) {
+        panic!("panic in __del__");
+    }
+}
+
+#[cfg(all(not(Py_LIMITED_API), Py_3_8, not(target_arch = "wasm32")))]
+#[test]
+fn test_del_panic_preserves_active_exception() {
+    Python::attach(|py| {
+        test_utils::UnraisableCapture::enter(py, |capture| {
+            // Create the object first, then set an active exception before dropping
+            let obj = Bound::new(py, PanickingDel).unwrap();
+            PyErr::new::<pyo3::exceptions::PyValueError, _>("original error").restore(py);
+            assert!(PyErr::occurred(py));
+
+            drop(obj);
+
+            // The panic should have been written as unraisable
+            let (err, _ctx) = capture
+                .take_capture()
+                .expect("panic in __del__ should produce an unraisable");
+            assert!(err.is_instance_of::<pyo3::panic::PanicException>(py));
+
+            // The original exception must still be set (not swallowed)
+            let original = PyErr::take(py).expect("original exception should still be active");
+            assert!(original.is_instance_of::<pyo3::exceptions::PyValueError>(py));
+        });
+    })
+}
+
+/// Test object resurrection: a Python subclass __del__ saves `self` to a global,
+/// preventing deallocation. PyObject_CallFinalizerFromDealloc returns -1 when
+/// the refcount stays above zero, and our tp_dealloc correctly aborts.
+#[cfg(not(Py_LIMITED_API))]
+#[test]
+fn test_del_resurrection() {
+    Python::attach(|py| {
+        let cls = py.get_type::<ClassWithDel>();
+        py_run!(
+            py,
+            cls,
+            r#"
+            import gc
+
+            resurrected = None
+
+            class Resurrector(cls):
+                def __del__(self):
+                    super().__del__()
+                    global resurrected
+                    resurrected = self
+
+            obj = Resurrector()
+            oid = id(obj)
+            del obj
+            gc.collect()
+
+            # The object should have been resurrected by __del__
+            assert resurrected is not None, "object should have been resurrected"
+            assert id(resurrected) == oid, "should be the same instance"
+
+            # Clean up
+            resurrected = None
+            gc.collect()
+            "#
+        );
+    })
+}
