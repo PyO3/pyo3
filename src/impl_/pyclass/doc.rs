@@ -1,4 +1,4 @@
-use std::{ffi::CStr, marker::PhantomData};
+use core::{ffi::CStr, marker::PhantomData};
 
 use crate::{impl_::pyclass::PyClassImpl, PyClass};
 
@@ -39,20 +39,20 @@ impl<ClassT: PyClass> PyClassDocGenerator<ClassT, false> {
 }
 
 /// Casts bytes to a CStr, ensuring they are valid.
-pub const fn doc_bytes_as_cstr(bytes: &'static [u8]) -> &'static ::std::ffi::CStr {
+pub const fn doc_bytes_as_cstr(bytes: &'static [u8]) -> &'static ::core::ffi::CStr {
     match CStr::from_bytes_with_nul(bytes) {
         Ok(cstr) => cstr,
         #[cfg(not(from_bytes_with_nul_error))] // MSRV 1.86
         Err(_) => panic!("invalid pyclass doc"),
         #[cfg(from_bytes_with_nul_error)]
         // This case may happen if the user provides an invalid docstring
-        Err(std::ffi::FromBytesWithNulError::InteriorNul { .. }) => {
+        Err(core::ffi::FromBytesWithNulError::InteriorNul { .. }) => {
             panic!("pyclass doc contains nul bytes")
         }
         // This case shouldn't happen using the macro machinery as long as `PyClassDocGenerator`
         // uses the RAW_DOC as the final piece, which is nul terminated.
         #[cfg(from_bytes_with_nul_error)]
-        Err(std::ffi::FromBytesWithNulError::NotNulTerminated) => {
+        Err(core::ffi::FromBytesWithNulError::NotNulTerminated) => {
             panic!("pyclass doc expected to be nul terminated")
         }
     }

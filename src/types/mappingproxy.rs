@@ -8,7 +8,7 @@ use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyIterator, PyList};
 use crate::{ffi, Python};
 
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 /// Represents a Python `mappingproxy`.
 #[repr(transparent)]
@@ -16,7 +16,7 @@ pub struct PyMappingProxy(PyAny);
 
 #[inline]
 unsafe fn dict_proxy_check(op: *mut ffi::PyObject) -> c_int {
-    unsafe { ffi::Py_IS_TYPE(op, std::ptr::addr_of_mut!(ffi::PyDictProxy_Type)) }
+    unsafe { ffi::Py_IS_TYPE(op, core::ptr::addr_of_mut!(ffi::PyDictProxy_Type)) }
 }
 
 pyobject_native_type_core!(
@@ -142,7 +142,8 @@ mod tests {
         exceptions::PyKeyError,
         types::{PyInt, PyTuple},
     };
-    use std::collections::{BTreeMap, HashMap};
+    use alloc::collections::BTreeMap;
+    use std::collections::HashMap;
 
     #[test]
     fn test_new() {

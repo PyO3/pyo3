@@ -1,11 +1,14 @@
+#![allow(unused_imports, reason = "conditional compilation")]
+
 use crate::byteswriter::PyBytesWriter;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::{ffi, Py, PyAny, PyResult, Python};
+use core::ops::Index;
+use core::slice::SliceIndex;
+use core::str;
+#[cfg(feature = "std")]
 use std::io::Write;
-use std::ops::Index;
-use std::slice::SliceIndex;
-use std::str;
 
 /// Represents a Python `bytes` object.
 ///
@@ -96,16 +99,16 @@ impl PyBytes {
         F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
         unsafe {
-            let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
+            let pyptr = ffi::PyBytes_FromStringAndSize(core::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
             let pybytes = pyptr.assume_owned_or_err(py)?.cast_into_unchecked();
             let buffer: *mut u8 = ffi::PyBytes_AsString(pyptr).cast();
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytestring
-            std::ptr::write_bytes(buffer, 0u8, len);
+            core::ptr::write_bytes(buffer, 0u8, len);
             // (Further) Initialise the bytestring in init
             // If init returns an Err, pypybytearray will automatically deallocate the buffer
-            init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pybytes)
+            init(core::slice::from_raw_parts_mut(buffer, len)).map(|_| pybytes)
         }
     }
 
@@ -136,6 +139,7 @@ impl PyBytes {
     /// })
     /// # }
     /// ```
+    #[cfg(feature = "std")]
     #[inline]
     pub fn new_with_writer<F>(
         py: Python<'_>,
@@ -195,7 +199,7 @@ impl<'a> Borrowed<'a, '_, PyBytes> {
             let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
             debug_assert!(!buffer.is_null());
-            std::slice::from_raw_parts(buffer, length)
+            core::slice::from_raw_parts(buffer, length)
         }
     }
 }
@@ -432,8 +436,8 @@ mod tests {
             let py_bytes = PyBytes::new(py, b);
             unsafe {
                 assert_eq!(
-                    ffi::PyBytes_AsString(py_bytes.as_ptr()) as *const std::ffi::c_char,
-                    ffi::PyBytes_AS_STRING(py_bytes.as_ptr()) as *const std::ffi::c_char
+                    ffi::PyBytes_AsString(py_bytes.as_ptr()) as *const core::ffi::c_char,
+                    ffi::PyBytes_AS_STRING(py_bytes.as_ptr()) as *const core::ffi::c_char
                 );
             }
         })
@@ -453,6 +457,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_with_writer() {
         Python::attach(|py| {
             let bytes = PyBytes::new_with_writer(py, 0, |writer| {

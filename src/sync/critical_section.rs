@@ -44,7 +44,7 @@ use crate::types::PyMutex;
 use crate::Python;
 use crate::{types::PyAny, Bound};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
-use std::cell::UnsafeCell;
+use core::cell::UnsafeCell;
 
 #[cfg(Py_GIL_DISABLED)]
 struct CSGuard(crate::ffi::PyCriticalSection);
@@ -132,7 +132,7 @@ where
 {
     #[cfg(Py_GIL_DISABLED)]
     {
-        let mut guard = CSGuard(unsafe { std::mem::zeroed() });
+        let mut guard = CSGuard(unsafe { core::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection_Begin(&mut guard.0, object.as_ptr()) };
         f()
     }
@@ -159,7 +159,7 @@ where
 {
     #[cfg(Py_GIL_DISABLED)]
     {
-        let mut guard = CS2Guard(unsafe { std::mem::zeroed() });
+        let mut guard = CS2Guard(unsafe { core::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection2_Begin(&mut guard.0, a.as_ptr(), b.as_ptr()) };
         f()
     }
@@ -197,7 +197,7 @@ where
 {
     #[cfg(Py_GIL_DISABLED)]
     {
-        let mut guard = CSGuard(unsafe { std::mem::zeroed() });
+        let mut guard = CSGuard(unsafe { core::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection_BeginMutex(&mut guard.0, &mut *mutex.mutex.get()) };
         f(EnteredCriticalSection(&mutex.data))
     }
@@ -240,7 +240,7 @@ where
 {
     #[cfg(Py_GIL_DISABLED)]
     {
-        let mut guard = CS2Guard(unsafe { std::mem::zeroed() });
+        let mut guard = CS2Guard(unsafe { core::mem::zeroed() });
         unsafe {
             crate::ffi::PyCriticalSection2_BeginMutex(
                 &mut guard.0,
@@ -274,7 +274,7 @@ mod tests {
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
     use crate::types::PyMutex;
     #[cfg(feature = "macros")]
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use core::sync::atomic::{AtomicBool, Ordering};
     #[cfg(any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14)))]
     use std::sync::Barrier;
 
@@ -306,7 +306,7 @@ mod tests {
                     let b = bool_wrapper.bind(py);
                     with_critical_section(b, || {
                         barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        std::thread::sleep(core::time::Duration::from_millis(10));
                         b.borrow().0.store(true, Ordering::Release);
                     })
                 });
@@ -336,7 +336,7 @@ mod tests {
                 Python::attach(|py| {
                     with_critical_section_mutex(py, &mutex, |mut b| {
                         barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        std::thread::sleep(core::time::Duration::from_millis(10));
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         *(unsafe { b.get_mut() }) = true;
                     });
@@ -374,7 +374,7 @@ mod tests {
                     let b2 = bool_wrapper2.bind(py);
                     with_critical_section2(b1, b2, || {
                         barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        std::thread::sleep(core::time::Duration::from_millis(10));
                         b1.borrow().0.store(true, Ordering::Release);
                         b2.borrow().0.store(true, Ordering::Release);
                     })
@@ -416,7 +416,7 @@ mod tests {
                 Python::attach(|py| {
                     with_critical_section_mutex2(py, &m1, &m2, |mut b1, mut b2| {
                         barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        std::thread::sleep(core::time::Duration::from_millis(10));
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         unsafe { (*b1.get_mut()) = true };
                         unsafe { (*b2.get_mut()) = true };
@@ -452,7 +452,7 @@ mod tests {
                     let b = bool_wrapper.bind(py);
                     with_critical_section2(b, b, || {
                         barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        std::thread::sleep(core::time::Duration::from_millis(10));
                         b.borrow().0.store(true, Ordering::Release);
                     })
                 });
@@ -482,7 +482,7 @@ mod tests {
                 Python::attach(|py| {
                     with_critical_section_mutex2(py, &m, &m, |mut b1, b2| {
                         barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        std::thread::sleep(core::time::Duration::from_millis(10));
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         unsafe { (*b1.get_mut()) = true };
                         assert!(unsafe { *b2.get() });

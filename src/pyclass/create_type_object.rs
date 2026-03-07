@@ -18,12 +18,12 @@ use crate::{
     types::PyType,
     Py, PyClass, PyResult, PyTypeInfo, Python,
 };
-use std::{
-    collections::HashMap,
-    ffi::{CStr, CString},
-    os::raw::{c_char, c_int, c_ulong, c_void},
+use alloc::ffi::CString;
+use core::{
+    ffi::{c_char, c_int, c_ulong, c_void, CStr},
     ptr::{self, NonNull},
 };
+use std::collections::HashMap;
 
 pub(crate) struct PyClassTypeObject {
     pub type_object: Py<PyType>,
@@ -162,13 +162,13 @@ impl PyTypeBuilder {
             ffi::Py_bf_getbuffer => {
                 // Safety: slot.pfunc is a valid function pointer
                 self.buffer_procs.bf_getbuffer =
-                    Some(unsafe { std::mem::transmute::<*mut T, ffi::getbufferproc>(pfunc) });
+                    Some(unsafe { core::mem::transmute::<*mut T, ffi::getbufferproc>(pfunc) });
             }
             #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
             ffi::Py_bf_releasebuffer => {
                 // Safety: slot.pfunc is a valid function pointer
                 self.buffer_procs.bf_releasebuffer =
-                    Some(unsafe { std::mem::transmute::<*mut T, ffi::releasebufferproc>(pfunc) });
+                    Some(unsafe { core::mem::transmute::<*mut T, ffi::releasebufferproc>(pfunc) });
             }
             _ => {}
         }
@@ -185,7 +185,7 @@ impl PyTypeBuilder {
         if !data.is_empty() {
             // Python expects a zeroed entry to mark the end of the defs
             unsafe {
-                data.push(std::mem::zeroed());
+                data.push(core::mem::zeroed());
                 self.push_slot(slot, Box::into_raw(data.into_boxed_slice()) as *mut c_void);
             }
         }
@@ -216,11 +216,11 @@ impl PyTypeBuilder {
     }
 
     fn finalize_methods_and_properties(&mut self) -> Vec<GetSetDefType> {
-        let method_defs: Vec<pyo3_ffi::PyMethodDef> = std::mem::take(&mut self.method_defs);
+        let method_defs: Vec<pyo3_ffi::PyMethodDef> = core::mem::take(&mut self.method_defs);
         // Safety: Py_tp_methods expects a raw vec of PyMethodDef
         unsafe { self.push_raw_vec_slot(ffi::Py_tp_methods, method_defs) };
 
-        let member_defs = std::mem::take(&mut self.member_defs);
+        let member_defs = core::mem::take(&mut self.member_defs);
         // Safety: Py_tp_members expects a raw vec of PyMemberDef
         unsafe { self.push_raw_vec_slot(ffi::Py_tp_members, member_defs) };
 
@@ -267,7 +267,7 @@ impl PyTypeBuilder {
                             let dict_ptr =
                                 object.byte_offset(dict_offset).cast::<*mut ffi::PyObject>();
                             if (*dict_ptr).is_null() {
-                                std::ptr::write(dict_ptr, ffi::PyDict_New());
+                                core::ptr::write(dict_ptr, ffi::PyDict_New());
                             }
                             Ok(ffi::compat::Py_XNewRef(*dict_ptr))
                         })
@@ -389,7 +389,7 @@ impl PyTypeBuilder {
                     type_code: ffi::Py_T_PYSSIZET,
                     offset,
                     flags,
-                    doc: std::ptr::null_mut(),
+                    doc: core::ptr::null_mut(),
                 }
             }
 
@@ -527,7 +527,7 @@ impl PyTypeBuilder {
         bpo_45315_workaround(py, class_name);
 
         #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
-        for cleanup in std::mem::take(&mut self.cleanup) {
+        for cleanup in core::mem::take(&mut self.cleanup) {
             cleanup(&self, type_object.as_type_ptr());
         }
 
@@ -569,7 +569,7 @@ fn bpo_45315_workaround(py: Python<'_>, class_name: CString) {
         let _ = py;
     }
 
-    std::mem::forget(class_name);
+    core::mem::forget(class_name);
 }
 
 /// Default new implementation
@@ -688,7 +688,7 @@ impl GetSetDefType {
                         closure: *mut c_void,
                     ) -> *mut ffi::PyObject {
                         // Safety: PyO3 sets the closure when constructing the ffi getter so this cast should always be valid
-                        let getter: Getter = unsafe { std::mem::transmute(closure) };
+                        let getter: Getter = unsafe { core::mem::transmute(closure) };
                         unsafe { trampoline(|py| getter(py, slf)) }
                     }
                     (Some(getter), None, closure as Getter as _)
@@ -700,7 +700,7 @@ impl GetSetDefType {
                         closure: *mut c_void,
                     ) -> c_int {
                         // Safety: PyO3 sets the closure when constructing the ffi setter so this cast should always be valid
-                        let setter: Setter = unsafe { std::mem::transmute(closure) };
+                        let setter: Setter = unsafe { core::mem::transmute(closure) };
                         unsafe {
                             trampoline(|py| {
                                 if value.is_null() {

@@ -1,11 +1,11 @@
 #![allow(missing_docs)]
 //! Crate-private implementation of PyClassObject
 
-use std::cell::UnsafeCell;
-use std::marker::PhantomData;
-use std::mem::{offset_of, ManuallyDrop, MaybeUninit};
-use std::ptr::addr_of_mut;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use core::cell::UnsafeCell;
+use core::marker::PhantomData;
+use core::mem::{offset_of, ManuallyDrop, MaybeUninit};
+use core::ptr::addr_of_mut;
+use core::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
@@ -265,7 +265,7 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
 
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
-        if std::ptr::eq(type_ptr, std::ptr::addr_of!(ffi::PyBaseObject_Type)) {
+        if core::ptr::eq(type_ptr, core::ptr::addr_of!(ffi::PyBaseObject_Type)) {
             let tp_free = actual_type
                 .get_slot(TP_FREE)
                 .expect("PyBaseObject_Type should have tp_free");
@@ -390,7 +390,7 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyStaticClassObje
     };
 
     const BASIC_SIZE: ffi::Py_ssize_t = {
-        let size = std::mem::size_of::<Self>();
+        let size = core::mem::size_of::<Self>();
         assert!(size <= ffi::Py_ssize_t::MAX as usize);
         size as _
     };
@@ -505,7 +505,7 @@ impl<T: PyClass<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassObject
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Relative(0);
     const BASIC_SIZE: ffi::Py_ssize_t = {
-        let size = std::mem::size_of::<PyClassObjectContents<T>>();
+        let size = core::mem::size_of::<PyClassObjectContents<T>>();
         assert!(size <= ffi::Py_ssize_t::MAX as usize);
         // negative to indicate 'extra' space that cpython will allocate for us
         -(size as ffi::Py_ssize_t)

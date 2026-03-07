@@ -10,11 +10,11 @@ use crate::types::{
 use crate::{
     exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
 };
-use std::borrow::Cow;
+use alloc::borrow::Cow;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-use std::ffi::c_int;
-use std::ffi::CStr;
-use std::str;
+use core::ffi::c_int;
+use core::ffi::CStr;
+use core::str;
 
 /// Represents a Python [`module`][1] object.
 ///
@@ -141,10 +141,15 @@ impl PyModule {
     /// # Example: Load a file at runtime with [`std::fs::read_to_string`].
     ///
     /// ```rust
+    /// # extern crate alloc;
     /// use pyo3::prelude::*;
     /// use pyo3::ffi::c_str;
-    /// use std::ffi::CString;
+    /// use alloc::ffi::CString;
     ///
+    /// # #[cfg(not(feature = "std"))]
+    /// # fn main() {}
+    ///
+    /// # #[cfg(feature = "std")]
     /// # fn main() -> PyResult<()> {
     /// # #[cfg(not(target_arch = "wasm32"))]  // node fs doesn't see this file, maybe cwd wrong?
     /// # {

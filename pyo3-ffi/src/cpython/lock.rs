@@ -1,6 +1,6 @@
 #[cfg(Py_3_14)]
-use std::os::raw::c_int;
-use std::sync::atomic::AtomicU8;
+use core::ffi::c_int;
+use core::sync::atomic::AtomicU8;
 
 #[repr(transparent)]
 #[derive(Debug)]

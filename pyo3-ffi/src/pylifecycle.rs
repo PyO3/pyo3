@@ -1,7 +1,7 @@
 use crate::pytypedefs::PyThreadState;
 
+use core::ffi::{c_char, c_int};
 use libc::wchar_t;
-use std::ffi::{c_char, c_int};
 
 extern "C" {
     pub fn Py_Initialize();
@@ -91,7 +91,7 @@ extern "C" {
     pub fn PyOS_setsig(arg1: c_int, arg2: PyOS_sighandler_t) -> PyOS_sighandler_t;
 
     #[cfg(Py_3_11)]
-    pub static Py_Version: std::ffi::c_ulong;
+    pub static Py_Version: core::ffi::c_ulong;
 
     #[cfg(Py_3_13)]
     pub fn Py_IsFinalizing() -> c_int;

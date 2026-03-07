@@ -7,7 +7,7 @@ use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyBytes};
 use crate::{ffi, Bound};
 use crate::{PyResult, Python};
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 /// The current version of the marshal binary format.
 pub const VERSION: i32 = 4;

@@ -1,4 +1,4 @@
-use std::ptr::NonNull;
+use core::ptr::NonNull;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_union, PyStaticExpr};
@@ -135,8 +135,8 @@ where
 
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
 impl<'a, 'holder, 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'holder str {
-    type Holder = Option<std::borrow::Cow<'a, str>>;
-    type Error = <std::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
+    type Holder = Option<alloc::borrow::Cow<'a, str>>;
+    type Error = <alloc::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
@@ -144,7 +144,7 @@ impl<'a, 'holder, 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'holder 
     #[inline]
     fn extract(
         obj: Borrowed<'a, 'py, PyAny>,
-        holder: &'holder mut Option<std::borrow::Cow<'a, str>>,
+        holder: &'holder mut Option<alloc::borrow::Cow<'a, str>>,
     ) -> PyResult<Self> {
         Ok(holder.insert(obj.extract()?))
     }
@@ -173,7 +173,7 @@ impl<T> FunctionArgumentHolder for Option<T> {
 }
 
 impl<'a, 'holder, T: PyClass> PyFunctionArgument<'a, 'holder, '_, false> for &'holder T {
-    type Holder = ::std::option::Option<PyClassGuard<'a, T>>;
+    type Holder = ::core::option::Option<PyClassGuard<'a, T>>;
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
@@ -188,7 +188,7 @@ impl<'a, 'holder, T: PyClass> PyFunctionArgument<'a, 'holder, '_, false> for &'h
 impl<'a, 'holder, T: PyClass<Frozen = False>> PyFunctionArgument<'a, 'holder, '_, false>
     for &'holder mut T
 {
-    type Holder = ::std::option::Option<PyClassGuardMut<'a, T>>;
+    type Holder = ::core::option::Option<PyClassGuardMut<'a, T>>;
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
@@ -303,7 +303,7 @@ pub unsafe fn unwrap_required_argument<'a, 'py>(
         None => unreachable!("required method argument was not extracted"),
         // SAFETY: invariant of calling this function. Enforced by the macros.
         #[cfg(not(debug_assertions))]
-        None => unsafe { std::hint::unreachable_unchecked() },
+        None => unsafe { core::hint::unreachable_unchecked() },
     }
 }
 
@@ -318,7 +318,7 @@ pub unsafe fn unwrap_required_argument_bound<'a, 'py>(
         None => unreachable!("required method argument was not extracted"),
         // SAFETY: invariant of calling this function. Enforced by the macros.
         #[cfg(not(debug_assertions))]
-        None => unsafe { std::hint::unreachable_unchecked() },
+        None => unsafe { core::hint::unreachable_unchecked() },
     }
 }
 
@@ -438,7 +438,7 @@ impl FunctionDescription {
             let positional_args_to_consume =
                 num_positional_parameters.min(positional_args_provided);
             let (positional_parameters, remaining) = unsafe {
-                std::slice::from_raw_parts(args, positional_args_provided)
+                core::slice::from_raw_parts(args, positional_args_provided)
                     .split_at(positional_args_to_consume)
             };
             output[..positional_args_to_consume].copy_from_slice(positional_parameters);
@@ -456,7 +456,7 @@ impl FunctionDescription {
         };
         if let Some(kwnames) = kwnames {
             let kwargs = unsafe {
-                ::std::slice::from_raw_parts(
+                ::core::slice::from_raw_parts(
                     // Safety: PyArg has the same memory layout as `*mut ffi::PyObject`
                     args.offset(nargs).cast::<PyArg<'py>>(),
                     kwnames.len(),
@@ -621,7 +621,7 @@ impl FunctionDescription {
             #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
             let positional_only_keyword_arguments: Vec<_> = positional_only_keyword_arguments
                 .iter()
-                .map(std::ops::Deref::deref)
+                .map(core::ops::Deref::deref)
                 .collect();
             return Err(self.positional_only_keyword_arguments(&positional_only_keyword_arguments));
         }
@@ -1033,7 +1033,7 @@ mod tests {
                 function_description.extract_arguments_tuple_dict::<NoVarargs, NoVarkeywords>(
                     py,
                     args.as_ptr(),
-                    std::ptr::null_mut(),
+                    core::ptr::null_mut(),
                     &mut output,
                 )
             }

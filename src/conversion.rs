@@ -13,8 +13,8 @@ use crate::{
     Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyClassGuard, PyErr, PyRef, PyRefMut,
     PyTypeCheck, Python,
 };
-use std::convert::Infallible;
-use std::marker::PhantomData;
+use core::convert::Infallible;
+use core::marker::PhantomData;
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
 ///
@@ -533,7 +533,7 @@ pub(crate) use from_py_object_sequence::FromPyObjectSequence;
 /// ```
 ///
 /// [`PyList`]: crate::types::PyList
-/// [`Arc<T>`]: std::sync::Arc
+/// [`Arc<T>`]: alloc::sync::Arc
 pub trait FromPyObjectOwned<'py>: for<'a> FromPyObject<'a, 'py> {}
 impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py> {}
 

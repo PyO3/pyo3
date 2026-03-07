@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use alloc::borrow::Cow;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
@@ -104,7 +104,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
+    use alloc::borrow::Cow;
 
     use crate::{
         conversion::IntoPyObject,

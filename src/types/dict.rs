@@ -258,13 +258,13 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             key: Borrowed<'_, '_, PyAny>,
         ) -> PyResult<Option<Bound<'py, PyAny>>> {
             let py = dict.py();
-            let mut result: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut result: *mut ffi::PyObject = core::ptr::null_mut();
             match unsafe {
                 ffi::compat::PyDict_GetItemRef(dict.as_ptr(), key.as_ptr(), &mut result)
             } {
-                std::ffi::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
+                core::ffi::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
                 0 => Ok(None),
-                1..=std::ffi::c_int::MAX => {
+                1..=core::ffi::c_int::MAX => {
                     // Safety: PyDict_GetItemRef positive return value means the result is a valid
                     // owned reference
                     Ok(Some(unsafe { result.assume_owned_unchecked(py) }))
@@ -472,8 +472,8 @@ impl DictIterImpl {
                     panic!("dictionary keys changed during iteration");
                 };
 
-                let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-                let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+                let mut key: *mut ffi::PyObject = core::ptr::null_mut();
+                let mut value: *mut ffi::PyObject = core::ptr::null_mut();
 
                 if unsafe { ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) != 0 } {
                     *remaining -= 1;
@@ -560,7 +560,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     where
         Self: Sized,
         F: FnMut(B, Self::Item) -> R,
-        R: std::ops::Try<Output = B>,
+        R: core::ops::Try<Output = B>,
     {
         self.inner.with_critical_section(&self.dict, |inner| {
             let mut accum = init;
@@ -717,8 +717,8 @@ mod borrowed_iter {
 
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
-            let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-            let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut key: *mut ffi::PyObject = core::ptr::null_mut();
+            let mut value: *mut ffi::PyObject = core::ptr::null_mut();
 
             // Safety: self.dict lives sufficiently long that the pointer is not dangling
             if unsafe { ffi::PyDict_Next(self.dict.as_ptr(), &mut self.ppos, &mut key, &mut value) }
@@ -831,7 +831,8 @@ where
 mod tests {
     use super::*;
     use crate::types::{PyAnyMethods as _, PyTuple};
-    use std::collections::{BTreeMap, HashMap};
+    use alloc::collections::BTreeMap;
+    use std::collections::HashMap;
 
     #[test]
     fn test_new() {
@@ -846,8 +847,11 @@ mod tests {
                     .unwrap()
             );
             assert!(dict.get_item(8i32).unwrap().is_none());
-            let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
-            assert_eq!(map, dict.extract().unwrap());
+            #[cfg(feature = "std")]
+            {
+                let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
+                assert_eq!(map, dict.extract().unwrap());
+            }
             let map: BTreeMap<i32, i32> = [(7, 32)].iter().cloned().collect();
             assert_eq!(map, dict.extract().unwrap());
         });
@@ -875,9 +879,12 @@ mod tests {
                     .extract::<i32>()
                     .unwrap()
             );
-            let map: HashMap<String, i32> =
-                [("a".into(), 1), ("b".into(), 2)].into_iter().collect();
-            assert_eq!(map, dict.extract().unwrap());
+            #[cfg(feature = "std")]
+            {
+                let map: HashMap<String, i32> =
+                    [("a".into(), 1), ("b".into(), 2)].into_iter().collect();
+                assert_eq!(map, dict.extract().unwrap());
+            }
             let map: BTreeMap<String, i32> =
                 [("a".into(), 1), ("b".into(), 2)].into_iter().collect();
             assert_eq!(map, dict.extract().unwrap());
@@ -915,7 +922,7 @@ mod tests {
     #[test]
     fn test_len() {
         Python::attach(|py| {
-            let mut v = HashMap::<i32, i32>::new();
+            let mut v = BTreeMap::<i32, i32>::new();
             let dict = (&v).into_pyobject(py).unwrap();
             assert_eq!(0, dict.len());
             v.insert(7, 32);
@@ -927,7 +934,7 @@ mod tests {
     #[test]
     fn test_contains() {
         Python::attach(|py| {
-            let mut v = HashMap::new();
+            let mut v = BTreeMap::new();
             v.insert(7, 32);
             let dict = v.into_pyobject(py).unwrap();
             assert!(dict.contains(7i32).unwrap());
@@ -940,7 +947,7 @@ mod tests {
         Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             assert_eq!(
                 32,
                 dict.get_item(7i32)
@@ -994,7 +1001,7 @@ mod tests {
         Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             assert!(dict.set_item(7i32, 42i32).is_ok()); // change
             assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
             assert_eq!(
@@ -1034,7 +1041,7 @@ mod tests {
     #[test]
     fn test_set_item_does_not_update_original_object() {
         Python::attach(|py| {
-            let mut v = HashMap::new();
+            let mut v = BTreeMap::new();
             v.insert(7, 32);
             let dict = (&v).into_pyobject(py).unwrap();
             assert!(dict.set_item(7i32, 42i32).is_ok()); // change
@@ -1049,7 +1056,7 @@ mod tests {
         Python::attach(|py| {
             let mut v = HashMap::new();
             v.insert(7, 32);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             assert!(dict.del_item(7i32).is_ok());
             assert_eq!(0, dict.len());
             assert!(dict.get_item(7i32).unwrap().is_none());
@@ -1059,7 +1066,7 @@ mod tests {
     #[test]
     fn test_del_item_does_not_update_original_object() {
         Python::attach(|py| {
-            let mut v = HashMap::new();
+            let mut v = BTreeMap::new();
             v.insert(7, 32);
             let dict = (&v).into_pyobject(py).unwrap();
             assert!(dict.del_item(7i32).is_ok()); // change
@@ -1074,7 +1081,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             let mut value_sum = 0;
@@ -1095,7 +1102,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut key_sum = 0;
             for el in dict.keys() {
@@ -1112,7 +1119,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
             let mut values_sum = 0;
             for el in dict.values() {
@@ -1129,7 +1136,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {
@@ -1148,7 +1155,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {
@@ -1168,7 +1175,7 @@ mod tests {
             v.insert(8, 42);
             v.insert(9, 123);
 
-            let dict = (&v).into_pyobject(py).unwrap();
+            let dict = (&v).into_py_dict(py).unwrap();
 
             for (key, value) in &dict {
                 dict.set_item(key, value.extract::<i32>().unwrap() + 7)
@@ -1185,7 +1192,7 @@ mod tests {
             for i in 0..10 {
                 v.insert(i * 2, i * 2);
             }
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
 
             for (i, (key, value)) in dict.iter().enumerate() {
                 let key = key.extract::<i32>().unwrap();
@@ -1209,7 +1216,7 @@ mod tests {
             for i in 0..10 {
                 v.insert(i * 2, i * 2);
             }
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
 
             for (i, (key, value)) in dict.iter().enumerate() {
                 let key = key.extract::<i32>().unwrap();
@@ -1232,7 +1239,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = (&v).into_pyobject(py).unwrap();
+            let dict = (&v).into_py_dict(py).unwrap();
 
             let mut iter = dict.iter();
             assert_eq!(iter.size_hint(), (v.len(), Some(v.len())));
@@ -1257,7 +1264,7 @@ mod tests {
             v.insert(7, 32);
             v.insert(8, 42);
             v.insert(9, 123);
-            let dict = v.into_pyobject(py).unwrap();
+            let dict = v.into_py_dict(py).unwrap();
             let mut key_sum = 0;
             let mut value_sum = 0;
             for (key, value) in dict {

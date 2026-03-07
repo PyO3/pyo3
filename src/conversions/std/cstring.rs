@@ -4,13 +4,14 @@ use crate::inspect::PyStaticExpr;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyString;
 use crate::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, Python};
-use std::borrow::Cow;
-use std::ffi::{CStr, CString};
-use std::str::Utf8Error;
+use alloc::borrow::Cow;
+use alloc::ffi::CString;
+use core::ffi::CStr;
+use core::str::Utf8Error;
 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 use {
     crate::{exceptions::PyValueError, ffi},
-    std::slice,
+    core::slice,
 };
 
 impl<'py> IntoPyObject<'py> for &CStr {
@@ -168,7 +169,7 @@ mod tests {
     fn test_extract_with_nul_error() {
         Python::attach(|py| {
             let s = "Hello\0Python";
-            let py_string = s.into_pyobject(py).unwrap();
+            let py_string: Bound<'_, PyString> = s.into_pyobject(py).unwrap();
 
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
             {

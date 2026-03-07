@@ -1,5 +1,5 @@
 use crate::object::PyObject;
-use std::ffi::{c_char, c_int, c_long};
+use core::ffi::{c_char, c_int, c_long};
 
 extern "C" {
     pub fn PyImport_GetMagicNumber() -> c_long;

@@ -1,10 +1,10 @@
 use crate::object::*;
 use crate::Py_ssize_t;
 #[cfg(not(Py_LIMITED_API))]
-use std::ffi::c_char;
-use std::ffi::c_int;
+use core::ffi::c_char;
+use core::ffi::c_int;
 #[cfg(Py_3_15)]
-use std::ffi::c_void;
+use core::ffi::c_void;
 
 #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
 #[repr(C)]

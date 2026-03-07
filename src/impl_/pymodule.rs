@@ -1,10 +1,9 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 
-use std::{
+use core::{
     cell::UnsafeCell,
-    ffi::CStr,
+    ffi::{c_int, c_void, CStr},
     marker::PhantomData,
-    os::raw::{c_int, c_void},
 };
 
 #[cfg(all(
@@ -12,8 +11,15 @@ use std::{
     Py_3_9,
     not(all(windows, Py_LIMITED_API, not(Py_3_10))),
 ))]
-use std::sync::atomic::Ordering;
+use core::sync::atomic::Ordering;
 
+#[cfg(all(
+    not(any(PyPy, GraalPy)),
+    Py_3_9,
+    not(all(windows, Py_LIMITED_API, not(Py_3_10))),
+    target_has_atomic = "64",
+))]
+use core::sync::atomic::AtomicI64;
 #[cfg(all(
     not(any(PyPy, GraalPy)),
     Py_3_9,
@@ -21,13 +27,6 @@ use std::sync::atomic::Ordering;
     not(target_has_atomic = "64"),
 ))]
 use portable_atomic::AtomicI64;
-#[cfg(all(
-    not(any(PyPy, GraalPy)),
-    Py_3_9,
-    not(all(windows, Py_LIMITED_API, not(Py_3_10))),
-    target_has_atomic = "64",
-))]
-use std::sync::atomic::AtomicI64;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
@@ -71,11 +70,11 @@ impl ModuleDef {
         #[allow(clippy::declare_interior_mutable_const)]
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
             m_base: ffi::PyModuleDef_HEAD_INIT,
-            m_name: std::ptr::null(),
-            m_doc: std::ptr::null(),
+            m_name: core::ptr::null(),
+            m_doc: core::ptr::null(),
             m_size: 0,
-            m_methods: std::ptr::null_mut(),
-            m_slots: std::ptr::null_mut(),
+            m_methods: core::ptr::null_mut(),
+            m_slots: core::ptr::null_mut(),
             m_traverse: None,
             m_clear: None,
             m_free: None,
@@ -197,7 +196,7 @@ impl<const N: usize> PyModuleSlotsBuilder<N> {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
-            values: [unsafe { std::mem::zeroed() }; N],
+            values: [unsafe { core::mem::zeroed() }; N],
             len: 0,
         }
     }
@@ -317,7 +316,8 @@ impl PyAddToModule for ModuleDef {
 
 #[cfg(test)]
 mod tests {
-    use std::{borrow::Cow, ffi::CStr, os::raw::c_int};
+    use alloc::borrow::Cow;
+    use core::{ffi::c_int, ffi::CStr};
 
     use crate::{
         ffi,

@@ -3,7 +3,7 @@
 //! Tracking issue: <https://github.com/PyO3/pyo3/issues/2454>.
 
 use crate::impl_::introspection::{escape_json_string, escaped_json_string_len};
-use std::fmt::{self, Display, Write};
+use core::fmt::{self, Display, Write};
 
 pub mod types;
 
@@ -478,7 +478,7 @@ mod tests {
         fn check_serialization(expr: PyStaticExpr, expected: &str) {
             let mut out = vec![0; serialized_len_for_introspection(&expr)];
             serialize_for_introspection(&expr, &mut out);
-            assert_eq!(std::str::from_utf8(&out).unwrap(), expected)
+            assert_eq!(core::str::from_utf8(&out).unwrap(), expected)
         }
 
         check_serialization(

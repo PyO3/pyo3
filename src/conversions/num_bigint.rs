@@ -47,11 +47,12 @@
 //! assert n + 1 == value
 //! ```
 
+use super::std::num::nb_index;
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
-    conversion::IntoPyObject, std::num::nb_index, types::PyInt, Borrowed, Bound, FromPyObject,
-    PyAny, PyErr, PyResult, Python,
+    conversion::IntoPyObject, types::PyInt, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult,
+    Python,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -266,7 +267,7 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
         flags |= ffi::Py_ASNATIVEBYTES_UNSIGNED_BUFFER | ffi::Py_ASNATIVEBYTES_REJECT_NEGATIVE;
     }
     let n_bytes =
-        unsafe { ffi::PyLong_AsNativeBytes(long.as_ptr().cast(), std::ptr::null_mut(), 0, flags) };
+        unsafe { ffi::PyLong_AsNativeBytes(long.as_ptr().cast(), core::ptr::null_mut(), 0, flags) };
     let n_bytes_unsigned: usize = n_bytes
         .try_into()
         .map_err(|_| crate::PyErr::fetch(long.py()))?;
@@ -349,22 +350,22 @@ mod tests {
     fn rust_fib<T>() -> impl Iterator<Item = T>
     where
         T: From<u16>,
-        for<'a> &'a T: std::ops::Add<Output = T>,
+        for<'a> &'a T: core::ops::Add<Output = T>,
     {
         let mut f0: T = T::from(1);
         let mut f1: T = T::from(1);
-        std::iter::from_fn(move || {
+        core::iter::from_fn(move || {
             let f2 = &f0 + &f1;
-            Some(std::mem::replace(&mut f0, std::mem::replace(&mut f1, f2)))
+            Some(core::mem::replace(&mut f0, core::mem::replace(&mut f1, f2)))
         })
     }
 
     fn python_fib(py: Python<'_>) -> impl Iterator<Item = Bound<'_, PyAny>> + '_ {
         let mut f0 = 1i32.into_pyobject(py).unwrap().into_any();
         let mut f1 = 1i32.into_pyobject(py).unwrap().into_any();
-        std::iter::from_fn(move || {
+        core::iter::from_fn(move || {
             let f2 = f0.call_method1("__add__", (&f1,)).unwrap();
-            Some(std::mem::replace(&mut f0, std::mem::replace(&mut f1, f2)))
+            Some(core::mem::replace(&mut f0, core::mem::replace(&mut f1, f2)))
         })
     }
 

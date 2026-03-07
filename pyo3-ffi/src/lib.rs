@@ -127,9 +127,9 @@
 //! **`src/lib.rs`**
 //! ```rust,no_run
 //! #[cfg(Py_3_15)]
-//! use std::ffi::c_void;
-//! use std::ffi::{c_char, c_long};
-//! use std::ptr;
+//! use core::ffi::c_void;
+//! use core::ffi::{c_char, c_long};
+//! use core::ptr;
 //!
 //! use pyo3_ffi::*;
 //!
@@ -139,8 +139,8 @@
 //!     m_name: c"string_sum".as_ptr(),
 //!     m_doc: c"A Python module written in Rust.".as_ptr(),
 //!     m_size: 0,
-//!     m_methods: std::ptr::addr_of_mut!(METHODS).cast(),
-//!     m_slots: std::ptr::addr_of_mut!(SLOTS).cast(),
+//!     m_methods: core::ptr::addr_of_mut!(METHODS).cast(),
+//!     m_slots: core::ptr::addr_of_mut!(SLOTS).cast(),
 //!     m_traverse: None,
 //!     m_clear: None,
 //!     m_free: None,
@@ -168,7 +168,7 @@
 //!     #[cfg(Py_3_15)]
 //!     PyModuleDef_Slot {
 //!         slot: Py_mod_abi,
-//!         value: std::ptr::addr_of_mut!(ABI_INFO).cast(),
+//!         value: core::ptr::addr_of_mut!(ABI_INFO).cast(),
 //!     },
 //!     #[cfg(Py_3_15)]
 //!     PyModuleDef_Slot {
@@ -185,7 +185,7 @@
 //!     #[cfg(Py_3_15)]
 //!     PyModuleDef_Slot {
 //!         slot: Py_mod_methods,
-//!         value: std::ptr::addr_of_mut!(METHODS).cast(),
+//!         value: core::ptr::addr_of_mut!(METHODS).cast(),
 //!     },
 //!     #[cfg(Py_3_12)]
 //!     PyModuleDef_Slot {
@@ -215,7 +215,7 @@
 //! #[allow(non_snake_case, reason = "must be named `PyModExport_<your_module>`")]
 //! #[no_mangle]
 //! pub unsafe extern "C" fn PyModExport_string_sum() -> *mut PyModuleDef_Slot {
-//!     std::ptr::addr_of_mut!(SLOTS).cast()
+//!     core::ptr::addr_of_mut!(SLOTS).cast()
 //! }
 //!
 //! /// A helper to parse function arguments
@@ -256,7 +256,7 @@
 //!         let mut size = 0;
 //!         let p = PyUnicode_AsUTF8AndSize(obj_repr, &mut size);
 //!         if !p.is_null() {
-//!             let s = std::str::from_utf8_unchecked(std::slice::from_raw_parts(
+//!             let s = core::str::from_utf8_unchecked(core::slice::from_raw_parts(
 //!                 p.cast::<u8>(),
 //!                 size as usize,
 //!             ));
@@ -278,18 +278,18 @@
 //!             PyExc_TypeError,
 //!             c"sum_as_string expected 2 positional arguments".as_ptr(),
 //!         );
-//!         return std::ptr::null_mut();
+//!         return core::ptr::null_mut();
 //!     }
 //!
 //!     let (first, second) = (*args, *args.add(1));
 //!
 //!     let first = match parse_arg_as_i32(first, 1) {
 //!         Some(x) => x,
-//!         None => return std::ptr::null_mut(),
+//!         None => return core::ptr::null_mut(),
 //!     };
 //!     let second = match parse_arg_as_i32(second, 2) {
 //!         Some(x) => x,
-//!         None => return std::ptr::null_mut(),
+//!         None => return core::ptr::null_mut(),
 //!     };
 //!
 //!     match first.checked_add(second) {
@@ -299,7 +299,7 @@
 //!         }
 //!         None => {
 //!             PyErr_SetString(PyExc_OverflowError, c"arguments too large to add".as_ptr());
-//!             std::ptr::null_mut()
+//!             core::ptr::null_mut()
 //!         }
 //!     }
 //! }
@@ -370,6 +370,7 @@
     clippy::missing_safety_doc,
     clippy::ptr_eq
 )]
+#![warn(clippy::std_instead_of_alloc, clippy::std_instead_of_core)]
 #![warn(elided_lifetimes_in_paths, unused_lifetimes)]
 // This crate is a hand-maintained translation of CPython's headers, so requiring "unsafe"
 // blocks within those translations increases maintenance burden without providing any
@@ -399,7 +400,7 @@ macro_rules! opaque_struct {
 /// Examples:
 ///
 /// ```rust,no_run
-/// use std::ffi::CStr;
+/// use core::ffi::CStr;
 ///
 /// const HELLO: &CStr = pyo3_ffi::c_str!("hello");
 /// static WORLD: &CStr = pyo3_ffi::c_str!("world");
@@ -414,8 +415,8 @@ macro_rules! c_str {
 
 /// Private helper for `c_str!` macro.
 #[doc(hidden)]
-pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &std::ffi::CStr {
-    match std::ffi::CStr::from_bytes_with_nul(s.as_bytes()) {
+pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &core::ffi::CStr {
+    match core::ffi::CStr::from_bytes_with_nul(s.as_bytes()) {
         Ok(cstr) => cstr,
         Err(_) => panic!("string contains nul bytes"),
     }

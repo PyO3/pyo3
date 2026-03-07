@@ -635,7 +635,7 @@ fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
 
 #[cfg(not(Py_LIMITED_API))]
 fn py_date_to_naive_date(
-    py_date: impl std::ops::Deref<Target = impl PyDateAccess>,
+    py_date: impl core::ops::Deref<Target = impl PyDateAccess>,
 ) -> PyResult<NaiveDate> {
     NaiveDate::from_ymd_opt(
         py_date.get_year(),
@@ -657,7 +657,7 @@ fn py_date_to_naive_date(py_date: &Bound<'_, PyAny>) -> PyResult<NaiveDate> {
 
 #[cfg(not(Py_LIMITED_API))]
 fn py_time_to_naive_time(
-    py_time: impl std::ops::Deref<Target = impl PyTimeAccess>,
+    py_time: impl core::ops::Deref<Target = impl PyTimeAccess>,
 ) -> PyResult<NaiveTime> {
     NaiveTime::from_hms_micro_opt(
         py_time.get_hour().into(),
@@ -715,7 +715,8 @@ fn py_datetime_to_datetime_with_timezone<Tz: TimeZone>(
 mod tests {
     use super::*;
     use crate::{test_utils::assert_warnings, types::PyTuple, BoundObject};
-    use std::{cmp::Ordering, panic};
+    use core::cmp::Ordering;
+    use std::panic;
 
     #[test]
     // Only Python>=3.9 has the zoneinfo package
@@ -1312,8 +1313,8 @@ mod tests {
         use super::*;
         use crate::test_utils::CatchWarnings;
         use crate::types::IntoPyDict;
+        use alloc::ffi::CString;
         use proptest::prelude::*;
-        use std::ffi::CString;
 
         proptest! {
 

@@ -64,8 +64,8 @@ impl<R, T> Sealed for lock_api::Mutex<R, T> {}
 #[cfg(feature = "parking_lot")]
 impl Sealed for parking_lot::Once {}
 #[cfg(feature = "arc_lock")]
-impl<R, T> Sealed for std::sync::Arc<lock_api::Mutex<R, T>> {}
+impl<R, T> Sealed for alloc::sync::Arc<lock_api::Mutex<R, T>> {}
 #[cfg(feature = "lock_api")]
 impl<R, G, T> Sealed for lock_api::ReentrantMutex<R, G, T> {}
 #[cfg(feature = "arc_lock")]
-impl<R, G, T> Sealed for std::sync::Arc<lock_api::ReentrantMutex<R, G, T>> {}
+impl<R, G, T> Sealed for alloc::sync::Arc<lock_api::ReentrantMutex<R, G, T>> {}

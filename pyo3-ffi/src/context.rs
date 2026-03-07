@@ -1,6 +1,6 @@
 use crate::object::{PyObject, PyTypeObject, Py_TYPE};
-use std::ffi::{c_char, c_int};
-use std::ptr::addr_of_mut;
+use core::ffi::{c_char, c_int};
+use core::ptr::addr_of_mut;
 
 extern "C" {
     pub static mut PyContext_Type: PyTypeObject;

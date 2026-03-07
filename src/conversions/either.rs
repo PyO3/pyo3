@@ -120,8 +120,8 @@ where
             // is not experimental, rather than the Rust type names.
             let err_msg = format!(
                 "failed to convert the value to 'Union[{}, {}]'",
-                std::any::type_name::<L>(),
-                std::any::type_name::<R>()
+                core::any::type_name::<L>(),
+                core::any::type_name::<R>()
             );
             Err(PyTypeError::new_err(err_msg))
         }
@@ -135,7 +135,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
+    use alloc::borrow::Cow;
 
     use crate::exceptions::PyTypeError;
     use crate::{IntoPyObject, Python};

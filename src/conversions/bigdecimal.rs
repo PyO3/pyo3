@@ -49,7 +49,7 @@
 //! assert d + 1 == value
 //! ```
 
-use std::str::FromStr;
+use core::str::FromStr;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
@@ -121,7 +121,7 @@ mod test_bigdecimal {
     use super::*;
     use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
-    use std::ffi::CString;
+    use alloc::ffi::CString;
 
     use bigdecimal::{One, Zero};
     #[cfg(not(target_arch = "wasm32"))]

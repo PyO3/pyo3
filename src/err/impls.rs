@@ -1,7 +1,11 @@
+#![allow(unused_imports, reason = "conditional compilation")]
+
 use crate::{err::PyErrArguments, exceptions, PyErr, Python};
 use crate::{IntoPyObject, Py, PyAny};
+#[cfg(feature = "std")]
 use std::io;
 
+#[cfg(feature = "std")]
 /// Convert `PyErr` to `io::Error`
 impl From<PyErr> for io::Error {
     fn from(err: PyErr) -> Self {
@@ -43,6 +47,7 @@ impl From<PyErr> for io::Error {
 /// Create `PyErr` from `io::Error`
 /// (`OSError` except if the `io::Error` is wrapping a Python exception,
 /// in this case the exception is returned)
+#[cfg(feature = "std")]
 impl From<io::Error> for PyErr {
     fn from(err: io::Error) -> PyErr {
         // If the error wraps a Python error we return it
@@ -68,6 +73,7 @@ impl From<io::Error> for PyErr {
     }
 }
 
+#[cfg(feature = "std")]
 impl PyErrArguments for io::Error {
     fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         //FIXME(icxolu) remove unwrap
@@ -79,20 +85,22 @@ impl PyErrArguments for io::Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl<W> From<io::IntoInnerError<W>> for PyErr {
     fn from(err: io::IntoInnerError<W>) -> PyErr {
         err.into_error().into()
     }
 }
 
+#[cfg(feature = "std")]
 impl<W: Send + Sync> PyErrArguments for io::IntoInnerError<W> {
     fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         self.into_error().arguments(py)
     }
 }
 
-impl From<std::convert::Infallible> for PyErr {
-    fn from(_: std::convert::Infallible) -> PyErr {
+impl From<core::convert::Infallible> for PyErr {
+    fn from(_: core::convert::Infallible) -> PyErr {
         unreachable!()
     }
 }
@@ -110,7 +118,7 @@ macro_rules! impl_to_pyerr {
             }
         }
 
-        impl std::convert::From<$err> for PyErr {
+        impl core::convert::From<$err> for PyErr {
             fn from(err: $err) -> PyErr {
                 <$pyexc>::new_err(err)
             }
@@ -118,31 +126,39 @@ macro_rules! impl_to_pyerr {
     };
 }
 
-impl_to_pyerr!(std::array::TryFromSliceError, exceptions::PyValueError);
-impl_to_pyerr!(std::num::ParseIntError, exceptions::PyValueError);
-impl_to_pyerr!(std::num::ParseFloatError, exceptions::PyValueError);
-impl_to_pyerr!(std::num::TryFromIntError, exceptions::PyValueError);
-impl_to_pyerr!(std::str::ParseBoolError, exceptions::PyValueError);
-impl_to_pyerr!(std::ffi::IntoStringError, exceptions::PyUnicodeDecodeError);
-impl_to_pyerr!(std::ffi::NulError, exceptions::PyValueError);
-impl_to_pyerr!(std::str::Utf8Error, exceptions::PyUnicodeDecodeError);
-impl_to_pyerr!(std::string::FromUtf8Error, exceptions::PyUnicodeDecodeError);
+impl_to_pyerr!(core::array::TryFromSliceError, exceptions::PyValueError);
+impl_to_pyerr!(core::num::ParseIntError, exceptions::PyValueError);
+impl_to_pyerr!(core::num::ParseFloatError, exceptions::PyValueError);
+impl_to_pyerr!(core::num::TryFromIntError, exceptions::PyValueError);
+impl_to_pyerr!(core::str::ParseBoolError, exceptions::PyValueError);
 impl_to_pyerr!(
-    std::string::FromUtf16Error,
+    alloc::ffi::IntoStringError,
+    exceptions::PyUnicodeDecodeError
+);
+impl_to_pyerr!(alloc::ffi::NulError, exceptions::PyValueError);
+impl_to_pyerr!(core::str::Utf8Error, exceptions::PyUnicodeDecodeError);
+impl_to_pyerr!(
+    alloc::string::FromUtf8Error,
     exceptions::PyUnicodeDecodeError
 );
 impl_to_pyerr!(
-    std::char::DecodeUtf16Error,
+    alloc::string::FromUtf16Error,
     exceptions::PyUnicodeDecodeError
 );
-impl_to_pyerr!(std::net::AddrParseError, exceptions::PyValueError);
+impl_to_pyerr!(
+    core::char::DecodeUtf16Error,
+    exceptions::PyUnicodeDecodeError
+);
+impl_to_pyerr!(core::net::AddrParseError, exceptions::PyValueError);
 
 #[cfg(test)]
 mod tests {
     use crate::{PyErr, Python};
+    #[cfg(feature = "std")]
     use std::io;
 
     #[test]
+    #[cfg(feature = "std")]
     fn io_errors() {
         use crate::types::any::PyAnyMethods;
 

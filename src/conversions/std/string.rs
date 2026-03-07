@@ -8,7 +8,8 @@ use crate::{
     conversion::IntoPyObject, instance::Bound, types::PyString, Borrowed, FromPyObject, PyAny,
     PyErr, Python,
 };
-use std::{borrow::Cow, convert::Infallible};
+use alloc::borrow::Cow;
+use core::convert::Infallible;
 
 impl<'py> IntoPyObject<'py> for &str {
     type Target = PyString;
@@ -240,7 +241,7 @@ impl FromPyObject<'_, '_> for char {
 mod tests {
     use crate::types::any::PyAnyMethods;
     use crate::{IntoPyObject, Python};
-    use std::borrow::Cow;
+    use alloc::borrow::Cow;
 
     #[test]
     fn test_cow_into_pyobject() {

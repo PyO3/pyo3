@@ -7,7 +7,7 @@ use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
 use crate::{intern, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 impl FromPyObject<'_, '_> for IpAddr {
     type Error = PyErr;
@@ -130,7 +130,7 @@ impl<'py> IntoPyObject<'py> for &IpAddr {
 
 #[cfg(test)]
 mod test_ipaddr {
-    use std::str::FromStr;
+    use core::str::FromStr;
 
     use crate::types::PyString;
 

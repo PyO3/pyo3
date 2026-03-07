@@ -1,7 +1,7 @@
 use crate::object::PyObject;
 use crate::pyport::Py_ssize_t;
-use std::ffi::{c_char, c_int, c_void};
-use std::ptr;
+use core::ffi::{c_char, c_int, c_void};
+use core::ptr;
 
 #[repr(C)]
 #[derive(Copy, Clone)]

@@ -117,15 +117,16 @@ macro_rules! py_run_impl {
         $crate::py_run_impl!($py, *d, $code)
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{
-        use ::std::option::Option::*;
-        if let ::std::result::Result::Err(e) = $py.run(&::std::ffi::CString::new($code).unwrap(), None, Some(&$dict)) {
+        extern crate alloc;
+        use ::core::option::Option::*;
+        if let ::core::result::Result::Err(e) = $py.run(&alloc::ffi::CString::new($code).unwrap(), None, Some(&$dict)) {
             e.print($py);
             // So when this c api function the last line called printed the error to stderr,
             // the output is only written into a buffer which is never flushed because we
             // panic before flushing. This is where this hack comes into place
             $py.run(c"import sys; sys.stderr.flush()", None, None)
                 .unwrap();
-            ::std::panic!("{}", $code)
+            ::core::panic!("{}", $code)
         }
     }};
 }
@@ -183,13 +184,13 @@ macro_rules! append_to_inittab {
     ($module:ident) => {
         unsafe {
             if $crate::ffi::Py_IsInitialized() != 0 {
-                ::std::panic!(
+                ::core::panic!(
                     "called `append_to_inittab` but a Python interpreter is already running."
                 );
             }
             $crate::ffi::PyImport_AppendInittab(
                 $module::__PYO3_NAME.as_ptr(),
-                ::std::option::Option::Some($module::__pyo3_init),
+                ::core::option::Option::Some($module::__pyo3_init),
             );
         }
     };

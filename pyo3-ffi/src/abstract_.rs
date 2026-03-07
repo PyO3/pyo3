@@ -1,8 +1,8 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+use core::ffi::{c_char, c_int};
 #[cfg(any(Py_3_12, all(Py_3_8, not(Py_LIMITED_API))))]
 use libc::size_t;
-use std::ffi::{c_char, c_int};
 
 #[inline]
 #[cfg(all(
@@ -10,7 +10,7 @@ use std::ffi::{c_char, c_int};
     not(all(PyPy, not(Py_3_11))) // PyPy exposed as a function until PyPy 3.10, macro in 3.11+
 ))]
 pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int {
-    PyObject_SetAttrString(o, attr_name, std::ptr::null_mut())
+    PyObject_SetAttrString(o, attr_name, core::ptr::null_mut())
 }
 
 #[inline]
@@ -19,7 +19,7 @@ pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char)
     not(all(PyPy, not(Py_3_11))) // PyPy exposed as a function until PyPy 3.10, macro in 3.11+
 ))]
 pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_int {
-    PyObject_SetAttr(o, attr_name, std::ptr::null_mut())
+    PyObject_SetAttr(o, attr_name, core::ptr::null_mut())
 }
 
 extern "C" {
@@ -81,7 +81,7 @@ extern "C" {
 }
 #[cfg(any(Py_3_12, all(Py_3_8, not(Py_LIMITED_API))))]
 pub const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
-    1 << (8 * std::mem::size_of::<size_t>() as size_t - 1);
+    1 << (8 * core::mem::size_of::<size_t>() as size_t - 1);
 
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Vectorcall")]

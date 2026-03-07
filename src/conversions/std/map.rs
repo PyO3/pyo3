@@ -1,3 +1,5 @@
+#![allow(unused_imports, reason = "conditional compilation")]
+
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
@@ -10,9 +12,11 @@ use crate::{
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
     Borrowed, FromPyObject, PyAny, PyErr, Python,
 };
-use std::{cmp, collections, hash};
+use alloc::collections;
+use core::{cmp, hash};
 
-impl<'py, K, V, H> IntoPyObject<'py> for collections::HashMap<K, V, H>
+#[cfg(feature = "std")]
+impl<'py, K, V, H> IntoPyObject<'py> for std::collections::HashMap<K, V, H>
 where
     K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     V: IntoPyObject<'py>,
@@ -40,7 +44,8 @@ where
     }
 }
 
-impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a collections::HashMap<K, V, H>
+#[cfg(feature = "std")]
+impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a std::collections::HashMap<K, V, H>
 where
     &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     &'a V: IntoPyObject<'py>,
@@ -124,7 +129,8 @@ where
     }
 }
 
-impl<'py, K, V, S> FromPyObject<'_, 'py> for collections::HashMap<K, V, S>
+#[cfg(feature = "std")]
+impl<'py, K, V, S> FromPyObject<'_, 'py> for std::collections::HashMap<K, V, S>
 where
     K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
     V: FromPyObjectOwned<'py>,
@@ -138,7 +144,7 @@ where
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let dict = ob.cast::<PyDict>()?;
-        let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
+        let mut ret = std::collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict.iter() {
             ret.insert(
                 k.extract().map_err(Into::into)?,
@@ -186,9 +192,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::{BTreeMap, HashMap};
+    use alloc::collections::BTreeMap;
+    #[cfg(feature = "std")]
+    use std::collections::HashMap;
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_hashmap_to_python() {
         Python::attach(|py| {
             let mut map = HashMap::<i32, i32>::new();
@@ -233,6 +242,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_hashmap_into_python() {
         Python::attach(|py| {
             let mut map = HashMap::<i32, i32>::new();

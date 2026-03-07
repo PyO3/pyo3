@@ -1,7 +1,7 @@
 //! Data types used to describe runtime Python types.
 
-use std::borrow::Cow;
-use std::fmt::{Display, Formatter};
+use alloc::borrow::Cow;
+use core::fmt::{Display, Formatter};
 
 /// Designation of a Python type.
 ///
@@ -199,7 +199,7 @@ impl TypeInfo {
 }
 
 impl Display for TypeInfo {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             TypeInfo::Any | TypeInfo::None | TypeInfo::NoReturn => write!(f, "{}", self.name()),
             TypeInfo::Callable(input, output) => {
@@ -273,7 +273,7 @@ impl Display for TypeInfo {
 
 #[cfg(test)]
 mod test {
-    use std::borrow::Cow;
+    use alloc::borrow::Cow;
 
     use crate::inspect::types::{ModuleName, TypeInfo};
 
@@ -403,7 +403,7 @@ mod test {
 
 #[cfg(test)]
 mod conversion {
-    use std::collections::{HashMap, HashSet};
+    use alloc::collections::{BTreeMap, BTreeSet};
 
     use crate::inspect::types::test::assert_display;
     use crate::{FromPyObject, IntoPyObject};
@@ -477,11 +477,11 @@ mod conversion {
         assert_display(&<Vec<usize>>::type_output(), "List[int]");
         assert_display(&<Vec<usize>>::type_input(), "Sequence[int]");
 
-        assert_display(&<HashSet<usize>>::type_output(), "Set[int]");
-        assert_display(&<HashSet<usize>>::type_input(), "Set[int]");
+        assert_display(&<BTreeSet<usize>>::type_output(), "Set[int]");
+        assert_display(&<BTreeSet<usize>>::type_input(), "Set[int]");
 
-        assert_display(&<HashMap<usize, f32>>::type_output(), "Dict[int, float]");
-        assert_display(&<HashMap<usize, f32>>::type_input(), "Mapping[int, float]");
+        assert_display(&<BTreeMap<usize, f32>>::type_output(), "Dict[int, float]");
+        assert_display(&<BTreeMap<usize, f32>>::type_input(), "Mapping[int, float]");
 
         assert_display(&<(usize, f32)>::type_input(), "Tuple[int, float]");
     }

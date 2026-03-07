@@ -6,7 +6,7 @@ use crate::internal::get_slot::TP_NEW;
 use crate::types::{PyTuple, PyType};
 use crate::{ffi, PyClass, PyClassInitializer, PyErr, PyResult, Python};
 use crate::{ffi::PyTypeObject, sealed::Sealed, type_object::PyTypeInfo};
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// Initializer for Python types.
 ///
@@ -46,7 +46,8 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
             };
 
             // TODO: make it possible to provide real arguments to the base tp_new
-            let obj = unsafe { tp_new(subtype, PyTuple::empty(py).as_ptr(), std::ptr::null_mut()) };
+            let obj =
+                unsafe { tp_new(subtype, PyTuple::empty(py).as_ptr(), core::ptr::null_mut()) };
             if obj.is_null() {
                 Err(PyErr::fetch(py))
             } else {

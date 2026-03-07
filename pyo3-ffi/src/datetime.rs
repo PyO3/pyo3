@@ -9,13 +9,13 @@ use crate::PyCapsule_Import;
 #[cfg(GraalPy)]
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_TYPE};
-use std::ffi::c_char;
-use std::ffi::c_int;
-use std::ptr;
+use core::ffi::c_char;
+use core::ffi::c_int;
+use core::ptr;
+use core::{cell::UnsafeCell, ffi::CStr};
 use std::sync::Once;
-use std::{cell::UnsafeCell, ffi::CStr};
 #[cfg(not(PyPy))]
-use {crate::Py_hash_t, std::ffi::c_uchar};
+use {crate::Py_hash_t, core::ffi::c_uchar};
 // Type struct wrappers
 const _PyDateTime_DATE_DATASIZE: usize = 4;
 const _PyDateTime_TIME_DATASIZE: usize = 6;
@@ -345,7 +345,7 @@ pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
 // but copying them seems suboptimal
 #[inline]
 #[cfg(GraalPy)]
-pub unsafe fn _get_attr(obj: *mut PyObject, field: &std::ffi::CStr) -> c_int {
+pub unsafe fn _get_attr(obj: *mut PyObject, field: &core::ffi::CStr) -> c_int {
     let result = PyObject_GetAttrString(obj, field.as_ptr());
     Py_DecRef(result); // the original macros are borrowing
     if PyLong_Check(result) == 1 {
@@ -705,7 +705,7 @@ pub unsafe fn PyTZInfo_CheckExact(op: *mut PyObject) -> c_int {
 // skipped non-limited PyDelta_FromDSU
 
 pub unsafe fn PyTimeZone_FromOffset(offset: *mut PyObject) -> *mut PyObject {
-    ((*PyDateTimeAPI()).TimeZone_FromTimeZone)(offset, std::ptr::null_mut())
+    ((*PyDateTimeAPI()).TimeZone_FromTimeZone)(offset, core::ptr::null_mut())
 }
 
 pub unsafe fn PyTimeZone_FromOffsetAndName(
@@ -718,7 +718,7 @@ pub unsafe fn PyTimeZone_FromOffsetAndName(
 #[cfg(not(PyPy))]
 pub unsafe fn PyDateTime_FromTimestamp(args: *mut PyObject) -> *mut PyObject {
     let f = (*PyDateTimeAPI()).DateTime_FromTimestamp;
-    f((*PyDateTimeAPI()).DateTimeType, args, std::ptr::null_mut())
+    f((*PyDateTimeAPI()).DateTimeType, args, core::ptr::null_mut())
 }
 
 #[cfg(not(PyPy))]

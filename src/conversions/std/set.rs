@@ -1,4 +1,7 @@
-use std::{cmp, collections, hash};
+#![allow(unused_imports, reason = "conditional compilation")]
+
+use alloc::collections;
+use core::{cmp, hash};
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
@@ -14,7 +17,8 @@ use crate::{
     Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
 };
 
-impl<'py, K, S> IntoPyObject<'py> for collections::HashSet<K, S>
+#[cfg(feature = "std")]
+impl<'py, K, S> IntoPyObject<'py> for std::collections::HashSet<K, S>
 where
     K: IntoPyObject<'py> + Eq + hash::Hash,
     S: hash::BuildHasher + Default,
@@ -36,7 +40,8 @@ where
     }
 }
 
-impl<'a, 'py, K, H> IntoPyObject<'py> for &'a collections::HashSet<K, H>
+#[cfg(feature = "std")]
+impl<'a, 'py, K, H> IntoPyObject<'py> for &'a std::collections::HashSet<K, H>
 where
     &'a K: IntoPyObject<'py> + Eq + hash::Hash,
     H: hash::BuildHasher,
@@ -57,7 +62,8 @@ where
     }
 }
 
-impl<'py, K, S> FromPyObject<'_, 'py> for collections::HashSet<K, S>
+#[cfg(feature = "std")]
+impl<'py, K, S> FromPyObject<'_, 'py> for std::collections::HashSet<K, S>
 where
     K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
@@ -173,9 +179,11 @@ where
 mod tests {
     use crate::types::{any::PyAnyMethods, PyFrozenSet, PySet};
     use crate::{IntoPyObject, Python};
-    use std::collections::{BTreeSet, HashSet};
+    use alloc::collections::BTreeSet;
+    use std::collections::HashSet;
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_extract_hashset() {
         Python::attach(|py| {
             let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
@@ -205,13 +213,15 @@ mod tests {
     fn test_set_into_pyobject() {
         Python::attach(|py| {
             let bt: BTreeSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
-            let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
-
             let bto = (&bt).into_pyobject(py).unwrap();
-            let hso = (&hs).into_pyobject(py).unwrap();
-
             assert_eq!(bt, bto.extract().unwrap());
-            assert_eq!(hs, hso.extract().unwrap());
+
+            #[cfg(feature = "std")]
+            {
+                let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
+                let hso = (&hs).into_pyobject(py).unwrap();
+                assert_eq!(hs, hso.extract().unwrap());
+            }
         });
     }
 }

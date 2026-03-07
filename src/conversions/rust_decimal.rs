@@ -60,8 +60,8 @@ use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
 use crate::types::PyType;
 use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
+use core::str::FromStr;
 use rust_decimal::Decimal;
-use std::str::FromStr;
 
 impl FromPyObject<'_, '_> for Decimal {
     type Error = PyErr;
@@ -124,7 +124,7 @@ mod test_rust_decimal {
     use super::*;
     use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
-    use std::ffi::CString;
+    use alloc::ffi::CString;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;

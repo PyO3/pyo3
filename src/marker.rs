@@ -126,8 +126,8 @@ use crate::types::{
 };
 use crate::version::PythonVersionInfo;
 use crate::{ffi, Bound, Py, PyTypeInfo};
-use std::ffi::CStr;
-use std::marker::PhantomData;
+use core::ffi::CStr;
+use core::marker::PhantomData;
 
 /// Types that are safe to access while the GIL is not held.
 ///
@@ -145,7 +145,7 @@ use std::marker::PhantomData;
 ///
 /// ```compile_fail
 /// # use pyo3::prelude::*;
-/// use std::rc::Rc;
+/// use alloc::rc::Rc;
 ///
 /// Python::attach(|py| {
 ///     let rc = Rc::new(42);
@@ -844,7 +844,7 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_detach_releases_and_acquires_gil() {
         Python::attach(|py| {
-            let b = std::sync::Arc::new(std::sync::Barrier::new(2));
+            let b = alloc::sync::Arc::new(std::sync::Barrier::new(2));
 
             let b2 = b.clone();
             std::thread::spawn(move || Python::attach(|_| b2.wait()));
@@ -890,7 +890,7 @@ mod tests {
     fn test_detach_pass_stuff_in() {
         let list = Python::attach(|py| PyList::new(py, vec!["foo", "bar"]).unwrap().unbind());
         let mut v = vec![1, 2, 3];
-        let a = std::sync::Arc::new(String::from("foo"));
+        let a = alloc::sync::Arc::new(String::from("foo"));
 
         Python::attach(|py| {
             py.detach(|| {
@@ -902,7 +902,7 @@ mod tests {
     #[test]
     #[cfg(not(Py_LIMITED_API))]
     fn test_acquire_gil() {
-        use std::ffi::c_int;
+        use core::ffi::c_int;
 
         const GIL_NOT_HELD: c_int = 0;
         const GIL_HELD: c_int = 1;
@@ -961,7 +961,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[test]
     fn test_py_run_inserts_globals_2() {
-        use std::ffi::CString;
+        use alloc::ffi::CString;
 
         #[crate::pyclass(crate = "crate", skip_from_py_object)]
         #[derive(Clone)]
@@ -1004,7 +1004,7 @@ cls.func()
 
     #[test]
     fn python_is_zst() {
-        assert_eq!(std::mem::size_of::<Python<'_>>(), 0);
+        assert_eq!(core::mem::size_of::<Python<'_>>(), 0);
     }
 
     #[test]

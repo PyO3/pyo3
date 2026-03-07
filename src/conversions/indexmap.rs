@@ -94,7 +94,7 @@ use crate::types::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::{type_hint_subscript, PyTypeInfo};
 use crate::{Borrowed, Bound, FromPyObject, PyErr, Python};
-use std::hash;
+use core::hash;
 
 impl<'py, K, V, H> IntoPyObject<'py> for indexmap::IndexMap<K, V, H>
 where

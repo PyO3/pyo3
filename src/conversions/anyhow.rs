@@ -37,11 +37,13 @@
 //! // A wrapper around a Rust function.
 //! // The pyfunction macro performs the conversion to a PyErr
 //! #[pyfunction]
+//! # #[cfg(feature = "std")]
 //! fn py_open(filename: PathBuf) -> anyhow::Result<Vec<u8>> {
 //!     let data = std::fs::read(filename)?;
 //!     Ok(data)
 //! }
 //!
+//! # #[cfg(feature = "std")]
 //! fn main() {
 //!     let error = Python::attach(|py| -> PyResult<Vec<u8>> {
 //!         let fun = wrap_pyfunction!(py_open, py)?;
@@ -51,6 +53,9 @@
 //!
 //!     println!("{}", error);
 //! }
+//!
+//! # #[cfg(not(feature = "std"))]
+//! # fn main() {}
 //! ```
 //!
 //! # Example: Using `anyhow` in general

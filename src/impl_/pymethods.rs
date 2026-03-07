@@ -12,12 +12,13 @@ use crate::{
     ffi, Bound, CastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr, PyRef,
     PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
 };
-use std::ffi::CStr;
-use std::ffi::{c_int, c_void};
-use std::fmt;
-use std::marker::PhantomData;
-use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::ptr::{null_mut, NonNull};
+use core::ffi::CStr;
+use core::ffi::{c_int, c_void};
+use core::fmt;
+use core::marker::PhantomData;
+use core::panic::AssertUnwindSafe;
+use core::ptr::{null_mut, NonNull};
+use std::panic::catch_unwind;
 
 use super::pyclass::PyClassImpl;
 use super::trampoline;
@@ -31,7 +32,7 @@ pub struct IPowModulo(*mut ffi::PyObject);
 /// Python 3.7 and older - __ipow__ does not have modulo argument correctly populated.
 #[cfg(not(Py_3_8))]
 #[repr(transparent)]
-pub struct IPowModulo(#[allow(dead_code)] std::mem::MaybeUninit<*mut ffi::PyObject>);
+pub struct IPowModulo(#[allow(dead_code)] core::mem::MaybeUninit<*mut ffi::PyObject>);
 
 /// Helper to use as pymethod ffi definition
 #[allow(non_camel_case_types)]
@@ -808,7 +809,7 @@ impl<T> From<BoundRef<'_, '_, T>> for Py<T> {
     }
 }
 
-impl<'py, T> std::ops::Deref for BoundRef<'_, 'py, T> {
+impl<'py, T> core::ops::Deref for BoundRef<'_, 'py, T> {
     type Target = Bound<'py, T>;
     #[inline]
     fn deref(&self) -> &Self::Target {
