@@ -2947,7 +2947,7 @@ mod tests {
         // Might not complete successfully depending on host installation; that's ok as long as
         // CI demonstrates this path is covered!
 
-        let Ok(interpreter_config) = crate::resolve_build_config() else {
+        let Ok(interpreter_config) = crate::pyo3_build_script_impl::resolve_build_config() else {
             // Couldn't get an interpreter config, won't be able to test a matching sysconfigdata,
             // never mind. (This is intended for coverage, don't mind if it fails if it doesn't run.)
             return;
