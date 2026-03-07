@@ -102,7 +102,7 @@ fn test_compile_errors() {
 
     let mut config = Config::rustc("tests/ui");
 
-    let deps_features = vec![
+    let deps_features = [
         #[cfg(feature = "macros")]
         "pyo3/macros".to_string(),
         #[cfg(feature = "abi3")]
