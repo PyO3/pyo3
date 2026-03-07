@@ -101,6 +101,16 @@ pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
     /// # result.expect("example failed");
     /// ```
     fn format(&self) -> PyResult<String>;
+
+    /// Get the next traceback towards the frame where the exception was raised.
+    fn next_traceback(&self) -> PyResult<Option<Bound<'py, PyTraceback>>>;
+
+    /// Get the innermost traceback, i.e. the traceback corresponding to the frame where the exception was raised.
+    fn innermost_traceback(&self) -> PyResult<Bound<'py, PyTraceback>>;
+
+    /// Append a traceback to the end of this traceback, i.e. the frames of the appended traceback
+    /// will be newer than the frames of this traceback.
+    fn append(&self, traceback: Bound<'py, PyTraceback>) -> PyResult<()>;
 }
 
 impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
@@ -119,6 +129,23 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
             .to_cow()?
             .into_owned();
         Ok(formatted)
+    }
+
+    fn next_traceback(&self) -> PyResult<Option<Bound<'py, PyTraceback>>> {
+        Ok(self.getattr(intern!(self.py(), "tb_next"))?.extract()?)
+    }
+
+    fn innermost_traceback(&self) -> PyResult<Bound<'py, PyTraceback>> {
+        let mut current = self.clone();
+        while let Some(next) = current.next_traceback()? {
+            current = next;
+        }
+        Ok(current)
+    }
+
+    fn append(&self, next: Bound<'py, PyTraceback>) -> PyResult<()> {
+        self.innermost_traceback()?
+            .setattr(intern!(self.py(), "tb_next"), next)
     }
 }
 
@@ -204,6 +231,45 @@ def f():
             let traceback = PyTraceback::from_frames(py, frames).unwrap().unwrap();
             assert_eq!(
                 traceback.format().unwrap(), "Traceback (most recent call last):\n  File \"file1.py\", line 10, in func1\n  File \"file2.py\", line 20, in func2\n  File \"file3.py\", line 30, in func3\n"
+            );
+        })
+    }
+
+    #[test]
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+    fn test_insert_traceback() {
+        Python::attach(|py| {
+            let traceback = PyTraceback::from_frames(
+                py,
+                [
+                    PyFrame::new(py, c"file2.py", c"func2", 20).unwrap(),
+                    PyFrame::new(py, c"file1.py", c"func1", 10).unwrap(),
+                ],
+            )
+            .unwrap()
+            .unwrap();
+
+            let rust_traceback = PyTraceback::from_frames(
+                py,
+                [
+                    PyFrame::new(py, c"rust2.rs", c"func2", 22).unwrap(),
+                    PyFrame::new(py, c"rust1.rs", c"func1", 11).unwrap(),
+                ],
+            )
+            .unwrap()
+            .unwrap();
+
+            // Stacktrace where python calls into rust
+            traceback.append(rust_traceback).unwrap();
+
+            assert_eq!(
+                traceback.format().unwrap(),
+                r#"Traceback (most recent call last):
+  File "file1.py", line 10, in func1
+  File "file2.py", line 20, in func2
+  File "rust1.rs", line 11, in func1
+  File "rust2.rs", line 22, in func2
+"#
             );
         })
     }
