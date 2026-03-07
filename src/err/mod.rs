@@ -262,6 +262,11 @@ impl PyErr {
         self.normalized(py).ptraceback(py)
     }
 
+    /// Set the traceback associated with the exception, pass `None` to clear it.
+    pub fn set_traceback<'py>(&self, py: Python<'_>, tb: Option<Bound<'py, PyTraceback>>) {
+        self.normalized(py).set_ptraceback(py, tb)
+    }
+
     /// Gets whether an error is present in the Python interpreter's global state.
     #[inline]
     pub fn occurred(_: Python<'_>) -> bool {
