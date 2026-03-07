@@ -4,7 +4,7 @@ use crate::object::PyObject;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int, c_long};
 
-extern "C" {
+extern_python_dll! {
     #[cfg_attr(PyPy, link_name = "PyPyArg_Parse")]
     pub fn PyArg_Parse(arg1: *mut PyObject, arg2: *const c_char, ...) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyArg_ParseTuple")]
@@ -82,7 +82,7 @@ pub const Py_CLEANUP_SUPPORTED: i32 = 0x2_0000;
 pub const PYTHON_API_VERSION: i32 = 1013;
 pub const PYTHON_ABI_VERSION: i32 = 3;
 
-extern "C" {
+extern_python_dll! {
 
     #[cfg_attr(PyPy, link_name = "PyPyModule_Create2")]
     pub fn PyModule_Create2(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject;
@@ -100,7 +100,7 @@ pub unsafe fn PyModule_Create(module: *mut PyModuleDef) -> *mut PyObject {
     )
 }
 
-extern "C" {
+extern_python_dll! {
 
     #[cfg_attr(PyPy, link_name = "PyPyModule_FromDefAndSpec2")]
     pub fn PyModule_FromDefAndSpec2(
@@ -146,7 +146,7 @@ pub const PyABIInfo_INTERNAL: u16 = 0x0008;
 pub const PyABIInfo_FREETHREADING_AGNOSTIC: u16 = PyABIInfo_GIL | PyABIInfo_FREETHREADED;
 
 #[cfg(Py_3_15)]
-extern "C" {
+extern_python_dll! {
     pub fn PyABIInfo_Check(info: *mut PyABIInfo, module_name: *const c_char) -> c_int;
 }
 

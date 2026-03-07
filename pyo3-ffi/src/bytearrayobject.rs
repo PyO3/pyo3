@@ -21,8 +21,7 @@ pub struct PyByteArrayObject {
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
 opaque_struct!(pub PyByteArrayObject);
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_python_dll! {
     #[cfg_attr(PyPy, link_name = "PyPyByteArray_Type")]
     pub static mut PyByteArray_Type: PyTypeObject;
 
@@ -39,7 +38,7 @@ pub unsafe fn PyByteArray_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyByteArray_Type)) as c_int
 }
 
-extern "C" {
+extern_python_dll! {
     #[cfg_attr(PyPy, link_name = "PyPyByteArray_FromObject")]
     pub fn PyByteArray_FromObject(o: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyByteArray_Concat")]

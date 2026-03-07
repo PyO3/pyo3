@@ -67,8 +67,7 @@ pub const CO_FUTURE_GENERATOR_STOP: c_int = 0x8_0000;
 pub const CO_MAXBLOCKS: usize = 20;
 
 #[cfg(not(PyPy))]
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_python_dll! {
     pub static mut PyCode_Type: PyTypeObject;
 }
 
@@ -78,7 +77,7 @@ pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyCode_Type)) as c_int
 }
 
-extern "C" {
+extern_python_dll! {
     #[cfg(PyPy)]
     #[link_name = "PyPyCode_Check"]
     pub fn PyCode_Check(op: *mut PyObject) -> c_int;
@@ -86,7 +85,7 @@ extern "C" {
 
 // skipped PyCode_GetNumFree (requires knowledge of code object layout)
 
-extern "C" {
+extern_python_dll! {
     #[cfg(not(GraalPy))]
     #[cfg_attr(PyPy, link_name = "PyPyCode_New")]
     pub fn PyCode_New(

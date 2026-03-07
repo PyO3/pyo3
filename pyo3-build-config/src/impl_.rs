@@ -1,11 +1,6 @@
 //! Main implementation module included in both the `pyo3-build-config` library crate
 //! and its build script.
 
-// Optional python3.dll import library generator for Windows
-#[cfg(feature = "generate-import-lib")]
-#[path = "import_lib.rs"]
-mod import_lib;
-
 #[cfg(test)]
 use std::cell::RefCell;
 use std::{
@@ -592,41 +587,6 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         }
     }
 
-    #[cfg(feature = "generate-import-lib")]
-    #[allow(clippy::unnecessary_wraps)]
-    pub fn generate_import_libs(&mut self) -> Result<()> {
-        // Auto generate python3.dll import libraries for Windows targets.
-        if self.lib_dir.is_none() {
-            let target = target_triple_from_env();
-            let py_version = if self.implementation == PythonImplementation::CPython
-                && self.abi3
-                && !self.is_free_threaded()
-            {
-                None
-            } else {
-                Some(self.version)
-            };
-            let abiflags = if self.is_free_threaded() {
-                Some("t")
-            } else {
-                None
-            };
-            self.lib_dir = import_lib::generate_import_lib(
-                &target,
-                self.implementation,
-                py_version,
-                abiflags,
-            )?;
-        }
-        Ok(())
-    }
-
-    #[cfg(not(feature = "generate-import-lib"))]
-    #[allow(clippy::unnecessary_wraps)]
-    pub fn generate_import_libs(&mut self) -> Result<()> {
-        Ok(())
-    }
-
     #[doc(hidden)]
     /// Serialize the `InterpreterConfig` and print it to the environment for Cargo to pass along
     /// to dependent packages during build time.
@@ -917,11 +877,13 @@ pub fn is_linking_libpython_for_target(target: &Triple) -> bool {
 ///
 /// Must be called from a PyO3 crate build script.
 fn require_libdir_for_target(target: &Triple) -> bool {
-    let is_generating_libpython = cfg!(feature = "generate-import-lib")
-        && target.operating_system == OperatingSystem::Windows
-        && is_abi3();
+    // With raw-dylib, Windows targets never need a lib dir — the compiler generates
+    // import entries directly from `#[link(kind = "raw-dylib")]` attributes.
+    if target.operating_system == OperatingSystem::Windows {
+        return false;
+    }
 
-    is_linking_libpython_for_target(target) && !is_generating_libpython
+    is_linking_libpython_for_target(target)
 }
 
 /// Configuration needed by PyO3 to cross-compile for a target platform.
@@ -1610,25 +1572,6 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
 
     let mut lib_dir = cross_compile_config.lib_dir_string();
 
-    // Auto generate python3.dll import libraries for Windows targets.
-    #[cfg(feature = "generate-import-lib")]
-    if lib_dir.is_none() {
-        let py_version = if implementation == PythonImplementation::CPython && abi3 && !gil_disabled
-        {
-            None
-        } else {
-            Some(version)
-        };
-        lib_dir = self::import_lib::generate_import_lib(
-            &cross_compile_config.target,
-            cross_compile_config
-                .implementation
-                .unwrap_or(PythonImplementation::CPython),
-            py_version,
-            None,
-        )?;
-    }
-
     Ok(InterpreterConfig {
         implementation,
         version,
@@ -1988,30 +1931,7 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
         );
     };
 
-    let mut interpreter_config = default_abi3_config(&host, abi3_version.unwrap())?;
-
-    // Auto generate python3.dll import libraries for Windows targets.
-    #[cfg(feature = "generate-import-lib")]
-    {
-        let gil_disabled = interpreter_config
-            .build_flags
-            .0
-            .contains(&BuildFlag::Py_GIL_DISABLED);
-        let py_version = if interpreter_config.implementation == PythonImplementation::CPython
-            && interpreter_config.abi3
-            && !gil_disabled
-        {
-            None
-        } else {
-            Some(interpreter_config.version)
-        };
-        interpreter_config.lib_dir = self::import_lib::generate_import_lib(
-            &host,
-            interpreter_config.implementation,
-            py_version,
-            None,
-        )?;
-    }
+    let interpreter_config = default_abi3_config(&host, abi3_version.unwrap())?;
 
     Ok(interpreter_config)
 }

@@ -13,8 +13,7 @@ pub struct _inittab {
     pub initfunc: Option<unsafe extern "C" fn() -> *mut PyObject>,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_python_dll! {
     #[cfg(not(PyPy))]
     pub static mut PyImport_Inittab: *mut _inittab;
 
@@ -35,8 +34,7 @@ pub struct _frozen {
     pub get_code: Option<unsafe extern "C" fn() -> *mut PyObject>,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_python_dll! {
     #[cfg(not(PyPy))]
     pub static mut PyImport_FrozenModules: *const _frozen;
 

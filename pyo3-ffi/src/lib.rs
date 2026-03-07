@@ -421,6 +421,74 @@ pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &std::ffi::CStr {
     }
 }
 
+/// Helper macro to declare `extern` blocks that link against the Python DLL on Windows
+/// using `raw-dylib`, eliminating the need for import libraries.
+///
+/// The build script sets a `pyo3_dll` cfg value to the target DLL name (e.g. `python312`),
+/// and this macro expands to the appropriate `#[link(name = "...", kind = "raw-dylib")]`
+/// attribute for that DLL.
+///
+/// # Usage
+///
+/// ```rust,ignore
+/// // Default ABI "C" (most common):
+/// extern_python_dll! {
+///     pub fn PyObject_Call(
+///         callable: *mut PyObject,
+///         args: *mut PyObject,
+///         kwargs: *mut PyObject,
+///     ) -> *mut PyObject;
+/// }
+///
+/// // Explicit ABI:
+/// extern_python_dll! { "C-unwind" {
+///     pub fn PyGILState_Ensure() -> PyGILState_STATE;
+/// }}
+/// ```
+macro_rules! extern_python_dll {
+    // Explicit ABI
+    ($abi:literal { $($body:tt)* }) => {
+        extern_python_dll!(@impl $abi { $($body)* }
+            // abi3
+            "python3", "python3_d",
+            // Python 3.7 - 3.15
+            "python37", "python37_d",
+            "python38", "python38_d",
+            "python39", "python39_d",
+            "python310", "python310_d",
+            "python311", "python311_d",
+            "python312", "python312_d",
+            "python313", "python313_d",
+            "python314", "python314_d",
+            "python315", "python315_d",
+            // free-threaded builds (3.13+)
+            "python313t", "python313t_d",
+            "python314t", "python314t_d",
+            "python315t", "python315t_d",
+        );
+    };
+    // Internal: generate cfg_attr for each DLL name.
+    //
+    // On x86 Windows, Python DLLs export undecorated symbol names (no leading
+    // underscore), but the default for raw-dylib on x86 is fully-decorated
+    // (cdecl adds a `_` prefix). We use `import_name_type = "undecorated"` to
+    // match. The `import_name_type` key is only valid on x86, so we need
+    // separate cfg_attr arms per architecture.
+    (@impl $abi:literal { $($body:tt)* } $($dll:literal),* $(,)?) => {
+        $(
+            #[cfg_attr(all(windows, target_arch = "x86", pyo3_dll = $dll),
+                link(name = $dll, kind = "raw-dylib", import_name_type = "undecorated"))]
+            #[cfg_attr(all(windows, not(target_arch = "x86"), pyo3_dll = $dll),
+                link(name = $dll, kind = "raw-dylib"))]
+        )*
+        extern $abi { $($body)* }
+    };
+    // Default ABI: "C"
+    ($($body:tt)*) => {
+        extern_python_dll!("C" { $($body)* });
+    };
+}
+
 pub mod compat;
 mod impl_;
 

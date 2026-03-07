@@ -22,7 +22,7 @@ opaque_struct!(pub PyCriticalSection);
 #[cfg(not(Py_GIL_DISABLED))]
 opaque_struct!(pub PyCriticalSection2);
 
-extern "C" {
+extern_python_dll! {
     pub fn PyCriticalSection_Begin(c: *mut PyCriticalSection, op: *mut PyObject);
     #[cfg(Py_3_14)]
     pub fn PyCriticalSection_BeginMutex(c: *mut PyCriticalSection, m: *mut PyMutex);

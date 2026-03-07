@@ -10,8 +10,7 @@ use std::ptr::addr_of_mut;
 #[cfg(all(Py_3_11, not(PyPy)))]
 opaque_struct!(pub _PyInterpreterFrame);
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_python_dll! {
     pub static mut PyFrame_Type: PyTypeObject;
 
     #[cfg(Py_3_13)]
@@ -29,7 +28,7 @@ pub unsafe fn PyFrameLocalsProxy_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyFrameLocalsProxy_Type)) as c_int
 }
 
-extern "C" {
+extern_python_dll! {
     #[cfg(all(Py_3_9, not(PyPy)))]
     pub fn PyFrame_GetBack(frame: *mut PyFrameObject) -> *mut PyFrameObject;
 

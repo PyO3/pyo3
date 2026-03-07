@@ -1,7 +1,7 @@
 use libc::size_t;
 use std::ffi::c_void;
 
-extern "C" {
+extern_python_dll! {
     #[cfg_attr(PyPy, link_name = "PyPyMem_Malloc")]
     pub fn PyMem_Malloc(size: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyMem_Calloc")]

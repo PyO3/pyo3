@@ -1,7 +1,7 @@
 use crate::object::PyObject;
 use std::ffi::{c_char, c_int};
 
-extern "C" {
+extern_python_dll! {
     pub fn PyCodec_Register(search_function: *mut PyObject) -> c_int;
     #[cfg(Py_3_10)]
     #[cfg(not(PyPy))]

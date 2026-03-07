@@ -5,7 +5,7 @@ use std::ffi::{c_char, c_int};
 // skipped PyMarshal_WriteLongToFile
 // skipped PyMarshal_WriteObjectToFile
 
-extern "C" {
+extern_python_dll! {
     #[cfg_attr(PyPy, link_name = "PyPyMarshal_WriteObjectToString")]
     pub fn PyMarshal_WriteObjectToString(object: *mut PyObject, version: c_int) -> *mut PyObject;
 

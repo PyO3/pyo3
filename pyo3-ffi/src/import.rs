@@ -1,7 +1,7 @@
 use crate::object::PyObject;
 use std::ffi::{c_char, c_int, c_long};
 
-extern "C" {
+extern_python_dll! {
     pub fn PyImport_GetMagicNumber() -> c_long;
     pub fn PyImport_GetMagicTag() -> *const c_char;
     #[cfg_attr(PyPy, link_name = "PyPyImport_ExecCodeModule")]
@@ -67,7 +67,7 @@ pub unsafe fn PyImport_ImportModuleEx(
     PyImport_ImportModuleLevel(name, globals, locals, fromlist, 0)
 }
 
-extern "C" {
+extern_python_dll! {
     pub fn PyImport_GetImporter(path: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyImport_Import")]
     pub fn PyImport_Import(name: *mut PyObject) -> *mut PyObject;
