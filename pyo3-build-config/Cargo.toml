@@ -12,11 +12,9 @@ edition = "2021"
 rust-version.workspace = true
 
 [dependencies]
-python3-dll-a = { version = "0.2.12", optional = true }
 target-lexicon = "0.13.3"
 
 [build-dependencies]
-python3-dll-a = { version = "0.2.12", optional = true }
 target-lexicon = "0.13.3"
 
 [features]
@@ -29,8 +27,8 @@ resolve-config = []
 # deprecated
 extension-module = []
 
-# Automatically generates `python3.dll` import libraries for Windows targets.
-generate-import-lib = ["dep:python3-dll-a"]
+# deprecated: no longer needed, raw-dylib is used instead
+generate-import-lib = []
 
 # These features are enabled by pyo3 when building Stable ABI extension modules.
 abi3 = []

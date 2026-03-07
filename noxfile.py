@@ -963,6 +963,7 @@ def set_msrv_package_versions(session: nox.Session):
 def ffi_check(session: nox.Session):
     _build_docs_for_ffi_check(session)
     _run_cargo(session, "run", _FFI_CHECK)
+    _check_raw_dylib_macro(session)
 
 
 @nox.session(name="test-version-limits")
@@ -1016,6 +1017,45 @@ def test_version_limits(session: nox.Session):
     # then `ABI3_MAX_MINOR` in `pyo3-build-config/src/impl_.rs` is probably outdated.
     assert f"version=3.{max_minor_version}" in stderr, (
         f"Expected to see version=3.{max_minor_version}, got: \n\n{stderr}"
+    )
+
+
+def _check_raw_dylib_macro(session: nox.Session):
+    """Check that extern_python_dll! macro covers all supported Python DLL names."""
+    min_version, max_version = _parse_supported_interpreter_version("cpython")
+    min_minor = int(min_version.split(".")[1])
+    max_minor = int(max_version.split(".")[1])
+
+    # Build the set of DLL names that default_lib_name_windows can produce
+    expected_dlls = {"python3", "python3_d"}
+    for minor in range(min_minor, max_minor + 1):
+        expected_dlls.add(f"python3{minor}")
+        expected_dlls.add(f"python3{minor}_d")
+        if minor >= 13:
+            expected_dlls.add(f"python3{minor}t")
+            expected_dlls.add(f"python3{minor}t_d")
+
+    # Parse the DLL name list in the extern_python_dll!(@impl ...) invocation
+    lib_rs = (PYO3_DIR / "pyo3-ffi" / "src" / "lib.rs").read_text()
+    found_dlls = set(re.findall(r'"(python[^"]+)"', lib_rs))
+
+    missing = expected_dlls - found_dlls
+    extra = found_dlls - expected_dlls
+    errors = []
+    if missing:
+        errors.append(
+            f"Missing DLL names in extern_python_dll! macro: {sorted(missing)}"
+        )
+    if extra:
+        errors.append(f"Extra DLL names in extern_python_dll! macro: {sorted(extra)}")
+    if errors:
+        session.error(
+            "\n".join(errors)
+            + "\n\nUpdate the extern_python_dll! macro in pyo3-ffi/src/lib.rs"
+            + " to match supported Python versions in pyo3-ffi/Cargo.toml"
+        )
+    session.log(
+        f"extern_python_dll! macro covers all {len(expected_dlls)} expected DLL names ✓"
     )
 
 

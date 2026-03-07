@@ -26,7 +26,7 @@ impl Default for PyHash_FuncDef {
     }
 }
 
-extern "C" {
+extern_python_dll! {
     #[cfg(not(PyPy))]
     pub fn PyHash_GetFuncDef() -> *mut PyHash_FuncDef;
     #[cfg(Py_3_13)]

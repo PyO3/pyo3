@@ -21,7 +21,7 @@ pub struct PyStructSequence_Desc {
 
 // skipped PyStructSequence_UnnamedField;
 
-extern "C" {
+extern_python_dll! {
     #[cfg(not(Py_LIMITED_API))]
     #[cfg_attr(PyPy, link_name = "PyPyStructSequence_InitType")]
     pub fn PyStructSequence_InitType(_type: *mut PyTypeObject, desc: *mut PyStructSequence_Desc);
@@ -54,7 +54,7 @@ pub unsafe fn PyStructSequence_GET_ITEM(op: *mut PyObject, i: Py_ssize_t) -> *mu
     crate::PyTuple_GET_ITEM(op, i)
 }
 
-extern "C" {
+extern_python_dll! {
     #[cfg(not(PyPy))]
     pub fn PyStructSequence_SetItem(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject);
 

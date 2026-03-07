@@ -21,7 +21,7 @@ pub struct PyBytesObject {
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
 opaque_struct!(pub PyBytesObject);
 
-extern "C" {
+extern_python_dll! {
     #[cfg_attr(PyPy, link_name = "_PyPyBytes_Resize")]
     pub fn _PyBytes_Resize(bytes: *mut *mut PyObject, newsize: Py_ssize_t) -> c_int;
 }
@@ -39,7 +39,7 @@ pub unsafe fn PyBytes_AS_STRING(op: *mut PyObject) -> *const c_char {
 opaque_struct!(pub PyBytesWriter);
 
 #[cfg(Py_3_15)]
-extern "C" {
+extern_python_dll! {
 
     pub fn PyBytesWriter_Create(size: Py_ssize_t) -> *mut PyBytesWriter;
 

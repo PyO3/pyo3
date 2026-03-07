@@ -159,15 +159,15 @@ Some of the functionality of `pyo3-build-config`:
     `PYO3_CROSS_PYTHON_IMPLEMENTATION`) or system files.
     When cross compiling extension modules it is often possible to make it work without any
     additional user input.
-  - When an experimental feature `generate-import-lib` is enabled, the `pyo3-ffi` build script can
-    generate `python3.dll` import libraries for Windows targets automatically via an external
-    [`python3-dll-a`] crate. This enables the users to cross compile Python extensions for Windows without
-    having to install any Windows Python libraries.
+  - On Windows, `pyo3-ffi` uses Rust's `raw-dylib` linking feature to link against the Python DLL
+    directly without needing import libraries (`.lib` files). The build script emits a `pyo3_dll`
+    cfg with the target DLL name, and the `extern_python_dll!` macro expands to the appropriate
+    `#[link(name = "...", kind = "raw-dylib")]` attribute. This enables cross compiling Python
+    extensions for Windows without having to install any Windows Python libraries.
 
 <!-- External Links -->
 
 [python/c api]: https://docs.python.org/3/c-api/
-[`python3-dll-a`]: https://docs.rs/python3-dll-a/latest/python3_dll_a/
 
 <!-- Crates -->
 

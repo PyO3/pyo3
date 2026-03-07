@@ -7,7 +7,7 @@ use crate::{_mod, _node};
 use libc::FILE;
 use std::ffi::{c_char, c_int};
 
-extern "C" {
+extern_python_dll! {
     pub fn PyRun_SimpleStringFlags(arg1: *const c_char, arg2: *mut PyCompilerFlags) -> c_int;
     pub fn _PyRun_SimpleFileObject(
         fp: *mut FILE,
@@ -96,7 +96,7 @@ extern "C" {
     ) -> *mut _mod;
 }
 
-extern "C" {
+extern_python_dll! {
     #[cfg_attr(PyPy, link_name = "PyPyRun_StringFlags")]
     pub fn PyRun_StringFlags(
         arg1: *const c_char,
@@ -153,7 +153,7 @@ pub unsafe fn Py_CompileStringFlags(
 
 // skipped _Py_SourceAsString
 
-extern "C" {
+extern_python_dll! {
     #[cfg_attr(PyPy, link_name = "PyPyRun_String")]
     pub fn PyRun_String(
         string: *const c_char,
@@ -214,7 +214,7 @@ extern "C" {
 // skipped macro PyRun_AnyFileEx
 // skipped macro PyRun_AnyFileFlags
 
-extern "C" {
+extern_python_dll! {
     #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
     #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     pub fn PyParser_SimpleParseStringFlags(
