@@ -34,9 +34,11 @@ impl PyTraceback {
         instruction_index: i32,
         line_number: i32,
     ) -> PyResult<Bound<'py, PyTraceback>> {
-        Ok(PyTraceback::classinfo_object(py)
-            .call1((next, frame, instruction_index, line_number))?
-            .cast_into()?)
+        unsafe {
+            Ok(PyTraceback::classinfo_object(py)
+                .call1((next, frame, instruction_index, line_number))?
+                .cast_into_unchecked())
+        }
     }
 
     /// Creates a new traceback object from an iterator of frames.
