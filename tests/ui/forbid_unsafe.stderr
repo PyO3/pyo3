@@ -1,80 +1,16 @@
-error[E0277]: pyclass `PyWarning` cannot be subclassed
-   --> tests/ui/../../src/tests/hygiene/pymethods.rs:462:1
-    |
-462 | #[crate::pyclass(crate = "crate", extends=crate::exceptions::PyWarning)]
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required for `#[pyclass(extends=PyWarning)]`
-    |
-    = help: the trait `PyClassBaseType` is not implemented for `PyWarning`
-    = note: `PyWarning` must have `#[pyclass(subclass)]` to be eligible for subclassing
-    = note: with the `abi3` feature enabled, PyO3 does not support subclassing native types
-    = help: the following other types implement trait `PyClassBaseType`:
-              Bar
-              ComplexEnumEqOrd
-              ComplexEnumManyVariantFields
-              TupleEnumEqOrd
-              pyo3::PyAny
-    = note: this error originates in the attribute macro `crate::pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0277]: pyclass `PyWarning` cannot be subclassed
-   --> tests/ui/../../src/tests/hygiene/pymethods.rs:462:43
-    |
-462 | #[crate::pyclass(crate = "crate", extends=crate::exceptions::PyWarning)]
-    |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required for `#[pyclass(extends=PyWarning)]`
-    |
-    = help: the trait `PyClassBaseType` is not implemented for `PyWarning`
-    = note: `PyWarning` must have `#[pyclass(subclass)]` to be eligible for subclassing
-    = note: with the `abi3` feature enabled, PyO3 does not support subclassing native types
-    = help: the following other types implement trait `PyClassBaseType`:
-              Bar
-              ComplexEnumEqOrd
-              ComplexEnumManyVariantFields
-              TupleEnumEqOrd
-              pyo3::PyAny
-note: required by a bound in `PyClassImpl::BaseType`
-   --> src/impl_/pyclass.rs:184:33
-    |
-184 |     type BaseType: PyTypeInfo + PyClassBaseType;
-    |                                 ^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::BaseType`
-
-error[E0080]: evaluation panicked: `dict` requires Python >= 3.9 when using the `abi3` feature
-  --> tests/ui/../../src/tests/hygiene/pyclass.rs:18:5
+warning: function `bytes_from_py` is never used
+  --> tests/ui/forbid_unsafe.rs:35:8
    |
-18 |     dict
-   |     ^^^^ evaluation of `hygiene::pyclass::_::ASSERT_DICT_SUPPORTED` failed here
-
-error[E0080]: evaluation panicked: `weakref` requires Python >= 3.9 when using the `abi3` feature
-  --> tests/ui/../../src/tests/hygiene/pyclass.rs:17:5
+35 |     fn bytes_from_py(bytes: &Bound<'_, PyAny>) -> PyResult<Vec<u8>> {
+   |        ^^^^^^^^^^^^^
    |
-17 |     weakref,
-   |     ^^^^^^^ evaluation of `hygiene::pyclass::_::ASSERT_WEAKREF_SUPPORTED` failed here
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
 
-error[E0277]: pyclass `PyWarning` cannot be subclassed
-   --> tests/ui/../../src/tests/hygiene/pymethods.rs:466:1
-    |
-466 | #[crate::pymethods(crate = "crate")]
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required for `#[pyclass(extends=PyWarning)]`
-    |
-    = help: the trait `PyClassBaseType` is not implemented for `PyWarning`
-    = note: `PyWarning` must have `#[pyclass(subclass)]` to be eligible for subclassing
-    = note: with the `abi3` feature enabled, PyO3 does not support subclassing native types
-    = help: the following other types implement trait `PyClassBaseType`:
-              Bar
-              ComplexEnumEqOrd
-              ComplexEnumManyVariantFields
-              TupleEnumEqOrd
-              pyo3::PyAny
-    = note: required for `UserDefinedWarning` to implement `PyClassInit<'_, true, false>`
-note: required by a bound in `tp_new_impl`
-   --> src/impl_/pymethods.rs:825:8
-    |
-819 | pub unsafe fn tp_new_impl<'py, T, const IS_PYCLASS: bool, const IS_INITIALIZER_TUPLE: bool>(
-    |               ----------- required by a bound in this function
-...
-825 |     T: super::pyclass_init::PyClassInit<'py, IS_PYCLASS, IS_INITIALIZER_TUPLE>,
-    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `tp_new_impl`
-    = note: this error originates in the attribute macro `crate::pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+warning: function `f` is never used
+  --> tests/ui/forbid_unsafe.rs:40:8
+   |
+40 |     fn f(#[pyo3(from_py_with = bytes_from_py)] _bytes: Vec<u8>) {}
+   |        ^
 
-error: aborting due to 5 previous errors
+warning: 2 warnings emitted
 
-Some errors have detailed explanations: E0080, E0277.
-For more information about an error, try `rustc --explain E0080`.

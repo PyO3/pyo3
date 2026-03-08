@@ -10,18 +10,5 @@ error: `__releasebuffer__` must be `unsafe fn`
 16 |     fn releasebuffer_must_be_unsafe(&self, _view: *mut pyo3::ffi::Py_buffer) {}
    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error[E0425]: cannot find type `Py_buffer` in module `pyo3::ffi`
- --> tests/ui/invalid_pymethods_buffer.rs:9:63
-  |
-9 |     fn getbuffer_must_be_unsafe(&self, _view: *mut pyo3::ffi::Py_buffer, _flags: std::ffi::c_int) {}
-  |                                                               ^^^^^^^^^ not found in `pyo3::ffi`
+error: aborting due to 2 previous errors
 
-error[E0425]: cannot find type `Py_buffer` in module `pyo3::ffi`
-  --> tests/ui/invalid_pymethods_buffer.rs:16:67
-   |
-16 |     fn releasebuffer_must_be_unsafe(&self, _view: *mut pyo3::ffi::Py_buffer) {}
-   |                                                                   ^^^^^^^^^ not found in `pyo3::ffi`
-
-error: aborting due to 4 previous errors
-
-For more information about this error, try `rustc --explain E0425`.

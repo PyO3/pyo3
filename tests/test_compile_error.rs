@@ -146,24 +146,25 @@ fn test_compile_errors() {
         .compile_flags
         .push("--diagnostic-width=140".into());
 
-    // not a test file, used to configure dependencies for the tests
-    config.skip_files.push("base/src/lib.rs".into());
-
-    // don't run abi3-only tests when not testing abi3 features
-    #[cfg(not(Py_LIMITED_API))]
-    config.skip_files.push("abi3".into());
-
-    #[cfg(Py_LIMITED_API)]
-    config.skip_files.push("forbid_unsafe.rs".into());
-
-    #[cfg(all(Py_LIMITED_API, not(Py_3_11)))]
-    config.skip_files.push("buffer".into());
-
-    #[cfg(any(Py_3_14, all(Py_3_10, not(Py_LIMITED_API))))]
-    config.skip_files.push("immutable_type.rs".into());
-
-    #[cfg(not(Py_3_9))]
-    config.skip_files.push("invalid_pyclass_generic.rs".into());
+    config.skip_files.extend([
+        // not a test file, used to configure dependencies for the tests
+        "base/src/lib.rs".into(),
+        // don't run abi3-only tests when not testing abi3 features
+        #[cfg(not(Py_LIMITED_API))]
+        "abi3".into(),
+        // this test doesn't work properly without the full API available
+        #[cfg(Py_LIMITED_API)]
+        "forbid_unsafe.rs".into(),
+        // buffer protocol only supported on 3.11+ with abi3
+        #[cfg(all(Py_LIMITED_API, not(Py_3_11)))]
+        "buffer".into(),
+        // only needs to run on versions where `#[pyclass(immutable_type)]` is unsupported
+        #[cfg(any(Py_3_14, all(Py_3_10, not(Py_LIMITED_API))))]
+        "immutable_type.rs".into(),
+        // generic pyclasses only supported on 3.9+, doesn't fail gracefully on older versions
+        #[cfg(not(Py_3_9))]
+        "invalid_pyclass_generic.rs".into(),
+    ]);
 
     config.output_conflict_handling = ui_test::bless_output_files;
 

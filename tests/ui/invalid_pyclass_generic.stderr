@@ -1,54 +1,10 @@
-error[E0433]: failed to resolve: could not find `PyGenericAlias` in `types`
-  --> tests/ui/invalid_pyclass_generic.rs:4:1
-   |
- 4 | #[pyclass(generic)]
-   | ^^^^^^^^^^^^^^^^^^^ could not find `PyGenericAlias` in `types`
-   |
-note: found an item that was configured out
-  --> src/types/mod.rs:25:29
-   |
-24 | #[cfg(Py_3_9)]
-   |       ------ the item is gated here
-25 | pub use self::genericalias::PyGenericAlias;
-   |                             ^^^^^^^^^^^^^^
-   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0433]: failed to resolve: could not find `PyGenericAlias` in `types`
-  --> tests/ui/invalid_pyclass_generic.rs:24:22
-   |
-24 |         pyo3::types::PyGenericAlias::new(cls.py(), cls.as_any(), key)
-   |                      ^^^^^^^^^^^^^^ could not find `PyGenericAlias` in `types`
-   |
-note: found an item that was configured out
-  --> src/types/mod.rs:25:29
-   |
-24 | #[cfg(Py_3_9)]
-   |       ------ the item is gated here
-25 | pub use self::genericalias::PyGenericAlias;
-   |                             ^^^^^^^^^^^^^^
-
-error[E0425]: cannot find type `PyGenericAlias` in module `pyo3::types`
-  --> tests/ui/invalid_pyclass_generic.rs:4:1
-   |
- 4 | #[pyclass(generic)]
-   | ^^^^^^^^^^^^^^^^^^^ not found in `pyo3::types`
-   |
-note: found an item that was configured out
-  --> src/types/mod.rs:25:29
-   |
-24 | #[cfg(Py_3_9)]
-   |       ------ the item is gated here
-25 | pub use self::genericalias::PyGenericAlias;
-   |                             ^^^^^^^^^^^^^^
-   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
-
 error[E0592]: duplicate definitions with name `__pymethod___class_getitem____`
   --> tests/ui/invalid_pyclass_generic.rs:4:1
    |
  4 | #[pyclass(generic)]
    | ^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___class_getitem____`
 ...
-10 | #[pymethods]
+12 | #[pymethods]
    | ------------ other definition for `__pymethod___class_getitem____`
    |
    = note: this error originates in the macro `::pyo3::impl_::pymethods::maybe_define_fastcall_function_with_keywords` which comes from the expansion of the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
@@ -59,11 +15,12 @@ error[E0592]: duplicate definitions with name `__class_getitem__`
  4 |   #[pyclass(generic)]
    |   ^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__class_getitem__`
 ...
-18 | /     pub fn __class_getitem__(
-19 | |
-20 | |         cls: &Bound<'_, PyType>,
-21 | |         key: &Bound<'_, PyAny>,
-22 | |     ) -> PyResult<Py<PyAny>> {
+20 | /     pub fn __class_getitem__(
+21 | |
+22 | |
+23 | |         cls: &Bound<'_, PyType>,
+24 | |         key: &Bound<'_, PyAny>,
+25 | |     ) -> PyResult<Py<PyAny>> {
    | |____________________________- other definition for `__class_getitem__`
    |
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
@@ -80,9 +37,9 @@ note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetIte
  4 | #[pyclass(generic)]
    | ^^^^^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetItem`
-  --> tests/ui/invalid_pyclass_generic.rs:10:1
+  --> tests/ui/invalid_pyclass_generic.rs:12:1
    |
-10 | #[pymethods]
+12 | #[pymethods]
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
@@ -98,13 +55,14 @@ note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetIte
  4 | #[pyclass(generic)]
    | ^^^^^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetItem`
-  --> tests/ui/invalid_pyclass_generic.rs:18:5
+  --> tests/ui/invalid_pyclass_generic.rs:20:5
    |
-18 | /     pub fn __class_getitem__(
-19 | |
-20 | |         cls: &Bound<'_, PyType>,
-21 | |         key: &Bound<'_, PyAny>,
-22 | |     ) -> PyResult<Py<PyAny>> {
+20 | /     pub fn __class_getitem__(
+21 | |
+22 | |
+23 | |         cls: &Bound<'_, PyType>,
+24 | |         key: &Bound<'_, PyAny>,
+25 | |     ) -> PyResult<Py<PyAny>> {
    | |____________________________^
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
@@ -118,10 +76,22 @@ error[E0034]: multiple applicable items in scope
   = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0034]: multiple applicable items in scope
-  --> tests/ui/invalid_pyclass_generic.rs:18:12
+error[E0308]: mismatched types
+  --> tests/ui/invalid_pyclass_generic.rs:27:9
    |
-18 |     pub fn __class_getitem__(
+25 |     ) -> PyResult<Py<PyAny>> {
+   |          ------------------- expected `Result<pyo3::Py<pyo3::PyAny>, PyErr>` because of return type
+26 |
+27 |         pyo3::types::PyGenericAlias::new(cls.py(), cls.as_any(), key)
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Py<PyAny>, PyErr>`, found `Result<Bound<'_, PyGenericAlias>, PyErr>`
+   |
+   = note: expected enum `Result<pyo3::Py<pyo3::PyAny>, _>`
+              found enum `Result<pyo3::Bound<'_, PyGenericAlias>, _>`
+
+error[E0034]: multiple applicable items in scope
+  --> tests/ui/invalid_pyclass_generic.rs:20:12
+   |
+20 |     pub fn __class_getitem__(
    |            ^^^^^^^^^^^^^^^^^ multiple `__pymethod___class_getitem____` found
    |
 note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetItem`
@@ -130,16 +100,16 @@ note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetIte
  4 | #[pyclass(generic)]
    | ^^^^^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetItem`
-  --> tests/ui/invalid_pyclass_generic.rs:10:1
+  --> tests/ui/invalid_pyclass_generic.rs:12:1
    |
-10 | #[pymethods]
+12 | #[pymethods]
    | ^^^^^^^^^^^^
    = note: this error originates in the macro `::pyo3::impl_::pymethods::maybe_define_fastcall_function_with_keywords` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
-  --> tests/ui/invalid_pyclass_generic.rs:18:12
+  --> tests/ui/invalid_pyclass_generic.rs:20:12
    |
-18 |     pub fn __class_getitem__(
+20 |     pub fn __class_getitem__(
    |            ^^^^^^^^^^^^^^^^^ multiple `__class_getitem__` found
    |
 note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetItem`
@@ -148,26 +118,27 @@ note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetIte
  4 | #[pyclass(generic)]
    | ^^^^^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `ClassRedefinesClassGetItem`
-  --> tests/ui/invalid_pyclass_generic.rs:18:5
+  --> tests/ui/invalid_pyclass_generic.rs:20:5
    |
-18 | /     pub fn __class_getitem__(
-19 | |
-20 | |         cls: &Bound<'_, PyType>,
-21 | |         key: &Bound<'_, PyAny>,
-22 | |     ) -> PyResult<Py<PyAny>> {
+20 | /     pub fn __class_getitem__(
+21 | |
+22 | |
+23 | |         cls: &Bound<'_, PyType>,
+24 | |         key: &Bound<'_, PyAny>,
+25 | |     ) -> PyResult<Py<PyAny>> {
    | |____________________________^
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
-  --> tests/ui/invalid_pyclass_generic.rs:22:10
+  --> tests/ui/invalid_pyclass_generic.rs:25:10
    |
-22 |     ) -> PyResult<Py<PyAny>> {
+25 |     ) -> PyResult<Py<PyAny>> {
    |          ^^^^^^^^ multiple `wrap` found
    |
    = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
    = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
 
-error: aborting due to 11 previous errors
+error: aborting due to 9 previous errors
 
-Some errors have detailed explanations: E0034, E0425, E0433, E0592.
+Some errors have detailed explanations: E0034, E0308, E0592.
 For more information about an error, try `rustc --explain E0034`.

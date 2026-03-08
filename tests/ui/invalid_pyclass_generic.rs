@@ -5,6 +5,8 @@ use pyo3::types::PyType;
 //~^ ERROR: duplicate definitions with name `__pymethod___class_getitem____`
 //~| ERROR: duplicate definitions with name `__class_getitem__`
 //~| ERROR: multiple applicable items in scope
+//~| ERROR: multiple applicable items in scope
+//~| ERROR: multiple applicable items in scope
 struct ClassRedefinesClassGetItem {}
 
 #[pymethods]
@@ -17,6 +19,7 @@ impl ClassRedefinesClassGetItem {
     #[classmethod]
     pub fn __class_getitem__(
         //~^ ERROR: multiple applicable items in scope
+        //~| ERROR: multiple applicable items in scope
         cls: &Bound<'_, PyType>,
         key: &Bound<'_, PyAny>,
     ) -> PyResult<Py<PyAny>> {
