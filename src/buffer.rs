@@ -570,6 +570,18 @@ impl PyUntypedBuffer {
         self.raw().buf
     }
 
+    ///Returns the Python object that owns the buffer data.
+    ///
+    ///This is the object passed to [`PyUntypedBuffer::get()`]
+    ///Calling this before [`release()`][Self::release] allows you to clone an owned reference and
+    ///keeps the object alive after the buffer is released.
+    pub fn obj<'py>(&self, py: Python<'py>) -> Bound<'py, PyAny> {
+        // Safety: `PyObject_GetBuffer` increments the reference count of `obj` automatically
+        // and `PyBuffer_Release` decrements it on drop. The `obj` is guaranteed to be valid
+        // and non-null for the entire lifetime of `self`.
+        unsafe { Bound::from_borrowed_ptr(py, self.raw().obj) }
+    }
+
     /// Gets a pointer to the specified item.
     ///
     /// If `indices.len() < self.dimensions()`, returns the start address of the sub-array at the specified dimension.
@@ -1043,5 +1055,17 @@ mod tests {
             assert_eq!(typed.format().to_str().unwrap(), "B");
             assert_eq!(typed.shape(), [5]);
         });
+    }
+
+    #[test]
+    fn test_obj_getter() {
+        Python::attach(|py| {
+            let bytes = py.eval(ffi::c_str!("b'hello'"), None, None).unwrap();
+            let buf = PyUntypedBuffer::get(&bytes).unwrap();
+            let owner = buf.obj(py);
+            assert!(owner.is_instance_of::<crate::types::PyBytes>());
+            //owner and bytes should point to the same object
+            assert!(owner.is(&bytes));
+        })
     }
 }
