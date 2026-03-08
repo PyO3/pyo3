@@ -22,6 +22,7 @@ jobs:
         with:
           # codspeed action needs to be run from within the final Python environment
           activate-environment: true
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
