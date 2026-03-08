@@ -80,6 +80,19 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                     return Err(error.finish().into());
                 }
             }
+
+            if interpreter_config.is_free_threaded() {
+                let min_free_threaded_version = PythonVersion {
+                    major: 3,
+                    minor: 14,
+                };
+                ensure!(
+                    interpreter_config.version >= min_free_threaded_version,
+                    "PyO3 does not support the free-threaded build of CPython versions below {}, the selected Python version is {}",
+                    min_free_threaded_version,
+                    interpreter_config.version,
+                );
+            }
         }
         PythonImplementation::PyPy => {
             let versions = SUPPORTED_VERSIONS_PYPY;
