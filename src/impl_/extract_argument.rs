@@ -278,14 +278,12 @@ pub fn from_py_with_with_default<'a, 'py, T>(
 /// single string.)
 #[cold]
 pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -> PyErr {
-    if error.get_type(py).is(py.get_type::<PyTypeError>()) {
-        let remapped_error =
-            PyTypeError::new_err(format!("argument '{}': {}", arg_name, error.value(py)));
-        remapped_error.set_cause(py, error.cause(py));
-        remapped_error
-    } else {
-        error
-    }
+    if let Ok(msg) = crate::py_format!(py, "while processing '{arg_name}'") {
+        let _ = error
+            .value(py)
+            .call_method1(crate::intern!(py, "add_note"), (msg,));
+    };
+    error
 }
 
 /// Unwraps the Option<&PyAny> produced by the FunctionDescription `extract_arguments_` methods.
