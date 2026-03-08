@@ -77,7 +77,7 @@ def _supported_interpreter_versions(
     versions = [f"{major}.{minor}" for minor in range(min_minor, max_minor + 1)]
     # Add free-threaded builds for 3.13+
     if python_impl == "cpython":
-        versions += [f"{major}.{minor}t" for minor in range(13, max_minor + 1)]
+        versions += [f"{major}.{minor}t" for minor in range(14, max_minor + 1)]
     return versions
 
 
@@ -991,6 +991,14 @@ def test_version_limits(session: nox.Session):
         assert "3.10" not in PYPY_VERSIONS
         config_file.set("PyPy", "3.10")
         _run_cargo(session, "check", env=env, expect_error=True)
+
+        # 3.13t is no longer supported
+        config_file.set("CPython", "3.13t")
+        _run_cargo(session, "check", env=env, expect_error=True)
+
+        # 3.14t is PyO3's minimum version of free-threaded Python
+        config_file.set("CPython", "3.14t")
+        _run_cargo(session, "check", env=env)
 
     # attempt to build with latest version and check that abi3 version
     # configured matches the feature
