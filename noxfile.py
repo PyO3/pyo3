@@ -1066,6 +1066,100 @@ def _check_raw_dylib_macro(session: nox.Session):
         f"extern_python_dll! macro covers all {len(expected_dlls)} expected DLL names ✓"
     )
 
+    private_fn_allowlist = set(re.findall(r"\[\s*(_Py[A-Za-z0-9_]*)\s*\]", lib_rs))
+    required_private_fns = _raw_dylib_x86_private_functions()
+
+    missing = required_private_fns - private_fn_allowlist
+    extra = private_fn_allowlist - required_private_fns
+    errors = []
+    if missing:
+        errors.append(
+            "Missing x86 raw-dylib workaround entries for CPython private functions: "
+            f"{sorted(missing)}"
+        )
+    if extra:
+        errors.append(
+            "Unexpected x86 raw-dylib workaround entries for non-CPython/private functions: "
+            f"{sorted(extra)}"
+        )
+    if errors:
+        session.error(
+            "\n".join(errors)
+            + "\n\nUpdate extern_python_dll_maybe_private_fn! in pyo3-ffi/src/lib.rs"
+            + " to match the CPython `_Py*` function imports declared via extern_python_dll!."
+        )
+    session.log(
+        "extern_python_dll_maybe_private_fn! covers all required x86 CPython"
+        f" private function imports ({len(required_private_fns)}) ✓"
+    )
+
+
+def _raw_dylib_x86_private_functions() -> set[str]:
+    ffi_src = PYO3_DIR / "pyo3-ffi" / "src"
+    private_fns = set()
+    for path in ffi_src.rglob("*.rs"):
+        for block in _iter_extern_python_dll_blocks(path.read_text()):
+            attrs: List[str] = []
+            for line in block.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("#["):
+                    attrs.append(stripped)
+                    continue
+
+                match = re.search(r"\bfn\s+(_Py[A-Za-z0-9_]*)\b", stripped)
+                if match:
+                    if not any(
+                        _cfg_attr_is_non_cpython_only(attr)
+                        for attr in attrs
+                        if attr.startswith("#[cfg(")
+                    ):
+                        private_fns.add(match.group(1))
+                    attrs = []
+                    continue
+
+                if stripped and not stripped.startswith("//"):
+                    attrs = []
+
+    return private_fns
+
+
+def _iter_extern_python_dll_blocks(source: str) -> Iterator[str]:
+    cursor = 0
+    while True:
+        start = source.find("extern_python_dll!", cursor)
+        if start == -1:
+            return
+
+        block_start = source.find("{", start)
+        if block_start == -1:
+            return
+
+        depth = 0
+        for idx in range(block_start, len(source)):
+            if source[idx] == "{":
+                depth += 1
+            elif source[idx] == "}":
+                depth -= 1
+                if depth == 0:
+                    yield source[block_start + 1 : idx]
+                    cursor = idx + 1
+                    break
+        else:
+            return
+
+
+def _cfg_attr_is_non_cpython_only(attr: str) -> bool:
+    match = re.fullmatch(r"#\[cfg\((.*)\)\]", attr)
+    if match is None:
+        return False
+
+    return bool(
+        re.fullmatch(
+            r"\s*(?:any\()?\s*(?:PyPy|GraalPy)\s*(?:,\s*(?:PyPy|GraalPy)\s*)*\)?\s*",
+            match.group(1),
+        )
+    )
+
 
 @nox.session(name="check-feature-powerset", venv_backend="none")
 def check_feature_powerset(session: nox.Session):
