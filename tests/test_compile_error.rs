@@ -149,9 +149,15 @@ fn test_compile_errors() {
     config.skip_files.extend([
         // not a test file, used to configure dependencies for the tests
         "base/src/lib.rs".into(),
-        // don't run abi3-only tests when not testing abi3 features
-        #[cfg(not(Py_LIMITED_API))]
-        "abi3".into(),
+        // abi3-only tests only need to check when the feature is unsupported
+        #[cfg(any(not(Py_LIMITED_API), Py_3_9))]
+        "abi3_dict".into(),
+        #[cfg(any(not(Py_LIMITED_API), Py_3_9))]
+        "abi3_weakref".into(),
+        #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
+        "abi3_nativetype_inheritance".into(),
+        #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
+        "abi3_inheritance".into(),
         // this test doesn't work properly without the full API available
         #[cfg(Py_LIMITED_API)]
         "forbid_unsafe.rs".into(),
@@ -168,8 +174,11 @@ fn test_compile_errors() {
 
     config.output_conflict_handling = ui_test::bless_output_files;
 
-    let abort_check = config.abort_check.clone();
-    ctrlc::set_handler(move || abort_check.abort()).unwrap();
+    #[cfg(not(target_arch = "wasm32"))] // doesn't work on wasm
+    {
+        let abort_check = config.abort_check.clone();
+        ctrlc::set_handler(move || abort_check.abort()).unwrap();
+    }
 
     run_tests(config).unwrap();
 }

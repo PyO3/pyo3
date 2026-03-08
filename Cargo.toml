@@ -81,6 +81,7 @@ static_assertions = "1.1.0"
 uuid = { version = "1.10.0", features = ["v4"] }
 parking_lot = { version = "0.12.3", features = ["arc_lock"] }
 ui_test = "0.30.4"
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 ctrlc = "3.5.2"
 
 [build-dependencies]
