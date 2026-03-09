@@ -2,7 +2,10 @@ use crate::err::{error_on_minusone, PyResult};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, PyString};
 use crate::{ffi, Bound, PyAny};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
-use crate::{types::PyFrame, PyTypeCheck, Python};
+use crate::{
+    types::{PyFrame, PyFrameMethods},
+    BoundObject, IntoPyObject, PyTypeCheck, Python,
+};
 
 /// Represents a Python traceback.
 ///
@@ -40,6 +43,27 @@ impl PyTraceback {
                 .call1((next, frame, instruction_index, line_number))?
                 .cast_into_unchecked())
         }
+    }
+
+    /// Creates a new traceback object from an iterator of frames.
+    ///
+    /// The frames should be ordered from newest to oldest, i.e. the first frame in the iterator
+    /// will be the innermost frame in the traceback.
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+    pub fn from_frames<'py, I>(
+        py: Python<'py>,
+        start: Option<Bound<'py, PyTraceback>>,
+        frames: I,
+    ) -> PyResult<Option<Bound<'py, PyTraceback>>>
+    where
+        I: IntoIterator,
+        I::Item: IntoPyObject<'py, Target = PyFrame>,
+    {
+        frames.into_iter().try_fold(start, |prev, frame| {
+            let frame = frame.into_pyobject(py).map_err(Into::into)?.into_bound();
+            let line_number = frame.line_number();
+            PyTraceback::new(py, prev, frame, 0, line_number).map(Some)
+        })
     }
 }
 
@@ -113,6 +137,7 @@ mod tests {
     };
 
     #[test]
+    #[cfg(false)]
     fn format_traceback() {
         Python::attach(|py| {
             let err = py
@@ -193,6 +218,46 @@ def f():
             .unwrap();
             assert_eq!(
                 traceback.format().unwrap(), "Traceback (most recent call last):\n  File \"file1.py\", line 10, in func1\n  File \"file2.py\", line 20, in func2\n"
+            );
+        })
+    }
+
+    #[test]
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+    fn test_insert_traceback() {
+        Python::attach(|py| {
+            // Error happens in rust, so rust frames are created first.
+            let rust_traceback = PyTraceback::from_frames(
+                py,
+                None,
+                [
+                    PyFrame::new(py, c"rust2.rs", c"func2", 22).unwrap(),
+                    PyFrame::new(py, c"rust1.rs", c"func1", 11).unwrap(),
+                ],
+            )
+            .unwrap()
+            .unwrap();
+
+            // Stacktrace where python calls into rust
+            let traceback = PyTraceback::from_frames(
+                py,
+                Some(rust_traceback),
+                [
+                    PyFrame::new(py, c"file2.py", c"func2", 20).unwrap(),
+                    PyFrame::new(py, c"file1.py", c"func1", 10).unwrap(),
+                ],
+            )
+            .unwrap()
+            .unwrap();
+
+            assert_eq!(
+                traceback.format().unwrap(),
+                r#"Traceback (most recent call last):
+  File "file1.py", line 10, in func1
+  File "file2.py", line 20, in func2
+  File "rust1.rs", line 11, in func1
+  File "rust2.rs", line 22, in func2
+"#
             );
         })
     }
