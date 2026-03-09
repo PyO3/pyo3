@@ -22,7 +22,7 @@ pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_
     PyObject_SetAttr(o, attr_name, std::ptr::null_mut())
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg(all(
         not(PyPy),
         any(Py_3_10, all(not(Py_LIMITED_API), Py_3_9)) // Added to python in 3.9 but to limited API in 3.10
@@ -83,7 +83,7 @@ extern_python_dll! {
 pub const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
     1 << (8 * std::mem::size_of::<size_t>() as size_t - 1);
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Vectorcall")]
     #[cfg(any(Py_3_12, all(Py_3_11, not(Py_LIMITED_API))))]
     pub fn PyObject_Vectorcall(
@@ -111,7 +111,7 @@ pub unsafe fn PyObject_Length(o: *mut PyObject) -> Py_ssize_t {
     PyObject_Size(o)
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyObject_GetItem")]
     pub fn PyObject_GetItem(o: *mut PyObject, key: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_SetItem")]
@@ -122,7 +122,7 @@ extern_python_dll! {
     pub fn PyObject_DelItem(o: *mut PyObject, key: *mut PyObject) -> c_int;
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Format")]
     pub fn PyObject_Format(obj: *mut PyObject, format_spec: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_GetIter")]
@@ -140,7 +140,7 @@ pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
     crate::PyObject_HasAttrString(crate::Py_TYPE(o).cast(), c"__next__".as_ptr())
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg(any(Py_3_8, PyPy))]
     #[cfg_attr(PyPy, link_name = "PyPyIter_Check")]
     pub fn PyIter_Check(obj: *mut PyObject) -> c_int;
@@ -208,7 +208,7 @@ pub unsafe fn PyIndex_Check(o: *mut PyObject) -> c_int {
     (!tp_as_number.is_null() && (*tp_as_number).nb_index.is_some()) as c_int
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg(any(all(Py_3_8, Py_LIMITED_API), PyPy))]
     #[link_name = "PyPyIndex_Check"]
     pub fn PyIndex_Check(o: *mut PyObject) -> c_int;
@@ -269,7 +269,7 @@ pub unsafe fn PySequence_Length(o: *mut PyObject) -> Py_ssize_t {
     PySequence_Size(o)
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPySequence_Concat")]
     pub fn PySequence_Concat(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPySequence_Repeat")]
@@ -310,7 +310,7 @@ pub unsafe fn PySequence_In(o: *mut PyObject, value: *mut PyObject) -> c_int {
     PySequence_Contains(o, value)
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPySequence_Index")]
     pub fn PySequence_Index(o: *mut PyObject, value: *mut PyObject) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name = "PyPySequence_InPlaceConcat")]
@@ -343,7 +343,7 @@ pub unsafe fn PyMapping_DelItem(o: *mut PyObject, key: *mut PyObject) -> c_int {
     PyObject_DelItem(o, key)
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyMapping_HasKeyString")]
     pub fn PyMapping_HasKeyString(o: *mut PyObject, key: *const c_char) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyMapping_HasKey")]

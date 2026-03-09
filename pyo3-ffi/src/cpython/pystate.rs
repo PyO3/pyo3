@@ -45,7 +45,7 @@ pub(crate) struct _PyErr_StackItem {
 // skipped private _PY_DATA_STACK_CHUNK_SIZE
 // skipped private _ts (aka PyThreadState)
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg(Py_3_13)]
     pub fn PyThreadState_GetUnchecked() -> *mut PyThreadState;
 

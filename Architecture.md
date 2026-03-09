@@ -161,7 +161,7 @@ Some of the functionality of `pyo3-build-config`:
     additional user input.
   - On Windows, `pyo3-ffi` uses Rust's `raw-dylib` linking feature to link against the Python DLL
     directly without needing import libraries (`.lib` files). The build script emits a `pyo3_dll`
-    cfg with the target DLL name, and the `extern_python_dll!` macro expands to the appropriate
+    cfg with the target DLL name, and the `extern_libpython!` macro expands to the appropriate
     `#[link(name = "...", kind = "raw-dylib")]` attribute. This enables cross compiling Python
     extensions for Windows without having to install any Windows Python libraries.
 

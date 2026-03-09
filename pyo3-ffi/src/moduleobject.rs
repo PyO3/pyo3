@@ -4,7 +4,7 @@ use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int, c_void};
 use std::ptr::addr_of_mut;
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyModule_Type")]
     pub static mut PyModule_Type: PyTypeObject;
 }
@@ -19,7 +19,7 @@ pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyModule_Type)) as c_int
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyModule_NewObject")]
     pub fn PyModule_NewObject(name: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyModule_New")]
@@ -46,7 +46,7 @@ extern_python_dll! {
     pub fn PyModuleDef_Init(arg1: *mut PyModuleDef) -> *mut PyObject;
 }
 
-extern_python_dll! {
+extern_libpython! {
     pub static mut PyModuleDef_Type: PyTypeObject;
 }
 
@@ -134,12 +134,12 @@ pub const Py_MOD_GIL_USED: *mut c_void = 0 as *mut c_void;
 pub const Py_MOD_GIL_NOT_USED: *mut c_void = 1 as *mut c_void;
 
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-extern_python_dll! {
+extern_libpython! {
     pub fn PyUnstable_Module_SetGIL(module: *mut PyObject, gil: *mut c_void) -> c_int;
 }
 
 #[cfg(Py_3_15)]
-extern_python_dll! {
+extern_libpython! {
     pub fn PyModule_FromSlotsAndSpec(
         slots: *const PyModuleDef_Slot,
         spec: *mut PyObject,

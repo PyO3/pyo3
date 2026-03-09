@@ -8,7 +8,7 @@ use std::ffi::c_void;
 use std::ffi::{c_int, c_uchar};
 
 #[cfg(Py_3_13)]
-extern_python_dll! {
+extern_libpython! {
     pub fn PyLong_FromUnicodeObject(u: *mut PyObject, base: c_int) -> *mut PyObject;
 }
 
@@ -25,7 +25,7 @@ pub const Py_ASNATIVEBYTES_UNSIGNED_BUFFER: c_int = 4;
 #[cfg(Py_3_13)]
 pub const Py_ASNATIVEBYTES_REJECT_NEGATIVE: c_int = 8;
 
-extern_python_dll! {
+extern_libpython! {
     // skipped _PyLong_Sign
 
     #[cfg(Py_3_13)]

@@ -1,7 +1,7 @@
 use libc::size_t;
 use std::ffi::c_void;
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyMem_RawMalloc")]
     pub fn PyMem_RawMalloc(size: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyMem_RawCalloc")]
@@ -39,7 +39,7 @@ pub struct PyMemAllocatorEx {
     pub free: Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void)>,
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg(not(any(PyPy, GraalPy)))]
     pub fn PyMem_GetAllocator(domain: PyMemAllocatorDomain, allocator: *mut PyMemAllocatorEx);
     #[cfg(not(any(PyPy, GraalPy)))]

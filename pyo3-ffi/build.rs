@@ -178,9 +178,13 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
         .ok_or("attempted to link to Python shared library but config does not contain lib_name")?;
 
     if target_os == "windows" {
-        // Use raw-dylib linking: emit a cfg so that `extern_python_dll!` picks the
+        // Use raw-dylib linking: emit a cfg so that `extern_libpython!` picks the
         // right `#[link(name = "...", kind = "raw-dylib")]` attribute at compile time.
         // This eliminates the need for import libraries (.lib files) entirely.
+        //
+        // Note: raw-dylib is inherently dynamic linking. Static embedding of the
+        // Python interpreter on Windows is not supported by this path (and is not
+        // officially supported by CPython on Windows).
         println!("cargo:rustc-cfg=pyo3_dll=\"{lib_name}\"");
     } else {
         println!(

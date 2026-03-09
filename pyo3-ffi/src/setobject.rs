@@ -41,7 +41,7 @@ pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t {
 
 // skipped _PySet_Dummy
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg(not(Py_LIMITED_API))]
     #[cfg_attr(PyPy, link_name = "_PyPySet_NextEntry")]
     pub fn _PySet_NextEntry(
@@ -54,7 +54,7 @@ extern_python_dll! {
     // skipped non-limited _PySet_Update
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPySet_Type")]
     pub static mut PySet_Type: PyTypeObject;
     #[cfg_attr(PyPy, link_name = "PyPyFrozenSet_Type")]
@@ -62,7 +62,7 @@ extern_python_dll! {
     pub static mut PySetIter_Type: PyTypeObject;
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPySet_New")]
     pub fn PySet_New(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyFrozenSet_New")]
@@ -92,7 +92,7 @@ pub unsafe fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == addr_of_mut!(PyFrozenSet_Type)) as c_int
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg(PyPy)]
     #[link_name = "PyPyFrozenSet_Check"]
     pub fn PyFrozenSet_Check(ob: *mut PyObject) -> c_int;
@@ -105,7 +105,7 @@ pub unsafe fn PyFrozenSet_Check(ob: *mut PyObject) -> c_int {
         || PyType_IsSubtype(Py_TYPE(ob), addr_of_mut!(PyFrozenSet_Type)) != 0) as c_int
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg(PyPy)]
     #[link_name = "PyPyAnySet_CheckExact"]
     pub fn PyAnySet_CheckExact(ob: *mut PyObject) -> c_int;
@@ -131,7 +131,7 @@ pub unsafe fn PySet_CheckExact(op: *mut PyObject) -> c_int {
     crate::Py_IS_TYPE(op, addr_of_mut!(PySet_Type))
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg(PyPy)]
     #[link_name = "PyPySet_Check"]
     pub fn PySet_Check(ob: *mut PyObject) -> c_int;

@@ -55,7 +55,7 @@ pub type getbufferproc = unsafe extern "C" fn(*mut PyObject, *mut crate::Py_buff
 pub type releasebufferproc = unsafe extern "C" fn(*mut PyObject, *mut crate::Py_buffer);
 
 /* Return 1 if the getbuffer function is available, otherwise return 0. */
-extern_python_dll! {
+extern_libpython! {
     #[cfg(not(PyPy))]
     pub fn PyObject_CheckBuffer(obj: *mut PyObject) -> c_int;
 

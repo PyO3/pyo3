@@ -2,7 +2,7 @@ use crate::object::*;
 use std::ffi::c_int;
 use std::ptr::addr_of_mut;
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyRange_Type")]
     pub static mut PyRange_Type: PyTypeObject;
     pub static mut PyRangeIter_Type: PyTypeObject;

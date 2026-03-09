@@ -9,7 +9,7 @@ pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyBool_Type)) as c_int
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg(not(GraalPy))]
     #[cfg_attr(PyPy, link_name = "_PyPy_FalseStruct")]
     static mut _Py_FalseStruct: PyLongObject;
@@ -52,7 +52,7 @@ pub unsafe fn Py_IsFalse(x: *mut PyObject) -> c_int {
 // skipped Py_RETURN_TRUE
 // skipped Py_RETURN_FALSE
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyBool_FromLong")]
     pub fn PyBool_FromLong(arg1: c_long) -> *mut PyObject;
 }

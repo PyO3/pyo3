@@ -16,7 +16,7 @@ pub type Py_UCS4 = u32;
 pub type Py_UCS2 = u16;
 pub type Py_UCS1 = u8;
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Type")]
     pub static mut PyUnicode_Type: PyTypeObject;
     pub static mut PyUnicodeIter_Type: PyTypeObject;
@@ -44,7 +44,7 @@ pub unsafe fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int {
 
 pub const Py_UNICODE_REPLACEMENT_CHARACTER: Py_UCS4 = 0xFFFD;
 
-extern_python_dll! {
+extern_libpython! {
 
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromStringAndSize")]
     pub fn PyUnicode_FromStringAndSize(u: *const c_char, size: Py_ssize_t) -> *mut PyObject;

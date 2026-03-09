@@ -5,7 +5,7 @@ use std::ptr::addr_of_mut;
 
 // skipped _PyManagedBuffer_Type
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyMemoryView_Type")]
     pub static mut PyMemoryView_Type: PyTypeObject;
 }
@@ -18,7 +18,7 @@ pub unsafe fn PyMemoryView_Check(op: *mut PyObject) -> c_int {
 // skipped non-limited PyMemoryView_GET_BUFFER
 // skipped non-limited PyMemoryView_GET_BASE
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromObject")]
     pub fn PyMemoryView_FromObject(base: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromMemory")]

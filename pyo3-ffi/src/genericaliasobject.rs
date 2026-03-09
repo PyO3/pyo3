@@ -1,7 +1,7 @@
 #[cfg(Py_3_9)]
 use crate::object::{PyObject, PyTypeObject};
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg(Py_3_9)]
     #[cfg_attr(PyPy, link_name = "PyPy_GenericAlias")]
     pub fn Py_GenericAlias(origin: *mut PyObject, args: *mut PyObject) -> *mut PyObject;

@@ -15,7 +15,7 @@ pub struct PyCFunctionObject {
     pub vectorcall: Option<crate::vectorcallfunc>,
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_Type")]
     pub static mut PyCFunction_Type: PyTypeObject;
 }
@@ -79,7 +79,7 @@ pub type PyCMethod = unsafe extern "C" fn(
     kwnames: *mut PyObject,
 ) -> *mut PyObject;
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_GetFunction")]
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
     pub fn PyCFunction_GetSelf(f: *mut PyObject) -> *mut PyObject;
@@ -208,7 +208,7 @@ const _: () =
     assert!(mem::size_of::<PyMethodDefPointer>() == mem::size_of::<Option<extern "C" fn()>>());
 
 #[cfg(not(Py_3_9))]
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_New")]
     pub fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject;
 
@@ -237,7 +237,7 @@ pub unsafe fn PyCFunction_NewEx(
 }
 
 #[cfg(Py_3_9)]
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyCMethod_New")]
     pub fn PyCMethod_New(
         ml: *mut PyMethodDef,
@@ -277,7 +277,7 @@ pub const METH_FASTCALL: c_int = 0x0080;
 #[cfg(all(Py_3_9, not(Py_LIMITED_API)))]
 pub const METH_METHOD: c_int = 0x0200;
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg(not(Py_3_9))]
     pub fn PyCFunction_ClearFreeList() -> c_int;
 }

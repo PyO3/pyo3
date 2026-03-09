@@ -20,6 +20,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Set,
     Tuple,
 )
 
@@ -197,6 +198,7 @@ def generate_coverage_report(session: nox.Session) -> None:
 def rustfmt(session: nox.Session):
     _run_cargo(session, "fmt", "--all", "--check")
     _run_cargo(session, "fmt", _FFI_CHECK, "--all", "--check")
+    _format_ffi_extern(session, check=True)
 
 
 @nox.session(name="ruff")
@@ -830,6 +832,131 @@ def format_guide(session: nox.Session):
         path.write_text("".join(new_lines))
 
 
+def _format_ffi_extern(session: nox.Session, *, check: bool = False):
+    """Format extern blocks inside extern_libpython! macros in pyo3-ffi.
+
+    rustfmt cannot format inside macro invocations, so this temporarily
+    replaces `extern_libpython!` with plain `extern "C"` blocks, runs rustfmt,
+    and then restores the macro invocations.
+
+    When check=True, errors out if any file would change (CI mode).
+    """
+    ffi_src = PYO3_DIR / "pyo3-ffi" / "src"
+    # Pattern for default ABI: `extern_libpython! {`
+    default_re = re.compile(r"^(\s*)extern_libpython!\s*\{", re.MULTILINE)
+    # Pattern for explicit ABI: `extern_libpython! { "C-unwind" {`
+    explicit_re = re.compile(
+        r'^(\s*)extern_libpython!\s*\{\s*"([^"]+)"\s*\{', re.MULTILINE
+    )
+    # Use #[doc] attributes as sentinels instead of /* */ comments to avoid
+    # rustfmt re-indenting them (rustfmt aligns block comments with nearby
+    # trailing comments, but leaves #[doc] attributes in place).
+    SENTINEL_DEFAULT = '#[doc = "__extern_libpython_default__"]'
+    SENTINEL_EXPLICIT = '#[doc = "__extern_libpython_explicit__:'
+    SENTINEL_EXPLICIT_CLOSE = "/* __extern_libpython_explicit_close__ */"
+
+    def replace_explicit(m):
+        indent = m.group(1)
+        abi = m.group(2)
+        return f'{indent}{SENTINEL_EXPLICIT}{abi}__"]\n{indent}extern "{abi}" {{'
+
+    def replace_default(m):
+        indent = m.group(1)
+        return f'{indent}{SENTINEL_DEFAULT}\n{indent}extern "C" {{'
+
+    # Pattern for the double closing brace of explicit ABI blocks:
+    # `extern_libpython! { "abi" { ... }}` has two closing braces, but after
+    # replacing the opening we only have one opening brace, so we need to
+    # remove the extra closing brace before running rustfmt.
+    explicit_close_re = re.compile(r"\}\}", re.MULTILINE)
+
+    originals = {}
+    files_to_format = []
+    for path in sorted(ffi_src.rglob("*.rs")):
+        if path.name == "macros.rs":
+            continue
+        content = path.read_text()
+        if "extern_libpython!" not in content:
+            continue
+
+        # Replace explicit ABI first (more specific pattern)
+        new_content = explicit_re.sub(replace_explicit, content)
+        # Fix double closing braces for explicit ABI blocks: the explicit
+        # pattern `extern_libpython! { "abi" { ... }}` has an outer `}` for
+        # the macro invocation that must be removed after we replaced the
+        # opening with a plain `extern "abi" {`.
+        if SENTINEL_EXPLICIT in new_content:
+            new_content = explicit_close_re.sub(
+                f"}} {SENTINEL_EXPLICIT_CLOSE}", new_content
+            )
+        # Replace default ABI
+        new_content = default_re.sub(replace_default, new_content)
+
+        if new_content != content:
+            originals[path] = content
+            path.write_text(new_content)
+            files_to_format.append(path)
+
+    if not files_to_format:
+        session.log("No extern_libpython! blocks found to format")
+        return
+
+    # Run rustfmt on the modified files
+    try:
+        _run(
+            session, "rustfmt", "--edition", "2021", *[str(f) for f in files_to_format]
+        )
+    except Exception:
+        # Restore originals on failure
+        for path, content in originals.items():
+            path.write_text(content)
+        raise
+
+    # Restore the macro invocations
+    sentinel_default_re = re.compile(
+        r'^(\s*)#\[doc = "__extern_libpython_default__"\]\n\s*extern "C" \{',
+        re.MULTILINE,
+    )
+    sentinel_explicit_re = re.compile(
+        r'^(\s*)#\[doc = "__extern_libpython_explicit__:([^_]+)__"\]\n\s*extern "[^"]*" \{',
+        re.MULTILINE,
+    )
+
+    changed = []
+    for path in files_to_format:
+        content = path.read_text()
+
+        content = sentinel_explicit_re.sub(
+            lambda m: f'{m.group(1)}extern_libpython! {{ "{m.group(2)}" {{', content
+        )
+        # Restore the double closing brace for explicit ABI blocks
+        content = content.replace(f"}} {SENTINEL_EXPLICIT_CLOSE}", "}}")
+        content = sentinel_default_re.sub(
+            lambda m: f"{m.group(1)}extern_libpython! {{", content
+        )
+
+        if check and content != originals[path]:
+            changed.append(path)
+            # Restore original so we don't leave dirty files in CI
+            path.write_text(originals[path])
+        else:
+            path.write_text(content)
+
+    if check and changed:
+        session.error(
+            "extern_libpython! blocks are not formatted:\n"
+            + "\n".join(f"  {p}" for p in changed)
+            + "\n\nRun `nox -s format-ffi-extern` to fix."
+        )
+
+    session.log(f"Formatted extern_libpython! blocks in {len(files_to_format)} files ✓")
+
+
+@nox.session(name="format-ffi-extern", venv_backend="none")
+def format_ffi_extern(session: nox.Session):
+    _format_ffi_extern(session)
+
+
 @nox.session(name="address-sanitizer", venv_backend="none")
 def address_sanitizer(session: nox.Session):
     _run_cargo(
@@ -1029,7 +1156,7 @@ def test_version_limits(session: nox.Session):
 
 
 def _check_raw_dylib_macro(session: nox.Session):
-    """Check that extern_python_dll! macro covers all supported Python DLL names."""
+    """Check that extern_libpython! macro covers all supported Python DLL names."""
     min_version, max_version = _parse_supported_interpreter_version("cpython")
     min_minor = int(min_version.split(".")[1])
     max_minor = int(max_version.split(".")[1])
@@ -1043,8 +1170,8 @@ def _check_raw_dylib_macro(session: nox.Session):
             expected_dlls.add(f"python3{minor}t")
             expected_dlls.add(f"python3{minor}t_d")
 
-    # Parse the DLL name list in the extern_python_dll!(@impl ...) invocation
-    lib_rs = (PYO3_DIR / "pyo3-ffi" / "src" / "lib.rs").read_text()
+    # Parse the DLL name list in the extern_libpython!(@impl ...) invocation
+    lib_rs = (PYO3_DIR / "pyo3-ffi" / "src" / "impl_" / "macros.rs").read_text()
     found_dlls = set(re.findall(r'"(python[^"]+)"', lib_rs))
 
     missing = expected_dlls - found_dlls
@@ -1052,18 +1179,18 @@ def _check_raw_dylib_macro(session: nox.Session):
     errors = []
     if missing:
         errors.append(
-            f"Missing DLL names in extern_python_dll! macro: {sorted(missing)}"
+            f"Missing DLL names in extern_libpython! macro: {sorted(missing)}"
         )
     if extra:
-        errors.append(f"Extra DLL names in extern_python_dll! macro: {sorted(extra)}")
+        errors.append(f"Extra DLL names in extern_libpython! macro: {sorted(extra)}")
     if errors:
         session.error(
             "\n".join(errors)
-            + "\n\nUpdate the extern_python_dll! macro in pyo3-ffi/src/lib.rs"
+            + "\n\nUpdate the extern_libpython! macro in pyo3-ffi/src/impl_/macros.rs"
             + " to match supported Python versions in pyo3-ffi/Cargo.toml"
         )
     session.log(
-        f"extern_python_dll! macro covers all {len(expected_dlls)} expected DLL names ✓"
+        f"extern_libpython! macro covers all {len(expected_dlls)} expected DLL names ✓"
     )
 
     private_fn_allowlist = set(re.findall(r"\[\s*(_Py[A-Za-z0-9_]*)\s*\]", lib_rs))
@@ -1085,20 +1212,20 @@ def _check_raw_dylib_macro(session: nox.Session):
     if errors:
         session.error(
             "\n".join(errors)
-            + "\n\nUpdate extern_python_dll_maybe_private_fn! in pyo3-ffi/src/lib.rs"
-            + " to match the CPython `_Py*` function imports declared via extern_python_dll!."
+            + "\n\nUpdate extern_libpython_maybe_private_fn! in pyo3-ffi/src/impl_/macros.rs"
+            + " to match the CPython `_Py*` function imports declared via extern_libpython!."
         )
     session.log(
-        "extern_python_dll_maybe_private_fn! covers all required x86 CPython"
+        "extern_libpython_maybe_private_fn! covers all required x86 CPython"
         f" private function imports ({len(required_private_fns)}) ✓"
     )
 
 
-def _raw_dylib_x86_private_functions() -> set[str]:
+def _raw_dylib_x86_private_functions() -> Set[str]:
     ffi_src = PYO3_DIR / "pyo3-ffi" / "src"
     private_fns = set()
     for path in ffi_src.rglob("*.rs"):
-        for block in _iter_extern_python_dll_blocks(path.read_text()):
+        for block in _iter_extern_libpython_blocks(path.read_text()):
             attrs: List[str] = []
             for line in block.splitlines():
                 stripped = line.strip()
@@ -1123,10 +1250,10 @@ def _raw_dylib_x86_private_functions() -> set[str]:
     return private_fns
 
 
-def _iter_extern_python_dll_blocks(source: str) -> Iterator[str]:
+def _iter_extern_libpython_blocks(source: str) -> Iterator[str]:
     cursor = 0
     while True:
-        start = source.find("extern_python_dll!", cursor)
+        start = source.find("extern_libpython!", cursor)
         if start == -1:
             return
 
@@ -1149,6 +1276,12 @@ def _iter_extern_python_dll_blocks(source: str) -> Iterator[str]:
 
 
 def _cfg_attr_is_non_cpython_only(attr: str) -> bool:
+    """Check if a #[cfg()] attribute targets only non-CPython implementations.
+
+    Functions behind #[cfg(PyPy)] or #[cfg(GraalPy)] are linked against the
+    PyPy/GraalPy runtime, not the CPython DLL, so they don't need the x86
+    raw-dylib underscore workaround.
+    """
     match = re.fullmatch(r"#\[cfg\((.*)\)\]", attr)
     if match is None:
         return False

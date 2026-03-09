@@ -337,7 +337,7 @@ pub unsafe fn PyHeapType_GET_MEMBERS(etype: *mut PyHeapTypeObject) -> *mut PyMem
 // skipped private _PyType_Lookup
 // skipped private _PyType_LookupRef
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg(Py_3_12)]
     pub fn PyType_GetDict(o: *mut PyTypeObject) -> *mut PyObject;
 
@@ -400,7 +400,7 @@ extern_python_dll! {
 // skipped PyRefTracer_GetTracer
 
 #[cfg(Py_3_14)]
-extern_python_dll! {
+extern_libpython! {
     // skipped PyUnstable_Object_EnableDeferredRefcount
 
     pub fn PyUnstable_Object_IsUniqueReferencedTemporary(obj: *mut PyObject) -> c_int;
@@ -415,6 +415,6 @@ extern_python_dll! {
 }
 
 #[cfg(Py_3_15)]
-extern_python_dll! {
+extern_libpython! {
     pub fn PyUnstable_SetImmortal(op: *mut PyObject) -> c_int;
 }

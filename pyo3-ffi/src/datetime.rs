@@ -468,7 +468,7 @@ pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
 }
 
 #[cfg(PyPy)]
-extern_python_dll! {
+extern_libpython! {
     // skipped _PyDateTime_HAS_TZINFO (not in PyPy)
     #[link_name = "PyPyDateTime_GET_YEAR"]
     pub fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int;
@@ -728,7 +728,7 @@ pub unsafe fn PyDate_FromTimestamp(args: *mut PyObject) -> *mut PyObject {
 }
 
 #[cfg(PyPy)]
-extern_python_dll! {
+extern_libpython! {
     #[link_name = "PyPyDate_FromTimestamp"]
     pub fn PyDate_FromTimestamp(args: *mut PyObject) -> *mut PyObject;
     #[link_name = "PyPyDateTime_FromTimestamp"]
@@ -736,7 +736,7 @@ extern_python_dll! {
 }
 
 #[cfg(PyPy)]
-extern_python_dll! {
+extern_libpython! {
     #[link_name = "_PyPyDateTime_Import"]
     pub fn PyDateTime_Import() -> *mut PyDateTime_CAPI;
 }

@@ -2,7 +2,7 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int};
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetNone")]
     pub fn PyErr_SetNone(arg1: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetObject")]
@@ -111,7 +111,7 @@ pub unsafe fn PyUnicodeDecodeError_Create(
     )
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyExc_BaseException")]
     pub static mut PyExc_BaseException: *mut PyObject;
     #[cfg(Py_3_11)]
@@ -263,7 +263,7 @@ extern_python_dll! {
     pub static mut PyExc_EncodingWarning: *mut PyObject;
 }
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyErr_BadArgument")]
     pub fn PyErr_BadArgument() -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyErr_NoMemory")]

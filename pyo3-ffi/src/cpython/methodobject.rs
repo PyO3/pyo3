@@ -10,7 +10,7 @@ pub struct PyCMethodObject {
     pub mm_class: *mut PyTypeObject,
 }
 
-extern_python_dll! {
+extern_libpython! {
     pub static mut PyCMethod_Type: PyTypeObject;
 }
 

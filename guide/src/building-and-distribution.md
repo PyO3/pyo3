@@ -262,7 +262,6 @@ E.g., if you set `abi3-py38` and try to compile the crate with a host of Python 
 
 As an advanced feature, you can build PyO3 wheel without calling Python interpreter with the environment variable `PYO3_NO_PYTHON` set.
 Also, if the build host Python interpreter is not found or is too old or otherwise unusable, PyO3 will still attempt to compile `abi3` extension modules after displaying a warning message.
-On Unix-like systems this works unconditionally; on Windows this also works unconditionally thanks to `raw-dylib` linking, which eliminates the need for import library (`.lib`) files.
 
 #### Missing features
 
@@ -366,8 +365,6 @@ When cross-compiling, PyO3's build script cannot execute the target Python inter
   This variable is only needed if PyO3 cannot determine the version to target from `abi3-py3*` features, or if `PYO3_CROSS_LIB_DIR` is not set, or if there are multiple versions of Python present in `PYO3_CROSS_LIB_DIR`.
 - `PYO3_CROSS_PYTHON_IMPLEMENTATION`: Python implementation name ("CPython" or "PyPy") of the target Python installation.
   CPython is assumed by default when this variable is not set, unless `PYO3_CROSS_LIB_DIR` is set for a Unix-like target and PyO3 can get the interpreter configuration from `_sysconfigdata*.py`.
-
-When cross compiling for Windows targets, `PYO3_CROSS_LIB_DIR` is not needed because PyO3 uses Rust's `raw-dylib` linking feature, which eliminates the need for import library (`.lib`) files entirely.
 
 An example might look like the following (assuming your target's sysroot is at `/home/pyo3/cross/sysroot` and that your target is `armv7`):
 

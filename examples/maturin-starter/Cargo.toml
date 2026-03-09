@@ -13,5 +13,7 @@ pyo3 = { path = "../../" }
 
 [features]
 abi3 = ["pyo3/abi3-py37"]
+# deprecated: no-op
+generate-import-lib = ["pyo3/generate-import-lib"]
 
 [workspace]

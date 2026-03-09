@@ -1,7 +1,7 @@
 use crate::object::PyObject;
 use std::ffi::{c_char, c_double, c_int};
 
-extern_python_dll! {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyOS_string_to_double")]
     pub fn PyOS_string_to_double(
         str: *const c_char,

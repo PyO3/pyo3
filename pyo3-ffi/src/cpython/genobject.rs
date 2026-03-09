@@ -40,7 +40,7 @@ pub struct PyGenObject {
 #[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
 opaque_struct!(pub PyGenObject);
 
-extern_python_dll! {
+extern_libpython! {
     pub static mut PyGen_Type: PyTypeObject;
 }
 
@@ -54,7 +54,7 @@ pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyGen_Type)) as c_int
 }
 
-extern_python_dll! {
+extern_libpython! {
     pub fn PyGen_New(frame: *mut PyFrameObject) -> *mut PyObject;
     // skipped PyGen_NewWithQualName
     // skipped _PyGen_SetStopIterationValue
@@ -68,7 +68,7 @@ extern_python_dll! {
 
 // skipped PyCoroObject
 
-extern_python_dll! {
+extern_libpython! {
     pub static mut PyCoro_Type: PyTypeObject;
 }
 
@@ -84,7 +84,7 @@ pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int {
 
 // skipped PyAsyncGenObject
 
-extern_python_dll! {
+extern_libpython! {
     pub static mut PyAsyncGen_Type: PyTypeObject;
     // skipped _PyAsyncGenASend_Type
     // skipped _PyAsyncGenWrappedValue_Type
