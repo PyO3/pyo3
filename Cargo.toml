@@ -70,6 +70,7 @@ uuid = { version = "1.12.0", optional = true }
 lock_api = { version = "0.4", optional = true }
 parking_lot = { version = "0.12", optional = true }
 iana-time-zone = { version = "0.1", optional = true, features = ["fallback"]}
+backtrace = "0.3.76"
 
 [target.'cfg(not(target_has_atomic = "64"))'.dependencies]
 portable-atomic = "1.0"
@@ -92,6 +93,7 @@ ui_test = "0.30.4"
 regex = "1.12.3"
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 ctrlc = "3.5.2"
+insta = { version = "1.46.3", features = ["filters"] }
 
 [build-dependencies]
 pyo3-build-config = { path = "pyo3-build-config", version = "=0.29.2" }

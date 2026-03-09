@@ -8,6 +8,8 @@ use crate::platform::thread::{self, ThreadId};
 
 use core::cell::UnsafeCell;
 
+#[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+use crate::err::backtrace_to_frames;
 use crate::sync::MutexExt;
 use crate::{
     exceptions::{PyBaseException, PyTypeError},
@@ -39,10 +41,15 @@ impl PyErrState {
     }
 
     pub(crate) fn lazy_arguments(ptype: Py<PyAny>, args: impl PyErrArguments + 'static) -> Self {
+        #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+        let backtrace = backtrace::Backtrace::new_unresolved();
+
         Self::from_inner(PyErrStateInner::Lazy(Box::new(move |py| {
             PyErrStateLazyFnOutput {
                 ptype,
                 pvalue: args.arguments(py),
+                #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+                backtrace,
             }
         })))
     }
@@ -300,6 +307,8 @@ impl PyErrStateNormalized {
 pub(crate) struct PyErrStateLazyFnOutput {
     pub(crate) ptype: Py<PyAny>,
     pub(crate) pvalue: Py<PyAny>,
+    #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+    pub(crate) backtrace: backtrace::Backtrace,
 }
 
 pub(crate) type PyErrStateLazyFn =
@@ -388,7 +397,13 @@ fn lazy_into_normalized_ffi_tuple(
 /// This would require either moving some logic from C to Rust, or requesting a new
 /// API in CPython.
 fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
-    let PyErrStateLazyFnOutput { ptype, pvalue } = lazy(py);
+    let PyErrStateLazyFnOutput {
+        ptype,
+        pvalue,
+        #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+        mut backtrace,
+    } = lazy(py);
+
     unsafe {
         if ffi::PyExceptionClass_Check(ptype.as_ptr()) == 0 {
             ffi::PyErr_SetString(
@@ -396,7 +411,23 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
                 c"exceptions must derive from BaseException".as_ptr(),
             )
         } else {
-            ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr())
+            ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr());
+
+            #[cfg(all(debug_assertions, Py_3_12, not(Py_LIMITED_API)))]
+            {
+                let raised_exception = ffi::PyErr_GetRaisedException();
+
+                let traceback =
+                    PyTraceback::from_frames(py, None, backtrace_to_frames(py, &mut backtrace))
+                        .ok()
+                        .flatten();
+
+                if let Some(traceback) = traceback {
+                    ffi::PyException_SetTraceback(raised_exception, traceback.as_ptr());
+                }
+
+                ffi::PyErr_SetRaisedException(raised_exception);
+            }
         }
     }
 }
