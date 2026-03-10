@@ -1,8 +1,5 @@
-use std::ffi::c_int;
-#[cfg(not(all(PyPy, not(Py_3_8))))]
-use std::ptr::addr_of_mut;
-
 use crate::PyObject;
+use std::ffi::c_int;
 
 #[cfg(all(not(any(PyPy, GraalPy)), not(Py_3_10)))]
 #[repr(C)]
@@ -71,7 +68,7 @@ extern_libpython! {
 #[cfg(not(all(PyPy, not(Py_3_8))))]
 #[inline]
 pub unsafe fn PyFunction_Check(op: *mut PyObject) -> c_int {
-    (crate::Py_TYPE(op) == addr_of_mut!(PyFunction_Type)) as c_int
+    (crate::Py_TYPE(op) == &raw mut PyFunction_Type) as c_int
 }
 
 extern_libpython! {

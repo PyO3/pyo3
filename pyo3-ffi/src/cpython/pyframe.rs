@@ -4,7 +4,6 @@ use crate::{PyObject, PyTypeObject, Py_TYPE};
 #[cfg(Py_3_12)]
 use std::ffi::c_char;
 use std::ffi::c_int;
-use std::ptr::addr_of_mut;
 
 // NB used in `_PyEval_EvalFrameDefault`, maybe we remove this too.
 #[cfg(all(Py_3_11, not(PyPy)))]
@@ -19,13 +18,13 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyFrame_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyFrame_Type) as c_int
 }
 
 #[cfg(Py_3_13)]
 #[inline]
 pub unsafe fn PyFrameLocalsProxy_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyFrameLocalsProxy_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyFrameLocalsProxy_Type) as c_int
 }
 
 extern_libpython! {

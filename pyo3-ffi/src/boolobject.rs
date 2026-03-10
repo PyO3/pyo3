@@ -2,11 +2,10 @@
 use crate::longobject::PyLongObject;
 use crate::object::*;
 use std::ffi::{c_int, c_long};
-use std::ptr::addr_of_mut;
 
 #[inline]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyBool_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyBool_Type) as c_int
 }
 
 extern_libpython! {
@@ -26,7 +25,7 @@ extern_libpython! {
 #[inline]
 pub unsafe fn Py_False() -> *mut PyObject {
     #[cfg(not(GraalPy))]
-    return addr_of_mut!(_Py_FalseStruct) as *mut PyObject;
+    return (&raw mut _Py_FalseStruct).cast();
     #[cfg(GraalPy)]
     return _Py_FalseStructReference;
 }
@@ -34,7 +33,7 @@ pub unsafe fn Py_False() -> *mut PyObject {
 #[inline]
 pub unsafe fn Py_True() -> *mut PyObject {
     #[cfg(not(GraalPy))]
-    return addr_of_mut!(_Py_TrueStruct) as *mut PyObject;
+    return (&raw mut _Py_TrueStruct).cast();
     #[cfg(GraalPy)]
     return _Py_TrueStructReference;
 }

@@ -2,7 +2,6 @@ use crate::methodobject::PyMethodDef;
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int, c_void};
-use std::ptr::addr_of_mut;
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyModule_Type")]
@@ -11,12 +10,12 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyModule_Type))
+    PyObject_TypeCheck(op, &raw mut PyModule_Type)
 }
 
 #[inline]
 pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyModule_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyModule_Type) as c_int
 }
 
 extern_libpython! {

@@ -6,8 +6,6 @@ use crate::PyCodeObject;
 #[cfg(not(GraalPy))]
 use std::ffi::c_char;
 use std::ffi::{c_int, c_void};
-#[cfg(not(PyPy))]
-use std::ptr::addr_of_mut;
 
 // skipped private _PY_MONITORING_LOCAL_EVENTS
 // skipped private _PY_MONITORING_UNGROUPED_EVENTS
@@ -74,7 +72,7 @@ extern_libpython! {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyCode_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyCode_Type) as c_int
 }
 
 extern_libpython! {

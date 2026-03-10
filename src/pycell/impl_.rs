@@ -4,7 +4,6 @@
 use std::cell::UnsafeCell;
 use std::marker::PhantomData;
 use std::mem::{offset_of, ManuallyDrop, MaybeUninit};
-use std::ptr::addr_of_mut;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::impl_::pyclass::{
@@ -265,7 +264,7 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
 
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
-        if std::ptr::eq(type_ptr, std::ptr::addr_of!(ffi::PyBaseObject_Type)) {
+        if std::ptr::eq(type_ptr, &raw const ffi::PyBaseObject_Type) {
             let tp_free = actual_type
                 .get_slot(TP_FREE)
                 .expect("PyBaseObject_Type should have tp_free");
@@ -418,7 +417,7 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyStaticClassObje
             contents: MaybeUninit<PyClassObjectContents<T>>,
         }
         let obj = obj.cast::<PartiallyInitializedClassObject<T>>();
-        unsafe { addr_of_mut!((*obj).contents) }
+        unsafe { &raw mut (*obj).contents }
     }
 
     fn contents(&self) -> &PyClassObjectContents<T> {

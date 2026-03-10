@@ -1,7 +1,5 @@
 use crate::object::*;
 use std::ffi::c_int;
-#[cfg(not(PyPy))]
-use std::ptr::addr_of_mut;
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Here")]
@@ -22,5 +20,5 @@ extern_libpython! {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyTraceBack_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyTraceBack_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyTraceBack_Type) as c_int
 }

@@ -1,6 +1,5 @@
 use crate::object::*;
 use std::ffi::c_int;
-use std::ptr::addr_of_mut;
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyRange_Type")]
@@ -11,5 +10,5 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyRange_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyRange_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyRange_Type) as c_int
 }

@@ -3,7 +3,6 @@ use crate::PyFrameObject;
 #[cfg(all(Py_3_11, not(any(PyPy, GraalPy, Py_3_14))))]
 use std::ffi::c_char;
 use std::ffi::c_int;
-use std::ptr::addr_of_mut;
 
 #[cfg(not(any(PyPy, GraalPy, Py_3_14)))]
 #[repr(C)]
@@ -46,12 +45,12 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyGen_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyGen_Type))
+    PyObject_TypeCheck(op, &raw mut PyGen_Type)
 }
 
 #[inline]
 pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyGen_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyGen_Type) as c_int
 }
 
 extern_libpython! {
@@ -76,7 +75,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyCoro_Type))
+    PyObject_TypeCheck(op, &raw mut PyCoro_Type)
 }
 
 // skipped _PyCoro_GetAwaitableIter
@@ -95,7 +94,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyAsyncGen_CheckExact(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyAsyncGen_Type))
+    PyObject_TypeCheck(op, &raw mut PyAsyncGen_Type)
 }
 
 // skipped _PyAsyncGenValueWrapperNew

@@ -5,7 +5,6 @@ use crate::refcount;
 use crate::PyMutex;
 use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::mem;
-use std::ptr;
 #[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::{AtomicIsize, AtomicU32};
 
@@ -223,8 +222,8 @@ extern_libpython! {
 pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
     #[cfg(not(GraalPy))]
     {
-        debug_assert_ne!((*ob).ob_type, std::ptr::addr_of_mut!(crate::PyLong_Type));
-        debug_assert_ne!((*ob).ob_type, std::ptr::addr_of_mut!(crate::PyBool_Type));
+        debug_assert_ne!((*ob).ob_type, &raw mut crate::PyLong_Type);
+        debug_assert_ne!((*ob).ob_type, &raw mut crate::PyBool_Type);
         (*ob.cast::<PyVarObject>()).ob_size
     }
     #[cfg(GraalPy)]
@@ -631,7 +630,7 @@ pub unsafe fn Py_None() -> *mut PyObject {
     return Py_GetConstantBorrowed(Py_CONSTANT_NONE);
 
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
-    return ptr::addr_of_mut!(_Py_NoneStruct);
+    return &raw mut _Py_NoneStruct;
 
     #[cfg(GraalPy)]
     return _Py_NoneStructReference;
@@ -659,7 +658,7 @@ pub unsafe fn Py_NotImplemented() -> *mut PyObject {
     return Py_GetConstantBorrowed(Py_CONSTANT_NOT_IMPLEMENTED);
 
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
-    return ptr::addr_of_mut!(_Py_NotImplementedStruct);
+    return &raw mut _Py_NotImplementedStruct;
 
     #[cfg(GraalPy)]
     return _Py_NotImplementedStructReference;
@@ -714,7 +713,7 @@ pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, ptr::addr_of_mut!(PyType_Type))
+    Py_IS_TYPE(op, &raw mut PyType_Type)
 }
 
 extern_libpython! {
