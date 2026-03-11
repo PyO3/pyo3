@@ -56,19 +56,29 @@ pub fn use_pyo3_cfgs() {
 ///
 /// The following link flags are added:
 /// - macOS: `-undefined dynamic_lookup`
-/// - wasm32-unknown-emscripten: `-sSIDE_MODULE=2 -sWASM_BIGINT`
+/// - wasm32-unknown-emscripten: for Rust <= 1.95, `-sSIDE_MODULE=2 -sWASM_BIGINT`
 ///
 /// All other platforms currently are no-ops, however this may change as necessary
 /// in future.
 pub fn add_extension_module_link_args() {
-    _add_extension_module_link_args(&impl_::target_triple_from_env(), std::io::stdout())
+    _add_extension_module_link_args(
+        &impl_::target_triple_from_env(),
+        std::io::stdout(),
+        rustc_minor_version(),
+    )
 }
 
-fn _add_extension_module_link_args(triple: &Triple, mut writer: impl std::io::Write) {
+fn _add_extension_module_link_args(
+    triple: &Triple,
+    mut writer: impl std::io::Write,
+    rustc_minor_version: Option<u32>,
+) {
     if matches!(triple.operating_system, OperatingSystem::Darwin(_)) {
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-undefined").unwrap();
         writeln!(writer, "cargo:rustc-cdylib-link-arg=dynamic_lookup").unwrap();
-    } else if triple == &Triple::from_str("wasm32-unknown-emscripten").unwrap() {
+    } else if triple == &Triple::from_str("wasm32-unknown-emscripten").unwrap()
+        && rustc_minor_version.is_some_and(|version| version < 95)
+    {
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-sSIDE_MODULE=2").unwrap();
         writeln!(writer, "cargo:rustc-cdylib-link-arg=-sWASM_BIGINT").unwrap();
     }
@@ -415,12 +425,14 @@ mod tests {
         _add_extension_module_link_args(
             &Triple::from_str("x86_64-pc-windows-msvc").unwrap(),
             &mut buf,
+            None,
         );
         assert_eq!(buf, Vec::new());
 
         _add_extension_module_link_args(
             &Triple::from_str("x86_64-apple-darwin").unwrap(),
             &mut buf,
+            None,
         );
         assert_eq!(
             std::str::from_utf8(&buf).unwrap(),
@@ -432,12 +444,20 @@ mod tests {
         _add_extension_module_link_args(
             &Triple::from_str("wasm32-unknown-emscripten").unwrap(),
             &mut buf,
+            None,
         );
         assert_eq!(
             std::str::from_utf8(&buf).unwrap(),
             "cargo:rustc-cdylib-link-arg=-sSIDE_MODULE=2\n\
              cargo:rustc-cdylib-link-arg=-sWASM_BIGINT\n"
         );
+        buf.clear();
+        _add_extension_module_link_args(
+            &Triple::from_str("wasm32-unknown-emscripten").unwrap(),
+            &mut buf,
+            Some(95),
+        );
+        assert_eq!(std::str::from_utf8(&buf).unwrap(), "");
     }
 
     #[cfg(feature = "resolve-config")]
