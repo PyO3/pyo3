@@ -155,6 +155,8 @@ pub struct PyConfig {
     pub enable_gil: c_int,
     #[cfg(all(Py_3_14, Py_GIL_DISABLED))]
     pub tlbc_enabled: c_int,
+    #[cfg(Py_3_15)]
+    pub lazy_imports: c_int,
     pub pathconfig_warnings: c_int,
     #[cfg(Py_3_10)]
     pub program_name: *mut wchar_t,
