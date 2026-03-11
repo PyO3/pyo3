@@ -1170,9 +1170,16 @@ def _check_raw_dylib_macro(session: nox.Session):
             expected_dlls.add(f"python3{minor}t")
             expected_dlls.add(f"python3{minor}t_d")
 
+    # PyPy DLL names (libpypy3.X-c.dll)
+    pypy_min, pypy_max = _parse_supported_interpreter_version("pypy")
+    pypy_min_minor = int(pypy_min.split(".")[1])
+    pypy_max_minor = int(pypy_max.split(".")[1])
+    for minor in range(pypy_min_minor, pypy_max_minor + 1):
+        expected_dlls.add(f"libpypy3.{minor}-c")
+
     # Parse the DLL name list in the extern_libpython!(@impl ...) invocation
     lib_rs = (PYO3_DIR / "pyo3-ffi" / "src" / "impl_" / "macros.rs").read_text()
-    found_dlls = set(re.findall(r'"(python[^"]+)"', lib_rs))
+    found_dlls = set(re.findall(r'"((?:python|libpypy)[^"]+)"', lib_rs))
 
     missing = expected_dlls - found_dlls
     extra = found_dlls - expected_dlls

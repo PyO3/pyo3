@@ -28,6 +28,15 @@ use crate::{
 /// Minimum Python version PyO3 supports.
 pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 7 };
 
+pub(crate) const MINIMUM_SUPPORTED_VERSION_PYPY: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 11,
+};
+pub(crate) const MAXIMUM_SUPPORTED_VERSION_PYPY: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 11,
+};
+
 /// GraalPy may implement the same CPython version over multiple releases.
 const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
     major: 25,
@@ -1696,7 +1705,12 @@ fn default_lib_name_windows(
     debug: bool,
     gil_disabled: bool,
 ) -> Result<String> {
-    if debug && version < PythonVersion::PY310 {
+    if implementation.is_pypy() {
+        // PyPy on Windows ships `libpypy3.X-c.dll` (e.g. `libpypy3.11-c.dll`),
+        // not CPython's `pythonXY.dll`. With raw-dylib linking we need the real
+        // DLL name rather than the import-library alias.
+        Ok(format!("libpypy{}.{}-c", version.major, version.minor))
+    } else if debug && version < PythonVersion::PY310 {
         // CPython bug: linking against python3_d.dll raises error
         // https://github.com/python/cpython/issues/101614
         Ok(format!("python{}{}_d", version.major, version.minor))
@@ -2515,7 +2529,22 @@ mod tests {
                 false,
             )
             .unwrap(),
-            "python39",
+            "libpypy3.9-c",
+        );
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonVersion {
+                    major: 3,
+                    minor: 11
+                },
+                PyPy,
+                false,
+                false,
+                false,
+                false,
+            )
+            .unwrap(),
+            "libpypy3.11-c",
         );
         assert_eq!(
             super::default_lib_name_windows(
@@ -3259,6 +3288,10 @@ mod tests {
         config.lib_name = None;
         config.apply_default_lib_name_to_config_file(&unix);
         assert_eq!(config.lib_name, Some("pypy3.11-c".into()));
+
+        config.lib_name = None;
+        config.apply_default_lib_name_to_config_file(&win_x64);
+        assert_eq!(config.lib_name, Some("libpypy3.11-c".into()));
 
         config.implementation = PythonImplementation::CPython;
 

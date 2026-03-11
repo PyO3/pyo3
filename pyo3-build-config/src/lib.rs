@@ -276,6 +276,12 @@ pub fn print_expected_cfgs() {
             dll_names.push(format!("python3{i}t_d"));
         }
     }
+    // PyPy DLL names (libpypy3.X-c.dll)
+    for i in
+        impl_::MINIMUM_SUPPORTED_VERSION_PYPY.minor..=impl_::MAXIMUM_SUPPORTED_VERSION_PYPY.minor
+    {
+        dll_names.push(format!("libpypy3.{i}-c"));
+    }
     let values = dll_names
         .iter()
         .map(|n| format!("\"{n}\""))
