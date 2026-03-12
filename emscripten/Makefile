@@ -9,6 +9,12 @@ export EMSDKDIR = $(BUILDROOT)/emsdk
 PLATFORM=wasm32_emscripten
 SYSCONFIGDATA_NAME=_sysconfigdata__$(PLATFORM)
 
+# BASH_ENV tells bash to source emsdk_env.sh on startup.
+export BASH_ENV := $(CURDIR)/env.sh
+# Use bash to run each command so that env.sh will be used.
+SHELL := /bin/bash
+
+
 # Set version variables.
 version_tuple := $(subst ., ,$(PYMAJORMINORMICRO:v%=%))
 PYMAJOR=$(word 1,$(version_tuple))
