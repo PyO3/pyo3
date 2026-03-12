@@ -2,7 +2,7 @@ use crate::object::{PyObject, PyTypeObject, Py_TYPE};
 use std::ffi::{c_char, c_int};
 use std::ptr::addr_of_mut;
 
-extern "C" {
+extern_libpython! {
     pub static mut PyContext_Type: PyTypeObject;
     // skipped non-limited opaque PyContext
     pub static mut PyContextVar_Type: PyTypeObject;
@@ -26,7 +26,7 @@ pub unsafe fn PyContextToken_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyContextToken_Type)) as c_int
 }
 
-extern "C" {
+extern_libpython! {
     pub fn PyContext_New() -> *mut PyObject;
     pub fn PyContext_Copy(ctx: *mut PyObject) -> *mut PyObject;
     pub fn PyContext_CopyCurrent() -> *mut PyObject;

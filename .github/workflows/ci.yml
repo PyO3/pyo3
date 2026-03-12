@@ -678,11 +678,12 @@ jobs:
           # ubuntu x86_64 -> windows x86_64
           - os: "ubuntu-latest"
             target: "x86_64-pc-windows-gnu"
-            flags: "-i python3.13 --features generate-import-lib"
+            # TODO: remove pyo3/generate-import-lib feature when maturin supports cross compiling to Windows without it
+            flags: "-i python3.13 --features pyo3/generate-import-lib"
           # windows x86_64 -> aarch64
           - os: "windows-latest"
             target: "aarch64-pc-windows-msvc"
-            flags: "-i python3.13 --features generate-import-lib"
+            flags: "-i python3.13 --features pyo3/generate-import-lib"
     steps:
       - uses: actions/checkout@v6.0.2
       - uses: actions/setup-python@v6

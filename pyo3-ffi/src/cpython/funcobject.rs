@@ -62,8 +62,7 @@ pub struct PyFunctionObject {
     pub ob_base: PyObject,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     #[cfg(not(all(PyPy, not(Py_3_8))))]
     #[cfg_attr(PyPy, link_name = "PyPyFunction_Type")]
     pub static mut PyFunction_Type: crate::PyTypeObject;
@@ -75,7 +74,7 @@ pub unsafe fn PyFunction_Check(op: *mut PyObject) -> c_int {
     (crate::Py_TYPE(op) == addr_of_mut!(PyFunction_Type)) as c_int
 }
 
-extern "C" {
+extern_libpython! {
     pub fn PyFunction_New(code: *mut PyObject, globals: *mut PyObject) -> *mut PyObject;
     pub fn PyFunction_NewWithQualName(
         code: *mut PyObject,

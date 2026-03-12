@@ -421,6 +421,10 @@ pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &std::ffi::CStr {
     }
 }
 
+// Macros for declaring `extern` blocks that link against libpython.
+// See `impl_/macros.rs` for the implementation.
+include!("impl_/macros.rs");
+
 pub mod compat;
 mod impl_;
 

@@ -5,7 +5,7 @@ use std::ffi::c_void;
 
 use std::ffi::{c_int, c_ulong};
 
-extern "C" {
+extern_libpython! {
     // skipped non-limited _Py_HashDouble
     // skipped non-limited _Py_HashPointer
     // skipped non-limited _Py_HashPointerRaw

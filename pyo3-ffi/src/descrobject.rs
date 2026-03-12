@@ -35,8 +35,7 @@ impl Default for PyGetSetDef {
     }
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyClassMethodDescr_Type")]
     pub static mut PyClassMethodDescr_Type: PyTypeObject;
     #[cfg_attr(PyPy, link_name = "PyPyGetSetDescr_Type")]
@@ -53,7 +52,7 @@ extern "C" {
     pub static mut PyProperty_Type: PyTypeObject;
 }
 
-extern "C" {
+extern_libpython! {
     pub fn PyDescr_NewMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDescr_NewClassMethod")]
     pub fn PyDescr_NewClassMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef)
@@ -127,7 +126,7 @@ pub const Py_AUDIT_READ: c_int = 2; // Added in 3.10, harmless no-op before that
 pub const _Py_WRITE_RESTRICTED: c_int = 4; // Deprecated, no-op. Do not reuse the value.
 pub const Py_RELATIVE_OFFSET: c_int = 8;
 
-extern "C" {
+extern_libpython! {
     pub fn PyMember_GetOne(addr: *const c_char, l: *mut PyMemberDef) -> *mut PyObject;
     pub fn PyMember_SetOne(addr: *mut c_char, l: *mut PyMemberDef, value: *mut PyObject) -> c_int;
 }

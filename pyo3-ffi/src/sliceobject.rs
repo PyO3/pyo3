@@ -3,8 +3,7 @@ use crate::pyport::Py_ssize_t;
 use std::ffi::c_int;
 use std::ptr::addr_of_mut;
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     #[cfg(not(GraalPy))]
     #[cfg_attr(PyPy, link_name = "_PyPy_EllipsisObject")]
     static mut _Py_EllipsisObject: PyObject;
@@ -33,8 +32,7 @@ pub struct PySliceObject {
     pub step: *mut PyObject,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPySlice_Type")]
     pub static mut PySlice_Type: PyTypeObject;
     pub static mut PyEllipsis_Type: PyTypeObject;
@@ -45,7 +43,7 @@ pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PySlice_Type)) as c_int
 }
 
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPySlice_New")]
     pub fn PySlice_New(
         start: *mut PyObject,
@@ -84,7 +82,7 @@ pub unsafe fn PySlice_GetIndicesEx(
     }
 }
 
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPySlice_Unpack")]
     pub fn PySlice_Unpack(
         slice: *mut PyObject,

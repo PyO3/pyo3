@@ -4,7 +4,7 @@ use crate::PyCodeObject;
 use crate::PyFrameObject;
 use std::ffi::c_int;
 
-extern "C" {
+extern_libpython! {
     pub fn PyFrame_GetLineNumber(frame: *mut PyFrameObject) -> c_int;
 
     #[cfg(not(GraalPy))]

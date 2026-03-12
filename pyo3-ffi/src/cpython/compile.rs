@@ -59,7 +59,7 @@ pub const FUTURE_GENERATOR_STOP: &str = "generator_stop";
 pub const FUTURE_ANNOTATIONS: &str = "annotations";
 
 #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
-extern "C" {
+extern_libpython! {
     pub fn PyNode_Compile(arg1: *mut _node, arg2: *const c_char) -> *mut PyCodeObject;
 
     pub fn PyAST_CompileEx(
@@ -88,7 +88,7 @@ extern "C" {
 
 pub const PY_INVALID_STACK_EFFECT: c_int = INT_MAX;
 
-extern "C" {
+extern_libpython! {
 
     pub fn PyCompile_OpcodeStackEffect(opcode: c_int, oparg: c_int) -> c_int;
 

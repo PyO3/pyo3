@@ -10,8 +10,7 @@ pub struct PyCMethodObject {
     pub mm_class: *mut PyTypeObject,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     pub static mut PyCMethod_Type: PyTypeObject;
 }
 

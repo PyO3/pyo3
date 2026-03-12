@@ -16,7 +16,7 @@ pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == addr_of_mut!(PyLong_Type)) as c_int
 }
 
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyLong_FromLong")]
     pub fn PyLong_FromLong(arg1: c_long) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyLong_FromUnsignedLong")]
@@ -84,7 +84,7 @@ extern "C" {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
     pub fn _PyLong_NumBits(obj: *mut PyObject) -> size_t;
 }
@@ -94,7 +94,7 @@ extern "C" {
 // skipped non-limited _PyLong_FormatBytesWriter
 // skipped non-limited _PyLong_FormatAdvancedWriter
 
-extern "C" {
+extern_libpython! {
     pub fn PyOS_strtoul(arg1: *const c_char, arg2: *mut *mut c_char, arg3: c_int) -> c_ulong;
     pub fn PyOS_strtol(arg1: *const c_char, arg2: *mut *mut c_char, arg3: c_int) -> c_long;
 }
