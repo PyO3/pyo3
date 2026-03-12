@@ -2,9 +2,7 @@ CURDIR=$(abspath .)
 
 # These three are passed in from nox.
 BUILDROOT ?= $(CURDIR)/builddir
-PYMAJORMINORMICRO ?= 3.11.0
-
-EMSCRIPTEN_VERSION=3.1.68
+PYMAJORMINORMICRO ?= $(shell python --version 2>&1 | awk '{print $$2}')
 
 export EMSDKDIR = $(BUILDROOT)/emsdk
 
@@ -39,13 +37,6 @@ $(BUILDROOT)/.exists:
 	touch $@
 
 
-# Install emscripten
-$(EMSDKDIR): $(CURDIR)/emscripten_patches/* $(BUILDROOT)/.exists
-	git clone https://github.com/emscripten-core/emsdk.git --depth 1 --branch $(EMSCRIPTEN_VERSION) $(EMSDKDIR)
-	$(EMSDKDIR)/emsdk install $(EMSCRIPTEN_VERSION)
-	cd $(EMSDKDIR)/upstream/emscripten && cat $(CURDIR)/emscripten_patches/* | patch -p1
-	$(EMSDKDIR)/emsdk activate $(EMSCRIPTEN_VERSION)
-
 
 $(PYTHONTARBALL):
 	[ -d $(BUILDROOT)/downloads ] || mkdir -p $(BUILDROOT)/downloads
@@ -58,19 +49,19 @@ $(PYTHONBUILD)/.patched: $(PYTHONTARBALL)
 	)
 	touch $@
 
-$(PYTHONBUILD)/Makefile: $(PYTHONBUILD)/.patched $(BUILDROOT)/emsdk
-	cd $(PYTHONBUILD) && \
-	CONFIG_SITE=Tools/wasm/config.site-wasm32-emscripten \
-  	emconfigure ./configure -C \
-		--host=wasm32-unknown-emscripten \
-		--build=$(shell $(PYTHONBUILD)/config.guess) \
-		--with-emscripten-target=browser \
-		--enable-wasm-dynamic-linking \
-		--with-build-python=python$(PYMAJORMINOR)
+# Install emscripten
+$(EMSDKDIR): $(BUILDROOT)/.exists $(PYTHONBUILD)/.patched
+	# NB: future Python versions will stash emscripten version in config.toml
+	# EMSCRIPTEN_VERSION=$$(python -c "import tomllib; print(tomllib.load(open('$(PYTHONBUILD)/Tools/wasm/emscripten/config.toml', 'rb'))['emscripten-version'])")
+	EMSCRIPTEN_VERSION=4.0.12 && \
+	git clone https://github.com/emscripten-core/emsdk.git --depth 1 --branch $$EMSCRIPTEN_VERSION $(EMSDKDIR) && \
+	$(EMSDKDIR)/emsdk install $$EMSCRIPTEN_VERSION && \
+	$(EMSDKDIR)/emsdk activate $$EMSCRIPTEN_VERSION
 
-$(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a : $(PYTHONBUILD)/Makefile
+$(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a: $(PYTHONBUILD)/.patched $(EMSDKDIR)
 	cd $(PYTHONBUILD) && \
-		emmake make -j3 libpython$(PYMAJORMINOR).a
+	source $(EMSDKDIR)/emsdk_env.sh && \
+	python$(PYMAJORMINOR) Tools/wasm/emscripten build --quiet -- --config-cache --with-pydebug
 
 	# Generate sysconfigdata
 	_PYTHON_SYSCONFIGDATA_NAME=$(SYSCONFIGDATA_NAME) _PYTHON_PROJECT_BASE=$(PYTHONBUILD) python$(PYMAJORMINOR) -m sysconfig --generate-posix-vars
