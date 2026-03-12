@@ -76,7 +76,7 @@ $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a: $(CROSS_PYTHON)
 		source $(EMSDKDIR)/emsdk_env.sh && \
 		emar rcs Modules/_hacl/libhacl.a Modules/_hacl/*.o
 	# Copy all .a libraries
-	find $(PYTHONBUILD) -name '*.a' -exec cp {} $(PYTHONLIBDIR) \;
+	find $(PYTHONBUILD)/cross-build/wasm32-emscripten/build/python -name '*.a' -exec cp {} $(PYTHONLIBDIR) \;
 	# Install Python stdlib
 	cp -r $(PYTHONBUILD)/Lib $(PYTHONLIBDIR)/python$(PYMAJORMINOR)
 
