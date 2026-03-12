@@ -2,14 +2,14 @@
 name = "maturin-starter"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.74"
+rust-version = "1.83"
 
 [lib]
 name = "maturin_starter"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { path = "../../", features = ["extension-module"] }
+pyo3 = { path = "../../" }
 
 [features]
 abi3 = ["pyo3/abi3-py37", "generate-import-lib"]

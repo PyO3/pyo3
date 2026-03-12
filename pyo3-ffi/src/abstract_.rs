@@ -137,7 +137,7 @@ extern "C" {
 #[cfg(not(any(Py_3_8, PyPy)))]
 #[inline]
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
-    crate::PyObject_HasAttrString(crate::Py_TYPE(o).cast(), c_str!("__next__").as_ptr())
+    crate::PyObject_HasAttrString(crate::Py_TYPE(o).cast(), c"__next__".as_ptr())
 }
 
 extern "C" {
@@ -145,6 +145,9 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyIter_Check")]
     pub fn PyIter_Check(obj: *mut PyObject) -> c_int;
 
+    #[cfg(Py_3_14)]
+    #[cfg_attr(PyPy, link_name = "PyPyIter_NextItem")]
+    pub fn PyIter_NextItem(iter: *mut PyObject, item: *mut *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyIter_Next")]
     pub fn PyIter_Next(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg(all(not(PyPy), Py_3_10))]

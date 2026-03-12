@@ -1,10 +1,10 @@
 ---
 name: 💡 Feature request
 about: Suggest an idea for this project
-labels: [enhancement]
+type: Feature
 ---
 
-<!-- 
+<!--
 Thank you for sharing your idea!
 
 Please describe your idea in depth. If you're not sure what to write, imagine the following:

@@ -117,9 +117,9 @@ pub(crate) struct Guard {
 /// the guard that would have otherwise been returned on a successful lock. This
 /// allows access to the data, despite the lock being poisoned.
 pub struct PyMutex<T: ?Sized> {
-    mutex: UnsafeCell<crate::ffi::PyMutex>,
+    pub(crate) mutex: UnsafeCell<crate::ffi::PyMutex>,
     poison: Flag,
-    data: UnsafeCell<T>,
+    pub(crate) data: UnsafeCell<T>,
 }
 
 /// RAII guard to handle releasing a PyMutex lock.
@@ -452,7 +452,7 @@ mod tests {
             .join()
         });
         mutex.clear_poison();
-        assert!(*mutex.lock().unwrap() == 0);
+        assert_eq!(*mutex.lock().unwrap(), 0);
     }
 
     #[test]

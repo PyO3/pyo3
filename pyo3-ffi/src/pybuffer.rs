@@ -103,11 +103,7 @@ extern "C" {
 }
 
 /// Maximum number of dimensions
-pub const PyBUF_MAX_NDIM: usize = if cfg!(all(PyPy, not(Py_3_11))) {
-    36
-} else {
-    64
-};
+pub const PyBUF_MAX_NDIM: usize = 64;
 
 /* Flags for getting buffers */
 pub const PyBUF_SIMPLE: c_int = 0;

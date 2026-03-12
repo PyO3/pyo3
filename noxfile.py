@@ -39,7 +39,7 @@ try:
 except ImportError:
     requests = None
 
-nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "docs"]
+nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "rumdl", "docs"]
 
 PYO3_DIR = Path(__file__).parent
 PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).absolute()
@@ -78,11 +78,15 @@ def _supported_interpreter_versions(
     versions = [f"{major}.{minor}" for minor in range(min_minor, max_minor + 1)]
     # Add free-threaded builds for 3.13+
     if python_impl == "cpython":
-        versions += [f"{major}.{minor}t" for minor in range(13, max_minor + 1)]
+        versions += [f"{major}.{minor}t" for minor in range(14, max_minor + 1)]
     return versions
 
 
 PY_VERSIONS = _supported_interpreter_versions("cpython")
+# We don't yet support abi3-py315 but do support cp315 and cp315t
+# version-specific builds
+ABI3_PY_VERSIONS = [p for p in PY_VERSIONS if not p.endswith("t")]
+ABI3_PY_VERSIONS.remove("3.15")
 PYPY_VERSIONS = _supported_interpreter_versions("pypy")
 
 
@@ -203,9 +207,20 @@ def ruff(session: nox.Session):
     _run(session, "ruff", "check", ".")
 
 
+@nox.session(name="rumdl", venv_backend="none")
+def rumdl(session: nox.Session):
+    """Run rumdl to check markdown formatting in the guide.
+
+    Can also run with uv directly, e.g. `uv run rumdl check guide`.
+    """
+    _run(
+        session, "uv", "run", "rumdl", "check", "guide", *session.posargs, external=True
+    )
+
+
 @nox.session(name="clippy", venv_backend="none")
 def clippy(session: nox.Session) -> bool:
-    if not _clippy(session) and _clippy_additional_workspaces(session):
+    if not (_clippy(session) and _clippy_additional_workspaces(session)):
         session.error("one or more jobs failed")
 
 
@@ -586,8 +601,6 @@ def build_netlify_site(session: nox.Session):
     if preview:
         session.posargs.remove("--preview")
 
-    _build_netlify_redirects(preview)
-
     session.install("towncrier")
     # Save a copy of the changelog to restore later
     changelog = (PYO3_DIR / "CHANGELOG.md").read_text()
@@ -617,6 +630,8 @@ def build_netlify_site(session: nox.Session):
     docs(session, nightly=True, internal=True)
     PYO3_DOCS_TARGET.rename("netlify_build/internal")
 
+    _build_netlify_redirects(preview)
+
 
 def _build_netlify_redirects(preview: bool) -> None:
     current_version = os.environ.get("PYO3_VERSION")
@@ -626,43 +641,37 @@ def _build_netlify_redirects(preview: bool) -> None:
         headers_file = stack.enter_context(open("netlify_build/_headers", "w"))
         for d in glob("netlify_build/v*"):
             version = d.removeprefix("netlify_build/v")
-            full_directory = d + "/"
             redirects_file.write(
                 f"/v{version}/doc/* https://docs.rs/pyo3/{version}/:splat\n"
             )
+
+            # for versions other than the current version, set noindex
             if version != current_version:
-                # for old versions, mark the files in the latest version as the canonical URL
-                for file in glob(f"{d}/**", recursive=True):
-                    file_path = file.removeprefix(full_directory)
-                    # remove index.html and/or .html suffix to match the page URL on the
-                    # final netlfiy site
-                    url_path = file_path
-                    if file_path == "index.html":
-                        url_path = ""
+                headers_file.write(f"/v{version}/*\n  X-Robots-Tag: noindex\n")
+                continue
 
-                    url_path = url_path.removesuffix(".html")
+            # for the current version, index all files and set canonical links where possible
+            for file in glob(f"{d}/**", recursive=True):
+                file_path = file.removeprefix("netlify_build")
+                url_path = _url_path_from_file_path(file_path)
 
-                    # if the file exists in the latest version, add a canonical
-                    # URL as a header
-                    for url in (
-                        f"/v{version}/{url_path}",
-                        *(
-                            (f"/v{version}/{file_path}",)
-                            if file_path != url_path
-                            else ()
-                        ),
-                    ):
-                        headers_file.write(url + "\n")
-                        if os.path.exists(
-                            f"netlify_build/v{current_version}/{file_path}"
-                        ):
-                            headers_file.write(
-                                f'  Link: <https://pyo3.rs/v{current_version}/{url_path}>; rel="canonical"\n'
-                            )
-                        else:
-                            # this file doesn't exist in the latest guide, don't
-                            # index it
-                            headers_file.write("  X-Robots-Tag: noindex\n")
+                for path in _url_and_file_paths(url_path, file_path):
+                    headers_file.write(
+                        f'{path}\n  Link: <https://pyo3.rs{url_path}>; rel="canonical"\n'
+                    )
+
+        # main files should be indexed and canonical
+        for file in glob("netlify_build/main/**", recursive=True):
+            file_path = file.removeprefix("netlify_build")
+            url_path = _url_path_from_file_path(file_path)
+
+            for path in _url_and_file_paths(url_path, file_path):
+                headers_file.write(
+                    f'{path}\n  Link: <https://pyo3.rs{url_path}>; rel="canonical"\n'
+                )
+
+        # for internal docs, set noindex for all files
+        headers_file.write("/internal/*\n  X-Robots-Tag: noindex\n")
 
         # Add latest redirect
         if current_version is not None:
@@ -688,7 +697,25 @@ def _build_netlify_redirects(preview: bool) -> None:
             redirects_file.write(f"/ /v{current_version}/ 302\n")
 
 
-@nox.session(name="check-guide", venv_backend="none")
+def _url_path_from_file_path(file_path: str) -> str:
+    """Removes index.html and/or .html suffix to match the page URL on the final netlify site"""
+    url_path = file_path
+    if url_path.endswith("index.html"):
+        url_path = url_path[: -len("index.html")]
+    elif url_path.endswith(".html"):
+        url_path = url_path[: -len(".html")]
+    return url_path
+
+
+def _url_and_file_paths(url_path: str, file_path: str) -> Tuple[str, str]:
+    """Returns all combinations of url and file paths with and without index.html suffix"""
+    if url_path == file_path:
+        return (url_path,)
+    else:
+        return (url_path, file_path)
+
+
+@nox.session(name="check-guide")
 def check_guide(session: nox.Session):
     # reuse other sessions, but with default args
     posargs = [*session.posargs]
@@ -729,7 +756,10 @@ def check_guide(session: nox.Session):
         str(PYO3_GUIDE_SRC),
         *remap_args,
         "--accept=200,429",
+        "--cache",
+        "--max-cache-age=7d",
         *session.posargs,
+        external=True,
     )
     # check external links in the docs
     # (intra-doc links are checked by rustdoc)
@@ -745,7 +775,10 @@ def check_guide(session: nox.Session):
         "--accept=200,429",
         # reduce the concurrency to avoid rate-limit from `pyo3.rs`
         "--max-concurrency=32",
+        "--cache",
+        "--max-cache-age=7d",
         *session.posargs,
+        external=True,
     )
 
 
@@ -944,24 +977,34 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.6")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        assert "3.15" not in PY_VERSIONS
-        config_file.set("CPython", "3.15")
+        assert "3.16" not in PY_VERSIONS
+        config_file.set("CPython", "3.16")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        # 3.15 CPython should build if abi3 is explicitly requested
+        # 3.16 CPython should build if abi3 is explicitly requested
         _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
 
         # 3.15 CPython should build with forward compatibility
+        # TODO: check on 3.16 when adding abi3-py315 support
+        config_file.set("CPython", "3.15")
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
-        assert "3.8" not in PYPY_VERSIONS
-        config_file.set("PyPy", "3.8")
+        assert "3.10" not in PYPY_VERSIONS
+        config_file.set("PyPy", "3.10")
         _run_cargo(session, "check", env=env, expect_error=True)
+
+        # 3.13t is no longer supported
+        config_file.set("CPython", "3.13t")
+        _run_cargo(session, "check", env=env, expect_error=True)
+
+        # 3.14t is PyO3's minimum version of free-threaded Python
+        config_file.set("CPython", "3.14t")
+        _run_cargo(session, "check", env=env)
 
     # attempt to build with latest version and check that abi3 version
     # configured matches the feature
-    max_minor_version = max(int(v.split(".")[1]) for v in PY_VERSIONS if "t" not in v)
+    max_minor_version = max(int(v.split(".")[1]) for v in ABI3_PY_VERSIONS)
     with tempfile.TemporaryFile() as stderr:
         env = os.environ.copy()
         env["PYO3_PRINT_CONFIG"] = "1"  # get diagnostics from the build
@@ -995,7 +1038,7 @@ def check_feature_powerset(session: nox.Session):
 
     # free-threaded builds do not support ABI3 (yet)
     EXPECTED_ABI3_FEATURES = {
-        f"abi3-py3{ver.split('.')[1]}" for ver in PY_VERSIONS if not ver.endswith("t")
+        f"abi3-py3{ver.split('.')[1]}" for ver in ABI3_PY_VERSIONS
     }
 
     EXCLUDED_FROM_FULL = {
@@ -1092,21 +1135,33 @@ def update_ui_tests(session: nox.Session):
 def test_introspection(session: nox.Session):
     session.install("maturin")
     session.install("ruff")
+    options = []
     target = os.environ.get("CARGO_BUILD_TARGET")
-    for options in ([], ["--release"]):
-        if target is not None:
-            options += ("--target", target)
-        session.run_always("maturin", "develop", "-m", "./pytests/Cargo.toml", *options)
-        # We look for the built library
-        lib_file = None
-        for file in Path(session.virtualenv.location).rglob("pyo3_pytests.*"):
-            if file.is_file():
-                lib_file = str(file.resolve())
-        _run_cargo_test(
-            session,
-            package="pyo3-introspection",
-            env={"PYO3_PYTEST_LIB_PATH": lib_file},
-        )
+    if target is not None:
+        options += ("--target", target)
+    profile = os.environ.get("CARGO_BUILD_PROFILE")
+    if profile == "release":
+        options.append("--release")
+    session.run_always(
+        "maturin",
+        "develop",
+        "-m",
+        "./pytests/Cargo.toml",
+        "--features",
+        "experimental-async,experimental-inspect",
+        *options,
+    )
+    lib_file = session.run(
+        "python",
+        "-c",
+        "import pyo3_pytests; print(pyo3_pytests.pyo3_pytests.__file__)",
+        silent=True,
+    ).strip()
+    _run_cargo_test(
+        session,
+        package="pyo3-introspection",
+        env={"PYO3_PYTEST_LIB_PATH": lib_file},
+    )
 
 
 def _build_docs_for_ffi_check(session: nox.Session) -> None:

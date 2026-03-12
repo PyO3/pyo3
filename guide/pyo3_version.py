@@ -6,7 +6,7 @@ It will replace:
     - {{#PYO3_CRATE_VERSION}} with a relevant toml snippet (e.g. 'version = "0.13.2"')
 
 
-Tested against mdbook 0.4.10.
+Tested against mdbook 0.5.0.
 """
 
 import json
@@ -28,26 +28,26 @@ else:
     PYO3_CRATE_VERSION = f'version = "{version}"'
 
 
-def replace_section_content(section):
-    if not isinstance(section, dict) or "Chapter" not in section:
+def replace_item_content(item):
+    if not isinstance(item, dict) or "Chapter" not in item:
         return
 
     # Replace raw and url-encoded forms
-    section["Chapter"]["content"] = (
-        section["Chapter"]["content"]
+    item["Chapter"]["content"] = (
+        item["Chapter"]["content"]
         .replace("{{#PYO3_VERSION_TAG}}", PYO3_VERSION_TAG)
         .replace("{{#PYO3_DOCS_URL}}", PYO3_DOCS_URL)
         .replace("{{#PYO3_DOCS_VERSION}}", PYO3_DOCS_VERSION)
         .replace("{{#PYO3_CRATE_VERSION}}", PYO3_CRATE_VERSION)
     )
 
-    for sub_item in section["Chapter"]["sub_items"]:
-        replace_section_content(sub_item)
+    for sub_item in item["Chapter"]["sub_items"]:
+        replace_item_content(sub_item)
 
 
 for line in sys.stdin:
     if line:
         [context, book] = json.loads(line)
-        for section in book["sections"]:
-            replace_section_content(section)
+        for item in book["items"]:
+            replace_item_content(item)
         json.dump(book, fp=sys.stdout)

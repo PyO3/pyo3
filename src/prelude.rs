@@ -10,8 +10,6 @@
 
 pub use crate::conversion::{FromPyObject, FromPyObjectOwned, IntoPyObject};
 pub use crate::err::{PyErr, PyResult};
-#[allow(deprecated)]
-pub use crate::instance::PyObject;
 pub use crate::instance::{Borrowed, Bound, Py};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};

@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 #[macro_use]
 mod test_utils;
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Debug, PartialEq)]
 struct Cloneable {
     x: i32,

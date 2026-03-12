@@ -19,10 +19,14 @@ use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::PyStaticExpr;
+#[cfg(feature = "experimental-inspect")]
+use crate::type_hint_subscript;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PySequence, PyString};
 use crate::{
-    err::DowncastError, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
+    err::CastError, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, PyTypeInfo, Python,
 };
 use smallvec::{Array, SmallVec};
 
@@ -34,6 +38,9 @@ where
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = A::Item::SEQUENCE_OUTPUT_TYPE;
 
     /// Turns [`SmallVec<u8>`] into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///
@@ -54,11 +61,13 @@ impl<'a, 'py, A> IntoPyObject<'py> for &'a SmallVec<A>
 where
     A: Array,
     &'a A::Item: IntoPyObject<'py>,
-    A::Item: 'a, // MSRV
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = <&[A::Item]>::OUTPUT_TYPE;
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
@@ -77,6 +86,10 @@ where
     A::Item: FromPyObjectOwned<'py>,
 {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr =
+        type_hint_subscript!(PySequence::TYPE_HINT, A::Item::INPUT_TYPE);
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         if obj.is_instance_of::<PyString>() {
@@ -98,16 +111,12 @@ where
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
-    let seq = unsafe {
-        if ffi::PySequence_Check(obj.as_ptr()) != 0 {
-            obj.cast_unchecked::<PySequence>()
-        } else {
-            return Err(DowncastError::new_from_borrowed(obj, "Sequence").into());
-        }
-    };
+    if unsafe { ffi::PySequence_Check(obj.as_ptr()) } == 0 {
+        return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
+    }
 
-    let mut sv = SmallVec::with_capacity(seq.len().unwrap_or(0));
-    for item in seq.try_iter()? {
+    let mut sv = SmallVec::with_capacity(obj.len().unwrap_or(0));
+    for item in obj.try_iter()? {
         sv.push(item?.extract::<A::Item>().map_err(Into::into)?);
     }
     Ok(sv)
@@ -134,7 +143,7 @@ mod tests {
             let sv: PyResult<SmallVec<[u64; 8]>> = dict.extract();
             assert_eq!(
                 sv.unwrap_err().to_string(),
-                "TypeError: 'dict' object cannot be converted to 'Sequence'"
+                "TypeError: 'dict' object is not an instance of 'Sequence'"
             );
         });
     }

@@ -2,7 +2,9 @@ use crate::attributes::KeywordAttribute;
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{function_introspection_code, introspection_id_const};
-use crate::utils::{Ctx, LitCStr};
+#[cfg(feature = "experimental-inspect")]
+use crate::utils::get_doc;
+use crate::utils::Ctx;
 use crate::{
     attributes::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
@@ -15,8 +17,11 @@ use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::cmp::PartialEq;
 use std::ffi::CString;
+#[cfg(feature = "experimental-inspect")]
+use std::iter::empty;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
+use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, LitStr, Path, Result, Token};
 
 mod signature;
@@ -133,9 +138,8 @@ impl WarningFactory for PyFunctionWarning {
     fn build_py_warning(&self, ctx: &Ctx) -> TokenStream {
         let message = &self.message.value();
         let c_message = LitCStr::new(
-            CString::new(message.clone()).unwrap(),
+            &CString::new(message.clone()).unwrap(),
             Spanned::span(&message),
-            ctx,
         );
         let pyo3_path = &ctx.pyo3_path;
         let category = match &self.category {
@@ -382,6 +386,18 @@ pub fn impl_wrap_pyfunction(
         FunctionSignature::from_arguments(arguments)
     };
 
+    let spec = method::FnSpec {
+        tp,
+        name: &func.sig.ident,
+        python_name,
+        signature,
+        text_signature,
+        asyncness: func.sig.asyncness,
+        unsafety: func.sig.unsafety,
+        warnings,
+        output: func.sig.output.clone(),
+    };
+
     let vis = &func.vis;
     let name = &func.sig.ident;
 
@@ -390,10 +406,12 @@ pub fn impl_wrap_pyfunction(
         pyo3_path,
         Some(name),
         &name.to_string(),
-        &signature,
+        &spec.signature,
         None,
         func.sig.output.clone(),
-        [] as [String; 0],
+        empty(),
+        func.sig.asyncness.is_some(),
+        get_doc(&func.attrs, None).as_ref(),
         None,
     );
     #[cfg(not(feature = "experimental-inspect"))]
@@ -403,20 +421,6 @@ pub fn impl_wrap_pyfunction(
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection_id = quote! {};
 
-    let spec = method::FnSpec {
-        tp,
-        name: &func.sig.ident,
-        convention: CallingConvention::from_signature(&signature),
-        python_name,
-        signature,
-        text_signature,
-        asyncness: func.sig.asyncness,
-        unsafety: func.sig.unsafety,
-        warnings,
-        #[cfg(feature = "experimental-inspect")]
-        output: func.sig.output.clone(),
-    };
-
     let wrapper_ident = format_ident!("__pyfunction_{}", spec.name);
     if spec.asyncness.is_some() {
         ensure_spanned!(
@@ -424,8 +428,14 @@ pub fn impl_wrap_pyfunction(
             spec.asyncness.span() => "async functions are only supported with the `experimental-async` feature"
         );
     }
-    let wrapper = spec.get_wrapper_function(&wrapper_ident, None, ctx)?;
-    let methoddef = spec.get_methoddef(wrapper_ident, &spec.get_doc(&func.attrs, ctx)?, ctx);
+    let calling_convention = CallingConvention::from_signature(&spec.signature);
+    let wrapper = spec.get_wrapper_function(&wrapper_ident, None, calling_convention, ctx)?;
+    let methoddef = spec.get_methoddef(
+        wrapper_ident,
+        spec.get_doc(&func.attrs).as_ref(),
+        calling_convention,
+        ctx,
+    )?;
 
     let wrapped_pyfunction = quote! {
         // Create a module with the same name as the `#[pyfunction]` - this way `use <the function>`
@@ -433,17 +443,20 @@ pub fn impl_wrap_pyfunction(
         #[doc(hidden)]
         #vis mod #name {
             pub(crate) struct MakeDef;
-            pub const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = MakeDef::_PYO3_DEF;
+            pub static _PYO3_DEF: #pyo3_path::impl_::pyfunction::PyFunctionDef = MakeDef::_PYO3_DEF;
             #introspection_id
         }
 
-        // Generate the definition inside an anonymous function in the same scope as the original function -
+        // Generate the definition in the same scope as the original function -
         // this avoids complications around the fact that the generated module has a different scope
         // (and `super` doesn't always refer to the outer scope, e.g. if the `#[pyfunction] is
         // inside a function body)
         #[allow(unknown_lints, non_local_definitions)]
         impl #name::MakeDef {
-            const _PYO3_DEF: #pyo3_path::impl_::pymethods::PyMethodDef = #methoddef;
+            // We're using this to initialize a static, so it's fine.
+            #[allow(clippy::declare_interior_mutable_const)]
+            const _PYO3_DEF: #pyo3_path::impl_::pyfunction::PyFunctionDef =
+                #pyo3_path::impl_::pyfunction::PyFunctionDef::from_method_def(#methoddef);
         }
 
         #[allow(non_snake_case)]

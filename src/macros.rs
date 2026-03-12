@@ -85,20 +85,27 @@
 /// ```
 #[macro_export]
 macro_rules! py_run {
+    // unindent the code at compile time
     ($py:expr, $($val:ident)+, $code:literal) => {{
-        $crate::py_run_impl!($py, $($val)+, $crate::indoc::indoc!($code))
-    }};
-    ($py:expr, $($val:ident)+, $code:expr) => {{
-        $crate::py_run_impl!($py, $($val)+, $crate::unindent::unindent($code))
+        $crate::py_run_impl!($py, $($val)+, $crate::impl_::unindent::unindent!($code))
     }};
     ($py:expr, *$dict:expr, $code:literal) => {{
-        $crate::py_run_impl!($py, *$dict, $crate::indoc::indoc!($code))
+        $crate::py_run_impl!($py, *$dict, $crate::impl_::unindent::unindent!($code))
+    }};
+    // unindent the code at runtime
+    ($py:expr, $($val:ident)+, $code:expr) => {{
+        $crate::py_run_impl!($py, $($val)+, $crate::impl_::unindent::unindent($code))
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{
-        $crate::py_run_impl!($py, *$dict, $crate::unindent::unindent($code))
+        $crate::py_run_impl!($py, *$dict, $crate::impl_::unindent::unindent($code))
     }};
 }
 
+/// Internal implementation of the `py_run!` macro.
+///
+/// FIXME: this currently unconditionally allocates a `CString`. We should consider making this not so:
+/// - Maybe require users to pass `&CStr` / `CString`?
+/// - Maybe adjust the `unindent` code to produce `&Cstr` / `Cstring`?
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_run_impl {
@@ -111,13 +118,12 @@ macro_rules! py_run_impl {
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{
         use ::std::option::Option::*;
-        #[allow(unused_imports)]
         if let ::std::result::Result::Err(e) = $py.run(&::std::ffi::CString::new($code).unwrap(), None, Some(&$dict)) {
             e.print($py);
             // So when this c api function the last line called printed the error to stderr,
             // the output is only written into a buffer which is never flushed because we
             // panic before flushing. This is where this hack comes into place
-            $py.run($crate::ffi::c_str!("import sys; sys.stderr.flush()"), None, None)
+            $py.run(c"import sys; sys.stderr.flush()", None, None)
                 .unwrap();
             ::std::panic!("{}", $code)
         }
@@ -160,7 +166,7 @@ macro_rules! wrap_pymodule {
         &|py| {
             use $module as wrapped_pymodule;
             wrapped_pymodule::_PYO3_DEF
-                .make_module(py, wrapped_pymodule::__PYO3_GIL_USED)
+                .make_module(py)
                 .expect("failed to wrap pymodule")
         }
     };

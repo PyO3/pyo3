@@ -14,6 +14,8 @@ pub struct PyByteArrayObject {
     pub ob_exports: Py_ssize_t,
     #[cfg(not(Py_3_9))]
     pub ob_exports: c_int,
+    #[cfg(Py_3_15)]
+    pub ob_bytes_object: *mut PyObject,
 }
 
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]

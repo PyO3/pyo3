@@ -1,5 +1,3 @@
-#![cfg(not(Py_LIMITED_API))]
-
 use pyo3::prelude::*;
 use pyo3::types::{
     PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTuple,
@@ -100,7 +98,7 @@ fn get_delta_tuple<'py>(delta: &Bound<'py, PyDelta>) -> PyResult<Bound<'py, PyTu
     )
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 #[pyfunction]
 #[pyo3(signature=(year, month, day, hour, minute, second, microsecond, tzinfo=None))]
 fn make_datetime<'py>(
@@ -190,39 +188,33 @@ impl TzClass {
         TzClass {}
     }
 
-    fn utcoffset<'py>(&self, dt: &Bound<'py, PyDateTime>) -> PyResult<Bound<'py, PyDelta>> {
-        PyDelta::new(dt.py(), 0, 3600, 0, true)
+    #[pyo3(signature = (_dt, /))]
+    fn utcoffset<'py>(
+        &self,
+        _dt: Option<&Bound<'_, PyDateTime>>,
+        py: Python<'py>,
+    ) -> PyResult<Bound<'py, PyDelta>> {
+        PyDelta::new(py, 0, 3600, 0, true)
     }
 
-    fn tzname(&self, _dt: &Bound<'_, PyDateTime>) -> String {
+    #[pyo3(signature = (_dt, /))]
+    fn tzname(&self, _dt: Option<&Bound<'_, PyDateTime>>) -> String {
         String::from("+01:00")
     }
 
-    fn dst<'py>(&self, _dt: &Bound<'py, PyDateTime>) -> Option<Bound<'py, PyDelta>> {
+    #[pyo3(signature = (_dt, /))]
+    fn dst(&self, _dt: Option<&Bound<'_, PyDateTime>>) -> Option<Bound<'static, PyDelta>> {
         None
     }
 }
 
-#[pymodule(gil_used = false)]
-pub fn datetime(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(make_date, m)?)?;
-    m.add_function(wrap_pyfunction!(get_date_tuple, m)?)?;
-    m.add_function(wrap_pyfunction!(date_from_timestamp, m)?)?;
-    m.add_function(wrap_pyfunction!(make_time, m)?)?;
-    m.add_function(wrap_pyfunction!(get_time_tuple, m)?)?;
-    m.add_function(wrap_pyfunction!(make_delta, m)?)?;
-    m.add_function(wrap_pyfunction!(get_delta_tuple, m)?)?;
-    m.add_function(wrap_pyfunction!(make_datetime, m)?)?;
-    m.add_function(wrap_pyfunction!(get_datetime_tuple, m)?)?;
-    m.add_function(wrap_pyfunction!(datetime_from_timestamp, m)?)?;
-    m.add_function(wrap_pyfunction!(get_datetime_tzinfo, m)?)?;
-    m.add_function(wrap_pyfunction!(get_time_tzinfo, m)?)?;
-
-    m.add_function(wrap_pyfunction!(time_with_fold, m)?)?;
-    m.add_function(wrap_pyfunction!(get_time_tuple_fold, m)?)?;
-    m.add_function(wrap_pyfunction!(get_datetime_tuple_fold, m)?)?;
-
-    m.add_class::<TzClass>()?;
-
-    Ok(())
+#[pymodule]
+pub mod datetime {
+    #[pymodule_export]
+    use super::{
+        date_from_timestamp, datetime_from_timestamp, get_date_tuple, get_datetime_tuple,
+        get_datetime_tuple_fold, get_datetime_tzinfo, get_delta_tuple, get_time_tuple,
+        get_time_tuple_fold, get_time_tzinfo, make_date, make_datetime, make_delta, make_time,
+        time_with_fold, TzClass,
+    };
 }

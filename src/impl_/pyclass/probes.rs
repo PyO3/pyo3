@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use crate::{conversion::IntoPyObject, FromPyObject, Py};
+use crate::conversion::IntoPyObject;
+use crate::impl_::pyclass::PyClassBaseType;
+use crate::impl_::pyclass_init::PyNativeTypeInitializer;
+use crate::{FromPyObject, Py, PyClass, PyClassInitializer};
 
 /// Trait used to combine with zero-sized types to calculate at compile time
 /// some property of a type.
@@ -11,14 +14,20 @@ use crate::{conversion::IntoPyObject, FromPyObject, Py};
 /// The true case is defined in the zero-sized type's impl block, which is
 /// gated on some property like trait bound or only being implemented
 /// for fixed concrete types.
-pub trait Probe {
+pub trait Probe: probe::Sealed {
     const VALUE: bool = false;
+}
+
+/// Seals `Probe` so that types outside PyO3 cannot implement it.
+mod probe {
+    pub trait Sealed {}
 }
 
 macro_rules! probe {
     ($name:ident) => {
         pub struct $name<T>(PhantomData<T>);
         impl<T> Probe for $name<T> {}
+        impl<T> probe::Sealed for $name<T> {}
     };
 }
 
@@ -70,6 +79,57 @@ where
 probe!(HasNewTextSignature);
 
 impl<T: super::doc::PyClassNewTextSignature> HasNewTextSignature<T> {
+    pub const VALUE: bool = true;
+}
+
+probe!(IsClone);
+
+impl<T: Clone> IsClone<T> {
+    pub const VALUE: bool = true;
+}
+
+probe!(IsReturningEmptyTuple);
+
+impl IsReturningEmptyTuple<()> {
+    pub const VALUE: bool = true;
+}
+
+impl<E> IsReturningEmptyTuple<Result<(), E>> {
+    pub const VALUE: bool = true;
+}
+
+probe!(IsPyClass);
+
+impl<T> IsPyClass<T>
+where
+    T: PyClass,
+{
+    pub const VALUE: bool = true;
+}
+
+impl<T, E> IsPyClass<Result<T, E>>
+where
+    T: PyClass,
+{
+    pub const VALUE: bool = true;
+}
+
+probe!(IsInitializerTuple);
+
+impl<S, B> IsInitializerTuple<(S, B)>
+where
+    S: PyClass<BaseType = B>,
+    B: PyClass + PyClassBaseType<Initializer = PyClassInitializer<B>>,
+    B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
+{
+    pub const VALUE: bool = true;
+}
+impl<S, B, E> IsInitializerTuple<Result<(S, B), E>>
+where
+    S: PyClass<BaseType = B>,
+    B: PyClass + PyClassBaseType<Initializer = PyClassInitializer<B>>,
+    B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
+{
     pub const VALUE: bool = true;
 }
 

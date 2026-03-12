@@ -2,13 +2,14 @@ use std::{cmp, collections, hash};
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::types::TypeInfo;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::{type_hint_subscript, PyStaticExpr};
+#[cfg(feature = "experimental-inspect")]
+use crate::type_object::PyTypeInfo;
 use crate::{
     conversion::{FromPyObjectOwned, IntoPyObject},
     types::{
-        any::PyAnyMethods,
-        frozenset::PyFrozenSetMethods,
-        set::{try_new_from_iter, PySetMethods},
-        PyFrozenSet, PySet,
+        any::PyAnyMethods, frozenset::PyFrozenSetMethods, set::PySetMethods, PyFrozenSet, PySet,
     },
     Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
 };
@@ -22,8 +23,11 @@ where
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySet::TYPE_HINT, K::OUTPUT_TYPE);
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(py, self)
+        PySet::new(py, self)
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -35,15 +39,16 @@ where
 impl<'a, 'py, K, H> IntoPyObject<'py> for &'a collections::HashSet<K, H>
 where
     &'a K: IntoPyObject<'py> + Eq + hash::Hash,
-    K: 'a, // MSRV
     H: hash::BuildHasher,
 {
     type Target = PySet;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySet::TYPE_HINT, <&K>::OUTPUT_TYPE);
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(py, self.iter())
+        PySet::new(py, self)
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -58,6 +63,9 @@ where
     S: hash::BuildHasher + Default,
 {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySet::TYPE_HINT, K::INPUT_TYPE);
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         match ob.cast::<PySet>() {
@@ -92,8 +100,11 @@ where
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySet::TYPE_HINT, K::OUTPUT_TYPE);
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(py, self)
+        PySet::new(py, self)
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -111,8 +122,11 @@ where
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
+    #[cfg(feature = "experimental-inspect")]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySet::TYPE_HINT, <&K>::OUTPUT_TYPE);
+
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        try_new_from_iter(py, self.iter())
+        PySet::new(py, self)
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -126,6 +140,9 @@ where
     K: FromPyObjectOwned<'py> + cmp::Ord,
 {
     type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySet::TYPE_HINT, K::INPUT_TYPE);
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         match ob.cast::<PySet>() {

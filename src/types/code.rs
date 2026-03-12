@@ -22,14 +22,21 @@ pub struct PyCode(PyAny);
 pyobject_native_type_core!(
     PyCode,
     pyobject_native_static_type_object!(ffi::PyCode_Type),
+    "types",
+    "CodeType",
     #checkfunction=ffi::PyCode_Check
 );
 
 #[cfg(any(Py_LIMITED_API, PyPy))]
-pyobject_native_type_core!(PyCode, |py| {
-    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-    TYPE.import(py, "types", "CodeType").unwrap().as_type_ptr()
-});
+pyobject_native_type_core!(
+    PyCode,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "CodeType").unwrap().as_type_ptr()
+    },
+    "types",
+    "CodeType"
+);
 
 /// Compilation mode of [`PyCode::compile`]
 pub enum PyCodeInput {
@@ -87,7 +94,7 @@ impl<'py> PyCodeMethods<'py> for Bound<'py, PyCode> {
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let mptr = unsafe {
-            ffi::compat::PyImport_AddModuleRef(ffi::c_str!("__main__").as_ptr())
+            ffi::compat::PyImport_AddModuleRef(c"__main__".as_ptr())
                 .assume_owned_or_err(self.py())?
         };
         let attr = mptr.getattr(crate::intern!(self.py(), "__dict__"))?;
@@ -107,7 +114,7 @@ impl<'py> PyCodeMethods<'py> for Bound<'py, PyCode> {
         let builtins_s = crate::intern!(self.py(), "__builtins__");
         let has_builtins = globals.contains(builtins_s)?;
         if !has_builtins {
-            crate::sync::with_critical_section(globals, || {
+            crate::sync::critical_section::with_critical_section(globals, || {
                 // check if another thread set __builtins__ while this thread was blocked on the critical section
                 let has_builtins = globals.contains(builtins_s)?;
                 if !has_builtins {

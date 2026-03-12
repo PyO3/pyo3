@@ -2,8 +2,10 @@ use std::borrow::Cow;
 use std::ffi::CString;
 
 use crate::attributes::{self, get_pyo3_options, take_attributes, NameAttribute};
-use crate::utils::{Ctx, LitCStr};
+#[cfg(feature = "experimental-inspect")]
+use crate::utils::PythonDoc;
 use proc_macro2::{Ident, Span};
+use syn::LitCStr;
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
@@ -12,8 +14,14 @@ use syn::{
 };
 
 pub struct ConstSpec {
-    pub rust_ident: syn::Ident,
+    pub rust_ident: Ident,
     pub attributes: ConstAttributes,
+    #[cfg(feature = "experimental-inspect")]
+    pub expr: Option<syn::Expr>,
+    #[cfg(feature = "experimental-inspect")]
+    pub ty: syn::Type,
+    #[cfg(feature = "experimental-inspect")]
+    pub doc: Option<PythonDoc>,
 }
 
 impl ConstSpec {
@@ -26,9 +34,9 @@ impl ConstSpec {
     }
 
     /// Null-terminated Python name
-    pub fn null_terminated_python_name(&self, ctx: &Ctx) -> LitCStr {
+    pub fn null_terminated_python_name(&self) -> LitCStr {
         let name = self.python_name().to_string();
-        LitCStr::new(CString::new(name).unwrap(), Span::call_site(), ctx)
+        LitCStr::new(&CString::new(name).unwrap(), Span::call_site())
     }
 }
 

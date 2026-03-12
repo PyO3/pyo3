@@ -7,7 +7,7 @@ error[E0277]: `&str` cannot used as a Python `call` argument
   |             required by a bound introduced by this call
   |
   = note: `PyCallArgs` is implemented for Rust tuples, `Bound<'py, PyTuple>` and `Py<PyTuple>`
-  = note: if your type is convertable to `PyTuple` via `IntoPyObject`, call `<arg>.into_pyobject(py)` manually
+  = note: if your type is convertible to `PyTuple` via `IntoPyObject`, call `<arg>.into_pyobject(py)` manually
   = note: if you meant to pass the type as a single argument, wrap it in a 1-tuple, `(<arg>,)`
   = help: the following other types implement trait `PyCallArgs<'py>`:
             &'a (T0, T1)

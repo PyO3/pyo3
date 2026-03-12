@@ -4,6 +4,8 @@ use std::{
     thread::ThreadId,
 };
 
+#[cfg(not(Py_3_12))]
+use crate::sync::MutexExt;
 use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
@@ -85,8 +87,8 @@ impl PyErrState {
     #[cold]
     fn make_normalized(&self, py: Python<'_>) -> &PyErrStateNormalized {
         // This process is safe because:
-        // - Access is guaranteed not to be concurrent thanks to `Python` GIL token
         // - Write happens only once, and then never will change again.
+        // - The `Once` ensure that only one thread will do the write.
 
         // Guard against re-entrant normalization, because `Once` does not provide
         // re-entrancy guarantees.
@@ -137,7 +139,7 @@ pub(crate) struct PyErrStateNormalized {
     ptype: Py<PyType>,
     pub pvalue: Py<PyBaseException>,
     #[cfg(not(Py_3_12))]
-    ptraceback: Option<Py<PyTraceback>>,
+    ptraceback: std::sync::Mutex<Option<Py<PyTraceback>>>,
 }
 
 impl PyErrStateNormalized {
@@ -147,9 +149,10 @@ impl PyErrStateNormalized {
             ptype: pvalue.get_type().into(),
             #[cfg(not(Py_3_12))]
             ptraceback: unsafe {
-                Py::from_owned_ptr_or_opt(
-                    pvalue.py(),
-                    ffi::PyException_GetTraceback(pvalue.as_ptr()),
+                Mutex::new(
+                    ffi::PyException_GetTraceback(pvalue.as_ptr())
+                        .assume_owned_or_opt(pvalue.py())
+                        .map(|b| b.cast_into_unchecked().unbind()),
                 )
             },
             pvalue: pvalue.into(),
@@ -169,6 +172,8 @@ impl PyErrStateNormalized {
     #[cfg(not(Py_3_12))]
     pub(crate) fn ptraceback<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyTraceback>> {
         self.ptraceback
+            .lock_py_attached(py)
+            .unwrap()
             .as_ref()
             .map(|traceback| traceback.bind(py).clone())
     }
@@ -180,6 +185,21 @@ impl PyErrStateNormalized {
                 .assume_owned_or_opt(py)
                 .map(|b| b.cast_into_unchecked())
         }
+    }
+
+    #[cfg(not(Py_3_12))]
+    pub(crate) fn set_ptraceback<'py>(&self, py: Python<'py>, tb: Option<Bound<'py, PyTraceback>>) {
+        *self.ptraceback.lock_py_attached(py).unwrap() = tb.map(Bound::unbind);
+    }
+
+    #[cfg(Py_3_12)]
+    pub(crate) fn set_ptraceback<'py>(&self, py: Python<'py>, tb: Option<Bound<'py, PyTraceback>>) {
+        let tb = tb
+            .as_ref()
+            .map(Bound::as_ptr)
+            .unwrap_or_else(|| crate::types::PyNone::get(py).as_ptr());
+
+        unsafe { ffi::PyException_SetTraceback(self.pvalue.as_ptr(), tb) };
     }
 
     pub(crate) fn take(py: Python<'_>) -> Option<PyErrStateNormalized> {
@@ -227,7 +247,7 @@ impl PyErrStateNormalized {
             ptype.map(|ptype| PyErrStateNormalized {
                 ptype: ptype.unbind(),
                 pvalue: pvalue.expect("normalized exception value missing").unbind(),
-                ptraceback: ptraceback.map(Bound::unbind),
+                ptraceback: std::sync::Mutex::new(ptraceback.map(Bound::unbind)),
             })
         }
     }
@@ -240,11 +260,24 @@ impl PyErrStateNormalized {
         ptraceback: *mut ffi::PyObject,
     ) -> Self {
         PyErrStateNormalized {
-            ptype: unsafe { Py::from_owned_ptr_or_opt(py, ptype).expect("Exception type missing") },
+            ptype: unsafe {
+                ptype
+                    .assume_owned_or_opt(py)
+                    .expect("Exception type missing")
+                    .cast_into_unchecked()
+            }
+            .unbind(),
             pvalue: unsafe {
-                Py::from_owned_ptr_or_opt(py, pvalue).expect("Exception value missing")
-            },
-            ptraceback: unsafe { Py::from_owned_ptr_or_opt(py, ptraceback) },
+                pvalue
+                    .assume_owned_or_opt(py)
+                    .expect("Exception value missing")
+                    .cast_into_unchecked()
+            }
+            .unbind(),
+            ptraceback: Mutex::new(
+                unsafe { ptraceback.assume_owned_or_opt(py) }
+                    .map(|b| unsafe { b.cast_into_unchecked() }.unbind()),
+            ),
         }
     }
 
@@ -254,10 +287,13 @@ impl PyErrStateNormalized {
             ptype: self.ptype.clone_ref(py),
             pvalue: self.pvalue.clone_ref(py),
             #[cfg(not(Py_3_12))]
-            ptraceback: self
-                .ptraceback
-                .as_ref()
-                .map(|ptraceback| ptraceback.clone_ref(py)),
+            ptraceback: std::sync::Mutex::new(
+                self.ptraceback
+                    .lock_py_attached(py)
+                    .unwrap()
+                    .as_ref()
+                    .map(|ptraceback| ptraceback.clone_ref(py)),
+            ),
         }
     }
 }
@@ -308,7 +344,10 @@ impl PyErrStateInner {
             }) => (
                 ptype.into_ptr(),
                 pvalue.into_ptr(),
-                ptraceback.map_or(std::ptr::null_mut(), Py::into_ptr),
+                ptraceback
+                    .into_inner()
+                    .unwrap()
+                    .map_or(std::ptr::null_mut(), Py::into_ptr),
             ),
         };
         unsafe { ffi::PyErr_Restore(ptype, pvalue, ptraceback) }
@@ -356,7 +395,7 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
         if ffi::PyExceptionClass_Check(ptype.as_ptr()) == 0 {
             ffi::PyErr_SetString(
                 PyTypeError::type_object_raw(py).cast(),
-                ffi::c_str!("exceptions must derive from BaseException").as_ptr(),
+                c"exceptions must derive from BaseException".as_ptr(),
             )
         } else {
             ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr())
