@@ -9,12 +9,6 @@ export EMSDKDIR = $(BUILDROOT)/emsdk
 PLATFORM=wasm32_emscripten
 SYSCONFIGDATA_NAME=_sysconfigdata__$(PLATFORM)
 
-# BASH_ENV tells bash to source emsdk_env.sh on startup.
-export BASH_ENV := $(CURDIR)/env.sh
-# Use bash to run each command so that env.sh will be used.
-SHELL := /bin/bash
-
-
 # Set version variables.
 version_tuple := $(subst ., ,$(PYMAJORMINORMICRO:v%=%))
 PYMAJOR=$(word 1,$(version_tuple))
@@ -29,6 +23,8 @@ PYTHONTARBALL=$(BUILDROOT)/downloads/Python-$(PYVERSION).tgz
 PYTHONBUILD=$(BUILDROOT)/build/Python-$(PYVERSION)
 
 PYTHONLIBDIR=$(BUILDROOT)/install/Python-$(PYVERSION)/lib
+
+CROSS_PYTHON=$(PYTHONBUILD)/cross-build/wasm32-emscripten/build/python/python.sh
 
 all: $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a
 
@@ -50,7 +46,7 @@ $(PYTHONBUILD)/.patched: $(PYTHONTARBALL)
 	touch $@
 
 # Install emscripten
-$(EMSDKDIR): $(BUILDROOT)/.exists $(PYTHONBUILD)/.patched
+$(EMSDKDIR)/emsdk_env.sh: $(BUILDROOT)/.exists $(PYTHONBUILD)/.patched
 	# NB: future Python versions will stash emscripten version in config.toml
 	# EMSCRIPTEN_VERSION=$$(python -c "import tomllib; print(tomllib.load(open('$(PYTHONBUILD)/Tools/wasm/emscripten/config.toml', 'rb'))['emscripten-version'])")
 	EMSCRIPTEN_VERSION=4.0.12 && \
@@ -58,18 +54,22 @@ $(EMSDKDIR): $(BUILDROOT)/.exists $(PYTHONBUILD)/.patched
 	$(EMSDKDIR)/emsdk install $$EMSCRIPTEN_VERSION && \
 	$(EMSDKDIR)/emsdk activate $$EMSCRIPTEN_VERSION
 
-$(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a: $(PYTHONBUILD)/.patched $(EMSDKDIR)
+$(CROSS_PYTHON): $(PYTHONBUILD)/.patched $(EMSDKDIR)/emsdk_env.sh
 	cd $(PYTHONBUILD) && \
 	source $(EMSDKDIR)/emsdk_env.sh && \
-	python$(PYMAJORMINOR) Tools/wasm/emscripten build --quiet -- --config-cache --with-pydebug
+	python$(PYMAJORMINOR) Tools/wasm/emscripten build --quiet
 
+$(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a: $(CROSS_PYTHON)
 	# Generate sysconfigdata
-	_PYTHON_SYSCONFIGDATA_NAME=$(SYSCONFIGDATA_NAME) _PYTHON_PROJECT_BASE=$(PYTHONBUILD) python$(PYMAJORMINOR) -m sysconfig --generate-posix-vars
+	_PYTHON_SYSCONFIGDATA_NAME=$(SYSCONFIGDATA_NAME) _PYTHON_PROJECT_BASE=$(PYTHONBUILD)/cross-build/wasm32-emscripten/build/python $(CROSS_PYTHON) -m sysconfig --generate-posix-vars
 	cp `cat pybuilddir.txt`/$(SYSCONFIGDATA_NAME).py $(PYTHONBUILD)/Lib
 
 	mkdir -p $(PYTHONLIBDIR)
-	# Copy libexpat.a, libmpdec.a, and libpython3.11.a
-	# In noxfile, we explicitly link libexpat and libmpdec via RUSTFLAGS
+	# Make a static library for _hacl, for some reason these are missing from the build?
+	cd $(PYTHONBUILD)/cross-build/wasm32-emscripten/build/python && \
+		source $(EMSDKDIR)/emsdk_env.sh && \
+		emar rcs Modules/_hacl/libhacl.a Modules/_hacl/*.o
+	# Copy all .a libraries
 	find $(PYTHONBUILD) -name '*.a' -exec cp {} $(PYTHONLIBDIR) \;
 	# Install Python stdlib
 	cp -r $(PYTHONBUILD)/Lib $(PYTHONLIBDIR)/python$(PYMAJORMINOR)

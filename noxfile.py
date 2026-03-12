@@ -2,7 +2,6 @@ import io
 import json
 import os
 import re
-from shlex import quote
 import shutil
 import subprocess
 import sys
@@ -13,6 +12,7 @@ from contextlib import ExitStack, contextmanager
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
+from shlex import quote
 from typing import (
     Any,
     Callable,
@@ -437,12 +437,14 @@ def test_emscripten(session: nox.Session):
             f"-C link-arg={pythonlibdir}@/lib/python{info.pymajorminor}",
             f"-C link-arg=-lpython{info.pymajorminor}",
             "-C link-arg=-lexpat",
+            "-C link-arg=-lffi",
             "-C link-arg=-lmpdec",
-            "-C link-arg=-lHacl_Hash_SHA2",
+            "-C link-arg=-lhacl",
             "-C link-arg=-lsqlite3",
             "-C link-arg=-lz",
             "-C link-arg=-lbz2",
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
+            "-C link-arg=-sSTACK_SIZE=262144",
         ]
     )
     session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
