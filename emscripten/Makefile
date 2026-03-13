@@ -2,20 +2,13 @@ CURDIR=$(abspath .)
 
 # These three are passed in from nox.
 BUILDROOT ?= $(CURDIR)/builddir
-PYMAJORMINORMICRO ?= 3.11.0
+PYTHON ?= python3
+PYMAJORMINORMICRO ?= $(shell $(PYTHON) --version 2>&1 | awk '{print $$2}')
 
-EMSCRIPTEN_VERSION=3.1.68
-
-export EMSDKDIR = $(BUILDROOT)/emsdk
+export EMSDKDIR = $(PYTHONBUILD)/emsdk-cache
 
 PLATFORM=wasm32_emscripten
 SYSCONFIGDATA_NAME=_sysconfigdata__$(PLATFORM)
-
-# BASH_ENV tells bash to source emsdk_env.sh on startup.
-export BASH_ENV := $(CURDIR)/env.sh
-# Use bash to run each command so that env.sh will be used.
-SHELL := /bin/bash
-
 
 # Set version variables.
 version_tuple := $(subst ., ,$(PYMAJORMINORMICRO:v%=%))
@@ -27,61 +20,66 @@ PYMAJORMINOR=$(PYMAJOR).$(PYMINOR)
 
 
 PYTHONURL=https://www.python.org/ftp/python/$(PYMAJORMINORMICRO)/Python-$(PYVERSION).tgz
-PYTHONTARBALL=$(BUILDROOT)/downloads/Python-$(PYVERSION).tgz
-PYTHONBUILD=$(BUILDROOT)/build/Python-$(PYVERSION)
+# TODO: resume download once 3.14.4 ships with emscripten cache
+# PYTHONTARBALL=$(BUILDROOT)/downloads/Python-$(PYVERSION).tgz
+# PYTHONBUILD=$(BUILDROOT)/build/Python-$(PYVERSION)
+PYTHONBUILD=$(BUILDROOT)/build/cpython
 
 PYTHONLIBDIR=$(BUILDROOT)/install/Python-$(PYVERSION)/lib
 
+CROSS_PYTHON=$(PYTHONBUILD)/cross-build/wasm32-emscripten/build/python/python.sh
+
 all: $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a
 
-$(BUILDROOT)/.exists: 
+$(BUILDROOT)/.exists:
 	mkdir -p $(BUILDROOT)
 	touch $@
 
+# TODO: use tarball once 3.14.4 ships with emscripten cache
 
-# Install emscripten
-$(EMSDKDIR): $(CURDIR)/emscripten_patches/* $(BUILDROOT)/.exists
-	git clone https://github.com/emscripten-core/emsdk.git --depth 1 --branch $(EMSCRIPTEN_VERSION) $(EMSDKDIR)
-	$(EMSDKDIR)/emsdk install $(EMSCRIPTEN_VERSION)
-	cd $(EMSDKDIR)/upstream/emscripten && cat $(CURDIR)/emscripten_patches/* | patch -p1
-	$(EMSDKDIR)/emsdk activate $(EMSCRIPTEN_VERSION)
+# $(PYTHONTARBALL):
+# 	[ -d $(BUILDROOT)/downloads ] || mkdir -p $(BUILDROOT)/downloads
+# 	wget -q -O $@ $(PYTHONURL)
 
+# $(PYTHONBUILD)/.patched: $(PYTHONTARBALL)
+# 	[ -d $(PYTHONBUILD) ] || ( \
+# 		mkdir -p $(dir $(PYTHONBUILD));\
+# 		tar -C $(dir $(PYTHONBUILD)) -xf $(PYTHONTARBALL) \
+# 	)
+# 	touch $@
 
-$(PYTHONTARBALL):
-	[ -d $(BUILDROOT)/downloads ] || mkdir -p $(BUILDROOT)/downloads
-	wget -q -O $@ $(PYTHONURL)
+ifneq ($(PYMAJORMINOR),3.14)
+$(error PYMAJORMINOR must be 3.14, got '$(PYMAJORMINOR)')
+endif
 
-$(PYTHONBUILD)/.patched: $(PYTHONTARBALL)
+$(PYTHONBUILD)/.patched: $(BUILDROOT)/.exists
 	[ -d $(PYTHONBUILD) ] || ( \
 		mkdir -p $(dir $(PYTHONBUILD));\
-		tar -C $(dir $(PYTHONBUILD)) -xf $(PYTHONTARBALL) \
+		git clone --depth 1 --branch 3.14 https://github.com/python/cpython $(PYTHONBUILD) \
 	)
 	touch $@
 
-$(PYTHONBUILD)/Makefile: $(PYTHONBUILD)/.patched $(BUILDROOT)/emsdk
+$(CROSS_PYTHON): $(PYTHONBUILD)/.patched
 	cd $(PYTHONBUILD) && \
-	CONFIG_SITE=Tools/wasm/config.site-wasm32-emscripten \
-  	emconfigure ./configure -C \
-		--host=wasm32-unknown-emscripten \
-		--build=$(shell $(PYTHONBUILD)/config.guess) \
-		--with-emscripten-target=browser \
-		--enable-wasm-dynamic-linking \
-		--with-build-python=python3.11
+	$(PYTHON) Tools/wasm/emscripten install-emscripten --quiet --emsdk-cache=$(EMSDKDIR) && \
+	$(PYTHON) Tools/wasm/emscripten build --quiet --emsdk-cache=$(EMSDKDIR)
 
-$(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a : $(PYTHONBUILD)/Makefile
-	cd $(PYTHONBUILD) && \
-		emmake make -j3 libpython$(PYMAJORMINOR).a
-
+$(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a: $(CROSS_PYTHON)
 	# Generate sysconfigdata
-	_PYTHON_SYSCONFIGDATA_NAME=$(SYSCONFIGDATA_NAME) _PYTHON_PROJECT_BASE=$(PYTHONBUILD) python3.11 -m sysconfig --generate-posix-vars
+	_PYTHON_SYSCONFIGDATA_NAME=$(SYSCONFIGDATA_NAME) _PYTHON_PROJECT_BASE=$(PYTHONBUILD)/cross-build/wasm32-emscripten/build/python $(CROSS_PYTHON) -m sysconfig --generate-posix-vars
 	cp `cat pybuilddir.txt`/$(SYSCONFIGDATA_NAME).py $(PYTHONBUILD)/Lib
 
 	mkdir -p $(PYTHONLIBDIR)
-	# Copy libexpat.a, libmpdec.a, and libpython3.11.a
-	# In noxfile, we explicitly link libexpat and libmpdec via RUSTFLAGS
-	find $(PYTHONBUILD) -name '*.a' -exec cp {} $(PYTHONLIBDIR) \;
+	# Make a static library for _hacl, for some reason these are missing from the build?
+	# source emsdk_env.sh to get emar in PATH, works best when done from the emsdk directory
+	EMSDK_ENV=$$(find $(PYTHONBUILD)/emsdk-cache -name 'emsdk_env.sh' | head -n 1) && \
+	    cd $$(dirname $$EMSDK_ENV) && \
+		. $$EMSDK_ENV && \
+	    cd $(PYTHONBUILD)/cross-build/wasm32-emscripten/build/python && \
+		emar rcs Modules/_hacl/libhacl.a Modules/_hacl/*.o
+	# Copy all .a libraries
+	find $(PYTHONBUILD)/cross-build/wasm32-emscripten/ -name '*.a' -exec cp {} $(PYTHONLIBDIR) \;
 	# Install Python stdlib
 	cp -r $(PYTHONBUILD)/Lib $(PYTHONLIBDIR)/python$(PYMAJORMINOR)
-
 clean:
 	rm -rf $(BUILDROOT)

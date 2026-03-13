@@ -12,6 +12,7 @@ from contextlib import ExitStack, contextmanager
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
+from shlex import quote
 from typing import (
     Any,
     Callable,
@@ -438,22 +439,29 @@ def test_emscripten(session: nox.Session):
             f"-C link-arg={pythonlibdir}@/lib/python{info.pymajorminor}",
             f"-C link-arg=-lpython{info.pymajorminor}",
             "-C link-arg=-lexpat",
+            "-C link-arg=-lffi",
             "-C link-arg=-lmpdec",
-            "-C link-arg=-lsqlite3",
-            "-C link-arg=-lz",
-            "-C link-arg=-lbz2",
+            "-C link-arg=-lhacl",
+            "-C link-arg=-sUSE_SQLITE3",
+            "-C link-arg=-sUSE_ZLIB",
+            "-C link-arg=-sUSE_BZIP2",
+            "-C link-arg=-sEXPORTED_FUNCTIONS=_main,__PyRuntime",
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
+            "-C link-arg=-sSTACK_SIZE=262144",
         ]
     )
     session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
     session.env["CARGO_BUILD_TARGET"] = target
     session.env["PYO3_CROSS_LIB_DIR"] = pythonlibdir
     _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
+
+    emsdk_env = next(info.builddir.glob("**/emsdk-cache/**/emsdk_env.sh"))
+
     _run(
         session,
         "bash",
         "-c",
-        f"source {info.builddir / 'emsdk/emsdk_env.sh'} && cargo test",
+        f"source {emsdk_env} && cargo test {' '.join(quote(arg) for arg in session.posargs)}",
     )
 
 
