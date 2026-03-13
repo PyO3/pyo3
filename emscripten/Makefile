@@ -25,8 +25,10 @@ PYMAJORMINOR=$(PYMAJOR).$(PYMINOR)
 
 
 PYTHONURL=https://www.python.org/ftp/python/$(PYMAJORMINORMICRO)/Python-$(PYVERSION).tgz
-PYTHONTARBALL=$(BUILDROOT)/downloads/Python-$(PYVERSION).tgz
-PYTHONBUILD=$(BUILDROOT)/build/Python-$(PYVERSION)
+# TODO: resume download once 3.14.4 ships with emscripten cache
+# PYTHONTARBALL=$(BUILDROOT)/downloads/Python-$(PYVERSION).tgz
+# PYTHONBUILD=$(BUILDROOT)/build/Python-$(PYVERSION)
+PYTHONBUILD=$(BUILDROOT)/build/cpython
 
 PYTHONLIBDIR=$(BUILDROOT)/install/Python-$(PYVERSION)/lib
 
@@ -38,32 +40,34 @@ $(BUILDROOT)/.exists:
 	mkdir -p $(BUILDROOT)
 	touch $@
 
+# TODO: use tarball once 3.14.4 ships with emscripten cache
 
+# $(PYTHONTARBALL):
+# 	[ -d $(BUILDROOT)/downloads ] || mkdir -p $(BUILDROOT)/downloads
+# 	wget -q -O $@ $(PYTHONURL)
 
-$(PYTHONTARBALL):
-	[ -d $(BUILDROOT)/downloads ] || mkdir -p $(BUILDROOT)/downloads
-	wget -q -O $@ $(PYTHONURL)
+# $(PYTHONBUILD)/.patched: $(PYTHONTARBALL)
+# 	[ -d $(PYTHONBUILD) ] || ( \
+# 		mkdir -p $(dir $(PYTHONBUILD));\
+# 		tar -C $(dir $(PYTHONBUILD)) -xf $(PYTHONTARBALL) \
+# 	)
+# 	touch $@
 
-$(PYTHONBUILD)/.patched: $(PYTHONTARBALL)
+ifneq ($(PYMAJORMINOR),3.14)
+$(error PYMAJORMINOR must be 3.14, got '$(PYMAJORMINOR)')
+endif
+
+$(PYTHONBUILD)/.patched: $(BUILDROOT)/.exists
 	[ -d $(PYTHONBUILD) ] || ( \
 		mkdir -p $(dir $(PYTHONBUILD));\
-		tar -C $(dir $(PYTHONBUILD)) -xf $(PYTHONTARBALL) \
+		git clone --depth 1 --branch 3.14 https://github.com/python/cpython $(PYTHONBUILD) \
 	)
 	touch $@
 
-# Install emscripten
-$(EMSDKDIR)/emsdk_env.sh: $(BUILDROOT)/.exists $(PYTHONBUILD)/.patched
-	# NB: future Python versions will stash emscripten version in config.toml
-	# EMSCRIPTEN_VERSION=$$(python -c "import tomllib; print(tomllib.load(open('$(PYTHONBUILD)/Tools/wasm/emscripten/config.toml', 'rb'))['emscripten-version'])")
-	EMSCRIPTEN_VERSION=4.0.12 && \
-	git clone https://github.com/emscripten-core/emsdk.git --depth 1 --branch $$EMSCRIPTEN_VERSION $(EMSDKDIR) && \
-	$(EMSDKDIR)/emsdk install $$EMSCRIPTEN_VERSION && \
-	$(EMSDKDIR)/emsdk activate $$EMSCRIPTEN_VERSION
-
-$(CROSS_PYTHON): $(PYTHONBUILD)/.patched $(EMSDKDIR)/emsdk_env.sh
+$(CROSS_PYTHON): $(PYTHONBUILD)/.patched
 	cd $(PYTHONBUILD) && \
-	source $(EMSDKDIR)/emsdk_env.sh && \
-	python$(PYMAJORMINOR) Tools/wasm/emscripten build --quiet
+	python$(PYMAJORMINOR) Tools/wasm/emscripten install-emscripten --quiet --emsdk-cache=./emsdk-cache && \
+	python$(PYMAJORMINOR) Tools/wasm/emscripten build --quiet --emsdk-cache=./emsdk-cache
 
 $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a: $(CROSS_PYTHON)
 	# Generate sysconfigdata
