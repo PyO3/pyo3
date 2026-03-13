@@ -4,6 +4,8 @@ use std::{
     thread::ThreadId,
 };
 
+#[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+use crate::err::backtrace_to_frames;
 #[cfg(not(Py_3_12))]
 use crate::sync::MutexExt;
 use crate::{
@@ -36,10 +38,15 @@ impl PyErrState {
     }
 
     pub(crate) fn lazy_arguments(ptype: Py<PyAny>, args: impl PyErrArguments + 'static) -> Self {
+        #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+        let backtrace = backtrace::Backtrace::new_unresolved();
+
         Self::from_inner(PyErrStateInner::Lazy(Box::new(move |py| {
             PyErrStateLazyFnOutput {
                 ptype,
                 pvalue: args.arguments(py),
+                #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+                backtrace,
             }
         })))
     }
@@ -301,6 +308,8 @@ impl PyErrStateNormalized {
 pub(crate) struct PyErrStateLazyFnOutput {
     pub(crate) ptype: Py<PyAny>,
     pub(crate) pvalue: Py<PyAny>,
+    #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+    pub(crate) backtrace: backtrace::Backtrace,
 }
 
 pub(crate) type PyErrStateLazyFn =
@@ -390,7 +399,13 @@ fn lazy_into_normalized_ffi_tuple(
 /// This would require either moving some logic from C to Rust, or requesting a new
 /// API in CPython.
 fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
-    let PyErrStateLazyFnOutput { ptype, pvalue } = lazy(py);
+    let PyErrStateLazyFnOutput {
+        ptype,
+        pvalue,
+        #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+        mut backtrace,
+    } = lazy(py);
+
     unsafe {
         if ffi::PyExceptionClass_Check(ptype.as_ptr()) == 0 {
             ffi::PyErr_SetString(
@@ -398,7 +413,48 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
                 c"exceptions must derive from BaseException".as_ptr(),
             )
         } else {
-            ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr())
+            #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+            let traceback =
+                PyTraceback::from_frames(py, None, backtrace_to_frames(py, &mut backtrace))
+                    .ok()
+                    .flatten()
+                    .map_or_else(std::ptr::null_mut, Bound::into_ptr);
+
+            #[cfg(not(Py_3_12))]
+            {
+                #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+                ffi::PyErr_Restore(ptype.into_ptr(), pvalue.into_ptr(), traceback);
+
+                #[cfg(not(all(debug_assertions, not(Py_LIMITED_API))))]
+                ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr());
+            }
+
+            #[cfg(Py_3_12)]
+            {
+                let exc = if ffi::PyExceptionInstance_Check(pvalue.as_ptr()) != 0 {
+                    // If it's already an exception instance, keep it as-is.
+                    ffi::Py_NewRef(pvalue.as_ptr())
+                } else if pvalue.as_ptr() == ffi::Py_None() {
+                    // If the value is None, call the type with no arguments.
+                    ffi::PyObject_CallNoArgs(ptype.as_ptr())
+                } else if ffi::PyTuple_Check(pvalue.as_ptr()) != 0 {
+                    // If the value is a tuple, unpack it as arguments to the type.
+                    ffi::PyObject_Call(ptype.as_ptr(), pvalue.as_ptr(), std::ptr::null_mut())
+                } else {
+                    // Fallback: type(value)
+                    ffi::PyObject_CallOneArg(ptype.as_ptr(), pvalue.as_ptr())
+                };
+
+                if exc.is_null() {
+                    // Exception constructor raised an exception, so propagate that instead of the original one.
+                    return;
+                }
+
+                #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+                ffi::PyException_SetTraceback(exc, traceback);
+
+                ffi::PyErr_SetRaisedException(exc);
+            }
         }
     }
 }

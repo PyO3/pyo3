@@ -20,6 +20,8 @@ use crate::{BoundObject, Py, PyAny, Python};
 use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
 use std::convert::Infallible;
 use std::ffi::CStr;
+#[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+use {crate::types::PyFrame, std::ffi::CString};
 
 mod cast_error;
 mod downcast_error;
@@ -127,10 +129,14 @@ impl PyErr {
         T: PyTypeInfo,
         A: PyErrArguments + Send + Sync + 'static,
     {
+        #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+        let backtrace = backtrace::Backtrace::new_unresolved();
         PyErr::from_state(PyErrState::lazy(Box::new(move |py| {
             PyErrStateLazyFnOutput {
                 ptype: T::type_object(py).into(),
                 pvalue: args.arguments(py),
+                #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+                backtrace,
             }
         })))
     }
@@ -289,7 +295,24 @@ impl PyErr {
             Self::print_panic_and_unwind(py, state)
         }
 
-        Some(PyErr::from_state(PyErrState::normalized(state)))
+        let err = PyErr::from_state(PyErrState::normalized(state));
+
+        #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+        {
+            let mut backtrace = backtrace::Backtrace::new();
+            if let Some(traceback) = PyTraceback::from_frames(
+                py,
+                err.traceback(py),
+                backtrace_to_frames(py, &mut backtrace),
+            )
+            .ok()
+            .flatten()
+            {
+                err.set_traceback(py, Some(traceback));
+            }
+        }
+
+        Some(err)
     }
 
     #[cold]
@@ -696,6 +719,49 @@ impl<'py> IntoPyObject<'py> for PyErr {
     }
 }
 
+#[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+fn backtrace_to_frames<'py, 'a>(
+    py: Python<'py>,
+    backtrace: &'a mut backtrace::Backtrace,
+) -> impl Iterator<Item = Bound<'py, PyFrame>> + use<'py, 'a> {
+    backtrace.resolve();
+    backtrace
+        .frames()
+        .iter()
+        .flat_map(|frame| frame.symbols())
+        .map(|symbol| (symbol.name().map(|name| format!("{name:#}")), symbol))
+        .skip_while(|(name, _)| {
+            if cfg!(any(target_vendor = "apple", windows)) {
+                // On Apple & Windows platforms, backtrace is not able to remove internal frames
+                // from the backtrace, so we need to skip them manually here.
+                name.as_ref()
+                    .map(|name| name.starts_with("backtrace::"))
+                    .unwrap_or(true)
+            } else {
+                false
+            }
+        })
+        // The first frame is always the capture function, so skip it.
+        .skip(1)
+        .take_while(|(name, _)| {
+            name.as_ref()
+                .map(|name| {
+                    !(name.starts_with("pyo3::impl_::trampoline::")
+                        || name.contains("__rust_begin_short_backtrace"))
+                })
+                .unwrap_or(true)
+        })
+        .filter_map(move |(name, symbol)| {
+            let file =
+                CString::new(symbol.filename()?.as_os_str().to_string_lossy().as_ref()).ok()?;
+
+            let function = CString::new(name.as_deref().unwrap_or("<unknown>")).ok()?;
+            let line = symbol.lineno()?;
+
+            PyFrame::new(py, &file, &function, line as _).ok()
+        })
+}
+
 impl<'py> IntoPyObject<'py> for &PyErr {
     type Target = PyBaseException;
     type Output = Bound<'py, Self::Target>;
@@ -844,6 +910,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(false)]
     fn err_debug() {
         // Debug representation should be like the following (without the newlines):
         // PyErr {

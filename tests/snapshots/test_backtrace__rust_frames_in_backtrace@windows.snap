@@ -1,0 +1,34 @@
+---
+source: tests/test_backtrace.rs
+expression: traceback
+---
+Traceback (most recent call last):
+  File "[RUST_CORE]\ops\function.rs", line 250, in core::ops::function::FnOnce::call_once
+  File "[RUST_CORE]\ops\function.rs", line 250, in core::ops::function::FnOnce::call_once<test_backtrace::test_rust_frames_in_backtrace::closure_env$0,tuple$<> >
+    extern "rust-call" fn call_once(self, args: Args) -> Self::Output;
+  File ".\tests\test_backtrace.rs", line 7, in test_backtrace::test_rust_frames_in_backtrace::closure$0
+    fn test_rust_frames_in_backtrace() {
+  File ".\tests\test_backtrace.rs", line 16, in test_backtrace::test_rust_frames_in_backtrace
+    Python::attach(|py| {
+  File ".\src\marker.rs", line 415, in pyo3::marker::Python::attach<test_backtrace::test_rust_frames_in_backtrace::closure_env$0,tuple$<> >
+    f(guard.python())
+  File ".\tests\test_backtrace.rs", line 24, in test_backtrace::test_rust_frames_in_backtrace::closure$0
+    .run(
+  File ".\src\marker.rs", line 641, in pyo3::marker::Python::run
+    code.run(globals, locals).map(|obj| {
+  File ".\src\types\code.rs", line 139, in pyo3::types::code::impl$1::run
+    .assume_owned_or_err(self.py())
+  File ".\src\ffi_ptr_ext.rs", line 43, in pyo3::ffi_ptr_ext::impl$0::assume_owned_or_err
+    unsafe { Bound::from_owned_ptr_or_err(py, self) }
+  File ".\src\instance.rs", line 385, in pyo3::instance::Bound<pyo3::types::any::PyAny>::from_owned_ptr_or_err
+    None => Err(PyErr::fetch(py)),
+  File ".\src\err\mod.rs", line 354, in pyo3::err::PyErr::fetch
+    PyErr::take(py).unwrap_or_else(failed_to_fetch)
+  File "<string>", line 4, in <module>
+  File "<string>", line 2, in python_func
+  File ".\tests\test_backtrace.rs", line 11, in test_backtrace::test_rust_frames_in_backtrace::__pyfunction_produce_err_result
+    #[pyfunction]
+  File ".\tests\test_backtrace.rs", line 13, in test_backtrace::test_rust_frames_in_backtrace::produce_err_result
+    Err(PyValueError::new_err("Error result"))
+  File ".\src\exceptions.rs", line 31, in pyo3::exceptions::PyValueError::new_err<ref$<str$> >
+    $crate::PyErr::new::<$name, A>(args)
