@@ -444,7 +444,7 @@ mod tests {
         _add_extension_module_link_args(
             &Triple::from_str("wasm32-unknown-emscripten").unwrap(),
             &mut buf,
-            None,
+            Some(94),
         );
         assert_eq!(
             std::str::from_utf8(&buf).unwrap(),
