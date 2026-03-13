@@ -440,9 +440,10 @@ def test_emscripten(session: nox.Session):
             "-C link-arg=-lffi",
             "-C link-arg=-lmpdec",
             "-C link-arg=-lhacl",
-            "-C link-arg=-lsqlite3",
-            "-C link-arg=-lz",
-            "-C link-arg=-lbz2",
+            "-C link-arg=-sUSE_SQLITE3",
+            "-C link-arg=-sUSE_ZLIB",
+            "-C link-arg=-sUSE_BZIP2",
+            "-C link-arg=-sEXPORTED_FUNCTIONS=_main,__PyRuntime",
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
             "-C link-arg=-sSTACK_SIZE=262144",
         ]

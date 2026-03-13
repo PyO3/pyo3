@@ -4,15 +4,15 @@ CURDIR=$(abspath .)
 BUILDROOT ?= $(CURDIR)/builddir
 PYMAJORMINORMICRO ?= $(shell python --version 2>&1 | awk '{print $$2}')
 
-export EMSDKDIR = $(BUILDROOT)/emsdk
+export EMSDKDIR = $(PYTHONBUILD)/emsdk-cache
 
 PLATFORM=wasm32_emscripten
 SYSCONFIGDATA_NAME=_sysconfigdata__$(PLATFORM)
 
-# BASH_ENV tells bash to source emsdk_env.sh on startup.
-export BASH_ENV := $(CURDIR)/env.sh
-# Use bash to run each command so that env.sh will be used.
-SHELL := /bin/bash
+# # BASH_ENV tells bash to source emsdk_env.sh on startup.
+# export BASH_ENV := $(CURDIR)/env.sh
+# # Use bash to run each command so that env.sh will be used.
+# SHELL := /bin/bash
 
 
 # Set version variables.
@@ -66,8 +66,8 @@ $(PYTHONBUILD)/.patched: $(BUILDROOT)/.exists
 
 $(CROSS_PYTHON): $(PYTHONBUILD)/.patched
 	cd $(PYTHONBUILD) && \
-	python$(PYMAJORMINOR) Tools/wasm/emscripten install-emscripten --quiet --emsdk-cache=./emsdk-cache && \
-	python$(PYMAJORMINOR) Tools/wasm/emscripten build --quiet --emsdk-cache=./emsdk-cache
+	python$(PYMAJORMINOR) Tools/wasm/emscripten install-emscripten --quiet --emsdk-cache=$(EMSDKDIR) && \
+	python$(PYMAJORMINOR) Tools/wasm/emscripten build --quiet --emsdk-cache=$(EMSDKDIR)
 
 $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a: $(CROSS_PYTHON)
 	# Generate sysconfigdata
@@ -76,13 +76,15 @@ $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a: $(CROSS_PYTHON)
 
 	mkdir -p $(PYTHONLIBDIR)
 	# Make a static library for _hacl, for some reason these are missing from the build?
-	cd $(PYTHONBUILD)/cross-build/wasm32-emscripten/build/python && \
-		source $(EMSDKDIR)/emsdk_env.sh && \
+	# source emsdk_env.sh to get emar in PATH, works best when done from the emsdk directory
+	EMSDK_ENV=$$(find $(PYTHONBUILD)/emsdk-cache -name 'emsdk_env.sh' | head -n 1) && \
+	    cd $$(dirname $$EMSDK_ENV) && \
+		. $$EMSDK_ENV && \
+	    cd $(PYTHONBUILD)/cross-build/wasm32-emscripten/build/python && \
 		emar rcs Modules/_hacl/libhacl.a Modules/_hacl/*.o
 	# Copy all .a libraries
 	find $(PYTHONBUILD)/cross-build/wasm32-emscripten/ -name '*.a' -exec cp {} $(PYTHONLIBDIR) \;
 	# Install Python stdlib
 	cp -r $(PYTHONBUILD)/Lib $(PYTHONLIBDIR)/python$(PYMAJORMINOR)
-
 clean:
 	rm -rf $(BUILDROOT)
