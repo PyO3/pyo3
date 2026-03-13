@@ -2,7 +2,8 @@ CURDIR=$(abspath .)
 
 # These three are passed in from nox.
 BUILDROOT ?= $(CURDIR)/builddir
-PYMAJORMINORMICRO ?= $(shell python --version 2>&1 | awk '{print $$2}')
+PYTHON ?= python3
+PYMAJORMINORMICRO ?= $(shell $(PYTHON) --version 2>&1 | awk '{print $$2}')
 
 export EMSDKDIR = $(PYTHONBUILD)/emsdk-cache
 
@@ -60,8 +61,8 @@ $(PYTHONBUILD)/.patched: $(BUILDROOT)/.exists
 
 $(CROSS_PYTHON): $(PYTHONBUILD)/.patched
 	cd $(PYTHONBUILD) && \
-	python$(PYMAJORMINOR) Tools/wasm/emscripten install-emscripten --quiet --emsdk-cache=$(EMSDKDIR) && \
-	python$(PYMAJORMINOR) Tools/wasm/emscripten build --quiet --emsdk-cache=$(EMSDKDIR)
+	$(PYTHON) Tools/wasm/emscripten install-emscripten --quiet --emsdk-cache=$(EMSDKDIR) && \
+	$(PYTHON) Tools/wasm/emscripten build --quiet --emsdk-cache=$(EMSDKDIR)
 
 $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a: $(CROSS_PYTHON)
 	# Generate sysconfigdata
