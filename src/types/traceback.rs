@@ -2,10 +2,7 @@ use crate::err::{error_on_minusone, PyResult};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, PyString};
 use crate::{ffi, Bound, PyAny};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
-use crate::{
-    types::{frame::PyFrameMethods, PyFrame},
-    BoundObject, IntoPyObject, PyTypeCheck, Python,
-};
+use crate::{types::PyFrame, PyTypeCheck, Python};
 
 /// Represents a Python traceback.
 ///
@@ -26,8 +23,12 @@ pyobject_native_type_core!(
 );
 
 impl PyTraceback {
+    /// Creates a new traceback object from the given frame.
+    ///
+    /// The `next` is the next traceback in the direction of where the exception was raised
+    /// or `None` if this is the last frame in the traceback.
     #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
-    pub(crate) fn new<'py>(
+    pub fn new<'py>(
         py: Python<'py>,
         next: Option<Bound<'py, PyTraceback>>,
         frame: Bound<'py, PyFrame>,
@@ -39,26 +40,6 @@ impl PyTraceback {
                 .call1((next, frame, instruction_index, line_number))?
                 .cast_into_unchecked())
         }
-    }
-
-    /// Creates a new traceback object from an iterator of frames.
-    ///
-    /// The frames should be ordered from newest to oldest, i.e. the first frame in the iterator
-    /// will be the innermost frame in the traceback.
-    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
-    pub fn from_frames<'py, I>(
-        py: Python<'py>,
-        frames: I,
-    ) -> PyResult<Option<Bound<'py, PyTraceback>>>
-    where
-        I: IntoIterator,
-        I::Item: IntoPyObject<'py, Target = PyFrame>,
-    {
-        frames.into_iter().try_fold(None, |prev, frame| {
-            let frame = frame.into_pyobject(py).map_err(Into::into)?.into_bound();
-            let line_number = frame.line_number();
-            PyTraceback::new(py, prev, frame, 0, line_number).map(Some)
-        })
     }
 }
 
@@ -194,16 +175,24 @@ def f():
     #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
     fn test_create_traceback() {
         Python::attach(|py| {
-            // most recent frame first, oldest frame last
-            let frames = [
-                PyFrame::new(py, c"file3.py", c"func3", 30).unwrap(),
+            let traceback = PyTraceback::new(
+                py,
+                None,
                 PyFrame::new(py, c"file2.py", c"func2", 20).unwrap(),
+                0,
+                20,
+            )
+            .unwrap();
+            let traceback = PyTraceback::new(
+                py,
+                Some(traceback),
                 PyFrame::new(py, c"file1.py", c"func1", 10).unwrap(),
-            ];
-
-            let traceback = PyTraceback::from_frames(py, frames).unwrap().unwrap();
+                0,
+                10,
+            )
+            .unwrap();
             assert_eq!(
-                traceback.format().unwrap(), "Traceback (most recent call last):\n  File \"file1.py\", line 10, in func1\n  File \"file2.py\", line 20, in func2\n  File \"file3.py\", line 30, in func3\n"
+                traceback.format().unwrap(), "Traceback (most recent call last):\n  File \"file1.py\", line 10, in func1\n  File \"file2.py\", line 20, in func2\n"
             );
         })
     }
