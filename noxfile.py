@@ -452,11 +452,14 @@ def test_emscripten(session: nox.Session):
     session.env["CARGO_BUILD_TARGET"] = target
     session.env["PYO3_CROSS_LIB_DIR"] = pythonlibdir
     _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
+
+    emsdk_env = next(info.builddir.glob("**/emsdk-cache/**/emsdk_env.sh"))
+
     _run(
         session,
         "bash",
         "-c",
-        f"source {info.builddir / 'emsdk/emsdk_env.sh'} && cargo test {' '.join(quote(arg) for arg in session.posargs)}",
+        f"source {emsdk_env} && cargo test {' '.join(quote(arg) for arg in session.posargs)}",
     )
 
 
