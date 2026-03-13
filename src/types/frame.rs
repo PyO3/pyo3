@@ -1,6 +1,6 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::sealed::Sealed;
-use crate::types::PyDict;
+use crate::types::{PyCode, PyDict};
 use crate::PyAny;
 use crate::{ffi, Bound, PyResult, Python};
 use pyo3_ffi::PyObject;
@@ -31,17 +31,20 @@ impl PyFrame {
     ) -> PyResult<Bound<'py, PyFrame>> {
         // Safety: Thread is attached because we have a python token
         let state = unsafe { ffi::compat::PyThreadState_GetUnchecked() };
+        let code = PyCode::empty(py, file_name, func_name, line_number);
         let globals = PyDict::new(py);
         let locals = PyDict::new(py);
 
         unsafe {
-            let code = ffi::PyCode_NewEmpty(file_name.as_ptr(), func_name.as_ptr(), line_number);
-            Ok(
-                ffi::PyFrame_New(state, code, globals.as_ptr(), locals.as_ptr())
-                    .cast::<PyObject>()
-                    .assume_owned_or_err(py)?
-                    .cast_into_unchecked::<PyFrame>(),
+            Ok(ffi::PyFrame_New(
+                state,
+                code.into_ptr().cast(),
+                globals.as_ptr(),
+                locals.as_ptr(),
             )
+            .cast::<PyObject>()
+            .assume_owned_or_err(py)?
+            .cast_into_unchecked::<PyFrame>())
         }
     }
 }
