@@ -6,6 +6,8 @@ use std::{
 
 #[cfg(not(Py_3_12))]
 use crate::sync::MutexExt;
+#[cfg(Py_3_12)]
+use crate::types::{PyString, PyTuple};
 use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
@@ -383,23 +385,69 @@ fn lazy_into_normalized_ffi_tuple(
 }
 
 /// Raises a "lazy" exception state into the Python interpreter.
-///
-/// In principle this could be split in two; first a function to create an exception
-/// in a normalized state, and then a call to `PyErr_SetRaisedException` to raise it.
-///
-/// This would require either moving some logic from C to Rust, or requesting a new
-/// API in CPython.
 fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
     let PyErrStateLazyFnOutput { ptype, pvalue } = lazy(py);
+
     unsafe {
+        #[cfg(not(Py_3_12))]
         if ffi::PyExceptionClass_Check(ptype.as_ptr()) == 0 {
             ffi::PyErr_SetString(
                 PyTypeError::type_object_raw(py).cast(),
                 c"exceptions must derive from BaseException".as_ptr(),
-            )
+            );
         } else {
-            ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr())
+            ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr());
         }
+
+        #[cfg(Py_3_12)]
+        {
+            let exc = create_normalized_exception(ptype.bind(py), pvalue.into_bound(py));
+
+            ffi::PyErr_SetRaisedException(exc.into_ptr());
+        }
+    }
+}
+
+#[cfg(Py_3_12)]
+fn create_normalized_exception<'py>(
+    ptype: &Bound<'py, PyAny>,
+    mut pvalue: Bound<'py, PyAny>,
+) -> Bound<'py, PyBaseException> {
+    let py = ptype.py();
+
+    // 1: check type is a subclass of BaseException
+    let ptype: Bound<'py, PyType> = if unsafe { ffi::PyExceptionClass_Check(ptype.as_ptr()) } == 0 {
+        pvalue = PyString::new(py, "exceptions must derive from BaseException").into_any();
+        PyTypeError::type_object(py)
+    } else {
+        // Safety: PyExceptionClass_Check guarantees that ptype is a subclass of BaseException
+        unsafe { ptype.cast_unchecked() }.clone()
+    };
+
+    let pvalue = if pvalue.is_exact_instance(&ptype) {
+        // Safety: already an exception value of the correct type
+        Ok(unsafe { pvalue.cast_into_unchecked::<PyBaseException>() })
+    } else if pvalue.is_none() {
+        // None -> no arguments
+        ptype.call0().and_then(|pvalue| Ok(pvalue.cast_into()?))
+    } else if let Ok(tup) = pvalue.cast::<PyTuple>() {
+        // Tuple -> use as tuple of arguments
+        ptype.call1(tup).and_then(|pvalue| Ok(pvalue.cast_into()?))
+    } else {
+        // Anything else -> use as single argument
+        ptype
+            .call1((pvalue,))
+            .and_then(|pvalue| Ok(pvalue.cast_into()?))
+    };
+
+    match pvalue {
+        Ok(pvalue) => {
+            unsafe {
+                ffi::PyException_SetContext(pvalue.as_ptr(), ffi::PyErr_GetHandledException())
+            };
+            pvalue
+        }
+        Err(e) => e.value(py).clone(),
     }
 }
 
@@ -477,5 +525,36 @@ mod tests {
                 .expect("is set above")
                 .is_instance_of::<PyValueError>(py))
         });
+    }
+
+    #[test]
+    #[cfg(feature = "macros")]
+    fn test_new_exception_context() {
+        use crate::{
+            exceptions::{PyRuntimeError, PyValueError},
+            pyfunction,
+            types::{PyDict, PyDictMethods},
+            wrap_pyfunction, PyResult,
+        };
+        #[pyfunction(crate = "crate")]
+        fn throw_exception() -> PyResult<()> {
+            Err(PyValueError::new_err("error happened"))
+        }
+
+        Python::attach(|py| {
+            let globals = PyDict::new(py);
+            let f = wrap_pyfunction!(throw_exception, py).unwrap();
+            globals.set_item("throw_exception", f).unwrap();
+            let err = py
+                .run(
+                    c"try:\n  raise RuntimeError()\nexcept:\n  throw_exception()\n",
+                    Some(&globals),
+                    None,
+                )
+                .unwrap_err();
+
+            let context = err.context(py).unwrap();
+            assert!(context.is_instance_of::<PyRuntimeError>(py))
+        })
     }
 }
