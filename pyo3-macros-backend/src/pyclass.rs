@@ -968,6 +968,7 @@ fn implement_py_formatting(
             names: &["__str__"],
             arguments: Vec::new(),
             returns: parse_quote! { ::std::string::String },
+            is_returning_not_implemented_on_extraction_error: false,
         },
         ctx,
     )
@@ -1057,6 +1058,7 @@ fn impl_simple_enum(
                 names: &["__repr__"],
                 arguments: Vec::new(),
                 returns: parse_quote! { &'static str },
+                is_returning_not_implemented_on_extraction_error: false,
             },
             ctx,
         )?;
@@ -1090,6 +1092,7 @@ fn impl_simple_enum(
                 names: &["__int__"],
                 arguments: Vec::new(),
                 returns: parse_quote!(#repr_type),
+                is_returning_not_implemented_on_extraction_error: false,
             },
             ctx,
         )?;
@@ -1609,6 +1612,7 @@ fn impl_complex_enum_tuple_variant_len(
             names: &["__len__"],
             arguments: Vec::new(),
             returns: parse_quote! { ::std::primitive::usize },
+            is_returning_not_implemented_on_extraction_error: false,
         },
         ctx,
     )?;
@@ -1658,6 +1662,7 @@ fn impl_complex_enum_tuple_variant_getitem(
                 annotation: None,
             })],
             returns: parse_quote! { #pyo3_path::Py<#pyo3_path::PyAny> }, // TODO: figure out correct type
+            is_returning_not_implemented_on_extraction_error: false,
         },
         ctx,
     )?;
@@ -1779,6 +1784,7 @@ fn impl_complex_enum_variant_qualname(
 struct FunctionIntrospectionData<'a> {
     names: &'a [&'a str],
     arguments: Vec<FnArg<'a>>,
+    is_returning_not_implemented_on_extraction_error: bool,
     returns: syn::Type,
 }
 
@@ -1799,6 +1805,7 @@ impl FunctionIntrospectionData<'_> {
                     parse_quote!(-> #returns),
                     [],
                     false,
+                    self.is_returning_not_implemented_on_extraction_error,
                     None,
                     Some(cls),
                 )
@@ -2043,6 +2050,7 @@ fn complex_enum_struct_variant_new<'a>(
         &spec,
         &[],
         &variant_cls_type,
+        false,
         ctx,
     ));
     Ok(def)
@@ -2107,6 +2115,7 @@ fn complex_enum_tuple_variant_new<'a>(
         &spec,
         &[],
         &variant_cls_type,
+        false,
         ctx,
     ));
     Ok(def)
@@ -2151,6 +2160,7 @@ fn complex_enum_variant_field_getter(
         &spec,
         field_attrs,
         variant_cls_type,
+        false,
         ctx,
     ));
     Ok(getter)
@@ -2200,6 +2210,7 @@ fn descriptors_to_items(
                     Some("self"),
                     parse_quote!(-> #return_type),
                     vec![PyExpr::builtin("property")],
+                    false,
                     false,
                     utils::get_doc(&field.attrs, None).as_ref(),
                     Some(&parse_quote!(#cls)),
@@ -2255,7 +2266,8 @@ fn descriptors_to_items(
                         "setter",
                     )],
                     false,
-                    utils::get_doc(&field.attrs, None).as_ref(),
+                    false,
+                    get_doc(&field.attrs, None).as_ref(),
                     Some(&parse_quote!(#cls)),
                 ));
             }
@@ -2411,27 +2423,20 @@ fn pyclass_richcmp_simple_enum(
         }
     };
     #[cfg(feature = "experimental-inspect")]
-    let never = parse_quote!(!); // we need to set a type, let's pick something small, it is overridden by annotation anyway
+    let any = parse_quote!(#pyo3_path::Py<#pyo3_path::PyAny>);
     #[cfg(feature = "experimental-inspect")]
     let introspection = FunctionIntrospectionData {
         names: &["__eq__", "__ne__"],
         arguments: vec![FnArg::Regular(RegularArg {
             name: Cow::Owned(format_ident!("other")),
-            ty: &never,
+            ty: &any,
             from_py_with: None,
             default_value: None,
             option_wrapped_type: None,
-            annotation: Some(
-                options
-                    .eq
-                    .map(|_| PyExpr::from_type(cls.clone(), None))
-                    .into_iter()
-                    .chain(options.eq_int.map(|_| PyExpr::builtin("int")))
-                    .reduce(PyExpr::union)
-                    .expect("At least one must be defined"),
-            ),
+            annotation: None,
         })],
-        returns: parse_quote! { ::std::primitive::bool },
+        returns: parse_quote!(::std::primitive::bool),
+        is_returning_not_implemented_on_extraction_error: true,
     };
     let richcmp_slot = if options.eq.is_some() {
         generate_protocol_slot(
@@ -2507,6 +2512,7 @@ fn pyclass_richcmp(
                     annotation: None,
                 })],
                 returns: parse_quote! { ::std::primitive::bool },
+                is_returning_not_implemented_on_extraction_error: true,
             },
             ctx,
         )?;
@@ -2546,6 +2552,7 @@ fn pyclass_hash(
                     names: &["__hash__"],
                     arguments: Vec::new(),
                     returns: parse_quote! { ::std::primitive::u64 },
+                    is_returning_not_implemented_on_extraction_error: false,
                 },
                 ctx,
             )?;
@@ -2632,6 +2639,7 @@ fn pyclass_new_impl<'a>(
                         })
                         .collect(),
                     returns: ty.clone(),
+                    is_returning_not_implemented_on_extraction_error: false,
                 },
                 ctx,
             )
