@@ -46,13 +46,32 @@ impl PyFrame {
     }
 }
 
+/// Implementation of functionality for [`PyFrame`].
+///
+/// These methods are defined for the `Bound<'py, PyFrame>` smart pointer, so to use method call
+/// syntax these methods are separated into a trait, because stable Rust does not yet support
+/// `arbitrary_self_types`.
 #[doc(alias = "PyFrame")]
 pub trait PyFrameMethods<'py>: Sealed {
+    /// Returns the line number of the current instruction in the frame.
     fn line_number(&self) -> i32;
 }
 
 impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
     fn line_number(&self) -> i32 {
         unsafe { ffi::PyFrame_GetLineNumber(self.as_ptr().cast()) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_frame_creation() {
+        Python::attach(|py| {
+            let frame = PyFrame::new(py, c"file.py", c"func", 42).unwrap();
+            assert_eq!(frame.line_number(), 42);
+        });
     }
 }
