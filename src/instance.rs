@@ -2753,10 +2753,10 @@ a = A()
                 method: impl FnOnce(*mut ffi::PyObject) -> Bound<'py, PyAny>,
             ) {
                 let mut dropped = false;
-                let capsule = PyCapsule::new_with_destructor(
+                let capsule = PyCapsule::new_with_value_and_destructor(
                     py,
                     (&mut dropped) as *mut _ as usize,
-                    None,
+                    c"bound_from_borrowed_ptr_constructors",
                     |ptr, _| unsafe { std::ptr::write(ptr as *mut bool, true) },
                 )
                 .unwrap();
@@ -2795,10 +2795,10 @@ a = A()
                 method: impl FnOnce(&*mut ffi::PyObject) -> Borrowed<'_, 'py, PyAny>,
             ) {
                 let mut dropped = false;
-                let capsule = PyCapsule::new_with_destructor(
+                let capsule = PyCapsule::new_with_value_and_destructor(
                     py,
                     (&mut dropped) as *mut _ as usize,
-                    None,
+                    c"borrowed_ptr_constructors",
                     |ptr, _| unsafe { std::ptr::write(ptr as *mut bool, true) },
                 )
                 .unwrap();
