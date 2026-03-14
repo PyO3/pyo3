@@ -687,6 +687,7 @@ impl GetSetDefType {
                         slf: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> *mut ffi::PyObject {
+                        let slf = unsafe { NonNull::new_unchecked(slf) };
                         // Safety: PyO3 sets the closure when constructing the ffi getter so this cast should always be valid
                         let getter: Getter = unsafe { std::mem::transmute(closure) };
                         unsafe { trampoline(|py| getter(py, slf)) }
@@ -699,14 +700,15 @@ impl GetSetDefType {
                         value: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> c_int {
+                        let slf = unsafe { NonNull::new_unchecked(slf) };
                         // Safety: PyO3 sets the closure when constructing the ffi setter so this cast should always be valid
                         let setter: Setter = unsafe { std::mem::transmute(closure) };
                         unsafe {
                             trampoline(|py| {
-                                if value.is_null() {
-                                    Err(PyAttributeError::new_err("property has no deleter"))
-                                } else {
+                                if let Some(value) = NonNull::new(value) {
                                     setter(py, slf, value)
+                                } else {
+                                    Err(PyAttributeError::new_err("property has no deleter"))
                                 }
                             })
                         }
@@ -718,6 +720,7 @@ impl GetSetDefType {
                         slf: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> *mut ffi::PyObject {
+                        let slf = unsafe { NonNull::new_unchecked(slf) };
                         let getset: &GetSetDeleteCombination = unsafe { &*closure.cast() };
                         // we only call this method if getter is set
                         unsafe { trampoline(|py| getset.getter.unwrap_unchecked()(py, slf)) }
@@ -728,17 +731,18 @@ impl GetSetDefType {
                         value: *mut ffi::PyObject,
                         closure: *mut c_void,
                     ) -> c_int {
+                        let slf = unsafe { NonNull::new_unchecked(slf) };
                         let getset: &GetSetDeleteCombination = unsafe { &*closure.cast() };
                         unsafe {
                             trampoline(|py| {
-                                if value.is_null() {
-                                    getset.deleter.ok_or_else(|| {
-                                        PyAttributeError::new_err("property has no deleter")
-                                    })?(py, slf)
-                                } else {
+                                if let Some(value) = NonNull::new(value) {
                                     getset.setter.ok_or_else(|| {
                                         PyAttributeError::new_err("property has no setter")
                                     })?(py, slf, value)
+                                } else {
+                                    getset.deleter.ok_or_else(|| {
+                                        PyAttributeError::new_err("property has no deleter")
+                                    })?(py, slf)
                                 }
                             })
                         }
