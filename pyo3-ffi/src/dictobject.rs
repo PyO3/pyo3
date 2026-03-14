@@ -1,7 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int};
-use std::ptr::addr_of_mut;
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyDict_Type")]
@@ -15,7 +14,7 @@ pub unsafe fn PyDict_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyDict_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyDict_Type) as c_int
 }
 
 extern_libpython! {
@@ -90,17 +89,17 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyDictKeys_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyDictKeys_Type))
+    PyObject_TypeCheck(op, &raw mut PyDictKeys_Type)
 }
 
 #[inline]
 pub unsafe fn PyDictValues_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyDictValues_Type))
+    PyObject_TypeCheck(op, &raw mut PyDictValues_Type)
 }
 
 #[inline]
 pub unsafe fn PyDictItems_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyDictItems_Type))
+    PyObject_TypeCheck(op, &raw mut PyDictItems_Type)
 }
 
 #[inline]

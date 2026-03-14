@@ -2,8 +2,6 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use libc::wchar_t;
 use std::ffi::{c_char, c_int, c_void};
-#[cfg(not(PyPy))]
-use std::ptr::addr_of_mut;
 
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(
@@ -39,7 +37,7 @@ pub unsafe fn PyUnicode_Check(op: *mut PyObject) -> c_int {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyUnicode_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyUnicode_Type) as c_int
 }
 
 pub const Py_UNICODE_REPLACEMENT_CHARACTER: Py_UCS4 = 0xFFFD;

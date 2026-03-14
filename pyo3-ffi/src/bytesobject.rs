@@ -1,7 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int};
-use std::ptr::addr_of_mut;
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyBytes_Type")]
@@ -16,7 +15,7 @@ pub unsafe fn PyBytes_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyBytes_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyBytes_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyBytes_Type) as c_int
 }
 
 extern_libpython! {
