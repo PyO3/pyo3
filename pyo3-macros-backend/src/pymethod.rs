@@ -224,7 +224,8 @@ impl<'a> PyMethod<'a> {
                 }
                 PyMethodProtoKind::Call
                 | PyMethodProtoKind::Traverse
-                | PyMethodProtoKind::Clear => false,
+                | PyMethodProtoKind::Clear
+                | PyMethodProtoKind::Del => false,
             },
         }
     }
