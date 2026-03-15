@@ -995,6 +995,29 @@ fn test_del_error_is_unraisable() {
     })
 }
 
+#[cfg(Py_3_8)]
+#[test]
+fn test_del_error_is_unraisable_when_called_explicitly() {
+    Python::attach(|py| {
+        test_utils::UnraisableCapture::enter(py, |capture| {
+            let obj = Bound::new(py, ClassWithDelError).unwrap();
+
+            // __del__ is exposed as a slot wrapper for tp_finalize.
+            // Because tp_finalize returns void, any exception must be reported as unraisable.
+            obj.call_method0("__del__").unwrap();
+
+            let (err, _context) = capture
+                .take_capture()
+                .expect("unraisable error should have been captured");
+            assert!(err.is_instance_of::<pyo3::exceptions::PyRuntimeError>(py));
+            assert!(!PyErr::occurred(py));
+
+            // Drop after taking the capture; on non-abi3 builds this may run __del__ again.
+            drop(obj);
+        });
+    })
+}
+
 #[pyclass]
 struct ClassWithDelAndTraverse {
     cycle: Option<Py<PyAny>>,
