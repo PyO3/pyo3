@@ -109,7 +109,7 @@ jobs:
         name: Ignore changed error messages when using trybuild
         run: echo "TRYBUILD=overwrite" >> "$GITHUB_ENV"
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         if: ${{ inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') }}
         id: ffi-changes
         with:
