@@ -85,7 +85,7 @@ impl PyCapsule {
     ///     let capsule = PyCapsule::new(py, (), None).unwrap();  // Oops! `()` is zero sized!
     /// });
     /// ```
-    pub fn new<T: 'static + Send + AssertNotZeroSized>(
+    pub fn new<T: 'static + Send>(
         py: Python<'_>,
         value: T,
         name: Option<CString>,
@@ -100,16 +100,14 @@ impl PyCapsule {
     ///
     /// The `destructor` must be `Send`, because there is no guarantee which thread it will eventually
     /// be called from.
-    pub fn new_with_destructor<
-        T: 'static + Send + AssertNotZeroSized,
-        F: FnOnce(T, *mut c_void) + Send,
-    >(
+    pub fn new_with_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send>(
         py: Python<'_>,
         value: T,
         name: Option<CString>,
         destructor: F,
     ) -> PyResult<Bound<'_, Self>> {
-        AssertNotZeroSized::assert_not_zero_sized(&value);
+        #[expect(path_statements)]
+        <T as AssertNotZeroSized>::CHECK;
 
         // Sanity check for capsule layout
         debug_assert_eq!(offset_of!(CapsuleContents::<T, F>, value), 0);
@@ -566,15 +564,11 @@ unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_v
 
 /// Guarantee `T` is not zero sized at compile time.
 // credit: `<https://users.rust-lang.org/t/is-it-possible-to-assert-at-compile-time-that-foo-t-is-not-called-with-a-zst/67685>`
-#[doc(hidden)]
-pub trait AssertNotZeroSized: Sized {
-    const _CONDITION: usize = (std::mem::size_of::<Self>() == 0) as usize;
-    const _CHECK: &'static str =
-        ["PyCapsule value type T must not be zero-sized!"][Self::_CONDITION];
-    #[allow(path_statements, clippy::no_effect)]
-    fn assert_not_zero_sized(&self) {
-        <Self as AssertNotZeroSized>::_CHECK;
-    }
+trait AssertNotZeroSized: Sized {
+    const CHECK: () = assert!(
+        size_of::<Self>() != 0,
+        "PyCapsule value type T must not be zero-sized!"
+    );
 }
 
 impl<T> AssertNotZeroSized for T {}
