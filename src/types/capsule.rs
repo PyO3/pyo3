@@ -106,8 +106,7 @@ impl PyCapsule {
         name: Option<CString>,
         destructor: F,
     ) -> PyResult<Bound<'_, Self>> {
-        #[expect(path_statements)]
-        <T as AssertNotZeroSized>::CHECK;
+        const { assert_not_zero_size::<T>() }
 
         // Sanity check for capsule layout
         debug_assert_eq!(offset_of!(CapsuleContents::<T, F>, value), 0);
@@ -563,15 +562,13 @@ unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_v
 }
 
 /// Guarantee `T` is not zero sized at compile time.
-// credit: `<https://users.rust-lang.org/t/is-it-possible-to-assert-at-compile-time-that-foo-t-is-not-called-with-a-zst/67685>`
-trait AssertNotZeroSized: Sized {
-    const CHECK: () = assert!(
-        size_of::<Self>() != 0,
+#[track_caller]
+const fn assert_not_zero_size<T>() {
+    assert!(
+        size_of::<T>() != 0,
         "PyCapsule value type T must not be zero-sized!"
-    );
+    )
 }
-
-impl<T> AssertNotZeroSized for T {}
 
 fn ensure_no_error(py: Python<'_>) -> PyResult<()> {
     if let Some(err) = PyErr::take(py) {
