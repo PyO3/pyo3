@@ -1,3 +1,5 @@
+#![warn(clippy::undocumented_unsafe_blocks, clippy::missing_safety_doc)]
+
 //! Trampolines for various pyfunction and pymethod implementations.
 //!
 //! They exist to monomorphise std::panic::catch_unwind once into PyO3, rather than inline in every
@@ -20,6 +22,7 @@ pub unsafe fn module_exec(
     module: *mut ffi::PyObject,
     f: for<'a, 'py> fn(&'a Bound<'py, PyModule>) -> PyResult<()>,
 ) -> c_int {
+    // SAFETY: f accepts a Bound object so Python is attached
     unsafe {
         trampoline(|py| {
             let module = module.assume_borrowed_or_err(py)?.cast::<PyModule>()?;
@@ -66,9 +69,14 @@ macro_rules! trampoline {
         /// External symbol called by Python, which calls the provided Rust function.
         ///
         /// The Rust function is supplied via the generic parameter `Meth`.
+        ///
+        /// # Safety
+        ///
+        /// The interpreter must be attached
         pub unsafe extern "C" fn $name<Meth: MethodDef<$name::Func>>(
             $($arg_names: $arg_types,)*
         ) -> $ret {
+            // SAFETY: caller upholds requirements
             unsafe { $name::inner($($arg_names),*, Meth::METH) }
         }
 
@@ -77,8 +85,13 @@ macro_rules! trampoline {
             use super::*;
 
             /// Non-generic inner function to ensure only one trampoline instantiated
+            ///
+            /// # Safety
+            ///
+            /// The interpreter must be attached
             #[inline]
             pub(crate) unsafe fn inner($($arg_names: $arg_types),*, f: $name::Func) -> $ret {
+                // SAFETY: caller upholds requirements
                 unsafe { trampoline(|py| f(py, $($arg_names,)*)) }
             }
 
@@ -89,18 +102,26 @@ macro_rules! trampoline {
 }
 
 /// Noargs is a special case where the `_args` parameter is unused and not passed to the inner `Func`.
+/// # Safety
+///
+/// Interpreter must be attached
 pub unsafe extern "C" fn noargs<Meth: MethodDef<noargs::Func>>(
     slf: *mut ffi::PyObject,
     _args: *mut ffi::PyObject, // unused and value not defined
 ) -> *mut ffi::PyObject {
+    // SAFETY: caller upholds requirements
     unsafe { noargs::inner(slf, Meth::METH) }
 }
 
 pub mod noargs {
     use super::*;
 
+    /// # Safety
+    ///
+    /// Interpreter must be attached
     #[inline]
     pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, f: Func) -> *mut ffi::PyObject {
+        // SAFETY: caller upholds requirements
         unsafe { trampoline(|py| f(py, slf)) }
     }
 
@@ -204,11 +225,16 @@ trampoline! {
 
 /// Releasebufferproc is a special case where the function cannot return an error,
 /// so we use trampoline_unraisable.
+/// # Safety
+///
+/// - It must be sound to call the method with slf and buf
+/// - Interpreter must be attached
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
 pub unsafe extern "C" fn releasebufferproc<Meth: MethodDef<releasebufferproc::Func>>(
     slf: *mut ffi::PyObject,
     buf: *mut ffi::Py_buffer,
 ) {
+    // SAFETY: caller upholds rquirements
     unsafe { releasebufferproc::inner(slf, buf, Meth::METH) }
 }
 
@@ -216,14 +242,24 @@ pub unsafe extern "C" fn releasebufferproc<Meth: MethodDef<releasebufferproc::Fu
 pub mod releasebufferproc {
     use super::*;
 
+    /// # Safety
+    ///
+    /// - It must be sound to call f with slf and buf
+    /// - Interpreter must be attached
     #[inline]
     pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, buf: *mut ffi::Py_buffer, f: Func) {
+        // SAFETY: caller upholds requirements
         unsafe { trampoline_unraisable(|py| f(py, slf, buf), slf) }
     }
 
     pub type Func = unsafe fn(Python<'_>, *mut ffi::PyObject, *mut ffi::Py_buffer) -> PyResult<()>;
 }
 
+/// # Safety
+///
+/// - slf must be either a valid ffi::PyObject or NULL
+/// - if slf isn't NULL it must not be used again
+/// - The thread must be attached to the interpreter when this is called.
 #[inline]
 pub(crate) unsafe fn dealloc(
     slf: *mut ffi::PyObject,
@@ -233,6 +269,8 @@ pub(crate) unsafe fn dealloc(
     // so pass null_mut() to the context.
     //
     // (Note that we don't allow the implementation `f` to fail.)
+    //
+    // SAFETY: caller upholds requirements
     unsafe {
         trampoline_unraisable(
             |py| {
@@ -260,6 +298,7 @@ trampoline!(
 /// Panics during execution are trapped so that they don't propagate through any
 /// outer FFI boundary.
 ///
+/// # Safety
 /// The thread must already be attached to the interpreter when this is called.
 #[inline]
 pub(crate) unsafe fn trampoline<F, R>(body: F) -> R
@@ -324,6 +363,7 @@ where
     if let Err(py_err) = panic::catch_unwind(move || body(py))
         .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
     {
+        // SAFETY: caller upholds requirements
         py_err.write_unraisable(py, unsafe { ctx.assume_borrowed_or_opt(py) }.as_deref());
     }
     trap.disarm();
