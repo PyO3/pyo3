@@ -1,3 +1,5 @@
+#![warn(clippy::undocumented_unsafe_blocks)]
+
 use crate::impl_::concat::slice_copy_from_slice;
 
 /// This is a reimplementation of the `indoc` crate's unindent functionality:
