@@ -32,7 +32,7 @@ pyobject_native_type!(
     "weakref",
     "ReferenceType",
     #module=Some("weakref"),
-    #checkfunction=ffi::PyWeakref_CheckRefExact
+    #checkfunction=ffi::PyWeakref_CheckRef
 );
 
 // When targeting alternative or multiple interpreters, it is better to not use the internal API.
