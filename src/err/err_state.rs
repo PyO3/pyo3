@@ -458,7 +458,6 @@ fn create_normalized_exception<'py>(
 
 #[cfg(test)]
 mod tests {
-
     use crate::{
         exceptions::PyValueError, sync::PyOnceLock, Py, PyAny, PyErr, PyErrArguments, Python,
     };
@@ -560,6 +559,61 @@ mod tests {
 
             let context = err.context(py).unwrap();
             assert!(context.is_instance_of::<PyRuntimeError>(py))
+        })
+    }
+
+    #[test]
+    #[cfg(Py_3_12)]
+    fn compare_create_normalized_exception_with_pyerr_setobject() {
+        use crate::{
+            conversion::IntoPyObjectExt, err::err_state::PyErrStateNormalized,
+            exceptions::PyRuntimeError, ffi, type_object::PyTypeInfo, types::any::PyAnyMethods,
+            Bound,
+        };
+
+        fn test_exception<'py>(ptype: &Bound<'py, PyAny>, pvalue: Bound<'py, PyAny>) {
+            let py = ptype.py();
+
+            let exc1 = super::create_normalized_exception(ptype, pvalue.clone());
+
+            unsafe {
+                ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr());
+            }
+            let exc2 = PyErrStateNormalized::take(py)
+                .unwrap()
+                .pvalue
+                .into_bound(py);
+
+            let err1 = PyErr::from_value(exc1.into_any());
+            let err2 = PyErr::from_value(exc2.into_any());
+
+            assert!(err1.get_type(py).is(err2.get_type(py)));
+            assert!(err1.context(py).xor(err2.context(py)).is_none());
+            assert!(err1.traceback(py).xor(err2.traceback(py)).is_none());
+            assert!(err1.cause(py).xor(err2.cause(py)).is_none());
+            assert_eq!(err1.to_string(), err2.to_string());
+        }
+
+        Python::attach(|py| {
+            test_exception(&PyRuntimeError::type_object(py), py.None().into_bound(py));
+
+            test_exception(
+                &PyRuntimeError::type_object(py),
+                "Boom".into_bound_py_any(py).unwrap(),
+            );
+
+            test_exception(
+                &PyRuntimeError::type_object(py),
+                (3, 2, 1, "Boom").into_bound_py_any(py).unwrap(),
+            );
+
+            test_exception(
+                &PyRuntimeError::type_object(py),
+                PyRuntimeError::new_err("Boom")
+                    .into_value(py)
+                    .into_any()
+                    .into_bound(py),
+            );
         })
     }
 }
