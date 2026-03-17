@@ -53,6 +53,12 @@ extern_libpython! {
     pub fn PyErr_GetRaisedException() -> *mut PyObject;
     #[cfg(Py_3_12)]
     pub fn PyErr_SetRaisedException(exc: *mut PyObject);
+    #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyErr_GetHandledException")]
+    pub fn PyErr_GetHandledException() -> *mut PyObject;
+    #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyErr_SetHandledException")]
+    pub fn PyErr_SetHandledException(exc: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyException_SetTraceback")]
     pub fn PyException_SetTraceback(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyException_GetTraceback")]
