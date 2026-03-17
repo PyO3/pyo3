@@ -2,8 +2,6 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use libc::wchar_t;
 use std::ffi::{c_char, c_int, c_void};
-#[cfg(not(PyPy))]
-use std::ptr::addr_of_mut;
 
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(
@@ -16,8 +14,7 @@ pub type Py_UCS4 = u32;
 pub type Py_UCS2 = u16;
 pub type Py_UCS1 = u8;
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Type")]
     pub static mut PyUnicode_Type: PyTypeObject;
     pub static mut PyUnicodeIter_Type: PyTypeObject;
@@ -40,12 +37,12 @@ pub unsafe fn PyUnicode_Check(op: *mut PyObject) -> c_int {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyUnicode_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyUnicode_Type) as c_int
 }
 
 pub const Py_UNICODE_REPLACEMENT_CHARACTER: Py_UCS4 = 0xFFFD;
 
-extern "C" {
+extern_libpython! {
 
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromStringAndSize")]
     pub fn PyUnicode_FromStringAndSize(u: *const c_char, size: Py_ssize_t) -> *mut PyObject;

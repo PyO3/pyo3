@@ -68,6 +68,21 @@ impl PyCode {
                 .cast_into_unchecked()
         }
     }
+
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+    pub(crate) fn empty<'py>(
+        py: Python<'py>,
+        file_name: &CStr,
+        func_name: &CStr,
+        first_line_number: i32,
+    ) -> Bound<'py, PyCode> {
+        unsafe {
+            ffi::PyCode_NewEmpty(file_name.as_ptr(), func_name.as_ptr(), first_line_number)
+                .cast::<ffi::PyObject>()
+                .assume_owned(py)
+                .cast_into_unchecked()
+        }
+    }
 }
 
 /// Implementation of functionality for [`PyCode`].

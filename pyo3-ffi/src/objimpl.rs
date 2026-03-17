@@ -4,7 +4,7 @@ use std::ffi::{c_int, c_void};
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Malloc")]
     pub fn PyObject_Malloc(size: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Calloc")]
@@ -52,7 +52,7 @@ pub unsafe fn PyObject_NewVar<T>(typeobj: *mut PyTypeObject, n: Py_ssize_t) -> *
 
 // skipped PyObject_NEW_VAR
 
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyGC_Collect")]
     pub fn PyGC_Collect() -> Py_ssize_t;
 
@@ -74,7 +74,7 @@ pub unsafe fn PyType_IS_GC(t: *mut PyTypeObject) -> c_int {
     PyType_HasFeature(t, Py_TPFLAGS_HAVE_GC)
 }
 
-extern "C" {
+extern_libpython! {
     fn _PyObject_GC_Resize(op: *mut PyVarObject, n: Py_ssize_t) -> *mut PyVarObject;
 }
 
@@ -83,7 +83,7 @@ pub unsafe fn PyObject_GC_Resize<T>(op: *mut PyObject, n: Py_ssize_t) -> *mut T 
     _PyObject_GC_Resize(op.cast(), n).cast()
 }
 
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "_PyPyObject_GC_New")]
     fn _PyObject_GC_New(typeobj: *mut PyTypeObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "_PyPyObject_GC_NewVar")]
@@ -109,7 +109,7 @@ pub unsafe fn PyObject_GC_NewVar<T>(typeobj: *mut PyTypeObject, n: Py_ssize_t) -
     _PyObject_GC_NewVar(typeobj, n).cast()
 }
 
-extern "C" {
+extern_libpython! {
     #[cfg(any(all(Py_3_9, not(PyPy)), Py_3_10))] // added in 3.9, or 3.10 on PyPy
     #[cfg_attr(PyPy, link_name = "PyPyObject_GC_IsTracked")]
     pub fn PyObject_GC_IsTracked(arg1: *mut PyObject) -> c_int;

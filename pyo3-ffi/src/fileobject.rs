@@ -3,7 +3,7 @@ use std::ffi::{c_char, c_int};
 
 pub const PY_STDIOTEXTMODE: &str = "b";
 
-extern "C" {
+extern_libpython! {
     pub fn PyFile_FromFd(
         arg1: c_int,
         arg2: *const c_char,
@@ -24,8 +24,7 @@ extern "C" {
     pub fn PyObject_AsFileDescriptor(arg1: *mut PyObject) -> c_int;
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     #[deprecated(note = "Python 3.12")]
     pub static mut Py_FileSystemDefaultEncoding: *const c_char;
     #[deprecated(note = "Python 3.12")]

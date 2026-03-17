@@ -309,8 +309,15 @@ impl FnType {
 
 #[derive(Clone, Debug)]
 pub enum SelfType {
-    Receiver { mutable: bool, span: Span },
-    TryFromBoundRef(Span),
+    Receiver {
+        mutable: bool,
+        non_null: bool,
+        span: Span,
+    },
+    TryFromBoundRef {
+        span: Span,
+        non_null: bool,
+    },
 }
 
 #[derive(Clone, Copy)]
@@ -348,8 +355,18 @@ impl SelfType {
         let slf = syn::Ident::new("_slf", Span::call_site());
         let Ctx { pyo3_path, .. } = ctx;
         match self {
-            SelfType::Receiver { span, mutable } => {
-                let arg = quote! { unsafe { #pyo3_path::impl_::extract_argument::cast_function_argument(#py, #slf) } };
+            SelfType::Receiver {
+                span,
+                mutable,
+                non_null,
+            } => {
+                let cast_fn = if *non_null {
+                    quote!(cast_non_null_function_argument)
+                } else {
+                    quote!(cast_function_argument)
+                };
+                let arg =
+                    quote! { unsafe { #pyo3_path::impl_::extract_argument::#cast_fn(#py, #slf) } };
                 let method = if *mutable {
                     syn::Ident::new("extract_pyclass_ref_mut", *span)
                 } else {
@@ -367,8 +384,12 @@ impl SelfType {
                     ctx,
                 )
             }
-            SelfType::TryFromBoundRef(span) => {
-                let bound_ref = quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf) } };
+            SelfType::TryFromBoundRef { span, non_null } => {
+                let bound_ref = if *non_null {
+                    quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_non_null(#py, &#slf) } }
+                } else {
+                    quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf) } }
+                };
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
                     quote_spanned! { *span =>
@@ -427,7 +448,7 @@ pub struct FnSpec<'a> {
     pub output: syn::ReturnType,
 }
 
-pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
+pub fn parse_method_receiver(arg: &syn::FnArg, non_null: bool) -> Result<SelfType> {
     match arg {
         syn::FnArg::Receiver(
             recv @ syn::Receiver {
@@ -439,12 +460,16 @@ pub fn parse_method_receiver(arg: &syn::FnArg) -> Result<SelfType> {
         syn::FnArg::Receiver(recv @ syn::Receiver { mutability, .. }) => Ok(SelfType::Receiver {
             mutable: mutability.is_some(),
             span: recv.span(),
+            non_null,
         }),
         syn::FnArg::Typed(syn::PatType { ty, .. }) => {
             if let syn::Type::ImplTrait(_) = &**ty {
                 bail_spanned!(ty.span() => IMPL_TRAIT_ERR);
             }
-            Ok(SelfType::TryFromBoundRef(ty.span()))
+            Ok(SelfType::TryFromBoundRef {
+                span: ty.span(),
+                non_null,
+            })
         }
     }
 }
@@ -515,6 +540,14 @@ impl<'a> FnSpec<'a> {
         python_name: &mut Option<syn::Ident>,
     ) -> Result<FnType> {
         let mut method_attributes = parse_method_attributes(meth_attrs)?;
+        let receiver_non_null = method_attributes.iter().any(|attr| {
+            matches!(
+                attr,
+                MethodTypeAttribute::Getter(_, _)
+                    | MethodTypeAttribute::Setter(_, _)
+                    | MethodTypeAttribute::Deleter(_, _)
+            )
+        });
 
         let name = &sig.ident;
         let parse_receiver = |msg: &'static str| {
@@ -522,7 +555,7 @@ impl<'a> FnSpec<'a> {
                 .inputs
                 .first()
                 .ok_or_else(|| err_spanned!(sig.span() => msg))?;
-            parse_method_receiver(first_arg)
+            parse_method_receiver(first_arg, receiver_non_null)
         };
 
         // strip get_ or set_

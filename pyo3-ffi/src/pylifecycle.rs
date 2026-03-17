@@ -3,7 +3,7 @@ use crate::pytypedefs::PyThreadState;
 use libc::wchar_t;
 use std::ffi::{c_char, c_int};
 
-extern "C" {
+extern_libpython! {
     pub fn Py_Initialize();
     pub fn Py_InitializeEx(arg1: c_int);
     pub fn Py_Finalize();
@@ -86,7 +86,7 @@ extern "C" {
 
 type PyOS_sighandler_t = unsafe extern "C" fn(arg1: c_int);
 
-extern "C" {
+extern_libpython! {
     pub fn PyOS_getsig(arg1: c_int) -> PyOS_sighandler_t;
     pub fn PyOS_setsig(arg1: c_int, arg2: PyOS_sighandler_t) -> PyOS_sighandler_t;
 

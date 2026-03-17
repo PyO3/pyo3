@@ -2,7 +2,7 @@ use crate::{PyConfig, PyPreConfig, PyStatus, Py_ssize_t};
 use libc::wchar_t;
 use std::ffi::{c_char, c_int};
 
-extern "C" {
+extern_libpython! {
 
     // skipped Py_FrozenMain
 
@@ -73,7 +73,7 @@ pub const _PyInterpreterConfig_LEGACY_INIT: PyInterpreterConfig = PyInterpreterC
     gil: PyInterpreterConfig_SHARED_GIL,
 };
 
-extern "C" {
+extern_libpython! {
     #[cfg(Py_3_12)]
     pub fn Py_NewInterpreterFromConfig(
         tstate_p: *mut *mut crate::PyThreadState,

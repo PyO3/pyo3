@@ -48,14 +48,11 @@ def mypy(session: nox.Session):
         (Path("pyo3_pytests") / "py.typed").touch()
         session.install(".[dev]")
 
-        # TODO: remove --disable-error-code", "override" when __eq__ and __ne__ will always take object for input
         session.run_always(
             "python",
             "-m",
             "mypy",
             "tests",
-            "--disable-error-code",
-            "override",
         )
         # TODO: enable stubtest when previously listed errors will be fixed session.run_always("python", "-m", "mypy.stubtest", "pyo3_pytests")
     finally:

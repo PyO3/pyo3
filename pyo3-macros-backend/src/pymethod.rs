@@ -208,6 +208,24 @@ impl<'a> PyMethod<'a> {
             spec,
         })
     }
+
+    #[cfg(feature = "experimental-inspect")]
+    pub fn is_returning_not_implemented_on_extraction_error(&self) -> bool {
+        match &self.kind {
+            PyMethodKind::Fn => false,
+            PyMethodKind::Proto(proto) => match proto {
+                PyMethodProtoKind::Slot(slot) => {
+                    matches!(slot.extract_error_mode, ExtractErrorMode::NotImplemented)
+                }
+                PyMethodProtoKind::SlotFragment(slot) => {
+                    matches!(slot.extract_error_mode, ExtractErrorMode::NotImplemented)
+                }
+                PyMethodProtoKind::Call
+                | PyMethodProtoKind::Traverse
+                | PyMethodProtoKind::Clear => false,
+            },
+        }
+    }
 }
 
 pub fn is_proto_method(name: &str) -> bool {
@@ -404,10 +422,11 @@ fn impl_traverse_slot(
     }
 
     // check that the receiver does not try to smuggle an (implicit) `Python` token into here
-    if let FnType::Fn(SelfType::TryFromBoundRef(span))
+    if let FnType::Fn(SelfType::TryFromBoundRef { span, .. })
     | FnType::Fn(SelfType::Receiver {
         mutable: true,
         span,
+        ..
     }) = spec.tp
     {
         bail_spanned! { span =>
@@ -590,6 +609,7 @@ pub fn impl_py_setter_def(
             let slf = SelfType::Receiver {
                 mutable: true,
                 span: Span::call_site(),
+                non_null: true,
             }
             .receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
             if let Some(ident) = &field.ident {
@@ -698,11 +718,11 @@ pub fn impl_py_setter_def(
         #cfg_attrs
         unsafe fn #wrapper_ident(
             py: #pyo3_path::Python<'_>,
-            _slf: *mut #pyo3_path::ffi::PyObject,
-            _value: *mut #pyo3_path::ffi::PyObject,
+            _slf: ::std::ptr::NonNull<#pyo3_path::ffi::PyObject>,
+            _value: ::std::ptr::NonNull<#pyo3_path::ffi::PyObject>,
         ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
             use ::std::convert::Into;
-            let _value = #pyo3_path::impl_::extract_argument::cast_function_argument(py, _value);
+            let _value = #pyo3_path::impl_::extract_argument::cast_non_null_function_argument(py, _value);
             #init_holders
             #extract
             #warnings
@@ -832,7 +852,7 @@ pub fn impl_py_getter_def(
                 #cfg_attrs
                 unsafe fn #wrapper_ident(
                     py: #pyo3_path::Python<'_>,
-                    _slf: *mut #pyo3_path::ffi::PyObject
+                    _slf: ::std::ptr::NonNull<#pyo3_path::ffi::PyObject>
                 ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                     #init_holders
                     #warnings
@@ -879,7 +899,7 @@ pub fn impl_py_deleter_def(
     let associated_method = quote! {
         unsafe fn #wrapper_ident(
             py: #pyo3_path::Python<'_>,
-            _slf: *mut #pyo3_path::ffi::PyObject,
+            _slf: ::std::ptr::NonNull<#pyo3_path::ffi::PyObject>,
         ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
             #init_holders
             #warnings
