@@ -573,11 +573,11 @@ impl PyUntypedBuffer {
     ///Returns the Python object that owns the buffer data.
     ///
     ///This is the object that was passed to [`PyBuffer::get()`] when the buffer was created.
-    ///Returns `None` if the buffer was created without owning object.
+    /// Returns the Python object that owns the buffer data.
     ///
-    ///This is the object passed to [`PyUntypedBuffer::get()`]
-    ///Calling this before [`release()`][Self::release] allows you to clone an owned reference and
-    ///keeps the object alive after the buffer is released.
+    /// This is the object passed to [`PyUntypedBuffer::get()`].
+    /// Calling this before [`release()`][Self::release] allows you to clone an owned reference
+    /// and keeps the object alive after the buffer is released.
     pub fn obj<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyAny>> {
         let ptr = self.raw().obj;
         // SAFETY: Py_buffer.obj is a borrowed reference to a Python object, so it is always valid to create a Bound from it
