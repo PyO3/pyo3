@@ -6,14 +6,17 @@ use std::{
 
 #[cfg(not(Py_3_12))]
 use crate::sync::MutexExt;
-#[cfg(Py_3_12)]
-use crate::types::{PyString, PyTuple};
 use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     types::{PyAnyMethods, PyTraceback, PyType},
     Bound, Py, PyAny, PyErrArguments, PyTypeInfo, Python,
+};
+#[cfg(Py_3_12)]
+use {
+    crate::types::{PyString, PyTuple},
+    std::ptr::NonNull,
 };
 
 pub(crate) struct PyErrState {
@@ -443,7 +446,9 @@ fn create_normalized_exception<'py>(
     match pvalue {
         Ok(pvalue) => {
             unsafe {
-                ffi::PyException_SetContext(pvalue.as_ptr(), ffi::PyErr_GetHandledException())
+                if let Some(context) = NonNull::new(ffi::PyErr_GetHandledException()) {
+                    ffi::PyException_SetContext(pvalue.as_ptr(), context.as_ptr())
+                }
             };
             pvalue
         }
