@@ -2133,7 +2133,10 @@ fn complex_enum_variant_field_getter(
     let py = FnArg::parse(&mut arg)?;
     let signature = FunctionSignature::from_arguments(vec![py]);
 
-    let self_type = crate::method::SelfType::TryFromBoundRef(field_span);
+    let self_type = crate::method::SelfType::TryFromBoundRef {
+        span: field_span,
+        non_null: true,
+    };
 
     let spec = FnSpec {
         tp: crate::method::FnType::Getter(self_type.clone()),

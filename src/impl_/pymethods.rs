@@ -300,10 +300,14 @@ impl fmt::Debug for PyClassAttributeDef {
 
 /// Class getter / setters
 pub(crate) type Getter =
-    for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>;
-pub(crate) type Setter =
-    for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject, *mut ffi::PyObject) -> PyResult<c_int>;
-pub(crate) type Deleter = for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<c_int>;
+    for<'py> unsafe fn(Python<'py>, NonNull<ffi::PyObject>) -> PyResult<*mut ffi::PyObject>;
+pub(crate) type Setter = for<'py> unsafe fn(
+    Python<'py>,
+    NonNull<ffi::PyObject>,
+    NonNull<ffi::PyObject>,
+) -> PyResult<c_int>;
+pub(crate) type Deleter =
+    for<'py> unsafe fn(Python<'py>, NonNull<ffi::PyObject>) -> PyResult<c_int>;
 
 impl PyGetterDef {
     /// Define a getter.
