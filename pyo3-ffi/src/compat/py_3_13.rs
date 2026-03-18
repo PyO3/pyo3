@@ -130,3 +130,47 @@ compat_function!(
         crate::_PyThreadState_UncheckedGet()
     }
 );
+
+// Py_SET_REFCNT: set the reference count of an object.
+//
+// On Python 3.13+ with limited API or GIL-disabled builds, _Py_SetRefcnt
+// is available as a stable ABI function. On older versions, we directly
+// write to ob_refcnt.
+//
+// Note: this does NOT call _Py_Dealloc when the refcount reaches zero,
+// unlike Py_DECREF. This is intentional and matches CPython's Py_SET_REFCNT
+// semantics.
+
+extern_libpython! {
+    #[cfg(any(all(Py_3_13, Py_LIMITED_API), Py_GIL_DISABLED))]
+    fn _Py_SetRefcnt(ob: *mut crate::PyObject, refcnt: crate::Py_ssize_t);
+}
+
+/// Set the reference count of a Python object.
+///
+/// # Safety
+/// - `obj` must be a valid, non-null pointer to a Python object.
+/// - The caller must ensure the new refcount is valid (e.g. not setting to 0
+///   for an object that is still referenced).
+#[inline]
+pub unsafe fn Py_SET_REFCNT(obj: *mut crate::PyObject, refcnt: crate::Py_ssize_t) {
+    // Use _Py_SetRefcnt when available: limited API 3.13+ or GIL-disabled builds.
+    #[cfg(any(all(Py_3_13, Py_LIMITED_API), Py_GIL_DISABLED))]
+    unsafe {
+        _Py_SetRefcnt(obj, refcnt);
+    }
+
+    // Direct struct access for all other builds (non-GIL-disabled, and either
+    // non-limited API or limited API on Python < 3.13).
+    #[cfg(all(not(Py_GIL_DISABLED), not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
+    unsafe {
+        #[cfg(Py_3_12)]
+        {
+            (*obj).ob_refcnt.ob_refcnt = refcnt;
+        }
+        #[cfg(not(Py_3_12))]
+        {
+            (*obj).ob_refcnt = refcnt;
+        }
+    }
+}

@@ -1120,6 +1120,48 @@ pub trait PyClassBaseType: Sized {
     type Layout<T: PyClassImpl>;
 }
 
+/// Limited-API replacement for `PyObject_CallFinalizerFromDealloc`.
+///
+/// Mimics the refcount dance that CPython's `PyObject_CallFinalizerFromDealloc` does:
+/// 1. Bump refcount from 0 to 1 (prevent recursive dealloc during the finalizer)
+/// 2. Call the finalizer
+/// 3. Check for resurrection (refcount > 1 after the finalizer)
+/// 4. Restore refcount to 0 if no resurrection
+///
+/// Returns `true` if the object was resurrected (caller should abort deallocation).
+///
+/// # Safety
+/// - `obj` must be a valid pointer to a Python object being deallocated (refcount == 0).
+/// - The finalizer `f` must be a valid tp_finalize function pointer.
+/// - The GIL must be held.
+#[cfg(all(Py_LIMITED_API, not(GraalPy)))]
+unsafe fn call_finalize_from_dealloc(obj: *mut ffi::PyObject, f: ffi::destructor) -> bool {
+    // Step 1: Bump refcount from 0 to 1 to prevent recursive dealloc.
+    // Py_INCREF is safe here: it just increments, no assertion on 0.
+    unsafe { ffi::Py_INCREF(obj) };
+
+    // Step 2: Call the finalizer.
+    unsafe { f(obj) };
+
+    // Step 3: Check if the object was resurrected (refcount > 1 means
+    // something took an additional reference during the finalizer).
+    let refcnt = unsafe { ffi::Py_REFCNT(obj) };
+    debug_assert!(refcnt > 0, "ref count should be at least 1 after INCREF");
+
+    if refcnt > 1 {
+        // Object was resurrected: undo our temporary INCREF. The object
+        // stays alive because other references exist.
+        unsafe { ffi::Py_DECREF(obj) };
+        return true; // resurrected
+    }
+
+    // Step 4: No resurrection. Set refcount back to 0 without triggering
+    // _Py_Dealloc (which Py_DECREF would do).
+    unsafe { ffi::compat::Py_SET_REFCNT(obj, 0) };
+
+    false // not resurrected
+}
+
 /// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
     // Call tp_finalize if defined, matching CPython's subtype_dealloc behavior.
@@ -1135,7 +1177,9 @@ pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) 
     #[cfg(all(Py_LIMITED_API, not(GraalPy)))]
     unsafe {
         if let Some(f) = get_slot(ffi::Py_TYPE(obj), TP_FINALIZE) {
-            f(obj);
+            if call_finalize_from_dealloc(obj, f) {
+                return; // object was resurrected
+            }
         }
     }
     unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
@@ -1172,7 +1216,9 @@ pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::Py
         if ffi::PyObject_GC_IsFinalized(obj) == 0 {
             if let Some(f) = get_slot(ffi::Py_TYPE(obj), TP_FINALIZE) {
                 ffi::PyObject_GC_Track(obj.cast());
-                f(obj);
+                if call_finalize_from_dealloc(obj, f) {
+                    return; // object was resurrected and is GC-tracked
+                }
                 ffi::PyObject_GC_UnTrack(obj.cast());
             }
         }
