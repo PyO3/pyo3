@@ -6,17 +6,14 @@ use std::{
 
 #[cfg(not(Py_3_12))]
 use crate::sync::MutexExt;
+#[cfg(Py_3_12)]
+use crate::types::{PyString, PyTuple};
 use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     types::{PyAnyMethods, PyTraceback, PyType},
     Bound, Py, PyAny, PyErrArguments, PyTypeInfo, Python,
-};
-#[cfg(Py_3_12)]
-use {
-    crate::types::{PyString, PyTuple},
-    std::ptr::NonNull,
 };
 
 pub(crate) struct PyErrState {
@@ -427,9 +424,36 @@ fn create_normalized_exception<'py>(
         unsafe { ptype.cast_unchecked() }.clone()
     };
 
+    let mut current_handled_exception: Option<Bound<'_, PyBaseException>> = unsafe {
+        ffi::PyErr_GetHandledException()
+            .assume_owned_or_opt(py)
+            .map(|obj| obj.cast_into_unchecked())
+    };
+
     let pvalue = if pvalue.is_exact_instance(&ptype) {
         // Safety: already an exception value of the correct type
-        Ok(unsafe { pvalue.cast_into_unchecked::<PyBaseException>() })
+        let exc = unsafe { pvalue.cast_into_unchecked::<PyBaseException>() };
+
+        if current_handled_exception
+            .as_ref()
+            .map(|current| current.is(&exc))
+            .unwrap_or_default()
+        {
+            // Current exception is the same as it's context so do not set the context to avoid a loop
+            current_handled_exception = None;
+        } else if let Some(current_context) = current_handled_exception.as_ref() {
+            // Check if this exception is already in the context chain, so we do not create reference cycles in the context chain.
+            let mut iter = context_chain_iter(current_context.clone()).peekable();
+            while let Some((current, next)) = iter.next().zip(iter.peek()) {
+                if next.is(&exc) {
+                    // Loop in context chain, breaking the loop by not pointing to exc
+                    unsafe { ffi::PyException_SetContext(current.as_ptr(), std::ptr::null_mut()) };
+                    break;
+                }
+            }
+        }
+
+        Ok(exc)
     } else if pvalue.is_none() {
         // None -> no arguments
         ptype.call0().and_then(|pvalue| Ok(pvalue.cast_into()?))
@@ -445,19 +469,67 @@ fn create_normalized_exception<'py>(
 
     match pvalue {
         Ok(pvalue) => {
-            unsafe {
-                if let Some(context) = NonNull::new(ffi::PyErr_GetHandledException()) {
-                    ffi::PyException_SetContext(pvalue.as_ptr(), context.as_ptr())
-                }
-            };
+            // Implicitly set the context of the new exception to the currently handled exception, if any.
+            if let Some(context) = current_handled_exception {
+                unsafe { ffi::PyException_SetContext(pvalue.as_ptr(), context.into_ptr()) };
+            }
             pvalue
         }
         Err(e) => e.value(py).clone(),
     }
 }
 
+/// Iterates through the context chain of exceptions, starting from `start`, and yields each exception in the chain.
+/// When there is a loop in the chain it may yield some elements multiple times, but it will always terminate.
+#[inline]
+#[cfg(Py_3_12)]
+fn context_chain_iter(
+    start: Bound<'_, PyBaseException>,
+) -> impl Iterator<Item = Bound<'_, PyBaseException>> {
+    #[inline]
+    fn get_next<'py>(current: &Bound<'py, PyBaseException>) -> Option<Bound<'py, PyBaseException>> {
+        unsafe {
+            ffi::PyException_GetContext(current.as_ptr())
+                .assume_owned_or_opt(current.py())
+                .map(|obj| obj.cast_into_unchecked())
+        }
+    }
+
+    let mut slow = None;
+    let mut current = Some(start);
+    let mut slow_update_toggle = false;
+
+    std::iter::from_fn(move || {
+        let next = get_next(current.as_ref()?);
+
+        // Detect loops in the context chain using Floyd's Tortoise and Hare algorithm.
+        if let Some((current_slow, current_fast)) = slow.as_ref().zip(next.as_ref()) {
+            if current_fast.is(current_slow) {
+                // Loop detected
+                return current.take();
+            }
+
+            // Every second iteration, advance the slow pointer by one step
+            if slow_update_toggle {
+                slow = get_next(current_slow);
+            }
+
+            slow_update_toggle = !slow_update_toggle;
+        }
+
+        // Set the slow pointer after the first iteration
+        if slow.is_none() {
+            slow = current.clone()
+        }
+
+        std::mem::replace(&mut current, next)
+    })
+}
+
 #[cfg(test)]
 mod tests {
+    #[cfg(Py_3_12)]
+    use crate::{exceptions::PyBaseException, ffi, Bound};
     use crate::{
         exceptions::PyValueError, sync::PyOnceLock, Py, PyAny, PyErr, PyErrArguments, Python,
     };
@@ -571,7 +643,10 @@ mod tests {
             Bound,
         };
 
-        fn test_exception<'py>(ptype: &Bound<'py, PyAny>, pvalue: Bound<'py, PyAny>) {
+        fn test_exception<'py>(
+            ptype: &Bound<'py, PyAny>,
+            pvalue: Bound<'py, PyAny>,
+        ) -> (PyErr, PyErr) {
             let py = ptype.py();
 
             let exc1 = super::create_normalized_exception(ptype, pvalue.clone());
@@ -592,6 +667,15 @@ mod tests {
             assert!(err1.traceback(py).xor(err2.traceback(py)).is_none());
             assert!(err1.cause(py).xor(err2.cause(py)).is_none());
             assert_eq!(err1.to_string(), err2.to_string());
+
+            super::context_chain_iter(err1.value(py).clone())
+                .zip(super::context_chain_iter(err2.value(py).clone()))
+                .for_each(|(context1, context2)| {
+                    assert!(context1.get_type().is(context2.get_type()));
+                    assert_eq!(context1.to_string(), context2.to_string());
+                });
+
+            (err1, err2)
         }
 
         Python::attach(|py| {
@@ -614,6 +698,99 @@ mod tests {
                     .into_any()
                     .into_bound(py),
             );
+
+            // Loop where err is not part of the loop
+            let looped_context = create_loop(py, 3);
+            let err = PyRuntimeError::new_err("Boom");
+            with_handled_exception(looped_context.value(py), || {
+                let (normalized, _) = test_exception(
+                    &PyRuntimeError::type_object(py),
+                    err.value(py).clone().into_any(),
+                );
+
+                assert!(normalized
+                    .context(py)
+                    .unwrap()
+                    .value(py)
+                    .is(looped_context.value(py)));
+            });
+
+            // loop where err is part of the loop
+            let err_a = PyRuntimeError::new_err("A");
+            let err_b = PyRuntimeError::new_err("B");
+            // a -> b -> a
+            err_a.set_context(py, Some(err_b.clone_ref(py)));
+            err_b.set_context(py, Some(err_a.clone_ref(py)));
+            // handled = raised = a
+            with_handled_exception(err_a.value(py), || {
+                let (rust_normal, py_normal) = test_exception(
+                    &PyRuntimeError::type_object(py),
+                    err_a.value(py).clone().into_any(),
+                );
+
+                // a.context -> b
+                assert!(rust_normal
+                    .context(py)
+                    .unwrap()
+                    .value(py)
+                    .is(err_b.value(py)));
+                assert!(py_normal.context(py).unwrap().value(py).is(err_b.value(py)));
+            });
+
+            // no loop yet, but implicit context will loop if we set a.context = b
+            let err_a = PyRuntimeError::new_err("A");
+            let err_b = PyRuntimeError::new_err("B");
+            err_b.set_context(py, Some(err_a.clone_ref(py)));
+            // raised = a, handled = b
+            with_handled_exception(err_b.value(py), || {
+                test_exception(
+                    &PyRuntimeError::type_object(py),
+                    err_b.value(py).clone().into_any(),
+                );
+            });
+        })
+    }
+
+    #[cfg(Py_3_12)]
+    fn with_handled_exception(exc: &Bound<'_, PyBaseException>, f: impl FnOnce()) {
+        struct Guard;
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                unsafe { ffi::PyErr_SetHandledException(std::ptr::null_mut()) };
+            }
+        }
+
+        let guard = Guard;
+        unsafe { ffi::PyErr_SetHandledException(exc.as_ptr()) };
+        f();
+        drop(guard);
+    }
+
+    #[cfg(Py_3_12)]
+    fn create_loop(py: Python<'_>, size: usize) -> PyErr {
+        let first = PyValueError::new_err("exc0");
+        let last = (1..size).fold(first.clone_ref(py), |prev, i| {
+            let exc = PyValueError::new_err(format!("exc{i}"));
+            prev.set_context(py, Some(exc.clone_ref(py)));
+            exc
+        });
+        last.set_context(py, Some(first.clone_ref(py)));
+
+        first
+    }
+
+    #[test]
+    #[cfg(Py_3_12)]
+    fn test_context_chain_iter_terminates() {
+        Python::attach(|py| {
+            for size in 1..=8 {
+                let chain = create_loop(py, size);
+                let count = super::context_chain_iter(chain.into_value(py).into_bound(py)).count();
+                assert!(
+                    count >= size,
+                    "We should have seen each element at least once"
+                );
+            }
         })
     }
 }
