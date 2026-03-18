@@ -19,7 +19,7 @@ pub struct PyStructSequence_Desc {
     pub n_in_sequence: c_int,
 }
 
-// skipped PyStructSequence_UnnamedField;
+pub PyStructSequence_UnnamedField: *const c_char = "unnamed field";
 
 extern_libpython! {
     #[cfg(not(Py_LIMITED_API))]
