@@ -305,6 +305,7 @@ pub mod finalizefunc {
                     std::ptr::null_mut(),
                     std::ptr::null_mut(),
                 );
+                // SAFETY: caller guarantees the GIL is held.
                 unsafe { ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback) };
                 Self {
                     ptype,
@@ -324,6 +325,9 @@ pub mod finalizefunc {
             unsafe {
                 ffi::PyErr_SetRaisedException(self.saved_exc);
             }
+            // SAFETY: the GIL must still be held when the guard is dropped;
+            // this is guaranteed because ExceptionGuard is only used inside
+            // trampoline functions that hold the GIL for their entire duration.
             #[cfg(not(Py_3_12))]
             unsafe {
                 ffi::PyErr_Restore(self.ptype, self.pvalue, self.ptraceback);
