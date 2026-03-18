@@ -9,7 +9,9 @@ fn test_compile_errors() {
     #[cfg(not(feature = "experimental-inspect"))]
     t.compile_fail("tests/ui/invalid_property_args.rs");
     t.compile_fail("tests/ui/invalid_proto_pymethods.rs");
+    // The output is not stable across multiple-pymethods / not multiple-pymethods
     #[cfg(not(all(Py_LIMITED_API, not(Py_3_10))))] // to avoid PyFunctionArgument for &str
+    #[cfg(not(feature = "multiple-pymethods"))]
     t.compile_fail("tests/ui/invalid_pyclass_args.rs");
     t.compile_fail("tests/ui/invalid_pyclass_doc.rs");
     t.compile_fail("tests/ui/invalid_pyclass_enum.rs");
