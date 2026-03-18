@@ -1,3 +1,5 @@
+#[cfg(all(Py_LIMITED_API, not(GraalPy)))]
+use crate::internal::get_slot::{get_slot, TP_FINALIZE};
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
@@ -13,6 +15,7 @@ use crate::{
     Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
     PyTypeCheck, PyTypeInfo, Python,
 };
+
 use std::{
     ffi::CStr,
     marker::PhantomData,
@@ -1131,9 +1134,7 @@ pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) 
     // object as finalised, so it is always valid to call tp_finalize directly.
     #[cfg(all(Py_LIMITED_API, not(GraalPy)))]
     unsafe {
-        let tp_finalize =
-            ffi::PyType_GetSlot(ffi::Py_TYPE(obj), ffi::Py_tp_finalize) as ffi::destructor;
-        if let Some(f) = tp_finalize {
+        if let Some(f) = get_slot(ffi::Py_TYPE(obj), TP_FINALIZE) {
             f(obj);
         }
     }
@@ -1167,9 +1168,7 @@ pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::Py
     #[cfg(all(Py_LIMITED_API, Py_3_9, not(GraalPy)))]
     unsafe {
         if ffi::PyObject_GC_IsFinalized(obj) == 0 {
-            let tp_finalize =
-                ffi::PyType_GetSlot(ffi::Py_TYPE(obj), ffi::Py_tp_finalize) as ffi::destructor;
-            if let Some(f) = tp_finalize {
+            if let Some(f) = get_slot(ffi::Py_TYPE(obj), TP_FINALIZE) {
                 f(obj);
             }
         }
