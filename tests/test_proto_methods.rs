@@ -899,7 +899,7 @@ fn test_contains_opt_out() {
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-#[pyclass(subclass)]
+#[pyclass]
 struct ClassWithDel {
     flag: Arc<AtomicBool>,
 }
@@ -913,32 +913,9 @@ impl ClassWithDel {
         }
     }
 
-    fn __del__(&mut self) {
+    fn __del__(&mut self, _py: Python<'_>) {
         self.flag.store(true, Ordering::SeqCst);
     }
-}
-
-#[pyclass]
-struct ClassWithDelPy {
-    flag: Arc<AtomicBool>,
-}
-
-#[pymethods]
-impl ClassWithDelPy {
-    fn __del__(&self, _py: Python<'_>) {
-        self.flag.store(true, Ordering::SeqCst);
-    }
-}
-
-#[test]
-fn test_del_with_py_arg() {
-    Python::attach(|py| {
-        let flag = Arc::new(AtomicBool::new(false));
-        let obj = Bound::new(py, ClassWithDelPy { flag: flag.clone() }).unwrap();
-        assert!(!flag.load(Ordering::SeqCst));
-        obj.call_method0("__del__").unwrap();
-        assert!(flag.load(Ordering::SeqCst));
-    })
 }
 
 #[test]
@@ -952,11 +929,10 @@ fn test_del_called_explicitly() {
     })
 }
 
-// On abi3, PyObject_CallFinalizerFromDealloc is not available, so __del__ is
-// not invoked during deallocation. These tests only apply to non-limited API.
-// On Python 3.7, Py_tp_finalize set via PyType_FromSpec is not properly
-// applied to the type, so tp_finalize is never called.
-#[cfg(all(not(Py_LIMITED_API), Py_3_8))]
+// On abi3 with Python < 3.9, PyObject_CallFinalizerFromDealloc and
+// PyObject_GC_IsFinalized are not available, so __del__ is not invoked
+// during deallocation.
+#[cfg(any(all(not(Py_LIMITED_API), Py_3_8), all(Py_LIMITED_API, Py_3_9)))]
 #[test]
 fn test_del_called_on_dealloc() {
     Python::attach(|py| {
@@ -980,7 +956,7 @@ impl ClassWithDelError {
     }
 }
 
-#[cfg(all(not(Py_LIMITED_API), Py_3_8))]
+#[cfg(any(all(not(Py_LIMITED_API), Py_3_8), all(Py_LIMITED_API, Py_3_9)))]
 #[test]
 fn test_del_error_is_unraisable() {
     Python::attach(|py| {
@@ -1045,7 +1021,7 @@ impl ClassWithDelAndTraverse {
     }
 }
 
-#[cfg(all(not(Py_LIMITED_API), Py_3_8))]
+#[cfg(any(all(not(Py_LIMITED_API), Py_3_8), all(Py_LIMITED_API, Py_3_9)))]
 #[test]
 fn test_del_with_gc() {
     Python::attach(|py| {
@@ -1157,11 +1133,24 @@ fn test_del_panic_preserves_active_exception() {
 /// Test object resurrection: a Python subclass __del__ saves `self` to a global,
 /// preventing deallocation. PyObject_CallFinalizerFromDealloc returns -1 when
 /// the refcount stays above zero, and our tp_dealloc correctly aborts.
+#[pyclass(subclass)]
+struct SubclassableWithDel;
+
+#[pymethods]
+impl SubclassableWithDel {
+    #[new]
+    fn new() -> Self {
+        Self
+    }
+
+    fn __del__(&self) {}
+}
+
 #[cfg(not(Py_LIMITED_API))]
 #[test]
 fn test_del_resurrection() {
     Python::attach(|py| {
-        let cls = py.get_type::<ClassWithDel>();
+        let cls = py.get_type::<SubclassableWithDel>();
         py_run!(
             py,
             cls,

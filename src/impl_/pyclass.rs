@@ -1127,6 +1127,18 @@ pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) 
         // Object was resurrected by the finalizer; abort deallocation.
         return;
     }
+    // For non-GC types under the limited API, the GC can never have marked the
+    // object as finalised, so it is always valid to call tp_finalize directly.
+    #[cfg(all(Py_LIMITED_API, not(GraalPy)))]
+    unsafe {
+        let tp_finalize = ffi::PyType_GetSlot(
+            ffi::Py_TYPE(obj),
+            ffi::Py_tp_finalize,
+        ) as ffi::destructor;
+        if let Some(f) = tp_finalize {
+            f(obj);
+        }
+    }
     unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
 }
 
@@ -1151,6 +1163,20 @@ pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::Py
     #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
     unsafe {
         ffi::PyObject_GC_UnTrack(obj.cast());
+    }
+    // For GC types under the limited API on Python 3.9+, use PyObject_GC_IsFinalized
+    // to check whether the finalizer has already run, and call tp_finalize if not.
+    #[cfg(all(Py_LIMITED_API, Py_3_9, not(GraalPy)))]
+    unsafe {
+        if ffi::PyObject_GC_IsFinalized(obj) == 0 {
+            let tp_finalize = ffi::PyType_GetSlot(
+                ffi::Py_TYPE(obj),
+                ffi::Py_tp_finalize,
+            ) as ffi::destructor;
+            if let Some(f) = tp_finalize {
+                f(obj);
+            }
+        }
     }
     unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
 }
