@@ -25,5 +25,6 @@ pub const _PyHASH_MULTIPLIER: c_ulong = 1000003;
 pub const Py_HASH_EXTERNAL: c_int = 0;
 pub const Py_HASH_SIPHASH24: c_int = 1;
 pub const Py_HASH_FNV: c_int = 2;
+pub const Py_HASH_SIPHASH13: c_int = 3;
 
 // skipped Py_HASH_ALGORITHM
