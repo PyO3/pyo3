@@ -263,6 +263,7 @@ pub mod releasebufferproc {
 pub unsafe extern "C" fn finalizefunc<Meth: MethodDef<finalizefunc::Func>>(
     slf: *mut ffi::PyObject,
 ) {
+    // SAFETY: caller upholds the safety requirements of the outer function.
     unsafe { finalizefunc::inner(slf, Meth::METH) }
 }
 
@@ -293,6 +294,7 @@ pub mod finalizefunc {
             #[cfg(Py_3_12)]
             {
                 Self {
+                    // SAFETY: caller guarantees the GIL is held.
                     saved_exc: unsafe { ffi::PyErr_GetRaisedException() },
                 }
             }
@@ -315,6 +317,9 @@ pub mod finalizefunc {
 
     impl Drop for ExceptionGuard {
         fn drop(&mut self) {
+            // SAFETY: the GIL must still be held when the guard is dropped;
+            // this is guaranteed because ExceptionGuard is only used inside
+            // trampoline functions that hold the GIL for their entire duration.
             #[cfg(Py_3_12)]
             unsafe {
                 ffi::PyErr_SetRaisedException(self.saved_exc);
@@ -329,6 +334,7 @@ pub mod finalizefunc {
     #[inline]
     pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, f: Func) {
         // Save the current exception; the guard's Drop restores it even on panic.
+        // SAFETY: tp_finalize is called with the GIL held.
         let _guard = unsafe { ExceptionGuard::new() };
         // SAFETY: caller upholds requirements
         unsafe { trampoline_unraisable(|py| f(py, slf), slf) }

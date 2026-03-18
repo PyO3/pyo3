@@ -126,7 +126,7 @@ impl PyMethodKind {
             "__ior__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IOR__)),
             "__getbuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__GETBUFFER__)),
             "__releasebuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__RELEASEBUFFER__)),
-            "__del__" => PyMethodKind::Proto(PyMethodProtoKind::Del),
+            "__del__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__DEL__)),
             // Protocols implemented through traits
             "__getattribute__" => {
                 PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GETATTRIBUTE__))
@@ -187,7 +187,6 @@ enum PyMethodProtoKind {
     Call,
     Traverse,
     Clear,
-    Del,
     SlotFragment(&'static SlotFragmentDef),
 }
 
@@ -224,8 +223,7 @@ impl<'a> PyMethod<'a> {
                 }
                 PyMethodProtoKind::Call
                 | PyMethodProtoKind::Traverse
-                | PyMethodProtoKind::Clear
-                | PyMethodProtoKind::Del => false,
+                | PyMethodProtoKind::Clear => false,
             },
         }
     }
@@ -275,7 +273,6 @@ pub fn gen_py_method(
                 PyMethodProtoKind::Clear => {
                     GeneratedPyMethod::Proto(impl_clear_slot(cls, spec, ctx)?)
                 }
-                PyMethodProtoKind::Del => GeneratedPyMethod::Proto(impl_del_slot(cls, spec, ctx)?),
                 PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
                     let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec, ctx)?;
                     GeneratedPyMethod::SlotTraitImpl(method.method_name, proto)
@@ -507,52 +504,6 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_clear,
             pfunc: #cls::__pymethod___clear____ as #pyo3_path::ffi::inquiry as _
-        }
-    };
-    Ok(MethodAndSlotDef {
-        associated_method,
-        slot_def,
-    })
-}
-
-fn impl_del_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result<MethodAndSlotDef> {
-    let Ctx { pyo3_path, .. } = ctx;
-    let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
-    let self_type = match &spec.tp {
-        FnType::Fn(self_type) => self_type,
-        _ => bail_spanned!(spec.name.span() => "expected instance method for `__del__` function"),
-    };
-    let mut holders = Holders::new();
-    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
-
-    if let [arg, ..] = args {
-        bail_spanned!(arg.ty().span() => "`__del__` function expected to have no arguments");
-    }
-
-    let name = &spec.name;
-    let holders = holders.init_holders(ctx);
-    let fncall = if py_arg.is_some() {
-        quote!(#cls::#name(#slf, py))
-    } else {
-        quote!(#cls::#name(#slf))
-    };
-
-    let associated_method = quote! {
-        #[allow(non_snake_case)]
-        unsafe fn __pymethod___del____(
-            py: #pyo3_path::Python<'_>,
-            _slf: *mut #pyo3_path::ffi::PyObject,
-        ) -> #pyo3_path::PyResult<()> {
-            #holders
-            let result = #fncall;
-            let result = #pyo3_path::impl_::wrap::converter(&result).wrap(result)?;
-            #pyo3_path::impl_::callback::convert(py, result)
-        }
-    };
-    let slot_def = quote! {
-        #pyo3_path::ffi::PyType_Slot {
-            slot: #pyo3_path::ffi::Py_tp_finalize,
-            pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(finalizefunc, #cls::__pymethod___del____) as #pyo3_path::ffi::destructor as _
         }
     };
     Ok(MethodAndSlotDef {
@@ -1112,6 +1063,8 @@ const __GETBUFFER__: SlotDef = SlotDef::new("Py_bf_getbuffer", "getbufferproc").
 const __RELEASEBUFFER__: SlotDef =
     SlotDef::new("Py_bf_releasebuffer", "releasebufferproc").require_unsafe();
 const __CLEAR__: SlotDef = SlotDef::new("Py_tp_clear", "inquiry");
+const __DEL__: SlotDef =
+    SlotDef::new("Py_tp_finalize", "finalizefunc").ffi_type_override("destructor");
 
 #[derive(Clone, Copy)]
 enum Ty {
@@ -1311,6 +1264,9 @@ impl ReturnMode {
 pub struct SlotDef {
     slot: StaticIdent,
     func_ty: StaticIdent,
+    /// When the FFI type name differs from the trampoline module name, this
+    /// overrides the type used in the `as ffi::<type>` cast.
+    ffi_type: Option<StaticIdent>,
     calling_convention: SlotCallingConvention,
     ret_ty: Ty,
     extract_error_mode: ExtractErrorMode,
@@ -1367,6 +1323,7 @@ impl SlotDef {
                 SlotCallingConvention::FixedArguments(&[Ty::PyBuffer]),
                 Ty::Void,
             ),
+            b"finalizefunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::Void),
             b"ipowfunc" => (
                 SlotCallingConvention::FixedArguments(&[Ty::Object, Ty::IPowModulo]),
                 Ty::Object,
@@ -1377,6 +1334,7 @@ impl SlotDef {
         SlotDef {
             slot: StaticIdent::new(slot),
             func_ty: StaticIdent::new(func_ty),
+            ffi_type: None,
             calling_convention,
             ret_ty,
             extract_error_mode: ExtractErrorMode::Raise,
@@ -1390,6 +1348,11 @@ impl SlotDef {
         SlotDef::new(slot, "binaryfunc")
             .extract_error_mode(ExtractErrorMode::NotImplemented)
             .return_self()
+    }
+
+    const fn ffi_type_override(mut self, ffi_type: &'static str) -> Self {
+        self.ffi_type = Some(StaticIdent::new(ffi_type));
+        self
     }
 
     const fn return_conversion(mut self, return_conversion: TokenGenerator) -> Self {
@@ -1432,12 +1395,14 @@ impl SlotDef {
         let SlotDef {
             slot,
             func_ty,
+            ffi_type,
             calling_convention,
             extract_error_mode,
             ret_ty,
             return_mode,
             require_unsafe,
         } = self;
+        let ffi_type = ffi_type.unwrap_or(*func_ty);
         if *require_unsafe {
             ensure_spanned!(
                 spec.unsafety.is_some(),
@@ -1476,7 +1441,7 @@ impl SlotDef {
         let slot_def = quote! {
             #pyo3_path::ffi::PyType_Slot {
                 slot: #pyo3_path::ffi::#slot,
-                pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(#func_ty, #cls::#wrapper_ident) as #pyo3_path::ffi::#func_ty as _
+                pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(#func_ty, #cls::#wrapper_ident) as #pyo3_path::ffi::#ffi_type as _
             }
         };
         Ok(MethodAndSlotDef {
