@@ -1,7 +1,7 @@
 use crate::object::{PyObject, PyTypeObject};
 #[cfg(not(PyPy))]
 use crate::pyport::Py_ssize_t;
-use std::ffi::{c_char, c_int, CString};
+use std::ffi::{c_char, c_int};
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -19,7 +19,7 @@ pub struct PyStructSequence_Desc {
     pub n_in_sequence: c_int,
 }
 
-pub const PyStructSequence_UnnamedField: *const c_char = CString::new("unnamed field").unwrap().as_ptr();
+pub const PyStructSequence_UnnamedField: *const u8 = "unnamed field".as_ptr();
 
 extern_libpython! {
     #[cfg(not(Py_LIMITED_API))]
