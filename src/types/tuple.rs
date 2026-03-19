@@ -1,8 +1,6 @@
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::types::TypeInfo;
-#[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
@@ -624,11 +622,6 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
             Ok(array_into_tuple(py, [$(self.$n.into_bound_py_any(py)?),+]))
         }
-
-        #[cfg(feature = "experimental-inspect")]
-        fn type_output() -> TypeInfo {
-            TypeInfo::Tuple(Some(vec![$( $T::type_output() ),+]))
-        }
     }
 
     impl <'a, 'py, $($T),+> IntoPyObject<'py> for &'a ($($T,)+)
@@ -647,11 +640,6 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
 
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
             Ok(array_into_tuple(py, [$(self.$n.into_bound_py_any(py)?),+]))
-        }
-
-        #[cfg(feature = "experimental-inspect")]
-        fn type_output() -> TypeInfo {
-            TypeInfo::Tuple(Some(vec![$( <&$T>::type_output() ),+]))
         }
     }
 
@@ -933,11 +921,6 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             } else {
                 Err(wrong_tuple_length(t, $length))
             }
-        }
-
-        #[cfg(feature = "experimental-inspect")]
-        fn type_input() -> TypeInfo {
-            TypeInfo::Tuple(Some(vec![$( $T::type_input() ),+]))
         }
     }
 });
