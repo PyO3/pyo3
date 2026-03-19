@@ -1214,11 +1214,20 @@ pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::Py
     unsafe {
         ffi::PyObject_GC_UnTrack(obj.cast());
     }
-    // For GC types under the limited API on Python 3.9+, use PyObject_GC_IsFinalized
+    // For GC types under the limited API, use PyObject_GC_IsFinalized
     // to check whether the finalizer has already run, and call tp_finalize if not.
     // We re-track before calling tp_finalize (the finalizer may make the object
     // visible to the GC) and un-track afterwards, mirroring CPython's subtype_dealloc.
-    #[cfg(all(Py_LIMITED_API, Py_3_9, not(PyPy), not(GraalPy)))]
+    //
+    // Note: PyObject_GC_IsFinalized was added in CPython 3.9 but was not exported
+    // from python3.dll (the stable ABI forwarder DLL on Windows) until 3.10.
+    #[cfg(all(
+        Py_LIMITED_API,
+        Py_3_9,
+        not(PyPy),
+        not(GraalPy),
+        any(not(target_os = "windows"), Py_3_10)
+    ))]
     unsafe {
         if ffi::PyObject_GC_IsFinalized(obj) == 0 {
             if let Some(f) = get_slot(ffi::Py_TYPE(obj), TP_FINALIZE) {

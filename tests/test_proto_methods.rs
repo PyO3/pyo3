@@ -1021,7 +1021,10 @@ impl ClassWithDelAndTraverse {
     }
 }
 
-#[cfg(any(all(not(Py_LIMITED_API), Py_3_8), all(Py_LIMITED_API, Py_3_9)))]
+#[cfg(any(
+    all(not(Py_LIMITED_API), Py_3_8),
+    all(Py_LIMITED_API, Py_3_9, any(not(target_os = "windows"), Py_3_10))
+))]
 #[test]
 fn test_del_with_gc() {
     Python::attach(|py| {
