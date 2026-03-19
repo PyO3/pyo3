@@ -242,7 +242,7 @@ impl PyDate {
     /// Construct a `datetime.date` from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.date.fromtimestamp`
-    pub fn from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<Bound<'_, PyDate>> {
+    pub fn from_timestamp(py: Python<'_>, timestamp: f64) -> PyResult<Bound<'_, PyDate>> {
         #[cfg(not(Py_LIMITED_API))]
         {
             let time_tuple = PyTuple::new(py, [timestamp])?;
@@ -925,7 +925,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_date_fromtimestamp() {
         Python::attach(|py| {
-            let dt = PyDate::from_timestamp(py, 100).unwrap();
+            let dt = PyDate::from_timestamp(py, 100.).unwrap();
             py_run!(
                 py,
                 dt,
