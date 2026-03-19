@@ -107,7 +107,7 @@ def test_date_from_timestamp(d):
             rdt.date_from_timestamp(ts)
         assert str(exc_info.value) == str(pdt_fail)
     else:
-        assert rdt.date_from_timestamp(int(ts)) == expected
+        assert rdt.date_from_timestamp(ts) == expected
 
 
 @pytest.mark.parametrize(
@@ -233,7 +233,7 @@ def test_invalid_datetime_fails():
 
 def test_datetime_typeerror():
     with pytest.raises(TypeError):
-        rdt.make_datetime("2011", 1, 1, 0, 0, 0, 0)
+        rdt.make_datetime("2011", 1, 1, 0, 0, 0, 0)  # type: ignore[bad-argument-type]
 
 
 @given(dt=st.datetimes(MIN_DATETIME, MAX_DATETIME))
