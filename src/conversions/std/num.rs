@@ -2,8 +2,6 @@ use crate::conversion::private::Reference;
 use crate::conversion::{FromPyObjectSequence, IntoPyObject};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::types::TypeInfo;
-#[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
@@ -33,11 +31,6 @@ macro_rules! int_fits_larger_int {
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (self as $larger_type).into_pyobject(py)
             }
-
-            #[cfg(feature = "experimental-inspect")]
-            fn type_output() -> TypeInfo {
-                <$larger_type>::type_output()
-            }
         }
 
         impl<'py> IntoPyObject<'py> for &$rust_type {
@@ -51,11 +44,6 @@ macro_rules! int_fits_larger_int {
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (*self).into_pyobject(py)
             }
-
-            #[cfg(feature = "experimental-inspect")]
-            fn type_output() -> TypeInfo {
-                <$larger_type>::type_output()
-            }
         }
 
         impl FromPyObject<'_, '_> for $rust_type {
@@ -68,11 +56,6 @@ macro_rules! int_fits_larger_int {
                 let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
-            }
-
-            #[cfg(feature = "experimental-inspect")]
-            fn type_input() -> TypeInfo {
-                <$larger_type>::type_input()
             }
         }
     };
@@ -120,11 +103,6 @@ macro_rules! int_convert_u64_or_i64 {
                         .cast_into_unchecked())
                 }
             }
-
-            #[cfg(feature = "experimental-inspect")]
-            fn type_output() -> TypeInfo {
-                TypeInfo::builtin("int")
-            }
         }
         impl<'py> IntoPyObject<'py> for &$rust_type {
             type Target = PyInt;
@@ -148,11 +126,6 @@ macro_rules! int_convert_u64_or_i64 {
             fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                 extract_int!(obj, !0, $pylong_as_ll_or_ull, $force_index_call)
             }
-
-            #[cfg(feature = "experimental-inspect")]
-            fn type_input() -> TypeInfo {
-                Self::type_output()
-            }
         }
     };
 }
@@ -174,11 +147,6 @@ macro_rules! int_fits_c_long {
                         .cast_into_unchecked())
                 }
             }
-
-            #[cfg(feature = "experimental-inspect")]
-            fn type_output() -> TypeInfo {
-                TypeInfo::builtin("int")
-            }
         }
 
         impl<'py> IntoPyObject<'py> for &$rust_type {
@@ -193,11 +161,6 @@ macro_rules! int_fits_c_long {
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (*self).into_pyobject(py)
             }
-
-            #[cfg(feature = "experimental-inspect")]
-            fn type_output() -> TypeInfo {
-                TypeInfo::builtin("int")
-            }
         }
 
         impl<'py> FromPyObject<'_, 'py> for $rust_type {
@@ -210,11 +173,6 @@ macro_rules! int_fits_c_long {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
-            }
-
-            #[cfg(feature = "experimental-inspect")]
-            fn type_input() -> TypeInfo {
-                Self::type_output()
             }
         }
     };
@@ -234,11 +192,6 @@ impl<'py> IntoPyObject<'py> for u8 {
                 .assume_owned(py)
                 .cast_into_unchecked())
         }
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("int")
     }
 
     #[inline]
@@ -269,11 +222,6 @@ impl<'py> IntoPyObject<'py> for &'_ u8 {
         u8::into_pyobject(*self, py)
     }
 
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("int")
-    }
-
     #[inline]
     fn borrowed_sequence_into_pyobject<I>(
         iter: I,
@@ -300,11 +248,6 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
         u8::try_from(val).map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        Self::type_output()
     }
 
     #[inline]
@@ -437,11 +380,6 @@ mod fast_128bit_int_conversion {
                         Ok(int_from_le_bytes::<{ $is_signed }>(py, &bytes))
                     }
                 }
-
-                #[cfg(feature = "experimental-inspect")]
-                fn type_output() -> TypeInfo {
-                    TypeInfo::builtin("int")
-                }
             }
 
             impl<'py> IntoPyObject<'py> for &$rust_type {
@@ -455,11 +393,6 @@ mod fast_128bit_int_conversion {
                 #[inline]
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     (*self).into_pyobject(py)
-                }
-
-                #[cfg(feature = "experimental-inspect")]
-                fn type_output() -> TypeInfo {
-                    TypeInfo::builtin("int")
                 }
             }
 
@@ -512,11 +445,6 @@ mod fast_128bit_int_conversion {
                         }
                         Ok(<$rust_type>::from_ne_bytes(buffer))
                     }
-                }
-
-                #[cfg(feature = "experimental-inspect")]
-                fn type_input() -> TypeInfo {
-                    Self::type_output()
                 }
             }
         };
@@ -591,11 +519,6 @@ mod slow_128bit_int_conversion {
                             .cast_into_unchecked())
                     }
                 }
-
-                #[cfg(feature = "experimental-inspect")]
-                fn type_output() -> TypeInfo {
-                    TypeInfo::builtin("int")
-                }
             }
 
             impl<'py> IntoPyObject<'py> for &$rust_type {
@@ -609,11 +532,6 @@ mod slow_128bit_int_conversion {
                 #[inline]
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     (*self).into_pyobject(py)
-                }
-
-                #[cfg(feature = "experimental-inspect")]
-                fn type_output() -> TypeInfo {
-                    TypeInfo::builtin("int")
                 }
             }
 
@@ -639,11 +557,6 @@ mod slow_128bit_int_conversion {
                         let upper: $half_type = shifted.extract()?;
                         Ok((<$rust_type>::from(upper) << SHIFT) | lower)
                     }
-                }
-
-                #[cfg(feature = "experimental-inspect")]
-                fn type_input() -> TypeInfo {
-                    Self::type_output()
                 }
             }
         };
@@ -681,11 +594,6 @@ macro_rules! nonzero_int_impl {
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 self.get().into_pyobject(py)
             }
-
-            #[cfg(feature = "experimental-inspect")]
-            fn type_output() -> TypeInfo {
-                TypeInfo::builtin("int")
-            }
         }
 
         impl<'py> IntoPyObject<'py> for &$nonzero_type {
@@ -700,11 +608,6 @@ macro_rules! nonzero_int_impl {
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 (*self).into_pyobject(py)
             }
-
-            #[cfg(feature = "experimental-inspect")]
-            fn type_output() -> TypeInfo {
-                TypeInfo::builtin("int")
-            }
         }
 
         impl FromPyObject<'_, '_> for $nonzero_type {
@@ -717,11 +620,6 @@ macro_rules! nonzero_int_impl {
                 let val: $primitive_type = obj.extract()?;
                 <$nonzero_type>::try_from(val)
                     .map_err(|_| exceptions::PyValueError::new_err("invalid zero value"))
-            }
-
-            #[cfg(feature = "experimental-inspect")]
-            fn type_input() -> TypeInfo {
-                <$primitive_type>::type_input()
             }
         }
     };

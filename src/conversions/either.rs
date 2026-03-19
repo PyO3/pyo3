@@ -45,8 +45,6 @@
 //! [either](https://docs.rs/either/ "A library for easy idiomatic error handling and reporting in Rust applications")’s
 
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::types::TypeInfo;
-#[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_union;
@@ -125,11 +123,6 @@ where
             );
             Err(PyTypeError::new_err(err_msg))
         }
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        TypeInfo::union_of(&[L::type_input(), R::type_input()])
     }
 }
 

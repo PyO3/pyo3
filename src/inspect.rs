@@ -5,8 +5,6 @@
 use crate::impl_::introspection::{escape_json_string, escaped_json_string_len};
 use std::fmt::{self, Display, Write};
 
-pub mod types;
-
 /// Builds a type hint from a module name and a member name in the module
 ///
 /// ```
