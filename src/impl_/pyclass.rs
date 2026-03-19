@@ -1141,6 +1141,13 @@ unsafe fn call_finalize_from_dealloc(obj: *mut ffi::PyObject, f: ffi::destructor
     unsafe { ffi::Py_INCREF(obj) };
 
     // Step 2: Call the finalizer.
+    // Note: we do not guard against panics here. The finalizer `f` is a
+    // tp_finalize slot with C calling convention, and PyO3's trampoline layer
+    // for `__del__` catches panics before they cross the FFI boundary
+    // (converting them to Python exceptions). Unwinding through `extern "C"`
+    // is UB, so all well-behaved finalizers must not panic. This matches
+    // CPython's own PyObject_CallFinalizerFromDealloc, which also does not
+    // guard against finalizer failure.
     unsafe { f(obj) };
 
     // Step 3: Check if the object was resurrected (refcount > 1 means
