@@ -924,7 +924,6 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
         if let Some(obj) = free_list.pop() {
             drop(free_list);
             unsafe { ffi::PyObject_Init(obj, subtype) };
-            unsafe { ffi::PyObject_Init(obj, subtype) };
             return obj as _;
         }
     }
