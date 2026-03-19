@@ -1157,7 +1157,14 @@ unsafe fn call_finalize_from_dealloc(obj: *mut ffi::PyObject, f: ffi::destructor
 
     // Step 4: No resurrection. Set refcount back to 0 without triggering
     // _Py_Dealloc (which Py_DECREF would do).
-    unsafe { ffi::compat::Py_SET_REFCNT(obj, 0) };
+    #[cfg(Py_3_12)]
+    unsafe {
+        (*obj).ob_refcnt.ob_refcnt = 0;
+    }
+    #[cfg(not(Py_3_12))]
+    unsafe {
+        (*obj).ob_refcnt = 0;
+    }
 
     false // not resurrected
 }

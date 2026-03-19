@@ -255,12 +255,6 @@ macro_rules! extern_libpython_maybe_private_fn {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
     };
     (
-        [_Py_SetRefcnt]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
         [$name:ident]
         $(#[$attrs:meta])* $vis:vis fn $fn_name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
