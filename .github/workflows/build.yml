@@ -59,6 +59,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           python-version: cpython-${{ inputs.python-version }}-macos-x86-64
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
       - name: Install nox
         run: python -m pip install --upgrade pip && pip install nox[uv]
@@ -108,7 +109,7 @@ jobs:
         name: Ignore changed error messages when using trybuild
         run: echo "TRYBUILD=overwrite" >> "$GITHUB_ENV"
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         if: ${{ inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') }}
         id: ffi-changes
         with:

@@ -12,7 +12,7 @@ use std::ffi::c_long;
 
 pub const MAX_CO_EXTRA_USERS: c_int = 255;
 
-extern "C" {
+extern_libpython! {
     #[cfg(not(PyPy))]
     pub fn PyInterpreterState_New() -> *mut PyInterpreterState;
     #[cfg(not(PyPy))]
@@ -53,7 +53,7 @@ pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
     PyThreadState_Get()
 }
 
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_Swap")]
     pub fn PyThreadState_Swap(arg1: *mut PyThreadState) -> *mut PyThreadState;
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_GetDict")]
@@ -101,13 +101,13 @@ impl Drop for HangThread {
 // pthread_exit from PyGILState_Ensure (https://github.com/python/cpython/issues/87135).
 mod raw {
     #[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
-    extern "C-unwind" {
+    extern_libpython! { "C-unwind" {
         #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
         pub fn PyGILState_Ensure() -> super::PyGILState_STATE;
-    }
+    }}
 
     #[cfg(any(Py_3_14, target_arch = "wasm32"))]
-    extern "C" {
+    extern_libpython! {
         #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
         pub fn PyGILState_Ensure() -> super::PyGILState_STATE;
     }
@@ -142,7 +142,7 @@ pub unsafe extern "C" fn PyGILState_Ensure() -> PyGILState_STATE {
 #[cfg(any(Py_3_14, target_arch = "wasm32"))]
 pub use self::raw::PyGILState_Ensure;
 
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyGILState_Release")]
     pub fn PyGILState_Release(arg1: PyGILState_STATE);
     #[cfg(not(PyPy))]

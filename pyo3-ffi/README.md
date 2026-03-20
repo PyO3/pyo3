@@ -78,8 +78,8 @@ static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_name: c"string_sum".as_ptr(),
     m_doc: c"A Python module written in Rust.".as_ptr(),
     m_size: 0,
-    m_methods: std::ptr::addr_of_mut!(METHODS).cast(),
-    m_slots: std::ptr::addr_of_mut!(SLOTS).cast(),
+    m_methods: (&raw mut METHODS).cast(),
+    m_slots: (&raw mut SLOTS).cast(),
     m_traverse: None,
     m_clear: None,
     m_free: None,
@@ -107,7 +107,7 @@ static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {
         slot: Py_mod_abi,
-        value: std::ptr::addr_of_mut!(ABI_INFO).cast(),
+        value: (&raw mut ABI_INFO).cast(),
     },
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {
@@ -124,7 +124,7 @@ static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {
         slot: Py_mod_methods,
-        value: std::ptr::addr_of_mut!(METHODS).cast(),
+        value: (&raw mut METHODS).cast(),
     },
     #[cfg(Py_3_12)]
     PyModuleDef_Slot {
@@ -147,14 +147,14 @@ static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
 #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
 #[no_mangle]
 pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
-    PyModuleDef_Init(ptr::addr_of_mut!(MODULE_DEF))
+    PyModuleDef_Init(&raw mut MODULE_DEF)
 }
 
 #[cfg(Py_3_15)]
 #[allow(non_snake_case, reason = "must be named `PyModExport_<your_module>`")]
 #[no_mangle]
 pub unsafe extern "C" fn PyModExport_string_sum() -> *mut PyModuleDef_Slot {
-    std::ptr::addr_of_mut!(SLOTS).cast()
+    (&raw mut SLOTS).cast()
 }
 
 /// A helper to parse function arguments

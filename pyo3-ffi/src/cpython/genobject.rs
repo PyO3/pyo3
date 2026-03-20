@@ -3,7 +3,6 @@ use crate::PyFrameObject;
 #[cfg(all(Py_3_11, not(any(PyPy, GraalPy, Py_3_14))))]
 use std::ffi::c_char;
 use std::ffi::c_int;
-use std::ptr::addr_of_mut;
 
 #[cfg(not(any(PyPy, GraalPy, Py_3_14)))]
 #[repr(C)]
@@ -40,22 +39,21 @@ pub struct PyGenObject {
 #[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
 opaque_struct!(pub PyGenObject);
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     pub static mut PyGen_Type: PyTypeObject;
 }
 
 #[inline]
 pub unsafe fn PyGen_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyGen_Type))
+    PyObject_TypeCheck(op, &raw mut PyGen_Type)
 }
 
 #[inline]
 pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyGen_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyGen_Type) as c_int
 }
 
-extern "C" {
+extern_libpython! {
     pub fn PyGen_New(frame: *mut PyFrameObject) -> *mut PyObject;
     // skipped PyGen_NewWithQualName
     // skipped _PyGen_SetStopIterationValue
@@ -69,8 +67,7 @@ extern "C" {
 
 // skipped PyCoroObject
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     pub static mut PyCoro_Type: PyTypeObject;
 }
 
@@ -78,7 +75,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyCoro_Type))
+    PyObject_TypeCheck(op, &raw mut PyCoro_Type)
 }
 
 // skipped _PyCoro_GetAwaitableIter
@@ -86,8 +83,7 @@ pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int {
 
 // skipped PyAsyncGenObject
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     pub static mut PyAsyncGen_Type: PyTypeObject;
     // skipped _PyAsyncGenASend_Type
     // skipped _PyAsyncGenWrappedValue_Type
@@ -98,7 +94,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyAsyncGen_CheckExact(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyAsyncGen_Type))
+    PyObject_TypeCheck(op, &raw mut PyAsyncGen_Type)
 }
 
 // skipped _PyAsyncGenValueWrapperNew

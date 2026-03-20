@@ -106,6 +106,7 @@ pub fn function_introspection_code(
     returns: ReturnType,
     decorators: impl IntoIterator<Item = PyExpr>,
     is_async: bool,
+    is_returning_not_implemented_on_extraction_error: bool,
     doc: Option<&PythonDoc>,
     parent: Option<&Type>,
 ) -> TokenStream {
@@ -114,7 +115,12 @@ pub fn function_introspection_code(
         ("name", IntrospectionNode::String(name.into())),
         (
             "arguments",
-            arguments_introspection_data(signature, first_argument, parent),
+            arguments_introspection_data(
+                signature,
+                first_argument,
+                is_returning_not_implemented_on_extraction_error,
+                parent,
+            ),
         ),
         (
             "returns",
@@ -213,6 +219,7 @@ pub fn attribute_introspection_code(
 fn arguments_introspection_data<'a>(
     signature: &'a FunctionSignature<'a>,
     first_argument: Option<&'a str>,
+    is_returning_not_implemented_on_extraction_error: bool,
     class_type: Option<&Type>,
 ) -> IntrospectionNode<'a> {
     let mut argument_desc = signature.arguments.iter().filter(|arg| {
@@ -248,7 +255,12 @@ fn arguments_introspection_data<'a>(
         } else {
             panic!("Less arguments than in python signature");
         };
-        let arg = argument_introspection_data(param, arg_desc, class_type);
+        let arg = argument_introspection_data(
+            param,
+            arg_desc,
+            is_returning_not_implemented_on_extraction_error,
+            class_type,
+        );
         if i < signature.python_signature.positional_only_parameters {
             posonlyargs.push(arg);
         } else {
@@ -271,7 +283,12 @@ fn arguments_introspection_data<'a>(
         let Some(FnArg::Regular(arg_desc)) = argument_desc.next() else {
             panic!("Less arguments than in python signature");
         };
-        kwonlyargs.push(argument_introspection_data(param, arg_desc, class_type));
+        kwonlyargs.push(argument_introspection_data(
+            param,
+            arg_desc,
+            is_returning_not_implemented_on_extraction_error,
+            class_type,
+        ));
     }
 
     if let Some(param) = &signature.python_signature.kwargs {
@@ -307,6 +324,7 @@ fn arguments_introspection_data<'a>(
 fn argument_introspection_data<'a>(
     name: &'a str,
     desc: &'a RegularArg<'_>,
+    is_returning_not_implemented_on_extraction_error: bool,
     class_type: Option<&Type>,
 ) -> AttributedIntrospectionNode<'a> {
     let mut params: HashMap<_, _> = [("name", IntrospectionNode::String(name.into()))].into();
@@ -314,7 +332,10 @@ fn argument_introspection_data<'a>(
         params.insert("default", PyExpr::constant_from_expression(expr).into());
     }
 
-    if let Some(annotation) = &desc.annotation {
+    if is_returning_not_implemented_on_extraction_error {
+        // all inputs are allowed, we use `object`
+        params.insert("annotation", PyExpr::builtin("object").into());
+    } else if let Some(annotation) = &desc.annotation {
         params.insert("annotation", annotation.clone().into());
     } else if desc.from_py_with.is_none() {
         // If from_py_with is set we don't know anything on the input type

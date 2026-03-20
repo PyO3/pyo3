@@ -31,11 +31,9 @@ See the [building and distribution](building-and-distribution.md#minimum-python-
 
 ### `generate-import-lib`
 
-This experimental feature is used to generate import libraries for Python DLL for MinGW-w64 and MSVC (cross-)compile targets.
-
-Enabling it allows to (cross-)compile extension modules to any Windows targets without having to install the Windows Python distribution files for the target.
-
-See the [building and distribution](building-and-distribution.md#building-abi3-extensions-without-a-python-interpreter) section for further detail.
+This feature is deprecated and has no effect.
+PyO3 now uses Rust's `raw-dylib` linking feature to link against the Python DLL on Windows, eliminating the need for import library (`.lib`) files entirely.
+Cross-compiling for Windows targets works without any additional setup.
 
 ## Features for embedding Python in Rust
 

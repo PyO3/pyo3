@@ -924,7 +924,6 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
         if let Some(obj) = free_list.pop() {
             drop(free_list);
             unsafe { ffi::PyObject_Init(obj, subtype) };
-            unsafe { ffi::PyObject_Init(obj, subtype) };
             return obj as _;
         }
     }
@@ -1340,7 +1339,7 @@ impl<ClassT: PyClass, FieldT, const OFFSET: usize, const IMPLEMENTS_INTOPYOBJECT
 #[inline]
 unsafe fn ensure_no_mutable_alias<'a, ClassT: PyClass>(
     _py: Python<'_>,
-    obj: &'a *mut ffi::PyObject,
+    obj: &'a NonNull<ffi::PyObject>,
 ) -> Result<PyClassGuard<'a, ClassT>, PyBorrowError> {
     unsafe { PyClassGuard::try_borrow(NonNull::from(obj).cast::<Py<ClassT>>().as_ref()) }
 }
@@ -1352,7 +1351,7 @@ unsafe fn ensure_no_mutable_alias<'a, ClassT: PyClass>(
 /// - there must be a value of type `FieldT` at the calculated offset within `ClassT`
 unsafe fn pyo3_get_value_into_pyobject_ref<ClassT, FieldT, const OFFSET: usize>(
     py: Python<'_>,
-    obj: *mut ffi::PyObject,
+    obj: NonNull<ffi::PyObject>,
 ) -> PyResult<*mut ffi::PyObject>
 where
     ClassT: PyClass,
@@ -1365,25 +1364,24 @@ where
     /// - value of type `FieldT` must exist at the given offset within obj
     unsafe fn inner<FieldT>(
         py: Python<'_>,
-        obj: *const (),
+        obj: NonNull<()>,
         offset: usize,
     ) -> PyResult<*mut ffi::PyObject>
     where
         for<'a, 'py> &'a FieldT: IntoPyObject<'py>,
     {
         // SAFETY: caller upholds safety invariants
-        let value = unsafe { &*obj.byte_add(offset).cast::<FieldT>() };
+        let value = unsafe { obj.byte_add(offset).cast::<FieldT>().as_ref() };
         value.into_py_any(py).map(Py::into_ptr)
     }
 
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
     let class_ptr = obj.cast::<<ClassT as PyClassImpl>::Layout>();
-    let class_obj = unsafe { &*class_ptr };
-    let contents_ptr = ptr::from_ref(class_obj.contents());
+    let class_obj = unsafe { class_ptr.as_ref() };
 
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe { inner::<FieldT>(py, contents_ptr.cast(), OFFSET) }
+    unsafe { inner::<FieldT>(py, NonNull::from(class_obj.contents()).cast(), OFFSET) }
 }
 
 /// Gets a field value from a pyclass and produces a python value using `IntoPyObject` for `FieldT`,
@@ -1394,7 +1392,7 @@ where
 /// - there must be a value of type `FieldT` at the calculated offset within `ClassT`
 unsafe fn pyo3_get_value_into_pyobject<ClassT, FieldT, const OFFSET: usize>(
     py: Python<'_>,
-    obj: *mut ffi::PyObject,
+    obj: NonNull<ffi::PyObject>,
 ) -> PyResult<*mut ffi::PyObject>
 where
     ClassT: PyClass,
@@ -1407,25 +1405,24 @@ where
     /// - value of type `FieldT` must exist at the given offset within obj
     unsafe fn inner<FieldT>(
         py: Python<'_>,
-        obj: *const (),
+        obj: NonNull<()>,
         offset: usize,
     ) -> PyResult<*mut ffi::PyObject>
     where
         for<'py> FieldT: IntoPyObject<'py> + Clone,
     {
         // SAFETY: caller upholds safety invariants
-        let value = unsafe { &*obj.byte_add(offset).cast::<FieldT>() };
+        let value = unsafe { obj.byte_add(offset).cast::<FieldT>().as_ref() };
         value.clone().into_py_any(py).map(Py::into_ptr)
     }
 
     // SAFETY: `obj` is a valid pointer to `ClassT`
     let _holder = unsafe { ensure_no_mutable_alias::<ClassT>(py, &obj)? };
     let class_ptr = obj.cast::<<ClassT as PyClassImpl>::Layout>();
-    let class_obj = unsafe { &*class_ptr };
-    let contents_ptr = ptr::from_ref(class_obj.contents());
+    let class_obj = unsafe { class_ptr.as_ref() };
 
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe { inner::<FieldT>(py, contents_ptr.cast(), OFFSET) }
+    unsafe { inner::<FieldT>(py, NonNull::from(class_obj.contents()).cast(), OFFSET) }
 }
 
 pub struct ConvertField<

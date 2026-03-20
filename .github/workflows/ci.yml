@@ -124,6 +124,8 @@ jobs:
           targets: ${{ matrix.target }}
           components: clippy,rust-src
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s clippy-all
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
@@ -231,7 +233,6 @@ jobs:
             "3.11",
             "3.12",
             "3.13",
-            "3.13t",
             "3.14",
             "3.14t",
             "3.15-dev",
@@ -456,8 +457,7 @@ jobs:
       - uses: actions/checkout@v6.0.2
       - uses: actions/setup-python@v6
         with:
-          # TODO bump emscripten builds to test on 3.13
-          python-version: 3.11
+          python-version: 3.14
         id: setup-python
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -466,7 +466,7 @@ jobs:
           components: rust-src
       - uses: actions/setup-node@v6
         with:
-          node-version: 18
+          node-version: 24
       - run: python -m pip install --upgrade pip && pip install nox[uv]
       - uses: actions/cache/restore@v5
         id: cache
@@ -677,11 +677,12 @@ jobs:
           # ubuntu x86_64 -> windows x86_64
           - os: "ubuntu-latest"
             target: "x86_64-pc-windows-gnu"
-            flags: "-i python3.13 --features generate-import-lib"
+            # TODO: remove pyo3/generate-import-lib feature when maturin supports cross compiling to Windows without it
+            flags: "-i python3.13 --features pyo3/generate-import-lib"
           # windows x86_64 -> aarch64
           - os: "windows-latest"
             target: "aarch64-pc-windows-msvc"
-            flags: "-i python3.13 --features generate-import-lib"
+            flags: "-i python3.13 --features pyo3/generate-import-lib"
     steps:
       - uses: actions/checkout@v6.0.2
       - uses: actions/setup-python@v6

@@ -1,3 +1,5 @@
+#![warn(clippy::undocumented_unsafe_blocks)]
+
 use std::{convert::Infallible, marker::PhantomData, ops::Deref};
 
 use crate::{

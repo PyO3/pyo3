@@ -12,7 +12,6 @@ crate-type = ["cdylib"]
 pyo3 = { path = "../../" }
 
 [features]
-abi3 = ["pyo3/abi3-py37", "generate-import-lib"]
-generate-import-lib = ["pyo3/generate-import-lib"]
+abi3 = ["pyo3/abi3-py37"]
 
 [workspace]
