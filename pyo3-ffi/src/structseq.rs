@@ -19,7 +19,10 @@ pub struct PyStructSequence_Desc {
     pub n_in_sequence: c_int,
 }
 
-pub const PyStructSequence_UnnamedField: *const u8 = "unnamed field".as_ptr();
+extern_libpython! {
+    #[cfg(any(Py_3_11, not(Py_LIMITED_API)))]
+    pub static mut PyStructSequence_UnnamedField: *const c_char;
+}
 
 extern_libpython! {
     #[cfg(not(Py_LIMITED_API))]
