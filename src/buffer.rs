@@ -797,8 +797,7 @@ pub struct PyBufferView<T>(PyUntypedBufferView, PhantomData<[T]>);
 /// arbitrary flags, so flag-dependent accessors like [`format()`](Self::format),
 /// [`shape()`](Self::shape), and [`strides()`](Self::strides) return `Option`.
 pub struct PyUntypedBufferView {
-    raw: ffi::Py_buffer,
-    flags: c_int,
+    raw: mem::MaybeUninit<ffi::Py_buffer>,
 }
 
 impl PyUntypedBufferView {
@@ -811,50 +810,60 @@ impl PyUntypedBufferView {
         flags: c_int,
         f: impl FnOnce(&PyUntypedBufferView) -> R,
     ) -> PyResult<R> {
-        let mut view = mem::MaybeUninit::<PyUntypedBufferView>::uninit();
-        let view_ptr = view.as_mut_ptr();
-
-        unsafe {
-            ptr::addr_of_mut!((*view_ptr).flags).write(flags);
-        }
+        let mut raw = mem::MaybeUninit::<ffi::Py_buffer>::uninit();
 
         err::error_on_minusone(obj.py(), unsafe {
-            ffi::PyObject_GetBuffer(obj.as_ptr(), ptr::addr_of_mut!((*view_ptr).raw), flags)
+            ffi::PyObject_GetBuffer(obj.as_ptr(), raw.as_mut_ptr(), flags)
         })?;
 
-        // TODO: needs a cleanup strategy — MaybeUninit never drops its contents, so PyBuffer_Release is not currently called.
-        Ok(f(unsafe { view.assume_init_ref() }))
+        // Construct view only after successful GetBuffer, so Drop always
+        // runs on an initialized Py_buffer.
+        let mut view = PyUntypedBufferView { raw };
+
+        // When shape is NULL the consumer must assume itemsize == 1.
+        if view.raw().shape.is_null() {
+            unsafe { &mut *view.raw.as_mut_ptr() }.itemsize = 1;
+        }
+
+        Ok(f(&view))
+    }
+
+    #[inline]
+    fn raw(&self) -> &ffi::Py_buffer {
+        // SAFETY: PyUntypedBufferView is only constructed after a successful
+        // PyObject_GetBuffer call, so raw is always initialized.
+        unsafe { self.raw.assume_init_ref() }
     }
 
     /// Gets the pointer to the start of the buffer memory.
     #[inline]
     pub fn buf_ptr(&self) -> *mut c_void {
-        self.raw.buf
+        self.raw().buf
     }
 
     /// Gets whether the underlying buffer is read-only.
     #[inline]
     pub fn readonly(&self) -> bool {
-        self.raw.readonly != 0
+        self.raw().readonly != 0
     }
 
     /// Gets the size of a single element, in bytes.
     #[inline]
     pub fn item_size(&self) -> usize {
-        self.raw.itemsize as usize
+        self.raw().itemsize as usize
     }
 
     /// Gets the total number of items.
     #[inline]
     pub fn item_count(&self) -> usize {
-        (self.raw.len as usize) / (self.raw.itemsize as usize)
+        (self.raw().len as usize) / (self.raw().itemsize as usize)
     }
 
     /// `item_size() * item_count()`.
     /// For contiguous arrays, this is the length of the underlying memory block.
     #[inline]
     pub fn len_bytes(&self) -> usize {
-        self.raw.len as usize
+        self.raw().len as usize
     }
 
     /// Gets the number of dimensions.
@@ -862,46 +871,42 @@ impl PyUntypedBufferView {
     /// May be 0 to indicate a single scalar value.
     #[inline]
     pub fn dimensions(&self) -> usize {
-        self.raw.ndim as usize
+        self.raw().ndim as usize
     }
 
-    /// A string in struct module style syntax describing the contents of a single item.
-    ///
-    /// Returns `None` if `PyBUF_FORMAT` was not included in the flags.
+    /// A [struct module style](https://docs.python.org/3/c-api/buffer.html#c.Py_buffer.format)
+    /// string describing the contents of a single item. Defaults to `"B"` if NULL.
     #[inline]
-    pub fn format(&self) -> Option<&CStr> {
-        if self.flags & ffi::PyBUF_FORMAT != ffi::PyBUF_FORMAT {
-            return None;
-        }
-        if self.raw.format.is_null() {
-            Some(ffi::c_str!("B"))
+    pub fn format(&self) -> &CStr {
+        if self.raw().format.is_null() {
+            ffi::c_str!("B")
         } else {
-            Some(unsafe { CStr::from_ptr(self.raw.format) })
+            unsafe { CStr::from_ptr(self.raw().format) }
         }
     }
 
     /// Returns the shape array. `shape[i]` is the length of dimension `i`.
     ///
-    /// Returns `None` if `PyBUF_ND` was not included in the flags.
+    /// Returns `None` if the exporter set `shape` to NULL (e.g. `PyBUF_SIMPLE` was requested).
     #[inline]
     pub fn shape(&self) -> Option<&[usize]> {
-        if self.flags & ffi::PyBUF_ND != ffi::PyBUF_ND || self.raw.shape.is_null() {
+        if self.raw().shape.is_null() {
             return None;
         }
 
-        Some(unsafe { slice::from_raw_parts(self.raw.shape.cast(), self.raw.ndim as usize) })
+        Some(unsafe { slice::from_raw_parts(self.raw().shape.cast(), self.raw().ndim as usize) })
     }
 
     /// Returns the strides array.
     ///
-    /// Returns `None` if `PyBUF_STRIDES` was not included in the flags.
+    /// Returns `None` if the exporter set `strides` to NULL (e.g. `PyBUF_SIMPLE` was requested).
     #[inline]
     pub fn strides(&self) -> Option<&[isize]> {
-        if self.flags & ffi::PyBUF_STRIDES != ffi::PyBUF_STRIDES || self.raw.strides.is_null() {
+        if self.raw().strides.is_null() {
             return None;
         }
 
-        Some(unsafe { slice::from_raw_parts(self.raw.strides, self.raw.ndim as usize) })
+        Some(unsafe { slice::from_raw_parts(self.raw().strides, self.raw().ndim as usize) })
     }
 
     /// Returns the suboffsets array.
@@ -909,23 +914,23 @@ impl PyUntypedBufferView {
     /// May return `None` even with `PyBUF_INDIRECT` if the exporter sets `suboffsets` to NULL.
     #[inline]
     pub fn suboffsets(&self) -> Option<&[isize]> {
-        if self.raw.suboffsets.is_null() {
+        if self.raw().suboffsets.is_null() {
             None
         } else {
-            Some(unsafe { slice::from_raw_parts(self.raw.suboffsets, self.raw.ndim as usize) })
+            Some(unsafe { slice::from_raw_parts(self.raw().suboffsets, self.raw().ndim as usize) })
         }
     }
 
     /// Gets whether the buffer is contiguous in C-style order.
     #[inline]
     pub fn is_c_contiguous(&self) -> bool {
-        unsafe { ffi::PyBuffer_IsContiguous(&self.raw, b'C' as std::ffi::c_char) != 0 }
+        unsafe { ffi::PyBuffer_IsContiguous(self.raw(), b'C' as std::ffi::c_char) != 0 }
     }
 
     /// Gets whether the buffer is contiguous in Fortran-style order.
     #[inline]
     pub fn is_fortran_contiguous(&self) -> bool {
-        unsafe { ffi::PyBuffer_IsContiguous(&self.raw, b'F' as std::ffi::c_char) != 0 }
+        unsafe { ffi::PyBuffer_IsContiguous(self.raw(), b'F' as std::ffi::c_char) != 0 }
     }
 
     /// Attempt to interpret this untyped view as containing elements of type `T`.
@@ -938,18 +943,12 @@ impl PyUntypedBufferView {
     }
 
     fn ensure_compatible_with<T: Element>(&self) -> PyResult<()> {
-        let format = self.format().ok_or_else(|| {
-            PyBufferError::new_err(
-                "buffer format not available (PyBUF_FORMAT flag was not requested)",
-            )
-        })?;
-
-        if mem::size_of::<T>() != self.item_size() || !T::is_compatible_format(format) {
+        if mem::size_of::<T>() != self.item_size() || !T::is_compatible_format(self.format()) {
             Err(PyBufferError::new_err(format!(
                 "buffer contents are not compatible with {}",
                 std::any::type_name::<T>()
             )))
-        } else if self.raw.buf.align_offset(mem::align_of::<T>()) != 0 {
+        } else if self.raw().buf.align_offset(mem::align_of::<T>()) != 0 {
             Err(PyBufferError::new_err(format!(
                 "buffer contents are insufficiently aligned for {}",
                 std::any::type_name::<T>()
@@ -957,6 +956,12 @@ impl PyUntypedBufferView {
         } else {
             Ok(())
         }
+    }
+}
+
+impl Drop for PyUntypedBufferView {
+    fn drop(&mut self) {
+        unsafe { ffi::PyBuffer_Release(self.raw.as_mut_ptr()) }
     }
 }
 
@@ -994,7 +999,7 @@ impl<T: Element> PyBufferView<T> {
         if self.is_c_contiguous() {
             unsafe {
                 Some(slice::from_raw_parts(
-                    self.0.raw.buf.cast(),
+                    self.0.raw().buf.cast(),
                     self.item_count(),
                 ))
             }
@@ -1013,7 +1018,7 @@ impl<T: Element> PyBufferView<T> {
         if !self.readonly() && self.is_c_contiguous() {
             unsafe {
                 Some(slice::from_raw_parts(
-                    self.0.raw.buf.cast(),
+                    self.0.raw().buf.cast(),
                     self.item_count(),
                 ))
             }
@@ -1042,18 +1047,19 @@ fn debug_buffer_view(
     view: &PyUntypedBufferView,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
+    let raw = view.raw();
     f.debug_struct(name)
-        .field("buf", &view.raw.buf)
-        .field("obj", &view.raw.obj)
-        .field("len", &view.raw.len)
-        .field("itemsize", &view.raw.itemsize)
-        .field("readonly", &view.raw.readonly)
-        .field("ndim", &view.raw.ndim)
+        .field("buf", &raw.buf)
+        .field("obj", &raw.obj)
+        .field("len", &raw.len)
+        .field("itemsize", &raw.itemsize)
+        .field("readonly", &raw.readonly)
+        .field("ndim", &raw.ndim)
         .field("format", &view.format())
         .field("shape", &view.shape())
         .field("strides", &view.strides())
         .field("suboffsets", &view.suboffsets())
-        .field("internal", &view.raw.internal)
+        .field("internal", &raw.internal)
         .finish()
 }
 
@@ -1363,8 +1369,8 @@ mod tests {
                 assert_eq!(view.item_count(), 5);
                 assert!(view.readonly());
                 assert_eq!(view.dimensions(), 1);
-                // PyBUF_SIMPLE doesn't include FORMAT, ND, or STRIDES
-                assert!(view.format().is_none());
+                // PyBUF_SIMPLE doesn't include ND or STRIDES; format defaults to "B"
+                assert_eq!(view.format().to_str().unwrap(), "B");
                 assert!(view.shape().is_none());
                 assert!(view.strides().is_none());
                 assert!(view.suboffsets().is_none());
@@ -1384,7 +1390,7 @@ mod tests {
                 assert_eq!(view.item_count(), 5);
                 assert!(view.readonly());
                 assert_eq!(view.dimensions(), 1);
-                assert_eq!(view.format().unwrap().to_str().unwrap(), "B");
+                assert_eq!(view.format().to_str().unwrap(), "B");
                 assert_eq!(view.shape().unwrap(), [5]);
                 assert_eq!(view.strides().unwrap(), [1]);
                 assert!(view.suboffsets().is_none());
@@ -1402,7 +1408,7 @@ mod tests {
             PyBufferView::<u8>::with(&bytes, |view| {
                 assert_eq!(view.dimensions(), 1);
                 assert_eq!(view.item_count(), 5);
-                assert_eq!(view.format().unwrap().to_str().unwrap(), "B");
+                assert_eq!(view.format().to_str().unwrap(), "B");
                 assert_eq!(view.shape().unwrap(), [5]);
 
                 let slice = view.as_slice(py).unwrap();
@@ -1428,7 +1434,7 @@ mod tests {
             PyBufferView::<f32>::with(&array, |view| {
                 assert_eq!(view.dimensions(), 1);
                 assert_eq!(view.item_count(), 4);
-                assert_eq!(view.format().unwrap().to_str().unwrap(), "f");
+                assert_eq!(view.format().to_str().unwrap(), "f");
                 assert_eq!(view.shape().unwrap(), [4]);
 
                 let slice = view.as_slice(py).unwrap();
@@ -1452,28 +1458,28 @@ mod tests {
             let bytes = PyBytes::new(py, b"abcde");
 
             PyUntypedBufferView::with(&bytes, ffi::PyBUF_SIMPLE, |view| {
-                assert!(view.format().is_none());
+                assert_eq!(view.format().to_str().unwrap(), "B");
                 assert!(view.shape().is_none());
                 assert!(view.strides().is_none());
             })
             .unwrap();
 
             PyUntypedBufferView::with(&bytes, ffi::PyBUF_ND, |view| {
-                assert!(view.format().is_none());
+                assert_eq!(view.format().to_str().unwrap(), "B");
                 assert_eq!(view.shape().unwrap(), [5]);
                 assert!(view.strides().is_none());
             })
             .unwrap();
 
             PyUntypedBufferView::with(&bytes, ffi::PyBUF_STRIDES, |view| {
-                assert!(view.format().is_none());
+                assert_eq!(view.format().to_str().unwrap(), "B");
                 assert_eq!(view.shape().unwrap(), [5]);
                 assert_eq!(view.strides().unwrap(), [1]);
             })
             .unwrap();
 
             PyUntypedBufferView::with(&bytes, ffi::PyBUF_FORMAT, |view| {
-                assert_eq!(view.format().unwrap().to_str().unwrap(), "B");
+                assert_eq!(view.format().to_str().unwrap(), "B");
                 assert!(view.shape().is_none());
                 assert!(view.strides().is_none());
             })
@@ -1500,10 +1506,12 @@ mod tests {
                     concat!(
                         "PyUntypedBufferView {{ buf: {:?}, obj: {:?}, ",
                         "len: 5, itemsize: 1, readonly: 1, ",
-                        "ndim: 1, format: Some(\"B\"), shape: Some([5]), ",
+                        "ndim: 1, format: \"B\", shape: Some([5]), ",
                         "strides: Some([1]), suboffsets: None, internal: {:?} }}",
                     ),
-                    view.raw.buf, view.raw.obj, view.raw.internal,
+                    view.raw().buf,
+                    view.raw().obj,
+                    view.raw().internal,
                 );
                 let debug_repr = format!("{:?}", view);
                 assert_eq!(debug_repr, expected);
@@ -1515,10 +1523,12 @@ mod tests {
                     concat!(
                         "PyBufferView {{ buf: {:?}, obj: {:?}, ",
                         "len: 5, itemsize: 1, readonly: 1, ",
-                        "ndim: 1, format: Some(\"B\"), shape: Some([5]), ",
+                        "ndim: 1, format: \"B\", shape: Some([5]), ",
                         "strides: Some([1]), suboffsets: None, internal: {:?} }}",
                     ),
-                    view.0.raw.buf, view.0.raw.obj, view.0.raw.internal,
+                    view.0.raw().buf,
+                    view.0.raw().obj,
+                    view.0.raw().internal,
                 );
                 let debug_repr = format!("{:?}", view);
                 assert_eq!(debug_repr, expected);
