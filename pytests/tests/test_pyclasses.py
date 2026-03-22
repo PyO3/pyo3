@@ -150,7 +150,7 @@ def test_dict():
     d = ClassWithDict()
     assert d.__dict__ == {}
 
-    d.foo = 42
+    d.foo = 42  # type: ignore[missing-attribute]
     assert d.__dict__ == {"foo": 42}
 
 

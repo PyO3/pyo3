@@ -793,9 +793,14 @@ jobs:
       - run: python -m pip install --upgrade pip && pip install nox[uv]
       - run: nox -s test-introspection
 
-  mypy-pytests:
+  pytests-type-checking:
     needs: [fmt]
     runs-on: ubuntu-latest
+    strategy:
+      # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
+      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+      matrix:
+        checker: [mypy, pyrefly]
     steps:
       - uses: actions/checkout@v6.0.2
       - uses: dtolnay/rust-toolchain@stable
@@ -805,7 +810,7 @@ jobs:
         with:
           python-version: "3.14"
       - run: python -m pip install --upgrade pip && pip install nox[uv]
-      - run: nox -s mypy
+      - run: nox -s ${{matrix.checker}}
         working-directory: pytests
 
   conclusion:

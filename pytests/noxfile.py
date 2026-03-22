@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 import shutil
 from pathlib import Path
 
@@ -41,6 +42,22 @@ def bench(session: nox.Session):
 
 @nox.session
 def mypy(session: nox.Session):
+    type_checker(
+        session,
+        ("python", "-m", "mypy", "tests"),
+    )
+    # TODO: enable stubtest session.run_always("python", "-m", "mypy.stubtest", "pyo3_pytests")
+
+
+@nox.session
+def pyrefly(session: nox.Session):
+    type_checker(
+        session,
+        ("python", "-m", "pyrefly", "check", "tests"),
+    )
+
+
+def type_checker(session: nox.Session, command: Iterable[str]):
     session.env["MATURIN_PEP517_ARGS"] = "--profile=dev"
     try:
         # We move the stubs where maturin is expecting them to be
@@ -48,12 +65,6 @@ def mypy(session: nox.Session):
         (Path("pyo3_pytests") / "py.typed").touch()
         session.install(".[dev]")
 
-        session.run_always(
-            "python",
-            "-m",
-            "mypy",
-            "tests",
-        )
-        # TODO: enable stubtest when previously listed errors will be fixed session.run_always("python", "-m", "mypy.stubtest", "pyo3_pytests")
+        session.run_always(*command)
     finally:
         shutil.rmtree("pyo3_pytests")
