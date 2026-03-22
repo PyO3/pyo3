@@ -1813,6 +1813,7 @@ impl FunctionIntrospectionData<'_> {
                     self.is_returning_not_implemented_on_extraction_error,
                     None,
                     Some(cls),
+                    &[],
                 )
             })
             .collect()
@@ -2044,6 +2045,7 @@ fn complex_enum_struct_variant_new<'a>(
         asyncness: None,
         unsafety: None,
         warnings: vec![],
+        overloads: vec![],
         output: syn::ReturnType::Default,
     };
 
@@ -2109,6 +2111,7 @@ fn complex_enum_tuple_variant_new<'a>(
         asyncness: None,
         unsafety: None,
         warnings: vec![],
+        overloads: vec![],
         output: syn::ReturnType::Default,
     };
 
@@ -2152,6 +2155,7 @@ fn complex_enum_variant_field_getter(
         asyncness: None,
         unsafety: None,
         warnings: vec![],
+        overloads: vec![],
         output: parse_quote!(-> #field_type),
     };
 
@@ -2222,6 +2226,7 @@ fn descriptors_to_items(
                     false,
                     utils::get_doc(&field.attrs, None).as_ref(),
                     Some(&parse_quote!(#cls)),
+                    &[],
                 ));
             }
             items.push(getter);
@@ -2277,6 +2282,7 @@ fn descriptors_to_items(
                     false,
                     get_doc(&field.attrs, None).as_ref(),
                     Some(&parse_quote!(#cls)),
+                    &[],
                 ));
             }
             items.push(setter);
