@@ -912,12 +912,14 @@ impl<Shape: FieldInfo, Stride: FieldInfo> PyUntypedBufferView<Known, Shape, Stri
     /// Attempt to interpret this untyped view as containing elements of type `T`.
     pub fn as_typed<T: Element>(&self) -> PyResult<&PyBufferView<T, Known, Shape, Stride>> {
         self.ensure_compatible_with::<T>()?;
-        // SAFETY: PyBufferView<T, Format, Shape, Stride> is repr(transparent) around PyUntypedBufferView<Format, Shape, Stride>
-        Ok(unsafe {
+        // SAFETY: PyBufferView<T, ..> is repr(transparent) around PyUntypedBufferView<..>
+        let typed = unsafe {
             NonNull::from(self)
                 .cast::<PyBufferView<T, Known, Shape, Stride>>()
                 .as_ref()
-        })
+        };
+
+        Ok(typed)
     }
 
     fn ensure_compatible_with<T: Element>(&self) -> PyResult<()> {
@@ -928,6 +930,7 @@ impl<Shape: FieldInfo, Stride: FieldInfo> PyUntypedBufferView<Known, Shape, Stri
                 "buffer contents are not compatible with {name}"
             )));
         }
+
         if self.raw.buf.align_offset(mem::align_of::<T>()) != 0 {
             return Err(PyBufferError::new_err(format!(
                 "buffer contents are insufficiently aligned for {name}"
