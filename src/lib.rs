@@ -351,6 +351,7 @@ pub use crate::pyclass::{PyClass, PyClassGuard, PyClassGuardMut};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::type_object::{PyTypeCheck, PyTypeInfo};
 pub use crate::types::PyAny;
+pub use crate::unpack::Unpackable;
 pub use crate::version::PythonVersionInfo;
 
 pub(crate) mod ffi_ptr_ext;
@@ -424,6 +425,7 @@ mod instance;
 mod interpreter_lifecycle;
 pub mod marker;
 pub mod marshal;
+mod unpack;
 #[macro_use]
 pub mod sync;
 pub(crate) mod byteswriter;
