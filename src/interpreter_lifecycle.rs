@@ -80,6 +80,14 @@ where
     result
 }
 
+/// If PyO3 is currently running `Py_InitializeEx` inside the `Once` guard,
+/// block until it completes. Needed because `Py_InitializeEx` sets the
+/// `initialized` flag in the interpreter to true before it finishes all its
+/// steps.
+pub(crate) fn wait_for_initialization() {
+    START.wait_force();
+}
+
 pub(crate) fn ensure_initialized() {
     // Maybe auto-initialize the interpreter:
     //  - If auto-initialize feature set and supported, try to initialize the interpreter.
