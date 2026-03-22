@@ -83,9 +83,22 @@ where
 /// If PyO3 is currently running `Py_InitializeEx` inside the `Once` guard,
 /// block until it completes. Needed because `Py_InitializeEx` sets the
 /// `initialized` flag in the interpreter to true before it finishes all its
-/// steps.
+/// steps (in particular, before it imports `site.py`).
+///
+/// This must only be called after `Py_IsInitialized()` has returned true.
+///
+/// If the `Once` was never started (e.g. the interpreter was initialized
+/// externally, not through PyO3), `call_once` runs the empty closure and
+/// returns — this is fine because `initialize()` checks
+/// `Py_IsInitialized()` inside its closure and skips `Py_InitializeEx` if
+/// the interpreter is already running. If the `Once` is currently in
+/// progress (another thread is inside `initialize()`), `call_once` blocks
+/// until it completes.
 pub(crate) fn wait_for_initialization() {
-    START.wait_force();
+    // TODO: use START.wait_force() on MSRV 1.86
+    START.call_once(|| {
+        assert_ne!(unsafe { crate::ffi::Py_IsInitialized() }, 0);
+    });
 }
 
 pub(crate) fn ensure_initialized() {
