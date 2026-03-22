@@ -805,9 +805,9 @@ impl PyUntypedBufferView {
             ffi::PyObject_GetBuffer(obj.as_ptr(), raw.as_mut_ptr(), flags)
         })?;
 
-        // Construct view only after successful GetBuffer, so Drop always
+        // SAEFTY: Construct view only after successful GetBuffer, so Drop always
         // runs on an initialized Py_buffer.
-        let mut view = PyUntypedBufferView { raw };
+        let mut view = PyUntypedBufferView { raw: unsafe { raw.assume_init() } };
 
         // When shape is NULL the consumer must assume itemsize == 1.
         if view.raw().shape.is_null() {
