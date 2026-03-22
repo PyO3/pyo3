@@ -75,17 +75,7 @@ impl PyCapsule {
     ///     assert_eq!(unsafe { *val.as_ref() }, 123);
     /// });
     /// ```
-    ///
-    /// However, attempting to construct a `PyCapsule` with a zero-sized type will not compile:
-    ///
-    /// ```compile_fail
-    /// use pyo3::{prelude::*, types::PyCapsule};
-    ///
-    /// Python::attach(|py| {
-    ///     let capsule = PyCapsule::new(py, (), None).unwrap();  // Oops! `()` is zero sized!
-    /// });
-    /// ```
-    pub fn new<T: 'static + Send + AssertNotZeroSized>(
+    pub fn new<T: 'static + Send>(
         py: Python<'_>,
         value: T,
         name: Option<CString>,
@@ -100,17 +90,12 @@ impl PyCapsule {
     ///
     /// The `destructor` must be `Send`, because there is no guarantee which thread it will eventually
     /// be called from.
-    pub fn new_with_destructor<
-        T: 'static + Send + AssertNotZeroSized,
-        F: FnOnce(T, *mut c_void) + Send,
-    >(
+    pub fn new_with_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send>(
         py: Python<'_>,
         value: T,
         name: Option<CString>,
         destructor: F,
     ) -> PyResult<Bound<'_, Self>> {
-        AssertNotZeroSized::assert_not_zero_sized(&value);
-
         // Sanity check for capsule layout
         debug_assert_eq!(offset_of!(CapsuleContents::<T, F>, value), 0);
 
@@ -564,21 +549,6 @@ unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_v
     destructor(value, ctx);
 }
 
-/// Guarantee `T` is not zero sized at compile time.
-// credit: `<https://users.rust-lang.org/t/is-it-possible-to-assert-at-compile-time-that-foo-t-is-not-called-with-a-zst/67685>`
-#[doc(hidden)]
-pub trait AssertNotZeroSized: Sized {
-    const _CONDITION: usize = (std::mem::size_of::<Self>() == 0) as usize;
-    const _CHECK: &'static str =
-        ["PyCapsule value type T must not be zero-sized!"][Self::_CONDITION];
-    #[allow(path_statements, clippy::no_effect)]
-    fn assert_not_zero_sized(&self) {
-        <Self as AssertNotZeroSized>::_CHECK;
-    }
-}
-
-impl<T> AssertNotZeroSized for T {}
-
 fn ensure_no_error(py: Python<'_>) -> PyResult<()> {
     if let Some(err) = PyErr::take(py) {
         Err(err)
@@ -958,7 +928,7 @@ mod tests {
         Python::attach(|py| {
             // Create a capsule and register it
             let cap = PyCapsule::new(py, 123u32, Some(c"builtins.test_cap".to_owned())).unwrap();
-            let module = crate::prelude::PyModule::import(py, "builtins").unwrap();
+            let module = PyModule::import(py, "builtins").unwrap();
             module.add("test_cap", cap).unwrap();
 
             // Try to import with wrong attribute name
@@ -967,5 +937,15 @@ mod tests {
                 unsafe { PyCapsule::import(py, c"builtins.wrong_attribute") };
             assert!(result.is_err());
         });
+    }
+
+    #[test]
+    fn test_capsule_with_zero_sized_type() {
+        Python::attach(|py| {
+            let cap = PyCapsule::new(py, (), None).unwrap();
+            let content = cap.pointer_checked(None).unwrap();
+            // SAFETY: Capsule invariant: the returned pointer is the given pointer
+            assert_eq!(*unsafe { content.cast::<()>().as_ref() }, ());
+        })
     }
 }
