@@ -99,6 +99,11 @@ impl AttachGuard {
             return Err(AttachError::NotInitialized);
         }
 
+        // Py_IsInitialized() can return 1 while Py_InitializeEx is still
+        // running (e.g. importing site.py). Block until any in-progress PyO3
+        // initialization has fully completed.
+        crate::interpreter_lifecycle::wait_for_initialization();
+
         // Calling `PyGILState_Ensure` while finalizing may crash CPython in unpredictable
         // ways, we'll make a best effort attempt here to avoid that. (There's a time of
         // check to time-of-use issue, but it's better than nothing.)
