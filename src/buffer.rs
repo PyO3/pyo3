@@ -792,9 +792,6 @@ pub struct PyUntypedBufferView {
 impl PyUntypedBufferView {
     /// Acquire a buffer view on the stack with [`ffi::PyBUF_SIMPLE`] flags,
     /// pass it to `f`, then release the buffer.
-    ///
-    /// Format is patched to `"B"` and itemsize to `1`, as required by the
-    /// buffer protocol for `PyBUF_SIMPLE` requests.
     pub fn with<R>(
         obj: &Bound<'_, PyAny>,
         f: impl FnOnce(&PyUntypedBufferView) -> R,
@@ -835,9 +832,15 @@ impl PyUntypedBufferView {
 
         // SAFETY: Construct view only after successful GetBuffer, so Drop always
         // runs on an initialized Py_buffer.
-        let view = PyUntypedBufferView {
+        let mut view = PyUntypedBufferView {
             raw: unsafe { raw.assume_init() },
         };
+
+        // For PyBUF_WRITABLE, the consumer must assume itemsize == 1 and format "B".
+        if flags == ffi::PyBUF_WRITABLE {
+            view.raw.itemsize = 1;
+            view.raw.format = ffi::c_str!("B").as_ptr() as *mut _;
+        }
 
         Ok(f(&view))
     }
