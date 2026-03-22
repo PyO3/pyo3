@@ -96,6 +96,7 @@ where
 /// until it completes.
 pub(crate) fn wait_for_initialization() {
     // TODO: use START.wait_force() on MSRV 1.86
+    // TODO: may not be needed on Python 3.15 (https://github.com/python/cpython/pull/146303)
     START.call_once(|| {
         assert_ne!(unsafe { crate::ffi::Py_IsInitialized() }, 0);
     });
