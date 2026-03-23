@@ -255,6 +255,98 @@ pub mod releasebufferproc {
     pub type Func = unsafe fn(Python<'_>, *mut ffi::PyObject, *mut ffi::Py_buffer) -> PyResult<()>;
 }
 
+/// Destructor trampoline for tp_finalize (__del__).
+///
+/// tp_finalize is a `destructor` (returns void) but can produce Python exceptions
+/// that must become unraisable. Following CPython's `slot_tp_finalize`, the current
+/// exception is saved before calling the user's __del__ and restored afterwards.
+pub unsafe extern "C" fn finalizefunc<Meth: MethodDef<finalizefunc::Func>>(
+    slf: *mut ffi::PyObject,
+) {
+    // SAFETY: caller upholds the safety requirements of the outer function.
+    unsafe { finalizefunc::inner(slf, Meth::METH) }
+}
+
+pub mod finalizefunc {
+    use super::*;
+
+    /// RAII guard that saves the current Python exception on construction and
+    /// restores it on drop.  This ensures the exception state is always restored
+    /// even if a panic occurs between save and restore.
+    struct ExceptionGuard {
+        #[cfg(Py_3_12)]
+        saved_exc: *mut ffi::PyObject,
+        #[cfg(not(Py_3_12))]
+        ptype: *mut ffi::PyObject,
+        #[cfg(not(Py_3_12))]
+        pvalue: *mut ffi::PyObject,
+        #[cfg(not(Py_3_12))]
+        ptraceback: *mut ffi::PyObject,
+    }
+
+    impl ExceptionGuard {
+        /// Save the current exception state (if any), clearing it from the
+        /// interpreter.
+        ///
+        /// # Safety
+        /// The GIL must be held.
+        unsafe fn new() -> Self {
+            #[cfg(Py_3_12)]
+            {
+                Self {
+                    // SAFETY: caller guarantees the GIL is held.
+                    saved_exc: unsafe { ffi::PyErr_GetRaisedException() },
+                }
+            }
+            #[cfg(not(Py_3_12))]
+            {
+                let (mut ptype, mut pvalue, mut ptraceback) = (
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                );
+                // SAFETY: caller guarantees the GIL is held.
+                unsafe { ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback) };
+                Self {
+                    ptype,
+                    pvalue,
+                    ptraceback,
+                }
+            }
+        }
+    }
+
+    impl Drop for ExceptionGuard {
+        fn drop(&mut self) {
+            // SAFETY: the GIL must still be held when the guard is dropped;
+            // this is guaranteed because ExceptionGuard is only used inside
+            // trampoline functions that hold the GIL for their entire duration.
+            #[cfg(Py_3_12)]
+            unsafe {
+                ffi::PyErr_SetRaisedException(self.saved_exc);
+            }
+            // SAFETY: the GIL must still be held when the guard is dropped;
+            // this is guaranteed because ExceptionGuard is only used inside
+            // trampoline functions that hold the GIL for their entire duration.
+            #[cfg(not(Py_3_12))]
+            unsafe {
+                ffi::PyErr_Restore(self.ptype, self.pvalue, self.ptraceback);
+            }
+        }
+    }
+
+    #[inline]
+    pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, f: Func) {
+        // Save the current exception; the guard's Drop restores it even on panic.
+        // SAFETY: tp_finalize is called with the GIL held.
+        let _guard = unsafe { ExceptionGuard::new() };
+        // SAFETY: caller upholds requirements
+        unsafe { trampoline_unraisable(|py| f(py, slf), slf) }
+    }
+
+    pub type Func = unsafe fn(Python<'_>, *mut ffi::PyObject) -> PyResult<()>;
+}
+
 /// # Safety
 ///
 /// - slf must be either a valid ffi::PyObject or NULL

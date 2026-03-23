@@ -133,6 +133,32 @@ impl_slots! {
     TP_TRAVERSE: (Py_tp_traverse, tp_traverse) -> Option<ffi::traverseproc>,
 }
 
+#[cfg(all(Py_LIMITED_API, not(GraalPy)))]
+pub(crate) const TP_FINALIZE: Slot<{ ffi::Py_tp_finalize }> = Slot;
+
+#[cfg(all(Py_LIMITED_API, not(GraalPy)))]
+impl GetSlotImpl for Slot<{ ffi::Py_tp_finalize }> {
+    type Type = Option<ffi::destructor>;
+
+    #[inline]
+    unsafe fn get_slot(
+        self,
+        ty: *mut ffi::PyTypeObject,
+        #[cfg(all(Py_LIMITED_API, not(Py_3_10)))] is_runtime_3_10: bool,
+    ) -> Self::Type {
+        #[cfg(not(Py_3_10))]
+        {
+            if !is_runtime_3_10
+                && unsafe { ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) } == 0
+            {
+                return unsafe { (*ty.cast::<PyTypeObject39Snapshot>()).tp_finalize };
+            }
+        }
+
+        unsafe { std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::Py_tp_finalize)) }
+    }
+}
+
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
 fn is_runtime_3_10(py: crate::Python<'_>) -> bool {
     use crate::sync::PyOnceLock;

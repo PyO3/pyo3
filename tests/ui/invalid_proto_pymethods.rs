@@ -5,6 +5,7 @@
 
 use pyo3::prelude::*;
 use pyo3::pyclass::CompareOp;
+use pyo3::types::PyType;
 
 #[pyclass]
 struct MyClass {}
@@ -47,6 +48,20 @@ impl MyClass {
     fn text_signature_is_forbidden(&self) -> bool {
         true
     }
+}
+
+#[pymethods]
+impl MyClass {
+    #[classmethod]
+    #[pyo3(name = "__del__")]
+    fn del_must_be_an_instance_method_classmethod(_cls: &Bound<'_, PyType>) {}
+}
+
+#[pymethods]
+impl MyClass {
+    #[staticmethod]
+    #[pyo3(name = "__del__")]
+    fn del_must_be_an_instance_method_staticmethod() {}
 }
 
 #[pyclass]

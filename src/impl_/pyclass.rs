@@ -1,3 +1,5 @@
+#[cfg(all(Py_LIMITED_API, not(GraalPy)))]
+use crate::internal::get_slot::{get_slot, TP_FINALIZE};
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
@@ -13,6 +15,7 @@ use crate::{
     Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
     PyTypeCheck, PyTypeInfo, Python,
 };
+
 use std::{
     ffi::CStr,
     marker::PhantomData,
@@ -1117,8 +1120,82 @@ pub trait PyClassBaseType: Sized {
     type Layout<T: PyClassImpl>;
 }
 
+/// Limited-API replacement for `PyObject_CallFinalizerFromDealloc`.
+///
+/// Mimics the refcount dance that CPython's `PyObject_CallFinalizerFromDealloc` does:
+/// 1. Bump refcount from 0 to 1 (prevent recursive dealloc during the finalizer)
+/// 2. Call the finalizer
+/// 3. Check for resurrection (refcount > 1 after the finalizer)
+/// 4. Restore refcount to 0 if no resurrection
+///
+/// Returns `true` if the object was resurrected (caller should abort deallocation).
+///
+/// # Safety
+/// - `obj` must be a valid pointer to a Python object being deallocated (refcount == 0).
+/// - The finalizer `f` must be a valid tp_finalize function pointer.
+/// - The GIL must be held.
+#[cfg(all(Py_LIMITED_API, not(GraalPy)))]
+unsafe fn call_finalize_from_dealloc(obj: *mut ffi::PyObject, f: ffi::destructor) -> bool {
+    // Step 1: Bump refcount from 0 to 1 to prevent recursive dealloc.
+    // Py_INCREF is safe here: it just increments, no assertion on 0.
+    unsafe { ffi::Py_INCREF(obj) };
+
+    // Step 2: Call the finalizer.
+    // Note: we do not guard against panics here. The finalizer `f` is a
+    // tp_finalize slot with C calling convention, and PyO3's trampoline layer
+    // for `__del__` catches panics before they cross the FFI boundary
+    // (converting them to Python exceptions). Unwinding through `extern "C"`
+    // is UB, so all well-behaved finalizers must not panic. This matches
+    // CPython's own PyObject_CallFinalizerFromDealloc, which also does not
+    // guard against finalizer failure.
+    unsafe { f(obj) };
+
+    // Step 3: Check if the object was resurrected (refcount > 1 means
+    // something took an additional reference during the finalizer).
+    let refcnt = unsafe { ffi::Py_REFCNT(obj) };
+    debug_assert!(refcnt > 0, "ref count should be at least 1 after INCREF");
+
+    if refcnt > 1 {
+        // Object was resurrected: undo our temporary INCREF. The object
+        // stays alive because other references exist.
+        unsafe { ffi::Py_DECREF(obj) };
+        return true; // resurrected
+    }
+
+    // Step 4: No resurrection. Set refcount back to 0 without triggering
+    // _Py_Dealloc (which Py_DECREF would do).
+    #[cfg(Py_3_12)]
+    unsafe {
+        (*obj).ob_refcnt.ob_refcnt = 0;
+    }
+    #[cfg(not(Py_3_12))]
+    unsafe {
+        (*obj).ob_refcnt = 0;
+    }
+
+    false // not resurrected
+}
+
 /// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
+    // Call tp_finalize if defined, matching CPython's subtype_dealloc behavior.
+    // PyO3 replaces the default subtype_dealloc with its own tp_dealloc, so we
+    // must explicitly invoke tp_finalize here.
+    #[cfg(all(not(Py_LIMITED_API), not(GraalPy)))]
+    if unsafe { ffi::PyObject_CallFinalizerFromDealloc(obj) } < 0 {
+        // Object was resurrected by the finalizer; abort deallocation.
+        return;
+    }
+    // For non-GC types under the limited API, the GC can never have marked the
+    // object as finalised, so it is always valid to call tp_finalize directly.
+    #[cfg(all(Py_LIMITED_API, not(GraalPy)))]
+    unsafe {
+        if let Some(f) = get_slot(ffi::Py_TYPE(obj), TP_FINALIZE) {
+            if call_finalize_from_dealloc(obj, f) {
+                return; // object was resurrected
+            }
+        }
+    }
     unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
 }
 
@@ -1127,6 +1204,47 @@ pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::Py
     #[cfg(not(PyPy))]
     unsafe {
         ffi::PyObject_GC_UnTrack(obj.cast());
+    }
+    // For GC types, CPython's subtype_dealloc re-tracks the object before calling
+    // tp_finalize (the finalizer might make the object visible to the GC again),
+    // then un-tracks it afterwards. We mirror that behavior here.
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+    unsafe {
+        ffi::PyObject_GC_Track(obj.cast());
+    }
+    #[cfg(all(not(Py_LIMITED_API), not(GraalPy)))]
+    if unsafe { ffi::PyObject_CallFinalizerFromDealloc(obj) } < 0 {
+        // Object was resurrected by the finalizer and is GC-tracked; abort deallocation.
+        return;
+    }
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+    unsafe {
+        ffi::PyObject_GC_UnTrack(obj.cast());
+    }
+    // For GC types under the limited API, use PyObject_GC_IsFinalized
+    // to check whether the finalizer has already run, and call tp_finalize if not.
+    // We re-track before calling tp_finalize (the finalizer may make the object
+    // visible to the GC) and un-track afterwards, mirroring CPython's subtype_dealloc.
+    //
+    // Note: PyObject_GC_IsFinalized was added in CPython 3.9 but was not exported
+    // from python3.dll (the stable ABI forwarder DLL on Windows) until 3.10.
+    #[cfg(all(
+        Py_LIMITED_API,
+        Py_3_9,
+        not(PyPy),
+        not(GraalPy),
+        any(not(target_os = "windows"), Py_3_10)
+    ))]
+    unsafe {
+        if ffi::PyObject_GC_IsFinalized(obj) == 0 {
+            if let Some(f) = get_slot(ffi::Py_TYPE(obj), TP_FINALIZE) {
+                ffi::PyObject_GC_Track(obj.cast());
+                if call_finalize_from_dealloc(obj, f) {
+                    return; // object was resurrected and is GC-tracked
+                }
+                ffi::PyObject_GC_UnTrack(obj.cast());
+            }
+        }
     }
     unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
 }

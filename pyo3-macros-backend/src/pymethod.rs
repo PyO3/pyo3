@@ -126,6 +126,7 @@ impl PyMethodKind {
             "__ior__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IOR__)),
             "__getbuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__GETBUFFER__)),
             "__releasebuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__RELEASEBUFFER__)),
+            "__del__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__DEL__)),
             // Protocols implemented through traits
             "__getattribute__" => {
                 PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GETATTRIBUTE__))
@@ -1062,6 +1063,9 @@ const __GETBUFFER__: SlotDef = SlotDef::new("Py_bf_getbuffer", "getbufferproc").
 const __RELEASEBUFFER__: SlotDef =
     SlotDef::new("Py_bf_releasebuffer", "releasebufferproc").require_unsafe();
 const __CLEAR__: SlotDef = SlotDef::new("Py_tp_clear", "inquiry");
+const __DEL__: SlotDef = SlotDef::new("Py_tp_finalize", "finalizefunc")
+    .ffi_cast_ty_override("destructor")
+    .require_instance_method();
 
 #[derive(Clone, Copy)]
 enum Ty {
@@ -1260,7 +1264,10 @@ impl ReturnMode {
 
 pub struct SlotDef {
     slot: StaticIdent,
-    func_ty: StaticIdent,
+    trampoline_ty: StaticIdent,
+    /// When the FFI type name differs from the trampoline module name, this
+    /// overrides the type used in the `as ffi::<type>` cast.
+    ffi_cast_ty: Option<StaticIdent>,
     calling_convention: SlotCallingConvention,
     ret_ty: Ty,
     extract_error_mode: ExtractErrorMode,
@@ -1268,65 +1275,112 @@ pub struct SlotDef {
     require_unsafe: bool,
 }
 
+#[derive(Clone, Copy)]
+enum SlotReceiverKind {
+    Instance,
+}
+
+#[derive(Clone, Copy)]
 enum SlotCallingConvention {
     /// Specific set of arguments for the slot function
-    FixedArguments(&'static [Ty]),
+    FixedArguments {
+        arguments: &'static [Ty],
+        receiver_kind: Option<SlotReceiverKind>,
+    },
     /// Arbitrary arguments for `__new__` from the signature (extracted from args / kwargs)
     TpNew,
     TpInit,
 }
 
+impl SlotCallingConvention {
+    const fn fixed_arguments(arguments: &'static [Ty]) -> Self {
+        Self::FixedArguments {
+            arguments,
+            receiver_kind: None,
+        }
+    }
+
+    const fn require_instance_method(self) -> Self {
+        match self {
+            Self::FixedArguments { arguments, .. } => Self::FixedArguments {
+                arguments,
+                receiver_kind: Some(SlotReceiverKind::Instance),
+            },
+            Self::TpNew | Self::TpInit => {
+                panic!("require_instance_method only supported for fixed-argument slots")
+            }
+        }
+    }
+
+    fn ensure_receiver_kind(&self, spec: &FnSpec<'_>, method_name: &str) -> Result<()> {
+        match self {
+            Self::FixedArguments {
+                receiver_kind: Some(SlotReceiverKind::Instance),
+                ..
+            } => match spec.tp {
+                FnType::Fn(_) => Ok(()),
+                _ => bail_spanned!(
+                    spec.name.span() => format!("expected instance method for `{}` function", method_name)
+                ),
+            },
+            Self::FixedArguments { .. } | Self::TpNew | Self::TpInit => Ok(()),
+        }
+    }
+}
+
 impl SlotDef {
-    const fn new(slot: &'static str, func_ty: &'static str) -> Self {
-        // The FFI function pointer type determines the arguments and return type
-        let (calling_convention, ret_ty) = match func_ty.as_bytes() {
+    const fn new(slot: &'static str, trampoline_ty: &'static str) -> Self {
+        // The trampoline function type determines the arguments and return type.
+        let (calling_convention, ret_ty) = match trampoline_ty.as_bytes() {
             b"newfunc" => (SlotCallingConvention::TpNew, Ty::Object),
             b"initproc" => (SlotCallingConvention::TpInit, Ty::Int),
-            b"reprfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::Object),
-            b"hashfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::PyHashT),
+            b"reprfunc" => (SlotCallingConvention::fixed_arguments(&[]), Ty::Object),
+            b"hashfunc" => (SlotCallingConvention::fixed_arguments(&[]), Ty::PyHashT),
             b"richcmpfunc" => (
-                SlotCallingConvention::FixedArguments(&[Ty::Object, Ty::CompareOp]),
+                SlotCallingConvention::fixed_arguments(&[Ty::Object, Ty::CompareOp]),
                 Ty::Object,
             ),
             b"descrgetfunc" => (
-                SlotCallingConvention::FixedArguments(&[Ty::MaybeNullObject, Ty::MaybeNullObject]),
+                SlotCallingConvention::fixed_arguments(&[Ty::MaybeNullObject, Ty::MaybeNullObject]),
                 Ty::Object,
             ),
-            b"getiterfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::Object),
-            b"iternextfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::Object),
-            b"unaryfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::Object),
-            b"lenfunc" => (SlotCallingConvention::FixedArguments(&[]), Ty::PySsizeT),
+            b"getiterfunc" => (SlotCallingConvention::fixed_arguments(&[]), Ty::Object),
+            b"iternextfunc" => (SlotCallingConvention::fixed_arguments(&[]), Ty::Object),
+            b"unaryfunc" => (SlotCallingConvention::fixed_arguments(&[]), Ty::Object),
+            b"lenfunc" => (SlotCallingConvention::fixed_arguments(&[]), Ty::PySsizeT),
             b"objobjproc" => (
-                SlotCallingConvention::FixedArguments(&[Ty::Object]),
+                SlotCallingConvention::fixed_arguments(&[Ty::Object]),
                 Ty::Int,
             ),
             b"binaryfunc" => (
-                SlotCallingConvention::FixedArguments(&[Ty::Object]),
+                SlotCallingConvention::fixed_arguments(&[Ty::Object]),
                 Ty::Object,
             ),
-            b"inquiry" => (SlotCallingConvention::FixedArguments(&[]), Ty::Int),
+            b"inquiry" => (SlotCallingConvention::fixed_arguments(&[]), Ty::Int),
             b"ssizeargfunc" => (
-                SlotCallingConvention::FixedArguments(&[Ty::PySsizeT]),
+                SlotCallingConvention::fixed_arguments(&[Ty::PySsizeT]),
                 Ty::Object,
             ),
             b"getbufferproc" => (
-                SlotCallingConvention::FixedArguments(&[Ty::PyBuffer, Ty::Int]),
+                SlotCallingConvention::fixed_arguments(&[Ty::PyBuffer, Ty::Int]),
                 Ty::Int,
             ),
             b"releasebufferproc" => (
-                SlotCallingConvention::FixedArguments(&[Ty::PyBuffer]),
+                SlotCallingConvention::fixed_arguments(&[Ty::PyBuffer]),
                 Ty::Void,
             ),
+            b"finalizefunc" => (SlotCallingConvention::fixed_arguments(&[]), Ty::Void),
             b"ipowfunc" => (
-                SlotCallingConvention::FixedArguments(&[Ty::Object, Ty::IPowModulo]),
+                SlotCallingConvention::fixed_arguments(&[Ty::Object, Ty::IPowModulo]),
                 Ty::Object,
             ),
-            _ => panic!("don't know calling convention for func_ty"),
+            _ => panic!("don't know calling convention for trampoline_ty"),
         };
 
         SlotDef {
             slot: StaticIdent::new(slot),
-            func_ty: StaticIdent::new(func_ty),
+            trampoline_ty: StaticIdent::new(trampoline_ty),
+            ffi_cast_ty: None,
             calling_convention,
             ret_ty,
             extract_error_mode: ExtractErrorMode::Raise,
@@ -1340,6 +1394,11 @@ impl SlotDef {
         SlotDef::new(slot, "binaryfunc")
             .extract_error_mode(ExtractErrorMode::NotImplemented)
             .return_self()
+    }
+
+    const fn ffi_cast_ty_override(mut self, ffi_cast_ty: &'static str) -> Self {
+        self.ffi_cast_ty = Some(StaticIdent::new(ffi_cast_ty));
+        self
     }
 
     const fn return_conversion(mut self, return_conversion: TokenGenerator) -> Self {
@@ -1371,6 +1430,11 @@ impl SlotDef {
         self
     }
 
+    const fn require_instance_method(mut self) -> Self {
+        self.calling_convention = self.calling_convention.require_instance_method();
+        self
+    }
+
     pub fn generate_type_slot(
         &self,
         cls: &syn::Type,
@@ -1381,19 +1445,22 @@ impl SlotDef {
         let Ctx { pyo3_path, .. } = ctx;
         let SlotDef {
             slot,
-            func_ty,
+            trampoline_ty,
+            ffi_cast_ty,
             calling_convention,
             extract_error_mode,
             ret_ty,
             return_mode,
             require_unsafe,
         } = self;
+        let ffi_cast_ty = ffi_cast_ty.unwrap_or(*trampoline_ty);
         if *require_unsafe {
             ensure_spanned!(
                 spec.unsafety.is_some(),
                 spec.name.span() => format!("`{}` must be `unsafe fn`", method_name)
             );
         }
+        calling_convention.ensure_receiver_kind(spec, method_name)?;
         let wrapper_ident = format_ident!("__pymethod_{}__", method_name);
         let ret_ty = ret_ty.ffi_type(ctx);
         let mut holders = Holders::new();
@@ -1426,7 +1493,7 @@ impl SlotDef {
         let slot_def = quote! {
             #pyo3_path::ffi::PyType_Slot {
                 slot: #pyo3_path::ffi::#slot,
-                pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(#func_ty, #cls::#wrapper_ident) as #pyo3_path::ffi::#func_ty as _
+                pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(#trampoline_ty, #cls::#wrapper_ident) as #pyo3_path::ffi::#ffi_cast_ty as _
             }
         };
         Ok(MethodAndSlotDef {
@@ -1534,7 +1601,7 @@ fn generate_method_body(
             };
             (arg_idents, arg_types, body)
         }
-        SlotCallingConvention::FixedArguments(arguments) => {
+        SlotCallingConvention::FixedArguments { arguments, .. } => {
             let arg_idents: Vec<_> = std::iter::once(format_ident!("_slf"))
                 .chain((0..arguments.len()).map(|i| format_ident!("arg{}", i)))
                 .collect();
@@ -1630,7 +1697,7 @@ impl SlotFragmentDef {
         } = generate_method_body(
             cls,
             spec,
-            &SlotCallingConvention::FixedArguments(arguments),
+            &SlotCallingConvention::fixed_arguments(arguments),
             *extract_error_mode,
             &mut holders,
             None,

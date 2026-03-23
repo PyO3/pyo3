@@ -409,3 +409,81 @@ fn test_subclass_ref_counts() {
         );
     })
 }
+
+#[pyclass(subclass)]
+struct BaseWithDel {
+    flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+#[pymethods]
+impl BaseWithDel {
+    #[new]
+    fn new() -> Self {
+        Self {
+            flag: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        }
+    }
+
+    fn __del__(&mut self) {
+        self.flag.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+#[pyclass(extends=BaseWithDel)]
+struct SubWithDel;
+
+#[pymethods]
+impl SubWithDel {
+    #[new]
+    fn new() -> (Self, BaseWithDel) {
+        (
+            Self,
+            BaseWithDel {
+                flag: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            },
+        )
+    }
+}
+
+/// Test that __del__ defined on a base class is called when a Rust subclass is deallocated.
+#[cfg(any(all(not(Py_LIMITED_API), Py_3_8), all(Py_LIMITED_API, Py_3_9)))]
+#[test]
+fn test_del_in_subclass() {
+    Python::attach(|py| {
+        let flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let obj = Bound::new(
+            py,
+            PyClassInitializer::from(BaseWithDel { flag: flag.clone() }).add_subclass(SubWithDel),
+        )
+        .unwrap();
+        assert!(!flag.load(std::sync::atomic::Ordering::SeqCst));
+        drop(obj);
+        assert!(
+            flag.load(std::sync::atomic::Ordering::SeqCst),
+            "__del__ on base class should have been called"
+        );
+    })
+}
+
+/// Test that a Python subclass of a #[pyclass] with __del__ calls __del__ on deallocation.
+#[cfg(any(all(not(Py_LIMITED_API), Py_3_8), all(Py_LIMITED_API, Py_3_9)))]
+#[test]
+fn test_del_in_python_subclass() {
+    Python::attach(|py| {
+        let base_cls = py.get_type::<BaseWithDel>();
+        py_run!(
+            py,
+            base_cls,
+            r#"
+            import gc
+
+            class PySub(base_cls):
+                pass
+
+            obj = PySub()
+            del obj
+            gc.collect()
+            "#
+        );
+    })
+}
