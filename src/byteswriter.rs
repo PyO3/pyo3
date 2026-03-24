@@ -161,7 +161,7 @@ impl std::io::Write for PyBytesWriter<'_> {
         // SAFETY: We write the new uninitialized bytes below.
         unsafe { self.set_len(self.len() + len)? }
 
-        // SAFETY: We ensure enough capacity below, and the ptr will be valid because we will not be
+        // SAFETY: We ensured enough capacity above and the ptr will be valid because we will not be
         // resizing the buffer until we have written all the data.
         let mut ptr = unsafe { self.as_mut_ptr().add(pos) };
 
