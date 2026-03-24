@@ -255,6 +255,24 @@ mod tests {
     }
 
     #[test]
+    fn test_io_write_vectored_large() {
+        Python::attach(|py| {
+            let large_data = vec![b'\n'; 1024]; // 1 KB
+            let bufs = [
+                IoSlice::new(b"hallo"),
+                IoSlice::new(&large_data),
+                IoSlice::new(b"world"),
+            ];
+            let mut writer = PyBytesWriter::new(py).unwrap();
+            assert_eq!(writer.write_vectored(&bufs).unwrap(), 1034);
+            let bytes: Bound<'_, PyBytes> = writer.try_into().unwrap();
+            assert!(bytes.as_bytes().starts_with(b"hallo\n"));
+            assert!(bytes.as_bytes().ends_with(b"world"));
+            assert_eq!(bytes.as_bytes().len(), 1034);
+        })
+    }
+
+    #[test]
     fn test_large_data() {
         Python::attach(|py| {
             let mut writer = PyBytesWriter::new(py).unwrap();
