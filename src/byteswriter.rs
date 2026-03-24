@@ -89,7 +89,9 @@ impl<'py> PyBytesWriter<'py> {
     /// Set the length of the internal buffer to `new_len`. The new bytes are uninitialized.
     ///
     /// # Safety
-    /// The caller must ensure the new bytes are initialized.
+    /// The caller must ensure the new bytes are initialized. This will also make all pointers
+    /// returned by `as_mut_ptr` invalid, so the caller must not hold any references to the buffer
+    /// across this call.
     #[inline]
     #[cfg(not(Py_LIMITED_API))]
     unsafe fn set_len(&mut self, new_len: usize) -> PyResult<()> {
