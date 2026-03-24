@@ -1,54 +1,41 @@
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
 use crate::PyMutex;
+#[cfg(any(all(Py_GIL_DISABLED, Py_3_13), all(Py_LIMITED_API, Py_3_15)))]
 use crate::PyObject;
-// from typedefs.h
+
 #[cfg(all(Py_3_15, Py_LIMITED_API))]
 opaque_struct!(pub PyMutex);
 
-#[cfg(Py_3_15)]
+#[cfg(any(
+    all(Py_GIL_DISABLED, Py_3_13, not(Py_LIMITED_API)),
+    all(Py_GIL_DISABLED, Py_3_15, Py_LIMITED_API)
+))]
 #[repr(C)]
-pub struct PyCriticalSection_v1 {
+pub struct PyCriticalSection {
     _cs_prev: usize,
     _cs_mutex: *mut PyMutex,
 }
 
-#[cfg(Py_3_15)]
+#[cfg(any(
+    all(Py_GIL_DISABLED, Py_3_13, not(Py_LIMITED_API)),
+    all(Py_GIL_DISABLED, Py_3_15, Py_LIMITED_API)
+))]
 #[repr(C)]
-pub struct PyCriticalSection2_v1 {
-    _cs_base: PyCriticalSection_v1,
+pub struct PyCriticalSection2 {
+    _cs_base: PyCriticalSection,
     _cs_mutex2: *mut PyMutex,
 }
 
+#[cfg(all(not(Py_GIL_DISABLED), Py_3_15, Py_LIMITED_API))]
+opaque_struct!(pub PyCriticalSection);
+
+#[cfg(all(not(Py_GIL_DISABLED), Py_3_15, Py_LIMITED_API))]
+opaque_struct!(pub PyCriticalSection2);
+
+#[cfg(any(all(Py_GIL_DISABLED, Py_3_13), all(Py_LIMITED_API, Py_3_15)))]
 extern "C" {
-    pub fn PyCriticalSection_Begin_v1(c: *mut PyCriticalSection_v1, op: *mut PyObject);
-    pub fn PyCriticalSection_Env_v1(c: *mut PyCriticalSection_v1);
-    pub fn PyCriticalSection2_Begin_v1(
-        c: *mut PyCriticalSection_v1,
-        a: *mut PyObject,
-        b: *mut PyObject,
-    );
-    pub fn PyCriticalSection2_Env_v1(c: *mut PyCriticalSection_v1);
-}
-
-#[cfg(Py_3_15)]
-#[repr(C)]
-pub struct PyCriticalSection_v0 {
-    _cs: *mut PyCriticalSection_v1,
-}
-
-#[cfg(Py_3_15)]
-#[repr(C)]
-pub struct PyCriticalSection2_v0 {
-    _cs: *mut PyCriticalSection2_v1,
-}
-
-extern "C" {
-    pub fn PyCriticalSection_Begin_v0(c: *mut PyCriticalSection_v0, op: *mut PyObject);
-    pub fn PyCriticalSection_End_v0(c: *mut PyCriticalSection_v0);
-    pub fn PyCriticalSection2_Begin_v0(
-        c: *mut PyCriticalSection2_v0,
-        a: *mut PyObject,
-        b: *mut PyObject,
-    );
-    pub fn PyCriticalSection2_End_v0(c: *mut PyCriticalSection2_v0);
+    pub fn PyCriticalSection_Begin(c: *mut PyCriticalSection, op: *mut PyObject);
+    pub fn PyCriticalSection_End(c: *mut PyCriticalSection);
+    pub fn PyCriticalSection2_Begin(c: *mut PyCriticalSection2, a: *mut PyObject, b: *mut PyObject);
+    pub fn PyCriticalSection2_End(c: *mut PyCriticalSection2);
 }

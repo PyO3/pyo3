@@ -50,11 +50,6 @@ pub use self::ceval::*;
 pub use self::code::*;
 pub use self::compile::*;
 pub use self::complexobject::*;
-#[cfg(all(Py_3_13, not(all(Py_3_15, Py_LIMITED_API))))]
-pub use self::critical_section::{
-    PyCriticalSection, PyCriticalSection2, PyCriticalSection2_Begin, PyCriticalSection2_End,
-    PyCriticalSection_Begin, PyCriticalSection_End,
-};
 #[cfg(Py_3_14)]
 pub use self::critical_section::{PyCriticalSection2_BeginMutex, PyCriticalSection_BeginMutex};
 pub use self::descrobject::*;
