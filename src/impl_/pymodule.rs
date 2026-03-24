@@ -77,7 +77,6 @@ impl ModuleDef {
     ) -> Self {
         // This is only used in PyO3 for append_to_inittab on Python 3.15 and newer.
         // There could also be other tools that need the legacy init hook.
-        // Opaque PyObject builds won't be able to use this.
         #[cfg(not(_Py_OPAQUE_PYOBJECT))]
         #[allow(clippy::declare_interior_mutable_const)]
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
@@ -184,6 +183,17 @@ impl ModuleDef {
             let ffi_def = self.ffi_def.get();
 
             let name = unsafe { CStr::from_ptr((*ffi_def).m_name).to_str()? }.to_string();
+            let m_name = unsafe { CStr::from_ptr((*ffi_def).m_name) };
+            let name = m_name
+                .to_str()
+                .map_err(|e| {
+                    crate::exceptions::PyUnicodeDecodeError::new_err_from_utf8(
+                        py,
+                        m_name.to_bytes(),
+                        e,
+                    )
+                })?
+                .to_string();
             let kwargs = PyDict::new(py);
             kwargs.set_item("name", name)?;
             let spec = simple_ns.call((), Some(&kwargs))?;
@@ -236,19 +246,20 @@ impl ModuleDef {
 pub type ModuleExecSlot = unsafe extern "C" fn(*mut ffi::PyObject) -> c_int;
 
 const MAX_SLOTS: usize =
-    // Py_mod_exec and a trailing null entry
-    2 +
+    // Py_mod_exec
+    1 +
     // Py_mod_gil
     cfg!(Py_3_13) as usize +
     // Py_mod_name, Py_mod_doc, and Py_mod_abi
     3 * (cfg!(Py_3_15) as usize);
+const MAX_SLOTS_WITH_TRAILING_NULL: usize = MAX_SLOTS + 1;
 
 /// Builder to create `PyModuleSlots`. The size of the number of slots desired must
 /// be known up front, and N needs to be at least one greater than the number of
 /// actual slots pushed due to the need to have a zeroed element on the end.
 pub struct PyModuleSlotsBuilder {
     // values (initially all zeroed)
-    values: [ffi::PyModuleDef_Slot; MAX_SLOTS],
+    values: [ffi::PyModuleDef_Slot; MAX_SLOTS_WITH_TRAILING_NULL],
     // current length
     len: usize,
 }
@@ -263,7 +274,7 @@ impl PyModuleSlotsBuilder {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
-            values: [unsafe { std::mem::zeroed() }; MAX_SLOTS],
+            values: [unsafe { std::mem::zeroed() }; MAX_SLOTS_WITH_TRAILING_NULL],
             len: 0,
         }
     }
@@ -335,16 +346,16 @@ impl PyModuleSlotsBuilder {
     }
 
     pub const fn build(self) -> PyModuleSlots {
-        // Required to guarantee there's still a zeroed element
-        // at the end
-        assert!(
-            self.len < MAX_SLOTS,
-            "N must be greater than the number of slots pushed"
-        );
         PyModuleSlots(UnsafeCell::new(self.values))
     }
 
     const fn push(mut self, slot: c_int, value: *mut c_void) -> Self {
+        // Required to guarantee there's still a zeroed element
+        // at the end
+        assert!(
+            self.len < MAX_SLOTS,
+            "Cannot add more than MAX_SLOTS slots to a PyModuleSlots",
+        );
         self.values[self.len] = ffi::PyModuleDef_Slot { slot, value };
         self.len += 1;
         self
@@ -352,7 +363,7 @@ impl PyModuleSlotsBuilder {
 }
 
 /// Wrapper to safely store module slots, to be used in a `ModuleDef`.
-pub struct PyModuleSlots(UnsafeCell<[ffi::PyModuleDef_Slot; MAX_SLOTS]>);
+pub struct PyModuleSlots(UnsafeCell<[ffi::PyModuleDef_Slot; MAX_SLOTS_WITH_TRAILING_NULL]>);
 
 // It might be possible to avoid this with SyncUnsafeCell in the future
 //
@@ -429,7 +440,11 @@ mod tests {
         Python,
     };
 
-    use super::ModuleDef;
+    use super::{ModuleDef, MAX_SLOTS};
+
+    unsafe extern "C" fn module_exec(_module: *mut ffi::PyObject) -> c_int {
+        0
+    }
 
     #[test]
     fn module_init() {
@@ -500,26 +515,38 @@ mod tests {
             assert_eq!((*module_def.ffi_def.get()).m_slots, SLOTS.0.get().cast());
         }
         #[cfg(Py_3_15)]
-        assert_eq!(module_def.name, NAME);
-        #[cfg(Py_3_15)]
-        assert_eq!(module_def.doc, DOC);
+        {
+            assert_eq!(module_def.name, NAME);
+            assert_eq!(module_def.doc, DOC);
+        }
         assert_eq!(module_def.slots.0.get(), SLOTS.0.get());
     }
 
     #[test]
-    #[should_panic]
-    fn test_module_slots_builder_overflow_2() {
-        unsafe extern "C" fn module_exec(_module: *mut ffi::PyObject) -> c_int {
-            0
-        }
+    #[cfg(panic = "unwind")]
+    fn test_build_maximal_slots() {
+        let builder = PyModuleSlotsBuilder::new()
+            .with_mod_exec(module_exec)
+            .with_name(c"test_module")
+            .with_doc(c"some doc")
+            .with_gil_used(false)
+            .with_abi_info();
 
-        PyModuleSlotsBuilder::new()
-            .with_mod_exec(module_exec)
-            .with_mod_exec(module_exec)
-            .with_mod_exec(module_exec)
-            .with_mod_exec(module_exec)
-            .with_mod_exec(module_exec)
-            .with_mod_exec(module_exec)
-            .build();
+        assert!(builder.values[builder.len] == unsafe { std::mem::zeroed() });
+        assert!(builder.values[builder.len - 1] != unsafe { std::mem::zeroed() });
+        assert!(builder.len == MAX_SLOTS);
+
+        let result = std::panic::catch_unwind(|| builder.with_mod_exec(module_exec).build());
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_module_slots_builder_overflow() {
+        let mut builder = PyModuleSlotsBuilder::new();
+        for _ in 0..MAX_SLOTS + 1 {
+            builder = builder.with_mod_exec(module_exec);
+        }
     }
 }

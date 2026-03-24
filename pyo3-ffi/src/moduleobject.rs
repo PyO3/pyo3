@@ -3,25 +3,23 @@ use crate::methodobject::PyMethodDef;
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int, c_void};
-use std::ptr::addr_of_mut;
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyModule_Type")]
     pub static mut PyModule_Type: PyTypeObject;
 }
 
 #[inline]
 pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyModule_Type))
+    PyObject_TypeCheck(op, &raw mut PyModule_Type)
 }
 
 #[inline]
 pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyModule_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyModule_Type) as c_int
 }
 
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyModule_NewObject")]
     pub fn PyModule_NewObject(name: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyModule_New")]
@@ -48,8 +46,7 @@ extern "C" {
     pub fn PyModuleDef_Init(arg1: *mut PyModuleDef) -> *mut PyObject;
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     pub static mut PyModuleDef_Type: PyTypeObject;
 }
 
@@ -139,12 +136,12 @@ pub const Py_MOD_GIL_USED: *mut c_void = 0 as *mut c_void;
 pub const Py_MOD_GIL_NOT_USED: *mut c_void = 1 as *mut c_void;
 
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-extern "C" {
+extern_libpython! {
     pub fn PyUnstable_Module_SetGIL(module: *mut PyObject, gil: *mut c_void) -> c_int;
 }
 
 #[cfg(Py_3_15)]
-extern "C" {
+extern_libpython! {
     pub fn PyModule_FromSlotsAndSpec(
         slots: *const PyModuleDef_Slot,
         spec: *mut PyObject,

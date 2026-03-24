@@ -139,7 +139,7 @@ name = "pyo3_example"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = {{#PYO3_CRATE_VERSION}}
+pyo3 = { {{#PYO3_CRATE_VERSION}} }
 ```
 
 ## pyproject.toml

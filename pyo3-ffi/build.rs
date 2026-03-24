@@ -80,6 +80,19 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                     return Err(error.finish().into());
                 }
             }
+
+            if interpreter_config.is_free_threaded() {
+                let min_free_threaded_version = PythonVersion {
+                    major: 3,
+                    minor: 14,
+                };
+                ensure!(
+                    interpreter_config.version >= min_free_threaded_version,
+                    "PyO3 does not support the free-threaded build of CPython versions below {}, the selected Python version is {}",
+                    min_free_threaded_version,
+                    interpreter_config.version,
+                );
+            }
         }
         PythonImplementation::PyPy => {
             let versions = SUPPORTED_VERSIONS_PYPY;
@@ -159,32 +172,40 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
     let interpreter_config = &build_config.interpreter_config;
     let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
 
-    println!(
-        "cargo:rustc-link-lib={link_model}{alias}{lib_name}",
-        link_model = if interpreter_config.shared {
-            ""
-        } else {
-            "static="
-        },
-        alias = if target_os == "windows" {
-            "pythonXY:"
-        } else {
-            ""
-        },
-        lib_name = interpreter_config.lib_name.as_ref().ok_or(
-            "attempted to link to Python shared library but config does not contain lib_name"
-        )?,
-    );
+    let lib_name = interpreter_config
+        .lib_name
+        .as_ref()
+        .ok_or("attempted to link to Python shared library but config does not contain lib_name")?;
 
-    if let Some(lib_dir) = &interpreter_config.lib_dir {
-        println!("cargo:rustc-link-search=native={lib_dir}");
-    } else if matches!(build_config.source, BuildConfigSource::CrossCompile) {
-        warn!(
-            "The output binary will link to libpython, \
-            but PYO3_CROSS_LIB_DIR environment variable is not set. \
-            Ensure that the target Python library directory is \
-            in the rustc native library search path."
+    if target_os == "windows" {
+        // Use raw-dylib linking: emit a cfg so that `extern_libpython!` picks the
+        // right `#[link(name = "...", kind = "raw-dylib")]` attribute at compile time.
+        // This eliminates the need for import libraries (.lib files) entirely.
+        //
+        // Note: raw-dylib is inherently dynamic linking. Static embedding of the
+        // Python interpreter on Windows is not supported by this path (and is not
+        // officially supported by CPython on Windows).
+        println!("cargo:rustc-cfg=pyo3_dll=\"{lib_name}\"");
+    } else {
+        println!(
+            "cargo:rustc-link-lib={link_model}{lib_name}",
+            link_model = if interpreter_config.shared {
+                ""
+            } else {
+                "static="
+            },
         );
+
+        if let Some(lib_dir) = &interpreter_config.lib_dir {
+            println!("cargo:rustc-link-search=native={lib_dir}");
+        } else if matches!(build_config.source, BuildConfigSource::CrossCompile) {
+            warn!(
+                "The output binary will link to libpython, \
+                but PYO3_CROSS_LIB_DIR environment variable is not set. \
+                Ensure that the target Python library directory is \
+                in the rustc native library search path."
+            );
+        }
     }
 
     Ok(())

@@ -2,7 +2,6 @@ use crate::object::*;
 #[cfg(not(GraalPy))]
 use crate::{PyCFunctionObject, PyMethodDefPointer, METH_METHOD, METH_STATIC};
 use std::ffi::c_int;
-use std::ptr::addr_of_mut;
 
 #[cfg(not(GraalPy))]
 pub struct PyCMethodObject {
@@ -10,19 +9,18 @@ pub struct PyCMethodObject {
     pub mm_class: *mut PyTypeObject,
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     pub static mut PyCMethod_Type: PyTypeObject;
 }
 
 #[inline]
 pub unsafe fn PyCMethod_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyCMethod_Type)) as c_int
+    (Py_TYPE(op) == &raw mut PyCMethod_Type) as c_int
 }
 
 #[inline]
 pub unsafe fn PyCMethod_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyCMethod_Type))
+    PyObject_TypeCheck(op, &raw mut PyCMethod_Type)
 }
 
 #[cfg(not(GraalPy))]

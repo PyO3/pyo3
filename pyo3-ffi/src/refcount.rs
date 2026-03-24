@@ -74,7 +74,7 @@ const _Py_REF_SHARED_SHIFT: isize = 2;
 
 // skipped private _Py_REF_SHARED
 
-extern "C" {
+extern_libpython! {
     #[cfg(all(Py_3_14, Py_LIMITED_API))]
     pub fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t;
 }
@@ -148,7 +148,7 @@ unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
 
 // TODO: Py_SET_REFCNT
 
-extern "C" {
+extern_libpython! {
     #[cfg(all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
     fn _Py_NegativeRefcount(filename: *const c_char, lineno: c_int, op: *mut PyObject);
     #[cfg(all(Py_3_12, py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API)))]
@@ -343,7 +343,7 @@ pub unsafe fn Py_XDECREF(op: *mut PyObject) {
     }
 }
 
-extern "C" {
+extern_libpython! {
     #[cfg(all(Py_3_10, Py_LIMITED_API, not(PyPy)))]
     #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
     pub fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject;
