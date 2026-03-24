@@ -154,18 +154,21 @@ impl std::io::Write for PyBytesWriter<'_> {
 
     fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> std::io::Result<usize> {
         let len = bufs.iter().map(|b| b.len()).sum();
-        // SAFETY: We ensure enough capacity below.
-        let mut pos = unsafe { self.as_mut_ptr().add(self.len()) };
+        let pos = self.len();
 
         // SAFETY: We write the new uninitialized bytes below.
         unsafe { self.set_len(self.len() + len)? }
 
+        // SAFETY: We ensure enough capacity below, and the ptr will be valid because we will not be
+        // resizing the buffer until we have written all the data.
+        let mut ptr = unsafe { self.as_mut_ptr().add(pos) };
+
         for buf in bufs {
             // SAFETY: We have ensured enough capacity above.
-            unsafe { ptr::copy_nonoverlapping(buf.as_ptr(), pos, buf.len()) };
+            unsafe { ptr::copy_nonoverlapping(buf.as_ptr(), ptr, buf.len()) };
 
             // SAFETY: We just wrote buf.len() bytes
-            pos = unsafe { pos.add(buf.len()) };
+            ptr = unsafe { ptr.add(buf.len()) };
         }
         Ok(len)
     }
