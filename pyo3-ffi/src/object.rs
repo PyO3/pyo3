@@ -2,7 +2,7 @@ use crate::pyport::{Py_hash_t, Py_ssize_t};
 #[cfg(not(_Py_OPAQUE_PYOBJECT))]
 #[cfg(Py_GIL_DISABLED)]
 use crate::refcount;
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
 use crate::PyMutex;
 use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::mem;

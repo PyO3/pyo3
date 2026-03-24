@@ -46,10 +46,10 @@ use crate::{types::PyAny, Bound};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use std::cell::UnsafeCell;
 
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(any(Py_GIL_DISABLED, all(Py_3_15, Py_LIMITED_API)))]
 struct CSGuard(crate::ffi::PyCriticalSection);
 
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(any(Py_GIL_DISABLED, all(Py_3_15, Py_LIMITED_API)))]
 impl Drop for CSGuard {
     fn drop(&mut self) {
         unsafe {
@@ -58,10 +58,10 @@ impl Drop for CSGuard {
     }
 }
 
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(any(Py_GIL_DISABLED, all(Py_3_15, Py_LIMITED_API)))]
 struct CS2Guard(crate::ffi::PyCriticalSection2);
 
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(any(Py_GIL_DISABLED, all(Py_3_15, Py_LIMITED_API)))]
 impl Drop for CS2Guard {
     fn drop(&mut self) {
         unsafe {

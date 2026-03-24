@@ -194,7 +194,7 @@ impl InterpreterConfig {
         }
 
         // If Py_GIL_DISABLED is set, do not build with limited API support
-        if self.abi3 && !(self.is_free_threaded()) {
+        if self.abi3 && !(self.is_free_threaded() && self.version.minor < 15) {
             out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
             if self.version.minor >= 15 {
                 out.push("cargo:rustc-cfg=_Py_OPAQUE_PYOBJECT".to_owned());
