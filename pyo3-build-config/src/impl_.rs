@@ -2834,6 +2834,7 @@ mod tests {
             lib_dir: None,
             lib_name: None,
             shared: true,
+            // Make this greater than the target abi3 version to reduce to below
             version: PythonVersion { major: 3, minor: 9 },
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
