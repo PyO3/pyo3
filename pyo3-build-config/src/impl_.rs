@@ -26,7 +26,7 @@ use crate::{
 };
 
 /// Minimum Python version PyO3 supports.
-pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 7 };
+pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 8 };
 
 pub(crate) const MINIMUM_SUPPORTED_VERSION_PYPY: PythonVersion = PythonVersion {
     major: 3,
@@ -2834,16 +2834,16 @@ mod tests {
             lib_dir: None,
             lib_name: None,
             shared: true,
-            version: PythonVersion { major: 3, minor: 7 },
+            version: PythonVersion { major: 3, minor: 9 },
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
         };
 
         config
-            .fixup_for_abi3_version(Some(PythonVersion { major: 3, minor: 7 }))
+            .fixup_for_abi3_version(Some(PythonVersion { major: 3, minor: 8 }))
             .unwrap();
-        assert_eq!(config.version, PythonVersion { major: 3, minor: 7 });
+        assert_eq!(config.version, PythonVersion { major: 3, minor: 8 });
     }
 
     #[test]
@@ -2857,18 +2857,18 @@ mod tests {
             lib_dir: None,
             lib_name: None,
             shared: true,
-            version: PythonVersion { major: 3, minor: 7 },
+            version: PythonVersion { major: 3, minor: 8 },
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
         };
 
         assert!(config
-            .fixup_for_abi3_version(Some(PythonVersion { major: 3, minor: 8 }))
+            .fixup_for_abi3_version(Some(PythonVersion { major: 3, minor: 9 }))
             .unwrap_err()
             .to_string()
             .contains(
-                "cannot set a minimum Python version 3.8 higher than the interpreter version 3.7"
+                "cannot set a minimum Python version 3.9 higher than the interpreter version 3.8"
             ));
     }
 
