@@ -1439,7 +1439,16 @@ def test_introspection(session: nox.Session):
             "import pyo3_pytests; print(pyo3_pytests.pyo3_pytests.__file__)",
             silent=True,
         ).strip()
-        _run_cargo(session, "run", "-p", "pyo3-introspection", "--", lib_file, stub_dir)
+        _run_cargo(
+            session,
+            "run",
+            "-p",
+            "pyo3-introspection",
+            "--",
+            lib_file,
+            "pyo3_pytests",
+            stub_dir,
+        )
         _run(session, "ruff", "format", stub_dir)
         _ensure_directory_equals(Path(stub_dir), Path("pytests/stubs"))
 
