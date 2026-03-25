@@ -19,7 +19,7 @@
 Requires Rust 1.83 or greater.
 
 PyO3 supports the following Python distributions:
-  - CPython 3.7 or greater
+  - CPython 3.8 or greater
   - PyPy 7.3 (Python 3.11+)
   - GraalPy 25.0 or greater (Python 3.12+)
 

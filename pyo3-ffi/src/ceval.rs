@@ -137,8 +137,6 @@ extern_libpython! {
     pub fn PyEval_AcquireThread(tstate: *mut PyThreadState);
     #[cfg_attr(PyPy, link_name = "PyPyEval_ReleaseThread")]
     pub fn PyEval_ReleaseThread(tstate: *mut PyThreadState);
-    #[cfg(not(Py_3_8))]
-    pub fn PyEval_ReInitThreads();
 }
 
 // skipped Py_BEGIN_ALLOW_THREADS

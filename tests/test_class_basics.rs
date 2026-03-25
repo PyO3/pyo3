@@ -617,7 +617,6 @@ fn access_frozen_class_without_gil() {
 }
 
 #[test]
-#[cfg(Py_3_8)]
 #[cfg_attr(target_arch = "wasm32", ignore)]
 fn drop_unsendable_elsewhere() {
     use std::sync::{

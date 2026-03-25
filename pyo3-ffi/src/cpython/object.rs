@@ -1,4 +1,3 @@
-#[cfg(Py_3_8)]
 use crate::vectorcallfunc;
 use crate::{object, PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, Py_ssize_t};
 use std::ffi::{c_char, c_int, c_uint, c_void};
@@ -215,9 +214,6 @@ pub struct PyTypeObject {
     pub tp_basicsize: Py_ssize_t,
     pub tp_itemsize: Py_ssize_t,
     pub tp_dealloc: Option<object::destructor>,
-    #[cfg(not(Py_3_8))]
-    pub tp_print: Option<printfunc>,
-    #[cfg(Py_3_8)]
     pub tp_vectorcall_offset: Py_ssize_t,
     pub tp_getattr: Option<object::getattrfunc>,
     pub tp_setattr: Option<object::setattrfunc>,
@@ -264,11 +260,10 @@ pub struct PyTypeObject {
     pub tp_del: Option<object::destructor>,
     pub tp_version_tag: c_uint,
     pub tp_finalize: Option<object::destructor>,
-    #[cfg(Py_3_8)]
     pub tp_vectorcall: Option<vectorcallfunc>,
     #[cfg(Py_3_12)]
     pub tp_watched: c_char,
-    #[cfg(all(not(PyPy), Py_3_8, not(Py_3_9)))]
+    #[cfg(not(any(PyPy, Py_3_9)))]
     pub tp_print: Option<printfunc>,
     #[cfg(py_sys_config = "COUNT_ALLOCS")]
     pub tp_allocs: Py_ssize_t,

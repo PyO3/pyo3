@@ -20,6 +20,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Literal,
     Optional,
     Set,
     Tuple,
@@ -55,7 +56,7 @@ def _get_output(*args: str) -> str:
 
 
 def _parse_supported_interpreter_version(
-    python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
+    python_impl: Literal["cpython", "pypy"],
 ) -> Tuple[str, str]:
     output = _get_output("cargo", "metadata", "--format-version=1", "--no-deps")
     cargo_packages = json.loads(output)["packages"]
@@ -69,7 +70,7 @@ def _parse_supported_interpreter_version(
 
 
 def _supported_interpreter_versions(
-    python_impl: str,  # Literal["cpython", "pypy"], TODO update after 3.7 dropped
+    python_impl: Literal["cpython", "pypy"],
 ) -> List[str]:
     min_version, max_version = _parse_supported_interpreter_version(python_impl)
     major = int(min_version.split(".")[0])
@@ -125,7 +126,7 @@ def test_rust(session: nox.Session):
 
         # We need to pass the feature set to the test command
         # so that it can be used in the test code
-        # (e.g. for `#[cfg(feature = "abi3-py37")]`)
+        # (e.g. for `#[cfg(feature = "abi3-py38")]`)
         if feature_set and "abi3" in feature_set and FREE_THREADED_BUILD:
             # free-threaded builds don't support abi3 yet
             continue
@@ -136,12 +137,12 @@ def test_rust(session: nox.Session):
             feature_set
             and "abi3" in feature_set
             and "full" in feature_set
-            and sys.version_info >= (3, 7)
+            and sys.version_info >= (3, 9)
         ):
-            # run abi3-py37 tests to check abi3 forward compatibility
+            # run abi3-py38 tests to check abi3 forward compatibility
             _run_cargo_test(
                 session,
-                features=feature_set.replace("abi3", "abi3-py37"),
+                features=feature_set.replace("abi3", "abi3-py38"),
                 extra_flags=flags,
             )
 

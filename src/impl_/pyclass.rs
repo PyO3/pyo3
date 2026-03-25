@@ -911,11 +911,6 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
 ) -> *mut ffi::PyObject {
     let py = unsafe { Python::assume_attached() };
 
-    #[cfg(not(Py_3_8))]
-    unsafe {
-        bpo_35810_workaround(py, subtype)
-    };
-
     let self_type = T::type_object_raw(py);
     // If this type is a variable type or the subtype is not equal to this type, we cannot use the
     // freelist
@@ -956,37 +951,11 @@ pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_
             };
             free(obj as *mut c_void);
 
-            #[cfg(Py_3_8)]
             if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
                 ffi::Py_DECREF(ty as *mut ffi::PyObject);
             }
         }
     }
-}
-
-/// Workaround for Python issue 35810; no longer necessary in Python 3.8
-#[inline]
-#[cfg(not(Py_3_8))]
-unsafe fn bpo_35810_workaround(py: Python<'_>, ty: *mut ffi::PyTypeObject) {
-    #[cfg(Py_LIMITED_API)]
-    {
-        // Must check version at runtime for abi3 wheels - they could run against a higher version
-        // than the build config suggests.
-        use crate::sync::PyOnceLock;
-        static IS_PYTHON_3_8: PyOnceLock<bool> = PyOnceLock::new();
-
-        if *IS_PYTHON_3_8.get_or_init(py, || py.version_info() >= (3, 8)) {
-            // No fix needed - the wheel is running on a sufficiently new interpreter.
-            return;
-        }
-    }
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        // suppress unused variable warning
-        let _ = py;
-    }
-
-    unsafe { ffi::Py_INCREF(ty as *mut ffi::PyObject) };
 }
 
 /// Method storage for `#[pyclass]`.

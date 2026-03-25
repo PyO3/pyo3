@@ -23,7 +23,7 @@ extern_libpython! {
     #[cfg(all(Py_3_9, not(PyPy)))]
     pub fn PyInterpreterState_Get() -> *mut PyInterpreterState;
 
-    #[cfg(all(Py_3_8, not(PyPy)))]
+    #[cfg(not(PyPy))]
     pub fn PyInterpreterState_GetDict(arg1: *mut PyInterpreterState) -> *mut PyObject;
 
     #[cfg(not(PyPy))]
