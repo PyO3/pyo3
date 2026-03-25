@@ -253,9 +253,12 @@ mod inheriting_native_type {
         Python::attach(|py| {
             let dropped = Arc::new(AtomicBool::new(false));
             let destructor_drop = Arc::clone(&dropped);
-            let item = PyCapsule::new_with_destructor(py, 0, None, move |_, _| {
-                destructor_drop.store(true, Ordering::Relaxed)
-            })
+            let item = PyCapsule::new_with_value_and_destructor(
+                py,
+                0,
+                c"inherit_dict_drop",
+                move |_, _| destructor_drop.store(true, Ordering::Relaxed),
+            )
             .unwrap();
 
             let dict_sub = pyo3::Py::new(py, DictWithName::new()).unwrap();
