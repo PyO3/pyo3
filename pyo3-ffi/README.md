@@ -2,7 +2,7 @@
 
 This crate provides [Rust](https://www.rust-lang.org/) FFI declarations for Python 3.
 It supports both the stable and the unstable component of the ABI through the use of cfg flags.
-Python Versions 3.7+ are supported.
+Python Versions 3.8+ are supported.
 It is meant for advanced users only - regular PyO3 users shouldn't
 need to interact with this crate at all.
 
@@ -15,7 +15,7 @@ Manual][capi] for up-to-date documentation.
 Requires Rust 1.63 or greater.
 
 `pyo3-ffi` supports the following Python distributions:
-  - CPython 3.7 or greater
+  - CPython 3.8 or greater
   - PyPy 7.3 (Python 3.9+)
   - GraalPy 24.0 or greater (Python 3.10+)
 
