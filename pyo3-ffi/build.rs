@@ -127,7 +127,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
     if interpreter_config.abi3 {
         match interpreter_config.implementation {
             PythonImplementation::CPython => {
-                if interpreter_config.is_free_threaded() {
+                if interpreter_config.is_free_threaded() && interpreter_config.version.minor < 15 {
                     warn!(
                             "The free-threaded build of CPython does not yet support abi3 so the build artifacts will be version-specific."
                     )
