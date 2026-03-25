@@ -6,8 +6,8 @@ use std::path::Path;
 use std::{env, fs};
 
 fn main() -> Result<()> {
-    let [_, binary_path, output_path] = env::args().collect::<Vec<_>>().try_into().map_err(|_| anyhow!("pyo3-introspection takes two arguments, the path of the binary to introspect and the path of the directory to write the stub to"))?;
-    let module = introspect_cdylib(&binary_path, "pyo3_pytests")
+    let [_, binary_path, module_name, output_path] = env::args().collect::<Vec<_>>().try_into().map_err(|_| anyhow!("pyo3-introspection takes three arguments, the path of the binary to introspect, the name of the python module to introspect and and the path of the directory to write the stub to"))?;
+    let module = introspect_cdylib(&binary_path, &module_name)
         .with_context(|| format!("Failed to introspect module {binary_path}"))?;
     let actual_stubs = module_stub_files(&module);
     for (path, module) in actual_stubs {
