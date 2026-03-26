@@ -1159,7 +1159,7 @@ def test_version_limits(session: nox.Session):
     # "An abi3-py3* feature must be specified when compiling without a Python
     # interpreter."
     #
-    # then `ABI3_MAX_MINOR` in `pyo3-build-config/src/impl_.rs` is probably outdated.
+    # then `STABLE_ABI_MAX_MINOR` in `pyo3-build-config/src/impl_.rs` is probably outdated.
     assert f"version=3.{max_minor_version}" in stderr, (
         f"Expected to see version=3.{max_minor_version}, got: \n\n{stderr}"
     )

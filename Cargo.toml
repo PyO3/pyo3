@@ -119,6 +119,12 @@ abi3-py313 = ["abi3-py314", "pyo3-build-config/abi3-py313", "pyo3-ffi/abi3-py313
 abi3-py314 = ["abi3-py315", "pyo3-build-config/abi3-py314", "pyo3-ffi/abi3-py314"]
 abi3-py315 = ["abi3", "pyo3-build-config/abi3-py315", "pyo3-ffi/abi3-py315"]
 
+# Use the free-threaded limited API. See https://www.python.org/dev/peps/pep-803/ for more.
+abi3t = ["pyo3-build-config/abi3t", "pyo3-ffi/abi3t"]
+
+# With abi3t, we can manually set the minimum Python version.
+abi3t-py315 = ["abi3t", "pyo3-build-config/abi3t-py315"]
+
 # deprecated: no longer needed, raw-dylib is used instead
 generate-import-lib = ["pyo3-ffi/generate-import-lib"]
 

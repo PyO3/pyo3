@@ -34,7 +34,7 @@ use target_lexicon::OperatingSystem;
 /// | Flag | Description |
 /// | ---- | ----------- |
 /// | `#[cfg(Py_3_7)]`, `#[cfg(Py_3_8)]`, `#[cfg(Py_3_9)]`, `#[cfg(Py_3_10)]` | These attributes mark code only for a given Python version and up. For example, `#[cfg(Py_3_7)]` marks code which can run on Python 3.7 **and newer**. |
-/// | `#[cfg(Py_LIMITED_API)]` | This marks code which is run when compiling with PyO3's `abi3` feature enabled. |
+/// | `#[cfg(Py_LIMITED_API)]` | This marks code which is run when compiling with PyO3's `abi3` or `abi3t` features enabled. |
 /// | `#[cfg(Py_GIL_DISABLED)]` | This marks code which is run on the free-threaded interpreter. |
 /// | `#[cfg(PyPy)]` | This marks code which is run when compiling for PyPy. |
 /// | `#[cfg(GraalPy)]` | This marks code which is run when compiling for GraalPy. |
@@ -273,13 +273,13 @@ pub fn print_expected_cfgs() {
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)
-    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::ABI3_MAX_MINOR + 1 {
+    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
         println!("cargo:rustc-check-cfg=cfg(Py_3_{i})");
     }
 
     // pyo3_dll cfg for raw-dylib linking on Windows
     let mut dll_names = vec!["python3".to_string(), "python3_d".to_string()];
-    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::ABI3_MAX_MINOR + 1 {
+    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
         dll_names.push(format!("python3{i}"));
         dll_names.push(format!("python3{i}_d"));
         if i >= 13 {
@@ -316,7 +316,7 @@ pub mod pyo3_build_script_impl {
     }
     pub use crate::impl_::{
         cargo_env_var, env_var, is_linking_libpython_for_target, make_cross_compile_config,
-        target_triple_from_env, InterpreterConfig, PythonVersion,
+        target_triple_from_env, CPythonABI, InterpreterConfig, PythonVersion,
     };
     pub enum BuildConfigSource {
         /// Config was provided by `PYO3_CONFIG_FILE`.
@@ -495,7 +495,7 @@ mod tests {
                 minor: 13,
             },
             shared: true,
-            abi3: false,
+            stable_abi: CPythonABI::VersionSpecific,
             lib_name: None,
             lib_dir: None,
             executable: None,
@@ -538,7 +538,7 @@ mod tests {
                 minor: 13,
             },
             shared: true,
-            abi3: false,
+            stable_abi: CPythonABI::VersionSpecific,
             lib_name: None,
             lib_dir: None,
             executable: None,
