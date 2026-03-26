@@ -157,9 +157,11 @@ const _PyABIInfo_DEFAULT_FLAG_STABLE: u16 = 0;
 
 // skipped PyABIInfo_DEFAULT_ABI_VERSION: depends on Py_VERSION_HEX
 
-#[cfg(all(Py_3_15, Py_GIL_DISABLED))]
+#[cfg(all(Py_3_15, Py_LIMITED_API, _Py_OPAQUE_PYOBJECT))]
+const _PyABIInfo_DEFAULT_FLAG_FT: u16 = PyABIInfo_FREETHREADING_AGNOSTIC;
+#[cfg(all(Py_3_15, Py_GIL_DISABLED, not(Py_LIMITED_API)))]
 const _PyABIInfo_DEFAULT_FLAG_FT: u16 = PyABIInfo_FREETHREADED;
-#[cfg(all(Py_3_15, not(Py_GIL_DISABLED)))]
+#[cfg(all(Py_3_15, not(Py_GIL_DISABLED), not(Py_LIMITED_API)))]
 const _PyABIInfo_DEFAULT_FLAG_FT: u16 = PyABIInfo_GIL;
 
 #[cfg(Py_3_15)]
