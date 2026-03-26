@@ -85,10 +85,7 @@ def _supported_interpreter_versions(
 
 
 PY_VERSIONS = _supported_interpreter_versions("cpython")
-# We don't yet support abi3-py315 but do support cp315 and cp315t
-# version-specific builds
 ABI3_PY_VERSIONS = [p for p in PY_VERSIONS if not p.endswith("t")]
-ABI3_PY_VERSIONS.remove("3.15")
 PYPY_VERSIONS = _supported_interpreter_versions("pypy")
 
 
@@ -1208,9 +1205,8 @@ def test_version_limits(session: nox.Session):
         # 3.16 CPython should build if abi3 is explicitly requested
         _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
 
-        # 3.15 CPython should build with forward compatibility
-        # TODO: check on 3.16 when adding abi3-py315 support
-        config_file.set("CPython", "3.15")
+        # 3.16 CPython should build with forward compatibility
+        config_file.set("CPython", "3.16")
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
