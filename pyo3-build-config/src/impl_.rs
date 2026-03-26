@@ -26,7 +26,7 @@ use crate::{
 };
 
 /// Minimum Python version PyO3 supports.
-pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 7 };
+pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 8 };
 
 pub(crate) const MINIMUM_SUPPORTED_VERSION_PYPY: PythonVersion = PythonVersion {
     major: 3,
@@ -832,7 +832,6 @@ impl PythonVersion {
         major: 3,
         minor: 10,
     };
-    const PY37: Self = PythonVersion { major: 3, minor: 7 };
 }
 
 impl Display for PythonVersion {
@@ -1867,17 +1866,11 @@ fn default_lib_name_unix(
             None => {
                 if cygwin && !matches!(stable_abi, CPythonABI::VersionSpecific) {
                     Ok("python3".to_string())
-                } else if version > PythonVersion::PY37 {
-                    // PEP 3149 ABI version tags are finally gone
-                    if gil_disabled {
-                        ensure!(version >= PythonVersion::PY313, "Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
-                        Ok(format!("python{}.{}t", version.major, version.minor))
-                    } else {
-                        Ok(format!("python{}.{}", version.major, version.minor))
-                    }
+                } else if gil_disabled {
+                    ensure!(version >= PythonVersion::PY313, "Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
+                    Ok(format!("python{}.{}t", version.major, version.minor))
                 } else {
-                    // Work around https://bugs.python.org/issue36707
-                    Ok(format!("python{}.{}m", version.major, version.minor))
+                    Ok(format!("python{}.{}", version.major, version.minor))
                 }
             }
         },
@@ -2191,9 +2184,9 @@ mod tests {
     fn test_config_file_defaults() {
         // Only version is required
         assert_eq!(
-            InterpreterConfig::from_reader("version=3.7".as_bytes()).unwrap(),
+            InterpreterConfig::from_reader("version=3.8".as_bytes()).unwrap(),
             InterpreterConfig {
-                version: PythonVersion { major: 3, minor: 7 },
+                version: PythonVersion { major: 3, minor: 8 },
                 implementation: PythonImplementation::CPython,
                 shared: true,
                 stable_abi: CPythonABI::VersionSpecific,
@@ -2213,10 +2206,10 @@ mod tests {
     fn test_config_file_unknown_keys() {
         // ext_suffix is unknown to pyo3-build-config, but it shouldn't error
         assert_eq!(
-            InterpreterConfig::from_reader("version=3.7\next_suffix=.python37.so".as_bytes())
+            InterpreterConfig::from_reader("version=3.8\next_suffix=.python38.so".as_bytes())
                 .unwrap(),
             InterpreterConfig {
-                version: PythonVersion { major: 3, minor: 7 },
+                version: PythonVersion { major: 3, minor: 8 },
                 implementation: PythonImplementation::CPython,
                 shared: true,
                 stable_abi: CPythonABI::VersionSpecific,
@@ -2310,11 +2303,11 @@ mod tests {
         let mut sysconfigdata = Sysconfigdata::new();
         // these are the minimal values required such that InterpreterConfig::from_sysconfigdata
         // does not error
-        sysconfigdata.insert("SOABI", "cpython-37m-x86_64-linux-gnu");
-        sysconfigdata.insert("VERSION", "3.7");
+        sysconfigdata.insert("SOABI", "cpython-38-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.8");
         sysconfigdata.insert("Py_ENABLE_SHARED", "1");
         sysconfigdata.insert("LIBDIR", "/usr/lib");
-        sysconfigdata.insert("LDVERSION", "3.7m");
+        sysconfigdata.insert("LDVERSION", "3.8");
         sysconfigdata.insert("SIZEOF_VOID_P", "8");
         assert_eq!(
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
@@ -2325,9 +2318,9 @@ mod tests {
                 executable: None,
                 implementation: PythonImplementation::CPython,
                 lib_dir: Some("/usr/lib".into()),
-                lib_name: Some("python3.7m".into()),
+                lib_name: Some("python3.8".into()),
                 shared: true,
-                version: PythonVersion::PY37,
+                version: PythonVersion { major: 3, minor: 8 },
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
@@ -2338,13 +2331,13 @@ mod tests {
     #[test]
     fn config_from_sysconfigdata_framework() {
         let mut sysconfigdata = Sysconfigdata::new();
-        sysconfigdata.insert("SOABI", "cpython-37m-x86_64-linux-gnu");
-        sysconfigdata.insert("VERSION", "3.7");
+        sysconfigdata.insert("SOABI", "cpython-38-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.8");
         // PYTHONFRAMEWORK should override Py_ENABLE_SHARED
         sysconfigdata.insert("Py_ENABLE_SHARED", "0");
         sysconfigdata.insert("PYTHONFRAMEWORK", "Python");
         sysconfigdata.insert("LIBDIR", "/usr/lib");
-        sysconfigdata.insert("LDVERSION", "3.7m");
+        sysconfigdata.insert("LDVERSION", "3.8");
         sysconfigdata.insert("SIZEOF_VOID_P", "8");
         assert_eq!(
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
@@ -2355,9 +2348,9 @@ mod tests {
                 executable: None,
                 implementation: PythonImplementation::CPython,
                 lib_dir: Some("/usr/lib".into()),
-                lib_name: Some("python3.7m".into()),
+                lib_name: Some("python3.8".into()),
                 shared: true,
-                version: PythonVersion::PY37,
+                version: PythonVersion { major: 3, minor: 8 },
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
@@ -2365,13 +2358,13 @@ mod tests {
         );
 
         sysconfigdata = Sysconfigdata::new();
-        sysconfigdata.insert("SOABI", "cpython-37m-x86_64-linux-gnu");
-        sysconfigdata.insert("VERSION", "3.7");
+        sysconfigdata.insert("SOABI", "cpython-38-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.8");
         // An empty PYTHONFRAMEWORK means it is not a framework
         sysconfigdata.insert("Py_ENABLE_SHARED", "0");
         sysconfigdata.insert("PYTHONFRAMEWORK", "");
         sysconfigdata.insert("LIBDIR", "/usr/lib");
-        sysconfigdata.insert("LDVERSION", "3.7m");
+        sysconfigdata.insert("LDVERSION", "3.8");
         sysconfigdata.insert("SIZEOF_VOID_P", "8");
         assert_eq!(
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
@@ -2382,9 +2375,9 @@ mod tests {
                 executable: None,
                 implementation: PythonImplementation::CPython,
                 lib_dir: Some("/usr/lib".into()),
-                lib_name: Some("python3.7m".into()),
+                lib_name: Some("python3.8".into()),
                 shared: false,
-                version: PythonVersion::PY37,
+                version: PythonVersion { major: 3, minor: 8 },
                 suppress_build_script_link_lines: false,
                 extra_build_script_lines: vec![],
                 python_framework_prefix: None,
@@ -2395,13 +2388,13 @@ mod tests {
     #[test]
     fn windows_hardcoded_abi3_compile() {
         let host = triple!("x86_64-pc-windows-msvc");
-        let min_version = "3.7".parse().unwrap();
+        let min_version = "3.8".parse().unwrap();
 
         assert_eq!(
             default_abi3_config(&host, min_version).unwrap(),
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
-                version: PythonVersion { major: 3, minor: 7 },
+                version: PythonVersion { major: 3, minor: 8 },
                 shared: true,
                 stable_abi: CPythonABI::ABI3,
                 lib_name: Some("python3".into()),
@@ -2446,7 +2439,7 @@ mod tests {
             pyo3_cross: None,
             pyo3_cross_lib_dir: Some("C:\\some\\path".into()),
             pyo3_cross_python_implementation: None,
-            pyo3_cross_python_version: Some("3.7".into()),
+            pyo3_cross_python_version: Some("3.8".into()),
         };
 
         let host = triple!("x86_64-unknown-linux-gnu");
@@ -2460,10 +2453,10 @@ mod tests {
             default_cross_compile(&cross_config).unwrap(),
             InterpreterConfig {
                 implementation: PythonImplementation::CPython,
-                version: PythonVersion { major: 3, minor: 7 },
+                version: PythonVersion { major: 3, minor: 8 },
                 shared: true,
                 stable_abi: CPythonABI::VersionSpecific,
-                lib_name: Some("python37".into()),
+                lib_name: Some("python38".into()),
                 lib_dir: Some("C:\\some\\path".into()),
                 executable: None,
                 pointer_width: None,
@@ -2788,19 +2781,6 @@ mod tests {
     fn default_lib_name_unix() {
         use CPythonABI::*;
         use PythonImplementation::*;
-        // Defaults to python3.7m for CPython 3.7
-        assert_eq!(
-            super::default_lib_name_unix(
-                PythonVersion { major: 3, minor: 7 },
-                CPython,
-                VersionSpecific,
-                false,
-                None,
-                false
-            )
-            .unwrap(),
-            "python3.7m",
-        );
         // Defaults to pythonX.Y for CPython 3.8+
         assert_eq!(
             super::default_lib_name_unix(
@@ -2833,11 +2813,11 @@ mod tests {
                 CPython,
                 VersionSpecific,
                 false,
-                Some("3.7md"),
+                Some("3.8d"),
                 false
             )
             .unwrap(),
-            "python3.7md",
+            "python3.8d",
         );
 
         // PyPy 3.11 includes ldversion
@@ -2979,16 +2959,17 @@ mod tests {
             lib_dir: None,
             lib_name: None,
             shared: true,
-            version: PythonVersion { major: 3, minor: 7 },
+            // Make this greater than the target abi3 version to reduce to below
+            version: PythonVersion { major: 3, minor: 9 },
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
         };
 
         config
-            .fixup_for_abi3_version(Some(PythonVersion { major: 3, minor: 7 }))
+            .fixup_for_abi3_version(Some(PythonVersion { major: 3, minor: 8 }))
             .unwrap();
-        assert_eq!(config.version, PythonVersion { major: 3, minor: 7 });
+        assert_eq!(config.version, PythonVersion { major: 3, minor: 8 });
     }
 
     #[test]
@@ -3002,18 +2983,18 @@ mod tests {
             lib_dir: None,
             lib_name: None,
             shared: true,
-            version: PythonVersion { major: 3, minor: 7 },
+            version: PythonVersion { major: 3, minor: 8 },
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
         };
 
         assert!(config
-            .fixup_for_abi3_version(Some(PythonVersion { major: 3, minor: 8 }))
+            .fixup_for_abi3_version(Some(PythonVersion { major: 3, minor: 9 }))
             .unwrap_err()
             .to_string()
             .contains(
-                "cannot set a minimum Python version 3.8 higher than the interpreter version 3.7"
+                "cannot set a minimum Python version 3.9 higher than the interpreter version 3.8"
             ));
     }
 
@@ -3210,7 +3191,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_3_10".to_owned(),
@@ -3225,7 +3205,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_3_10".to_owned(),
@@ -3255,7 +3234,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
@@ -3269,7 +3247,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=PyPy".to_owned(),
@@ -3327,7 +3304,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_3_10".to_owned(),
@@ -3345,7 +3321,7 @@ mod tests {
         build_flags.0.insert(BuildFlag::Py_DEBUG);
         let interpreter_config = InterpreterConfig {
             implementation: PythonImplementation::CPython,
-            version: PythonVersion { major: 3, minor: 7 },
+            version: PythonVersion { major: 3, minor: 8 },
             shared: true,
             stable_abi: CPythonABI::VersionSpecific,
             lib_name: Some("python3".into()),
@@ -3361,7 +3337,7 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_7".to_owned(),
+                "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=py_sys_config=\"Py_DEBUG\"".to_owned(),
             ]
         );

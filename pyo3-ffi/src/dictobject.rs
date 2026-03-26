@@ -111,11 +111,8 @@ extern_libpython! {
     pub static mut PyDictIterKey_Type: PyTypeObject;
     pub static mut PyDictIterValue_Type: PyTypeObject;
     pub static mut PyDictIterItem_Type: PyTypeObject;
-    #[cfg(Py_3_8)]
     pub static mut PyDictRevIterKey_Type: PyTypeObject;
-    #[cfg(Py_3_8)]
     pub static mut PyDictRevIterValue_Type: PyTypeObject;
-    #[cfg(Py_3_8)]
     pub static mut PyDictRevIterItem_Type: PyTypeObject;
 }
 

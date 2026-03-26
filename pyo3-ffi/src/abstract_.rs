@@ -1,6 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-#[cfg(any(Py_3_12, all(Py_3_8, not(Py_LIMITED_API))))]
+#[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
 use libc::size_t;
 use std::ffi::{c_char, c_int};
 
@@ -79,7 +79,7 @@ extern_libpython! {
         ...
     ) -> *mut PyObject;
 }
-#[cfg(any(Py_3_12, all(Py_3_8, not(Py_LIMITED_API))))]
+#[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
 pub const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
     1 << (8 * std::mem::size_of::<size_t>() as size_t - 1);
 
@@ -129,19 +129,7 @@ extern_libpython! {
     pub fn PyObject_GetIter(arg1: *mut PyObject) -> *mut PyObject;
 }
 
-// Before 3.8 PyIter_Check was defined in CPython as a macro,
-// but the implementation of that in PyO3 did not work, see
-// https://github.com/PyO3/pyo3/pull/2914
-//
-// This is a slow implementation which should function equivalently.
-#[cfg(not(any(Py_3_8, PyPy)))]
-#[inline]
-pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
-    crate::PyObject_HasAttrString(crate::Py_TYPE(o).cast(), c"__next__".as_ptr())
-}
-
 extern_libpython! {
-    #[cfg(any(Py_3_8, PyPy))]
     #[cfg_attr(PyPy, link_name = "PyPyIter_Check")]
     pub fn PyIter_Check(obj: *mut PyObject) -> c_int;
 
@@ -209,7 +197,7 @@ pub unsafe fn PyIndex_Check(o: *mut PyObject) -> c_int {
 }
 
 extern_libpython! {
-    #[cfg(any(all(Py_3_8, Py_LIMITED_API), PyPy))]
+    #[cfg(any(Py_LIMITED_API, PyPy))]
     #[link_name = "PyPyIndex_Check"]
     pub fn PyIndex_Check(o: *mut PyObject) -> c_int;
 

@@ -104,7 +104,6 @@ extern_libpython! {
         lnotab: *mut PyObject,
     ) -> *mut PyCodeObject;
     #[cfg(not(GraalPy))]
-    #[cfg(Py_3_8)]
     pub fn PyCode_NewWithPosOnlyArgs(
         argcount: c_int,
         posonlyargcount: c_int,

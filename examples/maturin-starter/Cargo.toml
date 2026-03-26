@@ -12,6 +12,6 @@ crate-type = ["cdylib"]
 pyo3 = { path = "../../" }
 
 [features]
-abi3 = ["pyo3/abi3-py315"]
+abi3 = ["pyo3/abi3-py38"]
 
 [workspace]
