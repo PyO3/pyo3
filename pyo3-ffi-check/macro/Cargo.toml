@@ -11,5 +11,5 @@ proc-macro = true
 glob = "0.3"
 quote = "1"
 proc-macro2 = "1.0.60"
-scraper = "0.17"
+scraper = "0.26"
 pyo3-build-config = { path = "../../pyo3-build-config" }
