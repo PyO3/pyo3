@@ -5,4 +5,3 @@ error: Type annotations in the signature is only supported with the `experimenta
   |                        ^^^^^
 
 error: aborting due to 1 previous error
-

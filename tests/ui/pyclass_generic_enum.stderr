@@ -11,4 +11,3 @@ error: enums do not support #[pyclass(generic)]
    |           ^^^^^^^
 
 error: aborting due to 2 previous errors
-

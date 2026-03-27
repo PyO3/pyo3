@@ -5,4 +5,3 @@ error: Return type annotation in the signature is only supported with the `exper
   |                           ^^^^^
 
 error: aborting due to 1 previous error
-

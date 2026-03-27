@@ -29,4 +29,3 @@ error: __traverse__ may not take `Python`. Usually, an implementation of `__trav
    |                                 ^^^^^^^^^^
 
 error: aborting due to 5 previous errors
-

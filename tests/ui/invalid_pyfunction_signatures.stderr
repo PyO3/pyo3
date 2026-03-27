@@ -65,4 +65,3 @@ error: expected argument from function definition `x` but got argument `kwargs`
    |                           ^^^^^^
 
 error: aborting due to 11 previous errors
-

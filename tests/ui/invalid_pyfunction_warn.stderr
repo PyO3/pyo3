@@ -47,4 +47,3 @@ error: __traverse__ cannot be used with #[pyo3(warn)]
    |            ^^^^
 
 error: aborting due to 8 previous errors
-

@@ -183,4 +183,3 @@ error: `rename_all` is not supported at top level for enums
     |        ^^^^^^^^^^
 
 error: aborting due to 29 previous errors
-

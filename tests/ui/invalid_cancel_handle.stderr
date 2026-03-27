@@ -41,11 +41,11 @@ error[E0433]: failed to resolve: could not find `coroutine` in `pyo3`
     |                                                        ^^^^^^^^^ could not find `coroutine` in `pyo3`
     |
 note: found an item that was configured out
-   --> src/lib.rs:417:9
+   --> src/lib.rs:418:9
     |
-416 | #[cfg(feature = "experimental-async")]
+417 | #[cfg(feature = "experimental-async")]
     |       ------------------------------ the item is gated behind the `experimental-async` feature
-417 | pub mod coroutine;
+418 | pub mod coroutine;
     |         ^^^^^^^^^
 
 error[E0433]: failed to resolve: could not find `coroutine` in `pyo3`
@@ -55,11 +55,11 @@ error[E0433]: failed to resolve: could not find `coroutine` in `pyo3`
     |                                                                        ^^^^^^^^^ could not find `coroutine` in `pyo3`
     |
 note: found an item that was configured out
-   --> src/lib.rs:417:9
+   --> src/lib.rs:418:9
     |
-416 | #[cfg(feature = "experimental-async")]
+417 | #[cfg(feature = "experimental-async")]
     |       ------------------------------ the item is gated behind the `experimental-async` feature
-417 | pub mod coroutine;
+418 | pub mod coroutine;
     |         ^^^^^^^^^
 
 error: aborting due to 8 previous errors

@@ -3,12 +3,15 @@
 #[cfg(not(target_arch = "wasm32"))] // Not possible to invoke compiler from wasm
 #[test]
 fn test_compile_errors() {
-    use std::path::PathBuf;
+    use std::{env::VarError, path::PathBuf};
 
+    use regex::bytes::Regex;
     use ui_test::{run_tests, Config};
 
     let mut config = Config::rustc("tests/ui");
 
+    // There doesn't seem to be a good way to forward all these features automatically,
+    // so have to just list the relevant ones here.
     let deps_features = [
         #[cfg(feature = "macros")]
         "pyo3/macros".to_string(),
@@ -83,7 +86,24 @@ fn test_compile_errors() {
         "invalid_pyclass_generic.rs".into(),
     ]);
 
-    config.output_conflict_handling = ui_test::bless_output_files;
+    match std::env::var("UI_TEST").as_deref() {
+        Ok("bless") => config.output_conflict_handling = ui_test::bless_output_files,
+        Ok("ignore") => config.output_conflict_handling = ui_test::ignore_output_conflict,
+        Err(VarError::NotPresent) => {
+            config.output_conflict_handling = ui_test::error_on_output_conflict
+        }
+        Err(e) => panic!("error reading UI_TEST environment variable: {e}"),
+        Ok(unknown) => panic!("invalid UI_TEST value: {unknown}"),
+    }
+
+    config.bless_command = Some("UI_TEST=bless cargo test --test test_compile_error".into());
+
+    // Normalize multiple trailing newlines to a single newline
+    config
+        .comment_defaults
+        .base()
+        .normalize_stderr
+        .push((Regex::new("\n\n$").unwrap().into(), vec![b'\n']));
 
     #[cfg(not(target_arch = "wasm32"))] // doesn't work on wasm
     {

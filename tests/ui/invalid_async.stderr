@@ -17,4 +17,3 @@ error: async functions are only supported with the `experimental-async` feature
    |     ^^^^^
 
 error: aborting due to 3 previous errors
-

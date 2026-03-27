@@ -5,4 +5,3 @@ error: only one `#[pymodule_init]` may be specified
    |     ^^
 
 error: aborting due to 1 previous error
-

@@ -13,4 +13,3 @@ warning: enum `DeriveItemsFromPyObject` is never used
    |      ^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: 2 warnings emitted
-

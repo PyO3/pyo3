@@ -8,4 +8,3 @@ error: lifetime may not live long enough
   |                                                    has type `Python<'1>`
 
 error: aborting due to 1 previous error
-

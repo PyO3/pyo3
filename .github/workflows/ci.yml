@@ -407,7 +407,7 @@ jobs:
     env:
       CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind --leak-check=no --error-exitcode=1
       RUST_BACKTRACE: 1
-      TRYBUILD: overwrite
+      UI_TEST: ignore
 
   careful:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
@@ -429,7 +429,7 @@ jobs:
       - run: nox -s test-rust -- careful skip-full
     env:
       RUST_BACKTRACE: 1
-      TRYBUILD: overwrite
+      UI_TEST: ignore
 
   docsrs:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}

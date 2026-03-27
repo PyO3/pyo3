@@ -23,12 +23,12 @@ help: the trait `IntoPyObject<'_>` is not implemented for `Blah`
               &'a (T0, T1, T2, T3, T4)
             and 148 others
 note: required by a bound in `UnknownReturnType::<T>::wrap`
-   --> src/impl_/wrap.rs:122:12
+   --> src/impl_/wrap.rs:124:12
     |
-120 |     pub fn wrap<'py>(&self, _: T) -> T
+122 |     pub fn wrap<'py>(&self, _: T) -> T
     |            ---- required by a bound in this associated function
-121 |     where
-122 |         T: IntoPyObject<'py>,
+123 |     where
+124 |         T: IntoPyObject<'py>,
     |            ^^^^^^^^^^^^^^^^^ required by this bound in `UnknownReturnType::<T>::wrap`
 
 error[E0599]: no method named `map_err` found for struct `Blah` in the current scope

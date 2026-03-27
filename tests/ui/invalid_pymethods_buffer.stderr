@@ -11,4 +11,3 @@ error: `__releasebuffer__` must be `unsafe fn`
    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: aborting due to 2 previous errors
-

@@ -5,4 +5,3 @@ error: #[pyclass] only supports structs and enums.
   | ^^^^^^^^^^^
 
 error: aborting due to 1 previous error
-

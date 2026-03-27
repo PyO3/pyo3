@@ -11,4 +11,3 @@ error: #[pyclass] cannot have lifetime parameters. For an explanation, see https
    |                           ^^
 
 error: aborting due to 2 previous errors
-

@@ -23,4 +23,3 @@ error: useless `get` - the struct is already annotated with `get_all`
    |            ^^^
 
 error: aborting due to 4 previous errors
-

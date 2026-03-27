@@ -29,4 +29,3 @@ error: `name` may only be specified once
    |                                                                   ^^^^
 
 error: aborting due to 5 previous errors
-
