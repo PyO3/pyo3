@@ -263,7 +263,6 @@ def _clippy_additional_workspaces(session: nox.Session) -> bool:
     target = os.environ.get("CARGO_BUILD_TARGET")
     if target is None or _get_rust_default_target() == target:
         try:
-            _build_docs_for_ffi_check(session)
             _run_cargo(session, "clippy", _FFI_CHECK, "--workspace", "--all-targets")
         except Exception:
             success = False
@@ -1097,7 +1096,6 @@ def set_msrv_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    _build_docs_for_ffi_check(session)
     _run_cargo(session, "run", _FFI_CHECK)
     _check_raw_dylib_macro(session)
 
@@ -1443,13 +1441,6 @@ def test_introspection(session: nox.Session):
         package="pyo3-introspection",
         env={"PYO3_PYTEST_LIB_PATH": lib_file},
     )
-
-
-def _build_docs_for_ffi_check(session: nox.Session) -> None:
-    # pyo3-ffi-check needs to scrape docs of pyo3-ffi
-    env = os.environ.copy()
-    env["PYO3_PYTHON"] = sys.executable
-    _run_cargo(session, "doc", _FFI_CHECK, "-p", "pyo3-ffi", "--no-deps", env=env)
 
 
 @lru_cache()
