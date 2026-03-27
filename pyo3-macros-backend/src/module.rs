@@ -1,6 +1,8 @@
 //! Code generation for the function that initializes a python module and adds classes and function.
 
 #[cfg(feature = "experimental-inspect")]
+use crate::attributes::StubsAttribute;
+#[cfg(feature = "experimental-inspect")]
 use crate::introspection::{
     attribute_introspection_code, introspection_id_const, module_introspection_code,
 };
@@ -38,6 +40,8 @@ pub struct PyModuleOptions {
     module: Option<ModuleAttribute>,
     submodule: Option<kw::submodule>,
     gil_used: Option<GILUsedAttribute>,
+    #[cfg(feature = "experimental-inspect")]
+    stubs: Option<StubsAttribute>,
 }
 
 impl Parse for PyModuleOptions {
@@ -83,9 +87,9 @@ impl PyModuleOptions {
                         submodule,
                         " (it is implicitly always specified for nested modules)"
                     ),
-                    PyModulePyO3Option::GILUsed(gil_used) => {
-                        set_option!(gil_used)
-                    }
+                    PyModulePyO3Option::GILUsed(gil_used) => set_option!(gil_used),
+                    #[cfg(feature = "experimental-inspect")]
+                    PyModulePyO3Option::Stubs(stubs) => set_option!(stubs),
                 }
 
                 Ok(())
@@ -383,6 +387,7 @@ pub fn pymodule_module_impl(
         &module_items_cfg_attrs,
         doc.as_ref(),
         pymodule_init.is_some(),
+        options.stubs.as_ref().map(|a| &a.value),
     );
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
@@ -471,6 +476,7 @@ pub fn pymodule_function_impl(
         &[],
         doc.as_ref(),
         true,
+        options.stubs.as_ref().map(|a| &a.value),
     );
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
@@ -728,6 +734,8 @@ enum PyModulePyO3Option {
     Name(NameAttribute),
     Module(ModuleAttribute),
     GILUsed(GILUsedAttribute),
+    #[cfg(feature = "experimental-inspect")]
+    Stubs(StubsAttribute),
 }
 
 impl Parse for PyModulePyO3Option {
@@ -744,6 +752,10 @@ impl Parse for PyModulePyO3Option {
         } else if lookahead.peek(attributes::kw::gil_used) {
             input.parse().map(PyModulePyO3Option::GILUsed)
         } else {
+            #[cfg(feature = "experimental-inspect")]
+            if lookahead.peek(attributes::kw::stubs) {
+                return input.parse().map(PyModulePyO3Option::Stubs);
+            }
             Err(lookahead.error())
         }
     }
