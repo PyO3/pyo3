@@ -72,8 +72,7 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 }
 
 fn get_doc_dir() -> PathBuf {
-    let path = PathBuf::from(env::var_os("OUT_DIR").unwrap());
-    path.join("doc").join("pyo3_ffi_check_definitions")
+    PathBuf::from(env::var_os("PYO3_FFI_CHECK_DOC_DIR").unwrap())
 }
 
 /// Macro which expands to multiple macro calls, one per field in a pyo3-ffi
