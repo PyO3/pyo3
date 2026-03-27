@@ -95,7 +95,6 @@ fn test_buffer_referenced() {
 }
 
 #[test]
-#[cfg(Py_3_8)] // sys.unraisablehook not available until Python 3.8
 fn test_releasebuffer_unraisable_error() {
     use pyo3::exceptions::PyValueError;
     use test_utils::UnraisableCapture;

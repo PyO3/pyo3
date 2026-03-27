@@ -104,7 +104,7 @@ macro_rules! impl_slots {
                         {
                             // Calling PyType_GetSlot on static types is not valid before Python 3.10
                             // ... so the workaround is to first do a runtime check for these versions
-                            // (3.7, 3.8, 3.9) and then look in the type object anyway. This is only ok
+                            // (3.8, 3.9) and then look in the type object anyway. This is only ok
                             // because we know that the interpreter is not going to change the size
                             // of the type objects for these historical versions.
                             if !is_runtime_3_10 && unsafe {ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE)} == 0
@@ -221,7 +221,7 @@ pub struct PyBufferProcs39Snapshot {
     pub bf_releasebuffer: *mut std::ffi::c_void,
 }
 
-/// Snapshot of the structure of PyTypeObject for Python 3.7 through 3.9.
+/// Snapshot of the structure of PyTypeObject for Python 3.8 through 3.9.
 ///
 /// This is used as a fallback for static types in abi3 when the Python version is less than 3.10;
 /// this is a bit of a hack but there's no better option and the structure of the type object is
@@ -234,9 +234,6 @@ struct PyTypeObject39Snapshot {
     pub tp_basicsize: ffi::Py_ssize_t,
     pub tp_itemsize: ffi::Py_ssize_t,
     pub tp_dealloc: Option<ffi::destructor>,
-    #[cfg(not(Py_3_8))]
-    pub tp_print: *mut std::ffi::c_void, // stubbed out, not available in limited API
-    #[cfg(Py_3_8)]
     pub tp_vectorcall_offset: ffi::Py_ssize_t,
     pub tp_getattr: Option<ffi::getattrfunc>,
     pub tp_setattr: Option<ffi::setattrfunc>,
@@ -280,6 +277,5 @@ struct PyTypeObject39Snapshot {
     pub tp_del: Option<ffi::destructor>,
     pub tp_version_tag: std::ffi::c_uint,
     pub tp_finalize: Option<ffi::destructor>,
-    #[cfg(Py_3_8)]
     pub tp_vectorcall: Option<ffi::vectorcallfunc>,
 }

@@ -26,7 +26,6 @@ extension-module = ["pyo3-build-config/extension-module"]
 abi3 = ["pyo3-build-config/abi3"]
 
 # With abi3, we can manually set the minimum Python version.
-abi3-py37 = ["abi3-py38", "pyo3-build-config/abi3-py37"]
 abi3-py38 = ["abi3-py39", "pyo3-build-config/abi3-py38"]
 abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39"]
 abi3-py310 = ["abi3-py311", "pyo3-build-config/abi3-py310"]
@@ -48,7 +47,7 @@ pyo3-build-config = { path = "../pyo3-build-config", version = "=0.28.2", featur
 workspace = true
 
 [package.metadata.cpython]
-min-version = "3.7"
+min-version = "3.8"
 max-version = "3.15" # inclusive
 
 [package.metadata.pypy]

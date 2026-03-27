@@ -1,5 +1,5 @@
 [project]
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 name = "pyo3"
 dynamic = ["version"]
 

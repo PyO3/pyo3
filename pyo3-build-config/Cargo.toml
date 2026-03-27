@@ -32,7 +32,6 @@ generate-import-lib = []
 
 # These features are enabled by pyo3 when building Stable ABI extension modules.
 abi3 = []
-abi3-py37 = ["abi3-py38"]
 abi3-py38 = ["abi3-py39"]
 abi3-py39 = ["abi3-py310"]
 abi3-py310 = ["abi3-py311"]

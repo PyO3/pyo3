@@ -267,15 +267,11 @@ class C:
                 from_float.extract::<Complex<f64>>().unwrap(),
                 Complex::new(3.0, 0.0)
             );
-            // Before Python 3.8, `__index__` wasn't tried by `float`/`complex`.
-            #[cfg(Py_3_8)]
-            {
-                let from_index = module.getattr("C").unwrap().call0().unwrap();
-                assert_eq!(
-                    from_index.extract::<Complex<f64>>().unwrap(),
-                    Complex::new(3.0, 0.0)
-                );
-            }
+            let from_index = module.getattr("C").unwrap().call0().unwrap();
+            assert_eq!(
+                from_index.extract::<Complex<f64>>().unwrap(),
+                Complex::new(3.0, 0.0)
+            );
         })
     }
     #[test]
@@ -309,14 +305,11 @@ class C(First, IndexMixin): pass
                 from_float.extract::<Complex<f64>>().unwrap(),
                 Complex::new(3.0, 0.0)
             );
-            #[cfg(Py_3_8)]
-            {
-                let from_index = module.getattr("C").unwrap().call0().unwrap();
-                assert_eq!(
-                    from_index.extract::<Complex<f64>>().unwrap(),
-                    Complex::new(3.0, 0.0)
-                );
-            }
+            let from_index = module.getattr("C").unwrap().call0().unwrap();
+            assert_eq!(
+                from_index.extract::<Complex<f64>>().unwrap(),
+                Complex::new(3.0, 0.0)
+            );
         })
     }
     #[test]

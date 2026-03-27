@@ -211,11 +211,14 @@ impl ModuleDef {
             self.module
                 .get_or_try_init(py, || {
                     let slots = self.get_slots();
-                    let module = unsafe { ffi::PyModule_FromSlotsAndSpec(slots, spec.as_ptr()) };
-                    if unsafe { ffi::PyModule_SetDocString(module, doc.as_ptr()) } != 0 {
+                    let module = unsafe {
+                        ffi::PyModule_FromSlotsAndSpec(slots, spec.as_ptr())
+                            .assume_owned_or_err(py)?
+                    }
+                    .cast_into()?;
+                    if unsafe { ffi::PyModule_SetDocString(module.as_ptr(), doc.as_ptr()) } != 0 {
                         return Err(PyErr::fetch(py));
                     }
-                    let module = unsafe { module.assume_owned_or_err(py)? }.cast_into()?;
                     if unsafe { ffi::PyModule_Exec(module.as_ptr()) } != 0 {
                         return Err(PyErr::fetch(py));
                     }

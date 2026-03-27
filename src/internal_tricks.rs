@@ -1,3 +1,5 @@
+use std::ptr::NonNull;
+
 use crate::ffi::{self, Py_ssize_t, PY_SSIZE_T_MAX};
 
 macro_rules! pyo3_exception {
@@ -46,4 +48,10 @@ pub(crate) fn traverse_eq(f: Option<ffi::traverseproc>, g: ffi::traverseproc) ->
     {
         f == Some(g)
     }
+}
+
+// TODO: use Box::into_non_null when stabilized
+pub(crate) fn box_into_non_null<T>(b: Box<T>) -> NonNull<T> {
+    // SAFETY: `Box::into_raw` guarantees an non-null pointer
+    unsafe { NonNull::new_unchecked(Box::into_raw(b)) }
 }

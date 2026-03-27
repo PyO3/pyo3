@@ -7,9 +7,9 @@
 /// ```rust
 /// # use pyo3::Python;
 /// Python::attach(|py| {
-///     // PyO3 supports Python 3.7 and up.
-///     assert!(py.version_info() >= (3, 7));
-///     assert!(py.version_info() >= (3, 7, 0));
+///     // PyO3 supports Python 3.8 and up.
+///     assert!(py.version_info() >= (3, 8));
+///     assert!(py.version_info() >= (3, 8, 0));
 /// });
 /// ```
 ///
@@ -101,10 +101,6 @@ mod test {
     fn test_python_version_info() {
         Python::attach(|py| {
             let version = py.version_info();
-            #[cfg(Py_3_7)]
-            assert!(version >= (3, 7));
-            #[cfg(Py_3_7)]
-            assert!(version >= (3, 7, 0));
             #[cfg(Py_3_8)]
             assert!(version >= (3, 8));
             #[cfg(Py_3_8)]
@@ -121,6 +117,18 @@ mod test {
             assert!(version >= (3, 11));
             #[cfg(Py_3_11)]
             assert!(version >= (3, 11, 0));
+            #[cfg(Py_3_12)]
+            assert!(version >= (3, 12));
+            #[cfg(Py_3_12)]
+            assert!(version >= (3, 12, 0));
+            #[cfg(Py_3_13)]
+            assert!(version >= (3, 13));
+            #[cfg(Py_3_13)]
+            assert!(version >= (3, 13, 0));
+            #[cfg(Py_3_14)]
+            assert!(version >= (3, 14));
+            #[cfg(Py_3_14)]
+            assert!(version >= (3, 14, 0));
         });
     }
 

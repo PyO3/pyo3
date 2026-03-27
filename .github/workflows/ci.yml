@@ -226,7 +226,6 @@ jobs:
         rust: [stable]
         python-version:
           [
-            "3.7",
             "3.8",
             "3.9",
             "3.10",
@@ -306,25 +305,8 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
-          # ubuntu-latest (24.04) no longer supports 3.7, so run on 22.04
-          - rust: stable
-            python-version: "3.7"
-            platform:
-              {
-                os: "ubuntu-22.04",
-                python-architecture: "x64",
-                rust-target: "x86_64-unknown-linux-gnu",
-              }
 
           # arm64 macOS Python not available on GitHub Actions until 3.10, test older versions on x64
-          - rust: stable
-            python-version: "3.7"
-            platform:
-              {
-                os: "macos-15-intel",
-                python-architecture: "x64",
-                rust-target: "x86_64-apple-darwin",
-              }
           - rust: stable
             python-version: "3.8"
             platform:
@@ -359,18 +341,7 @@ jobs:
                 rust-target: "aarch64-pc-windows-msvc",
               }
         exclude:
-          # ubuntu-latest (24.04) no longer supports 3.7
-          - python-version: "3.7"
-            platform: { os: "ubuntu-latest" }
           # arm64 macOS Python not available on GitHub Actions until 3.10
-          - rust: stable
-            python-version: "3.7"
-            platform:
-              {
-                os: "macos-latest",
-                python-architecture: "arm64",
-                rust-target: "aarch64-apple-darwin",
-              }
           - rust: stable
             python-version: "3.8"
             platform:
@@ -793,9 +764,14 @@ jobs:
       - run: python -m pip install --upgrade pip && pip install nox[uv]
       - run: nox -s test-introspection
 
-  mypy-pytests:
+  pytests-type-checking:
     needs: [fmt]
     runs-on: ubuntu-latest
+    strategy:
+      # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
+      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+      matrix:
+        checker: [mypy, pyrefly]
     steps:
       - uses: actions/checkout@v6.0.2
       - uses: dtolnay/rust-toolchain@stable
@@ -805,7 +781,7 @@ jobs:
         with:
           python-version: "3.14"
       - run: python -m pip install --upgrade pip && pip install nox[uv]
-      - run: nox -s mypy
+      - run: nox -s ${{matrix.checker}}
         working-directory: pytests
 
   conclusion:
