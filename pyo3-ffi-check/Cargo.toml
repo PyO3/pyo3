@@ -9,7 +9,7 @@ pyo3-ffi-check-macro = { path = "./macro" }
 pyo3-ffi = { path = "../pyo3-ffi" }
 
 [build-dependencies]
-bindgen = "0.69.4"
+bindgen = "0.72.1"
 pyo3-build-config = { path = "../pyo3-build-config" }
 
 [workspace]
