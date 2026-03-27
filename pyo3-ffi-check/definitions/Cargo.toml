@@ -1,0 +1,12 @@
+[package]
+name = "pyo3-ffi-check-definitions"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+pyo3-ffi = { path = "../../pyo3-ffi" }
+
+[build-dependencies]
+bindgen = "0.69.4"
+pyo3-build-config = { path = "../../pyo3-build-config" }
