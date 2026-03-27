@@ -1,6 +1,8 @@
 use std::env;
 use std::path::PathBuf;
 
+use bindgen::callbacks::ItemInfo;
+
 #[derive(Debug)]
 struct ParseCallbacks;
 
@@ -8,8 +10,8 @@ impl bindgen::callbacks::ParseCallbacks for ParseCallbacks {
     // these are anonymous fields and structs in CPython that we needed to
     // invent names for. Bindgen seems to generate stable names, so we remap the
     // automatically generated names to the names we invented in the FFI
-    fn item_name(&self, original_item_name: &str) -> Option<String> {
-        match original_item_name {
+    fn item_name(&self, item_info: ItemInfo<'_>) -> Option<String> {
+        match item_info.name {
             "_object__bindgen_ty_1__bindgen_ty_1" => Some("PyObjectObFlagsAndRefcnt".into()),
             "_object__bindgen_ty_1" => Some("PyObjectObRefcnt".into()),
             _ => None,
