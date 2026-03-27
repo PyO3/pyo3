@@ -17,8 +17,6 @@ fn test_compile_errors() {
         "pyo3/macros".to_string(),
         #[cfg(feature = "abi3")]
         "pyo3/abi3".to_string(),
-        #[cfg(feature = "abi3-py37")]
-        "pyo3/abi3-py37".to_string(),
         #[cfg(feature = "abi3-py38")]
         "pyo3/abi3-py38".to_string(),
         #[cfg(feature = "abi3-py39")]
