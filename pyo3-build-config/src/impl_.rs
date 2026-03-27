@@ -157,7 +157,7 @@ pub struct InterpreterConfig {
 
     /// Whether linking against the stable/limited Python 3 API.
     ///
-    /// FIXME: serialization?
+    /// Serialized to `stable_abi`.
     pub stable_abi: CPythonABI,
 
     /// The name of the link library defining Python.
