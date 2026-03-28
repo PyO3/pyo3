@@ -23,6 +23,8 @@ pub use impl_::{
     CrossCompileConfig, InterpreterConfig, PythonImplementation, PythonVersion, Triple,
 };
 
+#[cfg(feature = "resolve-config")]
+use target_lexicon::Architecture;
 use target_lexicon::OperatingSystem;
 
 /// Adds all the [`#[cfg]` flags](index.html) to the current compilation.
@@ -102,9 +104,17 @@ fn _add_extension_module_link_args(
 #[cfg(feature = "resolve-config")]
 pub fn add_libpython_rpath_link_args() {
     let target = impl_::target_triple_from_env();
+    let is_linking_libpython = impl_::is_linking_libpython_for_target(&target);
+    let is_wasm = matches!(
+        target.architecture,
+        Architecture::Wasm32 | Architecture::Wasm64
+    );
+    let is_emscripten = target.operating_system == target_lexicon::OperatingSystem::Emscripten;
     _add_libpython_rpath_link_args(
         get(),
-        impl_::is_linking_libpython_for_target(&target),
+        // webassembly targets generally don't support rpath, emscripten is the only exception currently aware of:
+        // https://github.com/emscripten-core/emscripten/issues/22126
+        is_linking_libpython && (!is_wasm || is_emscripten),
         std::io::stdout(),
     )
 }
@@ -112,10 +122,10 @@ pub fn add_libpython_rpath_link_args() {
 #[cfg(feature = "resolve-config")]
 fn _add_libpython_rpath_link_args(
     interpreter_config: &InterpreterConfig,
-    is_linking_libpython: bool,
+    should_emit_rpath: bool,
     mut writer: impl std::io::Write,
 ) {
-    if is_linking_libpython {
+    if should_emit_rpath {
         if let Some(lib_dir) = interpreter_config.lib_dir.as_ref() {
             writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}").unwrap();
         }
