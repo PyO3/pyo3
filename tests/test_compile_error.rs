@@ -6,7 +6,7 @@ fn test_compile_errors() {
     use std::{env::VarError, path::PathBuf};
 
     use regex::bytes::Regex;
-    use ui_test::{run_tests, Config};
+    use ui_test::{run_tests, Config, OptWithLine};
 
     let mut config = Config::rustc("tests/ui");
 
@@ -20,7 +20,24 @@ fn test_compile_errors() {
         Ok("bless") => config.output_conflict_handling = ui_test::bless_output_files,
         // This mode is useful for exercising coverage of the proc macros, e.g. on the
         // nightly compiler and MSRV, where the output may differ from expected.
-        Ok("ignore") => config.output_conflict_handling = ui_test::ignore_output_conflict,
+        Ok("ignore") => {
+            use ui_test::spanned::Span;
+
+            // Ignore mismatches on stderr / stdout files
+            config.output_conflict_handling = ui_test::ignore_output_conflict;
+
+            // This combination of settings helps ui test ignore the annotations on
+            // the test files themselves:
+
+            // The annotations by default start with //~, changing this to a pattern
+            // which never appears in the files effectively means "ignore all annotations"
+            config.comment_start = "/*DISABLED*/";
+            // Don't error if there are no annotations
+            config.comment_defaults.base().require_annotations =
+                OptWithLine::new(false, Span::default());
+            // Don't error if the test "passes" because there were no annotations
+            config.comment_defaults.base().exit_status = OptWithLine::default();
+        }
         // Completely running the tests, e.g. under `cargo careful` there is some issue which
         // doesn't seem worth understanding (we don't gain anything from extra assertions in
         // the proc-macro code, which is all quite pedestrian).
