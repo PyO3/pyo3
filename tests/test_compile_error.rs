@@ -6,7 +6,7 @@ fn test_compile_errors() {
     use std::{env::VarError, path::PathBuf};
 
     use regex::bytes::Regex;
-    use ui_test::{run_tests, Config, OptWithLine};
+    use ui_test::{run_tests, spanned::Span, Config, OptWithLine};
 
     let mut config = Config::rustc("tests/ui");
 
@@ -21,8 +21,6 @@ fn test_compile_errors() {
         // This mode is useful for exercising coverage of the proc macros, e.g. on the
         // nightly compiler and MSRV, where the output may differ from expected.
         Ok("ignore") => {
-            use ui_test::spanned::Span;
-
             // Ignore mismatches on stderr / stdout files
             config.output_conflict_handling = ui_test::ignore_output_conflict;
 
