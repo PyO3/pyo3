@@ -1,14 +1,14 @@
 error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safely
-   --> tests/ui/not_send.rs:4:15
+   --> tests/ui/not_send.rs:5:15
     |
-  4 |     py.detach(|| { drop(py); });
-    |        ------ ^^^^^^^^^^^^^^^^ `*mut pyo3::Python<'static>` cannot be shared between threads safely
+  5 |     py.detach(|| drop(py));
+    |        ------ ^^^^^^^^^^^ `*mut pyo3::Python<'static>` cannot be shared between threads safely
     |        |
     |        required by a bound introduced by this call
     |
     = help: within `pyo3::Python<'_>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`
 note: required because it appears within the type `PhantomData<*mut pyo3::Python<'static>>`
-   --> /Users/david/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/marker.rs:819:12
+../src/library/core/src/marker.rs:819:12
     |
 819 | pub struct PhantomData<T: PointeeSized>;
     |            ^^^^^^^^^^^
@@ -18,7 +18,7 @@ note: required because it appears within the type `pyo3::marker::NotSend`
 357 | struct NotSend(PhantomData<*mut Python<'static>>);
     |        ^^^^^^^
 note: required because it appears within the type `PhantomData<pyo3::marker::NotSend>`
-   --> /Users/david/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/marker.rs:819:12
+../src/library/core/src/marker.rs:819:12
     |
 819 | pub struct PhantomData<T: PointeeSized>;
     |            ^^^^^^^^^^^
@@ -29,11 +29,11 @@ note: required because it appears within the type `pyo3::Python<'_>`
     |            ^^^^^^
     = note: required for `&pyo3::Python<'_>` to implement `Send`
 note: required because it's used within this closure
-   --> tests/ui/not_send.rs:4:15
+   --> tests/ui/not_send.rs:5:15
     |
-  4 |     py.detach(|| { drop(py); });
+  5 |     py.detach(|| drop(py));
     |               ^^
-    = note: required for `{closure@tests/ui/not_send.rs:4:15: 4:17}` to implement `Ungil`
+    = note: required for `{closure@tests/ui/not_send.rs:5:15: 5:17}` to implement `Ungil`
 note: required by a bound in `pyo3::Python::<'py>::detach`
    --> src/marker.rs:560:12
     |

@@ -82,6 +82,13 @@ fn test_compile_errors() {
         // generic pyclasses only supported on 3.9+, doesn't fail gracefully on older versions
         #[cfg(not(Py_3_9))]
         "invalid_pyclass_generic.rs".into(),
+        // an extra "note" is emitted on abi3
+        #[cfg(any(not(Py_LIMITED_API), not(Py_3_12)))]
+        "invalid_base_class.rs".into(),
+        #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
+        "invalid_pyfunction_argument.rs".into(),
+        #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
+        "invalid_pyclass_args.rs".into(),
     ]);
 
     match std::env::var("UI_TEST").as_deref() {
