@@ -10,6 +10,27 @@ fn test_compile_errors() {
 
     let mut config = Config::rustc("tests/ui");
 
+    // Various configurations of of
+    match std::env::var("UI_TEST").as_deref() {
+        // Default is to run the test as normal, erroring if output is not as expected.
+        Err(VarError::NotPresent) => {
+            config.output_conflict_handling = ui_test::error_on_output_conflict
+        }
+        // Used to update the output files to match expected output
+        Ok("bless") => config.output_conflict_handling = ui_test::bless_output_files,
+        // This mode is useful for exercising coverage of the proc macros, e.g. on the
+        // nightly compiler and MSRV, where the output may differ from expected.
+        Ok("ignore") => config.output_conflict_handling = ui_test::ignore_output_conflict,
+        // Completely running the tests, e.g. under `cargo careful` there is some issue which
+        // doesn't seem worth understanding (we don't gain anything from extra assertions in
+        // the proc-macro code, which is all quite pedestrian).
+        Ok("skip") => return,
+        Err(e) => panic!("error reading UI_TEST environment variable: {e}"),
+        Ok(unknown) => panic!("invalid UI_TEST value: {unknown}"),
+    }
+
+    config.bless_command = Some("UI_TEST=bless cargo test --test test_compile_error".into());
+
     // There doesn't seem to be a good way to forward all these features automatically,
     // so have to just list the relevant ones here.
     let deps_features = [
@@ -90,18 +111,6 @@ fn test_compile_errors() {
         #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
         "invalid_pyclass_args.rs".into(),
     ]);
-
-    match std::env::var("UI_TEST").as_deref() {
-        Ok("bless") => config.output_conflict_handling = ui_test::bless_output_files,
-        Ok("ignore") => config.output_conflict_handling = ui_test::ignore_output_conflict,
-        Err(VarError::NotPresent) => {
-            config.output_conflict_handling = ui_test::error_on_output_conflict
-        }
-        Err(e) => panic!("error reading UI_TEST environment variable: {e}"),
-        Ok(unknown) => panic!("invalid UI_TEST value: {unknown}"),
-    }
-
-    config.bless_command = Some("UI_TEST=bless cargo test --test test_compile_error".into());
 
     // Normalize multiple trailing newlines to a single newline
     config
