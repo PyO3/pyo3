@@ -25,7 +25,7 @@ pub struct PyTryBlock {
 // skipped _PyFrame_IsExecuting
 // skipped _PyFrameHasCompleted
 
-extern "C" {
+extern_libpython! {
     #[cfg(not(GraalPy))]
     #[cfg_attr(PyPy, link_name = "PyPyFrame_New")]
     pub fn PyFrame_New(

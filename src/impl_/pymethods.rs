@@ -23,39 +23,6 @@ use super::pyclass::PyClassImpl;
 use super::trampoline;
 use crate::internal_tricks::{clear_eq, traverse_eq};
 
-/// Python 3.8 and up - __ipow__ has modulo argument correctly populated.
-#[cfg(Py_3_8)]
-#[repr(transparent)]
-pub struct IPowModulo(*mut ffi::PyObject);
-
-/// Python 3.7 and older - __ipow__ does not have modulo argument correctly populated.
-#[cfg(not(Py_3_8))]
-#[repr(transparent)]
-pub struct IPowModulo(#[allow(dead_code)] std::mem::MaybeUninit<*mut ffi::PyObject>);
-
-/// Helper to use as pymethod ffi definition
-#[allow(non_camel_case_types)]
-pub type ipowfunc = unsafe extern "C" fn(
-    arg1: *mut ffi::PyObject,
-    arg2: *mut ffi::PyObject,
-    arg3: IPowModulo,
-) -> *mut ffi::PyObject;
-
-impl IPowModulo {
-    #[cfg(Py_3_8)]
-    #[inline]
-    pub fn as_ptr(self) -> *mut ffi::PyObject {
-        self.0
-    }
-
-    #[cfg(not(Py_3_8))]
-    #[inline]
-    pub fn as_ptr(self) -> *mut ffi::PyObject {
-        // Safety: returning a borrowed pointer to Python `None` singleton
-        unsafe { ffi::Py_None() }
-    }
-}
-
 /// `PyMethodDefType` represents different types of Python callable objects.
 /// It is used by the `#[pymethods]` attribute.
 #[derive(Copy, Clone)]
@@ -300,10 +267,14 @@ impl fmt::Debug for PyClassAttributeDef {
 
 /// Class getter / setters
 pub(crate) type Getter =
-    for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<*mut ffi::PyObject>;
-pub(crate) type Setter =
-    for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject, *mut ffi::PyObject) -> PyResult<c_int>;
-pub(crate) type Deleter = for<'py> unsafe fn(Python<'py>, *mut ffi::PyObject) -> PyResult<c_int>;
+    for<'py> unsafe fn(Python<'py>, NonNull<ffi::PyObject>) -> PyResult<*mut ffi::PyObject>;
+pub(crate) type Setter = for<'py> unsafe fn(
+    Python<'py>,
+    NonNull<ffi::PyObject>,
+    NonNull<ffi::PyObject>,
+) -> PyResult<c_int>;
+pub(crate) type Deleter =
+    for<'py> unsafe fn(Python<'py>, NonNull<ffi::PyObject>) -> PyResult<c_int>;
 
 impl PyGetterDef {
     /// Define a getter.

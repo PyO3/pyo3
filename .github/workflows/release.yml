@@ -24,6 +24,8 @@ jobs:
           persist-credentials: false
 
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: false
 
       - uses: rust-lang/crates-io-auth-action@v1
         id: auth

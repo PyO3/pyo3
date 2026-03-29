@@ -2,7 +2,7 @@ use crate::object::PyObject;
 use crate::pytypedefs::PyThreadState;
 use std::ffi::{c_char, c_int, c_void};
 
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyEval_EvalCode")]
     pub fn PyEval_EvalCode(
         arg1: *mut PyObject,
@@ -42,7 +42,7 @@ pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut
     PyEval_CallObjectWithKeywords(func, arg, std::ptr::null_mut())
 }
 
-extern "C" {
+extern_libpython! {
     #[cfg(not(Py_3_13))]
     #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallFunction")]
@@ -137,8 +137,6 @@ extern "C" {
     pub fn PyEval_AcquireThread(tstate: *mut PyThreadState);
     #[cfg_attr(PyPy, link_name = "PyPyEval_ReleaseThread")]
     pub fn PyEval_ReleaseThread(tstate: *mut PyThreadState);
-    #[cfg(not(Py_3_8))]
-    pub fn PyEval_ReInitThreads();
 }
 
 // skipped Py_BEGIN_ALLOW_THREADS

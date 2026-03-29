@@ -2,7 +2,7 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int};
 
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetNone")]
     pub fn PyErr_SetNone(arg1: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetObject")]
@@ -53,6 +53,12 @@ extern "C" {
     pub fn PyErr_GetRaisedException() -> *mut PyObject;
     #[cfg(Py_3_12)]
     pub fn PyErr_SetRaisedException(exc: *mut PyObject);
+    #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyErr_GetHandledException")]
+    pub fn PyErr_GetHandledException() -> *mut PyObject;
+    #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyErr_SetHandledException")]
+    pub fn PyErr_SetHandledException(exc: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyException_SetTraceback")]
     pub fn PyException_SetTraceback(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyException_GetTraceback")]
@@ -111,8 +117,7 @@ pub unsafe fn PyUnicodeDecodeError_Create(
     )
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyExc_BaseException")]
     pub static mut PyExc_BaseException: *mut PyObject;
     #[cfg(Py_3_11)]
@@ -264,7 +269,7 @@ extern "C" {
     pub static mut PyExc_EncodingWarning: *mut PyObject;
 }
 
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyErr_BadArgument")]
     pub fn PyErr_BadArgument() -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyErr_NoMemory")]

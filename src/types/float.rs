@@ -1,7 +1,5 @@
 use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::types::TypeInfo;
-#[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
@@ -85,11 +83,6 @@ impl<'py> IntoPyObject<'py> for f64 {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyFloat::new(py, self))
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("float")
-    }
 }
 
 impl<'py> IntoPyObject<'py> for &f64 {
@@ -103,11 +96,6 @@ impl<'py> IntoPyObject<'py> for &f64 {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("float")
     }
 }
 
@@ -139,11 +127,6 @@ impl<'py> FromPyObject<'_, 'py> for f64 {
 
         Ok(v)
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        Self::type_output()
-    }
 }
 
 impl<'py> IntoPyObject<'py> for f32 {
@@ -157,11 +140,6 @@ impl<'py> IntoPyObject<'py> for f32 {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyFloat::new(py, self.into()))
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("float")
     }
 }
 
@@ -177,11 +155,6 @@ impl<'py> IntoPyObject<'py> for &f32 {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("float")
-    }
 }
 
 impl<'a, 'py> FromPyObject<'a, 'py> for f32 {
@@ -192,11 +165,6 @@ impl<'a, 'py> FromPyObject<'a, 'py> for f32 {
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         Ok(obj.extract::<f64>()? as f32)
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        Self::type_output()
     }
 }
 

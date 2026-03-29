@@ -112,7 +112,6 @@ extension-module = ["pyo3-ffi/extension-module"]
 abi3 = ["pyo3-ffi/abi3"]
 
 # With abi3, we can manually set the minimum Python version.
-abi3-py37 = ["abi3-py38", "pyo3-ffi/abi3-py37"]
 abi3-py38 = ["abi3-py39", "pyo3-ffi/abi3-py38"]
 abi3-py39 = ["abi3-py310", "pyo3-ffi/abi3-py39"]
 abi3-py310 = ["abi3-py311", "pyo3-ffi/abi3-py310"]
@@ -121,7 +120,7 @@ abi3-py312 = ["abi3-py313", "pyo3-ffi/abi3-py312"]
 abi3-py313 = ["abi3-py314", "pyo3-ffi/abi3-py313"]
 abi3-py314 = ["abi3", "pyo3-ffi/abi3-py314"]
 
-# Automatically generates `python3.dll` import libraries for Windows targets.
+# deprecated: no longer needed, raw-dylib is used instead
 generate-import-lib = ["pyo3-ffi/generate-import-lib"]
 
 # Changes `Python::attach` to automatically initialize the Python interpreter if needed.

@@ -38,8 +38,8 @@ Just like in Python, the following constructs can be part of the signature::
 - `**kwargs`: "kwargs" receives keyword arguments.
   The type of the `kwargs` parameter has to be `Option<&Bound<'_, PyDict>>`.
 - `arg=Value`: arguments with default value.
-   If the `arg` argument is defined after var arguments, it is treated as a keyword-only argument.
-   Note that `Value` has to be valid rust code, PyO3 just inserts it into the generated code unmodified.
+  If the `arg` argument is defined after var arguments, it is treated as a keyword-only argument.
+  Note that `Value` has to be valid rust code, PyO3 just inserts it into the generated code unmodified.
 
 Example:
 
@@ -162,7 +162,6 @@ fn add(a: u64, b: u64) -> u64 {
 #             .call_method0("__str__")?
 #             .extract()?;
 #
-#         #[cfg(Py_3_8)]  // on 3.7 the signature doesn't render b, upstream bug?
 #         assert_eq!(sig, "(a, b=0, /)");
 #
 #         Ok(())

@@ -262,6 +262,11 @@ impl PyErr {
         self.normalized(py).ptraceback(py)
     }
 
+    /// Set the traceback associated with the exception, pass `None` to clear it.
+    pub fn set_traceback<'py>(&self, py: Python<'_>, tb: Option<Bound<'py, PyTraceback>>) {
+        self.normalized(py).set_ptraceback(py, tb)
+    }
+
     /// Gets whether an error is present in the Python interpreter's global state.
     #[inline]
     pub fn occurred(_: Python<'_>) -> bool {
@@ -595,6 +600,29 @@ impl PyErr {
             ffi::PyException_SetCause(
                 value.as_ptr(),
                 cause.map_or(std::ptr::null_mut(), Py::into_ptr),
+            );
+        }
+    }
+
+    /// Return the context (either an exception instance, or None, set by an implicit exception
+    /// during handling of another exception) associated with the exception, as accessible from
+    /// Python through `__context__`.
+    pub fn context(&self, py: Python<'_>) -> Option<PyErr> {
+        unsafe {
+            ffi::PyException_GetContext(self.value(py).as_ptr())
+                .assume_owned_or_opt(py)
+                .map(Self::from_value)
+        }
+    }
+
+    /// Set the context associated with the exception, pass `None` to clear it.
+    pub fn set_context(&self, py: Python<'_>, context: Option<PyErr>) {
+        let value = self.value(py);
+        let context = context.map(|err| err.into_value(py));
+        unsafe {
+            ffi::PyException_SetContext(
+                value.as_ptr(),
+                context.map_or(std::ptr::null_mut(), Py::into_ptr),
             );
         }
     }
@@ -1021,5 +1049,20 @@ mod tests {
                 "additional context"
             );
         });
+    }
+
+    #[test]
+    fn test_set_context() {
+        Python::attach(|py| {
+            let err = PyErr::new::<PyValueError, _>("original error");
+            assert!(err.context(py).is_none());
+
+            let context = PyErr::new::<PyTypeError, _>("context error");
+            err.set_context(py, Some(context));
+            assert!(err.context(py).unwrap().is_instance_of::<PyTypeError>(py));
+
+            err.set_context(py, None);
+            assert!(err.context(py).is_none());
+        })
     }
 }

@@ -1,7 +1,6 @@
 use crate::object::PyTypeObject;
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
     pub static mut PyFilter_Type: PyTypeObject;
     pub static mut PyMap_Type: PyTypeObject;
     pub static mut PyZip_Type: PyTypeObject;

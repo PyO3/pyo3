@@ -9,7 +9,7 @@ pub static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_doc: c"A library for generating sequential ids, written in Rust.".as_ptr(),
     m_size: mem::size_of::<sequential_state>() as Py_ssize_t,
     m_methods: std::ptr::null_mut(),
-    m_slots: std::ptr::addr_of_mut!(SEQUENTIAL_SLOTS).cast(),
+    m_slots: (&raw mut SEQUENTIAL_SLOTS).cast(),
     m_traverse: Some(sequential_traverse),
     m_clear: Some(sequential_clear),
     m_free: Some(sequential_free),
@@ -24,7 +24,7 @@ pub static mut SEQUENTIAL_SLOTS: [PyModuleDef_Slot; SEQUENTIAL_SLOTS_LEN] = [
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {
         slot: Py_mod_abi,
-        value: std::ptr::addr_of_mut!(ABI_INFO).cast(),
+        value: (&raw mut ABI_INFO).cast(),
     },
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {
@@ -81,11 +81,7 @@ pub static mut SEQUENTIAL_SLOTS: [PyModuleDef_Slot; SEQUENTIAL_SLOTS_LEN] = [
 unsafe extern "C" fn sequential_exec(module: *mut PyObject) -> c_int {
     let state: *mut sequential_state = PyModule_GetState(module).cast();
 
-    let id_type = PyType_FromModuleAndSpec(
-        module,
-        ptr::addr_of_mut!(crate::id::ID_SPEC),
-        ptr::null_mut(),
-    );
+    let id_type = PyType_FromModuleAndSpec(module, &raw mut crate::id::ID_SPEC, ptr::null_mut());
     if id_type.is_null() {
         PyErr_SetString(PyExc_SystemError, c"cannot locate type object".as_ptr());
         return -1;
@@ -112,7 +108,7 @@ unsafe extern "C" fn sequential_traverse(
 
 unsafe extern "C" fn sequential_clear(module: *mut PyObject) -> c_int {
     let state: *mut sequential_state = PyModule_GetState(module.cast()).cast();
-    Py_CLEAR(ptr::addr_of_mut!((*state).id_type).cast());
+    Py_CLEAR((&raw mut (*state).id_type).cast());
     0
 }
 

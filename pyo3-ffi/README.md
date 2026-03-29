@@ -2,7 +2,7 @@
 
 This crate provides [Rust](https://www.rust-lang.org/) FFI declarations for Python 3.
 It supports both the stable and the unstable component of the ABI through the use of cfg flags.
-Python Versions 3.7+ are supported.
+Python Versions 3.8+ are supported.
 It is meant for advanced users only - regular PyO3 users shouldn't
 need to interact with this crate at all.
 
@@ -15,7 +15,7 @@ Manual][capi] for up-to-date documentation.
 Requires Rust 1.63 or greater.
 
 `pyo3-ffi` supports the following Python distributions:
-  - CPython 3.7 or greater
+  - CPython 3.8 or greater
   - PyPy 7.3 (Python 3.9+)
   - GraalPy 24.0 or greater (Python 3.10+)
 
@@ -78,8 +78,8 @@ static mut MODULE_DEF: PyModuleDef = PyModuleDef {
     m_name: c"string_sum".as_ptr(),
     m_doc: c"A Python module written in Rust.".as_ptr(),
     m_size: 0,
-    m_methods: std::ptr::addr_of_mut!(METHODS).cast(),
-    m_slots: std::ptr::addr_of_mut!(SLOTS).cast(),
+    m_methods: (&raw mut METHODS).cast(),
+    m_slots: (&raw mut SLOTS).cast(),
     m_traverse: None,
     m_clear: None,
     m_free: None,
@@ -107,7 +107,7 @@ static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {
         slot: Py_mod_abi,
-        value: std::ptr::addr_of_mut!(ABI_INFO).cast(),
+        value: (&raw mut ABI_INFO).cast(),
     },
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {
@@ -124,7 +124,7 @@ static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
     #[cfg(Py_3_15)]
     PyModuleDef_Slot {
         slot: Py_mod_methods,
-        value: std::ptr::addr_of_mut!(METHODS).cast(),
+        value: (&raw mut METHODS).cast(),
     },
     #[cfg(Py_3_12)]
     PyModuleDef_Slot {
@@ -147,14 +147,14 @@ static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
 #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
 #[no_mangle]
 pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
-    PyModuleDef_Init(ptr::addr_of_mut!(MODULE_DEF))
+    PyModuleDef_Init(&raw mut MODULE_DEF)
 }
 
 #[cfg(Py_3_15)]
 #[allow(non_snake_case, reason = "must be named `PyModExport_<your_module>`")]
 #[no_mangle]
 pub unsafe extern "C" fn PyModExport_string_sum() -> *mut PyModuleDef_Slot {
-    std::ptr::addr_of_mut!(SLOTS).cast()
+    (&raw mut SLOTS).cast()
 }
 
 /// A helper to parse function arguments

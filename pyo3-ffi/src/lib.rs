@@ -40,7 +40,7 @@
 //! PyO3 uses `rustc`'s `--cfg` flags to enable or disable code used for different Python versions.
 //! If you want to do this for your own crate, you can do so with the [`pyo3-build-config`] crate.
 //!
-//! - `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`, `Py_3_11`, `Py_3_12`, `Py_3_13`: Marks code that is
+//! - `Py_3_8`, `Py_3_9`, `Py_3_10`, `Py_3_11`, `Py_3_12`, `Py_3_13`, `Py_3_14`: Marks code that is
 //!    only enabled when compiling for a given minimum Python version.
 //! - `Py_LIMITED_API`: Marks code enabled when the `abi3` feature flag is enabled.
 //! - `Py_GIL_DISABLED`: Marks code that runs only in the free-threaded build of CPython.
@@ -77,7 +77,7 @@
 //! # Minimum supported Rust and Python versions
 //!
 //! `pyo3-ffi` supports the following Python distributions:
-//!   - CPython 3.7 or greater
+//!   - CPython 3.8 or greater
 //!   - PyPy 7.3 (Python 3.11+)
 //!   - GraalPy 24.0 or greater (Python 3.10+)
 //!
@@ -139,8 +139,8 @@
 //!     m_name: c"string_sum".as_ptr(),
 //!     m_doc: c"A Python module written in Rust.".as_ptr(),
 //!     m_size: 0,
-//!     m_methods: std::ptr::addr_of_mut!(METHODS).cast(),
-//!     m_slots: std::ptr::addr_of_mut!(SLOTS).cast(),
+//!     m_methods: (&raw mut METHODS).cast(),
+//!     m_slots: (&raw mut SLOTS).cast(),
 //!     m_traverse: None,
 //!     m_clear: None,
 //!     m_free: None,
@@ -168,7 +168,7 @@
 //!     #[cfg(Py_3_15)]
 //!     PyModuleDef_Slot {
 //!         slot: Py_mod_abi,
-//!         value: std::ptr::addr_of_mut!(ABI_INFO).cast(),
+//!         value: (&raw mut ABI_INFO).cast(),
 //!     },
 //!     #[cfg(Py_3_15)]
 //!     PyModuleDef_Slot {
@@ -185,7 +185,7 @@
 //!     #[cfg(Py_3_15)]
 //!     PyModuleDef_Slot {
 //!         slot: Py_mod_methods,
-//!         value: std::ptr::addr_of_mut!(METHODS).cast(),
+//!         value: (&raw mut METHODS).cast(),
 //!     },
 //!     #[cfg(Py_3_12)]
 //!     PyModuleDef_Slot {
@@ -208,14 +208,14 @@
 //! #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
 //! #[no_mangle]
 //! pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
-//!     PyModuleDef_Init(ptr::addr_of_mut!(MODULE_DEF))
+//!     PyModuleDef_Init(&raw mut MODULE_DEF)
 //! }
 //!
 //! #[cfg(Py_3_15)]
 //! #[allow(non_snake_case, reason = "must be named `PyModExport_<your_module>`")]
 //! #[no_mangle]
 //! pub unsafe extern "C" fn PyModExport_string_sum() -> *mut PyModuleDef_Slot {
-//!     std::ptr::addr_of_mut!(SLOTS).cast()
+//!     (&raw mut SLOTS).cast()
 //! }
 //!
 //! /// A helper to parse function arguments
@@ -421,6 +421,10 @@ pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &std::ffi::CStr {
     }
 }
 
+// Macros for declaring `extern` blocks that link against libpython.
+// See `impl_/macros.rs` for the implementation.
+include!("impl_/macros.rs");
+
 pub mod compat;
 mod impl_;
 
@@ -433,7 +437,7 @@ pub use self::ceval::*;
 pub use self::codecs::*;
 pub use self::compile::*;
 pub use self::complexobject::*;
-#[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
+#[cfg(not(Py_LIMITED_API))]
 pub use self::context::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::*;
@@ -500,8 +504,8 @@ mod ceval;
 mod codecs;
 mod compile;
 mod complexobject;
-#[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
-mod context; // It's actually 3.7.1, but no cfg for patches.
+#[cfg(not(Py_LIMITED_API))]
+mod context;
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
 mod descrobject;
