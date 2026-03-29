@@ -466,10 +466,8 @@ impl<'py> Bound<'py, PyAny> {
     ///   be either a borrowed reference or an owned reference, it does not matter, as this is
     ///   just `&Bound` there will never be any ownership transfer.
     #[inline]
-    pub(crate) unsafe fn ref_from_ptr<'a>(
-        _py: Python<'py>,
-        ptr: &'a *mut ffi::PyObject,
-    ) -> &'a Self {
+    #[doc(hidden)]
+    pub unsafe fn ref_from_ptr<'a>(_py: Python<'py>, ptr: &'a *mut ffi::PyObject) -> &'a Self {
         let ptr = NonNull::from(ptr).cast();
         // SAFETY: caller has upheld the safety contract,
         // and `Bound<PyAny>` is layout-compatible with `*mut ffi::PyObject`.
@@ -501,7 +499,8 @@ impl<'py> Bound<'py, PyAny> {
     /// - `ptr` must be a valid pointer to a Python object for the lifetime `'a`. The `ptr` can be
     ///   either a borrowed reference or an owned reference, it does not matter, as this is just
     ///   `&Bound` there will never be any ownership transfer.
-    pub(crate) unsafe fn ref_from_non_null<'a>(
+    #[doc(hidden)]
+    pub unsafe fn ref_from_non_null<'a>(
         _py: Python<'py>,
         ptr: &'a NonNull<ffi::PyObject>,
     ) -> &'a Self {

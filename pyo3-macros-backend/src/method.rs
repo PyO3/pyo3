@@ -281,9 +281,9 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
-                    #[allow(clippy::useless_conversion, reason = "#[classmethod] accepts anything which implements `From<BoundRef<PyType>>`")]
+                    #[allow(clippy::useless_conversion, reason = "#[classmethod] accepts anything which implements `From<&Bound<PyType>>`")]
                     ::std::convert::Into::into(
-                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
+                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
                             .cast_unchecked::<#pyo3_path::types::PyType>()
                     )
                 };
@@ -294,9 +294,9 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
-                    #[allow(clippy::useless_conversion, reason = "`pass_module` accepts anything which implements `From<BoundRef<PyModule>>`")]
+                    #[allow(clippy::useless_conversion, reason = "`pass_module` accepts anything which implements `From<&Bound<PyModule>>`")]
                     ::std::convert::Into::into(
-                        #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &*(&#slf as *const _ as *const *mut _))
+                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
                             .cast_unchecked::<#pyo3_path::types::PyModule>()
                     )
                 };
@@ -386,9 +386,9 @@ impl SelfType {
             }
             SelfType::TryFromBoundRef { span, non_null } => {
                 let bound_ref = if *non_null {
-                    quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_non_null(#py, &#slf) } }
+                    quote! { unsafe { #pyo3_path::Bound::ref_from_non_null(#py, &#slf) } }
                 } else {
-                    quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf) } }
+                    quote! { unsafe { #pyo3_path::Bound::ref_from_ptr(#py, &#slf) } }
                 };
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 error_mode.handle_error(
@@ -396,7 +396,11 @@ impl SelfType {
                         #bound_ref.cast::<#cls>()
                             .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
                             .and_then(
-                                #[allow(clippy::unnecessary_fallible_conversions, reason = "anything implementing `TryFrom<BoundRef>` is permitted")]
+                                #[allow(
+                                    clippy::unnecessary_fallible_conversions,
+                                    clippy::useless_conversion,
+                                    reason = "anything implementing `TryFrom<&Bound>` is permitted"
+                                )]
                                 |bound| ::std::convert::TryFrom::try_from(bound).map_err(::std::convert::Into::into)
                             )
 
