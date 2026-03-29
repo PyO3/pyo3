@@ -128,6 +128,7 @@ use crate::version::PythonVersionInfo;
 use crate::{ffi, Bound, Py, PyTypeInfo};
 use std::ffi::CStr;
 use std::marker::PhantomData;
+use std::sync::LazyLock;
 
 /// Types that are safe to access while the GIL is not held.
 ///
@@ -695,11 +696,13 @@ impl<'py> Python<'py> {
     /// assert!(Python::version_str().starts_with("3."));
     /// ```
     pub fn version_str() -> &'static str {
-        unsafe {
+        static VERSION: LazyLock<&'static str> = LazyLock::new(|| unsafe {
             CStr::from_ptr(ffi::Py_GetVersion())
                 .to_str()
                 .expect("Python version string not UTF-8")
-        }
+        });
+
+        &VERSION
     }
 
     /// Gets the running Python interpreter version as a struct similar to
