@@ -484,8 +484,7 @@ pub fn pymodule_function_impl(
     if function.sig.inputs.len() == 2 {
         module_args.push(quote!(module.py()));
     }
-    module_args
-        .push(quote!(::std::convert::Into::into(#pyo3_path::impl_::pymethods::BoundRef(module))));
+    module_args.push(quote!(::std::convert::Into::into(module)));
 
     Ok(quote! {
         #[doc(hidden)]
