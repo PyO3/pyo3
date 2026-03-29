@@ -66,6 +66,10 @@ fn main() {
         "pyo3/abi3-py313".to_string(),
         #[cfg(feature = "abi3-py314")]
         "pyo3/abi3-py314".to_string(),
+        #[cfg(feature = "experimental-async")]
+        "pyo3/experimental-async".to_string(),
+        #[cfg(feature = "full")]
+        "pyo3/full".to_string(),
     ];
 
     let mut deps_cargo = ui_test::CommandBuilder::cargo();
@@ -126,6 +130,8 @@ fn main() {
         "invalid_pyfunction_argument.rs".into(),
         #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
         "invalid_pyclass_args.rs".into(),
+        #[cfg(not(feature = "experimental-async"))]
+        "invalid_cancel_handle.rs".into(),
     ]);
 
     // Normalize multiple trailing newlines to a single newline
