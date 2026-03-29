@@ -97,6 +97,8 @@ fn test_compile_errors() {
     config.skip_files.extend([
         // not a test file, used to configure dependencies for the tests
         "base/src/lib.rs".into(),
+        // similarly, just a component of `invalid_pymodule_in_root.rs`
+        "empty.rs".into(),
         // abi3-only tests only need to check when the feature is unsupported
         #[cfg(any(not(Py_LIMITED_API), Py_3_9))]
         "abi3_dict".into(),
