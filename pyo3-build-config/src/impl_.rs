@@ -2877,13 +2877,13 @@ mod tests {
         // CI demonstrates this path is covered!
 
         let target = triple!("x86_64-unknown-linux-gnu");
-        let Ok(interpreter_config) = crate::pyo3_build_script_impl::resolve_build_config(&target)
-        else {
+        let Ok(build_config) = crate::pyo3_build_script_impl::resolve_build_config(&target) else {
             // Couldn't get an interpreter config, won't be able to test a matching sysconfigdata,
             // never mind. (This is intended for coverage, don't mind if it fails if it doesn't run.)
             return;
         };
 
+        let interpreter_config = &interpreter_config.build_config;
         let lib_dir = match &interpreter_config.lib_dir {
             Some(lib_dir) => Path::new(lib_dir),
             // Don't know where to search for sysconfigdata; never mind.
