@@ -45,7 +45,7 @@ Use  `nox -l` to list the full set of subcommands you can run.
 
 #### UI Tests
 
-PyO3 uses [`trybuild`][trybuild] to develop UI tests to capture error messages from the Rust compiler for some of the macro functionality.
+PyO3 uses [`ui_test`][ui_test] to develop UI tests to capture error messages from the Rust compiler for some of the macro functionality.
 
 The Rust compiler's error output differs depending on whether the `rust-src` component is installed. PyO3's CI has `rust-src` installed, so you need it locally for your UI test output to match:
 
@@ -265,4 +265,4 @@ In the meanwhile, some of our maintainers have personal GitHub sponsorship pages
 [lychee]: https://github.com/lycheeverse/lychee
 [nox]: https://github.com/theacodes/nox
 [pipx]: https://pipx.pypa.io/stable/
-[trybuild]: https://github.com/dtolnay/trybuild
+[ui_test]: https://github.com/oli-obk/ui_test

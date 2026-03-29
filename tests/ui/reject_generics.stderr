@@ -5,7 +5,9 @@ error: #[pyclass] cannot have generic parameters. For an explanation, see https:
   |                         ^
 
 error: #[pyclass] cannot have lifetime parameters. For an explanation, see https://pyo3.rs/v0.28.2/class.html#no-lifetime-parameters
- --> tests/ui/reject_generics.rs:9:27
-  |
-9 | struct ClassWithLifetimes<'a> {
-  |                           ^^
+  --> tests/ui/reject_generics.rs:10:27
+   |
+10 | struct ClassWithLifetimes<'a> {
+   |                           ^^
+
+error: aborting due to 2 previous errors
