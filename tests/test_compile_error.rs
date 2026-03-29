@@ -66,8 +66,6 @@ fn main() {
         "pyo3/abi3-py313".to_string(),
         #[cfg(feature = "abi3-py314")]
         "pyo3/abi3-py314".to_string(),
-        #[cfg(feature = "experimental-async")]
-        "pyo3/experimental-async".to_string(),
         #[cfg(feature = "full")]
         "pyo3/full".to_string(),
     ];
@@ -130,8 +128,27 @@ fn main() {
         "invalid_pyfunction_argument.rs".into(),
         #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
         "invalid_pyclass_args.rs".into(),
+        // tests that async functions are rejected without the feature
+        #[cfg(feature = "experimental-async")]
+        "invalid_async.rs".into(),
+        // requires the async feature
         #[cfg(not(feature = "experimental-async"))]
         "invalid_cancel_handle.rs".into(),
+    ]);
+
+    // differs on `experimental-inspect` feature
+    #[cfg(feature = "experimental-inspect")]
+    config.skip_files.extend([
+        // some functionality requires the feature
+        "invalid_annotation.rs".into(),
+        "invalid_annotation_return.rs".into(),
+        // extra error messages appear due to additional macro processing
+        // would be nice to somehow make this not a problem
+        "duplicate_pymodule_submodule.rs".into(),
+        "missing_intopy.rs".into(),
+        "invalid_pyclass_args.rs".into(),
+        "invalid_property_args.rs".into(),
+        "invalid_pyfunction_argument.rs".into(),
     ]);
 
     // Normalize multiple trailing newlines to a single newline

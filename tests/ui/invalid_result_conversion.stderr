@@ -13,7 +13,7 @@ error[E0277]: the trait bound `PyErr: From<MyError>` is not satisfied
              `PyErr` implements `From<FromUtf8Error>`
              `PyErr` implements `From<Infallible>`
              `PyErr` implements `From<IntoInnerError<W>>`
-           and 13 others
+           and 16 others
    = note: required for `MyError` to implement `Into<PyErr>`
 
 error: aborting due to 1 previous error

@@ -1,5 +1,5 @@
 error: `submodule` may only be specified once (it is implicitly always specified for nested modules)
- --> tests/ui/duplicate_pymodule_submodule.rs:5:2
+ --> tests/ui/duplicate_pymodule_submodule.rs:5:5
   |
 5 |     mod submod {}
   |     ^^^
