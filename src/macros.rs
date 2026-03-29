@@ -135,7 +135,7 @@ macro_rules! py_run_impl {
 /// This can be used with [`PyModule::add_function`](crate::types::PyModuleMethods::add_function) to
 /// add free functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more
 /// information.
-/// 
+///
 /// # Examples
 /// ```
 /// use pyo3::prelude::*;
@@ -143,7 +143,7 @@ macro_rules! py_run_impl {
 /// fn add(x: i32, y: i32) -> i32 {
 ///     x + y
 /// }
-/// 
+///
 /// # fn main() -> PyResult<()> {
 /// Python::attach(|py| {
 ///     let example = PyModule::from_code(
@@ -154,15 +154,15 @@ macro_rules! py_run_impl {
 ///         c"example.py",
 ///         c"",
 ///     )?;
-/// 
+///
 ///     let add_two_and_three = example.getattr("add_two_and_three")?;
-/// 
+///
 ///     let result = add_two_and_three
 ///         .call1((wrap_pyfunction!(add, example)?,))?
 ///         .extract::<i32>()?;
-/// 
+///
 ///     assert_eq!(result, 5);
-/// 
+///
 ///     # Ok(())
 /// })
 /// # }
