@@ -1,8 +1,7 @@
 #![cfg(feature = "macros")]
 
 #[cfg(not(target_arch = "wasm32"))] // Not possible to invoke compiler from wasm
-#[test]
-fn test_compile_errors() {
+fn main() {
     use std::{env::VarError, path::PathBuf};
 
     use regex::bytes::Regex;
@@ -136,11 +135,11 @@ fn test_compile_errors() {
         .normalize_stderr
         .push((Regex::new("\n\n$").unwrap().into(), vec![b'\n']));
 
-    #[cfg(not(target_arch = "wasm32"))] // doesn't work on wasm
-    {
-        let abort_check = config.abort_check.clone();
-        ctrlc::set_handler(move || abort_check.abort()).unwrap();
-    }
+    let abort_check = config.abort_check.clone();
+    ctrlc::set_handler(move || abort_check.abort()).unwrap();
 
     run_tests(config).unwrap();
 }
+
+#[cfg(target_arch = "wasm32")]
+fn main() {}

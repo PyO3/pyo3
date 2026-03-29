@@ -226,3 +226,8 @@ bare_urls = "warn"
 
 [lints]
 workspace = true
+
+[[test]]
+name = "test_compile_error"
+path = "tests/test_compile_error.rs"
+harness = false
