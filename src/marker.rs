@@ -717,7 +717,7 @@ impl<'py> Python<'py> {
     ///     assert!(py.version_info() >= (3, 8, 0));
     /// });
     /// ```
-    pub fn version_info(self) -> PythonVersionInfo<'static> {
+    pub fn version_info(self) -> PythonVersionInfo {
         let version_str = Python::version_str();
 
         // Portion of the version string returned by Py_GetVersion up to the first space is the
