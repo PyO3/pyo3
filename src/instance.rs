@@ -2188,6 +2188,18 @@ impl<T> std::convert::From<Bound<'_, T>> for Py<T> {
     }
 }
 
+impl<'py, T> From<&Bound<'py, T>> for Bound<'py, T> {
+    fn from(value: &Bound<'py, T>) -> Self {
+        value.clone()
+    }
+}
+
+impl<T> From<&Bound<'_, T>> for Py<T> {
+    fn from(value: &Bound<'_, T>) -> Self {
+        value.clone().unbind()
+    }
+}
+
 impl<T> std::convert::From<Borrowed<'_, '_, T>> for Py<T> {
     fn from(value: Borrowed<'_, '_, T>) -> Self {
         value.unbind()
