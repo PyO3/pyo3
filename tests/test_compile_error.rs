@@ -1,6 +1,9 @@
-#![cfg(feature = "macros")]
-
-#[cfg(not(target_arch = "wasm32"))] // Not possible to invoke compiler from wasm
+#[cfg(all(
+    // Requires "macros" feature to actually do any meaningful testing
+    feature = "macros",
+    // Not possible to invoke compiler from wasm
+    not(target_arch = "wasm32")
+))]
 fn main() {
     use std::{env::VarError, path::PathBuf};
 
@@ -164,5 +167,5 @@ fn main() {
     run_tests(config).unwrap();
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(not(feature = "macros"), target_arch = "wasm32"))]
 fn main() {}
