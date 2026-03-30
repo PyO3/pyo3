@@ -263,6 +263,7 @@ impl FnType {
         &self,
         cls: Option<&syn::Type>,
         error_mode: ExtractErrorMode,
+        descriptor_slot_receiver: bool,
         holders: &mut Holders,
         ctx: &Ctx,
     ) -> Option<TokenStream> {
@@ -272,6 +273,7 @@ impl FnType {
                 Some(st.receiver(
                     cls.expect("no class given for Fn with a \"self\" receiver"),
                     error_mode,
+                    descriptor_slot_receiver,
                     holders,
                     ctx,
                 ))
@@ -346,6 +348,7 @@ impl SelfType {
         &self,
         cls: &syn::Type,
         error_mode: ExtractErrorMode,
+        descriptor_slot_receiver: bool,
         holders: &mut Holders,
         ctx: &Ctx,
     ) -> TokenStream {
@@ -391,10 +394,27 @@ impl SelfType {
                     quote! { unsafe { #pyo3_path::impl_::pymethods::BoundRef::ref_from_ptr(#py, &#slf) } }
                 };
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
-                error_mode.handle_error(
+                let receiver = if descriptor_slot_receiver {
+                    quote_spanned! { *span =>
+                        // Safety: descriptor slot wrappers are only installed on the descriptor
+                        // type itself. CPython calls those slots with `self` set to the
+                        // descriptor object found during lookup, and explicit Python calls to
+                        // `__get__`, `__set__`, and `__delete__` first pass through CPython's
+                        // slot wrapper, which rejects receivers of the wrong type before
+                        // reaching this generated wrapper.
+                        ::std::result::Result::<_, #pyo3_path::PyErr>::Ok(unsafe {
+                            #bound_ref.cast_unchecked::<#cls>()
+                        })
+                    }
+                } else {
                     quote_spanned! { *span =>
                         #bound_ref.cast::<#cls>()
                             .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
+                    }
+                };
+                error_mode.handle_error(
+                    quote_spanned! { *span =>
+                        #receiver
                             .and_then(
                                 #[allow(clippy::unnecessary_fallible_conversions, reason = "anything implementing `TryFrom<BoundRef>` is permitted")]
                                 |bound| ::std::convert::TryFrom::try_from(bound).map_err(::std::convert::Into::into)
@@ -697,7 +717,7 @@ impl<'a> FnSpec<'a> {
         let rust_call = |args: Vec<TokenStream>, mut holders: Holders| {
             let self_arg = self
                 .tp
-                .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+                .self_arg(cls, ExtractErrorMode::Raise, false, &mut holders, ctx);
             let init_holders = holders.init_holders(ctx);
 
             // We must assign the output_span to the return value of the call,
