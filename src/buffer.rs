@@ -570,20 +570,16 @@ impl PyUntypedBuffer {
         self.raw().buf
     }
 
-    /// Returns the Python object that owns the buffer data.
+    ///Returns the Python object that owns the buffer data.
     ///
-    /// This is the object that was passed to [`PyBuffer::get()`]
-    /// when the buffer was created.
-    /// Calling this before [`release()`][Self::release] allows you to clone an owned reference
-    /// and keeps the object alive after the buffer is released.
-    pub fn obj<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyAny>> {
-        let ptr = self.raw().obj;
-        // SAFETY: Py_buffer.obj is a borrowed reference to a Python object, so it is always valid to create a Bound from it
-        if ptr.is_null() {
-            None
-        } else {
-            Some(unsafe { Bound::from_borrowed_ptr(py, ptr) })
-        }
+    ///
+    ///This is the object that was passed to [`PyBuffer::get()`]
+    ///when the buffer was created.
+    ///Calling this before [`release()`][Self::release] and cloning the result
+    ///allows you to keep the object alive after the buffer is released.
+    #[inline]
+    pub fn obj<'py>(&self, py: Python<'py>) -> Option<&Bound<'py, PyAny>> {
+        unsafe { Bound::ref_from_ptr_or_opt(py, &self.raw().obj).as_ref()}
     }
 
     /// Gets a pointer to the specified item.
@@ -1073,7 +1069,7 @@ mod tests {
             assert!(owner.is(&bytes));
 
             // can keep the owner alive after releasing the buffer
-            let owner_ref: crate::Py<PyAny> = owner.unbind();
+            let owner_ref: crate::Py<PyAny> = owner.clone().unbind();
             buf.release(py);
             drop(bytes);
             // owner_ref still valid after buffer and original are dropped
