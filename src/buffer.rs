@@ -579,7 +579,7 @@ impl PyUntypedBuffer {
     ///allows you to keep the object alive after the buffer is released.
     #[inline]
     pub fn obj<'py>(&self, py: Python<'py>) -> Option<&Bound<'py, PyAny>> {
-        unsafe { Bound::ref_from_ptr_or_opt(py, &self.raw().obj).as_ref()}
+        unsafe { Bound::ref_from_ptr_or_opt(py, &self.raw().obj).as_ref() }
     }
 
     /// Gets a pointer to the specified item.
