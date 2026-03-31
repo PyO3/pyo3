@@ -81,13 +81,13 @@ jobs:
         run: |
           echo "CARGO_BUILD_TARGET=i686-pc-windows-msvc" >> $GITHUB_ENV
 
-      # windows on arm image contains x86-64 libclang
-      - name: Install LLVM and Clang
-        if: inputs.os == 'windows-11-arm'
-        uses: KyleMayes/install-llvm-action@v2
-        with:
-          # to match windows-2022 images
-          version: "18"
+      # # windows on arm image contains x86-64 libclang
+      # - name: Install LLVM and Clang
+      #   if: inputs.os == 'windows-11-arm'
+      #   uses: KyleMayes/install-llvm-action@v2
+      #   with:
+      #     # to match windows-2025 images
+      #     version: "20"
 
       - name: Install zoneinfo backport for Python 3.8
         if: contains(fromJSON('["3.8"]'), inputs.python-version)
