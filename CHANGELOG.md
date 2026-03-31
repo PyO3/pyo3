@@ -10,6 +10,16 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.28.3] - 2026-04-02
+
+### Fixed
+
+- Fix compile error with `#[pyclass(get_all)]` on a type named `Probe`. [#5837](https://github.com/PyO3/pyo3/pull/5837)
+- Fix compile error in debug builds related to `_Py_NegativeRefcount` with Python < 3.12. [#5847](https://github.com/PyO3/pyo3/pull/5847)
+- Fix a race condition where `Python::attach` or `try_attach` could return before `site.py` had finished running. [#5903](https://github.com/PyO3/pyo3/pull/5903)
+- Fix unsoundness in `PyBytesWriter::write_vectored` with Python 3.15 prerelease versions. [#5907](https://github.com/PyO3/pyo3/pull/5907)
+- Fix deadlock in `.into_pyobject()` implementation for C-like `#[pyclass]` enums. [#5928](https://github.com/PyO3/pyo3/pull/5928)
+
 ## [0.28.2] - 2026-02-18
 
 ### Fixed
@@ -2507,7 +2517,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.28.2...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.28.3...HEAD
+[0.28.3]: https://github.com/pyo3/pyo3/compare/v0.28.2...v0.28.3
 [0.28.2]: https://github.com/pyo3/pyo3/compare/v0.28.1...v0.28.2
 [0.28.1]: https://github.com/pyo3/pyo3/compare/v0.28.0...v0.28.1
 [0.28.0]: https://github.com/pyo3/pyo3/compare/v0.27.2...v0.28.0
