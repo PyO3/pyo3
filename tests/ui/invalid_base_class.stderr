@@ -6,6 +6,7 @@ error[E0277]: pyclass `PyBool` cannot be subclassed
   |
   = help: the trait `PyClassBaseType` is not implemented for `PyBool`
   = note: `PyBool` must have `#[pyclass(subclass)]` to be eligible for subclassing
+  = note: with the `abi3` feature enabled, PyO3 does not support subclassing native types
   = help: the following other types implement trait `PyClassBaseType`:
             PyAny
             PyArithmeticError
@@ -15,29 +16,34 @@ error[E0277]: pyclass `PyBool` cannot be subclassed
             PyBaseExceptionGroup
             PyBlockingIOError
             PyBrokenPipeError
-          and $N others
+          and 63 others
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: pyclass `PyBool` cannot be subclassed
- --> tests/ui/invalid_base_class.rs:4:19
-  |
-4 | #[pyclass(extends=PyBool)]
-  |                   ^^^^^^ required for `#[pyclass(extends=PyBool)]`
-  |
-  = help: the trait `PyClassBaseType` is not implemented for `PyBool`
-  = note: `PyBool` must have `#[pyclass(subclass)]` to be eligible for subclassing
-  = help: the following other types implement trait `PyClassBaseType`:
-            PyAny
-            PyArithmeticError
-            PyAssertionError
-            PyAttributeError
-            PyBaseException
-            PyBaseExceptionGroup
-            PyBlockingIOError
-            PyBrokenPipeError
-          and $N others
+   --> tests/ui/invalid_base_class.rs:4:19
+    |
+  4 | #[pyclass(extends=PyBool)]
+    |                   ^^^^^^ required for `#[pyclass(extends=PyBool)]`
+    |
+    = help: the trait `PyClassBaseType` is not implemented for `PyBool`
+    = note: `PyBool` must have `#[pyclass(subclass)]` to be eligible for subclassing
+    = note: with the `abi3` feature enabled, PyO3 does not support subclassing native types
+    = help: the following other types implement trait `PyClassBaseType`:
+              PyAny
+              PyArithmeticError
+              PyAssertionError
+              PyAttributeError
+              PyBaseException
+              PyBaseExceptionGroup
+              PyBlockingIOError
+              PyBrokenPipeError
+            and 63 others
 note: required by a bound in `PyClassImpl::BaseType`
- --> src/impl_/pyclass.rs
-  |
-  |     type BaseType: PyTypeInfo + PyClassBaseType;
-  |                                 ^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::BaseType`
+   --> src/impl_/pyclass.rs:184:33
+    |
+184 |     type BaseType: PyTypeInfo + PyClassBaseType;
+    |                                 ^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::BaseType`
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0277`.

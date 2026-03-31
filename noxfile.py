@@ -1405,7 +1405,7 @@ def check_feature_powerset(session: nox.Session):
 @nox.session(name="update-ui-tests", venv_backend="none")
 def update_ui_tests(session: nox.Session):
     env = os.environ.copy()
-    env["TRYBUILD"] = "overwrite"
+    env["UI_TEST"] = "bless"
     command = ["test", "--test", "test_compile_error"]
     _run_cargo(session, *command, env=env)
     _run_cargo(session, *command, "--features=full", env=env)

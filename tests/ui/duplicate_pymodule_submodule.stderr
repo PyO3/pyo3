@@ -1,7 +1,7 @@
 error: `submodule` may only be specified once (it is implicitly always specified for nested modules)
- --> tests/ui/duplicate_pymodule_submodule.rs:4:2
+ --> tests/ui/duplicate_pymodule_submodule.rs:5:5
   |
-4 |     mod submod {}
+5 |     mod submod {}
   |     ^^^
 
 error[E0425]: cannot find value `_PYO3_DEF` in module `submod`
@@ -13,5 +13,9 @@ error[E0425]: cannot find value `_PYO3_DEF` in module `submod`
   = note: this error originates in the attribute macro `pyo3::pymodule` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: consider importing this static
   |
-3 +     use crate::mymodule::_PYO3_DEF;
+4 +     use crate::mymodule::_PYO3_DEF;
   |
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0425`.

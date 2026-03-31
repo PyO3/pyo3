@@ -1,7 +1,7 @@
-//! With abi3, weakref not supported until python 3.9 or greater
 use pyo3::prelude::*;
 
 #[pyclass(weakref)]
+//~^ ERROR: `weakref` requires Python >= 3.9 when using the `abi3` feature
 struct TestClass {}
 
 fn main() {}

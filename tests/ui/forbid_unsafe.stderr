@@ -1,0 +1,15 @@
+warning: function `bytes_from_py` is never used
+  --> tests/ui/forbid_unsafe.rs:35:8
+   |
+35 |     fn bytes_from_py(bytes: &Bound<'_, PyAny>) -> PyResult<Vec<u8>> {
+   |        ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `f` is never used
+  --> tests/ui/forbid_unsafe.rs:40:8
+   |
+40 |     fn f(#[pyo3(from_py_with = bytes_from_py)] _bytes: Vec<u8>) {}
+   |        ^
+
+warning: 2 warnings emitted
