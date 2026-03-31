@@ -63,6 +63,7 @@ fn main() {
         // ARM neon intrinsics cause issue on GitHub actions windows CI, also not relevant to
         // what we're trying to check anyway.
         .blocklist_file(r".*(\\|/)arm(64)?_neon\.h")
+        .blocklist_file(r".*(\\|/)arm_vector_types\.h")
         .generate()
         .expect("Unable to generate bindings");
 
