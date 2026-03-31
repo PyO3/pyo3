@@ -27,4 +27,8 @@ fn main() {
         .success()
         .then_some(())
         .expect("failed to build definitions, see above for details");
+
+    // Because `pyo3-ffi` is a dependency, libpython is linked, this ensures `main.rs` can run.
+    // Slightly needless (no symbols from libpython are actually called), but simple to do.
+    pyo3_build_config::add_libpython_rpath_link_args();
 }

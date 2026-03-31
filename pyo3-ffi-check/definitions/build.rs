@@ -20,8 +20,6 @@ impl bindgen::callbacks::ParseCallbacks for ParseCallbacks {
 }
 
 fn main() {
-    pyo3_build_config::add_libpython_rpath_link_args();
-
     let config = pyo3_build_config::get();
 
     let python_include_dir = config
