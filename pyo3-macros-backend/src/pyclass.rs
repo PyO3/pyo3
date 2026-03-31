@@ -1153,6 +1153,9 @@ fn impl_simple_enum(
                             Self::#variant_idents => #i,
                         )*
                     };
+                    // Ensure that the type object is initialized before we attempt to initialize any of the singleton instances,
+                    // to avoid deadlocking.
+                    <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::lazy_type_object().get_or_try_init(py)?;
                     #[allow(unreachable_code)]
                     SINGLETON[idx].get_or_try_init(py, || {
                         #pyo3_path::Py::new(py, self)

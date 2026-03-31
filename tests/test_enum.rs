@@ -23,6 +23,26 @@ fn test_enum_class_attr() {
 }
 
 #[test]
+fn test_enum_intopyobject() {
+    // Variant of the above that goes via `.into_pyobject()`
+    // - regression test for https://github.com/PyO3/pyo3/issues/5927
+    //
+    #[pyclass(eq, eq_int, from_py_object)]
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    pub enum MyEnum {
+        A,
+    }
+
+    Python::attach(|py| {
+        let var = MyEnum::A.into_pyobject(py).unwrap();
+        // NB important to call this after `into_pyobject` - this ensures
+        // that `.into_pyobject()` has to lazily initialize the enum type object
+        let my_enum = py.get_type::<MyEnum>();
+        py_assert!(py, my_enum var, "my_enum.A == var");
+    });
+}
+
+#[test]
 fn test_enum_eq_enum() {
     Python::attach(|py| {
         let var1 = Py::new(py, MyEnum::Variant).unwrap();
