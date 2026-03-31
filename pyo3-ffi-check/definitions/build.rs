@@ -70,4 +70,9 @@ fn main() {
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
+
+    if env::var("TARGET").unwrap() == "aarch64-pc-windows-msvc" {
+        // Helping to debug CI
+        panic!("{}", out_path.join("bindings.rs").display());
+    }
 }
