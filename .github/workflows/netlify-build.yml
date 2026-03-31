@@ -44,7 +44,8 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: .lycheecache
-          key: lychee
+          key: lychee-${{ github.run_id }}
+          restore-keys: lychee-
 
       # This builds the book in target/guide/.
       - name: Build the guide
