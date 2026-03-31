@@ -128,6 +128,7 @@ use crate::version::PythonVersionInfo;
 use crate::{ffi, Bound, Py, PyTypeInfo};
 use std::ffi::CStr;
 use std::marker::PhantomData;
+use std::sync::LazyLock;
 
 /// Types that are safe to access while the GIL is not held.
 ///
@@ -681,23 +682,27 @@ impl<'py> Python<'py> {
         PyNotImplemented::get(self).to_owned().into_any().unbind()
     }
 
+    /// Deprecated version of [Python::version_str].
+    #[deprecated(since = "0.29.0", note = "use Python::version_str instead")]
+    pub fn version(self) -> &'static str {
+        Python::version_str()
+    }
+
     /// Gets the running Python interpreter version as a string.
     ///
     /// # Examples
     /// ```rust
     /// # use pyo3::Python;
-    /// Python::attach(|py| {
-    ///     // The full string could be, for example:
-    ///     // "3.10.0 (tags/v3.10.0:b494f59, Oct  4 2021, 19:00:18) [MSC v.1929 64 bit (AMD64)]"
-    ///     assert!(py.version().starts_with("3."));
-    /// });
+    /// assert!(Python::version_str().starts_with("3."));
     /// ```
-    pub fn version(self) -> &'py str {
-        unsafe {
+    pub fn version_str() -> &'static str {
+        static VERSION: LazyLock<&'static str> = LazyLock::new(|| unsafe {
             CStr::from_ptr(ffi::Py_GetVersion())
                 .to_str()
                 .expect("Python version string not UTF-8")
-        }
+        });
+
+        &VERSION
     }
 
     /// Gets the running Python interpreter version as a struct similar to
@@ -712,8 +717,8 @@ impl<'py> Python<'py> {
     ///     assert!(py.version_info() >= (3, 8, 0));
     /// });
     /// ```
-    pub fn version_info(self) -> PythonVersionInfo<'py> {
-        let version_str = self.version();
+    pub fn version_info(self) -> PythonVersionInfo {
+        let version_str = Python::version_str();
 
         // Portion of the version string returned by Py_GetVersion up to the first space is the
         // version number.
