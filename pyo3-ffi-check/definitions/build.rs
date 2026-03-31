@@ -62,6 +62,9 @@ fn main() {
         .blocklist_item("FP_INT_TONEARESTFROMZERO")
         .blocklist_item("FP_INT_TONEAREST")
         .blocklist_item("FP_ZERO")
+        // ARM neon intrinsics cause issue on GitHub actions windows CI, also not relevant to
+        // what we're trying to check anyway.
+        .blocklist_file(r".*(\\|/)arm(64)?_neon\.h")
         .generate()
         .expect("Unable to generate bindings");
 
