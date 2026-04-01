@@ -6,6 +6,9 @@ authors = ["PyO3 Project and Contributors"]
 [preprocessor.pyo3_version]
 command = "python3 pyo3_version.py"
 
+[preprocessor.glossary_linker]
+command = "python3 glossary_linker.py"
+
 [preprocessor.tabs]
 
 [output.html]

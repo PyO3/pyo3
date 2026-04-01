@@ -1,9 +1,9 @@
 # Supporting Free-Threaded CPython
 
-CPython 3.14 declared support for the "free-threaded" build of CPython that does not rely on the [global interpreter lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock) (often referred to as the GIL) for thread safety.
-Since version 0.23, PyO3 supports building Rust extensions for the free-threaded Python build and calling into free-threaded Python from Rust.
+CPython 3.14 declared support for the "free-threaded" build of CPython that does not rely on the global interpreter lock (often referred to as the GIL) for thread safety.
+Since version 0.23, PyO3 supports building Rust extension modules for the free-threaded Python build and calling into free-threaded Python from Rust.
 
-If you want more background on free-threaded Python in general, see the [what's new](https://docs.python.org/3/whatsnew/3.13.html#whatsnew313-free-threaded-cpython) entry in the 3.13 release notes (when the "free-threaded" build was first added as an experimental mode), the [free-threading HOWTO guide](https://docs.python.org/3/howto/free-threading-extensions.html#freethreading-extensions-howto) in the CPython docs, the [extension porting guide](https://py-free-threading.github.io/porting-extensions/) in the community-maintained Python free-threading guide, and [PEP 703](https://peps.python.org/pep-0703/), which provides the technical background for the free-threading implementation in CPython.
+If you want more background on free-threaded Python in general, see the [what's new](https://docs.python.org/3/whatsnew/3.13.html#whatsnew313-free-threaded-cpython) entry in the 3.13 release notes (when the "free-threaded" build was first added as an experimental mode), the [free-threading HOWTO guide](https://docs.python.org/3/howto/free-threading-extensions.html#freethreading-extensions-howto) in the CPython docs, the [extension module porting guide](https://py-free-threading.github.io/porting-extensions/) in the community-maintained Python free-threading guide, and [PEP 703](https://peps.python.org/pep-0703/), which provides the technical background for the free-threading implementation in CPython.
 
 In the GIL-enabled build (the only choice before the "free-threaded" build was introduced), the global interpreter lock serializes access to the Python runtime.
 The GIL is therefore a fundamental limitation to parallel scaling of multithreaded Python workflows, due to [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law), because any time spent executing a parallel processing task on only one execution context fundamentally cannot be sped up using parallelism.
@@ -12,7 +12,7 @@ The free-threaded build removes this limit on multithreaded Python scaling.
 This means it's much more straightforward to achieve parallelism using the Python [`threading`] module.
 If you have ever needed to use [`multiprocessing`](https://docs.python.org/3/library/multiprocessing.html) to achieve a parallel speedup for some Python code, free-threading will likely allow the use of Python threads instead for the same workflow.
 
-PyO3's support for free-threaded Python will enable authoring native Python extensions that are thread-safe by construction, with much stronger safety guarantees than C extensions.
+PyO3's support for free-threaded Python will enable authoring native Python extension modules that are thread-safe by construction, with much stronger safety guarantees than C extension modules.
 Our goal is to enable ["fearless concurrency"](https://doc.rust-lang.org/book/ch16-00-concurrency.html) in the native Python runtime by building on the Rust [`Send` and `Sync`](https://doc.rust-lang.org/nomicon/send-and-sync.html) traits.
 
 This document provides advice for porting Rust code using PyO3 to run under free-threaded Python.
@@ -26,7 +26,7 @@ A module can opt-out of supporting free-threaded Python until it has audited its
 
 Complicated `#[pyclass]` types may need to deal with thread-safety directly; there is [a dedicated section of the guide](./class/thread-safety.md) to discuss this.
 
-At a low-level, annotating a module sets the `Py_MOD_GIL` slot on modules defined by an extension to `Py_MOD_GIL_NOT_USED`, which allows the interpreter to see at runtime that the author of the extension thinks the extension is thread-safe.
+At a low-level, annotating a module sets the `Py_MOD_GIL` slot on modules defined by an extension to `Py_MOD_GIL_NOT_USED`, which allows the interpreter to see at runtime that the author of the extension module attests it is thread-safe.
 
 By opting-out of supporting free-threaded Python, the Python interpreter will re-enable the GIL at runtime while importing your module and print a `RuntimeWarning` with a message containing the name of the module causing it to re-enable the GIL.
 You can force the GIL to remain disabled by setting the `PYTHON_GIL=0` as an environment variable or passing `-Xgil=0` when starting Python (`0` means the GIL is turned off).
@@ -74,7 +74,7 @@ See [the guide section](./building-and-distribution/multiple-python-versions.md)
 ## Special considerations for the free-threaded build
 
 The free-threaded interpreter does not have a GIL.
-Many existing extensions providing mutable data structures relied on the GIL to lock Python objects and make interior mutability thread-safe.
+Many existing extension modules providing mutable data structures relied on the GIL to lock Python objects and make interior mutability thread-safe.
 
 Calling into the CPython C API is only legal when an OS thread is explicitly attached to the interpreter runtime.
 In the GIL-enabled build, this happens when the GIL is acquired.
@@ -88,7 +88,7 @@ In the freethreaded build, holding a `'py` lifetime means only that the thread i
 
 You still need to obtain a `'py` lifetime to interact with Python objects or call into the CPython C API.
 If you are not yet attached to the Python runtime, you can register a thread using the [`Python::attach`] function.
-Threads created via the Python [`threading`] module do not need to do this, and pyo3 will handle setting up the [`Python<'py>`] token when CPython calls into your extension.
+Threads created via the Python [`threading`] module do not need to do this, and pyo3 will handle setting up the [`Python<'py>`] token when CPython calls into your extension module.
 
 ### Detaching to avoid hangs and deadlocks
 
@@ -166,10 +166,10 @@ RuntimeError: Already borrowed
 We may allow user-selectable semantics for mutable pyclass definitions in a future version of PyO3, allowing some form of opt-in locking to emulate the GIL if that is needed.
 For now you should explicitly add locking, possibly using conditional compilation or using the critical section API, to avoid creating deadlocks with the GIL.
 
-### Cannot build extensions using the limited API
+### Cannot build extension modules using the limited API
 
 The free-threaded build uses a completely new ABI and there is not yet an equivalent to the limited API for the free-threaded ABI.
-That means if your crate depends on PyO3 using the `abi3` feature or an an `abi3-pyxx` feature, PyO3 will print a warning and ignore that setting when building extensions using the free-threaded interpreter.
+That means if your crate depends on PyO3 using the `abi3` feature or an an `abi3-pyxx` feature, PyO3 will print a warning and ignore that setting when building extension modules using the free-threaded interpreter.
 
 This means that if your package makes use of the ABI forward compatibility provided by the limited API to upload only one wheel for each release of your package, you will need to update your release procedure to also upload a version-specific free-threaded wheel.
 
