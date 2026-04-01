@@ -4,21 +4,22 @@ use crate::{PyObject, PyTypeObject, Py_TYPE};
 #[cfg(Py_3_12)]
 use std::ffi::c_char;
 use std::ffi::c_int;
+use std::ffi::c_unt;
 
 // NB used in `_PyEval_EvalFrameDefault`, maybe we remove this too.
 #[cfg(all(Py_3_11, not(PyPy)))]
 opaque_struct!(pub _PyInterpreterFrame);
 
 #[cfg(Py_3_13)]
-pub const PyUnstable_EXECUTABLE_KIND_SKIP: c_int = 0;
+pub const PyUnstable_EXECUTABLE_KIND_SKIP: c_unt = 0;
 #[cfg(Py_3_13)]
-pub const PyUnstable_EXECUTABLE_KIND_PY_FUNCTION: c_int = 1;
+pub const PyUnstable_EXECUTABLE_KIND_PY_FUNCTION: c_unt = 1;
 #[cfg(Py_3_13)]
-pub const PyUnstable_EXECUTABLE_KIND_BUILTIN_FUNCTION: c_int = 3;
+pub const PyUnstable_EXECUTABLE_KIND_BUILTIN_FUNCTION: c_unt = 3;
 #[cfg(Py_3_13)]
-pub const PyUnstable_EXECUTABLE_KIND_METHOD_DESCRIPTOR: c_int = 4;
+pub const PyUnstable_EXECUTABLE_KIND_METHOD_DESCRIPTOR: c_unt = 4;
 #[cfg(Py_3_13)]
-pub const PyUnstable_EXECUTABLE_KINDS: c_int = 5;
+pub const PyUnstable_EXECUTABLE_KINDS: c_uint = 5;
 
 extern_libpython! {
     pub static mut PyFrame_Type: PyTypeObject;
