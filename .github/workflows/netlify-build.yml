@@ -18,8 +18,6 @@ env:
 jobs:
   guide-build:
     runs-on: ubuntu-latest
-    outputs:
-      tag_name: ${{ steps.prepare_tag.outputs.tag_name }}
     steps:
       - uses: actions/checkout@v6.0.2
       - uses: actions/setup-python@v6
@@ -53,7 +51,7 @@ jobs:
           python -m pip install --upgrade pip && pip install nox[uv]
           nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
         env:
-          PYO3_VERSION_TAG: ${{ steps.prepare_tag.outputs.tag_name }}
+          PYO3_VERSION_TAG: ${{ github.event_name == 'release' && steps.prepare_tag.outputs.tag_name || 'main' }}
           # allows lychee to get better rate limits from github
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
