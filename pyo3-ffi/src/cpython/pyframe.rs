@@ -71,7 +71,7 @@ extern_libpython! {
 
     #[cfg(Py_3_12)]
     pub fn PyUnstable_InterpreterFrame_GetLine(frame: *mut _PyInterpreterFrame) -> *mut PyObject;
-    
+
     #[cfg(Py_3_13)]
     pub const PyUnstable_ExecutableKinds: [*const PyTypeObject; PyUnstable_EXECUTABLE_KINDS+1];
 }
