@@ -38,13 +38,6 @@ pub const PyUnstable_EXECUTABLE_KIND_METHOD_DESCRIPTOR: c_int = 4;
 #[cfg(Py_3_13)]
 pub const PyUnstable_EXECUTABLE_KINDS: c_int = 5;
 
-/*
-#[repr(c)]
-pub struct ExecutableKindsWrapper {
-    lol:  [*const PyTypeObject; PyUnstable_EXECUTABLE_KINDS+1];
-}
-*/
-
 extern_libpython! {
     #[cfg(all(Py_3_9, not(PyPy)))]
     pub fn PyFrame_GetBack(frame: *mut PyFrameObject) -> *mut PyFrameObject;
