@@ -631,10 +631,6 @@ def build_netlify_site(session: nox.Session):
     docs(session)
     PYO3_DOCS_TARGET.rename("netlify_build/main/doc")
 
-    Path("netlify_build/main/doc/index.html").write_text(
-        "<meta http-equiv=refresh content=0;url=pyo3/>"
-    )
-
     # Build the internal docs
     docs(session, nightly=True, internal=True)
     PYO3_DOCS_TARGET.rename("netlify_build/internal/doc")
@@ -705,6 +701,9 @@ def _build_netlify_redirects(preview: bool) -> None:
         else:
             redirects_file.write(f"/ /v{current_version}/ 302\n")
 
+        # Add main doc redirect
+        redirects_file.write("/main/doc /main/doc/pyo3")
+
 
 def _url_path_from_file_path(file_path: str) -> str:
     """Removes index.html and/or .html suffix to match the page URL on the final netlify site"""
@@ -741,7 +740,7 @@ def check_guide(session: nox.Session):
 
     remaps = {
         f"file://{PYO3_GUIDE_TARGET}/doc/": f"file://{PYO3_DOCS_TARGET}/",
-        "https://docs.rs/pyo3/latest/": f"file://{PYO3_DOCS_TARGET}/",
+        "https://docs.rs/pyo3/latest/pyo3/": f"file://{PYO3_DOCS_TARGET}/pyo3/",
         f"https://docs.rs/pyo3/v{pyo3_version}/": f"file://{PYO3_DOCS_TARGET}/",
         f"https://pyo3.rs/v{pyo3_version}/doc/": f"file://{PYO3_DOCS_TARGET}/",
         f"https://pyo3.rs/v{pyo3_version}": f"file://{PYO3_GUIDE_TARGET}",
