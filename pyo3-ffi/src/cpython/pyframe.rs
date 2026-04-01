@@ -28,7 +28,7 @@ extern_libpython! {
     pub static mut PyFrameLocalsProxy_Type: PyTypeObject;
 
     #[cfg(Py_3_13)]
-    pub static PyUnstable_ExecutableKinds: [*const PyTypeObject; (PyUnstable_EXECUTABLE_KINDS+1 as usize)];
+    pub static PyUnstable_ExecutableKinds: [*const PyTypeObject; 6];
 }
 
 #[inline]
