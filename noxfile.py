@@ -740,9 +740,12 @@ def check_guide(session: nox.Session):
     ]
 
     remaps = {
-        f"file://{PYO3_GUIDE_SRC}/([^/]*/)*?%7B%7B#PYO3_DOCS_URL}}}}": f"file://{PYO3_DOCS_TARGET}",
+        f"file://{PYO3_GUIDE_TARGET}/doc/": f"file://{PYO3_DOCS_TARGET}/",
+        f"https://pyo3.rs/v{pyo3_version}/doc/": f"file://{PYO3_DOCS_TARGET}/",
         f"https://pyo3.rs/v{pyo3_version}": f"file://{PYO3_GUIDE_TARGET}",
+        "https://pyo3.rs/main/doc/": f"file://{PYO3_DOCS_TARGET}/",
         "https://pyo3.rs/main/": f"file://{PYO3_GUIDE_TARGET}/",
+        "https://pyo3.rs/latest/doc/": f"file://{PYO3_DOCS_TARGET}/",
         "https://pyo3.rs/latest/": f"file://{PYO3_GUIDE_TARGET}/",
         "%7B%7B#PYO3_DOCS_VERSION}}": "latest",
         # bypass fragments for edge cases
@@ -762,7 +765,7 @@ def check_guide(session: nox.Session):
         session,
         "lychee",
         "--include-fragments",
-        str(PYO3_GUIDE_SRC),
+        str(PYO3_GUIDE_TARGET),
         *remap_args,
         "--accept=200,429",
         "--cache",

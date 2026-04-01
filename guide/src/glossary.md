@@ -11,7 +11,7 @@ attached
 
 extension module
   : A Python module which is implemeted using native code (e.g. C, C++ or Rust) instead of Python.
-    See also [CPython's documentation on creating extension modules](https://docs.python.org/3/extending/extending.html#extension-modules).
+    See also [CPython's documentation on creating extension modules](https://docs.python.org/3/extending/extending.html).
 
 GIL-enabled Python
   : The (current, as of Python 3.14) default build of Python, which depends on the GIL for thread safety.
