@@ -148,6 +148,9 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
 
 fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result<()> {
     if let Some(pointer_width) = interpreter_config.pointer_width {
+        dbg!(cargo_env_var("TARGET"));
+        dbg!(cargo_env_var("CARGO_CFG_TARGET_POINTER_WIDTH"));
+
         // Try to check whether the target architecture matches the python library
         let rust_target = match cargo_env_var("CARGO_CFG_TARGET_POINTER_WIDTH")
             .unwrap()
