@@ -1189,7 +1189,7 @@ fn extract_object(
 
         quote! {
             #pyo3_path::impl_::extract_argument::from_py_with(
-                unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },
+                unsafe { #pyo3_path::Bound::#ref_from_method(py, &#source_ptr) },
                 #name,
                 #extractor,
             )

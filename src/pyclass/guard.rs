@@ -6,7 +6,7 @@ use crate::pycell::impl_::PyClassObjectLayout as _;
 use crate::pycell::PyBorrowMutError;
 use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
 use crate::pyclass::boolean_struct::False;
-use crate::{ffi, Borrowed, CastError, FromPyObject, IntoPyObject, Py, PyClass, PyErr};
+use crate::{ffi, Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyClass, PyErr};
 use std::convert::Infallible;
 use std::fmt;
 use std::marker::PhantomData;
@@ -338,6 +338,14 @@ impl<T: PyClass> Drop for PyClassGuard<'_, T> {
     /// Releases the shared borrow
     fn drop(&mut self) {
         self.as_class_object().borrow_checker().release_borrow()
+    }
+}
+
+impl<'a, 'py, T: PyClass> TryFrom<&'a Bound<'py, T>> for PyClassGuard<'a, T> {
+    type Error = PyBorrowError;
+    #[inline]
+    fn try_from(value: &'a Bound<'py, T>) -> Result<Self, Self::Error> {
+        PyClassGuard::try_borrow(value.as_unbound())
     }
 }
 
@@ -754,6 +762,14 @@ impl<T: PyClass<Frozen = False>> Drop for PyClassGuardMut<'_, T> {
     /// Releases the mutable borrow
     fn drop(&mut self) {
         self.as_class_object().borrow_checker().release_borrow_mut()
+    }
+}
+
+impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<&'a Bound<'py, T>> for PyClassGuardMut<'a, T> {
+    type Error = PyBorrowMutError;
+    #[inline]
+    fn try_from(value: &'a Bound<'py, T>) -> Result<Self, Self::Error> {
+        PyClassGuardMut::try_borrow_mut(value.as_unbound())
     }
 }
 
