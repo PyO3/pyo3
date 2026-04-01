@@ -630,13 +630,9 @@ def build_netlify_site(session: nox.Session):
     docs(session)
     PYO3_DOCS_TARGET.rename("netlify_build/main/doc")
 
-    Path("netlify_build/main/doc/index.html").write_text(
-        "<meta http-equiv=refresh content=0;url=pyo3/>"
-    )
-
     # Build the internal docs
     docs(session, nightly=True, internal=True)
-    PYO3_DOCS_TARGET.rename("netlify_build/internal")
+    PYO3_DOCS_TARGET.rename("netlify_build/internal/doc")
 
     _build_netlify_redirects(preview)
 
@@ -704,6 +700,9 @@ def _build_netlify_redirects(preview: bool) -> None:
         else:
             redirects_file.write(f"/ /v{current_version}/ 302\n")
 
+        # Add main doc redirect
+        redirects_file.write("/main/doc /main/doc/pyo3")
+
 
 def _url_path_from_file_path(file_path: str) -> str:
     """Removes index.html and/or .html suffix to match the page URL on the final netlify site"""
@@ -739,11 +738,15 @@ def check_guide(session: nox.Session):
     ]
 
     remaps = {
-        f"file://{PYO3_GUIDE_SRC}/([^/]*/)*?%7B%7B#PYO3_DOCS_URL}}}}": f"file://{PYO3_DOCS_TARGET}",
+        f"file://{PYO3_GUIDE_TARGET}/doc/": f"file://{PYO3_DOCS_TARGET}/",
+        "https://docs.rs/pyo3/latest/pyo3/": f"file://{PYO3_DOCS_TARGET}/pyo3/",
+        f"https://docs.rs/pyo3/v{pyo3_version}/": f"file://{PYO3_DOCS_TARGET}/",
+        f"https://pyo3.rs/v{pyo3_version}/doc/": f"file://{PYO3_DOCS_TARGET}/",
         f"https://pyo3.rs/v{pyo3_version}": f"file://{PYO3_GUIDE_TARGET}",
+        "https://pyo3.rs/main/doc/": f"file://{PYO3_DOCS_TARGET}/",
         "https://pyo3.rs/main/": f"file://{PYO3_GUIDE_TARGET}/",
+        "https://pyo3.rs/latest/doc/": f"file://{PYO3_DOCS_TARGET}/",
         "https://pyo3.rs/latest/": f"file://{PYO3_GUIDE_TARGET}/",
-        "%7B%7B#PYO3_DOCS_VERSION}}": "latest",
         # bypass fragments for edge cases
         # blob links
         "(https://github.com/[^/]+/[^/]+/blob/[^#]+)#[a-zA-Z0-9._-]*": "$1",
@@ -756,16 +759,28 @@ def check_guide(session: nox.Session):
     for key, value in remaps.items():
         remap_args.extend(("--remap", f"{key} {value}"))
 
+    excludes = [
+        # exclude some old http links from copyright notices, known to fail
+        "http://www.adobe.com/",
+        "http://www.nhncorp.com/",
+        # PR seems to be gone, possibly user deleted account?
+        "https://github.com/PyO3/pyo3/pull/938",
+    ]
+
+    exclude_args = [f"--exclude={arg}" for arg in excludes]
+
     # check all links in the guide
     _run(
         session,
         "lychee",
         "--include-fragments",
-        str(PYO3_GUIDE_SRC),
+        str(PYO3_GUIDE_TARGET),
         *remap_args,
+        *exclude_args,
         "--accept=200,429",
         "--cache",
         "--max-cache-age=7d",
+        f"--root-dir={PYO3_GUIDE_TARGET}",
         *session.posargs,
         external=True,
     )
@@ -778,8 +793,7 @@ def check_guide(session: nox.Session):
         *remap_args,
         f"--exclude=file://{PYO3_DOCS_TARGET}",
         # exclude some old http links from copyright notices, known to fail
-        "--exclude=http://www.adobe.com/",
-        "--exclude=http://www.nhncorp.com/",
+        *exclude_args,
         "--accept=200,429",
         # reduce the concurrency to avoid rate-limit from `pyo3.rs`
         "--max-concurrency=32",

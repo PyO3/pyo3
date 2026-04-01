@@ -556,9 +556,9 @@ Some features are inaccessible on the free-threaded build:
 - `PyList::get_item_unchecked`, which cannot soundly be used due to races between time-of-check and time-of-use
 
 If you make use of these features then you will need to account for the unavailability of the API in the free-threaded build.
-One way to handle it is via conditional compilation -- extensions can use `pyo3-build-config` to get access to a `#[cfg(Py_GIL_DISABLED)]` guard.
+One way to handle it is via conditional compilation -- extension modules can use `pyo3-build-config` to get access to a `#[cfg(Py_GIL_DISABLED)]` guard.
 
-See [the guide section on free-threaded Python](free-threading.md) for more details about supporting free-threaded Python in your PyO3 extensions.
+See [the guide section on free-threaded Python](free-threading.md) for more details about supporting free-threaded Python in a PyO3 extension module.
 </details>
 
 ### New `IntoPyObject` trait unifies to-Python conversions

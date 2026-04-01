@@ -189,7 +189,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// #[pyfunction]
     /// fn bug(py: Python<'_>, bytes: &Bound<'_, PyByteArray>) {
     ///     // No critical section is being used.
-    ///     // This means that for no-gil Python another thread could be modifying the
+    ///     // This means that for free-threaded Python another thread could be modifying the
     ///     // bytearray concurrently and thus invalidate `slice` any time.
     ///     let slice = unsafe { bytes.as_bytes() };
     ///
@@ -272,7 +272,7 @@ impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
         with_critical_section(self, || {
             // SAFETY:
             //  * `self` is a `Bound` object, which guarantees that the Python GIL is held.
-            //  * For no-gil Python, a critical section is used in lieu of the GIL.
+            //  * For free-threaded Python, a critical section is used in lieu of the GIL.
             //  * We don't interact with the interpreter
             //  * We don't mutate the underlying slice
             unsafe { self.as_bytes() }.to_vec()

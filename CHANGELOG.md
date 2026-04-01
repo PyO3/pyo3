@@ -1535,11 +1535,11 @@ Prerelease of PyO3 0.21. See [the GitHub diff](https://github.com/pyo3/pyo3/comp
 
 ### Changed
 
-- `#[classattr]` constants with a known magic method name (which is lowercase) no longer trigger lint warnings expecting constants to be uppercase. [#1969](https://github.com/PyO3/pyo3/pull/1969)
+- `#[classattr]` constants with a known magic method name (which is lowercase) no longer trigger lint warnings expecting constants to be uppercase. [#1971](https://github.com/PyO3/pyo3/pull/1971)
 
 ### Fixed
 
-- Fix creating `#[classattr]` by functions with the name of a known magic method. [#1969](https://github.com/PyO3/pyo3/pull/1969)
+- Fix creating `#[classattr]` by functions with the name of a known magic method. [#1971](https://github.com/PyO3/pyo3/pull/1971)
 - Fix use of `catch_unwind` in `allow_threads` which can cause fatal crashes. [#1989](https://github.com/PyO3/pyo3/pull/1989)
 - Fix build failure on PyPy when abi3 features are activated. [#1991](https://github.com/PyO3/pyo3/pull/1991)
 - Fix mingw platform detection. [#1993](https://github.com/PyO3/pyo3/pull/1993)
@@ -2607,4 +2607,4 @@ Yanked
 [0.2.2]: https://github.com/pyo3/pyo3/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/pyo3/pyo3/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/pyo3/pyo3/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/PyO3/pyo3/tree/0.1.0
+[0.1.0]: https://github.com/PyO3/pyo3/tree/v0.1.0

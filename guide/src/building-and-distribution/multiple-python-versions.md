@@ -96,9 +96,9 @@ This `#[cfg]` marks code which is running on PyPy.
 
 When building with PyO3's `abi3` feature, your extension module will be compiled against a specific [minimum version](../building-and-distribution.md#minimum-python-version-for-abi3) of Python, but may be running on newer Python versions.
 
-For example with PyO3's `abi3-py38` feature, your extension will be compiled as if it were for Python 3.8.
+For example with PyO3's `abi3-py38` feature, your extension module will be compiled as if it were for Python 3.8.
 If you were using `pyo3-build-config`, `#[cfg(Py_3_8)]` would be present.
-Your user could freely install and run your abi3 extension on Python 3.9.
+Your user could freely install and run your abi3 extension module on Python 3.9.
 
 There's no way to detect your user doing that at compile time, so instead you need to fall back to runtime checks.
 
