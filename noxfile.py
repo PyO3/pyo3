@@ -637,7 +637,7 @@ def build_netlify_site(session: nox.Session):
 
     # Build the internal docs
     docs(session, nightly=True, internal=True)
-    PYO3_DOCS_TARGET.rename("netlify_build/internal")
+    PYO3_DOCS_TARGET.rename("netlify_build/internal/doc")
 
     _build_netlify_redirects(preview)
 
@@ -761,6 +761,16 @@ def check_guide(session: nox.Session):
     for key, value in remaps.items():
         remap_args.extend(("--remap", f"{key} {value}"))
 
+    excludes = [
+        # exclude some old http links from copyright notices, known to fail
+        "http://www.adobe.com/",
+        "http://www.nhncorp.com/",
+        # PR seems to be gone, possibly user deleted account?
+        "https://github.com/PyO3/pyo3/pull/938",
+    ]
+
+    exclude_args = [f"--exclude={arg}" for arg in excludes]
+
     # check all links in the guide
     _run(
         session,
@@ -768,9 +778,11 @@ def check_guide(session: nox.Session):
         "--include-fragments",
         str(PYO3_GUIDE_TARGET),
         *remap_args,
+        *exclude_args,
         "--accept=200,429",
         "--cache",
         "--max-cache-age=7d",
+        f"--root-dir={PYO3_GUIDE_TARGET}",
         *session.posargs,
         external=True,
     )
@@ -783,8 +795,7 @@ def check_guide(session: nox.Session):
         *remap_args,
         f"--exclude=file://{PYO3_DOCS_TARGET}",
         # exclude some old http links from copyright notices, known to fail
-        "--exclude=http://www.adobe.com/",
-        "--exclude=http://www.nhncorp.com/",
+        *exclude_args,
         "--accept=200,429",
         # reduce the concurrency to avoid rate-limit from `pyo3.rs`
         "--max-concurrency=32",
