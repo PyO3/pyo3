@@ -9,8 +9,6 @@ pyo3-ffi-check-definitions = { path = "definitions" }
 pyo3-ffi-check-macro = { path = "macro" }
 
 [build-dependencies]
-# this guarantees the build.rs reruns if the definitions change
-pyo3-ffi-check-definitions = { path = "definitions" }
 pyo3-build-config = { path = "../pyo3-build-config" }
 
 [workspace]

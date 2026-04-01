@@ -28,6 +28,10 @@ fn main() {
         .then_some(())
         .expect("failed to build definitions, see above for details");
 
+    // rerun if any of the definitions change, to ensure the docs are up to date
+    println!("cargo:rerun-if-changed=definitions");
+    println!("cargo:rerun-if-changed=../pyo3-ffi");
+
     // Because `pyo3-ffi` is a dependency, libpython is linked, this ensures `main.rs` can run.
     // Slightly needless (no symbols from libpython are actually called), but simple to do.
     pyo3_build_config::add_libpython_rpath_link_args();
