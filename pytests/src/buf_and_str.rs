@@ -53,6 +53,17 @@ pub mod buf_and_str {
     }
 
     #[pyfunction]
+    fn return_owned_memoryview(py: Python<'_>) -> PyResult<Bound<'_, PyMemoryView>> {
+        let obj = pyo3::Py::new(
+            py,
+            super::OwnedData {
+                data: b"owned buffer data".to_vec(),
+            },
+        )?;
+        PyMemoryView::from_owned_buffer(py, obj, |d| &d.data)
+    }
+
+    #[pyfunction]
     fn map_byte_slice(bytes: &[u8]) -> &[u8] {
         bytes
     }
@@ -66,4 +77,9 @@ pub mod buf_and_str {
     fn map_byte_vec(bytes: Vec<u8>) -> Vec<u8> {
         bytes
     }
+}
+
+#[pyo3::pyclass(frozen)]
+struct OwnedData {
+    data: Vec<u8>,
 }
