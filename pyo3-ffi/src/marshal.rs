@@ -1,19 +1,29 @@
 use super::{PyObject, Py_ssize_t};
-use std::ffi::{c_char, c_int};
+use libc::FILE;
+use std::ffi::{c_char, c_int, c_long};
 
-// skipped Py_MARSHAL_VERSION
-// skipped PyMarshal_WriteLongToFile
-// skipped PyMarshal_WriteObjectToFile
+#[cfg(Py_3_15))]
+pub const Py_MARSHAL_VERSION: c_int = 6;
+
+#[cfg(not(Py_3_15)))]
+pub const Py_MARSHAL_VERSION: c_int = 5;
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyMarshal_WriteObjectToString")]
     pub fn PyMarshal_WriteObjectToString(object: *mut PyObject, version: c_int) -> *mut PyObject;
 
-    // skipped non-limited PyMarshal_ReadLongFromFile
-    // skipped non-limited PyMarshal_ReadShortFromFile
-    // skipped non-limited PyMarshal_ReadObjectFromFile
-    // skipped non-limited PyMarshal_ReadLastObjectFromFile
-
     #[cfg_attr(PyPy, link_name = "PyPyMarshal_ReadObjectFromString")]
     pub fn PyMarshal_ReadObjectFromString(data: *const c_char, len: Py_ssize_t) -> *mut PyObject;
+
+    pub fn PyMarshal_WriteLongToFile(value: c_long, file: *mut FILE, version: c_int);
+
+    pub fn PyMarshal_WriteObjectToFile(object: *mut PyObject, file: *mut FILE, version: c_int);
+
+    pub fn PyMarshal_ReadLongFromFile(file: *mut FILE) -> c_long;
+ 
+    pub fn PyMarshal_ReadShortFromFile(file: *mut FILE) -> c_int;
+
+    pub fn PyMarshal_ReadObjectFromFile(file: *mut FILE) -> *mut PyObject;
+
+    pub fn PyMarshal_ReadLastObjectFromFile(file: *mut FILE) -> *mut PyObject;
 }
