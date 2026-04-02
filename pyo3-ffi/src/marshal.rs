@@ -2,10 +2,10 @@ use super::{PyObject, Py_ssize_t};
 use libc::FILE;
 use std::ffi::{c_char, c_int, c_long};
 
-#[cfg(Py_3_15))]
+#[cfg(Py_3_15)]
 pub const Py_MARSHAL_VERSION: c_int = 6;
 
-#[cfg(not(Py_3_15)))]
+#[cfg(not(Py_3_15))]
 pub const Py_MARSHAL_VERSION: c_int = 5;
 
 extern_libpython! {
