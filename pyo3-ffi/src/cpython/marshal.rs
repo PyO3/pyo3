@@ -1,4 +1,4 @@
-use super::{PyObject, Py_ssize_t};
+use crate::{PyObject, Py_ssize_t};
 use libc::FILE;
 use std::ffi::{c_char, c_int, c_long};
 
