@@ -337,20 +337,18 @@ For a type named `SharedType`, the steps to achieve this are as follows:
 
 1. `base-package-core` defines a `#[repr(C)]` struct which contains the data to be shared across the boundary.
 
+<!-- rumdl-disable MD013 -->
 2. The `BaseApi` struct defined in the previous sections is extended to include functions to manipulate this struct (these functions will later be provided by `base-package`).
 
    At a minimum, this will probably include:
-
 
    - `get_shared_type: extern "C" fn() -> Py<PyType>` - a function to get the `#[pyclass]` Python type object for `SharedType`.
 
    - `create_shared_type: unsafe extern "C" fn(SharedType) -> Option<Py<SharedType>>` - a function to create a new instance of the `SharedType` struct and return it as a Python object.
 
+     This function is `unsafe` because the caller must ensure that the thread is attached to the interpreter (`Python<'py>` is a zero-sized type and not FFI-safe).
 
-   This function is `unsafe` because the caller must ensure that the thread is attached to the interpreter (`Python<'py>` is a zero-sized type and not FFI-safe).
-
-   The return type on this function is wrapped in `Option` to allow for failure - see [the error handling section](#error-handling) for more details.
-
+     The return type on this function is wrapped in `Option` to allow for failure - see [the error handling section](#error-handling) for more details.
 
    - `cast_shared_type: for<'a> extern "C" fn(Borrowed<'a, '_, SharedType>) -> &'a SharedType` - a function to extract a reference to the `SharedType` Rust struct from inside a Python object.
 
@@ -358,12 +356,12 @@ For a type named `SharedType`, the steps to achieve this are as follows:
 
    The crucial traits are:
 
-
    - `PyTypeInfo` - the `get_type` function can delegate to the `get_shared_type` function pointer in the API struct.
 
    - `IntoPyPyObject` - the `into_pyobject` function can delegate to the `create_shared_type` function pointer in the API struct.
 
    - `FromPyObject<'_>` - the `extract` function can delegate to the `cast_shared_type` function pointer in the API struct.
+<!-- rumdl-enable MD013 -->
 
 4. `base-package` implements a `#[pyclass]` which is a thin wrapper around the `SharedType` struct, defining its Python functionality.
 
@@ -376,6 +374,7 @@ The [example project] demonstrates how to do this with a `Series` type implement
 ## Practical considerations for sharing data across the package boundary
 
 As a reminder, there are two key restrictions to data which is shared across the package boundary:
+
 - Only types with a stable layout, such as `#[repr(C)]` types, can be shared.
 - Global variables are not shared across the boundary, and in particular for data sharing, the `#[global_allocator]` is not shared, so data allocated by one package must be freed by the same package.
 
@@ -400,6 +399,7 @@ This is the approach taken in the [example project].
 
 The downside of this approach is that `?` does not trivially work in the implementation of the API functions.
 The suggested strategy is:
+
 - Inside the API function implementations, convert `PyResult` to `Option` by using `PyErr::restore` to write the error to the Python thread state, and returning `None` on error.
 - The wrappers in `base-package-core` which delegate to the API functions can then convert the `Option` back to `PyResult` by using `PyErr::fetch` to read the error from the Python thread state.
 
