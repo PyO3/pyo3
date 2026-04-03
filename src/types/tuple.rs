@@ -2,7 +2,7 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
-use crate::instance::Borrowed;
+use crate::instance::{Borrowed, BoundObject};
 use crate::internal_tricks::get_ssize_index;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
@@ -657,9 +657,9 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         ) -> PyResult<Bound<'py, PyAny>> {
             let py = function.py();
             // We need this to drop the arguments correctly.
-            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
+            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_VectorcallDict(
                     function.as_ptr(),
@@ -678,22 +678,21 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             _: crate::call::private::Token,
         ) -> PyResult<Bound<'py, PyAny>> {
             let py = function.py();
-            // We need this to drop the arguments correctly.
-            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
 
             #[cfg(not(Py_LIMITED_API))]
             if $length == 1 {
                 return unsafe {
                     ffi::PyObject_CallOneArg(
                        function.as_ptr(),
-                       args_bound[0].as_ptr()
+                       args_objects.0.as_ptr()
                     )
                     .assume_owned_or_err(py)
                 };
             }
 
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
+            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_Vectorcall(
                     function.as_ptr(),
@@ -713,28 +712,14 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             _: crate::call::private::Token,
         ) -> PyResult<Bound<'py, PyAny>> {
             let py = object.py();
-            // We need this to drop the arguments correctly.
-            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
 
-            #[cfg(not(Py_LIMITED_API))]
-            if $length == 1 {
-                return unsafe {
-                    ffi::PyObject_CallMethodOneArg(
-                            object.as_ptr(),
-                            method_name.as_ptr(),
-                            args_bound[0].as_ptr(),
-                    )
-                    .assume_owned_or_err(py)
-                };
-            }
-
-            let mut args = [object.as_ptr(), $(args_bound[$n].as_ptr()),*];
+            let mut args = [object.as_ptr(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_VectorcallMethod(
                     method_name.as_ptr(),
                     args.as_mut_ptr(),
-                    // +1 for the receiver.
-                    1 + $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    args.len() | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
                     std::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
@@ -785,10 +770,9 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             _: crate::call::private::Token,
         ) -> PyResult<Bound<'py, PyAny>> {
             let py = function.py();
-            // We need this to drop the arguments correctly.
-            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
+            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_VectorcallDict(
                     function.as_ptr(),
@@ -807,22 +791,21 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             _: crate::call::private::Token,
         ) -> PyResult<Bound<'py, PyAny>> {
             let py = function.py();
-            // We need this to drop the arguments correctly.
-            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
 
             #[cfg(not(Py_LIMITED_API))]
             if $length == 1 {
                 return unsafe {
                     ffi::PyObject_CallOneArg(
                        function.as_ptr(),
-                       args_bound[0].as_ptr()
+                       args_objects.0.as_ptr()
                     )
                     .assume_owned_or_err(py)
                 };
             }
 
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
+            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_Vectorcall(
                     function.as_ptr(),
@@ -842,8 +825,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             _: crate::call::private::Token,
         ) -> PyResult<Bound<'py, PyAny>> {
             let py = object.py();
-            // We need this to drop the arguments correctly.
-            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
 
             #[cfg(not(Py_LIMITED_API))]
             if $length == 1 {
@@ -851,13 +833,13 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                     ffi::PyObject_CallMethodOneArg(
                             object.as_ptr(),
                             method_name.as_ptr(),
-                            args_bound[0].as_ptr(),
+                            args_objects.0.as_ptr(),
                     )
                     .assume_owned_or_err(py)
                 };
             }
 
-            let mut args = [object.as_ptr(), $(args_bound[$n].as_ptr()),*];
+            let mut args = [object.as_ptr(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_VectorcallMethod(
                     method_name.as_ptr(),
