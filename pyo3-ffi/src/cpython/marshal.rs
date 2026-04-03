@@ -10,7 +10,6 @@ pub const Py_MARSHAL_VERSION: c_int = 5;
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyMarshal_WriteObjectToString")]
-    #[cfg(not(Py_LIMITED_API))]
     pub fn PyMarshal_WriteObjectToString(object: *mut PyObject, version: c_int) -> *mut PyObject;
 
     #[cfg_attr(PyPy, link_name = "PyPyMarshal_ReadObjectFromString")]
