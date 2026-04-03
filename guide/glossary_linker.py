@@ -137,12 +137,6 @@ def link_terms_in_content(content, terms, first_only=True, url_prefix=""):
                 return True
         return False
 
-    if suppressed_at_line:
-        print(
-            f"Found {sum(len(s) for s in suppressed_at_line.values())} suppressed terms at {len(suppressed_at_line)} lines",
-            file=sys.stderr,
-        )
-
     result = []
     last = 0
 
