@@ -22,7 +22,6 @@ extern_libpython! {
 
     pub fn PyMarshal_ReadLongFromFile(file: *mut FILE) -> c_long;
 
-    #[cfg(not(Py_LIMITED_API))]
     pub fn PyMarshal_ReadShortFromFile(file: *mut FILE) -> c_int;
 
     #[cfg(not(Py_LIMITED_API))]
