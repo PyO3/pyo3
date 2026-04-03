@@ -33,7 +33,7 @@ use std::ptr::{self, NonNull};
 ///
 /// Once the capsule name is verified, it is also crucial that the data stored within has a stable layout
 /// guaranteed between the producer and consumer of the capsule. Practically speaking, this means that:
-/// - any structs stored in capsules should be [`#[repr(C)]`],
+/// - any structs stored in capsules should be [`#[repr(C)]`][repr-c],
 /// - any enums stored within should either be [`#[repr(C)]`][enum-repr-c] or have a [fixed primitive representation], and
 /// - any function pointers stored within should have a fixed ABI (e.g. `extern "C"`) and only use arguments and return values
 ///   which themselves have a stable layout.
@@ -69,9 +69,9 @@ use std::ptr::{self, NonNull};
 /// assert!(r.is_ok());
 /// ```
 ///
-/// [`#[repr(C)]`]: https://doc.rust-lang.org/reference/type-layout.html#the-c-representation
-/// [enum-repr-c]: https://doc.rust-lang.org/reference/type-layout.html#reprc-enums-with-fields
-/// [fixed primitive representation]: https://doc.rust-lang.org/reference/type-layout.html#primitive-representation-of-enums-with-fields
+/// [repr-c]: <https://doc.rust-lang.org/reference/type-layout.html#the-c-representation>
+/// [enum-repr-c]: <https://doc.rust-lang.org/reference/type-layout.html#reprc-enums-with-fields>
+/// [fixed primitive representation]: <https://doc.rust-lang.org/reference/type-layout.html#primitive-representation-of-enums-with-fields>
 #[repr(transparent)]
 pub struct PyCapsule(PyAny);
 
