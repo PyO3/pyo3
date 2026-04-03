@@ -632,6 +632,7 @@ def build_netlify_site(session: nox.Session):
 
     # Build the internal docs
     docs(session, nightly=True, internal=True)
+    (netlify_build / "internal").mkdir(parents=True, exist_ok=True)
     PYO3_DOCS_TARGET.rename("netlify_build/internal/doc")
 
     _build_netlify_redirects(preview)
@@ -743,6 +744,7 @@ def check_guide(session: nox.Session):
         f"https://docs.rs/pyo3/v{pyo3_version}/": f"file://{PYO3_DOCS_TARGET}/",
         f"https://pyo3.rs/v{pyo3_version}/doc/": f"file://{PYO3_DOCS_TARGET}/",
         f"https://pyo3.rs/v{pyo3_version}": f"file://{PYO3_GUIDE_TARGET}",
+        "https://pyo3.rs/main/doc$": f"file://{PYO3_DOCS_TARGET}/pyo3",
         "https://pyo3.rs/main/doc/": f"file://{PYO3_DOCS_TARGET}/",
         "https://pyo3.rs/main/": f"file://{PYO3_GUIDE_TARGET}/",
         "https://pyo3.rs/latest/doc/": f"file://{PYO3_DOCS_TARGET}/",
