@@ -130,3 +130,15 @@ compat_function!(
         crate::_PyThreadState_UncheckedGet()
     }
 );
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyObject_HasAttrWithError(obj: *mut crate::PyObject, attr: *mut crate::PyObject) -> std::ffi::c_int {
+        let res: *mut crate::PyObject = std::ptr::null_mut();
+        let rc = crate::PyObject_GetOptionalAttr(obj, attr, &mut result);
+        crate::Py_XDECREF(res);
+        rc
+    }
+);
