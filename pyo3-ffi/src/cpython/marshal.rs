@@ -29,6 +29,5 @@ extern_libpython! {
     #[cfg(not(Py_LIMITED_API))]
     pub fn PyMarshal_ReadObjectFromFile(file: *mut FILE) -> *mut PyObject;
 
-    #[cfg(not(Py_LIMITED_API))]
     pub fn PyMarshal_ReadLastObjectFromFile(file: *mut FILE) -> *mut PyObject;
 }
