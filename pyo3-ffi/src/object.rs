@@ -303,8 +303,6 @@ pub type initproc = unsafe extern "C" fn(*mut PyObject, *mut PyObject, *mut PyOb
 pub type newfunc =
     unsafe extern "C" fn(*mut PyTypeObject, *mut PyObject, *mut PyObject) -> *mut PyObject;
 pub type allocfunc = unsafe extern "C" fn(*mut PyTypeObject, Py_ssize_t) -> *mut PyObject;
-
-#[cfg(Py_3_8)]
 pub type vectorcallfunc = unsafe extern "C" fn(
     callable: *mut PyObject,
     args: *const *mut PyObject,
@@ -566,7 +564,7 @@ pub const Py_TPFLAGS_HEAPTYPE: c_ulong = 1 << 9;
 pub const Py_TPFLAGS_BASETYPE: c_ulong = 1 << 10;
 
 /// Set if the type implements the vectorcall protocol (PEP 590)
-#[cfg(any(Py_3_12, all(Py_3_8, not(Py_LIMITED_API))))]
+#[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
 pub const Py_TPFLAGS_HAVE_VECTORCALL: c_ulong = 1 << 11;
 // skipped backwards-compatibility alias _Py_TPFLAGS_HAVE_VECTORCALL
 
@@ -580,8 +578,6 @@ pub const Py_TPFLAGS_READYING: c_ulong = 1 << 13;
 pub const Py_TPFLAGS_HAVE_GC: c_ulong = 1 << 14;
 
 const Py_TPFLAGS_HAVE_STACKLESS_EXTENSION: c_ulong = 0;
-
-#[cfg(Py_3_8)]
 pub const Py_TPFLAGS_METHOD_DESCRIPTOR: c_ulong = 1 << 17;
 
 pub const Py_TPFLAGS_VALID_VERSION_TAG: c_ulong = 1 << 19;

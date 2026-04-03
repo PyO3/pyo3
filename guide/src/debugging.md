@@ -28,7 +28,7 @@ You first need to install a debug build of Python, otherwise Valgrind won't prod
 In Ubuntu there's e.g. a `python3-dbg` package.
 
 Activate an environment with the debug interpreter and recompile.
-If you're on Linux, use `ldd` with the name of your binary and check that you're linking e.g. `libpython3.7d.so.1.0` instead of `libpython3.7.so.1.0`.
+If you're on Linux, use `ldd` with the name of your binary and check that you're linking e.g. `libpython3.8d.so.1.0` instead of `libpython3.8.so.1.0`.
 
 [Download the suppressions file for CPython](https://raw.githubusercontent.com/python/cpython/master/Misc/valgrind-python.supp).
 
@@ -49,11 +49,11 @@ The mentioned issue contains a workaround for enabling pretty-printers in this c
 - Enter `r` to run
 - After the crash occurred, enter `bt` or `bt full` to print the stacktrace
 
- Often it is helpful to run a small piece of Python code to exercise a section of Rust.
+Often it is helpful to run a small piece of Python code to exercise a section of Rust.
 
- ```console
- rust-gdb --args python -c "import my_package; my_package.sum_to_string(1, 2)"
- ```
+```console
+rust-gdb --args python -c "import my_package; my_package.sum_to_string(1, 2)"
+```
 
 ## Setting breakpoints in your Rust code
 
@@ -64,7 +64,7 @@ For more information about how to use both `lldb` and `gdb` you can read the [gd
 
 ### Common setup
 
-1. Compile your extension with debug symbols:
+1. Compile your extension module with debug symbols:
 
    ```bash
    # Debug is the default for maturin, but you can explicitly ensure debug symbols with:
@@ -75,7 +75,7 @@ For more information about how to use both `lldb` and `gdb` you can read the [gd
    ```
 
    > **Note**: When using debuggers, make sure that `python` resolves to an actual Python binary or symlink and not a shim script.
-   Some tools like pyenv use shim scripts which can interfere with debugging.
+   > Some tools like pyenv use shim scripts which can interfere with debugging.
 
 ### Debugger specific setup
 
@@ -96,7 +96,7 @@ Depending on your OS and your preferences you can use two different debuggers, `
    (gdb) break your_module.rs:42
    ```
 
-3. Run your Python script that imports and uses your Rust extension:
+3. Run your Python script that imports and uses your Rust extension module:
 
    ```bash
    # Option 1: Run an inline Python command
@@ -145,7 +145,6 @@ Depending on your OS and your preferences you can use two different debuggers, `
 VS Code with the Rust and Python extensions provides an integrated debugging experience:
 
 1. First, install the necessary VS Code extensions:
-
    - [Rust Analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
    - [CodeLLDB](https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb)
    - [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python)
@@ -154,51 +153,48 @@ VS Code with the Rust and Python extensions provides an integrated debugging exp
 
    ```json
    {
-       "version": "0.2.0",
-       "configurations": [
-           {
-               "name": "Debug PyO3",
-               "type": "lldb",
-               "request": "attach",
-               "program": "${workspaceFolder}/.venv/bin/python",
-               "pid": "${command:pickProcess}",
-               "sourceLanguages": [
-                   "rust"
-               ]
-           },
-           {
-               "name": "Launch Python with PyO3",
-               "type": "lldb",
-               "request": "launch",
-               "program": "${workspaceFolder}/.venv/bin/python",
-               "args": ["${file}"],
-               "cwd": "${workspaceFolder}",
-               "sourceLanguages": ["rust"]
-           },
-           {
-               "name": "Debug PyO3 with Args",
-               "type": "lldb",
-               "request": "launch",
-               "program": "${workspaceFolder}/.venv/bin/python",
-               "args": ["path/to/your/script.py", "arg1", "arg2"],
-               "cwd": "${workspaceFolder}",
-               "sourceLanguages": ["rust"]
-           },
-           {
-               "name": "Debug PyO3 Tests",
-               "type": "lldb",
-               "request": "launch",
-               "program": "${workspaceFolder}/.venv/bin/python",
-               "args": ["-m", "pytest", "tests/your_test.py::test_function", "-v"],
-               "cwd": "${workspaceFolder}",
-               "sourceLanguages": ["rust"]
-           }
-        ]
+     "version": "0.2.0",
+     "configurations": [
+       {
+         "name": "Debug PyO3",
+         "type": "lldb",
+         "request": "attach",
+         "program": "${workspaceFolder}/.venv/bin/python",
+         "pid": "${command:pickProcess}",
+         "sourceLanguages": ["rust"]
+       },
+       {
+         "name": "Launch Python with PyO3",
+         "type": "lldb",
+         "request": "launch",
+         "program": "${workspaceFolder}/.venv/bin/python",
+         "args": ["${file}"],
+         "cwd": "${workspaceFolder}",
+         "sourceLanguages": ["rust"]
+       },
+       {
+         "name": "Debug PyO3 with Args",
+         "type": "lldb",
+         "request": "launch",
+         "program": "${workspaceFolder}/.venv/bin/python",
+         "args": ["path/to/your/script.py", "arg1", "arg2"],
+         "cwd": "${workspaceFolder}",
+         "sourceLanguages": ["rust"]
+       },
+       {
+         "name": "Debug PyO3 Tests",
+         "type": "lldb",
+         "request": "launch",
+         "program": "${workspaceFolder}/.venv/bin/python",
+         "args": ["-m", "pytest", "tests/your_test.py::test_function", "-v"],
+         "cwd": "${workspaceFolder}",
+         "sourceLanguages": ["rust"]
+       }
+     ]
    }
    ```
 
    This configuration supports multiple debugging scenarios:
-
    - Attaching to a running Python process
    - Launching the currently open Python file
    - Running a specific script with command-line arguments
@@ -225,16 +221,16 @@ For advanced debugging scenarios, you might want to add environment variables or
 
 ```json
 {
-    "name": "Debug PyO3 with Environment",
-    "type": "lldb",
-    "request": "launch",
-    "program": "${workspaceFolder}/.venv/bin/python",
-    "args": ["${file}"],
-    "env": {
-        "RUST_BACKTRACE": "1",
-        "PYTHONPATH": "${workspaceFolder}"
-    },
-    "sourceLanguages": ["rust"]
+  "name": "Debug PyO3 with Environment",
+  "type": "lldb",
+  "request": "launch",
+  "program": "${workspaceFolder}/.venv/bin/python",
+  "args": ["${file}"],
+  "env": {
+    "RUST_BACKTRACE": "1",
+    "PYTHONPATH": "${workspaceFolder}"
+  },
+  "sourceLanguages": ["rust"]
 }
 ```
 
@@ -351,7 +347,7 @@ To use these functions:
 
 ## Thread Safety and Compiler Sanitizers
 
-PyO3 attempts to match the Rust language-level guarantees for thread safety, but that does not preclude other code outside of the control of PyO3 or buggy code managed by a PyO3 extension from creating a thread safety issue.
+PyO3 attempts to match the Rust language-level guarantees for thread safety, but that does not preclude other code outside of the control of PyO3 or buggy code managed by a PyO3 extension module from creating a thread safety issue.
 Analyzing whether or not a piece of Rust code that uses the CPython C API is thread safe can be quite complicated, since many Python operations can lead to arbitrary Python code execution.
 Automated ways to discover thread safety issues can often be more fruitful than code analysis.
 

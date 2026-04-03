@@ -1054,7 +1054,7 @@ const __IAND__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_and");
 const __IXOR__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_xor");
 const __IOR__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_or");
 
-const __IPOW__: SlotDef = SlotDef::new("Py_nb_inplace_power", "ipowfunc")
+const __IPOW__: SlotDef = SlotDef::new("Py_nb_inplace_power", "ternaryfunc")
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 
@@ -1068,7 +1068,6 @@ enum Ty {
     Object,
     MaybeNullObject,
     NonNullObject,
-    IPowModulo,
     CompareOp,
     Int,
     PyHashT,
@@ -1087,7 +1086,6 @@ impl Ty {
         match self {
             Ty::Object | Ty::MaybeNullObject => quote! { *mut #pyo3_path::ffi::PyObject },
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<#pyo3_path::ffi::PyObject> },
-            Ty::IPowModulo => quote! { #pyo3_path::impl_::pymethods::IPowModulo },
             Ty::Int | Ty::CompareOp => quote! { ::std::ffi::c_int },
             Ty::PyHashT => quote! { #pyo3_path::ffi::Py_hash_t },
             Ty::PySsizeT => quote! { #pyo3_path::ffi::Py_ssize_t },
@@ -1137,15 +1135,6 @@ impl Ty {
                 REF_FROM_NON_NULL,
                 CAST_NON_NULL_FUNCTION_ARGUMENT,
                 quote! { #ident },
-                ctx
-            ),
-            Ty::IPowModulo => extract_object(
-                extract_error_mode,
-                holders,
-                arg,
-                REF_FROM_PTR,
-                CAST_FUNCTION_ARGUMENT,
-                quote! { #ident.as_ptr() },
                 ctx
             ),
             Ty::CompareOp => extract_error_mode.handle_error(
@@ -1200,7 +1189,7 @@ fn extract_object(
 
         quote! {
             #pyo3_path::impl_::extract_argument::from_py_with(
-                unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },
+                unsafe { #pyo3_path::Bound::#ref_from_method(py, &#source_ptr) },
                 #name,
                 #extractor,
             )
@@ -1317,8 +1306,8 @@ impl SlotDef {
                 SlotCallingConvention::FixedArguments(&[Ty::PyBuffer]),
                 Ty::Void,
             ),
-            b"ipowfunc" => (
-                SlotCallingConvention::FixedArguments(&[Ty::Object, Ty::IPowModulo]),
+            b"ternaryfunc" => (
+                SlotCallingConvention::FixedArguments(&[Ty::Object, Ty::Object]),
                 Ty::Object,
             ),
             _ => panic!("don't know calling convention for func_ty"),

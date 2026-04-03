@@ -1,5 +1,7 @@
 use std::{ffi::CStr, process::exit};
 
+use pyo3_ffi_check_definitions::{bindgen as bindings, pyo3_ffi};
+
 fn main() {
     println!(
         "comparing pyo3-ffi against headers generated for {}",
@@ -74,18 +76,4 @@ fn main() {
     } else {
         exit(0);
     }
-}
-
-#[allow(
-    non_snake_case,
-    non_camel_case_types,
-    non_upper_case_globals,
-    dead_code,
-    improper_ctypes,
-    clippy::all,
-    // clippy fails with lots of errors if this is not set specifically
-    clippy::used_underscore_binding
-)]
-mod bindings {
-    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }

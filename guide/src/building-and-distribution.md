@@ -2,7 +2,7 @@
 
 This chapter of the guide goes into detail on how to build and distribute projects using PyO3.
 The way to achieve this is very different depending on whether the project is a Python module implemented in Rust, or a Rust binary embedding Python.
-For both types of project there are also common problems such as the Python version to build for and the [linker](https://en.wikipedia.org/wiki/Linker_(computing)) arguments to use.
+For both types of project there are also common problems such as the Python version to build for and the [linker](<https://en.wikipedia.org/wiki/Linker_(computing)>) arguments to use.
 
 The material in this chapter is intended for users who have already read the PyO3 [README](./index.md).
 It covers in turn the choices that can be made for Python modules and for Rust binaries.
@@ -19,7 +19,7 @@ By default it will attempt to use the following in order:
 - The `python` executable (if it's a Python 3 interpreter).
 - The `python3` executable.
 
-You can override the Python interpreter by setting the `PYO3_PYTHON` environment variable, e.g. `PYO3_PYTHON=python3.7`, `PYO3_PYTHON=/usr/bin/python3.9`, or even a PyPy interpreter `PYO3_PYTHON=pypy3`.
+You can override the Python interpreter by setting the `PYO3_PYTHON` environment variable, e.g. `PYO3_PYTHON=python3.8`, `PYO3_PYTHON=/usr/bin/python3.9`, or even a PyPy interpreter `PYO3_PYTHON=pypy3`.
 
 Once the Python interpreter is located, `pyo3-build-config` executes it to query the information in the `sysconfig` module which is needed to configure the rest of the compilation.
 
@@ -86,7 +86,7 @@ The PyO3 ecosystem has two main choices to abstract the process of developing Py
 
 - [`maturin`] is a command-line tool to build, package and upload Python modules.
   It makes opinionated choices about project layout meaning it needs very little configuration.
-  This makes it a great choice for users who are building a Python extension from scratch and don't need flexibility.
+  This makes it a great choice for users who are building a Python extension module from scratch and don't need flexibility.
 - [`setuptools-rust`] is an add-on for `setuptools` which adds extra keyword arguments to the `setup.py` configuration file.
   It requires more configuration than `maturin`, however this gives additional flexibility for users adding Rust to an existing Python package that can't satisfy `maturin`'s constraints.
 
@@ -97,7 +97,7 @@ There are also [`maturin-starter`] and [`setuptools-rust-starter`] examples in t
 
 ### Manual builds
 
-To build a PyO3-based Python extension manually, start by running `cargo build` as normal in a library project with the [`cdylib` crate type](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field) while the `PYO3_BUILD_EXTENSION_MODULE` environment variable is set.
+To build a PyO3-based Python extension module manually, start by running `cargo build` as normal in a library project with the [`cdylib` crate type](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field) while the `PYO3_BUILD_EXTENSION_MODULE` environment variable is set.
 
 Once built, symlink (or copy) and rename the shared library from Cargo's `target/` directory to your desired output directory:
 
@@ -109,7 +109,7 @@ You can then open a Python shell in the output directory and you'll be able to r
 
 If you're packaging your library for redistribution, you should indicate the Python interpreter your library is compiled for by including the [platform tag](#platform-tags) in its name.
 This prevents incompatible interpreters from trying to import your library.
-If you're compiling for PyPy you *must* include the platform tag, or PyPy will ignore the module.
+If you're compiling for PyPy you _must_ include the platform tag, or PyPy will ignore the module.
 
 #### Bazel builds
 
@@ -199,7 +199,7 @@ Finally, don't forget that on MacOS the `extension-module` feature will cause `c
 
 By default PyO3 links to `libpython`.
 This makes binaries, tests, and examples "just work".
-However, Python extensions on Unix must not link to libpython for [manylinux](https://www.python.org/dev/peps/pep-0513/) compliance.
+However, Python extension modules on Unix must not link to libpython for [manylinux](https://www.python.org/dev/peps/pep-0513/) compliance.
 
 The downside of not linking to `libpython` is that binaries, tests, and examples (which usually embed Python) will fail to build.
 As a result, PyO3 uses an envionment variable `PYO3_BUILD_EXTENSION_MODULE` to disable linking to `libpython`.
@@ -245,22 +245,22 @@ There are three steps involved in making use of `abi3` when building Python pack
 
 #### Minimum Python version for `abi3`
 
-Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py37`, `abi3-py38`, `abi3-py39` etc. to set the minimum required Python version for your `abi3` wheel.
-For example, if you set the `abi3-py37` feature, your extension wheel can be used on all Python 3 versions from Python 3.7 and up.
-`maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp37-abi3-manylinux2020_x86_64.whl`.
+Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py38`, `abi3-py39`, `abi3-py310` etc. to set the minimum required Python version for your `abi3` wheel.
+For example, if you set the `abi3-py38` feature, your wheel can be used on all Python 3 versions from Python 3.8 and up.
+`maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp38-abi3-manylinux2020_x86_64.whl`.
 
 As your extension module may be run with multiple different Python versions you may occasionally find you need to check the Python version at runtime to customize behavior.
 See [the relevant section of this guide](./building-and-distribution/multiple-python-versions.md#checking-the-python-version-at-runtime) on supporting multiple Python versions at runtime.
 
 PyO3 is only able to link your extension module to abi3 version up to and including your host Python version.
-E.g., if you set `abi3-py38` and try to compile the crate with a host of Python 3.7, the build will fail.
+E.g., if you set `abi3-py39` and try to compile the crate with a host of Python 3.8, the build will fail.
 
 > [!NOTE]
-> If you set more that one of these `abi3` version feature flags the lowest version always wins. For example, with both `abi3-py37` and `abi3-py38` set, PyO3 would build a wheel which supports Python 3.7 and up.
+> If you set more that one of these `abi3` version feature flags the lowest version always wins. For example, with both `abi3-py38` and `abi3-py39` set, PyO3 would build a wheel which supports Python 3.8 and up.
 
-#### Building `abi3` extensions without a Python interpreter
+#### Building `abi3` extension modules without a Python interpreter
 
-As an advanced feature, you can build PyO3 wheel without calling Python interpreter with the environment variable `PYO3_NO_PYTHON` set.
+As an advanced feature, you can build a PyO3 wheel without calling Python interpreter with the environment variable `PYO3_NO_PYTHON` set.
 Also, if the build host Python interpreter is not found or is too old or otherwise unusable, PyO3 will still attempt to compile `abi3` extension modules after displaying a warning message.
 
 #### Missing features
@@ -321,17 +321,17 @@ The known complications are:
 - To import compiled extension modules (such as other Rust extension modules, or those written in C), your binary must have the correct linker flags set during compilation to export the original contents of `libpython.a` so that extensions can use them (e.g. `-Wl,--export-dynamic`).
 - The C compiler and flags which were used to create `libpython.a` must be compatible with your Rust compiler and flags, else you will experience compilation failures.
 
-    Significantly different compiler versions may see errors like this:
+  Significantly different compiler versions may see errors like this:
 
-    ```text
-    lto1: fatal error: bytecode stream in file 'rust-numpy/target/release/deps/libpyo3-6a7fb2ed970dbf26.rlib' generated with LTO version 6.0 instead of the expected 6.2
-    ```
+  ```text
+  lto1: fatal error: bytecode stream in file 'rust-numpy/target/release/deps/libpyo3-6a7fb2ed970dbf26.rlib' generated with LTO version 6.0 instead of the expected 6.2
+  ```
 
-    Mismatching flags may lead to errors like this:
+  Mismatching flags may lead to errors like this:
 
-    ```text
-    /usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libpython3.9.a(zlibmodule.o): relocation R_X86_64_32 against `.data' can not be used when making a PIE object; recompile with -fPIE
-    ```
+  ```text
+  /usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libpython3.9.a(zlibmodule.o): relocation R_X86_64_32 against `.data' can not be used when making a PIE object; recompile with -fPIE
+  ```
 
 If you encounter these or other complications when linking the interpreter statically, discuss them on [issue 416 on PyO3's GitHub](https://github.com/PyO3/pyo3/issues/416).
 It is hoped that eventually that discussion will contain enough information and solutions that PyO3 can offer first-class support for static embedding.

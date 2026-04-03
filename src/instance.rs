@@ -466,10 +466,8 @@ impl<'py> Bound<'py, PyAny> {
     ///   be either a borrowed reference or an owned reference, it does not matter, as this is
     ///   just `&Bound` there will never be any ownership transfer.
     #[inline]
-    pub(crate) unsafe fn ref_from_ptr<'a>(
-        _py: Python<'py>,
-        ptr: &'a *mut ffi::PyObject,
-    ) -> &'a Self {
+    #[doc(hidden)]
+    pub unsafe fn ref_from_ptr<'a>(_py: Python<'py>, ptr: &'a *mut ffi::PyObject) -> &'a Self {
         let ptr = NonNull::from(ptr).cast();
         // SAFETY: caller has upheld the safety contract,
         // and `Bound<PyAny>` is layout-compatible with `*mut ffi::PyObject`.
@@ -501,7 +499,8 @@ impl<'py> Bound<'py, PyAny> {
     /// - `ptr` must be a valid pointer to a Python object for the lifetime `'a`. The `ptr` can be
     ///   either a borrowed reference or an owned reference, it does not matter, as this is just
     ///   `&Bound` there will never be any ownership transfer.
-    pub(crate) unsafe fn ref_from_non_null<'a>(
+    #[doc(hidden)]
+    pub unsafe fn ref_from_non_null<'a>(
         _py: Python<'py>,
         ptr: &'a NonNull<ffi::PyObject>,
     ) -> &'a Self {
@@ -2188,6 +2187,18 @@ impl<T> std::convert::From<Bound<'_, T>> for Py<T> {
     }
 }
 
+impl<'py, T> From<&Bound<'py, T>> for Bound<'py, T> {
+    fn from(value: &Bound<'py, T>) -> Self {
+        value.clone()
+    }
+}
+
+impl<T> From<&Bound<'_, T>> for Py<T> {
+    fn from(value: &Bound<'_, T>) -> Self {
+        value.clone().unbind()
+    }
+}
+
 impl<T> std::convert::From<Borrowed<'_, '_, T>> for Py<T> {
     fn from(value: Borrowed<'_, '_, T>) -> Self {
         value.unbind()
@@ -2489,10 +2500,10 @@ fn panic_on_null(py: Python<'_>) -> ! {
 #[cfg(test)]
 mod tests {
     use super::{Bound, IntoPyObject, Py};
-    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
+    #[cfg(all(feature = "macros", panic = "unwind"))]
     use crate::exceptions::PyValueError;
     use crate::test_utils::generate_unique_module_name;
-    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
+    #[cfg(all(feature = "macros", panic = "unwind"))]
     use crate::test_utils::UnraisableCapture;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, IntoPyObjectExt, PyAny, PyResult, Python};
@@ -2753,10 +2764,10 @@ a = A()
                 method: impl FnOnce(*mut ffi::PyObject) -> Bound<'py, PyAny>,
             ) {
                 let mut dropped = false;
-                let capsule = PyCapsule::new_with_destructor(
+                let capsule = PyCapsule::new_with_value_and_destructor(
                     py,
                     (&mut dropped) as *mut _ as usize,
-                    None,
+                    c"bound_from_borrowed_ptr_constructors",
                     |ptr, _| unsafe { std::ptr::write(ptr as *mut bool, true) },
                 )
                 .unwrap();
@@ -2795,10 +2806,10 @@ a = A()
                 method: impl FnOnce(&*mut ffi::PyObject) -> Borrowed<'_, 'py, PyAny>,
             ) {
                 let mut dropped = false;
-                let capsule = PyCapsule::new_with_destructor(
+                let capsule = PyCapsule::new_with_value_and_destructor(
                     py,
                     (&mut dropped) as *mut _ as usize,
-                    None,
+                    c"borrowed_ptr_constructors",
                     |ptr, _| unsafe { std::ptr::write(ptr as *mut bool, true) },
                 )
                 .unwrap();
@@ -2850,7 +2861,7 @@ a = A()
         });
     }
 
-    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
+    #[cfg(all(feature = "macros", panic = "unwind"))]
     #[test]
     fn test_constructors_panic_on_null() {
         Python::attach(|py| {

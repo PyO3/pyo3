@@ -18,8 +18,8 @@ PyO3 itself depends on this crate, so by using it you can be sure that you are c
 This allows us to write code like the following
 
 ```rust,ignore
-#[cfg(Py_3_7)]
-fn function_only_supported_on_python_3_7_and_up() {}
+#[cfg(Py_3_8)]
+fn function_only_supported_on_python_3_8_and_up() {}
 
 #[cfg(not(Py_3_8))]
 fn function_only_supported_before_python_3_8() {}
@@ -60,17 +60,17 @@ The `#[cfg]` flags added by `pyo3-build-cfg` can be combined with all of Rust's 
 The following are some common patterns implemented using these flags:
 
 ```text
-#[cfg(Py_3_7)]
+#[cfg(Py_3_8)]
 ```
 
-This `#[cfg]` marks code that will only be present on Python 3.7 and upwards.
-There are similar options `Py_3_8`, `Py_3_9`, `Py_3_10` and so on for each minor version.
+This `#[cfg]` marks code that will only be present on Python 3.8 and upwards.
+There are similar options `Py_3_9`, `Py_3_10`, `Py_3_11` and so on for each minor version.
 
 ```text
-#[cfg(not(Py_3_7))]
+#[cfg(not(Py_3_8))]
 ```
 
-This `#[cfg]` marks code that will only be present on Python versions before (but not including) Python 3.7.
+This `#[cfg]` marks code that will only be present on Python versions before (but not including) Python 3.8.
 
 ```text
 #[cfg(not(Py_LIMITED_API))]
@@ -96,9 +96,9 @@ This `#[cfg]` marks code which is running on PyPy.
 
 When building with PyO3's `abi3` feature, your extension module will be compiled against a specific [minimum version](../building-and-distribution.md#minimum-python-version-for-abi3) of Python, but may be running on newer Python versions.
 
-For example with PyO3's `abi3-py38` feature, your extension will be compiled as if it were for Python 3.8.
+For example with PyO3's `abi3-py38` feature, your extension module will be compiled as if it were for Python 3.8.
 If you were using `pyo3-build-config`, `#[cfg(Py_3_8)]` would be present.
-Your user could freely install and run your abi3 extension on Python 3.9.
+Your user could freely install and run your abi3 extension module on Python 3.9.
 
 There's no way to detect your user doing that at compile time, so instead you need to fall back to runtime checks.
 
@@ -109,9 +109,9 @@ This allows you to do the following, for example:
 use pyo3::Python;
 
 Python::attach(|py| {
-    // PyO3 supports Python 3.7 and up.
-    assert!(py.version_info() >= (3, 7));
-    assert!(py.version_info() >= (3, 7, 0));
+    // PyO3 supports Python 3.8 and up.
+    assert!(py.version_info() >= (3, 8));
+    assert!(py.version_info() >= (3, 8, 0));
 });
 ```
 

@@ -506,6 +506,14 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, T> {
     }
 }
 
+impl<'py, T: PyClass> TryFrom<&Bound<'py, T>> for PyRef<'py, T> {
+    type Error = PyBorrowError;
+    #[inline]
+    fn try_from(value: &Bound<'py, T>) -> Result<Self, Self::Error> {
+        PyRef::try_borrow(value)
+    }
+}
+
 /// A wrapper type for a mutably borrowed value from a [`Bound<'py, T>`].
 ///
 /// See the [module-level documentation](self) for more information.
@@ -682,6 +690,14 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &'a PyRefMut<'py
 impl<T: PyClass<Frozen = False> + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.deref(), f)
+    }
+}
+
+impl<'py, T: PyClass<Frozen = False>> TryFrom<&Bound<'py, T>> for PyRefMut<'py, T> {
+    type Error = PyBorrowMutError;
+    #[inline]
+    fn try_from(value: &Bound<'py, T>) -> Result<Self, Self::Error> {
+        PyRefMut::try_borrow(value)
     }
 }
 

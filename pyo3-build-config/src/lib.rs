@@ -33,7 +33,7 @@ use target_lexicon::OperatingSystem;
 ///
 /// | Flag | Description |
 /// | ---- | ----------- |
-/// | `#[cfg(Py_3_7)]`, `#[cfg(Py_3_8)]`, `#[cfg(Py_3_9)]`, `#[cfg(Py_3_10)]` | These attributes mark code only for a given Python version and up. For example, `#[cfg(Py_3_7)]` marks code which can run on Python 3.7 **and newer**. |
+/// | `#[cfg(Py_3_8)]`, `#[cfg(Py_3_9)]`, `#[cfg(Py_3_10)]`, `#[cfg(Py_3_11)]`, ... | These attributes mark code only for a given Python version and up. For example, `#[cfg(Py_3_8)]` marks code which can run on Python 3.8 **and newer**. There is one attribute for each Python version currently supported by PyO3. |
 /// | `#[cfg(Py_LIMITED_API)]` | This marks code which is run when compiling with PyO3's `abi3` feature enabled. |
 /// | `#[cfg(Py_GIL_DISABLED)]` | This marks code which is run on the free-threaded interpreter. |
 /// | `#[cfg(PyPy)]` | This marks code which is run when compiling for PyPy. |

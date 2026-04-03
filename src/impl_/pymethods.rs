@@ -5,13 +5,8 @@ use crate::impl_::pycell::PyClassObjectBaseLayout;
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
 use crate::internal::state::ForbidAttaching;
 use crate::pycell::impl_::{PyClassBorrowChecker as _, PyClassObjectLayout};
-use crate::pycell::{PyBorrowError, PyBorrowMutError};
-use crate::pyclass::boolean_struct::False;
 use crate::types::PyType;
-use crate::{
-    ffi, Bound, CastError, Py, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr, PyRef,
-    PyRefMut, PyResult, PyTraverseError, PyTypeCheck, PyVisit, Python,
-};
+use crate::{ffi, Bound, Py, PyAny, PyClass, PyErr, PyResult, PyTraverseError, PyVisit, Python};
 use std::ffi::CStr;
 use std::ffi::{c_int, c_void};
 use std::fmt;
@@ -22,39 +17,6 @@ use std::ptr::{null_mut, NonNull};
 use super::pyclass::PyClassImpl;
 use super::trampoline;
 use crate::internal_tricks::{clear_eq, traverse_eq};
-
-/// Python 3.8 and up - __ipow__ has modulo argument correctly populated.
-#[cfg(Py_3_8)]
-#[repr(transparent)]
-pub struct IPowModulo(*mut ffi::PyObject);
-
-/// Python 3.7 and older - __ipow__ does not have modulo argument correctly populated.
-#[cfg(not(Py_3_8))]
-#[repr(transparent)]
-pub struct IPowModulo(#[allow(dead_code)] std::mem::MaybeUninit<*mut ffi::PyObject>);
-
-/// Helper to use as pymethod ffi definition
-#[allow(non_camel_case_types)]
-pub type ipowfunc = unsafe extern "C" fn(
-    arg1: *mut ffi::PyObject,
-    arg2: *mut ffi::PyObject,
-    arg3: IPowModulo,
-) -> *mut ffi::PyObject;
-
-impl IPowModulo {
-    #[cfg(Py_3_8)]
-    #[inline]
-    pub fn as_ptr(self) -> *mut ffi::PyObject {
-        self.0
-    }
-
-    #[cfg(not(Py_3_8))]
-    #[inline]
-    pub fn as_ptr(self) -> *mut ffi::PyObject {
-        // Safety: returning a borrowed pointer to Python `None` singleton
-        unsafe { ffi::Py_None() }
-    }
-}
 
 /// `PyMethodDefType` represents different types of Python callable objects.
 /// It is used by the `#[pymethods]` attribute.
@@ -724,101 +686,6 @@ pub trait AsyncIterResultOptionKind {
 }
 
 impl<Value, Error> AsyncIterResultOptionKind for Result<Option<Value>, Error> {}
-
-/// Used in `#[classmethod]` to pass the class object to the method
-/// and also in `#[pyfunction(pass_module)]`.
-///
-/// This is a wrapper to avoid implementing `From<Bound>` for GIL Refs.
-///
-/// Once the GIL Ref API is fully removed, it should be possible to simplify
-/// this to just `&'a Bound<'py, T>` and `From` implementations.
-pub struct BoundRef<'a, 'py, T>(pub &'a Bound<'py, T>);
-
-impl<'a, 'py> BoundRef<'a, 'py, PyAny> {
-    pub unsafe fn ref_from_ptr(py: Python<'py>, ptr: &'a *mut ffi::PyObject) -> Self {
-        unsafe { BoundRef(Bound::ref_from_ptr(py, ptr)) }
-    }
-
-    pub unsafe fn ref_from_ptr_or_opt(
-        py: Python<'py>,
-        ptr: &'a *mut ffi::PyObject,
-    ) -> Option<Self> {
-        unsafe { Bound::ref_from_ptr_or_opt(py, ptr).as_ref().map(BoundRef) }
-    }
-
-    pub unsafe fn ref_from_non_null(py: Python<'py>, ptr: &'a NonNull<ffi::PyObject>) -> Self {
-        unsafe { Self(Bound::ref_from_non_null(py, ptr)) }
-    }
-
-    pub fn cast<T: PyTypeCheck>(self) -> Result<BoundRef<'a, 'py, T>, CastError<'a, 'py>> {
-        self.0.cast::<T>().map(BoundRef)
-    }
-
-    pub unsafe fn cast_unchecked<T>(self) -> BoundRef<'a, 'py, T> {
-        unsafe { BoundRef(self.0.cast_unchecked::<T>()) }
-    }
-}
-
-impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyClassGuard<'a, T> {
-    type Error = PyBorrowError;
-    #[inline]
-    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
-        PyClassGuard::try_borrow(value.0.as_unbound())
-    }
-}
-
-impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<BoundRef<'a, 'py, T>> for PyClassGuardMut<'a, T> {
-    type Error = PyBorrowMutError;
-    #[inline]
-    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
-        PyClassGuardMut::try_borrow_mut(value.0.as_unbound())
-    }
-}
-
-impl<'a, 'py, T: PyClass> TryFrom<BoundRef<'a, 'py, T>> for PyRef<'py, T> {
-    type Error = PyBorrowError;
-    #[inline]
-    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
-        PyRef::try_borrow(value.0)
-    }
-}
-
-impl<'a, 'py, T: PyClass<Frozen = False>> TryFrom<BoundRef<'a, 'py, T>> for PyRefMut<'py, T> {
-    type Error = PyBorrowMutError;
-    #[inline]
-    fn try_from(value: BoundRef<'a, 'py, T>) -> Result<Self, Self::Error> {
-        PyRefMut::try_borrow(value.0)
-    }
-}
-
-impl<'a, 'py, T> From<BoundRef<'a, 'py, T>> for Bound<'py, T> {
-    #[inline]
-    fn from(bound: BoundRef<'a, 'py, T>) -> Self {
-        bound.0.clone()
-    }
-}
-
-impl<'a, 'py, T> From<BoundRef<'a, 'py, T>> for &'a Bound<'py, T> {
-    #[inline]
-    fn from(bound: BoundRef<'a, 'py, T>) -> Self {
-        bound.0
-    }
-}
-
-impl<T> From<BoundRef<'_, '_, T>> for Py<T> {
-    #[inline]
-    fn from(bound: BoundRef<'_, '_, T>) -> Self {
-        bound.0.clone().unbind()
-    }
-}
-
-impl<'py, T> std::ops::Deref for BoundRef<'_, 'py, T> {
-    type Target = Bound<'py, T>;
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        self.0
-    }
-}
 
 pub unsafe fn tp_new_impl<'py, T, const IS_PYCLASS: bool, const IS_INITIALIZER_TUPLE: bool>(
     py: Python<'py>,

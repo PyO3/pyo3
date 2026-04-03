@@ -7,15 +7,15 @@
 /// ```rust
 /// # use pyo3::Python;
 /// Python::attach(|py| {
-///     // PyO3 supports Python 3.7 and up.
-///     assert!(py.version_info() >= (3, 7));
-///     assert!(py.version_info() >= (3, 7, 0));
+///     // PyO3 supports Python 3.8 and up.
+///     assert!(py.version_info() >= (3, 8));
+///     assert!(py.version_info() >= (3, 8, 0));
 /// });
 /// ```
 ///
 /// [`Python::version_info`]: crate::marker::Python::version_info
 #[derive(Debug)]
-pub struct PythonVersionInfo<'a> {
+pub struct PythonVersionInfo {
     /// Python major version (e.g. `3`).
     pub major: u8,
     /// Python minor version (e.g. `11`).
@@ -23,12 +23,14 @@ pub struct PythonVersionInfo<'a> {
     /// Python patch version (e.g. `0`).
     pub patch: u8,
     /// Python version suffix, if applicable (e.g. `a0`).
-    pub suffix: Option<&'a str>,
+    pub suffix: Option<&'static str>,
 }
 
-impl<'a> PythonVersionInfo<'a> {
+impl PythonVersionInfo {
     /// Parses a hard-coded Python interpreter version string (e.g. 3.9.0a4+).
-    pub(crate) fn from_str(version_number_str: &'a str) -> Result<PythonVersionInfo<'a>, &'a str> {
+    pub(crate) fn from_str(
+        version_number_str: &'static str,
+    ) -> Result<PythonVersionInfo, &'static str> {
         fn split_and_parse_number(version_part: &str) -> (u8, Option<&str>) {
             match version_part.find(|c: char| !c.is_ascii_digit()) {
                 None => (version_part.parse().unwrap(), None),
@@ -69,25 +71,25 @@ impl<'a> PythonVersionInfo<'a> {
     }
 }
 
-impl PartialEq<(u8, u8)> for PythonVersionInfo<'_> {
+impl PartialEq<(u8, u8)> for PythonVersionInfo {
     fn eq(&self, other: &(u8, u8)) -> bool {
         self.major == other.0 && self.minor == other.1
     }
 }
 
-impl PartialEq<(u8, u8, u8)> for PythonVersionInfo<'_> {
+impl PartialEq<(u8, u8, u8)> for PythonVersionInfo {
     fn eq(&self, other: &(u8, u8, u8)) -> bool {
         self.major == other.0 && self.minor == other.1 && self.patch == other.2
     }
 }
 
-impl PartialOrd<(u8, u8)> for PythonVersionInfo<'_> {
+impl PartialOrd<(u8, u8)> for PythonVersionInfo {
     fn partial_cmp(&self, other: &(u8, u8)) -> Option<std::cmp::Ordering> {
         (self.major, self.minor).partial_cmp(other)
     }
 }
 
-impl PartialOrd<(u8, u8, u8)> for PythonVersionInfo<'_> {
+impl PartialOrd<(u8, u8, u8)> for PythonVersionInfo {
     fn partial_cmp(&self, other: &(u8, u8, u8)) -> Option<std::cmp::Ordering> {
         (self.major, self.minor, self.patch).partial_cmp(other)
     }
@@ -101,10 +103,6 @@ mod test {
     fn test_python_version_info() {
         Python::attach(|py| {
             let version = py.version_info();
-            #[cfg(Py_3_7)]
-            assert!(version >= (3, 7));
-            #[cfg(Py_3_7)]
-            assert!(version >= (3, 7, 0));
             #[cfg(Py_3_8)]
             assert!(version >= (3, 8));
             #[cfg(Py_3_8)]
@@ -121,6 +119,18 @@ mod test {
             assert!(version >= (3, 11));
             #[cfg(Py_3_11)]
             assert!(version >= (3, 11, 0));
+            #[cfg(Py_3_12)]
+            assert!(version >= (3, 12));
+            #[cfg(Py_3_12)]
+            assert!(version >= (3, 12, 0));
+            #[cfg(Py_3_13)]
+            assert!(version >= (3, 13));
+            #[cfg(Py_3_13)]
+            assert!(version >= (3, 13, 0));
+            #[cfg(Py_3_14)]
+            assert!(version >= (3, 14));
+            #[cfg(Py_3_14)]
+            assert!(version >= (3, 14, 0));
         });
     }
 

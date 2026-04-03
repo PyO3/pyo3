@@ -6,6 +6,7 @@ Before proceeding, we should think about how we want to handle overflows.
 There are three obvious solutions:
 
 - We can have infinite precision just like Python's `int`.
+  <!-- no-glossary-link:wheel -->
   However that would be quite boring - we'd be reinventing the wheel.
 - We can raise exceptions whenever `Number` overflows, but that makes the API painful to use.
 - We can wrap around the boundary of `i32`.

@@ -91,13 +91,13 @@ impl PyCFunction {
             pymethods::PyMethodDef::cfunction_with_keywords(name, run_closure::<F, R>, doc);
         let def = method_def.into_raw();
 
-        let capsule = PyCapsule::new(
+        let capsule = PyCapsule::new_with_value(
             py,
             ClosureDestructor::<F> {
                 closure,
                 def: UnsafeCell::new(def),
             },
-            Some(CLOSURE_CAPSULE_NAME.to_owned()),
+            CLOSURE_CAPSULE_NAME,
         )?;
 
         let data: NonNull<ClosureDestructor<F>> =

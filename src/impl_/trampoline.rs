@@ -14,7 +14,7 @@ use std::{
 use crate::internal::state::AttachGuard;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput, impl_::panic::PanicTrap,
-    impl_::pymethods::IPowModulo, panic::PanicException, types::PyModule, Bound, PyResult, Python,
+    panic::PanicException, types::PyModule, Bound, PyResult, Python,
 };
 
 #[inline]
@@ -281,17 +281,6 @@ pub(crate) unsafe fn dealloc(
         )
     }
 }
-
-// Ipowfunc is a unique case where PyO3 has its own type
-// to workaround a problem on 3.7 (see IPowModulo type definition).
-// Once 3.7 support dropped can just remove this.
-trampoline!(
-    pub fn ipowfunc(
-        arg1: *mut ffi::PyObject,
-        arg2: *mut ffi::PyObject,
-        arg3: IPowModulo,
-    ) -> *mut ffi::PyObject;
-);
 
 /// Implementation of trampoline functions, which sets up an AttachGuard and calls F.
 ///
