@@ -5,7 +5,7 @@ use std::ffi::{c_char, c_int, c_long};
 #[cfg(Py_3_15)]
 pub const Py_MARSHAL_VERSION: c_int = 6;
 
-#[cfg(all(not(Py_3_15), not(Py_LIMITED_API)))]
+#[cfg(not(Py_3_15))]
 pub const Py_MARSHAL_VERSION: c_int = 5;
 
 extern_libpython! {
