@@ -19,6 +19,12 @@ use std::iter::FusedIterator;
 #[cfg(feature = "nightly")]
 use std::num::NonZero;
 
+#[cfg(all(
+    not(any(PyPy, GraalPy)),
+    any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)
+))]
+use libc::size_t;
+
 #[inline]
 #[track_caller]
 fn try_new_from_iter<'py>(
@@ -669,7 +675,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                 ffi::PyObject_VectorcallDict(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
-                    const { $length | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET },
+                    const { with_vectorcall_arguments_offset($length) },
                     kwargs.as_ptr(),
                 )
                 .assume_owned_or_err(py)
@@ -702,7 +708,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                 ffi::PyObject_Vectorcall(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
-                    const { $length | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET },
+                    const { with_vectorcall_arguments_offset($length) },
                     std::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
@@ -719,13 +725,25 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             let py = object.py();
             let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
 
+            #[cfg(not(Py_LIMITED_API))]
+            if $length == 1 {
+                return unsafe {
+                    ffi::PyObject_CallMethodOneArg(
+                       object.as_ptr(),
+                       method_name.as_ptr(),
+                       args_objects.0.as_ptr()
+                    )
+                    .assume_owned_or_err(py)
+                };
+            }
+
             let mut args = [object.as_ptr(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_VectorcallMethod(
                     method_name.as_ptr(),
                     args.as_mut_ptr(),
-                    // +1 for the receiver
-                    const { (1 + $length) | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET },
+                    // +1 for the receiver.
+                    const { with_vectorcall_arguments_offset(1 + $length) },
                     std::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
@@ -783,7 +801,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                 ffi::PyObject_VectorcallDict(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
-                    const { $length | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET },
+                    const { with_vectorcall_arguments_offset($length) },
                     kwargs.as_ptr(),
                 )
                 .assume_owned_or_err(py)
@@ -816,7 +834,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                 ffi::PyObject_Vectorcall(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
-                    const { $length | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET },
+                    const { with_vectorcall_arguments_offset($length) },
                     std::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
@@ -851,7 +869,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                     method_name.as_ptr(),
                     args.as_mut_ptr(),
                     // +1 for the receiver.
-                    const { (1 + $length) | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET },
+                    const { with_vectorcall_arguments_offset(1 + $length) },
                     std::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
@@ -928,6 +946,18 @@ fn array_into_tuple<'py, const N: usize>(
         }
         tup
     }
+}
+
+/// Add `PY_VECTORCALL_ARGUMENTS_OFFSET` to the given number, checking for overflow at compile time.
+///
+/// Guarantees that we don't accidentally overflow a `size_t` should this get changed in the future.
+#[cfg(all(
+    not(any(PyPy, GraalPy)),
+    any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)
+))]
+const fn with_vectorcall_arguments_offset(n: size_t) -> size_t {
+    n.checked_add(ffi::PY_VECTORCALL_ARGUMENTS_OFFSET)
+        .expect("overflow adding PY_VECTORCALL_ARGUMENTS_OFFSET")
 }
 
 tuple_conversion!(1, (ref0, 0, T0));
