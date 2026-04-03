@@ -980,18 +980,14 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        // PyObject_HasAttr suppresses all exceptions, which was the behaviour of `hasattr` in Python 2.
-        // Use an implementation which suppresses only AttributeError, which is consistent with `hasattr` in Python 3.
+        let py = self.py();
         let result = unsafe {
             ffi::compat::PyObject_HasAttrWithError(
                 self.as_ptr(),
-                attr_name
-                    .into_pyobject(self.py())
-                    .map_err(Into::into)?
-                    .as_ptr(),
+                attr_name.into_pyobject(py).map_err(Into::into)?.as_ptr(),
             )
         };
-        error_on_minusone(self.py(), result)?;
+        error_on_minusone(py, result)?;
         Ok(result > 0)
     }
 
@@ -1027,10 +1023,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         match unsafe {
             ffi::compat::PyObject_GetOptionalAttr(
                 self.as_ptr(),
-                attr_name
-                    .into_pyobject(py)
-                    .map_err(Into::into)?
-                    .as_ptr(),
+                attr_name.into_pyobject(py).map_err(Into::into)?.as_ptr(),
                 &mut resp_ptr,
             )
         } {
