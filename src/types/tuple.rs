@@ -2,11 +2,16 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
-use crate::instance::{Borrowed, BoundObject};
+use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
+#[cfg(all(
+    not(any(PyPy, GraalPy)),
+    any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)
+))]
+use crate::BoundObject;
 use crate::{
     exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
@@ -664,7 +669,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                 ffi::PyObject_VectorcallDict(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
-                    $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    const { $length | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET },
                     kwargs.as_ptr(),
                 )
                 .assume_owned_or_err(py)
@@ -697,7 +702,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                 ffi::PyObject_Vectorcall(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
-                    $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    const { $length | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET },
                     std::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
@@ -719,7 +724,8 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                 ffi::PyObject_VectorcallMethod(
                     method_name.as_ptr(),
                     args.as_mut_ptr(),
-                    args.len() | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    // +1 for the receiver
+                    const { (1 + $length) | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET },
                     std::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
@@ -777,7 +783,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                 ffi::PyObject_VectorcallDict(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
-                    $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    const { $length | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET },
                     kwargs.as_ptr(),
                 )
                 .assume_owned_or_err(py)
@@ -810,7 +816,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                 ffi::PyObject_Vectorcall(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
-                    $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    const { $length | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET },
                     std::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
@@ -845,7 +851,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                     method_name.as_ptr(),
                     args.as_mut_ptr(),
                     // +1 for the receiver.
-                    1 + $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    const { (1 + $length) | ffi::PY_VECTORCALL_ARGUMENTS_OFFSET },
                     std::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
