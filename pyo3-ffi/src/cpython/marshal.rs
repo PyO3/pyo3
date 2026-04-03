@@ -16,7 +16,6 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyMarshal_ReadObjectFromString")]
     pub fn PyMarshal_ReadObjectFromString(data: *const c_char, len: Py_ssize_t) -> *mut PyObject;
 
-    #[cfg(not(Py_LIMITED_API))]
     pub fn PyMarshal_WriteLongToFile(value: c_long, file: *mut FILE, version: c_int);
 
     #[cfg(not(Py_LIMITED_API))]
