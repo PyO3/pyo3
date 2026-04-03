@@ -8,9 +8,11 @@
 Some Python extension modules such as NumPy expose a C API which can be consumed by other extension modules to build functionality which directly exchanges native data without needing to go via Python objects.
 This allows for higher performance than continually moving data in and out of Python objects.
 
-It is a common request for PyO3 extension modules to be able to share `#[pyclass]` types (and other native data) across multiple crate/package boundaries in a similar fashion to NumPy. Because PyO3 extension modules are each compiled as individual `cdylib` binaries, they cannot depend on each other in the typical Rust way of adding a Cargo dependency (which typically just includes the dependency statically inside the final compiled binary).
+It is a common request for PyO3 extension modules to be able to share `#[pyclass]` types (and other native data) across multiple crate/package boundaries in a similar fashion to NumPy.
+Because PyO3 extension modules are each compiled as individual `cdylib` binaries, they cannot depend on each other in the typical Rust way of adding a Cargo dependency (which typically just includes the dependency statically inside the final compiled binary).
 
-Instead, the correct way to share `#[pyclass]` data between separate PyO3 extension modules is to use `#[repr(C)]` Rust types and an FFI-like API to exchange data across the `cdylib` boundaries. The solution in this subchapter will explain how to do this correctly.
+Instead, the correct way to share `#[pyclass]` data between separate PyO3 extension modules is to use `#[repr(C)]` Rust types and an FFI-like API to exchange data across the `cdylib` boundaries.
+The solution in this subchapter will explain how to do this correctly.
 
 ## Quick summary
 
@@ -23,7 +25,8 @@ The solution which this subchapter describes shares types across extension modul
       The implementations of the APIs defined in step 1 will delegate to the function pointers in the API struct.
 2. A crate `base-package` which is a PyO3 project containing `#[pyclass]` thin wrappers around the types exposed in `base-package-core`.
    1. Implement the API functionality defined in `base-package-core` and populate the API struct accordingly.
-   2. As part of the Python module, export the API struct inside a Python `capsule` object. The initialisation function defined in `base-package-core` will import this capsule and populate the global static copy of the API struct backing the shared APIs.
+   2. As part of the Python module, export the API struct inside a Python `capsule` object.
+      The initialisation function defined in `base-package-core` will import this capsule and populate the global static copy of the API struct backing the shared APIs.
 
 3. A crate `derived-package` which is a PyO3 project depending on `base-package-core` (not `base-package`).
    1. As part of the Python module, import the API struct from the `capule` exposed by the `base_package` Python package and store it in `derived-package`'s copy of the global static variable defined in `base-package-core`.
@@ -47,7 +50,8 @@ When sharing types between multiple PyO3 extension modules through a `capsule`, 
 - Each Rust extension module may be built with completely separate Rust toolchains and build settings.
   - This means anything which is implementation-defined, such as the layout of `#[repr(Rust)] struct`s, the implementation of `std`, and even optimizations, might disagree between the two extension modules.
 - Each Rust extension module contains a full statically-linked copy of its own dependencies.
-  - Any `static` global variables which are compiled in the `base-package` will have a **completely independent** copy in the `derived-package`. This includes all `std` globals such as the [global allocator] and [panic hook].
+  - Any `static` global variables which are compiled in the `base-package` will have a **completely independent** copy in the `derived-package`.
+    This includes all `std` globals such as the [global allocator] and [panic hook].
   - Any dependency version mismatches might mean that bugs in dependencies of `base-package` may not reproduce in the copy in `derived-package`, (e.g. if the common dependency `base-package-core` depends on `foo` 0.1, it is possible `base-package` will compile with `foo` 0.1.1 and `base-package-core` will compile with `foo` 0.1.2).
 
 Practically speaking, this introduces the following limitations on extension modules wanting to share data in this way:
@@ -57,12 +61,10 @@ Practically speaking, this introduces the following limitations on extension mod
   In particular the default `#[repr(Rust)]` layout has no stability guarantee; _two extension modules sharing a `#[repr(Rust)]` data type is undefined behavior_.
   It is also very easy to accidentally share `#[repr(Rust)]` types, see the [safety note on the `PyCapsule` type documentation]({{#PYO3_DOCS_URL}}/pyo3/types/struct.PyCapsule.html) for cases to consider when sharing data.
 
-  > [!WARNING]
-  > Beware that PyO3's error type, `PyErr`, is not `#[repr(C)]` and cannot be shared across the package boundary
-  > This is an easy mistake to make when exposing fallible APIs which cross the boundary.
-  > There is a [later section on error handling](#error-handling) which suggests alternative strategies
+  > [!WARNING] > Beware that PyO3's error type, `PyErr`, is not `#[repr(C)]` and cannot be shared across the package boundary > This is an easy mistake to make when exposing fallible APIs which cross the boundary. > There is a [later section on error handling](#error-handling) which suggests alternative strategies
 
-- APIs which rely on global variables will not work as expected across the package boundary. For example:
+- APIs which rely on global variables will not work as expected across the package boundary.
+  For example:
   - The `#[global_allocator]` used by each extension will likely be different - each will need to ensure that any allocations are freed by the same allocator.
   - The `std::io` locks (e.g. for `stdout`) will not be shared, so concurrent output from the two extensions may interleave in unexpected ways.
 
@@ -97,8 +99,7 @@ void* PyArray_API[] = {
 };
 ```
 
-To consume this array from downstream C projects, NumPy also defines a C header file
-which uses C macros to define the downstream API in terms of cast indexing into this API structure:
+To consume this array from downstream C projects, NumPy also defines a C header file which uses C macros to define the downstream API in terms of cast indexing into this API structure:
 
 ```C
 static void* PyArray_API[] = NULL;
@@ -122,7 +123,8 @@ We have the choice of either matching NumPy and using an array of opaque pointer
 A typed `struct` helps to avoid mistakes in casting fields to the wrong type incorrectly, however additional care needs to be taken to ensure that the layout of the struct does not change incompatibly across non-breaking versions of the API.
 This is discussed further in [the next section](#api-versioning).
 
-The snippets below sketch out what the NumPy approach looks like in Rust, using either an array of opaque pointers or a typed API struct. In both cases the public API functions are thin wrappers around the function pointers in the API struct, to provide ergonomics similar to the C macros in the NumPy example.
+The snippets below sketch out what the NumPy approach looks like in Rust, using either an array of opaque pointers or a typed API struct.
+In both cases the public API functions are thin wrappers around the function pointers in the API struct, to provide ergonomics similar to the C macros in the NumPy example.
 
 {{#tabs }}
 {{#tab name="Using a pointer array" }}
@@ -239,12 +241,11 @@ The [example project] demonstrates how to do this with Rust.
 ## API versioning
 
 To safely consume the API struct from downstream packages it is first necessary to perform a version check.
-This version check needs to establish that the ABI (Application Binary Interface), i.e. the layout of the API struct,
-matches the expectations of the consumer.
+This version check needs to establish that the ABI (Application Binary Interface), i.e. the layout of the API struct, matches the expectations of the consumer.
 
 This means that the `ApiVersion` type exposed by `base-package` in the example uses four fields: the three `major`, `minor`, and `patch` version fields from semver, plus an additional `abi_version` field which is only incremented for breaking changes to the ABI.
 Having the `abi_version` field allows for consumers potentially be compatible even across semver-breaking versions of the API.
-This means that e.g. `derived-package` compiled with version `0.0.3` of `base-package` could potentially be compatible with `base-package` version `0.0.2` if the API struct layout did not change between these versions, and the `abi_version` field was not incremented. 
+This means that e.g. `derived-package` compiled with version `0.0.3` of `base-package` could potentially be compatible with `base-package` version `0.0.2` if the API struct layout did not change between these versions, and the `abi_version` field was not incremented.
 
 To make the version check straightforward, it is recommended to place the version information at the start of the API struct.
 This allows the consumer to first read the capsule data as an `ApiVersion` structure, and only if the version check passes, reinterpret the rest of the data as the full API struct.
@@ -279,7 +280,7 @@ fn do_import(py: Python<'_>) -> PyResult<BaseApi> {
     //
     // SAFETY: The function to get the version info is the first field in the API struct.
     let capsule_base = unsafe { PyCapsule::import::<extern "C" fn() -> ApiVersion>(py, c"base_package._BASE_API")? };
-    
+
     // Read the version information via the function pointer.
     let versions = (*capsule_base)();
 
@@ -339,25 +340,29 @@ For a type named `SharedType`, the steps to achieve this are as follows:
 2. The `BaseApi` struct defined in the previous sections is extended to include functions to manipulate this struct (these functions will later be provided by `base-package`).
 
    At a minimum, this will probably include:
-  
+
+
    - `get_shared_type: extern "C" fn() -> Py<PyType>` - a function to get the `#[pyclass]` Python type object for `SharedType`.
-  
+
    - `create_shared_type: unsafe extern "C" fn(SharedType) -> Option<Py<SharedType>>` - a function to create a new instance of the `SharedType` struct and return it as a Python object.
-  
-     This function is `unsafe` because the caller must ensure that the thread is attached to the interpreter (`Python<'py>` is a zero-sized type and not FFI-safe).
-  
-     The return type on this function is wrapped in `Option` to allow for failure - see [the error handling section](#error-handling) for more details.
-  
+
+
+   This function is `unsafe` because the caller must ensure that the thread is attached to the interpreter (`Python<'py>` is a zero-sized type and not FFI-safe).
+
+   The return type on this function is wrapped in `Option` to allow for failure - see [the error handling section](#error-handling) for more details.
+
+
    - `cast_shared_type: for<'a> extern "C" fn(Borrowed<'a, '_, SharedType>) -> &'a SharedType` - a function to extract a reference to the `SharedType` Rust struct from inside a Python object.
 
 3. With the API struct extended to include these functions, the `base-package-core` crate can now implement PyO3 traits for `SharedType` in terms of those functions.
-  
+
    The crucial traits are:
 
+
    - `PyTypeInfo` - the `get_type` function can delegate to the `get_shared_type` function pointer in the API struct.
-  
+
    - `IntoPyPyObject` - the `into_pyobject` function can delegate to the `create_shared_type` function pointer in the API struct.
-  
+
    - `FromPyObject<'_>` - the `extract` function can delegate to the `cast_shared_type` function pointer in the API struct.
 
 4. `base-package` implements a `#[pyclass]` which is a thin wrapper around the `SharedType` struct, defining its Python functionality.
@@ -390,7 +395,8 @@ Using vtables introduces overhead (e.g. prevents inlining), however this is a ne
 
 Similar to many other types, PyO3's `PyErr` type is is not currently `#[repr(C)]`, so cannot be shared across the package boundary.
 
-The simplest approach to handling errors across the boundary is to use `Option` return types in the API struct, and to return `None` on error. This is the approach taken in the [example project].
+The simplest approach to handling errors across the boundary is to use `Option` return types in the API struct, and to return `None` on error.
+This is the approach taken in the [example project].
 
 The downside of this approach is that `?` does not trivially work in the implementation of the API functions.
 The suggested strategy is:
