@@ -632,6 +632,7 @@ def build_netlify_site(session: nox.Session):
 
     # Build the internal docs
     docs(session, nightly=True, internal=True)
+    (netlify_build / "internal").mkdir(parents=True, exist_ok=True)
     PYO3_DOCS_TARGET.rename("netlify_build/internal/doc")
 
     _build_netlify_redirects(preview)
@@ -743,6 +744,7 @@ def check_guide(session: nox.Session):
         f"https://docs.rs/pyo3/v{pyo3_version}/": f"file://{PYO3_DOCS_TARGET}/",
         f"https://pyo3.rs/v{pyo3_version}/doc/": f"file://{PYO3_DOCS_TARGET}/",
         f"https://pyo3.rs/v{pyo3_version}": f"file://{PYO3_GUIDE_TARGET}",
+        "https://pyo3.rs/main/doc$": f"file://{PYO3_DOCS_TARGET}/pyo3",
         "https://pyo3.rs/main/doc/": f"file://{PYO3_DOCS_TARGET}/",
         "https://pyo3.rs/main/": f"file://{PYO3_GUIDE_TARGET}/",
         "https://pyo3.rs/latest/doc/": f"file://{PYO3_DOCS_TARGET}/",
@@ -769,39 +771,45 @@ def check_guide(session: nox.Session):
 
     exclude_args = [f"--exclude={arg}" for arg in excludes]
 
-    # check all links in the guide
-    _run(
-        session,
-        "lychee",
-        "--include-fragments",
-        str(PYO3_GUIDE_TARGET),
-        *remap_args,
-        *exclude_args,
-        "--accept=200,429",
-        "--cache",
-        "--max-cache-age=7d",
-        f"--root-dir={PYO3_GUIDE_TARGET}",
-        *session.posargs,
-        external=True,
-    )
-    # check external links in the docs
-    # (intra-doc links are checked by rustdoc)
-    _run(
-        session,
-        "lychee",
-        str(PYO3_DOCS_TARGET),
-        *remap_args,
-        f"--exclude=file://{PYO3_DOCS_TARGET}",
-        # exclude some old http links from copyright notices, known to fail
-        *exclude_args,
-        "--accept=200,429",
-        # reduce the concurrency to avoid rate-limit from `pyo3.rs`
-        "--max-concurrency=32",
-        "--cache",
-        "--max-cache-age=7d",
-        *session.posargs,
-        external=True,
-    )
+    try:
+        # check all links in the guide
+        _run(
+            session,
+            "lychee",
+            "--include-fragments",
+            str(PYO3_GUIDE_TARGET),
+            *remap_args,
+            *exclude_args,
+            "--accept=200,429",
+            "--cache",
+            "--max-cache-age=7d",
+            f"--root-dir={PYO3_GUIDE_TARGET}",
+            *session.posargs,
+            external=True,
+        )
+        # check external links in the docs
+        # (intra-doc links are checked by rustdoc)
+        _run(
+            session,
+            "lychee",
+            str(PYO3_DOCS_TARGET),
+            *remap_args,
+            f"--exclude=file://{PYO3_DOCS_TARGET}",
+            # exclude some old http links from copyright notices, known to fail
+            *exclude_args,
+            "--accept=200,429",
+            # reduce the concurrency to avoid rate-limit from `pyo3.rs`
+            "--max-concurrency=32",
+            "--cache",
+            "--max-cache-age=7d",
+            *session.posargs,
+            external=True,
+        )
+    except nox.command.CommandFailed:
+        # on `main`, we ignore link check failures to allow the site to still be updated on push to main,
+        # we want to run the link checker on main to populate the GitHub actions cache so PRs run more reliably.
+        if os.environ.get("GITHUB_REF", "") != "refs/heads/main":
+            raise
 
 
 @nox.session(name="format-guide", venv_backend="none")
