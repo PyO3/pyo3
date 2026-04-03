@@ -42,6 +42,7 @@ pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t {
 
 extern_libpython! {
     #[cfg(not(Py_LIMITED_API))]
+    #[deprecated(note = "`_PySet_NextEntry` is a CPython-internal API with no stability guarantee; iterate sets using `PyObject_GetIter` / `PyIter_Next` instead")]
     #[cfg_attr(PyPy, link_name = "_PyPySet_NextEntry")]
     pub fn _PySet_NextEntry(
         set: *mut PyObject,
