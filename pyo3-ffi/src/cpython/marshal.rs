@@ -20,7 +20,6 @@ extern_libpython! {
 
     pub fn PyMarshal_WriteObjectToFile(object: *mut PyObject, file: *mut FILE, version: c_int);
 
-    #[cfg(not(Py_LIMITED_API))]
     pub fn PyMarshal_ReadLongFromFile(file: *mut FILE) -> c_long;
 
     #[cfg(not(Py_LIMITED_API))]
