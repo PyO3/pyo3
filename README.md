@@ -282,4 +282,4 @@ Python is licensed under the [Python License](https://docs.python.org/3/license.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in PyO3 by you, as defined in the Apache License, shall be dual-licensed as above, without any additional terms or conditions.
 
-<a href="https://www.netlify.com"> <img src="https://www.netlify.com/v3/img/components/netlify-color-accent.svg" alt="Deploys by Netlify" /> </a>
+[![Deploys by Netlify](https://www.netlify.com/assets/badges/netlify-badge-color-accent.svg)](https://www.netlify.com)
