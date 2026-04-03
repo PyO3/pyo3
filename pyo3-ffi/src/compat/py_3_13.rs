@@ -130,3 +130,34 @@ compat_function!(
         crate::_PyThreadState_UncheckedGet()
     }
 );
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyObject_HasAttrWithError(obj: *mut crate::PyObject, attr_name: *mut crate::PyObject) -> std::ffi::c_int {
+        let mut res: *mut crate::PyObject = std::ptr::null_mut();
+        let rc = crate::compat::PyObject_GetOptionalAttr(obj, attr_name, &mut res);
+        crate::Py_XDECREF(res);
+        rc
+    }
+);
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyObject_GetOptionalAttr(obj: *mut crate::PyObject, attr_name: *mut crate::PyObject, result: *mut *mut crate::PyObject,) -> std::ffi::c_int {
+        *result = crate::PyObject_GetAttr(obj, attr_name);
+        if !(*result).is_null() {
+            1
+        } else if crate::PyErr_Occurred().is_null() {
+            0
+        } else if crate::PyErr_ExceptionMatches(crate::PyExc_AttributeError) > 0 {
+            crate::PyErr_Clear();
+            0
+        } else {
+            -1
+        }
+    }
+);
