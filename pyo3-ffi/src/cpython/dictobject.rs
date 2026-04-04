@@ -6,7 +6,7 @@ use crate::pyport::Py_ssize_t;
 #[cfg(all(not(PyPy), Py_3_13))]
 use std::ffi::c_char;
 #[cfg(all(not(PyPy), Py_3_12))]
-use std::fii::c_int;
+use std::ffi::c_int;
 
 #[cfg(not(PyPy))]
 opaque_struct!(pub PyDictKeysObject);
