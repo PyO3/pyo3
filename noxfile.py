@@ -1501,7 +1501,7 @@ def _get_feature_sets() -> Tuple[Optional[str], ...]:
     if is_rust_nightly():
         features += ",nightly"
 
-    return (None, "abi3", features, f"abi3,{features}")
+    return (None, "abi3", "macros", "abi3,macros", features, f"abi3,{features}")
 
 
 _RELEASE_LINE_START = "release: "
