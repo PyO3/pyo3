@@ -55,7 +55,7 @@ extern_libpython! {
         result: *mut *mut PyObject,
     ) -> c_int;
     #[cfg(Py_3_13)]
-    pub fn PyDict_ContainsString(mp: *mut PyObject, key: *const char) -> c_int;
+    pub fn PyDict_ContainsString(mp: *mut PyObject, key: *const c_char) -> c_int;
     #[cfg(Py_3_13)]
     pub fn PyDict_Pop(dict: *mut PyObject, key: *mut PyObject, result: *mut *mut PyObject)
         -> c_int;
