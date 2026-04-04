@@ -3,7 +3,7 @@ use crate::object::*;
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::pyport::Py_ssize_t;
 
-use std::ffi::{c_int, c_char};
+use std::ffi::{c_char, c_int};
 
 #[cfg(not(PyPy))]
 opaque_struct!(pub PyDictKeysObject);
@@ -68,7 +68,6 @@ extern_libpython! {
 
 // skipped private _PyDict_NewPresized
 
-
 // skipped private _PyDict_Pop
 
 // skipped PY_FOREACH_DICT_EVENT
@@ -77,4 +76,3 @@ extern_libpython! {
 // skipped PyDict_WatchCallback
 
 // skipped PyDict_AddWatcher
-
