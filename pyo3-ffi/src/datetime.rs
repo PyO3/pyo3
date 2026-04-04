@@ -706,6 +706,8 @@ pub unsafe fn PyDate_FromDate(year: c_int, month: c_int, day: c_int) -> *mut PyO
     ((*PyDateTimeAPI()).Date_FromDate)(year, month, day, (*PyDateTimeAPI()).DateType)
 }
 
+#[allow(clippy::too_many_arguments)]
+/// See <https://github.com/python/cpython/blob/3.10/Include/datetime.h#L226-L228>
 pub unsafe fn PyDateTime_FromDateAndTime(
     year: c_int,
     month: c_int,
@@ -728,6 +730,8 @@ pub unsafe fn PyDateTime_FromDateAndTime(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
+/// See <https://github.com/python/cpython/blob/3.10/Include/datetime.h#L230-L232>
 pub unsafe fn PyDateTime_FromDateAndTimeAndFold(
     year: c_int,
     month: c_int,
