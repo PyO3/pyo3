@@ -702,29 +702,20 @@ pub unsafe fn PyTZInfo_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == (*PyDateTimeAPI()).TZInfoType) as c_int
 }
 
-pub unsafe fn PyTime_FromDate(
-        year: c_int,
-        month: c_int,
-        day: c_int
-    ) -> *mut PyObject {
-    ((*PyDateTimeAPI()).DateTime_FromDate)(
-        year,
-        month,
-        day,
-        ((*PyDateTimeAPI()).DateType
-    )
+pub unsafe fn PyTime_FromDate(year: c_int, month: c_int, day: c_int) -> *mut PyObject {
+    (*PyDateTimeAPI()).DateTime_FromDate(year, month, day, (*PyDateTimeAPI()).DateType)
 }
 
 pub unsafe fn PyDateTime_FromDateAndTime(
-        year: c_int,
-        month: c_int,
-        day: c_int,
-        hour: c_int,
-        minute: c_int,
-        second: c_int,
-        microsecond: c_int
-    ) -> *mut PyObject {
-    ((*PyDateTimeAPI()).DateTime_FromDateAndTime)(
+    year: c_int,
+    month: c_int,
+    day: c_int,
+    hour: c_int,
+    minute: c_int,
+    second: c_int,
+    microsecond: c_int,
+) -> *mut PyObject {
+    (*PyDateTimeAPI()).DateTime_FromDateAndTime(
         year,
         month,
         day,
@@ -733,21 +724,21 @@ pub unsafe fn PyDateTime_FromDateAndTime(
         second,
         microsecond,
         Py_None,
-        ((*PyDateTimeAPI()).DateTimeType
+        (*PyDateTimeAPI()).DateTimeType,
     )
 }
 
 pub unsafe fn PyDateTime_FromDateAndTimeAndFold(
-        year: c_int,
-        month: c_int,
-        day: c_int,
-        hour: c_int,
-        minute: c_int,
-        second: c_int,
-        microsecond: c_int,
-        fold: c_int
-    ) -> *mut PyObject {
-    ((*PyDateTimeAPI()).DateTime_FromDateAndTimeAndFold)(
+    year: c_int,
+    month: c_int,
+    day: c_int,
+    hour: c_int,
+    minute: c_int,
+    second: c_int,
+    microsecond: c_int,
+    fold: c_int,
+) -> *mut PyObject {
+    (*PyDateTimeAPI()).DateTime_FromDateAndTimeAndFold(
         year,
         month,
         day,
@@ -757,56 +748,46 @@ pub unsafe fn PyDateTime_FromDateAndTimeAndFold(
         microsecond,
         Py_None,
         fold,
-        ((*PyDateTimeAPI()).DateTimeType
+        (*PyDateTimeAPI()).DateTimeType,
     )
 }
 
 pub unsafe fn PyTime_FromTime(
-        hour: c_int,
-        minute: c_int,
-        second: c_int,
-        microsecond: c_int
-    ) -> *mut PyObject {
-    ((*PyDateTimeAPI()).Time_FromTime)(
+    hour: c_int,
+    minute: c_int,
+    second: c_int,
+    microsecond: c_int,
+) -> *mut PyObject {
+    (*PyDateTimeAPI()).Time_FromTime(
         hour,
         minute,
         second,
         microsecond,
         Py_None,
-        ((*PyDateTimeAPI()).TimeType
+        (*PyDateTimeAPI()).TimeType,
     )
 }
 
 pub unsafe fn PyTime_FromTimeAndFold(
-        hour: c_int,
-        minute: c_int,
-        second: c_int,
-        microsecond: c_int,
-        fold: c_int
-    ) -> *mut PyObject {
-    ((*PyDateTimeAPI()).Time_FromTimeAndFold)(
+    hour: c_int,
+    minute: c_int,
+    second: c_int,
+    microsecond: c_int,
+    fold: c_int,
+) -> *mut PyObject {
+    (*PyDateTimeAPI()).Time_FromTimeAndFold(
         hour,
         minute,
         second,
         microsecond,
         Py_None,
         fold,
-        ((*PyDateTimeAPI()).TimeType
+        (*PyDateTimeAPI()).TimeType,
     )
 }
 
-pub unsafe fn PyDelta_FromDSU(
-    days: c_int,
-    seconds: c_int,
-    microseconds: c_int
-) -> *mut PyObject {
-    ((*PyDateTimeAPI()).Delta_FromDelta)(
-        days
-        seconds,
-        microsecond,
-        1,
-        ((*PyDateTimeAPI()).DeltaType
-    )
+pub unsafe fn PyDelta_FromDSU(days: c_int, seconds: c_int, microseconds: c_int) -> *mut PyObject {
+    (*PyDateTimeAPI()).Delta_FromDelta(days, seconds, microsecond, 1, (*PyDateTimeAPI()).DeltaType)
 }
 
 pub unsafe fn PyTimeZone_FromOffset(offset: *mut PyObject) -> *mut PyObject {
