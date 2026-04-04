@@ -43,7 +43,7 @@ pub struct PyDictObject {
 
 extern_libpython! {
     pub fn PyDict_SetDefault(mp: *mut PyObject, key: *mut PyObject, default_obj: *mut PyObject) -> *mut PyObject;
-    #[cfg(all(Py_3_13, not(Py_3_15))]
+    #[cfg(all(Py_3_13, not(Py_3_15)))]
     pub fn PyDict_SetDefaultRef(mp: *mut PyObject, key: *mut PyObject, default_obj: *mut PyObject, result: **mut PyObject) -> c_int;
     #[cfg(Py_3_13)]
     pub fn PyDict_ContainsString(mp: *mut PyObject, key: *const char) -> c_int;
@@ -53,9 +53,9 @@ extern_libpython! {
     pub fn PyDict_PopString(dict: *mut PyObject, key: *const c_char, result: **mut PyObject) -> c_int;
     #[cfg(Py_3_12)]
     pub fn PyDict_ClearWatcher(watcher_id: c_int) -> c_int;
-    #[cfg(Py_3_12]
+    #[cfg(Py_3_12)]
     pub fn PyDict_Watch(watcher_id: c_int, dict: *mut PyObject) -> c_int;
-    #[cfg(Py_3_12]
+    #[cfg(Py_3_12)]
     pub fn PyDict_Unwatch(watcher_id: c_int, dict: *mut PyObject) -> c_int;
     #[cfg(Py_3_15)]
     pub fn PyFrozenDict_New(iterable: *mut PyObject) -> *mut PyObject;
