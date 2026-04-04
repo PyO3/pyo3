@@ -77,17 +77,6 @@ fn with_typed_args(a: bool, b: u64, c: f64, d: &str) -> (bool, u64, f64, &str) {
     (a, b, c, d)
 }
 
-#[cfg(feature = "experimental-inspect")]
-#[pyfunction(signature = (a: "int", *_args: "str", _b: "int | None" = None, **_kwargs: "bool") -> "int")]
-fn with_custom_type_annotations<'py>(
-    a: Any<'py>,
-    _args: Tuple<'py>,
-    _b: Option<Any<'py>>,
-    _kwargs: Option<Dict<'py>>,
-) -> Any<'py> {
-    a
-}
-
 #[cfg(feature = "experimental-async")]
 #[pyfunction]
 async fn with_async() {}
@@ -143,9 +132,6 @@ pub mod pyfunctions {
     #[cfg(feature = "experimental-async")]
     #[pymodule_export]
     use super::with_async;
-    #[cfg(feature = "experimental-inspect")]
-    #[pymodule_export]
-    use super::with_custom_type_annotations;
     #[pymodule_export]
     use super::{
         args_kwargs, many_keyword_arguments, none, positional_only, simple, simple_args,
