@@ -19,7 +19,7 @@ pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
 
 extern_libpython! {
     #[cfg(any(Py_3_15), not(Py_LIMITED_API))]
-    pub fn PyDict_SetDefaultRef(mp: *mut PyObject, key: *mut PyObject, default_obj: *mut PyObject, result: **mut PyObject) -> c_int;
+    pub fn PyDict_SetDefaultRef(mp: *mut PyObject, key: *mut PyObject, default_obj: *mut PyObject, result: *mut *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_New")]
     pub fn PyDict_New() -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDict_GetItem")]
