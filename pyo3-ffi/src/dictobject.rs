@@ -18,7 +18,7 @@ pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 extern_libpython! {
-    #[cfg(any(Py_3_15, not(Py_LIMITED_API)))]
+    #[cfg(all(Py_3_15, not(Py_LIMITED_API)))]
     pub fn PyDict_SetDefaultRef(
         mp: *mut PyObject,
         key: *mut PyObject,
