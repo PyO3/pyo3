@@ -246,7 +246,7 @@ mod tests {
             macro_rules! check_call {
                 ($args:expr, $kwargs:expr) => {
                     let (a, k): (Py<PyTuple>, Py<PyDict>) = f
-                        .call(args.clone(), Some(kwargs))
+                        .call($args, Some($kwargs))
                         .unwrap()
                         .extract()
                         .unwrap();
@@ -287,7 +287,7 @@ mod tests {
             macro_rules! check_call {
                 ($args:expr, $kwargs:expr) => {
                     let (a, k): (Py<PyTuple>, Py<PyNone>) =
-                        f.call1(args.clone()).unwrap().extract().unwrap();
+                        f.call1($args).unwrap().extract().unwrap();
                     assert!(a.is(&args));
                     assert!(k.is_none(py));
                 };
@@ -307,6 +307,90 @@ mod tests {
 
             // Borrowed<'_, '_, PyTuple>
             check_call!(args.as_borrowed(), kwargs);
+        })
+    }
+
+    #[test]
+    fn test_call_unit_args() {
+        // Exercises ()::call and ()::call_positional — both routes through
+        // into_pyobject_or_pyerr to produce an empty PyTuple.
+        use crate::{
+            types::{IntoPyDict, PyAnyMethods, PyTupleMethods},
+            wrap_pyfunction, Py, Python,
+        };
+        use crate::types::PyDict;
+
+        Python::attach(|py| {
+            let f = wrap_pyfunction!(args_kwargs, py).unwrap();
+            let kwargs = &[("x", 1i32)].into_py_dict(py).unwrap();
+
+            // ()::call — empty positional args dispatched via args.call(…) branch
+            let (a, _k): (Py<PyTuple>, Option<Py<PyDict>>) =
+                f.call((), Some(kwargs)).unwrap().extract().unwrap();
+            assert_eq!(a.bind(py).len(), 0);
+
+            // ()::call_positional — empty positional args dispatched via call1 → args.call_positional(…)
+            let (a, _k): (Py<PyTuple>, Option<Py<PyDict>>) =
+                f.call1(()).unwrap().extract().unwrap();
+            assert_eq!(a.bind(py).len(), 0);
+        })
+    }
+
+    #[test]
+    fn test_call_method_positional_default() {
+        // Exercises the default call_method_positional impl on the PyCallArgs trait
+        // (lines 68–76 of call.rs): getattr + call1.  Reached via call_method1.
+        use crate::{
+            exceptions::PyAttributeError,
+            types::{PyAnyMethods, PyList, PyListMethods, PyTuple},
+            Python,
+        };
+
+        Python::attach(|py| {
+            let list = PyList::new(py, [1i32, 2, 3]).unwrap();
+            let args = PyTuple::new(py, [4i32]).unwrap();
+
+            // Happy path: getattr("append") succeeds, call1 appends the element.
+            list.call_method1("append", args).unwrap();
+            assert_eq!(list.len(), 4);
+            // Verify the value is the integer 4, not a wrapped tuple.
+            assert_eq!(list.get_item(3).unwrap().extract::<i32>().unwrap(), 4i32);
+
+            // Error path: getattr fails → call_method_positional returns Err.
+            let err = list
+                .call_method1("nonexistent_method_xyz", PyTuple::empty(py))
+                .unwrap_err();
+            assert!(err.is_instance_of::<PyAttributeError>(py));
+        })
+    }
+
+    #[test]
+    fn test_call_error_paths() {
+        // Exercises the NULL-return error paths in Borrowed::call and
+        // Borrowed::call_positional when PyObject_Call fails.
+        use crate::{
+            exceptions::PyTypeError,
+            types::{IntoPyDict, PyAnyMethods, PyDict},
+            Python,
+        };
+
+        Python::attach(|py| {
+            // A PyDict is not callable — invoking it raises TypeError.
+            let not_callable = PyDict::new(py).into_any();
+            let args = PyTuple::empty(py);
+            let kwargs = &[("x", 1i32)].into_py_dict(py).unwrap();
+
+            // Borrowed::call error path: kwargs Some → args.call(…) branch →
+            // PyObject_Call(function=dict, …) returns NULL.
+            let err = not_callable
+                .call(args.clone(), Some(kwargs))
+                .unwrap_err();
+            assert!(err.is_instance_of::<PyTypeError>(py));
+
+            // Borrowed::call_positional error path: kwargs None → args.call_positional(…) branch →
+            // PyObject_Call(…, kwargs=null_ptr) returns NULL.
+            let err = not_callable.call(args, None).unwrap_err();
+            assert!(err.is_instance_of::<PyTypeError>(py));
         })
     }
 }
