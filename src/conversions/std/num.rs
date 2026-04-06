@@ -270,7 +270,7 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
             if let Ok(bytes) = obj.cast::<PyBytes>() {
                 Some(BytesSequenceExtractor::Bytes(bytes))
             } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
-                Some(BytesSequenceExtractor::ByteArray(byte_array));
+                Some(BytesSequenceExtractor::ByteArray(byte_array))
             } else {
                 None
             }

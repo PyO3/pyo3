@@ -6,9 +6,9 @@ use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 #[cfg(any(Py_LIMITED_API, PyPy))]
 use crate::types::{PyType, PyTypeMethods};
-use crate::{ffi, Bound, PyAny, PyResult, Python};
 #[cfg(any(Py_LIMITED_API, PyPy))]
-use crate::{Py, PyErr};
+use crate::Py;
+use crate::{ffi, Bound, PyAny, PyErr, PyResult, Python};
 use std::ffi::CStr;
 
 /// Represents a Python code object.

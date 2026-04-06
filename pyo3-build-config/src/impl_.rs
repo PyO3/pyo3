@@ -99,11 +99,11 @@ impl CPythonABI {
             "Cannot simultaneously build for abi3 and abi3t ABIs"
         );
         if abi3 {
-            return Ok(CPythonABI::ABI3);
+            Ok(CPythonABI::ABI3)
         } else if abi3t {
-            return Ok(CPythonABI::ABI3t);
+            Ok(CPythonABI::ABI3t)
         } else {
-            return Ok(CPythonABI::VersionSpecific);
+            Ok(CPythonABI::VersionSpecific)
         }
     }
 }

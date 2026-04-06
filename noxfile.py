@@ -1515,7 +1515,7 @@ def _get_feature_sets() -> Tuple[Optional[str], ...]:
     if is_rust_nightly():
         features += ",nightly"
 
-    if is_free_threaded():
+    if FREE_THREADED_BUILD:
         if sys.version_info >= (3, 15):
             return (None, "abi3t", features, f"abi3t,{features}")
         else:

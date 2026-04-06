@@ -4,8 +4,13 @@
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_union;
+#[cfg(any(
+    feature = "experimental-inspect",
+    not(all(Py_LIMITED_API, Py_GIL_DISABLED))
+))]
+use crate::types::bytearray::PyByteArray;
 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
-use crate::types::bytearray::{PyByteArray, PyByteArrayMethods};
+use crate::types::bytearray::PyByteArrayMethods;
 use crate::{
     types::{bytes::PyBytesMethods, string::PyStringMethods, PyBytes, PyString, PyTuple},
     Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo, Python,
@@ -706,6 +711,7 @@ mod test {
     }
 
     #[cfg(feature = "py-clone")]
+    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     #[test]
     fn test_backed_bytes_from_bytearray_clone() {
         Python::attach(|py| {
@@ -718,8 +724,8 @@ mod test {
         });
     }
 
-    #[test]
     #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+    #[test]
     fn test_backed_bytes_from_bytearray_clone_ref() {
         Python::attach(|py| {
             let b1: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
