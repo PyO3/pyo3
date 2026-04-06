@@ -152,9 +152,7 @@ def test_rust(session: nox.Session):
                 features=feature_set.replace("abi3t", "abi3t-py315"),
                 extra_flags=flags,
             )
-            
-            
-                
+
 
 @nox.session(name="test-py", venv_backend="none")
 def test_py(session: nox.Session) -> None:
