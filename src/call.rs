@@ -245,11 +245,8 @@ mod tests {
 
             macro_rules! check_call {
                 ($args:expr, $kwargs:expr) => {
-                    let (a, k): (Py<PyTuple>, Py<PyDict>) = f
-                        .call($args, Some($kwargs))
-                        .unwrap()
-                        .extract()
-                        .unwrap();
+                    let (a, k): (Py<PyTuple>, Py<PyDict>) =
+                        f.call($args, Some($kwargs)).unwrap().extract().unwrap();
                     assert!(a.is(&args));
                     assert!(k.is(kwargs));
                 };
@@ -314,11 +311,11 @@ mod tests {
     fn test_call_unit_args() {
         // Exercises ()::call and ()::call_positional — both routes through
         // into_pyobject_or_pyerr to produce an empty PyTuple.
+        use crate::types::PyDict;
         use crate::{
             types::{IntoPyDict, PyAnyMethods, PyTupleMethods},
             wrap_pyfunction, Py, Python,
         };
-        use crate::types::PyDict;
 
         Python::attach(|py| {
             let f = wrap_pyfunction!(args_kwargs, py).unwrap();
@@ -382,9 +379,7 @@ mod tests {
 
             // Borrowed::call error path: kwargs Some → args.call(…) branch →
             // PyObject_Call(function=dict, …) returns NULL.
-            let err = not_callable
-                .call(args.clone(), Some(kwargs))
-                .unwrap_err();
+            let err = not_callable.call(args.clone(), Some(kwargs)).unwrap_err();
             assert!(err.is_instance_of::<PyTypeError>(py));
 
             // Borrowed::call_positional error path: kwargs None → args.call_positional(…) branch →
