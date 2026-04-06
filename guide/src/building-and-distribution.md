@@ -86,7 +86,7 @@ The PyO3 ecosystem has two main choices to abstract the process of developing Py
 
 - [`maturin`] is a command-line tool to build, package and upload Python modules.
   It makes opinionated choices about project layout meaning it needs very little configuration.
-  This makes it a great choice for users who are building a Python extension from scratch and don't need flexibility.
+  This makes it a great choice for users who are building a Python extension module from scratch and don't need flexibility.
 - [`setuptools-rust`] is an add-on for `setuptools` which adds extra keyword arguments to the `setup.py` configuration file.
   It requires more configuration than `maturin`, however this gives additional flexibility for users adding Rust to an existing Python package that can't satisfy `maturin`'s constraints.
 
@@ -97,7 +97,7 @@ There are also [`maturin-starter`] and [`setuptools-rust-starter`] examples in t
 
 ### Manual builds
 
-To build a PyO3-based Python extension manually, start by running `cargo build` as normal in a library project with the [`cdylib` crate type](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field) while the `PYO3_BUILD_EXTENSION_MODULE` environment variable is set.
+To build a PyO3-based Python extension module manually, start by running `cargo build` as normal in a library project with the [`cdylib` crate type](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field) while the `PYO3_BUILD_EXTENSION_MODULE` environment variable is set.
 
 Once built, symlink (or copy) and rename the shared library from Cargo's `target/` directory to your desired output directory:
 
@@ -199,7 +199,7 @@ Finally, don't forget that on MacOS the `extension-module` feature will cause `c
 
 By default PyO3 links to `libpython`.
 This makes binaries, tests, and examples "just work".
-However, Python extensions on Unix must not link to libpython for [manylinux](https://www.python.org/dev/peps/pep-0513/) compliance.
+However, Python extension modules on Unix must not link to libpython for [manylinux](https://www.python.org/dev/peps/pep-0513/) compliance.
 
 The downside of not linking to `libpython` is that binaries, tests, and examples (which usually embed Python) will fail to build.
 As a result, PyO3 uses an envionment variable `PYO3_BUILD_EXTENSION_MODULE` to disable linking to `libpython`.
@@ -246,7 +246,7 @@ There are three steps involved in making use of `abi3` when building Python pack
 #### Minimum Python version for `abi3`
 
 Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py38`, `abi3-py39`, `abi3-py310` etc. to set the minimum required Python version for your `abi3` wheel.
-For example, if you set the `abi3-py38` feature, your extension wheel can be used on all Python 3 versions from Python 3.8 and up.
+For example, if you set the `abi3-py38` feature, your wheel can be used on all Python 3 versions from Python 3.8 and up.
 `maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp38-abi3-manylinux2020_x86_64.whl`.
 
 As your extension module may be run with multiple different Python versions you may occasionally find you need to check the Python version at runtime to customize behavior.
@@ -258,9 +258,9 @@ E.g., if you set `abi3-py39` and try to compile the crate with a host of Python 
 > [!NOTE]
 > If you set more that one of these `abi3` version feature flags the lowest version always wins. For example, with both `abi3-py38` and `abi3-py39` set, PyO3 would build a wheel which supports Python 3.8 and up.
 
-#### Building `abi3` extensions without a Python interpreter
+#### Building `abi3` extension modules without a Python interpreter
 
-As an advanced feature, you can build PyO3 wheel without calling Python interpreter with the environment variable `PYO3_NO_PYTHON` set.
+As an advanced feature, you can build a PyO3 wheel without calling Python interpreter with the environment variable `PYO3_NO_PYTHON` set.
 Also, if the build host Python interpreter is not found or is too old or otherwise unusable, PyO3 will still attempt to compile `abi3` extension modules after displaying a warning message.
 
 #### Missing features

@@ -275,6 +275,8 @@ pub struct PyTypeObject {
     pub tp_prev: *mut PyTypeObject,
     #[cfg(py_sys_config = "COUNT_ALLOCS")]
     pub tp_next: *mut PyTypeObject,
+    #[cfg(Py_3_13)]
+    pub tp_versions_used: u16,
 }
 
 #[cfg(Py_3_11)]

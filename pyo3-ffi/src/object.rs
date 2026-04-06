@@ -226,7 +226,7 @@ extern_libpython! {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 #[cfg(all(Py_LIMITED_API, Py_3_15))]
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPy_SIZE")]
     pub fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name = "PyPy_IS_TYPE")]

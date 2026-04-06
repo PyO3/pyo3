@@ -64,7 +64,7 @@ For more information about how to use both `lldb` and `gdb` you can read the [gd
 
 ### Common setup
 
-1. Compile your extension with debug symbols:
+1. Compile your extension module with debug symbols:
 
    ```bash
    # Debug is the default for maturin, but you can explicitly ensure debug symbols with:
@@ -96,7 +96,7 @@ Depending on your OS and your preferences you can use two different debuggers, `
    (gdb) break your_module.rs:42
    ```
 
-3. Run your Python script that imports and uses your Rust extension:
+3. Run your Python script that imports and uses your Rust extension module:
 
    ```bash
    # Option 1: Run an inline Python command
@@ -347,7 +347,7 @@ To use these functions:
 
 ## Thread Safety and Compiler Sanitizers
 
-PyO3 attempts to match the Rust language-level guarantees for thread safety, but that does not preclude other code outside of the control of PyO3 or buggy code managed by a PyO3 extension from creating a thread safety issue.
+PyO3 attempts to match the Rust language-level guarantees for thread safety, but that does not preclude other code outside of the control of PyO3 or buggy code managed by a PyO3 extension module from creating a thread safety issue.
 Analyzing whether or not a piece of Rust code that uses the CPython C API is thread safe can be quite complicated, since many Python operations can lead to arbitrary Python code execution.
 Automated ways to discover thread safety issues can often be more fruitful than code analysis.
 

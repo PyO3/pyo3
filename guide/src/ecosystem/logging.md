@@ -9,7 +9,7 @@ For users who want to do the opposite and send Python log messages to Rust, see 
 ## Using `pyo3-log` to send Rust log messages to Python
 
 The [pyo3-log] crate allows sending the messages from the Rust side to Python's [logging] system.
-This is mostly suitable for writing native extensions for Python programs.
+This is mostly suitable for writing extension modules to consume from Python programs.
 
 Use [`pyo3_log::init`][init] to install the logger in its default configuration.
 It's also possible to tweak its configuration (mostly to tune its performance).

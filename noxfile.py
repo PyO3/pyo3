@@ -124,10 +124,6 @@ def test_rust(session: nox.Session):
         # We need to pass the feature set to the test command
         # so that it can be used in the test code
         # (e.g. for `#[cfg(feature = "abi3-py38")]`)
-        if feature_set and "abi3" in feature_set and FREE_THREADED_BUILD:
-            # free-threaded builds don't support abi3 yet
-            continue
-
         _run_cargo_test(session, features=feature_set, extra_flags=flags)
 
         if (
@@ -143,6 +139,22 @@ def test_rust(session: nox.Session):
                 extra_flags=flags,
             )
 
+        if (
+            feature_set,
+            and "abi3" in feature_set
+            and "full" in feature_set
+            and sys.version_info >= (3, 16)
+        ):
+            # run abi3t-py315 tests to check for abi3t forward
+            # compatibility
+            _run_cargo_test(
+                session,
+                features=feature_set.replace("abi3t", "abi3t-py315"),
+                extra_flags=flags,
+            )
+            
+            
+                
 
 @nox.session(name="test-py", venv_backend="none")
 def test_py(session: nox.Session) -> None:
@@ -260,7 +272,6 @@ def _clippy_additional_workspaces(session: nox.Session) -> bool:
     target = os.environ.get("CARGO_BUILD_TARGET")
     if target is None or _get_rust_default_target() == target:
         try:
-            _build_docs_for_ffi_check(session)
             _run_cargo(session, "clippy", _FFI_CHECK, "--workspace", "--all-targets")
         except Exception:
             success = False
@@ -628,13 +639,10 @@ def build_netlify_site(session: nox.Session):
     docs(session)
     PYO3_DOCS_TARGET.rename("netlify_build/main/doc")
 
-    Path("netlify_build/main/doc/index.html").write_text(
-        "<meta http-equiv=refresh content=0;url=pyo3/>"
-    )
-
     # Build the internal docs
     docs(session, nightly=True, internal=True)
-    PYO3_DOCS_TARGET.rename("netlify_build/internal")
+    (netlify_build / "internal").mkdir(parents=True, exist_ok=True)
+    PYO3_DOCS_TARGET.rename("netlify_build/internal/doc")
 
     _build_netlify_redirects(preview)
 
@@ -702,6 +710,9 @@ def _build_netlify_redirects(preview: bool) -> None:
         else:
             redirects_file.write(f"/ /v{current_version}/ 302\n")
 
+        # Add main doc redirect
+        redirects_file.write("/main/doc /main/doc/pyo3")
+
 
 def _url_path_from_file_path(file_path: str) -> str:
     """Removes index.html and/or .html suffix to match the page URL on the final netlify site"""
@@ -737,11 +748,16 @@ def check_guide(session: nox.Session):
     ]
 
     remaps = {
-        f"file://{PYO3_GUIDE_SRC}/([^/]*/)*?%7B%7B#PYO3_DOCS_URL}}}}": f"file://{PYO3_DOCS_TARGET}",
+        f"file://{PYO3_GUIDE_TARGET}/doc/": f"file://{PYO3_DOCS_TARGET}/",
+        "https://docs.rs/pyo3/latest/pyo3/": f"file://{PYO3_DOCS_TARGET}/pyo3/",
+        f"https://docs.rs/pyo3/v{pyo3_version}/": f"file://{PYO3_DOCS_TARGET}/",
+        f"https://pyo3.rs/v{pyo3_version}/doc/": f"file://{PYO3_DOCS_TARGET}/",
         f"https://pyo3.rs/v{pyo3_version}": f"file://{PYO3_GUIDE_TARGET}",
+        "https://pyo3.rs/main/doc$": f"file://{PYO3_DOCS_TARGET}/pyo3",
+        "https://pyo3.rs/main/doc/": f"file://{PYO3_DOCS_TARGET}/",
         "https://pyo3.rs/main/": f"file://{PYO3_GUIDE_TARGET}/",
+        "https://pyo3.rs/latest/doc/": f"file://{PYO3_DOCS_TARGET}/",
         "https://pyo3.rs/latest/": f"file://{PYO3_GUIDE_TARGET}/",
-        "%7B%7B#PYO3_DOCS_VERSION}}": "latest",
         # bypass fragments for edge cases
         # blob links
         "(https://github.com/[^/]+/[^/]+/blob/[^#]+)#[a-zA-Z0-9._-]*": "$1",
@@ -754,38 +770,55 @@ def check_guide(session: nox.Session):
     for key, value in remaps.items():
         remap_args.extend(("--remap", f"{key} {value}"))
 
-    # check all links in the guide
-    _run(
-        session,
-        "lychee",
-        "--include-fragments",
-        str(PYO3_GUIDE_SRC),
-        *remap_args,
-        "--accept=200,429",
-        "--cache",
-        "--max-cache-age=7d",
-        *session.posargs,
-        external=True,
-    )
-    # check external links in the docs
-    # (intra-doc links are checked by rustdoc)
-    _run(
-        session,
-        "lychee",
-        str(PYO3_DOCS_TARGET),
-        *remap_args,
-        f"--exclude=file://{PYO3_DOCS_TARGET}",
+    excludes = [
         # exclude some old http links from copyright notices, known to fail
-        "--exclude=http://www.adobe.com/",
-        "--exclude=http://www.nhncorp.com/",
-        "--accept=200,429",
-        # reduce the concurrency to avoid rate-limit from `pyo3.rs`
-        "--max-concurrency=32",
-        "--cache",
-        "--max-cache-age=7d",
-        *session.posargs,
-        external=True,
-    )
+        "http://www.adobe.com/",
+        "http://www.nhncorp.com/",
+        # PR seems to be gone, possibly user deleted account?
+        "https://github.com/PyO3/pyo3/pull/938",
+    ]
+
+    exclude_args = [f"--exclude={arg}" for arg in excludes]
+
+    try:
+        # check all links in the guide
+        _run(
+            session,
+            "lychee",
+            "--include-fragments",
+            str(PYO3_GUIDE_TARGET),
+            *remap_args,
+            *exclude_args,
+            "--accept=200,429",
+            "--cache",
+            "--max-cache-age=7d",
+            f"--root-dir={PYO3_GUIDE_TARGET}",
+            *session.posargs,
+            external=True,
+        )
+        # check external links in the docs
+        # (intra-doc links are checked by rustdoc)
+        _run(
+            session,
+            "lychee",
+            str(PYO3_DOCS_TARGET),
+            *remap_args,
+            f"--exclude=file://{PYO3_DOCS_TARGET}",
+            # exclude some old http links from copyright notices, known to fail
+            *exclude_args,
+            "--accept=200,429",
+            # reduce the concurrency to avoid rate-limit from `pyo3.rs`
+            "--max-concurrency=32",
+            "--cache",
+            "--max-cache-age=7d",
+            *session.posargs,
+            external=True,
+        )
+    except nox.command.CommandFailed:
+        # on `main`, we ignore link check failures to allow the site to still be updated on push to main,
+        # we want to run the link checker on main to populate the GitHub actions cache so PRs run more reliably.
+        if os.environ.get("GITHUB_REF", "") != "refs/heads/main":
+            raise
 
 
 @nox.session(name="format-guide", venv_backend="none")
@@ -1094,7 +1127,6 @@ def set_msrv_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    _build_docs_for_ffi_check(session)
     _run_cargo(session, "run", _FFI_CHECK)
     _check_raw_dylib_macro(session)
 
@@ -1442,13 +1474,6 @@ def test_introspection(session: nox.Session):
     )
 
 
-def _build_docs_for_ffi_check(session: nox.Session) -> None:
-    # pyo3-ffi-check needs to scrape docs of pyo3-ffi
-    env = os.environ.copy()
-    env["PYO3_PYTHON"] = sys.executable
-    _run_cargo(session, "doc", _FFI_CHECK, "-p", "pyo3-ffi", "--no-deps", env=env)
-
-
 @lru_cache()
 def _get_rust_info() -> Tuple[str, ...]:
     output = _get_output("rustc", "-vV")
@@ -1492,7 +1517,14 @@ def _get_feature_sets() -> Tuple[Optional[str], ...]:
     if is_rust_nightly():
         features += ",nightly"
 
-    return (None, "abi3", features, f"abi3,{features}")
+    if is_free_threaded():
+        if sys.version_info >= (3, 15):
+            return (None, "abi3t", features, f"abi3t,{features}")
+        else:
+            return (None, features)
+
+    # do fewer abi3t builds?
+    return (None, "abi3", "abi3t", features, f"abi3,{features}", f"abi3t,{features}")
 
 
 _RELEASE_LINE_START = "release: "
