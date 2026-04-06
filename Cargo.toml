@@ -85,7 +85,7 @@ parking_lot = { version = "0.12.3", features = ["arc_lock"] }
 pyo3-build-config = { path = "pyo3-build-config", version = "=0.28.3", features = ["resolve-config"] }
 
 [features]
-default = ["macros"]
+default = ["macros", "abi3t"]
 
 # Enables support for `async fn` for `#[pyfunction]` and `#[pymethods]`.
 experimental-async = ["macros", "pyo3-macros/experimental-async"]

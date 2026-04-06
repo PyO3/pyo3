@@ -182,6 +182,7 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// nightly feature is not enabled because we cannot implement an optimised version of
     /// `iter().try_fold()` on stable yet. If your iteration is infallible then this method has the
     /// same performance as `.iter().for_each()`.
+    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
     fn locked_for_each<F>(&self, closure: F) -> PyResult<()>
     where
         F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>;
@@ -347,6 +348,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         BoundDictIterator::new(self.clone())
     }
 
+    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
     fn locked_for_each<F>(&self, f: F) -> PyResult<()>
     where
         F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>,
@@ -486,6 +488,7 @@ impl DictIterImpl {
         }
     }
 
+    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
     #[cfg(Py_GIL_DISABLED)]
     #[inline]
     fn with_critical_section<F, R>(&mut self, dict: &Bound<'_, PyDict>, f: F) -> R
@@ -505,6 +508,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
+        #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
         #[cfg(Py_GIL_DISABLED)]
         {
             self.inner
@@ -512,7 +516,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
                     inner.next_unchecked(&self.dict)
                 })
         }
-        #[cfg(not(Py_GIL_DISABLED))]
+        #[cfg(any(all(Py_GIL_DISABLED, Py_LIMITED_API), not(Py_GIL_DISABLED)))]
         {
             unsafe { self.inner.next_unchecked(&self.dict) }
         }
@@ -534,6 +538,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
     #[inline]
     #[cfg(Py_GIL_DISABLED)]
+    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
     fn fold<B, F>(mut self, init: B, mut f: F) -> B
     where
         Self: Sized,
@@ -566,6 +571,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 
     #[inline]
+    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn all<F>(&mut self, mut f: F) -> bool
     where
@@ -583,6 +589,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 
     #[inline]
+    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn any<F>(&mut self, mut f: F) -> bool
     where
@@ -600,6 +607,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 
     #[inline]
+    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn find<P>(&mut self, mut predicate: P) -> Option<Self::Item>
     where
@@ -617,6 +625,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 
     #[inline]
+    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn find_map<B, F>(&mut self, mut f: F) -> Option<B>
     where
@@ -634,6 +643,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 
     #[inline]
+    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn position<P>(&mut self, mut predicate: P) -> Option<usize>
     where

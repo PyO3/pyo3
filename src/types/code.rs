@@ -6,9 +6,9 @@ use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 #[cfg(any(Py_LIMITED_API, PyPy))]
 use crate::types::{PyType, PyTypeMethods};
+use crate::{ffi, Bound, PyAny, PyResult, Python};
 #[cfg(any(Py_LIMITED_API, PyPy))]
-use crate::Py;
-use crate::{ffi, Bound, PyAny, PyErr, PyResult, Python};
+use crate::{Py, PyErr};
 use std::ffi::CStr;
 
 /// Represents a Python code object.
@@ -118,6 +118,8 @@ impl<'py> PyCodeMethods<'py> for Bound<'py, PyCode> {
             None => attr.cast::<PyDict>()?,
         };
         let locals = locals.unwrap_or(globals);
+        // Inherit current builtins.
+        let builtins = unsafe { ffi::PyEval_GetBuiltins() };
 
         // If `globals` don't provide `__builtins__`, most of the code will fail if Python
         // version is <3.10. That's probably not what user intended, so insert `__builtins__`
@@ -127,26 +129,33 @@ impl<'py> PyCodeMethods<'py> for Bound<'py, PyCode> {
         // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
         // - https://github.com/PyO3/pyo3/issues/3370
         let builtins_s = crate::intern!(self.py(), "__builtins__");
-        let has_builtins = globals.contains(builtins_s)?;
-        if !has_builtins {
-            crate::sync::critical_section::with_critical_section(globals, || {
-                // check if another thread set __builtins__ while this thread was blocked on the critical section
-                let has_builtins = globals.contains(builtins_s)?;
-                if !has_builtins {
-                    // Inherit current builtins.
-                    let builtins = unsafe { ffi::PyEval_GetBuiltins() };
-
-                    // `PyDict_SetItem` doesn't take ownership of `builtins`, but `PyEval_GetBuiltins`
-                    // seems to return a borrowed reference, so no leak here.
-                    if unsafe {
-                        ffi::PyDict_SetItem(globals.as_ptr(), builtins_s.as_ptr(), builtins)
-                    } == -1
-                    {
-                        return Err(PyErr::fetch(self.py()));
-                    }
+        #[cfg(any(all(Py_LIMITED_API, not(Py_3_15)), not(Py_3_13)))]
+        {
+            let has_builtins = globals.contains(builtins_s)?;
+            if !has_builtins {
+                // `PyDict_SetItem` doesn't take ownership of `builtins`, but `PyEval_GetBuiltins`
+                // seems to return a borrowed reference, so no leak here.
+                if unsafe { ffi::PyDict_SetItem(globals.as_ptr(), builtins_s.as_ptr(), builtins) }
+                    == -1
+                {
+                    return Err(PyErr::fetch(self.py()));
                 }
-                Ok(())
-            })?;
+            }
+        }
+        #[cfg(any(all(Py_LIMITED_API, Py_3_15), Py_3_13))]
+        {
+            let mut result: *mut ffi::PyObject = std::ptr::null_mut();
+            if unsafe {
+                ffi::PyDict_SetDefaultRef(
+                    globals.as_ptr(),
+                    builtins_s.as_ptr(),
+                    builtins,
+                    &mut result,
+                )
+            } == -1
+            {
+                return Err(PyErr::fetch(self.py()));
+            }
         }
 
         unsafe {

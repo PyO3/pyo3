@@ -4,14 +4,15 @@
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_union;
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+use crate::types::bytearray::{PyByteArray, PyByteArrayMethods};
 use crate::{
-    types::{
-        bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
-        PyBytes, PyString, PyTuple,
-    },
+    types::{bytes::PyBytesMethods, string::PyStringMethods, PyBytes, PyString, PyTuple},
     Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo, Python,
 };
-use std::{borrow::Borrow, convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+use std::sync::Arc;
+use std::{borrow::Borrow, convert::Infallible, ops::Deref, ptr::NonNull};
 
 /// An equivalent to `String` where the storage is owned by a Python `bytes` or `str` object.
 ///
@@ -189,6 +190,7 @@ pub struct PyBackedBytes {
 #[cfg_attr(feature = "py-clone", derive(Clone))]
 enum PyBackedBytesStorage {
     Python(Py<PyBytes>),
+    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     Rust(Arc<[u8]>),
 }
 
@@ -202,6 +204,7 @@ impl PyBackedBytes {
                 PyBackedBytesStorage::Python(bytes) => {
                     PyBackedBytesStorage::Python(bytes.clone_ref(py))
                 }
+                #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
                 PyBackedBytesStorage::Rust(bytes) => PyBackedBytesStorage::Rust(bytes.clone()),
             },
             data: self.data,
@@ -265,6 +268,7 @@ impl From<Bound<'_, PyBytes>> for PyBackedBytes {
     }
 }
 
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 impl From<Bound<'_, PyByteArray>> for PyBackedBytes {
     fn from(py_bytearray: Bound<'_, PyByteArray>) -> Self {
         let s = Arc::<[u8]>::from(py_bytearray.to_vec());
@@ -283,23 +287,39 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyBackedBytes {
     const INPUT_TYPE: PyStaticExpr = type_hint_union!(PyBytes::TYPE_HINT, PyByteArray::TYPE_HINT);
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
-        if let Ok(bytes) = obj.cast::<PyBytes>() {
-            Ok(Self::from(bytes.to_owned()))
-        } else if let Ok(bytearray) = obj.cast::<PyByteArray>() {
-            Ok(Self::from(bytearray.to_owned()))
-        } else {
-            Err(CastError::new(
-                obj,
-                PyTuple::new(
-                    obj.py(),
-                    [
-                        PyBytes::type_object(obj.py()),
-                        PyByteArray::type_object(obj.py()),
-                    ],
-                )
-                .unwrap()
-                .into_any(),
-            ))
+        #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+        {
+            if let Ok(bytes) = obj.cast::<PyBytes>() {
+                Ok(Self::from(bytes.to_owned()))
+            } else if let Ok(bytearray) = obj.cast::<PyByteArray>() {
+                Ok(Self::from(bytearray.to_owned()))
+            } else {
+                Err(CastError::new(
+                    obj,
+                    PyTuple::new(
+                        obj.py(),
+                        [
+                            PyBytes::type_object(obj.py()),
+                            PyByteArray::type_object(obj.py()),
+                        ],
+                    )
+                    .unwrap()
+                    .into_any(),
+                ))
+            }
+        }
+        #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
+        {
+            if let Ok(bytes) = obj.cast::<PyBytes>() {
+                Ok(Self::from(bytes.to_owned()))
+            } else {
+                Err(CastError::new(
+                    obj,
+                    PyTuple::new(obj.py(), [PyBytes::type_object(obj.py())])
+                        .unwrap()
+                        .into_any(),
+                ))
+            }
         }
     }
 }
@@ -315,6 +335,7 @@ impl<'py> IntoPyObject<'py> for PyBackedBytes {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self.storage {
             PyBackedBytesStorage::Python(bytes) => Ok(bytes.into_bound(py)),
+            #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
             PyBackedBytesStorage::Rust(bytes) => Ok(PyBytes::new(py, &bytes)),
         }
     }
@@ -331,6 +352,7 @@ impl<'py> IntoPyObject<'py> for &PyBackedBytes {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match &self.storage {
             PyBackedBytesStorage::Python(bytes) => Ok(bytes.bind(py).clone()),
+            #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
             PyBackedBytesStorage::Rust(bytes) => Ok(PyBytes::new(py, bytes)),
         }
     }
@@ -496,6 +518,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     fn py_backed_bytes_from_bytearray() {
         Python::attach(|py| {
             let b = PyByteArray::new(py, b"abcde");
@@ -517,6 +540,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     fn rust_backed_bytes_into_pyobject() {
         Python::attach(|py| {
             let orig_bytes = PyByteArray::new(py, b"abcde");
@@ -668,6 +692,7 @@ mod test {
             let b1: PyBackedBytes = PyBytes::new(py, b"abcde").into();
             let b2 = b1.clone_ref(py);
             assert_eq!(b1, b2);
+            #[cfg_attr(all(Py_GIL_DISABLED, Py_LIMITED_API), allow(irrefutable_let_patterns))]
             let (PyBackedBytesStorage::Python(s1), PyBackedBytesStorage::Python(s2)) =
                 (&b1.storage, &b2.storage)
             else {
@@ -694,6 +719,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     fn test_backed_bytes_from_bytearray_clone_ref() {
         Python::attach(|py| {
             let b1: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
@@ -712,6 +738,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     fn test_backed_bytes_eq() {
         Python::attach(|py| {
             let b1: PyBackedBytes = PyBytes::new(py, b"abcde").into();
@@ -741,16 +768,19 @@ mod test {
                 b1.hash(&mut hasher);
                 hasher.finish()
             };
-
-            let b2: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
-            let h2 = {
-                let mut hasher = DefaultHasher::new();
-                b2.hash(&mut hasher);
-                hasher.finish()
-            };
-
             assert_eq!(h, h1);
-            assert_eq!(h, h2);
+
+            #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+            {
+                let b2: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
+                let h2 = {
+                    let mut hasher = DefaultHasher::new();
+                    b2.hash(&mut hasher);
+                    hasher.finish()
+                };
+
+                assert_eq!(h, h2);
+            }
         });
     }
 

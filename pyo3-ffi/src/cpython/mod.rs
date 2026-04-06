@@ -51,8 +51,8 @@ pub use self::ceval::*;
 pub use self::code::*;
 pub use self::compile::*;
 pub use self::complexobject::*;
-#[cfg(Py_3_14)]
-pub use self::critical_section::{PyCriticalSection2_BeginMutex, PyCriticalSection_BeginMutex};
+#[cfg(Py_3_13)]
+pub use self::critical_section::*;
 pub use self::descrobject::*;
 pub use self::dictobject::*;
 pub use self::floatobject::*;

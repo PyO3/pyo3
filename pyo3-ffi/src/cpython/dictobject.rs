@@ -43,7 +43,6 @@ pub struct PyDictObject {
 // skipped private _PyDict_GetItemStringWithError
 
 // skipped PyDict_SetDefault
-// skipped PyDict_SetDefaultRef
 
 // skipped PyDict_GET_SIZE
 // skipped PyDict_ContainsString
