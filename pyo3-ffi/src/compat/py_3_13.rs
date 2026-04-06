@@ -130,3 +130,51 @@ compat_function!(
         crate::_PyThreadState_UncheckedGet()
     }
 );
+
+compat_function! {
+    originally_defined_for(any(Py_3_13, all(Py_LIMITED_API, Py_3_15)));
+
+    #[inline]
+    pub unsafe fn PyDict_SetDefaultRef(
+        mp: *mut crate::PyObject,
+        key: *mut crate::PyObject,
+        default_value: *mut crate::PyObject,
+        result: *mut *mut crate::PyObject,
+    ) -> std::ffi::c_int {
+        use crate::{
+            compat::{PyDict_GetItemRef, Py_NewRef},
+            PyDict_SetItem, PyObject, Py_DECREF,
+        };
+        let mut value: *mut PyObject = std::ptr::null_mut();
+        if PyDict_GetItemRef(mp, key, &mut value) < 0 {
+            // get error
+            if !result.is_null() {
+                *result = std::ptr::null_mut();
+            }
+            return -1;
+        }
+        if !value.is_null() {
+            // present
+            if !result.is_null() {
+                *result = value;
+            }
+            else {
+                Py_DECREF(value);
+            }
+            return 1;
+        }
+
+        // missing, set the item
+        if PyDict_SetItem(mp, key, default_value) < 0 {
+            // set error
+            if !result.is_null() {
+                *result = std::ptr::null_mut();
+            }
+            return -1;
+        }
+        if !result.is_null() {
+            *result = Py_NewRef(default_value);
+        }
+        return 0;
+    }
+}
