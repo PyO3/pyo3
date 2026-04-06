@@ -518,6 +518,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
         }
         #[cfg(any(all(Py_GIL_DISABLED, Py_LIMITED_API), not(Py_GIL_DISABLED)))]
         {
+            // FIXME: Unsafe with Py_GIL_DISABLED, but no critical sections in the stable ABI
             unsafe { self.inner.next_unchecked(&self.dict) }
         }
     }
