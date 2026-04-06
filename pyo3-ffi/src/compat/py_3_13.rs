@@ -132,7 +132,7 @@ compat_function!(
 );
 
 compat_function! {
-    originally_defined_for(any(Py_3_13, all(Py_LIMITED_API, Py_3_15)));
+    originally_defined_for(any(all(Py_3_13, not(Py_LIMITED_API)), all(Py_LIMITED_API, Py_3_15)));
 
     #[inline]
     pub unsafe fn PyDict_SetDefaultRef(
