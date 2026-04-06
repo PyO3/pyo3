@@ -132,7 +132,8 @@ impl<'py> PyCodeMethods<'py> for Bound<'py, PyCode> {
             ffi::compat::PyDict_SetDefaultRef(
                 globals.as_ptr(),
                 builtins_s.as_ptr(),
-                // borrowed reference
+                // safety: the interpreter will keep the borrowed reference to
+                // builtins alive at least until SetDefaultRef finishes
                 ffi::PyEval_GetBuiltins(),
                 &mut result,
             )

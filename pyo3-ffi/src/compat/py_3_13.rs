@@ -131,7 +131,7 @@ compat_function!(
     }
 );
 
-compat_function! {
+compat_function!(
     originally_defined_for(all(Py_3_13, any(not(Py_LIMITED_API), Py_3_15)));
 
     #[inline]
@@ -157,8 +157,7 @@ compat_function! {
             // present
             if !result.is_null() {
                 *result = value;
-            }
-            else {
+            } else {
                 Py_DECREF(value);
             }
             return 1;
@@ -175,6 +174,6 @@ compat_function! {
         if !result.is_null() {
             *result = Py_NewRef(default_value);
         }
-        return 0;
+        0
     }
-}
+);
