@@ -140,7 +140,7 @@ def test_rust(session: nox.Session):
             )
 
         if (
-            feature_set,
+            feature_set
             and "abi3" in feature_set
             and "full" in feature_set
             and sys.version_info >= (3, 16)
