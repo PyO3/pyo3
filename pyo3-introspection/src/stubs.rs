@@ -616,7 +616,9 @@ impl ElementsUsedInAnnotations {
         for decorator in &function.decorators {
             self.walk_expr(decorator);
         }
-        self.walk_arguments(&function.arguments, function.returns.as_ref());
+        if function.overloads.is_empty() {
+            self.walk_arguments(&function.arguments, function.returns.as_ref());
+        }
         if !function.overloads.is_empty() {
             self.module_to_name
                 .entry("typing".into())
