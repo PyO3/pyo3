@@ -363,6 +363,8 @@ fn overload_arguments_from_signature<'a>(
     let mut kwonlyargs = Vec::new();
     let mut kwarg = None;
 
+    let mut seen_posargs_sep = false;
+
     if let Some(first_argument) = first_argument {
         posonlyargs.push(
             IntrospectionNode::Map(
@@ -370,9 +372,8 @@ fn overload_arguments_from_signature<'a>(
             )
             .into(),
         );
+        seen_posargs_sep = true;
     }
-
-    let mut seen_posargs_sep = false;
     let mut seen_varargs_sep = false;
 
     for item in &signature.items {
