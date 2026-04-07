@@ -420,9 +420,14 @@ pub struct BoundDictIterator<'py> {
 
 enum DictIterImpl {
     DictIter {
+        #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
         ppos: ffi::Py_ssize_t,
+        #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
         di_used: ffi::Py_ssize_t,
+        #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
         remaining: ffi::Py_ssize_t,
+        #[cfg(all(Py_GIL_DISABLED, Py_LIMITED_API))]
+        iter: *mut ffi::PyObject,
     },
 }
 
@@ -437,52 +442,81 @@ impl DictIterImpl {
     ) -> Option<(Bound<'py, PyAny>, Bound<'py, PyAny>)> {
         match self {
             Self::DictIter {
+                #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
                 di_used,
+                #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
                 remaining,
+                #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
                 ppos,
+                #[cfg(all(Py_GIL_DISABLED, Py_LIMITED_API))]
+                iter,
                 ..
             } => {
-                let ma_used = dict_len(dict);
+                #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+                {
+                    let ma_used = dict_len(dict);
 
-                // These checks are similar to what CPython does.
-                //
-                // If the dimension of the dict changes e.g. key-value pairs are removed
-                // or added during iteration, this will panic next time when `next` is called
-                if *di_used != ma_used {
-                    *di_used = -1;
-                    panic!("dictionary changed size during iteration");
-                };
+                    // These checks are similar to what CPython does.
+                    //
+                    // If the dimension of the dict changes e.g. key-value pairs are removed
+                    // or added during iteration, this will panic next time when `next` is called
+                    if *di_used != ma_used {
+                        *di_used = -1;
+                        panic!("dictionary changed size during iteration");
+                    };
 
-                // If the dict is changed in such a way that the length remains constant
-                // then this will panic at the end of iteration - similar to this:
-                //
-                // d = {"a":1, "b":2, "c": 3}
-                //
-                // for k, v in d.items():
-                //     d[f"{k}_"] = 4
-                //     del d[k]
-                //     print(k)
-                //
-                if *remaining == -1 {
-                    *di_used = -1;
-                    panic!("dictionary keys changed during iteration");
-                };
+                    // If the dict is changed in such a way that the length remains constant
+                    // then this will panic at the end of iteration - similar to this:
+                    //
+                    // d = {"a":1, "b":2, "c": 3}
+                    //
+                    // for k, v in d.items():
+                    //     d[f"{k}_"] = 4
+                    //     del d[k]
+                    //     print(k)
+                    //
+                    if *remaining == -1 {
+                        *di_used = -1;
+                        panic!("dictionary keys changed during iteration");
+                    };
 
-                let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-                let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+                    let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+                    let mut value: *mut ffi::PyObject = std::ptr::null_mut();
 
-                if unsafe { ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) != 0 } {
-                    *remaining -= 1;
+                    if unsafe { ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) != 0 } {
+                        *remaining -= 1;
+                        let py = dict.py();
+                        // Safety:
+                        // - PyDict_Next returns borrowed values
+                        // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
+                        Some((
+                            unsafe { key.assume_borrowed_unchecked(py).to_owned() },
+                            unsafe { value.assume_borrowed_unchecked(py).to_owned() },
+                        ))
+                    } else {
+                        None
+                    }
+                }
+                #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
+                {
                     let py = dict.py();
-                    // Safety:
-                    // - PyDict_Next returns borrowed values
-                    // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
-                    Some((
-                        unsafe { key.assume_borrowed_unchecked(py).to_owned() },
-                        unsafe { value.assume_borrowed_unchecked(py).to_owned() },
-                    ))
-                } else {
-                    None
+                    let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+                    let key = match unsafe { ffi::compat::PyIter_NextItem(*iter, &mut key) } {
+                        -1 => panic!(
+                            "Iterating over dictionary failed with error '{}'",
+                            PyErr::fetch(py)
+                        ),
+                        0 => return None,
+                        1 => unsafe { key.assume_owned_unchecked(py) },
+                        x => panic!("Unknown return value from PyIter_NextItem: {}", x),
+                    };
+                    let value = match dict.get_item(&key) {
+                        Ok(value) => value?,
+                        Err(e) => {
+                            panic!("Iterating over dictionary failed with error '{}'", e)
+                        }
+                    };
+                    Some((key, value))
                 }
             }
         }
@@ -525,10 +559,14 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
+        #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
         let len = self.len();
+        #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
+        let len = 0;
         (len, Some(len))
     }
 
+    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     #[inline]
     fn count(self) -> usize
     where
@@ -664,6 +702,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 }
 
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 impl ExactSizeIterator for BoundDictIterator<'_> {
     fn len(&self) -> usize {
         match self.inner {
@@ -674,15 +713,26 @@ impl ExactSizeIterator for BoundDictIterator<'_> {
 
 impl<'py> BoundDictIterator<'py> {
     fn new(dict: Bound<'py, PyDict>) -> Self {
-        let remaining = dict_len(&dict);
-
+        #[cfg(all(Py_GIL_DISABLED, Py_LIMITED_API))]
+        let iter = {
+            let new_iter = unsafe { ffi::PyObject_GetIter(dict.as_ptr()) };
+            assert!(
+                !new_iter.is_null(),
+                "Converting dict to iterator failed with error '{}'",
+                PyErr::fetch(dict.py())
+            );
+            new_iter
+        };
         Self {
             dict,
+            #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
             inner: DictIterImpl::DictIter {
                 ppos: 0,
-                di_used: remaining,
+                di_used: dict_len(&dict),
                 remaining,
             },
+            #[cfg(all(Py_GIL_DISABLED, Py_LIMITED_API))]
+            inner: DictIterImpl::DictIter { iter },
         }
     }
 }
@@ -835,7 +885,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PyAnyMethods as _, PyTuple};
+    use crate::types::PyAnyMethods as _;
+    use crate::types::PyTuple;
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -1231,6 +1282,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     fn test_iter_size_hint() {
         Python::attach(|py| {
             let mut v = HashMap::new();
