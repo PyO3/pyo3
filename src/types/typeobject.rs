@@ -46,6 +46,60 @@ impl PyType {
                 .to_owned()
         }
     }
+
+    /// Calls CPython's `type.__new__` to create a new type object as part of a
+    /// custom metaclass `__new__` implementation.
+    ///
+    /// This is the safe alternative to calling `PyType_Type.tp_new` directly.
+    /// The Python-level `type.__new__` callable performs a safety check that
+    /// rejects PyO3 metaclasses (because their `tp_new` slot differs from the
+    /// built-in `type_new`), so this function invokes the C-level slot directly
+    /// to bypass that check while still creating a well-formed type object.
+    ///
+    /// # Usage
+    ///
+    /// ```rust,ignore
+    /// #[pyclass(extends = pyo3::types::PyType)]
+    /// struct MyMeta;
+    ///
+    /// #[pymethods]
+    /// impl MyMeta {
+    ///     #[new]
+    ///     #[classmethod]
+    ///     fn new(
+    ///         cls: &Bound<'_, PyType>,
+    ///         name: &Bound<'_, PyString>,
+    ///         bases: &Bound<'_, PyTuple>,
+    ///         namespace: &Bound<'_, PyDict>,
+    ///     ) -> PyResult<Py<Self>> {
+    ///         PyType::metaclass_type_new(cls, name, bases, namespace)?
+    ///             .extract()
+    ///             .map_err(Into::into)
+    ///     }
+    /// }
+    /// ```
+    pub fn metaclass_type_new<'py>(
+        cls: &Bound<'py, PyType>,
+        name: &Bound<'py, super::PyString>,
+        bases: &Bound<'py, PyTuple>,
+        namespace: &Bound<'py, super::PyDict>,
+    ) -> PyResult<Bound<'py, PyType>> {
+        let py = cls.py();
+        let args = PyTuple::new(py, [name.as_any(), bases.as_any(), namespace.as_any()])?;
+        let obj_ptr = unsafe {
+            let tp_new = ffi::PyType_Type
+                .tp_new
+                .expect("PyType_Type must have tp_new");
+            tp_new(cls.as_type_ptr(), args.as_ptr(), std::ptr::null_mut())
+        };
+        if obj_ptr.is_null() {
+            return Err(crate::PyErr::fetch(py));
+        }
+        // Safety: tp_new returned a non-null PyTypeObject pointer.
+        Ok(unsafe {
+            Bound::<PyAny>::from_owned_ptr(py, obj_ptr).cast_into_unchecked::<PyType>()
+        })
+    }
 }
 
 /// Implementation of functionality for [`PyType`].
@@ -240,6 +294,41 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
         bases
     }
+}
+
+// PyType can be used as a base class for metaclass structs (i.e. #[pyclass(extends = PyType)]).
+//
+// For non-limited API builds the exact C layout (PyHeapTypeObject) is known at
+// compile-time, so we use the static-size object approach.
+// For limited-API builds (Python ≥ 3.12) CPython will allocate the correct
+// amount of memory for us when we pass a negative basicsize; we use the
+// variable-size approach for those.
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+unsafe impl crate::type_object::PyLayout<PyType> for crate::ffi::PyHeapTypeObject {}
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+impl crate::type_object::PySizedLayout<PyType> for crate::ffi::PyHeapTypeObject {}
+
+#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+impl crate::impl_::pyclass::PyClassBaseType for PyType {
+    type LayoutAsBase =
+        crate::impl_::pycell::PyClassObjectBase<crate::ffi::PyHeapTypeObject>;
+    type BaseNativeType = PyType;
+    type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+    type PyClassMutability = crate::pycell::impl_::ImmutableClass;
+    type Layout<T: crate::impl_::pyclass::PyClassImpl> =
+        crate::impl_::pycell::PyStaticClassObject<T>;
+    const IS_METACLASS: bool = true;
+}
+
+#[cfg(all(Py_3_12, Py_LIMITED_API))]
+impl crate::impl_::pyclass::PyClassBaseType for PyType {
+    type LayoutAsBase = crate::impl_::pycell::PyVariableClassObjectBase;
+    type BaseNativeType = PyType;
+    type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+    type PyClassMutability = crate::pycell::impl_::ImmutableClass;
+    type Layout<T: crate::impl_::pyclass::PyClassImpl> =
+        crate::impl_::pycell::PyVariableClassObject<T>;
+    const IS_METACLASS: bool = true;
 }
 
 #[cfg(test)]

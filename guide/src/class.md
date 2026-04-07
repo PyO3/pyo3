@@ -617,6 +617,166 @@ impl MyDict {
 
 Here, the `args` and `kwargs` allow creating instances of the subclass passing initial items, such as `MyDict(item_sequence)` or `MyDict(a=1, b=2)`.
 
+## Defining a metaclass in Rust
+
+A **metaclass** is a class whose instances are themselves classes. Python's built-in `type` is the default metaclass; every class you write is an instance of `type`. By defining a custom metaclass you can intercept and customise class creation, `isinstance` / `issubclass` checks, subscript (`C[T]`) dispatch, and more.
+
+PyO3 lets you define a metaclass in Rust by extending `PyType` with `#[pyclass(extends = PyType)]`:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::{PyAny, PyDict, PyTuple, PyType};
+#[pyclass(extends = PyType)]
+struct MyMeta;
+
+#[pymethods]
+impl MyMeta {
+    /// Called on `isinstance(x, C)` where `C` has metaclass `MyMeta`.
+    fn __instancecheck__(&self, _instance: &Bound<'_, PyAny>) -> bool {
+        true
+    }
+
+    /// Called on `issubclass(X, C)` where `C` has metaclass `MyMeta`.
+    fn __subclasscheck__(&self, _subclass: &Bound<'_, PyAny>) -> bool {
+        true
+    }
+
+    /// Called on `C[item]` – enables Generic-style subscript syntax.
+    fn __getitem__(&self, item: Py<PyAny>) -> Py<PyAny> {
+        item
+    }
+
+    /// Called when the class itself is called, e.g. `C()`.
+    #[pyo3(signature = (*args, **_kwargs))]
+    fn __call__(
+        slf: &Bound<'_, Self>,
+        args: &Bound<'_, PyTuple>,
+        _kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<Py<PyAny>> {
+        let py = slf.py();
+        let result = PyTuple::new(py, [slf.as_any().clone(), args.as_any().clone()])?;
+        Ok(result.into())
+    }
+}
+# Python::attach(|py| {
+#     let meta = py.get_type::<MyMeta>();
+#     pyo3::py_run!(py, meta, "
+# class C(metaclass=meta): pass
+# assert isinstance(C, meta)
+# assert issubclass(meta, type)
+# assert isinstance(42, C)
+# assert issubclass(int, C)
+# assert C[int] is int
+# result = C()
+# assert isinstance(result, tuple)
+# ")
+# });
+```
+
+Under the hood `#[pyclass(extends = PyType)]` makes the Rust struct a **subtype of Python's `type`** (i.e. `issubclass(MyMeta, type)` is always `True`). The metaclass status is inferred automatically: any struct that extends `PyType` (or another metaclass) has `IS_METACLASS = true` propagated through the type chain at compile time.
+
+### `__prepare__`
+
+`__prepare__` is a class method called by Python before the class body is executed; it returns a mapping used as the class namespace. Define it with `#[classmethod]`:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::{PyDict, PyTuple, PyType};
+# #[pyclass(extends = PyType)]
+# struct PrepMeta;
+#[pymethods]
+impl PrepMeta {
+    #[classmethod]
+    #[pyo3(signature = (_name, _bases, **_kwargs))]
+    fn __prepare__(
+        _mcs: &Bound<'_, PyType>,
+        _name: &str,
+        _bases: &Bound<'_, PyTuple>,
+        _kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<Py<PyDict>> {
+        let py = _mcs.py();
+        let d = PyDict::new(py);
+        d.set_item("injected", true)?;
+        Ok(d.into())
+    }
+}
+# Python::attach(|py| {
+#     let meta = py.get_type::<PrepMeta>();
+#     pyo3::py_run!(py, meta, "
+# class C(metaclass=meta): pass
+# assert C.injected is True
+# ")
+# });
+```
+
+### Custom `__new__` and the safe helper
+
+When you define a custom `__new__`, use the combination `#[new] #[classmethod]` and return `Py<Self>`. The Python-level `type.__new__` performs a safety check (`metatype->tp_new != type_new`) that rejects PyO3 metaclasses that have a custom `tp_new` slot. Use the provided safe helper [`PyType::metaclass_type_new`] instead:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::types::{PyDict, PyString, PyTuple, PyType};
+# #[pyclass(extends = PyType)]
+# struct CustomMeta;
+#[pymethods]
+impl CustomMeta {
+    #[new]
+    #[classmethod]
+    fn new(
+        cls: &Bound<'_, PyType>,
+        name: &Bound<'_, PyString>,
+        bases: &Bound<'_, PyTuple>,
+        namespace: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<Self>> {
+        PyType::metaclass_type_new(cls, name, bases, namespace)?
+            .cast_into::<Self>()
+            .map(|b| b.unbind())
+            .map_err(Into::into)
+    }
+}
+# Python::attach(|py| {
+#     let meta = py.get_type::<CustomMeta>();
+#     pyo3::py_run!(py, meta, "
+# class E(metaclass=meta): pass
+# assert isinstance(E, meta)
+# ")
+# });
+```
+
+### Extending a Rust metaclass
+
+A Rust metaclass can be used as a base for further specialisation. Add `subclass` to the base metaclass to make it eligible, then extend it normally:
+
+```rust
+# use pyo3::prelude::*;
+# #[pyclass(extends = pyo3::types::PyType, subclass)]
+# struct BaseMeta;
+# #[pymethods]
+# impl BaseMeta {}
+#[pyclass(extends = BaseMeta)]
+struct DerivedMeta;
+
+#[pymethods]
+impl DerivedMeta {
+    // Add or override methods here
+}
+# Python::attach(|py| {
+#     let base_meta = py.get_type::<BaseMeta>();
+#     let derived_meta = py.get_type::<DerivedMeta>();
+#     pyo3::py_run!(py, base_meta derived_meta, "
+# assert issubclass(derived_meta, base_meta)
+# class C(metaclass=derived_meta): pass
+# assert isinstance(C, derived_meta)
+# assert isinstance(C, base_meta)
+# ")
+# });
+```
+
+### Limitations
+
+- Applying a Rust-defined metaclass to another `#[pyclass]` via `#[pyclass(metaclass = MyMeta)]` is not yet supported; metaclasses can only be applied in Python code (`class C(metaclass=MyMeta): ...`).
+- Inheriting from a Python-defined metaclass using `extends` is not currently supported.
+
 ## Object properties
 
 PyO3 supports two ways to add properties to your `#[pyclass]`:
@@ -1587,3 +1747,5 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 
 [lifetime-elision]: https://doc.rust-lang.org/reference/lifetime-elision.html
 [compiler-error-e0106]: https://doc.rust-lang.org/error_codes/E0106.html
+
+[`PyType::metaclass_type_new`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyType.html#method.metaclass_type_new

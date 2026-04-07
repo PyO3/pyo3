@@ -177,6 +177,10 @@ pub trait PyClassImpl: Sized + 'static {
     /// #[pyclass(immutable_type)]
     const IS_IMMUTABLE_TYPE: bool = false;
 
+    /// True when this type is a metaclass (subtype of `type`).
+    /// Inferred automatically from `extends = PyType` or `extends = <other metaclass>`.
+    const IS_METACLASS: bool = false;
+
     /// Description of how this class is laid out in memory
     type Layout: PyClassObjectLayout<Self>;
 
@@ -1084,6 +1088,10 @@ pub trait PyClassBaseType: Sized {
     type PyClassMutability: PyClassMutability;
     /// The type of object layout to use for ancestors or descendants of this type.
     type Layout<T: PyClassImpl>;
+    /// True when this type is itself a metaclass (a subtype of `type`).
+    /// Set to `true` for [`pyo3::types::PyType`] and propagated automatically to
+    /// any `#[pyclass]` that uses `extends = PyType` (or extends another metaclass).
+    const IS_METACLASS: bool = false;
 }
 
 /// Implementation of tp_dealloc for pyclasses without gc

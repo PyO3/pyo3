@@ -49,6 +49,7 @@ where
         is_mapping: bool,
         is_sequence: bool,
         is_immutable_type: bool,
+        is_metaclass: bool,
         doc: &'static CStr,
         dict_offset: Option<PyObjectOffset>,
         weaklist_offset: Option<PyObjectOffset>,
@@ -72,6 +73,7 @@ where
                 is_mapping,
                 is_sequence,
                 is_immutable_type,
+                is_metaclass,
                 has_new: false,
                 has_dealloc: false,
                 has_getitem: false,
@@ -100,6 +102,7 @@ where
             T::IS_MAPPING,
             T::IS_SEQUENCE,
             T::IS_IMMUTABLE_TYPE,
+            T::IS_METACLASS,
             T::DOC,
             T::dict_offset(),
             T::weaklist_offset(),
@@ -131,6 +134,7 @@ struct PyTypeBuilder {
     is_mapping: bool,
     is_sequence: bool,
     is_immutable_type: bool,
+    is_metaclass: bool,
     has_new: bool,
     has_dealloc: bool,
     has_getitem: bool,
@@ -449,14 +453,20 @@ impl PyTypeBuilder {
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
 
         if !self.has_new {
-            #[cfg(not(Py_3_10))]
-            {
-                // Safety: This is the correct slot type for Py_tp_new
-                unsafe { self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void) }
-            }
-            #[cfg(Py_3_10)]
-            {
-                self.class_flags |= ffi::Py_TPFLAGS_DISALLOW_INSTANTIATION;
+            // For metaclasses (subclasses of `type`), we do not install a stub constructor;
+            // instead, we rely on the inherited `type.__new__` from the base `tp_base`.
+            if !self.is_metaclass {
+                #[cfg(not(Py_3_10))]
+                {
+                    // Safety: This is the correct slot type for Py_tp_new
+                    unsafe {
+                        self.push_slot(ffi::Py_tp_new, no_constructor_defined as *mut c_void)
+                    }
+                }
+                #[cfg(Py_3_10)]
+                {
+                    self.class_flags |= ffi::Py_TPFLAGS_DISALLOW_INSTANTIATION;
+                }
             }
         }
 

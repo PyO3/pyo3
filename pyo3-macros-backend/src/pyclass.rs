@@ -2923,6 +2923,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                     type Initializer = #pyo3_path::pyclass_init::PyClassInitializer<Self>;
                     type PyClassMutability = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::PyClassMutability;
                     type Layout<T: #pyo3_path::impl_::pyclass::PyClassImpl> = <Self::BaseNativeType as #pyo3_path::impl_::pyclass::PyClassBaseType>::Layout<T>;
+                    const IS_METACLASS: bool = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::IS_METACLASS;
                 }
             }
         });
@@ -3019,6 +3020,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 const IS_MAPPING: bool = #is_mapping;
                 const IS_SEQUENCE: bool = #is_sequence;
                 const IS_IMMUTABLE_TYPE: bool = #is_immutable_type;
+                const IS_METACLASS: bool = <#base as #pyo3_path::impl_::pyclass::PyClassBaseType>::IS_METACLASS;
 
                 type Layout = <Self::BaseNativeType as #pyo3_path::impl_::pyclass::PyClassBaseType>::Layout<Self>;
                 type BaseType = #base;
