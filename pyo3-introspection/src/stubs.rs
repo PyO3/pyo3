@@ -213,17 +213,7 @@ fn function_stubs(function: &Function, imports: &Imports, class_name: Option<&st
         buffer.push('\n');
     }
 
-    // base impl
-    buffer.push_str(&single_function_stub(
-        &function.name,
-        &function.decorators,
-        &function.arguments,
-        function.returns.as_ref(),
-        function.is_async,
-        function.docstring.as_deref(),
-        imports,
-        class_name,
-    ));
+    buffer.truncate(buffer.trim_end_matches('\n').len());
 
     buffer
 }
@@ -1002,7 +992,7 @@ mod tests {
         let stubs = module_stubs(&module, &[]);
         assert_eq!(
             stubs,
-            "from typing import overload\n\n@overload\ndef process(x: \"int\") -> \"int\": ...\n@overload\ndef process(x: \"str\") -> \"str\": ...\ndef process(x: \"int | str\") -> \"int | str\": ...\n"
+            "from typing import overload\n\n@overload\ndef process(x: \"int\") -> \"int\": ...\n@overload\ndef process(x: \"str\") -> \"str\": ...\n"
         );
     }
 
@@ -1103,7 +1093,6 @@ mod tests {
                 "    def process(self, /, x: \"int\") -> \"int\": ...\n",
                 "    @overload\n",
                 "    def process(self, /, x: \"str\") -> \"str\": ...\n",
-                "    def process(self, /, x): ...\n",
             )
         );
     }
@@ -1200,7 +1189,6 @@ mod tests {
                 "def fetch(url: \"str\", *, timeout: \"int\" = 30) -> \"str\": ...\n",
                 "@overload\n",
                 "def fetch(url: \"str\", *, timeout: \"str\") -> \"int\": ...\n",
-                "def fetch(url: \"str\", *, timeout: \"int\" = 30) -> \"str\": ...\n",
             )
         );
     }
@@ -1269,8 +1257,6 @@ mod tests {
                 "    @overload\n",
                 "    @staticmethod\n",
                 "    def my_method(x: \"int\") -> \"int\": ...\n",
-                "    @staticmethod\n",
-                "    def my_method(): ...\n",
             )
         );
     }
