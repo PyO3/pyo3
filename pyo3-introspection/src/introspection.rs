@@ -270,6 +270,7 @@ fn convert_class(
     })
 }
 
+#[expect(clippy::too_many_arguments)]
 fn convert_function(
     name: &str,
     arguments: &ChunkArguments,

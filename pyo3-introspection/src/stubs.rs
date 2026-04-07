@@ -228,6 +228,7 @@ fn function_stubs(function: &Function, imports: &Imports, class_name: Option<&st
     buffer
 }
 
+#[expect(clippy::too_many_arguments)]
 fn single_function_stub(
     name: &str,
     decorators: &[Expr],
