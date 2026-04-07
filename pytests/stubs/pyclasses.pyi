@@ -1,5 +1,5 @@
 from _typeshed import Incomplete
-from typing import Any, Final, final, overload
+from typing import Final, final, overload
 
 class AssertingBaseClass:
     """
