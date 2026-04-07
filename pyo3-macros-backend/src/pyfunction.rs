@@ -10,7 +10,7 @@ use crate::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
         FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
     },
-    method::{self, CallingConvention, FnArg},
+    method::{self, CallingConvention, FnArg, SelfConversionPolicy},
     pymethod::check_generic,
 };
 use proc_macro2::{Span, TokenStream};
@@ -430,7 +430,13 @@ pub fn impl_wrap_pyfunction(
         );
     }
     let calling_convention = CallingConvention::from_signature(&spec.signature);
-    let wrapper = spec.get_wrapper_function(&wrapper_ident, None, calling_convention, ctx)?;
+    let wrapper = spec.get_wrapper_function(
+        &wrapper_ident,
+        None,
+        calling_convention,
+        SelfConversionPolicy::Checked,
+        ctx,
+    )?;
     let methoddef = spec.get_methoddef(
         wrapper_ident,
         spec.get_doc(&func.attrs).as_ref(),
