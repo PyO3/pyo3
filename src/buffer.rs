@@ -842,6 +842,12 @@ impl<Format: FieldInfo, Shape: FieldInfo, Stride: FieldInfo>
         self.raw.buf
     }
 
+    /// Returns the Python object that owns the buffer data.
+    #[inline]
+    pub fn obj<'py>(&self, py: Python<'py>) -> Option<&Bound<'py, PyAny>> {
+        unsafe { Bound::ref_from_ptr_or_opt(py, &self.raw.obj).as_ref() }
+    }
+
     /// Gets whether the underlying buffer is read-only.
     #[inline]
     pub fn readonly(&self) -> bool {
@@ -1522,6 +1528,7 @@ mod tests {
                 assert!(view.suboffsets().is_none());
                 assert!(view.is_c_contiguous());
                 assert!(view.is_fortran_contiguous());
+                assert!(view.obj(py).unwrap().is(&bytes));
             })
             .unwrap();
         });
