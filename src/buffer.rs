@@ -1288,6 +1288,27 @@ mod tests {
             (c"=d", Float { bytes: 8 }),
             (c"=z", Unknown),
             (c"=0", Unknown),
+            // bare char (no prefix) goes to native_element_type_from_type_char
+            (
+                c"b",
+                SignedInteger {
+                    bytes: size_of::<c_schar>(),
+                },
+            ),
+            (
+                c"B",
+                UnsignedInteger {
+                    bytes: size_of::<c_uchar>(),
+                },
+            ),
+            (c"?", Bool),
+            (c"f", Float { bytes: 4 }),
+            (c"d", Float { bytes: 8 }),
+            (c"z", Unknown),
+            // <, >, ! prefixes go to standard_element_type_from_type_char
+            (c"<i", SignedInteger { bytes: 4 }),
+            (c">H", UnsignedInteger { bytes: 2 }),
+            (c"!q", SignedInteger { bytes: 8 }),
             // unknown prefix -> Unknown
             (c":b", Unknown),
         ] {
@@ -1325,6 +1346,7 @@ mod tests {
             assert_eq!(slice.len(), 5);
             assert_eq!(slice[0].get(), b'a');
             assert_eq!(slice[2].get(), b'c');
+            assert_eq!(unsafe { *slice[0].as_ptr() }, b'a');
 
             assert_eq!(unsafe { *(buffer.get_ptr(&[1]).cast::<u8>()) }, b'b');
 
@@ -1399,24 +1421,6 @@ mod tests {
     }
 
     #[test]
-    fn test_untyped_buffer() {
-        Python::attach(|py| {
-            let bytes = PyBytes::new(py, b"abcde");
-            let untyped = PyUntypedBuffer::get(&bytes).unwrap();
-            assert_eq!(untyped.dimensions(), 1);
-            assert_eq!(untyped.item_count(), 5);
-            assert_eq!(untyped.format().to_str().unwrap(), "B");
-            assert_eq!(untyped.shape(), [5]);
-
-            let typed: &PyBuffer<u8> = untyped.as_typed().unwrap();
-            assert_eq!(typed.dimensions(), 1);
-            assert_eq!(typed.item_count(), 5);
-            assert_eq!(typed.format().to_str().unwrap(), "B");
-            assert_eq!(typed.shape(), [5]);
-        });
-    }
-
-    #[test]
     fn test_obj_getter() {
         Python::attach(|py| {
             let bytes = PyBytes::new(py, b"hello");
@@ -1436,6 +1440,67 @@ mod tests {
                 let rebound = owner_ref.bind(py);
                 assert!(rebound.is_instance_of::<PyBytes>());
             });
+        });
+    }
+
+    #[test]
+    fn test_copy_to_fortran_slice() {
+        Python::attach(|py| {
+            let array = py
+                .import("array")
+                .unwrap()
+                .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
+                .unwrap();
+            let buffer = PyBuffer::get(&array).unwrap();
+
+            // wrong length
+            assert!(buffer.copy_to_fortran_slice(py, &mut [0.0f32]).is_err());
+            // correct length
+            let mut arr = [0.0f32; 4];
+            buffer.copy_to_fortran_slice(py, &mut arr).unwrap();
+            assert_eq!(arr, [1.0, 1.5, 2.0, 2.5]);
+        });
+    }
+
+    #[test]
+    fn test_copy_from_slice_wrong_length() {
+        Python::attach(|py| {
+            let array = py
+                .import("array")
+                .unwrap()
+                .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
+                .unwrap();
+            let buffer = PyBuffer::get(&array).unwrap();
+            // writable buffer, but wrong length
+            assert!(!buffer.readonly());
+            assert!(buffer.copy_from_slice(py, &[0.0f32; 2]).is_err());
+            assert!(buffer.copy_from_fortran_slice(py, &[0.0f32; 2]).is_err());
+        });
+    }
+
+    #[test]
+    fn test_untyped_buffer() {
+        Python::attach(|py| {
+            let bytes = PyBytes::new(py, b"abcde");
+            let buffer = PyUntypedBuffer::get(&bytes).unwrap();
+            assert_eq!(buffer.dimensions(), 1);
+            assert_eq!(buffer.item_count(), 5);
+            assert_eq!(buffer.format().to_str().unwrap(), "B");
+            assert_eq!(buffer.shape(), [5]);
+            assert!(!buffer.buf_ptr().is_null());
+            assert_eq!(buffer.strides(), &[1]);
+            assert_eq!(buffer.len_bytes(), 5);
+            assert_eq!(buffer.item_size(), 1);
+            assert!(buffer.readonly());
+            assert!(buffer.suboffsets().is_none());
+
+            assert!(format!("{:?}", buffer).starts_with("PyUntypedBuffer { buf: "));
+
+            let typed: &PyBuffer<u8> = buffer.as_typed().unwrap();
+            assert_eq!(typed.dimensions(), 1);
+            assert_eq!(typed.item_count(), 5);
+            assert_eq!(typed.format().to_str().unwrap(), "B");
+            assert_eq!(typed.shape(), [5]);
         });
     }
 
@@ -1533,6 +1598,48 @@ mod tests {
                 assert!(view.suboffsets().is_none());
             })
             .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_typed_buffer_view_with_flags() {
+        Python::attach(|py| {
+            let array = py
+                .import("array")
+                .unwrap()
+                .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
+                .unwrap();
+
+            PyBufferView::<f32, Known, Unknown, Unknown>::with_flags(
+                &array,
+                ffi::PyBUF_ND,
+                |view| {
+                    assert_eq!(view.item_count(), 4);
+                    assert_eq!(view.format().to_str().unwrap(), "f");
+
+                    let slice = view.as_slice(py).unwrap();
+                    assert_eq!(slice[0].get(), 1.0);
+                    assert_eq!(slice[3].get(), 2.5);
+
+                    let mut_slice = view.as_mut_slice(py).unwrap();
+                    mut_slice[0].set(9.0);
+                    assert_eq!(slice[0].get(), 9.0);
+                },
+            )
+            .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_typed_buffer_view_with_flags_incompatible() {
+        Python::attach(|py| {
+            let bytes = PyBytes::new(py, b"abcde");
+            let result = PyBufferView::<f32, Known, Unknown, Unknown>::with_flags(
+                &bytes,
+                ffi::PyBUF_ND,
+                |_view| {},
+            );
+            assert!(result.is_err());
         });
     }
 
