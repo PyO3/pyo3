@@ -1369,7 +1369,7 @@ def check_feature_powerset(session: nox.Session):
     }
 
     EXPECTED_ABI3T_FEATURES = {
-        f"abi3t-py3{ver.split('.')[1].strip("t")}" for ver in ABI3T_PY_VERSIONS
+        f"abi3t-py3{ver.split('.')[1].strip('t')}" for ver in ABI3T_PY_VERSIONS
     }
 
     EXCLUDED_FROM_FULL = {
