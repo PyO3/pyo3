@@ -64,6 +64,14 @@ jobs:
       - uses: obi1kenobi/cargo-semver-checks-action@v2
         with:
           baseline-rev: ${{ steps.fetch_merge_base.outputs.merge_base }}
+          feature-group: "only-explicit-features"
+          features: "full"
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          baseline-rev: ${{ steps.fetch_merge_base.outputs.merge_base }}
+          feature-group: "only-explicit-features"
+          features: "full,abi3"
+
 
   check-msrv:
     needs: [fmt, resolve]
