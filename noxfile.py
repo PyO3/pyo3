@@ -1546,7 +1546,14 @@ def _get_feature_sets() -> Tuple[Optional[str], ...]:
 
     # do fewer abi3t builds?
     if sys.version_info >= (3, 15):
-        return (None, "abi3", "abi3t", features, f"abi3,{features}", f"abi3t,{features}")
+        return (
+            None,
+            "abi3",
+            "abi3t",
+            features,
+            f"abi3,{features}",
+            f"abi3t,{features}",
+        )
     return (None, "abi3", features, f"abi3,{features}")
 
 
