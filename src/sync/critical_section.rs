@@ -271,7 +271,7 @@ where
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "macros")]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     use super::{with_critical_section, with_critical_section2};
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
     use super::{with_critical_section_mutex, with_critical_section_mutex2};
