@@ -774,7 +774,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             return Ok(());
         }
 
-        self.fixup_for_stable_abi_version(abi3_version, is_abi3)?;
+        self.fixup_for_stable_abi_version(abi3_version, is_abi3, "abi3")?;
 
         Ok(())
     }
@@ -787,7 +787,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             return Ok(());
         }
 
-        self.fixup_for_stable_abi_version(abi3t_version, is_abi3t)?;
+        self.fixup_for_stable_abi_version(abi3t_version, is_abi3t, "abi3t")?;
 
         Ok(())
     }
@@ -797,6 +797,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         &mut self,
         abi_version: Option<PythonVersion>,
         abi_check: impl Fn() -> bool,
+        abi_name: &str,
     ) -> Result<()> {
         if let Some(version) = abi_version {
             ensure!(
@@ -809,7 +810,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             );
             self.version = version;
         } else if abi_check() && self.version.minor > STABLE_ABI_MAX_MINOR {
-            warn!("Automatically falling back to abi3-py3{STABLE_ABI_MAX_MINOR} because current Python is higher than the maximum supported");
+            warn!("Automatically falling back to {abi_name}-py3{STABLE_ABI_MAX_MINOR} because current Python is higher than the maximum supported");
             self.version.minor = STABLE_ABI_MAX_MINOR;
         }
 

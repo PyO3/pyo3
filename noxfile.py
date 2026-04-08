@@ -1136,22 +1136,23 @@ def test_version_limits(session: nox.Session):
     with _config_file() as config_file:
         env["PYO3_CONFIG_FILE"] = config_file.name
 
-        assert "3.6" not in PY_VERSIONS
+        assert "3.7" not in PY_VERSIONS
         config_file.set("CPython", "3.6")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        assert "3.16" not in PY_VERSIONS
-        config_file.set("CPython", "3.16")
+        assert "3.17" not in PY_VERSIONS
+        config_file.set("CPython", "3.17")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        # 3.16 CPython should build if abi3 is explicitly requested
+        # 3.17 CPython should build if abi3 is explicitly requested
         _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
 
-        # 3.15 CPython should build with forward compatibility
-        # TODO: check on 3.16 when adding abi3-py315 support
-        config_file.set("CPython", "3.15")
+        # 3.16 CPython should build with forward compatibility
+        # TODO: check on 3.17 when adding abi3-py316 support
+        config_file.set("CPython", "3.16")
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
+        del env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"]
 
         assert "3.10" not in PYPY_VERSIONS
         config_file.set("PyPy", "3.10")
@@ -1164,6 +1165,23 @@ def test_version_limits(session: nox.Session):
         # 3.14t is PyO3's minimum version of free-threaded Python
         config_file.set("CPython", "3.14t")
         _run_cargo(session, "check", env=env)
+
+        # 3.15t is PyO3's maximum version of free-threaded Python
+        config_file.set("CPython", "3.15t")
+        _run_cargo(session, "check", env=env)
+
+        # 3.16t should build with abi3t forward compatibility
+        config_file.set("CPython", "3.16t")
+        env["PYO3_USE_ABI3T_FORWARD_COMPATIBILITY"] = "1"
+        _run_cargo(session, "check", env=env)
+        del env["PYO3_USE_ABI3T_FORWARD_COMPATIBILITY"]
+
+        # 3.17t isn't supported
+        config_file.set("CPython", "3.17t")
+        _run_cargo(session, "check", env=env, expect_error=True)
+
+        # 3.17t CPython should build if abi3 is explicitly requested
+        _run_cargo(session, "check", "--features=pyo3/abi3t", env=env)
 
     # attempt to build with latest version and check that abi3 version
     # configured matches the feature

@@ -69,7 +69,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 let mut error = MaximumVersionExceeded::new(interpreter_config, versions.max);
                 let major = interpreter_config.version.major;
                 let minor = interpreter_config.version.minor;
-                if interpreter_config.is_free_threaded() && interpreter_config.version.minor >= 15 {
+                if interpreter_config.is_free_threaded() && interpreter_config.version.minor < 15 {
                     error.add_help(&format!(
                         "the free-threaded build of CPython {major}{minor} does not support the limited API so this check cannot be suppressed.",
                     ));
