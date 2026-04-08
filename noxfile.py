@@ -86,7 +86,7 @@ def _supported_interpreter_versions(
 
 PY_VERSIONS = _supported_interpreter_versions("cpython")
 ABI3_PY_VERSIONS = [p for p in PY_VERSIONS if not p.endswith("t")]
-ABI3T_PY_VERSIONS = [p for p in PY_VERSIONS if int(p.split(".")[1]) > 14]
+ABI3T_PY_VERSIONS = [p for p in PY_VERSIONS if int(p.split(".")[1].strip("t")) > 14]
 PYPY_VERSIONS = _supported_interpreter_versions("pypy")
 
 
@@ -126,7 +126,7 @@ def test_rust(session: nox.Session):
         # so that it can be used in the test code
         # (e.g. for `#[cfg(feature = "abi3-py38")]`)
         _run_cargo_test(session, features=feature_set, extra_flags=flags)
-
+        breakpoint()
         if (
             feature_set
             and "abi3" in feature_set
