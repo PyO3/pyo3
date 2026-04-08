@@ -130,6 +130,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn test_bytearray() {
         Python::attach(|py| {
             let py_bytearray = PyByteArray::new(py, b"foobar");

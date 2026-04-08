@@ -561,7 +561,8 @@ impl<'py> Iterator for BoundDictIterator<'py> {
         }
         #[cfg(any(Py_TARGET_ABI3T, not(Py_GIL_DISABLED)))]
         {
-            // FIXME: Unsafe with Py_GIL_DISABLED, but no critical sections in the stable ABI
+            // SAFETY: next_unchecked always owns strong references to
+            // items in the dict under Py_TARGET_ABI3T
             unsafe { self.inner.next_unchecked(&self.dict) }
         }
     }

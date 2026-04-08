@@ -86,7 +86,7 @@ def _supported_interpreter_versions(
 
 PY_VERSIONS = _supported_interpreter_versions("cpython")
 ABI3_PY_VERSIONS = [p for p in PY_VERSIONS if not p.endswith("t")]
-ABI3T_PY_VERSIONS = [p for p in PY_VERSIONS if int(p.split(".")[0]) > 14]
+ABI3T_PY_VERSIONS = [p for p in PY_VERSIONS if int(p.split(".")[1]) > 14]
 PYPY_VERSIONS = _supported_interpreter_versions("pypy")
 
 

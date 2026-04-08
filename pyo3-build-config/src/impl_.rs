@@ -782,7 +782,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     /// Updates configured ABI to build for to the requested abi3t version
     /// This is a no-op for platforms where abi3t is not supported
     fn fixup_for_abi3t_version(&mut self, abi3t_version: Option<PythonVersion>) -> Result<()> {
-        // PyPy, GraalPy, and the free-threaded build don't support abi3; don't adjust the version
+        // PyPy, GraalPy, and the free-threaded build don't support abi3t; don't adjust the version
         if self.implementation.is_pypy() || self.implementation.is_graalpy() {
             return Ok(());
         }
@@ -2026,6 +2026,7 @@ pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
     let interpreter_config = if let Some(cross_config) = cross_compiling_from_cargo_env()? {
         let mut interpreter_config = load_cross_compile_config(cross_config)?;
         interpreter_config.fixup_for_abi3_version(get_abi3_version())?;
+        interpreter_config.fixup_for_abi3t_version(get_abi3t_version())?;
         Some(interpreter_config)
     } else {
         None
@@ -2044,7 +2045,7 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
 
     ensure!(
         !(abi3_version.is_some() && abi3t_version.is_some()),
-        "Cannot enable abi3 and abit3t features"
+        "Cannot simultaneously enable abi3 and abi3t features"
     );
 
     // See if we can safely skip the Python interpreter configuration detection.
