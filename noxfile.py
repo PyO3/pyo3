@@ -142,7 +142,7 @@ def test_rust(session: nox.Session):
 
         if (
             feature_set
-            and "abi3" in feature_set
+            and "abi3t" in feature_set
             and "full" in feature_set
             and sys.version_info >= (3, 16)
         ):
@@ -1545,7 +1545,9 @@ def _get_feature_sets() -> Tuple[Optional[str], ...]:
             return (None, features)
 
     # do fewer abi3t builds?
-    return (None, "abi3", "abi3t", features, f"abi3,{features}", f"abi3t,{features}")
+    if sys.version_info >= (3, 15):
+        return (None, "abi3", "abi3t", features, f"abi3,{features}", f"abi3t,{features}")
+    return (None, "abi3", features, f"abi3,{features}")
 
 
 _RELEASE_LINE_START = "release: "

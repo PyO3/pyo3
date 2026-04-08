@@ -371,6 +371,13 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 
         let stable_abi = CPythonABI::from_build_env()?;
 
+        if let CPythonABI::ABI3t = stable_abi {
+            ensure!(
+                version.minor > 14,
+                "abi3t is supported on Python 3.15 and newer but build is for Python {version}"
+            );
+        }
+
         let implementation = map["implementation"].parse()?;
 
         let gil_disabled = match map["gil_disabled"].as_str() {
