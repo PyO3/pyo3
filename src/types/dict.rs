@@ -518,13 +518,13 @@ impl DictIterImpl {
                         1 => unsafe { key.assume_owned_unchecked(py) },
                         x => panic!("Unknown return value from PyIter_NextItem: {}", x),
                     };
+                    *remaining -= 1;
                     let value = match dict.get_item(&key) {
                         Ok(value) => value?,
                         Err(e) => {
                             panic!("Iterating over dictionary failed with error '{}'", e)
                         }
                     };
-                    *remaining -= 1;
                     Some((key, value))
                 }
             }

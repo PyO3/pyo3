@@ -1465,6 +1465,10 @@ mod tests {
                     (offset_of!(ExpectedLayout, contents) + offset_of!(FrozenClass, value))
                         as ffi::Py_ssize_t
                 );
+                #[cfg(not(Py_TARGET_ABI3T))]
+                assert_eq!(member.flags, ffi::Py_READONLY);
+                #[cfg(Py_TARGET_ABI3T)]
+                // ABI3T builds set other flags besides READONLY
                 assert_eq!(member.flags & ffi::Py_READONLY, ffi::Py_READONLY);
             }
             _ => panic!("Expected a StructMember"),
