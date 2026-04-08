@@ -518,6 +518,9 @@ impl DictIterImpl {
                         1 => unsafe { key.assume_owned_unchecked(py) },
                         x => panic!("Unknown return value from PyIter_NextItem: {}", x),
                     };
+                    // get_item can only fail if another thread concurrently
+                    // removed the key, so we know that remaining definitely
+                    // needs to be decremented no matter what.
                     *remaining -= 1;
                     let value = match dict.get_item(&key) {
                         Ok(value) => value?,
