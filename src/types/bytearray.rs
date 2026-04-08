@@ -2,7 +2,7 @@ use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
-#[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+#[cfg(not(Py_TARGET_ABI3T))]
 use crate::sync::critical_section::with_critical_section;
 use crate::{ffi, PyAny, Python};
 use std::slice;
@@ -132,14 +132,14 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// # #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+    /// # #[cfg(not(Py_TARGET_ABI3T))]
     /// use pyo3::exceptions::PyRuntimeError;
-    /// # #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+    /// # #[cfg(not(Py_TARGET_ABI3T))]
     /// use pyo3::sync::critical_section::with_critical_section;
-    /// # #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+    /// # #[cfg(not(Py_TARGET_ABI3T))]
     /// use pyo3::types::PyByteArray;
     ///
-    /// # #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+    /// # #[cfg(not(Py_TARGET_ABI3T))]
     /// #[pyfunction]
     /// fn a_valid_function(bytes: &Bound<'_, PyByteArray>) -> PyResult<()> {
     ///     let section = with_critical_section(bytes, || {
@@ -160,9 +160,9 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     ///
     ///     Ok(())
     /// }
-    /// # #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
+    /// # #[cfg(Py_TARGET_ABI3T)]
     /// # fn main() -> () {}
-    /// # #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+    /// # #[cfg(not(Py_TARGET_ABI3T))]
     /// # fn main() -> PyResult<()> {
     /// #     Python::attach(|py| -> PyResult<()> {
     /// #         let fun = wrap_pyfunction!(a_valid_function, py)?;
@@ -244,7 +244,7 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
     /// pyo3::py_run!(py, bytearray, "assert bytearray == b'Hello World.'");
     /// # });
     /// ```
-    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn to_vec(&self) -> Vec<u8>;
 
     /// Resizes the bytearray object to the new length `len`.
@@ -277,7 +277,7 @@ impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
         unsafe { self.as_borrowed().as_bytes_mut() }
     }
 
-    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn to_vec(&self) -> Vec<u8> {
         with_critical_section(self, || {
             // SAFETY:
@@ -368,7 +368,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn test_to_vec() {
         Python::attach(|py| {
             let src = b"Hello Python";
@@ -470,7 +470,7 @@ mod tests {
         any(Py_3_14, not(all(Py_3_13, Py_GIL_DISABLED)))
     ))]
     #[test]
-    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn test_data_integrity_in_critical_section() {
         use crate::instance::Py;
         use crate::sync::{critical_section::with_critical_section, MutexExt};

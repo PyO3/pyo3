@@ -154,12 +154,12 @@ mod foo {
     }
 }
 
-# #[cfg(not(_Py_OPAQUE_PYOBJECT))]
+# #[cfg(not(Py_TARGET_ABI3T))]
 fn main() -> PyResult<()> {
     pyo3::append_to_inittab!(foo);
     Python::attach(|py| Python::run(py, c"import foo; foo.add_one(6)", None, None))
 }
-# #[cfg(_Py_OPAQUE_PYOBJECT)]
+# #[cfg(Py_TARGET_ABI3T)]
 # fn main() -> () {}
 ```
 

@@ -249,10 +249,11 @@ impl InterpreterConfig {
             }
             CPythonABI::ABI3t => {
                 out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
+                // emitted immediately below if the host interpreter is free-threaded
                 if !self.is_free_threaded() {
                     out.push("cargo:rustc-cfg=Py_GIL_DISABLED".to_owned());
                 }
-                out.push("cargo:rustc-cfg=_Py_OPAQUE_PYOBJECT".to_owned());
+                out.push("cargo:rustc-cfg=Py_TARGET_ABI3T".to_owned());
             }
             CPythonABI::VersionSpecific => {}
         }

@@ -116,7 +116,7 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     }
 }
 
-#[cfg(not(_Py_OPAQUE_PYOBJECT))]
+#[cfg(not(Py_TARGET_ABI3T))]
 #[cfg(Py_3_12)]
 #[inline(always)]
 unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {

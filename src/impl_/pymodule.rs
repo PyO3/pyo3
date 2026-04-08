@@ -48,7 +48,7 @@ use crate::{
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
-    #[cfg(not(_Py_OPAQUE_PYOBJECT))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
     #[cfg(Py_3_15)]
     name: &'static CStr,
@@ -77,7 +77,7 @@ impl ModuleDef {
     ) -> Self {
         // This is only used in PyO3 for append_to_inittab on Python 3.15 and newer.
         // There could also be other tools that need the legacy init hook.
-        #[cfg(not(_Py_OPAQUE_PYOBJECT))]
+        #[cfg(not(Py_TARGET_ABI3T))]
         #[allow(clippy::declare_interior_mutable_const)]
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
             m_base: ffi::PyModuleDef_HEAD_INIT,
@@ -91,7 +91,7 @@ impl ModuleDef {
             m_free: None,
         };
 
-        #[cfg(not(_Py_OPAQUE_PYOBJECT))]
+        #[cfg(not(Py_TARGET_ABI3T))]
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
             m_name: name.as_ptr(),
             m_doc: doc.as_ptr(),
@@ -102,7 +102,7 @@ impl ModuleDef {
         });
 
         ModuleDef {
-            #[cfg(not(_Py_OPAQUE_PYOBJECT))]
+            #[cfg(not(Py_TARGET_ABI3T))]
             ffi_def,
             #[cfg(Py_3_15)]
             name,
@@ -121,11 +121,11 @@ impl ModuleDef {
     }
 
     pub fn init_multi_phase(&'static self) -> *mut ffi::PyObject {
-        #[cfg(not(_Py_OPAQUE_PYOBJECT))]
+        #[cfg(not(Py_TARGET_ABI3T))]
         unsafe {
             ffi::PyModuleDef_Init(self.ffi_def.get())
         }
-        #[cfg(_Py_OPAQUE_PYOBJECT)]
+        #[cfg(Py_TARGET_ABI3T)]
         panic!("TODO: fix this panic");
     }
 
@@ -512,7 +512,7 @@ mod tests {
 
         let module_def: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS);
 
-        #[cfg(not(_Py_OPAQUE_PYOBJECT))]
+        #[cfg(not(Py_TARGET_ABI3T))]
         unsafe {
             assert_eq!((*module_def.ffi_def.get()).m_slots, SLOTS.0.get().cast());
         }

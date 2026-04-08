@@ -1,12 +1,12 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
-#[cfg(not(_Py_OPAQUE_PYOBJECT))]
+#[cfg(not(Py_TARGET_ABI3T))]
 #[cfg(Py_GIL_DISABLED)]
 use crate::refcount;
 #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
 use crate::PyMutex;
 use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::mem;
-#[cfg(not(_Py_OPAQUE_PYOBJECT))]
+#[cfg(not(Py_TARGET_ABI3T))]
 #[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::{AtomicIsize, AtomicU32};
 
@@ -94,7 +94,7 @@ const _PyObject_MIN_ALIGNMENT: usize = 4;
 // not currently possible to use constant variables with repr(align()), see
 // https://github.com/rust-lang/rust/issues/52840
 
-#[cfg(not(_Py_OPAQUE_PYOBJECT))]
+#[cfg(not(Py_TARGET_ABI3T))]
 #[cfg_attr(not(all(Py_3_15, Py_GIL_DISABLED)), repr(C))]
 #[cfg_attr(all(Py_3_15, Py_GIL_DISABLED), repr(C, align(4)))]
 #[derive(Debug)]
@@ -120,10 +120,10 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
-#[cfg(not(_Py_OPAQUE_PYOBJECT))]
+#[cfg(not(Py_TARGET_ABI3T))]
 const _: () = assert!(std::mem::align_of::<PyObject>() >= _PyObject_MIN_ALIGNMENT);
 
-#[cfg(not(_Py_OPAQUE_PYOBJECT))]
+#[cfg(not(Py_TARGET_ABI3T))]
 #[allow(
     clippy::declare_interior_mutable_const,
     reason = "contains atomic refcount on free-threaded builds"
@@ -155,14 +155,14 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
 };
 
 // from pytypedefs.h
-#[cfg(_Py_OPAQUE_PYOBJECT)]
+#[cfg(Py_TARGET_ABI3T)]
 opaque_struct!(pub PyObject);
 
 // skipped _Py_UNOWNED_TID
 
 // skipped _PyObject_CAST
 
-#[cfg(not(_Py_OPAQUE_PYOBJECT))]
+#[cfg(not(Py_TARGET_ABI3T))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyVarObject {
@@ -175,7 +175,7 @@ pub struct PyVarObject {
 }
 
 // from pytypedefs.h
-#[cfg(_Py_OPAQUE_PYOBJECT)]
+#[cfg(Py_TARGET_ABI3T)]
 opaque_struct!(pub PyVarObject);
 
 // skipped private _PyVarObject_CAST

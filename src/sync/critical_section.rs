@@ -42,7 +42,7 @@ use crate::types::PyMutex;
 
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use crate::Python;
-#[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+#[cfg(not(Py_TARGET_ABI3T))]
 use crate::{types::PyAny, Bound};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use std::cell::UnsafeCell;
@@ -277,34 +277,34 @@ mod tests {
     use super::{with_critical_section_mutex, with_critical_section_mutex2};
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
     use crate::types::PyMutex;
-    #[cfg(all(not(all(Py_LIMITED_API, Py_GIL_DISABLED)), feature = "macros"))]
+    #[cfg(all(not(Py_TARGET_ABI3T), feature = "macros"))]
     use std::sync::atomic::{AtomicBool, Ordering};
     #[cfg(all(
-        not(all(Py_LIMITED_API, Py_GIL_DISABLED)),
+        not(Py_TARGET_ABI3T),
         any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14))
     ))]
     use std::sync::Barrier;
 
-    #[cfg(all(not(all(Py_LIMITED_API, Py_GIL_DISABLED)), feature = "macros"))]
+    #[cfg(all(not(Py_TARGET_ABI3T), feature = "macros"))]
     use crate::Py;
     #[cfg(all(
-        not(all(Py_LIMITED_API, Py_GIL_DISABLED)),
+        not(Py_TARGET_ABI3T),
         any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14))
     ))]
     use crate::Python;
 
-    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     #[cfg(feature = "macros")]
     #[crate::pyclass(crate = "crate")]
     struct VecWrapper(Vec<isize>);
 
-    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     #[cfg(feature = "macros")]
     #[crate::pyclass(crate = "crate")]
     struct BoolWrapper(AtomicBool);
 
     #[cfg(feature = "macros")]
-    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     #[test]
     fn test_critical_section() {
         let barrier = Barrier::new(2);
@@ -370,7 +370,7 @@ mod tests {
 
     #[cfg(feature = "macros")]
     #[test]
-    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn test_critical_section2() {
         let barrier = Barrier::new(3);
 
@@ -453,7 +453,7 @@ mod tests {
 
     #[cfg(feature = "macros")]
     #[test]
-    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn test_critical_section2_same_object_no_deadlock() {
         let barrier = Barrier::new(2);
 
@@ -519,7 +519,7 @@ mod tests {
 
     #[cfg(feature = "macros")]
     #[test]
-    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn test_critical_section2_two_containers() {
         let (vec1, vec2) = Python::attach(|py| {
             (

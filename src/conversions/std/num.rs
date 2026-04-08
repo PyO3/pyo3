@@ -6,7 +6,7 @@ use crate::inspect::PyStaticExpr;
 use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
-#[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+#[cfg(not(Py_TARGET_ABI3T))]
 use crate::types::{PyByteArray, PyByteArrayMethods};
 use crate::types::{PyBytes, PyInt};
 use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
@@ -257,7 +257,7 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
         obj: Borrowed<'_, 'py, PyAny>,
         _: crate::conversion::private::Token,
     ) -> Option<impl FromPyObjectSequence<Target = u8>> {
-        #[cfg(all(Py_GIL_DISABLED, Py_LIMITED_API))]
+        #[cfg(Py_TARGET_ABI3T)]
         {
             if let Ok(bytes) = obj.cast::<PyBytes>() {
                 Some(BytesSequenceExtractor::Bytes(bytes))
@@ -265,7 +265,7 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
                 None
             }
         }
-        #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+        #[cfg(not(Py_TARGET_ABI3T))]
         {
             if let Ok(bytes) = obj.cast::<PyBytes>() {
                 Some(BytesSequenceExtractor::Bytes(bytes))
@@ -280,7 +280,7 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
 
 pub(crate) enum BytesSequenceExtractor<'a, 'py> {
     Bytes(Borrowed<'a, 'py, PyBytes>),
-    #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     ByteArray(Borrowed<'a, 'py, PyByteArray>),
 }
 
@@ -299,7 +299,7 @@ impl BytesSequenceExtractor<'_, '_> {
 
         match self {
             BytesSequenceExtractor::Bytes(b) => copy_slice(b.as_bytes()),
-            #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+            #[cfg(not(Py_TARGET_ABI3T))]
             BytesSequenceExtractor::ByteArray(b) => {
                 crate::sync::critical_section::with_critical_section(b, || {
                     // Safety: b is protected by a critical section
@@ -316,7 +316,7 @@ impl FromPyObjectSequence for BytesSequenceExtractor<'_, '_> {
     fn to_vec(&self) -> Vec<Self::Target> {
         match self {
             BytesSequenceExtractor::Bytes(b) => b.as_bytes().to_vec(),
-            #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
+            #[cfg(not(Py_TARGET_ABI3T))]
             BytesSequenceExtractor::ByteArray(b) => b.to_vec(),
         }
     }
