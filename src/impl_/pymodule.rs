@@ -126,7 +126,7 @@ impl ModuleDef {
             ffi::PyModuleDef_Init(self.ffi_def.get())
         }
         #[cfg(Py_TARGET_ABI3T)]
-        panic!("Legacy module initialization cannot work under abi3t");
+        panic!("Legacy module initialization cannot work under abi3t. Use the PyModExport slots-based initialization hook instead.");
     }
 
     /// Builds a module object directly. Used for [`#[pymodule]`][crate::pymodule] submodules.

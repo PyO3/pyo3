@@ -562,7 +562,9 @@ impl<'py> Iterator for BoundDictIterator<'py> {
         #[cfg(any(Py_TARGET_ABI3T, not(Py_GIL_DISABLED)))]
         {
             // SAFETY: next_unchecked always owns strong references to
-            // items in the dict under Py_TARGET_ABI3T
+            // items in the dict under Py_TARGET_ABI3T. Iteration
+            // uses an iterator object, relying on CPython guarantees
+            // that the PyDict and PyIter APIs are safe.
             unsafe { self.inner.next_unchecked(&self.dict) }
         }
     }
