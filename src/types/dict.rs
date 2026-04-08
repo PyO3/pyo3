@@ -422,9 +422,7 @@ enum DictIterImpl {
     DictIter {
         #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
         ppos: ffi::Py_ssize_t,
-        #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
         di_used: ffi::Py_ssize_t,
-        #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
         remaining: ffi::Py_ssize_t,
         #[cfg(all(Py_GIL_DISABLED, Py_LIMITED_API))]
         iter: *mut ffi::PyObject,
@@ -435,7 +433,7 @@ enum DictIterImpl {
 impl Drop for DictIterImpl {
     fn drop(&mut self) {
         match self {
-            Self::DictIter { iter } => {
+            Self::DictIter { iter, .. } => {
                 // safety: owned value that cannot be null by construction
                 unsafe { ffi::Py_DECREF(*iter) };
             }
@@ -454,9 +452,7 @@ impl DictIterImpl {
     ) -> Option<(Bound<'py, PyAny>, Bound<'py, PyAny>)> {
         match self {
             Self::DictIter {
-                #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
                 di_used,
-                #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
                 remaining,
                 #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
                 ppos,
@@ -464,34 +460,34 @@ impl DictIterImpl {
                 iter,
                 ..
             } => {
+                let ma_used = dict_len(dict);
+
+                // These checks are similar to what CPython does.
+                //
+                // If the dimension of the dict changes e.g. key-value pairs are removed
+                // or added during iteration, this will panic next time when `next` is called
+                if *di_used != ma_used {
+                    *di_used = -1;
+                    panic!("dictionary changed size during iteration");
+                };
+
+                // If the dict is changed in such a way that the length remains constant
+                // then this will panic at the end of iteration - similar to this:
+                //
+                // d = {"a":1, "b":2, "c": 3}
+                //
+                // for k, v in d.items():
+                //     d[f"{k}_"] = 4
+                //     del d[k]
+                //     print(k)
+                //
+                if *remaining == -1 {
+                    *di_used = -1;
+                    panic!("dictionary keys changed during iteration");
+                };
+
                 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
                 {
-                    let ma_used = dict_len(dict);
-
-                    // These checks are similar to what CPython does.
-                    //
-                    // If the dimension of the dict changes e.g. key-value pairs are removed
-                    // or added during iteration, this will panic next time when `next` is called
-                    if *di_used != ma_used {
-                        *di_used = -1;
-                        panic!("dictionary changed size during iteration");
-                    };
-
-                    // If the dict is changed in such a way that the length remains constant
-                    // then this will panic at the end of iteration - similar to this:
-                    //
-                    // d = {"a":1, "b":2, "c": 3}
-                    //
-                    // for k, v in d.items():
-                    //     d[f"{k}_"] = 4
-                    //     del d[k]
-                    //     print(k)
-                    //
-                    if *remaining == -1 {
-                        *di_used = -1;
-                        panic!("dictionary keys changed during iteration");
-                    };
-
                     let mut key: *mut ffi::PyObject = std::ptr::null_mut();
                     let mut value: *mut ffi::PyObject = std::ptr::null_mut();
 
@@ -528,6 +524,8 @@ impl DictIterImpl {
                             panic!("Iterating over dictionary failed with error '{}'", e)
                         }
                     };
+                    dbg!(*remaining);
+                    *remaining -= 1;
                     Some((key, value))
                 }
             }
@@ -571,14 +569,10 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
         let len = self.len();
-        #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
-        let len = 0;
         (len, Some(len))
     }
 
-    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     #[inline]
     fn count(self) -> usize
     where
@@ -714,7 +708,6 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 }
 
-#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 impl ExactSizeIterator for BoundDictIterator<'_> {
     fn len(&self) -> usize {
         match self.inner {
@@ -725,6 +718,7 @@ impl ExactSizeIterator for BoundDictIterator<'_> {
 
 impl<'py> BoundDictIterator<'py> {
     fn new(dict: Bound<'py, PyDict>) -> Self {
+        let di_used = dict_len(&dict);
         #[cfg(all(Py_GIL_DISABLED, Py_LIMITED_API))]
         let iter = {
             let new_iter = unsafe { ffi::PyObject_GetIter(dict.as_ptr()) };
@@ -737,14 +731,14 @@ impl<'py> BoundDictIterator<'py> {
         };
         Self {
             dict,
-            #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
             inner: DictIterImpl::DictIter {
+                #[cfg(not(all(Py_GIL_DISABLED, Py_LIMITED_API)))]
                 ppos: 0,
-                di_used: dict_len(&dict),
-                remaining,
+                di_used,
+                remaining: di_used,
+                #[cfg(all(Py_GIL_DISABLED, Py_LIMITED_API))]
+                iter,
             },
-            #[cfg(all(Py_GIL_DISABLED, Py_LIMITED_API))]
-            inner: DictIterImpl::DictIter { iter },
         }
     }
 }
@@ -1294,7 +1288,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     fn test_iter_size_hint() {
         Python::attach(|py| {
             let mut v = HashMap::new();
