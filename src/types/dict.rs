@@ -524,7 +524,6 @@ impl DictIterImpl {
                             panic!("Iterating over dictionary failed with error '{}'", e)
                         }
                     };
-                    dbg!(*remaining);
                     *remaining -= 1;
                     Some((key, value))
                 }
