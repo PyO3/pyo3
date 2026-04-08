@@ -431,6 +431,18 @@ enum DictIterImpl {
     },
 }
 
+#[cfg(all(Py_GIL_DISABLED, Py_LIMITED_API))]
+impl Drop for DictIterImpl {
+    fn drop(&mut self) {
+        match self {
+            Self::DictIter { iter } => {
+                // safety: owned value that cannot be null by construction
+                unsafe { ffi::Py_DECREF(*iter) };
+            }
+        }
+    }
+}
+
 impl DictIterImpl {
     #[deny(unsafe_op_in_unsafe_fn)]
     #[inline]
