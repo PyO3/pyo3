@@ -86,6 +86,7 @@ def _supported_interpreter_versions(
 
 PY_VERSIONS = _supported_interpreter_versions("cpython")
 ABI3_PY_VERSIONS = [p for p in PY_VERSIONS if not p.endswith("t")]
+ABI3T_PY_VERSIONS = [p for p in PY_VERSIONS if int(p.split(".")[0]) > 14]
 PYPY_VERSIONS = _supported_interpreter_versions("pypy")
 
 
@@ -1349,6 +1350,10 @@ def check_feature_powerset(session: nox.Session):
         f"abi3-py3{ver.split('.')[1]}" for ver in ABI3_PY_VERSIONS
     }
 
+    EXPECTED_ABI3T_FEATURES = {
+        f"abi3-py3{ver.split('.')[1]}" for ver in ABI3T_PY_VERSIONS
+    }
+
     EXCLUDED_FROM_FULL = {
         "nightly",
         "extension-module",
@@ -1362,20 +1367,27 @@ def check_feature_powerset(session: nox.Session):
     features = cargo_toml["features"]
 
     full_feature = set(features["full"])
-    abi3_features = {feature for feature in features if feature.startswith("abi3")}
+    abi3_features = {feature for feature in features if feature.startswith("abi3") and not feature.startswith("abi3t")}
     abi3_version_features = abi3_features - {"abi3"}
 
-    unexpected_abi3_features = abi3_version_features - EXPECTED_ABI3_FEATURES
-    if unexpected_abi3_features:
+    abi3t_features = {feature for feature in features if feature.startswith("abi3t")}
+    abi3t_version_features = abi3_features - {"abi3t"}
+
+    unexpected_stable_abi_features = abi3_version_features - EXPECTED_ABI3_FEATURES - EXPECTED_ABI3T_FEATURES
+    if unexpected_stable_abi_features:
         session.error(
-            f"unexpected `abi3` features found in Cargo.toml: {unexpected_abi3_features}"
+            f"unexpected `abi3` or `abi3t` features found in Cargo.toml: {unexpected_stable_abi_features}"
         )
 
     missing_abi3_features = EXPECTED_ABI3_FEATURES - abi3_version_features
     if missing_abi3_features:
         session.error(f"missing `abi3` features in Cargo.toml: {missing_abi3_features}")
 
-    expected_full_feature = features.keys() - EXCLUDED_FROM_FULL - abi3_features
+    missing_abi3t_features = EXPECTED_ABI3T_FEATURES - abi3t_version_features
+    if missing_abi3t_features:
+        session.error(f"missing `abi3t` features in Cargo.toml: {missing_abi3t_features}")
+
+    expected_full_feature = features.keys() - EXCLUDED_FROM_FULL - abi3_features - abi3t_features
 
     uncovered_features = expected_full_feature - full_feature
     if uncovered_features:
@@ -1404,6 +1416,7 @@ def check_feature_powerset(session: nox.Session):
     features_to_skip = [
         *(EXCLUDED_FROM_FULL),
         *abi3_version_features,
+        *abi3t_version_features,
     ]
 
     # deny warnings
