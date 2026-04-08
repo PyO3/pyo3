@@ -1367,13 +1367,19 @@ def check_feature_powerset(session: nox.Session):
     features = cargo_toml["features"]
 
     full_feature = set(features["full"])
-    abi3_features = {feature for feature in features if feature.startswith("abi3") and not feature.startswith("abi3t")}
+    abi3_features = {
+        feature
+        for feature in features
+        if feature.startswith("abi3") and not feature.startswith("abi3t")
+    }
     abi3_version_features = abi3_features - {"abi3"}
 
     abi3t_features = {feature for feature in features if feature.startswith("abi3t")}
     abi3t_version_features = abi3_features - {"abi3t"}
 
-    unexpected_stable_abi_features = abi3_version_features - EXPECTED_ABI3_FEATURES - EXPECTED_ABI3T_FEATURES
+    unexpected_stable_abi_features = (
+        abi3_version_features - EXPECTED_ABI3_FEATURES - EXPECTED_ABI3T_FEATURES
+    )
     if unexpected_stable_abi_features:
         session.error(
             f"unexpected `abi3` or `abi3t` features found in Cargo.toml: {unexpected_stable_abi_features}"
@@ -1385,9 +1391,13 @@ def check_feature_powerset(session: nox.Session):
 
     missing_abi3t_features = EXPECTED_ABI3T_FEATURES - abi3t_version_features
     if missing_abi3t_features:
-        session.error(f"missing `abi3t` features in Cargo.toml: {missing_abi3t_features}")
+        session.error(
+            f"missing `abi3t` features in Cargo.toml: {missing_abi3t_features}"
+        )
 
-    expected_full_feature = features.keys() - EXCLUDED_FROM_FULL - abi3_features - abi3t_features
+    expected_full_feature = (
+        features.keys() - EXCLUDED_FROM_FULL - abi3_features - abi3t_features
+    )
 
     uncovered_features = expected_full_feature - full_feature
     if uncovered_features:
