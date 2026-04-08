@@ -126,7 +126,7 @@ impl<T> EnteredCriticalSection<'_, T> {
 ///
 /// This is structurally equivalent to the use of the paired Py_BEGIN_CRITICAL_SECTION and
 /// Py_END_CRITICAL_SECTION C-API macros.
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(Py_TARGET_ABI3T))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
 pub fn with_critical_section<F, R>(object: &Bound<'_, PyAny>, f: F) -> R
 where
@@ -154,7 +154,7 @@ where
 ///
 /// This is structurally equivalent to the use of the paired
 /// Py_BEGIN_CRITICAL_SECTION2 and Py_END_CRITICAL_SECTION2 C-API macros.
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(Py_TARGET_ABI3T))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
 pub fn with_critical_section2<F, R>(a: &Bound<'_, PyAny>, b: &Bound<'_, PyAny>, f: F) -> R
 where
