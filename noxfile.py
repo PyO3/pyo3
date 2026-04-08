@@ -126,10 +126,10 @@ def test_rust(session: nox.Session):
         # so that it can be used in the test code
         # (e.g. for `#[cfg(feature = "abi3-py38")]`)
         _run_cargo_test(session, features=feature_set, extra_flags=flags)
-        breakpoint()
         if (
             feature_set
             and "abi3" in feature_set
+            and "abi3t" not in feature_set
             and "full" in feature_set
             and sys.version_info >= (3, 9)
         ):
@@ -1369,7 +1369,7 @@ def check_feature_powerset(session: nox.Session):
     }
 
     EXPECTED_ABI3T_FEATURES = {
-        f"abi3-py3{ver.split('.')[1]}" for ver in ABI3T_PY_VERSIONS
+        f"abi3t-py3{ver.split('.')[1].strip("t")}" for ver in ABI3T_PY_VERSIONS
     }
 
     EXCLUDED_FROM_FULL = {
@@ -1393,7 +1393,7 @@ def check_feature_powerset(session: nox.Session):
     abi3_version_features = abi3_features - {"abi3"}
 
     abi3t_features = {feature for feature in features if feature.startswith("abi3t")}
-    abi3t_version_features = abi3_features - {"abi3t"}
+    abi3t_version_features = abi3t_features - {"abi3t"}
 
     unexpected_stable_abi_features = (
         abi3_version_features - EXPECTED_ABI3_FEATURES - EXPECTED_ABI3T_FEATURES
@@ -1457,17 +1457,18 @@ def check_feature_powerset(session: nox.Session):
         subcommand = "minimal-versions"
 
     comma_join = ",".join
-    _run_cargo(
-        session,
-        subcommand,
-        "--feature-powerset",
-        '--optional-deps=""',
-        f'--skip="{comma_join(features_to_skip)}"',
-        *(f"--group-features={comma_join(group)}" for group in features_to_group),
-        "check",
-        "--all-targets",
-        env=env,
-    )
+    for abi_name in ["abi3", "abi3t"]:
+        _run_cargo(
+            session,
+            subcommand,
+            "--feature-powerset",
+            '--optional-deps=""',
+            f'--skip="{comma_join(features_to_skip + [abi_name])}"',
+            *(f"--group-features={comma_join(group)}" for group in features_to_group),
+            "check",
+            "--all-targets",
+            env=env,
+        )
 
 
 @nox.session(name="update-ui-tests", venv_backend="none")
