@@ -85,7 +85,9 @@ extern_libpython! {
 #[cfg(not(Py_LIMITED_API))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
-    #[deprecated(note = "`_PyLong_NumBits` is a CPython-internal API; use `PyLong_AsNativeBytes` on Python 3.13+ or `int.bit_length()` instead")]
+    #[deprecated(
+        note = "`_PyLong_NumBits` is a CPython-internal API; use `PyLong_AsNativeBytes` on Python 3.13+ or `int.bit_length()` instead"
+    )]
     pub fn _PyLong_NumBits(obj: *mut PyObject) -> size_t;
 }
 
