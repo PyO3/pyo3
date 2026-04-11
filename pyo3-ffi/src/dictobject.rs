@@ -1,8 +1,8 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::ffi::{c_char, c_int};
 #[cfg(not(Py_LIMITED_API))]
 use std::ffi::c_void;
+use std::ffi::{c_char, c_int};
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyDict_Type")]
