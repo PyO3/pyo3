@@ -288,7 +288,7 @@ extern_libpython! {
 
 // skipped PySequence_ITEM
 
-#[cfg(all(Py_3_9, not(PyPy)))]
+#[cfg(not(PyPy))]
 #[inline(always)]
 pub unsafe fn PySequence_FAST_GET_SIZE(o: *mut PyObject) -> Py_ssize_t {
     let is_list = PyList_Check(o) != 0;
@@ -299,7 +299,7 @@ pub unsafe fn PySequence_FAST_GET_SIZE(o: *mut PyObject) -> Py_ssize_t {
     }
 }
 
-#[cfg(all(Py_3_9, not(PyPy)))]
+#[cfg(not(PyPy)]
 #[inline(always)]
 pub unsafe fn PySequence_FAST_GET_ITEM(o: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
     let is_list = PyList_Check(o) != 0;
