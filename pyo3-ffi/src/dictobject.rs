@@ -1,7 +1,7 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int};
-#cfg[(not(Py_LIMITED_API))]
+#[cfg(not(Py_LIMITED_API))]
 use std::ffi::c_void;
 
 extern_libpython! {
