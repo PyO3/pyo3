@@ -60,6 +60,8 @@ fn main() {
         .blocklist_item("FP_INT_TONEARESTFROMZERO")
         .blocklist_item("FP_INT_TONEAREST")
         .blocklist_item("FP_ZERO")
+        // blocklist mingw specific types
+        .blocklist_type("__mingw_ldbl_type_t")
         // ARM neon intrinsics cause issue on GitHub actions windows CI, also not relevant to
         // what we're trying to check anyway.
         .blocklist_file(r".*(\\|/)arm(64)?_neon\.h")

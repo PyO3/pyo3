@@ -454,8 +454,6 @@ pub use self::intrcheck::*;
 pub use self::iterobject::*;
 pub use self::listobject::*;
 pub use self::longobject::*;
-#[cfg(not(Py_LIMITED_API))]
-pub use self::marshal::*;
 pub use self::memoryobject::*;
 pub use self::methodobject::*;
 pub use self::modsupport::*;
@@ -526,8 +524,6 @@ mod iterobject;
 mod listobject;
 // skipped longintrepr.h
 mod longobject;
-#[cfg(not(Py_LIMITED_API))]
-pub mod marshal;
 mod memoryobject;
 mod methodobject;
 mod modsupport;

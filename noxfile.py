@@ -757,9 +757,6 @@ def check_guide(session: nox.Session):
         # rust docs
         "(https://docs.rs/[^#]+)#[a-zA-Z0-9._-]*": "$1",
     }
-    remap_args = []
-    for key, value in remaps.items():
-        remap_args.extend(("--remap", f"{key} {value}"))
 
     excludes = [
         # exclude some old http links from copyright notices, known to fail
@@ -769,7 +766,15 @@ def check_guide(session: nox.Session):
         "https://github.com/PyO3/pyo3/pull/938",
     ]
 
-    exclude_args = [f"--exclude={arg}" for arg in excludes]
+    common_args = (
+        *(f"--remap={key} {value}" for key, value in remaps.items()),
+        *(f"--exclude={arg}" for arg in excludes),
+        "--cache",
+        "--max-cache-age=7d",
+        "--cache-exclude-status=400..600",
+        "--accept=200,429",
+        *session.posargs,
+    )
 
     try:
         # check all links in the guide
@@ -778,13 +783,8 @@ def check_guide(session: nox.Session):
             "lychee",
             "--include-fragments",
             str(PYO3_GUIDE_TARGET),
-            *remap_args,
-            *exclude_args,
-            "--accept=200,429",
-            "--cache",
-            "--max-cache-age=7d",
             f"--root-dir={PYO3_GUIDE_TARGET}",
-            *session.posargs,
+            *common_args,
             external=True,
         )
         # check external links in the docs
@@ -793,16 +793,9 @@ def check_guide(session: nox.Session):
             session,
             "lychee",
             str(PYO3_DOCS_TARGET),
-            *remap_args,
+            # don't check intra-doc links, rustdoc already handled those
             f"--exclude=file://{PYO3_DOCS_TARGET}",
-            # exclude some old http links from copyright notices, known to fail
-            *exclude_args,
-            "--accept=200,429",
-            # reduce the concurrency to avoid rate-limit from `pyo3.rs`
-            "--max-concurrency=32",
-            "--cache",
-            "--max-cache-age=7d",
-            *session.posargs,
+            *common_args,
             external=True,
         )
     except nox.command.CommandFailed:
