@@ -87,8 +87,6 @@ extern_libpython! {
         default_obj: *mut PyObject,
         result: *mut *mut PyObject,
     ) -> c_int;
-    #[cfg(not(Py_LIMITED_API))]
-    pub fn PyObject_GenericGetDict(o: *mut PyObject, context: *mut c_void) -> *mut PyObject;
     // skipped 3.10 / ex-non-limited PyObject_GenericGetDict
 }
 
