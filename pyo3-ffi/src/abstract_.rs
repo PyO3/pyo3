@@ -285,17 +285,32 @@ extern_libpython! {
     pub fn PySequence_List(o: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPySequence_Fast")]
     pub fn PySequence_Fast(o: *mut PyObject, m: *const c_char) -> *mut PyObject;
-    // skipped PySequence_Fast_GET_SIZE
-    // skipped PySequence_Fast_GET_ITEM
-    // skipped PySequence_Fast_GET_ITEMS
+    // skipped PySequence_Fast_ITEMS
     pub fn PySequence_Count(o: *mut PyObject, value: *mut PyObject) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name = "PyPySequence_Contains")]
     pub fn PySequence_Contains(seq: *mut PyObject, ob: *mut PyObject) -> c_int;
 }
 
 #[inline]
-pub unsafe fn PySequence_In(o: *mut PyObject, value: *mut PyObject) -> c_int {
-    PySequence_Contains(o, value)
+pub unsafe fn PySequence_FAST_GET_SIZE(o: *mut PyObject) -> Py_ssize_t {
+    let is_list = PyList_Check(o);
+    if is_list {
+        PyList_GET_SIZE(o);
+    }
+    else {
+        PyTuple_GET_SIZE(o);
+    }
+}
+
+#[inline]
+pub unsafe fn PySequence_FAST_GET_ITEM(o: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
+    let is_list = PyList_Check(o);
+    if is_list {
+        PyList_GET_ITEM(o, i);
+    }
+    else {
+        PyTuple_GET_ITEM(o, i);
+    }
 }
 
 extern_libpython! {
