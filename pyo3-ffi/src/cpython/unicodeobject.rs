@@ -540,7 +540,7 @@ pub unsafe fn PyUnicode_KIND(op: *mut PyObject) -> c_uint {
 
 #[cfg(not(any(GraalPy, Py_3_14)))]
 #[inline]
-pub unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
+unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
     if PyUnicode_IS_ASCII(op) != 0 {
         (op as *mut PyASCIIObject).offset(1) as *mut c_void
     } else {
@@ -548,9 +548,9 @@ pub unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
     }
 }
 
-#[cfg(not(any(GraalPy, PyPy)))]
+#[cfg(not(any(GraalPy, PyPy, Py_3_14)))]
 #[inline]
-pub unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
+unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
     debug_assert!(!(*(op as *mut PyUnicodeObject)).data.any.is_null());
 
     (*(op as *mut PyUnicodeObject)).data.any
@@ -627,8 +627,9 @@ pub unsafe fn PyUnicode_READY(op: *mut PyObject) -> c_int {
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_New")]
     pub fn PyUnicode_New(size: Py_ssize_t, maxchar: Py_UCS4) -> *mut PyObject;
+    #[cfg(not(any(Py_3_12, GraalPy)))]
     #[cfg_attr(PyPy, link_name = "_PyPyUnicode_Ready")]
-    pub fn _PyUnicode_Ready(unicode: *mut PyObject) -> c_int;
+    fn _PyUnicode_Ready(unicode: *mut PyObject) -> c_int;
 
     // skipped _PyUnicode_Copy
 
