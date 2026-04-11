@@ -78,7 +78,7 @@ extern_libpython! {
         key: *const c_char,
         result: *mut *mut PyObject,
     ) -> c_int;
-    #[cfg(all(Py_3_15, not(Py_LIMITED_API)))]
+    #[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
     pub fn PyDict_SetDefaultRef(
         mp: *mut PyObject,
         key: *mut PyObject,
