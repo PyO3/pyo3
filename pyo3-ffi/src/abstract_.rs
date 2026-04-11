@@ -1,6 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use crate::{PyList_Check, PyList_GET_ITEM, PyTuple_GET_ITEM};
+use crate::{PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE, PyTuple_GET_ITEM, PyTuple_GET_SIZE};
 #[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
 use libc::size_t;
 use std::ffi::{c_char, c_int};
@@ -294,7 +294,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PySequence_FAST_GET_SIZE(o: *mut PyObject) -> Py_ssize_t {
-    let is_list = PyList_Check(o);
+    let is_list = PyList_Check(o) as bool;
     if is_list {
         PyList_GET_SIZE(o);
     } else {
@@ -304,7 +304,7 @@ pub unsafe fn PySequence_FAST_GET_SIZE(o: *mut PyObject) -> Py_ssize_t {
 
 #[inline]
 pub unsafe fn PySequence_FAST_GET_ITEM(o: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
-    let is_list = PyList_Check(o);
+    let is_list = PyList_Check(o) as bool;
     if is_list {
         PyList_GET_ITEM(o, i);
     } else {
