@@ -6,11 +6,13 @@ use std::ffi::c_int;
 #[cfg(not(Py_3_11))]
 use crate::Py_buffer;
 
+#[cfg(all(not(Py_3_11), not(PyPy)))]
+use crate::{PyCallable_Check, PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL};
+
 #[cfg(not(PyPy))]
 use crate::{
-    vectorcallfunc, PyCallable_Check, PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE,
+    vectorcallfunc, PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE,
     PyThreadState, PyThreadState_GET, PyTuple_Check, PyTuple_GET_ITEM, PyTuple_GET_SIZE,
-    PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL,
 };
 use libc::size_t;
 
