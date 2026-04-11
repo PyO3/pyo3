@@ -22,7 +22,7 @@ use libc::size_t;
 #[cfg(not(Py_3_12))]
 extern_libpython! {
     #[cfg(not(PyPy))]
-    pub fn _Py_CheckFunctionResult(
+    fn _Py_CheckFunctionResult(
         tstate: *mut PyThreadState,
         callable: *mut PyObject,
         result: *mut PyObject,
@@ -30,7 +30,7 @@ extern_libpython! {
     ) -> *mut PyObject;
 
     #[cfg(not(PyPy))]
-    pub fn _PyObject_MakeTpCall(
+    fn _PyObject_MakeTpCall(
         tstate: *mut PyThreadState,
         callable: *mut PyObject,
         args: *const *mut PyObject,
@@ -76,7 +76,7 @@ pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcal
 #[cfg(not(Py_3_12))]
 #[cfg(not(PyPy))]
 #[inline(always)]
-pub unsafe fn _PyObject_VectorcallTstate(
+unsafe fn _PyObject_VectorcallTstate(
     tstate: *mut PyThreadState,
     callable: *mut PyObject,
     args: *const *mut PyObject,
@@ -107,29 +107,6 @@ pub unsafe fn PyObject_Vectorcall(
     kwnames: *mut PyObject,
 ) -> *mut PyObject {
     _PyObject_VectorcallTstate(PyThreadState_GET(), callable, args, nargsf, kwnames)
-}
-
-#[cfg(not(Py_3_12))]
-#[cfg(not(any(PyPy, GraalPy)))]
-#[inline(always)]
-pub unsafe fn _PyObject_FastCallTstate(
-    tstate: *mut PyThreadState,
-    func: *mut PyObject,
-    args: *const *mut PyObject,
-    nargs: Py_ssize_t,
-) -> *mut PyObject {
-    _PyObject_VectorcallTstate(tstate, func, args, nargs as size_t, std::ptr::null_mut())
-}
-
-#[cfg(not(Py_3_12))]
-#[cfg(not(any(PyPy, GraalPy)))]
-#[inline(always)]
-pub unsafe fn _PyObject_FastCall(
-    func: *mut PyObject,
-    args: *const *mut PyObject,
-    nargs: Py_ssize_t,
-) -> *mut PyObject {
-    _PyObject_FastCallTstate(PyThreadState_GET(), func, args, nargs)
 }
 
 #[cfg(not(Py_3_12))]
