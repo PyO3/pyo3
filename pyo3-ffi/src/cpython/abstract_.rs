@@ -11,8 +11,8 @@ use crate::{PyCallable_Check, PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL};
 
 #[cfg(not(PyPy))]
 use crate::{
-    vectorcallfunc, PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE,
-    PyThreadState, PyThreadState_GET, PyTuple_Check, PyTuple_GET_ITEM, PyTuple_GET_SIZE,
+    vectorcallfunc, PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE, PyThreadState,
+    PyThreadState_GET, PyTuple_Check, PyTuple_GET_ITEM, PyTuple_GET_SIZE,
 };
 use libc::size_t;
 
