@@ -1,6 +1,8 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int};
+#cfg[(not(Py_LIMITED_API))]
+use std::ffi::c_void;
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyDict_Type")]
@@ -18,13 +20,6 @@ pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 extern_libpython! {
-    #[cfg(all(Py_3_15, not(Py_LIMITED_API)))]
-    pub fn PyDict_SetDefaultRef(
-        mp: *mut PyObject,
-        key: *mut PyObject,
-        default_obj: *mut PyObject,
-        result: *mut *mut PyObject,
-    ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_New")]
     pub fn PyDict_New() -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDict_GetItem")]
@@ -85,6 +80,15 @@ extern_libpython! {
         key: *const c_char,
         result: *mut *mut PyObject,
     ) -> c_int;
+    #[cfg(all(Py_3_15, not(Py_LIMITED_API)))]
+    pub fn PyDict_SetDefaultRef(
+        mp: *mut PyObject,
+        key: *mut PyObject,
+        default_obj: *mut PyObject,
+        result: *mut *mut PyObject,
+    ) -> c_int;
+    #[cfg(not(Py_LIMITED_API))]
+    pub fn PyObject_GenericGetDict(o: *mut PyObject, context: *mut c_void) -> *mut PyObject;
     // skipped 3.10 / ex-non-limited PyObject_GenericGetDict
 }
 
