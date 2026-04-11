@@ -8,7 +8,8 @@ use crate::Py_buffer;
 
 #[cfg(not(PyPy))]
 use crate::{
-    vectorcallfunc, PyCallable_Check, PyThreadState, PyThreadState_GET, PyTuple_Check,
+    vectorcallfunc, PyCallable_Check, PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE,
+    PyThreadState, PyThreadState_GET, PyTuple_Check, PyTuple_GET_ITEM, PyTuple_GET_SIZE,
     PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL,
 };
 use libc::size_t;
@@ -49,7 +50,7 @@ pub unsafe fn PyVectorcall_NARGS(n: size_t) -> Py_ssize_t {
     n.try_into().expect("cannot fail due to mask")
 }
 
-#[cfg(not(PyPy))]
+#[cfg(all(not(Py_3_11), not(PyPy)))]
 #[inline(always)]
 pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcallfunc> {
     assert!(!callable.is_null());
@@ -62,6 +63,11 @@ pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcal
     assert!(offset > 0);
     let ptr = callable.cast::<c_char>().offset(offset).cast();
     *ptr
+}
+
+extern_libpython! {
+    #[cfg(all(Py_3_11, not(PyPy)))]
+    pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcallfunc>
 }
 
 #[cfg(not(PyPy))]
@@ -161,7 +167,7 @@ extern_libpython! {
     pub fn _PyObject_CallNoArg(func: *mut PyObject) -> *mut PyObject;
 }
 
-#[cfg(not(PyPy))]
+#[cfg(all(not(Py_3_11), not(PyPy)))]
 #[inline(always)]
 pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
     assert!(!arg.is_null());
@@ -170,6 +176,11 @@ pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *m
     let tstate = PyThreadState_GET();
     let nargsf = 1 | PY_VECTORCALL_ARGUMENTS_OFFSET;
     _PyObject_VectorcallTstate(tstate, func, args, nargsf, std::ptr::null_mut())
+}
+
+extern_libpython! {
+    #[cfg(all(Py_3_11, not(PyPy)))]
+    pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject;
 }
 
 #[cfg(all(Py_3_9, not(PyPy)))]
@@ -274,6 +285,28 @@ extern_libpython! {
 }
 
 // skipped PySequence_ITEM
+
+#[cfg(all(Py_3_9, not(PyPy)))]
+#[inline(always)]
+pub unsafe fn PySequence_FAST_GET_SIZE(o: *mut PyObject) -> Py_ssize_t {
+    let is_list = PyList_Check(o) != 0;
+    if is_list {
+        PyList_GET_SIZE(o)
+    } else {
+        PyTuple_GET_SIZE(o)
+    }
+}
+
+#[cfg(all(Py_3_9, not(PyPy)))]
+#[inline(always)]
+pub unsafe fn PySequence_FAST_GET_ITEM(o: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
+    let is_list = PyList_Check(o) != 0;
+    if is_list {
+        PyList_GET_ITEM(o, i)
+    } else {
+        PyTuple_GET_ITEM(o, i)
+    }
+}
 
 pub const PY_ITERSEARCH_COUNT: c_int = 1;
 pub const PY_ITERSEARCH_INDEX: c_int = 2;
