@@ -58,6 +58,7 @@ extern_libpython! {
 
     #[cfg(not(Py_3_13))] // PyO3 uses this function before 3.13, PyLong_AsNativeBytes should be preferred for 3.13 and later
     #[cfg_attr(PyPy, link_name = "_PyPyLong_FromByteArray")]
+    #[doc(hidden)]
     pub fn _PyLong_FromByteArray(
         bytes: *const c_uchar,
         n: size_t,
@@ -67,6 +68,7 @@ extern_libpython! {
 
     #[cfg(not(Py_3_13))] // PyO3 uses this function before 3.13, PyLong_AsNativeBytes should be preferred for 3.13 and later
     #[cfg_attr(PyPy, link_name = "_PyPyLong_AsByteArrayO")]
+    #[doc(hidden)]
     pub fn _PyLong_AsByteArray(
         v: *mut PyLongObject,
         bytes: *mut c_uchar,
