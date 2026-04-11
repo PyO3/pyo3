@@ -54,7 +54,7 @@ extern_libpython! {
         ...
     ) -> *mut PyObject;
 
-    #[cfg(all(PyPy, not(Py_3_13)))]  // called internally in PyUnicodeDecodeError_Create on PyPy
+    #[cfg(all(PyPy, not(Py_3_13)))] // called internally in PyUnicodeDecodeError_Create on PyPy
     #[cfg_attr(PyPy, link_name = "_PyPyObject_CallFunction_SizeT")]
     pub(crate) fn _PyObject_CallFunction_SizeT(
         callable_object: *mut PyObject,
@@ -71,16 +71,16 @@ extern_libpython! {
         ...
     ) -> *mut PyObject;
 
-    #[cfg(all(Py_3_12, Py_LIMITED_API))]  // is an inline function in cpython/abstract.rs on version-specific ABI
+    #[cfg(all(Py_3_12, Py_LIMITED_API))] // is an inline function in cpython/abstract.rs on version-specific ABI
     #[cfg_attr(PyPy, link_name = "PyPyVectorcall_NARGS")]
     pub fn PyVectorcall_NARGS(nargsf: size_t) -> size_t;
 
-    #[cfg_attr(not(any(Py_3_12, PyPy)), link_name = "_PyVectorcall_Call")]  // symbol made public in 3.12
+    #[cfg_attr(not(any(Py_3_12, PyPy)), link_name = "_PyVectorcall_Call")] // symbol made public in 3.12
     #[cfg_attr(PyPy, link_name = "PyPyVectorcall_Call")]
     pub fn PyVectorcall_Call(
         callable: *mut PyObject,
         tuple: *mut PyObject,
-        dict: *mut PyObject
+        dict: *mut PyObject,
     ) -> *mut PyObject;
 }
 
@@ -291,7 +291,6 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyMapping_Size")]
     pub fn PyMapping_Size(o: *mut PyObject) -> Py_ssize_t;
 
-
     // PyMapping_Length is a direct alias for PyMapping_Size
     #[cfg_attr(not(PyPy), link_name = "PyMapping_Size")]
     #[cfg_attr(PyPy, link_name = "PyPyMapping_Size")]
@@ -329,10 +328,18 @@ extern_libpython! {
     pub fn PyMapping_GetItemString(o: *mut PyObject, key: *const c_char) -> *mut PyObject;
     #[cfg(Py_3_13)]
     #[cfg_attr(PyPy, link_name = "PyPyMapping_GetOptionalItem")]
-    pub fn PyMapping_GetOptionalItem(o: *mut PyObject, key: *mut PyObject, result: *mut *mut PyObject) -> c_int;
+    pub fn PyMapping_GetOptionalItem(
+        o: *mut PyObject,
+        key: *mut PyObject,
+        result: *mut *mut PyObject,
+    ) -> c_int;
     #[cfg(Py_3_13)]
     #[cfg_attr(PyPy, link_name = "PyPyMapping_GetOptionalItemString")]
-    pub fn PyMapping_GetOptionalItemString(o: *mut PyObject, key: *const c_char, result: *mut *mut PyObject) -> c_int;
+    pub fn PyMapping_GetOptionalItemString(
+        o: *mut PyObject,
+        key: *const c_char,
+        result: *mut *mut PyObject,
+    ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyMapping_SetItemString")]
     pub fn PyMapping_SetItemString(
         o: *mut PyObject,
