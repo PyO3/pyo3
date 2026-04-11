@@ -1,18 +1,21 @@
-use crate::{
-    vectorcallfunc, PyListObject, PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE, PyObject,
-    PyTupleObject, PyTuple_GET_ITEM, PyTuple_GET_SIZE, Py_TYPE, Py_ssize_t,
-};
+use crate::{vectorcallfunc, PyObject, Py_TYPE, Py_ssize_t};
 #[cfg(all(any(not(PyPy), not(Py_3_11)), not(Py_3_12)))]
 use std::ffi::c_char;
-#[cfg(not(Py_3_12))]
+#[cfg(not(Py_3_11))]
 use std::ffi::c_int;
+
+#[cfg(not(any(PyPy, GraalPy)))]
+use crate::{
+    PyListObject, PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE, PyTupleObject, PyTuple_GET_ITEM,
+    PyTuple_GET_SIZE,
+};
 
 #[cfg(not(Py_3_11))]
 use crate::Py_buffer;
 
 #[cfg(not(any(PyPy, Py_3_11)))]
 use crate::{PyCallable_Check, PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL};
-#[cfg(not(Py_3_12))]
+#[cfg(not(any(Py_3_12, PyPy)))]
 use crate::{PyThreadState, PyThreadState_GET, PyTuple_Check};
 use libc::size_t;
 
@@ -109,19 +112,6 @@ pub unsafe fn PyObject_Vectorcall(
     _PyObject_VectorcallTstate(PyThreadState_GET(), callable, args, nargsf, kwnames)
 }
 
-#[cfg(not(Py_3_12))]
-#[cfg(not(PyPy))]
-#[inline(always)]
-pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
-    assert!(!arg.is_null());
-    let args_array = [std::ptr::null_mut(), arg];
-    let args = args_array.as_ptr().offset(1); // For PY_VECTORCALL_ARGUMENTS_OFFSET
-    let tstate = PyThreadState_GET();
-    let nargsf = 1 | PY_VECTORCALL_ARGUMENTS_OFFSET;
-    _PyObject_VectorcallTstate(tstate, func, args, nargsf, std::ptr::null_mut())
-}
-
-#[cfg(Py_3_12)]
 extern_libpython! {
     #[cfg_attr(
         all(not(any(PyPy, GraalPy)), not(Py_3_9)),
@@ -135,7 +125,21 @@ extern_libpython! {
         nargsf: size_t,
         kwdict: *mut PyObject,
     ) -> *mut PyObject;
+}
 
+#[cfg(not(any(Py_3_12, PyPy)))]
+#[inline(always)]
+pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
+    assert!(!arg.is_null());
+    let args_array = [std::ptr::null_mut(), arg];
+    let args = args_array.as_ptr().offset(1); // For PY_VECTORCALL_ARGUMENTS_OFFSET
+    let tstate = PyThreadState_GET();
+    let nargsf = 1 | PY_VECTORCALL_ARGUMENTS_OFFSET;
+    _PyObject_VectorcallTstate(tstate, func, args, nargsf, std::ptr::null_mut())
+}
+
+extern_libpython! {
+    #[cfg(any(Py_3_12, PyPy))]
     #[cfg_attr(PyPy, link_name = "PyPyObject_CallOneArg")]
     pub fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject;
 }
@@ -241,6 +245,7 @@ pub unsafe fn PySequence_ITEM(seq: *mut PyObject, i: Py_ssize_t) -> *mut PyObjec
 }
 
 #[inline(always)]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PySequence_Fast_GET_SIZE(seq: *mut PyObject) -> Py_ssize_t {
     if PyList_Check(seq) == 1 {
         PyList_GET_SIZE(seq)
@@ -250,6 +255,7 @@ pub unsafe fn PySequence_Fast_GET_SIZE(seq: *mut PyObject) -> Py_ssize_t {
 }
 
 #[inline(always)]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PySequence_Fast_GET_ITEM(seq: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
     if PyList_Check(seq) == 1 {
         PyList_GET_ITEM(seq, i)
@@ -259,6 +265,7 @@ pub unsafe fn PySequence_Fast_GET_ITEM(seq: *mut PyObject, i: Py_ssize_t) -> *mu
 }
 
 #[inline(always)]
+#[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PySequence_Fast_ITEMS(seq: *mut PyObject) -> *mut *mut PyObject {
     if PyList_Check(seq) == 1 {
         (*seq.cast::<PyListObject>()).ob_item
