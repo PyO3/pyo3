@@ -67,7 +67,7 @@ pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcal
 
 extern_libpython! {
     #[cfg(all(Py_3_11, not(PyPy)))]
-    pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcallfunc>
+    pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcallfunc>;
 }
 
 #[cfg(not(PyPy))]
