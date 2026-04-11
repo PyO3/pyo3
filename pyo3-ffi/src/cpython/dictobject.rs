@@ -50,6 +50,7 @@ extern_libpython! {
         key: *mut PyObject,
         default_obj: *mut PyObject,
     ) -> *mut PyObject;
+    /*
     #[cfg(all(Py_3_13, not(Py_3_15)))]
     pub fn PyDict_SetDefaultRef(
         mp: *mut PyObject,
@@ -57,6 +58,7 @@ extern_libpython! {
         default_obj: *mut PyObject,
         result: *mut *mut PyObject,
     ) -> c_int;
+    */
     #[cfg(Py_3_13)]
     pub fn PyDict_ContainsString(mp: *mut PyObject, key: *const c_char) -> c_int;
     #[cfg(Py_3_13)]
