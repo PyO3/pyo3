@@ -296,9 +296,9 @@ extern_libpython! {
 pub unsafe fn PySequence_FAST_GET_SIZE(o: *mut PyObject) -> Py_ssize_t {
     let is_list = PyList_Check(o) != 0;
     if is_list {
-        PyList_GET_SIZE(o);
+        PyList_GET_SIZE(o)
     } else {
-        PyTuple_GET_SIZE(o);
+        PyTuple_GET_SIZE(o)
     }
 }
 
@@ -306,9 +306,9 @@ pub unsafe fn PySequence_FAST_GET_SIZE(o: *mut PyObject) -> Py_ssize_t {
 pub unsafe fn PySequence_FAST_GET_ITEM(o: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
     let is_list = PyList_Check(o) != 0;
     if is_list {
-        PyList_GET_ITEM(o, i);
+        PyList_GET_ITEM(o, i)
     } else {
-        PyTuple_GET_ITEM(o, i);
+        PyTuple_GET_ITEM(o, i)
     }
 }
 
