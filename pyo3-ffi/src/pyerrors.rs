@@ -303,9 +303,26 @@ extern_libpython! {
         arg2: *mut PyObject,
         arg3: *mut PyObject,
     ) -> *mut PyObject;
+    #[cfg(PyPy)]
     #[cfg_attr(PyPy, link_name = "PyPyErr_BadInternalCall")]
     pub fn PyErr_BadInternalCall();
-    pub fn _PyErr_BadInternalCall(filename: *const c_char, lineno: c_int);
+    #[cfg(not(PyPy))]
+    fn _PyErr_BadInternalCall(filename: *const c_char, lineno: c_int);
+}
+
+#[cfg(not(PyPy))]
+#[inline]
+#[track_caller]
+pub unsafe fn PyErr_BadInternalCall() {
+    let location = std::panic::Location::caller();
+    let file = location.file();
+    let line = location.line();
+    let file_c_string = std::ffi::CString::new(file)
+        .unwrap_or_else(|_| std::ffi::CString::new("<invalid filename>").unwrap());
+    _PyErr_BadInternalCall(file_c_string.as_ptr(), line.try_into().unwrap_or(-1));
+}
+
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyErr_NewException")]
     pub fn PyErr_NewException(
         name: *const c_char,

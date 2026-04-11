@@ -421,6 +421,17 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             continue;
         }
 
+        if pyo3_build_config::get().implementation == pyo3_build_config::PythonImplementation::PyPy
+        {
+            // If the function doesn't exist in PyPy, for now we don't care:
+            // - For PyO3 inline functions it's probably fine to include anyway
+            // - For extern symbols - PyPy may add them in a future release
+            let bingen_path = doc_dir.join(format!("bindgen/fn.{}.html", function_name));
+            if !bingen_path.exists() {
+                continue;
+            }
+        }
+
         let FunctionInfo {
             modifiers,
             arg_count,
