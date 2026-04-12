@@ -460,13 +460,25 @@ pub unsafe fn PyObject_GenericSetDict(
 pub unsafe fn PyObject_ClearWeakRefs(_ob: *mut PyObject) {}
 
 #[inline]
-pub unsafe fn PyBytes_AS_STRING(_obj: *mut PyObject) -> *mut c_char {
-    std::ptr::null_mut()
+pub unsafe fn PyBytes_AS_STRING(obj: *mut PyObject) -> *mut c_char {
+    crate::PyBytes_AsString(obj)
 }
 
 #[inline]
-pub unsafe fn _PyBytes_Resize(_obj: *mut *mut PyObject, _newsize: Py_ssize_t) -> c_int {
-    -1
+pub unsafe fn _PyBytes_Resize(obj: *mut *mut PyObject, newsize: Py_ssize_t) -> c_int {
+    if obj.is_null() || (*obj).is_null() || newsize < 0 {
+        return -1;
+    }
+    let original = ptr_to_pyobject_ref_borrowed(*obj);
+    let Some(bytes) = original.downcast_ref::<rustpython_vm::builtins::PyBytes>() else {
+        return -1;
+    };
+    rustpython_runtime::with_vm(|vm| {
+        let mut data = bytes.as_bytes().to_vec();
+        data.resize(newsize as usize, 0);
+        *obj = pyobject_ref_to_ptr(vm.ctx.new_bytes(data).into());
+    });
+    0
 }
 
 #[inline]

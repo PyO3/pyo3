@@ -496,7 +496,9 @@ mod abstract_;
 mod bltinmodule;
 #[cfg_attr(PyRustPython, path = "boolobject_rustpython.rs")]
 mod boolobject;
+#[cfg_attr(PyRustPython, path = "bytearrayobject_rustpython.rs")]
 mod bytearrayobject;
+#[cfg_attr(PyRustPython, path = "bytesobject_rustpython.rs")]
 mod bytesobject;
 // skipped cellobject.h
 #[cfg_attr(PyRustPython, path = "ceval_rustpython.rs")]
@@ -504,11 +506,13 @@ mod ceval;
 // skipped classobject.h
 mod codecs;
 mod compile;
+#[cfg_attr(PyRustPython, path = "complexobject_rustpython.rs")]
 mod complexobject;
 #[cfg(not(Py_LIMITED_API))]
 mod context;
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
+#[cfg_attr(PyRustPython, path = "descrobject_rustpython.rs")]
 mod descrobject;
 #[cfg_attr(PyRustPython, path = "dictobject_rustpython.rs")]
 mod dictobject;
@@ -541,6 +545,7 @@ mod moduleobject;
 // skipped namespaceobject.h
 #[cfg_attr(PyRustPython, path = "object_rustpython.rs")]
 mod object;
+#[cfg_attr(PyRustPython, path = "objimpl_rustpython.rs")]
 mod objimpl;
 // skipped odictobject.h
 // skipped opcode.h
@@ -557,6 +562,7 @@ mod pyarena;
 #[cfg_attr(PyRustPython, path = "pybuffer_rustpython.rs")]
 #[cfg(any(Py_3_11, PyRustPython))]
 mod pybuffer;
+#[cfg_attr(PyRustPython, path = "pycapsule_rustpython.rs")]
 mod pycapsule;
 // skipped pydtrace.h
 #[cfg_attr(PyRustPython, path = "pyerrors_rustpython.rs")]
@@ -571,6 +577,7 @@ mod pylifecycle;
 // skipped pymacconfig.h
 // skipped pymacro.h
 // skipped pymath.h
+#[cfg_attr(PyRustPython, path = "pymem_rustpython.rs")]
 mod pymem;
 mod pyport;
 #[cfg_attr(PyRustPython, path = "pystate_rustpython.rs")]
@@ -601,6 +608,7 @@ mod tupleobject;
 mod typeslots;
 #[cfg_attr(PyRustPython, path = "unicodeobject_rustpython.rs")]
 mod unicodeobject;
+#[cfg_attr(PyRustPython, path = "warnings_rustpython.rs")]
 mod warnings;
 #[cfg_attr(PyRustPython, path = "weakrefobject_rustpython.rs")]
 mod weakrefobject;

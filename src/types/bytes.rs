@@ -1,7 +1,11 @@
 use crate::byteswriter::PyBytesWriter;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
+#[cfg(PyRustPython)]
+use crate::sync::PyOnceLock;
 use crate::{ffi, Py, PyAny, PyResult, Python};
+#[cfg(PyRustPython)]
+use crate::types::{PyType, PyTypeMethods};
 use std::io::Write;
 use std::ops::Index;
 use std::slice::SliceIndex;
@@ -49,7 +53,20 @@ use std::str;
 #[repr(transparent)]
 pub struct PyBytes(PyAny);
 
+#[cfg(not(PyRustPython))]
 pyobject_native_type_core!(PyBytes, pyobject_native_static_type_object!(ffi::PyBytes_Type), "builtins", "bytes", #checkfunction=ffi::PyBytes_Check);
+
+#[cfg(PyRustPython)]
+pyobject_native_type_core!(
+    PyBytes,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "bytes").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "bytes",
+    #checkfunction=ffi::PyBytes_Check
+);
 
 impl PyBytes {
     /// Creates a new Python bytestring object.

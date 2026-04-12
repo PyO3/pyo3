@@ -4,17 +4,35 @@ use super::PyMapping;
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
+#[cfg(PyRustPython)]
+use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyIterator, PyList};
-use crate::{ffi, Python};
+#[cfg(PyRustPython)]
+use crate::types::{PyType, PyTypeMethods};
+use crate::{ffi, Py, Python};
 
 /// Represents a Python `mappingproxy`.
 #[repr(transparent)]
 pub struct PyMappingProxy(PyAny);
 
+#[cfg(not(PyRustPython))]
 pyobject_native_type_core!(
     PyMappingProxy,
     pyobject_native_static_type_object!(ffi::PyDictProxy_Type),
+    "types",
+    "MappingProxyType"
+);
+
+#[cfg(PyRustPython)]
+pyobject_native_type_core!(
+    PyMappingProxy,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "_types", "MappingProxyType")
+            .unwrap()
+            .as_type_ptr()
+    },
     "types",
     "MappingProxyType"
 );
