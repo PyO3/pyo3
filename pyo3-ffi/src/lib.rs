@@ -494,6 +494,7 @@ mod abstract_;
 // skipped asdl.h
 // skipped ast.h
 mod bltinmodule;
+#[cfg_attr(PyRustPython, path = "boolobject_rustpython.rs")]
 mod boolobject;
 mod bytearrayobject;
 mod bytesobject;
@@ -517,6 +518,7 @@ mod enumobject;
 // skipped exports.h
 mod fileobject;
 mod fileutils;
+#[cfg_attr(PyRustPython, path = "floatobject_rustpython.rs")]
 mod floatobject;
 // skipped empty frameobject.h
 mod genericaliasobject;
@@ -528,6 +530,7 @@ mod iterobject;
 #[cfg_attr(PyRustPython, path = "listobject_rustpython.rs")]
 mod listobject;
 // skipped longintrepr.h
+#[cfg_attr(PyRustPython, path = "longobject_rustpython.rs")]
 mod longobject;
 mod memoryobject;
 mod methodobject;
@@ -560,6 +563,7 @@ mod pycapsule;
 mod pyerrors;
 // skipped pyexpat.h
 // skipped pyfpe.h
+#[cfg_attr(PyRustPython, path = "pyframe_rustpython.rs")]
 mod pyframe;
 mod pyhash;
 #[cfg_attr(PyRustPython, path = "pylifecycle_rustpython.rs")]
@@ -583,7 +587,9 @@ mod pytypedefs;
 mod rangeobject;
 #[cfg_attr(PyRustPython, path = "refcount_rustpython.rs")]
 mod refcount;
+#[cfg_attr(PyRustPython, path = "setobject_rustpython.rs")]
 mod setobject;
+#[cfg_attr(PyRustPython, path = "sliceobject_rustpython.rs")]
 mod sliceobject;
 mod structseq;
 mod sysmodule;
