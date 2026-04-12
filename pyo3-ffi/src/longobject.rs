@@ -1,6 +1,10 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+#[cfg(PyRustPython)]
+use crate::rustpython_runtime;
 use libc::size_t;
+#[cfg(PyRustPython)]
+use rustpython_vm::TryFromBorrowedObject;
 use std::ffi::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
 
 opaque_struct!(pub PyLongObject);
@@ -88,6 +92,108 @@ extern_libpython! {
     #[cfg(not(Py_3_13))]
     #[doc(hidden)]
     pub fn _PyLong_NumBits(obj: *mut PyObject) -> size_t;
+}
+
+#[cfg(all(not(Py_LIMITED_API), PyRustPython))]
+pub unsafe fn _PyLong_AsByteArray(
+    obj: *mut PyLongObject,
+    bytes: *mut u8,
+    n: size_t,
+    little_endian: c_int,
+    is_signed: c_int,
+) -> c_int {
+    if obj.is_null() || bytes.is_null() {
+        return -1;
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(obj.cast());
+    let out = std::slice::from_raw_parts_mut(bytes, n);
+    out.fill(if is_signed != 0 { 0xff } else { 0x00 });
+
+    if is_signed != 0 {
+        let value = rustpython_runtime::with_vm(|vm| {
+            i128::try_from_borrowed_object(vm, &obj).map_err(|_| ())
+        });
+        let Ok(value) = value else {
+            return -1;
+        };
+        let full = if little_endian != 0 {
+            value.to_le_bytes()
+        } else {
+            value.to_be_bytes()
+        };
+        if n > full.len() {
+            let fill = if value < 0 { 0xff } else { 0x00 };
+            out.fill(fill);
+        }
+        let count = n.min(full.len());
+        if little_endian != 0 {
+            out[..count].copy_from_slice(&full[..count]);
+        } else {
+            out[n - count..].copy_from_slice(&full[full.len() - count..]);
+        }
+        0
+    } else {
+        let value = rustpython_runtime::with_vm(|vm| {
+            u128::try_from_borrowed_object(vm, &obj).map_err(|_| ())
+        });
+        let Ok(value) = value else {
+            return -1;
+        };
+        let full = if little_endian != 0 {
+            value.to_le_bytes()
+        } else {
+            value.to_be_bytes()
+        };
+        let count = n.min(full.len());
+        if little_endian != 0 {
+            out[..count].copy_from_slice(&full[..count]);
+        } else {
+            out[n - count..].copy_from_slice(&full[full.len() - count..]);
+        }
+        0
+    }
+}
+
+#[cfg(all(not(Py_LIMITED_API), PyRustPython))]
+pub unsafe fn _PyLong_FromByteArray(
+    bytes: *const u8,
+    n: size_t,
+    little_endian: c_int,
+    is_signed: c_int,
+) -> *mut PyObject {
+    if bytes.is_null() {
+        return std::ptr::null_mut();
+    }
+    let src = std::slice::from_raw_parts(bytes, n);
+    let mut buf = [if is_signed != 0 && little_endian != 0 && src.last().copied().unwrap_or(0) & 0x80 != 0 {
+        0xff
+    } else {
+        0x00
+    }; 16];
+    let count = src.len().min(buf.len());
+
+    if little_endian != 0 {
+        buf[..count].copy_from_slice(&src[..count]);
+        if is_signed != 0 {
+            let value = i128::from_le_bytes(buf);
+            return rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.new_int(value).into()));
+        }
+        let value = u128::from_le_bytes(buf);
+        return rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.new_int(value).into()));
+    }
+
+    if is_signed != 0 && src.first().copied().unwrap_or(0) & 0x80 != 0 {
+        buf.fill(0xff);
+    }
+    let start = buf.len() - count;
+    buf[start..].copy_from_slice(&src[src.len() - count..]);
+    if is_signed != 0 {
+        let value = i128::from_be_bytes(buf);
+        rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.new_int(value).into()))
+    } else {
+        let value = u128::from_be_bytes(buf);
+        rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.new_int(value).into()))
+    }
 }
 
 // skipped non-limited _PyLong_Format

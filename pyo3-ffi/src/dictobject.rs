@@ -123,6 +123,6 @@ extern_libpython! {
     pub static mut PyDictRevIterItem_Type: PyTypeObject;
 }
 
-#[cfg(any(GraalPy, Py_LIMITED_API))]
+#[cfg(any(GraalPy, Py_LIMITED_API, PyRustPython))]
 // TODO: remove (see https://github.com/PyO3/pyo3/pull/1341#issuecomment-751515985)
 opaque_struct!(pub PyDictObject);

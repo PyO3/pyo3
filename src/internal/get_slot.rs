@@ -93,14 +93,14 @@ macro_rules! impl_slots {
                     ty: *mut ffi::PyTypeObject,
                     #[cfg(all(Py_LIMITED_API, not(Py_3_10)))] is_runtime_3_10: bool
                 ) -> Self::Type {
-                    #[cfg(not(Py_LIMITED_API))]
+                    #[cfg(not(any(Py_LIMITED_API, PyRustPython)))]
                     {
                         unsafe {(*ty).$field }
                     }
 
-                    #[cfg(Py_LIMITED_API)]
+                    #[cfg(any(Py_LIMITED_API, PyRustPython))]
                     {
-                        #[cfg(not(Py_3_10))]
+                        #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
                         {
                             // Calling PyType_GetSlot on static types is not valid before Python 3.10
                             // ... so the workaround is to first do a runtime check for these versions

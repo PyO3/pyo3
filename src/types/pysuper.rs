@@ -11,7 +11,7 @@ use crate::{PyAny, PyResult};
 #[repr(transparent)]
 pub struct PySuper(PyAny);
 
-#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython)))]
 pyobject_native_type_core!(
     PySuper,
     pyobject_native_static_type_object!(crate::ffi::PySuper_Type),
@@ -19,7 +19,7 @@ pyobject_native_type_core!(
     "super"
 );
 
-#[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
+#[cfg(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython))]
 pyobject_native_type_core!(
     PySuper,
     |py| {

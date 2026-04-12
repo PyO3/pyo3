@@ -1,6 +1,12 @@
 use crate::sealed::Sealed;
+#[cfg(PyRustPython)]
+use crate::sync::PyOnceLock;
 use crate::types::PyAnyMethods;
+#[cfg(PyRustPython)]
+use crate::types::{PyType, PyTypeMethods};
 use crate::{ffi, Bound, PyAny, PyResult, PyTypeInfo, Python};
+#[cfg(PyRustPython)]
+use crate::Py;
 
 /// Represents a Python `range`.
 ///
@@ -12,7 +18,20 @@ use crate::{ffi, Bound, PyAny, PyResult, PyTypeInfo, Python};
 #[repr(transparent)]
 pub struct PyRange(PyAny);
 
+#[cfg(not(PyRustPython))]
 pyobject_native_type_core!(PyRange, pyobject_native_static_type_object!(ffi::PyRange_Type), "builtins", "range", #checkfunction=ffi::PyRange_Check);
+
+#[cfg(PyRustPython)]
+pyobject_native_type_core!(
+    PyRange,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "range").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "range",
+    #checkfunction=ffi::PyRange_Check
+);
 
 impl<'py> PyRange {
     /// Creates a new Python `range` object with a default step of 1.

@@ -3,8 +3,14 @@ use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
+#[cfg(PyRustPython)]
+use crate::sync::PyOnceLock;
 use crate::types::{PyAny, PyList, PyMapping};
+#[cfg(PyRustPython)]
+use crate::types::{PyType, PyTypeMethods};
 use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
+#[cfg(PyRustPython)]
+use crate::Py;
 
 /// Represents a Python `dict`.
 ///
@@ -17,12 +23,26 @@ use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
 pub struct PyDict(PyAny);
 
 #[cfg(not(GraalPy))]
+#[cfg(not(PyRustPython))]
 pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
 
+#[cfg(not(PyRustPython))]
 pyobject_native_type!(
     PyDict,
     ffi::PyDictObject,
     pyobject_native_static_type_object!(ffi::PyDict_Type),
+    "builtins",
+    "dict",
+    #checkfunction=ffi::PyDict_Check
+);
+
+#[cfg(PyRustPython)]
+pyobject_native_type_core!(
+    PyDict,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "dict").unwrap().as_type_ptr()
+    },
     "builtins",
     "dict",
     #checkfunction=ffi::PyDict_Check
@@ -508,12 +528,12 @@ impl<'a, 'py> Borrowed<'a, 'py, PyDict> {
 }
 
 fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
-    #[cfg(any(PyPy, GraalPy, Py_LIMITED_API, Py_GIL_DISABLED))]
+    #[cfg(any(PyPy, GraalPy, Py_LIMITED_API, Py_GIL_DISABLED, PyRustPython))]
     unsafe {
         ffi::PyDict_Size(dict.as_ptr())
     }
 
-    #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API, Py_GIL_DISABLED)))]
+    #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API, Py_GIL_DISABLED, PyRustPython)))]
     unsafe {
         (*dict.as_ptr().cast::<ffi::PyDictObject>()).ma_used
     }

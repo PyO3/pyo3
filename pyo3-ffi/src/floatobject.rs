@@ -1,7 +1,7 @@
 use crate::object::*;
 use std::ffi::{c_double, c_int};
 
-#[cfg(Py_LIMITED_API)]
+#[cfg(any(Py_LIMITED_API, PyRustPython))]
 // TODO: remove (see https://github.com/PyO3/pyo3/pull/1341#issuecomment-751515985)
 opaque_struct!(pub PyFloatObject);
 
@@ -33,6 +33,12 @@ extern_libpython! {
     pub fn PyFloat_FromDouble(arg1: c_double) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyFloat_AsDouble")]
     pub fn PyFloat_AsDouble(arg1: *mut PyObject) -> c_double;
+}
+
+#[cfg(PyRustPython)]
+#[inline]
+pub unsafe fn PyFloat_AS_DOUBLE(arg1: *mut PyObject) -> c_double {
+    PyFloat_AsDouble(arg1)
 }
 
 // skipped non-limited _PyFloat_Pack2

@@ -3,9 +3,15 @@ use crate::conversion::IntoPyObject;
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
+#[cfg(PyRustPython)]
+use crate::sync::PyOnceLock;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, Python,
 };
+#[cfg(PyRustPython)]
+use crate::types::{PyType, PyTypeMethods};
+#[cfg(PyRustPython)]
+use crate::Py;
 use std::convert::Infallible;
 use std::ffi::c_double;
 
@@ -23,12 +29,26 @@ use std::ffi::c_double;
 #[repr(transparent)]
 pub struct PyFloat(PyAny);
 
+#[cfg(not(PyRustPython))]
 pyobject_subclassable_native_type!(PyFloat, crate::ffi::PyFloatObject);
 
+#[cfg(not(PyRustPython))]
 pyobject_native_type!(
     PyFloat,
     ffi::PyFloatObject,
     pyobject_native_static_type_object!(ffi::PyFloat_Type),
+    "builtins",
+    "float",
+    #checkfunction=ffi::PyFloat_Check
+);
+
+#[cfg(PyRustPython)]
+pyobject_native_type_core!(
+    PyFloat,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "float").unwrap().as_type_ptr()
+    },
     "builtins",
     "float",
     #checkfunction=ffi::PyFloat_Check

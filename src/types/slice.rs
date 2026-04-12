@@ -5,8 +5,12 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
+#[cfg(PyRustPython)]
+use crate::sync::PyOnceLock;
+#[cfg(PyRustPython)]
+use crate::types::{PyType, PyTypeMethods};
 use crate::types::{PyRange, PyRangeMethods};
-use crate::{Bound, IntoPyObject, PyAny, Python};
+use crate::{Bound, IntoPyObject, Py, PyAny, Python};
 use std::convert::Infallible;
 
 /// Represents a Python `slice`.
@@ -21,10 +25,23 @@ use std::convert::Infallible;
 #[repr(transparent)]
 pub struct PySlice(PyAny);
 
+#[cfg(not(PyRustPython))]
 pyobject_native_type!(
     PySlice,
     ffi::PySliceObject,
     pyobject_native_static_type_object!(ffi::PySlice_Type),
+    "builtins",
+    "slice",
+    #checkfunction=ffi::PySlice_Check
+);
+
+#[cfg(PyRustPython)]
+pyobject_native_type_core!(
+    PySlice,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "slice").unwrap().as_type_ptr()
+    },
     "builtins",
     "slice",
     #checkfunction=ffi::PySlice_Check

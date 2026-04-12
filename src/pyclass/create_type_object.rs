@@ -64,7 +64,7 @@ where
                 method_defs: Vec::new(),
                 member_defs: Vec::new(),
                 getset_builders: HashMap::new(),
-                #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
+                #[cfg(all(not(any(Py_LIMITED_API, PyRustPython)), not(Py_3_10)))]
                 cleanup: Vec::new(),
                 tp_base: base,
                 tp_dealloc: dealloc,
@@ -80,7 +80,7 @@ where
                 has_clear: false,
                 dict_offset: None,
                 class_flags: 0,
-                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+                #[cfg(all(not(Py_3_9), not(any(Py_LIMITED_API, PyRustPython))))]
                 buffer_procs: Default::default(),
             }
             .type_doc(doc)
@@ -112,7 +112,7 @@ where
     }
 }
 
-#[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
+#[cfg(all(not(any(Py_LIMITED_API, PyRustPython)), not(Py_3_10)))]
 type PyTypeBuilderCleanup = Box<dyn Fn(&PyTypeBuilder, *mut ffi::PyTypeObject)>;
 
 struct PyTypeBuilder {
@@ -123,7 +123,7 @@ struct PyTypeBuilder {
     /// Used to patch the type objects for the things there's no
     /// PyType_FromSpec API for... there's no reason this should work,
     /// except for that it does and we have tests.
-    #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
+    #[cfg(all(not(any(Py_LIMITED_API, PyRustPython)), not(Py_3_10)))]
     cleanup: Vec<PyTypeBuilderCleanup>,
     tp_base: *mut ffi::PyTypeObject,
     tp_dealloc: ffi::destructor,
@@ -140,7 +140,7 @@ struct PyTypeBuilder {
     dict_offset: Option<PyObjectOffset>,
     class_flags: c_ulong,
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
-    #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+    #[cfg(all(not(Py_3_9), not(any(Py_LIMITED_API, PyRustPython))))]
     buffer_procs: ffi::PyBufferProcs,
 }
 
@@ -158,13 +158,13 @@ impl PyTypeBuilder {
                 self.class_flags |= ffi::Py_TPFLAGS_HAVE_GC;
             }
             ffi::Py_tp_clear => self.has_clear = true,
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+            #[cfg(all(not(Py_3_9), not(any(Py_LIMITED_API, PyRustPython))))]
             ffi::Py_bf_getbuffer => {
                 // Safety: slot.pfunc is a valid function pointer
                 self.buffer_procs.bf_getbuffer =
                     Some(unsafe { std::mem::transmute::<*mut T, ffi::getbufferproc>(pfunc) });
             }
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+            #[cfg(all(not(Py_3_9), not(any(Py_LIMITED_API, PyRustPython))))]
             ffi::Py_bf_releasebuffer => {
                 // Safety: slot.pfunc is a valid function pointer
                 self.buffer_procs.bf_releasebuffer =
@@ -240,12 +240,12 @@ impl PyTypeBuilder {
         // PyPy automatically adds __dict__ getter / setter.
         #[cfg(not(PyPy))]
         // Supported on unlimited API for all versions, and on 3.9+ for limited API
-        #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+        #[cfg(any(Py_3_9, not(any(Py_LIMITED_API, PyRustPython))))]
         if let Some(dict_offset) = self.dict_offset {
             let get_dict;
             let closure;
             // PyObject_GenericGetDict not in the limited API until Python 3.10.
-            #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+            #[cfg(any(all(not(any(Py_LIMITED_API, PyRustPython))), Py_3_10))]
             {
                 let _ = dict_offset;
                 get_dict = ffi::PyObject_GenericGetDict;
@@ -253,7 +253,7 @@ impl PyTypeBuilder {
             }
 
             // ... so we write a basic implementation ourselves
-            #[cfg(not(any(not(Py_LIMITED_API), Py_3_10)))]
+            #[cfg(not(any(all(not(any(Py_LIMITED_API, PyRustPython))), Py_3_10)))]
             {
                 extern "C" fn get_dict_impl(
                     object: *mut ffi::PyObject,
@@ -348,7 +348,7 @@ impl PyTypeBuilder {
         if !slice.is_empty() {
             unsafe { self.push_slot(ffi::Py_tp_doc, type_doc.as_ptr() as *mut c_char) }
 
-            #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
+            #[cfg(all(not(any(Py_LIMITED_API, PyRustPython)), not(Py_3_10)))]
             {
                 // Until CPython 3.10, tp_doc was treated specially for
                 // heap-types, and it removed the text_signature value from it.
@@ -408,7 +408,7 @@ impl PyTypeBuilder {
 
         // Setting buffer protocols, tp_dictoffset and tp_weaklistoffset via slots doesn't work until
         // Python 3.9, so on older versions we must manually fixup the type object.
-        #[cfg(all(not(Py_LIMITED_API), not(Py_3_9)))]
+        #[cfg(all(not(any(Py_LIMITED_API, PyRustPython)), not(Py_3_9)))]
         {
             self.cleanup
                 .push(Box::new(move |builder, type_object| unsafe {
@@ -526,7 +526,7 @@ impl PyTypeBuilder {
         #[cfg(not(Py_3_11))]
         bpo_45315_workaround(py, class_name);
 
-        #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
+        #[cfg(all(not(any(Py_LIMITED_API, PyRustPython)), not(Py_3_10)))]
         for cleanup in std::mem::take(&mut self.cleanup) {
             cleanup(&self, type_object.as_type_ptr());
         }

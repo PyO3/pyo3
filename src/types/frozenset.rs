@@ -6,7 +6,13 @@ use crate::{
     py_result_ext::PyResultExt,
     Bound, PyAny, Python,
 };
+#[cfg(any(PyPy, GraalPy, PyRustPython))]
+use crate::sync::PyOnceLock;
 use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt};
+#[cfg(any(PyPy, GraalPy, PyRustPython))]
+use crate::types::{PyType, PyTypeMethods};
+#[cfg(any(PyPy, GraalPy, PyRustPython))]
+use crate::Py;
 use std::ptr;
 
 /// Allows building a Python `frozenset` one item at a time
@@ -59,9 +65,9 @@ impl<'py> PyFrozenSetBuilder<'py> {
 #[repr(transparent)]
 pub struct PyFrozenSet(PyAny);
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, PyRustPython)))]
 pyobject_subclassable_native_type!(PyFrozenSet, crate::ffi::PySetObject);
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, PyRustPython)))]
 pyobject_native_type!(
     PyFrozenSet,
     ffi::PySetObject,
@@ -71,10 +77,15 @@ pyobject_native_type!(
     #checkfunction=ffi::PyFrozenSet_Check
 );
 
-#[cfg(any(PyPy, GraalPy))]
+#[cfg(any(PyPy, GraalPy, PyRustPython))]
 pyobject_native_type_core!(
     PyFrozenSet,
-    pyobject_native_static_type_object!(ffi::PyFrozenSet_Type),
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "frozenset")
+            .unwrap()
+            .as_type_ptr()
+    },
     "builtins",
     "frozenset",
     #checkfunction=ffi::PyFrozenSet_Check

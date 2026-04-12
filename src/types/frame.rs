@@ -1,9 +1,17 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::sealed::Sealed;
+#[cfg(not(PyRustPython))]
 use crate::types::{PyCode, PyDict};
 use crate::PyAny;
+#[cfg(not(PyRustPython))]
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::{ffi, Bound, PyResult, Python};
+#[cfg(PyRustPython)]
+use crate::PyErr;
+#[cfg(PyRustPython)]
+use crate::{sync::PyOnceLock, types::{PyType, PyTypeMethods}, Py};
+#[cfg(not(PyRustPython))]
 use pyo3_ffi::PyObject;
 use std::ffi::CStr;
 
@@ -14,12 +22,24 @@ use std::ffi::CStr;
 #[repr(transparent)]
 pub struct PyFrame(PyAny);
 
+#[cfg(not(PyRustPython))]
 pyobject_native_type_core!(
     PyFrame,
     pyobject_native_static_type_object!(ffi::PyFrame_Type),
     "types",
     "FrameType",
     #checkfunction=ffi::PyFrame_Check
+);
+
+#[cfg(PyRustPython)]
+pyobject_native_type_core!(
+    PyFrame,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "FrameType").unwrap().as_type_ptr()
+    },
+    "types",
+    "FrameType"
 );
 
 impl PyFrame {
@@ -30,16 +50,29 @@ impl PyFrame {
         func_name: &CStr,
         line_number: i32,
     ) -> PyResult<Bound<'py, PyFrame>> {
+        #[cfg(PyRustPython)]
+        {
+            let _ = (py, file_name, func_name, line_number);
+            return Err(PyErr::new::<crate::exceptions::PyNotImplementedError, _>(
+                "PyFrame::new is not implemented on the RustPython backend yet",
+            ));
+        }
+
+        #[cfg(not(PyRustPython))]
         // Safety: Thread is attached because we have a python token
         let state = unsafe { ffi::compat::PyThreadState_GetUnchecked() };
+        #[cfg(not(PyRustPython))]
         let code = PyCode::empty(py, file_name, func_name, line_number);
+        #[cfg(not(PyRustPython))]
         let globals = PyDict::new(py);
+        #[cfg(not(PyRustPython))]
         let locals = PyDict::new(py);
 
         // SAFETY:
         // - we're attached to the interpreter
         // - `PyFrame_New` returns an owned reference or raises an exception
         // - the result is a frame object
+        #[cfg(not(PyRustPython))]
         unsafe {
             Ok(ffi::PyFrame_New(
                 state,

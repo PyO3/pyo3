@@ -200,14 +200,14 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     }
 
     fn mro(&self) -> Bound<'py, PyTuple> {
-        #[cfg(any(Py_LIMITED_API, PyPy))]
+        #[cfg(any(Py_LIMITED_API, PyPy, PyRustPython))]
         let mro = self
             .getattr(intern!(self.py(), "__mro__"))
             .expect("Cannot get `__mro__` from object.")
             .extract()
             .expect("Unexpected type in `__mro__` attribute.");
 
-        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        #[cfg(not(any(Py_LIMITED_API, PyPy, PyRustPython)))]
         let mro = unsafe {
             use crate::ffi_ptr_ext::FfiPtrExt;
             (*self.as_type_ptr())
@@ -221,14 +221,14 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     }
 
     fn bases(&self) -> Bound<'py, PyTuple> {
-        #[cfg(any(Py_LIMITED_API, PyPy))]
+        #[cfg(any(Py_LIMITED_API, PyPy, PyRustPython))]
         let bases = self
             .getattr(intern!(self.py(), "__bases__"))
             .expect("Cannot get `__bases__` from object.")
             .extract()
             .expect("Unexpected type in `__bases__` attribute.");
 
-        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        #[cfg(not(any(Py_LIMITED_API, PyPy, PyRustPython)))]
         let bases = unsafe {
             use crate::ffi_ptr_ext::FfiPtrExt;
             (*self.as_type_ptr())

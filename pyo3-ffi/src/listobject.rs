@@ -1,6 +1,10 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+#[cfg(PyRustPython)]
+use crate::rustpython_runtime;
 use std::ffi::c_int;
+#[cfg(PyRustPython)]
+use rustpython_vm::builtins::PyList;
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyList_Type")]
@@ -71,4 +75,56 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyList_SET_ITEM")]
     #[cfg_attr(GraalPy, link_name = "_PyList_SET_ITEM")]
     pub fn PyList_SET_ITEM(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject);
+}
+
+#[cfg(PyRustPython)]
+#[inline]
+pub unsafe fn PyList_GET_ITEM(list: *mut PyObject, index: Py_ssize_t) -> *mut PyObject {
+    if list.is_null() {
+        return std::ptr::null_mut();
+    }
+    let list_ref = ptr_to_pyobject_ref_borrowed(list);
+    let Some(list_inner) = list_ref.downcast_ref::<PyList>() else {
+        return std::ptr::null_mut();
+    };
+    let elements = list_inner.borrow_vec();
+    if index < 0 || (index as usize) >= elements.len() {
+        return std::ptr::null_mut();
+    }
+    pyobject_ref_to_ptr(elements[index as usize].clone())
+}
+
+#[cfg(PyRustPython)]
+#[inline]
+pub unsafe fn PyList_GET_SIZE(list: *mut PyObject) -> Py_ssize_t {
+    if list.is_null() {
+        return 0;
+    }
+    let list_ref = ptr_to_pyobject_ref_borrowed(list);
+    match list_ref.downcast_ref::<PyList>() {
+        Some(list) => list.borrow_vec().len() as Py_ssize_t,
+        None => 0,
+    }
+}
+
+#[cfg(PyRustPython)]
+#[inline]
+pub unsafe fn PyList_SET_ITEM(list: *mut PyObject, index: Py_ssize_t, item: *mut PyObject) {
+    if list.is_null() {
+        return;
+    }
+    let list_ref = ptr_to_pyobject_ref_borrowed(list);
+    let Some(list_inner) = list_ref.downcast_ref::<PyList>() else {
+        return;
+    };
+    let item_ref = if item.is_null() {
+        rustpython_runtime::with_vm(|vm| vm.ctx.none())
+    } else {
+        ptr_to_pyobject_ref_owned(item)
+    };
+    let mut elements = list_inner.borrow_vec_mut();
+    if index < 0 || (index as usize) >= elements.len() {
+        return;
+    }
+    elements[index as usize] = item_ref;
 }

@@ -1,6 +1,9 @@
 use crate::object::*;
 use std::ffi::{c_double, c_int};
 
+#[cfg(PyRustPython)]
+opaque_struct!(pub PyComplexObject);
+
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyComplex_Type")]
     pub static mut PyComplex_Type: PyTypeObject;

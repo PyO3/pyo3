@@ -463,7 +463,7 @@ pub use self::objimpl::*;
 pub use self::osmodule::*;
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 pub use self::pyarena::*;
-#[cfg(Py_3_11)]
+#[cfg(any(Py_3_11, PyRustPython))]
 pub use self::pybuffer::*;
 pub use self::pycapsule::*;
 pub use self::pyerrors::*;
@@ -489,6 +489,7 @@ pub use self::unicodeobject::*;
 pub use self::warnings::*;
 pub use self::weakrefobject::*;
 
+#[cfg_attr(PyRustPython, path = "abstract_rustpython.rs")]
 mod abstract_;
 // skipped asdl.h
 // skipped ast.h
@@ -529,6 +530,7 @@ mod methodobject;
 mod modsupport;
 mod moduleobject;
 // skipped namespaceobject.h
+#[cfg_attr(PyRustPython, path = "object_rustpython.rs")]
 mod object;
 mod objimpl;
 // skipped odictobject.h
@@ -542,23 +544,28 @@ mod osmodule;
 // skipped py_curses.h
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 mod pyarena;
-#[cfg(Py_3_11)]
+#[cfg_attr(PyRustPython, path = "pybuffer_rustpython.rs")]
+#[cfg(any(Py_3_11, PyRustPython))]
 mod pybuffer;
 mod pycapsule;
 // skipped pydtrace.h
+#[cfg_attr(PyRustPython, path = "pyerrors_rustpython.rs")]
 mod pyerrors;
 // skipped pyexpat.h
 // skipped pyfpe.h
 mod pyframe;
 mod pyhash;
+#[cfg_attr(PyRustPython, path = "pylifecycle_rustpython.rs")]
 mod pylifecycle;
 // skipped pymacconfig.h
 // skipped pymacro.h
 // skipped pymath.h
 mod pymem;
 mod pyport;
+#[cfg_attr(PyRustPython, path = "pystate_rustpython.rs")]
 mod pystate;
 // skipped pystats.h
+#[cfg_attr(PyRustPython, path = "pythonrun_rustpython.rs")]
 mod pythonrun;
 // skipped pystrhex.h
 // skipped pystrcmp.h
@@ -567,26 +574,34 @@ mod pystrtod;
 // skipped pytime.h
 mod pytypedefs;
 mod rangeobject;
+#[cfg_attr(PyRustPython, path = "refcount_rustpython.rs")]
 mod refcount;
 mod setobject;
 mod sliceobject;
 mod structseq;
 mod sysmodule;
+#[cfg_attr(PyRustPython, path = "traceback_rustpython.rs")]
 mod traceback;
 // skipped tracemalloc.h
+#[cfg_attr(PyRustPython, path = "tupleobject_rustpython.rs")]
 mod tupleobject;
 mod typeslots;
+#[cfg_attr(PyRustPython, path = "unicodeobject_rustpython.rs")]
 mod unicodeobject;
 mod warnings;
+#[cfg_attr(PyRustPython, path = "weakrefobject_rustpython.rs")]
 mod weakrefobject;
+
+#[cfg(PyRustPython)]
+mod rustpython_runtime;
 
 // Additional headers that are not exported by Python.h
 #[deprecated(note = "Python 3.12")]
 pub mod structmember;
 
 // "Limited API" definitions matching Python's `include/cpython` directory.
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(not(Py_LIMITED_API), not(PyRustPython)))]
 mod cpython;
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(not(Py_LIMITED_API), not(PyRustPython)))]
 pub use self::cpython::*;

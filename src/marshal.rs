@@ -2,11 +2,19 @@
 
 //! Support for the Python `marshal` format.
 
+#[cfg(not(PyRustPython))]
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(not(PyRustPython))]
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyBytes};
+#[cfg(PyRustPython)]
+use crate::types::PyAnyMethods;
+#[cfg(not(PyRustPython))]
 use crate::{ffi, Bound};
+#[cfg(PyRustPython)]
+use crate::Bound;
 use crate::{PyResult, Python};
+#[cfg(not(PyRustPython))]
 use std::ffi::c_int;
 
 /// The current version of the marshal binary format.
@@ -33,6 +41,17 @@ pub const VERSION: i32 = 4;
 /// # });
 /// ```
 pub fn dumps<'py>(object: &Bound<'py, PyAny>, version: i32) -> PyResult<Bound<'py, PyBytes>> {
+    #[cfg(PyRustPython)]
+    {
+        let marshal = object.py().import("marshal")?;
+        return Ok(unsafe {
+            marshal
+                .call_method1("dumps", (object, version))?
+                .cast_into_unchecked()
+        });
+    }
+
+    #[cfg(not(PyRustPython))]
     unsafe {
         ffi::PyMarshal_WriteObjectToString(object.as_ptr(), version as c_int)
             .assume_owned_or_err(object.py())
@@ -46,6 +65,14 @@ where
     B: AsRef<[u8]> + ?Sized,
 {
     let data = data.as_ref();
+
+    #[cfg(PyRustPython)]
+    {
+        let marshal = py.import("marshal")?;
+        return Ok(marshal.call_method1("loads", (data,))?);
+    }
+
+    #[cfg(not(PyRustPython))]
     unsafe {
         ffi::PyMarshal_ReadObjectFromString(data.as_ptr().cast(), data.len() as isize)
             .assume_owned_or_err(py)

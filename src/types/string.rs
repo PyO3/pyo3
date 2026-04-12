@@ -3,8 +3,12 @@ use crate::exceptions::PyUnicodeDecodeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
+#[cfg(PyRustPython)]
+use crate::sync::PyOnceLock;
 use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
+#[cfg(PyRustPython)]
+use crate::types::{PyType, PyTypeMethods};
 use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -152,7 +156,20 @@ impl<'a> PyStringData<'a> {
 #[repr(transparent)]
 pub struct PyString(PyAny);
 
+#[cfg(not(PyRustPython))]
 pyobject_native_type_core!(PyString, pyobject_native_static_type_object!(ffi::PyUnicode_Type), "builtins", "str", #checkfunction=ffi::PyUnicode_Check);
+
+#[cfg(PyRustPython)]
+pyobject_native_type_core!(
+    PyString,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "str").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "str",
+    #checkfunction=ffi::PyUnicode_Check
+);
 
 impl PyString {
     /// Creates a new Python string object.
@@ -305,7 +322,7 @@ pub trait PyStringMethods<'py>: crate::sealed::Sealed {
     ///
     /// By using this API, you accept responsibility for testing that PyStringData behaves as
     /// expected on the targets where you plan to distribute your software.
-    #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy, PyRustPython)))]
     unsafe fn data(&self) -> PyResult<PyStringData<'_>>;
 }
 
@@ -331,7 +348,7 @@ impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
         }
     }
 
-    #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy, PyRustPython)))]
     unsafe fn data(&self) -> PyResult<PyStringData<'_>> {
         unsafe { self.as_borrowed().data() }
     }
@@ -387,7 +404,7 @@ impl<'a> Borrowed<'a, '_, PyString> {
         Cow::Owned(String::from_utf8_lossy(bytes.as_bytes()).into_owned())
     }
 
-    #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
+    #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy, PyRustPython)))]
     unsafe fn data(self) -> PyResult<PyStringData<'a>> {
         unsafe {
             let ptr = self.as_ptr();
@@ -705,7 +722,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython)))]
     fn test_string_data_ucs1() {
         Python::attach(|py| {
             let s = PyString::new(py, "hello, world");
@@ -718,7 +735,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython)))]
     fn test_string_data_ucs1_invalid() {
         Python::attach(|py| {
             // 0xfe is not allowed in UTF-8.
@@ -744,7 +761,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython)))]
     fn test_string_data_ucs2() {
         Python::attach(|py| {
             let s = py.eval(c"'foo\\ud800'", None, None).unwrap();
@@ -760,7 +777,10 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(not(any(Py_LIMITED_API, PyPy, GraalPy)), target_endian = "little"))]
+    #[cfg(all(
+        not(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython)),
+        target_endian = "little"
+    ))]
     fn test_string_data_ucs2_invalid() {
         Python::attach(|py| {
             // U+FF22 (valid) & U+d800 (never valid)
@@ -786,7 +806,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython)))]
     fn test_string_data_ucs4() {
         Python::attach(|py| {
             let s = "哈哈🐈";
@@ -799,7 +819,10 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(not(any(Py_LIMITED_API, PyPy, GraalPy)), target_endian = "little"))]
+    #[cfg(all(
+        not(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython)),
+        target_endian = "little"
+    ))]
     fn test_string_data_ucs4_invalid() {
         Python::attach(|py| {
             // U+20000 (valid) & U+d800 (never valid)

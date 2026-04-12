@@ -163,8 +163,27 @@ unsafe impl<F: Send> Send for ClosureDestructor<F> {}
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyFunction>`][crate::Py] or [`Bound<'py, PyFunction>`][Bound].
 #[repr(transparent)]
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyRustPython)))]
 pub struct PyFunction(PyAny);
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, PyRustPython)))]
 pyobject_native_type_core!(PyFunction, pyobject_native_static_type_object!(ffi::PyFunction_Type), "builtins", "function", #checkfunction=ffi::PyFunction_Check);
+
+#[cfg(PyRustPython)]
+/// Represents a Python function object.
+#[repr(transparent)]
+pub struct PyFunction(PyAny);
+
+#[cfg(PyRustPython)]
+pyobject_native_type_core!(
+    PyFunction,
+    |py| {
+        use crate::sync::PyOnceLock;
+        use crate::types::{PyType, PyTypeMethods};
+        use crate::Py;
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "function").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "function"
+);

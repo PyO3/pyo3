@@ -2,6 +2,19 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int};
 
+#[cfg(PyRustPython)]
+opaque_struct!(pub PyBaseExceptionObject);
+#[cfg(PyRustPython)]
+opaque_struct!(pub PyStopIterationObject);
+#[cfg(PyRustPython)]
+opaque_struct!(pub PyOSErrorObject);
+#[cfg(PyRustPython)]
+opaque_struct!(pub PySyntaxErrorObject);
+#[cfg(PyRustPython)]
+opaque_struct!(pub PySystemExitObject);
+#[cfg(PyRustPython)]
+opaque_struct!(pub PyUnicodeErrorObject);
+
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetNone")]
     pub fn PyErr_SetNone(arg1: *mut PyObject);

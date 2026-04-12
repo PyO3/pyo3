@@ -9,7 +9,7 @@ use crate::types::PyString;
 
 #[cfg(not(Py_LIMITED_API))]
 use crate::{types::PyDict, Bound, PyAny};
-#[cfg(not(any(Py_3_12, Py_LIMITED_API, GraalPy)))]
+#[cfg(not(any(Py_3_12, Py_LIMITED_API, GraalPy, PyRustPython)))]
 use libc::wchar_t;
 
 #[cfg(not(Py_LIMITED_API))]
@@ -116,7 +116,7 @@ fn test_timezone_from_offset_and_name() {
 }
 
 #[test]
-#[cfg(not(any(Py_LIMITED_API, GraalPy)))]
+#[cfg(not(any(Py_LIMITED_API, GraalPy, PyRustPython)))]
 fn ascii_object_bitfield() {
     let ob_base: PyObject = unsafe { std::mem::zeroed() };
 
@@ -171,7 +171,7 @@ fn ascii_object_bitfield() {
 }
 
 #[test]
-#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython)))]
 fn ascii() {
     Python::attach(|py| {
         // This test relies on implementation details of PyString.
@@ -214,7 +214,7 @@ fn ascii() {
 }
 
 #[test]
-#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython)))]
 fn ucs4() {
     Python::attach(|py| {
         let s = "哈哈🐈";
