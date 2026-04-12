@@ -1,4 +1,5 @@
 use crate::object::*;
+use crate::pyerrors::set_vm_exception;
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
 use libc::size_t;
@@ -52,7 +53,13 @@ pub unsafe fn PyLong_AsLong(arg1: *mut PyObject) -> c_long {
         return -1;
     }
     let obj = ptr_to_pyobject_ref_borrowed(arg1);
-    rustpython_runtime::with_vm(|vm| c_long::try_from_borrowed_object(vm, &obj).unwrap_or(-1))
+    rustpython_runtime::with_vm(|vm| match c_long::try_from_borrowed_object(vm, &obj) {
+        Ok(value) => value,
+        Err(exc) => {
+            set_vm_exception(exc);
+            -1
+        }
+    })
 }
 
 #[inline]
@@ -119,7 +126,13 @@ pub unsafe fn PyLong_AsLongLong(arg1: *mut PyObject) -> c_longlong {
         return -1;
     }
     let obj = ptr_to_pyobject_ref_borrowed(arg1);
-    rustpython_runtime::with_vm(|vm| c_longlong::try_from_borrowed_object(vm, &obj).unwrap_or(-1))
+    rustpython_runtime::with_vm(|vm| match c_longlong::try_from_borrowed_object(vm, &obj) {
+        Ok(value) => value,
+        Err(exc) => {
+            set_vm_exception(exc);
+            -1
+        }
+    })
 }
 
 #[inline]
@@ -128,7 +141,22 @@ pub unsafe fn PyLong_AsUnsignedLongLong(arg1: *mut PyObject) -> c_ulonglong {
         return u64::MAX;
     }
     let obj = ptr_to_pyobject_ref_borrowed(arg1);
-    rustpython_runtime::with_vm(|vm| c_ulonglong::try_from_borrowed_object(vm, &obj).unwrap_or(u64::MAX))
+    rustpython_runtime::with_vm(|vm| {
+        if let Some(int) = obj.downcast_ref::<rustpython_vm::builtins::PyInt>() {
+            if int.as_bigint().to_string().starts_with('-') {
+                set_vm_exception(vm.new_overflow_error("can't convert negative int to unsigned"));
+                return u64::MAX;
+            }
+        }
+
+        match c_ulonglong::try_from_borrowed_object(vm, &obj) {
+            Ok(value) => value,
+            Err(exc) => {
+                set_vm_exception(exc);
+                u64::MAX
+            }
+        }
+    })
 }
 
 #[inline]

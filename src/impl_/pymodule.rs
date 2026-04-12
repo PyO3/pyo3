@@ -184,7 +184,6 @@ impl ModuleDef {
             let kwargs = PyDict::new(py);
             kwargs.set_item("name", name)?;
             let spec = simple_ns.call((), Some(&kwargs))?;
-
             self.module
                 .get_or_try_init(py, || {
                     let def = self.ffi_def.get();

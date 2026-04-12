@@ -168,6 +168,105 @@ fn method_metadata() -> &'static Mutex<HashMap<usize, MethodMetadata>> {
     METHOD_METADATA.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+fn lookup_method_metadata(obj: &PyObjectRef) -> Option<MethodMetadata> {
+    method_metadata()
+        .lock()
+        .unwrap()
+        .get(&(pyobject_ref_as_ptr(obj) as usize))
+        .copied()
+}
+
+const SIGNATURE_END_MARKER: &str = ")\n--\n\n";
+
+fn find_signature<'a>(name: &str, doc: &'a str) -> Option<&'a str> {
+    let name = name.rsplit('.').next().unwrap_or(name);
+    let doc = doc.strip_prefix(name)?;
+    doc.starts_with('(').then_some(doc)
+}
+
+fn text_signature_from_internal_doc<'a>(name: &str, internal_doc: &'a str) -> Option<&'a str> {
+    find_signature(name, internal_doc)
+        .and_then(|doc| doc.find(SIGNATURE_END_MARKER).map(|index| &doc[..=index]))
+}
+
+fn doc_from_internal_doc<'a>(name: &str, internal_doc: &'a str) -> &'a str {
+    if let Some(doc_without_sig) = find_signature(name, internal_doc) {
+        if let Some(sig_end_pos) = doc_without_sig.find(SIGNATURE_END_MARKER) {
+            return &doc_without_sig[sig_end_pos + SIGNATURE_END_MARKER.len()..];
+        }
+    }
+    internal_doc
+}
+
+fn current_method_doc(obj: &PyObjectRef) -> Option<(&'static str, &'static str)> {
+    let metadata = lookup_method_metadata(obj)?;
+    if metadata.method_def == 0 {
+        return None;
+    }
+    let method_def = unsafe { &*(metadata.method_def as *const PyMethodDef) };
+    if method_def.ml_doc.is_null() {
+        return None;
+    }
+    let name = ffi_name_to_static(method_def.ml_name, "<unnamed>");
+    let raw_doc = ffi_name_to_static(method_def.ml_doc, "");
+    Some((name, raw_doc))
+}
+
+fn descriptor_fallback(
+    vm: &rustpython_vm::VirtualMachine,
+    descriptor: &PyObjectRef,
+    obj: PyObjectRef,
+) -> rustpython_vm::PyResult {
+    vm.call_method(descriptor, "__get__", (obj.clone(), obj.class().to_owned()))
+}
+
+pub(crate) fn init_builtin_function_descriptors(vm: &rustpython_vm::VirtualMachine) {
+    static INITIALIZED: OnceLock<()> = OnceLock::new();
+    INITIALIZED.get_or_init(|| {
+        let class = vm.ctx.types.builtin_function_or_method_type;
+        let doc_name = vm.ctx.intern_str("__doc__");
+        let textsig_name = vm.ctx.intern_str("__text_signature__");
+
+        let original_doc = class.get_direct_attr(doc_name).unwrap();
+        let original_textsig = class.get_direct_attr(textsig_name).unwrap();
+
+        class.set_attr(
+            doc_name,
+            vm.ctx
+                .new_readonly_getset(
+                    "__doc__",
+                    class,
+                    move |obj: PyObjectRef, vm: &rustpython_vm::VirtualMachine| {
+                    if let Some((name, raw_doc)) = current_method_doc(&obj) {
+                        return Ok(vm.ctx.new_str(doc_from_internal_doc(name, raw_doc)).into());
+                    }
+                    descriptor_fallback(vm, &original_doc, obj)
+                },
+                )
+                .into(),
+        );
+
+        class.set_attr(
+            textsig_name,
+            vm.ctx
+                .new_readonly_getset(
+                    "__text_signature__",
+                    class,
+                    move |obj: PyObjectRef, vm: &rustpython_vm::VirtualMachine| {
+                    if let Some((name, raw_doc)) = current_method_doc(&obj) {
+                        return Ok(match text_signature_from_internal_doc(name, raw_doc) {
+                            Some(sig) => vm.ctx.new_str(sig).into(),
+                            None => vm.ctx.none(),
+                        });
+                    }
+                    descriptor_fallback(vm, &original_textsig, obj)
+                },
+                )
+                .into(),
+        );
+    });
+}
+
 #[inline]
 pub unsafe fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int {
     if op.is_null() {
@@ -433,8 +532,6 @@ unsafe fn build_rustpython_function(
         return std::ptr::null_mut();
     }
     rustpython_runtime::with_vm(|vm| {
-        #[cfg(PyRustPython)]
-        eprintln!("[rustpython] PyCFunction_NewEx build name_ptr={:?} slf={:?} module={:?}", unsafe { (*ml).ml_name }, slf, module);
         let slf_obj = (!slf.is_null()).then(|| ptr_to_pyobject_ref_borrowed(slf));
         let slf_ptr = slf_obj
             .as_ref()
@@ -477,8 +574,9 @@ unsafe fn build_rustpython_function(
             method_def.build_function(&vm.ctx)
         };
         let obj: PyObjectRef = function.into();
-        #[cfg(PyRustPython)]
-        eprintln!("[rustpython] PyCFunction_NewEx built ptr={:?}", pyobject_ref_as_ptr(&obj));
+        if let Some(doc) = doc {
+            let _ = obj.set_attr("__doc__", vm.ctx.new_str(doc), vm);
+        }
         let ptr = pyobject_ref_as_ptr(&obj);
         method_metadata().lock().unwrap().insert(
             ptr as usize,

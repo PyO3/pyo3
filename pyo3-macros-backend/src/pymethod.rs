@@ -1487,9 +1487,11 @@ fn generate_method_body(
                 let result = #call;
                 #pyo3_path::impl_::pymethods::tp_new_impl::<
                     _,
+                    _,
+                    _,
                     { #pyo3_path::impl_::pyclass::IsPyClass::<#output>::VALUE },
                     { #pyo3_path::impl_::pyclass::IsInitializerTuple::<#output>::VALUE }
-                >(py, result, _slf)
+                >(py, result, _slf, _args, _kwargs)
             };
             (arg_idents, arg_types, body)
         }

@@ -687,15 +687,54 @@ pub trait AsyncIterResultOptionKind {
 
 impl<Value, Error> AsyncIterResultOptionKind for Result<Option<Value>, Error> {}
 
-pub unsafe fn tp_new_impl<'py, T, const IS_PYCLASS: bool, const IS_INITIALIZER_TUPLE: bool>(
+pub trait ConstructorInputArg {
+    fn into_ptr(self) -> *mut ffi::PyObject;
+}
+
+impl ConstructorInputArg for *mut ffi::PyObject {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self
+    }
+}
+
+impl ConstructorInputArg for () {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        std::ptr::null_mut()
+    }
+}
+
+impl<'a, 'py> ConstructorInputArg for crate::Borrowed<'a, 'py, crate::PyAny> {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.as_ptr()
+    }
+}
+
+impl<'a, 'py> ConstructorInputArg for Option<crate::Borrowed<'a, 'py, crate::PyAny>> {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.map_or(std::ptr::null_mut(), |obj| obj.as_ptr())
+    }
+}
+
+pub unsafe fn tp_new_impl<
+    'py,
+    T,
+    A: ConstructorInputArg,
+    K: ConstructorInputArg,
+    const IS_PYCLASS: bool,
+    const IS_INITIALIZER_TUPLE: bool,
+>(
     py: Python<'py>,
     obj: T,
     cls: *mut ffi::PyTypeObject,
+    args: A,
+    kwargs: K,
 ) -> PyResult<*mut ffi::PyObject>
 where
     T: super::pyclass_init::PyClassInit<'py, IS_PYCLASS, IS_INITIALIZER_TUPLE>,
 {
     unsafe {
+        let _guard =
+            super::pyclass_init::NativeTypeConstructorArgsGuard::push(args.into_ptr(), kwargs.into_ptr());
         obj.init(crate::Borrowed::from_ptr_unchecked(py, cls.cast()).cast_unchecked())
             .map(Bound::into_ptr)
     }

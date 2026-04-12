@@ -1,10 +1,18 @@
 use crate::object::*;
 use crate::rustpython_runtime;
+use rustpython_vm::builtins::PyBool;
+use rustpython_vm::AsObject;
 use std::ffi::{c_int, c_long};
 
 #[inline]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyBool_Type) as c_int
+    if op.is_null() {
+        return 0;
+    }
+    ptr_to_pyobject_ref_borrowed(op)
+        .downcast_ref::<PyBool>()
+        .is_some()
+        .into()
 }
 
 #[inline]
@@ -19,12 +27,20 @@ pub unsafe fn Py_True() -> *mut PyObject {
 
 #[inline]
 pub unsafe fn Py_IsTrue(x: *mut PyObject) -> c_int {
-    Py_Is(x, Py_True())
+    if x.is_null() {
+        return 0;
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(x);
+    rustpython_runtime::with_vm(|vm| obj.is(vm.ctx.true_value.as_object()).into())
 }
 
 #[inline]
 pub unsafe fn Py_IsFalse(x: *mut PyObject) -> c_int {
-    Py_Is(x, Py_False())
+    if x.is_null() {
+        return 0;
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(x);
+    rustpython_runtime::with_vm(|vm| obj.is(vm.ctx.false_value.as_object()).into())
 }
 
 #[inline]

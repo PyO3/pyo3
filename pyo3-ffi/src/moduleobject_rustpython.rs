@@ -3,6 +3,7 @@ use crate::object::*;
 use crate::pyerrors::set_vm_exception;
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
+use rustpython_vm::AsObject;
 use rustpython_vm::builtins::PyModule;
 use std::ffi::{c_char, c_int, c_void, CStr};
 
@@ -11,7 +12,15 @@ pub static mut PyModuleDef_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 
 #[inline]
 pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &raw mut PyModule_Type)
+    if op.is_null() {
+        return 0;
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(op);
+    rustpython_runtime::with_vm(|vm| {
+        obj.class()
+            .fast_issubclass(vm.ctx.types.module_type.as_object())
+            .into()
+    })
 }
 
 #[inline]

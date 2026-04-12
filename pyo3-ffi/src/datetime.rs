@@ -9,6 +9,17 @@ use crate::PyCapsule_Import;
 #[cfg(GraalPy)]
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_None, Py_TYPE};
+#[cfg(PyRustPython)]
+use crate::pyerrors::set_vm_exception;
+#[cfg(PyRustPython)]
+use crate::{
+    ptr_to_pyobject_ref_borrowed, pyobject_ref_as_ptr, pyobject_ref_to_ptr, rustpython_runtime,
+    PyObject_Call,
+};
+#[cfg(PyRustPython)]
+use rustpython_vm::function::{FuncArgs, KwArgs};
+#[cfg(PyRustPython)]
+use rustpython_vm::PyObjectRef;
 use std::ffi::c_char;
 use std::ffi::c_int;
 use std::ptr;
@@ -607,15 +618,285 @@ pub unsafe fn PyDateTimeAPI() -> *mut PyDateTime_CAPI {
     *PyDateTimeAPI_impl.ptr.get()
 }
 
+#[cfg(PyRustPython)]
+fn rustpython_call_datetime_type(
+    cls: *mut PyTypeObject,
+    positional: Vec<PyObjectRef>,
+    kwargs: KwArgs,
+) -> *mut PyObject {
+    if cls.is_null() {
+        return std::ptr::null_mut();
+    }
+    let cls_obj = unsafe { ptr_to_pyobject_ref_borrowed(cls.cast()) };
+    rustpython_runtime::with_vm(|vm| match cls_obj.call_with_args(FuncArgs::new(positional, kwargs), vm) {
+        Ok(obj) => pyobject_ref_to_ptr(obj),
+        Err(exc) => {
+            set_vm_exception(exc);
+            std::ptr::null_mut()
+        }
+    })
+}
+
+#[cfg(PyRustPython)]
+unsafe extern "C" fn rustpython_date_from_date(
+    year: c_int,
+    month: c_int,
+    day: c_int,
+    cls: *mut PyTypeObject,
+) -> *mut PyObject {
+    rustpython_runtime::with_vm(|vm| {
+        rustpython_call_datetime_type(
+            cls,
+            vec![
+                vm.ctx.new_int(year).into(),
+                vm.ctx.new_int(month).into(),
+                vm.ctx.new_int(day).into(),
+            ],
+            KwArgs::default(),
+        )
+    })
+}
+
+#[cfg(PyRustPython)]
+unsafe extern "C" fn rustpython_datetime_from_date_and_time(
+    year: c_int,
+    month: c_int,
+    day: c_int,
+    hour: c_int,
+    minute: c_int,
+    second: c_int,
+    microsecond: c_int,
+    tzinfo: *mut PyObject,
+    cls: *mut PyTypeObject,
+) -> *mut PyObject {
+    rustpython_runtime::with_vm(|vm| {
+        let mut positional = vec![
+            vm.ctx.new_int(year).into(),
+            vm.ctx.new_int(month).into(),
+            vm.ctx.new_int(day).into(),
+            vm.ctx.new_int(hour).into(),
+            vm.ctx.new_int(minute).into(),
+            vm.ctx.new_int(second).into(),
+            vm.ctx.new_int(microsecond).into(),
+        ];
+        if !tzinfo.is_null() && unsafe { tzinfo != Py_None() } {
+            positional.push(unsafe { ptr_to_pyobject_ref_borrowed(tzinfo) });
+        }
+        rustpython_call_datetime_type(cls, positional, KwArgs::default())
+    })
+}
+
+#[cfg(PyRustPython)]
+unsafe extern "C" fn rustpython_datetime_from_date_and_time_and_fold(
+    year: c_int,
+    month: c_int,
+    day: c_int,
+    hour: c_int,
+    minute: c_int,
+    second: c_int,
+    microsecond: c_int,
+    tzinfo: *mut PyObject,
+    fold: c_int,
+    cls: *mut PyTypeObject,
+) -> *mut PyObject {
+    rustpython_runtime::with_vm(|vm| {
+        let mut positional = vec![
+            vm.ctx.new_int(year).into(),
+            vm.ctx.new_int(month).into(),
+            vm.ctx.new_int(day).into(),
+            vm.ctx.new_int(hour).into(),
+            vm.ctx.new_int(minute).into(),
+            vm.ctx.new_int(second).into(),
+            vm.ctx.new_int(microsecond).into(),
+        ];
+        if !tzinfo.is_null() && unsafe { tzinfo != Py_None() } {
+            positional.push(unsafe { ptr_to_pyobject_ref_borrowed(tzinfo) });
+        }
+        let kwargs = std::iter::once(("fold".to_owned(), vm.ctx.new_int(fold).into())).collect();
+        rustpython_call_datetime_type(cls, positional, kwargs)
+    })
+}
+
+#[cfg(PyRustPython)]
+unsafe extern "C" fn rustpython_time_from_time(
+    hour: c_int,
+    minute: c_int,
+    second: c_int,
+    microsecond: c_int,
+    tzinfo: *mut PyObject,
+    cls: *mut PyTypeObject,
+) -> *mut PyObject {
+    rustpython_runtime::with_vm(|vm| {
+        let mut positional = vec![
+            vm.ctx.new_int(hour).into(),
+            vm.ctx.new_int(minute).into(),
+            vm.ctx.new_int(second).into(),
+            vm.ctx.new_int(microsecond).into(),
+        ];
+        if !tzinfo.is_null() && unsafe { tzinfo != Py_None() } {
+            positional.push(unsafe { ptr_to_pyobject_ref_borrowed(tzinfo) });
+        }
+        rustpython_call_datetime_type(cls, positional, KwArgs::default())
+    })
+}
+
+#[cfg(PyRustPython)]
+unsafe extern "C" fn rustpython_time_from_time_and_fold(
+    hour: c_int,
+    minute: c_int,
+    second: c_int,
+    microsecond: c_int,
+    tzinfo: *mut PyObject,
+    fold: c_int,
+    cls: *mut PyTypeObject,
+) -> *mut PyObject {
+    rustpython_runtime::with_vm(|vm| {
+        let mut positional = vec![
+            vm.ctx.new_int(hour).into(),
+            vm.ctx.new_int(minute).into(),
+            vm.ctx.new_int(second).into(),
+            vm.ctx.new_int(microsecond).into(),
+        ];
+        if !tzinfo.is_null() && unsafe { tzinfo != Py_None() } {
+            positional.push(unsafe { ptr_to_pyobject_ref_borrowed(tzinfo) });
+        }
+        let kwargs = std::iter::once(("fold".to_owned(), vm.ctx.new_int(fold).into())).collect();
+        rustpython_call_datetime_type(cls, positional, kwargs)
+    })
+}
+
+#[cfg(PyRustPython)]
+unsafe extern "C" fn rustpython_delta_from_delta(
+    days: c_int,
+    seconds: c_int,
+    microseconds: c_int,
+    _normalize: c_int,
+    cls: *mut PyTypeObject,
+) -> *mut PyObject {
+    rustpython_runtime::with_vm(|vm| {
+        rustpython_call_datetime_type(
+            cls,
+            vec![
+                vm.ctx.new_int(days).into(),
+                vm.ctx.new_int(seconds).into(),
+                vm.ctx.new_int(microseconds).into(),
+            ],
+            KwArgs::default(),
+        )
+    })
+}
+
+#[cfg(PyRustPython)]
+unsafe extern "C" fn rustpython_timezone_from_timezone(
+    offset: *mut PyObject,
+    name: *mut PyObject,
+) -> *mut PyObject {
+    rustpython_runtime::with_vm(|vm| {
+        let Ok(datetime) = vm.import("datetime", 0) else {
+            return std::ptr::null_mut();
+        };
+        let Ok(timezone) = datetime.get_attr("timezone", vm) else {
+            return std::ptr::null_mut();
+        };
+        let mut positional = Vec::new();
+        if !offset.is_null() {
+            positional.push(unsafe { ptr_to_pyobject_ref_borrowed(offset) });
+        }
+        if !name.is_null() {
+            positional.push(unsafe { ptr_to_pyobject_ref_borrowed(name) });
+        }
+        match timezone.call_with_args(FuncArgs::new(positional, KwArgs::default()), vm) {
+            Ok(obj) => pyobject_ref_to_ptr(obj),
+            Err(exc) => {
+                set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
+    })
+}
+
+#[cfg(PyRustPython)]
+unsafe extern "C" fn rustpython_datetime_from_timestamp(
+    cls: *mut PyTypeObject,
+    args: *mut PyObject,
+    kwargs: *mut PyObject,
+) -> *mut PyObject {
+    unsafe { PyObject_Call(cls.cast(), args, kwargs) }
+}
+
+#[cfg(PyRustPython)]
+unsafe extern "C" fn rustpython_date_from_timestamp(
+    cls: *mut PyTypeObject,
+    args: *mut PyObject,
+) -> *mut PyObject {
+    unsafe { PyObject_Call(cls.cast(), args, std::ptr::null_mut()) }
+}
+
 /// Populates the `PyDateTimeAPI` object
 pub unsafe fn PyDateTime_IMPORT() {
     if !PyDateTimeAPI_impl.once.is_completed() {
+        #[cfg(PyRustPython)]
+        let py_datetime_c_api = rustpython_runtime::with_vm(|vm| {
+            let Ok(datetime) = vm.import("datetime", 0) else {
+                return std::ptr::null_mut();
+            };
+            let date_type = datetime
+                .get_attr("date", vm)
+                .ok()
+                .map(|obj| pyobject_ref_as_ptr(&obj).cast::<PyTypeObject>())
+                .unwrap_or(std::ptr::null_mut());
+            let datetime_type = datetime
+                .get_attr("datetime", vm)
+                .ok()
+                .map(|obj| pyobject_ref_as_ptr(&obj).cast::<PyTypeObject>())
+                .unwrap_or(std::ptr::null_mut());
+            let time_type = datetime
+                .get_attr("time", vm)
+                .ok()
+                .map(|obj| pyobject_ref_as_ptr(&obj).cast::<PyTypeObject>())
+                .unwrap_or(std::ptr::null_mut());
+            let delta_type = datetime
+                .get_attr("timedelta", vm)
+                .ok()
+                .map(|obj| pyobject_ref_as_ptr(&obj).cast::<PyTypeObject>())
+                .unwrap_or(std::ptr::null_mut());
+            let tzinfo_type = datetime
+                .get_attr("tzinfo", vm)
+                .ok()
+                .map(|obj| pyobject_ref_as_ptr(&obj).cast::<PyTypeObject>())
+                .unwrap_or(std::ptr::null_mut());
+            let timezone_utc = datetime
+                .get_attr("timezone", vm)
+                .ok()
+                .and_then(|timezone| timezone.get_attr("utc", vm).ok())
+                .map(|obj| pyobject_ref_as_ptr(&obj))
+                .unwrap_or(std::ptr::null_mut());
+
+            Box::into_raw(Box::new(PyDateTime_CAPI {
+                DateType: date_type,
+                DateTimeType: datetime_type,
+                TimeType: time_type,
+                DeltaType: delta_type,
+                TZInfoType: tzinfo_type,
+                TimeZone_UTC: timezone_utc,
+                Date_FromDate: rustpython_date_from_date,
+                DateTime_FromDateAndTime: rustpython_datetime_from_date_and_time,
+                Time_FromTime: rustpython_time_from_time,
+                Delta_FromDelta: rustpython_delta_from_delta,
+                TimeZone_FromTimeZone: rustpython_timezone_from_timezone,
+                DateTime_FromTimestamp: rustpython_datetime_from_timestamp,
+                Date_FromTimestamp: rustpython_date_from_timestamp,
+                DateTime_FromDateAndTimeAndFold: rustpython_datetime_from_date_and_time_and_fold,
+                Time_FromTimeAndFold: rustpython_time_from_time_and_fold,
+            }))
+        });
+
         // PyPy expects the C-API to be initialized via PyDateTime_Import, so trying to use
         // `PyCapsule_Import` will behave unexpectedly in pypy.
         #[cfg(PyPy)]
         let py_datetime_c_api = PyDateTime_Import();
 
-        #[cfg(not(PyPy))]
+        #[cfg(all(not(PyPy), not(PyRustPython)))]
         let py_datetime_c_api =
             PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1) as *mut PyDateTime_CAPI;
 

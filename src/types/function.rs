@@ -103,8 +103,6 @@ impl PyCFunction {
         F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
         for<'p> R: crate::impl_::callback::IntoPyCallbackOutput<'p, *mut ffi::PyObject>,
     {
-        #[cfg(PyRustPython)]
-        eprintln!("[rustpython] PyCFunction::new_closure start");
         let name = name.unwrap_or(c"pyo3-closure");
         let doc = doc.unwrap_or(c"");
         let method_def =
@@ -122,8 +120,6 @@ impl PyCFunction {
 
         let data: NonNull<ClosureDestructor<F>> =
             capsule.pointer_checked(Some(CLOSURE_CAPSULE_NAME))?.cast();
-        #[cfg(PyRustPython)]
-        eprintln!("[rustpython] PyCFunction::new_closure capsule ready");
 
         // SAFETY: The capsule has just been created with the value, and will exist as long as
         // the function object exists.
@@ -132,8 +128,6 @@ impl PyCFunction {
         // SAFETY: The arguments to `PyCFunction_NewEx` are valid, we are attached to the
         // interpreter and we know the function either returns a new reference or errors.
         unsafe {
-            #[cfg(PyRustPython)]
-            eprintln!("[rustpython] PyCFunction::new_closure before PyCFunction_NewEx");
             ffi::PyCFunction_NewEx(method_def, capsule.as_ptr(), std::ptr::null_mut())
                 .assume_owned_or_err(py)
                 .cast_into_unchecked()
@@ -153,15 +147,11 @@ where
     for<'py> R: crate::impl_::callback::IntoPyCallbackOutput<'py, *mut ffi::PyObject>,
 {
     unsafe {
-        #[cfg(PyRustPython)]
-        eprintln!("[rustpython] run_closure enter capsule={:?} args={:?} kwargs={:?}", capsule_ptr, args, kwargs);
         crate::impl_::trampoline::cfunction_with_keywords::inner(
             capsule_ptr,
             args,
             kwargs,
             |py, capsule_ptr, args, kwargs| {
-                #[cfg(PyRustPython)]
-                eprintln!("[rustpython] run_closure inner");
                 let boxed_fn: &ClosureDestructor<F> =
                     &*(ffi::PyCapsule_GetPointer(capsule_ptr, CLOSURE_CAPSULE_NAME.as_ptr())
                         as *mut ClosureDestructor<F>);
@@ -169,11 +159,7 @@ where
                 let kwargs = Bound::ref_from_ptr_or_opt(py, &kwargs)
                     .as_ref()
                     .map(|b| b.cast_unchecked::<PyDict>());
-                #[cfg(PyRustPython)]
-                eprintln!("[rustpython] run_closure before user closure");
                 let result = (boxed_fn.closure)(args, kwargs);
-                #[cfg(PyRustPython)]
-                eprintln!("[rustpython] run_closure before convert");
                 crate::impl_::callback::convert(py, result)
             },
         )
@@ -214,8 +200,8 @@ pyobject_native_type_core!(
         use crate::types::{PyType, PyTypeMethods};
         use crate::Py;
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "builtins", "function").unwrap().as_type_ptr()
+        TYPE.import(py, "types", "FunctionType").unwrap().as_type_ptr()
     },
-    "builtins",
-    "function"
+    "types",
+    "FunctionType"
 );

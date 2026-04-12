@@ -6,7 +6,8 @@ use crate::inspect::PyStaticExpr;
 use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
-use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
+use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
+use crate::types::{PyStringMethods, PyTypeMethods};
 use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
 use std::convert::Infallible;
 use std::ffi::c_long;
@@ -72,7 +73,18 @@ macro_rules! extract_int {
         // simplest logic for 3.10+ where that was fixed - python/cpython#82180.
         // `PyLong_AsUnsignedLongLong` does not call `PyNumber_Index`, hence the `force_index_call` argument
         // See https://github.com/PyO3/pyo3/pull/3742 for details
-        if cfg!(Py_3_10) && !$force_index_call {
+        if cfg!(PyRustPython) {
+            if unsafe { ffi::PyLong_CheckExact($obj.as_ptr()) != 0 } {
+                err_if_invalid_value($obj.py(), $error_val, unsafe { $pylong_as($obj.as_ptr()) })
+            } else {
+                let type_name = $obj.get_type().name().map(|n| n.to_string_lossy().into_owned());
+                let message = match type_name {
+                    Ok(name) => format!("'{name}' object cannot be interpreted as an integer"),
+                    Err(_) => "object cannot be interpreted as an integer".to_owned(),
+                };
+                Err(exceptions::PyTypeError::new_err(message))
+            }
+        } else if cfg!(Py_3_10) && !$force_index_call {
             err_if_invalid_value($obj.py(), $error_val, unsafe { $pylong_as($obj.as_ptr()) })
         } else if let Ok(long) = $obj.cast::<crate::types::PyInt>() {
             // fast path - checking for subclass of `int` just checks a bit in the type $object
@@ -484,6 +496,21 @@ pub(crate) fn int_from_ne_bytes<'py, const IS_SIGNED: bool>(
 }
 
 pub(crate) fn nb_index<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyInt>> {
+    #[cfg(PyRustPython)]
+    {
+        if unsafe { ffi::PyLong_CheckExact(obj.as_ptr()) != 0 } {
+            return unsafe {
+                ffi::PyLong_AsLongLong(obj.as_ptr())
+                    .into_pyobject(obj.py())
+                    .map_err(Into::into)
+            };
+        }
+        return Err(exceptions::PyTypeError::new_err(
+            "object cannot be interpreted as an integer",
+        ));
+    }
+
+    #[cfg(not(PyRustPython))]
     // SAFETY: PyNumber_Index returns a new reference or NULL on error
     unsafe { ffi::PyNumber_Index(obj.as_ptr()).assume_owned_or_err(obj.py()) }.cast_into()
 }

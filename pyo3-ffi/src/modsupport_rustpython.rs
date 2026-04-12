@@ -315,6 +315,26 @@ pub unsafe fn PyModule_AddFunctions(_arg1: *mut PyObject, _arg2: *mut PyMethodDe
 
 #[inline]
 pub unsafe fn PyModule_ExecDef(_module: *mut PyObject, _def: *mut PyModuleDef) -> c_int {
+    if _module.is_null() || _def.is_null() {
+        return -1;
+    }
+
+    let mut slot = (*_def).m_slots;
+    while !slot.is_null() {
+        let entry = *slot;
+        if entry.slot == 0 {
+            break;
+        }
+        if entry.slot == crate::moduleobject::Py_mod_exec {
+            let exec: unsafe extern "C" fn(*mut PyObject) -> c_int = std::mem::transmute(entry.value);
+            let result = exec(_module);
+            if result != 0 {
+                return result;
+            }
+        }
+        slot = slot.add(1);
+    }
+
     0
 }
 
@@ -329,14 +349,37 @@ pub unsafe fn PyModule_FromDefAndSpec2(
     spec: *mut PyObject,
     _module_api_version: c_int,
 ) -> *mut PyObject {
-    if !spec.is_null() {
-        let module = crate::PyModule_NewObject(spec);
-        if !module.is_null() {
-            return module;
+    let module = if !spec.is_null() {
+        let name_obj = crate::PyObject_GetAttrString(spec, c"name".as_ptr());
+        if !name_obj.is_null() {
+            let module = crate::PyModule_NewObject(name_obj);
+            crate::Py_DECREF(name_obj);
+            module
+        } else {
+            let name = if def.is_null() { std::ptr::null() } else { (*def).m_name };
+            crate::PyModule_New(name)
         }
+    } else {
+        let name = if def.is_null() { std::ptr::null() } else { (*def).m_name };
+        crate::PyModule_New(name)
+    };
+
+    if module.is_null() {
+        return module;
     }
-    let name = if def.is_null() { std::ptr::null() } else { (*def).m_name };
-    crate::PyModule_New(name)
+
+    let doc = if def.is_null() || (*def).m_doc.is_null() {
+        c"".as_ptr()
+    } else {
+        (*def).m_doc
+    };
+    let doc_obj = crate::PyUnicode_FromString(doc);
+    if !doc_obj.is_null() {
+        let _ = crate::PyObject_SetAttrString(module, c"__doc__".as_ptr(), doc_obj);
+        crate::Py_DECREF(doc_obj);
+    }
+
+    module
 }
 
 #[inline]

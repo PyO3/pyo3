@@ -2,6 +2,8 @@ use crate::exceptions::PyAttributeError;
 use crate::impl_::pymethods::{Deleter, PyDeleterDef};
 #[cfg(not(Py_3_10))]
 use crate::types::typeobject::PyTypeMethods;
+#[cfg(PyRustPython)]
+use crate::types::any::PyAnyMethods;
 use crate::{
     exceptions::PyTypeError,
     ffi,
@@ -39,11 +41,6 @@ pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<PyClassTypeObjec
 where
     T: PyClass,
 {
-    #[cfg(PyRustPython)]
-    eprintln!(
-        "[rustpython] create_type_object::<{}> enter",
-        std::any::type_name::<T>()
-    );
     // Written this way to monomorphize the majority of the logic.
     #[expect(clippy::too_many_arguments)]
     unsafe fn inner(
@@ -78,6 +75,7 @@ where
                 is_sequence,
                 is_immutable_type,
                 has_new: false,
+                has_init: false,
                 has_dealloc: false,
                 has_getitem: false,
                 has_setitem: false,
@@ -97,12 +95,6 @@ where
     }
 
     unsafe {
-        #[cfg(PyRustPython)]
-        eprintln!(
-            "[rustpython] create_type_object::<{}> base={:?}",
-            std::any::type_name::<T>(),
-            T::BaseType::type_object_raw(py)
-        );
         inner(
             py,
             T::BaseType::type_object_raw(py),
@@ -143,6 +135,7 @@ struct PyTypeBuilder {
     is_sequence: bool,
     is_immutable_type: bool,
     has_new: bool,
+    has_init: bool,
     has_dealloc: bool,
     has_getitem: bool,
     has_setitem: bool,
@@ -161,6 +154,7 @@ impl PyTypeBuilder {
     unsafe fn push_slot<T>(&mut self, slot: c_int, pfunc: *mut T) {
         match slot {
             ffi::Py_tp_new => self.has_new = true,
+            ffi::Py_tp_init => self.has_init = true,
             ffi::Py_tp_dealloc => self.has_dealloc = true,
             ffi::Py_mp_subscript => self.has_getitem = true,
             ffi::Py_mp_ass_subscript => self.has_setitem = true,
@@ -455,23 +449,7 @@ impl PyTypeBuilder {
         // on some platforms (like windows)
         #![allow(clippy::useless_conversion)]
 
-        #[cfg(PyRustPython)]
-        eprintln!(
-            "[rustpython] build type={} finalize_methods start slots={} methods={} members={} getsets={}",
-            name,
-            self.slots.len(),
-            self.method_defs.len(),
-            self.member_defs.len(),
-            self.getset_builders.len()
-        );
         let getset_defs = self.finalize_methods_and_properties();
-        #[cfg(PyRustPython)]
-        eprintln!(
-            "[rustpython] build type={} finalize_methods done slots={} getsets_defs={}",
-            name,
-            self.slots.len(),
-            getset_defs.len()
-        );
 
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
 
@@ -485,6 +463,22 @@ impl PyTypeBuilder {
             {
                 self.class_flags |= ffi::Py_TPFLAGS_DISALLOW_INSTANTIATION;
             }
+        }
+
+        #[cfg(PyRustPython)]
+        if self.has_new
+            && !self.has_init
+            && unsafe {
+                ffi::PyType_IsSubtype(
+                    self.tp_base,
+                    crate::exceptions::PyBaseException::type_object_raw(py),
+                ) == 0
+            }
+        {
+            // RustPython invokes tp_init after tp_new. PyO3 constructors fully initialize
+            // instances in tp_new, so inheriting object.__init__ would incorrectly reject
+            // constructor arguments like ValueClass(1).
+            unsafe { self.push_slot(ffi::Py_tp_init, rustpython_noop_init as *mut c_void) }
         }
 
         let base_is_gc = unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 };
@@ -542,12 +536,6 @@ impl PyTypeBuilder {
             slots: self.slots.as_mut_ptr(),
         };
 
-        #[cfg(PyRustPython)]
-        eprintln!(
-            "[rustpython] create_type_object name={} module={:?} basicsize={} base={:?}",
-            name, module_name, basicsize, self.tp_base
-        );
-
         // SAFETY: We've correctly setup the PyType_Spec at this point
         // The FFI call is known to return a new type object or null on error
         let type_object = unsafe {
@@ -557,11 +545,9 @@ impl PyTypeBuilder {
         };
 
         #[cfg(PyRustPython)]
-        eprintln!(
-            "[rustpython] create_type_object ok name={} type_ptr={:?}",
-            name,
-            type_object.as_ptr()
-        );
+        if let Some(module_name) = module_name {
+            type_object.setattr("__module__", module_name)?;
+        }
 
         #[cfg(not(Py_3_11))]
         bpo_45315_workaround(py, class_name);
@@ -633,6 +619,15 @@ unsafe extern "C" fn no_constructor_defined(
             )))
         })
     }
+}
+
+#[cfg(PyRustPython)]
+unsafe extern "C" fn rustpython_noop_init(
+    _slf: *mut ffi::PyObject,
+    _args: *mut ffi::PyObject,
+    _kwargs: *mut ffi::PyObject,
+) -> c_int {
+    0
 }
 
 unsafe extern "C" fn call_super_clear(slf: *mut ffi::PyObject) -> c_int {

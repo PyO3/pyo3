@@ -6,7 +6,38 @@ use crate::internal::get_slot::TP_NEW;
 use crate::types::{PyTuple, PyType};
 use crate::{ffi, PyClass, PyClassInitializer, PyErr, PyResult, Python};
 use crate::{ffi::PyTypeObject, sealed::Sealed, type_object::PyTypeInfo};
+use std::cell::Cell;
 use std::marker::PhantomData;
+
+thread_local! {
+    static NATIVE_TYPE_CTOR_ARGS: Cell<(*mut ffi::PyObject, *mut ffi::PyObject)> =
+        const { Cell::new((std::ptr::null_mut(), std::ptr::null_mut())) };
+}
+
+pub struct NativeTypeConstructorArgsGuard {
+    prev: (*mut ffi::PyObject, *mut ffi::PyObject),
+}
+
+impl NativeTypeConstructorArgsGuard {
+    pub fn push(args: *mut ffi::PyObject, kwargs: *mut ffi::PyObject) -> Self {
+        let prev = NATIVE_TYPE_CTOR_ARGS.with(|cell| {
+            let prev = cell.get();
+            cell.set((args, kwargs));
+            prev
+        });
+        Self { prev }
+    }
+
+    fn current() -> (*mut ffi::PyObject, *mut ffi::PyObject) {
+        NATIVE_TYPE_CTOR_ARGS.with(Cell::get)
+    }
+}
+
+impl Drop for NativeTypeConstructorArgsGuard {
+    fn drop(&mut self) {
+        NATIVE_TYPE_CTOR_ARGS.with(|cell| cell.set(self.prev));
+    }
+}
 
 /// Initializer for Python types.
 ///
@@ -35,12 +66,8 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
             py: Python<'_>,
             type_ptr: *mut PyTypeObject,
             subtype: *mut PyTypeObject,
+            ctor_args: (*mut ffi::PyObject, *mut ffi::PyObject),
         ) -> PyResult<*mut ffi::PyObject> {
-            #[cfg(PyRustPython)]
-            eprintln!(
-                "[rustpython] native init base_type={:?} subtype={:?}",
-                type_ptr, subtype
-            );
             let tp_new = unsafe {
                 type_ptr
                     .cast::<ffi::PyObject>()
@@ -50,26 +77,29 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
                     .ok_or_else(|| PyTypeError::new_err("base type without tp_new"))?
             };
 
-            #[cfg(PyRustPython)]
-            eprintln!(
-                "[rustpython] native init tp_new resolved base_type={:?} subtype={:?}",
-                type_ptr, subtype
-            );
-
-            // TODO: make it possible to provide real arguments to the base tp_new
-            let obj = unsafe { tp_new(subtype, PyTuple::empty(py).as_ptr(), std::ptr::null_mut()) };
-            #[cfg(PyRustPython)]
-            eprintln!(
-                "[rustpython] native init tp_new returned obj={:?} subtype={:?}",
-                obj, subtype
-            );
+            let (args, kwargs) = ctor_args;
+            let empty_args;
+            let args = if args.is_null() {
+                empty_args = PyTuple::empty(py);
+                empty_args.as_ptr()
+            } else {
+                args
+            };
+            let obj = unsafe { tp_new(subtype, args, kwargs) };
             if obj.is_null() {
                 Err(PyErr::fetch(py))
             } else {
                 Ok(obj)
             }
         }
-        unsafe { inner(py, T::type_object_raw(py), subtype) }
+        unsafe {
+            inner(
+                py,
+                T::type_object_raw(py),
+                subtype,
+                NativeTypeConstructorArgsGuard::current(),
+            )
+        }
     }
 }
 

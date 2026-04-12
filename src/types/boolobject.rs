@@ -74,7 +74,7 @@ pub trait PyBoolMethods<'py>: crate::sealed::Sealed {
 impl<'py> PyBoolMethods<'py> for Bound<'py, PyBool> {
     #[inline]
     fn is_true(&self) -> bool {
-        unsafe { ptr::eq(self.as_ptr(), ffi::Py_True()) }
+        unsafe { ffi::Py_IsTrue(self.as_ptr()) != 0 }
     }
 }
 

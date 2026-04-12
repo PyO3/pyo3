@@ -163,8 +163,8 @@ pub unsafe fn PyObject_Type(o: *mut PyObject) -> *mut PyObject {
 }
 
 #[inline]
-pub unsafe fn PyObject_Size(_o: *mut PyObject) -> Py_ssize_t {
-    -1
+pub unsafe fn PyObject_Size(o: *mut PyObject) -> Py_ssize_t {
+    PySequence_Size(o)
 }
 
 #[inline]
@@ -173,8 +173,37 @@ pub unsafe fn PyObject_Length(o: *mut PyObject) -> Py_ssize_t {
 }
 
 #[inline]
-pub unsafe fn PyObject_GetItem(_o: *mut PyObject, _key: *mut PyObject) -> *mut PyObject {
-    std::ptr::null_mut()
+pub unsafe fn PyObject_GetItem(o: *mut PyObject, key: *mut PyObject) -> *mut PyObject {
+    if o.is_null() || key.is_null() {
+        return std::ptr::null_mut();
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(o);
+    let key_obj = ptr_to_pyobject_ref_borrowed(key);
+    rustpython_runtime::with_vm(|vm| {
+        let result = if let Some(f) = obj.mapping_unchecked().slots().subscript.load() {
+            f(obj.mapping_unchecked(), &key_obj, vm)
+        } else if let Some(f) = obj.sequence_unchecked().slots().item.load() {
+            match key_obj
+                .try_index(vm)
+                .and_then(|i| i.try_to_primitive::<isize>(vm))
+            {
+                Ok(i) => f(obj.sequence_unchecked(), i, vm),
+                Err(exc) => Err(exc),
+            }
+        } else {
+            Err(vm.new_type_error(format!(
+                "'{}' does not support item access",
+                obj.class()
+            )))
+        };
+        match result {
+            Ok(value) => pyobject_ref_to_ptr(value),
+            Err(exc) => {
+                set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
+    })
 }
 
 #[inline]
@@ -238,7 +267,17 @@ pub unsafe fn PyIter_Next(_obj: *mut PyObject) -> *mut PyObject {
 
 #[inline]
 pub unsafe fn PyNumber_Index(o: *mut PyObject) -> *mut PyObject {
-    o
+    if o.is_null() {
+        return std::ptr::null_mut();
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(o);
+    rustpython_runtime::with_vm(|vm| match obj.try_index(vm) {
+        Ok(value) => pyobject_ref_to_ptr(value.into()),
+        Err(exc) => {
+            set_vm_exception(exc);
+            std::ptr::null_mut()
+        }
+    })
 }
 
 #[inline]
@@ -249,13 +288,16 @@ pub unsafe fn PySequence_Size(_o: *mut PyObject) -> Py_ssize_t {
     let obj = ptr_to_pyobject_ref_borrowed(_o);
     rustpython_runtime::with_vm(|vm| match obj.length(vm) {
         Ok(len) => len as Py_ssize_t,
-        Err(_) => -1,
+        Err(exc) => {
+            set_vm_exception(exc);
+            -1
+        }
     })
 }
 
 #[inline]
 pub unsafe fn PyMapping_Size(_o: *mut PyObject) -> Py_ssize_t {
-    -1
+    PySequence_Size(_o)
 }
 
 #[inline]
@@ -266,7 +308,10 @@ pub unsafe fn PyObject_LengthHint(o: *mut PyObject, default_value: Py_ssize_t) -
     let obj = ptr_to_pyobject_ref_borrowed(o);
     rustpython_runtime::with_vm(|vm| match obj.length_hint(default_value as usize, vm) {
         Ok(len) => len as Py_ssize_t,
-        Err(_) => -1,
+        Err(exc) => {
+            set_vm_exception(exc);
+            -1
+        }
     })
 }
 

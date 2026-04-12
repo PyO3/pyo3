@@ -128,11 +128,24 @@ impl<'py> FromPyObject<'_, 'py> for f64 {
     // PyFloat_AsDouble returns -1.0 upon failure
     #[allow(clippy::float_cmp)]
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+        #[cfg(PyRustPython)]
+        {
+            if unsafe { ffi::PyFloat_CheckExact(obj.as_ptr()) != 0 } {
+                return Ok(unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) });
+            }
+            if unsafe { ffi::PyLong_CheckExact(obj.as_ptr()) != 0 } {
+                return Ok(unsafe { ffi::PyLong_AsDouble(obj.as_ptr()) });
+            }
+            return Err(crate::exceptions::PyTypeError::new_err(
+                "must be real number, not str",
+            ));
+        }
+
         // On non-limited API, .value() uses PyFloat_AS_DOUBLE which
         // allows us to have an optimized fast path for the case when
         // we have exactly a `float` object (it's not worth going through
         // `isinstance` machinery for subclasses).
-        #[cfg(not(Py_LIMITED_API))]
+        #[cfg(all(not(Py_LIMITED_API), not(PyRustPython)))]
         if let Ok(float) = obj.cast_exact::<PyFloat>() {
             return Ok(float.value());
         }

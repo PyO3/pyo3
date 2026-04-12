@@ -439,7 +439,8 @@ pub unsafe fn PyErr_NormalizeException(
 
 #[inline]
 pub unsafe fn PyErr_GetRaisedException() -> *mut PyObject {
-    take_current_exception()
+    let current = take_current_exception();
+    current
         .map(|exc| pyobject_ref_to_ptr(exc.into()))
         .unwrap_or(std::ptr::null_mut())
 }
@@ -496,6 +497,8 @@ pub unsafe fn PyException_GetTraceback(arg1: *mut PyObject) -> *mut PyObject {
     rustpython_runtime::with_vm(|vm| {
         let exc = ptr_to_pyobject_ref_borrowed(arg1);
         exc.get_attr("__traceback__", vm)
+            .ok()
+            .filter(|value| !value.is(&vm.ctx.none()))
             .map(pyobject_ref_to_ptr)
             .unwrap_or(std::ptr::null_mut())
     })
@@ -509,6 +512,8 @@ pub unsafe fn PyException_GetCause(arg1: *mut PyObject) -> *mut PyObject {
     rustpython_runtime::with_vm(|vm| {
         let exc = ptr_to_pyobject_ref_borrowed(arg1);
         exc.get_attr("__cause__", vm)
+            .ok()
+            .filter(|value| !value.is(&vm.ctx.none()))
             .map(pyobject_ref_to_ptr)
             .unwrap_or(std::ptr::null_mut())
     })
@@ -538,6 +543,8 @@ pub unsafe fn PyException_GetContext(arg1: *mut PyObject) -> *mut PyObject {
     rustpython_runtime::with_vm(|vm| {
         let exc = ptr_to_pyobject_ref_borrowed(arg1);
         exc.get_attr("__context__", vm)
+            .ok()
+            .filter(|value| !value.is(&vm.ctx.none()))
             .map(pyobject_ref_to_ptr)
             .unwrap_or(std::ptr::null_mut())
     })
