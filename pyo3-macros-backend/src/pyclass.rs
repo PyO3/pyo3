@@ -14,6 +14,7 @@ use crate::attributes::{
     ModuleAttribute, NameAttribute, NameLitStr, NewImplTypeAttribute, NewImplTypeAttributeValue,
     RenameAllAttribute, StrFormatterAttribute,
 };
+use crate::backend_spec::ClassSpec;
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{
@@ -268,6 +269,13 @@ pub fn build_py_class(
     methods_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
     args.options.take_pyo3_options(&mut class.attrs)?;
+
+    let _class_spec = ClassSpec::new(
+        class.ident.clone(),
+        get_class_python_name(&class.ident, &args).to_string(),
+        args.options.module.as_ref().map(|module| module.value.value()),
+        matches!(methods_type, PyClassMethodsType::Specialization),
+    );
 
     let ctx = &Ctx::new(&args.options.krate, None);
     let doc = utils::get_doc(&class.attrs, None);
@@ -577,6 +585,13 @@ pub fn build_py_enum(
     method_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
     args.options.take_pyo3_options(&mut enum_.attrs)?;
+
+    let _class_spec = ClassSpec::new(
+        enum_.ident.clone(),
+        get_class_python_name(&enum_.ident, &args).to_string(),
+        args.options.module.as_ref().map(|module| module.value.value()),
+        matches!(method_type, PyClassMethodsType::Specialization),
+    );
 
     let ctx = &Ctx::new(&args.options.krate, None);
     if let Some(extends) = &args.options.extends {

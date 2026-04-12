@@ -9,6 +9,7 @@
 mod utils;
 
 mod attributes;
+mod backend_spec;
 mod combine_errors;
 mod derive_attributes;
 mod frompyobject;

@@ -1,4 +1,5 @@
 use crate::attributes::KeywordAttribute;
+use crate::backend_spec::FunctionSpec;
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{function_introspection_code, introspection_id_const};
@@ -355,6 +356,8 @@ pub fn impl_wrap_pyfunction(
         .as_ref()
         .map_or_else(|| &func.sig.ident, |name| &name.value.0)
         .unraw();
+
+    let _function_spec = FunctionSpec::new(python_name.to_string());
 
     let tp = if pass_module.is_some() {
         let span = match func.sig.inputs.first() {
