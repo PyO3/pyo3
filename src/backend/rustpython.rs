@@ -1,11 +1,16 @@
 use core::marker::PhantomData;
 
-use super::traits::{Backend, BackendClassBuilder, BackendFunctionBuilder, BackendInterpreter};
+use super::{
+    spec::BackendKind,
+    traits::{Backend, BackendClassBuilder, BackendFunctionBuilder, BackendInterpreter},
+};
 
 /// RustPython backend marker.
 pub struct RustPythonBackend;
 
 impl Backend for RustPythonBackend {
+    const KIND: BackendKind = BackendKind::Rustpython;
+
     type Interpreter = RustPythonInterpreter;
     type ClassBuilder<'py>
         = RustPythonClassBuilder<'py>

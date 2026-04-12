@@ -423,6 +423,11 @@ pub use crate::backend::cpython::CpythonBackend as ActiveBackend;
 pub use crate::backend::rustpython::RustPythonBackend as ActiveBackend;
 #[cfg(feature = "runtime-rustpython")]
 pub use crate::backend::rustpython::RustPythonBackend;
+
+/// Returns the backend selected for this build.
+pub const fn active_backend_kind() -> crate::backend::BackendKind {
+    <ActiveBackend as crate::backend::Backend>::KIND
+}
 pub mod call;
 pub mod conversion;
 mod conversions;

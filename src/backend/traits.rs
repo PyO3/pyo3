@@ -1,5 +1,10 @@
+use super::spec::BackendKind;
+
 /// A backend-specific runtime realization.
 pub trait Backend {
+    /// Stable identifier for the backend implementation.
+    const KIND: BackendKind;
+
     /// The interpreter handle exposed by the backend.
     type Interpreter: BackendInterpreter;
 

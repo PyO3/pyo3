@@ -1,11 +1,16 @@
 use core::marker::PhantomData;
 
-use super::traits::{Backend, BackendClassBuilder, BackendFunctionBuilder, BackendInterpreter};
+use super::{
+    spec::BackendKind,
+    traits::{Backend, BackendClassBuilder, BackendFunctionBuilder, BackendInterpreter},
+};
 
 /// Reference CPython-family backend marker.
 pub struct CpythonBackend;
 
 impl Backend for CpythonBackend {
+    const KIND: BackendKind = BackendKind::Cpython;
+
     type Interpreter = CpythonInterpreter;
     type ClassBuilder<'py>
         = CpythonClassBuilder<'py>
