@@ -1,10 +1,16 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
 use crate::rustpython_runtime;
+use crate::{methodobject, pyerrors::PyErr_GetRaisedException};
 use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr::NonNull;
+use std::sync::{Mutex, OnceLock};
 
-use rustpython_vm::builtins::{PyList, PyStr, PyType};
+use rustpython_vm::builtins::{
+    PyBaseException, PyBaseObject, PyDict, PyList, PySet, PyStr, PyType, PyTypeRef,
+};
+use rustpython_vm::function::{FuncArgs, PyMethodDef as RpMethodDef, PyMethodFlags as RpMethodFlags};
 use rustpython_vm::types::PyComparisonOp;
+use rustpython_vm::types::{Constructor, PyTypeFlags, PyTypeSlots};
 use rustpython_vm::{AsObject, PyObjectRef, PyPayload};
 
 #[repr(C)]
@@ -145,6 +151,375 @@ pub static mut PyLong_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 pub static mut PyBool_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 
 pub const PyObject_HEAD_INIT: PyObject = PyObject { _opaque: [] };
+
+#[derive(Copy, Clone, Default)]
+struct HeapTypeMetadata {
+    tp_new: usize,
+}
+
+fn heap_type_registry() -> &'static Mutex<std::collections::HashMap<usize, HeapTypeMetadata>> {
+    static REGISTRY: OnceLock<Mutex<std::collections::HashMap<usize, HeapTypeMetadata>>> =
+        OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(std::collections::HashMap::new()))
+}
+
+fn ffi_name_to_static(ptr: *const c_char, default: &'static str) -> &'static str {
+    if ptr.is_null() {
+        return default;
+    }
+    let owned = unsafe { std::ffi::CStr::from_ptr(ptr) }
+        .to_string_lossy()
+        .into_owned()
+        .into_boxed_str();
+    Box::leak(owned)
+}
+
+unsafe fn fetch_current_exception(
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::builtins::PyBaseExceptionRef {
+    let raised = PyErr_GetRaisedException();
+    if raised.is_null() {
+        return vm.new_system_error("FFI callback returned NULL without setting an exception");
+    }
+    match ptr_to_pyobject_ref_owned(raised).downcast::<PyBaseException>() {
+        Ok(exc) => exc,
+        Err(obj) => vm.new_system_error(format!(
+            "FFI callback set a non-exception object: {}",
+            obj.class().name()
+        )),
+    }
+}
+
+fn build_func_args_from_ffi(
+    args: *mut PyObject,
+    kwargs: *mut PyObject,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult<FuncArgs> {
+    let positional = if args.is_null() {
+        Vec::new()
+    } else {
+        let args_obj = unsafe { ptr_to_pyobject_ref_borrowed(args) };
+        args_obj
+            .try_into_value::<rustpython_vm::builtins::PyTupleRef>(vm)
+            .map(|tuple| tuple.as_slice().to_vec())
+            .map_err(|_| vm.new_type_error("expected tuple args for tp_new"))?
+    };
+
+    let mut kw = rustpython_vm::function::KwArgs::default();
+    if !kwargs.is_null() {
+        let kwargs_obj = unsafe { ptr_to_pyobject_ref_borrowed(kwargs) };
+        let kwargs_dict = kwargs_obj
+            .try_into_value::<rustpython_vm::builtins::PyDictRef>(vm)
+            .map_err(|_| vm.new_type_error("expected dict kwargs for tp_new"))?;
+        for (k, v) in &kwargs_dict {
+            let key = k
+                .str(vm)
+                .map_err(|_| vm.new_type_error("keywords must be strings"))?;
+            kw = std::iter::once((key.as_str().to_owned(), v))
+                .chain(kw)
+                .collect();
+        }
+    }
+
+    Ok(FuncArgs::new(positional, kw))
+}
+
+fn build_getter_property(
+    def: *mut crate::descrobject::PyGetSetDef,
+    vm: &rustpython_vm::VirtualMachine,
+) -> PyObjectRef {
+    let name = ffi_name_to_static(unsafe { (*def).name }, "<getter>");
+    let getter = unsafe { (*def).get };
+    let setter = unsafe { (*def).set };
+    let closure = unsafe { (*def).closure as usize };
+    let doc = unsafe { (*def).doc };
+
+    let fget = getter.map(|get| {
+        let def_name = name;
+        let method = Box::leak(Box::new(RpMethodDef {
+            name: def_name,
+            func: Box::leak(Box::new(move |vm: &rustpython_vm::VirtualMachine, args: FuncArgs| {
+                if args.args.len() != 1 || !args.kwargs.is_empty() {
+                    return Err(vm.new_type_error(format!(
+                        "{def_name} getter expects exactly one argument"
+                    )));
+                }
+                let obj = &args.args[0];
+                let result = unsafe {
+                    get(pyobject_ref_as_ptr(obj), closure as *mut c_void)
+                };
+                if result.is_null() {
+                    Err(unsafe { fetch_current_exception(vm) })
+                } else {
+                    Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+                }
+            })),
+            flags: RpMethodFlags::EMPTY,
+            doc: None,
+        }));
+        method.build_function(&vm.ctx).into()
+    });
+
+    let fset = setter.map(|set| {
+        let def_name = name;
+        let method = Box::leak(Box::new(RpMethodDef {
+            name: def_name,
+            func: Box::leak(Box::new(move |vm: &rustpython_vm::VirtualMachine, args: FuncArgs| {
+                if args.args.len() != 2 || !args.kwargs.is_empty() {
+                    return Err(vm.new_type_error(format!(
+                        "{def_name} setter expects exactly two arguments"
+                    )));
+                }
+                let obj = &args.args[0];
+                let value = &args.args[1];
+                let rc = unsafe {
+                    set(
+                        pyobject_ref_as_ptr(obj),
+                        pyobject_ref_as_ptr(value),
+                        closure as *mut c_void,
+                    )
+                };
+                if rc == 0 {
+                    Ok(vm.ctx.none())
+                } else {
+                    Err(unsafe { fetch_current_exception(vm) })
+                }
+            })),
+            flags: RpMethodFlags::EMPTY,
+            doc: None,
+        }));
+        method.build_function(&vm.ctx).into()
+    });
+
+    let doc_obj = if doc.is_null() {
+        vm.ctx.none()
+    } else {
+        vm.ctx.new_str(ffi_name_to_static(doc, "")).into()
+    };
+
+    vm.ctx
+        .types
+        .property_type
+        .as_object()
+        .call(
+            (
+                fget.unwrap_or_else(|| vm.ctx.none()),
+                fset.unwrap_or_else(|| vm.ctx.none()),
+                vm.ctx.none(),
+                doc_obj,
+            ),
+            vm,
+        )
+        .unwrap()
+}
+
+fn heap_tp_new_wrapper(cls: PyTypeRef, args: FuncArgs, vm: &rustpython_vm::VirtualMachine) -> rustpython_vm::PyResult {
+    #[cfg(PyRustPython)]
+    eprintln!(
+        "[rustpython] heap_tp_new_wrapper cls={} positional={} kwargs={}",
+        cls.name(),
+        args.args.len(),
+        args.kwargs.len()
+    );
+    let cls_obj: PyObjectRef = cls.clone().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(tp_new) = (metadata.tp_new != 0).then_some(metadata.tp_new) else {
+        return Err(vm.new_type_error("heap type missing tp_new"));
+    };
+    let tp_new: newfunc = unsafe { std::mem::transmute(tp_new) };
+
+    let tuple = vm.ctx.new_tuple(args.args);
+    let tuple_obj: PyObjectRef = tuple.into();
+    let kwargs_obj = if args.kwargs.is_empty() {
+        None
+    } else {
+        let dict = vm.ctx.new_dict();
+        for (key, value) in args.kwargs {
+            dict.set_item(key.as_str(), value, vm)?;
+        }
+        Some::<PyObjectRef>(dict.into())
+    };
+
+    let result = unsafe {
+        tp_new(
+            cls_ptr,
+            pyobject_ref_as_ptr(&tuple_obj),
+            kwargs_obj
+                .as_ref()
+                .map(pyobject_ref_as_ptr)
+                .unwrap_or(std::ptr::null_mut()),
+        )
+    };
+    if result.is_null() {
+        let exc = unsafe { fetch_current_exception(vm) };
+        #[cfg(PyRustPython)]
+        {
+            let detail = exc
+                .as_object()
+                .str(vm)
+                .map(|s| s.as_str().to_owned())
+                .unwrap_or_else(|_| "<str failed>".to_owned());
+            eprintln!(
+                "[rustpython] heap_tp_new_wrapper err class={} detail={}",
+                exc.class().name(),
+                detail
+            );
+        }
+        Err(exc)
+    } else {
+        Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+    }
+}
+
+unsafe extern "C" fn builtin_set_tp_new(
+    subtype: *mut PyTypeObject,
+    args: *mut PyObject,
+    kwds: *mut PyObject,
+) -> *mut PyObject {
+    if subtype.is_null() {
+        return std::ptr::null_mut();
+    }
+    rustpython_runtime::with_vm(|vm| {
+        eprintln!(
+            "[rustpython] builtin_set_tp_new subtype={:?} args={:?} kwds={:?}",
+            subtype, args, kwds
+        );
+        let cls = unsafe { ptr_to_pyobject_ref_borrowed(subtype.cast()) };
+        let Ok(cls) = cls.downcast::<PyType>() else {
+            eprintln!("[rustpython] builtin_set_tp_new downcast cls failed");
+            return std::ptr::null_mut();
+        };
+        let Ok(args) = build_func_args_from_ffi(args, kwds, vm) else {
+            eprintln!("[rustpython] builtin_set_tp_new build_func_args_from_ffi failed");
+            return std::ptr::null_mut();
+        };
+        eprintln!(
+            "[rustpython] builtin_set_tp_new args positional={} kwargs_empty={}",
+            args.args.len(),
+            args.kwargs.clone().is_empty()
+        );
+        match <PySet as rustpython_vm::types::Constructor>::slot_new(cls, args, vm) {
+            Ok(obj) => {
+                eprintln!("[rustpython] builtin_set_tp_new slot_new ok");
+                pyobject_ref_to_ptr(obj)
+            }
+            Err(exc) => {
+                let detail = exc
+                    .as_object()
+                    .str(vm)
+                    .map(|s| s.as_str().to_owned())
+                    .unwrap_or_else(|_| "<str failed>".to_owned());
+                eprintln!(
+                    "[rustpython] builtin_set_tp_new slot_new err: {:?} detail={}",
+                    exc.class(),
+                    detail
+                );
+                crate::pyerrors::set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
+    })
+}
+
+unsafe extern "C" fn builtin_dict_tp_new(
+    subtype: *mut PyTypeObject,
+    args: *mut PyObject,
+    kwds: *mut PyObject,
+) -> *mut PyObject {
+    if subtype.is_null() {
+        return std::ptr::null_mut();
+    }
+    rustpython_runtime::with_vm(|vm| {
+        eprintln!(
+            "[rustpython] builtin_dict_tp_new subtype={:?} args={:?} kwds={:?}",
+            subtype, args, kwds
+        );
+        let cls = unsafe { ptr_to_pyobject_ref_borrowed(subtype.cast()) };
+        let Ok(cls) = cls.downcast::<PyType>() else {
+            eprintln!("[rustpython] builtin_dict_tp_new downcast cls failed");
+            return std::ptr::null_mut();
+        };
+        let Ok(args) = build_func_args_from_ffi(args, kwds, vm) else {
+            eprintln!("[rustpython] builtin_dict_tp_new build_func_args_from_ffi failed");
+            return std::ptr::null_mut();
+        };
+        match <PyDict as rustpython_vm::types::Constructor>::slot_new(cls, args, vm) {
+            Ok(obj) => {
+                eprintln!("[rustpython] builtin_dict_tp_new slot_new ok");
+                pyobject_ref_to_ptr(obj)
+            }
+            Err(exc) => {
+                let detail = exc
+                    .as_object()
+                    .str(vm)
+                    .map(|s| s.as_str().to_owned())
+                    .unwrap_or_else(|_| "<str failed>".to_owned());
+                eprintln!(
+                    "[rustpython] builtin_dict_tp_new slot_new err: {:?} detail={}",
+                    exc.class(),
+                    detail
+                );
+                crate::pyerrors::set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
+    })
+}
+
+unsafe extern "C" fn builtin_object_tp_new(
+    subtype: *mut PyTypeObject,
+    args: *mut PyObject,
+    kwds: *mut PyObject,
+) -> *mut PyObject {
+    if subtype.is_null() {
+        return std::ptr::null_mut();
+    }
+    rustpython_runtime::with_vm(|vm| {
+        let cls = unsafe { ptr_to_pyobject_ref_borrowed(subtype.cast()) };
+        let Ok(cls) = cls.downcast::<PyType>() else {
+            return std::ptr::null_mut();
+        };
+        let Ok(args) = build_func_args_from_ffi(args, kwds, vm) else {
+            return std::ptr::null_mut();
+        };
+        match <PyBaseObject as rustpython_vm::types::Constructor>::slot_new(cls, args, vm) {
+            Ok(obj) => pyobject_ref_to_ptr(obj),
+            Err(exc) => {
+                crate::pyerrors::set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
+    })
+}
+
+unsafe extern "C" fn builtin_exception_tp_new(
+    subtype: *mut PyTypeObject,
+    args: *mut PyObject,
+    kwds: *mut PyObject,
+) -> *mut PyObject {
+    rustpython_runtime::with_vm(|vm| {
+        let cls_obj = unsafe { ptr_to_pyobject_ref_borrowed(subtype as *mut PyObject) };
+        let Ok(cls) = cls_obj.clone().downcast::<PyType>() else {
+            return std::ptr::null_mut();
+        };
+        let Ok(args) = build_func_args_from_ffi(args, kwds, vm) else {
+            return std::ptr::null_mut();
+        };
+        match <PyBaseException as Constructor>::slot_new(cls, args, vm) {
+            Ok(obj) => pyobject_ref_to_ptr(obj),
+            Err(exc) => {
+                crate::pyerrors::set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
+    })
+}
 
 #[inline]
 pub fn pyobject_ref_to_ptr(obj: PyObjectRef) -> *mut PyObject {
@@ -679,20 +1054,235 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 #[inline]
-pub unsafe fn PyType_FromSpec(_spec: *mut PyType_Spec) -> *mut PyObject {
-    std::ptr::null_mut()
+pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
+    #[cfg(PyRustPython)]
+    {
+        if !spec.is_null() {
+            let name = if (*spec).name.is_null() {
+                "<null>"
+            } else {
+                std::ffi::CStr::from_ptr((*spec).name)
+                    .to_str()
+                    .unwrap_or("<invalid>")
+            };
+            eprintln!(
+                "[rustpython] PyType_FromSpec name={} basicsize={} flags={} slots={:?}",
+                name,
+                (*spec).basicsize,
+                (*spec).flags,
+                (*spec).slots
+            );
+        } else {
+            eprintln!("[rustpython] PyType_FromSpec spec=<null>");
+        }
+    }
+    if spec.is_null() {
+        return std::ptr::null_mut();
+    }
+    rustpython_runtime::with_vm(|vm| {
+        let name = if (*spec).name.is_null() {
+            "<unnamed>"
+        } else {
+            ffi_name_to_static((*spec).name, "<invalid>")
+        };
+        let qual_name = name.rsplit('.').next().unwrap_or(name);
+
+        let mut base: Option<PyTypeRef> = None;
+        let mut attrs = vm.ctx.types.object_type.attributes.read().clone();
+        attrs.clear();
+        let mut slots = PyTypeSlots::new(ffi_name_to_static((*spec).name, "<unnamed>"), PyTypeFlags::DEFAULT);
+        slots.basicsize = (*spec).basicsize.max(0) as usize;
+        slots.itemsize = (*spec).itemsize.max(0) as usize;
+        let mut metadata = HeapTypeMetadata::default();
+        let mut method_defs: Vec<*mut methodobject::PyMethodDef> = Vec::new();
+
+        let mut slot_ptr = (*spec).slots;
+        while !slot_ptr.is_null() && (*slot_ptr).slot != 0 {
+            #[cfg(PyRustPython)]
+            eprintln!(
+                "[rustpython] PyType_FromSpec visiting slot={} pfunc={:?}",
+                (*slot_ptr).slot,
+                (*slot_ptr).pfunc
+            );
+            match (*slot_ptr).slot {
+                crate::Py_tp_base => {
+                    let base_obj = ptr_to_pyobject_ref_borrowed((*slot_ptr).pfunc as *mut PyObject);
+                    if let Ok(base_type) = base_obj.downcast::<PyType>() {
+                        #[cfg(PyRustPython)]
+                        eprintln!(
+                            "[rustpython] PyType_FromSpec base={}",
+                            base_type.name()
+                        );
+                        base = Some(base_type);
+                    }
+                }
+                crate::Py_tp_doc => {
+                    if !(*slot_ptr).pfunc.is_null() {
+                        #[cfg(PyRustPython)]
+                        eprintln!("[rustpython] PyType_FromSpec doc slot");
+                        slots.doc = Some(ffi_name_to_static((*slot_ptr).pfunc.cast(), ""));
+                    }
+                }
+                crate::Py_tp_methods => {
+                    #[cfg(PyRustPython)]
+                    eprintln!("[rustpython] PyType_FromSpec methods slot");
+                    let mut def = (*slot_ptr).pfunc as *mut methodobject::PyMethodDef;
+                    while !def.is_null() && !(*def).ml_name.is_null() {
+                        #[cfg(PyRustPython)]
+                        eprintln!(
+                            "[rustpython] PyType_FromSpec method={}",
+                            ffi_name_to_static((*def).ml_name, "<method>")
+                        );
+                        method_defs.push(def);
+                        def = def.add(1);
+                    }
+                }
+                crate::Py_tp_getset => {
+                    #[cfg(PyRustPython)]
+                    eprintln!("[rustpython] PyType_FromSpec getset slot");
+                    let mut def = (*slot_ptr).pfunc as *mut crate::descrobject::PyGetSetDef;
+                    while !def.is_null() && !(*def).name.is_null() {
+                        #[cfg(PyRustPython)]
+                        eprintln!(
+                            "[rustpython] PyType_FromSpec property={}",
+                            ffi_name_to_static((*def).name, "<property>")
+                        );
+                        attrs.insert(
+                            vm.ctx.intern_str(ffi_name_to_static((*def).name, "<property>")),
+                            build_getter_property(def, vm),
+                        );
+                        def = def.add(1);
+                    }
+                }
+                crate::Py_tp_new => {
+                    metadata.tp_new = (*slot_ptr).pfunc as usize;
+                    slots.new.store(Some(heap_tp_new_wrapper));
+                }
+                _ => {}
+            }
+            slot_ptr = slot_ptr.add(1);
+        }
+
+        if (*spec).flags as c_ulong & Py_TPFLAGS_BASETYPE != 0 {
+            slots.flags |= PyTypeFlags::BASETYPE;
+        }
+        if (*spec).flags as c_ulong & (1 << 8) != 0 {
+            slots.flags |= PyTypeFlags::IMMUTABLETYPE;
+        }
+        if (*spec).flags as c_ulong & (1 << 6) != 0 {
+            slots.flags |= PyTypeFlags::MAPPING;
+        }
+        if (*spec).flags as c_ulong & (1 << 5) != 0 {
+            slots.flags |= PyTypeFlags::SEQUENCE;
+        }
+
+        attrs.insert(vm.ctx.intern_str("__module__"), vm.ctx.new_str("builtins").into());
+
+        let Some(base) = base else {
+            #[cfg(PyRustPython)]
+            eprintln!("[rustpython] PyType_FromSpec missing base");
+            return std::ptr::null_mut();
+        };
+        #[cfg(PyRustPython)]
+        eprintln!(
+            "[rustpython] PyType_FromSpec calling new_heap qual={} base={} basicsize={} attrs={}",
+            qual_name,
+            base.name(),
+            slots.basicsize,
+            attrs.len()
+        );
+        match PyType::new_heap(
+            qual_name,
+            vec![base],
+            attrs,
+            slots,
+            vm.ctx.types.type_type.to_owned(),
+            &vm.ctx,
+        ) {
+            Ok(ty) => {
+                let class: &'static rustpython_vm::Py<PyType> =
+                    unsafe { std::mem::transmute::<&rustpython_vm::Py<PyType>, &'static rustpython_vm::Py<PyType>>(&*ty) };
+                if metadata.tp_new != 0 {
+                    ty.slots.new.store(Some(heap_tp_new_wrapper));
+                }
+                #[cfg(PyRustPython)]
+                eprintln!(
+                    "[rustpython] PyType_FromSpec created type={} slot_new={:?} heap_wrapper={} attrs={}",
+                    ty.name(),
+                    ty.slots.new.load().map(|f| f as usize),
+                    heap_tp_new_wrapper as usize,
+                    ty.attributes.read().len()
+                );
+                for def in method_defs {
+                    let name = ffi_name_to_static((*def).ml_name, "<method>");
+                    let method = unsafe {
+                        methodobject::build_rustpython_class_method(def, class, vm)
+                    };
+                    ty.set_attr(vm.ctx.intern_str(name), method);
+                }
+                let type_obj: PyObjectRef = ty.into();
+                let type_ptr = pyobject_ref_as_ptr(&type_obj) as *mut PyTypeObject;
+                heap_type_registry()
+                    .lock()
+                    .unwrap()
+                    .insert(type_ptr as usize, metadata);
+                pyobject_ref_to_ptr(type_obj)
+            }
+            Err(err) => {
+                let exc = vm.new_type_error(err);
+                crate::pyerrors::set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
+    })
 }
 
 #[inline]
-pub unsafe fn PyType_GetSlot(_ty: *mut PyTypeObject, _slot: c_int) -> *mut c_void {
-    std::ptr::null_mut()
+pub unsafe fn PyType_GetSlot(ty: *mut PyTypeObject, slot: c_int) -> *mut c_void {
+    #[cfg(PyRustPython)]
+    eprintln!("[rustpython] PyType_GetSlot ty={:?} slot={}", ty, slot);
+    if ty.is_null() {
+        return std::ptr::null_mut();
+    }
+    if let Some(metadata) = heap_type_registry().lock().unwrap().get(&(ty as usize)).copied() {
+        return match slot {
+            crate::Py_tp_new => metadata.tp_new as *mut c_void,
+            _ => std::ptr::null_mut(),
+        };
+    }
+    rustpython_runtime::with_vm(|vm| match slot {
+        crate::Py_tp_new => {
+            let ty_obj = unsafe { ptr_to_pyobject_ref_borrowed(ty as *mut PyObject) };
+            if ty == pyobject_ref_as_ptr(&vm.ctx.types.object_type.to_owned().into()) as *mut PyTypeObject {
+                builtin_object_tp_new as *mut c_void
+            } else if ty == pyobject_ref_as_ptr(&vm.ctx.types.set_type.to_owned().into()) as *mut PyTypeObject {
+                builtin_set_tp_new as *mut c_void
+            } else if ty == pyobject_ref_as_ptr(&vm.ctx.types.dict_type.to_owned().into()) as *mut PyTypeObject {
+                builtin_dict_tp_new as *mut c_void
+            } else if ty_obj
+                .downcast::<PyType>()
+                .map(|cls| cls.fast_issubclass(vm.ctx.exceptions.base_exception_type))
+                .unwrap_or(false)
+            {
+                builtin_exception_tp_new as *mut c_void
+            } else {
+                std::ptr::null_mut()
+            }
+        }
+        _ => std::ptr::null_mut(),
+    })
 }
 
 #[inline]
 pub unsafe fn PyType_GenericAlloc(
-    _subtype: *mut PyTypeObject,
-    _nitems: Py_ssize_t,
+    subtype: *mut PyTypeObject,
+    nitems: Py_ssize_t,
 ) -> *mut PyObject {
+    #[cfg(PyRustPython)]
+    eprintln!(
+        "[rustpython] PyType_GenericAlloc subtype={:?} nitems={}",
+        subtype, nitems
+    );
     std::ptr::null_mut()
 }
 

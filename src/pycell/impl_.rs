@@ -264,10 +264,10 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
 
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
-        if std::ptr::eq(type_ptr, &raw const ffi::PyBaseObject_Type) {
+        if std::ptr::eq(type_ptr, crate::types::PyAny::type_object_raw(py)) {
             let tp_free = actual_type
                 .get_slot(TP_FREE)
-                .expect("PyBaseObject_Type should have tp_free");
+                .expect("object type should have tp_free");
             return tp_free(slf.cast());
         }
 
@@ -363,7 +363,7 @@ impl<T: PyClassImpl> PyClassObjectContents<T> {
         }
     }
 
-    unsafe fn dealloc(&mut self, py: Python<'_>, py_object: *mut ffi::PyObject) {
+    pub(crate) unsafe fn dealloc(&mut self, py: Python<'_>, py_object: *mut ffi::PyObject) {
         if self.thread_checker.can_drop(py) {
             unsafe { ManuallyDrop::drop(&mut self.value) };
         }

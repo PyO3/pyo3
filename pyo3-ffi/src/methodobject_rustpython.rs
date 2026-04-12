@@ -2,7 +2,7 @@ use crate::object::*;
 use crate::pyerrors::PyErr_GetRaisedException;
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
-use rustpython_vm::builtins::{PyBaseException, PyStr};
+use rustpython_vm::builtins::{PyBaseException, PyStr, PyType};
 use rustpython_vm::function::{FuncArgs, PyMethodDef as RpMethodDef, PyMethodFlags as RpMethodFlags};
 use rustpython_vm::{AsObject, PyObjectRef};
 use std::collections::HashMap;
@@ -378,6 +378,52 @@ unsafe fn call_ffi_method(
     )))
 }
 
+fn ffi_method_flags(flags: c_int) -> RpMethodFlags {
+    if flags & METH_CLASS != 0 {
+        RpMethodFlags::CLASS
+    } else if flags & METH_STATIC != 0 {
+        RpMethodFlags::STATIC
+    } else {
+        RpMethodFlags::METHOD
+    }
+}
+
+pub(crate) unsafe fn build_rustpython_class_method(
+    ml: *mut PyMethodDef,
+    class: &'static rustpython_vm::Py<PyType>,
+    vm: &rustpython_vm::VirtualMachine,
+) -> PyObjectRef {
+    let name = ffi_name_to_static((*ml).ml_name, "<unnamed>");
+    let doc = if (*ml).ml_doc.is_null() {
+        None
+    } else {
+        Some(ffi_name_to_static((*ml).ml_doc, ""))
+    };
+    let flags = ffi_method_flags((*ml).ml_flags);
+    let method_ptr = ml as usize;
+    let method_def = Box::leak(Box::new(RpMethodDef {
+        name,
+        func: Box::leak(Box::new(move |vm: &rustpython_vm::VirtualMachine, mut args: FuncArgs| {
+            let slf = if flags.contains(RpMethodFlags::STATIC) {
+                std::ptr::null_mut()
+            } else {
+                let Some(first) = args.args.first().cloned() else {
+                    return Err(vm.new_type_error(format!(
+                        "missing bound receiver for method {name}"
+                    )));
+                };
+                args.args.remove(0);
+                pyobject_ref_as_ptr(&first)
+            };
+            let method_def = method_ptr as *mut PyMethodDef;
+            unsafe { call_ffi_method(vm, method_def, slf, args) }
+        })),
+        flags,
+        doc,
+    }));
+    method_def.to_proper_method(class, &vm.ctx)
+}
+
 unsafe fn build_rustpython_function(
     ml: *mut PyMethodDef,
     slf: *mut PyObject,
@@ -387,6 +433,8 @@ unsafe fn build_rustpython_function(
         return std::ptr::null_mut();
     }
     rustpython_runtime::with_vm(|vm| {
+        #[cfg(PyRustPython)]
+        eprintln!("[rustpython] PyCFunction_NewEx build name_ptr={:?} slf={:?} module={:?}", unsafe { (*ml).ml_name }, slf, module);
         let slf_obj = (!slf.is_null()).then(|| ptr_to_pyobject_ref_borrowed(slf));
         let slf_ptr = slf_obj
             .as_ref()
@@ -429,6 +477,8 @@ unsafe fn build_rustpython_function(
             method_def.build_function(&vm.ctx)
         };
         let obj: PyObjectRef = function.into();
+        #[cfg(PyRustPython)]
+        eprintln!("[rustpython] PyCFunction_NewEx built ptr={:?}", pyobject_ref_as_ptr(&obj));
         let ptr = pyobject_ref_as_ptr(&obj);
         method_metadata().lock().unwrap().insert(
             ptr as usize,

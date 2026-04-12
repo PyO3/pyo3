@@ -62,6 +62,8 @@ impl AttachGuard {
     /// `AttachGuard::Assumed`. Otherwise, the thread will attach now and
     /// `AttachGuard::Ensured` will be returned.
     pub(crate) fn attach() -> Self {
+        #[cfg(PyRustPython)]
+        eprintln!("[rustpython] AttachGuard::attach enter");
         match Self::try_attach() {
             Ok(guard) => guard,
             Err(AttachError::ForbiddenDuringTraverse) => {
@@ -81,6 +83,11 @@ impl AttachGuard {
 
     /// Variant of the above which will will return gracefully if the interpreter cannot be attached to.
     pub(crate) fn try_attach() -> Result<Self, AttachError> {
+        #[cfg(PyRustPython)]
+        eprintln!(
+            "[rustpython] AttachGuard::try_attach count={:?}",
+            ATTACH_COUNT.try_with(|c| c.get()).ok()
+        );
         match ATTACH_COUNT.try_with(|c| c.get()) {
             Ok(i) if i > 0 => {
                 // SAFETY: We just checked that the thread is already attached.
@@ -152,6 +159,8 @@ impl AttachGuard {
     /// Acquires the `AttachGuard` while assuming that the thread is already attached
     /// to the interpreter.
     pub(crate) unsafe fn assume() -> Self {
+        #[cfg(PyRustPython)]
+        eprintln!("[rustpython] AttachGuard::assume");
         increment_attach_count();
         // SAFETY: invariant of calling this function
         drop_deferred_references(unsafe { Python::assume_attached() });
@@ -169,6 +178,8 @@ impl AttachGuard {
 /// The Drop implementation for `AttachGuard` will decrement the attach count (and potentially detach).
 impl Drop for AttachGuard {
     fn drop(&mut self) {
+        #[cfg(PyRustPython)]
+        eprintln!("[rustpython] AttachGuard::drop");
         match self {
             AttachGuard::Assumed => {}
             AttachGuard::Ensured { gstate } => unsafe {
@@ -247,17 +258,35 @@ pub(crate) struct SuspendAttach {
 
 impl SuspendAttach {
     pub(crate) unsafe fn new() -> Self {
-        let count = ATTACH_COUNT.with(|c| c.replace(0));
-        let tstate = unsafe { ffi::PyEval_SaveThread() };
+        #[cfg(PyRustPython)]
+        {
+            let count = ATTACH_COUNT.with(|c| c.get());
+            eprintln!("[rustpython] SuspendAttach::new saved_count={}", count);
+            return Self {
+                count,
+                tstate: std::ptr::null_mut(),
+            };
+        }
 
-        Self { count, tstate }
+        #[cfg(not(PyRustPython))]
+        {
+            let count = ATTACH_COUNT.with(|c| c.replace(0));
+            let tstate = unsafe { ffi::PyEval_SaveThread() };
+            Self { count, tstate }
+        }
     }
 }
 
 impl Drop for SuspendAttach {
     fn drop(&mut self) {
+        #[cfg(PyRustPython)]
+        {
+            eprintln!("[rustpython] SuspendAttach::drop restore_count={}", self.count);
+        }
+        #[cfg(not(PyRustPython))]
         ATTACH_COUNT.with(|c| c.set(self.count));
         unsafe {
+            #[cfg(not(PyRustPython))]
             ffi::PyEval_RestoreThread(self.tstate);
 
             // Update counts of `Py<T>` that were dropped while not attached.

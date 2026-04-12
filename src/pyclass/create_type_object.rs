@@ -39,6 +39,11 @@ pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<PyClassTypeObjec
 where
     T: PyClass,
 {
+    #[cfg(PyRustPython)]
+    eprintln!(
+        "[rustpython] create_type_object::<{}> enter",
+        std::any::type_name::<T>()
+    );
     // Written this way to monomorphize the majority of the logic.
     #[expect(clippy::too_many_arguments)]
     unsafe fn inner(
@@ -92,6 +97,12 @@ where
     }
 
     unsafe {
+        #[cfg(PyRustPython)]
+        eprintln!(
+            "[rustpython] create_type_object::<{}> base={:?}",
+            std::any::type_name::<T>(),
+            T::BaseType::type_object_raw(py)
+        );
         inner(
             py,
             T::BaseType::type_object_raw(py),
@@ -444,7 +455,23 @@ impl PyTypeBuilder {
         // on some platforms (like windows)
         #![allow(clippy::useless_conversion)]
 
+        #[cfg(PyRustPython)]
+        eprintln!(
+            "[rustpython] build type={} finalize_methods start slots={} methods={} members={} getsets={}",
+            name,
+            self.slots.len(),
+            self.method_defs.len(),
+            self.member_defs.len(),
+            self.getset_builders.len()
+        );
         let getset_defs = self.finalize_methods_and_properties();
+        #[cfg(PyRustPython)]
+        eprintln!(
+            "[rustpython] build type={} finalize_methods done slots={} getsets_defs={}",
+            name,
+            self.slots.len(),
+            getset_defs.len()
+        );
 
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
 
@@ -515,6 +542,12 @@ impl PyTypeBuilder {
             slots: self.slots.as_mut_ptr(),
         };
 
+        #[cfg(PyRustPython)]
+        eprintln!(
+            "[rustpython] create_type_object name={} module={:?} basicsize={} base={:?}",
+            name, module_name, basicsize, self.tp_base
+        );
+
         // SAFETY: We've correctly setup the PyType_Spec at this point
         // The FFI call is known to return a new type object or null on error
         let type_object = unsafe {
@@ -522,6 +555,13 @@ impl PyTypeBuilder {
                 .assume_owned_or_err(py)?
                 .cast_into_unchecked::<PyType>()
         };
+
+        #[cfg(PyRustPython)]
+        eprintln!(
+            "[rustpython] create_type_object ok name={} type_ptr={:?}",
+            name,
+            type_object.as_ptr()
+        );
 
         #[cfg(not(Py_3_11))]
         bpo_45315_workaround(py, class_name);

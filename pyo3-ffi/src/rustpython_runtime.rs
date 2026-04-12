@@ -41,6 +41,8 @@ pub(crate) fn ensure_attached() -> AttachState {
     let already_attached = ATTACH_COUNT.with(|count| {
         let current = count.get();
         count.set(current + 1);
+        #[cfg(PyRustPython)]
+        eprintln!("[rustpython] runtime::ensure_attached current={} next={}", current, current + 1);
         current > 0
     });
 
@@ -59,6 +61,8 @@ pub(crate) fn ensure_attached() -> AttachState {
 pub(crate) fn release_attached() {
     ATTACH_COUNT.with(|count| {
         let current = count.get();
+        #[cfg(PyRustPython)]
+        eprintln!("[rustpython] runtime::release_attached current={}", current);
         if current <= 1 {
             count.set(0);
             CURRENT_VM.with(|cell| cell.set(None));

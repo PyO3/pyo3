@@ -19,7 +19,24 @@ use super::PyString;
 #[repr(transparent)]
 pub struct PyType(PyAny);
 
+#[cfg(not(PyRustPython))]
 pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyType_Type), "builtins", "type", #checkfunction=ffi::PyType_Check);
+
+#[cfg(PyRustPython)]
+pyobject_native_type_core!(
+    PyType,
+    |py: Python<'_>| {
+        py.import("builtins")
+            .unwrap()
+            .getattr("type")
+            .unwrap()
+            .as_ptr()
+            .cast()
+    },
+    "builtins",
+    "type",
+    #checkfunction=ffi::PyType_Check
+);
 
 impl PyType {
     /// Creates a new type object.

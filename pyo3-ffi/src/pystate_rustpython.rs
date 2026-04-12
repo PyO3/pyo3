@@ -109,8 +109,10 @@ pub unsafe extern "C" fn PyGILState_Ensure() -> PyGILState_STATE {
 }
 
 #[inline]
-pub unsafe fn PyGILState_Release(_state: PyGILState_STATE) {
-    rustpython_runtime::release_attached();
+pub unsafe fn PyGILState_Release(state: PyGILState_STATE) {
+    if matches!(state, PyGILState_STATE::PyGILState_UNLOCKED) {
+        rustpython_runtime::release_attached();
+    }
 }
 
 #[inline]

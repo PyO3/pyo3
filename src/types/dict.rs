@@ -4,13 +4,9 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 #[cfg(PyRustPython)]
-use crate::sync::PyOnceLock;
+use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyList, PyMapping};
-#[cfg(PyRustPython)]
-use crate::types::{PyType, PyTypeMethods};
 use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
-#[cfg(PyRustPython)]
-use crate::Py;
 
 /// Represents a Python `dict`.
 ///
@@ -38,9 +34,13 @@ pyobject_native_type!(
 #[cfg(PyRustPython)]
 pyobject_native_type_core!(
     PyDict,
-    |py| {
-        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "builtins", "dict").unwrap().as_type_ptr()
+    |py: Python<'_>| {
+        py.import("builtins")
+            .unwrap()
+            .getattr("dict")
+            .unwrap()
+            .as_ptr()
+            .cast()
     },
     "builtins",
     "dict",

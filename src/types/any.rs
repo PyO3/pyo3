@@ -41,6 +41,7 @@ fn PyObject_Check(_: *mut ffi::PyObject) -> c_int {
 }
 
 // We follow stub writing guidelines and use "object" instead of "typing.Any": https://typing.python.org/en/latest/guides/writing_stubs.html#using-any
+#[cfg(not(PyRustPython))]
 pyobject_native_type_info!(
     PyAny,
     pyobject_native_static_type_object!(ffi::PyBaseObject_Type),
@@ -50,14 +51,42 @@ pyobject_native_type_info!(
     #checkfunction=PyObject_Check
 );
 
+#[cfg(PyRustPython)]
+pyobject_native_type_info!(
+    PyAny,
+    |py: Python<'_>| {
+        py.import("builtins")
+            .unwrap()
+            .getattr("object")
+            .unwrap()
+            .as_ptr()
+            .cast()
+    },
+    "typing",
+    "Any",
+    Some("builtins"),
+    #checkfunction=PyObject_Check
+);
+
 pyobject_native_type_sized!(PyAny, ffi::PyObject);
 // We cannot use `pyobject_subclassable_native_type!()` because it cfgs out on `Py_LIMITED_API`.
+#[cfg(not(PyRustPython))]
 impl crate::impl_::pyclass::PyClassBaseType for PyAny {
     type LayoutAsBase = crate::impl_::pycell::PyClassObjectBase<ffi::PyObject>;
     type BaseNativeType = PyAny;
     type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
     type PyClassMutability = crate::pycell::impl_::ImmutableClass;
     type Layout<T: crate::impl_::pyclass::PyClassImpl> = PyStaticClassObject<T>;
+}
+
+#[cfg(PyRustPython)]
+impl crate::impl_::pyclass::PyClassBaseType for PyAny {
+    type LayoutAsBase = crate::impl_::pycell::PyClassObjectBase<ffi::PyObject>;
+    type BaseNativeType = PyAny;
+    type Initializer = crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+    type PyClassMutability = crate::pycell::impl_::ImmutableClass;
+    type Layout<T: crate::impl_::pyclass::PyClassImpl> =
+        crate::backend::rustpython_storage::PySidecarClassObject<T>;
 }
 
 /// This trait represents the Python APIs which are usable on all Python objects.

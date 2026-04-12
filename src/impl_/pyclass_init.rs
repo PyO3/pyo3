@@ -36,6 +36,11 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
             type_ptr: *mut PyTypeObject,
             subtype: *mut PyTypeObject,
         ) -> PyResult<*mut ffi::PyObject> {
+            #[cfg(PyRustPython)]
+            eprintln!(
+                "[rustpython] native init base_type={:?} subtype={:?}",
+                type_ptr, subtype
+            );
             let tp_new = unsafe {
                 type_ptr
                     .cast::<ffi::PyObject>()
@@ -45,8 +50,19 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
                     .ok_or_else(|| PyTypeError::new_err("base type without tp_new"))?
             };
 
+            #[cfg(PyRustPython)]
+            eprintln!(
+                "[rustpython] native init tp_new resolved base_type={:?} subtype={:?}",
+                type_ptr, subtype
+            );
+
             // TODO: make it possible to provide real arguments to the base tp_new
             let obj = unsafe { tp_new(subtype, PyTuple::empty(py).as_ptr(), std::ptr::null_mut()) };
+            #[cfg(PyRustPython)]
+            eprintln!(
+                "[rustpython] native init tp_new returned obj={:?} subtype={:?}",
+                obj, subtype
+            );
             if obj.is_null() {
                 Err(PyErr::fetch(py))
             } else {

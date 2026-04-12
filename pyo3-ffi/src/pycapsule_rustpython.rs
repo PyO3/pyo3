@@ -4,7 +4,8 @@ use rustpython_vm::builtins::PyType;
 use rustpython_vm::object::MaybeTraverse;
 use rustpython_vm::{AsObject, Context, Py, PyObjectRef, PyPayload, PyRef};
 use std::ffi::{c_char, c_int, c_void, CStr, CString};
-use std::sync::Mutex;
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 pub static mut PyCapsule_Type: PyTypeObject = PyTypeObject { _opaque: [] };
@@ -19,6 +20,16 @@ struct PyCapsulePayload {
     destructor: Mutex<Option<PyCapsule_Destructor>>,
     self_ptr: AtomicPtr<rustpython_vm::PyObject>,
 }
+
+#[derive(Clone)]
+struct DestructingCapsuleState {
+    pointer: *mut c_void,
+    context: *mut c_void,
+    name: Option<CString>,
+}
+
+// SAFETY: raw pointers are treated as opaque capsule payload/context addresses.
+unsafe impl Send for DestructingCapsuleState {}
 
 impl PyCapsulePayload {
     fn new(
@@ -51,7 +62,17 @@ impl Drop for PyCapsulePayload {
         let destructor = self.destructor.lock().unwrap().take();
         let self_ptr = self.self_ptr.load(Ordering::Relaxed);
         if let (Some(destructor), false) = (destructor, self_ptr.is_null()) {
+            let state = DestructingCapsuleState {
+                pointer: self.pointer.load(Ordering::Relaxed),
+                context: self.context.load(Ordering::Relaxed),
+                name: self.name.lock().unwrap().clone(),
+            };
+            destructing_capsules()
+                .lock()
+                .unwrap()
+                .insert(self_ptr as usize, state);
             unsafe { destructor(self_ptr.cast()) };
+            destructing_capsules().lock().unwrap().remove(&(self_ptr as usize));
         }
     }
 }
@@ -68,6 +89,19 @@ impl PyPayload for PyCapsulePayload {
 
 fn capsule_payload<'a>(capsule: &'a PyObjectRef) -> Option<&'a PyCapsulePayload> {
     capsule.downcast_ref::<PyCapsulePayload>().map(|payload| &**payload)
+}
+
+fn destructing_capsules() -> &'static Mutex<HashMap<usize, DestructingCapsuleState>> {
+    static REGISTRY: OnceLock<Mutex<HashMap<usize, DestructingCapsuleState>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn destructing_capsule_state(capsule: *mut PyObject) -> Option<DestructingCapsuleState> {
+    destructing_capsules()
+        .lock()
+        .unwrap()
+        .get(&(capsule as usize))
+        .cloned()
 }
 
 #[inline]
@@ -106,6 +140,19 @@ pub unsafe fn PyCapsule_GetPointer(capsule: *mut PyObject, name: *const c_char) 
     if capsule.is_null() {
         return std::ptr::null_mut();
     }
+    if let Some(state) = destructing_capsule_state(capsule) {
+        let name_matches = match (state.name.as_ref(), name.is_null()) {
+            (None, true) => true,
+            (Some(_), true) => false,
+            (None, false) => false,
+            (Some(stored), false) => unsafe { CStr::from_ptr(name).to_bytes() == stored.as_bytes() },
+        };
+        return if name_matches {
+            state.pointer
+        } else {
+            std::ptr::null_mut()
+        };
+    }
     let obj = ptr_to_pyobject_ref_borrowed(capsule);
     let Some(payload) = capsule_payload(&obj) else {
         return std::ptr::null_mut();
@@ -132,6 +179,13 @@ pub unsafe fn PyCapsule_GetName(capsule: *mut PyObject) -> *const c_char {
     if capsule.is_null() {
         return std::ptr::null();
     }
+    if let Some(state) = destructing_capsule_state(capsule) {
+        return state
+            .name
+            .as_ref()
+            .map(|name| name.as_ptr())
+            .unwrap_or(std::ptr::null());
+    }
     let obj = ptr_to_pyobject_ref_borrowed(capsule);
     capsule_payload(&obj)
         .and_then(|payload| payload.name.lock().unwrap().as_ref().map(|name| name.as_ptr()))
@@ -142,6 +196,9 @@ pub unsafe fn PyCapsule_GetName(capsule: *mut PyObject) -> *const c_char {
 pub unsafe fn PyCapsule_GetContext(capsule: *mut PyObject) -> *mut c_void {
     if capsule.is_null() {
         return std::ptr::null_mut();
+    }
+    if let Some(state) = destructing_capsule_state(capsule) {
+        return state.context;
     }
     let obj = ptr_to_pyobject_ref_borrowed(capsule);
     capsule_payload(&obj)

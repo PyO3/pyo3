@@ -1,10 +1,46 @@
 use crate::object::*;
+use crate::pyerrors::set_vm_exception;
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
 #[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
 use libc::size_t;
-use rustpython_vm::AsObject;
+use rustpython_vm::function::{FuncArgs, KwArgs};
+use rustpython_vm::{AsObject, PyObjectRef};
 use std::ffi::{c_char, c_int};
+
+fn build_func_args(
+    args: *mut PyObject,
+    kwargs: *mut PyObject,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult<FuncArgs> {
+    let positional = if args.is_null() {
+        Vec::new()
+    } else {
+        let args_obj = unsafe { ptr_to_pyobject_ref_borrowed(args) };
+        args_obj
+            .try_into_value::<rustpython_vm::builtins::PyTupleRef>(vm)
+            .map(|tuple| tuple.as_slice().to_vec())
+            .map_err(|_| vm.new_type_error("expected tuple args"))?
+    };
+
+    let mut kw = KwArgs::default();
+    if !kwargs.is_null() {
+        let kwargs_obj = unsafe { ptr_to_pyobject_ref_borrowed(kwargs) };
+        let kwargs_dict = kwargs_obj
+            .try_into_value::<rustpython_vm::builtins::PyDictRef>(vm)
+            .map_err(|_| vm.new_type_error("expected dict kwargs"))?;
+        for (k, v) in &kwargs_dict {
+            let key = k
+                .str(vm)
+                .map_err(|_| vm.new_type_error("keywords must be strings"))?;
+            kw = std::iter::once((key.as_str().to_owned(), v))
+                .chain(kw)
+                .collect();
+        }
+    }
+
+    Ok(FuncArgs::new(positional, kw))
+}
 
 #[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
 pub const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
@@ -28,18 +64,37 @@ pub unsafe fn PyObject_CallNoArgs(func: *mut PyObject) -> *mut PyObject {
 #[inline]
 pub unsafe fn PyObject_Call(
     callable_object: *mut PyObject,
-    _args: *mut PyObject,
-    _kw: *mut PyObject,
+    args: *mut PyObject,
+    kw: *mut PyObject,
 ) -> *mut PyObject {
-    PyObject_CallObject(callable_object, std::ptr::null_mut())
+    if callable_object.is_null() {
+        return std::ptr::null_mut();
+    }
+    rustpython_runtime::with_vm(|vm| {
+        let callable = unsafe { ptr_to_pyobject_ref_borrowed(callable_object) };
+        let args = match build_func_args(args, kw, vm) {
+            Ok(args) => args,
+            Err(exc) => {
+                set_vm_exception(exc);
+                return std::ptr::null_mut();
+            }
+        };
+        match callable.call_with_args(args, vm) {
+            Ok(obj) => pyobject_ref_to_ptr(obj),
+            Err(exc) => {
+                set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
+    })
 }
 
 #[inline]
 pub unsafe fn PyObject_CallObject(
-    _callable_object: *mut PyObject,
-    _args: *mut PyObject,
+    callable_object: *mut PyObject,
+    args: *mut PyObject,
 ) -> *mut PyObject {
-    std::ptr::null_mut()
+    PyObject_Call(callable_object, args, std::ptr::null_mut())
 }
 
 unsafe extern "C" {
@@ -124,11 +179,41 @@ pub unsafe fn PyObject_GetItem(_o: *mut PyObject, _key: *mut PyObject) -> *mut P
 
 #[inline]
 pub unsafe fn PyObject_SetItem(
-    _o: *mut PyObject,
-    _key: *mut PyObject,
-    _v: *mut PyObject,
+    o: *mut PyObject,
+    key: *mut PyObject,
+    v: *mut PyObject,
 ) -> c_int {
-    -1
+    if o.is_null() || key.is_null() || v.is_null() {
+        return -1;
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(o);
+    let key_obj = ptr_to_pyobject_ref_borrowed(key);
+    let value_obj = ptr_to_pyobject_ref_borrowed(v);
+    rustpython_runtime::with_vm(|vm| {
+        let result = if let Some(f) = obj.mapping_unchecked().slots().ass_subscript.load() {
+            f(obj.mapping_unchecked(), &key_obj, Some(value_obj), vm)
+        } else if let Some(f) = obj.sequence_unchecked().slots().ass_item.load() {
+            match key_obj
+                .try_index(vm)
+                .and_then(|i| i.try_to_primitive::<isize>(vm))
+            {
+                Ok(i) => f(obj.sequence_unchecked(), i, Some(value_obj), vm),
+                Err(exc) => Err(exc),
+            }
+        } else {
+            Err(vm.new_type_error(format!(
+                "'{}' does not support item assignment",
+                obj.class()
+            )))
+        };
+        match result {
+            Ok(()) => 0,
+            Err(exc) => {
+                set_vm_exception(exc);
+                -1
+            }
+        }
+    })
 }
 
 #[inline]

@@ -64,6 +64,8 @@ pub unsafe fn PyFloat_AsDouble(arg1: *mut PyObject) -> c_double {
     if arg1.is_null() {
         return -1.0;
     }
+    #[cfg(PyRustPython)]
+    eprintln!("[rustpython] PyFloat_AsDouble arg={:?}", arg1);
     let obj = ptr_to_pyobject_ref_borrowed(arg1);
     rustpython_runtime::with_vm(|vm| f64::try_from_object(vm, obj).unwrap_or(-1.0))
 }
