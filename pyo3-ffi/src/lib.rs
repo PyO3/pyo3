@@ -537,6 +537,7 @@ mod listobject;
 #[cfg_attr(PyRustPython, path = "longobject_rustpython.rs")]
 mod longobject;
 mod memoryobject;
+#[cfg_attr(PyRustPython, path = "methodobject_rustpython.rs")]
 mod methodobject;
 #[cfg_attr(PyRustPython, path = "modsupport_rustpython.rs")]
 mod modsupport;

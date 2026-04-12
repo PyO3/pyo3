@@ -19,7 +19,25 @@ use std::ptr::NonNull;
 #[repr(transparent)]
 pub struct PyCFunction(PyAny);
 
+#[cfg(not(PyRustPython))]
 pyobject_native_type_core!(PyCFunction, pyobject_native_static_type_object!(ffi::PyCFunction_Type), "builtins", "builtin_function_or_method", #checkfunction=ffi::PyCFunction_Check);
+
+#[cfg(PyRustPython)]
+pyobject_native_type_core!(
+    PyCFunction,
+    |py| {
+        use crate::sync::PyOnceLock;
+        use crate::types::{PyType, PyTypeMethods};
+        use crate::Py;
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "builtin_function_or_method")
+            .unwrap()
+            .as_type_ptr()
+    },
+    "builtins",
+    "builtin_function_or_method",
+    #checkfunction=ffi::PyCFunction_Check
+);
 
 impl PyCFunction {
     /// Create a new built-in function with keywords (*args and/or **kwargs).
