@@ -410,6 +410,9 @@ mod internal_tricks;
 mod internal;
 
 pub mod buffer;
+#[allow(missing_docs)]
+/// Backend contracts and implementations used to realize PyO3 semantics.
+pub mod backend;
 pub mod call;
 pub mod conversion;
 mod conversions;
