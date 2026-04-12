@@ -1344,7 +1344,7 @@ where
     let class_obj = unsafe { class_ptr.as_ref() };
 
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe { inner::<FieldT>(py, NonNull::from(class_obj.contents()).cast(), OFFSET) }
+    unsafe { inner::<FieldT>(py, NonNull::new_unchecked(class_obj.get_ptr()).cast(), OFFSET) }
 }
 
 /// Gets a field value from a pyclass and produces a python value using `IntoPyObject` for `FieldT`,
@@ -1385,7 +1385,7 @@ where
     let class_obj = unsafe { class_ptr.as_ref() };
 
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe { inner::<FieldT>(py, NonNull::from(class_obj.contents()).cast(), OFFSET) }
+    unsafe { inner::<FieldT>(py, NonNull::new_unchecked(class_obj.get_ptr()).cast(), OFFSET) }
 }
 
 pub struct ConvertField<

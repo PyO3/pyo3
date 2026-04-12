@@ -146,7 +146,7 @@ unsafe fn parse_tuple_and_keywords_impl(
                 let Ok(key) = key.downcast::<rustpython_vm::builtins::PyStr>() else {
                     return 0;
                 };
-                let key = key.as_str();
+                let key: &str = AsRef::<str>::as_ref(&key);
                 if key != foo_name && key != bar_name {
                     return 0;
                 }

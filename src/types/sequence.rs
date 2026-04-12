@@ -39,6 +39,13 @@ unsafe impl PyTypeInfo for PySequence {
 
     #[inline]
     fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
+        #[cfg(PyRustPython)]
+        {
+            unsafe { ffi::PySequence_Check(object.as_ptr()) != 0 }
+        }
+
+        #[cfg(not(PyRustPython))]
+        {
         // Using `is_instance` for `collections.abc.Sequence` is slow, so provide
         // optimized cases for list and tuples as common well-known sequences
         PyList::is_type_of(object)
@@ -49,6 +56,7 @@ unsafe impl PyTypeInfo for PySequence {
                     err.write_unraisable(object.py(), Some(object));
                     false
                 })
+        }
     }
 }
 

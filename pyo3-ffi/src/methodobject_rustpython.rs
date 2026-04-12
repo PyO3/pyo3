@@ -220,50 +220,99 @@ fn descriptor_fallback(
     vm.call_method(descriptor, "__get__", (obj.clone(), obj.class().to_owned()))
 }
 
-pub(crate) fn init_builtin_function_descriptors(vm: &rustpython_vm::VirtualMachine) {
-    static INITIALIZED: OnceLock<()> = OnceLock::new();
-    INITIALIZED.get_or_init(|| {
-        let class = vm.ctx.types.builtin_function_or_method_type;
-        let doc_name = vm.ctx.intern_str("__doc__");
-        let textsig_name = vm.ctx.intern_str("__text_signature__");
+fn method_name_from_object(
+    vm: &rustpython_vm::VirtualMachine,
+    obj: &PyObjectRef,
+) -> Option<String> {
+    obj.get_attr("__name__", vm)
+        .ok()
+        .and_then(|name| name.downcast_ref::<PyStr>().map(|s| AsRef::<str>::as_ref(s).to_owned()))
+}
 
-        let original_doc = class.get_direct_attr(doc_name).unwrap();
-        let original_textsig = class.get_direct_attr(textsig_name).unwrap();
+fn normalize_doc_object(
+    vm: &rustpython_vm::VirtualMachine,
+    obj: &PyObjectRef,
+    value: PyObjectRef,
+) -> PyObjectRef {
+    let Some(raw_doc) = value.downcast_ref::<PyStr>().map(|s| AsRef::<str>::as_ref(s)) else {
+        return value;
+    };
+    let Some(name) = method_name_from_object(vm, obj) else {
+        return value;
+    };
+    vm.ctx.new_str(doc_from_internal_doc(&name, raw_doc)).into()
+}
 
-        class.set_attr(
-            doc_name,
-            vm.ctx
-                .new_readonly_getset(
-                    "__doc__",
-                    class,
-                    move |obj: PyObjectRef, vm: &rustpython_vm::VirtualMachine| {
+fn normalize_text_signature_object(
+    vm: &rustpython_vm::VirtualMachine,
+    obj: &PyObjectRef,
+    value: PyObjectRef,
+) -> PyObjectRef {
+    let Some(raw_doc) = value.downcast_ref::<PyStr>().map(|s| AsRef::<str>::as_ref(s)) else {
+        return value;
+    };
+    let Some(name) = method_name_from_object(vm, obj) else {
+        return value;
+    };
+    match text_signature_from_internal_doc(&name, raw_doc) {
+        Some(sig) => vm.ctx.new_str(sig).into(),
+        None => vm.ctx.none(),
+    }
+}
+
+fn install_doc_descriptors(
+    vm: &rustpython_vm::VirtualMachine,
+    class: &'static rustpython_vm::Py<PyType>,
+) {
+    let doc_name = vm.ctx.intern_str("__doc__");
+    let textsig_name = vm.ctx.intern_str("__text_signature__");
+
+    let original_doc = class.get_direct_attr(doc_name).unwrap();
+    let original_textsig = class.get_direct_attr(textsig_name).unwrap();
+
+    class.set_attr(
+        doc_name,
+        vm.ctx
+            .new_readonly_getset(
+                "__doc__",
+                class,
+                move |obj: PyObjectRef, vm: &rustpython_vm::VirtualMachine| {
                     if let Some((name, raw_doc)) = current_method_doc(&obj) {
                         return Ok(vm.ctx.new_str(doc_from_internal_doc(name, raw_doc)).into());
                     }
-                    descriptor_fallback(vm, &original_doc, obj)
+                    descriptor_fallback(vm, &original_doc, obj.clone())
+                        .map(|value| normalize_doc_object(vm, &obj, value))
                 },
-                )
-                .into(),
-        );
+            )
+            .into(),
+    );
 
-        class.set_attr(
-            textsig_name,
-            vm.ctx
-                .new_readonly_getset(
-                    "__text_signature__",
-                    class,
-                    move |obj: PyObjectRef, vm: &rustpython_vm::VirtualMachine| {
+    class.set_attr(
+        textsig_name,
+        vm.ctx
+            .new_readonly_getset(
+                "__text_signature__",
+                class,
+                move |obj: PyObjectRef, vm: &rustpython_vm::VirtualMachine| {
                     if let Some((name, raw_doc)) = current_method_doc(&obj) {
                         return Ok(match text_signature_from_internal_doc(name, raw_doc) {
                             Some(sig) => vm.ctx.new_str(sig).into(),
                             None => vm.ctx.none(),
                         });
                     }
-                    descriptor_fallback(vm, &original_textsig, obj)
+                    descriptor_fallback(vm, &original_textsig, obj.clone())
+                        .map(|value| normalize_text_signature_object(vm, &obj, value))
                 },
-                )
-                .into(),
-        );
+            )
+            .into(),
+    );
+}
+
+pub(crate) fn init_builtin_function_descriptors(vm: &rustpython_vm::VirtualMachine) {
+    static INITIALIZED: OnceLock<()> = OnceLock::new();
+    INITIALIZED.get_or_init(|| {
+        install_doc_descriptors(vm, vm.ctx.types.builtin_function_or_method_type);
+        install_doc_descriptors(vm, vm.ctx.types.method_descriptor_type);
     });
 }
 
@@ -542,7 +591,7 @@ unsafe fn build_rustpython_function(
         } else {
             ptr_to_pyobject_ref_borrowed(module)
                 .downcast_ref::<PyStr>()
-                .map(|name| vm.ctx.intern_str(name.as_str()))
+                .map(|name| vm.ctx.intern_str(AsRef::<str>::as_ref(name)))
         };
 
         let name = ffi_name_to_static((*ml).ml_name, "<unnamed>");

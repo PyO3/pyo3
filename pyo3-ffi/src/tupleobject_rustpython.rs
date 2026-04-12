@@ -88,7 +88,7 @@ pub unsafe fn PyTuple_GetSlice(
     };
     let len = inner.len() as Py_ssize_t;
     let low = arg2.clamp(0, len) as usize;
-    let high = arg3.clamp(arg2.max(0), len) as usize;
+    let high = arg3.clamp(low as Py_ssize_t, len) as usize;
     rustpython_runtime::with_vm(|vm| {
         pyobject_ref_to_ptr(vm.ctx.new_tuple(inner.as_slice()[low..high].to_vec()).into())
     })

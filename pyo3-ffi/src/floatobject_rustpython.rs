@@ -48,7 +48,7 @@ pub unsafe fn PyFloat_FromString(arg1: *mut PyObject) -> *mut PyObject {
     rustpython_runtime::with_vm(|vm| {
         obj.str(vm)
             .ok()
-            .and_then(|s| s.as_str().parse::<f64>().ok())
+            .and_then(|s| AsRef::<str>::as_ref(&s).parse::<f64>().ok())
             .map(|v| pyobject_ref_to_ptr(vm.ctx.new_float(v).into()))
             .unwrap_or(std::ptr::null_mut())
     })

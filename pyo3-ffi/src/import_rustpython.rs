@@ -1,10 +1,32 @@
 use crate::object::*;
+use crate::pyerrors::set_vm_exception;
 use crate::rustpython_runtime;
 use std::ffi::{c_char, c_int, c_long, CStr};
 
 #[inline]
 fn cstr_to_string(name: *const c_char) -> Option<String> {
     (!name.is_null()).then(|| unsafe { CStr::from_ptr(name) }.to_string_lossy().into_owned())
+}
+
+fn import_module_by_name(
+    vm: &rustpython_vm::VirtualMachine,
+    name: &str,
+    level: usize,
+) -> rustpython_vm::PyResult<rustpython_vm::PyObjectRef> {
+    if level != 0 || !name.contains('.') {
+        let py_name = vm.ctx.new_str(name.to_owned());
+        return vm.import(&py_name, level);
+    }
+
+    let mut parts = name.split('.');
+    let top = parts.next().unwrap_or(name);
+    let top_name = vm.ctx.new_str(top.to_owned());
+    let mut module = vm.import(&top_name, 0)?;
+    for part in parts {
+        let attr_name = vm.ctx.intern_str(part);
+        module = module.get_attr(attr_name, vm)?;
+    }
+    Ok(module)
 }
 
 #[inline]
@@ -155,10 +177,13 @@ pub unsafe fn PyImport_ImportModule(name: *const c_char) -> *mut PyObject {
         return std::ptr::null_mut();
     };
     rustpython_runtime::with_vm(move |vm| {
-        let py_name = vm.ctx.new_str(name.clone());
-        vm.import(&py_name, 0)
-            .map(pyobject_ref_to_ptr)
-            .unwrap_or(std::ptr::null_mut())
+        match import_module_by_name(vm, &name, 0) {
+            Ok(module) => pyobject_ref_to_ptr(module),
+            Err(exc) => {
+                set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
     })
 }
 
@@ -179,10 +204,13 @@ pub unsafe fn PyImport_ImportModuleLevel(
         return std::ptr::null_mut();
     };
     rustpython_runtime::with_vm(move |vm| {
-        let py_name = vm.ctx.new_str(name.clone());
-        vm.import(&py_name, level.max(0) as usize)
-            .map(pyobject_ref_to_ptr)
-            .unwrap_or(std::ptr::null_mut())
+        match import_module_by_name(vm, &name, level.max(0) as usize) {
+            Ok(module) => pyobject_ref_to_ptr(module),
+            Err(exc) => {
+                set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
     })
 }
 

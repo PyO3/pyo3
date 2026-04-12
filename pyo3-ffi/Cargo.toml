@@ -14,8 +14,8 @@ rust-version.workspace = true
 
 [dependencies]
 libc = "0.2.62"
-rustpython = { git = "https://github.com/RustPython/RustPython", rev = "f9ca63893", optional = true }
-rustpython-vm = { git = "https://github.com/RustPython/RustPython", rev = "f9ca63893", optional = true }
+rustpython = { git = "https://github.com/RustPython/RustPython", rev = "d201c48e1", optional = true }
+rustpython-vm = { git = "https://github.com/RustPython/RustPython", rev = "d201c48e1", optional = true }
 
 [features]
 

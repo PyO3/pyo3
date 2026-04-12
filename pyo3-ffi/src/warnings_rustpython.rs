@@ -1,5 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+use crate::pyerrors::set_vm_exception;
 use crate::rustpython_runtime;
 use std::ffi::{c_char, c_int, CStr};
 
@@ -33,7 +34,10 @@ pub unsafe fn PyErr_WarnEx(
             ),
         )
         .map(|_| 0)
-        .unwrap_or(-1)
+        .unwrap_or_else(|exc| {
+            set_vm_exception(exc);
+            -1
+        })
     })
 }
 
@@ -90,6 +94,9 @@ pub unsafe fn PyErr_WarnExplicit(
             ),
         )
         .map(|_| 0)
-        .unwrap_or(-1)
+        .unwrap_or_else(|exc| {
+            set_vm_exception(exc);
+            -1
+        })
     })
 }

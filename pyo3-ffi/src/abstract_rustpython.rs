@@ -4,6 +4,7 @@ use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
 #[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
 use libc::size_t;
+use rustpython_vm::protocol::PyIterReturn;
 use rustpython_vm::function::{FuncArgs, KwArgs};
 use rustpython_vm::{AsObject, PyObjectRef};
 use std::ffi::{c_char, c_int};
@@ -33,7 +34,7 @@ fn build_func_args(
             let key = k
                 .str(vm)
                 .map_err(|_| vm.new_type_error("keywords must be strings"))?;
-            kw = std::iter::once((key.as_str().to_owned(), v))
+            kw = std::iter::once((AsRef::<str>::as_ref(&key).to_owned(), v))
                 .chain(kw)
                 .collect();
         }
@@ -256,13 +257,34 @@ pub unsafe fn PyObject_DelItem(_o: *mut PyObject, _key: *mut PyObject) -> c_int 
 }
 
 #[inline]
-pub unsafe fn PyObject_GetIter(_obj: *mut PyObject) -> *mut PyObject {
-    std::ptr::null_mut()
+pub unsafe fn PyObject_GetIter(obj: *mut PyObject) -> *mut PyObject {
+    if obj.is_null() {
+        return std::ptr::null_mut();
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(obj);
+    rustpython_runtime::with_vm(|vm| match obj.get_iter(vm) {
+        Ok(iter) => pyobject_ref_to_ptr(iter.into()),
+        Err(exc) => {
+            set_vm_exception(exc);
+            std::ptr::null_mut()
+        }
+    })
 }
 
 #[inline]
-pub unsafe fn PyIter_Next(_obj: *mut PyObject) -> *mut PyObject {
-    std::ptr::null_mut()
+pub unsafe fn PyIter_Next(obj: *mut PyObject) -> *mut PyObject {
+    if obj.is_null() {
+        return std::ptr::null_mut();
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(obj);
+    rustpython_runtime::with_vm(|vm| match rustpython_vm::protocol::PyIter::new(obj.clone()).next(vm) {
+        Ok(PyIterReturn::Return(value)) => pyobject_ref_to_ptr(value),
+        Ok(PyIterReturn::StopIteration(_)) => std::ptr::null_mut(),
+        Err(exc) => {
+            set_vm_exception(exc);
+            std::ptr::null_mut()
+        }
+    })
 }
 
 #[inline]
@@ -330,7 +352,9 @@ pub unsafe fn PySequence_Check(o: *mut PyObject) -> c_int {
         return 0;
     }
     let obj = ptr_to_pyobject_ref_borrowed(o);
-    obj.sequence_unchecked().check().into()
+    rustpython_runtime::with_vm(|vm| {
+        (obj.sequence_unchecked().check() || obj.class().is(vm.ctx.types.range_type)).into()
+    })
 }
 
 #[inline]

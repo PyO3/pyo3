@@ -4,6 +4,7 @@ use crate::{
     conversion::{FromPyObject, FromPyObjectOwned, FromPyObjectSequence, IntoPyObject},
     exceptions::PyTypeError,
     ffi,
+    ffi_ptr_ext::FfiPtrExt,
     types::{PyAnyMethods, PySequence, PyString},
     Borrowed, CastError, PyResult, PyTypeInfo,
 };
@@ -78,15 +79,36 @@ where
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
-    if unsafe { ffi::PySequence_Check(obj.as_ptr()) } == 0 {
+    let is_sequence = unsafe { ffi::PySequence_Check(obj.as_ptr()) } != 0;
+
+    if !is_sequence {
         return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
     }
 
-    let mut v = Vec::with_capacity(obj.len().unwrap_or(0));
-    for item in obj.try_iter()? {
-        v.push(item?.extract::<T>().map_err(Into::into)?);
+    #[cfg(PyRustPython)]
+    {
+        let len = unsafe { ffi::PySequence_Size(obj.as_ptr()) };
+        crate::err::error_on_minusone(obj.py(), len)?;
+        let mut v = Vec::with_capacity(len as usize);
+        for index in 0..(len as usize) {
+            let item = unsafe {
+                ffi::PySequence_GetItem(obj.as_ptr(), index as ffi::Py_ssize_t)
+                    .assume_owned_or_err(obj.py())?
+            };
+            v.push(item.extract::<T>().map_err(Into::into)?);
+        }
+        return Ok(v);
     }
-    Ok(v)
+
+    #[cfg(not(PyRustPython))]
+    {
+        let mut v = Vec::with_capacity(obj.len().unwrap_or(0));
+        for item in obj.try_iter()? {
+            let item = item?;
+            v.push(item.extract::<T>().map_err(Into::into)?);
+        }
+        Ok(v)
+    }
 }
 
 #[cfg(test)]

@@ -733,8 +733,9 @@ where
     T: super::pyclass_init::PyClassInit<'py, IS_PYCLASS, IS_INITIALIZER_TUPLE>,
 {
     unsafe {
-        let _guard =
-            super::pyclass_init::NativeTypeConstructorArgsGuard::push(args.into_ptr(), kwargs.into_ptr());
+        let args_ptr = args.into_ptr();
+        let kwargs_ptr = kwargs.into_ptr();
+        let _guard = super::pyclass_init::NativeTypeConstructorArgsGuard::push(args_ptr, kwargs_ptr);
         obj.init(crate::Borrowed::from_ptr_unchecked(py, cls.cast()).cast_unchecked())
             .map(Bound::into_ptr)
     }

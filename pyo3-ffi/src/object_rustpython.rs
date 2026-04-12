@@ -175,6 +175,23 @@ fn ffi_name_to_static(ptr: *const c_char, default: &'static str) -> &'static str
     Box::leak(owned)
 }
 
+const SIGNATURE_END_MARKER: &str = ")\n--\n\n";
+
+fn find_internal_doc_signature<'a>(name: &str, doc: &'a str) -> Option<&'a str> {
+    let name = name.rsplit('.').next().unwrap_or(name);
+    let doc = doc.strip_prefix(name)?;
+    doc.starts_with('(').then_some(doc)
+}
+
+fn doc_from_internal_doc<'a>(name: &str, internal_doc: &'a str) -> &'a str {
+    if let Some(doc_without_sig) = find_internal_doc_signature(name, internal_doc) {
+        if let Some(sig_end_pos) = doc_without_sig.find(SIGNATURE_END_MARKER) {
+            return &doc_without_sig[sig_end_pos + SIGNATURE_END_MARKER.len()..];
+        }
+    }
+    internal_doc
+}
+
 unsafe fn fetch_current_exception(
     vm: &rustpython_vm::VirtualMachine,
 ) -> rustpython_vm::builtins::PyBaseExceptionRef {
@@ -216,7 +233,7 @@ fn build_func_args_from_ffi(
             let key = k
                 .str(vm)
                 .map_err(|_| vm.new_type_error("keywords must be strings"))?;
-            kw = std::iter::once((key.as_str().to_owned(), v))
+            kw = std::iter::once((AsRef::<str>::as_ref(&key).to_owned(), v))
                 .chain(kw)
                 .collect();
         }
@@ -292,6 +309,36 @@ fn build_getter_property(
         method.build_function(&vm.ctx).into()
     });
 
+    let fdel = setter.map(|set| {
+        let def_name = name;
+        let method = Box::leak(Box::new(RpMethodDef {
+            name: def_name,
+            func: Box::leak(Box::new(move |vm: &rustpython_vm::VirtualMachine, args: FuncArgs| {
+                if args.args.len() != 1 || !args.kwargs.is_empty() {
+                    return Err(vm.new_type_error(format!(
+                        "{def_name} deleter expects exactly one argument"
+                    )));
+                }
+                let obj = &args.args[0];
+                let rc = unsafe {
+                    set(
+                        pyobject_ref_as_ptr(obj),
+                        std::ptr::null_mut(),
+                        closure as *mut c_void,
+                    )
+                };
+                if rc == 0 {
+                    Ok(vm.ctx.none())
+                } else {
+                    Err(unsafe { fetch_current_exception(vm) })
+                }
+            })),
+            flags: RpMethodFlags::EMPTY,
+            doc: None,
+        }));
+        method.build_function(&vm.ctx).into()
+    });
+
     let doc_obj = if doc.is_null() {
         vm.ctx.none()
     } else {
@@ -306,7 +353,7 @@ fn build_getter_property(
             (
                 fget.unwrap_or_else(|| vm.ctx.none()),
                 fset.unwrap_or_else(|| vm.ctx.none()),
-                vm.ctx.none(),
+                fdel.unwrap_or_else(|| vm.ctx.none()),
                 doc_obj,
             ),
             vm,
@@ -778,21 +825,31 @@ pub unsafe fn PyObject_SetAttr(
     attr_name: *mut PyObject,
     value: *mut PyObject,
 ) -> c_int {
-    if ob.is_null() || attr_name.is_null() || value.is_null() {
+    if ob.is_null() || attr_name.is_null() {
         return -1;
     }
     let obj = ptr_to_pyobject_ref_borrowed(ob);
     let name = ptr_to_pyobject_ref_borrowed(attr_name);
-    let value = ptr_to_pyobject_ref_borrowed(value);
     rustpython_runtime::with_vm(|vm| {
         let Ok(name_str) = name.clone().try_into_value::<rustpython_vm::PyRef<PyStr>>(vm) else {
             return -1;
         };
-        match obj.set_attr(&name_str, value, vm) {
-            Ok(()) => 0,
-            Err(exc) => {
-                set_vm_exception(exc);
-                -1
+        if value.is_null() {
+            match obj.del_attr(&name_str, vm) {
+                Ok(()) => 0,
+                Err(exc) => {
+                    set_vm_exception(exc);
+                    -1
+                }
+            }
+        } else {
+            let value = ptr_to_pyobject_ref_borrowed(value);
+            match obj.set_attr(&name_str, value, vm) {
+                Ok(()) => 0,
+                Err(exc) => {
+                    set_vm_exception(exc);
+                    -1
+                }
             }
         }
     })
@@ -804,19 +861,31 @@ pub unsafe fn PyObject_SetAttrString(
     name: *const c_char,
     value: *mut PyObject,
 ) -> c_int {
-    if ob.is_null() || name.is_null() || value.is_null() {
+    if ob.is_null() || name.is_null() {
         return -1;
     }
     let Ok(name) = std::ffi::CStr::from_ptr(name).to_str() else {
         return -1;
     };
     let obj = ptr_to_pyobject_ref_borrowed(ob);
-    let value = ptr_to_pyobject_ref_borrowed(value);
-    rustpython_runtime::with_vm(|vm| match obj.set_attr(name, value, vm) {
-        Ok(()) => 0,
-        Err(exc) => {
-            set_vm_exception(exc);
-            -1
+    rustpython_runtime::with_vm(|vm| {
+        if value.is_null() {
+            match obj.del_attr(name, vm) {
+                Ok(()) => 0,
+                Err(exc) => {
+                    set_vm_exception(exc);
+                    -1
+                }
+            }
+        } else {
+            let value = ptr_to_pyobject_ref_borrowed(value);
+            match obj.set_attr(name, value, vm) {
+                Ok(()) => 0,
+                Err(exc) => {
+                    set_vm_exception(exc);
+                    -1
+                }
+            }
         }
     })
 }
@@ -1155,6 +1224,12 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
             vm.ctx.intern_str("__module__"),
             vm.ctx.new_str(module_name).into(),
         );
+        if let Some(doc) = slots.doc {
+            attrs.insert(
+                vm.ctx.intern_str("__doc__"),
+                vm.ctx.new_str(doc_from_internal_doc(qual_name, doc)).into(),
+            );
+        }
 
         let Some(base) = base else {
             return std::ptr::null_mut();

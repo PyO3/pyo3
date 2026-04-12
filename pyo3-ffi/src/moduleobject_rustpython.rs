@@ -141,7 +141,7 @@ pub unsafe fn PyModule_NewObject(name: *mut PyObject) -> *mut PyObject {
             return std::ptr::null_mut();
         };
         let dict = vm.ctx.new_dict();
-        let module = vm.new_module(name.as_str(), dict, None);
+        let module = vm.new_module(AsRef::<str>::as_ref(&name), dict, None);
         pyobject_ref_to_ptr(module.into())
     })
 }

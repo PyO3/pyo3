@@ -124,7 +124,11 @@ pub unsafe fn PyUnicode_InternInPlace(arg1: *mut *mut PyObject) {
         let Ok(s) = obj.clone().downcast::<PyStr>() else {
             return;
         };
-        let interned: PyObjectRef = vm.ctx.intern_str(s.as_str()).to_owned().into();
+        let interned: PyObjectRef = vm
+            .ctx
+            .intern_str(AsRef::<str>::as_ref(&s))
+            .to_owned()
+            .into();
         let new_ptr = pyobject_ref_to_ptr(interned);
         Py_DECREF(*arg1);
         *arg1 = new_ptr;
@@ -146,7 +150,11 @@ pub unsafe fn PyUnicode_AsUTF8String(unicode: *mut PyObject) -> *mut PyObject {
     }
     let obj = ptr_to_pyobject_ref_borrowed(unicode);
     rustpython_runtime::with_vm(|vm| match obj.str(vm) {
-        Ok(s) => pyobject_ref_to_ptr(vm.ctx.new_bytes(s.as_str().as_bytes().to_vec()).into()),
+        Ok(s) => pyobject_ref_to_ptr(
+            vm.ctx
+                .new_bytes(AsRef::<str>::as_ref(&s).as_bytes().to_vec())
+                .into(),
+        ),
         Err(exc) => {
             PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
             std::ptr::null_mut()
@@ -244,7 +252,11 @@ pub unsafe fn PyUnicode_EncodeFSDefault(unicode: *mut PyObject) -> *mut PyObject
     }
     let obj = ptr_to_pyobject_ref_borrowed(unicode);
     rustpython_runtime::with_vm(|vm| match obj.str(vm) {
-        Ok(s) => pyobject_ref_to_ptr(vm.ctx.new_bytes(s.as_str().as_bytes().to_vec()).into()),
+        Ok(s) => pyobject_ref_to_ptr(
+            vm.ctx
+                .new_bytes(AsRef::<str>::as_ref(&s).as_bytes().to_vec())
+                .into(),
+        ),
         Err(exc) => {
             PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
             std::ptr::null_mut()

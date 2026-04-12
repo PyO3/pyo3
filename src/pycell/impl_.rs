@@ -635,13 +635,13 @@ mod tests {
 
     #[test]
     fn test_inherited_size() {
-        let base_size = PyStaticClassObject::<BaseWithData>::BASIC_SIZE;
+        let base_size = <BaseWithData as PyClassImpl>::Layout::BASIC_SIZE;
         assert!(base_size > 0); // negative indicates variable sized
         assert_eq!(
             base_size,
-            PyStaticClassObject::<ChildWithoutData>::BASIC_SIZE
+            <ChildWithoutData as PyClassImpl>::Layout::BASIC_SIZE
         );
-        assert!(base_size < PyStaticClassObject::<ChildWithData>::BASIC_SIZE);
+        assert!(base_size < <ChildWithData as PyClassImpl>::Layout::BASIC_SIZE);
     }
 
     fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}
