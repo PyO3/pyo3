@@ -1,5 +1,5 @@
 pub(crate) mod abstract_;
-// skipped bytearrayobject.h
+pub(crate) mod bytearrayobject;
 pub(crate) mod bytesobject;
 #[cfg(not(PyPy))]
 pub(crate) mod ceval;
@@ -45,6 +45,7 @@ pub(crate) mod unicodeobject;
 pub(crate) mod weakrefobject;
 
 pub use self::abstract_::*;
+pub use self::bytearrayobject::*;
 pub use self::bytesobject::*;
 #[cfg(not(PyPy))]
 pub use self::ceval::*;
