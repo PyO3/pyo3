@@ -49,6 +49,9 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PySet_Check
 );
 
+#[cfg(PyRustPython)]
+pyobject_subclassable_native_type_opaque!(PySet);
+
 impl PySet {
     /// Creates a new set with elements from the given slice.
     ///

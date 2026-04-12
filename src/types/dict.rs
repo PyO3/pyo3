@@ -22,8 +22,7 @@ use crate::Py;
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 
-#[cfg(not(GraalPy))]
-#[cfg(not(PyRustPython))]
+#[cfg(not(any(GraalPy, PyRustPython)))]
 pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
 
 #[cfg(not(PyRustPython))]
@@ -47,6 +46,9 @@ pyobject_native_type_core!(
     "dict",
     #checkfunction=ffi::PyDict_Check
 );
+
+#[cfg(PyRustPython)]
+pyobject_subclassable_native_type_opaque!(PyDict);
 
 /// Represents a Python `dict_keys`.
 #[cfg(not(any(PyPy, GraalPy)))]

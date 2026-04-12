@@ -238,6 +238,21 @@ macro_rules! pyobject_subclassable_native_type {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! pyobject_subclassable_native_type_opaque {
+    ($name:ty $(;$generics:ident)*) => {
+        impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
+            type LayoutAsBase = $crate::impl_::pycell::PyVariableClassObjectBase;
+            type BaseNativeType = Self;
+            type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+            type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
+            type Layout<T: $crate::impl_::pyclass::PyClassImpl> =
+                $crate::impl_::pycell::PyStaticClassObject<T>;
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! pyobject_native_type_sized {
     ($name:ty, $layout:path $(;$generics:ident)*) => {
         unsafe impl $crate::type_object::PyLayout<$name> for $layout {}

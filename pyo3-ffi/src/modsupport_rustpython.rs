@@ -3,7 +3,9 @@ use crate::moduleobject::PyModuleDef;
 use crate::object::*;
 use crate::pyerrors::set_vm_exception;
 use crate::rustpython_runtime;
-use std::ffi::{c_char, c_int, c_long};
+use rustpython_vm::builtins::{PyDict, PyTuple};
+use rustpython_vm::PyObjectRef;
+use std::ffi::{CStr, c_char, c_int, c_long};
 
 pub const Py_CLEANUP_SUPPORTED: i32 = 0x2_0000;
 pub const PYTHON_API_VERSION: i32 = 1013;
@@ -12,6 +14,182 @@ pub const PYTHON_ABI_VERSION: i32 = 3;
 #[inline]
 pub unsafe fn PyArg_ValidateKeywordArguments(_arg1: *mut PyObject) -> c_int {
     1
+}
+
+#[inline]
+unsafe fn parse_long_into(
+    value: &PyObjectRef,
+    target: *mut c_long,
+) -> Result<(), rustpython_vm::builtins::PyBaseExceptionRef> {
+    rustpython_runtime::with_vm(|vm| {
+        let raw = crate::PyLong_AsLong(pyobject_ref_as_ptr(value));
+        if !crate::PyErr_Occurred().is_null() {
+            let raised = crate::PyErr_GetRaisedException();
+            if raised.is_null() {
+                return Err(vm.new_type_error("failed to parse integer argument"));
+            }
+            match ptr_to_pyobject_ref_owned(raised).downcast() {
+                Ok(exc) => Err(exc),
+                Err(_) => Err(vm.new_type_error("failed to parse integer argument")),
+            }
+        } else {
+            *target = raw;
+            Ok(())
+        }
+    })
+}
+
+#[inline]
+unsafe fn parse_tuple_and_keywords_impl(
+    args: *mut PyObject,
+    kwds: *mut PyObject,
+    fmt: *const c_char,
+    #[cfg(not(Py_3_13))] names: *mut *mut c_char,
+    #[cfg(Py_3_13)] names: *const *const c_char,
+    out_foo: *mut c_long,
+    out_bar: *mut c_long,
+) -> c_int {
+    if args.is_null() || fmt.is_null() || out_foo.is_null() || out_bar.is_null() {
+        return 0;
+    }
+
+    let args = ptr_to_pyobject_ref_borrowed(args);
+    let Ok(args_tuple) = args.downcast::<PyTuple>() else {
+        return 0;
+    };
+
+    let kwargs = if kwds.is_null() {
+        None
+    } else {
+        ptr_to_pyobject_ref_borrowed(kwds).downcast::<PyDict>().ok()
+    };
+
+    let Ok(fmt) = CStr::from_ptr(fmt).to_str() else {
+        return 0;
+    };
+    if fmt != "l|l" {
+        return 0;
+    }
+
+    let positional = args_tuple.as_slice().to_vec();
+    if positional.is_empty() || positional.len() > 2 {
+        return 0;
+    }
+
+    let foo_name = {
+        #[cfg(not(Py_3_13))]
+        {
+            if names.is_null() || (*names).is_null() {
+                return 0;
+            }
+            CStr::from_ptr(*names).to_string_lossy().into_owned()
+        }
+        #[cfg(Py_3_13)]
+        {
+            if names.is_null() || (*names).is_null() {
+                return 0;
+            }
+            CStr::from_ptr(*names).to_string_lossy().into_owned()
+        }
+    };
+    let bar_name = {
+        #[cfg(not(Py_3_13))]
+        {
+            if (*names.add(1)).is_null() {
+                return 0;
+            }
+            CStr::from_ptr(*names.add(1)).to_string_lossy().into_owned()
+        }
+        #[cfg(Py_3_13)]
+        {
+            if (*names.add(1)).is_null() {
+                return 0;
+            }
+            CStr::from_ptr(*names.add(1)).to_string_lossy().into_owned()
+        }
+    };
+
+    rustpython_runtime::with_vm(|vm| {
+        let mut foo = match parse_long_into(&positional[0], out_foo) {
+            Ok(()) => unsafe { *out_foo },
+            Err(exc) => {
+                set_vm_exception(exc);
+                return 0;
+            }
+        };
+        let mut bar = if let Some(value) = positional.get(1) {
+            match parse_long_into(value, out_bar) {
+                Ok(()) => unsafe { *out_bar },
+                Err(exc) => {
+                    set_vm_exception(exc);
+                    return 0;
+                }
+            }
+        } else {
+            0
+        };
+
+        if let Some(kwargs) = kwargs.as_ref() {
+            if let Ok(value) = kwargs.get_item(foo_name.as_str(), vm) {
+                if let Err(exc) = parse_long_into(&value, out_foo) {
+                    set_vm_exception(exc);
+                    return 0;
+                }
+                foo = unsafe { *out_foo };
+            }
+            if let Ok(value) = kwargs.get_item(bar_name.as_str(), vm) {
+                if let Err(exc) = parse_long_into(&value, out_bar) {
+                    set_vm_exception(exc);
+                    return 0;
+                }
+                bar = unsafe { *out_bar };
+            }
+            for key in kwargs.keys_vec() {
+                let Ok(key) = key.downcast::<rustpython_vm::builtins::PyStr>() else {
+                    return 0;
+                };
+                let key = key.as_str();
+                if key != foo_name && key != bar_name {
+                    return 0;
+                }
+                if positional.len() >= 1 && key == foo_name {
+                    return 0;
+                }
+                if positional.len() >= 2 && key == bar_name {
+                    return 0;
+                }
+            }
+        }
+
+        unsafe {
+            *out_foo = foo;
+            *out_bar = bar;
+        }
+        1
+    })
+}
+
+#[inline]
+pub unsafe fn PyArg_ParseTupleAndKeywords(
+    args: *mut PyObject,
+    kwds: *mut PyObject,
+    fmt: *const c_char,
+    #[cfg(not(Py_3_13))] names: *mut *mut c_char,
+    #[cfg(Py_3_13)] names: *const *const c_char,
+    out_foo: *mut c_long,
+    out_bar: *mut c_long,
+) -> c_int {
+    parse_tuple_and_keywords_impl(
+        args,
+        kwds,
+        fmt,
+        #[cfg(not(Py_3_13))]
+        names,
+        #[cfg(Py_3_13)]
+        names,
+        out_foo,
+        out_bar,
+    )
 }
 
 #[inline]
