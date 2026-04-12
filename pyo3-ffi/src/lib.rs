@@ -498,6 +498,7 @@ mod boolobject;
 mod bytearrayobject;
 mod bytesobject;
 // skipped cellobject.h
+#[cfg_attr(PyRustPython, path = "ceval_rustpython.rs")]
 mod ceval;
 // skipped classobject.h
 mod codecs;
@@ -508,6 +509,7 @@ mod context;
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
 mod descrobject;
+#[cfg_attr(PyRustPython, path = "dictobject_rustpython.rs")]
 mod dictobject;
 // skipped dynamic_annotations.h
 mod enumobject;
@@ -518,16 +520,20 @@ mod fileutils;
 mod floatobject;
 // skipped empty frameobject.h
 mod genericaliasobject;
+#[cfg_attr(PyRustPython, path = "import_rustpython.rs")]
 mod import;
 // skipped interpreteridobject.h
 mod intrcheck;
 mod iterobject;
+#[cfg_attr(PyRustPython, path = "listobject_rustpython.rs")]
 mod listobject;
 // skipped longintrepr.h
 mod longobject;
 mod memoryobject;
 mod methodobject;
+#[cfg_attr(PyRustPython, path = "modsupport_rustpython.rs")]
 mod modsupport;
+#[cfg_attr(PyRustPython, path = "moduleobject_rustpython.rs")]
 mod moduleobject;
 // skipped namespaceobject.h
 #[cfg_attr(PyRustPython, path = "object_rustpython.rs")]
@@ -536,6 +542,7 @@ mod objimpl;
 // skipped odictobject.h
 // skipped opcode.h
 // skipped osdefs.h
+#[cfg_attr(PyRustPython, path = "osmodule_rustpython.rs")]
 mod osmodule;
 // skipped parser_interface.h
 // skipped patchlevel.h

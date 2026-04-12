@@ -10,13 +10,13 @@ use rustpython_vm::{AsObject, PyObjectRef, PyPayload};
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyObject {
-    _opaque: [u8; 0],
+    pub(crate) _opaque: [u8; 0],
 }
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyTypeObject {
-    _opaque: [u8; 0],
+    pub(crate) _opaque: [u8; 0],
 }
 
 #[repr(C)]

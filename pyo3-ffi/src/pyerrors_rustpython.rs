@@ -196,6 +196,18 @@ fn set_current_exception(exc: Option<PyBaseExceptionRef>) {
     CURRENT_EXCEPTION.with(|slot| *slot.borrow_mut() = exc);
 }
 
+pub(crate) fn set_vm_exception(exc: PyBaseExceptionRef) {
+    set_current_exception(Some(exc));
+}
+
+pub(crate) fn set_vm_error(err: PyBaseExceptionRef) {
+    set_current_exception(Some(err));
+}
+
+pub(crate) fn clear_vm_exception() {
+    set_current_exception(None);
+}
+
 fn take_current_exception() -> Option<PyBaseExceptionRef> {
     CURRENT_EXCEPTION.with(|slot| slot.borrow_mut().take())
 }
