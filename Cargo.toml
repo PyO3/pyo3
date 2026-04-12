@@ -97,6 +97,12 @@ experimental-inspect = ["pyo3-macros/experimental-inspect"]
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros"]
 
+# Select the experimental RustPython runtime backend.
+runtime-rustpython = []
+
+# Select the reference CPython runtime backend.
+runtime-cpython = []
+
 # Enables multiple #[pymethods] per #[pyclass]
 multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
 
