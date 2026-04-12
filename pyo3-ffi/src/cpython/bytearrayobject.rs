@@ -22,8 +22,8 @@ opaque_struct!(pub PyByteArrayObject);
 
 #[inline]
 pub unsafe fn PyByteArray_AS_STRING(op: *mut PyObject) -> *mut c_char {
-  let byte_array = op as *mut PyByteArrayObject;
-  (*byte_array).ob_start
+    let byte_array = op as *mut PyByteArrayObject;
+    (*byte_array).ob_start
 }
 
 /*
@@ -39,6 +39,6 @@ pub unsafe fn PyByteArray_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
 #[inline]
 #[cfg(not(Py_GIL_DISABLED))]
 pub unsafe fn PyByteArray_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
-  let byte_array = op as *mut PyByteArrayObject;
-  Py_SIZE(byte_array)
+    let byte_array = op as *mut PyByteArrayObject;
+    Py_SIZE(byte_array)
 }
