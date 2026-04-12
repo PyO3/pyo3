@@ -17,7 +17,7 @@ pub struct PyByteArrayObject {
     pub ob_bytes_object: *mut PyObject,
 }
 
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
+#[cfg(any(PyPy, GraalPy))]
 opaque_struct!(pub PyByteArrayObject);
 
 #[inline]
