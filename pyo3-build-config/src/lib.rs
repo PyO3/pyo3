@@ -39,6 +39,10 @@ use target_lexicon::OperatingSystem;
 /// | `#[cfg(PyPy)]` | This marks code which is run when compiling for PyPy. |
 /// | `#[cfg(GraalPy)]` | This marks code which is run when compiling for GraalPy. |
 ///
+/// These runtime distinctions remain part of the reference CPython-family backend in the
+/// frontend/backend split. They are existing compatibility constraints, not a separate first
+/// backend implementation.
+///
 /// For examples of how to use these attributes,
 #[doc = concat!("[see PyO3's guide](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution/multiple_python_versions.html)")]
 /// .

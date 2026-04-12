@@ -418,7 +418,7 @@ pub mod backend;
 compile_error!("features `runtime-cpython` and `runtime-rustpython` are mutually exclusive");
 
 #[cfg(feature = "runtime-cpython")]
-pub use crate::backend::cpython::Cpython as ActiveBackend;
+pub use crate::backend::cpython::CpythonBackend as ActiveBackend;
 #[cfg(feature = "runtime-rustpython")]
 pub use crate::backend::rustpython::RustPythonBackend as ActiveBackend;
 #[cfg(feature = "runtime-rustpython")]

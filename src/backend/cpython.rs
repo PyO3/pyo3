@@ -1,14 +1,37 @@
-use super::traits::Backend;
+use core::marker::PhantomData;
 
-/// CPython backend marker.
-pub struct Cpython;
+use super::traits::{Backend, BackendClassBuilder, BackendFunctionBuilder, BackendInterpreter};
 
-impl Backend for Cpython {
-    type Interpreter = ();
-    type ClassBuilder<'py> = ()
+/// Reference CPython-family backend marker.
+pub struct CpythonBackend;
+
+impl Backend for CpythonBackend {
+    type Interpreter = CpythonInterpreter;
+    type ClassBuilder<'py>
+        = CpythonClassBuilder<'py>
     where
         Self: 'py;
-    type FunctionBuilder<'py> = ()
+    type FunctionBuilder<'py>
+        = CpythonFunctionBuilder<'py>
     where
         Self: 'py;
 }
+
+/// Placeholder CPython-family interpreter handle.
+pub struct CpythonInterpreter;
+
+impl BackendInterpreter for CpythonInterpreter {}
+
+/// Placeholder CPython-family class builder.
+pub struct CpythonClassBuilder<'py> {
+    _phantom: PhantomData<&'py ()>,
+}
+
+impl<'py> BackendClassBuilder<'py> for CpythonClassBuilder<'py> {}
+
+/// Placeholder CPython-family function builder.
+pub struct CpythonFunctionBuilder<'py> {
+    _phantom: PhantomData<&'py ()>,
+}
+
+impl<'py> BackendFunctionBuilder<'py> for CpythonFunctionBuilder<'py> {}

@@ -11,5 +11,8 @@ pub mod spec;
 /// Backend trait contracts.
 pub mod traits;
 
+#[cfg(test)]
+mod tests;
+
 pub use spec::{BackendKind, BackendSpec};
 pub use traits::{Backend, BackendClassBuilder, BackendFunctionBuilder, BackendInterpreter};

@@ -100,7 +100,8 @@ macros = ["pyo3-macros"]
 # Select the experimental RustPython runtime backend.
 runtime-rustpython = []
 
-# Select the reference CPython runtime backend.
+# Select the reference CPython-family runtime backend.
+# This path remains responsible for existing CPython, PyPy, and GraalPy support.
 runtime-cpython = []
 
 # Enables multiple #[pymethods] per #[pyclass]
