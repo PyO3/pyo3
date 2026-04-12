@@ -98,7 +98,7 @@ experimental-inspect = ["pyo3-macros/experimental-inspect"]
 macros = ["pyo3-macros"]
 
 # Select the experimental RustPython runtime backend.
-runtime-rustpython = []
+runtime-rustpython = ["pyo3-ffi/runtime-rustpython", "pyo3-build-config/runtime-rustpython"]
 
 # Select the reference CPython-family runtime backend.
 # This path remains responsible for existing CPython, PyPy, and GraalPy support.

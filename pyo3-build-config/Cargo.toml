@@ -24,6 +24,9 @@ default = []
 # script. If this feature isn't enabled, the build script no-ops.
 resolve-config = []
 
+# Skip libpython/interpreter discovery and emit RustPython-specific cfgs.
+runtime-rustpython = []
+
 # deprecated
 extension-module = []
 

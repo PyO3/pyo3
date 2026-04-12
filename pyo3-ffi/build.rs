@@ -264,6 +264,11 @@ fn print_config_and_exit(config: &InterpreterConfig) {
 
 fn main() {
     pyo3_build_config::print_expected_cfgs();
+    if std::env::var("CARGO_FEATURE_RUNTIME_RUSTPYTHON").is_ok() {
+        println!("cargo:rustc-cfg=PyRustPython");
+        print_feature_cfgs();
+        return;
+    }
     if let Err(e) = configure_pyo3() {
         eprintln!("error: {}", e.report());
         std::process::exit(1)

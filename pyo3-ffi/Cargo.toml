@@ -19,6 +19,9 @@ libc = "0.2.62"
 
 default = []
 
+# Build the ffi crate without libpython discovery/linking for the RustPython backend.
+runtime-rustpython = ["pyo3-build-config/runtime-rustpython"]
+
 # deprecated
 extension-module = ["pyo3-build-config/extension-module"]
 
