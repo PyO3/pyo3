@@ -414,6 +414,13 @@ pub mod buffer;
 /// Backend contracts and implementations used to realize PyO3 semantics.
 pub mod backend;
 
+#[cfg(all(feature = "runtime-cpython", feature = "runtime-rustpython"))]
+compile_error!("features `runtime-cpython` and `runtime-rustpython` are mutually exclusive");
+
+#[cfg(feature = "runtime-cpython")]
+pub use crate::backend::cpython::Cpython as ActiveBackend;
+#[cfg(feature = "runtime-rustpython")]
+pub use crate::backend::rustpython::RustPythonBackend as ActiveBackend;
 #[cfg(feature = "runtime-rustpython")]
 pub use crate::backend::rustpython::RustPythonBackend;
 pub mod call;
