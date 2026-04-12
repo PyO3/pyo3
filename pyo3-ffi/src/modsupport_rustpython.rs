@@ -72,7 +72,7 @@ unsafe fn parse_tuple_and_keywords_impl(
     }
 
     let positional = args_tuple.as_slice().to_vec();
-    if positional.is_empty() || positional.len() > 2 {
+    if positional.len() > 2 {
         return 0;
     }
 
@@ -110,15 +110,27 @@ unsafe fn parse_tuple_and_keywords_impl(
     };
 
     rustpython_runtime::with_vm(|vm| {
-        let mut foo = match parse_long_into(&positional[0], out_foo) {
-            Ok(()) => unsafe { *out_foo },
-            Err(exc) => {
-                set_vm_exception(exc);
-                return 0;
+        let kw_foo = kwargs
+            .as_ref()
+            .and_then(|kwargs| kwargs.get_item(foo_name.as_str(), vm).ok());
+        let kw_bar = kwargs
+            .as_ref()
+            .and_then(|kwargs| kwargs.get_item(bar_name.as_str(), vm).ok());
+
+        let mut foo = if let Some(value) = positional.first().cloned().or(kw_foo) {
+            match parse_long_into(&value, out_foo) {
+                Ok(()) => unsafe { *out_foo },
+                Err(exc) => {
+                    set_vm_exception(exc);
+                    return 0;
+                }
             }
+        } else {
+            return 0;
         };
-        let mut bar = if let Some(value) = positional.get(1) {
-            match parse_long_into(value, out_bar) {
+
+        let mut bar = if let Some(value) = positional.get(1).cloned().or(kw_bar) {
+            match parse_long_into(&value, out_bar) {
                 Ok(()) => unsafe { *out_bar },
                 Err(exc) => {
                     set_vm_exception(exc);
@@ -130,20 +142,6 @@ unsafe fn parse_tuple_and_keywords_impl(
         };
 
         if let Some(kwargs) = kwargs.as_ref() {
-            if let Ok(value) = kwargs.get_item(foo_name.as_str(), vm) {
-                if let Err(exc) = parse_long_into(&value, out_foo) {
-                    set_vm_exception(exc);
-                    return 0;
-                }
-                foo = unsafe { *out_foo };
-            }
-            if let Ok(value) = kwargs.get_item(bar_name.as_str(), vm) {
-                if let Err(exc) = parse_long_into(&value, out_bar) {
-                    set_vm_exception(exc);
-                    return 0;
-                }
-                bar = unsafe { *out_bar };
-            }
             for key in kwargs.keys_vec() {
                 let Ok(key) = key.downcast::<rustpython_vm::builtins::PyStr>() else {
                     return 0;

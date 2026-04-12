@@ -1,4 +1,5 @@
 use crate::object::*;
+use crate::pyerrors::set_vm_exception;
 use crate::pytypedefs::PyThreadState;
 use crate::rustpython_runtime;
 use rustpython_vm::scope::Scope;
@@ -34,7 +35,10 @@ pub unsafe fn PyEval_EvalCode(
         let scope = Scope::with_builtins(locals, globals, vm);
         vm.run_code_obj(code, scope)
             .map(pyobject_ref_to_ptr)
-            .unwrap_or(std::ptr::null_mut())
+            .unwrap_or_else(|exc| {
+                set_vm_exception(exc);
+                std::ptr::null_mut()
+            })
     })
 }
 

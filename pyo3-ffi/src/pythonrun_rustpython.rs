@@ -1,4 +1,5 @@
 use crate::object::*;
+use crate::pyerrors::set_vm_exception;
 use crate::rustpython_runtime;
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 use libc::FILE;
@@ -6,6 +7,7 @@ use libc::FILE;
 use std::ffi::c_char;
 use std::ffi::c_int;
 use rustpython_vm::compiler::Mode;
+use rustpython_vm::convert::ToPyException;
 
 #[inline]
 pub unsafe fn PyErr_Print() {}
@@ -47,7 +49,10 @@ pub unsafe fn Py_CompileString(
     };
     rustpython_runtime::with_vm(|vm| match vm.compile(source, mode, filename.to_owned()) {
         Ok(code) => pyobject_ref_to_ptr(code.into()),
-        Err(_) => std::ptr::null_mut(),
+        Err(exc) => {
+            set_vm_exception((exc, Some(source)).to_pyexception(vm));
+            std::ptr::null_mut()
+        }
     })
 }
 
