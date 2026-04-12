@@ -23,6 +23,7 @@ pub struct PyByteArrayObject {
 opaque_struct!(pub PyByteArrayObject);
 
 #[inline]
+#[cfg(any(PyPy, GraalPy))]
 pub unsafe fn PyByteArray_AS_STRING(op: *mut PyObject) -> *mut c_char {
     let byte_array = op as *mut PyByteArrayObject;
     (*byte_array).ob_start
