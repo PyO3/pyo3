@@ -1,6 +1,8 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::ffi::{c_char, c_int};
+use std::ffi::c_char;
+#[cfg(not(Py_3_9)]
+use std::ffi::c_int;
 
 #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
 #[repr(C)]
@@ -39,6 +41,5 @@ pub unsafe fn PyByteArray_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
 #[inline]
 #[cfg(not(Py_GIL_DISABLED))]
 pub unsafe fn PyByteArray_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
-    let byte_array = op as *mut PyByteArrayObject;
     Py_SIZE(byte_array)
 }
