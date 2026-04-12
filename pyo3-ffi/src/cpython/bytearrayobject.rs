@@ -41,5 +41,5 @@ pub unsafe fn PyByteArray_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
 #[inline]
 #[cfg(not(Py_GIL_DISABLED))]
 pub unsafe fn PyByteArray_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
-    Py_SIZE(byte_array)
+    Py_SIZE(op)
 }
