@@ -436,7 +436,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             modifiers,
             arg_count,
             variadic,
-        } = get_function_info(&function_name, &entry);
+        } = get_function_info(function_name, &entry);
 
         let function_ident = Ident::new(function_name, Span::call_site());
 
