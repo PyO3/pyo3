@@ -311,6 +311,12 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset;
 
+    /// Whether pyclass contents are physically embedded in the Python object layout.
+    ///
+    /// Backends may keep contents out-of-line while still reporting semantic size/offset
+    /// information for type creation and tests.
+    const HAS_EMBEDDED_CONTENTS: bool = true;
+
     /// Used to set `PyType_Spec::basicsize`
     /// ([docs](https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize))
     const BASIC_SIZE: ffi::Py_ssize_t;

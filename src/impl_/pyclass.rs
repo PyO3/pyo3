@@ -1221,7 +1221,7 @@ impl<
         doc: Option<&'static CStr>,
     ) -> PyMethodDefType {
         use crate::pyclass::boolean_struct::private::Boolean;
-        if ClassT::Frozen::VALUE {
+        if ClassT::Frozen::VALUE && <ClassT as PyClassImpl>::Layout::HAS_EMBEDDED_CONTENTS {
             let (offset, flags) = match <ClassT as PyClassImpl>::Layout::CONTENTS_OFFSET {
                 PyObjectOffset::Absolute(offset) => (offset, ffi::Py_READONLY),
                 #[cfg(Py_3_12)]
@@ -1442,6 +1442,17 @@ mod tests {
         assert_eq!(methods.len(), 1);
         assert!(slots.is_empty());
 
+        if !<FrozenClass as PyClassImpl>::Layout::HAS_EMBEDDED_CONTENTS {
+            match methods.first() {
+                Some(PyMethodDefType::Getter(getter)) => {
+                    assert_eq!(getter.name, c"value");
+                    assert_eq!(getter.doc, None);
+                }
+                _ => panic!("Expected a Getter"),
+            }
+            return;
+        }
+
         match methods.first() {
             Some(PyMethodDefType::StructMember(member)) => {
                 assert_eq!(unsafe { CStr::from_ptr(member.name) }, c"value");
@@ -1558,9 +1569,17 @@ mod tests {
         let generator = unsafe {
             PyClassGetterGenerator::<MyClass, Py<PyAny>, FIELD_OFFSET, true, true, true>::new()
         };
-        let PyMethodDefType::StructMember(def) =
-            generator.generate(c"my_field", Some(c"My field doc"))
-        else {
+        let generated = generator.generate(c"my_field", Some(c"My field doc"));
+        if !<MyClass as PyClassImpl>::Layout::HAS_EMBEDDED_CONTENTS {
+            let PyMethodDefType::Getter(def) = generated else {
+                panic!("Expected a Getter");
+            };
+            assert_eq!(def.name, c"my_field");
+            assert_eq!(def.doc, Some(c"My field doc"));
+            return;
+        }
+
+        let PyMethodDefType::StructMember(def) = generated else {
             panic!("Expected a StructMember");
         };
         // SAFETY: def.name originated from a CStr

@@ -127,8 +127,14 @@ impl<'py> IntoPyObject<'py> for SystemTime {
     const OUTPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let duration_since_unix_epoch =
-            self.duration_since(UNIX_EPOCH).unwrap().into_pyobject(py)?;
+        let duration_since_unix_epoch = self.duration_since(UNIX_EPOCH).unwrap();
+        if duration_since_unix_epoch > max_duration_since_unix_epoch_py(py)? {
+            return Err(PyOverflowError::new_err(
+                "Overflow error when converting the time to Python",
+            ));
+        }
+
+        let duration_since_unix_epoch = duration_since_unix_epoch.into_pyobject(py)?;
         unix_epoch_py(py)?
             .add(duration_since_unix_epoch)?
             .cast_into()
@@ -158,6 +164,17 @@ fn unix_epoch_py(py: Python<'_>) -> PyResult<Borrowed<'_, '_, PyDateTime>> {
             Ok::<_, PyErr>(PyDateTime::new(py, 1970, 1, 1, 0, 0, 0, 0, Some(&utc))?.into())
         })?
         .bind_borrowed(py))
+}
+
+fn max_duration_since_unix_epoch_py(py: Python<'_>) -> PyResult<Duration> {
+    static MAX_DURATION: PyOnceLock<Duration> = PyOnceLock::new();
+    MAX_DURATION
+        .get_or_try_init(py, || {
+            let utc = PyTzInfo::utc(py)?;
+            let max = PyDateTime::new(py, 9999, 12, 31, 23, 59, 59, 999_999, Some(&utc))?;
+            max.sub(unix_epoch_py(py)?)?.extract()
+        })
+        .copied()
 }
 
 #[cfg(test)]
