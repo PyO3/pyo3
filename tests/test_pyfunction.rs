@@ -125,6 +125,10 @@ fn buffer_inplace_add(py: Python<'_>, x: PyBuffer<i32>, y: PyBuffer<i32>) {
 }
 
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(
+    PyRustPython,
+    ignore = "upstream RustPython bug: worker-thread import of array/collections recurses in importlib; see RustPython/RustPython#7586"
+)]
 #[test]
 fn test_buffer_add() {
     Python::attach(|py| {
