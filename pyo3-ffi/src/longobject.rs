@@ -85,6 +85,8 @@ extern_libpython! {
 #[cfg(not(Py_LIMITED_API))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
+    #[cfg(not(Py_3_13))]
+    #[doc(hidden)]
     pub fn _PyLong_NumBits(obj: *mut PyObject) -> size_t;
 }
 
