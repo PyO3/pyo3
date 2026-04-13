@@ -58,7 +58,14 @@ pub unsafe fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyFrozenSet_Check(ob: *mut PyObject) -> c_int {
-    (PyFrozenSet_CheckExact(ob) != 0 || PyType_IsSubtype(Py_TYPE(ob), &raw mut PyFrozenSet_Type) != 0) as c_int
+    if ob.is_null() {
+        return 0;
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(ob);
+    rustpython_runtime::with_vm(|vm| {
+        obj.class()
+            .fast_issubclass(vm.ctx.types.frozenset_type.as_object()) as c_int
+    })
 }
 
 #[inline]
@@ -79,7 +86,14 @@ pub unsafe fn PySet_CheckExact(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PySet_Check(ob: *mut PyObject) -> c_int {
-    (PySet_CheckExact(ob) != 0 || PyType_IsSubtype(Py_TYPE(ob), &raw mut PySet_Type) != 0) as c_int
+    if ob.is_null() {
+        return 0;
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(ob);
+    rustpython_runtime::with_vm(|vm| {
+        obj.class()
+            .fast_issubclass(vm.ctx.types.set_type.as_object()) as c_int
+    })
 }
 
 #[inline]

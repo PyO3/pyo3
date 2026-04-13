@@ -238,18 +238,36 @@ pub unsafe fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer, flags
         return -1;
     }
 
+    let metadata = unsafe { heap_buffer_metadata(obj) };
+    if metadata.bf_getbuffer != 0 {
+        let getbuffer: getbufferproc = unsafe { std::mem::transmute(metadata.bf_getbuffer) };
+        let rc = unsafe { getbuffer(obj, view, flags) };
+        if rc != 0 {
+            return -1;
+        }
+        if unsafe { (*view).obj.is_null() } {
+            unsafe {
+                (*view).obj = obj;
+                crate::Py_INCREF((*view).obj);
+            }
+        }
+        unsafe {
+            (*view).internal = Box::into_raw(Box::new(BufferViewState::HeapType(
+                HeapTypeBufferView {
+                    releasebuffer: (metadata.bf_releasebuffer != 0)
+                        .then(|| std::mem::transmute(metadata.bf_releasebuffer)),
+                },
+            ))) as *mut c_void;
+        }
+        unsafe { PyErr_Clear() };
+        return 0;
+    }
+
     let obj_ref = ptr_to_pyobject_ref_borrowed(obj);
     let result = rustpython_runtime::with_vm(|vm| {
         match RpBuffer::try_from_borrowed_object(vm, &obj_ref) {
             Ok(buffer) => Ok(buffer),
-            Err(_) => {
-                let metadata = unsafe { heap_buffer_metadata(obj) };
-                if metadata.bf_getbuffer == 0 {
-                    Err(vm.new_type_error("object does not support the buffer protocol"))
-                } else {
-                    crate::object::heap_as_buffer_wrapper(obj_ref.as_object(), vm)
-                }
-            }
+            Err(_) => Err(vm.new_type_error("object does not support the buffer protocol")),
         }
     });
     let buffer = match result {

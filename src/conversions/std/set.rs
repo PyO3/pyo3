@@ -9,7 +9,7 @@ use crate::{
     types::{
         any::PyAnyMethods, frozenset::PyFrozenSetMethods, set::PySetMethods, PyFrozenSet, PySet,
     },
-    Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
+    ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
 };
 
 impl<'py, K, S> IntoPyObject<'py> for collections::HashSet<K, S>
@@ -56,21 +56,22 @@ where
     const INPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySet::TYPE_HINT, K::INPUT_TYPE);
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
-        match ob.cast::<PySet>() {
-            Ok(set) => set
-                .iter()
-                .map(|any| any.extract().map_err(Into::into))
-                .collect(),
-            Err(err) => {
-                if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
-                    frozen_set
-                        .iter()
-                        .map(|any| any.extract().map_err(Into::into))
-                        .collect()
-                } else {
-                    Err(PyErr::from(err))
-                }
+        if unsafe { ffi::PyFrozenSet_Check(ob.as_ptr()) } != 0 {
+            let frozen_set = unsafe { ob.cast_unchecked::<PyFrozenSet>() }.to_owned();
+            let mut values = Self::with_capacity_and_hasher(frozen_set.len(), S::default());
+            for any in frozen_set.iter() {
+                values.insert(any.extract().map_err(Into::into)?);
             }
+            Ok(values)
+        } else if unsafe { ffi::PySet_Check(ob.as_ptr()) } != 0 {
+            let set = unsafe { ob.cast_unchecked::<PySet>() }.to_owned();
+            let mut values = Self::with_capacity_and_hasher(set.len(), S::default());
+            for any in set.iter() {
+                values.insert(any.extract().map_err(Into::into)?);
+            }
+            Ok(values)
+        } else {
+            Err(crate::exceptions::PyTypeError::new_err("expected set or frozenset"))
         }
     }
 }
@@ -118,21 +119,22 @@ where
     const INPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySet::TYPE_HINT, K::INPUT_TYPE);
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
-        match ob.cast::<PySet>() {
-            Ok(set) => set
-                .iter()
-                .map(|any| any.extract().map_err(Into::into))
-                .collect(),
-            Err(err) => {
-                if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
-                    frozen_set
-                        .iter()
-                        .map(|any| any.extract().map_err(Into::into))
-                        .collect()
-                } else {
-                    Err(PyErr::from(err))
-                }
+        if unsafe { ffi::PyFrozenSet_Check(ob.as_ptr()) } != 0 {
+            let frozen_set = unsafe { ob.cast_unchecked::<PyFrozenSet>() }.to_owned();
+            let mut values = Self::new();
+            for any in frozen_set.iter() {
+                values.insert(any.extract().map_err(Into::into)?);
             }
+            Ok(values)
+        } else if unsafe { ffi::PySet_Check(ob.as_ptr()) } != 0 {
+            let set = unsafe { ob.cast_unchecked::<PySet>() }.to_owned();
+            let mut values = Self::new();
+            for any in set.iter() {
+                values.insert(any.extract().map_err(Into::into)?);
+            }
+            Ok(values)
+        } else {
+            Err(crate::exceptions::PyTypeError::new_err("expected set or frozenset"))
         }
     }
 }
@@ -182,4 +184,5 @@ mod tests {
             assert_eq!(hs, hso.extract().unwrap());
         });
     }
+
 }
