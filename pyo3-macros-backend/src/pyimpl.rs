@@ -190,8 +190,8 @@ pub fn impl_methods(
                             }) = callable_method
                             {
                                 associated_methods
-                                    .push(quote!(#[cfg(PyRustPython)] #(#attrs)* #associated_method));
-                                methods.push(quote!(#[cfg(PyRustPython)] #(#attrs)* #method_def));
+                                    .push(quote!(#[allow(unexpected_cfgs)] #[cfg(PyRustPython)] #(#attrs)* #associated_method));
+                                methods.push(quote!(#[allow(unexpected_cfgs)] #[cfg(PyRustPython)] #(#attrs)* #method_def));
                             }
                         }
                         GeneratedPyMethod::Proto(MethodAndSlotDef {
@@ -208,8 +208,8 @@ pub fn impl_methods(
                             }) = callable_method
                             {
                                 associated_methods
-                                    .push(quote!(#[cfg(PyRustPython)] #(#attrs)* #associated_method));
-                                methods.push(quote!(#[cfg(PyRustPython)] #(#attrs)* #method_def));
+                                    .push(quote!(#[allow(unexpected_cfgs)] #[cfg(PyRustPython)] #(#attrs)* #associated_method));
+                                methods.push(quote!(#[allow(unexpected_cfgs)] #[cfg(PyRustPython)] #(#attrs)* #method_def));
                             }
                         }
                     }
@@ -273,7 +273,7 @@ pub fn impl_methods(
         #items
 
         #[doc(hidden)]
-        #[allow(non_snake_case)]
+        #[allow(non_snake_case, unexpected_cfgs)]
         impl #ty {
             #(#associated_methods)*
         }
@@ -331,7 +331,7 @@ fn impl_py_methods(
 ) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
     quote! {
-        #[allow(unknown_lints, non_local_definitions)]
+        #[allow(unknown_lints, non_local_definitions, unexpected_cfgs)]
         impl #pyo3_path::impl_::pyclass::PyMethods<#ty>
             for #pyo3_path::impl_::pyclass::PyClassImplCollector<#ty>
         {

@@ -1842,11 +1842,12 @@ fn generate_protocol_slot(
     #[cfg(feature = "experimental-inspect")] introspection_data: FunctionIntrospectionData<'_>,
     ctx: &Ctx,
 ) -> syn::Result<MethodAndSlotDef> {
-    let spec = FnSpec::parse(
+    let mut spec = FnSpec::parse(
         &mut method.sig,
         &mut method.attrs,
         PyFunctionOptions::default(),
     )?;
+    spec.python_name = syn::Ident::new(name, spec.python_name.span());
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
     let mut def = slot.generate_type_slot(cls, &spec, name, None, ctx)?;
     #[cfg(feature = "experimental-inspect")]
@@ -2900,14 +2901,29 @@ impl<'a> PyClassImplsBuilder<'a> {
         let default_methods = self
             .default_methods
             .iter()
-            .map(|meth| &meth.associated_method)
+            .map(|meth| meth.associated_method.clone())
             .chain(
                 self.default_slots
                     .iter()
-                    .map(|meth| &meth.associated_method),
-            );
+                    .map(|slot| slot.associated_method.clone()),
+            )
+            .chain(self.default_slots.iter().filter_map(|slot| {
+                slot.callable_method.as_ref().map(|callable| {
+                    let associated_method = &callable.associated_method;
+                    quote!(#[allow(unexpected_cfgs)] #[cfg(PyRustPython)] #associated_method)
+                })
+            }));
 
-        let default_method_defs = self.default_methods.iter().map(|meth| &meth.method_def);
+        let default_method_defs = self
+            .default_methods
+            .iter()
+            .map(|meth| meth.method_def.clone())
+            .chain(self.default_slots.iter().filter_map(|slot| {
+                slot.callable_method.as_ref().map(|callable| {
+                    let method_def = &callable.method_def;
+                    quote!(#[allow(unexpected_cfgs)] #[cfg(PyRustPython)] #method_def)
+                })
+            }));
         let default_slot_defs = self.default_slots.iter().map(|slot| &slot.slot_def);
         let freelist_slots = self.freelist_slots(ctx);
 
@@ -3038,6 +3054,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
             #pyclass_base_type_impl
 
+            #[allow(unexpected_cfgs)]
             impl #pyo3_path::impl_::pyclass::PyClassImpl for #cls {
                 const MODULE: ::std::option::Option<&str> = #module;
                 const IS_BASETYPE: bool = #is_basetype;
@@ -3090,7 +3107,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
 
             #[doc(hidden)]
-            #[allow(non_snake_case)]
+            #[allow(non_snake_case, unexpected_cfgs)]
             impl #cls {
                 #(#default_methods)*
             }

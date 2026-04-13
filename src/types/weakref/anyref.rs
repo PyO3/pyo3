@@ -392,7 +392,7 @@ mod tests {
         }
 
         #[test]
-        #[cfg_attr(PyRustPython, ignore = "upstream RustPython weakref upgrade semantics bug; see RustPython/RustPython#7589")]
+        #[cfg_attr(PyRustPython, ignore = "remaining RustPython weakref upgrade semantics gap after RustPython#7590")]
         fn test_weakref_upgrade_as() -> PyResult<()> {
             fn inner(
                 create_reference: impl for<'py> FnOnce(
@@ -438,7 +438,7 @@ mod tests {
         }
 
         #[test]
-        #[cfg_attr(PyRustPython, ignore = "upstream RustPython weakref upgrade semantics bug; see RustPython/RustPython#7589")]
+        #[cfg_attr(PyRustPython, ignore = "remaining RustPython weakref upgrade semantics gap after RustPython#7590")]
         fn test_weakref_upgrade_as_unchecked() -> PyResult<()> {
             fn inner(
                 create_reference: impl for<'py> FnOnce(
@@ -478,7 +478,7 @@ mod tests {
         }
 
         #[test]
-        #[cfg_attr(PyRustPython, ignore = "upstream RustPython weakref upgrade semantics bug; see RustPython/RustPython#7589")]
+        #[cfg_attr(PyRustPython, ignore = "remaining RustPython weakref upgrade semantics gap after RustPython#7590")]
         fn test_weakref_upgrade() -> PyResult<()> {
             fn inner(
                 create_reference: impl for<'py> FnOnce(
@@ -560,7 +560,7 @@ mod tests {
         struct WeakrefablePyClass {}
 
         #[test]
-        #[cfg_attr(PyRustPython, ignore = "upstream RustPython weakref upgrade semantics bug for PyO3 pyclasses; see RustPython/RustPython#7589")]
+        #[cfg_attr(PyRustPython, ignore = "remaining RustPython weakref upgrade semantics gap for PyO3 pyclasses after RustPython#7590")]
         fn test_weakref_upgrade_as() -> PyResult<()> {
             fn inner(
                 create_reference: impl for<'py> FnOnce(
@@ -602,7 +602,7 @@ mod tests {
         }
 
         #[test]
-        #[cfg_attr(PyRustPython, ignore = "upstream RustPython weakref upgrade semantics bug for PyO3 pyclasses; see RustPython/RustPython#7589")]
+        #[cfg_attr(PyRustPython, ignore = "remaining RustPython weakref upgrade semantics gap for PyO3 pyclasses after RustPython#7590")]
         fn test_weakref_upgrade_as_unchecked() -> PyResult<()> {
             fn inner(
                 create_reference: impl for<'py> FnOnce(
@@ -638,7 +638,7 @@ mod tests {
         }
 
         #[test]
-        #[cfg_attr(PyRustPython, ignore = "upstream RustPython weakref upgrade semantics bug for PyO3 pyclasses; see RustPython/RustPython#7589")]
+        #[cfg_attr(PyRustPython, ignore = "remaining RustPython weakref upgrade semantics gap for PyO3 pyclasses after RustPython#7590")]
         fn test_weakref_upgrade() -> PyResult<()> {
             fn inner(
                 create_reference: impl for<'py> FnOnce(

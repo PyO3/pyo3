@@ -245,20 +245,26 @@ impl PyTypeBuilder {
         // PyPy automatically adds __dict__ getter / setter.
         #[cfg(not(PyPy))]
         // Supported on unlimited API for all versions, and on 3.9+ for limited API
-        #[cfg(any(Py_3_9, not(any(Py_LIMITED_API, PyRustPython))))]
+        #[cfg(any(Py_3_9, PyRustPython, not(Py_LIMITED_API)))]
         if let Some(dict_offset) = self.dict_offset {
             let get_dict;
             let closure;
             // PyObject_GenericGetDict not in the limited API until Python 3.10.
-            #[cfg(any(all(not(any(Py_LIMITED_API, PyRustPython))), Py_3_10))]
+            #[cfg(any(all(not(Py_LIMITED_API), not(PyRustPython)), Py_3_10, PyRustPython))]
             {
                 let _ = dict_offset;
-                get_dict = ffi::PyObject_GenericGetDict;
+                extern "C" fn get_dict_impl(
+                    object: *mut ffi::PyObject,
+                    closure: *mut c_void,
+                ) -> *mut ffi::PyObject {
+                    unsafe { ffi::PyObject_GenericGetDict(object, closure) }
+                }
+                get_dict = get_dict_impl;
                 closure = ptr::null_mut();
             }
 
             // ... so we write a basic implementation ourselves
-            #[cfg(not(any(all(not(any(Py_LIMITED_API, PyRustPython))), Py_3_10)))]
+            #[cfg(not(any(all(not(Py_LIMITED_API), not(PyRustPython)), Py_3_10, PyRustPython)))]
             {
                 extern "C" fn get_dict_impl(
                     object: *mut ffi::PyObject,
@@ -284,10 +290,17 @@ impl PyTypeBuilder {
                 closure = offset as _;
             }
 
+            extern "C" fn set_dict_impl(
+                object: *mut ffi::PyObject,
+                value: *mut ffi::PyObject,
+                closure: *mut c_void,
+            ) -> std::ffi::c_int {
+                unsafe { ffi::PyObject_GenericSetDict(object, value, closure) }
+            }
             property_defs.push(ffi::PyGetSetDef {
                 name: c"__dict__".as_ptr(),
                 get: Some(get_dict),
-                set: Some(ffi::PyObject_GenericSetDict),
+                set: Some(set_dict_impl),
                 doc: ptr::null(),
                 closure,
             });
@@ -378,7 +391,7 @@ impl PyTypeBuilder {
     ) -> Self {
         self.dict_offset = dict_offset;
 
-        #[cfg(Py_3_9)]
+        #[cfg(any(Py_3_9, PyRustPython))]
         {
             #[inline(always)]
             fn offset_def(name: &'static CStr, offset: PyObjectOffset) -> ffi::PyMemberDef {
@@ -466,18 +479,12 @@ impl PyTypeBuilder {
         }
 
         #[cfg(PyRustPython)]
-        if self.has_new
-            && !self.has_init
-            && unsafe {
-                ffi::PyType_IsSubtype(
-                    self.tp_base,
-                    crate::exceptions::PyBaseException::type_object_raw(py),
-                ) == 0
-            }
-        {
+        if self.has_new && !self.has_init && self.tp_base == crate::PyAny::type_object_raw(py) {
             // RustPython invokes tp_init after tp_new. PyO3 constructors fully initialize
-            // instances in tp_new, so inheriting object.__init__ would incorrectly reject
-            // constructor arguments like ValueClass(1).
+            // plain object-based instances in tp_new, so inheriting object.__init__ would
+            // incorrectly reject constructor arguments like ValueClass(1). Do not suppress
+            // inherited __init__ for non-object bases: pyclass and native bases may need
+            // their own init semantics to run.
             unsafe { self.push_slot(ffi::Py_tp_init, rustpython_noop_init as *mut c_void) }
         }
 

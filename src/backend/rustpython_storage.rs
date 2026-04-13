@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use crate::ffi;
+use crate::ffi::{self, SidecarCleanup};
 use crate::impl_::pycell::{
     GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout,
 };
@@ -17,6 +17,7 @@ use std::sync::{Mutex, OnceLock};
 
 struct SidecarEntry {
     ptr: NonNull<()>,
+    cleanup: SidecarCleanup,
 }
 
 unsafe impl Send for SidecarEntry {}
@@ -35,6 +36,7 @@ fn ensure_sidecar_slot<T: PyClassImpl>(
         let boxed = Box::new(MaybeUninit::<PyClassObjectContents<T>>::uninit());
         SidecarEntry {
             ptr: NonNull::new(Box::into_raw(boxed).cast::<()>()).expect("box pointer is non-null"),
+            cleanup: cleanup_sidecar_entry::<T>,
         }
     });
     entry.ptr.as_ptr().cast()
@@ -49,26 +51,21 @@ fn get_sidecar_slot<T: PyClassImpl>(obj: *const ffi::PyObject) -> *mut PyClassOb
     entry.ptr.as_ptr().cast()
 }
 
-fn remove_sidecar_slot<T: PyClassImpl>(
-    obj: *mut ffi::PyObject,
-) -> Option<NonNull<MaybeUninit<PyClassObjectContents<T>>>> {
-    let key = (obj as usize, TypeId::of::<T>());
-    sidecar_registry()
-        .lock()
-        .unwrap()
-        .remove(&key)
-        .map(|entry| entry.ptr.cast())
+fn owner_registry() -> &'static Mutex<HashMap<usize, bool>> {
+    static REGISTRY: OnceLock<Mutex<HashMap<usize, bool>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-unsafe extern "C" fn cleanup_sidecar<T: PyClassImpl>(owner: *mut ffi::PyObject, sidecar: *mut std::ffi::c_void)
+unsafe extern "C" fn cleanup_sidecar_entry<T: PyClassImpl>(
+    owner: *mut ffi::PyObject,
+    sidecar: *mut std::ffi::c_void,
+)
 where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {
-    let Some(ptr) = remove_sidecar_slot::<T>(owner) else {
-        return;
-    };
     let py = unsafe { Python::assume_attached() };
-    debug_assert_eq!(ptr.as_ptr().cast::<std::ffi::c_void>(), sidecar);
+    let ptr = NonNull::new(sidecar.cast::<MaybeUninit<PyClassObjectContents<T>>>())
+        .expect("sidecar pointer must be non-null");
     let sidecar = unsafe { Box::from_raw(ptr.as_ptr()) };
     let mut sidecar = sidecar;
     unsafe {
@@ -77,19 +74,43 @@ where
     }
 }
 
+unsafe extern "C" fn cleanup_all_sidecars(owner: *mut ffi::PyObject, _marker: *mut std::ffi::c_void) {
+    let owner_key = owner as usize;
+    owner_registry().lock().unwrap().remove(&owner_key);
+
+    let entries = {
+        let mut registry = sidecar_registry().lock().unwrap();
+        let keys = registry
+            .keys()
+            .filter(|(obj, _)| *obj == owner_key)
+            .copied()
+            .collect::<Vec<_>>();
+        keys.into_iter()
+            .filter_map(|key| registry.remove(&key))
+            .collect::<Vec<_>>()
+    };
+
+    for entry in entries {
+        unsafe { (entry.cleanup)(owner, entry.ptr.as_ptr().cast::<std::ffi::c_void>()) };
+    }
+}
+
 pub(crate) fn install_sidecar_owner<T: PyClassImpl>(_py: Python<'_>, obj: *mut ffi::PyObject)
 where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {
-    let sidecar = get_sidecar_slot::<T>(obj).cast::<std::ffi::c_void>();
-    let rc = unsafe {
-        ffi::PyRustPython_InstallSidecarOwner(
-            obj,
-            sidecar,
-            cleanup_sidecar::<T>,
-        )
-    };
-    assert_eq!(rc, 0, "failed to install RustPython sidecar owner");
+    let obj_key = obj as usize;
+    let mut owners = owner_registry().lock().unwrap();
+    if owners.insert(obj_key, true).is_none() {
+        let rc = unsafe {
+            ffi::PyRustPython_InstallSidecarOwner(
+                obj,
+                obj.cast::<std::ffi::c_void>(),
+                cleanup_all_sidecars,
+            )
+        };
+        assert_eq!(rc, 0, "failed to install RustPython sidecar owner");
+    }
 }
 
 /// RustPython-native layout for `#[pyclass(extends = <native>)]`.

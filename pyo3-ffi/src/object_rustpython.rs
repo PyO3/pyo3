@@ -330,6 +330,21 @@ pub(crate) fn heap_type_metadata_for_ptr(cls_ptr: *mut PyTypeObject) -> HeapType
         .unwrap_or_default()
 }
 
+fn heap_type_has_inherited_tp_init(ty: &PyType) -> bool {
+    let registry = heap_type_registry().lock().unwrap();
+    ty.mro
+        .read()
+        .iter()
+        .skip(1)
+        .any(|base| {
+            let base_obj: PyObjectRef = base.to_owned().into();
+            let base_ptr = pyobject_ref_as_ptr(&base_obj) as *mut PyTypeObject;
+            registry
+                .get(&(base_ptr as usize))
+                .is_some_and(|metadata| metadata.tp_init != 0)
+        })
+}
+
 pub type SidecarCleanup = unsafe extern "C" fn(*mut PyObject, *mut c_void);
 
 #[derive(Debug)]
@@ -873,7 +888,16 @@ fn heap_tp_new_wrapper(cls: PyTypeRef, args: FuncArgs, vm: &rustpython_vm::Virtu
     if result.is_null() {
         Err(unsafe { fetch_current_exception(vm) })
     } else {
-        Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+        let result = unsafe { ptr_to_pyobject_ref_owned(result) };
+        if cls
+            .slots
+            .flags
+            .has_feature(PyTypeFlags::HAS_DICT)
+            && result.dict().is_none()
+        {
+            let _ = result.set_dict(vm.ctx.new_dict());
+        }
+        Ok(result)
     }
 }
 
@@ -883,15 +907,19 @@ fn heap_tp_init_wrapper(
     vm: &rustpython_vm::VirtualMachine,
 ) -> rustpython_vm::PyResult<()> {
     let cls = zelf.class();
-    let cls_obj: PyObjectRef = cls.to_owned().into();
-    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
-    let metadata = heap_type_registry()
-        .lock()
-        .unwrap()
-        .get(&(cls_ptr as usize))
-        .copied()
-        .unwrap_or_default();
-    let Some(tp_init) = (metadata.tp_init != 0).then_some(metadata.tp_init) else {
+    let tp_init = {
+        let registry = heap_type_registry().lock().unwrap();
+        cls.mro
+            .read()
+            .iter()
+            .filter_map(|ty| {
+                let ty_obj: PyObjectRef = ty.to_owned().into();
+                let ty_ptr = pyobject_ref_as_ptr(&ty_obj) as *mut PyTypeObject;
+                registry.get(&(ty_ptr as usize)).copied()
+            })
+            .find_map(|metadata| (metadata.tp_init != 0).then_some(metadata.tp_init))
+    };
+    let Some(tp_init) = tp_init else {
         return Ok(());
     };
     let tp_init: initproc = unsafe { std::mem::transmute(tp_init) };
@@ -2097,20 +2125,45 @@ pub unsafe fn PyObject_GenericGetDict(
     if ob.is_null() {
         return std::ptr::null_mut();
     }
-    let obj = ptr_to_pyobject_ref_borrowed(ob);
-    rustpython_runtime::with_vm(|vm| match obj.dict() {
-        Some(dict) => pyobject_ref_to_ptr(dict.into()),
-        None => pyobject_ref_to_ptr(vm.ctx.new_dict().into()),
+    rustpython_runtime::with_vm(|vm| {
+        let obj = ptr_to_pyobject_ref_borrowed(ob);
+        match obj.dict() {
+            Some(dict) => pyobject_ref_to_ptr(dict.into()),
+            None => {
+                let exc = vm.new_attribute_error("This object has no __dict__");
+                set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
     })
 }
 
 #[inline]
 pub unsafe fn PyObject_GenericSetDict(
-    _ob: *mut PyObject,
-    _value: *mut PyObject,
+    ob: *mut PyObject,
+    value: *mut PyObject,
     _closure: *mut c_void,
 ) -> c_int {
-    -1
+    if ob.is_null() || value.is_null() {
+        return -1;
+    }
+    rustpython_runtime::with_vm(|vm| {
+        let obj = ptr_to_pyobject_ref_borrowed(ob);
+        let value = ptr_to_pyobject_ref_borrowed(value);
+        let Ok(dict) = value.clone().downcast::<PyDict>() else {
+            let exc = vm.new_type_error("__dict__ must be set to a dictionary");
+            set_vm_exception(exc);
+            return -1;
+        };
+        match obj.set_dict(dict) {
+            Ok(()) => 0,
+            Err(_) => {
+                let exc = vm.new_attribute_error("This object has no __dict__");
+                set_vm_exception(exc);
+                -1
+            }
+        }
+    })
 }
 
 #[inline]
@@ -2359,6 +2412,8 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
         let mut metadata = HeapTypeMetadata::default();
         let mut method_defs: Vec<*mut methodobject::PyMethodDef> = Vec::new();
         let mut method_names = std::collections::HashSet::new();
+        let mut add_dict = false;
+        let mut add_weakref = false;
 
         let mut slot_ptr = (*spec).slots;
         while !slot_ptr.is_null() && (*slot_ptr).slot != 0 {
@@ -2390,6 +2445,17 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                             vm.ctx.intern_str(ffi_name_to_static((*def).name, "<property>")),
                             build_getter_property(def, vm),
                         );
+                        def = def.add(1);
+                    }
+                }
+                crate::Py_tp_members => {
+                    let mut def = (*slot_ptr).pfunc as *mut crate::structmember::PyMemberDef;
+                    while !def.is_null() && !(*def).name.is_null() {
+                        match ffi_name_to_static((*def).name.cast(), "<member>") {
+                            "__dictoffset__" => add_dict = true,
+                            "__weaklistoffset__" => add_weakref = true,
+                            _ => {}
+                        }
                         def = def.add(1);
                     }
                 }
@@ -2478,6 +2544,12 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
         if (*spec).flags as c_ulong & (1 << 5) != 0 {
             slots.flags |= PyTypeFlags::SEQUENCE;
         }
+        if add_dict {
+            slots.flags |= PyTypeFlags::HAS_DICT | PyTypeFlags::MANAGED_DICT;
+        }
+        if add_weakref {
+            slots.flags |= PyTypeFlags::HAS_WEAKREF | PyTypeFlags::MANAGED_WEAKREF;
+        }
         let mut slot_scan = (*spec).slots;
         while !slot_scan.is_null() && (*slot_scan).slot != 0 {
             if (*slot_scan).slot == crate::Py_tp_dealloc {
@@ -2520,7 +2592,7 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                 if metadata.tp_new != 0 {
                     ty.slots.new.store(Some(heap_tp_new_wrapper));
                 }
-                if metadata.tp_init != 0 {
+                if metadata.tp_init != 0 || heap_type_has_inherited_tp_init(&ty) {
                     ty.slots.init.store(Some(heap_tp_init_wrapper));
                 }
                 if metadata.tp_call != 0 {
