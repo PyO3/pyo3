@@ -217,6 +217,10 @@ fn function_with_custom_conversion(
 }
 
 #[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(
+    PyRustPython,
+    ignore = "upstream RustPython bug: embedded datetime/operator imports recurse in importlib; see RustPython/RustPython#7587"
+)]
 #[test]
 fn test_function_with_custom_conversion() {
     Python::attach(|py| {

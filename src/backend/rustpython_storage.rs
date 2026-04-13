@@ -76,6 +76,7 @@ unsafe impl<T: PyClassImpl> PyLayout<T> for PySidecarClassObject<T> {}
 
 impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PySidecarClassObject<T> {
     const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Absolute(0);
+    const HAS_EMBEDDED_CONTENTS: bool = false;
     const BASIC_SIZE: ffi::Py_ssize_t = 0;
     const DICT_OFFSET: PyObjectOffset = PyObjectOffset::Absolute(0);
     const WEAKLIST_OFFSET: PyObjectOffset = PyObjectOffset::Absolute(0);
@@ -131,6 +132,7 @@ impl<T: PyClass> crate::type_object::PySizedLayout<T> for PySemanticSidecarClass
 
 impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PySemanticSidecarClassObject<T> {
     const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Absolute(0);
+    const HAS_EMBEDDED_CONTENTS: bool = false;
     const BASIC_SIZE: ffi::Py_ssize_t = {
         let size = core::mem::size_of::<Self>();
         assert!(size <= ffi::Py_ssize_t::MAX as usize);
