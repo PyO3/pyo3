@@ -1,6 +1,6 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
 use crate::rustpython_runtime;
-use crate::{methodobject, pyerrors::{PyErr_GetRaisedException, set_vm_exception}};
+use crate::{methodobject, pyerrors::{PyErr_GetRaisedException, set_vm_exception}, PyErr_Occurred};
 use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr::NonNull;
 use std::sync::{Mutex, OnceLock};
@@ -162,6 +162,7 @@ struct HeapTypeMetadata {
     tp_new: usize,
     tp_init: usize,
     tp_call: usize,
+    tp_hash: usize,
     tp_getattro: usize,
     mp_subscript: usize,
     mp_ass_subscript: usize,
@@ -626,6 +627,34 @@ fn heap_nb_add_wrapper(
         Err(unsafe { fetch_current_exception(vm) })
     } else {
         Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+    }
+}
+
+fn heap_tp_hash_wrapper(
+    obj: &rustpython_vm::PyObject,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult<rustpython_vm::common::hash::PyHash> {
+    let cls_obj: PyObjectRef = obj.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(tp_hash) = (metadata.tp_hash != 0).then_some(metadata.tp_hash) else {
+        return Err(vm.new_type_error(format!(
+            "unhashable type: '{}'",
+            obj.class().name()
+        )));
+    };
+    let tp_hash: hashfunc = unsafe { std::mem::transmute(tp_hash) };
+    let obj_ref = obj.to_owned();
+    let result = unsafe { tp_hash(pyobject_ref_as_ptr(&obj_ref)) };
+    if result == -1 && !unsafe { PyErr_Occurred() }.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(result as rustpython_vm::common::hash::PyHash)
     }
 }
 
@@ -1732,6 +1761,7 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                     slots.init.store(Some(heap_tp_init_wrapper));
                 }
                 crate::Py_tp_call => metadata.tp_call = (*slot_ptr).pfunc as usize,
+                crate::Py_tp_hash => metadata.tp_hash = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_getattro => metadata.tp_getattro = (*slot_ptr).pfunc as usize,
                 crate::Py_mp_subscript => metadata.mp_subscript = (*slot_ptr).pfunc as usize,
                 crate::Py_mp_ass_subscript => metadata.mp_ass_subscript = (*slot_ptr).pfunc as usize,
@@ -1804,6 +1834,9 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                 }
                 if metadata.tp_call != 0 {
                     ty.slots.call.store(Some(heap_tp_call_wrapper));
+                }
+                if metadata.tp_hash != 0 {
+                    ty.slots.hash.store(Some(heap_tp_hash_wrapper));
                 }
                 if metadata.tp_getattro != 0 {
                     ty.slots.getattro.store(Some(heap_tp_getattro_wrapper));
@@ -1907,6 +1940,7 @@ pub unsafe fn PyType_GetSlot(ty: *mut PyTypeObject, slot: c_int) -> *mut c_void 
         return match slot {
             crate::Py_tp_new => metadata.tp_new as *mut c_void,
             crate::Py_tp_init => metadata.tp_init as *mut c_void,
+            crate::Py_tp_hash => metadata.tp_hash as *mut c_void,
             crate::Py_tp_getattro => metadata.tp_getattro as *mut c_void,
             _ => std::ptr::null_mut(),
         };

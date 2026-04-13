@@ -2,6 +2,7 @@ use crate::object::*;
 use crate::pyerrors::{clear_vm_exception, set_vm_exception};
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
+use rustpython_vm::protocol::PyIterReturn;
 use rustpython_vm::builtins::PyDict;
 use rustpython_vm::{AsObject, PyPayload};
 use rustpython_vm::PyObjectRef;
@@ -69,12 +70,12 @@ pub unsafe fn PyDict_GetItemWithError(mp: *mut PyObject, key: *mut PyObject) -> 
     let Some(key) = as_dict(key) else {
         return std::ptr::null_mut();
     };
-    rustpython_runtime::with_vm(|vm| match dict.as_object().get_item(&*key, vm) {
-        Ok(value) => {
+    rustpython_runtime::with_vm(|vm| match dict.get_item_opt(&*key, vm) {
+        Ok(Some(value)) => {
             clear_vm_exception();
             pyobject_ref_to_ptr(value)
         }
-        Err(exc) if exc.fast_isinstance(vm.ctx.exceptions.key_error) => {
+        Ok(None) => {
             clear_vm_exception();
             std::ptr::null_mut()
         }
@@ -225,12 +226,62 @@ pub unsafe fn PyDict_Merge(mp: *mut PyObject, other: *mut PyObject, _override: c
     let Some(other) = as_dict(other) else {
         return -1;
     };
-    rustpython_runtime::with_vm(|vm| match vm.call_method(dict.as_object(), "update", (other,)) {
-        Ok(_) => 0,
-        Err(exc) => {
-            set_vm_exception(exc);
-            -1
+    rustpython_runtime::with_vm(|vm| {
+        if _override != 0 {
+            return match vm.call_method(dict.as_object(), "update", (other,)) {
+                Ok(_) => 0,
+                Err(exc) => {
+                    set_vm_exception(exc);
+                    -1
+                }
+            };
         }
+
+        let keys = match vm.call_method(&other, "keys", ()) {
+            Ok(keys) => keys,
+            Err(exc) => {
+                set_vm_exception(exc);
+                return -1;
+            }
+        };
+        let iter = match keys.get_iter(vm) {
+            Ok(iter) => rustpython_vm::protocol::PyIter::new(iter),
+            Err(exc) => {
+                set_vm_exception(exc);
+                return -1;
+            }
+        };
+
+        loop {
+            let key = match iter.next(vm) {
+                Ok(PyIterReturn::Return(key)) => key,
+                Ok(PyIterReturn::StopIteration(_)) => break,
+                Err(exc) => {
+                    set_vm_exception(exc);
+                    return -1;
+                }
+            };
+
+            let contains = dict.contains_key(&*key, vm);
+            if contains {
+                continue;
+            }
+
+            let value = match other.get_item(&*key, vm) {
+                Ok(value) => value,
+                Err(exc) => {
+                    set_vm_exception(exc);
+                    return -1;
+                }
+            };
+
+            if let Err(exc) = dict.set_item(&*key, value, vm) {
+                set_vm_exception(exc);
+                return -1;
+            }
+        }
+
+        0
     })
 }
 
@@ -316,7 +367,13 @@ pub unsafe fn PyDict_GetItemRef(
     if !result.is_null() {
         *result = value;
     }
-    (!value.is_null()) as c_int
+    if !value.is_null() {
+        1
+    } else if !crate::PyErr_Occurred().is_null() {
+        -1
+    } else {
+        0
+    }
 }
 
 #[cfg(Py_3_13)]
