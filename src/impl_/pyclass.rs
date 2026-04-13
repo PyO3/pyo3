@@ -1060,21 +1060,15 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 }
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
+#[diagnostic::on_unimplemented(
+    message = "pyclass `{Self}` cannot be subclassed",
+    label = "required for `#[pyclass(extends={Self})]`",
+    note = "`{Self}` must have `#[pyclass(subclass)]` to be eligible for subclassing"
+)]
 #[cfg_attr(
     Py_LIMITED_API,
     diagnostic::on_unimplemented(
-        message = "pyclass `{Self}` cannot be subclassed",
-        label = "required for `#[pyclass(extends={Self})]`",
-        note = "`{Self}` must have `#[pyclass(subclass)]` to be eligible for subclassing",
         note = "with the `abi3` feature enabled, PyO3 does not support subclassing native types",
-    )
-)]
-#[cfg_attr(
-    not(Py_LIMITED_API),
-    diagnostic::on_unimplemented(
-        message = "pyclass `{Self}` cannot be subclassed",
-        label = "required for `#[pyclass(extends={Self})]`",
-        note = "`{Self}` must have `#[pyclass(subclass)]` to be eligible for subclassing",
     )
 )]
 pub trait PyClassBaseType: Sized {
