@@ -6,7 +6,8 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     if ob.is_null() {
         return 0;
     }
-    crate::object::ptr_to_pyobject_ref_borrowed(ob).strong_count() as Py_ssize_t
+    let obj = unsafe { &*(ob as *mut rustpython_vm::PyObject) };
+    obj.strong_count() as Py_ssize_t
 }
 
 #[inline]

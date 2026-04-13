@@ -249,7 +249,7 @@ impl SuspendAttach {
     pub(crate) unsafe fn new() -> Self {
         #[cfg(PyRustPython)]
         {
-            let count = ATTACH_COUNT.with(|c| c.get());
+            let count = ATTACH_COUNT.with(|c| c.replace(0));
             return Self {
                 count,
                 tstate: std::ptr::null_mut(),
@@ -267,6 +267,8 @@ impl SuspendAttach {
 
 impl Drop for SuspendAttach {
     fn drop(&mut self) {
+        #[cfg(PyRustPython)]
+        ATTACH_COUNT.with(|c| c.set(self.count));
         #[cfg(not(PyRustPython))]
         ATTACH_COUNT.with(|c| c.set(self.count));
         unsafe {
