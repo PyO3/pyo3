@@ -5,8 +5,8 @@ use crate::rustpython_runtime;
 use rustpython_vm::builtins::{PyBaseException, PyStr, PyType};
 use rustpython_vm::function::{FuncArgs, PyMethodDef as RpMethodDef, PyMethodFlags as RpMethodFlags};
 use rustpython_vm::{AsObject, PyObjectRef};
-use std::ffi::{c_char, c_int, c_void, CStr};
 use std::collections::HashMap;
+use std::ffi::{c_char, c_int, c_void, CStr};
 use std::sync::{Mutex, OnceLock};
 use std::{mem, ptr};
 
@@ -158,6 +158,7 @@ pub const METH_METHOD: c_int = 0x0200;
 
 #[derive(Copy, Clone)]
 struct MethodMetadata {
+    name: &'static str,
     method_def: usize,
     slf: usize,
     flags: c_int,
@@ -174,27 +175,49 @@ fn method_metadata_registry() -> &'static Mutex<HashMap<usize, MethodMetadata>> 
 
 fn lookup_method_metadata(obj: &PyObjectRef) -> Option<MethodMetadata> {
     let obj_ptr = pyobject_ref_as_ptr(obj) as usize;
-    if let Some(metadata) = method_metadata_registry().lock().unwrap().get(&obj_ptr).copied() {
-        return Some(metadata);
-    }
     rustpython_runtime::with_vm(|vm| {
-        let method_def = obj
+        let attrs_metadata = obj
             .get_attr(PYO3_METHOD_DEF_ATTR, vm)
             .ok()
-            .and_then(|value| value.try_to_value::<isize>(vm).ok())? as usize;
-        let slf = obj
-            .get_attr(PYO3_METHOD_SELF_ATTR, vm)
+            .and_then(|value| value.try_to_value::<isize>(vm).ok())
+            .zip(
+                obj.get_attr(PYO3_METHOD_SELF_ATTR, vm)
+                    .ok()
+                    .and_then(|value| value.try_to_value::<isize>(vm).ok()),
+            )
+            .zip(
+                obj.get_attr(PYO3_METHOD_FLAGS_ATTR, vm)
+                    .ok()
+                    .and_then(|value| value.try_to_value::<i32>(vm).ok()),
+            )
+            .map(|((method_def, slf), flags)| MethodMetadata {
+                name: "<attr-backed>",
+                method_def: method_def as usize,
+                slf: slf as usize,
+                flags,
+            });
+
+        if attrs_metadata.is_some() {
+            return attrs_metadata;
+        }
+
+        let metadata = method_metadata_registry()
+            .lock()
+            .unwrap()
+            .get(&obj_ptr)
+            .copied()?;
+        let current_name = obj
+            .get_attr("__name__", vm)
             .ok()
-            .and_then(|value| value.try_to_value::<isize>(vm).ok())? as usize;
-        let flags = obj
-            .get_attr(PYO3_METHOD_FLAGS_ATTR, vm)
-            .ok()
-            .and_then(|value| value.try_to_value::<i32>(vm).ok())?;
-        Some(MethodMetadata {
-            method_def,
-            slf,
-            flags,
-        })
+            .and_then(|value| value.str(vm).ok())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| obj.class().slot_name().to_owned());
+        if current_name == metadata.name {
+            Some(metadata)
+        } else {
+            method_metadata_registry().lock().unwrap().remove(&obj_ptr);
+            None
+        }
     })
 }
 
@@ -666,6 +689,7 @@ unsafe fn build_rustpython_function(
         method_metadata_registry().lock().unwrap().insert(
             pyobject_ref_as_ptr(&obj) as usize,
             MethodMetadata {
+                name,
                 method_def: ml as usize,
                 slf: slf_ptr as usize,
                 flags,

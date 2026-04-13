@@ -1,21 +1,44 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
 use crate::rustpython_runtime;
 use crate::{methodobject, pyerrors::{PyErr_GetRaisedException, set_vm_exception}, PyErr_Occurred};
+use std::borrow::Cow;
 use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use rustpython_vm::builtins::{
-    PyBaseException, PyBaseObject, PyDict, PyList, PySet, PyStr, PyType, PyTypeRef,
+    PyBaseException, PyBaseObject, PyDict, PyList, PySet, PyStr, PyType, PyTypeRef, PyWeak,
 };
+use rustpython_vm::common::atomic::PyAtomic;
+use rustpython_vm::common::lock::PyRwLock;
+use rustpython_vm::common::borrow::{BorrowedValue, BorrowedValueMut};
 use rustpython_vm::function::{
     Either, FuncArgs, PyMethodDef as RpMethodDef, PyMethodFlags as RpMethodFlags,
 };
 use rustpython_vm::function::PyComparisonValue;
-use rustpython_vm::protocol::{PyMapping, PyNumber, PySequence};
+use rustpython_vm::object::MaybeTraverse;
+use rustpython_vm::protocol::{BufferDescriptor, BufferMethods, PyBuffer as RpPyBuffer, PyMapping, PyNumber, PySequence};
 use rustpython_vm::types::PyComparisonOp;
 use rustpython_vm::types::{Constructor, PyTypeFlags, PyTypeSlots};
-use rustpython_vm::{AsObject, PyObjectRef, PyPayload};
+use rustpython_vm::{AsObject, PyObjectRef, PyPayload, PyRef};
+
+#[repr(C)]
+struct InstanceDictMirror {
+    _dict: PyRwLock<rustpython_vm::builtins::PyDictRef>,
+}
+
+#[repr(C, align(8))]
+struct ObjExtMirror {
+    _dict: Option<InstanceDictMirror>,
+    slots: Box<[PyRwLock<Option<PyObjectRef>>]>,
+}
+
+#[repr(C)]
+struct WeakRefListMirror {
+    _head: PyAtomic<*mut rustpython_vm::Py<PyWeak>>,
+    _generic: PyAtomic<*mut rustpython_vm::Py<PyWeak>>,
+}
 
 #[repr(C)]
 #[derive(Debug)]
@@ -160,8 +183,8 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_type: std::ptr::null_mut(),
 };
 
-#[derive(Copy, Clone, Default)]
-struct HeapTypeMetadata {
+#[derive(Copy, Clone)]
+pub(crate) struct HeapTypeMetadata {
     tp_new: usize,
     tp_init: usize,
     tp_call: usize,
@@ -206,6 +229,8 @@ struct HeapTypeMetadata {
     nb_index: usize,
     nb_matrix_multiply: usize,
     nb_inplace_matrix_multiply: usize,
+    pub(crate) bf_getbuffer: usize,
+    pub(crate) bf_releasebuffer: usize,
     sq_length: usize,
     sq_item: usize,
     sq_ass_item: usize,
@@ -214,6 +239,69 @@ struct HeapTypeMetadata {
     sq_repeat: usize,
     sq_inplace_concat: usize,
     sq_inplace_repeat: usize,
+    pub(crate) hidden_sidecar_slot: usize,
+}
+
+impl Default for HeapTypeMetadata {
+    fn default() -> Self {
+        Self {
+            tp_new: 0,
+            tp_init: 0,
+            tp_call: 0,
+            tp_hash: 0,
+            tp_getattro: 0,
+            tp_repr: 0,
+            tp_str: 0,
+            tp_richcompare: 0,
+            mp_subscript: 0,
+            mp_ass_subscript: 0,
+            nb_add: 0,
+            nb_subtract: 0,
+            nb_multiply: 0,
+            nb_remainder: 0,
+            nb_divmod: 0,
+            nb_power: 0,
+            nb_negative: 0,
+            nb_positive: 0,
+            nb_absolute: 0,
+            nb_invert: 0,
+            nb_lshift: 0,
+            nb_rshift: 0,
+            nb_and: 0,
+            nb_xor: 0,
+            nb_or: 0,
+            nb_int: 0,
+            nb_float: 0,
+            nb_inplace_add: 0,
+            nb_inplace_subtract: 0,
+            nb_inplace_multiply: 0,
+            nb_inplace_remainder: 0,
+            nb_inplace_power: 0,
+            nb_inplace_lshift: 0,
+            nb_inplace_rshift: 0,
+            nb_inplace_and: 0,
+            nb_inplace_xor: 0,
+            nb_inplace_or: 0,
+            nb_floor_divide: 0,
+            nb_true_divide: 0,
+            nb_inplace_floor_divide: 0,
+            nb_inplace_true_divide: 0,
+            nb_index: 0,
+            nb_matrix_multiply: 0,
+            nb_inplace_matrix_multiply: 0,
+            bf_getbuffer: 0,
+            bf_releasebuffer: 0,
+            sq_length: 0,
+            sq_item: 0,
+            sq_ass_item: 0,
+            sq_contains: 0,
+            sq_concat: 0,
+            sq_repeat: 0,
+            sq_inplace_concat: 0,
+            sq_inplace_repeat: 0,
+            hidden_sidecar_slot: usize::MAX,
+        }
+    }
 }
 
 fn heap_type_registry() -> &'static Mutex<std::collections::HashMap<usize, HeapTypeMetadata>> {
@@ -231,6 +319,311 @@ fn heap_type_metadata_for_obj(obj: &rustpython_vm::PyObject) -> HeapTypeMetadata
         .get(&(cls_ptr as usize))
         .copied()
         .unwrap_or_default()
+}
+
+pub(crate) fn heap_type_metadata_for_ptr(cls_ptr: *mut PyTypeObject) -> HeapTypeMetadata {
+    heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default()
+}
+
+pub type SidecarCleanup = unsafe extern "C" fn(*mut PyObject, *mut c_void);
+
+#[derive(Debug)]
+struct FfiSidecarOwner {
+    owner: *mut PyObject,
+    sidecar: *mut c_void,
+    cleanup: SidecarCleanup,
+}
+
+unsafe impl Send for FfiSidecarOwner {}
+unsafe impl Sync for FfiSidecarOwner {}
+
+impl MaybeTraverse for FfiSidecarOwner {
+    fn try_traverse(&self, _traverse_fn: &mut rustpython_vm::object::TraverseFn<'_>) {}
+}
+
+impl PyPayload for FfiSidecarOwner {
+    fn class(ctx: &rustpython_vm::Context) -> &'static rustpython_vm::Py<PyType> {
+        ctx.types.object_type
+    }
+}
+
+impl Drop for FfiSidecarOwner {
+    fn drop(&mut self) {
+        unsafe { (self.cleanup)(self.owner, self.sidecar) };
+    }
+}
+
+pub unsafe fn PyRustPython_InstallSidecarOwner(
+    obj: *mut PyObject,
+    sidecar: *mut c_void,
+    cleanup: SidecarCleanup,
+) -> c_int {
+    if obj.is_null() || sidecar.is_null() {
+        return -1;
+    }
+    rustpython_runtime::with_vm(|vm| {
+        let obj_ref = ptr_to_pyobject_ref_borrowed(obj);
+        let holder: PyRef<FfiSidecarOwner> = PyRef::new_ref(
+            FfiSidecarOwner { owner: obj, sidecar, cleanup },
+            vm.ctx.types.object_type.to_owned(),
+            None,
+        );
+        let holder_obj: PyObjectRef = holder.into();
+        let flags = obj_ref.class().slots.flags;
+        let member_count = obj_ref.class().slots.member_count;
+        let metadata = heap_type_metadata_for_obj(obj_ref.as_object());
+        if metadata.hidden_sidecar_slot >= member_count {
+            return -1;
+        }
+        let has_ext =
+            flags.has_feature(PyTypeFlags::HAS_DICT) || member_count > 0;
+        if !has_ext {
+            return -1;
+        }
+        let has_weakref = flags.has_feature(PyTypeFlags::HAS_WEAKREF);
+        let offset = if has_weakref {
+            core::mem::size_of::<WeakRefListMirror>() + core::mem::size_of::<ObjExtMirror>()
+        } else {
+            core::mem::size_of::<ObjExtMirror>()
+        };
+        let obj_addr = (obj as *const u8).addr();
+        let ext_ptr = core::ptr::with_exposed_provenance_mut::<ObjExtMirror>(
+            obj_addr.wrapping_sub(offset),
+        );
+        let ext = unsafe { &mut *ext_ptr };
+        *ext.slots[metadata.hidden_sidecar_slot].write() = Some(holder_obj);
+        0
+    })
+}
+
+struct FfiHeapBufferOwner {
+    owner: *mut PyObject,
+    view: Mutex<crate::Py_buffer>,
+    exports: AtomicUsize,
+}
+
+impl std::fmt::Debug for FfiHeapBufferOwner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FfiHeapBufferOwner").finish_non_exhaustive()
+    }
+}
+
+impl Drop for FfiHeapBufferOwner {
+    fn drop(&mut self) {
+        if !self.owner.is_null() {
+            unsafe { crate::Py_DECREF(self.owner) };
+        }
+    }
+}
+
+unsafe impl Send for FfiHeapBufferOwner {}
+unsafe impl Sync for FfiHeapBufferOwner {}
+
+impl MaybeTraverse for FfiHeapBufferOwner {
+    fn try_traverse(&self, _traverse_fn: &mut rustpython_vm::object::TraverseFn<'_>) {}
+}
+
+impl PyPayload for FfiHeapBufferOwner {
+    fn class(ctx: &rustpython_vm::Context) -> &'static rustpython_vm::Py<PyType> {
+        ctx.types.object_type
+    }
+}
+
+fn ffi_heap_buffer_descriptor(view: &crate::Py_buffer) -> BufferDescriptor {
+    let itemsize = view.itemsize.max(1) as usize;
+    let format = if view.format.is_null() {
+        Cow::Borrowed("B")
+    } else {
+        unsafe { std::ffi::CStr::from_ptr(view.format) }
+            .to_string_lossy()
+            .into_owned()
+            .into()
+    };
+    let ndim = view.ndim.max(0) as usize;
+    let dim_desc = if ndim == 0 {
+        Vec::new()
+    } else {
+        let shapes = if view.shape.is_null() {
+            vec![view.len.max(0) as usize]
+        } else {
+            unsafe { std::slice::from_raw_parts(view.shape, ndim) }
+                .iter()
+                .map(|dim| (*dim).max(0) as usize)
+                .collect()
+        };
+        let strides = if view.strides.is_null() {
+            let mut stride = itemsize as isize;
+            let mut computed = vec![0isize; shapes.len()];
+            for (slot, dim) in computed.iter_mut().rev().zip(shapes.iter().rev()) {
+                *slot = stride;
+                stride = stride.saturating_mul(*dim as isize);
+            }
+            computed
+        } else {
+            unsafe { std::slice::from_raw_parts(view.strides, ndim) }.to_vec()
+        };
+        let suboffsets = if view.suboffsets.is_null() {
+            vec![0isize; shapes.len()]
+        } else {
+            unsafe { std::slice::from_raw_parts(view.suboffsets, ndim) }.to_vec()
+        };
+        shapes
+            .into_iter()
+            .zip(strides)
+            .zip(suboffsets)
+            .map(|((shape, stride), suboffset)| (shape, stride, suboffset))
+            .collect()
+    };
+
+    BufferDescriptor {
+        len: view.len.max(0) as usize,
+        readonly: view.readonly != 0,
+        itemsize,
+        format,
+        dim_desc,
+    }
+}
+
+static FFI_HEAP_BUFFER_METHODS: BufferMethods = BufferMethods {
+    obj_bytes: |buffer| {
+        let owner = buffer.obj_as::<FfiHeapBufferOwner>();
+        let view = owner.view.lock().unwrap();
+        let slice =
+            unsafe { std::slice::from_raw_parts(view.buf.cast::<u8>(), view.len.max(0) as usize) };
+        BorrowedValue::Ref(slice)
+    },
+    obj_bytes_mut: |buffer| {
+        let owner = buffer.obj_as::<FfiHeapBufferOwner>();
+        let mut view = owner.view.lock().unwrap();
+        let slice = unsafe {
+            std::slice::from_raw_parts_mut(view.buf.cast::<u8>(), view.len.max(0) as usize)
+        };
+        BorrowedValueMut::RefMut(slice)
+    },
+    retain: |buffer| {
+        let owner = buffer.obj_as::<FfiHeapBufferOwner>();
+        owner.exports.fetch_add(1, Ordering::Relaxed);
+    },
+    release: |buffer| {
+        let owner = buffer.obj_as::<FfiHeapBufferOwner>();
+        let prev = owner.exports.fetch_sub(1, Ordering::AcqRel);
+        if prev == 1 {
+            let mut view = owner.view.lock().unwrap();
+            unsafe {
+                crate::PyBuffer_Release(&mut *view);
+            }
+            if !owner.owner.is_null() {
+                if unsafe { !crate::PyErr_Occurred().is_null() } {
+                    unsafe { crate::PyErr_WriteUnraisable(owner.owner) };
+                }
+            }
+        }
+    },
+};
+
+pub(crate) fn heap_as_buffer_wrapper(
+    zelf: &rustpython_vm::PyObject,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult<RpPyBuffer> {
+    let metadata = heap_type_metadata_for_obj(zelf);
+    if metadata.bf_getbuffer == 0 {
+        return Err(vm.new_type_error("object does not support the buffer protocol"));
+    }
+
+    let mut view = crate::Py_buffer::new();
+    let getbuffer: crate::getbufferproc = unsafe { std::mem::transmute(metadata.bf_getbuffer) };
+    let zelf_ref = zelf.to_owned();
+    let rc = unsafe { getbuffer(pyobject_ref_as_ptr(&zelf_ref), &mut view, crate::PyBUF_FULL_RO) };
+    if rc != 0 {
+        return Err(unsafe { fetch_current_exception(vm) });
+    }
+    let owner = pyobject_ref_as_ptr(&zelf_ref);
+    unsafe { crate::Py_INCREF(owner) };
+    if view.obj.is_null() {
+        view.obj = owner;
+        unsafe { crate::Py_INCREF(view.obj) };
+    }
+    view.internal = Box::into_raw(Box::new(crate::pybuffer::BufferViewState::HeapType(
+        crate::pybuffer::HeapTypeBufferView {
+            releasebuffer: (metadata.bf_releasebuffer != 0)
+                .then(|| unsafe { std::mem::transmute(metadata.bf_releasebuffer) }),
+        },
+    ))) as *mut c_void;
+
+    let desc = ffi_heap_buffer_descriptor(&view);
+    let payload = FfiHeapBufferOwner {
+        owner,
+        view: Mutex::new(view),
+        exports: AtomicUsize::new(0),
+    };
+    let holder: PyRef<FfiHeapBufferOwner> =
+        PyRef::new_ref(payload, vm.ctx.types.object_type.to_owned(), None);
+    Ok(RpPyBuffer::new(holder.into(), desc, &FFI_HEAP_BUFFER_METHODS))
+}
+
+fn build_default_notimplemented_method(
+    name: &'static str,
+    class: &'static rustpython_vm::Py<PyType>,
+    vm: &rustpython_vm::VirtualMachine,
+) -> PyObjectRef {
+    let method_def = Box::leak(Box::new(RpMethodDef {
+        name,
+        func: Box::leak(Box::new(move |vm: &rustpython_vm::VirtualMachine, mut args: FuncArgs| {
+            if args.args.is_empty() {
+                return Err(vm.new_type_error(format!(
+                    "missing bound receiver for method {name}"
+                )));
+            }
+            args.args.remove(0);
+            Ok(vm.ctx.not_implemented().into())
+        })),
+        flags: RpMethodFlags::METHOD,
+        doc: None,
+    }));
+    method_def.to_proper_method(class, &vm.ctx)
+}
+
+fn install_default_shared_slot_methods(
+    ty: &PyTypeRef,
+    class: &'static rustpython_vm::Py<PyType>,
+    method_names: &std::collections::HashSet<&'static str>,
+    metadata: HeapTypeMetadata,
+    vm: &rustpython_vm::VirtualMachine,
+) {
+    let shared_binary_slots = [
+        (metadata.nb_add != 0, ["__add__", "__radd__"]),
+        (metadata.nb_subtract != 0, ["__sub__", "__rsub__"]),
+        (metadata.nb_multiply != 0, ["__mul__", "__rmul__"]),
+        (metadata.nb_matrix_multiply != 0, ["__matmul__", "__rmatmul__"]),
+        (metadata.nb_true_divide != 0, ["__truediv__", "__rtruediv__"]),
+        (metadata.nb_floor_divide != 0, ["__floordiv__", "__rfloordiv__"]),
+        (metadata.nb_remainder != 0, ["__mod__", "__rmod__"]),
+        (metadata.nb_divmod != 0, ["__divmod__", "__rdivmod__"]),
+        (metadata.nb_lshift != 0, ["__lshift__", "__rlshift__"]),
+        (metadata.nb_rshift != 0, ["__rshift__", "__rrshift__"]),
+        (metadata.nb_and != 0, ["__and__", "__rand__"]),
+        (metadata.nb_xor != 0, ["__xor__", "__rxor__"]),
+        (metadata.nb_or != 0, ["__or__", "__ror__"]),
+        (metadata.nb_power != 0, ["__pow__", "__rpow__"]),
+    ];
+
+    for (enabled, names) in shared_binary_slots {
+        if !enabled {
+            continue;
+        }
+        for name in names {
+            if method_names.contains(name) {
+                continue;
+            }
+            let method = build_default_notimplemented_method(name, class, vm);
+            ty.set_attr(vm.ctx.intern_str(name), method);
+        }
+    }
 }
 
 fn richcmp_op_to_c_int(op: PyComparisonOp) -> c_int {
@@ -696,9 +1089,6 @@ macro_rules! heap_unary_number_wrapper {
             num: PyNumber<'_>,
             vm: &rustpython_vm::VirtualMachine,
         ) -> rustpython_vm::PyResult {
-            if stringify!($name) == "heap_nb_negative_wrapper" {
-                eprintln!("calling {} for {}", stringify!($name), num.obj.class());
-            }
             let metadata = heap_type_metadata_for_obj(num.obj);
             let Some(func_ptr) = (metadata.$field != 0).then_some(metadata.$field) else {
                 return Err(vm.new_type_error(format!($message, num.obj.class())));
@@ -841,10 +1231,8 @@ fn heap_tp_repr_wrapper(
 ) -> rustpython_vm::PyResult<rustpython_vm::PyRef<PyStr>> {
     let metadata = heap_type_metadata_for_obj(obj);
     let Some(tp_repr) = (metadata.tp_repr != 0).then_some(metadata.tp_repr) else {
-        eprintln!("tp_repr missing for {}", obj.class());
         return obj.repr(vm);
     };
-    eprintln!("calling tp_repr for {}", obj.class());
     let tp_repr: reprfunc = unsafe { std::mem::transmute(tp_repr) };
     let obj_ref = obj.to_owned();
     let result = unsafe { tp_repr(pyobject_ref_as_ptr(&obj_ref)) };
@@ -1970,6 +2358,7 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
         slots.itemsize = (*spec).itemsize.max(0) as usize;
         let mut metadata = HeapTypeMetadata::default();
         let mut method_defs: Vec<*mut methodobject::PyMethodDef> = Vec::new();
+        let mut method_names = std::collections::HashSet::new();
 
         let mut slot_ptr = (*spec).slots;
         while !slot_ptr.is_null() && (*slot_ptr).slot != 0 {
@@ -1989,15 +2378,7 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                     let mut def = (*slot_ptr).pfunc as *mut methodobject::PyMethodDef;
                     while !def.is_null() && !(*def).ml_name.is_null() {
                         let name = ffi_name_to_static((*def).ml_name, "<method>");
-                        if qual_name.contains("UnaryArithmetic")
-                            || qual_name.contains("BinaryArithmetic")
-                            || qual_name.contains("RhsArithmetic")
-                            || qual_name.contains("LhsAndRhs")
-                            || qual_name.contains("InPlaceOperations")
-                            || qual_name.contains("Indexable")
-                        {
-                            eprintln!("methoddef {} -> {}", qual_name, name);
-                        }
+                        method_names.insert(name);
                         method_defs.push(def);
                         def = def.add(1);
                     }
@@ -2016,6 +2397,7 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                     metadata.tp_new = (*slot_ptr).pfunc as usize;
                     slots.new.store(Some(heap_tp_new_wrapper));
                 }
+                crate::Py_tp_dealloc => {}
                 crate::Py_tp_init => {
                     metadata.tp_init = (*slot_ptr).pfunc as usize;
                     slots.init.store(Some(heap_tp_init_wrapper));
@@ -2062,6 +2444,11 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                 crate::Py_nb_index => metadata.nb_index = (*slot_ptr).pfunc as usize,
                 crate::Py_nb_matrix_multiply => metadata.nb_matrix_multiply = (*slot_ptr).pfunc as usize,
                 crate::Py_nb_inplace_matrix_multiply => metadata.nb_inplace_matrix_multiply = (*slot_ptr).pfunc as usize,
+                crate::Py_bf_getbuffer => {
+                    metadata.bf_getbuffer = (*slot_ptr).pfunc as usize;
+                    slots.as_buffer = Some(heap_as_buffer_wrapper);
+                }
+                crate::Py_bf_releasebuffer => metadata.bf_releasebuffer = (*slot_ptr).pfunc as usize,
                 crate::Py_sq_length => metadata.sq_length = (*slot_ptr).pfunc as usize,
                 crate::Py_sq_item => metadata.sq_item = (*slot_ptr).pfunc as usize,
                 crate::Py_sq_ass_item => metadata.sq_ass_item = (*slot_ptr).pfunc as usize,
@@ -2091,6 +2478,15 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
         if (*spec).flags as c_ulong & (1 << 5) != 0 {
             slots.flags |= PyTypeFlags::SEQUENCE;
         }
+        let mut slot_scan = (*spec).slots;
+        while !slot_scan.is_null() && (*slot_scan).slot != 0 {
+            if (*slot_scan).slot == crate::Py_tp_dealloc {
+                metadata.hidden_sidecar_slot = slots.member_count;
+                slots.member_count += 1;
+                break;
+            }
+            slot_scan = slot_scan.add(1);
+        }
 
         let module_name = qual_name
             .rsplit_once('.')
@@ -2119,25 +2515,6 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
             &vm.ctx,
         ) {
             Ok(ty) => {
-                if qual_name.contains("UnaryArithmetic")
-                    || qual_name.contains("BinaryArithmetic")
-                    || qual_name.contains("Indexable")
-                    || qual_name.contains("InPlaceOperations")
-                {
-                    eprintln!(
-                        "heaptype {} neg={} add={} sub={} mul={} int={} float={} index={} rich={} iadd={}",
-                        qual_name,
-                        metadata.nb_negative != 0,
-                        metadata.nb_add != 0,
-                        metadata.nb_subtract != 0,
-                        metadata.nb_multiply != 0,
-                        metadata.nb_int != 0,
-                        metadata.nb_float != 0,
-                        metadata.nb_index != 0,
-                        metadata.tp_richcompare != 0,
-                        metadata.nb_inplace_add != 0,
-                    );
-                }
                 let class: &'static rustpython_vm::Py<PyType> =
                     unsafe { std::mem::transmute::<&rustpython_vm::Py<PyType>, &'static rustpython_vm::Py<PyType>>(&*ty) };
                 if metadata.tp_new != 0 {
@@ -2171,6 +2548,7 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                     };
                     let _ = ty.as_object().set_attr(name, method, vm);
                 }
+                install_default_shared_slot_methods(&ty, class, &method_names, metadata, vm);
                 if metadata.mp_subscript != 0 {
                     ty.slots
                         .as_mapping
@@ -2287,22 +2665,6 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                 }
                 if metadata.nb_inplace_matrix_multiply != 0 {
                     ty.slots.as_number.inplace_matrix_multiply.store(Some(heap_nb_inplace_matrix_multiply_wrapper));
-                }
-                if qual_name.contains("UnaryArithmetic")
-                    || qual_name.contains("BinaryArithmetic")
-                    || qual_name.contains("Indexable")
-                    || qual_name.contains("InPlaceOperations")
-                {
-                    eprintln!(
-                        "installed {} neg_slot={} repr_slot={} add_slot={} int_slot={} index_slot={} rich_slot={}",
-                        qual_name,
-                        ty.slots.as_number.negative.load().is_some(),
-                        ty.slots.repr.load().is_some(),
-                        ty.slots.as_number.add.load().is_some(),
-                        ty.slots.as_number.int.load().is_some(),
-                        ty.slots.as_number.index.load().is_some(),
-                        ty.slots.richcompare.load().is_some(),
-                    );
                 }
                 if metadata.sq_length != 0 {
                     ty.slots

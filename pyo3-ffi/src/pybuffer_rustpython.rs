@@ -1,7 +1,9 @@
-use crate::object::{ptr_to_pyobject_ref_borrowed, pyobject_ref_to_ptr, PyObject};
-use crate::pyerrors::{PyErr_Clear, PyErr_SetString, PyExc_BufferError, PyExc_TypeError};
+use crate::object::{ptr_to_pyobject_ref_borrowed, pyobject_ref_to_ptr, PyObject, PyTypeObject};
+use crate::pyerrors::{set_vm_exception, PyErr_Clear, PyErr_SetString, PyExc_BufferError, PyExc_TypeError};
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
+use crate::{PyErr_Clear as FfiPyErrClear, Py_TYPE};
+use rustpython_vm::AsObject;
 use rustpython_vm::protocol::PyBuffer as RpBuffer;
 use rustpython_vm::TryFromBorrowedObject;
 use std::ffi::{c_char, c_int, c_void, CString};
@@ -54,6 +56,15 @@ struct RustPythonBufferView {
     shape: Box<[Py_ssize_t]>,
     strides: Box<[Py_ssize_t]>,
     suboffsets: Box<[Py_ssize_t]>,
+}
+
+pub(crate) struct HeapTypeBufferView {
+    pub(crate) releasebuffer: Option<releasebufferproc>,
+}
+
+pub(crate) enum BufferViewState {
+    RustPython(RustPythonBufferView),
+    HeapType(HeapTypeBufferView),
 }
 
 impl RustPythonBufferView {
@@ -135,17 +146,75 @@ impl RustPythonBufferView {
 
 unsafe fn view_from_ptr<'a>(view: *const Py_buffer) -> Option<&'a RustPythonBufferView> {
     let internal = (*view).internal;
-    (!internal.is_null()).then(|| &*(internal as *const RustPythonBufferView))
+    if internal.is_null() {
+        return None;
+    }
+    match &*(internal as *const BufferViewState) {
+        BufferViewState::RustPython(internal) => Some(internal),
+        BufferViewState::HeapType(_) => None,
+    }
 }
 
 unsafe fn view_from_mut_ptr<'a>(view: *mut Py_buffer) -> Option<&'a mut RustPythonBufferView> {
     let internal = (*view).internal;
-    (!internal.is_null()).then(|| &mut *(internal as *mut RustPythonBufferView))
+    if internal.is_null() {
+        return None;
+    }
+    match &mut *(internal as *mut BufferViewState) {
+        BufferViewState::RustPython(internal) => Some(internal),
+        BufferViewState::HeapType(_) => None,
+    }
+}
+
+unsafe fn raw_view_pointer_at(
+    view: *const Py_buffer,
+    indices: Option<&[Py_ssize_t]>,
+) -> Option<*mut u8> {
+    if view.is_null() || unsafe { (*view).buf.is_null() } {
+        return None;
+    }
+
+    let ndim = unsafe { (*view).ndim.max(0) as usize };
+    let mut ptr = unsafe { (*view).buf.cast::<u8>() };
+    let indices = indices.unwrap_or(&[]);
+
+    if indices.len() > ndim {
+        return None;
+    }
+
+    if !unsafe { (*view).strides.is_null() } {
+        let strides = unsafe { slice::from_raw_parts((*view).strides, ndim) };
+        let suboffsets = if unsafe { (*view).suboffsets.is_null() } {
+            None
+        } else {
+            Some(unsafe { slice::from_raw_parts((*view).suboffsets, ndim) })
+        };
+        for (i, index) in indices.iter().enumerate() {
+            ptr = unsafe { ptr.offset(strides[i] * *index) };
+            if let Some(suboffsets) = suboffsets {
+                if suboffsets[i] >= 0 {
+                    ptr = unsafe { (*(ptr as *mut *mut u8)).offset(suboffsets[i]) };
+                }
+            }
+        }
+        Some(ptr)
+    } else if indices.is_empty() {
+        Some(ptr)
+    } else {
+        let itemsize = unsafe { (*view).itemsize.max(1) };
+        let linear_index = indices.iter().copied().sum::<Py_ssize_t>();
+        Some(unsafe { ptr.offset(itemsize * linear_index) })
+    }
 }
 
 unsafe fn set_buffer_error(exc: *mut PyObject, msg: &str) {
     let msg = CString::new(msg).expect("static error messages never contain NUL");
     PyErr_SetString(exc, msg.as_ptr());
+}
+
+unsafe fn heap_buffer_metadata(obj: *mut PyObject) -> crate::object::HeapTypeMetadata {
+    let cls_ptr = Py_TYPE(obj) as *mut PyTypeObject;
+    crate::object::heap_type_metadata_for_ptr(cls_ptr)
 }
 
 pub unsafe fn PyObject_CheckBuffer(obj: *mut PyObject) -> c_int {
@@ -156,7 +225,10 @@ pub unsafe fn PyObject_CheckBuffer(obj: *mut PyObject) -> c_int {
     rustpython_runtime::with_vm(|vm| {
         RpBuffer::try_from_borrowed_object(vm, &obj)
             .map(|_| 1)
-            .unwrap_or(0)
+            .unwrap_or_else(|_| {
+                let metadata = unsafe { heap_buffer_metadata(pyobject_ref_to_ptr(obj.to_owned())) };
+                (metadata.bf_getbuffer != 0) as c_int
+            })
     })
 }
 
@@ -167,11 +239,23 @@ pub unsafe fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer, flags
     }
 
     let obj_ref = ptr_to_pyobject_ref_borrowed(obj);
-    let result = rustpython_runtime::with_vm(|vm| RpBuffer::try_from_borrowed_object(vm, &obj_ref));
+    let result = rustpython_runtime::with_vm(|vm| {
+        match RpBuffer::try_from_borrowed_object(vm, &obj_ref) {
+            Ok(buffer) => Ok(buffer),
+            Err(_) => {
+                let metadata = unsafe { heap_buffer_metadata(obj) };
+                if metadata.bf_getbuffer == 0 {
+                    Err(vm.new_type_error("object does not support the buffer protocol"))
+                } else {
+                    crate::object::heap_as_buffer_wrapper(obj_ref.as_object(), vm)
+                }
+            }
+        }
+    });
     let buffer = match result {
         Ok(buffer) => buffer,
-        Err(_) => {
-            set_buffer_error(PyExc_TypeError, "object does not support the buffer protocol");
+        Err(exc) => {
+            set_vm_exception(exc);
             return -1;
         }
     };
@@ -181,7 +265,7 @@ pub unsafe fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer, flags
         return -1;
     }
 
-    let mut internal = Box::new(RustPythonBufferView::new(buffer));
+    let mut internal = RustPythonBufferView::new(buffer);
     let obj_ptr = pyobject_ref_to_ptr(internal.buffer.obj.clone());
     let suboffsets_ptr = if internal.suboffsets.iter().all(|offset| *offset <= 0) {
         ptr::null_mut()
@@ -200,7 +284,7 @@ pub unsafe fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer, flags
         shape: internal.shape.as_mut_ptr(),
         strides: internal.strides.as_mut_ptr(),
         suboffsets: suboffsets_ptr,
-        internal: Box::into_raw(internal).cast(),
+        internal: Box::into_raw(Box::new(BufferViewState::RustPython(internal))).cast(),
     };
     PyErr_Clear();
     0
@@ -213,11 +297,15 @@ pub unsafe fn PyBuffer_GetPointer(
     if view.is_null() || indices.is_null() {
         return ptr::null_mut();
     }
-    let Some(internal) = view_from_ptr(view) else {
-        return ptr::null_mut();
-    };
-    let indices = slice::from_raw_parts(indices, internal.buffer.desc.ndim());
-    internal.pointer_at(indices)
+    if let Some(internal) = view_from_ptr(view) {
+        let indices = slice::from_raw_parts(indices, internal.buffer.desc.ndim());
+        return internal.pointer_at(indices);
+    }
+    let ndim = unsafe { (*view).ndim.max(0) as usize };
+    let indices = unsafe { slice::from_raw_parts(indices, ndim) };
+    unsafe { raw_view_pointer_at(view, Some(indices)) }
+        .map(|ptr| ptr.cast::<c_void>())
+        .unwrap_or(ptr::null_mut())
 }
 
 pub unsafe fn PyBuffer_SizeFromFormat(format: *const c_char) -> Py_ssize_t {
@@ -244,16 +332,28 @@ pub unsafe fn PyBuffer_ToContiguous(
         set_buffer_error(PyExc_BufferError, "PyBuffer_ToContiguous received a null pointer");
         return -1;
     }
-    let Some(internal) = view_from_ptr(view) else {
-        set_buffer_error(PyExc_BufferError, "buffer view is not initialized");
-        return -1;
-    };
     let len = len.max(0) as usize;
-    if len > internal.contiguous.len() {
+    if let Some(internal) = view_from_ptr(view) {
+        if len > internal.contiguous.len() {
+            set_buffer_error(PyExc_BufferError, "requested length exceeds buffer size");
+            return -1;
+        }
+        ptr::copy_nonoverlapping(internal.contiguous.as_ptr(), buf.cast::<u8>(), len);
+        return 0;
+    }
+    if unsafe { (*view).len.max(0) as usize } < len {
         set_buffer_error(PyExc_BufferError, "requested length exceeds buffer size");
         return -1;
     }
-    ptr::copy_nonoverlapping(internal.contiguous.as_ptr(), buf.cast::<u8>(), len);
+    if !unsafe { PyBuffer_IsContiguous(view, b'C' as c_char) != 0 } {
+        set_buffer_error(PyExc_BufferError, "buffer view is not contiguous");
+        return -1;
+    }
+    let Some(src) = (unsafe { raw_view_pointer_at(view, None) }) else {
+        set_buffer_error(PyExc_BufferError, "buffer view is not initialized");
+        return -1;
+    };
+    unsafe { ptr::copy_nonoverlapping(src, buf.cast::<u8>(), len) };
     0
 }
 
@@ -271,25 +371,41 @@ pub unsafe fn PyBuffer_FromContiguous(
         return -1;
     }
     let view = view.cast_mut();
-    let Some(internal) = view_from_mut_ptr(view) else {
-        set_buffer_error(PyExc_BufferError, "buffer view is not initialized");
-        return -1;
-    };
-    if internal.buffer.desc.readonly {
+    let len = len.max(0) as usize;
+    if let Some(internal) = view_from_mut_ptr(view) {
+        if internal.buffer.desc.readonly {
+            set_buffer_error(PyExc_BufferError, "buffer is not writable");
+            return -1;
+        }
+        if len > internal.contiguous.len() {
+            set_buffer_error(PyExc_BufferError, "source length exceeds buffer size");
+            return -1;
+        }
+        ptr::copy_nonoverlapping(buf.cast::<u8>(), internal.contiguous.as_mut_ptr(), len);
+        if internal.write_back().is_err() {
+            set_buffer_error(PyExc_BufferError, "failed to write contiguous bytes back to source");
+            return -1;
+        }
+        (*view).buf = internal.contiguous.as_mut_ptr().cast();
+        return 0;
+    }
+    if unsafe { (*view).readonly != 0 } {
         set_buffer_error(PyExc_BufferError, "buffer is not writable");
         return -1;
     }
-    let len = len.max(0) as usize;
-    if len > internal.contiguous.len() {
+    if unsafe { (*view).len.max(0) as usize } < len {
         set_buffer_error(PyExc_BufferError, "source length exceeds buffer size");
         return -1;
     }
-    ptr::copy_nonoverlapping(buf.cast::<u8>(), internal.contiguous.as_mut_ptr(), len);
-    if internal.write_back().is_err() {
-        set_buffer_error(PyExc_BufferError, "failed to write contiguous bytes back to source");
+    if !unsafe { PyBuffer_IsContiguous(view, b'C' as c_char) != 0 } {
+        set_buffer_error(PyExc_BufferError, "buffer view is not contiguous");
         return -1;
     }
-    (*view).buf = internal.contiguous.as_mut_ptr().cast();
+    let Some(dest) = (unsafe { raw_view_pointer_at(view, None) }) else {
+        set_buffer_error(PyExc_BufferError, "buffer view is not initialized");
+        return -1;
+    };
+    unsafe { ptr::copy_nonoverlapping(buf.cast::<u8>(), dest, len) };
     0
 }
 
@@ -427,7 +543,16 @@ pub unsafe fn PyBuffer_Release(view: *mut Py_buffer) {
         return;
     }
     if !(*view).internal.is_null() {
-        drop(Box::from_raw((*view).internal.cast::<RustPythonBufferView>()));
+        match *Box::from_raw((*view).internal.cast::<BufferViewState>()) {
+            BufferViewState::RustPython(internal) => {
+                drop(internal);
+            }
+            BufferViewState::HeapType(internal) => {
+                if let Some(releasebuffer) = internal.releasebuffer {
+                    releasebuffer((*view).obj, view);
+                }
+            }
+        }
     }
     if !(*view).obj.is_null() {
         crate::Py_DECREF((*view).obj);

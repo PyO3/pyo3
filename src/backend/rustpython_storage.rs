@@ -49,17 +49,47 @@ fn get_sidecar_slot<T: PyClassImpl>(obj: *const ffi::PyObject) -> *mut PyClassOb
     entry.ptr.as_ptr().cast()
 }
 
-fn take_sidecar_slot<T: PyClassImpl>(
+fn remove_sidecar_slot<T: PyClassImpl>(
     obj: *mut ffi::PyObject,
-) -> Option<Box<MaybeUninit<PyClassObjectContents<T>>>> {
+) -> Option<NonNull<MaybeUninit<PyClassObjectContents<T>>>> {
     let key = (obj as usize, TypeId::of::<T>());
     sidecar_registry()
         .lock()
         .unwrap()
         .remove(&key)
-        .map(|entry| unsafe {
-            Box::from_raw(entry.ptr.as_ptr().cast::<MaybeUninit<PyClassObjectContents<T>>>())
-        })
+        .map(|entry| entry.ptr.cast())
+}
+
+unsafe extern "C" fn cleanup_sidecar<T: PyClassImpl>(owner: *mut ffi::PyObject, sidecar: *mut std::ffi::c_void)
+where
+    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
+{
+    let Some(ptr) = remove_sidecar_slot::<T>(owner) else {
+        return;
+    };
+    let py = unsafe { Python::assume_attached() };
+    debug_assert_eq!(ptr.as_ptr().cast::<std::ffi::c_void>(), sidecar);
+    let sidecar = unsafe { Box::from_raw(ptr.as_ptr()) };
+    let mut sidecar = sidecar;
+    unsafe {
+        sidecar.assume_init_mut().dealloc(py, owner);
+        sidecar.assume_init_drop();
+    }
+}
+
+pub(crate) fn install_sidecar_owner<T: PyClassImpl>(_py: Python<'_>, obj: *mut ffi::PyObject)
+where
+    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
+{
+    let sidecar = get_sidecar_slot::<T>(obj).cast::<std::ffi::c_void>();
+    let rc = unsafe {
+        ffi::PyRustPython_InstallSidecarOwner(
+            obj,
+            sidecar,
+            cleanup_sidecar::<T>,
+        )
+    };
+    assert_eq!(rc, 0, "failed to install RustPython sidecar owner");
 }
 
 /// RustPython-native layout for `#[pyclass(extends = <native>)]`.
@@ -193,12 +223,7 @@ where
     }
 
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        if let Some(mut sidecar) = take_sidecar_slot::<T>(slf) {
-            unsafe {
-                sidecar.assume_init_mut().dealloc(py, slf);
-                sidecar.assume_init_drop();
-            }
-        }
+        let _ = (py, slf);
         unsafe { <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf) }
     }
 }
@@ -220,12 +245,7 @@ where
     }
 
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        if let Some(mut sidecar) = take_sidecar_slot::<T>(slf) {
-            unsafe {
-                sidecar.assume_init_mut().dealloc(py, slf);
-                sidecar.assume_init_drop();
-            }
-        }
+        let _ = (py, slf);
         unsafe { <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf) }
     }
 }

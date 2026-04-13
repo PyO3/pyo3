@@ -487,7 +487,9 @@ fn ensure_slot_callable_method_defaults(spec: &mut FnSpec<'_>) {
         // Keep per-argument defaults in sync with the already-normalized
         // Python signature defaults below.
     } else {
-        defaults.resize_with(trailing_optional_count, || syn::parse_quote!(None));
+        defaults.resize_with(trailing_optional_count, || {
+            syn::parse_quote!(::std::option::Option::None)
+        });
     }
 
     for arg in spec
@@ -499,7 +501,9 @@ fn ensure_slot_callable_method_defaults(spec: &mut FnSpec<'_>) {
     {
         if let FnArg::Regular(RegularArg { default_value, .. }) = arg {
             if default_value.is_none() {
-                *default_value = Some(Box::new(syn::parse_quote!(None)));
+                *default_value = Some(Box::new(
+                    syn::parse_quote!(::std::option::Option::None),
+                ));
             }
         }
     }
@@ -1542,7 +1546,15 @@ impl SlotDef {
                 pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(#func_ty, #cls::#wrapper_ident) as #pyo3_path::ffi::#func_ty as _
             }
         };
-        let callable_method = if method_name == "__richcmp__" {
+        let callable_method = if matches!(
+            method_name,
+            "__richcmp__" | "__getbuffer__" | "__releasebuffer__"
+        )
+            || matches!(
+                calling_convention,
+                SlotCallingConvention::TpNew | SlotCallingConvention::TpInit
+            )
+        {
             None
         } else {
             Some(impl_slot_callable_method_def(
