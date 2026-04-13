@@ -8,7 +8,7 @@ use crate::impl_::pyclass::{PyClassBaseType, PyClassImpl, PyClassThreadChecker, 
 use crate::pycell::impl_::{PyClassObjectContents, PyClassObjectLayout};
 use crate::pycell::PyBorrowError;
 use crate::type_object::PyLayout;
-use crate::Python;
+use crate::{PyClass, Python};
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::mem::MaybeUninit;
@@ -112,6 +112,92 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PySidecarClassObj
 
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
         T::PyClassMutability::borrow_checker(self)
+    }
+}
+
+/// RustPython-native layout for `#[pyclass]` types rooted at `object`.
+///
+/// This still stores PyO3 contents in a sidecar allocation, but reports a semantic
+/// `BASIC_SIZE` matching the inline CPython-style class layout so PyO3's frontend
+/// invariants and tests remain meaningful.
+#[repr(C)]
+pub struct PySemanticSidecarClassObject<T: PyClassImpl> {
+    ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
+    _semantic_contents: MaybeUninit<PyClassObjectContents<T>>,
+}
+
+unsafe impl<T: PyClassImpl> PyLayout<T> for PySemanticSidecarClassObject<T> {}
+impl<T: PyClass> crate::type_object::PySizedLayout<T> for PySemanticSidecarClassObject<T> {}
+
+impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PySemanticSidecarClassObject<T> {
+    const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Absolute(0);
+    const BASIC_SIZE: ffi::Py_ssize_t = {
+        let size = core::mem::size_of::<Self>();
+        assert!(size <= ffi::Py_ssize_t::MAX as usize);
+        size as ffi::Py_ssize_t
+    };
+    const DICT_OFFSET: PyObjectOffset = PyObjectOffset::Absolute(0);
+    const WEAKLIST_OFFSET: PyObjectOffset = PyObjectOffset::Absolute(0);
+
+    unsafe fn contents_uninit(
+        obj: *mut ffi::PyObject,
+    ) -> *mut MaybeUninit<PyClassObjectContents<T>> {
+        ensure_sidecar_slot::<T>(obj)
+    }
+
+    fn contents(&self) -> &PyClassObjectContents<T> {
+        unsafe {
+            get_sidecar_slot::<T>(self as *const Self as *const ffi::PyObject)
+                .as_ref()
+                .expect("sidecar contents pointer should be valid")
+        }
+    }
+
+    fn contents_mut(&mut self) -> &mut PyClassObjectContents<T> {
+        unsafe {
+            get_sidecar_slot::<T>(self as *mut Self as *mut ffi::PyObject)
+                .as_mut()
+                .expect("sidecar contents pointer should be valid")
+        }
+    }
+
+    fn get_ptr(&self) -> *mut T {
+        self.contents().value.get()
+    }
+
+    fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase {
+        &self.ob_base
+    }
+
+    fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
+        T::PyClassMutability::borrow_checker(self)
+    }
+}
+
+impl<T: PyClassImpl<Layout = Self>> PyClassObjectBaseLayout<T> for PySemanticSidecarClassObject<T>
+where
+    <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
+{
+    fn ensure_threadsafe(&self) {
+        self.contents().thread_checker.ensure();
+        self.ob_base.ensure_threadsafe();
+    }
+
+    fn check_threadsafe(&self) -> Result<(), PyBorrowError> {
+        if !self.contents().thread_checker.check() {
+            return Err(PyBorrowError::new());
+        }
+        self.ob_base.check_threadsafe()
+    }
+
+    unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
+        if let Some(mut sidecar) = take_sidecar_slot::<T>(slf) {
+            unsafe {
+                sidecar.assume_init_mut().dealloc(py, slf);
+                sidecar.assume_init_drop();
+            }
+        }
+        unsafe { <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf) }
     }
 }
 

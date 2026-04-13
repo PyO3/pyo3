@@ -186,7 +186,20 @@ pub unsafe fn PyErr_NewExceptionWithDoc(
 }
 
 #[inline]
-pub unsafe fn PyErr_WriteUnraisable(_obj: *mut PyObject) {}
+pub unsafe fn PyErr_WriteUnraisable(obj: *mut PyObject) {
+    let Some(exc) = take_current_exception() else {
+        return;
+    };
+
+    rustpython_runtime::with_vm(|vm| {
+        let object = if obj.is_null() {
+            vm.ctx.none()
+        } else {
+            ptr_to_pyobject_ref_borrowed(obj)
+        };
+        vm.run_unraisable(exc, None, object);
+    });
+}
 
 #[inline]
 pub unsafe fn PyErr_CheckSignals() -> c_int {

@@ -14,6 +14,10 @@ use libc::wchar_t;
 
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
+#[cfg_attr(
+    PyRustPython,
+    ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+)]
 #[test]
 fn test_datetime_fromtimestamp() {
     use crate::IntoPyObject;
@@ -36,6 +40,10 @@ fn test_datetime_fromtimestamp() {
 
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
+#[cfg_attr(
+    PyRustPython,
+    ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+)]
 #[test]
 fn test_date_fromtimestamp() {
     use crate::IntoPyObject;

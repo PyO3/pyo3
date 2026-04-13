@@ -620,6 +620,14 @@ pub unsafe fn PyDateTimeAPI() -> *mut PyDateTime_CAPI {
 }
 
 #[cfg(PyRustPython)]
+fn rustpython_import_datetime(
+    vm: &rustpython_vm::VirtualMachine,
+) -> Result<rustpython_vm::PyObjectRef, rustpython_vm::builtins::PyBaseExceptionRef> {
+    let _ = vm.import("_operator", 0);
+    vm.import("datetime", 0)
+}
+
+#[cfg(PyRustPython)]
 fn rustpython_call_datetime_type(
     cls: *mut PyTypeObject,
     positional: Vec<PyObjectRef>,
@@ -846,7 +854,7 @@ pub unsafe fn PyDateTime_IMPORT() {
     if !PyDateTimeAPI_impl.once.is_completed() {
         #[cfg(PyRustPython)]
         let py_datetime_c_api = rustpython_runtime::with_vm(|vm| {
-            let datetime = match vm.import("datetime", 0) {
+            let datetime = match rustpython_import_datetime(vm) {
                 Ok(datetime) => datetime,
                 Err(exc) => {
                     set_vm_exception(exc);

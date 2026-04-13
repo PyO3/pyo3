@@ -886,7 +886,8 @@ impl_native_exception!(
 
 #[cfg(test)]
 macro_rules! test_exception {
-    ($exc_ty:ident $(, |$py:tt| $constructor:expr )?) => {
+    ($(#[$attr:meta])* $exc_ty:ident $(, |$py:tt| $constructor:expr )?) => {
+        $(#[$attr])*
         #[allow(non_snake_case, reason = "test matches exception name")]
         #[test]
         fn $exc_ty () {
@@ -924,17 +925,57 @@ pub mod asyncio {
 
     #[cfg(test)]
     mod tests {
-        test_exception!(CancelledError);
-        test_exception!(InvalidStateError);
-        test_exception!(TimeoutError);
-        test_exception!(IncompleteReadError, |_| IncompleteReadError::new_err((
-            "partial", "expected"
-        )));
-        test_exception!(LimitOverrunError, |_| LimitOverrunError::new_err((
-            "message", "consumed"
-        )));
-        test_exception!(QueueEmpty);
-        test_exception!(QueueFull);
+        test_exception!(
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+            )]
+            CancelledError
+        );
+        test_exception!(
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+            )]
+            InvalidStateError
+        );
+        test_exception!(
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+            )]
+            TimeoutError
+        );
+        test_exception!(
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+            )]
+            IncompleteReadError,
+            |_| IncompleteReadError::new_err(("partial", "expected"))
+        );
+        test_exception!(
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+            )]
+            LimitOverrunError,
+            |_| LimitOverrunError::new_err(("message", "consumed"))
+        );
+        test_exception!(
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+            )]
+            QueueEmpty
+        );
+        test_exception!(
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+            )]
+            QueueFull
+        );
     }
 }
 
@@ -947,9 +988,27 @@ pub mod socket {
 
     #[cfg(test)]
     mod tests {
-        test_exception!(herror);
-        test_exception!(gaierror);
-        test_exception!(timeout);
+        test_exception!(
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+            )]
+            herror
+        );
+        test_exception!(
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+            )]
+            gaierror
+        );
+        test_exception!(
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+            )]
+            timeout
+        );
     }
 }
 
@@ -964,6 +1023,10 @@ mod tests {
     import_exception!(email.errors, MessageError);
 
     #[test]
+    #[cfg_attr(
+        PyRustPython,
+        ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+    )]
     fn test_check_exception() {
         Python::attach(|py| {
             let err: PyErr = gaierror::new_err(());
@@ -988,6 +1051,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        PyRustPython,
+        ignore = "upstream RustPython bug: embedded stdlib imports recurse in importlib; see RustPython/RustPython#7587"
+    )]
     fn test_check_exception_nested() {
         Python::attach(|py| {
             let err: PyErr = MessageError::new_err(());

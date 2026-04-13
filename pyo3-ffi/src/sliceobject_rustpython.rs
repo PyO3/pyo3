@@ -9,11 +9,10 @@ use std::ffi::c_int;
 
 pub static mut PySlice_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 pub static mut PyEllipsis_Type: PyTypeObject = PyTypeObject { _opaque: [] };
-static mut _Py_EllipsisObject: PyObject = PyObject { _opaque: [] };
 
 #[inline]
 pub unsafe fn Py_Ellipsis() -> *mut PyObject {
-    &raw mut _Py_EllipsisObject
+    rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.ellipsis.clone().into()))
 }
 
 #[cfg(not(Py_LIMITED_API))]

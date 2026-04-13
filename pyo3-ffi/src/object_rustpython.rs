@@ -17,7 +17,8 @@ use rustpython_vm::{AsObject, PyObjectRef, PyPayload};
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyObject {
-    pub(crate) _opaque: [u8; 0],
+    pub ob_refcnt: Py_ssize_t,
+    pub ob_type: *mut PyTypeObject,
 }
 
 #[repr(C)]
@@ -151,7 +152,10 @@ pub static mut PyLong_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 #[allow(non_upper_case_globals)]
 pub static mut PyBool_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 
-pub const PyObject_HEAD_INIT: PyObject = PyObject { _opaque: [] };
+pub const PyObject_HEAD_INIT: PyObject = PyObject {
+    ob_refcnt: 0,
+    ob_type: std::ptr::null_mut(),
+};
 
 #[derive(Copy, Clone, Default)]
 struct HeapTypeMetadata {

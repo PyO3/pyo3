@@ -147,19 +147,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     where
         T: PyClass,
     {
-        #[cfg(PyRustPython)]
-        eprintln!(
-            "[rustpython] create_class_object_of_type type={} target_type={:?}",
-            std::any::type_name::<T>(),
-            target_type
-        );
         let obj = unsafe { self.super_init.into_new_object(py, target_type)? };
-        #[cfg(PyRustPython)]
-        eprintln!(
-            "[rustpython] create_class_object_of_type allocated obj={:?} type={}",
-            obj,
-            std::any::type_name::<T>()
-        );
 
         // SAFETY: `obj` is constructed using `T::Layout` but has not been initialized yet
         let contents = unsafe { <T as PyClassImpl>::Layout::contents_uninit(obj) };
