@@ -127,7 +127,6 @@ impl<'py> PyCodeMethods<'py> for Bound<'py, PyCode> {
         // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
         // - https://github.com/PyO3/pyo3/issues/3370
         let builtins_s = crate::intern!(self.py(), "__builtins__");
-        let mut result: *mut ffi::PyObject = std::ptr::null_mut();
         if unsafe {
             ffi::compat::PyDict_SetDefaultRef(
                 globals.as_ptr(),
@@ -135,15 +134,12 @@ impl<'py> PyCodeMethods<'py> for Bound<'py, PyCode> {
                 // safety: the interpreter will keep the borrowed reference to
                 // builtins alive at least until SetDefaultRef finishes
                 ffi::PyEval_GetBuiltins(),
-                &mut result,
+                std::ptr::null_mut(),
             )
         } == -1
         {
             return Err(PyErr::fetch(self.py()));
         }
-
-        // release ownership of result
-        unsafe { ffi::Py_DECREF(result) };
 
         unsafe {
             ffi::PyEval_EvalCode(self.as_ptr(), globals.as_ptr(), locals.as_ptr())
