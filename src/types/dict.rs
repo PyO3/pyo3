@@ -94,6 +94,16 @@ impl PyDict {
     }
 }
 
+fn setdefault_result_from_nonerror_return_code(code: std::ffi::c_int) -> bool {
+    match code {
+        // inserted
+        0 => true,
+        // not inserted
+        1 => false,
+        x => panic!("Unknown return value from PyDict_SetDeaultRef: {x}"),
+    }
+}
+
 /// Implementation of functionality for [`PyDict`].
 ///
 /// These methods are defined for the `Bound<'py, PyDict>` smart pointer, so to use method call
@@ -207,6 +217,31 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// This method uses [`PyDict_Merge`](https://docs.python.org/3/c-api/dict.html#c.PyDict_Merge) internally,
     /// so should have the same performance as `update`.
     fn update_if_missing(&self, other: &Bound<'_, PyMapping>) -> PyResult<()>;
+
+    /// Inserts `default_value` into this dictionary with a key of `key` if the key is not already present in the
+    /// dictionary. If the key was inserted, returns Ok(true), otherwise returns Ok(false), indicating the key was
+    /// already present. If an error happens, returns PyErr. This function uses
+    /// [`PyDict_SetDefaultRef`](https://docs.python.org/3/c-api/dict.html#c.PyDict_SetDefaultRef) internally, so it has
+    /// the same thread safety guarantees as that function.
+    fn set_default<K, V>(&self, key: K, default_value: V) -> PyResult<bool>
+    where
+        K: IntoPyObject<'py>,
+        V: IntoPyObject<'py>;
+
+    /// Inserts `default_value` into this dictionary with a key of `key` if the key is not already present in the
+    /// dictionary. If the key was inserted, returns Ok((true, result)), otherwise returns Ok((false, result)) where
+    /// `result` is the `value` associated with `key` after this function finishes. If an error happens, returns
+    /// PyErr. This function uses
+    /// [`PyDict_SetDefaultRef`](https://docs.python.org/3/c-api/dict.html#c.PyDict_SetDefaultRef) internally, so it has
+    /// the same thread safety guarantees as that function.
+    fn set_default_with_result<K, V>(
+        &self,
+        key: K,
+        default_value: V,
+    ) -> PyResult<(bool, Bound<'py, PyAny>)>
+    where
+        K: IntoPyObject<'py>,
+        V: IntoPyObject<'py>;
 }
 
 impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
@@ -384,6 +419,82 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         err::error_on_minusone(self.py(), unsafe {
             ffi::PyDict_Merge(self.as_ptr(), other.as_ptr(), 0)
         })
+    }
+
+    fn set_default<K, V>(&self, key: K, default_value: V) -> PyResult<bool>
+    where
+        K: IntoPyObject<'py>,
+        V: IntoPyObject<'py>,
+    {
+        fn inner(
+            dict: &Bound<'_, PyDict>,
+            key: Borrowed<'_, '_, PyAny>,
+            value: Borrowed<'_, '_, PyAny>,
+        ) -> PyResult<std::ffi::c_int> {
+            err::error_on_minusone_with_result(dict.py(), unsafe {
+                ffi::compat::PyDict_SetDefaultRef(
+                    dict.as_ptr(),
+                    key.as_ptr(),
+                    value.as_ptr(),
+                    std::ptr::null_mut(),
+                )
+            })
+        }
+        let py = self.py();
+
+        Ok(setdefault_result_from_nonerror_return_code(inner(
+            self,
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
+            default_value
+                .into_pyobject_or_pyerr(py)?
+                .into_any()
+                .as_borrowed(),
+        )?))
+    }
+
+    fn set_default_with_result<K, V>(
+        &self,
+        key: K,
+        default_value: V,
+    ) -> PyResult<(bool, Bound<'py, PyAny>)>
+    where
+        K: IntoPyObject<'py>,
+        V: IntoPyObject<'py>,
+    {
+        fn inner(
+            dict: &Bound<'_, PyDict>,
+            key: Borrowed<'_, '_, PyAny>,
+            value: Borrowed<'_, '_, PyAny>,
+            result: &mut *mut ffi::PyObject,
+        ) -> PyResult<std::ffi::c_int> {
+            err::error_on_minusone_with_result(dict.py(), unsafe {
+                ffi::compat::PyDict_SetDefaultRef(
+                    dict.as_ptr(),
+                    key.as_ptr(),
+                    value.as_ptr(),
+                    result,
+                )
+            })
+        }
+        let py = self.py();
+        static UNINITIALIZED: u8 = 0;
+        let mut ob_result = std::ptr::addr_of!(UNINITIALIZED) as *mut ffi::PyObject;
+        let code = inner(
+            self,
+            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
+            default_value
+                .into_pyobject_or_pyerr(py)?
+                .into_any()
+                .as_borrowed(),
+            &mut ob_result,
+        )?;
+        assert!(ob_result != std::ptr::addr_of!(UNINITIALIZED) as *mut ffi::PyObject);
+        // SAFETY: the intepreter should have set this to a valid owned PyObject pointer
+        let out_result = unsafe { ob_result.assume_owned(py) };
+        Ok((
+            setdefault_result_from_nonerror_return_code(code),
+            out_result,
+        ))
     }
 }
 
@@ -1667,6 +1778,56 @@ mod tests {
         Python::attach(|py| {
             let dict = [(1, 1), (2, 2), (3, 3)].into_py_dict(py).unwrap();
             assert_eq!(dict.iter().count(), 3);
+        })
+    }
+
+    #[test]
+    fn test_set_default() {
+        Python::attach(|py| {
+            let dict = PyDict::new(py);
+            assert!(matches!(dict.set_default("hello", "world"), Ok(true)));
+            assert!(
+                dict.get_item("hello")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<&str>()
+                    .unwrap()
+                    == "world"
+            );
+
+            assert!(matches!(dict.set_default("hello", "foobar"), Ok(false)));
+
+            let invalid_key = PyList::new(py, vec![0]).unwrap();
+            assert!(dict.set_default(invalid_key, "foobar").is_err());
+        })
+    }
+
+    #[test]
+    fn test_set_default_with_result() {
+        Python::attach(|py| {
+            let dict = PyDict::new(py);
+            let res = dict.set_default_with_result("hello", "world");
+            assert!(res.is_ok());
+            let res = res.unwrap();
+            assert!(res.0 == true);
+            assert!(res.1.extract::<&str>().unwrap() == "world");
+            assert!(
+                dict.get_item("hello")
+                    .unwrap()
+                    .unwrap()
+                    .extract::<&str>()
+                    .unwrap()
+                    == "world"
+            );
+
+            let res = dict.set_default_with_result("hello", "foobar");
+            assert!(res.is_ok());
+            let res = res.unwrap();
+            assert!(res.0 == false);
+            assert!(res.1.extract::<&str>().unwrap() == "world");
+
+            let invalid_key = PyList::new(py, vec![0]).unwrap();
+            assert!(dict.set_default_with_result(invalid_key, "foobar").is_err());
         })
     }
 }
