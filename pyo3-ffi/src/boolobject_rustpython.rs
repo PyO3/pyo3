@@ -17,12 +17,18 @@ pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn Py_False() -> *mut PyObject {
-    rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.false_value.clone().into()))
+    rustpython_runtime::with_vm(|vm| {
+        let value = vm.ctx.false_value.clone().into();
+        pyobject_ref_as_ptr(&value)
+    })
 }
 
 #[inline]
 pub unsafe fn Py_True() -> *mut PyObject {
-    rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.true_value.clone().into()))
+    rustpython_runtime::with_vm(|vm| {
+        let value = vm.ctx.true_value.clone().into();
+        pyobject_ref_as_ptr(&value)
+    })
 }
 
 #[inline]

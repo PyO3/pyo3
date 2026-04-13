@@ -1562,7 +1562,10 @@ pub unsafe fn PyObject_Dir(ob: *mut PyObject) -> *mut PyObject {
 
 #[inline]
 pub unsafe fn Py_None() -> *mut PyObject {
-    rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.none()))
+    rustpython_runtime::with_vm(|vm| {
+        let none = vm.ctx.none();
+        pyobject_ref_as_ptr(&none)
+    })
 }
 
 #[inline]
@@ -1572,7 +1575,10 @@ pub unsafe fn Py_IsNone(x: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn Py_NotImplemented() -> *mut PyObject {
-    rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.not_implemented()))
+    rustpython_runtime::with_vm(|vm| {
+        let not_implemented = vm.ctx.not_implemented();
+        pyobject_ref_as_ptr(&not_implemented)
+    })
 }
 
 pub const Py_LT: c_int = 0;

@@ -49,11 +49,12 @@ pub unsafe fn PyImport_ExecCodeModule(name: *const c_char, co: *mut PyObject) ->
 pub unsafe fn PyImport_ExecCodeModuleEx(
     name: *const c_char,
     co: *mut PyObject,
-    _pathname: *const c_char,
+    pathname: *const c_char,
 ) -> *mut PyObject {
     let Some(name) = cstr_to_string(name) else {
         return std::ptr::null_mut();
     };
+    let pathname = cstr_to_string(pathname);
     if co.is_null() {
         return std::ptr::null_mut();
     }
@@ -65,6 +66,14 @@ pub unsafe fn PyImport_ExecCodeModuleEx(
         let globals = vm.ctx.new_dict();
         let scope = rustpython_vm::scope::Scope::with_builtins(None, globals.clone(), vm);
         let module = vm.new_module(&name, globals, None);
+        if let Some(pathname) = pathname.as_deref() {
+            if module
+                .set_attr("__file__", vm.ctx.new_str(pathname.to_owned()), vm)
+                .is_err()
+            {
+                return std::ptr::null_mut();
+            }
+        }
         match vm
             .sys_module
             .get_attr("modules", vm)

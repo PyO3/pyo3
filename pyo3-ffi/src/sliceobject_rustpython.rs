@@ -12,7 +12,10 @@ pub static mut PyEllipsis_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 
 #[inline]
 pub unsafe fn Py_Ellipsis() -> *mut PyObject {
-    rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.ellipsis.clone().into()))
+    rustpython_runtime::with_vm(|vm| {
+        let ellipsis = vm.ctx.ellipsis.clone().into();
+        pyobject_ref_as_ptr(&ellipsis)
+    })
 }
 
 #[cfg(not(Py_LIMITED_API))]

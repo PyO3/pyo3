@@ -61,13 +61,23 @@ pub unsafe fn PyList_Size(arg1: *mut PyObject) -> Py_ssize_t {
 
 #[inline]
 pub unsafe fn PyList_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject {
-    PyList_GET_ITEM(arg1, arg2)
+    let Some(list) = as_list(arg1) else {
+        return std::ptr::null_mut();
+    };
+    let vec = list.borrow_vec();
+    if arg2 < 0 || (arg2 as usize) >= vec.len() {
+        rustpython_runtime::with_vm(|vm| {
+            set_vm_exception(vm.new_index_error("list index out of range".to_owned()))
+        });
+        return std::ptr::null_mut();
+    }
+    pyobject_ref_to_ptr(vec[arg2 as usize].clone())
 }
 
 #[cfg(Py_3_13)]
 #[inline]
 pub unsafe fn PyList_GetItemRef(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject {
-    PyList_GET_ITEM(arg1, arg2)
+    PyList_GetItem(arg1, arg2)
 }
 
 #[inline]
@@ -82,6 +92,9 @@ pub unsafe fn PyList_SetItem(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut P
     };
     let mut elements = list.borrow_vec_mut();
     if arg2 < 0 || (arg2 as usize) >= elements.len() {
+        rustpython_runtime::with_vm(|vm| {
+            set_vm_exception(vm.new_index_error("list assignment index out of range".to_owned()))
+        });
         return -1;
     }
     elements[arg2 as usize] = item;
@@ -247,7 +260,7 @@ pub unsafe fn PyList_GET_ITEM(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyO
     if arg2 < 0 || (arg2 as usize) >= vec.len() {
         return std::ptr::null_mut();
     }
-    pyobject_ref_to_ptr(vec[arg2 as usize].clone())
+    pyobject_ref_as_ptr(&vec[arg2 as usize])
 }
 
 #[inline]

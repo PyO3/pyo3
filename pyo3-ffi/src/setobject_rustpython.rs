@@ -1,4 +1,5 @@
 use crate::object::*;
+use crate::pyerrors::set_vm_exception;
 use crate::pyport::{Py_hash_t, Py_ssize_t};
 use crate::rustpython_runtime;
 use rustpython_vm::builtins::{PyFrozenSet, PySet};
@@ -91,7 +92,10 @@ pub unsafe fn PySet_New(arg1: *mut PyObject) -> *mut PyObject {
         let set = PySet::default().into_ref(&vm.ctx);
         match vm.call_method(set.as_object(), "__ior__", (iterable,)) {
             Ok(_) => pyobject_ref_to_ptr(set.into()),
-            Err(_) => std::ptr::null_mut(),
+            Err(exc) => {
+                set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
         }
     })
 }
@@ -103,10 +107,19 @@ pub unsafe fn PyFrozenSet_New(arg1: *mut PyObject) -> *mut PyObject {
             return pyobject_ref_to_ptr(vm.ctx.empty_frozenset.clone().into());
         }
         let iterable = ptr_to_pyobject_ref_borrowed(arg1);
-        let items = iterable.try_to_value::<Vec<_>>(vm).unwrap_or_default();
+        let items = match iterable.try_to_value::<Vec<_>>(vm) {
+            Ok(items) => items,
+            Err(exc) => {
+                set_vm_exception(exc);
+                return std::ptr::null_mut();
+            }
+        };
         match PyFrozenSet::from_iter(vm, items) {
             Ok(s) => pyobject_ref_to_ptr(s.into_ref(&vm.ctx).into()),
-            Err(_) => std::ptr::null_mut(),
+            Err(exc) => {
+                set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
         }
     })
 }
@@ -116,14 +129,26 @@ pub unsafe fn PySet_Add(set: *mut PyObject, key: *mut PyObject) -> c_int {
     if set.is_null() || key.is_null() { return -1; }
     let set = ptr_to_pyobject_ref_borrowed(set);
     let key = ptr_to_pyobject_ref_borrowed(key);
-    rustpython_runtime::with_vm(|vm| vm.call_method(&set, "add", (key,)).map(|_| 0).unwrap_or(-1))
+    rustpython_runtime::with_vm(|vm| match vm.call_method(&set, "add", (key,)) {
+        Ok(_) => 0,
+        Err(exc) => {
+            set_vm_exception(exc);
+            -1
+        }
+    })
 }
 
 #[inline]
 pub unsafe fn PySet_Clear(set: *mut PyObject) -> c_int {
     if set.is_null() { return -1; }
     let set = ptr_to_pyobject_ref_borrowed(set);
-    rustpython_runtime::with_vm(|vm| vm.call_method(&set, "clear", ()).map(|_| 0).unwrap_or(-1))
+    rustpython_runtime::with_vm(|vm| match vm.call_method(&set, "clear", ()) {
+        Ok(_) => 0,
+        Err(exc) => {
+            set_vm_exception(exc);
+            -1
+        }
+    })
 }
 
 #[inline]
@@ -133,7 +158,10 @@ pub unsafe fn PySet_Contains(anyset: *mut PyObject, key: *mut PyObject) -> c_int
     let key = ptr_to_pyobject_ref_borrowed(key);
     rustpython_runtime::with_vm(|vm| match vm.call_method(&set, "__contains__", (key,)) {
         Ok(obj) => obj.is(&vm.ctx.true_value).into(),
-        Err(_) => -1,
+        Err(exc) => {
+            set_vm_exception(exc);
+            -1
+        }
     })
 }
 
@@ -142,14 +170,38 @@ pub unsafe fn PySet_Discard(set: *mut PyObject, key: *mut PyObject) -> c_int {
     if set.is_null() || key.is_null() { return -1; }
     let set = ptr_to_pyobject_ref_borrowed(set);
     let key = ptr_to_pyobject_ref_borrowed(key);
-    rustpython_runtime::with_vm(|vm| vm.call_method(&set, "discard", (key,)).map(|_| 1).unwrap_or(-1))
+    rustpython_runtime::with_vm(|vm| {
+        let present = match vm.call_method(&set, "__contains__", (key.clone(),)) {
+            Ok(obj) => obj.is(&vm.ctx.true_value),
+            Err(exc) => {
+                set_vm_exception(exc);
+                return -1;
+            }
+        };
+        if !present {
+            return 0;
+        }
+        match vm.call_method(&set, "discard", (key,)) {
+            Ok(_) => 1,
+            Err(exc) => {
+                set_vm_exception(exc);
+                -1
+            }
+        }
+    })
 }
 
 #[inline]
 pub unsafe fn PySet_Pop(set: *mut PyObject) -> *mut PyObject {
     if set.is_null() { return std::ptr::null_mut(); }
     let set = ptr_to_pyobject_ref_borrowed(set);
-    rustpython_runtime::with_vm(|vm| vm.call_method(&set, "pop", ()).map(pyobject_ref_to_ptr).unwrap_or(std::ptr::null_mut()))
+    rustpython_runtime::with_vm(|vm| match vm.call_method(&set, "pop", ()) {
+        Ok(obj) => pyobject_ref_to_ptr(obj),
+        Err(exc) => {
+            set_vm_exception(exc);
+            std::ptr::null_mut()
+        }
+    })
 }
 
 #[inline]

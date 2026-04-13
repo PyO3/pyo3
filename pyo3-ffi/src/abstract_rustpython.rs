@@ -256,7 +256,36 @@ pub unsafe fn PyObject_DelItemString(_o: *mut PyObject, _key: *const c_char) -> 
 
 #[inline]
 pub unsafe fn PyObject_DelItem(_o: *mut PyObject, _key: *mut PyObject) -> c_int {
-    -1
+    if _o.is_null() || _key.is_null() {
+        return -1;
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(_o);
+    let key_obj = ptr_to_pyobject_ref_borrowed(_key);
+    rustpython_runtime::with_vm(|vm| {
+        let result = if let Some(f) = obj.mapping_unchecked().slots().ass_subscript.load() {
+            f(obj.mapping_unchecked(), &key_obj, None, vm)
+        } else if let Some(f) = obj.sequence_unchecked().slots().ass_item.load() {
+            match key_obj
+                .try_index(vm)
+                .and_then(|i| i.try_to_primitive::<isize>(vm))
+            {
+                Ok(i) => f(obj.sequence_unchecked(), i, None, vm),
+                Err(exc) => Err(exc),
+            }
+        } else {
+            Err(vm.new_type_error(format!(
+                "'{}' does not support item deletion",
+                obj.class()
+            )))
+        };
+        match result {
+            Ok(()) => 0,
+            Err(exc) => {
+                set_vm_exception(exc);
+                -1
+            }
+        }
+    })
 }
 
 #[inline]
@@ -463,11 +492,12 @@ pub unsafe fn PySequence_GetItem(o: *mut PyObject, index: Py_ssize_t) -> *mut Py
         return std::ptr::null_mut();
     }
     let obj = ptr_to_pyobject_ref_borrowed(o);
-    rustpython_runtime::with_vm(|vm| {
-        obj.sequence_unchecked()
-            .get_item(index as isize, vm)
-            .map(pyobject_ref_to_ptr)
-            .unwrap_or(std::ptr::null_mut())
+    rustpython_runtime::with_vm(|vm| match obj.sequence_unchecked().get_item(index as isize, vm) {
+        Ok(value) => pyobject_ref_to_ptr(value),
+        Err(exc) => {
+            set_vm_exception(exc);
+            std::ptr::null_mut()
+        }
     })
 }
 
@@ -482,10 +512,13 @@ pub unsafe fn PySequence_GetSlice(
     }
     let obj = ptr_to_pyobject_ref_borrowed(o);
     rustpython_runtime::with_vm(|vm| {
-        obj.sequence_unchecked()
-            .get_slice(begin as isize, end as isize, vm)
-            .map(pyobject_ref_to_ptr)
-            .unwrap_or(std::ptr::null_mut())
+        match obj.sequence_unchecked().get_slice(begin as isize, end as isize, vm) {
+            Ok(value) => pyobject_ref_to_ptr(value),
+            Err(exc) => {
+                set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
     })
 }
 
@@ -500,11 +533,12 @@ pub unsafe fn PySequence_SetItem(
     }
     let obj = ptr_to_pyobject_ref_borrowed(o);
     let value = ptr_to_pyobject_ref_borrowed(value);
-    rustpython_runtime::with_vm(|vm| {
-        obj.sequence_unchecked()
-            .set_item(index as isize, value, vm)
-            .map(|()| 0)
-            .unwrap_or(-1)
+    rustpython_runtime::with_vm(|vm| match obj.sequence_unchecked().set_item(index as isize, value, vm) {
+        Ok(()) => 0,
+        Err(exc) => {
+            set_vm_exception(exc);
+            -1
+        }
     })
 }
 
@@ -514,11 +548,12 @@ pub unsafe fn PySequence_DelItem(o: *mut PyObject, index: Py_ssize_t) -> c_int {
         return -1;
     }
     let obj = ptr_to_pyobject_ref_borrowed(o);
-    rustpython_runtime::with_vm(|vm| {
-        obj.sequence_unchecked()
-            .del_item(index as isize, vm)
-            .map(|()| 0)
-            .unwrap_or(-1)
+    rustpython_runtime::with_vm(|vm| match obj.sequence_unchecked().del_item(index as isize, vm) {
+        Ok(()) => 0,
+        Err(exc) => {
+            set_vm_exception(exc);
+            -1
+        }
     })
 }
 

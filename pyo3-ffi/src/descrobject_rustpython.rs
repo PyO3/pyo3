@@ -2,7 +2,8 @@ use crate::methodobject::PyMethodDef;
 use crate::object::{PyObject, PyTypeObject};
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
-use rustpython_vm::AsObject;
+use rustpython_vm::builtins::{PyDict, PyMappingProxy};
+use rustpython_vm::{AsObject, PyPayload};
 use std::ffi::{c_char, c_int, c_void};
 use std::ptr;
 
@@ -70,6 +71,10 @@ pub unsafe fn PyDictProxy_New(arg1: *mut PyObject) -> *mut PyObject {
     }
     rustpython_runtime::with_vm(|vm| {
         let mapping = crate::object::ptr_to_pyobject_ref_borrowed(arg1);
+        if let Ok(dict) = mapping.clone().downcast::<PyDict>() {
+            let proxy = PyMappingProxy::from(dict).into_ref(&vm.ctx);
+            return crate::object::pyobject_ref_to_ptr(proxy.into());
+        }
         match vm
             .ctx
             .types

@@ -779,6 +779,10 @@ mod tests {
         });
     }
 
+    #[cfg_attr(
+        PyRustPython,
+        ignore = "upstream RustPython bug: collections.abc import recurses in embedded mode; see RustPython/RustPython#7587"
+    )]
     #[test]
     fn test_type_object() {
         Python::attach(|py| {

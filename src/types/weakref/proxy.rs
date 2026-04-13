@@ -283,6 +283,10 @@ mod tests {
                 py.eval(c"A", Some(&globals), None).cast_into::<PyType>()
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_proxy_behavior() -> PyResult<()> {
                 Python::attach(|py| {
@@ -345,6 +349,10 @@ mod tests {
                 })
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_upgrade_as() -> PyResult<()> {
                 Python::attach(|py| {
@@ -380,6 +388,10 @@ mod tests {
                 })
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_upgrade_as_unchecked() -> PyResult<()> {
                 Python::attach(|py| {
@@ -409,6 +421,10 @@ mod tests {
                 })
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_upgrade() -> PyResult<()> {
                 Python::attach(|py| {
@@ -427,6 +443,10 @@ mod tests {
                 })
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_get_object() -> PyResult<()> {
                 Python::attach(|py| {
@@ -482,6 +502,10 @@ mod tests {
             #[pyclass(weakref, crate = "crate")]
             struct WeakrefablePyClass {}
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_proxy_behavior() -> PyResult<()> {
                 Python::attach(|py| {
@@ -546,6 +570,10 @@ mod tests {
                 })
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_upgrade_as() -> PyResult<()> {
                 Python::attach(|py| {
@@ -577,6 +605,10 @@ mod tests {
                 })
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_upgrade_as_unchecked() -> PyResult<()> {
                 Python::attach(|py| {
@@ -602,6 +634,10 @@ mod tests {
                 })
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_upgrade() -> PyResult<()> {
                 Python::attach(|py| {
@@ -645,6 +681,10 @@ mod tests {
                 py.eval(c"A", Some(&globals), None).cast_into::<PyType>()
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_proxy_behavior() -> PyResult<()> {
                 Python::attach(|py| {
@@ -694,6 +734,10 @@ mod tests {
                 })
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_upgrade_as() -> PyResult<()> {
                 Python::attach(|py| {
@@ -729,6 +773,10 @@ mod tests {
                 })
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_upgrade_as_unchecked() -> PyResult<()> {
                 Python::attach(|py| {
@@ -758,6 +806,10 @@ mod tests {
                 })
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_upgrade() -> PyResult<()> {
                 Python::attach(|py| {
@@ -806,6 +858,10 @@ mod tests {
                 }
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_proxy_behavior() -> PyResult<()> {
                 Python::attach(|py| {
@@ -858,6 +914,10 @@ mod tests {
                 })
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_upgrade_as() -> PyResult<()> {
                 Python::attach(|py| {
@@ -889,6 +949,10 @@ mod tests {
                 })
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_upgrade_as_unchecked() -> PyResult<()> {
                 Python::attach(|py| {
@@ -914,6 +978,10 @@ mod tests {
                 })
             }
 
+            #[cfg_attr(
+                PyRustPython,
+                ignore = "RustPython weakref proxy semantics are blocked upstream; see RustPython/RustPython#7589"
+            )]
             #[test]
             fn test_weakref_upgrade() -> PyResult<()> {
                 Python::attach(|py| {
