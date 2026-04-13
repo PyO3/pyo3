@@ -393,7 +393,6 @@ impl Python<'_> {
     ///
     /// ```
     /// use pyo3::prelude::*;
-    /// use pyo3::ffi::c_str;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
@@ -581,7 +580,6 @@ impl<'py> Python<'py> {
     ///
     /// ```
     /// # use pyo3::prelude::*;
-    /// # use pyo3::ffi::c_str;
     /// # Python::attach(|py| {
     /// let result = py.eval(c"[i * 10 for i in range(5)]", None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
@@ -611,7 +609,6 @@ impl<'py> Python<'py> {
     /// use pyo3::{
     ///     prelude::*,
     ///     types::{PyBytes, PyDict},
-    ///     ffi::c_str,
     /// };
     /// Python::attach(|py| {
     ///     let locals = PyDict::new(py);

@@ -115,7 +115,6 @@ impl PyWeakrefReference {
     )]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;
-    /// use pyo3::ffi::c_str;
     ///
     /// #[pyclass(weakref)]
     /// struct Foo { /* fields omitted */ }
