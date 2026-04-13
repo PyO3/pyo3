@@ -5,7 +5,11 @@ use crate::rustpython_runtime;
 use libc::wchar_t;
 use rustpython_vm::builtins::PyStr;
 use rustpython_vm::{AsObject, PyObjectRef};
+#[cfg(unix)]
+use std::ffi::{OsStr, OsString};
 use std::ffi::{c_char, c_int, CStr};
+#[cfg(unix)]
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 
 #[cfg_attr(
     Py_3_13,
@@ -55,9 +59,7 @@ pub unsafe fn PyUnicode_FromStringAndSize(u: *const c_char, size: Py_ssize_t) ->
         return std::ptr::null_mut();
     }
     let bytes = std::slice::from_raw_parts(u.cast::<u8>(), size as usize);
-    let vm = rustpython_runtime::current_vm()
-        .expect("RustPython unicode API used outside an attached interpreter context");
-    match std::str::from_utf8(bytes) {
+    rustpython_runtime::with_vm(|vm| match std::str::from_utf8(bytes) {
         Ok(s) => pyobject_ref_to_ptr(vm.ctx.new_str(s).into()),
         Err(e) => {
             let start = e.valid_up_to();
@@ -72,7 +74,7 @@ pub unsafe fn PyUnicode_FromStringAndSize(u: *const c_char, size: Py_ssize_t) ->
             PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
             std::ptr::null_mut()
         }
-    }
+    })
 }
 
 #[inline]
@@ -168,23 +170,23 @@ pub unsafe fn PyUnicode_AsUTF8AndSize(unicode: *mut PyObject, size: *mut Py_ssiz
         return std::ptr::null();
     }
     let obj = ptr_to_pyobject_ref_borrowed(unicode);
-    let vm = rustpython_runtime::current_vm()
-        .expect("RustPython unicode API used outside an attached interpreter context");
-    let Some(s) = obj.downcast_ref::<PyStr>() else {
-        return std::ptr::null();
-    };
-    match s.try_as_utf8(vm) {
-        Ok(utf8) => {
-            if !size.is_null() {
-                *size = utf8.as_str().len() as Py_ssize_t;
+    rustpython_runtime::with_vm(|vm| {
+        let Some(s) = obj.downcast_ref::<PyStr>() else {
+            return std::ptr::null();
+        };
+        match s.try_as_utf8(vm) {
+            Ok(utf8) => {
+                if !size.is_null() {
+                    *size = utf8.as_str().len() as Py_ssize_t;
+                }
+                utf8.as_str().as_ptr().cast()
             }
-            utf8.as_str().as_ptr().cast()
+            Err(exc) => {
+                PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
+                std::ptr::null()
+            }
         }
-        Err(exc) => {
-            PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
-            std::ptr::null()
-        }
-    }
+    })
 }
 
 #[inline]
@@ -225,24 +227,31 @@ pub unsafe fn PyUnicode_DecodeFSDefaultAndSize(
         return std::ptr::null_mut();
     }
     let bytes = std::slice::from_raw_parts(s.cast::<u8>(), size as usize);
-    let vm = rustpython_runtime::current_vm()
-        .expect("RustPython unicode API used outside an attached interpreter context");
-    match std::str::from_utf8(bytes) {
-        Ok(text) => pyobject_ref_to_ptr(vm.ctx.new_str(text).into()),
-        Err(e) => {
-            let start = e.valid_up_to();
-            let end = start + e.error_len().unwrap_or(1);
-            let exc = vm.new_unicode_decode_error_real(
-                vm.ctx.new_str("utf-8"),
-                vm.ctx.new_bytes(bytes.to_vec()),
-                start,
-                end,
-                vm.ctx.new_str("invalid utf-8"),
-            );
-            PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
-            std::ptr::null_mut()
+    rustpython_runtime::with_vm(|vm| {
+        #[cfg(unix)]
+        {
+            let text = vm.fsdecode(OsString::from_vec(bytes.to_vec()));
+            return pyobject_ref_to_ptr(text.into());
         }
-    }
+
+        #[cfg(not(unix))]
+        match std::str::from_utf8(bytes) {
+            Ok(text) => pyobject_ref_to_ptr(vm.ctx.new_str(text).into()),
+            Err(e) => {
+                let start = e.valid_up_to();
+                let end = start + e.error_len().unwrap_or(1);
+                let exc = vm.new_unicode_decode_error_real(
+                    vm.ctx.new_str("utf-8"),
+                    vm.ctx.new_bytes(bytes.to_vec()),
+                    start,
+                    end,
+                    vm.ctx.new_str("invalid utf-8"),
+                );
+                PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
+                std::ptr::null_mut()
+            }
+        }
+    })
 }
 
 #[inline]
@@ -251,15 +260,35 @@ pub unsafe fn PyUnicode_EncodeFSDefault(unicode: *mut PyObject) -> *mut PyObject
         return std::ptr::null_mut();
     }
     let obj = ptr_to_pyobject_ref_borrowed(unicode);
-    rustpython_runtime::with_vm(|vm| match obj.str(vm) {
-        Ok(s) => pyobject_ref_to_ptr(
-            vm.ctx
-                .new_bytes(AsRef::<str>::as_ref(&s).as_bytes().to_vec())
-                .into(),
-        ),
-        Err(exc) => {
-            PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
-            std::ptr::null_mut()
+    rustpython_runtime::with_vm(|vm| {
+        let s = match obj.downcast_ref::<PyStr>() {
+            Some(s) => s,
+            None => match obj.str(vm) {
+                Ok(s) => return pyobject_ref_to_ptr(vm.ctx.new_bytes(AsRef::<str>::as_ref(&s).as_bytes().to_vec()).into()),
+                Err(exc) => {
+                    PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
+                    return std::ptr::null_mut();
+                }
+            },
+        };
+
+        #[cfg(unix)]
+        {
+            match vm.fsencode(s) {
+                Ok(path) => {
+                    let bytes = OsStr::as_bytes(path.as_ref()).to_vec();
+                    pyobject_ref_to_ptr(vm.ctx.new_bytes(bytes).into())
+                }
+                Err(exc) => {
+                    PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
+                    std::ptr::null_mut()
+                }
+            }
+        }
+
+        #[cfg(not(unix))]
+        {
+            pyobject_ref_to_ptr(vm.ctx.new_bytes(AsRef::<str>::as_ref(s).as_bytes().to_vec()).into())
         }
     })
 }

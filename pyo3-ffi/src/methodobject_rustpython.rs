@@ -5,8 +5,8 @@ use crate::rustpython_runtime;
 use rustpython_vm::builtins::{PyBaseException, PyStr, PyType};
 use rustpython_vm::function::{FuncArgs, PyMethodDef as RpMethodDef, PyMethodFlags as RpMethodFlags};
 use rustpython_vm::{AsObject, PyObjectRef};
-use std::collections::HashMap;
 use std::ffi::{c_char, c_int, c_void, CStr};
+use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use std::{mem, ptr};
 
@@ -163,17 +163,64 @@ struct MethodMetadata {
     flags: c_int,
 }
 
-fn method_metadata() -> &'static Mutex<HashMap<usize, MethodMetadata>> {
-    static METHOD_METADATA: OnceLock<Mutex<HashMap<usize, MethodMetadata>>> = OnceLock::new();
-    METHOD_METADATA.get_or_init(|| Mutex::new(HashMap::new()))
+const PYO3_METHOD_DEF_ATTR: &str = "__pyo3_method_def_ptr__";
+const PYO3_METHOD_SELF_ATTR: &str = "__pyo3_method_self_ptr__";
+const PYO3_METHOD_FLAGS_ATTR: &str = "__pyo3_method_flags__";
+
+fn method_metadata_registry() -> &'static Mutex<HashMap<usize, MethodMetadata>> {
+    static REGISTRY: OnceLock<Mutex<HashMap<usize, MethodMetadata>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 fn lookup_method_metadata(obj: &PyObjectRef) -> Option<MethodMetadata> {
-    method_metadata()
-        .lock()
-        .unwrap()
-        .get(&(pyobject_ref_as_ptr(obj) as usize))
-        .copied()
+    let obj_ptr = pyobject_ref_as_ptr(obj) as usize;
+    if let Some(metadata) = method_metadata_registry().lock().unwrap().get(&obj_ptr).copied() {
+        return Some(metadata);
+    }
+    rustpython_runtime::with_vm(|vm| {
+        let method_def = obj
+            .get_attr(PYO3_METHOD_DEF_ATTR, vm)
+            .ok()
+            .and_then(|value| value.try_to_value::<isize>(vm).ok())? as usize;
+        let slf = obj
+            .get_attr(PYO3_METHOD_SELF_ATTR, vm)
+            .ok()
+            .and_then(|value| value.try_to_value::<isize>(vm).ok())? as usize;
+        let flags = obj
+            .get_attr(PYO3_METHOD_FLAGS_ATTR, vm)
+            .ok()
+            .and_then(|value| value.try_to_value::<i32>(vm).ok())?;
+        Some(MethodMetadata {
+            method_def,
+            slf,
+            flags,
+        })
+    })
+}
+
+pub(crate) unsafe fn call_with_original_args(
+    callable: &PyObjectRef,
+    args: *mut PyObject,
+    kwargs: *mut PyObject,
+) -> Option<*mut PyObject> {
+    let metadata = lookup_method_metadata(callable)?;
+    let method_def = metadata.method_def as *mut PyMethodDef;
+    if method_def.is_null() {
+        return None;
+    }
+    let slf = metadata.slf as *mut PyObject;
+    let flags = metadata.flags;
+    let method = unsafe { &*method_def };
+
+    if flags & METH_VARARGS != 0 && flags & METH_KEYWORDS != 0 {
+        return Some(unsafe { (method.ml_meth.PyCFunctionWithKeywords)(slf, args, kwargs) });
+    }
+
+    if flags & METH_NOARGS != 0 {
+        return Some(unsafe { (method.ml_meth.PyCFunction)(slf, std::ptr::null_mut()) });
+    }
+
+    None
 }
 
 const SIGNATURE_END_MARKER: &str = ")\n--\n\n";
@@ -332,8 +379,7 @@ pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction> {
-    let metadata = method_metadata().lock().unwrap();
-    let metadata = metadata.get(&(f as usize))?;
+    let metadata = lookup_method_metadata(&ptr_to_pyobject_ref_borrowed(f))?;
     if metadata.method_def == 0 {
         return None;
     }
@@ -347,20 +393,14 @@ pub unsafe fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction> {
 
 #[inline]
 pub unsafe fn PyCFunction_GetSelf(f: *mut PyObject) -> *mut PyObject {
-    method_metadata()
-        .lock()
-        .unwrap()
-        .get(&(f as usize))
+    lookup_method_metadata(&ptr_to_pyobject_ref_borrowed(f))
         .map(|metadata| metadata.slf as *mut PyObject)
         .unwrap_or(std::ptr::null_mut())
 }
 
 #[inline]
 pub unsafe fn PyCFunction_GetFlags(f: *mut PyObject) -> c_int {
-    method_metadata()
-        .lock()
-        .unwrap()
-        .get(&(f as usize))
+    lookup_method_metadata(&ptr_to_pyobject_ref_borrowed(f))
         .map(|metadata| metadata.flags)
         .unwrap_or(0)
 }
@@ -623,18 +663,20 @@ unsafe fn build_rustpython_function(
             method_def.build_function(&vm.ctx)
         };
         let obj: PyObjectRef = function.into();
-        if let Some(doc) = doc {
-            let _ = obj.set_attr("__doc__", vm.ctx.new_str(doc), vm);
-        }
-        let ptr = pyobject_ref_as_ptr(&obj);
-        method_metadata().lock().unwrap().insert(
-            ptr as usize,
+        method_metadata_registry().lock().unwrap().insert(
+            pyobject_ref_as_ptr(&obj) as usize,
             MethodMetadata {
                 method_def: ml as usize,
                 slf: slf_ptr as usize,
                 flags,
             },
         );
+        if let Some(doc) = doc {
+            let _ = obj.set_attr("__doc__", vm.ctx.new_str(doc), vm);
+        }
+        let _ = obj.set_attr(PYO3_METHOD_DEF_ATTR, vm.ctx.new_int(ml as isize), vm);
+        let _ = obj.set_attr(PYO3_METHOD_SELF_ATTR, vm.ctx.new_int(slf_ptr as isize), vm);
+        let _ = obj.set_attr(PYO3_METHOD_FLAGS_ATTR, vm.ctx.new_int(flags), vm);
         pyobject_ref_to_ptr(obj)
     })
 }

@@ -108,23 +108,16 @@ impl PyModule {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        #[cfg(PyRustPython)]
-        eprintln!("[rustpython] PyModule::import start");
         let name = name.into_pyobject_or_pyerr(py)?;
-        #[cfg(PyRustPython)]
-        eprintln!("[rustpython] PyModule::import after into_pyobject");
         #[cfg(PyRustPython)]
         unsafe {
             let name = name.into_any().into_bound();
             let name: Bound<'py, PyString> = name.cast_into_unchecked();
             let name = name.to_cow()?;
-            eprintln!("[rustpython] PyModule::import after to_cow name={}", name);
             let c_name = std::ffi::CString::new(name.as_ref())
                 .map_err(|_| PyErr::new::<exceptions::PyValueError, _>("module name contains NUL byte"))?;
-            eprintln!("[rustpython] PyModule::import before ffi import");
-            ffi::PyImport_ImportModule(c_name.as_ptr())
-                .assume_owned_or_err(py)
-                .cast_into_unchecked()
+            let module = ffi::PyImport_ImportModule(c_name.as_ptr());
+            module.assume_owned_or_err(py).cast_into_unchecked()
         }
         #[cfg(not(PyRustPython))]
         unsafe {

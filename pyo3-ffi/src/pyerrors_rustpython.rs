@@ -4,8 +4,8 @@ use crate::rustpython_runtime;
 use rustpython_vm::builtins::{PyBaseException, PyBaseExceptionRef, PyTuple, PyType};
 use rustpython_vm::exceptions::ExceptionCtor;
 use rustpython_vm::{AsObject, PyObjectRef, TryFromObject};
-use std::cell::RefCell;
 use std::ffi::{c_char, c_int, CStr};
+use std::sync::{Mutex, OnceLock};
 
 opaque_struct!(pub PyBaseExceptionObject);
 opaque_struct!(pub PyStopIterationObject);
@@ -14,8 +14,9 @@ opaque_struct!(pub PySyntaxErrorObject);
 opaque_struct!(pub PySystemExitObject);
 opaque_struct!(pub PyUnicodeErrorObject);
 
-thread_local! {
-    static CURRENT_EXCEPTION: RefCell<Option<PyBaseExceptionRef>> = const { RefCell::new(None) };
+fn current_exception_slot() -> &'static Mutex<Option<usize>> {
+    static CURRENT_EXCEPTION: OnceLock<Mutex<Option<usize>>> = OnceLock::new();
+    CURRENT_EXCEPTION.get_or_init(|| Mutex::new(None))
 }
 
 macro_rules! exc_statics {
@@ -193,7 +194,13 @@ pub unsafe fn PyErr_CheckSignals() -> c_int {
 }
 
 fn set_current_exception(exc: Option<PyBaseExceptionRef>) {
-    CURRENT_EXCEPTION.with(|slot| *slot.borrow_mut() = exc);
+    let new_ptr = exc.map(|exc| pyobject_ref_to_ptr(exc.into()) as usize);
+    let mut slot = current_exception_slot().lock().expect("RustPython exception slot poisoned");
+    let old_ptr = std::mem::replace(&mut *slot, new_ptr);
+    drop(slot);
+    if let Some(old_ptr) = old_ptr {
+        unsafe { crate::Py_DECREF(old_ptr as *mut PyObject) };
+    }
 }
 
 pub(crate) fn set_vm_exception(exc: PyBaseExceptionRef) {
@@ -209,11 +216,31 @@ pub(crate) fn clear_vm_exception() {
 }
 
 fn take_current_exception() -> Option<PyBaseExceptionRef> {
-    CURRENT_EXCEPTION.with(|slot| slot.borrow_mut().take())
+    let ptr = current_exception_slot()
+        .lock()
+        .expect("RustPython exception slot poisoned")
+        .take()? as *mut PyObject;
+    match unsafe { ptr_to_pyobject_ref_owned(ptr) }.downcast::<PyBaseException>() {
+        Ok(exc) => Some(exc),
+        Err(obj) => {
+            unsafe { crate::Py_DECREF(pyobject_ref_to_ptr(obj)) };
+            None
+        }
+    }
 }
 
 fn current_exception() -> Option<PyBaseExceptionRef> {
-    CURRENT_EXCEPTION.with(|slot| slot.borrow().clone())
+    let ptr = (*current_exception_slot()
+        .lock()
+        .expect("RustPython exception slot poisoned"))? as *mut PyObject;
+    unsafe { crate::Py_IncRef(ptr) };
+    match unsafe { ptr_to_pyobject_ref_owned(ptr) }.downcast::<PyBaseException>() {
+        Ok(exc) => Some(exc),
+        Err(obj) => {
+            unsafe { crate::Py_DECREF(pyobject_ref_to_ptr(obj)) };
+            None
+        }
+    }
 }
 
 unsafe fn normalize_exception_triplet(

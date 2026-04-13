@@ -9,6 +9,8 @@ use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::{any::PyAnyMethods, PyAny, PyList, PyTuple, PyType, PyTypeMethods};
 use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python};
+#[cfg(PyRustPython)]
+use std::sync::{Mutex, OnceLock};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 ///
@@ -21,6 +23,12 @@ use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Pytho
 pub struct PySequence(PyAny);
 
 pyobject_native_type_named!(PySequence);
+
+#[cfg(PyRustPython)]
+fn registered_sequence_types() -> &'static Mutex<Vec<usize>> {
+    static REGISTRY: OnceLock<Mutex<Vec<usize>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
+}
 
 unsafe impl PyTypeInfo for PySequence {
     const NAME: &'static str = "Sequence";
@@ -41,7 +49,21 @@ unsafe impl PyTypeInfo for PySequence {
     fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
         #[cfg(PyRustPython)]
         {
-            unsafe { ffi::PySequence_Check(object.as_ptr()) != 0 }
+            (unsafe { ffi::PySequence_Check(object.as_ptr()) != 0 })
+                || registered_sequence_types()
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .copied()
+                    .any(|ptr| unsafe {
+                        ffi::PyObject_TypeCheck(object.as_ptr(), ptr as *mut ffi::PyTypeObject) != 0
+                    })
+                || object
+                    .is_instance(&Self::type_object(object.py()).into_any())
+                    .unwrap_or_else(|err| {
+                        err.write_unraisable(object.py(), Some(object));
+                        false
+                    })
         }
 
         #[cfg(not(PyRustPython))]
@@ -66,6 +88,14 @@ impl PySequence {
     /// This registration is required for a pyclass to be castable from `PyAny` to `PySequence`.
     pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
         let ty = T::type_object(py);
+        #[cfg(PyRustPython)]
+        {
+            let ptr = ty.as_type_ptr() as usize;
+            let mut registry = registered_sequence_types().lock().unwrap();
+            if !registry.contains(&ptr) {
+                registry.push(ptr);
+            }
+        }
         Self::type_object(py).call_method1("register", (ty,))?;
         Ok(())
     }

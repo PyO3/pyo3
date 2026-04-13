@@ -183,6 +183,11 @@ pub unsafe fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer, flags
 
     let mut internal = Box::new(RustPythonBufferView::new(buffer));
     let obj_ptr = pyobject_ref_to_ptr(internal.buffer.obj.clone());
+    let suboffsets_ptr = if internal.suboffsets.iter().all(|offset| *offset <= 0) {
+        ptr::null_mut()
+    } else {
+        internal.suboffsets.as_mut_ptr()
+    };
 
     *view = Py_buffer {
         buf: internal.contiguous.as_mut_ptr().cast(),
@@ -194,7 +199,7 @@ pub unsafe fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer, flags
         format: internal.format.as_ptr().cast_mut(),
         shape: internal.shape.as_mut_ptr(),
         strides: internal.strides.as_mut_ptr(),
-        suboffsets: internal.suboffsets.as_mut_ptr(),
+        suboffsets: suboffsets_ptr,
         internal: Box::into_raw(internal).cast(),
     };
     PyErr_Clear();

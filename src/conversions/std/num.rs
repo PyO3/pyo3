@@ -496,21 +496,6 @@ pub(crate) fn int_from_ne_bytes<'py, const IS_SIGNED: bool>(
 }
 
 pub(crate) fn nb_index<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyInt>> {
-    #[cfg(PyRustPython)]
-    {
-        if unsafe { ffi::PyLong_CheckExact(obj.as_ptr()) != 0 } {
-            return unsafe {
-                ffi::PyLong_AsLongLong(obj.as_ptr())
-                    .into_pyobject(obj.py())
-                    .map_err(Into::into)
-            };
-        }
-        return Err(exceptions::PyTypeError::new_err(
-            "object cannot be interpreted as an integer",
-        ));
-    }
-
-    #[cfg(not(PyRustPython))]
     // SAFETY: PyNumber_Index returns a new reference or NULL on error
     unsafe { ffi::PyNumber_Index(obj.as_ptr()).assume_owned_or_err(obj.py()) }.cast_into()
 }

@@ -73,6 +73,9 @@ pub unsafe fn PyObject_Call(
     }
     rustpython_runtime::with_vm(|vm| {
         let callable = unsafe { ptr_to_pyobject_ref_borrowed(callable_object) };
+        if let Some(result) = unsafe { crate::methodobject::call_with_original_args(&callable, args, kw) } {
+            return result;
+        }
         let args = match build_func_args(args, kw, vm) {
             Ok(args) => args,
             Err(exc) => {
@@ -318,8 +321,34 @@ pub unsafe fn PySequence_Size(_o: *mut PyObject) -> Py_ssize_t {
 }
 
 #[inline]
+pub unsafe fn PySequence_Length(o: *mut PyObject) -> Py_ssize_t {
+    PySequence_Size(o)
+}
+
+#[inline]
 pub unsafe fn PyMapping_Size(_o: *mut PyObject) -> Py_ssize_t {
-    PySequence_Size(_o)
+    if _o.is_null() {
+        return -1;
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(_o);
+    rustpython_runtime::with_vm(|vm| {
+        if obj.sequence_unchecked().check() && !obj.class().is(vm.ctx.types.dict_type) {
+            set_vm_exception(vm.new_type_error(format!("{} is not a mapping object", obj.class())));
+            return -1;
+        }
+        match obj.try_mapping(vm).and_then(|mapping| mapping.length(vm)) {
+            Ok(len) => len as Py_ssize_t,
+            Err(exc) => {
+                set_vm_exception(exc);
+                -1
+            }
+        }
+    })
+}
+
+#[inline]
+pub unsafe fn PyMapping_Length(o: *mut PyObject) -> Py_ssize_t {
+    PyMapping_Size(o)
 }
 
 #[inline]
@@ -354,6 +383,19 @@ pub unsafe fn PySequence_Check(o: *mut PyObject) -> c_int {
     let obj = ptr_to_pyobject_ref_borrowed(o);
     rustpython_runtime::with_vm(|vm| {
         (obj.sequence_unchecked().check() || obj.class().is(vm.ctx.types.range_type)).into()
+    })
+}
+
+#[inline]
+pub unsafe fn PyMapping_Check(o: *mut PyObject) -> c_int {
+    if o.is_null() {
+        return 0;
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(o);
+    rustpython_runtime::with_vm(|vm| {
+        (obj.mapping_unchecked().check()
+            && (!obj.sequence_unchecked().check() || obj.class().is(vm.ctx.types.dict_type)))
+            .into()
     })
 }
 

@@ -168,10 +168,9 @@ mod tests {
     #[test]
     fn test_duration_frompyobject() {
         Python::attach(|py| {
-            assert_eq!(
-                new_timedelta(py, 0, 0, 0).extract::<Duration>().unwrap(),
-                Duration::new(0, 0)
-            );
+            let td0 = new_timedelta(py, 0, 0, 0);
+            let d0 = td0.extract::<Duration>().unwrap();
+            assert_eq!(d0, Duration::new(0, 0));
             assert_eq!(
                 new_timedelta(py, 1, 0, 0).extract::<Duration>().unwrap(),
                 Duration::new(86400, 0)
@@ -389,9 +388,8 @@ mod tests {
         seconds: i32,
         microseconds: i32,
     ) -> Bound<'_, PyAny> {
-        timedelta_class(py)
-            .call1((days, seconds, microseconds))
-            .unwrap()
+        let cls = timedelta_class(py);
+        cls.call1((days, seconds, microseconds)).unwrap()
     }
 
     fn datetime_class(py: Python<'_>) -> Bound<'_, PyAny> {

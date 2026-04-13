@@ -1,14 +1,31 @@
 use rustpython::InterpreterBuilderExt;
-use rustpython_vm::{Interpreter, InterpreterBuilder, VirtualMachine};
-use std::cell::Cell;
-use std::sync::OnceLock;
-
-static INTERPRETER: OnceLock<usize> = OnceLock::new();
+use rustpython_vm::{InterpreterBuilder, VirtualMachine};
+use std::any::Any;
+use std::cell::{Cell, UnsafeCell};
+use std::mem::MaybeUninit;
+use std::panic::{self, AssertUnwindSafe};
+use std::sync::{mpsc, OnceLock};
 
 thread_local! {
-    static CURRENT_VM: Cell<Option<*const VirtualMachine>> = const { Cell::new(None) };
     static ATTACH_COUNT: Cell<u32> = const { Cell::new(0) };
+    static CURRENT_VM: Cell<*const VirtualMachine> = const { Cell::new(std::ptr::null()) };
+    static ON_RUNTIME_THREAD: Cell<bool> = const { Cell::new(false) };
 }
+
+struct RuntimeHandle {
+    tx: mpsc::Sender<RuntimeRequest>,
+    thread_id: std::thread::ThreadId,
+}
+
+enum RuntimeRequest {
+    Call {
+        thunk: unsafe fn(usize, &VirtualMachine),
+        payload: usize,
+        done_tx: mpsc::SyncSender<()>,
+    },
+}
+
+static RUNTIME: OnceLock<RuntimeHandle> = OnceLock::new();
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) enum AttachState {
@@ -16,25 +33,147 @@ pub(crate) enum AttachState {
     Ensured,
 }
 
-pub(crate) fn initialize() {
-    let _ = interpreter();
+fn current_vm() -> Option<&'static VirtualMachine> {
+    let ptr = CURRENT_VM.with(|current| current.get());
+    (!ptr.is_null()).then(|| unsafe { &*ptr })
 }
 
-pub(crate) fn interpreter() -> &'static Interpreter {
-    let ptr = INTERPRETER.get_or_init(|| {
-        let interpreter = InterpreterBuilder::new().init_stdlib().interpreter();
-        Box::into_raw(Box::new(interpreter)) as usize
-    });
-    unsafe { &*(*ptr as *const Interpreter) }
+fn runtime() -> &'static RuntimeHandle {
+    RUNTIME.get_or_init(|| {
+        let (tx, rx) = mpsc::channel::<RuntimeRequest>();
+        let (ready_tx, ready_rx) = mpsc::sync_channel(1);
+
+        std::thread::spawn(move || {
+            let thread_id = std::thread::current().id();
+            let interpreter = InterpreterBuilder::new().init_stdlib().interpreter();
+
+            interpreter.enter(|vm| {
+                struct RuntimeThreadGuard {
+                    previous_vm: *const VirtualMachine,
+                }
+
+                impl Drop for RuntimeThreadGuard {
+                    fn drop(&mut self) {
+                        CURRENT_VM.with(|current| current.set(self.previous_vm));
+                        ON_RUNTIME_THREAD.with(|flag| flag.set(false));
+                    }
+                }
+
+                ON_RUNTIME_THREAD.with(|flag| flag.set(true));
+                let previous_vm = CURRENT_VM.with(|current| {
+                    let previous = current.get();
+                    current.set(vm as *const VirtualMachine);
+                    previous
+                });
+                let _guard = RuntimeThreadGuard { previous_vm };
+
+                crate::pyerrors::init_exception_symbols(vm);
+                crate::methodobject::init_builtin_function_descriptors(vm);
+                ready_tx
+                    .send(thread_id)
+                    .expect("RustPython runtime initialization channel closed");
+
+                while let Ok(request) = rx.recv() {
+                    match request {
+                        RuntimeRequest::Call {
+                            thunk,
+                            payload,
+                            done_tx,
+                        } => {
+                            unsafe { thunk(payload, vm) };
+                            let _ = done_tx.send(());
+                        }
+                    }
+                }
+            });
+        });
+
+        let thread_id = ready_rx
+            .recv()
+            .expect("RustPython runtime thread terminated before initialization");
+        RuntimeHandle { tx, thread_id }
+    })
+}
+
+struct DispatchState<F, R> {
+    closure: UnsafeCell<Option<F>>,
+    result: UnsafeCell<MaybeUninit<R>>,
+    panic: UnsafeCell<Option<Box<dyn Any + Send + 'static>>>,
+}
+
+unsafe fn dispatch_call<F, R>(payload: usize, vm: &VirtualMachine)
+where
+    F: FnOnce(&VirtualMachine) -> R,
+{
+    let state = unsafe { &*(payload as *const DispatchState<F, R>) };
+    let closure = unsafe {
+        (&mut *state.closure.get())
+            .take()
+            .expect("RustPython runtime dispatch closure missing")
+    };
+    let outcome = panic::catch_unwind(AssertUnwindSafe(|| closure(vm)));
+
+    unsafe {
+        match outcome {
+            Ok(result) => {
+                (*state.result.get()).write(result);
+            }
+            Err(err) => {
+                *state.panic.get() = Some(err);
+            }
+        }
+    }
+}
+
+fn dispatch<F, R>(f: F) -> R
+where
+    F: FnOnce(&VirtualMachine) -> R,
+{
+    if ON_RUNTIME_THREAD.with(|flag| flag.get()) {
+        return f(current_vm().expect("RustPython runtime thread missing current VM"));
+    }
+
+    let runtime = runtime();
+    debug_assert_ne!(runtime.thread_id, std::thread::current().id());
+
+    let state = DispatchState {
+        closure: UnsafeCell::new(Some(f)),
+        result: UnsafeCell::new(MaybeUninit::uninit()),
+        panic: UnsafeCell::new(None),
+    };
+    let payload = (&state as *const DispatchState<_, _>) as usize;
+    let (done_tx, done_rx) = mpsc::sync_channel(1);
+
+    runtime
+        .tx
+        .send(RuntimeRequest::Call {
+            thunk: dispatch_call::<F, R>,
+            payload,
+            done_tx,
+        })
+        .expect("RustPython runtime thread terminated during dispatch");
+    done_rx
+        .recv()
+        .expect("RustPython runtime thread terminated before dispatch completed");
+
+    if let Some(err) = unsafe { (&mut *state.panic.get()).take() } {
+        panic::resume_unwind(err);
+    }
+
+    unsafe { (*state.result.get()).assume_init_read() }
+}
+
+pub(crate) fn initialize() {
+    let _ = runtime();
 }
 
 pub(crate) fn is_initialized() -> bool {
-    INTERPRETER.get().is_some()
+    RUNTIME.get().is_some()
 }
 
 pub(crate) fn finalize() {
     // RustPython does not currently expose a CPython-style global finalize API.
-    // Keep the process-global interpreter alive for the duration of the process.
+    // Keep the process-global runtime thread alive for the duration of the process.
 }
 
 pub(crate) fn ensure_attached() -> AttachState {
@@ -47,12 +186,7 @@ pub(crate) fn ensure_attached() -> AttachState {
     if already_attached {
         AttachState::Assumed
     } else {
-        let vm_ptr = interpreter().enter(|vm| vm as *const VirtualMachine);
-        CURRENT_VM.with(|cell| cell.set(Some(vm_ptr)));
-        if let Some(vm) = current_vm() {
-            crate::pyerrors::init_exception_symbols(vm);
-            crate::methodobject::init_builtin_function_descriptors(vm);
-        }
+        initialize();
         AttachState::Ensured
     }
 }
@@ -62,7 +196,6 @@ pub(crate) fn release_attached() {
         let current = count.get();
         if current <= 1 {
             count.set(0);
-            CURRENT_VM.with(|cell| cell.set(None));
         } else {
             count.set(current - 1);
         }
@@ -73,11 +206,15 @@ pub(crate) fn is_attached() -> bool {
     ATTACH_COUNT.with(|count| count.get() > 0)
 }
 
-pub(crate) fn current_vm() -> Option<&'static VirtualMachine> {
-    CURRENT_VM.with(|cell| cell.get()).map(|ptr| unsafe { &*ptr })
-}
-
 pub(crate) fn with_vm<R>(f: impl FnOnce(&VirtualMachine) -> R) -> R {
-    let vm = current_vm().expect("RustPython FFI used outside an attached interpreter context");
-    f(vm)
+    if ON_RUNTIME_THREAD.with(|flag| flag.get()) {
+        return f(current_vm().expect("RustPython runtime thread missing current VM"));
+    }
+
+    assert!(
+        is_attached(),
+        "RustPython FFI used outside an attached interpreter context"
+    );
+
+    dispatch(f)
 }

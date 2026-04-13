@@ -53,13 +53,9 @@ pyobject_native_type_core!(
 pyobject_native_type_core!(
     PySet,
     |py: Python<'_>| {
-        eprintln!("[rustpython] resolving builtins.set type object direct");
         let builtins = py.import("builtins").unwrap();
-        eprintln!("[rustpython] builtins imported");
         let set_type = builtins.getattr("set").unwrap();
-        eprintln!("[rustpython] builtins.set getattr ok");
         let set_type = unsafe { set_type.cast_into_unchecked::<PyType>() };
-        eprintln!("[rustpython] builtins.set cast ok ptr={:?}", set_type.as_type_ptr());
         set_type.as_type_ptr()
     },
     "builtins",

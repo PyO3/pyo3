@@ -1399,7 +1399,6 @@ fn test_pymethods_warn() {
             "obj[0]",
             [("this subscript op method raises warning", PyUserWarning)]
         );
-        eprintln!("[warn] getitem ok");
 
         // PyMethodProtoKind::SlotFragment
         py_expect_warning!(
@@ -1408,7 +1407,6 @@ fn test_pymethods_warn() {
             "obj + obj",
             [("the + op method raises warning", PyUserWarning)]
         );
-        eprintln!("[warn] add ok");
 
         // PyMethodProtoKind::Call
         py_expect_warning!(
@@ -1417,7 +1415,6 @@ fn test_pymethods_warn() {
             "obj()",
             [("this __call__ method raises warning", PyUserWarning)]
         );
-        eprintln!("[warn] call ok");
     });
 
     #[pyclass]

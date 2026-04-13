@@ -10,6 +10,8 @@ use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyDict, PyList, PyType, PyTypeMethods};
 use crate::{ffi, Py, Python};
+#[cfg(PyRustPython)]
+use std::sync::{Mutex, OnceLock};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 ///
@@ -22,6 +24,12 @@ use crate::{ffi, Py, Python};
 pub struct PyMapping(PyAny);
 
 pyobject_native_type_named!(PyMapping);
+
+#[cfg(PyRustPython)]
+fn registered_mapping_types() -> &'static Mutex<Vec<usize>> {
+    static REGISTRY: OnceLock<Mutex<Vec<usize>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
+}
 
 unsafe impl PyTypeInfo for PyMapping {
     const NAME: &'static str = "Mapping";
@@ -44,6 +52,26 @@ unsafe impl PyTypeInfo for PyMapping {
         // Using `is_instance` for `collections.abc.Mapping` is slow, so provide
         // optimized case dict as a well-known mapping
         PyDict::is_type_of(object)
+            || {
+                #[cfg(PyRustPython)]
+                {
+                    registered_mapping_types()
+                        .lock()
+                        .unwrap()
+                        .iter()
+                        .copied()
+                        .any(|ptr| unsafe {
+                            ffi::PyObject_TypeCheck(
+                                object.as_ptr(),
+                                ptr as *mut ffi::PyTypeObject,
+                            ) != 0
+                        })
+                }
+                #[cfg(not(PyRustPython))]
+                {
+                    false
+                }
+            }
             || object
                 .is_instance(&Self::type_object(object.py()).into_any())
                 .unwrap_or_else(|err| {
@@ -59,6 +87,14 @@ impl PyMapping {
     /// This registration is required for a pyclass to be castable from `PyAny` to `PyMapping`.
     pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
         let ty = T::type_object(py);
+        #[cfg(PyRustPython)]
+        {
+            let ptr = ty.as_type_ptr() as usize;
+            let mut registry = registered_mapping_types().lock().unwrap();
+            if !registry.contains(&ptr) {
+                registry.push(ptr);
+            }
+        }
         Self::type_object(py).call_method1("register", (ty,))?;
         Ok(())
     }

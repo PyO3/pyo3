@@ -2,8 +2,13 @@ use crate::conversion::{FromPyObjectOwned, FromPyObjectSequence, IntoPyObject};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
 use crate::types::any::PyAnyMethods;
+#[cfg(not(PyRustPython))]
 use crate::types::PySequence;
-use crate::{err::CastError, ffi, FromPyObject, PyAny, PyResult, PyTypeInfo, Python};
+#[cfg(PyRustPython)]
+use crate::types::{PyStringMethods, PyTypeMethods};
+#[cfg(not(PyRustPython))]
+use crate::{err::CastError, PyTypeInfo};
+use crate::{ffi, FromPyObject, PyAny, PyResult, Python};
 use crate::{exceptions, Borrowed, Bound, PyErr};
 
 impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
@@ -69,7 +74,22 @@ where
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
     if unsafe { ffi::PySequence_Check(obj.as_ptr()) } == 0 {
-        return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
+        #[cfg(PyRustPython)]
+        {
+            let from = obj
+                .get_type()
+                .qualname()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_else(|_| "<failed to extract type name>".to_owned());
+            return Err(exceptions::PyTypeError::new_err(format!(
+                "'{from}' object is not an instance of 'collections.abc.Sequence'"
+            )));
+        }
+
+        #[cfg(not(PyRustPython))]
+        {
+            return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
+        }
     }
 
     let seq_len = obj.len()?;

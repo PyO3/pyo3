@@ -2,8 +2,11 @@ use crate::object::{PyObject, Py_IncRef};
 use crate::pyport::Py_ssize_t;
 
 #[inline]
-pub unsafe fn Py_REFCNT(_ob: *mut PyObject) -> Py_ssize_t {
-    1
+pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
+    if ob.is_null() {
+        return 0;
+    }
+    crate::object::ptr_to_pyobject_ref_borrowed(ob).strong_count() as Py_ssize_t
 }
 
 #[inline]

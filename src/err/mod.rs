@@ -985,6 +985,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        PyRustPython,
+        ignore = "upstream RustPython bug: warnings.filterwarnings imports re and recurses in importlib; see RustPython/RustPython#7587"
+    )]
     fn warnings() {
         use crate::types::any::PyAnyMethods;
         // Note: although the warning filter is interpreter global, keeping the

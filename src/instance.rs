@@ -101,11 +101,6 @@ where
         py: Python<'py>,
         value: impl Into<PyClassInitializer<T>>,
     ) -> PyResult<Bound<'py, T>> {
-        #[cfg(PyRustPython)]
-        eprintln!(
-            "[rustpython] Bound::new type={}",
-            std::any::type_name::<T>()
-        );
         value.into().create_class_object(py)
     }
 }

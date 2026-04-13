@@ -137,6 +137,10 @@ mod test_ipaddr {
     use super::*;
 
     #[test]
+    #[cfg_attr(
+        PyRustPython,
+        ignore = "upstream RustPython bug: runtime-thread stdlib imports recurse / abort in importlib; see RustPython/RustPython#7586"
+    )]
     fn test_roundtrip() {
         Python::attach(|py| {
             fn roundtrip(py: Python<'_>, ip: &str) {

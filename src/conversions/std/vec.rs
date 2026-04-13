@@ -5,9 +5,15 @@ use crate::{
     exceptions::PyTypeError,
     ffi,
     ffi_ptr_ext::FfiPtrExt,
-    types::{PyAnyMethods, PySequence, PyString},
-    Borrowed, CastError, PyResult, PyTypeInfo,
+    types::{PyAnyMethods, PyString},
+    Borrowed, PyResult,
 };
+#[cfg(not(PyRustPython))]
+use crate::{CastError, PyTypeInfo};
+#[cfg(not(PyRustPython))]
+use crate::types::PySequence;
+#[cfg(PyRustPython)]
+use crate::types::{PyStringMethods, PyTypeMethods};
 use crate::{Bound, PyAny, PyErr, Python};
 
 impl<'py, T> IntoPyObject<'py> for Vec<T>
@@ -82,6 +88,19 @@ where
     let is_sequence = unsafe { ffi::PySequence_Check(obj.as_ptr()) } != 0;
 
     if !is_sequence {
+        #[cfg(PyRustPython)]
+        {
+            let from = obj
+                .get_type()
+                .name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|_| "object".to_owned());
+            return Err(PyTypeError::new_err(format!(
+                "'{from}' object is not an instance of 'collections.abc.Sequence'"
+            )));
+        }
+
+        #[cfg(not(PyRustPython))]
         return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
     }
 

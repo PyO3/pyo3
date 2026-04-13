@@ -1,6 +1,7 @@
 use crate::object::*;
 use crate::pyerrors::set_vm_exception;
 use crate::rustpython_runtime;
+use rustpython_vm::AsObject;
 use std::ffi::{c_char, c_int, c_long, CStr};
 
 #[inline]
@@ -177,6 +178,9 @@ pub unsafe fn PyImport_ImportModule(name: *const c_char) -> *mut PyObject {
         return std::ptr::null_mut();
     };
     rustpython_runtime::with_vm(move |vm| {
+        if name == "datetime" {
+            let _ = vm.import("_operator", 0);
+        }
         match import_module_by_name(vm, &name, 0) {
             Ok(module) => pyobject_ref_to_ptr(module),
             Err(exc) => {
