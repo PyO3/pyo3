@@ -433,7 +433,13 @@ pub fn impl_wrap_pyfunction(
         );
     }
     let calling_convention = CallingConvention::from_signature(&spec.signature);
-    let wrapper = spec.get_wrapper_function(&wrapper_ident, None, calling_convention, ctx)?;
+    let wrapper = spec.get_wrapper_function(
+        &wrapper_ident,
+        None,
+        calling_convention,
+        crate::method::ExtractErrorMode::Raise,
+        ctx,
+    )?;
     let methoddef = spec.get_methoddef(
         wrapper_ident,
         spec.get_doc(&func.attrs).as_ref(),

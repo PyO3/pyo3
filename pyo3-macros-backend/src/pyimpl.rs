@@ -176,18 +176,41 @@ pub fn impl_methods(
                             associated_methods.push(quote!(#(#attrs)* #associated_method));
                             methods.push(quote!(#(#attrs)* #method_def));
                         }
-                        GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
+                        GeneratedPyMethod::SlotTraitImpl(
+                            method_name,
+                            token_stream,
+                            callable_method,
+                        ) => {
                             implemented_proto_fragments.insert(method_name);
                             let attrs = get_cfg_attributes(&meth.attrs);
                             extra_fragments.push(quote!(#(#attrs)* #token_stream));
+                            if let Some(MethodAndMethodDef {
+                                associated_method,
+                                method_def,
+                            }) = callable_method
+                            {
+                                associated_methods
+                                    .push(quote!(#[cfg(PyRustPython)] #(#attrs)* #associated_method));
+                                methods.push(quote!(#[cfg(PyRustPython)] #(#attrs)* #method_def));
+                            }
                         }
                         GeneratedPyMethod::Proto(MethodAndSlotDef {
                             associated_method,
                             slot_def,
+                            callable_method,
                         }) => {
                             let attrs = get_cfg_attributes(&meth.attrs);
                             proto_impls.push(quote!(#(#attrs)* #slot_def));
                             associated_methods.push(quote!(#(#attrs)* #associated_method));
+                            if let Some(MethodAndMethodDef {
+                                associated_method,
+                                method_def,
+                            }) = callable_method
+                            {
+                                associated_methods
+                                    .push(quote!(#[cfg(PyRustPython)] #(#attrs)* #associated_method));
+                                methods.push(quote!(#[cfg(PyRustPython)] #(#attrs)* #method_def));
+                            }
                         }
                     }
                 }

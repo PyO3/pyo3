@@ -8,8 +8,11 @@ use std::sync::{Mutex, OnceLock};
 use rustpython_vm::builtins::{
     PyBaseException, PyBaseObject, PyDict, PyList, PySet, PyStr, PyType, PyTypeRef,
 };
-use rustpython_vm::function::{FuncArgs, PyMethodDef as RpMethodDef, PyMethodFlags as RpMethodFlags};
-use rustpython_vm::protocol::{PyMapping, PySequence};
+use rustpython_vm::function::{
+    Either, FuncArgs, PyMethodDef as RpMethodDef, PyMethodFlags as RpMethodFlags,
+};
+use rustpython_vm::function::PyComparisonValue;
+use rustpython_vm::protocol::{PyMapping, PyNumber, PySequence};
 use rustpython_vm::types::PyComparisonOp;
 use rustpython_vm::types::{Constructor, PyTypeFlags, PyTypeSlots};
 use rustpython_vm::{AsObject, PyObjectRef, PyPayload};
@@ -164,10 +167,45 @@ struct HeapTypeMetadata {
     tp_call: usize,
     tp_hash: usize,
     tp_getattro: usize,
+    tp_repr: usize,
+    tp_str: usize,
+    tp_richcompare: usize,
     mp_subscript: usize,
     mp_ass_subscript: usize,
     nb_add: usize,
     nb_subtract: usize,
+    nb_multiply: usize,
+    nb_remainder: usize,
+    nb_divmod: usize,
+    nb_power: usize,
+    nb_negative: usize,
+    nb_positive: usize,
+    nb_absolute: usize,
+    nb_invert: usize,
+    nb_lshift: usize,
+    nb_rshift: usize,
+    nb_and: usize,
+    nb_xor: usize,
+    nb_or: usize,
+    nb_int: usize,
+    nb_float: usize,
+    nb_inplace_add: usize,
+    nb_inplace_subtract: usize,
+    nb_inplace_multiply: usize,
+    nb_inplace_remainder: usize,
+    nb_inplace_power: usize,
+    nb_inplace_lshift: usize,
+    nb_inplace_rshift: usize,
+    nb_inplace_and: usize,
+    nb_inplace_xor: usize,
+    nb_inplace_or: usize,
+    nb_floor_divide: usize,
+    nb_true_divide: usize,
+    nb_inplace_floor_divide: usize,
+    nb_inplace_true_divide: usize,
+    nb_index: usize,
+    nb_matrix_multiply: usize,
+    nb_inplace_matrix_multiply: usize,
     sq_length: usize,
     sq_item: usize,
     sq_ass_item: usize,
@@ -182,6 +220,28 @@ fn heap_type_registry() -> &'static Mutex<std::collections::HashMap<usize, HeapT
     static REGISTRY: OnceLock<Mutex<std::collections::HashMap<usize, HeapTypeMetadata>>> =
         OnceLock::new();
     REGISTRY.get_or_init(|| Mutex::new(std::collections::HashMap::new()))
+}
+
+fn heap_type_metadata_for_obj(obj: &rustpython_vm::PyObject) -> HeapTypeMetadata {
+    let obj_ref = obj.to_owned();
+    let cls_ptr = unsafe { Py_TYPE(pyobject_ref_as_ptr(&obj_ref)) };
+    heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default()
+}
+
+fn richcmp_op_to_c_int(op: PyComparisonOp) -> c_int {
+    match op {
+        PyComparisonOp::Lt => 0,
+        PyComparisonOp::Le => 1,
+        PyComparisonOp::Eq => 2,
+        PyComparisonOp::Ne => 3,
+        PyComparisonOp::Gt => 4,
+        PyComparisonOp::Ge => 5,
+    }
 }
 
 fn ffi_name_to_static(ptr: *const c_char, default: &'static str) -> &'static str {
@@ -630,6 +690,123 @@ fn heap_nb_add_wrapper(
     }
 }
 
+macro_rules! heap_unary_number_wrapper {
+    ($name:ident, $field:ident, $message:expr) => {
+        fn $name(
+            num: PyNumber<'_>,
+            vm: &rustpython_vm::VirtualMachine,
+        ) -> rustpython_vm::PyResult {
+            if stringify!($name) == "heap_nb_negative_wrapper" {
+                eprintln!("calling {} for {}", stringify!($name), num.obj.class());
+            }
+            let metadata = heap_type_metadata_for_obj(num.obj);
+            let Some(func_ptr) = (metadata.$field != 0).then_some(metadata.$field) else {
+                return Err(vm.new_type_error(format!($message, num.obj.class())));
+            };
+            let func: unaryfunc = unsafe { std::mem::transmute(func_ptr) };
+            let obj = num.obj.to_owned();
+            let result = unsafe { func(pyobject_ref_as_ptr(&obj)) };
+            if result.is_null() {
+                Err(unsafe { fetch_current_exception(vm) })
+            } else {
+                Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+            }
+        }
+    };
+}
+
+macro_rules! heap_binary_number_wrapper {
+    ($name:ident, $field:ident, $message:expr) => {
+        fn $name(
+            lhs: &rustpython_vm::PyObject,
+            rhs: &rustpython_vm::PyObject,
+            vm: &rustpython_vm::VirtualMachine,
+        ) -> rustpython_vm::PyResult {
+            let metadata = heap_type_metadata_for_obj(lhs);
+            let Some(func_ptr) = (metadata.$field != 0).then_some(metadata.$field) else {
+                return Err(vm.new_type_error(format!($message, lhs.class(), rhs.class())));
+            };
+            let func: binaryfunc = unsafe { std::mem::transmute(func_ptr) };
+            let lhs_obj = lhs.to_owned();
+            let rhs_obj = rhs.to_owned();
+            let result =
+                unsafe { func(pyobject_ref_as_ptr(&lhs_obj), pyobject_ref_as_ptr(&rhs_obj)) };
+            if result.is_null() {
+                Err(unsafe { fetch_current_exception(vm) })
+            } else {
+                Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+            }
+        }
+    };
+}
+
+macro_rules! heap_ternary_number_wrapper {
+    ($name:ident, $field:ident, $message:expr) => {
+        fn $name(
+            lhs: &rustpython_vm::PyObject,
+            rhs: &rustpython_vm::PyObject,
+            third: &rustpython_vm::PyObject,
+            vm: &rustpython_vm::VirtualMachine,
+        ) -> rustpython_vm::PyResult {
+            let metadata = heap_type_metadata_for_obj(lhs);
+            let Some(func_ptr) = (metadata.$field != 0).then_some(metadata.$field) else {
+                return Err(vm.new_type_error(format!($message, lhs.class(), rhs.class())));
+            };
+            let func: ternaryfunc = unsafe { std::mem::transmute(func_ptr) };
+            let lhs_obj = lhs.to_owned();
+            let rhs_obj = rhs.to_owned();
+            let third_obj = third.to_owned();
+            let result = unsafe {
+                func(
+                    pyobject_ref_as_ptr(&lhs_obj),
+                    pyobject_ref_as_ptr(&rhs_obj),
+                    pyobject_ref_as_ptr(&third_obj),
+                )
+            };
+            if result.is_null() {
+                Err(unsafe { fetch_current_exception(vm) })
+            } else {
+                Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+            }
+        }
+    };
+}
+
+heap_unary_number_wrapper!(heap_nb_negative_wrapper, nb_negative, "bad operand type for unary -: '{}'");
+heap_unary_number_wrapper!(heap_nb_positive_wrapper, nb_positive, "bad operand type for unary +: '{}'");
+heap_unary_number_wrapper!(heap_nb_absolute_wrapper, nb_absolute, "bad operand type for abs(): '{}'");
+heap_unary_number_wrapper!(heap_nb_invert_wrapper, nb_invert, "bad operand type for unary ~: '{}'");
+heap_unary_number_wrapper!(heap_nb_int_wrapper, nb_int, "int() argument must be a string, a bytes-like object or a real number, not '{}'");
+heap_unary_number_wrapper!(heap_nb_float_wrapper, nb_float, "must be real number, not {}");
+heap_unary_number_wrapper!(heap_nb_index_wrapper, nb_index, "'{}' object cannot be interpreted as an integer");
+
+heap_binary_number_wrapper!(heap_nb_multiply_wrapper, nb_multiply, "unsupported operand type(s) for *: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_remainder_wrapper, nb_remainder, "unsupported operand type(s) for %: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_divmod_wrapper, nb_divmod, "unsupported operand type(s) for divmod(): '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_lshift_wrapper, nb_lshift, "unsupported operand type(s) for <<: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_rshift_wrapper, nb_rshift, "unsupported operand type(s) for >>: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_and_wrapper, nb_and, "unsupported operand type(s) for &: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_xor_wrapper, nb_xor, "unsupported operand type(s) for ^: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_or_wrapper, nb_or, "unsupported operand type(s) for |: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_floor_divide_wrapper, nb_floor_divide, "unsupported operand type(s) for //: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_true_divide_wrapper, nb_true_divide, "unsupported operand type(s) for /: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_matrix_multiply_wrapper, nb_matrix_multiply, "unsupported operand type(s) for @: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_inplace_add_wrapper, nb_inplace_add, "unsupported operand type(s) for +=: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_inplace_subtract_wrapper, nb_inplace_subtract, "unsupported operand type(s) for -=: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_inplace_multiply_wrapper, nb_inplace_multiply, "unsupported operand type(s) for *=: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_inplace_remainder_wrapper, nb_inplace_remainder, "unsupported operand type(s) for %=: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_inplace_lshift_wrapper, nb_inplace_lshift, "unsupported operand type(s) for <<=: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_inplace_rshift_wrapper, nb_inplace_rshift, "unsupported operand type(s) for >>=: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_inplace_and_wrapper, nb_inplace_and, "unsupported operand type(s) for &=: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_inplace_xor_wrapper, nb_inplace_xor, "unsupported operand type(s) for ^=: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_inplace_or_wrapper, nb_inplace_or, "unsupported operand type(s) for |=: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_inplace_floor_divide_wrapper, nb_inplace_floor_divide, "unsupported operand type(s) for //=: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_inplace_true_divide_wrapper, nb_inplace_true_divide, "unsupported operand type(s) for /=: '{}' and '{}'");
+heap_binary_number_wrapper!(heap_nb_inplace_matrix_multiply_wrapper, nb_inplace_matrix_multiply, "unsupported operand type(s) for @=: '{}' and '{}'");
+
+heap_ternary_number_wrapper!(heap_nb_power_wrapper, nb_power, "unsupported operand type(s) for ** or pow(): '{}' and '{}'");
+heap_ternary_number_wrapper!(heap_nb_inplace_power_wrapper, nb_inplace_power, "unsupported operand type(s) for **=: '{}' and '{}'");
+
 fn heap_tp_hash_wrapper(
     obj: &rustpython_vm::PyObject,
     vm: &rustpython_vm::VirtualMachine,
@@ -655,6 +832,46 @@ fn heap_tp_hash_wrapper(
         Err(unsafe { fetch_current_exception(vm) })
     } else {
         Ok(result as rustpython_vm::common::hash::PyHash)
+    }
+}
+
+fn heap_tp_repr_wrapper(
+    obj: &rustpython_vm::PyObject,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult<rustpython_vm::PyRef<PyStr>> {
+    let metadata = heap_type_metadata_for_obj(obj);
+    let Some(tp_repr) = (metadata.tp_repr != 0).then_some(metadata.tp_repr) else {
+        eprintln!("tp_repr missing for {}", obj.class());
+        return obj.repr(vm);
+    };
+    eprintln!("calling tp_repr for {}", obj.class());
+    let tp_repr: reprfunc = unsafe { std::mem::transmute(tp_repr) };
+    let obj_ref = obj.to_owned();
+    let result = unsafe { tp_repr(pyobject_ref_as_ptr(&obj_ref)) };
+    if result.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        unsafe { ptr_to_pyobject_ref_owned(result).downcast::<PyStr>() }
+            .map_err(|obj| vm.new_type_error(format!("__repr__ returned non-str (type {})", obj.class().name())))
+    }
+}
+
+fn heap_tp_str_wrapper(
+    obj: &rustpython_vm::PyObject,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult<rustpython_vm::PyRef<PyStr>> {
+    let metadata = heap_type_metadata_for_obj(obj);
+    let Some(tp_str) = (metadata.tp_str != 0).then_some(metadata.tp_str) else {
+        return heap_tp_repr_wrapper(obj, vm);
+    };
+    let tp_str: reprfunc = unsafe { std::mem::transmute(tp_str) };
+    let obj_ref = obj.to_owned();
+    let result = unsafe { tp_str(pyobject_ref_as_ptr(&obj_ref)) };
+    if result.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        unsafe { ptr_to_pyobject_ref_owned(result).downcast::<PyStr>() }
+            .map_err(|obj| vm.new_type_error(format!("__str__ returned non-str (type {})", obj.class().name())))
     }
 }
 
@@ -687,6 +904,33 @@ fn heap_nb_subtract_wrapper(
         Err(unsafe { fetch_current_exception(vm) })
     } else {
         Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+    }
+}
+
+fn heap_tp_richcompare_wrapper(
+    lhs: &rustpython_vm::PyObject,
+    rhs: &rustpython_vm::PyObject,
+    op: PyComparisonOp,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult<Either<PyObjectRef, PyComparisonValue>> {
+    let metadata = heap_type_metadata_for_obj(lhs);
+    let Some(func_ptr) = (metadata.tp_richcompare != 0).then_some(metadata.tp_richcompare) else {
+        return Ok(Either::A(vm.ctx.not_implemented()));
+    };
+    let func: richcmpfunc = unsafe { std::mem::transmute(func_ptr) };
+    let lhs_obj = lhs.to_owned();
+    let rhs_obj = rhs.to_owned();
+    let result = unsafe {
+        func(
+            pyobject_ref_as_ptr(&lhs_obj),
+            pyobject_ref_as_ptr(&rhs_obj),
+            richcmp_op_to_c_int(op),
+        )
+    };
+    if result.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(Either::A(unsafe { ptr_to_pyobject_ref_owned(result) }))
     }
 }
 
@@ -1744,6 +1988,16 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                 crate::Py_tp_methods => {
                     let mut def = (*slot_ptr).pfunc as *mut methodobject::PyMethodDef;
                     while !def.is_null() && !(*def).ml_name.is_null() {
+                        let name = ffi_name_to_static((*def).ml_name, "<method>");
+                        if qual_name.contains("UnaryArithmetic")
+                            || qual_name.contains("BinaryArithmetic")
+                            || qual_name.contains("RhsArithmetic")
+                            || qual_name.contains("LhsAndRhs")
+                            || qual_name.contains("InPlaceOperations")
+                            || qual_name.contains("Indexable")
+                        {
+                            eprintln!("methoddef {} -> {}", qual_name, name);
+                        }
                         method_defs.push(def);
                         def = def.add(1);
                     }
@@ -1769,10 +2023,45 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                 crate::Py_tp_call => metadata.tp_call = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_hash => metadata.tp_hash = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_getattro => metadata.tp_getattro = (*slot_ptr).pfunc as usize,
+                crate::Py_tp_repr => metadata.tp_repr = (*slot_ptr).pfunc as usize,
+                crate::Py_tp_str => metadata.tp_str = (*slot_ptr).pfunc as usize,
+                crate::Py_tp_richcompare => metadata.tp_richcompare = (*slot_ptr).pfunc as usize,
                 crate::Py_mp_subscript => metadata.mp_subscript = (*slot_ptr).pfunc as usize,
                 crate::Py_mp_ass_subscript => metadata.mp_ass_subscript = (*slot_ptr).pfunc as usize,
                 crate::Py_nb_add => metadata.nb_add = (*slot_ptr).pfunc as usize,
                 crate::Py_nb_subtract => metadata.nb_subtract = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_multiply => metadata.nb_multiply = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_remainder => metadata.nb_remainder = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_divmod => metadata.nb_divmod = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_power => metadata.nb_power = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_negative => metadata.nb_negative = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_positive => metadata.nb_positive = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_absolute => metadata.nb_absolute = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_invert => metadata.nb_invert = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_lshift => metadata.nb_lshift = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_rshift => metadata.nb_rshift = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_and => metadata.nb_and = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_xor => metadata.nb_xor = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_or => metadata.nb_or = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_int => metadata.nb_int = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_float => metadata.nb_float = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_inplace_add => metadata.nb_inplace_add = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_inplace_subtract => metadata.nb_inplace_subtract = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_inplace_multiply => metadata.nb_inplace_multiply = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_inplace_remainder => metadata.nb_inplace_remainder = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_inplace_power => metadata.nb_inplace_power = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_inplace_lshift => metadata.nb_inplace_lshift = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_inplace_rshift => metadata.nb_inplace_rshift = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_inplace_and => metadata.nb_inplace_and = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_inplace_xor => metadata.nb_inplace_xor = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_inplace_or => metadata.nb_inplace_or = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_floor_divide => metadata.nb_floor_divide = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_true_divide => metadata.nb_true_divide = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_inplace_floor_divide => metadata.nb_inplace_floor_divide = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_inplace_true_divide => metadata.nb_inplace_true_divide = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_index => metadata.nb_index = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_matrix_multiply => metadata.nb_matrix_multiply = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_inplace_matrix_multiply => metadata.nb_inplace_matrix_multiply = (*slot_ptr).pfunc as usize,
                 crate::Py_sq_length => metadata.sq_length = (*slot_ptr).pfunc as usize,
                 crate::Py_sq_item => metadata.sq_item = (*slot_ptr).pfunc as usize,
                 crate::Py_sq_ass_item => metadata.sq_ass_item = (*slot_ptr).pfunc as usize,
@@ -1830,6 +2119,25 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
             &vm.ctx,
         ) {
             Ok(ty) => {
+                if qual_name.contains("UnaryArithmetic")
+                    || qual_name.contains("BinaryArithmetic")
+                    || qual_name.contains("Indexable")
+                    || qual_name.contains("InPlaceOperations")
+                {
+                    eprintln!(
+                        "heaptype {} neg={} add={} sub={} mul={} int={} float={} index={} rich={} iadd={}",
+                        qual_name,
+                        metadata.nb_negative != 0,
+                        metadata.nb_add != 0,
+                        metadata.nb_subtract != 0,
+                        metadata.nb_multiply != 0,
+                        metadata.nb_int != 0,
+                        metadata.nb_float != 0,
+                        metadata.nb_index != 0,
+                        metadata.tp_richcompare != 0,
+                        metadata.nb_inplace_add != 0,
+                    );
+                }
                 let class: &'static rustpython_vm::Py<PyType> =
                     unsafe { std::mem::transmute::<&rustpython_vm::Py<PyType>, &'static rustpython_vm::Py<PyType>>(&*ty) };
                 if metadata.tp_new != 0 {
@@ -1847,12 +2155,21 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                 if metadata.tp_getattro != 0 {
                     ty.slots.getattro.store(Some(heap_tp_getattro_wrapper));
                 }
+                if metadata.tp_repr != 0 {
+                    ty.slots.repr.store(Some(heap_tp_repr_wrapper));
+                }
+                if metadata.tp_str != 0 {
+                    ty.slots.str.store(Some(heap_tp_str_wrapper));
+                }
+                if metadata.tp_richcompare != 0 {
+                    ty.slots.richcompare.store(Some(heap_tp_richcompare_wrapper));
+                }
                 for def in method_defs {
                     let name = ffi_name_to_static((*def).ml_name, "<method>");
                     let method = unsafe {
                         methodobject::build_rustpython_class_method(def, class, vm)
                     };
-                    ty.set_attr(vm.ctx.intern_str(name), method);
+                    let _ = ty.as_object().set_attr(name, method, vm);
                 }
                 if metadata.mp_subscript != 0 {
                     ty.slots
@@ -1874,6 +2191,118 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                         .as_number
                         .subtract
                         .store(Some(heap_nb_subtract_wrapper));
+                }
+                if metadata.nb_multiply != 0 {
+                    ty.slots.as_number.multiply.store(Some(heap_nb_multiply_wrapper));
+                }
+                if metadata.nb_remainder != 0 {
+                    ty.slots.as_number.remainder.store(Some(heap_nb_remainder_wrapper));
+                }
+                if metadata.nb_divmod != 0 {
+                    ty.slots.as_number.divmod.store(Some(heap_nb_divmod_wrapper));
+                }
+                if metadata.nb_power != 0 {
+                    ty.slots.as_number.power.store(Some(heap_nb_power_wrapper));
+                }
+                if metadata.nb_negative != 0 {
+                    ty.slots.as_number.negative.store(Some(heap_nb_negative_wrapper));
+                }
+                if metadata.nb_positive != 0 {
+                    ty.slots.as_number.positive.store(Some(heap_nb_positive_wrapper));
+                }
+                if metadata.nb_absolute != 0 {
+                    ty.slots.as_number.absolute.store(Some(heap_nb_absolute_wrapper));
+                }
+                if metadata.nb_invert != 0 {
+                    ty.slots.as_number.invert.store(Some(heap_nb_invert_wrapper));
+                }
+                if metadata.nb_lshift != 0 {
+                    ty.slots.as_number.lshift.store(Some(heap_nb_lshift_wrapper));
+                }
+                if metadata.nb_rshift != 0 {
+                    ty.slots.as_number.rshift.store(Some(heap_nb_rshift_wrapper));
+                }
+                if metadata.nb_and != 0 {
+                    ty.slots.as_number.and.store(Some(heap_nb_and_wrapper));
+                }
+                if metadata.nb_xor != 0 {
+                    ty.slots.as_number.xor.store(Some(heap_nb_xor_wrapper));
+                }
+                if metadata.nb_or != 0 {
+                    ty.slots.as_number.or.store(Some(heap_nb_or_wrapper));
+                }
+                if metadata.nb_int != 0 {
+                    ty.slots.as_number.int.store(Some(heap_nb_int_wrapper));
+                }
+                if metadata.nb_float != 0 {
+                    ty.slots.as_number.float.store(Some(heap_nb_float_wrapper));
+                }
+                if metadata.nb_inplace_add != 0 {
+                    ty.slots.as_number.inplace_add.store(Some(heap_nb_inplace_add_wrapper));
+                }
+                if metadata.nb_inplace_subtract != 0 {
+                    ty.slots.as_number.inplace_subtract.store(Some(heap_nb_inplace_subtract_wrapper));
+                }
+                if metadata.nb_inplace_multiply != 0 {
+                    ty.slots.as_number.inplace_multiply.store(Some(heap_nb_inplace_multiply_wrapper));
+                }
+                if metadata.nb_inplace_remainder != 0 {
+                    ty.slots.as_number.inplace_remainder.store(Some(heap_nb_inplace_remainder_wrapper));
+                }
+                if metadata.nb_inplace_power != 0 {
+                    ty.slots.as_number.inplace_power.store(Some(heap_nb_inplace_power_wrapper));
+                }
+                if metadata.nb_inplace_lshift != 0 {
+                    ty.slots.as_number.inplace_lshift.store(Some(heap_nb_inplace_lshift_wrapper));
+                }
+                if metadata.nb_inplace_rshift != 0 {
+                    ty.slots.as_number.inplace_rshift.store(Some(heap_nb_inplace_rshift_wrapper));
+                }
+                if metadata.nb_inplace_and != 0 {
+                    ty.slots.as_number.inplace_and.store(Some(heap_nb_inplace_and_wrapper));
+                }
+                if metadata.nb_inplace_xor != 0 {
+                    ty.slots.as_number.inplace_xor.store(Some(heap_nb_inplace_xor_wrapper));
+                }
+                if metadata.nb_inplace_or != 0 {
+                    ty.slots.as_number.inplace_or.store(Some(heap_nb_inplace_or_wrapper));
+                }
+                if metadata.nb_floor_divide != 0 {
+                    ty.slots.as_number.floor_divide.store(Some(heap_nb_floor_divide_wrapper));
+                }
+                if metadata.nb_true_divide != 0 {
+                    ty.slots.as_number.true_divide.store(Some(heap_nb_true_divide_wrapper));
+                }
+                if metadata.nb_inplace_floor_divide != 0 {
+                    ty.slots.as_number.inplace_floor_divide.store(Some(heap_nb_inplace_floor_divide_wrapper));
+                }
+                if metadata.nb_inplace_true_divide != 0 {
+                    ty.slots.as_number.inplace_true_divide.store(Some(heap_nb_inplace_true_divide_wrapper));
+                }
+                if metadata.nb_index != 0 {
+                    ty.slots.as_number.index.store(Some(heap_nb_index_wrapper));
+                }
+                if metadata.nb_matrix_multiply != 0 {
+                    ty.slots.as_number.matrix_multiply.store(Some(heap_nb_matrix_multiply_wrapper));
+                }
+                if metadata.nb_inplace_matrix_multiply != 0 {
+                    ty.slots.as_number.inplace_matrix_multiply.store(Some(heap_nb_inplace_matrix_multiply_wrapper));
+                }
+                if qual_name.contains("UnaryArithmetic")
+                    || qual_name.contains("BinaryArithmetic")
+                    || qual_name.contains("Indexable")
+                    || qual_name.contains("InPlaceOperations")
+                {
+                    eprintln!(
+                        "installed {} neg_slot={} repr_slot={} add_slot={} int_slot={} index_slot={} rich_slot={}",
+                        qual_name,
+                        ty.slots.as_number.negative.load().is_some(),
+                        ty.slots.repr.load().is_some(),
+                        ty.slots.as_number.add.load().is_some(),
+                        ty.slots.as_number.int.load().is_some(),
+                        ty.slots.as_number.index.load().is_some(),
+                        ty.slots.richcompare.load().is_some(),
+                    );
                 }
                 if metadata.sq_length != 0 {
                     ty.slots

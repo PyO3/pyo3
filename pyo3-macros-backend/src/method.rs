@@ -677,6 +677,7 @@ impl<'a> FnSpec<'a> {
         ident: &proc_macro2::Ident,
         cls: Option<&syn::Type>,
         convention: CallingConvention,
+        extract_error_mode: ExtractErrorMode,
         ctx: &Ctx,
     ) -> Result<TokenStream> {
         let Ctx {
@@ -701,7 +702,7 @@ impl<'a> FnSpec<'a> {
         let rust_call = |args: Vec<TokenStream>, mut holders: Holders| {
             let self_arg = self
                 .tp
-                .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+                .self_arg(cls, extract_error_mode, &mut holders, ctx);
             let init_holders = holders.init_holders(ctx);
 
             // We must assign the output_span to the return value of the call,
@@ -880,7 +881,8 @@ impl<'a> FnSpec<'a> {
                 }
             }
             CallingConvention::Fastcall => {
-                let (arg_convert, args) = impl_arg_params(self, cls, true, &mut holders, ctx);
+                let (arg_convert, args) =
+                    impl_arg_params(self, cls, true, extract_error_mode, &mut holders, ctx);
                 let call = rust_call(args, holders);
 
                 quote! {
@@ -896,7 +898,8 @@ impl<'a> FnSpec<'a> {
                 }
             }
             CallingConvention::Varargs => {
-                let (arg_convert, args) = impl_arg_params(self, cls, false, &mut holders, ctx);
+                let (arg_convert, args) =
+                    impl_arg_params(self, cls, false, extract_error_mode, &mut holders, ctx);
                 let call = rust_call(args, holders);
 
                 quote! {

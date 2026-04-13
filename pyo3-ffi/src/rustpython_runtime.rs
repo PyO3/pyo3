@@ -69,6 +69,7 @@ fn runtime() -> &'static RuntimeHandle {
 
                 crate::pyerrors::init_exception_symbols(vm);
                 crate::methodobject::init_builtin_function_descriptors(vm);
+                crate::import::install_registered_inittab_modules(vm);
                 ready_tx
                     .send(thread_id)
                     .expect("RustPython runtime initialization channel closed");

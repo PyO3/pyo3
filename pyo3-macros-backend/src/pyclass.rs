@@ -1848,7 +1848,7 @@ fn generate_protocol_slot(
         PyFunctionOptions::default(),
     )?;
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
-    let mut def = slot.generate_type_slot(cls, &spec, name, ctx)?;
+    let mut def = slot.generate_type_slot(cls, &spec, name, None, ctx)?;
     #[cfg(feature = "experimental-inspect")]
     def.add_introspection(introspection_data.generate(ctx, cls));
     Ok(def)
@@ -1872,6 +1872,7 @@ fn generate_default_protocol_slot(
         &syn::parse_quote!(#cls),
         &spec,
         &format!("__default_{name}__"),
+        None,
         ctx,
     )?;
     #[cfg(feature = "experimental-inspect")]
@@ -2063,8 +2064,13 @@ fn complex_enum_struct_variant_new<'a>(
     };
 
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
-    let mut def =
-        __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", ctx)?;
+    let mut def = __NEW__.generate_type_slot(
+        &variant_cls_type,
+        &spec,
+        "__default___new____",
+        None,
+        ctx,
+    )?;
     #[cfg(feature = "experimental-inspect")]
     def.add_introspection(method_introspection_code(
         &spec,
@@ -2128,8 +2134,13 @@ fn complex_enum_tuple_variant_new<'a>(
     };
 
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
-    let mut def =
-        __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", ctx)?;
+    let mut def = __NEW__.generate_type_slot(
+        &variant_cls_type,
+        &spec,
+        "__default___new____",
+        None,
+        ctx,
+    )?;
     #[cfg(feature = "experimental-inspect")]
     def.add_introspection(method_introspection_code(
         &spec,

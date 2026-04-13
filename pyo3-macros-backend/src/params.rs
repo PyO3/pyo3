@@ -1,7 +1,7 @@
 use crate::utils::Ctx;
 use crate::{
     attributes::FromPyWithAttribute,
-    method::{FnArg, FnSpec, RegularArg},
+    method::{ExtractErrorMode, FnArg, FnSpec, RegularArg},
     pyfunction::FunctionSignature,
     quotes::some_wrap,
 };
@@ -48,6 +48,7 @@ pub fn impl_arg_params(
     spec: &FnSpec<'_>,
     self_: Option<&syn::Type>,
     fastcall: bool,
+    extract_error_mode: ExtractErrorMode,
     holders: &mut Holders,
     ctx: &Ctx,
 ) -> (TokenStream, Vec<TokenStream>) {
@@ -76,7 +77,7 @@ pub fn impl_arg_params(
             .arguments
             .iter()
             .enumerate()
-            .map(|(i, arg)| impl_arg_param(arg, i, &mut 0, holders, ctx))
+            .map(|(i, arg)| impl_arg_param(arg, i, &mut 0, extract_error_mode, holders, ctx))
             .collect();
         return (
             quote! {
@@ -117,7 +118,7 @@ pub fn impl_arg_params(
         .arguments
         .iter()
         .enumerate()
-        .map(|(i, arg)| impl_arg_param(arg, i, &mut option_pos, holders, ctx))
+        .map(|(i, arg)| impl_arg_param(arg, i, &mut option_pos, extract_error_mode, holders, ctx))
         .collect();
 
     let args_handler = if spec.signature.python_signature.varargs.is_some() {
@@ -185,6 +186,7 @@ fn impl_arg_param(
     arg: &FnArg<'_>,
     pos: usize,
     option_pos: &mut usize,
+    extract_error_mode: ExtractErrorMode,
     holders: &mut Holders,
     ctx: &Ctx,
 ) -> TokenStream {
@@ -196,7 +198,7 @@ fn impl_arg_param(
             let from_py_with = format_ident!("from_py_with_{}", pos);
             let arg_value = quote!(#args_array[#option_pos]);
             *option_pos += 1;
-            impl_regular_arg_param(arg, from_py_with, arg_value, holders, ctx)
+            impl_regular_arg_param(arg, from_py_with, arg_value, extract_error_mode, holders, ctx)
         }
         FnArg::VarArgs(arg) => {
             let span = Span::call_site().located_at(arg.ty.span());
@@ -234,6 +236,7 @@ pub(crate) fn impl_regular_arg_param(
     arg: &RegularArg<'_>,
     from_py_with: syn::Ident,
     arg_value: TokenStream, // expected type: Option<&'a Bound<'py, PyAny>>
+    extract_error_mode: ExtractErrorMode,
     holders: &mut Holders,
     ctx: &Ctx,
 ) -> TokenStream {
@@ -264,7 +267,7 @@ pub(crate) fn impl_regular_arg_param(
             { let from_py_with: fn(_) -> _ = #from_py_with; from_py_with }
         };
         if let Some(default) = default {
-            quote_arg_span! {
+            let extract = quote! {
                 #pyo3_path::impl_::extract_argument::from_py_with_with_default(
                     #arg_value.as_deref(),
                     #name_str,
@@ -273,21 +276,29 @@ pub(crate) fn impl_regular_arg_param(
                     {
                         || #default
                     }
-                )?
+                )
+            };
+            let handled = extract_error_mode.handle_error(extract, ctx);
+            quote_arg_span! {
+                #handled
             }
         } else {
             let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument_bound(#arg_value.as_deref()) }};
-            quote_arg_span! {
+            let extract = quote! {
                 #pyo3_path::impl_::extract_argument::from_py_with(
                     #unwrap,
                     #name_str,
                     #extractor,
-                )?
+                )
+            };
+            let handled = extract_error_mode.handle_error(extract, ctx);
+            quote_arg_span! {
+                #handled
             }
         }
     } else if let Some(default) = default {
         let holder = holders.push_holder(arg.name.span());
-        quote_arg_span! {
+        let extract = quote! {
             #pyo3_path::impl_::extract_argument::extract_argument_with_default(
                 #arg_value,
                 &mut #holder,
@@ -296,17 +307,25 @@ pub(crate) fn impl_regular_arg_param(
                 {
                     || #default
                 }
-            )?
+            )
+        };
+        let handled = extract_error_mode.handle_error(extract, ctx);
+        quote_arg_span! {
+            #handled
         }
     } else {
         let holder = holders.push_holder(arg.name.span());
         let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value) }};
-        quote_arg_span! {
+        let extract = quote! {
             #pyo3_path::impl_::extract_argument::extract_argument(
                 #unwrap,
                 &mut #holder,
                 #name_str
-            )?
+            )
+        };
+        let handled = extract_error_mode.handle_error(extract, ctx);
+        quote_arg_span! {
+            #handled
         }
     }
 }
