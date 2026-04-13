@@ -100,7 +100,7 @@ fn setdefault_result_from_nonerror_return_code(code: std::ffi::c_int) -> bool {
         0 => true,
         // not inserted
         1 => false,
-        x => panic!("Unknown return value from PyDict_SetDeaultRef: {x}"),
+        x => panic!("Unknown return value from PyDict_SetDefaultRef: {x}"),
     }
 }
 
@@ -489,7 +489,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             &mut ob_result,
         )?;
         assert!(ob_result != std::ptr::addr_of!(UNINITIALIZED) as *mut ffi::PyObject);
-        // SAFETY: the intepreter should have set this to a valid owned PyObject pointer
+        // SAFETY: the interpreter should have set this to a valid owned PyObject pointer
         let out_result = unsafe { ob_result.assume_owned(py) };
         Ok((
             setdefault_result_from_nonerror_return_code(code),
@@ -1813,7 +1813,7 @@ mod tests {
             let res = dict.set_default_with_result("hello", "world");
             assert!(res.is_ok());
             let res = res.unwrap();
-            assert!(res.0 == true);
+            assert!(res.0);
             assert!(res.1.extract::<&str>().unwrap() == "world");
             assert!(
                 dict.get_item("hello")
@@ -1827,7 +1827,7 @@ mod tests {
             let res = dict.set_default_with_result("hello", "foobar");
             assert!(res.is_ok());
             let res = res.unwrap();
-            assert!(res.0 == false);
+            assert!(!res.0);
             assert!(res.1.extract::<&str>().unwrap() == "world");
 
             let invalid_key = PyList::new(py, vec![0]).unwrap();
