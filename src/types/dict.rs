@@ -1782,6 +1782,8 @@ mod tests {
     }
 
     #[test]
+    // Python 3.10 limited API is needed for .extract::<&str>
+    #[cfg(not(all(Py_LIMITED_API, not(Py_3_10))))]
     fn test_set_default() {
         Python::attach(|py| {
             let dict = PyDict::new(py);
@@ -1803,6 +1805,8 @@ mod tests {
     }
 
     #[test]
+    // Python 3.10 is needed for .extract::<&str>
+    #[cfg(not(all(Py_LIMITED_API, not(Py_3_10))))]
     fn test_set_default_with_result() {
         Python::attach(|py| {
             let dict = PyDict::new(py);
