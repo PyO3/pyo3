@@ -1,4 +1,5 @@
 use crate::object::*;
+use crate::pyerrors::PyErr_SetRaisedException;
 use crate::rustpython_runtime;
 use std::ffi::c_int;
 
@@ -11,8 +12,8 @@ pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
     }
     rustpython_runtime::with_vm(|vm| {
         let obj = ptr_to_pyobject_ref_borrowed(op);
-        vm.import("weakref", 0)
-            .and_then(|m| m.get_attr("ref", vm))
+        vm.import("_weakref", 0)
+            .and_then(|m| m.get_attr("ReferenceType", vm))
             .map(|ty| obj.class().fast_issubclass(&ty))
             .unwrap_or(false) as c_int
     })
@@ -30,7 +31,7 @@ pub unsafe fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int {
     }
     rustpython_runtime::with_vm(|vm| {
         let obj = ptr_to_pyobject_ref_borrowed(op);
-        vm.import("weakref", 0)
+        vm.import("_weakref", 0)
             .and_then(|m| m.get_attr("ProxyType", vm).or_else(|_| m.get_attr("CallableProxyType", vm)))
             .map(|ty| obj.class().fast_issubclass(&ty))
             .unwrap_or(false) as c_int
@@ -57,19 +58,33 @@ unsafe fn weakref_call(
         } else {
             ptr_to_pyobject_ref_borrowed(callback)
         };
-        let Ok(module) = vm.import("weakref", 0) else {
-            return std::ptr::null_mut();
+        let module = match vm.import("_weakref", 0) {
+            Ok(module) => module,
+            Err(exc) => {
+                PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
+                return std::ptr::null_mut();
+            }
         };
         let attr = if is_proxy { "proxy" } else { "ref" };
-        let Ok(factory) = module.get_attr(attr, vm) else {
-            return std::ptr::null_mut();
+        let factory = match module.get_attr(attr, vm) {
+            Ok(factory) => factory,
+            Err(exc) => {
+                PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
+                return std::ptr::null_mut();
+            }
         };
         let result = if vm.is_none(&callback) {
             factory.call((object,), vm)
         } else {
             factory.call((object, callback), vm)
         };
-        result.map(pyobject_ref_to_ptr).unwrap_or(std::ptr::null_mut())
+        match result {
+            Ok(value) => pyobject_ref_to_ptr(value),
+            Err(exc) => {
+                PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
+                std::ptr::null_mut()
+            }
+        }
     })
 }
 
@@ -92,7 +107,10 @@ pub unsafe fn PyWeakref_GetObject(reference: *mut PyObject) -> *mut PyObject {
         let reference = ptr_to_pyobject_ref_borrowed(reference);
         match reference.call((), vm) {
             Ok(obj) => pyobject_ref_as_ptr(&obj),
-            Err(_) => std::ptr::null_mut(),
+            Err(exc) => {
+                PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
+                std::ptr::null_mut()
+            }
         }
     })
 }
@@ -115,7 +133,10 @@ pub unsafe fn PyWeakref_GetRef(reference: *mut PyObject, pobj: *mut *mut PyObjec
                     1
                 }
             }
-            Err(_) => -1,
+            Err(exc) => {
+                PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
+                -1
+            }
         }
     })
 }

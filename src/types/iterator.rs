@@ -455,6 +455,10 @@ def fibonacci(target):
     }
 
     #[test]
+    #[cfg_attr(
+        PyRustPython,
+        ignore = "upstream RustPython bug: collections.abc import recurses in embedded mode; see RustPython/RustPython#7587"
+    )]
     fn test_type_object() {
         Python::attach(|py| {
             let abc = PyIterator::type_object(py);

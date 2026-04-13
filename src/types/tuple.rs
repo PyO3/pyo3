@@ -40,16 +40,22 @@ fn try_new_from_iter<'py>(
     unsafe {
         #[cfg(PyRustPython)]
         {
-            let len = elements.len();
+            let len: Py_ssize_t = elements
+                .len()
+                .try_into()
+                .expect("out of range integral type conversion attempted on `elements.len()`");
             let list = ffi::PyList_New(len.try_into().expect("tuple too large"));
             let list = list.assume_owned(py).cast_into_unchecked::<PyList>();
-            for (index, obj) in (&mut elements).enumerate() {
+            let mut counter: Py_ssize_t = 0;
+            for (index, obj) in (&mut elements).take(len as usize).enumerate() {
                 crate::err::error_on_minusone(
                     py,
                     ffi::PyList_SetItem(list.as_ptr(), index as Py_ssize_t, obj?.into_ptr()),
                 )?;
+                counter += 1;
             }
             assert!(elements.next().is_none(), "Attempted to create PyTuple but `elements` was larger than reported by its `ExactSizeIterator` implementation.");
+            assert_eq!(len, counter, "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
             return Ok(
                 ffi::PySequence_Tuple(list.as_ptr())
                     .assume_owned(py)

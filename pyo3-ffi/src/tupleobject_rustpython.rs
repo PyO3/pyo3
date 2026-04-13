@@ -1,6 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use crate::pyerrors::{PyErr_SetString, PyExc_TypeError};
+use crate::pyerrors::{PyErr_SetString, PyExc_IndexError, PyExc_TypeError};
 use crate::rustpython_runtime;
 use rustpython_vm::builtins::PyTuple;
 use rustpython_vm::AsObject;
@@ -50,6 +50,7 @@ pub unsafe fn PyTuple_Size(arg1: *mut PyObject) -> Py_ssize_t {
 #[inline]
 pub unsafe fn PyTuple_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject {
     if arg1.is_null() || arg2 < 0 {
+        PyErr_SetString(PyExc_IndexError, c"tuple index out of range".as_ptr());
         return std::ptr::null_mut();
     }
     let tuple = ptr_to_pyobject_ref_borrowed(arg1);
@@ -60,7 +61,10 @@ pub unsafe fn PyTuple_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyO
         .as_slice()
         .get(arg2 as usize)
         .map(pyobject_ref_as_ptr)
-        .unwrap_or(std::ptr::null_mut())
+        .unwrap_or_else(|| {
+            PyErr_SetString(PyExc_IndexError, c"tuple index out of range".as_ptr());
+            std::ptr::null_mut()
+        })
 }
 
 #[inline]

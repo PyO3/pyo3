@@ -152,11 +152,13 @@ pub unsafe fn PyUnicode_AsUTF8String(unicode: *mut PyObject) -> *mut PyObject {
     }
     let obj = ptr_to_pyobject_ref_borrowed(unicode);
     rustpython_runtime::with_vm(|vm| match obj.str(vm) {
-        Ok(s) => pyobject_ref_to_ptr(
-            vm.ctx
-                .new_bytes(AsRef::<str>::as_ref(&s).as_bytes().to_vec())
-                .into(),
-        ),
+        Ok(s) => match s.try_as_utf8(vm) {
+            Ok(utf8) => pyobject_ref_to_ptr(vm.ctx.new_bytes(utf8.as_str().as_bytes().to_vec()).into()),
+            Err(exc) => {
+                PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
+                std::ptr::null_mut()
+            }
+        },
         Err(exc) => {
             PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
             std::ptr::null_mut()
@@ -215,6 +217,20 @@ pub unsafe fn PyUnicode_AsEncodedString(
                 std::ptr::null_mut()
             }
         }
+    })
+}
+
+#[inline]
+pub unsafe fn PyUnicode_AsWtf8String(unicode: *mut PyObject) -> *mut PyObject {
+    if unicode.is_null() {
+        return std::ptr::null_mut();
+    }
+    let obj = ptr_to_pyobject_ref_borrowed(unicode);
+    rustpython_runtime::with_vm(|vm| {
+        let Some(s) = obj.downcast_ref::<PyStr>() else {
+            return std::ptr::null_mut();
+        };
+        pyobject_ref_to_ptr(vm.ctx.new_bytes(s.as_wtf8().as_bytes().to_vec()).into())
     })
 }
 

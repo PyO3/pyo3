@@ -620,6 +620,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        PyRustPython,
+        ignore = "upstream RustPython bug: site/os/abc imports recurse in embedded mode; see RustPython/RustPython#7587"
+    )]
     fn module_filename() {
         use crate::types::string::PyStringMethods;
         Python::attach(|py| {

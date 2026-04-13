@@ -41,7 +41,7 @@ pyobject_native_type_core!(
     PyWeakrefReference,
     |py| {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "weakref", "ref")
+        TYPE.import(py, "_weakref", "ReferenceType")
             .unwrap()
             .as_type_ptr()
     },

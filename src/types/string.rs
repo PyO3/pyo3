@@ -6,6 +6,7 @@ use crate::py_result_ext::PyResultExt;
 #[cfg(PyRustPython)]
 use crate::sync::PyOnceLock;
 use crate::types::bytes::PyBytesMethods;
+#[cfg(PyRustPython)]
 use crate::types::PyBytes;
 #[cfg(PyRustPython)]
 use crate::types::{PyType, PyTypeMethods};
@@ -371,6 +372,14 @@ impl<'a> Borrowed<'a, '_, PyString> {
     }
 
     pub(crate) fn to_cow(self) -> PyResult<Cow<'a, str>> {
+        #[cfg(PyRustPython)]
+        {
+            let bytes = self.encode_utf8()?;
+            return Ok(Cow::Owned(
+                unsafe { str::from_utf8_unchecked(bytes.as_bytes()) }.to_owned(),
+            ));
+        }
+
         // TODO: this method can probably be deprecated once Python 3.9 support is dropped,
         // because all versions then support the more efficient `to_str`.
         #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -388,6 +397,16 @@ impl<'a> Borrowed<'a, '_, PyString> {
     }
 
     fn to_string_lossy(self) -> Cow<'a, str> {
+        #[cfg(PyRustPython)]
+        {
+            let bytes = unsafe {
+                ffi::PyUnicode_AsWtf8String(self.as_ptr())
+                    .assume_owned(self.py())
+                    .cast_into_unchecked::<PyBytes>()
+            };
+            return Cow::Owned(String::from_utf8_lossy(bytes.as_bytes()).into_owned());
+        }
+
         let ptr = self.as_ptr();
         let py = self.py();
 
@@ -916,7 +935,8 @@ mod tests {
                 .unwrap()
                 .extract()
                 .unwrap();
-            assert_eq!(py_string.to_string_lossy(py), "🐈 Hello ���World");
+            let lossy = py_string.to_string_lossy(py);
+            assert_eq!(lossy, "🐈 Hello ���World");
         })
     }
 

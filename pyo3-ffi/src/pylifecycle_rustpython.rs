@@ -100,7 +100,38 @@ pub unsafe fn Py_SetPath(_path: *const wchar_t) {}
 
 #[inline]
 pub unsafe fn Py_GetVersion() -> *const c_char {
-    c"RustPython".as_ptr()
+    #[cfg(Py_3_14)]
+    {
+        return c"3.14.0 RustPython".as_ptr();
+    }
+    #[cfg(all(not(Py_3_14), Py_3_13))]
+    {
+        return c"3.13.0 RustPython".as_ptr();
+    }
+    #[cfg(all(not(any(Py_3_14, Py_3_13)), Py_3_12))]
+    {
+        return c"3.12.0 RustPython".as_ptr();
+    }
+    #[cfg(all(not(any(Py_3_14, Py_3_13, Py_3_12)), Py_3_11))]
+    {
+        return c"3.11.0 RustPython".as_ptr();
+    }
+    #[cfg(all(not(any(Py_3_14, Py_3_13, Py_3_12, Py_3_11)), Py_3_10))]
+    {
+        return c"3.10.0 RustPython".as_ptr();
+    }
+    #[cfg(all(not(any(Py_3_14, Py_3_13, Py_3_12, Py_3_11, Py_3_10)), Py_3_9))]
+    {
+        return c"3.9.0 RustPython".as_ptr();
+    }
+    #[cfg(all(
+        not(any(Py_3_14, Py_3_13, Py_3_12, Py_3_11, Py_3_10, Py_3_9)),
+        Py_3_8
+    ))]
+    {
+        return c"3.8.0 RustPython".as_ptr();
+    }
+    c"3.8.0 RustPython".as_ptr()
 }
 
 #[inline]

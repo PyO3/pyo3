@@ -10,6 +10,8 @@ use crate::{ffi, Bound, PyResult, Python};
 #[cfg(PyRustPython)]
 use crate::PyErr;
 #[cfg(PyRustPython)]
+use crate::types::{PyAnyMethods, PyCode, PyCodeInput, PyCodeMethods, PyDict};
+#[cfg(PyRustPython)]
 use crate::{sync::PyOnceLock, types::{PyType, PyTypeMethods}, Py};
 #[cfg(not(PyRustPython))]
 use pyo3_ffi::PyObject;
@@ -52,10 +54,40 @@ impl PyFrame {
     ) -> PyResult<Bound<'py, PyFrame>> {
         #[cfg(PyRustPython)]
         {
-            let _ = (py, file_name, func_name, line_number);
-            return Err(PyErr::new::<crate::exceptions::PyNotImplementedError, _>(
-                "PyFrame::new is not implemented on the RustPython backend yet",
-            ));
+            let mut source = String::new();
+            for _ in 1..line_number.max(2) - 1 {
+                source.push('\n');
+            }
+            source.push_str("def ");
+            source.push_str(func_name.to_str().unwrap());
+            source.push_str("():\n    raise RuntimeError()\n");
+            source.push_str(func_name.to_str().unwrap());
+            source.push_str("()\n");
+            let source = std::ffi::CString::new(source).unwrap();
+            let code = PyCode::compile(py, source.as_c_str(), file_name, PyCodeInput::File)?;
+            let globals = PyDict::new(py);
+            match code.run(Some(&globals), Some(&globals)) {
+                Err(err) => {
+                    let mut tb = err.traceback(py).ok_or_else(|| {
+                        PyErr::new::<crate::exceptions::PyRuntimeError, _>(
+                            "RustPython failed to produce a traceback for PyFrame::new",
+                        )
+                    })?;
+                    loop {
+                        let next = tb.getattr("tb_next")?;
+                        if next.is_none() {
+                            break;
+                        }
+                        tb = next.cast_into()?;
+                    }
+                    return Ok(tb.getattr("tb_frame")?.cast_into()?);
+                }
+                Ok(_) => {
+                    return Err(PyErr::new::<crate::exceptions::PyRuntimeError, _>(
+                        "RustPython frame construction unexpectedly succeeded without traceback",
+                    ));
+                }
+            }
         }
 
         #[cfg(not(PyRustPython))]
