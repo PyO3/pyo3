@@ -4,9 +4,13 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 #[cfg(PyRustPython)]
+use crate::sync::PyOnceLock;
+#[cfg(PyRustPython)]
 use crate::types::any::PyAnyMethods;
+#[cfg(PyRustPython)]
+use crate::types::{PyType, PyTypeMethods};
 use crate::types::{PyAny, PyList, PyMapping};
-use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
+use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python};
 
 /// Represents a Python `dict`.
 ///
@@ -56,9 +60,29 @@ pyobject_subclassable_native_type_opaque!(PyDict);
 pub struct PyDictKeys(PyAny);
 
 #[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(PyRustPython))]
 pyobject_native_type_core!(
     PyDictKeys,
     pyobject_native_static_type_object!(ffi::PyDictKeys_Type),
+    "builtins",
+    "dict_keys",
+    #checkfunction=ffi::PyDictKeys_Check
+);
+
+#[cfg(all(not(any(PyPy, GraalPy)), PyRustPython))]
+pyobject_native_type_core!(
+    PyDictKeys,
+    |py: Python<'_>| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.get_or_init(py, || {
+            let dict = PyDict::new(py);
+            let view = dict.call_method0("keys").unwrap();
+            let ty = view.get_type();
+            ty.unbind()
+        })
+        .bind(py)
+        .as_type_ptr()
+    },
     "builtins",
     "dict_keys",
     #checkfunction=ffi::PyDictKeys_Check
@@ -70,9 +94,29 @@ pyobject_native_type_core!(
 pub struct PyDictValues(PyAny);
 
 #[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(PyRustPython))]
 pyobject_native_type_core!(
     PyDictValues,
     pyobject_native_static_type_object!(ffi::PyDictValues_Type),
+    "builtins",
+    "dict_values",
+    #checkfunction=ffi::PyDictValues_Check
+);
+
+#[cfg(all(not(any(PyPy, GraalPy)), PyRustPython))]
+pyobject_native_type_core!(
+    PyDictValues,
+    |py: Python<'_>| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.get_or_init(py, || {
+            let dict = PyDict::new(py);
+            let view = dict.call_method0("values").unwrap();
+            let ty = view.get_type();
+            ty.unbind()
+        })
+        .bind(py)
+        .as_type_ptr()
+    },
     "builtins",
     "dict_values",
     #checkfunction=ffi::PyDictValues_Check
@@ -84,9 +128,29 @@ pyobject_native_type_core!(
 pub struct PyDictItems(PyAny);
 
 #[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(PyRustPython))]
 pyobject_native_type_core!(
     PyDictItems,
     pyobject_native_static_type_object!(ffi::PyDictItems_Type),
+    "builtins",
+    "dict_items",
+    #checkfunction=ffi::PyDictItems_Check
+);
+
+#[cfg(all(not(any(PyPy, GraalPy)), PyRustPython))]
+pyobject_native_type_core!(
+    PyDictItems,
+    |py: Python<'_>| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.get_or_init(py, || {
+            let dict = PyDict::new(py);
+            let view = dict.call_method0("items").unwrap();
+            let ty = view.get_type();
+            ty.unbind()
+        })
+        .bind(py)
+        .as_type_ptr()
+    },
     "builtins",
     "dict_items",
     #checkfunction=ffi::PyDictItems_Check
