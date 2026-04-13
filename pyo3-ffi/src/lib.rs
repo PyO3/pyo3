@@ -533,6 +533,8 @@ mod intrcheck;
 mod iterobject;
 #[cfg_attr(PyRustPython, path = "listobject_rustpython.rs")]
 mod listobject;
+#[cfg(PyRustPython)]
+mod lock;
 // skipped longintrepr.h
 #[cfg_attr(PyRustPython, path = "longobject_rustpython.rs")]
 mod longobject;
@@ -583,6 +585,8 @@ mod pymem;
 mod pyport;
 #[cfg_attr(PyRustPython, path = "pystate_rustpython.rs")]
 mod pystate;
+#[cfg(PyRustPython)]
+mod critical_section;
 // skipped pystats.h
 #[cfg_attr(PyRustPython, path = "pythonrun_rustpython.rs")]
 mod pythonrun;
@@ -616,6 +620,11 @@ mod weakrefobject;
 
 #[cfg(PyRustPython)]
 mod rustpython_runtime;
+
+#[cfg(PyRustPython)]
+pub use self::critical_section::*;
+#[cfg(PyRustPython)]
+pub use self::lock::*;
 
 // Additional headers that are not exported by Python.h
 #[deprecated(note = "Python 3.12")]

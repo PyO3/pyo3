@@ -1,4 +1,5 @@
 use crate::object::*;
+use crate::pyerrors::set_vm_exception;
 use crate::rustpython_runtime;
 use rustpython_vm::builtins::PyType;
 use rustpython_vm::object::MaybeTraverse;
@@ -138,6 +139,9 @@ pub unsafe fn PyCapsule_New(
 #[inline]
 pub unsafe fn PyCapsule_GetPointer(capsule: *mut PyObject, name: *const c_char) -> *mut c_void {
     if capsule.is_null() {
+        rustpython_runtime::with_vm(|vm| {
+            set_vm_exception(vm.new_value_error("PyCapsule_GetPointer called with null capsule"));
+        });
         return std::ptr::null_mut();
     }
     if let Some(state) = destructing_capsule_state(capsule) {
@@ -150,17 +154,36 @@ pub unsafe fn PyCapsule_GetPointer(capsule: *mut PyObject, name: *const c_char) 
         return if name_matches {
             state.pointer
         } else {
+            rustpython_runtime::with_vm(|vm| {
+                set_vm_exception(vm.new_value_error(
+                    "PyCapsule_GetPointer called with incorrect name",
+                ));
+            });
             std::ptr::null_mut()
         };
     }
     let obj = ptr_to_pyobject_ref_borrowed(capsule);
     let Some(payload) = capsule_payload(&obj) else {
+        rustpython_runtime::with_vm(|vm| {
+            set_vm_exception(vm.new_value_error("PyCapsule_GetPointer called with non-capsule"));
+        });
         return std::ptr::null_mut();
     };
     if !payload.name_matches(name) {
+        rustpython_runtime::with_vm(|vm| {
+            set_vm_exception(vm.new_value_error(
+                "PyCapsule_GetPointer called with incorrect name",
+            ));
+        });
         return std::ptr::null_mut();
     }
-    payload.pointer.load(Ordering::Relaxed)
+    let pointer = payload.pointer.load(Ordering::Relaxed);
+    if pointer.is_null() {
+        rustpython_runtime::with_vm(|vm| {
+            set_vm_exception(vm.new_value_error("PyCapsule_GetPointer called with invalid PyCapsule"));
+        });
+    }
+    pointer
 }
 
 #[inline]
@@ -201,9 +224,16 @@ pub unsafe fn PyCapsule_GetContext(capsule: *mut PyObject) -> *mut c_void {
         return state.context;
     }
     let obj = ptr_to_pyobject_ref_borrowed(capsule);
-    capsule_payload(&obj)
-        .map(|payload| payload.context.load(Ordering::Relaxed))
-        .unwrap_or(std::ptr::null_mut())
+    let Some(payload) = capsule_payload(&obj) else {
+        return std::ptr::null_mut();
+    };
+    if payload.pointer.load(Ordering::Relaxed).is_null() {
+        rustpython_runtime::with_vm(|vm| {
+            set_vm_exception(vm.new_value_error("PyCapsule_GetContext called with invalid PyCapsule"));
+        });
+        return std::ptr::null_mut();
+    }
+    payload.context.load(Ordering::Relaxed)
 }
 
 #[inline]
@@ -281,27 +311,51 @@ pub unsafe fn PyCapsule_SetContext(capsule: *mut PyObject, context: *mut c_void)
 #[inline]
 pub unsafe fn PyCapsule_Import(name: *const c_char, _no_block: c_int) -> *mut c_void {
     if name.is_null() {
+        rustpython_runtime::with_vm(|vm| {
+            set_vm_exception(vm.new_value_error("PyCapsule_Import called with null name"));
+        });
         return std::ptr::null_mut();
     }
     let Ok(path) = CStr::from_ptr(name).to_str() else {
+        rustpython_runtime::with_vm(|vm| {
+            set_vm_exception(vm.new_value_error("PyCapsule_Import name must be valid UTF-8"));
+        });
         return std::ptr::null_mut();
     };
     let Some((module_name, attr_name)) = path.rsplit_once('.') else {
+        rustpython_runtime::with_vm(|vm| {
+            set_vm_exception(vm.new_value_error("PyCapsule_Import name must include module and attribute"));
+        });
         return std::ptr::null_mut();
     };
     rustpython_runtime::with_vm(|vm| {
-        let Ok(module) = vm.import(module_name, 0) else {
+        let module = match vm.import(module_name, 0) {
+            Ok(module) => module,
+            Err(err) => {
+                set_vm_exception(err);
+                return std::ptr::null_mut();
+            }
+        };
+        let capsule = match module.get_attr(attr_name, vm) {
+            Ok(capsule) => capsule,
+            Err(err) => {
+                set_vm_exception(err);
+                return std::ptr::null_mut();
+            }
+        };
+        let Some(payload) = capsule_payload(&capsule) else {
+            set_vm_exception(vm.new_value_error("PyCapsule_Import target is not a capsule"));
             return std::ptr::null_mut();
         };
-        let Ok(capsule) = module.get_attr(attr_name, vm) else {
+        if !payload.name_matches(name) {
+            set_vm_exception(vm.new_value_error("PyCapsule_Import name does not match capsule"));
             return std::ptr::null_mut();
-        };
-        capsule_payload(&capsule)
-            .and_then(|payload| {
-                payload
-                    .name_matches(name)
-                    .then_some(payload.pointer.load(Ordering::Relaxed))
-            })
-            .unwrap_or(std::ptr::null_mut())
+        }
+        let pointer = payload.pointer.load(Ordering::Relaxed);
+        if pointer.is_null() {
+            set_vm_exception(vm.new_value_error("PyCapsule_Import target capsule is invalid"));
+            return std::ptr::null_mut();
+        }
+        pointer
     })
 }

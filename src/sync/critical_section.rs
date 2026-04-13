@@ -46,10 +46,10 @@ use crate::{types::PyAny, Bound};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use std::cell::UnsafeCell;
 
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(any(Py_GIL_DISABLED, PyRustPython))]
 struct CSGuard(crate::ffi::PyCriticalSection);
 
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(any(Py_GIL_DISABLED, PyRustPython))]
 impl Drop for CSGuard {
     fn drop(&mut self) {
         unsafe {
@@ -58,10 +58,10 @@ impl Drop for CSGuard {
     }
 }
 
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(any(Py_GIL_DISABLED, PyRustPython))]
 struct CS2Guard(crate::ffi::PyCriticalSection2);
 
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(any(Py_GIL_DISABLED, PyRustPython))]
 impl Drop for CS2Guard {
     fn drop(&mut self) {
         unsafe {
@@ -130,13 +130,13 @@ pub fn with_critical_section<F, R>(object: &Bound<'_, PyAny>, f: F) -> R
 where
     F: FnOnce() -> R,
 {
-    #[cfg(Py_GIL_DISABLED)]
+    #[cfg(any(Py_GIL_DISABLED, PyRustPython))]
     {
         let mut guard = CSGuard(unsafe { std::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection_Begin(&mut guard.0, object.as_ptr()) };
         f()
     }
-    #[cfg(not(Py_GIL_DISABLED))]
+    #[cfg(not(any(Py_GIL_DISABLED, PyRustPython)))]
     {
         f()
     }
@@ -157,13 +157,13 @@ pub fn with_critical_section2<F, R>(a: &Bound<'_, PyAny>, b: &Bound<'_, PyAny>, 
 where
     F: FnOnce() -> R,
 {
-    #[cfg(Py_GIL_DISABLED)]
+    #[cfg(any(Py_GIL_DISABLED, PyRustPython))]
     {
         let mut guard = CS2Guard(unsafe { std::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection2_Begin(&mut guard.0, a.as_ptr(), b.as_ptr()) };
         f()
     }
-    #[cfg(not(Py_GIL_DISABLED))]
+    #[cfg(not(any(Py_GIL_DISABLED, PyRustPython)))]
     {
         f()
     }
@@ -195,13 +195,13 @@ pub fn with_critical_section_mutex<F, R, T>(_py: Python<'_>, mutex: &PyMutex<T>,
 where
     F: for<'s> FnOnce(EnteredCriticalSection<'s, T>) -> R,
 {
-    #[cfg(Py_GIL_DISABLED)]
+    #[cfg(any(Py_GIL_DISABLED, PyRustPython))]
     {
         let mut guard = CSGuard(unsafe { std::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection_BeginMutex(&mut guard.0, &mut *mutex.mutex.get()) };
         f(EnteredCriticalSection(&mutex.data))
     }
-    #[cfg(not(Py_GIL_DISABLED))]
+    #[cfg(not(any(Py_GIL_DISABLED, PyRustPython)))]
     {
         f(EnteredCriticalSection(&mutex.data))
     }
@@ -238,7 +238,7 @@ pub fn with_critical_section_mutex2<F, R, T1, T2>(
 where
     F: for<'s> FnOnce(EnteredCriticalSection<'s, T1>, EnteredCriticalSection<'s, T2>) -> R,
 {
-    #[cfg(Py_GIL_DISABLED)]
+    #[cfg(any(Py_GIL_DISABLED, PyRustPython))]
     {
         let mut guard = CS2Guard(unsafe { std::mem::zeroed() });
         unsafe {
@@ -253,7 +253,7 @@ where
             EnteredCriticalSection(&m2.data),
         )
     }
-    #[cfg(not(Py_GIL_DISABLED))]
+    #[cfg(not(any(Py_GIL_DISABLED, PyRustPython)))]
     {
         f(
             EnteredCriticalSection(&m1.data),

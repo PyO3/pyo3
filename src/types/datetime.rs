@@ -475,7 +475,17 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        #[cfg(all(not(Py_3_10), not(Py_LIMITED_API)))]
+        #[cfg(PyRustPython)]
+        {
+            let res = self.getattr("tzinfo").ok()?;
+            if res.is_none() {
+                None
+            } else {
+                Some(unsafe { res.cast_into_unchecked() })
+            }
+        }
+
+        #[cfg(all(not(PyRustPython), not(Py_3_10), not(Py_LIMITED_API)))]
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyDateTime_DateTime;
             if (*ptr).hastzinfo != 0 {
@@ -491,7 +501,7 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
             }
         }
 
-        #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+        #[cfg(all(not(PyRustPython), Py_3_10, not(Py_LIMITED_API)))]
         unsafe {
             let res = PyDateTime_DATE_GET_TZINFO(self.as_ptr());
             if Py_IsNone(res) == 1 {
@@ -645,7 +655,17 @@ impl PyTimeAccess for Bound<'_, PyTime> {
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        #[cfg(all(not(Py_3_10), not(Py_LIMITED_API)))]
+        #[cfg(PyRustPython)]
+        {
+            let res = self.getattr("tzinfo").ok()?;
+            if res.is_none() {
+                None
+            } else {
+                Some(unsafe { res.cast_into_unchecked() })
+            }
+        }
+
+        #[cfg(all(not(PyRustPython), not(Py_3_10), not(Py_LIMITED_API)))]
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyDateTime_Time;
             if (*ptr).hastzinfo != 0 {
@@ -661,7 +681,7 @@ impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
             }
         }
 
-        #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+        #[cfg(all(not(PyRustPython), Py_3_10, not(Py_LIMITED_API)))]
         unsafe {
             let res = PyDateTime_TIME_GET_TZINFO(self.as_ptr());
             if Py_IsNone(res) == 1 {

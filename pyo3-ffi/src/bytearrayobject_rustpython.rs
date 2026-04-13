@@ -1,4 +1,5 @@
 use crate::object::*;
+use crate::pyerrors::set_vm_exception;
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
 use rustpython_vm::builtins::PyByteArray;
@@ -51,7 +52,10 @@ pub unsafe fn PyByteArray_FromObject(o: *mut PyObject) -> *mut PyObject {
         let obj = ptr_to_pyobject_ref_borrowed(o);
         match vm.invoke(vm.ctx.types.bytearray_type.as_object(), (obj,)) {
             Ok(bytearray) => pyobject_ref_to_ptr(bytearray),
-            Err(_) => std::ptr::null_mut(),
+            Err(err) => {
+                set_vm_exception(err);
+                std::ptr::null_mut()
+            }
         }
     })
 }

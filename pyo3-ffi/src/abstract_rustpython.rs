@@ -568,10 +568,13 @@ pub unsafe fn PySequence_Count(o: *mut PyObject, value: *mut PyObject) -> Py_ssi
     let obj = ptr_to_pyobject_ref_borrowed(o);
     let value = ptr_to_pyobject_ref_borrowed(value);
     rustpython_runtime::with_vm(|vm| {
-        obj.sequence_unchecked()
-            .count(value.as_object(), vm)
-            .map(|count| count as Py_ssize_t)
-            .unwrap_or(-1)
+        match obj.sequence_unchecked().count(value.as_object(), vm) {
+            Ok(count) => count as Py_ssize_t,
+            Err(err) => {
+                set_vm_exception(err);
+                -1
+            }
+        }
     })
 }
 
@@ -583,10 +586,13 @@ pub unsafe fn PySequence_Contains(o: *mut PyObject, value: *mut PyObject) -> c_i
     let obj = ptr_to_pyobject_ref_borrowed(o);
     let value = ptr_to_pyobject_ref_borrowed(value);
     rustpython_runtime::with_vm(|vm| {
-        obj.sequence_unchecked()
-            .contains(value.as_object(), vm)
-            .map(|contains| contains as c_int)
-            .unwrap_or(-1)
+        match obj.sequence_unchecked().contains(value.as_object(), vm) {
+            Ok(contains) => contains as c_int,
+            Err(err) => {
+                set_vm_exception(err);
+                -1
+            }
+        }
     })
 }
 
@@ -598,10 +604,13 @@ pub unsafe fn PySequence_Index(o: *mut PyObject, value: *mut PyObject) -> Py_ssi
     let obj = ptr_to_pyobject_ref_borrowed(o);
     let value = ptr_to_pyobject_ref_borrowed(value);
     rustpython_runtime::with_vm(|vm| {
-        obj.sequence_unchecked()
-            .index(value.as_object(), vm)
-            .map(|index| index as Py_ssize_t)
-            .unwrap_or(-1)
+        match obj.sequence_unchecked().index(value.as_object(), vm) {
+            Ok(index) => index as Py_ssize_t,
+            Err(err) => {
+                set_vm_exception(err);
+                -1
+            }
+        }
     })
 }
 

@@ -14,7 +14,6 @@ use crate::pyerrors::set_vm_exception;
 #[cfg(PyRustPython)]
 use crate::{
     ptr_to_pyobject_ref_borrowed, pyobject_ref_as_ptr, pyobject_ref_to_ptr, rustpython_runtime,
-    PyObject_Call,
 };
 #[cfg(PyRustPython)]
 use rustpython_vm::function::{FuncArgs, KwArgs};
@@ -838,7 +837,60 @@ unsafe extern "C" fn rustpython_datetime_from_timestamp(
     args: *mut PyObject,
     kwargs: *mut PyObject,
 ) -> *mut PyObject {
-    unsafe { PyObject_Call(cls.cast(), args, kwargs) }
+    rustpython_runtime::with_vm(|vm| {
+        let cls = unsafe { ptr_to_pyobject_ref_borrowed(cls.cast()) };
+        let fromtimestamp = match cls.get_attr("fromtimestamp", vm) {
+            Ok(method) => method,
+            Err(exc) => {
+                set_vm_exception(exc);
+                return std::ptr::null_mut();
+            }
+        };
+        match fromtimestamp.call(
+            FuncArgs::new(
+                if args.is_null() {
+                    Vec::new()
+                } else {
+                    match unsafe { ptr_to_pyobject_ref_borrowed(args) }
+                        .try_into_value::<rustpython_vm::builtins::PyTupleRef>(vm)
+                    {
+                        Ok(tuple) => tuple.as_slice().to_vec(),
+                        Err(_) => {
+                            set_vm_exception(vm.new_type_error("expected tuple args for datetime.fromtimestamp"));
+                            return std::ptr::null_mut();
+                        }
+                    }
+                },
+                if kwargs.is_null() {
+                    KwArgs::default()
+                } else {
+                    match unsafe { ptr_to_pyobject_ref_borrowed(kwargs) }
+                        .try_into_value::<rustpython_vm::builtins::PyDictRef>(vm)
+                    {
+                        Ok(dict) => dict
+                            .into_iter()
+                            .filter_map(|(k, v)| {
+                                k.str(vm)
+                                    .ok()
+                                    .map(|s| (AsRef::<str>::as_ref(&s).to_owned(), v))
+                            })
+                            .collect(),
+                        Err(_) => {
+                            set_vm_exception(vm.new_type_error("expected dict kwargs for datetime.fromtimestamp"));
+                            return std::ptr::null_mut();
+                        }
+                    }
+                },
+            ),
+            vm,
+        ) {
+            Ok(obj) => pyobject_ref_to_ptr(obj),
+            Err(exc) => {
+                set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
+    })
 }
 
 #[cfg(PyRustPython)]
@@ -846,7 +898,36 @@ unsafe extern "C" fn rustpython_date_from_timestamp(
     cls: *mut PyTypeObject,
     args: *mut PyObject,
 ) -> *mut PyObject {
-    unsafe { PyObject_Call(cls.cast(), args, std::ptr::null_mut()) }
+    rustpython_runtime::with_vm(|vm| {
+        let cls = unsafe { ptr_to_pyobject_ref_borrowed(cls.cast()) };
+        let fromtimestamp = match cls.get_attr("fromtimestamp", vm) {
+            Ok(method) => method,
+            Err(exc) => {
+                set_vm_exception(exc);
+                return std::ptr::null_mut();
+            }
+        };
+        let positional = if args.is_null() {
+            Vec::new()
+        } else {
+            match unsafe { ptr_to_pyobject_ref_borrowed(args) }
+                .try_into_value::<rustpython_vm::builtins::PyTupleRef>(vm)
+            {
+                Ok(tuple) => tuple.as_slice().to_vec(),
+                Err(_) => {
+                    set_vm_exception(vm.new_type_error("expected tuple args for date.fromtimestamp"));
+                    return std::ptr::null_mut();
+                }
+            }
+        };
+        match fromtimestamp.call_with_args(FuncArgs::new(positional, KwArgs::default()), vm) {
+            Ok(obj) => pyobject_ref_to_ptr(obj),
+            Err(exc) => {
+                set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
+        }
+    })
 }
 
 /// Populates the `PyDateTimeAPI` object
