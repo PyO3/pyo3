@@ -981,6 +981,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "upstream RustPython bug: spawned-thread imports recurse in importlib (_blocking_on); see RustPython/RustPython#7586"]
     fn test_array_buffer() {
         Python::attach(|py| {
             let array = py

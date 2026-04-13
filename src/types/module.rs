@@ -4,8 +4,8 @@ use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
-    any::PyAnyMethods, list::PyListMethods, string::PyStringMethods, PyAny, PyCFunction, PyDict,
-    PyList, PyString,
+    any::PyAnyMethods, dict::PyDictMethods, list::PyListMethods, string::PyStringMethods, PyAny,
+    PyCFunction, PyDict, PyList, PyString,
 };
 use crate::{
     exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
@@ -108,7 +108,25 @@ impl PyModule {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
+        #[cfg(PyRustPython)]
+        eprintln!("[rustpython] PyModule::import start");
         let name = name.into_pyobject_or_pyerr(py)?;
+        #[cfg(PyRustPython)]
+        eprintln!("[rustpython] PyModule::import after into_pyobject");
+        #[cfg(PyRustPython)]
+        unsafe {
+            let name = name.into_any().into_bound();
+            let name: Bound<'py, PyString> = name.cast_into_unchecked();
+            let name = name.to_cow()?;
+            eprintln!("[rustpython] PyModule::import after to_cow name={}", name);
+            let c_name = std::ffi::CString::new(name.as_ref())
+                .map_err(|_| PyErr::new::<exceptions::PyValueError, _>("module name contains NUL byte"))?;
+            eprintln!("[rustpython] PyModule::import before ffi import");
+            ffi::PyImport_ImportModule(c_name.as_ptr())
+                .assume_owned_or_err(py)
+                .cast_into_unchecked()
+        }
+        #[cfg(not(PyRustPython))]
         unsafe {
             ffi::PyImport_Import(name.as_ptr())
                 .assume_owned_or_err(py)
@@ -433,15 +451,33 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
 
     fn index(&self) -> PyResult<Bound<'py, PyList>> {
         let __all__ = __all__(self.py());
-        match self.getattr(__all__) {
-            Ok(idx) => idx.cast_into().map_err(PyErr::from),
-            Err(err) => {
-                if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
+
+        #[cfg(PyRustPython)]
+        {
+            let dict = self.dict();
+            return match PyDictMethods::get_item(&dict, __all__) {
+                Ok(Some(idx)) => idx.cast_into::<PyList>().map_err(PyErr::from),
+                Ok(None) => {
                     let l = PyList::empty(self.py());
-                    self.setattr(__all__, &l)?;
+                    dict.set_item(__all__, &l)?;
                     Ok(l)
-                } else {
-                    Err(err)
+                }
+                Err(err) => Err(err),
+            };
+        }
+
+        #[cfg(not(PyRustPython))]
+        {
+            match self.getattr(__all__) {
+                Ok(idx) => idx.cast_into().map_err(PyErr::from),
+                Err(err) => {
+                    if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
+                        let l = PyList::empty(self.py());
+                        self.setattr(__all__, &l)?;
+                        Ok(l)
+                    } else {
+                        Err(err)
+                    }
                 }
             }
         }

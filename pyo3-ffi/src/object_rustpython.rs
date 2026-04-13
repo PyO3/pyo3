@@ -9,6 +9,7 @@ use rustpython_vm::builtins::{
     PyBaseException, PyBaseObject, PyDict, PyList, PySet, PyStr, PyType, PyTypeRef,
 };
 use rustpython_vm::function::{FuncArgs, PyMethodDef as RpMethodDef, PyMethodFlags as RpMethodFlags};
+use rustpython_vm::protocol::{PyMapping, PySequence};
 use rustpython_vm::types::PyComparisonOp;
 use rustpython_vm::types::{Constructor, PyTypeFlags, PyTypeSlots};
 use rustpython_vm::{AsObject, PyObjectRef, PyPayload};
@@ -156,6 +157,18 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject { _opaque: [] };
 struct HeapTypeMetadata {
     tp_new: usize,
     tp_init: usize,
+    tp_call: usize,
+    mp_subscript: usize,
+    mp_ass_subscript: usize,
+    nb_add: usize,
+    sq_length: usize,
+    sq_item: usize,
+    sq_ass_item: usize,
+    sq_contains: usize,
+    sq_concat: usize,
+    sq_repeat: usize,
+    sq_inplace_concat: usize,
+    sq_inplace_repeat: usize,
 }
 
 fn heap_type_registry() -> &'static Mutex<std::collections::HashMap<usize, HeapTypeMetadata>> {
@@ -449,6 +462,404 @@ fn heap_tp_init_wrapper(
         Ok(())
     } else {
         Err(unsafe { fetch_current_exception(vm) })
+    }
+}
+
+fn heap_mapping_getitem_wrapper(
+    mapping: PyMapping<'_>,
+    key: &rustpython_vm::PyObject,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult {
+    let cls_obj: PyObjectRef = mapping.obj.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(mp_subscript) = (metadata.mp_subscript != 0).then_some(metadata.mp_subscript) else {
+        return Err(vm.new_type_error(format!(
+            "'{}' does not support item access",
+            mapping.obj.class()
+        )));
+    };
+    let mp_subscript: binaryfunc = unsafe { std::mem::transmute(mp_subscript) };
+    let result = unsafe { mp_subscript(pyobject_ref_as_ptr(&mapping.obj.to_owned()), pyobject_ref_as_ptr(&key.to_owned())) };
+    if result.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+    }
+}
+
+fn heap_mapping_setitem_wrapper(
+    mapping: PyMapping<'_>,
+    key: &rustpython_vm::PyObject,
+    value: Option<PyObjectRef>,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult<()> {
+    let cls_obj: PyObjectRef = mapping.obj.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(mp_ass_subscript) =
+        (metadata.mp_ass_subscript != 0).then_some(metadata.mp_ass_subscript)
+    else {
+        return Err(vm.new_type_error(format!(
+            "'{}' does not support item assignment",
+            mapping.obj.class()
+        )));
+    };
+    let mp_ass_subscript: objobjargproc = unsafe { std::mem::transmute(mp_ass_subscript) };
+    let key_obj = key.to_owned();
+    let value_ptr = value
+        .as_ref()
+        .map(pyobject_ref_as_ptr)
+        .unwrap_or(std::ptr::null_mut());
+    let rc = unsafe {
+        mp_ass_subscript(
+            pyobject_ref_as_ptr(&mapping.obj.to_owned()),
+            pyobject_ref_as_ptr(&key_obj),
+            value_ptr,
+        )
+    };
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(unsafe { fetch_current_exception(vm) })
+    }
+}
+
+fn heap_nb_add_wrapper(
+    lhs: &rustpython_vm::PyObject,
+    rhs: &rustpython_vm::PyObject,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult {
+    let cls_obj: PyObjectRef = lhs.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(nb_add) = (metadata.nb_add != 0).then_some(metadata.nb_add) else {
+        return Err(vm.new_type_error(format!(
+            "unsupported operand type(s) for +: '{}' and '{}'",
+            lhs.class(),
+            rhs.class()
+        )));
+    };
+    let nb_add: binaryfunc = unsafe { std::mem::transmute(nb_add) };
+    let lhs_obj = lhs.to_owned();
+    let rhs_obj = rhs.to_owned();
+    let result = unsafe { nb_add(pyobject_ref_as_ptr(&lhs_obj), pyobject_ref_as_ptr(&rhs_obj)) };
+    if result.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+    }
+}
+
+fn heap_sq_length_wrapper(
+    seq: PySequence<'_>,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult<usize> {
+    let cls_obj: PyObjectRef = seq.obj.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(sq_length) = (metadata.sq_length != 0).then_some(metadata.sq_length) else {
+        return Err(vm.new_type_error(format!(
+            "object of type '{}' has no len()",
+            seq.obj.class()
+        )));
+    };
+    let sq_length: lenfunc = unsafe { std::mem::transmute(sq_length) };
+    let rc = unsafe { sq_length(pyobject_ref_as_ptr(&seq.obj.to_owned())) };
+    if rc < 0 {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(rc as usize)
+    }
+}
+
+fn heap_sq_item_wrapper(
+    seq: PySequence<'_>,
+    index: isize,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult {
+    let cls_obj: PyObjectRef = seq.obj.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(sq_item) = (metadata.sq_item != 0).then_some(metadata.sq_item) else {
+        return Err(vm.new_type_error(format!(
+            "'{}' is not a sequence or does not support indexing",
+            seq.obj.class()
+        )));
+    };
+    let sq_item: ssizeargfunc = unsafe { std::mem::transmute(sq_item) };
+    let result =
+        unsafe { sq_item(pyobject_ref_as_ptr(&seq.obj.to_owned()), index as Py_ssize_t) };
+    if result.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+    }
+}
+
+fn heap_sq_ass_item_wrapper(
+    seq: PySequence<'_>,
+    index: isize,
+    value: Option<PyObjectRef>,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult<()> {
+    let cls_obj: PyObjectRef = seq.obj.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(sq_ass_item) = (metadata.sq_ass_item != 0).then_some(metadata.sq_ass_item) else {
+        return Err(vm.new_type_error(format!(
+            "'{}' is not a sequence or doesn't support item assignment",
+            seq.obj.class()
+        )));
+    };
+    let sq_ass_item: ssizeobjargproc = unsafe { std::mem::transmute(sq_ass_item) };
+    let value_ptr = value
+        .as_ref()
+        .map(pyobject_ref_as_ptr)
+        .unwrap_or(std::ptr::null_mut());
+    let rc = unsafe {
+        sq_ass_item(
+            pyobject_ref_as_ptr(&seq.obj.to_owned()),
+            index as Py_ssize_t,
+            value_ptr,
+        )
+    };
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(unsafe { fetch_current_exception(vm) })
+    }
+}
+
+fn heap_sq_contains_wrapper(
+    seq: PySequence<'_>,
+    needle: &rustpython_vm::PyObject,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult<bool> {
+    let cls_obj: PyObjectRef = seq.obj.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(sq_contains) = (metadata.sq_contains != 0).then_some(metadata.sq_contains) else {
+        return Err(vm.new_type_error(format!(
+            "argument of type '{}' is not iterable",
+            seq.obj.class()
+        )));
+    };
+    let sq_contains: objobjproc = unsafe { std::mem::transmute(sq_contains) };
+    let needle_obj = needle.to_owned();
+    let rc = unsafe {
+        sq_contains(
+            pyobject_ref_as_ptr(&seq.obj.to_owned()),
+            pyobject_ref_as_ptr(&needle_obj),
+        )
+    };
+    if rc < 0 {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(rc != 0)
+    }
+}
+
+fn heap_sq_concat_wrapper(
+    seq: PySequence<'_>,
+    other: &rustpython_vm::PyObject,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult {
+    let cls_obj: PyObjectRef = seq.obj.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(sq_concat) = (metadata.sq_concat != 0).then_some(metadata.sq_concat) else {
+        return Err(vm.new_type_error(format!(
+            "'{}' object can't be concatenated",
+            seq.obj.class()
+        )));
+    };
+    let sq_concat: binaryfunc = unsafe { std::mem::transmute(sq_concat) };
+    let seq_obj = seq.obj.to_owned();
+    let other_obj = other.to_owned();
+    let result =
+        unsafe { sq_concat(pyobject_ref_as_ptr(&seq_obj), pyobject_ref_as_ptr(&other_obj)) };
+    if result.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+    }
+}
+
+fn heap_sq_repeat_wrapper(
+    seq: PySequence<'_>,
+    count: isize,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult {
+    let cls_obj: PyObjectRef = seq.obj.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(sq_repeat) = (metadata.sq_repeat != 0).then_some(metadata.sq_repeat) else {
+        return Err(vm.new_type_error(format!(
+            "'{}' object can't be repeated",
+            seq.obj.class()
+        )));
+    };
+    let sq_repeat: ssizeargfunc = unsafe { std::mem::transmute(sq_repeat) };
+    let result =
+        unsafe { sq_repeat(pyobject_ref_as_ptr(&seq.obj.to_owned()), count as Py_ssize_t) };
+    if result.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+    }
+}
+
+fn heap_sq_inplace_concat_wrapper(
+    seq: PySequence<'_>,
+    other: &rustpython_vm::PyObject,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult {
+    let cls_obj: PyObjectRef = seq.obj.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(sq_inplace_concat) = (metadata.sq_inplace_concat != 0)
+        .then_some(metadata.sq_inplace_concat)
+    else {
+        return heap_sq_concat_wrapper(seq, other, vm);
+    };
+    let sq_inplace_concat: binaryfunc = unsafe { std::mem::transmute(sq_inplace_concat) };
+    let seq_obj = seq.obj.to_owned();
+    let other_obj = other.to_owned();
+    let result = unsafe {
+        sq_inplace_concat(pyobject_ref_as_ptr(&seq_obj), pyobject_ref_as_ptr(&other_obj))
+    };
+    if result.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+    }
+}
+
+fn heap_sq_inplace_repeat_wrapper(
+    seq: PySequence<'_>,
+    count: isize,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult {
+    let cls_obj: PyObjectRef = seq.obj.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(sq_inplace_repeat) = (metadata.sq_inplace_repeat != 0)
+        .then_some(metadata.sq_inplace_repeat)
+    else {
+        return heap_sq_repeat_wrapper(seq, count, vm);
+    };
+    let sq_inplace_repeat: ssizeargfunc = unsafe { std::mem::transmute(sq_inplace_repeat) };
+    let result = unsafe {
+        sq_inplace_repeat(pyobject_ref_as_ptr(&seq.obj.to_owned()), count as Py_ssize_t)
+    };
+    if result.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+    }
+}
+
+fn heap_tp_call_wrapper(
+    callable: &rustpython_vm::PyObject,
+    args: FuncArgs,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult {
+    let cls_obj: PyObjectRef = callable.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(tp_call) = (metadata.tp_call != 0).then_some(metadata.tp_call) else {
+        return Err(vm.new_type_error(format!("'{}' object is not callable", callable.class())));
+    };
+    let tp_call: ternaryfunc = unsafe { std::mem::transmute(tp_call) };
+
+    let callable_obj = callable.to_owned();
+    let tuple = vm.ctx.new_tuple(args.args);
+    let tuple_obj: PyObjectRef = tuple.into();
+    let kwargs_obj = if args.kwargs.is_empty() {
+        None
+    } else {
+        let dict = vm.ctx.new_dict();
+        for (key, value) in args.kwargs {
+            dict.set_item(key.as_str(), value, vm)?;
+        }
+        Some::<PyObjectRef>(dict.into())
+    };
+
+    let result = unsafe {
+        tp_call(
+            pyobject_ref_as_ptr(&callable_obj),
+            pyobject_ref_as_ptr(&tuple_obj),
+            kwargs_obj
+                .as_ref()
+                .map(pyobject_ref_as_ptr)
+                .unwrap_or(std::ptr::null_mut()),
+        )
+    };
+    if result.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
     }
 }
 
@@ -751,7 +1162,10 @@ pub unsafe fn PyObject_RichCompare(
     let rhs = ptr_to_pyobject_ref_borrowed(right);
     rustpython_runtime::with_vm(|vm| match lhs.rich_compare(rhs, op, vm) {
         Ok(obj) => pyobject_ref_to_ptr(obj),
-        Err(_) => std::ptr::null_mut(),
+        Err(exc) => {
+            set_vm_exception(exc);
+            std::ptr::null_mut()
+        }
     })
 }
 
@@ -772,7 +1186,10 @@ pub unsafe fn PyObject_RichCompareBool(
     rustpython_runtime::with_vm(|vm| match lhs.rich_compare_bool(&rhs, op, vm) {
         Ok(true) => 1,
         Ok(false) => 0,
-        Err(_) => -1,
+        Err(exc) => {
+            set_vm_exception(exc);
+            -1
+        }
     })
 }
 
@@ -785,6 +1202,7 @@ pub unsafe fn PyObject_GetAttr(ob: *mut PyObject, attr_name: *mut PyObject) -> *
     let name = ptr_to_pyobject_ref_borrowed(attr_name);
     rustpython_runtime::with_vm(|vm| {
         let Ok(name_str) = name.clone().try_into_value::<rustpython_vm::PyRef<PyStr>>(vm) else {
+            set_vm_exception(vm.new_type_error("attribute name must be string"));
             return std::ptr::null_mut();
         };
         match obj.get_attr(&name_str, vm) {
@@ -1198,6 +1616,22 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                     metadata.tp_init = (*slot_ptr).pfunc as usize;
                     slots.init.store(Some(heap_tp_init_wrapper));
                 }
+                crate::Py_tp_call => metadata.tp_call = (*slot_ptr).pfunc as usize,
+                crate::Py_mp_subscript => metadata.mp_subscript = (*slot_ptr).pfunc as usize,
+                crate::Py_mp_ass_subscript => metadata.mp_ass_subscript = (*slot_ptr).pfunc as usize,
+                crate::Py_nb_add => metadata.nb_add = (*slot_ptr).pfunc as usize,
+                crate::Py_sq_length => metadata.sq_length = (*slot_ptr).pfunc as usize,
+                crate::Py_sq_item => metadata.sq_item = (*slot_ptr).pfunc as usize,
+                crate::Py_sq_ass_item => metadata.sq_ass_item = (*slot_ptr).pfunc as usize,
+                crate::Py_sq_contains => metadata.sq_contains = (*slot_ptr).pfunc as usize,
+                crate::Py_sq_concat => metadata.sq_concat = (*slot_ptr).pfunc as usize,
+                crate::Py_sq_repeat => metadata.sq_repeat = (*slot_ptr).pfunc as usize,
+                crate::Py_sq_inplace_concat => {
+                    metadata.sq_inplace_concat = (*slot_ptr).pfunc as usize
+                }
+                crate::Py_sq_inplace_repeat => {
+                    metadata.sq_inplace_repeat = (*slot_ptr).pfunc as usize
+                }
                 _ => {}
             }
             slot_ptr = slot_ptr.add(1);
@@ -1251,12 +1685,75 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                 if metadata.tp_init != 0 {
                     ty.slots.init.store(Some(heap_tp_init_wrapper));
                 }
+                if metadata.tp_call != 0 {
+                    ty.slots.call.store(Some(heap_tp_call_wrapper));
+                }
                 for def in method_defs {
                     let name = ffi_name_to_static((*def).ml_name, "<method>");
                     let method = unsafe {
                         methodobject::build_rustpython_class_method(def, class, vm)
                     };
                     ty.set_attr(vm.ctx.intern_str(name), method);
+                }
+                if metadata.mp_subscript != 0 {
+                    ty.slots
+                        .as_mapping
+                        .subscript
+                        .store(Some(heap_mapping_getitem_wrapper));
+                }
+                if metadata.mp_ass_subscript != 0 {
+                    ty.slots
+                        .as_mapping
+                        .ass_subscript
+                        .store(Some(heap_mapping_setitem_wrapper));
+                }
+                if metadata.nb_add != 0 {
+                    ty.slots.as_number.add.store(Some(heap_nb_add_wrapper));
+                }
+                if metadata.sq_length != 0 {
+                    ty.slots
+                        .as_sequence
+                        .length
+                        .store(Some(heap_sq_length_wrapper));
+                }
+                if metadata.sq_item != 0 {
+                    ty.slots.as_sequence.item.store(Some(heap_sq_item_wrapper));
+                }
+                if metadata.sq_ass_item != 0 {
+                    ty.slots
+                        .as_sequence
+                        .ass_item
+                        .store(Some(heap_sq_ass_item_wrapper));
+                }
+                if metadata.sq_contains != 0 {
+                    ty.slots
+                        .as_sequence
+                        .contains
+                        .store(Some(heap_sq_contains_wrapper));
+                }
+                if metadata.sq_concat != 0 {
+                    ty.slots
+                        .as_sequence
+                        .concat
+                        .store(Some(heap_sq_concat_wrapper));
+                }
+                if metadata.sq_repeat != 0 {
+                    ty.slots
+                        .as_sequence
+                        .repeat
+                        .store(Some(heap_sq_repeat_wrapper));
+                }
+                if metadata.sq_inplace_concat != 0 {
+                    ty.slots
+                        .as_sequence
+                        .inplace_concat
+                        .store(Some(heap_sq_inplace_concat_wrapper));
+                }
+                if metadata.sq_inplace_repeat != 0 {
+                    ty.slots
+                        .as_sequence
+                        .inplace_repeat
+                        .store(Some(heap_sq_inplace_repeat_wrapper));
                 }
                 let type_obj: PyObjectRef = ty.into();
                 let type_ptr = pyobject_ref_as_ptr(&type_obj) as *mut PyTypeObject;

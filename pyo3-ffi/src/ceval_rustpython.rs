@@ -1,5 +1,5 @@
 use crate::object::*;
-use crate::pyerrors::set_vm_exception;
+use crate::pyerrors::{clear_vm_exception, set_vm_exception};
 use crate::pytypedefs::PyThreadState;
 use crate::rustpython_runtime;
 use rustpython_vm::scope::Scope;
@@ -23,15 +23,25 @@ pub unsafe fn PyEval_EvalCode(
         Some(ptr_to_pyobject_ref_borrowed(arg3))
     };
     rustpython_runtime::with_vm(|vm| {
+        clear_vm_exception();
         let Ok(code) = code.downcast::<rustpython_vm::builtins::PyCode>() else {
+            set_vm_exception(vm.new_type_error("argument 1 must be code object"));
             return std::ptr::null_mut();
         };
         let Ok(globals) = globals.downcast::<rustpython_vm::builtins::PyDict>() else {
+            set_vm_exception(vm.new_type_error("globals must be dict"));
             return std::ptr::null_mut();
         };
-        let locals = locals
-            .and_then(|o| o.downcast::<rustpython_vm::builtins::PyDict>().ok())
-            .map(rustpython_vm::function::ArgMapping::from_dict_exact);
+        let locals = match locals {
+            Some(o) => match o.downcast::<rustpython_vm::builtins::PyDict>() {
+                Ok(dict) => Some(rustpython_vm::function::ArgMapping::from_dict_exact(dict)),
+                Err(_) => {
+                    set_vm_exception(vm.new_type_error("locals must be dict"));
+                    return std::ptr::null_mut();
+                }
+            },
+            None => None,
+        };
         let scope = Scope::with_builtins(locals, globals, vm);
         vm.run_code_obj(code, scope)
             .map(pyobject_ref_to_ptr)
