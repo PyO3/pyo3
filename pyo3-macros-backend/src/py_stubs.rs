@@ -4,6 +4,8 @@ use crate::json::JsonValue;
 use proc_macro2::{Ident, TokenStream};
 use quote::ToTokens;
 use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Write;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -29,6 +31,7 @@ impl PyStubs {
 }
 
 impl Parse for PyStubs {
+    /// See https://docs.python.org/3/reference/grammar.html for the Python grammar
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let content;
         Ok(Self {
@@ -57,7 +60,7 @@ impl ToTokens for PyStubs {
 /// A Python statement
 enum PyStatement {
     ImportFrom(PyImportFrom),
-    Import(PyImport),
+    Import(PyImportName),
 }
 
 impl PyStatement {
@@ -94,7 +97,7 @@ impl ToTokens for PyStatement {
 /// `from {module} import {names}`
 struct PyImportFrom {
     pub from_token: kw::from,
-    pub module: Ident,
+    pub module: PyDottedName,
     pub import_token: kw::import,
     pub names: Punctuated<PyAlias, Token![,]>,
 }
@@ -103,10 +106,7 @@ impl PyImportFrom {
     pub fn as_json(&self) -> JsonValue {
         JsonValue::Object(HashMap::from([
             ("type", JsonValue::String("importfrom".into())),
-            (
-                "module",
-                JsonValue::String(self.module.unraw().to_string().into()),
-            ),
+            ("module", JsonValue::String(self.module.to_string().into())),
             (
                 "names",
                 JsonValue::Array(self.names.iter().map(|i| i.as_json()).collect()),
@@ -137,12 +137,12 @@ impl ToTokens for PyImportFrom {
 }
 
 /// `import {names}`
-struct PyImport {
+struct PyImportName {
     pub import_token: kw::import,
     pub names: Punctuated<PyAlias, Token![,]>,
 }
 
-impl PyImport {
+impl PyImportName {
     pub fn as_json(&self) -> JsonValue {
         JsonValue::Object(HashMap::from([
             ("type", JsonValue::String("import".into())),
@@ -154,7 +154,7 @@ impl PyImport {
     }
 }
 
-impl Parse for PyImport {
+impl Parse for PyImportName {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         Ok(Self {
             import_token: input.parse()?,
@@ -163,7 +163,7 @@ impl Parse for PyImport {
     }
 }
 
-impl ToTokens for PyImport {
+impl ToTokens for PyImportName {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.import_token.to_tokens(tokens);
         self.names.to_tokens(tokens);
@@ -172,7 +172,7 @@ impl ToTokens for PyImport {
 
 /// `{name} [as {as_name}]`
 struct PyAlias {
-    pub name: Ident,
+    pub name: PyDottedName,
     pub as_name: Option<PyAliasAsName>,
 }
 
@@ -180,10 +180,7 @@ impl PyAlias {
     pub fn as_json(&self) -> JsonValue {
         let mut args = HashMap::from([
             ("type", JsonValue::String("alias".into())),
-            (
-                "name",
-                JsonValue::String(self.name.unraw().to_string().into()),
-            ),
+            ("name", JsonValue::String(self.name.to_string().into())),
         ]);
         if let Some(as_name) = &self.as_name {
             args.insert(
@@ -234,5 +231,36 @@ impl ToTokens for PyAliasAsName {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.as_token.to_tokens(tokens);
         self.name.to_tokens(tokens);
+    }
+}
+
+/// `{ident}.*`
+struct PyDottedName {
+    pub idents: Punctuated<Ident, Token![.]>,
+}
+
+impl Parse for PyDottedName {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        Ok(Self {
+            idents: Punctuated::parse_separated_nonempty(input)?,
+        })
+    }
+}
+
+impl ToTokens for PyDottedName {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.idents.to_tokens(tokens);
+    }
+}
+
+impl fmt::Display for PyDottedName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, ident) in self.idents.iter().enumerate() {
+            if i > 0 {
+                f.write_char('.')?;
+            }
+            ident.unraw().fmt(f)?;
+        }
+        Ok(())
     }
 }

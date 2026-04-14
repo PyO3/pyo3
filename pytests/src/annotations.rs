@@ -5,12 +5,13 @@ use pyo3::prelude::*;
 #[pymodule(stubs = {
     from datetime import datetime as dt, time
     from uuid import UUID
+    from collections.abc import Sequence
 })]
 pub mod annotations {
     use pyo3::prelude::*;
     use pyo3::types::{PyDate, PyDateTime, PyDict, PyTime, PyTuple};
 
-    #[pyfunction(signature = (a: "dt | time | UUID", *_args: "str", _b: "int | None" = None, **_kwargs: "bool") -> "int")]
+    #[pyfunction(signature = (a: "dt | time | UUID", *_args: "str", _b: "Sequence[int] | None" = None, **_kwargs: "bool") -> "int")]
     fn with_custom_type_annotations<'py>(
         a: Bound<'py, PyAny>,
         _args: Bound<'py, PyTuple>,
