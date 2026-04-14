@@ -917,7 +917,7 @@ def _format_ffi_extern(session: nox.Session, *, check: bool = False):
 
         if new_content != content:
             originals[path] = content
-            path.write_text(new_content)
+            path.write_text(new_content, newline="\n")
             files_to_format.append(path)
 
     if not files_to_format:
@@ -932,7 +932,7 @@ def _format_ffi_extern(session: nox.Session, *, check: bool = False):
     except Exception:
         # Restore originals on failure
         for path, content in originals.items():
-            path.write_text(content)
+            path.write_text(content, newline="\n")
         raise
 
     # Restore the macro invocations
@@ -961,9 +961,9 @@ def _format_ffi_extern(session: nox.Session, *, check: bool = False):
         if check and content != originals[path]:
             changed.append(path)
             # Restore original so we don't leave dirty files in CI
-            path.write_text(originals[path])
+            path.write_text(originals[path], newline="\n")
         else:
-            path.write_text(content)
+            path.write_text(content, newline="\n")
 
     if check and changed:
         session.error(
