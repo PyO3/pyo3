@@ -94,16 +94,6 @@ impl PyDict {
     }
 }
 
-fn setdefault_result_from_nonerror_return_code(code: std::ffi::c_int) -> bool {
-    match code {
-        // inserted
-        0 => true,
-        // not inserted
-        1 => false,
-        x => panic!("Unknown return value from PyDict_SetDefaultRef: {x}"),
-    }
-}
-
 /// Implementation of functionality for [`PyDict`].
 ///
 /// These methods are defined for the `Bound<'py, PyDict>` smart pointer, so to use method call
@@ -221,8 +211,7 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// Inserts `default_value` into this dictionary with a key of `key` if the key is not already present in the
     /// dictionary. If the key was inserted, returns Ok(true), otherwise returns Ok(false), indicating the key was
     /// already present. If an error happens, returns PyErr. This function uses
-    /// [`PyDict_SetDefaultRef`](https://docs.python.org/3/c-api/dict.html#c.PyDict_SetDefaultRef) internally, so it has
-    /// the same thread safety guarantees as that function.
+    /// [`PyDict_SetDefaultRef`](https://docs.python.org/3/c-api/dict.html#c.PyDict_SetDefaultRef) internally.
     fn set_default<K, V>(&self, key: K, default_value: V) -> PyResult<bool>
     where
         K: IntoPyObject<'py>,
@@ -232,8 +221,7 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// dictionary. If the key was inserted, returns Ok((true, result)), otherwise returns Ok((false, result)) where
     /// `result` is the `value` associated with `key` after this function finishes. If an error happens, returns
     /// PyErr. This function uses
-    /// [`PyDict_SetDefaultRef`](https://docs.python.org/3/c-api/dict.html#c.PyDict_SetDefaultRef) internally, so it has
-    /// the same thread safety guarantees as that function.
+    /// [`PyDict_SetDefaultRef`](https://docs.python.org/3/c-api/dict.html#c.PyDict_SetDefaultRef) internally.
     fn set_default_with_result<K, V>(
         &self,
         key: K,
@@ -430,26 +418,29 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             dict: &Bound<'_, PyDict>,
             key: Borrowed<'_, '_, PyAny>,
             value: Borrowed<'_, '_, PyAny>,
-        ) -> PyResult<std::ffi::c_int> {
-            err::error_on_minusone_with_result(dict.py(), unsafe {
-                ffi::compat::PyDict_SetDefaultRef(
-                    dict.as_ptr(),
-                    key.as_ptr(),
-                    value.as_ptr(),
-                    std::ptr::null_mut(),
-                )
-            })
+        ) -> PyResult<bool> {
+            setdefault_result_from_nonerror_return_code(err::error_on_minusone_with_result(
+                dict.py(),
+                unsafe {
+                    ffi::compat::PyDict_SetDefaultRef(
+                        dict.as_ptr(),
+                        key.as_ptr(),
+                        value.as_ptr(),
+                        std::ptr::null_mut(),
+                    )
+                },
+            ))
         }
         let py = self.py();
 
-        Ok(setdefault_result_from_nonerror_return_code(inner(
+        inner(
             self,
             key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
             default_value
                 .into_pyobject_or_pyerr(py)?
                 .into_any()
                 .as_borrowed(),
-        )?))
+        )
     }
 
     fn set_default_with_result<K, V>(
@@ -461,40 +452,47 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         K: IntoPyObject<'py>,
         V: IntoPyObject<'py>,
     {
-        fn inner(
+        fn inner<'py>(
             dict: &Bound<'_, PyDict>,
             key: Borrowed<'_, '_, PyAny>,
             value: Borrowed<'_, '_, PyAny>,
-            result: &mut *mut ffi::PyObject,
-        ) -> PyResult<std::ffi::c_int> {
-            err::error_on_minusone_with_result(dict.py(), unsafe {
-                ffi::compat::PyDict_SetDefaultRef(
-                    dict.as_ptr(),
-                    key.as_ptr(),
-                    value.as_ptr(),
-                    result,
-                )
-            })
+            py: Python<'py>,
+        ) -> PyResult<(bool, Bound<'py, PyAny>)> {
+            let mut result = std::ptr::NonNull::dangling().as_ptr();
+            let code = setdefault_result_from_nonerror_return_code(
+                err::error_on_minusone_with_result(dict.py(), unsafe {
+                    ffi::compat::PyDict_SetDefaultRef(
+                        dict.as_ptr(),
+                        key.as_ptr(),
+                        value.as_ptr(),
+                        &mut result,
+                    )
+                }),
+            )?;
+            // SAFETY: the interpreter should have set this to a valid owned PyObject pointer
+            let out_result = unsafe { result.assume_owned_unchecked(py) };
+            Ok((code, out_result))
         }
         let py = self.py();
-        static UNINITIALIZED: u8 = 0;
-        let mut ob_result = std::ptr::addr_of!(UNINITIALIZED) as *mut ffi::PyObject;
-        let code = inner(
+        inner(
             self,
             key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
             default_value
                 .into_pyobject_or_pyerr(py)?
                 .into_any()
                 .as_borrowed(),
-            &mut ob_result,
-        )?;
-        assert!(ob_result != std::ptr::addr_of!(UNINITIALIZED) as *mut ffi::PyObject);
-        // SAFETY: the interpreter should have set this to a valid owned PyObject pointer
-        let out_result = unsafe { ob_result.assume_owned(py) };
-        Ok((
-            setdefault_result_from_nonerror_return_code(code),
-            out_result,
-        ))
+            py,
+        )
+    }
+}
+
+fn setdefault_result_from_nonerror_return_code(code: PyResult<std::ffi::c_int>) -> PyResult<bool> {
+    match code? {
+        // inserted
+        0 => Ok(true),
+        // not inserted
+        1 => Ok(false),
+        x => panic!("Unknown return value from PyDict_SetDefaultRef: {x}"),
     }
 }
 
@@ -1782,54 +1780,50 @@ mod tests {
     }
 
     #[test]
-    // Python 3.10 limited API is needed for .extract::<&str>
-    #[cfg(not(all(Py_LIMITED_API, not(Py_3_10))))]
     fn test_set_default() {
         Python::attach(|py| {
             let dict = PyDict::new(py);
             assert!(matches!(dict.set_default("hello", "world"), Ok(true)));
-            assert!(
+            assert_eq!(
                 dict.get_item("hello")
                     .unwrap()
                     .unwrap()
-                    .extract::<&str>()
-                    .unwrap()
-                    == "world"
+                    .extract::<String>()
+                    .unwrap(),
+                "world"
             );
 
             assert!(matches!(dict.set_default("hello", "foobar"), Ok(false)));
 
+            // unhashable
             let invalid_key = PyList::new(py, vec![0]).unwrap();
             assert!(dict.set_default(invalid_key, "foobar").is_err());
         })
     }
 
     #[test]
-    // Python 3.10 is needed for .extract::<&str>
-    #[cfg(not(all(Py_LIMITED_API, not(Py_3_10))))]
     fn test_set_default_with_result() {
         Python::attach(|py| {
             let dict = PyDict::new(py);
             let res = dict.set_default_with_result("hello", "world");
             assert!(res.is_ok());
-            let res = res.unwrap();
-            assert!(res.0);
-            assert!(res.1.extract::<&str>().unwrap() == "world");
+            let (inserted, value) = res.unwrap();
+            assert!(inserted);
+            assert!(value.extract::<String>().unwrap() == "world");
             assert!(
                 dict.get_item("hello")
                     .unwrap()
                     .unwrap()
-                    .extract::<&str>()
+                    .extract::<String>()
                     .unwrap()
                     == "world"
             );
 
-            let res = dict.set_default_with_result("hello", "foobar");
-            assert!(res.is_ok());
-            let res = res.unwrap();
-            assert!(!res.0);
-            assert!(res.1.extract::<&str>().unwrap() == "world");
+            let (inserted, value) = dict.set_default_with_result("hello", "foobar").unwrap();
+            assert!(inserted);
+            assert_eq!(value.extract::<String>().unwrap(), "world");
 
+            // unhashable
             let invalid_key = PyList::new(py, vec![0]).unwrap();
             assert!(dict.set_default_with_result(invalid_key, "foobar").is_err());
         })
