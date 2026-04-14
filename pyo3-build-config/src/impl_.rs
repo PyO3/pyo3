@@ -1,6 +1,3 @@
-//! Main implementation module included in both the `pyo3-build-config` library crate
-//! and its build script.
-
 #[cfg(test)]
 use std::cell::RefCell;
 use std::{
@@ -2876,8 +2873,7 @@ mod tests {
         // Might not complete successfully depending on host installation; that's ok as long as
         // CI demonstrates this path is covered!
 
-        let target = triple!("x86_64-unknown-linux-gnu");
-        let Ok(build_config) = crate::pyo3_build_script_impl::resolve_build_config(&target) else {
+        let Ok(interpreter_config) = make_interpreter_config() else {
             // Couldn't get an interpreter config, won't be able to test a matching sysconfigdata,
             // never mind. (This is intended for coverage, don't mind if it fails if it doesn't run.)
             return;
@@ -2894,7 +2890,7 @@ mod tests {
             lib_dir: Some(lib_dir.into()),
             version: Some(interpreter_config.version),
             implementation: Some(interpreter_config.implementation),
-            target,
+            target: triple!("x86_64-unknown-linux-gnu"),
             abiflags: if interpreter_config.is_free_threaded() {
                 Some("t".into())
             } else {

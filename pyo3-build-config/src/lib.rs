@@ -237,7 +237,10 @@ pub fn print_expected_cfgs() {
 /// Please don't use these - they could change at any time.
 #[doc(hidden)]
 pub mod pyo3_build_script_impl {
-    use crate::{errors::Result, impl_::make_interpreter_config};
+    use crate::{
+        errors::Result,
+        impl_::{make_cross_compile_config, make_interpreter_config},
+    };
 
     use super::*;
 
@@ -245,8 +248,7 @@ pub mod pyo3_build_script_impl {
         pub use crate::errors::*;
     }
     pub use crate::impl_::{
-        cargo_env_var, env_var, is_linking_libpython_for_target, make_cross_compile_config,
-        target_triple_from_env, InterpreterConfig, PythonVersion,
+        cargo_env_var, env_var, is_linking_libpython_for_target, target_triple_from_env,
     };
     pub enum BuildConfigSource {
         /// Config was provided by `PYO3_CONFIG_FILE`.
