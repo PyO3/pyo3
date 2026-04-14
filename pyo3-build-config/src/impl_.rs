@@ -2903,7 +2903,16 @@ mod tests {
             _ => return,
         };
         let sysconfigdata = super::parse_sysconfigdata(sysconfigdata_path).unwrap();
-        let parsed_config = InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap();
+        let mut parsed_config = InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap();
+
+        // Workaround case where empty `PYTHONFRAMEWORKPREFIX` is returned as empty string instead of None,
+        // which causes the assert_eq! below to fail.
+        //
+        // TODO: probably should deprecate using this variable at all, seemingly only used in `add_python_framework_link_args`
+        // which is probably a strictly worse version of `add_libpython_rpath_link_args`.
+        if parsed_config.python_framework_prefix.as_deref() == Some("") {
+            parsed_config.python_framework_prefix = None;
+        }
 
         assert_eq!(
             parsed_config,
