@@ -18,13 +18,13 @@ mod kw {
 /// Custom provided stubs in #[pymodule]
 pub struct PyStubs {
     bracket_token: Brace,
-    imports: Punctuated<PyStatement, Token![;]>,
+    statements: Vec<PyStatement>,
 }
 
 impl PyStubs {
     /// Returns a JSON object following the https://docs.python.org/fr/3/library/ast.html syntax tree
     pub fn as_json(&self) -> JsonValue {
-        JsonValue::Array(self.imports.iter().map(|i| i.as_json()).collect())
+        JsonValue::Array(self.statements.iter().map(|i| i.as_json()).collect())
     }
 }
 
@@ -33,15 +33,24 @@ impl Parse for PyStubs {
         let content;
         Ok(Self {
             bracket_token: braced!(content in input),
-            imports: content.parse_terminated(PyStatement::parse, Token![;])?,
+            statements: {
+                let mut statements = Vec::new();
+                while !content.is_empty() {
+                    statements.push(content.parse()?);
+                }
+                statements
+            },
         })
     }
 }
 
 impl ToTokens for PyStubs {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.bracket_token
-            .surround(tokens, |tokens| self.imports.to_tokens(tokens))
+        self.bracket_token.surround(tokens, |tokens| {
+            for import in &self.statements {
+                import.to_tokens(tokens)
+            }
+        })
     }
 }
 

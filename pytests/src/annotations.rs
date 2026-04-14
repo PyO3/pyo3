@@ -3,8 +3,8 @@
 use pyo3::prelude::*;
 
 #[pymodule(stubs = {
-    from datetime import datetime as dt, time;
-    from uuid import UUID;
+    from datetime import datetime as dt, time
+    from uuid import UUID
 })]
 pub mod annotations {
     use pyo3::prelude::*;
