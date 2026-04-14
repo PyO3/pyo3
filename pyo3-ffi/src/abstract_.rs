@@ -73,7 +73,7 @@ extern_libpython! {
 
     #[cfg(all(Py_3_12, Py_LIMITED_API))] // is an inline function in cpython/abstract.rs on version-specific ABI
     #[cfg_attr(PyPy, link_name = "PyPyVectorcall_NARGS")]
-    pub fn PyVectorcall_NARGS(nargsf: size_t) -> size_t;
+    pub fn PyVectorcall_NARGS(nargsf: size_t) -> Py_ssize_t;
 
     #[cfg_attr(not(any(Py_3_12, PyPy)), link_name = "_PyVectorcall_Call")] // symbol made public in 3.12
     #[cfg_attr(PyPy, link_name = "PyPyVectorcall_Call")]
