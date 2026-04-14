@@ -6,6 +6,8 @@
 
 #[cfg(any(GraalPy, PyRustPython))]
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DECREF};
+#[cfg(all(not(PyPy), not(PyRustPython)))]
+use crate::PyCapsule_Import;
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_None, Py_TYPE};
 #[cfg(PyRustPython)]
 use crate::pyerrors::set_vm_exception;

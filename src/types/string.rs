@@ -6,7 +6,6 @@ use crate::py_result_ext::PyResultExt;
 #[cfg(PyRustPython)]
 use crate::sync::PyOnceLock;
 use crate::types::bytes::PyBytesMethods;
-#[cfg(PyRustPython)]
 use crate::types::PyBytes;
 #[cfg(PyRustPython)]
 use crate::types::{PyType, PyTypeMethods};
