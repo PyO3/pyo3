@@ -108,7 +108,6 @@ impl PyWeakrefProxy {
     )]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefProxy;
-    /// use pyo3::ffi::c_str;
     ///
     /// #[pyclass(weakref)]
     /// struct Foo { /* fields omitted */ }
