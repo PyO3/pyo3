@@ -404,7 +404,6 @@ mod tests {
         struct WeakrefablePyClass {}
 
         #[test]
-        #[cfg_attr(PyRustPython, ignore = "remaining RustPython weakref semantics gap for PyO3 pyclasses after RustPython#7590")]
         fn test_weakref_reference_behavior() -> PyResult<()> {
             Python::attach(|py| {
                 let object: Bound<'_, WeakrefablePyClass> = Bound::new(py, WeakrefablePyClass {})?;
@@ -444,7 +443,6 @@ mod tests {
         }
 
         #[test]
-        #[cfg_attr(PyRustPython, ignore = "remaining RustPython weakref semantics gap for PyO3 pyclasses after RustPython#7590")]
         fn test_weakref_upgrade_as() -> PyResult<()> {
             Python::attach(|py| {
                 let object = Py::new(py, WeakrefablePyClass {})?;
@@ -476,7 +474,6 @@ mod tests {
         }
 
         #[test]
-        #[cfg_attr(PyRustPython, ignore = "remaining RustPython weakref semantics gap for PyO3 pyclasses after RustPython#7590")]
         fn test_weakref_upgrade_as_unchecked() -> PyResult<()> {
             Python::attach(|py| {
                 let object = Py::new(py, WeakrefablePyClass {})?;
@@ -502,7 +499,6 @@ mod tests {
         }
 
         #[test]
-        #[cfg_attr(PyRustPython, ignore = "remaining RustPython weakref semantics gap for PyO3 pyclasses after RustPython#7590")]
         fn test_weakref_upgrade() -> PyResult<()> {
             Python::attach(|py| {
                 let object = Py::new(py, WeakrefablePyClass {})?;

@@ -27,6 +27,9 @@ use std::{
     ptr::{self, NonNull},
 };
 
+#[cfg(PyRustPython)]
+const PYO3_RUSTPYTHON_HEAP_TYPE_ATTR: &str = "__pyo3_rustpython_heap_type__";
+
 pub(crate) struct PyClassTypeObject {
     pub type_object: Py<PyType>,
     pub is_immutable_type: bool,
@@ -550,6 +553,9 @@ impl PyTypeBuilder {
                 .assume_owned_or_err(py)?
                 .cast_into_unchecked::<PyType>()
         };
+
+        #[cfg(PyRustPython)]
+        type_object.setattr(PYO3_RUSTPYTHON_HEAP_TYPE_ATTR, true)?;
 
         #[cfg(PyRustPython)]
         if let Some(module_name) = module_name {
