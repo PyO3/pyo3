@@ -184,6 +184,8 @@ pub unsafe fn PyObject_GetItem(o: *mut PyObject, key: *mut PyObject) -> *mut PyO
     let obj = ptr_to_pyobject_ref_borrowed(o);
     let key_obj = ptr_to_pyobject_ref_borrowed(key);
     rustpython_runtime::with_vm(|vm| {
+        let owner_name = obj.class().name().to_string();
+        let key_type_name = key_obj.class().name().to_string();
         let result = if let Some(f) = obj.mapping_unchecked().slots().subscript.load() {
             f(obj.mapping_unchecked(), &key_obj, vm)
         } else if let Some(f) = obj.sequence_unchecked().slots().item.load() {
@@ -192,7 +194,16 @@ pub unsafe fn PyObject_GetItem(o: *mut PyObject, key: *mut PyObject) -> *mut PyO
                 .and_then(|i| i.try_to_primitive::<isize>(vm))
             {
                 Ok(i) => f(obj.sequence_unchecked(), i, vm),
-                Err(exc) => Err(exc),
+                Err(exc) => {
+                    if matches!(owner_name.as_str(), "tuple" | "list") {
+                        Err(vm.new_type_error(format!(
+                            "{owner_name} indices must be integers or slices, not {}",
+                            key_type_name
+                        )))
+                    } else {
+                        Err(exc)
+                    }
+                }
             }
         } else {
             Err(vm.new_type_error(format!(
@@ -203,7 +214,15 @@ pub unsafe fn PyObject_GetItem(o: *mut PyObject, key: *mut PyObject) -> *mut PyO
         match result {
             Ok(value) => pyobject_ref_to_ptr(value),
             Err(exc) => {
-                set_vm_exception(exc);
+                if matches!(owner_name.as_str(), "tuple" | "list")
+                    && !matches!(key_type_name.as_str(), "int" | "bool")
+                {
+                    set_vm_exception(vm.new_type_error(format!(
+                        "{owner_name} indices must be integers or slices, not {key_type_name}"
+                    )));
+                } else {
+                    set_vm_exception(exc);
+                }
                 std::ptr::null_mut()
             }
         }

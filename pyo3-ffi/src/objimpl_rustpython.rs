@@ -21,11 +21,22 @@ pub unsafe fn PyObject_Realloc(ptr: *mut c_void, new_size: size_t) -> *mut c_voi
 
 #[inline]
 pub unsafe fn PyObject_Free(ptr: *mut c_void) {
-    crate::PyMem_Free(ptr)
+    if ptr.is_null() {
+        return;
+    }
+    unsafe { rustpython_vm::object::free_raw_pybaseobject_allocation(ptr.cast()) };
 }
 
 #[inline]
 pub unsafe fn PyObject_Init(arg1: *mut PyObject, _arg2: *mut PyTypeObject) -> *mut PyObject {
+    if !arg1.is_null() && !_arg2.is_null() {
+        crate::rustpython_runtime::with_vm(|_vm| {
+            let cls_obj = crate::object::ptr_to_pyobject_ref_borrowed(_arg2.cast());
+            if let Ok(cls) = cls_obj.downcast::<rustpython_vm::builtins::PyType>() {
+                unsafe { rustpython_vm::object::reinit_raw_object(arg1.cast(), cls) };
+            }
+        });
+    }
     arg1
 }
 
@@ -102,7 +113,10 @@ pub unsafe fn PyObject_GC_UnTrack(_arg1: *mut c_void) {}
 
 #[inline]
 pub unsafe fn PyObject_GC_Del(arg1: *mut c_void) {
-    crate::PyMem_Free(arg1)
+    if arg1.is_null() {
+        return;
+    }
+    unsafe { rustpython_vm::object::free_raw_pybaseobject_allocation(arg1.cast()) };
 }
 
 #[cfg(any(all(Py_3_9, not(PyPy)), Py_3_10))]

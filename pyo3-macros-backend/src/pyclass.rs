@@ -2571,10 +2571,10 @@ fn pyclass_hash(
     match options.hash {
         Some(opt) => {
             let mut hash_impl = parse_quote_spanned! { opt.span() =>
-                fn __pyo3__generated____hash__(&self) -> u64 {
+                fn __pyo3__generated____hash__(&self) -> isize {
                     let mut s = ::std::collections::hash_map::DefaultHasher::new();
                     ::std::hash::Hash::hash(self, &mut s);
-                    ::std::hash::Hasher::finish(&s)
+                    ::std::hash::Hasher::finish(&s) as isize
                 }
             };
             let hash_slot = generate_protocol_slot(
@@ -2586,7 +2586,7 @@ fn pyclass_hash(
                 FunctionIntrospectionData {
                     names: &["__hash__"],
                     arguments: Vec::new(),
-                    returns: parse_quote! { ::std::primitive::u64 },
+                    returns: parse_quote! { ::std::primitive::isize },
                     is_returning_not_implemented_on_extraction_error: false,
                 },
                 ctx,

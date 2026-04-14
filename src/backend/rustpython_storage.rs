@@ -5,19 +5,55 @@ use crate::impl_::pycell::{
     GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout,
 };
 use crate::impl_::pyclass::{PyClassBaseType, PyClassImpl, PyClassThreadChecker, PyObjectOffset};
+use crate::internal::get_slot::{TP_CLEAR, TP_TRAVERSE};
 use crate::pycell::impl_::{PyClassObjectContents, PyClassObjectLayout};
 use crate::pycell::PyBorrowError;
 use crate::type_object::PyLayout;
-use crate::{PyClass, Python};
+use crate::{PyClass, PyTypeInfo, Python};
 use std::any::TypeId;
 use std::collections::HashMap;
+use std::mem;
 use std::mem::MaybeUninit;
 use std::ptr::NonNull;
 use std::sync::{Mutex, OnceLock};
 
+const fn align_up(value: usize, align: usize) -> usize {
+    debug_assert!(align.is_power_of_two());
+    (value + align - 1) & !(align - 1)
+}
+
+trait SemanticBaseInlineSize {
+    const BASIC_SIZE: usize;
+}
+
+impl SemanticBaseInlineSize for crate::types::PyAny {
+    const BASIC_SIZE: usize = mem::size_of::<crate::impl_::pycell::PyClassObjectBase<ffi::PyObject>>();
+}
+
+impl<T> SemanticBaseInlineSize for T
+where
+    T: PyClassImpl + PyTypeInfo,
+    T::Layout: PyClassObjectLayout<T>,
+{
+    const BASIC_SIZE: usize = <T::Layout as PyClassObjectLayout<T>>::BASIC_SIZE as usize;
+}
+
+const fn semantic_inline_size<T>() -> usize
+where
+    T: PyClassImpl,
+    T::BaseType: SemanticBaseInlineSize,
+{
+    let base_size = <T::BaseType as SemanticBaseInlineSize>::BASIC_SIZE;
+    let contents_align = mem::align_of::<PyClassObjectContents<T>>();
+    let contents_size = mem::size_of::<PyClassObjectContents<T>>();
+    align_up(base_size, contents_align) + contents_size
+}
+
 struct SidecarEntry {
     ptr: NonNull<()>,
     cleanup: SidecarCleanup,
+    tp_traverse: Option<ffi::traverseproc>,
+    tp_clear: Option<ffi::inquiry>,
 }
 
 unsafe impl Send for SidecarEntry {}
@@ -27,22 +63,25 @@ fn sidecar_registry() -> &'static Mutex<HashMap<(usize, TypeId), SidecarEntry>> 
     REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-fn ensure_sidecar_slot<T: PyClassImpl>(
+fn ensure_sidecar_slot<T: PyClassImpl + PyTypeInfo>(
     obj: *mut ffi::PyObject,
 ) -> *mut MaybeUninit<PyClassObjectContents<T>> {
     let key = (obj as usize, TypeId::of::<T>());
     let mut registry = sidecar_registry().lock().unwrap();
     let entry = registry.entry(key).or_insert_with(|| {
+        let py = unsafe { Python::assume_attached() };
         let boxed = Box::new(MaybeUninit::<PyClassObjectContents<T>>::uninit());
         SidecarEntry {
             ptr: NonNull::new(Box::into_raw(boxed).cast::<()>()).expect("box pointer is non-null"),
             cleanup: cleanup_sidecar_entry::<T>,
+            tp_traverse: T::type_object(py).get_slot(TP_TRAVERSE),
+            tp_clear: T::type_object(py).get_slot(TP_CLEAR),
         }
     });
     entry.ptr.as_ptr().cast()
 }
 
-fn get_sidecar_slot<T: PyClassImpl>(obj: *const ffi::PyObject) -> *mut PyClassObjectContents<T> {
+fn get_sidecar_slot<T: PyClassImpl + PyTypeInfo>(obj: *const ffi::PyObject) -> *mut PyClassObjectContents<T> {
     let key = (obj as usize, TypeId::of::<T>());
     let registry = sidecar_registry().lock().unwrap();
     let entry = registry
@@ -56,7 +95,7 @@ fn owner_registry() -> &'static Mutex<HashMap<usize, bool>> {
     REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-unsafe extern "C" fn cleanup_sidecar_entry<T: PyClassImpl>(
+unsafe extern "C" fn cleanup_sidecar_entry<T: PyClassImpl + PyTypeInfo>(
     owner: *mut ffi::PyObject,
     sidecar: *mut std::ffi::c_void,
 )
@@ -95,7 +134,40 @@ unsafe extern "C" fn cleanup_all_sidecars(owner: *mut ffi::PyObject, _marker: *m
     }
 }
 
-pub(crate) fn install_sidecar_owner<T: PyClassImpl>(_py: Python<'_>, obj: *mut ffi::PyObject)
+pub(crate) unsafe extern "C" fn traverse_sidecars(
+    owner: *mut ffi::PyObject,
+    visit: ffi::visitproc,
+    arg: *mut std::ffi::c_void,
+) -> std::os::raw::c_int {
+    let owner_key = owner as usize;
+    let callbacks = {
+        let registry = sidecar_registry().lock().unwrap();
+        registry
+            .iter()
+            .filter_map(|((obj, _), entry)| (*obj == owner_key).then_some(entry.tp_traverse))
+            .collect::<Vec<_>>()
+    };
+    let mut rc = 0;
+    for callback in callbacks {
+        if let Some(callback) = callback {
+            rc = unsafe { callback(owner, visit, arg) };
+            if rc != 0 {
+                break;
+            }
+        }
+    }
+    rc
+}
+
+pub(crate) unsafe extern "C" fn clear_sidecars(
+    owner: *mut ffi::PyObject,
+    _visit: ffi::visitproc,
+    _arg: *mut std::ffi::c_void,
+) {
+    let _ = owner;
+}
+
+pub(crate) fn install_sidecar_owner<T: PyClassImpl + PyTypeInfo>(_py: Python<'_>, obj: *mut ffi::PyObject)
 where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {
@@ -107,6 +179,8 @@ where
                 obj,
                 obj.cast::<std::ffi::c_void>(),
                 cleanup_all_sidecars,
+                traverse_sidecars,
+                clear_sidecars,
             )
         };
         assert_eq!(rc, 0, "failed to install RustPython sidecar owner");
@@ -125,7 +199,7 @@ pub struct PySidecarClassObject<T: PyClassImpl> {
 
 unsafe impl<T: PyClassImpl> PyLayout<T> for PySidecarClassObject<T> {}
 
-impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PySidecarClassObject<T> {
+impl<T: PyClassImpl<Layout = Self> + PyTypeInfo> PyClassObjectLayout<T> for PySidecarClassObject<T> {
     const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Absolute(0);
     const HAS_EMBEDDED_CONTENTS: bool = false;
     const BASIC_SIZE: ffi::Py_ssize_t = 0;
@@ -175,17 +249,20 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PySidecarClassObj
 #[repr(C)]
 pub struct PySemanticSidecarClassObject<T: PyClassImpl> {
     ob_base: <T::BaseType as PyClassBaseType>::LayoutAsBase,
-    _semantic_contents: MaybeUninit<PyClassObjectContents<T>>,
 }
 
 unsafe impl<T: PyClassImpl> PyLayout<T> for PySemanticSidecarClassObject<T> {}
 impl<T: PyClass> crate::type_object::PySizedLayout<T> for PySemanticSidecarClassObject<T> {}
 
-impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PySemanticSidecarClassObject<T> {
+impl<T> PyClassObjectLayout<T> for PySemanticSidecarClassObject<T>
+where
+    T: PyClassImpl<Layout = Self> + PyTypeInfo,
+    T::BaseType: SemanticBaseInlineSize,
+{
     const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Absolute(0);
     const HAS_EMBEDDED_CONTENTS: bool = false;
     const BASIC_SIZE: ffi::Py_ssize_t = {
-        let size = core::mem::size_of::<Self>();
+        let size = semantic_inline_size::<T>();
         assert!(size <= ffi::Py_ssize_t::MAX as usize);
         size as ffi::Py_ssize_t
     };
@@ -227,8 +304,10 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PySemanticSidecar
     }
 }
 
-impl<T: PyClassImpl<Layout = Self>> PyClassObjectBaseLayout<T> for PySemanticSidecarClassObject<T>
+impl<T> PyClassObjectBaseLayout<T> for PySemanticSidecarClassObject<T>
 where
+    T: PyClassImpl<Layout = Self> + PyTypeInfo,
+    T::BaseType: SemanticBaseInlineSize,
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {
     fn ensure_threadsafe(&self) {
@@ -249,7 +328,7 @@ where
     }
 }
 
-impl<T: PyClassImpl<Layout = Self>> PyClassObjectBaseLayout<T> for PySidecarClassObject<T>
+impl<T: PyClassImpl<Layout = Self> + PyTypeInfo> PyClassObjectBaseLayout<T> for PySidecarClassObject<T>
 where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {

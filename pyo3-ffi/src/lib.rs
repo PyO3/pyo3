@@ -622,6 +622,11 @@ mod weakrefobject;
 mod rustpython_runtime;
 
 #[cfg(PyRustPython)]
+pub fn rustpython_runtime_thread_id() -> Option<std::thread::ThreadId> {
+    rustpython_runtime::runtime_thread_id()
+}
+
+#[cfg(PyRustPython)]
 pub use self::critical_section::*;
 #[cfg(PyRustPython)]
 pub use self::lock::*;

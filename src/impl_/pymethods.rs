@@ -442,7 +442,7 @@ unsafe fn call_super_traverse(
     while traverse_eq(traverse, current_traverse) {
         ty = unsafe { get_slot(ty, TP_BASE) };
         if ty.is_null() {
-            break;
+            return 0;
         }
         traverse = unsafe { get_slot(ty, TP_TRAVERSE) };
     }
@@ -510,7 +510,7 @@ unsafe fn call_super_clear(
     while clear_eq(clear, current_clear) {
         let base = ty.get_slot(TP_BASE);
         if base.is_null() {
-            break;
+            return 0;
         }
         ty = unsafe { PyType::from_borrowed_type_ptr(py, base) };
         clear = ty.get_slot(TP_CLEAR);

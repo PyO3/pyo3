@@ -7,6 +7,8 @@ use crate::internal_tricks::get_ssize_index;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
+#[cfg(PyRustPython)]
+use crate::types::mapping::is_registered_mapping_type;
 use crate::types::{any::PyAnyMethods, PyAny, PyList, PyTuple, PyType, PyTypeMethods};
 use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python};
 #[cfg(PyRustPython)]
@@ -49,21 +51,22 @@ unsafe impl PyTypeInfo for PySequence {
     fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
         #[cfg(PyRustPython)]
         {
-            (unsafe { ffi::PySequence_Check(object.as_ptr()) != 0 })
-                || registered_sequence_types()
-                    .lock()
-                    .unwrap()
-                    .iter()
-                    .copied()
-                    .any(|ptr| unsafe {
-                        ffi::PyObject_TypeCheck(object.as_ptr(), ptr as *mut ffi::PyTypeObject) != 0
-                    })
-                || object
-                    .is_instance(&Self::type_object(object.py()).into_any())
-                    .unwrap_or_else(|err| {
-                        err.write_unraisable(object.py(), Some(object));
-                        false
-                    })
+            let is_registered_sequence = registered_sequence_types()
+                .lock()
+                .unwrap()
+                .iter()
+                .copied()
+                .any(|ptr| unsafe {
+                    ffi::PyObject_TypeCheck(object.as_ptr(), ptr as *mut ffi::PyTypeObject) != 0
+                });
+            let is_builtin_sequence = PyList::is_type_of(object) || PyTuple::is_type_of(object);
+            let is_sequence_protocol = unsafe { ffi::PySequence_Check(object.as_ptr()) != 0 };
+            let is_mapping_protocol = unsafe { ffi::PyMapping_Check(object.as_ptr()) != 0 };
+            let is_registered_mapping = is_registered_mapping_type(object);
+
+            is_builtin_sequence
+                || is_registered_sequence
+                || (is_sequence_protocol && !is_mapping_protocol && !is_registered_mapping)
         }
 
         #[cfg(not(PyRustPython))]

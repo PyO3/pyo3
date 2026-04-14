@@ -31,6 +31,16 @@ fn registered_mapping_types() -> &'static Mutex<Vec<usize>> {
     REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
 }
 
+#[cfg(PyRustPython)]
+pub(crate) fn is_registered_mapping_type(object: &Bound<'_, PyAny>) -> bool {
+    registered_mapping_types()
+        .lock()
+        .unwrap()
+        .iter()
+        .copied()
+        .any(|ptr| unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), ptr as *mut ffi::PyTypeObject) != 0 })
+}
+
 unsafe impl PyTypeInfo for PyMapping {
     const NAME: &'static str = "Mapping";
     const MODULE: Option<&'static str> = Some("collections.abc");
@@ -49,35 +59,25 @@ unsafe impl PyTypeInfo for PyMapping {
 
     #[inline]
     fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
-        // Using `is_instance` for `collections.abc.Mapping` is slow, so provide
-        // optimized case dict as a well-known mapping
-        PyDict::is_type_of(object)
-            || {
-                #[cfg(PyRustPython)]
-                {
-                    registered_mapping_types()
-                        .lock()
-                        .unwrap()
-                        .iter()
-                        .copied()
-                        .any(|ptr| unsafe {
-                            ffi::PyObject_TypeCheck(
-                                object.as_ptr(),
-                                ptr as *mut ffi::PyTypeObject,
-                            ) != 0
-                        })
-                }
-                #[cfg(not(PyRustPython))]
-                {
-                    false
-                }
-            }
-            || object
-                .is_instance(&Self::type_object(object.py()).into_any())
-                .unwrap_or_else(|err| {
-                    err.write_unraisable(object.py(), Some(object));
-                    false
-                })
+        #[cfg(PyRustPython)]
+        {
+            PyDict::is_type_of(object)
+                || unsafe { ffi::PyMapping_Check(object.as_ptr()) != 0 }
+                || is_registered_mapping_type(object)
+        }
+
+        #[cfg(not(PyRustPython))]
+        {
+            // Using `is_instance` for `collections.abc.Mapping` is slow, so provide
+            // optimized case dict as a well-known mapping
+            PyDict::is_type_of(object)
+                || object
+                    .is_instance(&Self::type_object(object.py()).into_any())
+                    .unwrap_or_else(|err| {
+                        err.write_unraisable(object.py(), Some(object));
+                        false
+                    })
+        }
     }
 }
 
@@ -94,6 +94,7 @@ impl PyMapping {
             if !registry.contains(&ptr) {
                 registry.push(ptr);
             }
+            return Ok(());
         }
         Self::type_object(py).call_method1("register", (ty,))?;
         Ok(())

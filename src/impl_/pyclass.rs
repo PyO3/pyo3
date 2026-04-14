@@ -1019,20 +1019,32 @@ impl<T> PyClassThreadChecker<T> for NoopThreadChecker {
 pub struct ThreadCheckerImpl(thread::ThreadId);
 
 impl ThreadCheckerImpl {
+    #[cfg(PyRustPython)]
+    fn matches_runtime_or_owner(&self) -> bool {
+        let current = thread::current().id();
+        current == self.0
+            || crate::ffi::rustpython_runtime_thread_id()
+                .is_some_and(|runtime_thread| runtime_thread == current)
+    }
+
+    #[cfg(not(PyRustPython))]
+    fn matches_runtime_or_owner(&self) -> bool {
+        thread::current().id() == self.0
+    }
+
     fn ensure(&self, type_name: &'static str) {
-        assert_eq!(
-            thread::current().id(),
-            self.0,
+        assert!(
+            self.matches_runtime_or_owner(),
             "{type_name} is unsendable, but sent to another thread"
         );
     }
 
     fn check(&self) -> bool {
-        thread::current().id() == self.0
+        self.matches_runtime_or_owner()
     }
 
     fn can_drop(&self, py: Python<'_>, type_name: &'static str) -> bool {
-        if thread::current().id() != self.0 {
+        if !self.matches_runtime_or_owner() {
             PyRuntimeError::new_err(format!(
                 "{type_name} is unsendable, but is being dropped on another thread"
             ))

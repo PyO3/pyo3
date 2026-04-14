@@ -623,7 +623,17 @@ fn rustpython_import_datetime(
     vm: &rustpython_vm::VirtualMachine,
 ) -> Result<rustpython_vm::PyObjectRef, rustpython_vm::builtins::PyBaseExceptionRef> {
     let _ = vm.import("_operator", 0);
-    vm.import("datetime", 0)
+    let datetime = vm.import("datetime", 0)?;
+    if datetime.get_attr("datetime_CAPI", vm).is_err() {
+        let required_attrs = ["date", "datetime", "time", "timedelta", "tzinfo", "timezone"];
+        let has_runtime_surface = required_attrs
+            .iter()
+            .all(|name| datetime.get_attr(*name, vm).is_ok());
+        if !has_runtime_surface {
+            return Err(vm.new_attribute_error("module 'datetime' has no attribute 'datetime_CAPI'"));
+        }
+    }
+    Ok(datetime)
 }
 
 #[cfg(PyRustPython)]

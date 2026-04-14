@@ -47,10 +47,13 @@ error[E0277]: the trait bound `&str: From<&pyo3::Bound<'_, pyo3::types::PyModule
    |              ^ the trait `From<&pyo3::Bound<'_, pyo3::types::PyModule>>` is not implemented for `&str`
    |
    = help: the following other types implement trait `From<T>`:
-             `String` implements `From<&String>`
-             `String` implements `From<&mut str>`
-             `String` implements `From<&str>`
-             `String` implements `From<Box<str>>`
-             `String` implements `From<Cow<'_, str>>`
-             `String` implements `From<char>`
+             `&str` implements `From<&ascii::ascii_str::AsciiStr>`
+             `&str` implements `From<&icu_locale_core::extensions::private::other::Subtag>`
+             `&str` implements `From<&icu_locale_core::extensions::transform::key::Key>`
+             `&str` implements `From<&icu_locale_core::extensions::unicode::attribute::Attribute>`
+             `&str` implements `From<&icu_locale_core::extensions::unicode::key::Key>`
+             `&str` implements `From<&icu_locale_core::extensions::unicode::subdivision::SubdivisionSuffix>`
+             `&str` implements `From<&icu_locale_core::subtags::Subtag>`
+             `&str` implements `From<&icu_locale_core::subtags::language::Language>`
+           and $N others
    = note: required for `&pyo3::Bound<'_, pyo3::types::PyModule>` to implement `Into<&str>`

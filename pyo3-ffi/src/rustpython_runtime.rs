@@ -1,5 +1,9 @@
 use rustpython::InterpreterBuilderExt;
-use rustpython_vm::{InterpreterBuilder, VirtualMachine};
+use rustpython_vm::{
+    AsObject, InterpreterBuilder, Settings, VirtualMachine,
+    builtins::PyUtf8StrRef,
+    TryFromObject,
+};
 use std::any::Any;
 use std::cell::{Cell, UnsafeCell};
 use std::mem::MaybeUninit;
@@ -45,7 +49,10 @@ fn runtime() -> &'static RuntimeHandle {
 
         std::thread::spawn(move || {
             let thread_id = std::thread::current().id();
-            let interpreter = InterpreterBuilder::new().init_stdlib().interpreter();
+            let interpreter = InterpreterBuilder::new()
+                .settings(runtime_settings())
+                .init_stdlib()
+                .interpreter();
 
             interpreter.enter(|vm| {
                 struct RuntimeThreadGuard {
@@ -70,6 +77,10 @@ fn runtime() -> &'static RuntimeHandle {
                 crate::pyerrors::init_exception_symbols(vm);
                 crate::methodobject::init_builtin_function_descriptors(vm);
                 let _ = vm.new_scope_with_main();
+                let _ = vm.import("warnings", 0);
+                let _ = vm.import("site", 0);
+                let _ = import_optional_module(vm, "sitecustomize");
+                let _ = import_optional_module(vm, "usercustomize");
                 crate::import::install_registered_inittab_modules(vm);
                 ready_tx
                     .send(thread_id)
@@ -95,6 +106,44 @@ fn runtime() -> &'static RuntimeHandle {
             .expect("RustPython runtime thread terminated before initialization");
         RuntimeHandle { tx, thread_id }
     })
+}
+
+fn runtime_settings() -> Settings {
+    let mut settings = Settings::default();
+
+    for key in ["RUSTPYTHONPATH", "PYTHONPATH"] {
+        if let Some(paths) = std::env::var_os(key) {
+            settings.path_list.extend(
+                std::env::split_paths(&paths).map(|path| path.to_string_lossy().into_owned()),
+            );
+        }
+    }
+
+    settings
+}
+
+fn import_optional_module(vm: &VirtualMachine, name: &'static str) -> rustpython_vm::PyResult<()> {
+    match vm.import(name, 0) {
+        Ok(_) => Ok(()),
+        Err(err)
+            if err.fast_isinstance(vm.ctx.exceptions.import_error)
+                || err.fast_isinstance(vm.ctx.exceptions.module_not_found_error) =>
+        {
+            let missing_name = err
+                .as_object()
+                .get_attr("name", vm)
+                .ok()
+                .and_then(|value| PyUtf8StrRef::try_from_object(vm, value).ok())
+                .map(|value: PyUtf8StrRef| value.as_str().to_owned());
+
+            if missing_name.as_deref() == Some(name) {
+                Ok(())
+            } else {
+                Err(err)
+            }
+        }
+        Err(err) => Err(err),
+    }
 }
 
 struct DispatchState<F, R> {
@@ -167,6 +216,10 @@ where
 
 pub(crate) fn initialize() {
     let _ = runtime();
+}
+
+pub(crate) fn runtime_thread_id() -> Option<std::thread::ThreadId> {
+    RUNTIME.get().map(|runtime| runtime.thread_id)
 }
 
 pub(crate) fn is_initialized() -> bool {

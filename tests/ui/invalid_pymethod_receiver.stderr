@@ -6,9 +6,13 @@ error[E0277]: the trait bound `i32: TryFrom<&pyo3::Bound<'_, MyClass>>` is not s
   |
   = help: the following other types implement trait `From<T>`:
             `i32` implements `From<bool>`
+            `i32` implements `From<deranged::RangedI32<MIN, MAX>>`
+            `i32` implements `From<dns_lookup::types::AddrFamily>`
+            `i32` implements `From<dns_lookup::types::Protocol>`
+            `i32` implements `From<dns_lookup::types::SockType>`
+            `i32` implements `From<errno::Errno>`
             `i32` implements `From<i16>`
             `i32` implements `From<i8>`
-            `i32` implements `From<u16>`
-            `i32` implements `From<u8>`
+          and $N others
   = note: required for `&pyo3::Bound<'_, MyClass>` to implement `Into<i32>`
   = note: required for `i32` to implement `TryFrom<&pyo3::Bound<'_, MyClass>>`

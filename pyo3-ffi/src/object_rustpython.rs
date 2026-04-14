@@ -185,14 +185,18 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
 
 #[derive(Copy, Clone)]
 pub(crate) struct HeapTypeMetadata {
+    tp_alloc: usize,
     tp_new: usize,
     tp_init: usize,
+    tp_free: usize,
     tp_call: usize,
     tp_hash: usize,
     tp_getattro: usize,
     tp_repr: usize,
     tp_str: usize,
     tp_richcompare: usize,
+    tp_traverse: usize,
+    tp_clear: usize,
     mp_subscript: usize,
     mp_ass_subscript: usize,
     nb_add: usize,
@@ -245,14 +249,18 @@ pub(crate) struct HeapTypeMetadata {
 impl Default for HeapTypeMetadata {
     fn default() -> Self {
         Self {
+            tp_alloc: 0,
             tp_new: 0,
             tp_init: 0,
+            tp_free: 0,
             tp_call: 0,
             tp_hash: 0,
             tp_getattro: 0,
             tp_repr: 0,
             tp_str: 0,
             tp_richcompare: 0,
+            tp_traverse: 0,
+            tp_clear: 0,
             mp_subscript: 0,
             mp_ass_subscript: 0,
             nb_add: 0,
@@ -346,19 +354,74 @@ fn heap_type_has_inherited_tp_init(ty: &PyType) -> bool {
 }
 
 pub type SidecarCleanup = unsafe extern "C" fn(*mut PyObject, *mut c_void);
+pub type SidecarTraverse =
+    unsafe extern "C" fn(*mut PyObject, visitproc, *mut c_void) -> c_int;
+pub type SidecarClear = unsafe extern "C" fn(*mut PyObject, visitproc, *mut c_void);
 
 #[derive(Debug)]
 struct FfiSidecarOwner {
     owner: *mut PyObject,
     sidecar: *mut c_void,
     cleanup: SidecarCleanup,
+    traverse: SidecarTraverse,
+    clear: SidecarClear,
 }
 
 unsafe impl Send for FfiSidecarOwner {}
 unsafe impl Sync for FfiSidecarOwner {}
 
 impl MaybeTraverse for FfiSidecarOwner {
-    fn try_traverse(&self, _traverse_fn: &mut rustpython_vm::object::TraverseFn<'_>) {}
+    const HAS_TRAVERSE: bool = true;
+    const HAS_CLEAR: bool = true;
+
+    fn try_traverse(&self, traverse_fn: &mut rustpython_vm::object::TraverseFn<'_>) {
+        unsafe extern "C" fn visit_trampoline(
+            obj: *mut PyObject,
+            arg: *mut c_void,
+        ) -> c_int {
+            if obj.is_null() {
+                return 0;
+            }
+            let tracer_fn = unsafe {
+                &mut *arg.cast::<&mut rustpython_vm::object::TraverseFn<'_>>()
+            };
+            let obj_ref = unsafe { ptr_to_pyobject_ref_borrowed(obj) };
+            (*tracer_fn)(obj_ref.as_object());
+            0
+        }
+
+        let mut tracer_fn = traverse_fn;
+        unsafe {
+            (self.traverse)(
+                self.owner,
+                visit_trampoline,
+                (&mut tracer_fn as *mut &mut rustpython_vm::object::TraverseFn<'_>).cast(),
+            );
+        }
+    }
+
+    fn try_clear(&mut self, out: &mut Vec<PyObjectRef>) {
+        unsafe extern "C" fn collect_trampoline(
+            obj: *mut PyObject,
+            arg: *mut c_void,
+        ) -> c_int {
+            if obj.is_null() {
+                return 0;
+            }
+            let out = unsafe { &mut *arg.cast::<Vec<PyObjectRef>>() };
+            let obj_ref = unsafe { ptr_to_pyobject_ref_borrowed(obj) };
+            out.push(obj_ref.to_owned());
+            0
+        }
+
+        unsafe {
+            (self.clear)(
+                self.owner,
+                collect_trampoline,
+                (out as *mut Vec<PyObjectRef>).cast(),
+            );
+        }
+    }
 }
 
 impl PyPayload for FfiSidecarOwner {
@@ -377,6 +440,8 @@ pub unsafe fn PyRustPython_InstallSidecarOwner(
     obj: *mut PyObject,
     sidecar: *mut c_void,
     cleanup: SidecarCleanup,
+    traverse: SidecarTraverse,
+    clear: SidecarClear,
 ) -> c_int {
     if obj.is_null() || sidecar.is_null() {
         return -1;
@@ -384,7 +449,13 @@ pub unsafe fn PyRustPython_InstallSidecarOwner(
     rustpython_runtime::with_vm(|vm| {
         let obj_ref = ptr_to_pyobject_ref_borrowed(obj);
         let holder: PyRef<FfiSidecarOwner> = PyRef::new_ref(
-            FfiSidecarOwner { owner: obj, sidecar, cleanup },
+            FfiSidecarOwner {
+                owner: obj,
+                sidecar,
+                cleanup,
+                traverse,
+                clear,
+            },
             vm.ctx.types.object_type.to_owned(),
             None,
         );
@@ -414,6 +485,33 @@ pub unsafe fn PyRustPython_InstallSidecarOwner(
         *ext.slots[metadata.hidden_sidecar_slot].write() = Some(holder_obj);
         0
     })
+}
+
+unsafe fn clear_hidden_sidecar_owner(obj: *mut rustpython_vm::PyObject) {
+    let obj_ref = unsafe { &*obj };
+    let metadata = heap_type_metadata_for_obj(obj_ref);
+    if metadata.hidden_sidecar_slot == usize::MAX {
+        return;
+    }
+    let flags = obj_ref.class().slots.flags;
+    let member_count = obj_ref.class().slots.member_count;
+    let has_ext = flags.has_feature(PyTypeFlags::HAS_DICT) || member_count > 0;
+    if !has_ext {
+        return;
+    }
+    let has_weakref = flags.has_feature(PyTypeFlags::HAS_WEAKREF);
+    let offset = if has_weakref {
+        core::mem::size_of::<WeakRefListMirror>() + core::mem::size_of::<ObjExtMirror>()
+    } else {
+        core::mem::size_of::<ObjExtMirror>()
+    };
+    let obj_addr = (obj as *const u8).addr();
+    let ext_ptr =
+        core::ptr::with_exposed_provenance_mut::<ObjExtMirror>(obj_addr.wrapping_sub(offset));
+    let ext = unsafe { &mut *ext_ptr };
+    if metadata.hidden_sidecar_slot < ext.slots.len() {
+        *ext.slots[metadata.hidden_sidecar_slot].write() = None;
+    }
 }
 
 struct FfiHeapBufferOwner {
@@ -901,6 +999,31 @@ fn heap_tp_new_wrapper(cls: PyTypeRef, args: FuncArgs, vm: &rustpython_vm::Virtu
     }
 }
 
+fn heap_tp_alloc_wrapper(
+    cls: PyTypeRef,
+    nitems: usize,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult {
+    let cls_obj: PyObjectRef = cls.to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(tp_alloc) = (metadata.tp_alloc != 0).then_some(metadata.tp_alloc) else {
+        return Err(vm.new_type_error("heap type missing tp_alloc"));
+    };
+    let tp_alloc: allocfunc = unsafe { std::mem::transmute(tp_alloc) };
+    let result = unsafe { tp_alloc(cls_ptr, nitems as Py_ssize_t) };
+    if result.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+    }
+}
+
 fn heap_tp_init_wrapper(
     zelf: PyObjectRef,
     args: FuncArgs,
@@ -951,6 +1074,19 @@ fn heap_tp_init_wrapper(
     } else {
         Err(unsafe { fetch_current_exception(vm) })
     }
+}
+
+unsafe fn heap_tp_free_wrapper(obj: *mut rustpython_vm::PyObject) {
+    if obj.is_null() {
+        return;
+    }
+    unsafe { clear_hidden_sidecar_owner(obj) };
+    let metadata = unsafe { heap_type_metadata_for_obj(&*obj) };
+    let Some(tp_free) = (metadata.tp_free != 0).then_some(metadata.tp_free) else {
+        return;
+    };
+    let tp_free: freefunc = unsafe { std::mem::transmute(tp_free) };
+    unsafe { tp_free(obj.cast::<c_void>()) };
 }
 
 fn heap_tp_getattro_wrapper(
@@ -1246,8 +1382,12 @@ fn heap_tp_hash_wrapper(
     let tp_hash: hashfunc = unsafe { std::mem::transmute(tp_hash) };
     let obj_ref = obj.to_owned();
     let result = unsafe { tp_hash(pyobject_ref_as_ptr(&obj_ref)) };
-    if result == -1 && !unsafe { PyErr_Occurred() }.is_null() {
-        Err(unsafe { fetch_current_exception(vm) })
+    if result == -1 {
+        if !unsafe { PyErr_Occurred() }.is_null() {
+            Err(unsafe { fetch_current_exception(vm) })
+        } else {
+            Ok((-2) as rustpython_vm::common::hash::PyHash)
+        }
     } else {
         Ok(result as rustpython_vm::common::hash::PyHash)
     }
@@ -2463,10 +2603,18 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                     metadata.tp_new = (*slot_ptr).pfunc as usize;
                     slots.new.store(Some(heap_tp_new_wrapper));
                 }
+                crate::Py_tp_alloc => {
+                    metadata.tp_alloc = (*slot_ptr).pfunc as usize;
+                    slots.alloc.store(Some(heap_tp_alloc_wrapper));
+                }
                 crate::Py_tp_dealloc => {}
                 crate::Py_tp_init => {
                     metadata.tp_init = (*slot_ptr).pfunc as usize;
                     slots.init.store(Some(heap_tp_init_wrapper));
+                }
+                crate::Py_tp_free => {
+                    metadata.tp_free = (*slot_ptr).pfunc as usize;
+                    slots.free.store(Some(heap_tp_free_wrapper));
                 }
                 crate::Py_tp_call => metadata.tp_call = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_hash => metadata.tp_hash = (*slot_ptr).pfunc as usize,
@@ -2474,6 +2622,8 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                 crate::Py_tp_repr => metadata.tp_repr = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_str => metadata.tp_str = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_richcompare => metadata.tp_richcompare = (*slot_ptr).pfunc as usize,
+                crate::Py_tp_traverse => metadata.tp_traverse = (*slot_ptr).pfunc as usize,
+                crate::Py_tp_clear => metadata.tp_clear = (*slot_ptr).pfunc as usize,
                 crate::Py_mp_subscript => metadata.mp_subscript = (*slot_ptr).pfunc as usize,
                 crate::Py_mp_ass_subscript => metadata.mp_ass_subscript = (*slot_ptr).pfunc as usize,
                 crate::Py_nb_add => metadata.nb_add = (*slot_ptr).pfunc as usize,
@@ -2807,10 +2957,14 @@ pub unsafe fn PyType_GetSlot(ty: *mut PyTypeObject, slot: c_int) -> *mut c_void 
     }
     if let Some(metadata) = heap_type_registry().lock().unwrap().get(&(ty as usize)).copied() {
         return match slot {
+            crate::Py_tp_alloc => metadata.tp_alloc as *mut c_void,
             crate::Py_tp_new => metadata.tp_new as *mut c_void,
             crate::Py_tp_init => metadata.tp_init as *mut c_void,
+            crate::Py_tp_free => metadata.tp_free as *mut c_void,
             crate::Py_tp_hash => metadata.tp_hash as *mut c_void,
             crate::Py_tp_getattro => metadata.tp_getattro as *mut c_void,
+            crate::Py_tp_traverse => metadata.tp_traverse as *mut c_void,
+            crate::Py_tp_clear => metadata.tp_clear as *mut c_void,
             _ => std::ptr::null_mut(),
         };
     }
@@ -2825,6 +2979,12 @@ pub unsafe fn PyType_GetSlot(ty: *mut PyTypeObject, slot: c_int) -> *mut c_void 
                 .unwrap_or(std::ptr::null_mut())
         }
         crate::Py_tp_new => {
+            if let Some(metadata) = heap_type_registry().lock().unwrap().get(&(ty as usize)).copied() {
+                if metadata.tp_alloc != 0 {
+                    let tp_alloc: crate::allocfunc = unsafe { std::mem::transmute(metadata.tp_alloc) };
+                    return tp_alloc(ty, 0) as *mut c_void;
+                }
+            }
             let ty_obj = unsafe { ptr_to_pyobject_ref_borrowed(ty as *mut PyObject) };
             if ty == pyobject_ref_as_ptr(&vm.ctx.types.object_type.to_owned().into()) as *mut PyTypeObject {
                 builtin_object_tp_new as *mut c_void
@@ -2851,8 +3011,25 @@ pub unsafe fn PyType_GenericAlloc(
     subtype: *mut PyTypeObject,
     nitems: Py_ssize_t,
 ) -> *mut PyObject {
-    let _ = (subtype, nitems);
-    std::ptr::null_mut()
+    if subtype.is_null() || nitems != 0 {
+        return std::ptr::null_mut();
+    }
+    rustpython_runtime::with_vm(|vm| {
+        let cls_obj = unsafe { ptr_to_pyobject_ref_borrowed(subtype.cast()) };
+        let Ok(cls) = cls_obj.downcast::<PyType>() else {
+            return std::ptr::null_mut();
+        };
+        let dict = if cls
+            .slots
+            .flags
+            .has_feature(rustpython_vm::types::PyTypeFlags::HAS_DICT)
+        {
+            Some(vm.ctx.new_dict())
+        } else {
+            None
+        };
+        pyobject_ref_to_ptr(PyRef::new_ref(PyBaseObject, cls, dict).into())
+    })
 }
 
 #[inline]
