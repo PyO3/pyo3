@@ -1,8 +1,8 @@
 use crate::call::PyCallArgs;
 use crate::class::basic::CompareOp;
 use crate::conversion::{FromPyObject, IntoPyObject};
-use crate::err::{PyErr, PyResult};
-use crate::exceptions::{PyAttributeError, PyTypeError};
+use crate::err::{error_on_minusone, PyErr, PyResult};
+use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pycell::PyStaticClassObject;
 use crate::instance::Bound;
@@ -11,7 +11,7 @@ use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
-use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py, Python};
+use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py};
 #[allow(deprecated)]
 use crate::{DowncastError, DowncastIntoError};
 use std::cell::UnsafeCell;
@@ -980,17 +980,15 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        // PyObject_HasAttr suppresses all exceptions, which was the behaviour of `hasattr` in Python 2.
-        // Use an implementation which suppresses only AttributeError, which is consistent with `hasattr` in Python 3.
-        fn inner(py: Python<'_>, getattr_result: PyResult<Bound<'_, PyAny>>) -> PyResult<bool> {
-            match getattr_result {
-                Ok(_) => Ok(true),
-                Err(err) if err.is_instance_of::<PyAttributeError>(py) => Ok(false),
-                Err(e) => Err(e),
-            }
-        }
-
-        inner(self.py(), self.getattr(attr_name))
+        let py = self.py();
+        let result = unsafe {
+            ffi::compat::PyObject_HasAttrWithError(
+                self.as_ptr(),
+                attr_name.into_pyobject(py).map_err(Into::into)?.as_ptr(),
+            )
+        };
+        error_on_minusone(py, result)?;
+        Ok(result > 0)
     }
 
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
@@ -1020,48 +1018,26 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        fn inner<'py>(
-            any: &Bound<'py, PyAny>,
-            attr_name: Borrowed<'_, 'py, PyString>,
-        ) -> PyResult<Option<Bound<'py, PyAny>>> {
-            #[cfg(Py_3_13)]
-            {
-                let mut resp_ptr: *mut ffi::PyObject = std::ptr::null_mut();
-                match unsafe {
-                    ffi::PyObject_GetOptionalAttr(any.as_ptr(), attr_name.as_ptr(), &mut resp_ptr)
-                } {
-                    // Attribute found, result is a new strong reference
-                    1 => {
-                        let bound = unsafe { Bound::from_owned_ptr(any.py(), resp_ptr) };
-                        Ok(Some(bound))
-                    }
-                    // Attribute not found, result is NULL
-                    0 => Ok(None),
-
-                    // An error occurred (other than AttributeError)
-                    _ => Err(PyErr::fetch(any.py())),
-                }
-            }
-
-            #[cfg(not(Py_3_13))]
-            {
-                match any.getattr(attr_name) {
-                    Ok(bound) => Ok(Some(bound)),
-                    Err(err) => {
-                        let err_type = err
-                            .get_type(any.py())
-                            .is(PyType::new::<PyAttributeError>(any.py()));
-                        match err_type {
-                            true => Ok(None),
-                            false => Err(err),
-                        }
-                    }
-                }
-            }
-        }
-
         let py = self.py();
-        inner(self, attr_name.into_pyobject_or_pyerr(py)?.as_borrowed())
+        let mut resp_ptr: *mut ffi::PyObject = std::ptr::null_mut();
+        match unsafe {
+            ffi::compat::PyObject_GetOptionalAttr(
+                self.as_ptr(),
+                attr_name.into_pyobject(py).map_err(Into::into)?.as_ptr(),
+                &mut resp_ptr,
+            )
+        } {
+            // Attribute found, result is a new strong reference
+            1 => {
+                let bound = unsafe { Bound::from_owned_ptr(py, resp_ptr) };
+                Ok(Some(bound))
+            }
+            // Attribute not found, result is NULL
+            0 => Ok(None),
+
+            // An error occurred (other than AttributeError)
+            _ => Err(PyErr::fetch(py)),
+        }
     }
 
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
