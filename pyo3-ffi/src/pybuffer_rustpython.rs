@@ -1,9 +1,8 @@
 use crate::object::{ptr_to_pyobject_ref_borrowed, pyobject_ref_to_ptr, PyObject, PyTypeObject};
-use crate::pyerrors::{set_vm_exception, PyErr_Clear, PyErr_SetString, PyExc_BufferError, PyExc_TypeError};
+use crate::pyerrors::{set_vm_exception, PyErr_Clear, PyErr_SetString, PyExc_BufferError};
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
-use crate::{PyErr_Clear as FfiPyErrClear, Py_TYPE};
-use rustpython_vm::AsObject;
+use crate::Py_TYPE;
 use rustpython_vm::protocol::PyBuffer as RpBuffer;
 use rustpython_vm::TryFromBorrowedObject;
 use std::ffi::{c_char, c_int, c_void, CString};
@@ -49,7 +48,7 @@ impl Py_buffer {
 pub type getbufferproc = unsafe extern "C" fn(*mut PyObject, *mut crate::Py_buffer, c_int) -> c_int;
 pub type releasebufferproc = unsafe extern "C" fn(*mut PyObject, *mut crate::Py_buffer);
 
-struct RustPythonBufferView {
+pub(crate) struct RustPythonBufferView {
     buffer: RpBuffer,
     contiguous: Vec<u8>,
     format: CString,

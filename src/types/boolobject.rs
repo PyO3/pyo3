@@ -16,7 +16,6 @@ use crate::types::PyType;
 #[cfg(PyRustPython)]
 use crate::Py;
 use std::convert::Infallible;
-use std::ptr;
 
 /// Represents a Python `bool`.
 ///

@@ -5,12 +5,12 @@ use crate::{
     instance::Bound,
     py_result_ext::PyResultExt,
 };
-#[cfg(any(PyPy, GraalPy, PyRustPython))]
+#[cfg(any(PyPy, GraalPy))]
 use crate::sync::PyOnceLock;
 use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python};
 #[cfg(any(PyPy, GraalPy, PyRustPython))]
 use crate::types::{PyType, PyTypeMethods};
-#[cfg(any(PyPy, GraalPy, PyRustPython))]
+#[cfg(any(PyPy, GraalPy))]
 use crate::Py;
 use std::ptr;
 

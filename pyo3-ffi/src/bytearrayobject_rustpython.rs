@@ -50,7 +50,7 @@ pub unsafe fn PyByteArray_FromObject(o: *mut PyObject) -> *mut PyObject {
     }
     rustpython_runtime::with_vm(|vm| {
         let obj = ptr_to_pyobject_ref_borrowed(o);
-        match vm.invoke(vm.ctx.types.bytearray_type.as_object(), (obj,)) {
+        match vm.ctx.types.bytearray_type.as_object().call((obj,), vm) {
             Ok(bytearray) => pyobject_ref_to_ptr(bytearray),
             Err(err) => {
                 set_vm_exception(err);

@@ -1,7 +1,8 @@
 use crate::{
-    internal::state::SuspendAttach, types::any::PyAnyMethods, Bound, Py, PyResult, PyTypeCheck,
-    Python,
+    types::any::PyAnyMethods, Bound, Py, PyResult, PyTypeCheck, Python,
 };
+#[cfg(not(PyRustPython))]
+use crate::internal::state::SuspendAttach;
 
 /// An equivalent to [`std::sync::OnceLock`] for initializing objects while attached to
 /// the Python interpreter.

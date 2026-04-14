@@ -4,8 +4,6 @@ use std::{
     thread::ThreadId,
 };
 
-#[cfg(not(Py_3_12))]
-use crate::sync::MutexExt;
 use crate::{
     exceptions::{PyBaseException, PyTypeError},
     ffi,

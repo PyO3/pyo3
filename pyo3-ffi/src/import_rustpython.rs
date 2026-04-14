@@ -1,7 +1,6 @@
 use crate::object::*;
 use crate::pyerrors::set_vm_exception;
 use crate::rustpython_runtime;
-use rustpython_vm::AsObject;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_int, c_long, CStr};
 use std::sync::{Mutex, OnceLock};

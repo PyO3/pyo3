@@ -61,7 +61,7 @@ pub unsafe fn PyBytes_FromObject(arg1: *mut PyObject) -> *mut PyObject {
     }
     rustpython_runtime::with_vm(|vm| {
         let obj = ptr_to_pyobject_ref_borrowed(arg1);
-        match vm.invoke(vm.ctx.types.bytes_type.as_object(), (obj,)) {
+        match vm.ctx.types.bytes_type.as_object().call((obj,), vm) {
             Ok(bytes) => pyobject_ref_to_ptr(bytes),
             Err(_) => std::ptr::null_mut(),
         }

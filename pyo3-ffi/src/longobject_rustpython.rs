@@ -3,7 +3,6 @@ use crate::pyerrors::set_vm_exception;
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
 use libc::size_t;
-use rustpython_vm::AsObject;
 use rustpython_vm::TryFromBorrowedObject;
 use std::ffi::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
 

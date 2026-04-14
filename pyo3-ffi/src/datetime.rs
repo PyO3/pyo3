@@ -4,8 +4,6 @@
 //! and covers the various date and time related objects in the Python `datetime`
 //! standard library module.
 
-#[cfg(not(PyPy))]
-use crate::PyCapsule_Import;
 #[cfg(any(GraalPy, PyRustPython))]
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DECREF};
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_None, Py_TYPE};
