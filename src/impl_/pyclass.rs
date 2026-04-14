@@ -1066,9 +1066,9 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     note = "`{Self}` must have `#[pyclass(subclass)]` to be eligible for subclassing"
 )]
 #[cfg_attr(
-    Py_LIMITED_API,
+    all(Py_LIMITED_API, not(Py_3_12)),
     diagnostic::on_unimplemented(
-        note = "with the `abi3` feature enabled, PyO3 does not support subclassing native types",
+        note = "subclassing native types requires Python >= 3.12 when using the `abi3` feature",
     )
 )]
 pub trait PyClassBaseType: Sized {
