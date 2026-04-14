@@ -570,6 +570,17 @@ impl PyUntypedBuffer {
         self.raw().buf
     }
 
+    /// Returns the Python object that owns the buffer data.
+    ///
+    /// This is the object that was passed to [`PyBuffer::get()`]
+    /// when the buffer was created.
+    /// Calling this before [`release()`][Self::release] and cloning the result
+    /// allows you to keep the object alive after the buffer is released.
+    #[inline]
+    pub fn obj<'py>(&self, py: Python<'py>) -> Option<&Bound<'py, PyAny>> {
+        unsafe { Bound::ref_from_ptr_or_opt(py, &self.raw().obj).as_ref() }
+    }
+
     /// Gets a pointer to the specified item.
     ///
     /// If `indices.len() < self.dimensions()`, returns the start address of the sub-array at the specified dimension.
@@ -1042,6 +1053,29 @@ mod tests {
             assert_eq!(typed.item_count(), 5);
             assert_eq!(typed.format().to_str().unwrap(), "B");
             assert_eq!(typed.shape(), [5]);
+        });
+    }
+
+    #[test]
+    fn test_obj_getter() {
+        Python::attach(|py| {
+            let bytes = PyBytes::new(py, b"hello");
+            let buf = PyUntypedBuffer::get(bytes.as_any()).unwrap();
+
+            // obj() returns the same object that owns the buffer
+            let owner = buf.obj(py).unwrap();
+            assert!(owner.is_instance_of::<PyBytes>());
+            assert!(owner.is(&bytes));
+
+            // can keep the owner alive after releasing the buffer
+            let owner_ref: crate::Py<PyAny> = owner.clone().unbind();
+            buf.release(py);
+            drop(bytes);
+            // owner_ref still valid after buffer and original are dropped
+            Python::attach(|py| {
+                let rebound = owner_ref.bind(py);
+                assert!(rebound.is_instance_of::<PyBytes>());
+            });
         });
     }
 }

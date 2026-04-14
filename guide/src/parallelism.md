@@ -1,6 +1,6 @@
 # Parallelism
 
-Historically, CPython was limited by the [global interpreter lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock) (GIL), which only allowed a single thread to drive the Python interpreter at a time.
+Historically, CPython was limited by the global interpreter lock (GIL), which only allowed a single thread to drive the Python interpreter at a time.
 This made threading in Python a bad fit for [CPU-bound](https://en.wikipedia.org/wiki/CPU-bound) tasks and often forced developers to accept the overhead of multiprocessing.
 
 Rust is well-suited to multithreaded code, and libraries like [`rayon`] can help you leverage safe parallelism with minimal effort.
