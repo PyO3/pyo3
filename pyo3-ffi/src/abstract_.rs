@@ -85,8 +85,9 @@ extern_libpython! {
 }
 
 #[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
-pub const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
-    (1 as size_t) << (8 as size_t * std::mem::size_of::<size_t>() as size_t - 1);
+pub const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t = (1 as size_t)
+    .checked_shl((8 * std::mem::size_of::<size_t>() - 1) as u32)
+    .expect("size_t should fit the flag bits");
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Vectorcall")]

@@ -43,8 +43,9 @@ extern_libpython! {
 }
 
 #[cfg(not(Py_3_12))]
-const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t =
-    1 << (8 * std::mem::size_of::<size_t>() as size_t - 1);
+const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t = (1 as size_t)
+    .checked_shl((8 * std::mem::size_of::<size_t>() - 1) as u32)
+    .expect("size_t should fit the flag bits");
 
 #[cfg(Py_3_12)] // public API from 3.12
 use crate::PY_VECTORCALL_ARGUMENTS_OFFSET;
