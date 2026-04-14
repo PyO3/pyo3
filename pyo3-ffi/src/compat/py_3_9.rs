@@ -1,8 +1,6 @@
 compat_function!(
-    originally_defined_for(all(
-        not(PyPy),
-        any(Py_3_10, all(not(Py_LIMITED_API), Py_3_9)) // Added to python in 3.9 but to limited API in 3.10
-    ));
+    // Added to python in 3.9 but to limited API in 3.10
+    originally_defined_for(any(Py_3_10, all(not(Py_LIMITED_API), Py_3_9)));
 
     #[inline]
     pub unsafe fn PyObject_CallNoArgs(obj: *mut crate::PyObject) -> *mut crate::PyObject {

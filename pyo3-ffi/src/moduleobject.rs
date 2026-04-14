@@ -25,14 +25,14 @@ extern_libpython! {
     pub fn PyModule_New(name: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyModule_GetDict")]
     pub fn PyModule_GetDict(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg(not(PyPy))]
+    #[cfg_attr(PyPy, link_name = "PyPyModule_GetNameObject")]
     pub fn PyModule_GetNameObject(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyModule_GetName")]
     pub fn PyModule_GetName(arg1: *mut PyObject) -> *const c_char;
     #[cfg(not(all(windows, PyPy)))]
     #[deprecated(note = "Python 3.2")]
     pub fn PyModule_GetFilename(arg1: *mut PyObject) -> *const c_char;
-    #[cfg(not(PyPy))]
+    #[cfg_attr(PyPy, link_name = "PyPyModule_GetFilenameObject")]
     pub fn PyModule_GetFilenameObject(arg1: *mut PyObject) -> *mut PyObject;
     // skipped non-limited _PyModule_Clear
     // skipped non-limited _PyModule_ClearDict
