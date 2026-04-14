@@ -1820,7 +1820,7 @@ mod tests {
             );
 
             let (inserted, value) = dict.set_default_with_result("hello", "foobar").unwrap();
-            assert!(inserted);
+            assert!(!inserted);
             assert_eq!(value.extract::<String>().unwrap(), "world");
 
             // unhashable
