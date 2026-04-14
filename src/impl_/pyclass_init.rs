@@ -77,7 +77,11 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
                     .ok_or_else(|| PyTypeError::new_err("base type without tp_new"))?
             };
 
-            let (args, kwargs) = ctor_args;
+            let (mut args, mut kwargs) = ctor_args;
+            if std::ptr::eq(type_ptr, crate::PyAny::type_object_raw(py)) {
+                args = std::ptr::null_mut();
+                kwargs = std::ptr::null_mut();
+            }
             let empty_args;
             let args = if args.is_null() {
                 empty_args = PyTuple::empty(py);

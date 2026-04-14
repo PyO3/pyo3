@@ -715,6 +715,30 @@ impl<'a, 'py> ConstructorInputArg for Option<crate::Borrowed<'a, 'py, crate::PyA
     }
 }
 
+impl<'py, T> ConstructorInputArg for crate::Bound<'py, T> {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.as_ptr()
+    }
+}
+
+impl<'a, 'py, T> ConstructorInputArg for &'a crate::Bound<'py, T> {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.as_ptr()
+    }
+}
+
+impl<'py, T> ConstructorInputArg for Option<crate::Bound<'py, T>> {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.map_or(std::ptr::null_mut(), |obj| obj.as_ptr())
+    }
+}
+
+impl<'a, 'py, T> ConstructorInputArg for Option<&'a crate::Bound<'py, T>> {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.map_or(std::ptr::null_mut(), |obj| obj.as_ptr())
+    }
+}
+
 pub unsafe fn tp_new_impl<
     'py,
     T,
