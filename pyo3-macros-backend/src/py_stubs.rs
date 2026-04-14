@@ -9,6 +9,7 @@ use std::fmt::Write;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::token::Brace;
 use syn::{braced, Token};
 
@@ -34,7 +35,7 @@ impl Parse for PyStubs {
     /// See https://docs.python.org/3/reference/grammar.html for the Python grammar
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let content;
-        Ok(Self {
+        let statements = Self {
             bracket_token: braced!(content in input),
             statements: {
                 let mut statements = Vec::new();
@@ -43,7 +44,25 @@ impl Parse for PyStubs {
                 }
                 statements
             },
-        })
+        };
+
+        // Ensure that two statements are not in the same line
+        for (s1, s2) in statements
+            .statements
+            .iter()
+            .zip(statements.statements.iter().skip(1))
+        {
+            let s1span = s1.span();
+            let s2span = s2.span();
+            if s1span.end().line == s2span.start().line {
+                return Err(syn::Error::new(
+                    s1span.join(s2span).unwrap(),
+                    "Each Python statement (import...) must be on its own line",
+                ));
+            }
+        }
+
+        Ok(statements)
     }
 }
 
@@ -75,13 +94,24 @@ impl PyStatement {
 impl Parse for PyStatement {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
-        if lookahead.peek(kw::from) {
+        let statement = if lookahead.peek(kw::from) {
             input.parse().map(Self::ImportFrom)
         } else if lookahead.peek(kw::import) {
             input.parse().map(Self::Import)
         } else {
             Err(lookahead.error())
+        }?;
+
+        // Ensure that the statement is on a single line
+        let span = statement.span();
+        if span.start().line != span.end().line {
+            return Err(syn::Error::new(
+                span,
+                "Python statements must be on a single line",
+            ));
         }
+
+        Ok(statement)
     }
 }
 
