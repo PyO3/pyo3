@@ -5,6 +5,10 @@ use pyo3::prelude::*;
 // tests.
 
 #[test]
+#[cfg_attr(
+    PyRustPython,
+    ignore = "blocked by RustPython/RustPython#7587 embedded unittest import recursion"
+)]
 fn err_debug_unformattable() {
     // Debug representation should be like the following (without the newlines):
     // PyErr {

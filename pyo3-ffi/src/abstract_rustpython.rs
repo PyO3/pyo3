@@ -380,8 +380,13 @@ pub unsafe fn PyMapping_Size(_o: *mut PyObject) -> Py_ssize_t {
     }
     let obj = ptr_to_pyobject_ref_borrowed(_o);
     rustpython_runtime::with_vm(|vm| {
-        if obj.sequence_unchecked().check() && !obj.class().is(vm.ctx.types.dict_type) {
-            set_vm_exception(vm.new_type_error(format!("{} is not a mapping object", obj.class())));
+        let cls_obj: PyObjectRef = obj.class().to_owned().into();
+        let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+        if heap_type_is_explicit_sequence(cls_ptr) {
+            set_vm_exception(vm.new_type_error(format!(
+                "object of type '{}' has no len() or not a mapping",
+                obj.class()
+            )));
             return -1;
         }
         match obj.try_mapping(vm).and_then(|mapping| mapping.length(vm)) {
@@ -441,6 +446,11 @@ pub unsafe fn PyMapping_Check(o: *mut PyObject) -> c_int {
     }
     let obj = ptr_to_pyobject_ref_borrowed(o);
     rustpython_runtime::with_vm(|vm| {
+        let cls_obj: PyObjectRef = obj.class().to_owned().into();
+        let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+        if heap_type_is_explicit_sequence(cls_ptr) {
+            return 0;
+        }
         (obj.mapping_unchecked().check()
             && (!obj.sequence_unchecked().check() || obj.class().is(vm.ctx.types.dict_type)))
             .into()

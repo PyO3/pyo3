@@ -382,7 +382,6 @@ fn test_methods() {
 
     Python::attach(|py| {
         let typeobj = py.get_type::<MyClass>();
-
         py_assert!(
             py,
             typeobj,

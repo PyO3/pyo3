@@ -192,11 +192,17 @@ pub(crate) struct HeapTypeMetadata {
     tp_call: usize,
     tp_hash: usize,
     tp_getattro: usize,
+    tp_iter: usize,
+    tp_iternext: usize,
+    am_await: usize,
+    am_aiter: usize,
+    am_anext: usize,
     tp_repr: usize,
     tp_str: usize,
     tp_richcompare: usize,
     tp_traverse: usize,
     tp_clear: usize,
+    mp_length: usize,
     mp_subscript: usize,
     mp_ass_subscript: usize,
     nb_add: usize,
@@ -256,11 +262,17 @@ impl Default for HeapTypeMetadata {
             tp_call: 0,
             tp_hash: 0,
             tp_getattro: 0,
+            tp_iter: 0,
+            tp_iternext: 0,
+            am_await: 0,
+            am_aiter: 0,
+            am_anext: 0,
             tp_repr: 0,
             tp_str: 0,
             tp_richcompare: 0,
             tp_traverse: 0,
             tp_clear: 0,
+            mp_length: 0,
             mp_subscript: 0,
             mp_ass_subscript: 0,
             nb_add: 0,
@@ -336,6 +348,12 @@ pub(crate) fn heap_type_metadata_for_ptr(cls_ptr: *mut PyTypeObject) -> HeapType
         .get(&(cls_ptr as usize))
         .copied()
         .unwrap_or_default()
+}
+
+pub(crate) fn heap_type_is_explicit_sequence(cls_ptr: *mut PyTypeObject) -> bool {
+    let metadata = heap_type_metadata_for_ptr(cls_ptr);
+    (metadata.sq_length != 0 || metadata.sq_item != 0 || metadata.sq_ass_item != 0)
+        && metadata.mp_length == 0
 }
 
 fn heap_type_has_inherited_tp_init(ty: &PyType) -> bool {
@@ -739,6 +757,51 @@ fn install_default_shared_slot_methods(
     }
 }
 
+fn install_unary_slot_method(
+    ty: &rustpython_vm::Py<PyType>,
+    name: &'static str,
+    func_ptr: usize,
+    vm: &rustpython_vm::VirtualMachine,
+) {
+    if func_ptr == 0 || ty.class().has_attr(vm.ctx.intern_str(name)) {
+        return;
+    }
+    let class: &'static rustpython_vm::Py<PyType> =
+        unsafe { std::mem::transmute::<&rustpython_vm::Py<PyType>, &'static rustpython_vm::Py<PyType>>(ty) };
+    let func: unaryfunc = unsafe { std::mem::transmute(func_ptr) };
+    let method_def = Box::leak(Box::new(RpMethodDef {
+        name,
+        func: Box::leak(Box::new(move |vm: &rustpython_vm::VirtualMachine, mut args: FuncArgs| {
+            let Some(first) = args.args.first().cloned() else {
+                return Err(vm.new_type_error(format!(
+                    "missing bound receiver for method {name}"
+                )));
+            };
+            args.args.remove(0);
+            let result = unsafe { func(pyobject_ref_as_ptr(&first)) };
+            if result.is_null() {
+                Err(unsafe { fetch_current_exception(vm) })
+            } else {
+                Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+            }
+        })),
+        flags: RpMethodFlags::METHOD,
+        doc: None,
+    }));
+    let method = method_def.to_proper_method(class, &vm.ctx);
+    let _ = ty.as_object().set_attr(name, method, vm);
+}
+
+fn install_async_slot_methods(
+    ty: &rustpython_vm::Py<PyType>,
+    metadata: HeapTypeMetadata,
+    vm: &rustpython_vm::VirtualMachine,
+) {
+    install_unary_slot_method(ty, "__await__", metadata.am_await, vm);
+    install_unary_slot_method(ty, "__aiter__", metadata.am_aiter, vm);
+    install_unary_slot_method(ty, "__anext__", metadata.am_anext, vm);
+}
+
 fn richcmp_op_to_c_int(op: PyComparisonOp) -> c_int {
     match op {
         PyComparisonOp::Lt => 0,
@@ -1117,6 +1180,61 @@ fn heap_tp_getattro_wrapper(
         Err(unsafe { fetch_current_exception(vm) })
     } else {
         Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+    }
+}
+
+fn heap_tp_iter_wrapper(
+    zelf: PyObjectRef,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult {
+    let cls_obj: PyObjectRef = zelf.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(tp_iter) = (metadata.tp_iter != 0).then_some(metadata.tp_iter) else {
+        return Err(vm.new_type_error("object is not iterable"));
+    };
+    let tp_iter: getiterfunc = unsafe { std::mem::transmute(tp_iter) };
+    let result = unsafe { tp_iter(pyobject_ref_as_ptr(&zelf)) };
+    if result.is_null() {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(unsafe { ptr_to_pyobject_ref_owned(result) })
+    }
+}
+
+fn heap_tp_iternext_wrapper(
+    zelf: &rustpython_vm::PyObject,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult<rustpython_vm::protocol::PyIterReturn> {
+    let cls_obj: PyObjectRef = zelf.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(tp_iternext) = (metadata.tp_iternext != 0).then_some(metadata.tp_iternext) else {
+        return Err(vm.new_type_error("object is not an iterator"));
+    };
+    let tp_iternext: iternextfunc = unsafe { std::mem::transmute(tp_iternext) };
+    let result = unsafe { tp_iternext(pyobject_ref_as_ptr(&zelf.to_owned())) };
+    if result.is_null() {
+        if unsafe { PyErr_Occurred() }.is_null() {
+            Ok(rustpython_vm::protocol::PyIterReturn::StopIteration(None))
+        } else {
+            let err = unsafe { fetch_current_exception(vm) };
+            rustpython_vm::protocol::PyIterReturn::from_pyresult(Err(err), vm)
+        }
+    } else {
+        Ok(rustpython_vm::protocol::PyIterReturn::Return(unsafe {
+            ptr_to_pyobject_ref_owned(result)
+        }))
     }
 }
 
@@ -1510,6 +1628,33 @@ fn heap_sq_length_wrapper(
     };
     let sq_length: lenfunc = unsafe { std::mem::transmute(sq_length) };
     let rc = unsafe { sq_length(pyobject_ref_as_ptr(&seq.obj.to_owned())) };
+    if rc < 0 {
+        Err(unsafe { fetch_current_exception(vm) })
+    } else {
+        Ok(rc as usize)
+    }
+}
+
+fn heap_mp_length_wrapper(
+    mapping: PyMapping<'_>,
+    vm: &rustpython_vm::VirtualMachine,
+) -> rustpython_vm::PyResult<usize> {
+    let cls_obj: PyObjectRef = mapping.obj.class().to_owned().into();
+    let cls_ptr = pyobject_ref_as_ptr(&cls_obj) as *mut PyTypeObject;
+    let metadata = heap_type_registry()
+        .lock()
+        .unwrap()
+        .get(&(cls_ptr as usize))
+        .copied()
+        .unwrap_or_default();
+    let Some(mp_length) = (metadata.mp_length != 0).then_some(metadata.mp_length) else {
+        return Err(vm.new_type_error(format!(
+            "object of type '{}' has no len() or not a mapping",
+            mapping.obj.class()
+        )));
+    };
+    let mp_length: lenfunc = unsafe { std::mem::transmute(mp_length) };
+    let rc = unsafe { mp_length(pyobject_ref_as_ptr(&mapping.obj.to_owned())) };
     if rc < 0 {
         Err(unsafe { fetch_current_exception(vm) })
     } else {
@@ -2619,11 +2764,17 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                 crate::Py_tp_call => metadata.tp_call = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_hash => metadata.tp_hash = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_getattro => metadata.tp_getattro = (*slot_ptr).pfunc as usize,
+                crate::Py_tp_iter => metadata.tp_iter = (*slot_ptr).pfunc as usize,
+                crate::Py_tp_iternext => metadata.tp_iternext = (*slot_ptr).pfunc as usize,
+                crate::Py_am_await => metadata.am_await = (*slot_ptr).pfunc as usize,
+                crate::Py_am_aiter => metadata.am_aiter = (*slot_ptr).pfunc as usize,
+                crate::Py_am_anext => metadata.am_anext = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_repr => metadata.tp_repr = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_str => metadata.tp_str = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_richcompare => metadata.tp_richcompare = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_traverse => metadata.tp_traverse = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_clear => metadata.tp_clear = (*slot_ptr).pfunc as usize,
+                crate::Py_mp_length => metadata.mp_length = (*slot_ptr).pfunc as usize,
                 crate::Py_mp_subscript => metadata.mp_subscript = (*slot_ptr).pfunc as usize,
                 crate::Py_mp_ass_subscript => metadata.mp_ass_subscript = (*slot_ptr).pfunc as usize,
                 crate::Py_nb_add => metadata.nb_add = (*slot_ptr).pfunc as usize,
@@ -2739,6 +2890,19 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
             Ok(ty) => {
                 let class: &'static rustpython_vm::Py<PyType> =
                     unsafe { std::mem::transmute::<&rustpython_vm::Py<PyType>, &'static rustpython_vm::Py<PyType>>(&*ty) };
+                for def in method_defs {
+                    let name = ffi_name_to_static((*def).ml_name, "<method>");
+                    let method = unsafe {
+                        methodobject::build_rustpython_class_method(def, class, vm)
+                    };
+                    let _ = ty.as_object().set_attr(name, method, vm);
+                }
+                install_async_slot_methods(&ty, metadata, vm);
+                install_default_shared_slot_methods(&ty, class, &method_names, metadata, vm);
+                // Finalize FFI-owned tp_* wrappers after publishing dunder methods. RustPython
+                // updates slots from method attrs as they are installed, which would otherwise
+                // clobber shared-slot behavior such as PyO3's __getattribute__/__getattr__
+                // fallback semantics.
                 if metadata.tp_new != 0 {
                     ty.slots.new.store(Some(heap_tp_new_wrapper));
                 }
@@ -2754,6 +2918,12 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                 if metadata.tp_getattro != 0 {
                     ty.slots.getattro.store(Some(heap_tp_getattro_wrapper));
                 }
+                if metadata.tp_iter != 0 {
+                    ty.slots.iter.store(Some(heap_tp_iter_wrapper));
+                }
+                if metadata.tp_iternext != 0 {
+                    ty.slots.iternext.store(Some(heap_tp_iternext_wrapper));
+                }
                 if metadata.tp_repr != 0 {
                     ty.slots.repr.store(Some(heap_tp_repr_wrapper));
                 }
@@ -2763,19 +2933,17 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                 if metadata.tp_richcompare != 0 {
                     ty.slots.richcompare.store(Some(heap_tp_richcompare_wrapper));
                 }
-                for def in method_defs {
-                    let name = ffi_name_to_static((*def).ml_name, "<method>");
-                    let method = unsafe {
-                        methodobject::build_rustpython_class_method(def, class, vm)
-                    };
-                    let _ = ty.as_object().set_attr(name, method, vm);
-                }
-                install_default_shared_slot_methods(&ty, class, &method_names, metadata, vm);
                 if metadata.mp_subscript != 0 {
                     ty.slots
                         .as_mapping
                         .subscript
                         .store(Some(heap_mapping_getitem_wrapper));
+                }
+                if metadata.mp_length != 0 {
+                    ty.slots
+                        .as_mapping
+                        .length
+                        .store(Some(heap_mp_length_wrapper));
                 }
                 if metadata.mp_ass_subscript != 0 {
                     ty.slots
@@ -2963,8 +3131,14 @@ pub unsafe fn PyType_GetSlot(ty: *mut PyTypeObject, slot: c_int) -> *mut c_void 
             crate::Py_tp_free => metadata.tp_free as *mut c_void,
             crate::Py_tp_hash => metadata.tp_hash as *mut c_void,
             crate::Py_tp_getattro => metadata.tp_getattro as *mut c_void,
+            crate::Py_tp_iter => metadata.tp_iter as *mut c_void,
+            crate::Py_tp_iternext => metadata.tp_iternext as *mut c_void,
+            crate::Py_am_await => metadata.am_await as *mut c_void,
+            crate::Py_am_aiter => metadata.am_aiter as *mut c_void,
+            crate::Py_am_anext => metadata.am_anext as *mut c_void,
             crate::Py_tp_traverse => metadata.tp_traverse as *mut c_void,
             crate::Py_tp_clear => metadata.tp_clear as *mut c_void,
+            crate::Py_mp_length => metadata.mp_length as *mut c_void,
             _ => std::ptr::null_mut(),
         };
     }

@@ -329,6 +329,10 @@ fn test_option_list_get() {
 }
 
 #[test]
+#[cfg_attr(
+    PyRustPython,
+    ignore = "blocked by RustPython/RustPython#7587 embedded collections import recursion"
+)]
 fn sequence_is_not_mapping() {
     Python::attach(|py| {
         let list = Bound::new(

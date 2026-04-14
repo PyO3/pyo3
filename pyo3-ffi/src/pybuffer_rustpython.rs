@@ -560,6 +560,16 @@ pub unsafe fn PyBuffer_Release(view: *mut Py_buffer) {
     if view.is_null() {
         return;
     }
+    let can_release = rustpython_runtime::is_attached()
+        || rustpython_runtime::runtime_thread_id() == Some(std::thread::current().id());
+    if !can_release {
+        // After embedded interpreter shutdown there is no valid RustPython attach context.
+        // Releasing RustPython-owned buffer state would re-enter the VM during drop and panic.
+        // Leak the final buffer bookkeeping instead; process-shutdown soundness matters more
+        // than reclaiming these last references once the interpreter context is gone.
+        *view = Py_buffer::new();
+        return;
+    }
     if !(*view).internal.is_null() {
         match *Box::from_raw((*view).internal.cast::<BufferViewState>()) {
             BufferViewState::RustPython(internal) => {

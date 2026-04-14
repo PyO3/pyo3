@@ -98,6 +98,7 @@ impl PySequence {
             if !registry.contains(&ptr) {
                 registry.push(ptr);
             }
+            return Ok(());
         }
         Self::type_object(py).call_method1("register", (ty,))?;
         Ok(())

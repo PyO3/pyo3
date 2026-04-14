@@ -8,6 +8,7 @@ use std::any::Any;
 use std::cell::{Cell, UnsafeCell};
 use std::mem::MaybeUninit;
 use std::panic::{self, AssertUnwindSafe};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, OnceLock};
 
 thread_local! {
@@ -30,6 +31,7 @@ enum RuntimeRequest {
 }
 
 static RUNTIME: OnceLock<RuntimeHandle> = OnceLock::new();
+static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) enum AttachState {
@@ -216,6 +218,7 @@ where
 
 pub(crate) fn initialize() {
     let _ = runtime();
+    INITIALIZED.store(true, Ordering::SeqCst);
 }
 
 pub(crate) fn runtime_thread_id() -> Option<std::thread::ThreadId> {
@@ -223,12 +226,14 @@ pub(crate) fn runtime_thread_id() -> Option<std::thread::ThreadId> {
 }
 
 pub(crate) fn is_initialized() -> bool {
-    RUNTIME.get().is_some()
+    INITIALIZED.load(Ordering::SeqCst)
 }
 
 pub(crate) fn finalize() {
     // RustPython does not currently expose a CPython-style global finalize API.
-    // Keep the process-global runtime thread alive for the duration of the process.
+    // Keep the process-global runtime thread alive for the duration of the process,
+    // but update the public lifecycle bit so PyO3 can model embedded init/finalize.
+    INITIALIZED.store(false, Ordering::SeqCst);
 }
 
 pub(crate) fn ensure_attached() -> AttachState {

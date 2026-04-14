@@ -64,10 +64,11 @@ where
     unsafe { ffi::Py_InitializeEx(0) };
 
     let result = {
-        let guard = unsafe { AttachGuard::assume() };
+        let guard = unsafe { AttachGuard::attach_unchecked() };
         let py = guard.python();
         // Import the threading module - this ensures that it will associate this thread as the "main"
         // thread, which is important to avoid an `AssertionError` at finalization.
+        #[cfg(not(PyRustPython))]
         py.import("threading").unwrap();
 
         // Execute the closure.
