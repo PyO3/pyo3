@@ -2879,7 +2879,6 @@ mod tests {
             return;
         };
 
-        let interpreter_config = &build_config.interpreter_config;
         let lib_dir = match &interpreter_config.lib_dir {
             Some(lib_dir) => Path::new(lib_dir),
             // Don't know where to search for sysconfigdata; never mind.
