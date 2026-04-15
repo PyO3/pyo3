@@ -605,7 +605,6 @@ mod sysmodule;
 #[cfg_attr(PyRustPython, path = "traceback_rustpython.rs")]
 mod traceback;
 // skipped tracemalloc.h
-#[cfg_attr(PyRustPython, path = "tupleobject_rustpython.rs")]
 mod tupleobject;
 mod typeslots;
 #[cfg_attr(PyRustPython, path = "unicodeobject_rustpython.rs")]
