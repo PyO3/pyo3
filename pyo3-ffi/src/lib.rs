@@ -498,7 +498,6 @@ mod bltinmodule;
 mod boolobject;
 #[cfg_attr(PyRustPython, path = "bytearrayobject_rustpython.rs")]
 mod bytearrayobject;
-#[cfg_attr(PyRustPython, path = "bytesobject_rustpython.rs")]
 mod bytesobject;
 // skipped cellobject.h
 #[cfg_attr(PyRustPython, path = "ceval_rustpython.rs")]

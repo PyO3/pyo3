@@ -5,6 +5,16 @@ use rustpython_vm::builtins::PyBytes;
 use rustpython_vm::AsObject;
 use std::ffi::{c_char, c_int, CStr};
 
+#[cfg(Py_3_15)]
+#[repr(C)]
+pub struct PyBytesWriter {
+    small_buffer: [c_char; 256],
+    obj: *mut crate::PyObject,
+    size: Py_ssize_t,
+}
+
+opaque_struct!(pub PyBytesObject);
+
 pub static mut PyBytes_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 pub static mut PyBytesIter_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 

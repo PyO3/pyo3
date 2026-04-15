@@ -1,4 +1,5 @@
 pub mod complexobject;
+pub mod bytesobject;
 pub mod dictobject;
 pub mod datetime;
 pub mod listobject;

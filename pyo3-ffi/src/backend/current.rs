@@ -12,6 +12,13 @@ pub mod complexobject {
     pub use crate::backend::cpython::complexobject::*;
 }
 
+pub mod bytesobject {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::bytesobject::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::bytesobject::*;
+}
+
 pub mod dictobject {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::dictobject::*;

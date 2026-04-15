@@ -1,4 +1,6 @@
 #[cfg(PyRustPython)]
+pub mod bytesobject;
+#[cfg(PyRustPython)]
 pub mod complexobject;
 #[cfg(PyRustPython)]
 pub mod dictobject;
