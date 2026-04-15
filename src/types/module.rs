@@ -142,7 +142,6 @@ impl PyModule {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::ffi::c_str;
     /// use std::ffi::CString;
     ///
     /// # fn main() -> PyResult<()> {
