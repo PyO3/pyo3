@@ -506,7 +506,6 @@ mod ceval;
 // skipped classobject.h
 mod codecs;
 mod compile;
-#[cfg_attr(PyRustPython, path = "complexobject_rustpython.rs")]
 mod complexobject;
 #[cfg(not(Py_LIMITED_API))]
 mod context;

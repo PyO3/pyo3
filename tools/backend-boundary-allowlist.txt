@@ -1,6 +1,4 @@
 pyo3-ffi/src/compat/py_3_9.rs
-pyo3-ffi/src/complexobject.rs
-pyo3-ffi/src/complexobject_rustpython.rs
 pyo3-ffi/src/critical_section.rs
 pyo3-ffi/src/datetime.rs
 pyo3-ffi/src/dictobject.rs
