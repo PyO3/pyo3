@@ -1,26 +1,12 @@
 use crate::types::PyIterator;
 use crate::{err::PyErr, ffi, ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, Bound, PyAny, Python};
-#[cfg(not(PyRustPython))]
-use crate::err::{self, PyResult};
-#[cfg(PyRustPython)]
 use crate::PyResult;
-#[cfg(any(PyPy, GraalPy, PyRustPython))]
-use crate::sync::PyOnceLock;
 use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt};
-#[cfg(any(PyPy, GraalPy, PyRustPython))]
-use crate::types::{PyType, PyTypeMethods};
-#[cfg(any(PyPy, GraalPy, PyRustPython))]
-use crate::Py;
-#[cfg(PyRustPython)]
-use crate::types::{PySet, PySetMethods};
 use std::ptr;
 
 /// Allows building a Python `frozenset` one item at a time
 pub struct PyFrozenSetBuilder<'py> {
-    #[cfg(not(PyRustPython))]
-    py_frozen_set: Bound<'py, PyFrozenSet>,
-    #[cfg(PyRustPython)]
-    py_set: Bound<'py, PySet>,
+    state: crate::backend::current::types::PyFrozenSetBuilderState<'py>,
 }
 
 impl<'py> PyFrozenSetBuilder<'py> {
@@ -29,10 +15,7 @@ impl<'py> PyFrozenSetBuilder<'py> {
     /// panic when running out of memory.
     pub fn new(py: Python<'py>) -> PyResult<PyFrozenSetBuilder<'py>> {
         Ok(PyFrozenSetBuilder {
-            #[cfg(not(PyRustPython))]
-            py_frozen_set: PyFrozenSet::empty(py)?,
-            #[cfg(PyRustPython)]
-            py_set: PySet::empty(py)?,
+            state: crate::backend::current::types::new_frozenset_builder(py)?,
         })
     }
 
@@ -41,44 +24,12 @@ impl<'py> PyFrozenSetBuilder<'py> {
     where
         K: IntoPyObject<'py>,
     {
-        #[cfg(not(PyRustPython))]
-        {
-        #[cfg(not(PyRustPython))]
-        fn inner(frozenset: &Bound<'_, PyFrozenSet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
-            err::error_on_minusone(frozenset.py(), unsafe {
-                ffi::PySet_Add(frozenset.as_ptr(), key.as_ptr())
-            })
-        }
-
-        #[cfg(not(PyRustPython))]
-        inner(
-            &self.py_frozen_set,
-            key.into_pyobject_or_pyerr(self.py_frozen_set.py())?
-                .into_any()
-                .as_borrowed(),
-        )
-        }
-
-        #[cfg(PyRustPython)]
-        {
-            self.py_set.add(key)
-        }
+        crate::backend::current::types::frozenset_builder_add(&mut self.state, key)
     }
 
     /// Finish building the set and take ownership of its current value
     pub fn finalize(self) -> Bound<'py, PyFrozenSet> {
-        #[cfg(not(PyRustPython))]
-        {
-        self.py_frozen_set
-        }
-
-        #[cfg(PyRustPython)]
-        unsafe {
-            ffi::PyFrozenSet_New(self.py_set.as_ptr())
-                .assume_owned_or_err(self.py_set.py())
-                .expect("PyFrozenSet_New from PySet should succeed")
-                .cast_into_unchecked()
-        }
+        crate::backend::current::types::frozenset_builder_finalize(self.state)
     }
 }
 
@@ -92,31 +43,7 @@ impl<'py> PyFrozenSetBuilder<'py> {
 #[repr(transparent)]
 pub struct PyFrozenSet(PyAny);
 
-#[cfg(not(any(PyPy, GraalPy, PyRustPython)))]
-pyobject_subclassable_native_type!(PyFrozenSet, crate::ffi::PySetObject);
-#[cfg(not(any(PyPy, GraalPy, PyRustPython)))]
-pyobject_native_type!(
-    PyFrozenSet,
-    ffi::PySetObject,
-    pyobject_native_static_type_object!(ffi::PyFrozenSet_Type),
-    "builtins",
-    "frozenset",
-    #checkfunction=ffi::PyFrozenSet_Check
-);
-
-#[cfg(any(PyPy, GraalPy, PyRustPython))]
-pyobject_native_type_core!(
-    PyFrozenSet,
-    |py| {
-        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "builtins", "frozenset")
-            .unwrap()
-            .as_type_ptr()
-    },
-    "builtins",
-    "frozenset",
-    #checkfunction=ffi::PyFrozenSet_Check
-);
+crate::backend::current::frozenset_native_type_decls!(PyFrozenSet);
 
 impl PyFrozenSet {
     /// Creates a new frozenset.

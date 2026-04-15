@@ -35,13 +35,10 @@ src/types/capsule.rs
 src/types/code.rs
 src/types/complex.rs
 src/types/datetime.rs
-src/types/dict.rs
 src/types/float.rs
 src/types/frame.rs
-src/types/frozenset.rs
 src/types/function.rs
 src/types/iterator.rs
-src/types/list.rs
 src/types/mapping.rs
 src/types/mappingproxy.rs
 src/types/mod.rs
@@ -50,10 +47,7 @@ src/types/num.rs
 src/types/pysuper.rs
 src/types/range.rs
 src/types/sequence.rs
-src/types/set.rs
 src/types/slice.rs
-src/types/string.rs
 src/types/traceback.rs
-src/types/tuple.rs
 src/types/typeobject.rs
 src/types/weakref/reference.rs

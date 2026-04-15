@@ -3,14 +3,8 @@ use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
-#[cfg(PyRustPython)]
-use crate::sync::PyOnceLock;
-#[cfg(PyRustPython)]
-use crate::types::any::PyAnyMethods;
-#[cfg(PyRustPython)]
-use crate::types::{PyType, PyTypeMethods};
 use crate::types::{PyAny, PyList, PyMapping};
-use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python};
+use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
 
 /// Represents a Python `dict`.
 ///
@@ -22,37 +16,15 @@ use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python};
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 
-#[cfg(not(any(GraalPy, PyRustPython)))]
-pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
+crate::backend::current::dict_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
 
-#[cfg(not(PyRustPython))]
-pyobject_native_type!(
-    PyDict,
-    ffi::PyDictObject,
-    pyobject_native_static_type_object!(ffi::PyDict_Type),
-    "builtins",
-    "dict",
-    #checkfunction=ffi::PyDict_Check
-);
-
-#[cfg(PyRustPython)]
 pyobject_native_type_core!(
     PyDict,
-    |py: Python<'_>| {
-        py.import("builtins")
-            .unwrap()
-            .getattr("dict")
-            .unwrap()
-            .as_ptr()
-            .cast()
-    },
+    |py| crate::backend::current::types::dict_type_object(py),
     "builtins",
     "dict",
     #checkfunction=ffi::PyDict_Check
 );
-
-#[cfg(PyRustPython)]
-pyobject_subclassable_native_type_opaque!(PyDict);
 
 /// Represents a Python `dict_keys`.
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -60,29 +32,9 @@ pyobject_subclassable_native_type_opaque!(PyDict);
 pub struct PyDictKeys(PyAny);
 
 #[cfg(not(any(PyPy, GraalPy)))]
-#[cfg(not(PyRustPython))]
 pyobject_native_type_core!(
     PyDictKeys,
-    pyobject_native_static_type_object!(ffi::PyDictKeys_Type),
-    "builtins",
-    "dict_keys",
-    #checkfunction=ffi::PyDictKeys_Check
-);
-
-#[cfg(all(not(any(PyPy, GraalPy)), PyRustPython))]
-pyobject_native_type_core!(
-    PyDictKeys,
-    |py: Python<'_>| {
-        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.get_or_init(py, || {
-            let dict = PyDict::new(py);
-            let view = dict.call_method0("keys").unwrap();
-            let ty = view.get_type();
-            ty.unbind()
-        })
-        .bind(py)
-        .as_type_ptr()
-    },
+    |py| crate::backend::current::types::dict_keys_type_object(py),
     "builtins",
     "dict_keys",
     #checkfunction=ffi::PyDictKeys_Check
@@ -94,29 +46,9 @@ pyobject_native_type_core!(
 pub struct PyDictValues(PyAny);
 
 #[cfg(not(any(PyPy, GraalPy)))]
-#[cfg(not(PyRustPython))]
 pyobject_native_type_core!(
     PyDictValues,
-    pyobject_native_static_type_object!(ffi::PyDictValues_Type),
-    "builtins",
-    "dict_values",
-    #checkfunction=ffi::PyDictValues_Check
-);
-
-#[cfg(all(not(any(PyPy, GraalPy)), PyRustPython))]
-pyobject_native_type_core!(
-    PyDictValues,
-    |py: Python<'_>| {
-        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.get_or_init(py, || {
-            let dict = PyDict::new(py);
-            let view = dict.call_method0("values").unwrap();
-            let ty = view.get_type();
-            ty.unbind()
-        })
-        .bind(py)
-        .as_type_ptr()
-    },
+    |py| crate::backend::current::types::dict_values_type_object(py),
     "builtins",
     "dict_values",
     #checkfunction=ffi::PyDictValues_Check
@@ -128,29 +60,9 @@ pyobject_native_type_core!(
 pub struct PyDictItems(PyAny);
 
 #[cfg(not(any(PyPy, GraalPy)))]
-#[cfg(not(PyRustPython))]
 pyobject_native_type_core!(
     PyDictItems,
-    pyobject_native_static_type_object!(ffi::PyDictItems_Type),
-    "builtins",
-    "dict_items",
-    #checkfunction=ffi::PyDictItems_Check
-);
-
-#[cfg(all(not(any(PyPy, GraalPy)), PyRustPython))]
-pyobject_native_type_core!(
-    PyDictItems,
-    |py: Python<'_>| {
-        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.get_or_init(py, || {
-            let dict = PyDict::new(py);
-            let view = dict.call_method0("items").unwrap();
-            let ty = view.get_type();
-            ty.unbind()
-        })
-        .bind(py)
-        .as_type_ptr()
-    },
+    |py| crate::backend::current::types::dict_items_type_object(py),
     "builtins",
     "dict_items",
     #checkfunction=ffi::PyDictItems_Check
@@ -594,15 +506,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyDict> {
 }
 
 fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
-    #[cfg(any(PyPy, GraalPy, Py_LIMITED_API, Py_GIL_DISABLED, PyRustPython))]
-    unsafe {
-        ffi::PyDict_Size(dict.as_ptr())
-    }
-
-    #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API, Py_GIL_DISABLED, PyRustPython)))]
-    unsafe {
-        (*dict.as_ptr().cast::<ffi::PyDictObject>()).ma_used
-    }
+    crate::backend::current::types::dict_len(dict.as_ptr())
 }
 
 /// PyO3 implementation of an iterator for a Python `dict` object.
@@ -1609,6 +1513,10 @@ mod tests {
             let dict = abc_dict(py);
             let items = dict.call_method0("items").unwrap();
             assert!(items.is_instance(&py.get_type::<PyDictItems>()).unwrap());
+            assert_eq!(
+                items.get_type().as_ptr().cast(),
+                crate::backend::current::types::dict_items_type_object(py)
+            );
         })
     }
 

@@ -1,17 +1,11 @@
-use crate::types::{any::PyAnyMethods, PyIterator};
+use crate::types::PyIterator;
 use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
     instance::Bound,
     py_result_ext::PyResultExt,
 };
-#[cfg(any(PyPy, GraalPy))]
-use crate::sync::PyOnceLock;
 use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python};
-#[cfg(any(PyPy, GraalPy, PyRustPython))]
-use crate::types::{PyType, PyTypeMethods};
-#[cfg(any(PyPy, GraalPy))]
-use crate::Py;
 use std::ptr;
 
 /// Represents a Python `set`.
@@ -24,47 +18,7 @@ use std::ptr;
 #[repr(transparent)]
 pub struct PySet(PyAny);
 
-#[cfg(not(any(PyPy, GraalPy, PyRustPython)))]
-pyobject_subclassable_native_type!(PySet, crate::ffi::PySetObject);
-
-#[cfg(not(any(PyPy, GraalPy, PyRustPython)))]
-pyobject_native_type!(
-    PySet,
-    ffi::PySetObject,
-    pyobject_native_static_type_object!(ffi::PySet_Type),
-    "builtins",
-    "set",
-    #checkfunction=ffi::PySet_Check
-);
-
-#[cfg(any(PyPy, GraalPy))]
-pyobject_native_type_core!(
-    PySet,
-    |py| {
-        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "builtins", "set").unwrap().as_type_ptr()
-    },
-    "builtins",
-    "set",
-    #checkfunction=ffi::PySet_Check
-);
-
-#[cfg(PyRustPython)]
-pyobject_native_type_core!(
-    PySet,
-    |py: Python<'_>| {
-        let builtins = py.import("builtins").unwrap();
-        let set_type = builtins.getattr("set").unwrap();
-        let set_type = unsafe { set_type.cast_into_unchecked::<PyType>() };
-        set_type.as_type_ptr()
-    },
-    "builtins",
-    "set",
-    #checkfunction=ffi::PySet_Check
-);
-
-#[cfg(PyRustPython)]
-pyobject_subclassable_native_type_opaque!(PySet);
+crate::backend::current::set_native_type_decls!(PySet);
 
 impl PySet {
     /// Creates a new set with elements from the given slice.
