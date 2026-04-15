@@ -1,8 +1,6 @@
 use crate::{
     types::any::PyAnyMethods, Bound, Py, PyResult, PyTypeCheck, Python,
 };
-#[cfg(not(PyRustPython))]
-use crate::internal::state::SuspendAttach;
 
 /// An equivalent to [`std::sync::OnceLock`] for initializing objects while attached to
 /// the Python interpreter.
@@ -63,9 +61,9 @@ impl<T> PyOnceLock<T> {
     where
         F: FnOnce() -> T,
     {
-        self.inner
-            .get()
-            .unwrap_or_else(|| init_once_cell_py_attached(&self.inner, py, f))
+        self.inner.get().unwrap_or_else(|| {
+            crate::backend::current::sync::once_lock_get_or_init(&self.inner, py, f)
+        })
     }
 
     /// Like `get_or_init`, but accepts a fallible initialization function. If it fails, the cell
@@ -78,7 +76,10 @@ impl<T> PyOnceLock<T> {
     {
         self.inner
             .get()
-            .map_or_else(|| try_init_once_cell_py_attached(&self.inner, py, f), Ok)
+            .map_or_else(
+                || crate::backend::current::sync::once_lock_get_or_try_init(&self.inner, py, f),
+                Ok,
+            )
     }
 
     /// Get the contents of the cell mutably. This is only possible if the reference to the cell is
@@ -170,65 +171,6 @@ where
     }
 }
 
-#[cold]
-fn init_once_cell_py_attached<'a, F, T>(
-    cell: &'a once_cell::sync::OnceCell<T>,
-    _py: Python<'_>,
-    f: F,
-) -> &'a T
-where
-    F: FnOnce() -> T,
-{
-    #[cfg(PyRustPython)]
-    {
-        return cell.get_or_init(f);
-    }
-
-    #[cfg(not(PyRustPython))]
-    {
-    // SAFETY: detach from the runtime right before a possibly blocking call
-    // then reattach when the blocking call completes and before calling
-    // into the C API.
-        let ts_guard = unsafe { SuspendAttach::new() };
-
-    // By having detached here, we guarantee that `.get_or_init` cannot deadlock with
-    // the Python interpreter
-        cell.get_or_init(move || {
-            drop(ts_guard);
-            f()
-        })
-    }
-}
-
-#[cold]
-fn try_init_once_cell_py_attached<'a, F, T, E>(
-    cell: &'a once_cell::sync::OnceCell<T>,
-    _py: Python<'_>,
-    f: F,
-) -> Result<&'a T, E>
-where
-    F: FnOnce() -> Result<T, E>,
-{
-    #[cfg(PyRustPython)]
-    {
-        return cell.get_or_try_init(f);
-    }
-
-    #[cfg(not(PyRustPython))]
-    {
-    // SAFETY: detach from the runtime right before a possibly blocking call
-    // then reattach when the blocking call completes and before calling
-    // into the C API.
-        let ts_guard = unsafe { SuspendAttach::new() };
-
-    // By having detached here, we guarantee that `.get_or_init` cannot deadlock with
-    // the Python interpreter
-        cell.get_or_try_init(move || {
-            drop(ts_guard);
-            f()
-        })
-    }
-}
 
 #[cfg(test)]
 mod tests {

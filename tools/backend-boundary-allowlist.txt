@@ -27,10 +27,6 @@ src/internal/state.rs
 src/lib.rs
 src/marshal.rs
 src/pycell/impl_.rs
-src/pyclass/create_type_object.rs
-src/pyclass_init.rs
-src/sync/critical_section.rs
-src/sync/once_lock.rs
 src/types/any.rs
 src/types/boolobject.rs
 src/types/bytearray.rs

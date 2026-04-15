@@ -18,3 +18,10 @@ pub mod pyclass {
     #[cfg(not(PyRustPython))]
     pub(crate) use crate::backend::cpython::pyclass::*;
 }
+
+pub mod sync {
+    #[cfg(PyRustPython)]
+    pub(crate) use crate::backend::rustpython::sync::*;
+    #[cfg(not(PyRustPython))]
+    pub(crate) use crate::backend::cpython::sync::*;
+}
