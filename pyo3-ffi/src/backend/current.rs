@@ -26,6 +26,13 @@ pub mod listobject {
     pub use crate::backend::cpython::listobject::*;
 }
 
+pub mod setobject {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::setobject::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::setobject::*;
+}
+
 pub mod tupleobject {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::tupleobject::*;

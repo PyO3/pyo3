@@ -596,7 +596,6 @@ mod pytypedefs;
 mod rangeobject;
 #[cfg_attr(PyRustPython, path = "refcount_rustpython.rs")]
 mod refcount;
-#[cfg_attr(PyRustPython, path = "setobject_rustpython.rs")]
 mod setobject;
 #[cfg_attr(PyRustPython, path = "sliceobject_rustpython.rs")]
 mod sliceobject;

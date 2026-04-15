@@ -6,15 +6,9 @@ use rustpython_vm::builtins::{PyFrozenSet, PySet};
 use rustpython_vm::{AsObject, PyPayload};
 use std::ffi::c_int;
 
-pub const PySet_MINSIZE: usize = 8;
 pub static mut PySet_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 pub static mut PyFrozenSet_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 pub static mut PySetIter_Type: PyTypeObject = PyTypeObject { _opaque: [] };
-
-#[inline]
-pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t {
-    PySet_Size(so)
-}
 
 #[cfg(not(Py_LIMITED_API))]
 #[inline]
@@ -52,8 +46,13 @@ pub unsafe fn _PySet_NextEntry(
 
 #[inline]
 pub unsafe fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int {
-    if ob.is_null() { return 0; }
-    ptr_to_pyobject_ref_borrowed(ob).downcast_ref::<PyFrozenSet>().is_some().into()
+    if ob.is_null() {
+        return 0;
+    }
+    ptr_to_pyobject_ref_borrowed(ob)
+        .downcast_ref::<PyFrozenSet>()
+        .is_some()
+        .into()
 }
 
 #[inline]
@@ -80,8 +79,13 @@ pub unsafe fn PyAnySet_Check(ob: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PySet_CheckExact(op: *mut PyObject) -> c_int {
-    if op.is_null() { return 0; }
-    ptr_to_pyobject_ref_borrowed(op).downcast_ref::<PySet>().is_some().into()
+    if op.is_null() {
+        return 0;
+    }
+    ptr_to_pyobject_ref_borrowed(op)
+        .downcast_ref::<PySet>()
+        .is_some()
+        .into()
 }
 
 #[inline]
@@ -91,8 +95,7 @@ pub unsafe fn PySet_Check(ob: *mut PyObject) -> c_int {
     }
     let obj = ptr_to_pyobject_ref_borrowed(ob);
     rustpython_runtime::with_vm(|vm| {
-        obj.class()
-            .fast_issubclass(vm.ctx.types.set_type.as_object()) as c_int
+        obj.class().fast_issubclass(vm.ctx.types.set_type.as_object()) as c_int
     })
 }
 
@@ -140,7 +143,9 @@ pub unsafe fn PyFrozenSet_New(arg1: *mut PyObject) -> *mut PyObject {
 
 #[inline]
 pub unsafe fn PySet_Add(set: *mut PyObject, key: *mut PyObject) -> c_int {
-    if set.is_null() || key.is_null() { return -1; }
+    if set.is_null() || key.is_null() {
+        return -1;
+    }
     let set = ptr_to_pyobject_ref_borrowed(set);
     let key = ptr_to_pyobject_ref_borrowed(key);
     rustpython_runtime::with_vm(|vm| match vm.call_method(&set, "add", (key,)) {
@@ -154,7 +159,9 @@ pub unsafe fn PySet_Add(set: *mut PyObject, key: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PySet_Clear(set: *mut PyObject) -> c_int {
-    if set.is_null() { return -1; }
+    if set.is_null() {
+        return -1;
+    }
     let set = ptr_to_pyobject_ref_borrowed(set);
     rustpython_runtime::with_vm(|vm| match vm.call_method(&set, "clear", ()) {
         Ok(_) => 0,
@@ -167,7 +174,9 @@ pub unsafe fn PySet_Clear(set: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PySet_Contains(anyset: *mut PyObject, key: *mut PyObject) -> c_int {
-    if anyset.is_null() || key.is_null() { return -1; }
+    if anyset.is_null() || key.is_null() {
+        return -1;
+    }
     let set = ptr_to_pyobject_ref_borrowed(anyset);
     let key = ptr_to_pyobject_ref_borrowed(key);
     rustpython_runtime::with_vm(|vm| match vm.call_method(&set, "__contains__", (key,)) {
@@ -181,7 +190,9 @@ pub unsafe fn PySet_Contains(anyset: *mut PyObject, key: *mut PyObject) -> c_int
 
 #[inline]
 pub unsafe fn PySet_Discard(set: *mut PyObject, key: *mut PyObject) -> c_int {
-    if set.is_null() || key.is_null() { return -1; }
+    if set.is_null() || key.is_null() {
+        return -1;
+    }
     let set = ptr_to_pyobject_ref_borrowed(set);
     let key = ptr_to_pyobject_ref_borrowed(key);
     rustpython_runtime::with_vm(|vm| {
@@ -207,7 +218,9 @@ pub unsafe fn PySet_Discard(set: *mut PyObject, key: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PySet_Pop(set: *mut PyObject) -> *mut PyObject {
-    if set.is_null() { return std::ptr::null_mut(); }
+    if set.is_null() {
+        return std::ptr::null_mut();
+    }
     let set = ptr_to_pyobject_ref_borrowed(set);
     rustpython_runtime::with_vm(|vm| match vm.call_method(&set, "pop", ()) {
         Ok(obj) => pyobject_ref_to_ptr(obj),
@@ -220,7 +233,9 @@ pub unsafe fn PySet_Pop(set: *mut PyObject) -> *mut PyObject {
 
 #[inline]
 pub unsafe fn PySet_Size(anyset: *mut PyObject) -> Py_ssize_t {
-    if anyset.is_null() { return -1; }
+    if anyset.is_null() {
+        return -1;
+    }
     let obj = ptr_to_pyobject_ref_borrowed(anyset);
     match obj.downcast_ref::<PySet>() {
         Some(s) => s.elements().len() as Py_ssize_t,
