@@ -49,7 +49,8 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
             .strip_suffix(".html")
             .unwrap();
 
-        if pyo3_build_config::get().version < PythonVersion::PY315 && struct_name == "PyBytesWriter"
+        if pyo3_build_config::get().abi.version < PythonVersion::PY315
+            && struct_name == "PyBytesWriter"
         {
             // PyBytesWriter was added in Python 3.15
             continue;
@@ -170,7 +171,7 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
 
         let field_ident = Ident::new(&field_name, Span::call_site());
 
-        let bindgen_field_ident = if (pyo3_build_config::get().version >= PythonVersion::PY312)
+        let bindgen_field_ident = if (pyo3_build_config::get().abi.version >= PythonVersion::PY312)
             && struct_name == "PyObject"
             && field_name == "ob_refcnt"
         {
