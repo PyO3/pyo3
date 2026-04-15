@@ -1,5 +1,7 @@
 #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
 use crate::longobject::PyLongObject;
+#[cfg(all(Py_LIMITED_API, not(Py_3_12)))]
+use crate::compat::Py_NewRef;
 use crate::object::*;
 use std::ffi::{c_int, c_long};
 
