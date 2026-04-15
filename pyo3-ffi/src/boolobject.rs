@@ -56,8 +56,29 @@ pub unsafe fn Py_IsFalse(x: *mut PyObject) -> c_int {
     Py_Is(x, Py_False())
 }
 
-// skipped Py_RETURN_TRUE
-// skipped Py_RETURN_FALSE
+#[inline]
+#[cfg(all(Py_LIMITED_API, not(Py_3_12)))]
+pub unsafe fn Py_RETURN_TRUE() -> *mut PyObject {
+    Py_NewRef(Py_True())
+}
+
+#[inline]
+#[cfg(not(Py_LIMITED_API))]
+pub unsafe fn Py_RETURN_TRUE() -> *mut PyObject {
+    Py_True()
+}
+
+#[inline]
+#[cfg(all(Py_LIMITED_API, not(Py_3_12)))]
+pub unsafe fn Py_RETURN_FALSE() -> *mut PyObject {
+    Py_NewRef(Py_False())
+}
+
+#[inline]
+#[cfg(not(Py_LIMITED_API))]
+pub unsafe fn Py_RETURN_FALSE() -> *mut PyObject {
+    Py_False()
+}
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyBool_FromLong")]
