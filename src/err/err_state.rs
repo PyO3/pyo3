@@ -133,56 +133,20 @@ impl PyErrState {
 }
 
 pub(crate) struct PyErrStateNormalized {
-    #[cfg(not(any(Py_3_12, PyRustPython)))]
-    ptype: Py<PyType>,
     pub pvalue: Py<PyBaseException>,
-    #[cfg(not(any(Py_3_12, PyRustPython)))]
-    ptraceback: std::sync::Mutex<Option<Py<PyTraceback>>>,
 }
 
 impl PyErrStateNormalized {
     pub(crate) fn new(pvalue: Bound<'_, PyBaseException>) -> Self {
-        #[cfg(not(any(Py_3_12, PyRustPython)))]
-        let ptype = {
-            let ty = pvalue.get_type().into();
-            ty
-        };
-        #[cfg(not(any(Py_3_12, PyRustPython)))]
-        let ptraceback = unsafe {
-            let tb = ffi::PyException_GetTraceback(pvalue.as_ptr())
-                .assume_owned_or_opt(pvalue.py())
-                .map(|b| b.cast_into_unchecked().unbind());
-            Mutex::new(tb)
-        };
         Self {
-            #[cfg(not(any(Py_3_12, PyRustPython)))]
-            ptype,
-            #[cfg(not(any(Py_3_12, PyRustPython)))]
-            ptraceback,
             pvalue: pvalue.into(),
         }
     }
 
-    #[cfg(not(any(Py_3_12, PyRustPython)))]
-    pub(crate) fn ptype<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
-        self.ptype.bind(py).clone()
-    }
-
-    #[cfg(any(Py_3_12, PyRustPython))]
     pub(crate) fn ptype<'py>(&self, py: Python<'py>) -> Bound<'py, PyType> {
         self.pvalue.bind(py).get_type()
     }
 
-    #[cfg(not(any(Py_3_12, PyRustPython)))]
-    pub(crate) fn ptraceback<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyTraceback>> {
-        self.ptraceback
-            .lock_py_attached(py)
-            .unwrap()
-            .as_ref()
-            .map(|traceback| traceback.bind(py).clone())
-    }
-
-    #[cfg(any(Py_3_12, PyRustPython))]
     pub(crate) fn ptraceback<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyTraceback>> {
         unsafe {
             ffi::PyException_GetTraceback(self.pvalue.as_ptr())
@@ -191,12 +155,6 @@ impl PyErrStateNormalized {
         }
     }
 
-    #[cfg(not(any(Py_3_12, PyRustPython)))]
-    pub(crate) fn set_ptraceback<'py>(&self, py: Python<'py>, tb: Option<Bound<'py, PyTraceback>>) {
-        *self.ptraceback.lock_py_attached(py).unwrap() = tb.map(Bound::unbind);
-    }
-
-    #[cfg(any(Py_3_12, PyRustPython))]
     pub(crate) fn set_ptraceback<'py>(&self, py: Python<'py>, tb: Option<Bound<'py, PyTraceback>>) {
         let tb = tb
             .as_ref()
@@ -207,68 +165,25 @@ impl PyErrStateNormalized {
     }
 
     pub(crate) fn take(py: Python<'_>) -> Option<PyErrStateNormalized> {
-        #[cfg(any(Py_3_12, PyRustPython))]
-        {
-            // Safety: PyErr_GetRaisedException can be called when attached to Python and
-            // returns either NULL or an owned reference.
-            unsafe { ffi::PyErr_GetRaisedException().assume_owned_or_opt(py) }.map(|pvalue| {
-                // Safety: PyErr_GetRaisedException returns a valid exception object.
-                PyErrStateNormalized::new(unsafe { pvalue.cast_into_unchecked() })
-            })
-        }
-
-        #[cfg(not(any(Py_3_12, PyRustPython)))]
-        {
-            let (ptype, pvalue, ptraceback) = unsafe {
-                let mut ptype: *mut ffi::PyObject = std::ptr::null_mut();
-                let mut pvalue: *mut ffi::PyObject = std::ptr::null_mut();
-                let mut ptraceback: *mut ffi::PyObject = std::ptr::null_mut();
-
-                ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
-
-                // Ensure that the exception coming from the interpreter is normalized.
-                if !ptype.is_null() {
-                    ffi::PyErr_NormalizeException(&mut ptype, &mut pvalue, &mut ptraceback);
-                }
-
-                // Safety: PyErr_NormalizeException will have produced up to three owned
-                // references of the correct types.
-                (
-                    ptype
-                        .assume_owned_or_opt(py)
-                        .map(|b| b.cast_into_unchecked()),
-                    pvalue
-                        .assume_owned_or_opt(py)
-                        .map(|b| b.cast_into_unchecked()),
-                    ptraceback
-                        .assume_owned_or_opt(py)
-                        .map(|b| b.cast_into_unchecked()),
-                )
-            };
-
-            ptype.map(|ptype| PyErrStateNormalized {
-                ptype: ptype.unbind(),
-                pvalue: pvalue.expect("normalized exception value missing").unbind(),
-                ptraceback: std::sync::Mutex::new(ptraceback.map(Bound::unbind)),
-            })
-        }
+        crate::backend::current::err_state::fetch(py)
     }
 
-    #[cfg(not(any(Py_3_12, PyRustPython)))]
-    unsafe fn from_normalized_ffi_tuple(
+    #[cfg(not(Py_3_12))]
+    pub(crate) unsafe fn from_normalized_ffi_tuple(
         py: Python<'_>,
         ptype: *mut ffi::PyObject,
         pvalue: *mut ffi::PyObject,
         ptraceback: *mut ffi::PyObject,
     ) -> Self {
-        PyErrStateNormalized {
-            ptype: unsafe {
+        drop(
+            unsafe {
                 ptype
                     .assume_owned_or_opt(py)
                     .expect("Exception type missing")
-                    .cast_into_unchecked()
-            }
-            .unbind(),
+                    .cast_into_unchecked::<PyType>()
+            },
+        );
+        let normalized = Self {
             pvalue: unsafe {
                 pvalue
                     .assume_owned_or_opt(py)
@@ -276,27 +191,36 @@ impl PyErrStateNormalized {
                     .cast_into_unchecked()
             }
             .unbind(),
-            ptraceback: Mutex::new(
-                unsafe { ptraceback.assume_owned_or_opt(py) }
-                    .map(|b| unsafe { b.cast_into_unchecked() }.unbind()),
-            ),
-        }
+        };
+        normalized.set_ptraceback(
+            py,
+            unsafe { ptraceback.assume_owned_or_opt(py) }.map(|b| unsafe { b.cast_into_unchecked() }),
+        );
+        normalized
     }
 
     pub fn clone_ref(&self, py: Python<'_>) -> Self {
         Self {
-            #[cfg(not(any(Py_3_12, PyRustPython)))]
-            ptype: self.ptype.clone_ref(py),
             pvalue: self.pvalue.clone_ref(py),
-            #[cfg(not(any(Py_3_12, PyRustPython)))]
-            ptraceback: std::sync::Mutex::new(
-                self.ptraceback
-                    .lock_py_attached(py)
-                    .unwrap()
-                    .as_ref()
-                    .map(|ptraceback| ptraceback.clone_ref(py)),
-            ),
         }
+    }
+
+    #[cfg(not(Py_3_12))]
+    pub(crate) fn into_ffi_tuple(
+        self,
+        py: Python<'_>,
+    ) -> (*mut ffi::PyObject, *mut ffi::PyObject, *mut ffi::PyObject) {
+        let ptype = self.ptype(py).unbind().into_ptr();
+        let ptraceback = self
+            .ptraceback(py)
+            .map(Bound::unbind)
+            .map(Py::into_ptr)
+            .unwrap_or(std::ptr::null_mut());
+        (ptype, self.pvalue.into_ptr(), ptraceback)
+    }
+
+    pub(crate) fn into_raised_exception(self) -> *mut ffi::PyObject {
+        self.pvalue.into_ptr()
     }
 }
 
@@ -308,7 +232,7 @@ pub(crate) struct PyErrStateLazyFnOutput {
 pub(crate) type PyErrStateLazyFn =
     dyn for<'py> FnOnce(Python<'py>) -> PyErrStateLazyFnOutput + Send + Sync;
 
-enum PyErrStateInner {
+pub(crate) enum PyErrStateInner {
     Lazy(Box<PyErrStateLazyFn>),
     Normalized(PyErrStateNormalized),
 }
@@ -316,14 +240,14 @@ enum PyErrStateInner {
 impl PyErrStateInner {
     fn normalize(self, py: Python<'_>) -> PyErrStateNormalized {
         match self {
-            #[cfg(not(any(Py_3_12, PyRustPython)))]
+            #[cfg(not(Py_3_12))]
             PyErrStateInner::Lazy(lazy) => {
                 let (ptype, pvalue, ptraceback) = lazy_into_normalized_ffi_tuple(py, lazy);
                 unsafe {
                     PyErrStateNormalized::from_normalized_ffi_tuple(py, ptype, pvalue, ptraceback)
                 }
             }
-            #[cfg(any(Py_3_12, PyRustPython))]
+            #[cfg(Py_3_12)]
             PyErrStateInner::Lazy(lazy) => {
                 // To keep the implementation simple, just write the exception into the interpreter,
                 // which will cause it to be normalized
@@ -335,39 +259,13 @@ impl PyErrStateInner {
         }
     }
 
-    #[cfg(not(any(Py_3_12, PyRustPython)))]
     fn restore(self, py: Python<'_>) {
-        let (ptype, pvalue, ptraceback) = match self {
-            PyErrStateInner::Lazy(lazy) => lazy_into_normalized_ffi_tuple(py, lazy),
-            PyErrStateInner::Normalized(PyErrStateNormalized {
-                ptype,
-                pvalue,
-                ptraceback,
-            }) => (
-                ptype.into_ptr(),
-                pvalue.into_ptr(),
-                ptraceback
-                    .into_inner()
-                    .unwrap()
-                    .map_or(std::ptr::null_mut(), Py::into_ptr),
-            ),
-        };
-        unsafe { ffi::PyErr_Restore(ptype, pvalue, ptraceback) }
-    }
-
-    #[cfg(any(Py_3_12, PyRustPython))]
-    fn restore(self, py: Python<'_>) {
-        match self {
-            PyErrStateInner::Lazy(lazy) => raise_lazy(py, lazy),
-            PyErrStateInner::Normalized(PyErrStateNormalized { pvalue }) => unsafe {
-                ffi::PyErr_SetRaisedException(pvalue.into_ptr())
-            },
-        }
+        crate::backend::current::err_state::restore(py, self)
     }
 }
 
-#[cfg(not(any(Py_3_12, PyRustPython)))]
-fn lazy_into_normalized_ffi_tuple(
+#[cfg(not(Py_3_12))]
+pub(crate) fn lazy_into_normalized_ffi_tuple(
     py: Python<'_>,
     lazy: Box<PyErrStateLazyFn>,
 ) -> (*mut ffi::PyObject, *mut ffi::PyObject, *mut ffi::PyObject) {
@@ -391,7 +289,7 @@ fn lazy_into_normalized_ffi_tuple(
 ///
 /// This would require either moving some logic from C to Rust, or requesting a new
 /// API in CPython.
-fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
+pub(crate) fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
     let PyErrStateLazyFnOutput { ptype, pvalue } = lazy(py);
     unsafe {
         if ffi::PyExceptionClass_Check(ptype.as_ptr()) == 0 {

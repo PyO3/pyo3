@@ -1,22 +1,9 @@
 #[cfg(not(any(PyPy, GraalPy)))]
-use crate::{ffi, internal::state::AttachGuard, Python};
-
-static START: std::sync::Once = std::sync::Once::new();
+use crate::{internal::state::AttachGuard, Python};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 pub(crate) fn initialize() {
-    // Protect against race conditions when Python is not yet initialized and multiple threads
-    // concurrently call 'initialize()'. Note that we do not protect against
-    // concurrent initialization of the Python runtime by other users of the Python C API.
-    START.call_once_force(|_| unsafe {
-        // Use call_once_force because if initialization panics, it's okay to try again.
-        if ffi::Py_IsInitialized() == 0 {
-            ffi::Py_InitializeEx(0);
-
-            // Release the GIL.
-            ffi::PyEval_SaveThread();
-        }
-    });
+    crate::backend::current::runtime::initialize();
 }
 
 /// Executes the provided closure with an embedded Python interpreter.
@@ -56,27 +43,26 @@ where
     F: for<'p> FnOnce(Python<'p>) -> R,
 {
     assert_eq!(
-        unsafe { ffi::Py_IsInitialized() },
-        0,
+        crate::backend::current::runtime::is_initialized(),
+        false,
         "called `with_embedded_python_interpreter` but a Python interpreter is already running."
     );
 
-    unsafe { ffi::Py_InitializeEx(0) };
+    crate::backend::current::runtime::initialize_embedded();
 
     let result = {
         let guard = unsafe { AttachGuard::attach_unchecked() };
         let py = guard.python();
         // Import the threading module - this ensures that it will associate this thread as the "main"
         // thread, which is important to avoid an `AssertionError` at finalization.
-        #[cfg(not(PyRustPython))]
-        py.import("threading").unwrap();
+        crate::backend::current::runtime::prepare_embedded_python_main_thread(py);
 
         // Execute the closure.
         f(py)
     };
 
     // Finalize the Python interpreter.
-    unsafe { ffi::Py_Finalize() };
+    crate::backend::current::runtime::finalize_embedded();
 
     result
 }
@@ -96,11 +82,7 @@ where
 /// progress (another thread is inside `initialize()`), `call_once` blocks
 /// until it completes.
 pub(crate) fn wait_for_initialization() {
-    // TODO: use START.wait_force() on MSRV 1.86
-    // TODO: may not be needed on Python 3.15 (https://github.com/python/cpython/pull/146303)
-    START.call_once(|| {
-        assert_ne!(unsafe { crate::ffi::Py_IsInitialized() }, 0);
-    });
+    crate::backend::current::runtime::wait_for_initialization();
 }
 
 pub(crate) fn ensure_initialized() {
@@ -125,18 +107,6 @@ pub(crate) fn ensure_initialized() {
             initialize();
         }
 
-        START.call_once_force(|_| unsafe {
-            // Use call_once_force because if there is a panic because the interpreter is
-            // not initialized, it's fine for the user to initialize the interpreter and
-            // retry.
-            assert_ne!(
-                crate::ffi::Py_IsInitialized(),
-                0,
-                "The Python interpreter is not initialized and the `auto-initialize` \
-                        feature is not enabled.\n\n\
-                        Consider calling `Python::initialize()` before attempting \
-                        to use Python APIs."
-            );
-        });
+        crate::backend::current::runtime::ensure_initialized_or_panic();
     }
 }

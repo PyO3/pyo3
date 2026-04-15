@@ -3,6 +3,31 @@
 use pyo3::prelude::*;
 
 #[test]
+fn backend_runtime_attach_roundtrip() {
+    unsafe { pyo3::ffi::Py_FinalizeEx() };
+    assert_eq!(unsafe { pyo3::ffi::Py_IsInitialized() }, 0);
+
+    Python::initialize();
+    assert_eq!(unsafe { pyo3::ffi::Py_IsInitialized() }, 1);
+
+    Python::attach(|py| {
+        let err = pyo3::exceptions::PyValueError::new_err("boom");
+        err.restore(py);
+        let fetched = pyo3::PyErr::fetch(py);
+        assert_eq!(fetched.to_string(), "ValueError: boom");
+    });
+
+    unsafe { pyo3::ffi::Py_FinalizeEx() };
+    assert_eq!(unsafe { pyo3::ffi::Py_IsInitialized() }, 0);
+
+    Python::attach(|py| {
+        let err = pyo3::exceptions::PyRuntimeError::new_err("reinitialized");
+        err.restore(py);
+        assert_eq!(pyo3::PyErr::fetch(py).to_string(), "RuntimeError: reinitialized");
+    });
+}
+
+#[test]
 #[ignore = "upstream RustPython bug: spawned-thread imports recurse in importlib (_blocking_on); see RustPython/RustPython#7586"]
 fn worker_thread_can_import_array() {
     let handle = std::thread::spawn(|| {

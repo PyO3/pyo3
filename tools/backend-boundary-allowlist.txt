@@ -19,13 +19,11 @@ src/conversions/std/ipaddr.rs
 src/conversions/std/num.rs
 src/conversions/std/path.rs
 src/conversions/std/vec.rs
-src/err/err_state.rs
 src/err/mod.rs
 src/exceptions.rs
 src/impl_/pyclass.rs
 src/internal/get_slot.rs
 src/internal/state.rs
-src/interpreter_lifecycle.rs
 src/lib.rs
 src/marshal.rs
 src/pycell/impl_.rs

@@ -491,7 +491,9 @@ pub unsafe fn PyErr_SetRaisedException(exc: *mut PyObject) {
         set_current_exception(None);
         return;
     }
-    let obj = ptr_to_pyobject_ref_borrowed(exc);
+    // CPython steals a reference here, so adopt the incoming pointer rather than
+    // cloning it as a borrowed reference.
+    let obj = ptr_to_pyobject_ref_owned(exc);
     rustpython_runtime::with_vm(|vm| match ExceptionCtor::try_from_object(vm, obj) {
         Ok(ctor) => match ctor.instantiate(vm) {
             Ok(exc) => set_current_exception(Some(exc)),

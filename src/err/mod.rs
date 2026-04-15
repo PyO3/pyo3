@@ -23,7 +23,7 @@ use std::ffi::CStr;
 
 mod cast_error;
 mod downcast_error;
-mod err_state;
+pub(crate) mod err_state;
 mod impls;
 
 pub use cast_error::{CastError, CastIntoError};
@@ -842,6 +842,24 @@ mod tests {
             err.restore(py);
             assert!(PyErr::occurred(py));
             drop(PyErr::fetch(py));
+        });
+    }
+
+    #[test]
+    fn fetch_restore_roundtrip_preserves_exception_state() {
+        Python::attach(|py| {
+            let err: PyErr = PyValueError::new_err("roundtrip");
+            err.restore(py);
+
+            let fetched = PyErr::fetch(py);
+            assert!(fetched.is_instance_of::<PyValueError>(py));
+            assert_eq!(fetched.to_string(), "ValueError: roundtrip");
+
+            fetched.restore(py);
+
+            let restored = PyErr::fetch(py);
+            assert!(restored.is_instance_of::<PyValueError>(py));
+            assert_eq!(restored.to_string(), "ValueError: roundtrip");
         });
     }
 
