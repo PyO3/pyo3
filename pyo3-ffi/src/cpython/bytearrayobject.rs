@@ -1,6 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, GraalPy)))]
 use std::ffi::c_char;
 #[cfg(not(Py_3_9))]
 use std::ffi::c_int;
@@ -36,6 +36,7 @@ pub unsafe fn PyByteArray_AS_STRING(op: *mut PyObject) -> *mut c_char {
 pub unsafe fn PyByteArray_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
   let byte_array = op as *mut PyByteArrayObject;
   // _Py_atomic_load_ssize_relaxed and _PyVarObject_CAST not implemented
+  // Insert Rust equivalent of the next line:
   return _Py_atomic_load_ssize_relaxed(&(_PyVarObject_CAST(byte_array)->ob_size));
 }
 */
