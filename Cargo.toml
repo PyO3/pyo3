@@ -182,6 +182,7 @@ full = [
 
 [workspace]
 members = [
+    "xtask",
     "pyo3-ffi",
     "pyo3-build-config",
     "pyo3-macros",

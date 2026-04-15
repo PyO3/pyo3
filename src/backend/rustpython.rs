@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use super::{
+use crate::backend::{
     spec::BackendKind,
     traits::{Backend, BackendClassBuilder, BackendFunctionBuilder, BackendInterpreter},
 };

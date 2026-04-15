@@ -634,6 +634,7 @@ pub use self::lock::*;
 // Additional headers that are not exported by Python.h
 #[deprecated(note = "Python 3.12")]
 pub mod structmember;
+pub mod backend;
 
 // "Limited API" definitions matching Python's `include/cpython` directory.
 #[cfg(all(not(Py_LIMITED_API), not(PyRustPython)))]

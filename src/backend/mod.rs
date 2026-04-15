@@ -1,10 +1,11 @@
 #![allow(missing_docs)]
 
-//! Backend contracts and backend marker implementations.
+//! Backend contracts and backend dispatcher modules.
 
-/// CPython backend marker types.
+#[path = "cpython/mod.rs"]
 pub mod cpython;
-/// RustPython backend marker types.
+pub mod current;
+#[path = "rustpython/mod.rs"]
 pub mod rustpython;
 #[cfg(PyRustPython)]
 pub(crate) mod rustpython_storage;
