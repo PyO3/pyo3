@@ -222,13 +222,15 @@ pub unsafe fn PyList_Sort(arg1: *mut PyObject) -> c_int {
     let Some(list) = as_list(arg1) else {
         return -1;
     };
-    rustpython_runtime::with_vm(|vm| match vm.call_method(list.as_object(), "sort", FuncArgs::default()) {
-        Ok(_) => 0,
-        Err(exc) => {
-            set_vm_exception(exc);
-            -1
-        }
-    })
+    rustpython_runtime::with_vm(
+        |vm| match vm.call_method(list.as_object(), "sort", FuncArgs::default()) {
+            Ok(_) => 0,
+            Err(exc) => {
+                set_vm_exception(exc);
+                -1
+            }
+        },
+    )
 }
 
 #[inline]

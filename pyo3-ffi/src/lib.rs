@@ -530,7 +530,6 @@ mod import;
 // skipped interpreteridobject.h
 mod intrcheck;
 mod iterobject;
-#[cfg_attr(PyRustPython, path = "listobject_rustpython.rs")]
 mod listobject;
 #[cfg(PyRustPython)]
 mod lock;

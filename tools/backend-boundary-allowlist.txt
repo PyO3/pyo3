@@ -5,7 +5,6 @@ pyo3-ffi/src/dictobject.rs
 pyo3-ffi/src/floatobject.rs
 pyo3-ffi/src/floatobject_rustpython.rs
 pyo3-ffi/src/lib.rs
-pyo3-ffi/src/listobject.rs
 pyo3-ffi/src/lock.rs
 pyo3-ffi/src/longobject.rs
 pyo3-ffi/src/object_rustpython.rs
