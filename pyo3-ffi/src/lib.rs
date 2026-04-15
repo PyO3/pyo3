@@ -513,7 +513,6 @@ mod context;
 pub(crate) mod datetime;
 #[cfg_attr(PyRustPython, path = "descrobject_rustpython.rs")]
 mod descrobject;
-#[cfg_attr(PyRustPython, path = "dictobject_rustpython.rs")]
 mod dictobject;
 // skipped dynamic_annotations.h
 mod enumobject;
