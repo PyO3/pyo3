@@ -42,6 +42,7 @@ pub(crate) mod pyframe;
 pub(crate) mod pyhash;
 pub(crate) mod tupleobject;
 pub(crate) mod unicodeobject;
+pub(crate) mod warnings;
 pub(crate) mod weakrefobject;
 
 pub use self::abstract_::*;
@@ -85,5 +86,6 @@ pub use self::pystate::*;
 pub use self::pythonrun::*;
 pub use self::tupleobject::*;
 pub use self::unicodeobject::*;
+pub use self::warnings::*;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::weakrefobject::*;
