@@ -37,6 +37,8 @@ pub mod unicodeobject;
 #[cfg(PyRustPython)]
 pub mod warnings;
 #[cfg(PyRustPython)]
+pub mod weakrefobject;
+#[cfg(PyRustPython)]
 pub mod object;
 #[cfg(PyRustPython)]
 pub mod runtime;

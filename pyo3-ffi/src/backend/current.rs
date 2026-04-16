@@ -126,6 +126,13 @@ pub mod warnings {
     pub use crate::backend::cpython::warnings::*;
 }
 
+pub mod weakrefobject {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::weakrefobject::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::weakrefobject::*;
+}
+
 pub mod unicodeobject {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::unicodeobject::*;

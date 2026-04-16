@@ -17,5 +17,6 @@ pub mod sliceobject;
 pub mod tupleobject;
 pub mod unicodeobject;
 pub mod warnings;
+pub mod weakrefobject;
 pub mod object;
 pub mod runtime;

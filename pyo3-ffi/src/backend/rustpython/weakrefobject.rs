@@ -4,7 +4,9 @@ use crate::rustpython_runtime;
 use rustpython_vm::builtins::{PyWeak, PyWeakProxy};
 use std::ffi::c_int;
 
-pub type PyWeakReference = crate::_PyWeakReference;
+pub static mut _PyWeakref_RefType: PyTypeObject = PyTypeObject { _opaque: [] };
+pub static mut _PyWeakref_ProxyType: PyTypeObject = PyTypeObject { _opaque: [] };
+pub static mut _PyWeakref_CallableProxyType: PyTypeObject = PyTypeObject { _opaque: [] };
 
 #[inline]
 pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
@@ -110,12 +112,16 @@ pub unsafe fn PyWeakref_GetObject(reference: *mut PyObject) -> *mut PyObject {
     rustpython_runtime::with_vm(|vm| {
         let reference = ptr_to_pyobject_ref_borrowed(reference);
         if let Some(weak) = reference.downcast_ref::<PyWeak>() {
-            return weak
-                .upgrade_object()
-                .map_or_else(|| pyobject_ref_as_ptr(&vm.ctx.none()), |obj| pyobject_ref_as_ptr(&obj));
+            return weak.upgrade_object().map_or_else(
+                || pyobject_ref_as_ptr(&vm.ctx.none()),
+                |obj| pyobject_ref_as_ptr(&obj),
+            );
         }
         if PyWeakref_CheckProxy(reference.as_raw() as *mut PyObject) != 0 {
-            return if let Some(method) = reference.class().get_attr(vm.ctx.intern_str("__pyo3_referent__")) {
+            return if let Some(method) = reference
+                .class()
+                .get_attr(vm.ctx.intern_str("__pyo3_referent__"))
+            {
                 match method.call((reference.to_owned(),), vm) {
                     Ok(obj) => pyobject_ref_as_ptr(&obj),
                     Err(exc) => {
@@ -167,7 +173,10 @@ pub unsafe fn PyWeakref_GetRef(reference: *mut PyObject, pobj: *mut *mut PyObjec
             };
         }
         if PyWeakref_CheckProxy(reference.as_raw() as *mut PyObject) != 0 {
-            return if let Some(method) = reference.class().get_attr(vm.ctx.intern_str("__pyo3_referent__")) {
+            return if let Some(method) = reference
+                .class()
+                .get_attr(vm.ctx.intern_str("__pyo3_referent__"))
+            {
                 match method.call((reference.to_owned(),), vm) {
                     Ok(obj) => {
                         if vm.is_none(&obj) {
