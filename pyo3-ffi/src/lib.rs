@@ -573,7 +573,6 @@ mod pymem;
 mod pyport;
 #[cfg_attr(PyRustPython, path = "pystate_rustpython.rs")]
 mod pystate;
-#[cfg(PyRustPython)]
 mod critical_section;
 // skipped pystats.h
 #[cfg_attr(PyRustPython, path = "pythonrun_rustpython.rs")]
@@ -607,7 +606,6 @@ pub fn rustpython_runtime_thread_id() -> Option<std::thread::ThreadId> {
     rustpython_runtime::runtime_thread_id()
 }
 
-#[cfg(PyRustPython)]
 pub use self::critical_section::*;
 #[cfg(PyRustPython)]
 pub use self::lock::*;

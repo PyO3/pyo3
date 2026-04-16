@@ -7,6 +7,8 @@ pub mod bytesobject;
 #[cfg(PyRustPython)]
 pub mod complexobject;
 #[cfg(PyRustPython)]
+pub mod critical_section;
+#[cfg(PyRustPython)]
 pub mod floatobject;
 #[cfg(PyRustPython)]
 pub mod longobject;

@@ -1,6 +1,7 @@
 pub mod boolobject;
 pub mod bytearrayobject;
 pub mod complexobject;
+pub mod critical_section;
 pub mod floatobject;
 pub mod longobject;
 pub mod pycapsule;
