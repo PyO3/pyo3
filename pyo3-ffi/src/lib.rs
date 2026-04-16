@@ -601,7 +601,6 @@ mod tupleobject;
 mod typeslots;
 #[cfg_attr(PyRustPython, path = "unicodeobject_rustpython.rs")]
 mod unicodeobject;
-#[cfg_attr(PyRustPython, path = "warnings_rustpython.rs")]
 mod warnings;
 #[cfg_attr(PyRustPython, path = "weakrefobject_rustpython.rs")]
 mod weakrefobject;

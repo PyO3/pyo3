@@ -1,6 +1,6 @@
 use crate::object::*;
-use crate::pyport::Py_ssize_t;
 use crate::pyerrors::set_vm_exception;
+use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
 use std::ffi::{c_char, c_int, CStr};
 

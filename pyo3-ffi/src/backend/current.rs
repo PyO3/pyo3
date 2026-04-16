@@ -89,6 +89,13 @@ pub mod tupleobject {
     pub use crate::backend::cpython::tupleobject::*;
 }
 
+pub mod warnings {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::warnings::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::warnings::*;
+}
+
 pub mod object {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::object::*;
