@@ -61,6 +61,13 @@ pub mod pycapsule {
     pub use crate::backend::cpython::pycapsule::*;
 }
 
+pub mod pymem {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::pymem::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::pymem::*;
+}
+
 pub mod dictobject {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::dictobject::*;

@@ -570,7 +570,6 @@ mod pylifecycle;
 // skipped pymacconfig.h
 // skipped pymacro.h
 // skipped pymath.h
-#[cfg_attr(PyRustPython, path = "pymem_rustpython.rs")]
 mod pymem;
 mod pyport;
 #[cfg_attr(PyRustPython, path = "pystate_rustpython.rs")]

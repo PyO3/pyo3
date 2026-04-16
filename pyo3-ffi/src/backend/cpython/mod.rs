@@ -4,6 +4,7 @@ pub mod complexobject;
 pub mod floatobject;
 pub mod longobject;
 pub mod pycapsule;
+pub mod pymem;
 pub mod moduleobject;
 pub mod bytesobject;
 pub mod dictobject;
