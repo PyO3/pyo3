@@ -1,7 +1,7 @@
 use crate::object::*;
 use crate::rustpython_runtime;
-use rustpython_vm::builtins::PyBool;
 use rustpython_vm::AsObject;
+use rustpython_vm::builtins::PyBool;
 use std::ffi::{c_int, c_long};
 
 #[inline]
