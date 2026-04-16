@@ -497,7 +497,7 @@ mod bltinmodule;
 mod boolobject;
 mod bytearrayobject;
 mod bytesobject;
-mod cellobject;
+// skipped cellobject.h
 mod ceval;
 // skipped classobject.h
 mod codecs;
