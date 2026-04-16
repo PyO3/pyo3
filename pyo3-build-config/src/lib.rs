@@ -273,7 +273,12 @@ pub fn print_expected_cfgs() {
     }
 
     // pyo3_dll cfg for raw-dylib linking on Windows
-    let mut dll_names = vec!["python3".to_string(), "python3_d".to_string()];
+    let mut dll_names = vec![
+        "python3".to_string(),
+        "python3_d".to_string(),
+        "python3t".to_string(),
+        "python3t_d".to_string(),
+    ];
     for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
         dll_names.push(format!("python3{i}"));
         dll_names.push(format!("python3{i}_d"));

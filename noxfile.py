@@ -1219,6 +1219,9 @@ def _check_raw_dylib_macro(session: nox.Session):
         if minor >= 13:
             expected_dlls.add(f"python3{minor}t")
             expected_dlls.add(f"python3{minor}t_d")
+        if minor >= 15:
+            expected_dlls.add(f"python3t")
+            expected_dlls.add(f"python3t_d")
 
     # PyPy DLL names (libpypy3.X-c.dll)
     pypy_min, pypy_max = _parse_supported_interpreter_version("pypy")
