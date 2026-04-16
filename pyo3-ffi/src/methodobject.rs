@@ -1,6 +1,7 @@
-use crate::object::{PyObject, PyTypeObject, Py_TYPE};
+use crate::object::{PyObject, PyTypeObject};
 #[cfg(Py_3_9)]
 use crate::PyObject_TypeCheck;
+use crate::Py_IS_TYPE;
 use std::ffi::{c_char, c_int, c_void};
 use std::{mem, ptr};
 
@@ -23,7 +24,7 @@ extern_libpython! {
 #[cfg(Py_3_9)]
 #[inline]
 pub unsafe fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyCFunction_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyCFunction_Type)
 }
 
 #[cfg(Py_3_9)]
@@ -35,7 +36,7 @@ pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
 #[cfg(not(Py_3_9))]
 #[inline]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyCFunction_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyCFunction_Type)
 }
 
 pub type PyCFunction =
