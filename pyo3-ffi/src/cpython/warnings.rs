@@ -8,6 +8,6 @@ extern_libpython! {
     filename: *mut PyObject,
     lineno: c_int,
     module: *mut PyObject,
-    registry: *mut PyObject);
+    registry: *mut PyObject
   ) -> c_int;
 }
