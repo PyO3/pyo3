@@ -10,6 +10,7 @@ pub mod refcount;
 pub mod moduleobject;
 pub mod bytesobject;
 pub mod dictobject;
+pub mod descrobject;
 pub mod datetime;
 pub mod listobject;
 pub mod setobject;

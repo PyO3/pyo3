@@ -510,7 +510,6 @@ mod complexobject;
 mod context;
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
-#[cfg_attr(PyRustPython, path = "descrobject_rustpython.rs")]
 mod descrobject;
 mod dictobject;
 // skipped dynamic_annotations.h

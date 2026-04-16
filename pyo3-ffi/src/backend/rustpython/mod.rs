@@ -23,6 +23,8 @@ pub mod moduleobject;
 #[cfg(PyRustPython)]
 pub mod dictobject;
 #[cfg(PyRustPython)]
+pub mod descrobject;
+#[cfg(PyRustPython)]
 pub mod datetime;
 #[cfg(PyRustPython)]
 pub mod listobject;
