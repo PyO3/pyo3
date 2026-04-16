@@ -77,6 +77,13 @@ pub mod pymem {
     pub use crate::backend::cpython::pymem::*;
 }
 
+pub mod refcount {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::refcount::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::refcount::*;
+}
+
 pub mod dictobject {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::dictobject::*;

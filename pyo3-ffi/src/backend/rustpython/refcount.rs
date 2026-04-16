@@ -23,9 +23,14 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
 }
 
 #[inline]
+pub unsafe fn Py_DECREF(op: *mut PyObject) {
+    crate::object::Py_DECREF(op);
+}
+
+#[inline]
 pub unsafe fn Py_XDECREF(op: *mut PyObject) {
     if !op.is_null() {
-        crate::object::Py_DECREF(op);
+        Py_DECREF(op);
     }
 }
 

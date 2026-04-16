@@ -6,6 +6,7 @@ pub mod longobject;
 pub mod pycapsule;
 pub mod pybuffer;
 pub mod pymem;
+pub mod refcount;
 pub mod moduleobject;
 pub mod bytesobject;
 pub mod dictobject;

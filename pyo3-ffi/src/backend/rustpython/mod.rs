@@ -17,6 +17,8 @@ pub mod pybuffer;
 #[cfg(PyRustPython)]
 pub mod pymem;
 #[cfg(PyRustPython)]
+pub mod refcount;
+#[cfg(PyRustPython)]
 pub mod moduleobject;
 #[cfg(PyRustPython)]
 pub mod dictobject;

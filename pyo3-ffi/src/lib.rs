@@ -478,6 +478,8 @@ pub use self::pythonrun::*;
 pub use self::pytypedefs::*;
 pub use self::rangeobject::*;
 pub use self::refcount::*;
+#[cfg(not(PyRustPython))]
+pub use self::backend::current::refcount::Py_DECREF;
 pub use self::setobject::*;
 pub use self::sliceobject::*;
 pub use self::structseq::*;
@@ -531,6 +533,8 @@ mod lock;
 // skipped longintrepr.h
 mod longobject;
 mod memoryobject;
+#[cfg_attr(PyRustPython, path = "methodobject_rustpython.rs")]
+mod methodobject;
 #[cfg_attr(PyRustPython, path = "modsupport_rustpython.rs")]
 mod modsupport;
 mod moduleobject;
@@ -583,7 +587,6 @@ mod pystrtod;
 // skipped pytime.h
 mod pytypedefs;
 mod rangeobject;
-#[cfg_attr(PyRustPython, path = "refcount_rustpython.rs")]
 mod refcount;
 mod setobject;
 mod sliceobject;
