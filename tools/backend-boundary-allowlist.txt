@@ -22,7 +22,6 @@ src/types/bytes.rs
 src/types/capsule.rs
 src/types/code.rs
 src/types/complex.rs
-src/types/datetime.rs
 src/types/float.rs
 src/types/frame.rs
 src/types/function.rs

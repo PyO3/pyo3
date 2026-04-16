@@ -3,8 +3,11 @@ use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound, BoundObject};
 use crate::sync::PyOnceLock;
-use crate::types::{PyAny, PyFrozenSet, PyTuple, PyType, PyTypeMethods};
+use crate::types::{PyAny, PyDateTime, PyFrozenSet, PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo};
 use crate::{ffi, IntoPyObject, IntoPyObjectExt, Py, Python};
+
+#[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
 
 #[inline]
 pub(crate) fn dict_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
@@ -183,5 +186,89 @@ pub(crate) unsafe fn borrowed_tuple_item_unchecked<'a, 'py>(
 ) -> Borrowed<'a, 'py, PyAny> {
     unsafe {
         ffi::PyTuple_GET_ITEM(tuple.as_ptr(), index as Py_ssize_t).assume_borrowed_unchecked(tuple.py())
+    }
+}
+
+pub(crate) fn datetime_tzinfo<'py>(value: &Bound<'py, PyDateTime>) -> Option<Bound<'py, PyTzInfo>> {
+    #[cfg(all(not(Py_3_10), not(Py_LIMITED_API)))]
+    unsafe {
+        let ptr = value.as_ptr() as *mut ffi::PyDateTime_DateTime;
+        if (*ptr).hastzinfo != 0 {
+            Some(
+                (*ptr)
+                    .tzinfo
+                    .assume_borrowed(value.py())
+                    .to_owned()
+                    .cast_into_unchecked(),
+            )
+        } else {
+            None
+        }
+    }
+
+    #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+    unsafe {
+        let res = PyDateTime_DATE_GET_TZINFO(value.as_ptr());
+        if Py_IsNone(res) == 1 {
+            None
+        } else {
+            Some(
+                res.assume_borrowed(value.py())
+                    .to_owned()
+                    .cast_into_unchecked(),
+            )
+        }
+    }
+
+    #[cfg(Py_LIMITED_API)]
+    unsafe {
+        let tzinfo = value.getattr(crate::intern!(value.py(), "tzinfo")).ok()?;
+        if tzinfo.is_none() {
+            None
+        } else {
+            Some(tzinfo.cast_into_unchecked())
+        }
+    }
+}
+
+pub(crate) fn time_tzinfo<'py>(value: &Bound<'py, PyTime>) -> Option<Bound<'py, PyTzInfo>> {
+    #[cfg(all(not(Py_3_10), not(Py_LIMITED_API)))]
+    unsafe {
+        let ptr = value.as_ptr() as *mut ffi::PyDateTime_Time;
+        if (*ptr).hastzinfo != 0 {
+            Some(
+                (*ptr)
+                    .tzinfo
+                    .assume_borrowed(value.py())
+                    .to_owned()
+                    .cast_into_unchecked(),
+            )
+        } else {
+            None
+        }
+    }
+
+    #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+    unsafe {
+        let res = PyDateTime_TIME_GET_TZINFO(value.as_ptr());
+        if Py_IsNone(res) == 1 {
+            None
+        } else {
+            Some(
+                res.assume_borrowed(value.py())
+                    .to_owned()
+                    .cast_into_unchecked(),
+            )
+        }
+    }
+
+    #[cfg(Py_LIMITED_API)]
+    unsafe {
+        let tzinfo = value.getattr(crate::intern!(value.py(), "tzinfo")).ok()?;
+        if tzinfo.is_none() {
+            None
+        } else {
+            Some(tzinfo.cast_into_unchecked())
+        }
     }
 }

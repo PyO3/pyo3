@@ -18,8 +18,6 @@ use crate::ffi::{
     PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
     PyDate_FromTimestamp,
 };
-#[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
-use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
 #[cfg(Py_LIMITED_API)]
 use crate::type_object::PyTypeInfo;
 #[cfg(Py_LIMITED_API)]
@@ -475,55 +473,7 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyDateTime> {
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        #[cfg(PyRustPython)]
-        {
-            let res = self.getattr("tzinfo").ok()?;
-            if res.is_none() {
-                None
-            } else {
-                Some(unsafe { res.cast_into_unchecked() })
-            }
-        }
-
-        #[cfg(all(not(PyRustPython), not(Py_3_10), not(Py_LIMITED_API)))]
-        unsafe {
-            let ptr = self.as_ptr() as *mut ffi::PyDateTime_DateTime;
-            if (*ptr).hastzinfo != 0 {
-                Some(
-                    (*ptr)
-                        .tzinfo
-                        .assume_borrowed(self.py())
-                        .to_owned()
-                        .cast_into_unchecked(),
-                )
-            } else {
-                None
-            }
-        }
-
-        #[cfg(all(not(PyRustPython), Py_3_10, not(Py_LIMITED_API)))]
-        unsafe {
-            let res = PyDateTime_DATE_GET_TZINFO(self.as_ptr());
-            if Py_IsNone(res) == 1 {
-                None
-            } else {
-                Some(
-                    res.assume_borrowed(self.py())
-                        .to_owned()
-                        .cast_into_unchecked(),
-                )
-            }
-        }
-
-        #[cfg(Py_LIMITED_API)]
-        unsafe {
-            let tzinfo = self.getattr(intern!(self.py(), "tzinfo")).ok()?;
-            if tzinfo.is_none() {
-                None
-            } else {
-                Some(tzinfo.cast_into_unchecked())
-            }
-        }
+        crate::backend::current::types::datetime_tzinfo(self)
     }
 }
 
@@ -655,55 +605,7 @@ impl PyTimeAccess for Bound<'_, PyTime> {
 
 impl<'py> PyTzInfoAccess<'py> for Bound<'py, PyTime> {
     fn get_tzinfo(&self) -> Option<Bound<'py, PyTzInfo>> {
-        #[cfg(PyRustPython)]
-        {
-            let res = self.getattr("tzinfo").ok()?;
-            if res.is_none() {
-                None
-            } else {
-                Some(unsafe { res.cast_into_unchecked() })
-            }
-        }
-
-        #[cfg(all(not(PyRustPython), not(Py_3_10), not(Py_LIMITED_API)))]
-        unsafe {
-            let ptr = self.as_ptr() as *mut ffi::PyDateTime_Time;
-            if (*ptr).hastzinfo != 0 {
-                Some(
-                    (*ptr)
-                        .tzinfo
-                        .assume_borrowed(self.py())
-                        .to_owned()
-                        .cast_into_unchecked(),
-                )
-            } else {
-                None
-            }
-        }
-
-        #[cfg(all(not(PyRustPython), Py_3_10, not(Py_LIMITED_API)))]
-        unsafe {
-            let res = PyDateTime_TIME_GET_TZINFO(self.as_ptr());
-            if Py_IsNone(res) == 1 {
-                None
-            } else {
-                Some(
-                    res.assume_borrowed(self.py())
-                        .to_owned()
-                        .cast_into_unchecked(),
-                )
-            }
-        }
-
-        #[cfg(Py_LIMITED_API)]
-        unsafe {
-            let tzinfo = self.getattr(intern!(self.py(), "tzinfo")).ok()?;
-            if tzinfo.is_none() {
-                None
-            } else {
-                Some(tzinfo.cast_into_unchecked())
-            }
-        }
+        crate::backend::current::types::time_tzinfo(self)
     }
 }
 

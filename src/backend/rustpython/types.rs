@@ -4,7 +4,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound, BoundObject};
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyAny, PyDict, PyFrozenSet, PySet, PyTuple, PyType, PyTypeMethods};
+use crate::types::{PyAny, PyDateTime, PyDict, PyFrozenSet, PySet, PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo};
 use crate::{ffi, IntoPyObject, IntoPyObjectExt, Py, Python};
 
 #[inline]
@@ -191,5 +191,23 @@ pub(crate) unsafe fn borrowed_tuple_item_unchecked<'a, 'py>(
         ffi::PyTuple_GetItem(tuple.as_ptr(), index as Py_ssize_t)
             .assume_borrowed_or_err(tuple.py())
             .expect("caller must provide an in-bounds tuple index")
+    }
+}
+
+pub(crate) fn datetime_tzinfo<'py>(value: &Bound<'py, PyDateTime>) -> Option<Bound<'py, PyTzInfo>> {
+    let res = value.getattr("tzinfo").ok()?;
+    if res.is_none() {
+        None
+    } else {
+        Some(unsafe { res.cast_into_unchecked() })
+    }
+}
+
+pub(crate) fn time_tzinfo<'py>(value: &Bound<'py, PyTime>) -> Option<Bound<'py, PyTzInfo>> {
+    let res = value.getattr("tzinfo").ok()?;
+    if res.is_none() {
+        None
+    } else {
+        Some(unsafe { res.cast_into_unchecked() })
     }
 }
