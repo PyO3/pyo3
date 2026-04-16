@@ -1,5 +1,4 @@
 pyo3-ffi/src/compat/py_3_9.rs
-pyo3-ffi/src/datetime.rs
 pyo3-ffi/src/lib.rs
 pyo3-ffi/src/object_rustpython.rs
 pyo3-macros-backend/src/pyclass.rs

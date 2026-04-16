@@ -2,7 +2,8 @@ use crate::datetime::PyDateTime_CAPI;
 use crate::pyerrors::set_vm_exception;
 use crate::{
     ptr_to_pyobject_ref_borrowed, pyobject_ref_as_ptr, pyobject_ref_to_ptr, rustpython_runtime,
-    PyObject, PyTypeObject, Py_None,
+    PyLong_AsLong, PyLong_Check, PyObject, PyObject_GetAttrString, PyTypeObject, Py_DECREF,
+    Py_None,
 };
 use rustpython_vm::function::{FuncArgs, KwArgs};
 use rustpython_vm::PyObjectRef;
@@ -23,6 +24,111 @@ fn import_datetime(
         }
     }
     Ok(datetime)
+}
+
+#[inline]
+unsafe fn get_attr(obj: *mut PyObject, field: &std::ffi::CStr) -> c_int {
+    let result = PyObject_GetAttrString(obj, field.as_ptr());
+    Py_DECREF(result);
+    if PyLong_Check(result) == 1 {
+        PyLong_AsLong(result) as c_int
+    } else {
+        0
+    }
+}
+
+#[inline]
+pub unsafe fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int {
+    get_attr(o, c"year")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_GET_MONTH(o: *mut PyObject) -> c_int {
+    get_attr(o, c"month")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_GET_DAY(o: *mut PyObject) -> c_int {
+    get_attr(o, c"day")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_DATE_GET_HOUR(o: *mut PyObject) -> c_int {
+    get_attr(o, c"hour")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_DATE_GET_MINUTE(o: *mut PyObject) -> c_int {
+    get_attr(o, c"minute")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_DATE_GET_SECOND(o: *mut PyObject) -> c_int {
+    get_attr(o, c"second")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int {
+    get_attr(o, c"microsecond")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_int {
+    get_attr(o, c"fold")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
+    let res = PyObject_GetAttrString(o, c"tzinfo".as_ptr().cast());
+    Py_DECREF(res);
+    res
+}
+
+#[inline]
+pub unsafe fn PyDateTime_TIME_GET_HOUR(o: *mut PyObject) -> c_int {
+    get_attr(o, c"hour")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_TIME_GET_MINUTE(o: *mut PyObject) -> c_int {
+    get_attr(o, c"minute")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_TIME_GET_SECOND(o: *mut PyObject) -> c_int {
+    get_attr(o, c"second")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int {
+    get_attr(o, c"microsecond")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_int {
+    get_attr(o, c"fold")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
+    let res = PyObject_GetAttrString(o, c"tzinfo".as_ptr().cast());
+    Py_DECREF(res);
+    res
+}
+
+#[inline]
+pub unsafe fn PyDateTime_DELTA_GET_DAYS(o: *mut PyObject) -> c_int {
+    get_attr(o, c"days")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_DELTA_GET_SECONDS(o: *mut PyObject) -> c_int {
+    get_attr(o, c"seconds")
+}
+
+#[inline]
+pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
+    get_attr(o, c"microseconds")
 }
 
 fn call_datetime_type(
