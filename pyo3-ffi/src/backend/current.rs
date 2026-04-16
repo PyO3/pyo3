@@ -12,6 +12,13 @@ pub mod critical_section {
     pub use crate::backend::cpython::critical_section::*;
 }
 
+pub mod lock {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::lock::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::lock::*;
+}
+
 pub mod descrobject {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::descrobject::*;

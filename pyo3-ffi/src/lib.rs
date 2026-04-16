@@ -527,7 +527,6 @@ mod import;
 mod intrcheck;
 mod iterobject;
 mod listobject;
-#[cfg(PyRustPython)]
 mod lock;
 // skipped longintrepr.h
 mod longobject;
