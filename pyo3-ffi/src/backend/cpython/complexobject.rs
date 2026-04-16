@@ -1,7 +1,6 @@
 use crate::object::*;
 use std::ffi::{c_double, c_int};
 
-#[cfg(PyRustPython)]
 opaque_struct!(pub PyComplexObject);
 
 extern_libpython! {
