@@ -54,6 +54,13 @@ pub mod bytesobject {
     pub use crate::backend::cpython::bytesobject::*;
 }
 
+pub mod pycapsule {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::pycapsule::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::pycapsule::*;
+}
+
 pub mod dictobject {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::dictobject::*;

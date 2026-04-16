@@ -11,6 +11,8 @@ pub mod floatobject;
 #[cfg(PyRustPython)]
 pub mod longobject;
 #[cfg(PyRustPython)]
+pub mod pycapsule;
+#[cfg(PyRustPython)]
 pub mod moduleobject;
 #[cfg(PyRustPython)]
 pub mod dictobject;

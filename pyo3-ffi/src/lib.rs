@@ -556,7 +556,6 @@ mod pyarena;
 #[cfg_attr(PyRustPython, path = "pybuffer_rustpython.rs")]
 #[cfg(any(Py_3_11, PyRustPython))]
 mod pybuffer;
-#[cfg_attr(PyRustPython, path = "pycapsule_rustpython.rs")]
 mod pycapsule;
 // skipped pydtrace.h
 #[cfg_attr(PyRustPython, path = "pyerrors_rustpython.rs")]

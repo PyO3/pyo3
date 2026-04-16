@@ -1,17 +1,16 @@
 use crate::object::*;
+use crate::pycapsule::PyCapsule_Destructor;
 use crate::pyerrors::set_vm_exception;
 use crate::rustpython_runtime;
 use rustpython_vm::builtins::PyType;
 use rustpython_vm::object::MaybeTraverse;
 use rustpython_vm::{AsObject, Context, Py, PyObjectRef, PyPayload, PyRef};
-use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock};
+use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::{Mutex, OnceLock};
 
 pub static mut PyCapsule_Type: PyTypeObject = PyTypeObject { _opaque: [] };
-
-pub type PyCapsule_Destructor = unsafe extern "C" fn(o: *mut PyObject);
 
 #[derive(Debug)]
 struct PyCapsulePayload {
@@ -29,7 +28,6 @@ struct DestructingCapsuleState {
     name: Option<CString>,
 }
 
-// SAFETY: raw pointers are treated as opaque capsule payload/context addresses.
 unsafe impl Send for DestructingCapsuleState {}
 
 impl PyCapsulePayload {
@@ -88,7 +86,7 @@ impl PyPayload for PyCapsulePayload {
     }
 }
 
-fn capsule_payload<'a>(capsule: &'a PyObjectRef) -> Option<&'a PyCapsulePayload> {
+fn capsule_payload(capsule: &PyObjectRef) -> Option<&PyCapsulePayload> {
     capsule.downcast_ref::<PyCapsulePayload>().map(|payload| &**payload)
 }
 
@@ -187,9 +185,7 @@ pub unsafe fn PyCapsule_GetPointer(capsule: *mut PyObject, name: *const c_char) 
 }
 
 #[inline]
-pub unsafe fn PyCapsule_GetDestructor(
-    capsule: *mut PyObject,
-) -> Option<PyCapsule_Destructor> {
+pub unsafe fn PyCapsule_GetDestructor(capsule: *mut PyObject) -> Option<PyCapsule_Destructor> {
     if capsule.is_null() {
         return None;
     }
