@@ -5,6 +5,13 @@ pub mod datetime {
     pub use crate::backend::cpython::datetime::*;
 }
 
+pub mod pybuffer {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::pybuffer::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::pybuffer::*;
+}
+
 pub mod boolobject {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::boolobject::*;

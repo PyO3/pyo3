@@ -553,7 +553,6 @@ mod osmodule;
 // skipped py_curses.h
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 mod pyarena;
-#[cfg_attr(PyRustPython, path = "pybuffer_rustpython.rs")]
 #[cfg(any(Py_3_11, PyRustPython))]
 mod pybuffer;
 mod pycapsule;

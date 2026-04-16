@@ -1,4 +1,7 @@
 use crate::object::{ptr_to_pyobject_ref_borrowed, pyobject_ref_to_ptr, PyObject, PyTypeObject};
+use crate::pybuffer::{
+    getbufferproc, releasebufferproc, Py_buffer, PyBUF_FULL_RO, PyBUF_WRITABLE,
+};
 use crate::pyerrors::{set_vm_exception, PyErr_Clear, PyErr_SetString, PyExc_BufferError};
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
@@ -8,45 +11,6 @@ use rustpython_vm::TryFromBorrowedObject;
 use std::ffi::{c_char, c_int, c_void, CString};
 use std::ptr;
 use std::slice;
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct Py_buffer {
-    pub buf: *mut c_void,
-    /// Owned reference.
-    pub obj: *mut crate::PyObject,
-    pub len: Py_ssize_t,
-    pub itemsize: Py_ssize_t,
-    pub readonly: c_int,
-    pub ndim: c_int,
-    pub format: *mut c_char,
-    pub shape: *mut Py_ssize_t,
-    pub strides: *mut Py_ssize_t,
-    pub suboffsets: *mut Py_ssize_t,
-    pub internal: *mut c_void,
-}
-
-impl Py_buffer {
-    #[allow(clippy::new_without_default)]
-    pub const fn new() -> Self {
-        Self {
-            buf: ptr::null_mut(),
-            obj: ptr::null_mut(),
-            len: 0,
-            itemsize: 0,
-            readonly: 0,
-            ndim: 0,
-            format: ptr::null_mut(),
-            shape: ptr::null_mut(),
-            strides: ptr::null_mut(),
-            suboffsets: ptr::null_mut(),
-            internal: ptr::null_mut(),
-        }
-    }
-}
-
-pub type getbufferproc = unsafe extern "C" fn(*mut PyObject, *mut crate::Py_buffer, c_int) -> c_int;
-pub type releasebufferproc = unsafe extern "C" fn(*mut PyObject, *mut crate::Py_buffer);
 
 pub(crate) struct RustPythonBufferView {
     buffer: RpBuffer,
@@ -133,7 +97,9 @@ impl RustPythonBufferView {
             return ptr::null_mut();
         }
         let mut position = 0isize;
-        for (&index, &(_, stride, suboffset)) in indices.iter().zip(self.buffer.desc.dim_desc.iter()) {
+        for (&index, &(_, stride, suboffset)) in
+            indices.iter().zip(self.buffer.desc.dim_desc.iter())
+        {
             position += index as isize * stride + suboffset;
         }
         if position.is_negative() || position as usize >= self.contiguous.len() {
@@ -263,11 +229,9 @@ pub unsafe fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer, flags
     }
 
     let obj_ref = ptr_to_pyobject_ref_borrowed(obj);
-    let result = rustpython_runtime::with_vm(|vm| {
-        match RpBuffer::try_from_borrowed_object(vm, &obj_ref) {
-            Ok(buffer) => Ok(buffer),
-            Err(_) => Err(vm.new_type_error("object does not support the buffer protocol")),
-        }
+    let result = rustpython_runtime::with_vm(|vm| match RpBuffer::try_from_borrowed_object(vm, &obj_ref) {
+        Ok(buffer) => Ok(buffer),
+        Err(_) => Err(vm.new_type_error("object does not support the buffer protocol")),
     });
     let buffer = match result {
         Ok(buffer) => buffer,
@@ -277,7 +241,7 @@ pub unsafe fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer, flags
         }
     };
 
-    if (flags & PyBUF_WRITABLE) != 0 && buffer.desc.readonly {
+    if (flags & crate::pybuffer::PyBUF_WRITABLE) != 0 && buffer.desc.readonly {
         set_buffer_error(PyExc_BufferError, "buffer is not writable");
         return -1;
     }
@@ -562,10 +526,6 @@ pub unsafe fn PyBuffer_Release(view: *mut Py_buffer) {
     let can_release = rustpython_runtime::is_attached()
         || rustpython_runtime::runtime_thread_id() == Some(std::thread::current().id());
     if !can_release {
-        // After embedded interpreter shutdown there is no valid RustPython attach context.
-        // Releasing RustPython-owned buffer state would re-enter the VM during drop and panic.
-        // Leak the final buffer bookkeeping instead; process-shutdown soundness matters more
-        // than reclaiming these last references once the interpreter context is gone.
         *view = Py_buffer::new();
         return;
     }
@@ -586,33 +546,3 @@ pub unsafe fn PyBuffer_Release(view: *mut Py_buffer) {
     }
     *view = Py_buffer::new();
 }
-
-/// Maximum number of dimensions.
-pub const PyBUF_MAX_NDIM: usize = 64;
-
-/* Flags for getting buffers */
-pub const PyBUF_SIMPLE: c_int = 0;
-pub const PyBUF_WRITABLE: c_int = 0x0001;
-pub const PyBUF_WRITEABLE: c_int = PyBUF_WRITABLE;
-pub const PyBUF_FORMAT: c_int = 0x0004;
-pub const PyBUF_ND: c_int = 0x0008;
-pub const PyBUF_STRIDES: c_int = 0x0010 | PyBUF_ND;
-pub const PyBUF_C_CONTIGUOUS: c_int = 0x0020 | PyBUF_STRIDES;
-pub const PyBUF_F_CONTIGUOUS: c_int = 0x0040 | PyBUF_STRIDES;
-pub const PyBUF_ANY_CONTIGUOUS: c_int = 0x0080 | PyBUF_STRIDES;
-pub const PyBUF_INDIRECT: c_int = 0x0100 | PyBUF_STRIDES;
-
-pub const PyBUF_CONTIG: c_int = PyBUF_ND | PyBUF_WRITABLE;
-pub const PyBUF_CONTIG_RO: c_int = PyBUF_ND;
-
-pub const PyBUF_STRIDED: c_int = PyBUF_STRIDES | PyBUF_WRITABLE;
-pub const PyBUF_STRIDED_RO: c_int = PyBUF_STRIDES;
-
-pub const PyBUF_RECORDS: c_int = PyBUF_STRIDES | PyBUF_WRITABLE | PyBUF_FORMAT;
-pub const PyBUF_RECORDS_RO: c_int = PyBUF_STRIDES | PyBUF_FORMAT;
-
-pub const PyBUF_FULL: c_int = PyBUF_INDIRECT | PyBUF_WRITABLE | PyBUF_FORMAT;
-pub const PyBUF_FULL_RO: c_int = PyBUF_INDIRECT | PyBUF_FORMAT;
-
-pub const PyBUF_READ: c_int = 0x100;
-pub const PyBUF_WRITE: c_int = 0x200;
