@@ -1,6 +1,8 @@
 #[cfg(PyRustPython)]
 pub mod boolobject;
 #[cfg(PyRustPython)]
+pub mod bytearrayobject;
+#[cfg(PyRustPython)]
 pub mod bytesobject;
 #[cfg(PyRustPython)]
 pub mod complexobject;

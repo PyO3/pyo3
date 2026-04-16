@@ -495,7 +495,6 @@ mod abstract_;
 // skipped ast.h
 mod bltinmodule;
 mod boolobject;
-#[cfg_attr(PyRustPython, path = "bytearrayobject_rustpython.rs")]
 mod bytearrayobject;
 mod bytesobject;
 // skipped cellobject.h

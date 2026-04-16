@@ -1,4 +1,5 @@
 pub mod boolobject;
+pub mod bytearrayobject;
 pub mod complexobject;
 pub mod floatobject;
 pub mod longobject;

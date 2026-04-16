@@ -12,6 +12,13 @@ pub mod boolobject {
     pub use crate::backend::cpython::boolobject::*;
 }
 
+pub mod bytearrayobject {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::bytearrayobject::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::bytearrayobject::*;
+}
+
 pub mod complexobject {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::complexobject::*;
