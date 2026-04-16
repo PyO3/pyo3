@@ -11,6 +11,7 @@ pub mod pymem;
 pub mod refcount;
 pub mod moduleobject;
 pub mod bytesobject;
+pub mod compat_py_3_9;
 pub mod dictobject;
 pub mod descrobject;
 pub mod datetime;

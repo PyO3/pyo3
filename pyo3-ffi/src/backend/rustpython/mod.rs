@@ -5,6 +5,8 @@ pub mod bytearrayobject;
 #[cfg(PyRustPython)]
 pub mod bytesobject;
 #[cfg(PyRustPython)]
+pub mod compat_py_3_9;
+#[cfg(PyRustPython)]
 pub mod complexobject;
 #[cfg(PyRustPython)]
 pub mod critical_section;

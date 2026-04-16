@@ -181,3 +181,10 @@ pub mod runtime {
     #[cfg(not(PyRustPython))]
     pub use crate::backend::cpython::runtime::*;
 }
+
+pub mod compat_py_3_9 {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::compat_py_3_9::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::compat_py_3_9::*;
+}
