@@ -10,5 +10,3 @@ pub struct PyTracebackObject {
     tb_lasti: c_int,
     tb_lineno: c_int,
 }
-
-opaque_struct!(pub PyTracebackObject);
