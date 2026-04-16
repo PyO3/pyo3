@@ -1,11 +1,11 @@
 use crate::object::*;
 use crate::rustpython_runtime;
 use rustpython_vm::TryFromObject;
-use std::ffi::{c_double, c_int};
+use std::ffi::c_double;
+use std::ffi::c_int;
 
 pub static mut PyFloat_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 
-#[cfg(any(Py_LIMITED_API, PyRustPython))]
 opaque_struct!(pub PyFloatObject);
 
 #[inline]

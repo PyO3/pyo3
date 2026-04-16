@@ -12,6 +12,13 @@ pub mod complexobject {
     pub use crate::backend::cpython::complexobject::*;
 }
 
+pub mod floatobject {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::floatobject::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::floatobject::*;
+}
+
 pub mod bytesobject {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::bytesobject::*;

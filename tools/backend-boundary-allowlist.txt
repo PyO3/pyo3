@@ -1,8 +1,6 @@
 pyo3-ffi/src/compat/py_3_9.rs
 pyo3-ffi/src/critical_section.rs
 pyo3-ffi/src/datetime.rs
-pyo3-ffi/src/floatobject.rs
-pyo3-ffi/src/floatobject_rustpython.rs
 pyo3-ffi/src/lib.rs
 pyo3-ffi/src/lock.rs
 pyo3-ffi/src/longobject.rs

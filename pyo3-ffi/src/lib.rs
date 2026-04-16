@@ -519,7 +519,6 @@ mod enumobject;
 // skipped exports.h
 mod fileobject;
 mod fileutils;
-#[cfg_attr(PyRustPython, path = "floatobject_rustpython.rs")]
 mod floatobject;
 // skipped empty frameobject.h
 mod genericaliasobject;
