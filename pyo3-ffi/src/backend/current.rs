@@ -12,6 +12,13 @@ pub mod descrobject {
     pub use crate::backend::cpython::descrobject::*;
 }
 
+pub mod pyerrors {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::pyerrors::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::pyerrors::*;
+}
+
 pub mod pybuffer {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::pybuffer::*;

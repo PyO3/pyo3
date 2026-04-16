@@ -78,7 +78,6 @@ pub use self::methodobject::*;
 pub use self::object::*;
 pub use self::objimpl::*;
 pub use self::pydebug::*;
-pub use self::pyerrors::*;
 pub use self::pyframe::*;
 #[cfg(any(not(PyPy), Py_3_13))]
 pub use self::pyhash::*;

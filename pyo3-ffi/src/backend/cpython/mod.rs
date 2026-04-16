@@ -13,6 +13,7 @@ pub mod dictobject;
 pub mod descrobject;
 pub mod datetime;
 pub mod listobject;
+pub mod pyerrors;
 pub mod setobject;
 pub mod sliceobject;
 pub mod tupleobject;

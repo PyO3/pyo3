@@ -558,7 +558,6 @@ mod pyarena;
 mod pybuffer;
 mod pycapsule;
 // skipped pydtrace.h
-#[cfg_attr(PyRustPython, path = "pyerrors_rustpython.rs")]
 mod pyerrors;
 // skipped pyexpat.h
 // skipped pyfpe.h
