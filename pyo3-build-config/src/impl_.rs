@@ -1835,11 +1835,15 @@ fn default_lib_name_windows(
         || (stable_abi == CPythonABI::ABI3t
             && !(implementation.is_pypy() || implementation.is_graalpy()))
     {
-        if debug {
-            Ok(WINDOWS_STABLE_ABI_DEBUG_LIB_NAME.to_owned())
+        let mut lib_name = if debug {
+            WINDOWS_STABLE_ABI_DEBUG_LIB_NAME.to_owned()
         } else {
-            Ok(WINDOWS_STABLE_ABI_LIB_NAME.to_owned())
+            WINDOWS_STABLE_ABI_LIB_NAME.to_owned()
+        };
+        if stable_abi == CPythonABI::ABI3t {
+            lib_name.push('t');
         }
+        Ok(lib_name)
     } else if mingw {
         ensure!(
             !gil_disabled,
