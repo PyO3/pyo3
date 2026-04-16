@@ -1,6 +1,7 @@
 pub mod boolobject;
 pub mod complexobject;
 pub mod floatobject;
+pub mod longobject;
 pub mod bytesobject;
 pub mod dictobject;
 pub mod datetime;

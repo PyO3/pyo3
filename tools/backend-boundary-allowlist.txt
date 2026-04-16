@@ -3,7 +3,6 @@ pyo3-ffi/src/critical_section.rs
 pyo3-ffi/src/datetime.rs
 pyo3-ffi/src/lib.rs
 pyo3-ffi/src/lock.rs
-pyo3-ffi/src/longobject.rs
 pyo3-ffi/src/object_rustpython.rs
 pyo3-ffi/src/pyerrors.rs
 pyo3-macros-backend/src/pyclass.rs

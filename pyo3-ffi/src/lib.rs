@@ -530,7 +530,6 @@ mod listobject;
 #[cfg(PyRustPython)]
 mod lock;
 // skipped longintrepr.h
-#[cfg_attr(PyRustPython, path = "longobject_rustpython.rs")]
 mod longobject;
 mod memoryobject;
 #[cfg_attr(PyRustPython, path = "methodobject_rustpython.rs")]

@@ -26,6 +26,13 @@ pub mod floatobject {
     pub use crate::backend::cpython::floatobject::*;
 }
 
+pub mod longobject {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::longobject::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::longobject::*;
+}
+
 pub mod bytesobject {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::bytesobject::*;

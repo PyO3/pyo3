@@ -4,7 +4,7 @@ use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
 use libc::size_t;
 use rustpython_vm::TryFromBorrowedObject;
-use std::ffi::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
+use std::ffi::{c_char, c_double, c_int, c_long, c_longlong, c_uchar, c_ulong, c_ulonglong, c_void};
 
 opaque_struct!(pub PyLongObject);
 
@@ -18,7 +18,10 @@ pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
     if op.is_null() {
         return 0;
     }
-    ptr_to_pyobject_ref_borrowed(op).downcast_ref::<rustpython_vm::builtins::PyInt>().is_some().into()
+    ptr_to_pyobject_ref_borrowed(op)
+        .downcast_ref::<rustpython_vm::builtins::PyInt>()
+        .is_some()
+        .into()
 }
 
 #[inline]
@@ -205,7 +208,7 @@ pub unsafe fn _PyLong_NumBits(obj: *mut PyObject) -> size_t {
 #[inline]
 pub unsafe fn _PyLong_AsByteArray(
     obj: *mut PyLongObject,
-    bytes: *mut u8,
+    bytes: *mut c_uchar,
     n: size_t,
     little_endian: c_int,
     is_signed: c_int,
@@ -253,7 +256,7 @@ pub unsafe fn _PyLong_AsByteArray(
 #[cfg(not(Py_LIMITED_API))]
 #[inline]
 pub unsafe fn _PyLong_FromByteArray(
-    bytes: *const u8,
+    bytes: *const c_uchar,
     n: size_t,
     little_endian: c_int,
     is_signed: c_int,
@@ -264,7 +267,11 @@ pub unsafe fn _PyLong_FromByteArray(
     let src = std::slice::from_raw_parts(bytes, n);
     let mut buf = [0u8; 16];
     let count = src.len().min(buf.len());
+
     if little_endian != 0 {
+        if is_signed != 0 && src.last().copied().unwrap_or(0) & 0x80 != 0 {
+            buf.fill(0xff);
+        }
         buf[..count].copy_from_slice(&src[..count]);
         if is_signed != 0 {
             let value = i128::from_le_bytes(buf);
@@ -272,6 +279,10 @@ pub unsafe fn _PyLong_FromByteArray(
         }
         let value = u128::from_le_bytes(buf);
         return rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.new_int(value).into()));
+    }
+
+    if is_signed != 0 && src.first().copied().unwrap_or(0) & 0x80 != 0 {
+        buf.fill(0xff);
     }
     let start = buf.len() - count;
     buf[start..].copy_from_slice(&src[src.len() - count..]);
@@ -282,9 +293,4 @@ pub unsafe fn _PyLong_FromByteArray(
         let value = u128::from_be_bytes(buf);
         rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.new_int(value).into()))
     }
-}
-
-unsafe extern "C" {
-    pub fn PyOS_strtoul(arg1: *const c_char, arg2: *mut *mut c_char, arg3: c_int) -> c_ulong;
-    pub fn PyOS_strtol(arg1: *const c_char, arg2: *mut *mut c_char, arg3: c_int) -> c_long;
 }
