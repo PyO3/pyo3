@@ -230,7 +230,13 @@ pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
     _Py_SIZE(ob)
 }
 
+#[cfg(all(Py_LIMITED_API, Py_3_15))]
+extern_libpython! {
+    pub fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int;
+}
+
 #[inline]
+#[cfg(not(all(Py_LIMITED_API, Py_3_15)))]
 pub unsafe fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
     (Py_TYPE(ob) == tp) as c_int
 }
