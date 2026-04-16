@@ -105,12 +105,6 @@ See [the `#[pyclass]` implementation details](class.md#implementation-details) f
 The `nightly` feature needs the nightly Rust compiler.
 This allows PyO3 to use the `auto_traits` and `negative_impls` features to fix the `Python::detach` function.
 
-### `resolve-config`
-
-The `resolve-config` feature of the `pyo3-build-config` crate controls whether that crate's build script automatically resolves a Python interpreter / build configuration.
-This feature is primarily useful when building PyO3 itself.
-By default this feature is not enabled, meaning you can freely use `pyo3-build-config` as a standalone library to read or write PyO3 build configuration files or resolve metadata about a Python interpreter.
-
 ## Optional Dependencies
 
 These features enable conversions between Python types and types from other Rust crates, enabling easy access to the rest of the Rust ecosystem.
