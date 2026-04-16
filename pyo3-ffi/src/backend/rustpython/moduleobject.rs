@@ -1,10 +1,9 @@
-use crate::methodobject::PyMethodDef;
+use crate::moduleobject::PyModuleDef;
 use crate::object::*;
 use crate::pyerrors::set_vm_exception;
-use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
-use rustpython_vm::AsObject;
 use rustpython_vm::builtins::PyModule;
+use rustpython_vm::AsObject;
 use std::ffi::{c_char, c_int, c_void, CStr};
 
 pub static mut PyModule_Type: PyTypeObject = PyTypeObject { _opaque: [] };
@@ -32,86 +31,6 @@ pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
         .downcast_ref::<PyModule>()
         .is_some()
         .into()
-}
-
-#[repr(C)]
-pub struct PyModuleDef_Base {
-    pub ob_base: PyObject,
-    pub m_init: Option<extern "C" fn() -> *mut PyObject>,
-    pub m_index: Py_ssize_t,
-    pub m_copy: *mut PyObject,
-}
-
-pub const PyModuleDef_HEAD_INIT: PyModuleDef_Base = PyModuleDef_Base {
-    ob_base: PyObject_HEAD_INIT,
-    m_init: None,
-    m_index: 0,
-    m_copy: std::ptr::null_mut(),
-};
-
-#[repr(C)]
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub struct PyModuleDef_Slot {
-    pub slot: c_int,
-    pub value: *mut c_void,
-}
-
-impl Default for PyModuleDef_Slot {
-    fn default() -> Self {
-        Self {
-            slot: 0,
-            value: std::ptr::null_mut(),
-        }
-    }
-}
-
-pub const Py_mod_create: c_int = 1;
-pub const Py_mod_exec: c_int = 2;
-#[cfg(Py_3_12)]
-pub const Py_mod_multiple_interpreters: c_int = 3;
-#[cfg(Py_3_13)]
-pub const Py_mod_gil: c_int = 4;
-#[cfg(Py_3_15)]
-pub const Py_mod_abi: c_int = 5;
-#[cfg(Py_3_15)]
-pub const Py_mod_name: c_int = 6;
-#[cfg(Py_3_15)]
-pub const Py_mod_doc: c_int = 7;
-#[cfg(Py_3_15)]
-pub const Py_mod_state_size: c_int = 8;
-#[cfg(Py_3_15)]
-pub const Py_mod_methods: c_int = 9;
-#[cfg(Py_3_15)]
-pub const Py_mod_state_traverse: c_int = 10;
-#[cfg(Py_3_15)]
-pub const Py_mod_state_clear: c_int = 11;
-#[cfg(Py_3_15)]
-pub const Py_mod_state_free: c_int = 12;
-#[cfg(Py_3_15)]
-pub const Py_mod_token: c_int = 13;
-
-#[cfg(Py_3_12)]
-pub const Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED: *mut c_void = 0 as *mut c_void;
-#[cfg(Py_3_12)]
-pub const Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED: *mut c_void = 1 as *mut c_void;
-#[cfg(Py_3_12)]
-pub const Py_MOD_PER_INTERPRETER_GIL_SUPPORTED: *mut c_void = 2 as *mut c_void;
-#[cfg(Py_3_13)]
-pub const Py_MOD_GIL_USED: *mut c_void = 0 as *mut c_void;
-#[cfg(Py_3_13)]
-pub const Py_MOD_GIL_NOT_USED: *mut c_void = 1 as *mut c_void;
-
-#[repr(C)]
-pub struct PyModuleDef {
-    pub m_base: PyModuleDef_Base,
-    pub m_name: *const c_char,
-    pub m_doc: *const c_char,
-    pub m_size: Py_ssize_t,
-    pub m_methods: *mut PyMethodDef,
-    pub m_slots: *mut PyModuleDef_Slot,
-    pub m_traverse: Option<traverseproc>,
-    pub m_clear: Option<inquiry>,
-    pub m_free: Option<freefunc>,
 }
 
 #[inline]
@@ -232,7 +151,7 @@ pub unsafe fn PyUnstable_Module_SetGIL(_module: *mut PyObject, _gil: *mut c_void
 #[cfg(Py_3_15)]
 #[inline]
 pub unsafe fn PyModule_FromSlotsAndSpec(
-    _slots: *const PyModuleDef_Slot,
+    _slots: *const crate::moduleobject::PyModuleDef_Slot,
     spec: *mut PyObject,
 ) -> *mut PyObject {
     PyModule_NewObject(spec)
@@ -246,7 +165,10 @@ pub unsafe fn PyModule_Exec(_mod: *mut PyObject) -> c_int {
 
 #[cfg(Py_3_15)]
 #[inline]
-pub unsafe fn PyModule_GetStateSize(_mod: *mut PyObject, result: *mut Py_ssize_t) -> c_int {
+pub unsafe fn PyModule_GetStateSize(
+    _mod: *mut PyObject,
+    result: *mut crate::pyport::Py_ssize_t,
+) -> c_int {
     if !result.is_null() {
         *result = 0;
     }

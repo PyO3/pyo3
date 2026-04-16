@@ -535,7 +535,6 @@ mod memoryobject;
 mod methodobject;
 #[cfg_attr(PyRustPython, path = "modsupport_rustpython.rs")]
 mod modsupport;
-#[cfg_attr(PyRustPython, path = "moduleobject_rustpython.rs")]
 mod moduleobject;
 // skipped namespaceobject.h
 #[cfg_attr(PyRustPython, path = "object_rustpython.rs")]

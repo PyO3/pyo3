@@ -3,52 +3,6 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int, c_void};
 
-extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyModule_Type")]
-    pub static mut PyModule_Type: PyTypeObject;
-}
-
-#[inline]
-pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &raw mut PyModule_Type)
-}
-
-#[inline]
-pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyModule_Type) as c_int
-}
-
-extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyModule_NewObject")]
-    pub fn PyModule_NewObject(name: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_New")]
-    pub fn PyModule_New(name: *const c_char) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_GetDict")]
-    pub fn PyModule_GetDict(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg(not(PyPy))]
-    pub fn PyModule_GetNameObject(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_GetName")]
-    pub fn PyModule_GetName(arg1: *mut PyObject) -> *const c_char;
-    #[cfg(not(all(windows, PyPy)))]
-    #[deprecated(note = "Python 3.2")]
-    pub fn PyModule_GetFilename(arg1: *mut PyObject) -> *const c_char;
-    #[cfg(not(PyPy))]
-    pub fn PyModule_GetFilenameObject(arg1: *mut PyObject) -> *mut PyObject;
-    // skipped non-limited _PyModule_Clear
-    // skipped non-limited _PyModule_ClearDict
-    // skipped non-limited _PyModuleSpec_IsInitializing
-    #[cfg_attr(PyPy, link_name = "PyPyModule_GetDef")]
-    pub fn PyModule_GetDef(arg1: *mut PyObject) -> *mut PyModuleDef;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_GetState")]
-    pub fn PyModule_GetState(arg1: *mut PyObject) -> *mut c_void;
-    #[cfg_attr(PyPy, link_name = "PyPyModuleDef_Init")]
-    pub fn PyModuleDef_Init(arg1: *mut PyModuleDef) -> *mut PyObject;
-}
-
-extern_libpython! {
-    pub static mut PyModuleDef_Type: PyTypeObject;
-}
-
 #[repr(C)]
 pub struct PyModuleDef_Base {
     pub ob_base: PyObject,
@@ -133,20 +87,7 @@ pub const Py_MOD_GIL_USED: *mut c_void = 0 as *mut c_void;
 pub const Py_MOD_GIL_NOT_USED: *mut c_void = 1 as *mut c_void;
 
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-extern_libpython! {
-    pub fn PyUnstable_Module_SetGIL(module: *mut PyObject, gil: *mut c_void) -> c_int;
-}
-
-#[cfg(Py_3_15)]
-extern_libpython! {
-    pub fn PyModule_FromSlotsAndSpec(
-        slots: *const PyModuleDef_Slot,
-        spec: *mut PyObject,
-    ) -> *mut PyObject;
-    pub fn PyModule_Exec(_mod: *mut PyObject) -> c_int;
-    pub fn PyModule_GetStateSize(_mod: *mut PyObject, result: *mut Py_ssize_t) -> c_int;
-    pub fn PyModule_GetToken(module: *mut PyObject, result: *mut *mut c_void) -> c_int;
-}
+pub use crate::backend::current::moduleobject::PyUnstable_Module_SetGIL;
 
 #[repr(C)]
 pub struct PyModuleDef {
@@ -161,3 +102,16 @@ pub struct PyModuleDef {
     pub m_clear: Option<inquiry>,
     pub m_free: Option<freefunc>,
 }
+
+// Runtime module APIs live in the backend dispatcher.
+pub use crate::backend::current::moduleobject::{
+    PyModule_Check, PyModule_CheckExact, PyModule_GetDef, PyModule_GetDict,
+    PyModule_GetFilename, PyModule_GetFilenameObject, PyModule_GetName, PyModule_GetNameObject,
+    PyModule_GetState, PyModule_New, PyModule_NewObject, PyModule_Type, PyModuleDef_Init,
+    PyModuleDef_Type,
+};
+
+#[cfg(Py_3_15)]
+pub use crate::backend::current::moduleobject::{
+    PyModule_Exec, PyModule_FromSlotsAndSpec, PyModule_GetStateSize, PyModule_GetToken,
+};

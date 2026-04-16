@@ -40,6 +40,13 @@ pub mod longobject {
     pub use crate::backend::cpython::longobject::*;
 }
 
+pub mod moduleobject {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::moduleobject::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::moduleobject::*;
+}
+
 pub mod bytesobject {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::bytesobject::*;
