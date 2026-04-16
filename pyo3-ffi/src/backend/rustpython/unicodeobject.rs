@@ -1,8 +1,8 @@
 use crate::object::*;
-use crate::pyport::Py_ssize_t;
 use crate::pyerrors::{PyErr_Clear, PyErr_SetRaisedException};
+use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
-use libc::wchar_t;
+use crate::unicodeobject::{Py_UCS4, Py_UNICODE};
 use rustpython_vm::builtins::PyStr;
 use rustpython_vm::{AsObject, PyObjectRef};
 #[cfg(unix)]
@@ -11,17 +11,8 @@ use std::ffi::{c_char, c_int, CStr};
 #[cfg(unix)]
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 
-#[cfg_attr(
-    Py_3_13,
-    deprecated(note = "Deprecated since Python 3.13. Use `libc::wchar_t` instead.")
-)]
-pub type Py_UNICODE = wchar_t;
-
-pub type Py_UCS4 = u32;
-pub type Py_UCS2 = u16;
-pub type Py_UCS1 = u8;
-
-pub const Py_UNICODE_REPLACEMENT_CHARACTER: Py_UCS4 = 0xFFFD;
+pub static mut PyUnicode_Type: PyTypeObject = PyTypeObject { _opaque: [] };
+pub static mut PyUnicodeIter_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 
 fn cstr_opt(ptr: *const c_char) -> Option<&'static CStr> {
     (!ptr.is_null()).then(|| unsafe { CStr::from_ptr(ptr) })
@@ -41,7 +32,10 @@ pub unsafe fn PyUnicode_Check(op: *mut PyObject) -> c_int {
         return 0;
     }
     let obj = ptr_to_pyobject_ref_borrowed(op);
-    rustpython_runtime::with_vm(|vm| obj.class().fast_issubclass(vm.ctx.types.str_type.as_object()) as c_int)
+    rustpython_runtime::with_vm(|vm| {
+        obj.class()
+            .fast_issubclass(vm.ctx.types.str_type.as_object()) as c_int
+    })
 }
 
 #[inline]
@@ -126,11 +120,7 @@ pub unsafe fn PyUnicode_InternInPlace(arg1: *mut *mut PyObject) {
         let Ok(s) = obj.clone().downcast::<PyStr>() else {
             return;
         };
-        let interned: PyObjectRef = vm
-            .ctx
-            .intern_str(AsRef::<str>::as_ref(&s))
-            .to_owned()
-            .into();
+        let interned: PyObjectRef = vm.ctx.intern_str(AsRef::<str>::as_ref(&s)).to_owned().into();
         let new_ptr = pyobject_ref_to_ptr(interned);
         Py_DECREF(*arg1);
         *arg1 = new_ptr;
@@ -280,7 +270,11 @@ pub unsafe fn PyUnicode_EncodeFSDefault(unicode: *mut PyObject) -> *mut PyObject
         let s = match obj.downcast_ref::<PyStr>() {
             Some(s) => s,
             None => match obj.str(vm) {
-                Ok(s) => return pyobject_ref_to_ptr(vm.ctx.new_bytes(AsRef::<str>::as_ref(&s).as_bytes().to_vec()).into()),
+                Ok(s) => {
+                    return pyobject_ref_to_ptr(
+                        vm.ctx.new_bytes(AsRef::<str>::as_ref(&s).as_bytes().to_vec()).into(),
+                    )
+                }
                 Err(exc) => {
                     PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
                     return std::ptr::null_mut();

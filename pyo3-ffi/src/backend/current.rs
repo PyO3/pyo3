@@ -10,6 +10,8 @@ pub mod pybuffer {
     pub use crate::backend::rustpython::pybuffer::*;
     #[cfg(not(PyRustPython))]
     pub use crate::backend::cpython::pybuffer::*;
+    #[cfg(PyRustPython)]
+    pub(crate) use crate::backend::rustpython::pybuffer::{BufferViewState, HeapTypeBufferView};
 }
 
 pub mod boolobject {
@@ -108,6 +110,13 @@ pub mod warnings {
     pub use crate::backend::rustpython::warnings::*;
     #[cfg(not(PyRustPython))]
     pub use crate::backend::cpython::warnings::*;
+}
+
+pub mod unicodeobject {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::unicodeobject::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::unicodeobject::*;
 }
 
 pub mod object {

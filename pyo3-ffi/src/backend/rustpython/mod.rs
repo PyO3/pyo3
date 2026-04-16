@@ -29,6 +29,8 @@ pub mod setobject;
 #[cfg(PyRustPython)]
 pub mod tupleobject;
 #[cfg(PyRustPython)]
+pub mod unicodeobject;
+#[cfg(PyRustPython)]
 pub mod warnings;
 #[cfg(PyRustPython)]
 pub mod object;

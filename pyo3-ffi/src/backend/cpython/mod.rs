@@ -13,6 +13,7 @@ pub mod datetime;
 pub mod listobject;
 pub mod setobject;
 pub mod tupleobject;
+pub mod unicodeobject;
 pub mod warnings;
 pub mod object;
 pub mod runtime;

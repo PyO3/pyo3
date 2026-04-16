@@ -597,7 +597,6 @@ mod traceback;
 // skipped tracemalloc.h
 mod tupleobject;
 mod typeslots;
-#[cfg_attr(PyRustPython, path = "unicodeobject_rustpython.rs")]
 mod unicodeobject;
 mod warnings;
 #[cfg_attr(PyRustPython, path = "weakrefobject_rustpython.rs")]
