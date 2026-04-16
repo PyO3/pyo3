@@ -33,7 +33,6 @@ src/types/num.rs
 src/types/pysuper.rs
 src/types/range.rs
 src/types/sequence.rs
-src/types/slice.rs
 src/types/traceback.rs
 src/types/typeobject.rs
 src/types/weakref/reference.rs
