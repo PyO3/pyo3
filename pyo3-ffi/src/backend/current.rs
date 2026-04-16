@@ -105,6 +105,13 @@ pub mod tupleobject {
     pub use crate::backend::cpython::tupleobject::*;
 }
 
+pub mod sliceobject {
+    #[cfg(PyRustPython)]
+    pub use crate::backend::rustpython::sliceobject::*;
+    #[cfg(not(PyRustPython))]
+    pub use crate::backend::cpython::sliceobject::*;
+}
+
 pub mod warnings {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::warnings::*;

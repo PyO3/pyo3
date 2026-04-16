@@ -12,6 +12,7 @@ pub mod dictobject;
 pub mod datetime;
 pub mod listobject;
 pub mod setobject;
+pub mod sliceobject;
 pub mod tupleobject;
 pub mod unicodeobject;
 pub mod warnings;

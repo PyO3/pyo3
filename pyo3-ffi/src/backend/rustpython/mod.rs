@@ -27,6 +27,8 @@ pub mod listobject;
 #[cfg(PyRustPython)]
 pub mod setobject;
 #[cfg(PyRustPython)]
+pub mod sliceobject;
+#[cfg(PyRustPython)]
 pub mod tupleobject;
 #[cfg(PyRustPython)]
 pub mod unicodeobject;

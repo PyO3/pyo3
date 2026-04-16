@@ -531,8 +531,6 @@ mod lock;
 // skipped longintrepr.h
 mod longobject;
 mod memoryobject;
-#[cfg_attr(PyRustPython, path = "methodobject_rustpython.rs")]
-mod methodobject;
 #[cfg_attr(PyRustPython, path = "modsupport_rustpython.rs")]
 mod modsupport;
 mod moduleobject;
@@ -588,7 +586,6 @@ mod rangeobject;
 #[cfg_attr(PyRustPython, path = "refcount_rustpython.rs")]
 mod refcount;
 mod setobject;
-#[cfg_attr(PyRustPython, path = "sliceobject_rustpython.rs")]
 mod sliceobject;
 mod structseq;
 mod sysmodule;

@@ -2,9 +2,9 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
 use rustpython_vm::AsObject;
-use rustpython_vm::builtins::PySlice;
 use rustpython_vm::PyPayload;
 use rustpython_vm::TryFromBorrowedObject;
+use rustpython_vm::builtins::PySlice;
 use std::ffi::c_int;
 
 pub static mut PySlice_Type: PyTypeObject = PyTypeObject { _opaque: [] };
@@ -18,21 +18,15 @@ pub unsafe fn Py_Ellipsis() -> *mut PyObject {
     })
 }
 
-#[cfg(not(Py_LIMITED_API))]
-#[repr(C)]
-pub struct PySliceObject {
-    pub ob_base: PyObject,
-    pub start: *mut PyObject,
-    pub stop: *mut PyObject,
-    pub step: *mut PyObject,
-}
-
 #[inline]
 pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
     if op.is_null() {
         return 0;
     }
-    ptr_to_pyobject_ref_borrowed(op).downcast_ref::<PySlice>().is_some().into()
+    ptr_to_pyobject_ref_borrowed(op)
+        .downcast_ref::<PySlice>()
+        .is_some()
+        .into()
 }
 
 #[inline]
