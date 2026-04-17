@@ -20,7 +20,7 @@ use std::{env, process::Command, str::FromStr, sync::OnceLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
-    CrossCompileConfig, InterpreterConfig, PythonImplementation, PythonVersion, Triple,
+    CrossCompileConfig, InterpreterConfig, PythonAbi, PythonImplementation, PythonVersion, Triple,
 };
 
 use target_lexicon::OperatingSystem;
@@ -267,13 +267,13 @@ pub fn print_expected_cfgs() {
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)
-    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::ABI3_MAX_MINOR + 1 {
+    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
         println!("cargo:rustc-check-cfg=cfg(Py_3_{i})");
     }
 
     // pyo3_dll cfg for raw-dylib linking on Windows
     let mut dll_names = vec!["python3".to_string(), "python3_d".to_string()];
-    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::ABI3_MAX_MINOR + 1 {
+    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
         dll_names.push(format!("python3{i}"));
         dll_names.push(format!("python3{i}_d"));
         if i >= 13 {
@@ -310,7 +310,7 @@ pub mod pyo3_build_script_impl {
     }
     pub use crate::impl_::{
         cargo_env_var, env_var, is_linking_libpython_for_target, make_cross_compile_config,
-        target_triple_from_env, InterpreterConfig, PythonVersion,
+        target_triple_from_env, InterpreterConfig, PythonAbi, PythonAbiKind, PythonVersion,
     };
     pub enum BuildConfigSource {
         /// Config was provided by `PYO3_CONFIG_FILE`.
@@ -389,12 +389,12 @@ pub mod pyo3_build_script_impl {
             interpreter_config: &InterpreterConfig,
             supported_version: PythonVersion,
         ) -> Self {
-            let implementation = match interpreter_config.implementation {
+            let implementation = match interpreter_config.abi.implementation {
                 PythonImplementation::CPython => "Python",
                 PythonImplementation::PyPy => "PyPy",
                 PythonImplementation::GraalPy => "GraalPy",
             };
-            let version = &interpreter_config.version;
+            let version = &interpreter_config.abi.version;
             let message = format!(
                 "the configured {implementation} version ({version}) is newer than PyO3's maximum supported version ({supported_version})\n\
                 = help: this package is being built with PyO3 version {current_version}\n\
@@ -483,13 +483,9 @@ mod tests {
         let mut buf = Vec::new();
 
         let interpreter_config = InterpreterConfig {
-            implementation: PythonImplementation::CPython,
-            version: PythonVersion {
-                major: 3,
-                minor: 13,
-            },
+            abi: PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY313)
+                .finalize(),
             shared: true,
-            abi3: false,
             lib_name: None,
             lib_dir: None,
             executable: None,
@@ -526,13 +522,9 @@ mod tests {
     #[cfg(feature = "resolve-config")]
     fn test_maximum_version_exceeded_formatting() {
         let interpreter_config = InterpreterConfig {
-            implementation: PythonImplementation::CPython,
-            version: PythonVersion {
-                major: 3,
-                minor: 13,
-            },
+            abi: PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY313)
+                .finalize(),
             shared: true,
-            abi3: false,
             lib_name: None,
             lib_dir: None,
             executable: None,
