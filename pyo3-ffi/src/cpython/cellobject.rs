@@ -20,5 +20,5 @@ pub unsafe fn PyCell_Check(op: *mut PyObject) -> c_int {
   Py_IS_TYPE(op, &raw mut PyCell_Type)
 }
 
-// akippws PyCell_SET
+// skipped PyCell_SET
 // skipped PyCell_GET
