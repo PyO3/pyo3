@@ -8,10 +8,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use rustpython_vm::builtins::{
-    PyBaseException, PyBaseObject, PyDict, PyList, PySet, PyStr, PyType, PyTypeRef, PyWeak,
+    PyBaseException, PyBaseObject, PyDict, PyList, PySet, PyStr, PyType, PyTypeRef,
 };
-use rustpython_vm::common::atomic::PyAtomic;
-use rustpython_vm::common::lock::PyRwLock;
 use rustpython_vm::common::borrow::{BorrowedValue, BorrowedValueMut};
 use rustpython_vm::function::{
     Either, FuncArgs, PyMethodDef as RpMethodDef, PyMethodFlags as RpMethodFlags,
@@ -22,23 +20,6 @@ use rustpython_vm::protocol::{BufferDescriptor, BufferMethods, PyBuffer as RpPyB
 use rustpython_vm::types::PyComparisonOp;
 use rustpython_vm::types::{Constructor, PyTypeFlags, PyTypeSlots};
 use rustpython_vm::{AsObject, PyObjectRef, PyPayload, PyRef};
-
-#[repr(C)]
-struct InstanceDictMirror {
-    _dict: PyRwLock<rustpython_vm::builtins::PyDictRef>,
-}
-
-#[repr(C, align(8))]
-struct ObjExtMirror {
-    _dict: Option<InstanceDictMirror>,
-    slots: Box<[PyRwLock<Option<PyObjectRef>>]>,
-}
-
-#[repr(C)]
-struct WeakRefListMirror {
-    _head: PyAtomic<*mut rustpython_vm::Py<PyWeak>>,
-    _generic: PyAtomic<*mut rustpython_vm::Py<PyWeak>>,
-}
 
 #[repr(C)]
 #[derive(Debug)]
@@ -102,8 +83,6 @@ impl Default for PyType_Spec {
 pub struct _PyWeakReference {
     _opaque: [u8; 0],
 }
-
-pub type PyTupleObject = PyObject;
 
 pub type unaryfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 pub type binaryfunc =
@@ -454,7 +433,7 @@ impl Drop for FfiSidecarOwner {
     }
 }
 
-pub unsafe fn PyRustPython_InstallSidecarOwner(
+pub unsafe fn PyBackend_InstallSidecarOwner(
     obj: *mut PyObject,
     sidecar: *mut c_void,
     cleanup: SidecarCleanup,
@@ -478,29 +457,15 @@ pub unsafe fn PyRustPython_InstallSidecarOwner(
             None,
         );
         let holder_obj: PyObjectRef = holder.into();
-        let flags = obj_ref.class().slots.flags;
         let member_count = obj_ref.class().slots.member_count;
         let metadata = heap_type_metadata_for_obj(obj_ref.as_object());
         if metadata.hidden_sidecar_slot >= member_count {
             return -1;
         }
-        let has_ext =
-            flags.has_feature(PyTypeFlags::HAS_DICT) || member_count > 0;
-        if !has_ext {
+        if member_count == 0 {
             return -1;
         }
-        let has_weakref = flags.has_feature(PyTypeFlags::HAS_WEAKREF);
-        let offset = if has_weakref {
-            core::mem::size_of::<WeakRefListMirror>() + core::mem::size_of::<ObjExtMirror>()
-        } else {
-            core::mem::size_of::<ObjExtMirror>()
-        };
-        let obj_addr = (obj as *const u8).addr();
-        let ext_ptr = core::ptr::with_exposed_provenance_mut::<ObjExtMirror>(
-            obj_addr.wrapping_sub(offset),
-        );
-        let ext = unsafe { &mut *ext_ptr };
-        *ext.slots[metadata.hidden_sidecar_slot].write() = Some(holder_obj);
+        obj_ref.set_slot(metadata.hidden_sidecar_slot, Some(holder_obj));
         0
     })
 }
@@ -511,25 +476,11 @@ unsafe fn clear_hidden_sidecar_owner(obj: *mut rustpython_vm::PyObject) {
     if metadata.hidden_sidecar_slot == usize::MAX {
         return;
     }
-    let flags = obj_ref.class().slots.flags;
     let member_count = obj_ref.class().slots.member_count;
-    let has_ext = flags.has_feature(PyTypeFlags::HAS_DICT) || member_count > 0;
-    if !has_ext {
+    if metadata.hidden_sidecar_slot >= member_count || member_count == 0 {
         return;
     }
-    let has_weakref = flags.has_feature(PyTypeFlags::HAS_WEAKREF);
-    let offset = if has_weakref {
-        core::mem::size_of::<WeakRefListMirror>() + core::mem::size_of::<ObjExtMirror>()
-    } else {
-        core::mem::size_of::<ObjExtMirror>()
-    };
-    let obj_addr = (obj as *const u8).addr();
-    let ext_ptr =
-        core::ptr::with_exposed_provenance_mut::<ObjExtMirror>(obj_addr.wrapping_sub(offset));
-    let ext = unsafe { &mut *ext_ptr };
-    if metadata.hidden_sidecar_slot < ext.slots.len() {
-        *ext.slots[metadata.hidden_sidecar_slot].write() = None;
-    }
+    obj_ref.set_slot(metadata.hidden_sidecar_slot, None);
 }
 
 struct FfiHeapBufferOwner {
@@ -2100,25 +2051,6 @@ pub unsafe fn Py_IncRef(obj: *mut PyObject) {
     std::mem::forget(obj);
 }
 
-#[inline]
-pub unsafe fn PyTuple_SET_ITEM(_obj: *mut PyObject, _index: Py_ssize_t, _value: *mut PyObject) {}
-
-#[inline]
-pub unsafe fn PyTuple_GET_ITEM(_obj: *mut PyObject, _index: Py_ssize_t) -> *mut PyObject {
-    std::ptr::null_mut()
-}
-
-#[inline]
-pub unsafe fn PyTuple_GET_SIZE(obj: *mut PyObject) -> Py_ssize_t {
-    if obj.is_null() {
-        return 0;
-    }
-    let objref = ptr_to_pyobject_ref_borrowed(obj);
-    rustpython_runtime::with_vm(|vm| match objref.length(vm) {
-        Ok(len) => len as Py_ssize_t,
-        Err(_) => 0,
-    })
-}
 
 #[inline]
 pub unsafe fn PyType_IsSubtype(

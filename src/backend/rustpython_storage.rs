@@ -81,13 +81,12 @@ fn ensure_sidecar_slot<T: PyClassImpl + PyTypeInfo>(
     entry.ptr.as_ptr().cast()
 }
 
-fn get_sidecar_slot<T: PyClassImpl + PyTypeInfo>(obj: *const ffi::PyObject) -> *mut PyClassObjectContents<T> {
+fn get_sidecar_slot<T: PyClassImpl + PyTypeInfo>(
+    obj: *const ffi::PyObject,
+) -> Option<*mut PyClassObjectContents<T>> {
     let key = (obj as usize, TypeId::of::<T>());
     let registry = sidecar_registry().lock().unwrap();
-    let entry = registry
-        .get(&key)
-        .expect("missing RustPython sidecar for native pyclass object");
-    entry.ptr.as_ptr().cast()
+    registry.get(&key).map(|entry| entry.ptr.as_ptr().cast())
 }
 
 fn owner_registry() -> &'static Mutex<HashMap<usize, bool>> {
@@ -175,7 +174,7 @@ where
     let mut owners = owner_registry().lock().unwrap();
     if owners.insert(obj_key, true).is_none() {
         let rc = unsafe {
-            ffi::PyRustPython_InstallSidecarOwner(
+            ffi::PyBackend_InstallSidecarOwner(
                 obj,
                 obj.cast::<std::ffi::c_void>(),
                 cleanup_all_sidecars,
@@ -213,19 +212,15 @@ impl<T: PyClassImpl<Layout = Self> + PyTypeInfo> PyClassObjectLayout<T> for PySi
     }
 
     fn contents(&self) -> &PyClassObjectContents<T> {
-        unsafe {
-            get_sidecar_slot::<T>(self as *const Self as *const ffi::PyObject)
-                .as_ref()
-                .expect("sidecar contents pointer should be valid")
-        }
+        let ptr = get_sidecar_slot::<T>(self as *const Self as *const ffi::PyObject)
+            .unwrap_or_else(|| panic!("missing RustPython sidecar for {}", std::any::type_name::<T>()));
+        unsafe { &*ptr }
     }
 
     fn contents_mut(&mut self) -> &mut PyClassObjectContents<T> {
-        unsafe {
-            get_sidecar_slot::<T>(self as *mut Self as *mut ffi::PyObject)
-                .as_mut()
-                .expect("sidecar contents pointer should be valid")
-        }
+        let ptr = get_sidecar_slot::<T>(self as *mut Self as *mut ffi::PyObject)
+            .unwrap_or_else(|| panic!("missing RustPython sidecar for {}", std::any::type_name::<T>()));
+        unsafe { &mut *ptr }
     }
 
     fn get_ptr(&self) -> *mut T {
@@ -276,19 +271,15 @@ where
     }
 
     fn contents(&self) -> &PyClassObjectContents<T> {
-        unsafe {
-            get_sidecar_slot::<T>(self as *const Self as *const ffi::PyObject)
-                .as_ref()
-                .expect("sidecar contents pointer should be valid")
-        }
+        let ptr = get_sidecar_slot::<T>(self as *const Self as *const ffi::PyObject)
+            .unwrap_or_else(|| panic!("missing RustPython sidecar for {}", std::any::type_name::<T>()));
+        unsafe { &*ptr }
     }
 
     fn contents_mut(&mut self) -> &mut PyClassObjectContents<T> {
-        unsafe {
-            get_sidecar_slot::<T>(self as *mut Self as *mut ffi::PyObject)
-                .as_mut()
-                .expect("sidecar contents pointer should be valid")
-        }
+        let ptr = get_sidecar_slot::<T>(self as *mut Self as *mut ffi::PyObject)
+            .unwrap_or_else(|| panic!("missing RustPython sidecar for {}", std::any::type_name::<T>()));
+        unsafe { &mut *ptr }
     }
 
     fn get_ptr(&self) -> *mut T {
