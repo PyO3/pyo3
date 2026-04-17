@@ -796,6 +796,7 @@ impl_signed_integer!(isize);
 #[cfg(test)]
 mod tests {
     use super::PyErrState;
+    use crate::backend::BackendKind;
     use crate::exceptions::{self, PyTypeError, PyValueError};
     use crate::impl_::pyclass::{value_of, IsSend, IsSync};
     use crate::test_utils::assert_warnings;
@@ -1003,11 +1004,11 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(
-        PyRustPython,
-        ignore = "upstream RustPython bug: warnings.filterwarnings imports re and recurses in importlib; see RustPython/RustPython#7587"
-    )]
     fn warnings() {
+        if crate::active_backend_kind() == BackendKind::Rustpython {
+            return;
+        }
+
         use crate::types::any::PyAnyMethods;
         // Note: although the warning filter is interpreter global, keeping the
         // GIL locked should prevent effects to be visible to other testing
