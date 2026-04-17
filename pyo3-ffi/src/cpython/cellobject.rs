@@ -1,7 +1,7 @@
 use crate::object::*;
 use std::ffi::c_int;
 
-#[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
+#[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
 pub struct PyCellObject {
     pub ob_base: PyObject,
