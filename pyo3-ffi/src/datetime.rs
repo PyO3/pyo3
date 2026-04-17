@@ -8,7 +8,7 @@
 use crate::PyCapsule_Import;
 #[cfg(GraalPy)]
 use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
-use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_None, Py_TYPE};
+use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_IS_TYPE, Py_None};
 use std::ffi::c_char;
 use std::ffi::c_int;
 use std::ptr;
@@ -651,7 +651,7 @@ pub unsafe fn PyDate_Check(op: *mut PyObject) -> c_int {
 #[inline]
 /// Check if `op`'s type is exactly `PyDateTimeAPI.DateType`.
 pub unsafe fn PyDate_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == (*PyDateTimeAPI()).DateType) as c_int
+    Py_IS_TYPE(op, (*PyDateTimeAPI()).DateType)
 }
 
 #[inline]
@@ -663,7 +663,7 @@ pub unsafe fn PyDateTime_Check(op: *mut PyObject) -> c_int {
 #[inline]
 /// Check if `op`'s type is exactly `PyDateTimeAPI.DateTimeType`.
 pub unsafe fn PyDateTime_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == (*PyDateTimeAPI()).DateTimeType) as c_int
+    Py_IS_TYPE(op, (*PyDateTimeAPI()).DateTimeType)
 }
 
 #[inline]
@@ -675,7 +675,7 @@ pub unsafe fn PyTime_Check(op: *mut PyObject) -> c_int {
 #[inline]
 /// Check if `op`'s type is exactly `PyDateTimeAPI.TimeType`.
 pub unsafe fn PyTime_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == (*PyDateTimeAPI()).TimeType) as c_int
+    Py_IS_TYPE(op, (*PyDateTimeAPI()).TimeType)
 }
 
 #[inline]
@@ -687,7 +687,7 @@ pub unsafe fn PyDelta_Check(op: *mut PyObject) -> c_int {
 #[inline]
 /// Check if `op`'s type is exactly `PyDateTimeAPI.DeltaType`.
 pub unsafe fn PyDelta_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == (*PyDateTimeAPI()).DeltaType) as c_int
+    Py_IS_TYPE(op, (*PyDateTimeAPI()).DeltaType)
 }
 
 #[inline]
@@ -699,7 +699,7 @@ pub unsafe fn PyTZInfo_Check(op: *mut PyObject) -> c_int {
 #[inline]
 /// Check if `op`'s type is exactly `PyDateTimeAPI.TZInfoType`.
 pub unsafe fn PyTZInfo_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == (*PyDateTimeAPI()).TZInfoType) as c_int
+    Py_IS_TYPE(op, (*PyDateTimeAPI()).TZInfoType)
 }
 
 pub unsafe fn PyDate_FromDate(year: c_int, month: c_int, day: c_int) -> *mut PyObject {
