@@ -53,6 +53,7 @@ extern_libpython! {
 // skipped private _PyDict_GetItemStringWithError
 
 extern_libpython! {
+    #[cfg(not(GraalPy))]
     pub fn PyDict_SetDefault(
         mp: *mut PyObject,
         key: *mut PyObject,
@@ -103,7 +104,9 @@ extern_libpython! {
     #[cfg(Py_3_12)]
     pub fn PyDict_ClearWatcher(watcher_id: c_int) -> c_int;
     #[cfg(Py_3_12)]
+    #[cfg(not(GraalPy))]
     pub fn PyDict_Watch(watcher_id: c_int, dict: *mut PyObject) -> c_int;
     #[cfg(Py_3_12)]
+    #[cfg(not(GraalPy))]
     pub fn PyDict_Unwatch(watcher_id: c_int, dict: *mut PyObject) -> c_int;
 }
