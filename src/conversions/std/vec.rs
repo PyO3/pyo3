@@ -8,11 +8,8 @@ use crate::{
     types::{PyAnyMethods, PyString},
     Borrowed, PyResult,
 };
-#[cfg(not(PyRustPython))]
 use crate::{CastError, PyTypeInfo};
-#[cfg(not(PyRustPython))]
 use crate::types::PySequence;
-#[cfg(PyRustPython)]
 use crate::types::{PyStringMethods, PyTypeMethods};
 use crate::{Bound, PyAny, PyErr, Python};
 
@@ -88,8 +85,7 @@ where
     let is_sequence = unsafe { ffi::PySequence_Check(obj.as_ptr()) } != 0;
 
     if !is_sequence {
-        #[cfg(PyRustPython)]
-        {
+        if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
             let from = obj
                 .get_type()
                 .name()
@@ -100,12 +96,10 @@ where
             )));
         }
 
-        #[cfg(not(PyRustPython))]
         return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
     }
 
-    #[cfg(PyRustPython)]
-    {
+    if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
         let len = unsafe { ffi::PySequence_Size(obj.as_ptr()) };
         crate::err::error_on_minusone(obj.py(), len)?;
         let mut v = Vec::with_capacity(len as usize);
@@ -119,15 +113,12 @@ where
         return Ok(v);
     }
 
-    #[cfg(not(PyRustPython))]
-    {
-        let mut v = Vec::with_capacity(obj.len().unwrap_or(0));
-        for item in obj.try_iter()? {
-            let item = item?;
-            v.push(item.extract::<T>().map_err(Into::into)?);
-        }
-        Ok(v)
+    let mut v = Vec::with_capacity(obj.len().unwrap_or(0));
+    for item in obj.try_iter()? {
+        let item = item?;
+        v.push(item.extract::<T>().map_err(Into::into)?);
     }
+    Ok(v)
 }
 
 #[cfg(test)]
