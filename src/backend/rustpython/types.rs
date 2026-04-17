@@ -151,6 +151,37 @@ pub(crate) fn register_mapping_type(ty: &Bound<'_, PyType>) -> PyResult<()> {
     Ok(())
 }
 
+fn registered_sequence_types() -> &'static Mutex<Vec<usize>> {
+    static REGISTRY: OnceLock<Mutex<Vec<usize>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+pub(crate) fn sequence_is_type_of(object: &Bound<'_, PyAny>) -> bool {
+    let is_registered_sequence = registered_sequence_types()
+        .lock()
+        .unwrap()
+        .iter()
+        .copied()
+        .any(|ptr| unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), ptr as *mut ffi::PyTypeObject) != 0 });
+    let is_builtin_sequence = PyList::is_type_of(object) || PyTuple::is_type_of(object);
+    let is_sequence_protocol = unsafe { ffi::PySequence_Check(object.as_ptr()) != 0 };
+    let is_mapping_protocol = unsafe { ffi::PyMapping_Check(object.as_ptr()) != 0 };
+    let is_registered_mapping = is_registered_mapping_type(object);
+
+    is_builtin_sequence
+        || is_registered_sequence
+        || (is_sequence_protocol && !is_mapping_protocol && !is_registered_mapping)
+}
+
+pub(crate) fn register_sequence_type(ty: &Bound<'_, PyType>) -> PyResult<()> {
+    let ptr = ty.as_type_ptr() as usize;
+    let mut registry = registered_sequence_types().lock().unwrap();
+    if !registry.contains(&ptr) {
+        registry.push(ptr);
+    }
+    Ok(())
+}
+
 #[inline]
 pub(crate) fn module_index<'py>(
     module: &Bound<'py, PyModule>,

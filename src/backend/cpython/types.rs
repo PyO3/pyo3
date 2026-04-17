@@ -135,6 +135,24 @@ pub(crate) fn register_mapping_type(ty: &Bound<'_, PyType>) -> PyResult<()> {
 }
 
 #[inline]
+pub(crate) fn sequence_is_type_of(object: &Bound<'_, PyAny>) -> bool {
+    PyList::is_type_of(object)
+        || PyTuple::is_type_of(object)
+        || object
+            .is_instance(&crate::types::PySequence::type_object(object.py()).into_any())
+            .unwrap_or_else(|err| {
+                err.write_unraisable(object.py(), Some(object));
+                false
+            })
+}
+
+#[inline]
+pub(crate) fn register_sequence_type(ty: &Bound<'_, PyType>) -> PyResult<()> {
+    crate::types::PySequence::type_object(ty.py()).call_method1("register", (ty,))?;
+    Ok(())
+}
+
+#[inline]
 pub(crate) fn module_filename_test_should_skip() -> bool {
     false
 }

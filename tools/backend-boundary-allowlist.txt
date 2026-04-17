@@ -10,4 +10,3 @@ src/pycell/impl_.rs
 src/types/any.rs
 src/types/frame.rs
 src/types/mod.rs
-src/types/sequence.rs

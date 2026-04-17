@@ -192,7 +192,10 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{exceptions::PyKeyError, types::PyTuple};
+    use crate::{
+        exceptions::PyKeyError,
+        types::{PyDict, PyTuple},
+    };
 
     use super::*;
     use crate::conversion::IntoPyObject;
