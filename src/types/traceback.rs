@@ -1,10 +1,7 @@
 use crate::err::{error_on_minusone, PyResult};
-#[cfg(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython))]
-use crate::sync::PyOnceLock;
+use crate::backend;
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, PyString};
 use crate::{ffi, Bound, PyAny};
-#[cfg(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython))]
-use crate::{types::{PyType, PyTypeMethods}, Py};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 use crate::{types::PyFrame, PyTypeCheck, Python};
 
@@ -18,22 +15,9 @@ use crate::{types::PyFrame, PyTypeCheck, Python};
 #[repr(transparent)]
 pub struct PyTraceback(PyAny);
 
-#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython)))]
 pyobject_native_type_core!(
     PyTraceback,
-    pyobject_native_static_type_object!(ffi::PyTraceBack_Type),
-    "builtins",
-    "traceback",
-    #checkfunction=ffi::PyTraceBack_Check
-);
-
-#[cfg(any(Py_LIMITED_API, PyPy, GraalPy, PyRustPython))]
-pyobject_native_type_core!(
-    PyTraceback,
-    |py| {
-        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "types", "TracebackType").unwrap().as_type_ptr()
-    },
+    backend::current::types::traceback_type_object,
     "builtins",
     "traceback",
     #checkfunction=ffi::PyTraceBack_Check

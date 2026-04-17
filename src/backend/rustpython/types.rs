@@ -93,6 +93,14 @@ pub(crate) fn weakref_reference_type_object(py: Python<'_>) -> *mut ffi::PyTypeO
 }
 
 #[inline]
+pub(crate) fn traceback_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "types", "TracebackType")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[inline]
 pub(crate) fn capsule_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     TYPE.import(py, "_types", "CapsuleType")
