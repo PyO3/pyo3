@@ -1,15 +1,8 @@
 use crate::err::PyResult;
+use crate::backend;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, PyRustPython))]
-use crate::sync::PyOnceLock;
 use crate::types::any::PyAny;
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, PyRustPython))]
-use crate::types::typeobject::PyTypeMethods;
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, PyRustPython))]
-use crate::types::PyType;
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, PyRustPython))]
-use crate::Py;
 use crate::{ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt};
 
 use super::PyWeakrefMethods;
@@ -20,31 +13,9 @@ use super::PyWeakrefMethods;
 #[repr(transparent)]
 pub struct PyWeakrefReference(PyAny);
 
-#[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API, PyRustPython)))]
-pyobject_subclassable_native_type!(PyWeakrefReference, ffi::PyWeakReference);
-
-#[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API, PyRustPython)))]
-pyobject_native_type!(
-    PyWeakrefReference,
-    ffi::PyWeakReference,
-    // TODO: should not be depending on a private symbol here!
-    pyobject_native_static_type_object!(ffi::_PyWeakref_RefType),
-    "weakref",
-    "ReferenceType",
-    #module=Some("weakref"),
-    #checkfunction=ffi::PyWeakref_CheckRef
-);
-
-// When targeting alternative or multiple interpreters, it is better to not use the internal API.
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, PyRustPython))]
 pyobject_native_type_core!(
     PyWeakrefReference,
-    |py| {
-        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "_weakref", "ReferenceType")
-            .unwrap()
-            .as_type_ptr()
-    },
+    backend::current::types::weakref_reference_type_object,
     "weakref",
     "ReferenceType",
     #module=Some("weakref"),

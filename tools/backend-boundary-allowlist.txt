@@ -28,4 +28,3 @@ src/types/module.rs
 src/types/sequence.rs
 src/types/traceback.rs
 src/types/typeobject.rs
-src/types/weakref/reference.rs

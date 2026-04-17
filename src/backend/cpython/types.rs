@@ -65,6 +65,14 @@ pub(crate) fn super_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
 }
 
 #[inline]
+pub(crate) fn weakref_reference_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(_py, "_weakref", "ReferenceType")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[inline]
 pub(crate) fn capsule_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::PyCapsule_Type
 }
