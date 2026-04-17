@@ -73,7 +73,7 @@ macro_rules! extract_int {
         // simplest logic for 3.10+ where that was fixed - python/cpython#82180.
         // `PyLong_AsUnsignedLongLong` does not call `PyNumber_Index`, hence the `force_index_call` argument
         // See https://github.com/PyO3/pyo3/pull/3742 for details
-        if cfg!(PyRustPython) {
+        if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
             if unsafe { ffi::PyLong_CheckExact($obj.as_ptr()) != 0 } {
                 err_if_invalid_value($obj.py(), $error_val, unsafe { $pylong_as($obj.as_ptr()) })
             } else {

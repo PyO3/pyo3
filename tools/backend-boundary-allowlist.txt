@@ -3,7 +3,6 @@ pyo3-ffi/src/object_rustpython.rs
 pyo3-macros-backend/src/pyclass.rs
 pyo3-macros-backend/src/pyimpl.rs
 src/conversions/std/array.rs
-src/conversions/std/num.rs
 src/conversions/std/vec.rs
 src/err/mod.rs
 src/exceptions.rs
