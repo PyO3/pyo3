@@ -5,7 +5,6 @@ pyo3-macros-backend/src/pyimpl.rs
 src/exceptions.rs
 src/impl_/pyclass.rs
 src/internal/get_slot.rs
-src/internal/state.rs
 src/lib.rs
 src/marshal.rs
 src/pycell/impl_.rs

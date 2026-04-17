@@ -247,8 +247,7 @@ pub(crate) struct SuspendAttach {
 
 impl SuspendAttach {
     pub(crate) unsafe fn new() -> Self {
-        #[cfg(PyRustPython)]
-        {
+        if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
             let count = ATTACH_COUNT.with(|c| c.replace(0));
             return Self {
                 count,
@@ -256,24 +255,19 @@ impl SuspendAttach {
             };
         }
 
-        #[cfg(not(PyRustPython))]
-        {
-            let count = ATTACH_COUNT.with(|c| c.replace(0));
-            let tstate = unsafe { ffi::PyEval_SaveThread() };
-            Self { count, tstate }
-        }
+        let count = ATTACH_COUNT.with(|c| c.replace(0));
+        let tstate = unsafe { ffi::PyEval_SaveThread() };
+        Self { count, tstate }
     }
 }
 
 impl Drop for SuspendAttach {
     fn drop(&mut self) {
-        #[cfg(PyRustPython)]
-        ATTACH_COUNT.with(|c| c.set(self.count));
-        #[cfg(not(PyRustPython))]
         ATTACH_COUNT.with(|c| c.set(self.count));
         unsafe {
-            #[cfg(not(PyRustPython))]
-            ffi::PyEval_RestoreThread(self.tstate);
+            if crate::active_backend_kind() != crate::backend::BackendKind::Rustpython {
+                ffi::PyEval_RestoreThread(self.tstate);
+            }
 
             // Update counts of `Py<T>` that were dropped while not attached.
             #[cfg(not(pyo3_disable_reference_pool))]
