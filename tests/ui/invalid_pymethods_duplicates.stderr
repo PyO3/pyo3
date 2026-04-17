@@ -1,4 +1,4 @@
-error[E0119]: conflicting implementations of trait `PyClassNewTextSignature` for type `TwoNew`
+error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::doc::PyClassNewTextSignature` for type `TwoNew`
  --> tests/ui/invalid_pymethods_duplicates.rs:9:1
   |
 9 | #[pymethods]
@@ -21,12 +21,17 @@ error[E0592]: duplicate definitions with name `__pymethod___new____`
   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0592]: duplicate definitions with name `__pymethod_func__`
-  --> tests/ui/invalid_pymethods_duplicates.rs:25:1
+  --> tests/ui/invalid_pymethods_duplicates.rs:27:1
    |
-25 | #[pymethods]
+27 | #[pymethods]
    | ^^^^^^^^^^^^
    | |
    | duplicate definitions for `__pymethod_func__`
    | other definition for `__pymethod_func__`
    |
    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 3 previous errors
+
+Some errors have detailed explanations: E0119, E0592.
+For more information about an error, try `rustc --explain E0119`.

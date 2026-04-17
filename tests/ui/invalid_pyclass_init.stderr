@@ -1,14 +1,18 @@
-error[E0277]: the trait bound `i32: IntoPyCallbackOutput<'_, i32>` is not satisfied
- --> tests/ui/invalid_pyclass_init.rs:8:27
-  |
-8 |     fn __init__(&self) -> i32 {
-  |                           ^^^ the trait `IntoPyCallbackOutput<'_, i32>` is not implemented for `i32`
-  |
-help: the following other types implement trait `IntoPyCallbackOutput<'py, Target>`
- --> src/impl_/callback.rs
-  |
-  | impl IntoPyCallbackOutput<'_, ffi::Py_ssize_t> for usize {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `usize` implements `IntoPyCallbackOutput<'_, isize>`
+error[E0277]: the trait bound `i32: pyo3::impl_::callback::IntoPyCallbackOutput<'_, i32>` is not satisfied
+   --> tests/ui/invalid_pyclass_init.rs:8:27
+    |
+  8 |     fn __init__(&self) -> i32 {
+    |                           ^^^ the trait `pyo3::impl_::callback::IntoPyCallbackOutput<'_, i32>` is not implemented for `i32`
+    |
+help: the following other types implement trait `pyo3::impl_::callback::IntoPyCallbackOutput<'py, Target>`
+   --> src/impl_/callback.rs:127:1
+    |
+127 | impl IntoPyCallbackOutput<'_, ffi::Py_ssize_t> for usize {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `usize` implements `pyo3::impl_::callback::IntoPyCallbackOutput<'_, isize>`
 ...
-  | impl IntoPyCallbackOutput<'_, usize> for usize {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `usize` implements `IntoPyCallbackOutput<'_, usize>`
+143 | impl IntoPyCallbackOutput<'_, usize> for usize {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `usize` implements `pyo3::impl_::callback::IntoPyCallbackOutput<'_, usize>`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0277`.

@@ -7,6 +7,8 @@ use pyo3::prelude::*;
 struct TwoNew {}
 
 #[pymethods]
+//~^ ERROR: conflicting implementations of trait `pyo3::impl_::pyclass::doc::PyClassNewTextSignature` for type `TwoNew`
+//~| ERROR: duplicate definitions with name `__pymethod___new____`
 impl TwoNew {
     #[new]
     fn new_1() -> Self {
@@ -23,6 +25,7 @@ impl TwoNew {
 struct DuplicateMethod {}
 
 #[pymethods]
+//~^ ERROR: duplicate definitions with name `__pymethod_func__`
 impl DuplicateMethod {
     #[pyo3(name = "func")]
     fn func_a(&self) {}

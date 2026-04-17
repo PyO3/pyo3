@@ -8,11 +8,11 @@ error[E0277]: pyclass `PyDict` cannot be subclassed
   = note: `PyDict` must have `#[pyclass(subclass)]` to be eligible for subclassing
   = note: subclassing native types requires Python >= 3.12 when using the `abi3` feature
 help: the trait `PyClassBaseType` is implemented for `PyAny`
- --> src/types/any.rs
-  |
-  | impl crate::impl_::pyclass::PyClassBaseType for PyAny {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+  --> src/types/any.rs:55:1
+   |
+55 | impl crate::impl_::pyclass::PyClassBaseType for PyAny {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: pyclass `PyDict` cannot be subclassed
  --> tests/ui/abi3_nativetype_inheritance.rs:5:19
@@ -24,12 +24,16 @@ error[E0277]: pyclass `PyDict` cannot be subclassed
   = note: `PyDict` must have `#[pyclass(subclass)]` to be eligible for subclassing
   = note: subclassing native types requires Python >= 3.12 when using the `abi3` feature
 help: the trait `PyClassBaseType` is implemented for `PyAny`
- --> src/types/any.rs
-  |
-  | impl crate::impl_::pyclass::PyClassBaseType for PyAny {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   --> src/types/any.rs:55:1
+    |
+ 55 | impl crate::impl_::pyclass::PyClassBaseType for PyAny {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: required by a bound in `PyClassImpl::BaseType`
- --> src/impl_/pyclass.rs
-  |
-  |     type BaseType: PyTypeInfo + PyClassBaseType;
-  |                                 ^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::BaseType`
+   --> src/impl_/pyclass.rs:184:33
+    |
+184 |     type BaseType: PyTypeInfo + PyClassBaseType;
+    |                                 ^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::BaseType`
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0277`.

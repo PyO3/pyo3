@@ -6,9 +6,14 @@ error[E0277]: the trait bound `i32: TryFrom<&pyo3::Bound<'_, MyClass>>` is not s
   |
   = help: the following other types implement trait `From<T>`:
             `i32` implements `From<bool>`
+            `i32` implements `From<deranged::RangedI32<MIN, MAX>>`
             `i32` implements `From<i16>`
             `i32` implements `From<i8>`
             `i32` implements `From<u16>`
             `i32` implements `From<u8>`
   = note: required for `&pyo3::Bound<'_, MyClass>` to implement `Into<i32>`
   = note: required for `i32` to implement `TryFrom<&pyo3::Bound<'_, MyClass>>`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0277`.

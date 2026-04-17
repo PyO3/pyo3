@@ -8,11 +8,11 @@ error[E0277]: pyclass `PyException` cannot be subclassed
   = note: `PyException` must have `#[pyclass(subclass)]` to be eligible for subclassing
   = note: subclassing native types requires Python >= 3.12 when using the `abi3` feature
 help: the trait `PyClassBaseType` is implemented for `PyAny`
- --> src/types/any.rs
-  |
-  | impl crate::impl_::pyclass::PyClassBaseType for PyAny {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+  --> src/types/any.rs:55:1
+   |
+55 | impl crate::impl_::pyclass::PyClassBaseType for PyAny {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: pyclass `PyException` cannot be subclassed
  --> tests/ui/abi3_inheritance.rs:4:19
@@ -24,15 +24,15 @@ error[E0277]: pyclass `PyException` cannot be subclassed
   = note: `PyException` must have `#[pyclass(subclass)]` to be eligible for subclassing
   = note: subclassing native types requires Python >= 3.12 when using the `abi3` feature
 help: the trait `PyClassBaseType` is implemented for `PyAny`
- --> src/types/any.rs
-  |
-  | impl crate::impl_::pyclass::PyClassBaseType for PyAny {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   --> src/types/any.rs:55:1
+    |
+ 55 | impl crate::impl_::pyclass::PyClassBaseType for PyAny {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: required by a bound in `PyClassImpl::BaseType`
- --> src/impl_/pyclass.rs
-  |
-  |     type BaseType: PyTypeInfo + PyClassBaseType;
-  |                                 ^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::BaseType`
+   --> src/impl_/pyclass.rs:184:33
+    |
+184 |     type BaseType: PyTypeInfo + PyClassBaseType;
+    |                                 ^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::BaseType`
 
 warning: use of deprecated associated constant `pyo3::impl_::deprecated::HasAutomaticFromPyObject::<true>::MSG`: The `FromPyObject` implementation for `#[pyclass]` types which implement `Clone` is changing to an opt-in option. Use `#[pyclass(from_py_object)]` to opt-in to the `FromPyObject` derive now, or `#[pyclass(skip_from_py_object)]` to skip the `FromPyObject` implementation.
  --> tests/ui/abi3_inheritance.rs:4:1
@@ -42,3 +42,7 @@ warning: use of deprecated associated constant `pyo3::impl_::deprecated::HasAuto
   |
   = note: `#[warn(deprecated)]` on by default
   = note: this warning originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 2 previous errors; 1 warning emitted
+
+For more information about this error, try `rustc --explain E0277`.
