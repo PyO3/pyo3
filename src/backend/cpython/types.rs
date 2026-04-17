@@ -153,6 +153,11 @@ pub(crate) fn cfunction_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::PyCFunction_Type
 }
 
+#[inline]
+pub(crate) fn type_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+    &raw mut ffi::PyType_Type
+}
+
 #[cfg(not(Py_LIMITED_API))]
 #[inline]
 pub(crate) fn pyfunction_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
@@ -187,6 +192,22 @@ pub(crate) fn list_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
 pub(crate) fn tuple_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     TYPE.import(_py, "builtins", "tuple").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn type_mro<'py>(ty: &Bound<'py, PyType>) -> Bound<'py, PyTuple> {
+    ty.getattr(crate::intern!(ty.py(), "__mro__"))
+        .expect("Cannot get `__mro__` from object.")
+        .extract()
+        .expect("Unexpected type in `__mro__` attribute.")
+}
+
+#[inline]
+pub(crate) fn type_bases<'py>(ty: &Bound<'py, PyType>) -> Bound<'py, PyTuple> {
+    ty.getattr(crate::intern!(ty.py(), "__bases__"))
+        .expect("Cannot get `__bases__` from object.")
+        .extract()
+        .expect("Unexpected type in `__bases__` attribute.")
 }
 
 #[inline]

@@ -4,6 +4,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound, BoundObject};
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
+use crate::intern;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
     PyAny, PyCode, PyCodeInput, PyDateTime, PyDict, PyDictMethods, PyFrozenSet, PyList, PyModule,
@@ -186,6 +187,12 @@ pub(crate) fn cfunction_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
         .as_type_ptr()
 }
 
+#[inline]
+pub(crate) fn type_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "type").unwrap().as_type_ptr()
+}
+
 #[cfg(not(Py_LIMITED_API))]
 #[inline]
 pub(crate) fn pyfunction_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
@@ -225,6 +232,22 @@ pub(crate) fn list_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
 pub(crate) fn tuple_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     TYPE.import(py, "builtins", "tuple").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn type_mro<'py>(ty: &Bound<'py, PyType>) -> Bound<'py, PyTuple> {
+    ty.getattr(intern!(ty.py(), "__mro__"))
+        .expect("Cannot get `__mro__` from object.")
+        .extract()
+        .expect("Unexpected type in `__mro__` attribute.")
+}
+
+#[inline]
+pub(crate) fn type_bases<'py>(ty: &Bound<'py, PyType>) -> Bound<'py, PyTuple> {
+    ty.getattr(intern!(ty.py(), "__bases__"))
+        .expect("Cannot get `__bases__` from object.")
+        .extract()
+        .expect("Unexpected type in `__bases__` attribute.")
 }
 
 #[inline]

@@ -14,4 +14,3 @@ src/types/frame.rs
 src/types/mapping.rs
 src/types/mod.rs
 src/types/sequence.rs
-src/types/typeobject.rs
