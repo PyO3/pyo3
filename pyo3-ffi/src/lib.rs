@@ -463,8 +463,9 @@ pub use self::objimpl::*;
 pub use self::osmodule::*;
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 pub use self::pyarena::*;
-#[cfg(any(Py_3_11, PyRustPython))]
-pub use self::pybuffer::*;
+crate::backend::backend_pybuffer_item! {
+    pub use self::pybuffer::*;
+}
 pub use self::pycapsule::*;
 pub use self::pyerrors::*;
 pub use self::pyframe::*;
@@ -478,8 +479,9 @@ pub use self::pythonrun::*;
 pub use self::pytypedefs::*;
 pub use self::rangeobject::*;
 pub use self::refcount::*;
-#[cfg(not(PyRustPython))]
-pub use self::backend::current::refcount::Py_DECREF;
+crate::backend::backend_non_rustpython_item! {
+    pub use self::backend::current::refcount::Py_DECREF;
+}
 pub use self::setobject::*;
 pub use self::sliceobject::*;
 pub use self::structseq::*;
@@ -491,8 +493,7 @@ pub use self::unicodeobject::*;
 pub use self::warnings::*;
 pub use self::weakrefobject::*;
 
-#[cfg_attr(PyRustPython, path = "abstract_rustpython.rs")]
-mod abstract_;
+crate::backend::backend_rustpython_mod!(abstract_, "abstract_rustpython.rs");
 // skipped asdl.h
 // skipped ast.h
 mod bltinmodule;
@@ -500,8 +501,7 @@ mod boolobject;
 mod bytearrayobject;
 mod bytesobject;
 // skipped cellobject.h
-#[cfg_attr(PyRustPython, path = "ceval_rustpython.rs")]
-mod ceval;
+crate::backend::backend_rustpython_mod!(ceval, "ceval_rustpython.rs");
 // skipped classobject.h
 mod codecs;
 mod compile;
@@ -521,8 +521,7 @@ mod fileutils;
 mod floatobject;
 // skipped empty frameobject.h
 mod genericaliasobject;
-#[cfg_attr(PyRustPython, path = "import_rustpython.rs")]
-mod import;
+crate::backend::backend_rustpython_mod!(import, "import_rustpython.rs");
 // skipped interpreteridobject.h
 mod intrcheck;
 mod iterobject;
@@ -531,21 +530,16 @@ mod lock;
 // skipped longintrepr.h
 mod longobject;
 mod memoryobject;
-#[cfg_attr(PyRustPython, path = "methodobject_rustpython.rs")]
-mod methodobject;
-#[cfg_attr(PyRustPython, path = "modsupport_rustpython.rs")]
-mod modsupport;
+crate::backend::backend_rustpython_mod!(methodobject, "methodobject_rustpython.rs");
+crate::backend::backend_rustpython_mod!(modsupport, "modsupport_rustpython.rs");
 mod moduleobject;
 // skipped namespaceobject.h
-#[cfg_attr(PyRustPython, path = "object_rustpython.rs")]
-mod object;
-#[cfg_attr(PyRustPython, path = "objimpl_rustpython.rs")]
-mod objimpl;
+crate::backend::backend_rustpython_mod!(object, "object_rustpython.rs");
+crate::backend::backend_rustpython_mod!(objimpl, "objimpl_rustpython.rs");
 // skipped odictobject.h
 // skipped opcode.h
 // skipped osdefs.h
-#[cfg_attr(PyRustPython, path = "osmodule_rustpython.rs")]
-mod osmodule;
+crate::backend::backend_rustpython_mod!(osmodule, "osmodule_rustpython.rs");
 // skipped parser_interface.h
 // skipped patchlevel.h
 // skipped picklebufobject.h
@@ -553,29 +547,26 @@ mod osmodule;
 // skipped py_curses.h
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
 mod pyarena;
-#[cfg(any(Py_3_11, PyRustPython))]
-mod pybuffer;
+crate::backend::backend_pybuffer_item! {
+    mod pybuffer;
+}
 mod pycapsule;
 // skipped pydtrace.h
 mod pyerrors;
 // skipped pyexpat.h
 // skipped pyfpe.h
-#[cfg_attr(PyRustPython, path = "pyframe_rustpython.rs")]
-mod pyframe;
+crate::backend::backend_rustpython_mod!(pyframe, "pyframe_rustpython.rs");
 mod pyhash;
-#[cfg_attr(PyRustPython, path = "pylifecycle_rustpython.rs")]
-mod pylifecycle;
+crate::backend::backend_rustpython_mod!(pylifecycle, "pylifecycle_rustpython.rs");
 // skipped pymacconfig.h
 // skipped pymacro.h
 // skipped pymath.h
 mod pymem;
 mod pyport;
-#[cfg_attr(PyRustPython, path = "pystate_rustpython.rs")]
-mod pystate;
+crate::backend::backend_rustpython_mod!(pystate, "pystate_rustpython.rs");
 mod critical_section;
 // skipped pystats.h
-#[cfg_attr(PyRustPython, path = "pythonrun_rustpython.rs")]
-mod pythonrun;
+crate::backend::backend_rustpython_mod!(pythonrun, "pythonrun_rustpython.rs");
 // skipped pystrhex.h
 // skipped pystrcmp.h
 mod pystrtod;
@@ -588,8 +579,7 @@ mod setobject;
 mod sliceobject;
 mod structseq;
 mod sysmodule;
-#[cfg_attr(PyRustPython, path = "traceback_rustpython.rs")]
-mod traceback;
+crate::backend::backend_rustpython_mod!(traceback, "traceback_rustpython.rs");
 // skipped tracemalloc.h
 mod tupleobject;
 mod typeslots;
@@ -597,17 +587,12 @@ mod unicodeobject;
 mod warnings;
 mod weakrefobject;
 
-#[cfg(PyRustPython)]
-mod rustpython_runtime;
-
-#[cfg(PyRustPython)]
-pub fn rustpython_runtime_thread_id() -> Option<std::thread::ThreadId> {
-    rustpython_runtime::runtime_thread_id()
-}
+crate::backend::backend_runtime_support!();
 
 pub use self::critical_section::*;
-#[cfg(PyRustPython)]
-pub use self::lock::*;
+crate::backend::backend_rustpython_item! {
+    pub use self::lock::*;
+}
 
 // Additional headers that are not exported by Python.h
 #[deprecated(note = "Python 3.12")]
@@ -615,8 +600,4 @@ pub mod structmember;
 pub mod backend;
 
 // "Limited API" definitions matching Python's `include/cpython` directory.
-#[cfg(all(not(Py_LIMITED_API), not(PyRustPython)))]
-mod cpython;
-
-#[cfg(all(not(Py_LIMITED_API), not(PyRustPython)))]
-pub use self::cpython::*;
+crate::backend::backend_cpython_exports!();
