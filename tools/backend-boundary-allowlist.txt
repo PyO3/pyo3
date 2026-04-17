@@ -8,7 +8,6 @@ src/internal/get_slot.rs
 src/lib.rs
 src/pycell/impl_.rs
 src/types/any.rs
-src/types/boolobject.rs
 src/types/frame.rs
 src/types/mapping.rs
 src/types/mod.rs

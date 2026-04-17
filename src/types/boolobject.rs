@@ -5,16 +5,10 @@ use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::PyErr;
-#[cfg(PyRustPython)]
-use crate::sync::PyOnceLock;
 use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
     types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, Python,
 };
-#[cfg(PyRustPython)]
-use crate::types::PyType;
-#[cfg(PyRustPython)]
-use crate::Py;
 use std::convert::Infallible;
 
 /// Represents a Python `bool`.
@@ -27,16 +21,10 @@ use std::convert::Infallible;
 #[repr(transparent)]
 pub struct PyBool(PyAny);
 
-#[cfg(not(PyRustPython))]
-pyobject_native_type!(PyBool, ffi::PyObject, pyobject_native_static_type_object!(ffi::PyBool_Type), "builtins", "bool", #checkfunction=ffi::PyBool_Check);
-
-#[cfg(PyRustPython)]
-pyobject_native_type_core!(
+pyobject_native_type!(
     PyBool,
-    |py| {
-        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "builtins", "bool").unwrap().as_type_ptr()
-    },
+    ffi::PyObject,
+    crate::backend::current::types::bool_type_object,
     "builtins",
     "bool",
     #checkfunction=ffi::PyBool_Check
@@ -216,32 +204,12 @@ impl FromPyObject<'_, '_> for bool {
                 ))
             };
 
-            #[cfg(not(any(Py_LIMITED_API, PyPy, PyRustPython)))]
-            unsafe {
-                let ptr = obj.as_ptr();
+            let meth = obj
+                .lookup_special(crate::intern!(obj.py(), "__bool__"))?
+                .ok_or_else(|| missing_conversion(obj))?;
 
-                if let Some(tp_as_number) = (*(*ptr).ob_type).tp_as_number.as_ref() {
-                    if let Some(nb_bool) = tp_as_number.nb_bool {
-                        match (nb_bool)(ptr) {
-                            0 => return Ok(false),
-                            1 => return Ok(true),
-                            _ => return Err(crate::PyErr::fetch(obj.py())),
-                        }
-                    }
-                }
-
-                return Err(missing_conversion(obj));
-            }
-
-            #[cfg(any(Py_LIMITED_API, PyPy, PyRustPython))]
-            {
-                let meth = obj
-                    .lookup_special(crate::intern!(obj.py(), "__bool__"))?
-                    .ok_or_else(|| missing_conversion(obj))?;
-
-                let obj = meth.call0()?.cast_into::<PyBool>()?;
-                return Ok(obj.is_true());
-            }
+            let obj = meth.call0()?.cast_into::<PyBool>()?;
+            return Ok(obj.is_true());
         }
 
         Err(err.into())

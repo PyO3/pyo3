@@ -149,6 +149,11 @@ pub(crate) fn complex_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
 }
 
 #[inline]
+pub(crate) fn bool_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+    &raw mut ffi::PyBool_Type
+}
+
+#[inline]
 pub(crate) fn float_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::PyFloat_Type
 }
