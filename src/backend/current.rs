@@ -111,6 +111,31 @@ macro_rules! frozenset_native_type_decls {
 }
 pub(crate) use frozenset_native_type_decls;
 
+macro_rules! opaque_native_type_layout {
+    ($name:ty $(;$generics:ident)*) => {
+        #[cfg(not(PyRustPython))]
+        impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
+            type LayoutAsBase = $crate::impl_::pycell::PyVariableClassObjectBase;
+            type BaseNativeType = Self;
+            type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+            type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
+            type Layout<T: $crate::impl_::pyclass::PyClassImpl> =
+                $crate::impl_::pycell::PyStaticClassObject<T>;
+        }
+
+        #[cfg(PyRustPython)]
+        impl<$($generics,)*> $crate::impl_::pyclass::PyClassBaseType for $name {
+            type LayoutAsBase = $crate::impl_::pycell::PyVariableClassObjectBase;
+            type BaseNativeType = Self;
+            type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+            type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
+            type Layout<T: $crate::impl_::pyclass::PyClassImpl> =
+                $crate::backend::rustpython_storage::PySidecarClassObject<T>;
+        }
+    };
+}
+pub(crate) use opaque_native_type_layout;
+
 macro_rules! string_raw_data_api {
     ($($item:item)*) => {
         $(
