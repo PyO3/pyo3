@@ -1,6 +1,7 @@
 pub(crate) mod abstract_;
 pub(crate) mod bytearrayobject;
 pub(crate) mod bytesobject;
+pub(crate) mod cellobject;
 #[cfg(not(PyPy))]
 pub(crate) mod ceval;
 pub(crate) mod code;
@@ -47,6 +48,7 @@ pub(crate) mod weakrefobject;
 pub use self::abstract_::*;
 pub use self::bytearrayobject::*;
 pub use self::bytesobject::*;
+pub use self::cellobject::*;
 #[cfg(not(PyPy))]
 pub use self::ceval::*;
 pub use self::code::*;

@@ -433,7 +433,6 @@ pub use self::bltinmodule::*;
 pub use self::boolobject::*;
 pub use self::bytearrayobject::*;
 pub use self::bytesobject::*;
-pub use self::cellobject::*;
 pub use self::ceval::*;
 pub use self::codecs::*;
 pub use self::compile::*;
