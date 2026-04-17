@@ -1,12 +1,12 @@
 error[E0277]: pyclass `PyException` cannot be subclassed
-  --> tests/ui/abi3_inheritance.rs:4:1
-   |
- 4 | #[pyclass(extends=PyException)]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required for `#[pyclass(extends=PyException)]`
-   |
-   = help: the trait `PyClassBaseType` is not implemented for `PyException`
-   = note: `PyException` must have `#[pyclass(subclass)]` to be eligible for subclassing
-   = note: with the `abi3` feature enabled, PyO3 does not support subclassing native types
+ --> tests/ui/abi3_inheritance.rs:4:1
+  |
+4 | #[pyclass(extends=PyException)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required for `#[pyclass(extends=PyException)]`
+  |
+  = help: the trait `PyClassBaseType` is not implemented for `PyException`
+  = note: `PyException` must have `#[pyclass(subclass)]` to be eligible for subclassing
+  = note: subclassing native types requires Python >= 3.12 when using the `abi3` feature
 help: the trait `PyClassBaseType` is implemented for `PyAny`
   --> src/types/any.rs:55:1
    |
@@ -15,14 +15,14 @@ help: the trait `PyClassBaseType` is implemented for `PyAny`
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: pyclass `PyException` cannot be subclassed
-   --> tests/ui/abi3_inheritance.rs:4:19
-    |
-  4 | #[pyclass(extends=PyException)]
-    |                   ^^^^^^^^^^^ required for `#[pyclass(extends=PyException)]`
-    |
-    = help: the trait `PyClassBaseType` is not implemented for `PyException`
-    = note: `PyException` must have `#[pyclass(subclass)]` to be eligible for subclassing
-    = note: with the `abi3` feature enabled, PyO3 does not support subclassing native types
+ --> tests/ui/abi3_inheritance.rs:4:19
+  |
+4 | #[pyclass(extends=PyException)]
+  |                   ^^^^^^^^^^^ required for `#[pyclass(extends=PyException)]`
+  |
+  = help: the trait `PyClassBaseType` is not implemented for `PyException`
+  = note: `PyException` must have `#[pyclass(subclass)]` to be eligible for subclassing
+  = note: subclassing native types requires Python >= 3.12 when using the `abi3` feature
 help: the trait `PyClassBaseType` is implemented for `PyAny`
    --> src/types/any.rs:55:1
     |

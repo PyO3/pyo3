@@ -263,7 +263,6 @@ def _clippy_additional_workspaces(session: nox.Session) -> bool:
     target = os.environ.get("CARGO_BUILD_TARGET")
     if target is None or _get_rust_default_target() == target:
         try:
-            _build_docs_for_ffi_check(session)
             _run_cargo(session, "clippy", _FFI_CHECK, "--workspace", "--all-targets")
         except Exception:
             success = False
@@ -631,13 +630,10 @@ def build_netlify_site(session: nox.Session):
     docs(session)
     PYO3_DOCS_TARGET.rename("netlify_build/main/doc")
 
-    Path("netlify_build/main/doc/index.html").write_text(
-        "<meta http-equiv=refresh content=0;url=pyo3/>"
-    )
-
     # Build the internal docs
     docs(session, nightly=True, internal=True)
-    PYO3_DOCS_TARGET.rename("netlify_build/internal")
+    (netlify_build / "internal").mkdir(parents=True, exist_ok=True)
+    PYO3_DOCS_TARGET.rename("netlify_build/internal/doc")
 
     _build_netlify_redirects(preview)
 
@@ -705,6 +701,9 @@ def _build_netlify_redirects(preview: bool) -> None:
         else:
             redirects_file.write(f"/ /v{current_version}/ 302\n")
 
+        # Add main doc redirect
+        redirects_file.write("/main/doc /main/doc/pyo3")
+
 
 def _url_path_from_file_path(file_path: str) -> str:
     """Removes index.html and/or .html suffix to match the page URL on the final netlify site"""
@@ -740,11 +739,16 @@ def check_guide(session: nox.Session):
     ]
 
     remaps = {
-        f"file://{PYO3_GUIDE_SRC}/([^/]*/)*?%7B%7B#PYO3_DOCS_URL}}}}": f"file://{PYO3_DOCS_TARGET}",
+        f"file://{PYO3_GUIDE_TARGET}/doc/": f"file://{PYO3_DOCS_TARGET}/",
+        "https://docs.rs/pyo3/latest/pyo3/": f"file://{PYO3_DOCS_TARGET}/pyo3/",
+        f"https://docs.rs/pyo3/v{pyo3_version}/": f"file://{PYO3_DOCS_TARGET}/",
+        f"https://pyo3.rs/v{pyo3_version}/doc/": f"file://{PYO3_DOCS_TARGET}/",
         f"https://pyo3.rs/v{pyo3_version}": f"file://{PYO3_GUIDE_TARGET}",
+        "https://pyo3.rs/main/doc$": f"file://{PYO3_DOCS_TARGET}/pyo3",
+        "https://pyo3.rs/main/doc/": f"file://{PYO3_DOCS_TARGET}/",
         "https://pyo3.rs/main/": f"file://{PYO3_GUIDE_TARGET}/",
+        "https://pyo3.rs/latest/doc/": f"file://{PYO3_DOCS_TARGET}/",
         "https://pyo3.rs/latest/": f"file://{PYO3_GUIDE_TARGET}/",
-        "%7B%7B#PYO3_DOCS_VERSION}}": "latest",
         # bypass fragments for edge cases
         # blob links
         "(https://github.com/[^/]+/[^/]+/blob/[^#]+)#[a-zA-Z0-9._-]*": "$1",
@@ -753,42 +757,52 @@ def check_guide(session: nox.Session):
         # rust docs
         "(https://docs.rs/[^#]+)#[a-zA-Z0-9._-]*": "$1",
     }
-    remap_args = []
-    for key, value in remaps.items():
-        remap_args.extend(("--remap", f"{key} {value}"))
 
-    # check all links in the guide
-    _run(
-        session,
-        "lychee",
-        "--include-fragments",
-        str(PYO3_GUIDE_SRC),
-        *remap_args,
-        "--accept=200,429",
-        "--cache",
-        "--max-cache-age=7d",
-        *session.posargs,
-        external=True,
-    )
-    # check external links in the docs
-    # (intra-doc links are checked by rustdoc)
-    _run(
-        session,
-        "lychee",
-        str(PYO3_DOCS_TARGET),
-        *remap_args,
-        f"--exclude=file://{PYO3_DOCS_TARGET}",
+    excludes = [
         # exclude some old http links from copyright notices, known to fail
-        "--exclude=http://www.adobe.com/",
-        "--exclude=http://www.nhncorp.com/",
-        "--accept=200,429",
-        # reduce the concurrency to avoid rate-limit from `pyo3.rs`
-        "--max-concurrency=32",
+        "http://www.adobe.com/",
+        "http://www.nhncorp.com/",
+        # PR seems to be gone, possibly user deleted account?
+        "https://github.com/PyO3/pyo3/pull/938",
+    ]
+
+    common_args = (
+        *(f"--remap={key} {value}" for key, value in remaps.items()),
+        *(f"--exclude={arg}" for arg in excludes),
         "--cache",
         "--max-cache-age=7d",
+        "--cache-exclude-status=400..600",
+        "--accept=200,429",
         *session.posargs,
-        external=True,
     )
+
+    try:
+        # check all links in the guide
+        _run(
+            session,
+            "lychee",
+            "--include-fragments",
+            str(PYO3_GUIDE_TARGET),
+            f"--root-dir={PYO3_GUIDE_TARGET}",
+            *common_args,
+            external=True,
+        )
+        # check external links in the docs
+        # (intra-doc links are checked by rustdoc)
+        _run(
+            session,
+            "lychee",
+            str(PYO3_DOCS_TARGET),
+            # don't check intra-doc links, rustdoc already handled those
+            f"--exclude=file://{PYO3_DOCS_TARGET}",
+            *common_args,
+            external=True,
+        )
+    except nox.command.CommandFailed:
+        # on `main`, we ignore link check failures to allow the site to still be updated on push to main,
+        # we want to run the link checker on main to populate the GitHub actions cache so PRs run more reliably.
+        if os.environ.get("GITHUB_REF", "") != "refs/heads/main":
+            raise
 
 
 @nox.session(name="format-guide", venv_backend="none")
@@ -903,7 +917,7 @@ def _format_ffi_extern(session: nox.Session, *, check: bool = False):
 
         if new_content != content:
             originals[path] = content
-            path.write_text(new_content)
+            path.write_text(new_content, newline="\n")
             files_to_format.append(path)
 
     if not files_to_format:
@@ -918,7 +932,7 @@ def _format_ffi_extern(session: nox.Session, *, check: bool = False):
     except Exception:
         # Restore originals on failure
         for path, content in originals.items():
-            path.write_text(content)
+            path.write_text(content, newline="\n")
         raise
 
     # Restore the macro invocations
@@ -947,9 +961,9 @@ def _format_ffi_extern(session: nox.Session, *, check: bool = False):
         if check and content != originals[path]:
             changed.append(path)
             # Restore original so we don't leave dirty files in CI
-            path.write_text(originals[path])
+            path.write_text(originals[path], newline="\n")
         else:
-            path.write_text(content)
+            path.write_text(content, newline="\n")
 
     if check and changed:
         session.error(
@@ -1097,7 +1111,6 @@ def set_msrv_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    _build_docs_for_ffi_check(session)
     _run_cargo(session, "run", _FFI_CHECK)
     _check_raw_dylib_macro(session)
 
@@ -1443,13 +1456,6 @@ def test_introspection(session: nox.Session):
         package="pyo3-introspection",
         env={"PYO3_PYTEST_LIB_PATH": lib_file},
     )
-
-
-def _build_docs_for_ffi_check(session: nox.Session) -> None:
-    # pyo3-ffi-check needs to scrape docs of pyo3-ffi
-    env = os.environ.copy()
-    env["PYO3_PYTHON"] = sys.executable
-    _run_cargo(session, "doc", _FFI_CHECK, "-p", "pyo3-ffi", "--no-deps", env=env)
 
 
 @lru_cache()

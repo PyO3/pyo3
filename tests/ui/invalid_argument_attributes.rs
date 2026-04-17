@@ -14,7 +14,6 @@ fn from_py_with_string(#[pyo3("from_py_with")] _param: String) {}
 
 #[pyfunction]
 fn from_py_with_value_not_found(#[pyo3(from_py_with = func)] _param: String) {}
-//~^ ERROR: cannot find value `func` in this scope
 
 #[pyfunction]
 fn from_py_with_repeated(#[pyo3(from_py_with = func, from_py_with = func)] _param: String) {}

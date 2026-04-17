@@ -105,6 +105,8 @@ pub struct PyConfig {
     #[cfg(Py_3_11)]
     pub dump_refs_file: *mut wchar_t,
     pub malloc_stats: c_int,
+    #[cfg(Py_3_15)]
+    pub pymalloc_hugepages: c_int,
     pub filesystem_encoding: *mut wchar_t,
     pub filesystem_errors: *mut wchar_t,
     pub pycache_prefix: *mut wchar_t,

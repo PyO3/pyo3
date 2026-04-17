@@ -761,6 +761,19 @@ pub(crate) fn error_on_minusone<T: SignedInteger>(py: Python<'_>, result: T) -> 
     }
 }
 
+/// Returns Ok wrapping the result if the error code is not -1.
+#[inline]
+pub(crate) fn error_on_minusone_with_result<T: SignedInteger>(
+    py: Python<'_>,
+    result: T,
+) -> PyResult<T> {
+    if result != T::MINUS_ONE {
+        Ok(result)
+    } else {
+        Err(PyErr::fetch(py))
+    }
+}
+
 pub(crate) trait SignedInteger: Eq {
     const MINUS_ONE: Self;
 }

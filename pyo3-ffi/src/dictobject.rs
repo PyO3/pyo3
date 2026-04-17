@@ -78,6 +78,13 @@ extern_libpython! {
         key: *const c_char,
         result: *mut *mut PyObject,
     ) -> c_int;
+    #[cfg(all(Py_3_13, any(not(Py_LIMITED_API), Py_3_15)))]
+    pub fn PyDict_SetDefaultRef(
+        mp: *mut PyObject,
+        key: *mut PyObject,
+        default_value: *mut PyObject,
+        result: *mut *mut PyObject,
+    ) -> c_int;
     // skipped 3.10 / ex-non-limited PyObject_GenericGetDict
 }
 

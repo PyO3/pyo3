@@ -564,11 +564,13 @@ fn find_introspection_chunks_in_binary_object(path: &Path) -> Result<Vec<Chunk>>
 fn find_introspection_chunks_in_elf(elf: &Elf<'_>, library_content: &[u8]) -> Result<Vec<Chunk>> {
     let mut chunks = Vec::new();
     for sym in &elf.syms {
-        if is_introspection_symbol(elf.strtab.get_at(sym.st_name).unwrap_or_default()) {
+        let sym_name = elf.strtab.get_at(sym.st_name).unwrap_or_default();
+        if is_introspection_symbol(sym_name) {
             ensure!(u32::try_from(sym.st_shndx)? != SHN_XINDEX, "Section names length is greater than SHN_LORESERVE in ELF, this is not supported by PyO3 yet");
             let section_header = &elf.section_headers[sym.st_shndx];
             let data_offset = sym.st_value + section_header.sh_offset - section_header.sh_addr;
             chunks.push(deserialize_chunk(
+                sym_name,
                 &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
                 elf.little_endian,
             )?);
@@ -608,6 +610,7 @@ fn find_introspection_chunks_in_macho(
             let section = &sections[nlist.n_sect - 1]; // Sections are counted from 1
             let data_offset = nlist.n_value + u64::from(section.offset) - section.addr;
             chunks.push(deserialize_chunk(
+                name,
                 &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
                 macho.little_endian,
             )?);
@@ -621,6 +624,7 @@ fn find_introspection_chunks_in_pe(pe: &PE<'_>, library_content: &[u8]) -> Resul
     for export in &pe.exports {
         if is_introspection_symbol(export.name.unwrap_or_default()) {
             chunks.push(deserialize_chunk(
+                export.name.unwrap_or_default(),
                 &library_content[export.offset.context("No symbol offset")?..],
                 true,
             )?);
@@ -630,9 +634,13 @@ fn find_introspection_chunks_in_pe(pe: &PE<'_>, library_content: &[u8]) -> Resul
 }
 
 fn deserialize_chunk(
+    symbol_name: &str,
     content_with_chunk_at_the_beginning: &[u8],
     is_little_endian: bool,
 ) -> Result<Chunk> {
+    let symbol_version = introspection_symbol_version(symbol_name).unwrap_or_default();
+    ensure!(symbol_version == "1", "The introspection format version '{symbol_version}' is not supported by this version of pyo3-introspection. Please upgrade your build tool like maturin or downgrade pyo3");
+
     let length = content_with_chunk_at_the_beginning
         .split_at(4)
         .0
@@ -657,9 +665,15 @@ fn deserialize_chunk(
 }
 
 fn is_introspection_symbol(name: &str) -> bool {
-    name.strip_prefix('_')
+    introspection_symbol_version(name).is_some()
+}
+
+fn introspection_symbol_version(name: &str) -> Option<&str> {
+    let name = name
+        .strip_prefix('_')
         .unwrap_or(name)
-        .starts_with("PYO3_INTROSPECTION_1_")
+        .strip_prefix("PYO3_INTROSPECTION_")?;
+    Some(name.split_once('_').unwrap_or((name, "")).0)
 }
 
 #[derive(Deserialize)]

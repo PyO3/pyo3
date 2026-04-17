@@ -1,12 +1,12 @@
 error[E0277]: pyclass `PyDict` cannot be subclassed
-  --> tests/ui/abi3_nativetype_inheritance.rs:5:1
-   |
- 5 | #[pyclass(extends=PyDict)]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ required for `#[pyclass(extends=PyDict)]`
-   |
-   = help: the trait `PyClassBaseType` is not implemented for `PyDict`
-   = note: `PyDict` must have `#[pyclass(subclass)]` to be eligible for subclassing
-   = note: with the `abi3` feature enabled, PyO3 does not support subclassing native types
+ --> tests/ui/abi3_nativetype_inheritance.rs:5:1
+  |
+5 | #[pyclass(extends=PyDict)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ required for `#[pyclass(extends=PyDict)]`
+  |
+  = help: the trait `PyClassBaseType` is not implemented for `PyDict`
+  = note: `PyDict` must have `#[pyclass(subclass)]` to be eligible for subclassing
+  = note: subclassing native types requires Python >= 3.12 when using the `abi3` feature
 help: the trait `PyClassBaseType` is implemented for `PyAny`
   --> src/types/any.rs:55:1
    |
@@ -15,14 +15,14 @@ help: the trait `PyClassBaseType` is implemented for `PyAny`
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: pyclass `PyDict` cannot be subclassed
-   --> tests/ui/abi3_nativetype_inheritance.rs:5:19
-    |
-  5 | #[pyclass(extends=PyDict)]
-    |                   ^^^^^^ required for `#[pyclass(extends=PyDict)]`
-    |
-    = help: the trait `PyClassBaseType` is not implemented for `PyDict`
-    = note: `PyDict` must have `#[pyclass(subclass)]` to be eligible for subclassing
-    = note: with the `abi3` feature enabled, PyO3 does not support subclassing native types
+ --> tests/ui/abi3_nativetype_inheritance.rs:5:19
+  |
+5 | #[pyclass(extends=PyDict)]
+  |                   ^^^^^^ required for `#[pyclass(extends=PyDict)]`
+  |
+  = help: the trait `PyClassBaseType` is not implemented for `PyDict`
+  = note: `PyDict` must have `#[pyclass(subclass)]` to be eligible for subclassing
+  = note: subclassing native types requires Python >= 3.12 when using the `abi3` feature
 help: the trait `PyClassBaseType` is implemented for `PyAny`
    --> src/types/any.rs:55:1
     |

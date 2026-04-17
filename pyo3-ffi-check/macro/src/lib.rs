@@ -1,4 +1,8 @@
-use std::{env, fs, path::PathBuf};
+use std::{
+    collections::HashSet,
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use pyo3_build_config::PythonVersion;
@@ -28,7 +32,7 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
     }
 
     let doc_dir = get_doc_dir();
-    let structs_glob = format!("{}/doc/pyo3_ffi/struct.*.html", doc_dir.display());
+    let structs_glob = format!("{}/pyo3_ffi/struct.*.html", doc_dir.display());
 
     let mut output = TokenStream::new();
 
@@ -68,16 +72,7 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 }
 
 fn get_doc_dir() -> PathBuf {
-    let path = PathBuf::from(env::var_os("OUT_DIR").unwrap());
-    path.parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .to_owned()
+    PathBuf::from(env::var_os("PYO3_FFI_CHECK_DOC_DIR").unwrap())
 }
 
 /// Macro which expands to multiple macro calls, one per field in a pyo3-ffi
@@ -125,27 +120,55 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
     }
 
     let doc_dir = get_doc_dir();
-    let struct_file = fs::read_to_string(format!(
-        "{}/doc/pyo3_ffi/struct.{}.html",
-        doc_dir.display(),
-        struct_name
-    ))
-    .unwrap();
+    let pyo3_ffi_struct_file = doc_dir.join(format!("pyo3_ffi/struct.{}.html", struct_name));
+    let mut bindgen_struct_file = doc_dir.join(format!("bindgen/struct.{}.html", struct_name));
 
-    let html = scraper::Html::parse_document(&struct_file);
-    let selector = scraper::Selector::parse("span.structfield").unwrap();
+    // might be a type alias
+    if !bindgen_struct_file.exists() {
+        let type_alias_file = doc_dir.join(format!("bindgen/type.{}.html", struct_name));
+        if type_alias_file.exists() {
+            bindgen_struct_file = type_alias_file;
+        } else {
+            let path = format!("{}", bindgen_struct_file.display());
+            return quote!(compile_error!(concat!(
+                "No file found at `",
+                #path,
+                "`, try running `cargo doc -p pyo3-ffi` first."
+            )))
+            .into();
+        }
+    }
+
+    let pyo3_ffi_fields = get_fields_from_file(&pyo3_ffi_struct_file);
+    let bindgen_fields = get_fields_from_file(&bindgen_struct_file);
+
+    if pyo3_ffi_fields.is_empty() {
+        // probably an opaque type on PyO3 side, skip
+        return TokenStream::new().into();
+    }
+
+    let mut all_fields: HashSet<_> = pyo3_ffi_fields.into_iter().chain(bindgen_fields).collect();
+
+    if struct_name == "PyMemberDef" {
+        // bindgen picked `type_` as the field name to avoid the `type` keyword, but PyO3 uses `type_code`
+        all_fields.remove("type_");
+    } else if struct_name == "PyObject" && pyo3_build_config::get().version >= PythonVersion::PY312
+    {
+        // bindgen picked `__bindgen_anon_1` as the field name for the anonymous union containing ob_refcnt,
+        // PyO3 uses ob_refcnt directly
+        all_fields.remove("__bindgen_anon_1");
+    }
 
     let mut output = TokenStream::new();
 
-    for el in html.select(&selector) {
-        let field_name = el
-            .value()
-            .id()
-            .unwrap()
-            .strip_prefix("structfield.")
-            .unwrap();
+    for field_name in all_fields {
+        if field_name.starts_with("_") {
+            // a private field - pyo3-ffi might have it, but it'll be inaccessible, can't do
+            // offset of or similar checks on it, skip for now
+            continue;
+        }
 
-        let field_ident = Ident::new(field_name, Span::call_site());
+        let field_ident = Ident::new(&field_name, Span::call_site());
 
         let bindgen_field_ident = if (pyo3_build_config::get().version >= PythonVersion::PY312)
             && struct_name == "PyObject"
@@ -166,4 +189,21 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
     }
 
     output.into()
+}
+
+fn get_fields_from_file(path: &Path) -> Vec<String> {
+    let html = fs::read_to_string(path).unwrap();
+    let html = scraper::Html::parse_document(&html);
+    let selector = scraper::Selector::parse("span.structfield").unwrap();
+
+    html.select(&selector)
+        .map(|el| {
+            el.value()
+                .id()
+                .unwrap()
+                .strip_prefix("structfield.")
+                .unwrap()
+                .to_string()
+        })
+        .collect()
 }

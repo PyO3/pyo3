@@ -103,12 +103,12 @@ struct InvalidOrderedStruct {
 #[pyclass]
 struct MultipleErrors {
     #[pyo3(foo)]
-//~^ ERROR: expected one of: `get`, `set`, `name`
+    //~^ ERROR: expected one of: `get`, `set`, `name`
     #[pyo3(blah)]
-//~^ ERROR: expected one of: `get`, `set`, `name`
+    //~^ ERROR: expected one of: `get`, `set`, `name`
     x: i32,
     #[pyo3(pop)]
-//~^ ERROR: expected one of: `get`, `set`, `name`
+    //~^ ERROR: expected one of: `get`, `set`, `name`
     y: i32,
 }
 
@@ -246,13 +246,13 @@ struct StructImplicitFromPyObjectDeprecated {
 #[pyclass(new = "from_fields")]
 struct NonPythonField {
     field: Box<dyn std::error::Error + Send + Sync>,
-//~^ ERROR: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
-//~| ERROR: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
-//~| ERROR: the trait bound `dyn std::error::Error + Send + Sync: Clone` is not satisfied
+    //~^ ERROR: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
+    //~| ERROR: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
+    //~| ERROR: the trait bound `dyn std::error::Error + Send + Sync: Clone` is not satisfied
 }
 
 #[pyclass(new = "from_fields")]
-//~^ ERROR: conflicting implementations of trait `PyClassNewTextSignature` for type `NewFromFieldsWithManualNew`
+//~^ ERROR: conflicting implementations of trait `pyo3::impl_::pyclass::doc::PyClassNewTextSignature` for type `NewFromFieldsWithManualNew`
 //~| ERROR: duplicate definitions with name `__pymethod___new____`
 //~| ERROR: multiple applicable items in scope
 struct NewFromFieldsWithManualNew {

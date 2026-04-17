@@ -136,7 +136,7 @@ For PyO3 bindings it would be:
 from .my_project import *
 ```
 
-That way everything that is exposed by our native module can be imported directly from the package.
+That way everything that is exposed by our extension module can be imported directly from the package.
 
 ##### `py.typed` requirement
 
@@ -192,6 +192,7 @@ Type annotations can also be made generic in Python.
 They are useful for working with different types while maintaining type safety.
 Usually, generic classes inherit from the `typing.Generic` metaclass.
 
+<!-- no-glossary-link:wheel -->
 Take for example the following `.pyi` file that specifies a `Car` that can accept multiple types of wheels:
 
 ```python

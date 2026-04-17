@@ -72,8 +72,8 @@ error[E0034]: multiple applicable items in scope
 4 | #[pyclass(generic)]
   | ^^^^^^^^^^^^^^^^^^^ multiple `wrap` found
   |
-  = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
-  = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+  = note: candidate #1 is defined in an impl for the type `pyo3::impl_::wrap::IntoPyObjectConverter<Result<T, E>>`
+  = note: candidate #2 is defined in an impl for the type `pyo3::impl_::wrap::IntoPyObjectConverter<T>`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0308]: mismatched types
@@ -135,8 +135,8 @@ error[E0034]: multiple applicable items in scope
 25 |     ) -> PyResult<Py<PyAny>> {
    |          ^^^^^^^^ multiple `wrap` found
    |
-   = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
-   = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+   = note: candidate #1 is defined in an impl for the type `pyo3::impl_::wrap::IntoPyObjectConverter<Result<T, E>>`
+   = note: candidate #2 is defined in an impl for the type `pyo3::impl_::wrap::IntoPyObjectConverter<T>`
 
 error: aborting due to 9 previous errors
 

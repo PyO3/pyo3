@@ -15,14 +15,14 @@ enum EmptyEnum {}
 #[derive(FromPyObject)]
 enum EnumWithEmptyTupleVar {
     EmptyTuple(),
-//~^ ERROR: cannot derive FromPyObject for empty structs and variants
+    //~^ ERROR: cannot derive FromPyObject for empty structs and variants
     Valid(String),
 }
 
 #[derive(FromPyObject)]
 enum EnumWithEmptyStructVar {
     EmptyStruct {},
-//~^ ERROR: cannot derive FromPyObject for empty structs and variants
+    //~^ ERROR: cannot derive FromPyObject for empty structs and variants
     Valid(String),
 }
 
@@ -40,7 +40,7 @@ struct EmptyTransparentStruct {}
 enum EnumWithTransparentEmptyTupleVar {
     #[pyo3(transparent)]
     EmptyTuple(),
-//~^ ERROR: cannot derive FromPyObject for empty structs and variants
+    //~^ ERROR: cannot derive FromPyObject for empty structs and variants
     Valid(String),
 }
 
@@ -48,7 +48,7 @@ enum EnumWithTransparentEmptyTupleVar {
 enum EnumWithTransparentEmptyStructVar {
     #[pyo3(transparent)]
     EmptyStruct {},
-//~^ ERROR: cannot derive FromPyObject for empty structs and variants
+    //~^ ERROR: cannot derive FromPyObject for empty structs and variants
     Valid(String),
 }
 
@@ -60,7 +60,7 @@ struct TransparentTupTooManyFields(String, String);
 #[derive(FromPyObject)]
 #[pyo3(transparent)]
 struct TransparentStructTooManyFields {
-//~^ ERROR: transparent structs and variants can only have 1 field
+    //~^ ERROR: transparent structs and variants can only have 1 field
     foo: String,
     bar: String,
 }
@@ -69,7 +69,7 @@ struct TransparentStructTooManyFields {
 enum EnumWithTransparentTupleTooMany {
     #[pyo3(transparent)]
     EmptyTuple(String, String),
-//~^ ERROR: transparent structs and variants can only have 1 field
+    //~^ ERROR: transparent structs and variants can only have 1 field
     Valid(String),
 }
 
@@ -77,7 +77,7 @@ enum EnumWithTransparentTupleTooMany {
 enum EnumWithTransparentStructTooMany {
     #[pyo3(transparent)]
     EmptyStruct {
-//~^ ERROR: transparent structs and variants can only have 1 field
+        //~^ ERROR: transparent structs and variants can only have 1 field
         foo: String,
         bar: String,
     },
@@ -87,56 +87,56 @@ enum EnumWithTransparentStructTooMany {
 #[derive(FromPyObject)]
 struct UnknownAttribute {
     #[pyo3(attr)]
-//~^ ERROR: expected one of: `attribute`, `item`, `from_py_with`, `into_py_with`, `default`
+    //~^ ERROR: expected one of: `attribute`, `item`, `from_py_with`, `into_py_with`, `default`
     a: String,
 }
 
 #[derive(FromPyObject)]
 struct InvalidAttributeArg {
     #[pyo3(attribute(1))]
-//~^ ERROR: expected string literal
+    //~^ ERROR: expected string literal
     a: String,
 }
 
 #[derive(FromPyObject)]
 struct TooManyAttributeArgs {
     #[pyo3(attribute("a", "b"))]
-//~^ ERROR: expected at most one argument: `attribute` or `attribute("name")`
+    //~^ ERROR: expected at most one argument: `attribute` or `attribute("name")`
     a: String,
 }
 
 #[derive(FromPyObject)]
 struct EmptyAttributeArg {
     #[pyo3(attribute(""))]
-//~^ ERROR: attribute name cannot be empty
+    //~^ ERROR: attribute name cannot be empty
     a: String,
 }
 
 #[derive(FromPyObject)]
 struct NoAttributeArg {
     #[pyo3(attribute())]
-//~^ ERROR: unexpected end of input, expected string literal
+    //~^ ERROR: unexpected end of input, expected string literal
     a: String,
 }
 
 #[derive(FromPyObject)]
 struct TooManyitemArgs {
     #[pyo3(item("a", "b"))]
-//~^ ERROR: expected at most one argument: `item` or `item(key)`
+    //~^ ERROR: expected at most one argument: `item` or `item(key)`
     a: String,
 }
 
 #[derive(FromPyObject)]
 struct NoItemArg {
     #[pyo3(item())]
-//~^ ERROR: unexpected end of input, expected literal
+    //~^ ERROR: unexpected end of input, expected literal
     a: String,
 }
 
 #[derive(FromPyObject)]
 struct ItemAndAttribute {
     #[pyo3(item, attribute)]
-//~^ ERROR: only one of `attribute` or `item` can be provided
+    //~^ ERROR: only one of `attribute` or `item` can be provided
     a: String,
 }
 
@@ -157,20 +157,20 @@ struct AnnotationOnStruct {
 #[derive(FromPyObject)]
 enum InvalidAnnotatedEnum {
     #[pyo3(annotation = 1)]
-//~^ ERROR: expected string literal
+    //~^ ERROR: expected string literal
     Foo(String),
 }
 
 #[derive(FromPyObject)]
 enum TooManyLifetimes<'a, 'b> {
-//~^ ERROR: FromPyObject can be derived with at most one lifetime parameter
+    //~^ ERROR: FromPyObject can be derived with at most one lifetime parameter
     Foo(&'a str),
     Bar(&'b str),
 }
 
 #[derive(FromPyObject)]
 union Union {
-//~^ ERROR: #[derive(FromPyObject)] is not supported for unions
+    //~^ ERROR: #[derive(FromPyObject)] is not supported for unions
     a: usize,
 }
 
@@ -183,14 +183,13 @@ enum UnitEnum {
 #[derive(FromPyObject)]
 struct InvalidFromPyWith {
     #[pyo3(from_py_with)]
-//~^ ERROR: expected `=`
+    //~^ ERROR: expected `=`
     field: String,
 }
 
 #[derive(FromPyObject)]
 struct InvalidFromPyWithNotFound {
     #[pyo3(from_py_with = func)]
-//~^ ERROR: cannot find value `func` in this scope
     field: String,
 }
 
@@ -203,7 +202,7 @@ struct InvalidTupleGetter(#[pyo3(item("foo"))] String);
 struct InvalidTransparentWithGetter {
     #[pyo3(item("foo"))]
     field: String,
-//~^ ERROR: `transparent` structs may not have a `getter` for the inner field
+    //~^ ERROR: `transparent` structs may not have a `getter` for the inner field
 }
 
 #[derive(FromPyObject)]
@@ -215,7 +214,7 @@ struct FromItemAllOnTuple(String);
 #[pyo3(transparent)]
 struct FromItemAllWithTransparent {
     field: String,
-//~^ ERROR: `transparent` structs may not have a `getter` for the inner field
+    //~^ ERROR: `transparent` structs may not have a `getter` for the inner field
 }
 
 #[derive(FromPyObject)]
@@ -251,7 +250,7 @@ struct FromItemAllConflictAttrWithArgs {
 
 #[derive(FromPyObject)]
 struct StructWithOnlyDefaultValues {
-//~^ ERROR: cannot derive FromPyObject for structs and variants with only default values
+    //~^ ERROR: cannot derive FromPyObject for structs and variants with only default values
     #[pyo3(default)]
     field: String,
 }
@@ -259,7 +258,7 @@ struct StructWithOnlyDefaultValues {
 #[derive(FromPyObject)]
 enum EnumVariantWithOnlyDefaultValues {
     Foo {
-//~^ ERROR: cannot derive FromPyObject for structs and variants with only default values
+        //~^ ERROR: cannot derive FromPyObject for structs and variants with only default values
         #[pyo3(default)]
         field: String,
     },
@@ -284,7 +283,7 @@ struct RenameAllTuple(String);
 #[derive(FromPyObject)]
 enum RenameAllEnum {
     #[pyo3(rename_all = "camelCase")]
-//~^ ERROR: `rename_all` is useless on tuple structs and variants.
+    //~^ ERROR: `rename_all` is useless on tuple structs and variants.
     Tuple(String),
 }
 
@@ -299,7 +298,7 @@ struct RenameAllTransparent {
 #[pyo3(rename_all = "camelCase")]
 enum UselessRenameAllEnum {
     #[pyo3(rename_all = "camelCase")]
-//~^ ERROR: Useless variant `rename_all` - enum is already annotated with `rename_all
+    //~^ ERROR: Useless variant `rename_all` - enum is already annotated with `rename_all
     Tuple { inner_field: String },
 }
 

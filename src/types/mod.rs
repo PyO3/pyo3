@@ -60,7 +60,6 @@ pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefRe
 /// ```rust
 /// use pyo3::prelude::*;
 /// use pyo3::types::PyDict;
-/// use pyo3::ffi::c_str;
 ///
 /// # pub fn main() -> PyResult<()> {
 /// Python::attach(|py| {

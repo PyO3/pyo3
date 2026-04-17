@@ -6,7 +6,7 @@ struct InvalidInitReturn;
 #[pymethods]
 impl InvalidInitReturn {
     fn __init__(&self) -> i32 {
-//~^ ERROR: the trait bound `i32: IntoPyCallbackOutput<'_, i32>` is not satisfied
+        //~^ ERROR: the trait bound `i32: pyo3::impl_::callback::IntoPyCallbackOutput<'_, i32>` is not satisfied
         0
     }
 }

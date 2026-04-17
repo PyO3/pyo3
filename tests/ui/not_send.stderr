@@ -8,24 +8,24 @@ error[E0277]: `*mut pyo3::Python<'static>` cannot be shared between threads safe
     |
     = help: within `pyo3::Python<'_>`, the trait `Sync` is not implemented for `*mut pyo3::Python<'static>`
 note: required because it appears within the type `PhantomData<*mut pyo3::Python<'static>>`
-../src/library/core/src/marker.rs:819:12
+../src/library/core/src/marker.rs:814:12
     |
-819 | pub struct PhantomData<T: PointeeSized>;
+814 | pub struct PhantomData<T: PointeeSized>;
     |            ^^^^^^^^^^^
 note: required because it appears within the type `pyo3::marker::NotSend`
-   --> src/marker.rs:357:8
+   --> src/marker.rs:358:8
     |
-357 | struct NotSend(PhantomData<*mut Python<'static>>);
+358 | struct NotSend(PhantomData<*mut Python<'static>>);
     |        ^^^^^^^
 note: required because it appears within the type `PhantomData<pyo3::marker::NotSend>`
-../src/library/core/src/marker.rs:819:12
+../src/library/core/src/marker.rs:814:12
     |
-819 | pub struct PhantomData<T: PointeeSized>;
+814 | pub struct PhantomData<T: PointeeSized>;
     |            ^^^^^^^^^^^
 note: required because it appears within the type `pyo3::Python<'_>`
-   --> src/marker.rs:353:12
+   --> src/marker.rs:354:12
     |
-353 | pub struct Python<'py>(PhantomData<&'py AttachGuard>, PhantomData<NotSend>);
+354 | pub struct Python<'py>(PhantomData<&'py AttachGuard>, PhantomData<NotSend>);
     |            ^^^^^^
     = note: required for `&pyo3::Python<'_>` to implement `Send`
 note: required because it's used within this closure

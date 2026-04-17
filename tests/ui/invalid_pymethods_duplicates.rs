@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 struct TwoNew {}
 
 #[pymethods]
-//~^ ERROR: conflicting implementations of trait `PyClassNewTextSignature` for type `TwoNew`
+//~^ ERROR: conflicting implementations of trait `pyo3::impl_::pyclass::doc::PyClassNewTextSignature` for type `TwoNew`
 //~| ERROR: duplicate definitions with name `__pymethod___new____`
 impl TwoNew {
     #[new]
