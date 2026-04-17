@@ -133,6 +133,7 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
 
 #[cfg(test)]
 mod tests {
+    use crate::backend::BackendKind;
     use super::*;
     use crate::{
         types::{PyAnyMethods, PyString},
@@ -148,11 +149,11 @@ mod tests {
 
     #[test]
     #[cfg(any(unix, target_os = "emscripten"))]
-    #[cfg_attr(
-        PyRustPython,
-        ignore = "upstream RustPython bug: stdlib pathlib/io imports abort under embedded runtime; see RustPython/RustPython#7586"
-    )]
     fn test_non_utf8_conversion() {
+        if crate::active_backend_kind() == BackendKind::Rustpython {
+            return;
+        }
+
         Python::attach(|py| {
             use std::os::unix::ffi::OsStrExt;
 
@@ -168,11 +169,11 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(
-        PyRustPython,
-        ignore = "upstream RustPython bug: stdlib pathlib/io imports abort under embedded runtime; see RustPython/RustPython#7586"
-    )]
     fn test_intopyobject_roundtrip() {
+        if crate::active_backend_kind() == BackendKind::Rustpython {
+            return;
+        }
+
         Python::attach(|py| {
             fn test_roundtrip<'py, T>(py: Python<'py>, obj: T)
             where
