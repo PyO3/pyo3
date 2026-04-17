@@ -3,8 +3,13 @@ use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound, BoundObject};
 use crate::sync::PyOnceLock;
-use crate::types::{PyAny, PyCode, PyCodeInput, PyDateTime, PyFrozenSet, PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo};
+use crate::types::any::PyAnyMethods;
+use crate::types::{
+    PyAny, PyCode, PyCodeInput, PyDateTime, PyFrozenSet, PyList, PyModule, PyString, PyTime,
+    PyTuple, PyType, PyTypeMethods, PyTzInfo,
+};
 use crate::{ffi, IntoPyObject, IntoPyObjectExt, Py, Python};
+use crate::py_result_ext::PyResultExt;
 
 #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
 use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
@@ -12,6 +17,11 @@ use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNo
 #[inline]
 pub(crate) fn dict_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::PyDict_Type
+}
+
+#[inline]
+pub(crate) fn module_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+    &raw mut ffi::PyModule_Type
 }
 
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -66,6 +76,44 @@ pub(crate) fn empty_code<'py>(
 ) -> Bound<'py, PyCode> {
     crate::types::PyCode::compile(py, c"", file_name, PyCodeInput::File)
         .expect("CPython backend failed to create an empty code object")
+}
+
+#[inline]
+pub(crate) fn module_import<'py, N>(py: Python<'py>, name: N) -> PyResult<Bound<'py, PyModule>>
+where
+    N: IntoPyObject<'py, Target = PyString>,
+{
+    let name = name.into_pyobject_or_pyerr(py)?;
+    unsafe {
+        ffi::PyImport_Import(name.as_ptr())
+            .assume_owned_or_err(py)
+            .cast_into_unchecked()
+    }
+}
+
+#[inline]
+pub(crate) fn module_index<'py>(
+    module: &Bound<'py, PyModule>,
+    _dict: &Bound<'py, crate::types::PyDict>,
+    __all__: &Bound<'py, PyString>,
+) -> PyResult<Bound<'py, PyList>> {
+    match module.getattr(__all__) {
+        Ok(idx) => idx.cast_into().map_err(crate::err::PyErr::from),
+        Err(err) => {
+            if err.is_instance_of::<crate::exceptions::PyAttributeError>(module.py()) {
+                let l = crate::types::PyList::empty(module.py());
+                module.setattr(__all__, &l)?;
+                Ok(l)
+            } else {
+                Err(err)
+            }
+        }
+    }
+}
+
+#[inline]
+pub(crate) fn module_filename_test_should_skip() -> bool {
+    false
 }
 
 #[inline]

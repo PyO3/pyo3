@@ -1,19 +1,16 @@
-use crate::err::{PyErr, PyResult};
+use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::instance::BoundObject;
 use crate::impl_::callback::IntoPyCallbackOutput;
-use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
+use crate::py_result_ext::PyResultExt;
 use crate::types::{
-    any::PyAnyMethods, dict::PyDictMethods, list::PyListMethods, string::PyStringMethods, PyAny,
-    PyCFunction, PyDict, PyList, PyString,
+    any::PyAnyMethods, dict::PyDict, list::PyList, list::PyListMethods, string::PyStringMethods,
+    PyAny, PyCFunction, PyString,
 };
-use crate::{
-    exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
-};
-#[cfg(PyRustPython)]
-use crate::sync::PyOnceLock;
-#[cfg(PyRustPython)]
-use crate::types::{PyType, PyTypeMethods};
+use crate::{ffi, Borrowed, Bound, IntoPyObject, IntoPyObjectExt, Py, Python};
+#[cfg(PyPy)]
+use crate::{err::PyErr, exceptions};
 use std::borrow::Cow;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use std::ffi::c_int;
@@ -36,16 +33,9 @@ use std::str;
 #[repr(transparent)]
 pub struct PyModule(PyAny);
 
-#[cfg(not(PyRustPython))]
-pyobject_native_type_core!(PyModule, pyobject_native_static_type_object!(ffi::PyModule_Type), "types", "ModuleType", #checkfunction=ffi::PyModule_Check);
-
-#[cfg(PyRustPython)]
 pyobject_native_type_core!(
     PyModule,
-    |py| {
-        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "types", "ModuleType").unwrap().as_type_ptr()
-    },
+    |py| crate::backend::current::types::module_type_object(py),
     "types",
     "ModuleType",
     #checkfunction=ffi::PyModule_Check
@@ -108,23 +98,7 @@ impl PyModule {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        let name = name.into_pyobject_or_pyerr(py)?;
-        #[cfg(PyRustPython)]
-        unsafe {
-            let name = name.into_any().into_bound();
-            let name: Bound<'py, PyString> = name.cast_into_unchecked();
-            let name = name.to_cow()?;
-            let c_name = std::ffi::CString::new(name.as_ref())
-                .map_err(|_| PyErr::new::<exceptions::PyValueError, _>("module name contains NUL byte"))?;
-            let module = ffi::PyImport_ImportModule(c_name.as_ptr());
-            module.assume_owned_or_err(py).cast_into_unchecked()
-        }
-        #[cfg(not(PyRustPython))]
-        unsafe {
-            ffi::PyImport_Import(name.as_ptr())
-                .assume_owned_or_err(py)
-                .cast_into_unchecked()
-        }
+        crate::backend::current::types::module_import(py, name)
     }
 
     /// Creates and loads a module named `module_name`,
@@ -444,36 +418,8 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
 
     fn index(&self) -> PyResult<Bound<'py, PyList>> {
         let __all__ = __all__(self.py());
-
-        #[cfg(PyRustPython)]
-        {
-            let dict = self.dict();
-            return match PyDictMethods::get_item(&dict, __all__) {
-                Ok(Some(idx)) => idx.cast_into::<PyList>().map_err(PyErr::from),
-                Ok(None) => {
-                    let l = PyList::empty(self.py());
-                    dict.set_item(__all__, &l)?;
-                    Ok(l)
-                }
-                Err(err) => Err(err),
-            };
-        }
-
-        #[cfg(not(PyRustPython))]
-        {
-            match self.getattr(__all__) {
-                Ok(idx) => idx.cast_into().map_err(PyErr::from),
-                Err(err) => {
-                    if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
-                        let l = PyList::empty(self.py());
-                        self.setattr(__all__, &l)?;
-                        Ok(l)
-                    } else {
-                        Err(err)
-                    }
-                }
-            }
-        }
+        let dict = self.dict();
+        crate::backend::current::types::module_index(self, &dict, __all__)
     }
 
     fn name(&self) -> PyResult<Bound<'py, PyString>> {
@@ -620,13 +566,12 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(
-        PyRustPython,
-        ignore = "upstream RustPython bug: site/os/abc imports recurse in embedded mode; see RustPython/RustPython#7587"
-    )]
     fn module_filename() {
         use crate::types::string::PyStringMethods;
         Python::attach(|py| {
+            if crate::backend::current::types::module_filename_test_should_skip() {
+                return;
+            }
             let site = PyModule::import(py, "site").unwrap();
             assert!(site
                 .filename()

@@ -2,15 +2,25 @@ use crate::err::{self, PyResult};
 use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound, BoundObject};
+use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyAny, PyCode, PyCodeInput, PyDateTime, PyDict, PyFrozenSet, PySet, PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo};
+use crate::types::{
+    PyAny, PyCode, PyCodeInput, PyDateTime, PyDict, PyDictMethods, PyFrozenSet, PyList, PyModule,
+    PySet, PyString, PyStringMethods, PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo,
+};
 use crate::{ffi, IntoPyObject, IntoPyObjectExt, Py, Python};
 
 #[inline]
 pub(crate) fn dict_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     TYPE.import(py, "builtins", "dict").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn module_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "types", "ModuleType").unwrap().as_type_ptr()
 }
 
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -86,6 +96,48 @@ pub(crate) fn empty_code<'py>(
 ) -> Bound<'py, PyCode> {
     crate::types::PyCode::compile(py, c"", file_name, PyCodeInput::File)
         .expect("RustPython backend failed to create an empty code object")
+}
+
+#[inline]
+pub(crate) fn module_import<'py, N>(py: Python<'py>, name: N) -> PyResult<Bound<'py, PyModule>>
+where
+    N: IntoPyObject<'py, Target = PyString>,
+{
+    let name = name.into_pyobject_or_pyerr(py)?;
+    unsafe {
+        let name = name.into_any().into_bound();
+        let name: Bound<'py, PyString> = name.cast_into_unchecked();
+        let name = name.to_cow()?;
+        let c_name = std::ffi::CString::new(name.as_ref()).map_err(|_| {
+            crate::err::PyErr::new::<crate::exceptions::PyValueError, _>(
+                "module name contains NUL byte",
+            )
+        })?;
+        let module = ffi::PyImport_ImportModule(c_name.as_ptr());
+        module.assume_owned_or_err(py).cast_into_unchecked()
+    }
+}
+
+#[inline]
+pub(crate) fn module_index<'py>(
+    module: &Bound<'py, PyModule>,
+    dict: &Bound<'py, PyDict>,
+    __all__: &Bound<'py, PyString>,
+) -> PyResult<Bound<'py, PyList>> {
+    match PyDictMethods::get_item(dict, __all__) {
+        Ok(Some(idx)) => idx.cast_into().map_err(crate::err::PyErr::from),
+        Ok(None) => {
+            let l = crate::types::PyList::empty(module.py());
+            dict.set_item(__all__, &l)?;
+            Ok(l)
+        }
+        Err(err) => Err(err),
+    }
+}
+
+#[inline]
+pub(crate) fn module_filename_test_should_skip() -> bool {
+    true
 }
 
 #[inline]

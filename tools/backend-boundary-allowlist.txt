@@ -13,6 +13,5 @@ src/types/float.rs
 src/types/frame.rs
 src/types/mapping.rs
 src/types/mod.rs
-src/types/module.rs
 src/types/sequence.rs
 src/types/typeobject.rs
