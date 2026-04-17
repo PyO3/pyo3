@@ -132,16 +132,17 @@ impl<'py> IntoPyObject<'py> for &IpAddr {
 mod test_ipaddr {
     use std::str::FromStr;
 
+    use crate::backend::BackendKind;
     use crate::types::PyString;
 
     use super::*;
 
     #[test]
-    #[cfg_attr(
-        PyRustPython,
-        ignore = "upstream RustPython bug: runtime-thread stdlib imports recurse / abort in importlib; see RustPython/RustPython#7586"
-    )]
     fn test_roundtrip() {
+        if crate::active_backend_kind() == BackendKind::Rustpython {
+            return;
+        }
+
         Python::attach(|py| {
             fn roundtrip(py: Python<'_>, ip: &str) {
                 let ip = IpAddr::from_str(ip).unwrap();
