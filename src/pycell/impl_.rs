@@ -227,12 +227,7 @@ where
         Ok(())
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        #[cfg(PyRustPython)]
-        {
-            let _ = (py, slf);
-        }
-        #[cfg(not(PyRustPython))]
-        unsafe { tp_dealloc(slf, &T::type_object(py)) };
+        crate::backend::current::pyclass_base_tp_dealloc!(py, slf, &T::type_object(py));
     }
 }
 
@@ -252,12 +247,7 @@ impl<T: PyTypeInfo> PyClassObjectBaseLayout<T> for PyVariableClassObjectBase {
         Ok(())
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        #[cfg(PyRustPython)]
-        {
-            let _ = (py, slf);
-        }
-        #[cfg(not(PyRustPython))]
-        unsafe { tp_dealloc(slf, &T::type_object(py)) };
+        crate::backend::current::pyclass_base_tp_dealloc!(py, slf, &T::type_object(py));
     }
 }
 

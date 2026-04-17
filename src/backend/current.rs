@@ -172,6 +172,21 @@ macro_rules! native_exception_subclassable_type {
 }
 pub(crate) use native_exception_subclassable_type;
 
+macro_rules! pyclass_base_tp_dealloc {
+    ($py:expr, $slf:expr, $type_obj:expr) => {{
+        #[cfg(PyRustPython)]
+        {
+            let _ = ($py, $slf, $type_obj);
+        }
+
+        #[cfg(not(PyRustPython))]
+        unsafe {
+            tp_dealloc($slf, $type_obj)
+        }
+    }};
+}
+pub(crate) use pyclass_base_tp_dealloc;
+
 macro_rules! string_raw_data_api {
     ($($item:item)*) => {
         $(
