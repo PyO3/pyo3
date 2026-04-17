@@ -3,12 +3,8 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::box_into_non_null;
 use crate::py_result_ext::PyResultExt;
-#[cfg(PyRustPython)]
-use crate::sync::PyOnceLock;
 use crate::{ffi, PyAny};
 use crate::{Bound, Python};
-#[cfg(PyRustPython)]
-use crate::{Py, types::PyType, types::PyTypeMethods};
 use crate::{PyErr, PyResult};
 use std::ffi::{c_char, c_int, c_void};
 use std::ffi::{CStr, CString};
@@ -54,18 +50,9 @@ use std::ptr::{self, NonNull};
 #[repr(transparent)]
 pub struct PyCapsule(PyAny);
 
-#[cfg(not(PyRustPython))]
-pyobject_native_type_core!(PyCapsule, pyobject_native_static_type_object!(ffi::PyCapsule_Type), "types", "CapsuleType", #checkfunction=ffi::PyCapsule_CheckExact);
-
-#[cfg(PyRustPython)]
 pyobject_native_type_core!(
     PyCapsule,
-    |py| {
-        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "_types", "CapsuleType")
-            .unwrap()
-            .as_type_ptr()
-    },
+    |py| crate::backend::current::types::capsule_type_object(py),
     "types",
     "CapsuleType",
     #checkfunction=ffi::PyCapsule_CheckExact

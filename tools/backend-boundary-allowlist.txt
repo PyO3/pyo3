@@ -18,7 +18,6 @@ src/pycell/impl_.rs
 src/types/any.rs
 src/types/boolobject.rs
 src/types/bytearray.rs
-src/types/capsule.rs
 src/types/code.rs
 src/types/float.rs
 src/types/frame.rs
