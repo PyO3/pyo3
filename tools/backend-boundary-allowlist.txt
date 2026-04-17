@@ -2,7 +2,6 @@ pyo3-ffi/src/lib.rs
 pyo3-ffi/src/object_rustpython.rs
 pyo3-macros-backend/src/pyclass.rs
 pyo3-macros-backend/src/pyimpl.rs
-src/exceptions.rs
 src/impl_/pyclass.rs
 src/lib.rs
 src/pycell/impl_.rs

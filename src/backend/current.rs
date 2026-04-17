@@ -161,6 +161,17 @@ macro_rules! pyany_native_layout {
 }
 pub(crate) use pyany_native_layout;
 
+macro_rules! native_exception_subclassable_type {
+    ($name:ident, $layout:path) => {
+        #[cfg(not(PyRustPython))]
+        $crate::pyobject_subclassable_native_type!($name, $layout);
+
+        #[cfg(PyRustPython)]
+        $crate::pyobject_subclassable_native_type_opaque!($name);
+    };
+}
+pub(crate) use native_exception_subclassable_type;
+
 macro_rules! string_raw_data_api {
     ($($item:item)*) => {
         $(
