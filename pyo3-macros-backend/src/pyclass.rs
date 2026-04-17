@@ -2910,7 +2910,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             .chain(self.default_slots.iter().filter_map(|slot| {
                 slot.callable_method.as_ref().map(|callable| {
                     let associated_method = &callable.associated_method;
-                    quote!(#[allow(unexpected_cfgs)] #[cfg(PyRustPython)] #associated_method)
+                    crate::backend::current::rustpython_cfg_item(quote!(#associated_method))
                 })
             }));
 
@@ -2921,7 +2921,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             .chain(self.default_slots.iter().filter_map(|slot| {
                 slot.callable_method.as_ref().map(|callable| {
                     let method_def = &callable.method_def;
-                    quote!(#[allow(unexpected_cfgs)] #[cfg(PyRustPython)] #method_def)
+                    crate::backend::current::rustpython_cfg_item(quote!(#method_def))
                 })
             }));
         let default_slot_defs = self.default_slots.iter().map(|slot| &slot.slot_def);

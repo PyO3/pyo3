@@ -189,9 +189,14 @@ pub fn impl_methods(
                                 method_def,
                             }) = callable_method
                             {
-                                associated_methods
-                                    .push(quote!(#[allow(unexpected_cfgs)] #[cfg(PyRustPython)] #(#attrs)* #associated_method));
-                                methods.push(quote!(#[allow(unexpected_cfgs)] #[cfg(PyRustPython)] #(#attrs)* #method_def));
+                                associated_methods.push(
+                                    crate::backend::current::rustpython_cfg_item(
+                                        quote!(#(#attrs)* #associated_method),
+                                    ),
+                                );
+                                methods.push(crate::backend::current::rustpython_cfg_item(
+                                    quote!(#(#attrs)* #method_def),
+                                ));
                             }
                         }
                         GeneratedPyMethod::Proto(MethodAndSlotDef {
@@ -207,9 +212,14 @@ pub fn impl_methods(
                                 method_def,
                             }) = callable_method
                             {
-                                associated_methods
-                                    .push(quote!(#[allow(unexpected_cfgs)] #[cfg(PyRustPython)] #(#attrs)* #associated_method));
-                                methods.push(quote!(#[allow(unexpected_cfgs)] #[cfg(PyRustPython)] #(#attrs)* #method_def));
+                                associated_methods.push(
+                                    crate::backend::current::rustpython_cfg_item(
+                                        quote!(#(#attrs)* #associated_method),
+                                    ),
+                                );
+                                methods.push(crate::backend::current::rustpython_cfg_item(
+                                    quote!(#(#attrs)* #method_def),
+                                ));
                             }
                         }
                     }
