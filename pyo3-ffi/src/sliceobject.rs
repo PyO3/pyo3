@@ -3,7 +3,7 @@ use crate::pyport::Py_ssize_t;
 use std::ffi::c_int;
 
 extern_libpython! {
-    #[cfg(not(GraalPy))]
+    #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
     #[cfg_attr(PyPy, link_name = "_PyPy_EllipsisObject")]
     static mut _Py_EllipsisObject: PyObject;
 
@@ -13,8 +13,12 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn Py_Ellipsis() -> *mut PyObject {
-    #[cfg(not(GraalPy))]
+    #[cfg(all(not(GraalPy), all(Py_3_13, Py_LIMITED_API)))]
+    return Py_GetConstantBorrowed(Py_CONSTANT_ELLIPSIS);
+
+    #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
     return &raw mut _Py_EllipsisObject;
+
     #[cfg(GraalPy)]
     return _Py_EllipsisObjectReference;
 }

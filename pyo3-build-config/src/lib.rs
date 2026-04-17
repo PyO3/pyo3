@@ -257,11 +257,6 @@ pub fn print_feature_cfgs() {
 /// - <https://doc.rust-lang.org/nightly/cargo/reference/build-scripts.html#rustc-check-cfg>
 #[doc(hidden)]
 pub fn print_expected_cfgs() {
-    if rustc_minor_version().is_some_and(|version| version < 80) {
-        // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
-        return;
-    }
-
     println!("cargo:rustc-check-cfg=cfg(Py_LIMITED_API)");
     println!("cargo:rustc-check-cfg=cfg(Py_GIL_DISABLED)");
     println!("cargo:rustc-check-cfg=cfg(PyPy)");

@@ -57,11 +57,44 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
     }
 }
 
-pub trait PyClassInit<'py, const IS_PYCLASS: bool, const IS_INITIALIZER_TUPLE: bool> {
+pub trait PyClassInit<'py, const IS_PYCLASS: bool, const IS_INITIALIZER_TUPLE: bool>:
+    seal_pyclass_init::Sealed<'py, IS_PYCLASS, IS_INITIALIZER_TUPLE>
+{
     fn init(
         self,
         cls: crate::Borrowed<'_, 'py, crate::types::PyType>,
     ) -> PyResult<crate::Bound<'py, crate::PyAny>>;
+}
+
+mod seal_pyclass_init {
+    use crate::impl_::pyclass::{self, PyClassBaseType};
+    use crate::impl_::pyclass_init::{PyClassInit, PyNativeTypeInitializer};
+    use crate::{PyClass, PyClassInitializer, PyErr};
+
+    pub trait Sealed<'py, const IS_PYCLASS: bool, const IS_INITIALIZER_TUPLE: bool> {}
+
+    impl<'py, T> Sealed<'py, false, false> for T where T: crate::IntoPyObject<'py> {}
+    impl<'py, T> Sealed<'py, true, false> for T
+    where
+        T: crate::PyClass,
+        T::BaseType: pyclass::PyClassBaseType<Initializer = PyNativeTypeInitializer<T::BaseType>>,
+    {
+    }
+    impl<'py, T, E, const IS_PYCLASS: bool, const IS_INITIALIZER_TUPLE: bool>
+        Sealed<'py, IS_PYCLASS, IS_INITIALIZER_TUPLE> for Result<T, E>
+    where
+        T: PyClassInit<'py, IS_PYCLASS, IS_INITIALIZER_TUPLE>,
+        E: Into<PyErr>,
+    {
+    }
+    impl<'py, T> Sealed<'py, false, false> for PyClassInitializer<T> where T: PyClass {}
+    impl<'py, S, B> Sealed<'py, false, true> for (S, B)
+    where
+        S: PyClass<BaseType = B>,
+        B: PyClass + PyClassBaseType<Initializer = PyClassInitializer<B>>,
+        B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
+    {
+    }
 }
 
 impl<'py, T> PyClassInit<'py, false, false> for T
