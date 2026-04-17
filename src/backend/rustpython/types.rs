@@ -4,6 +4,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound, BoundObject};
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
+use crate::type_object::PyTypeInfo;
 use crate::intern;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
@@ -11,6 +12,12 @@ use crate::types::{
     PySet, PyString, PyStringMethods, PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo,
 };
 use crate::{ffi, IntoPyObject, IntoPyObjectExt, Py, Python};
+use std::sync::{Mutex, OnceLock};
+
+fn registered_mapping_types() -> &'static Mutex<Vec<usize>> {
+    static REGISTRY: OnceLock<Mutex<Vec<usize>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
+}
 
 #[inline]
 pub(crate) fn dict_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
@@ -117,6 +124,31 @@ where
         let module = ffi::PyImport_ImportModule(c_name.as_ptr());
         module.assume_owned_or_err(py).cast_into_unchecked()
     }
+}
+
+#[inline]
+pub(crate) fn mapping_is_type_of(object: &Bound<'_, PyAny>) -> bool {
+    PyDict::is_type_of(object)
+        || unsafe { ffi::PyMapping_Check(object.as_ptr()) != 0 }
+        || is_registered_mapping_type(object)
+}
+
+pub(crate) fn is_registered_mapping_type(object: &Bound<'_, PyAny>) -> bool {
+    registered_mapping_types()
+        .lock()
+        .unwrap()
+        .iter()
+        .copied()
+        .any(|ptr| unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), ptr as *mut ffi::PyTypeObject) != 0 })
+}
+
+pub(crate) fn register_mapping_type(ty: &Bound<'_, PyType>) -> PyResult<()> {
+    let ptr = ty.as_type_ptr() as usize;
+    let mut registry = registered_mapping_types().lock().unwrap();
+    if !registry.contains(&ptr) {
+        registry.push(ptr);
+    }
+    Ok(())
 }
 
 #[inline]

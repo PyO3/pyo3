@@ -3,9 +3,10 @@ use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound, BoundObject};
 use crate::sync::PyOnceLock;
+use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
-    PyAny, PyCode, PyCodeInput, PyDateTime, PyFrozenSet, PyList, PyModule, PyString, PyTime,
+    PyAny, PyCode, PyCodeInput, PyDateTime, PyDict, PyFrozenSet, PyList, PyModule, PyString, PyTime,
     PyTuple, PyType, PyTypeMethods, PyTzInfo,
 };
 use crate::{ffi, IntoPyObject, IntoPyObjectExt, Py, Python};
@@ -109,6 +110,28 @@ pub(crate) fn module_index<'py>(
             }
         }
     }
+}
+
+#[inline]
+pub(crate) fn mapping_is_type_of(object: &Bound<'_, PyAny>) -> bool {
+    PyDict::is_type_of(object)
+        || object
+            .is_instance(&crate::types::PyMapping::type_object(object.py()).into_any())
+            .unwrap_or_else(|err| {
+                err.write_unraisable(object.py(), Some(object));
+                false
+            })
+}
+
+#[inline]
+pub(crate) fn is_registered_mapping_type(_object: &Bound<'_, PyAny>) -> bool {
+    false
+}
+
+#[inline]
+pub(crate) fn register_mapping_type(ty: &Bound<'_, PyType>) -> PyResult<()> {
+    crate::types::PyMapping::type_object(ty.py()).call_method1("register", (ty,))?;
+    Ok(())
 }
 
 #[inline]
