@@ -3,7 +3,7 @@ use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound, BoundObject};
 use crate::sync::PyOnceLock;
-use crate::types::{PyAny, PyDateTime, PyFrozenSet, PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo};
+use crate::types::{PyAny, PyCode, PyCodeInput, PyDateTime, PyFrozenSet, PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo};
 use crate::{ffi, IntoPyObject, IntoPyObjectExt, Py, Python};
 
 #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
@@ -58,6 +58,16 @@ pub(crate) fn range_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::PyRange_Type
 }
 
+pub(crate) fn empty_code<'py>(
+    py: Python<'py>,
+    file_name: &std::ffi::CStr,
+    _func_name: &std::ffi::CStr,
+    _first_line_number: i32,
+) -> Bound<'py, PyCode> {
+    crate::types::PyCode::compile(py, c"", file_name, PyCodeInput::File)
+        .expect("CPython backend failed to create an empty code object")
+}
+
 #[inline]
 pub(crate) fn super_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
@@ -88,6 +98,12 @@ pub(crate) fn capsule_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
 #[inline]
 pub(crate) fn complex_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::PyComplex_Type
+}
+
+#[inline]
+pub(crate) fn code_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "types", "CodeType").unwrap().as_type_ptr()
 }
 
 #[inline]

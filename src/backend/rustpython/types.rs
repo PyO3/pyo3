@@ -4,7 +4,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound, BoundObject};
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyAny, PyDateTime, PyDict, PyFrozenSet, PySet, PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo};
+use crate::types::{PyAny, PyCode, PyCodeInput, PyDateTime, PyDict, PyFrozenSet, PySet, PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo};
 use crate::{ffi, IntoPyObject, IntoPyObjectExt, Py, Python};
 
 #[inline]
@@ -78,6 +78,16 @@ pub(crate) fn range_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     TYPE.import(py, "builtins", "range").unwrap().as_type_ptr()
 }
 
+pub(crate) fn empty_code<'py>(
+    py: Python<'py>,
+    file_name: &std::ffi::CStr,
+    _func_name: &std::ffi::CStr,
+    _first_line_number: i32,
+) -> Bound<'py, PyCode> {
+    crate::types::PyCode::compile(py, c"", file_name, PyCodeInput::File)
+        .expect("RustPython backend failed to create an empty code object")
+}
+
 #[inline]
 pub(crate) fn super_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
@@ -114,6 +124,12 @@ pub(crate) fn complex_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     TYPE.import(py, "builtins", "complex")
         .unwrap()
         .as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn code_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "types", "CodeType").unwrap().as_type_ptr()
 }
 
 #[inline]
