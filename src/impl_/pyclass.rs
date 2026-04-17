@@ -1418,6 +1418,7 @@ pub trait ExtractPyClassWithClone {}
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
+    #[cfg(not(Py_TARGET_ABI3T))]
     use crate::pycell::impl_::PyClassObjectContents;
 
     use super::*;
@@ -1446,17 +1447,23 @@ mod tests {
             Some(PyMethodDefType::StructMember(member)) => {
                 assert_eq!(unsafe { CStr::from_ptr(member.name) }, c"value");
                 assert_eq!(member.type_code, ffi::Py_T_OBJECT_EX);
+                #[cfg(not(Py_TARGET_ABI3T))]
                 #[repr(C)]
                 struct ExpectedLayout {
                     ob_base: ffi::PyObject,
                     contents: PyClassObjectContents<FrozenClass>,
                 }
+                #[cfg(not(Py_TARGET_ABI3T))]
                 assert_eq!(
                     member.offset,
                     (offset_of!(ExpectedLayout, contents) + offset_of!(FrozenClass, value))
                         as ffi::Py_ssize_t
                 );
+                #[cfg(not(Py_TARGET_ABI3T))]
                 assert_eq!(member.flags, ffi::Py_READONLY);
+                #[cfg(Py_TARGET_ABI3T)]
+                // ABI3T builds set other flags besides READONLY
+                assert_eq!(member.flags & ffi::Py_READONLY, ffi::Py_READONLY);
             }
             _ => panic!("Expected a StructMember"),
         }
@@ -1568,17 +1575,17 @@ mod tests {
         // SAFETY: def.doc originated from a CStr
         assert_eq!(unsafe { CStr::from_ptr(def.doc) }, c"My field doc");
         assert_eq!(def.type_code, ffi::Py_T_OBJECT_EX);
-        #[allow(irrefutable_let_patterns)]
-        let PyObjectOffset::Absolute(contents_offset) =
-            <MyClass as PyClassImpl>::Layout::CONTENTS_OFFSET
-        else {
-            panic!()
+        #[allow(clippy::infallible_destructuring_match)]
+        let contents_offset = match <MyClass as PyClassImpl>::Layout::CONTENTS_OFFSET {
+            PyObjectOffset::Absolute(contents_offset) => contents_offset,
+            #[cfg(Py_3_12)]
+            PyObjectOffset::Relative(contents_offset) => contents_offset,
         };
         assert_eq!(
             def.offset,
             contents_offset + FIELD_OFFSET as ffi::Py_ssize_t
         );
-        assert_eq!(def.flags, ffi::Py_READONLY);
+        assert_eq!(def.flags & ffi::Py_READONLY, ffi::Py_READONLY);
     }
 
     #[test]

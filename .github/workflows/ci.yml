@@ -64,6 +64,14 @@ jobs:
       - uses: obi1kenobi/cargo-semver-checks-action@v2
         with:
           baseline-rev: ${{ steps.fetch_merge_base.outputs.merge_base }}
+          feature-group: "only-explicit-features"
+          features: "full"
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          baseline-rev: ${{ steps.fetch_merge_base.outputs.merge_base }}
+          feature-group: "only-explicit-features"
+          features: "full,abi3"
+
 
   check-msrv:
     needs: [fmt, resolve]
@@ -612,7 +620,7 @@ jobs:
       - uses: actions/checkout@v6.0.2
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: "3.15-dev"
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}

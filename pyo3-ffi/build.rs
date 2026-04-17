@@ -2,7 +2,7 @@ use pyo3_build_config::{
     bail, ensure, print_feature_cfgs,
     pyo3_build_script_impl::{
         cargo_env_var, env_var, errors::Result, is_linking_libpython_for_target,
-        resolve_build_config, target_triple_from_env, BuildConfig, BuildConfigSource,
+        resolve_build_config, target_triple_from_env, BuildConfig, BuildConfigSource, CPythonABI,
         InterpreterConfig, MaximumVersionExceeded, PythonVersion,
     },
     warn, PythonImplementation,
@@ -18,7 +18,7 @@ const SUPPORTED_VERSIONS_CPYTHON: SupportedVersions = SupportedVersions {
     min: PythonVersion { major: 3, minor: 8 },
     max: PythonVersion {
         major: 3,
-        minor: 14,
+        minor: 15,
     },
 };
 
@@ -67,10 +67,12 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 );
             } else if interpreter_config.version > v_plus_1 {
                 let mut error = MaximumVersionExceeded::new(interpreter_config, versions.max);
-                if interpreter_config.is_free_threaded() {
-                    error.add_help(
-                        "the free-threaded build of CPython does not support the limited API so this check cannot be suppressed.",
-                    );
+                let major = interpreter_config.version.major;
+                let minor = interpreter_config.version.minor;
+                if interpreter_config.is_free_threaded() && interpreter_config.version.minor < 15 {
+                    error.add_help(&format!(
+                        "the free-threaded build of CPython {major}{minor} does not support the limited API so this check cannot be suppressed.",
+                    ));
                     return Err(error.finish().into());
                 }
 
@@ -124,12 +126,12 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
         }
     }
 
-    if interpreter_config.abi3 {
+    if let CPythonABI::ABI3 = interpreter_config.stable_abi {
         match interpreter_config.implementation {
             PythonImplementation::CPython => {
-                if interpreter_config.is_free_threaded() {
+                if interpreter_config.is_free_threaded() && interpreter_config.version.minor < 15 {
                     warn!(
-                            "The free-threaded build of CPython does not yet support abi3 so the build artifacts will be version-specific."
+                            "The free-threaded build of CPython does not support abi3 so the build artifacts will be version-specific. Did you mean to enable the abi3t feature?"
                     )
                 }
             }

@@ -211,6 +211,7 @@ pub trait PyListMethods<'py>: crate::sealed::Sealed {
     /// iterator. Otherwise, the list will not be modified during iteration.
     ///
     /// This is equivalent to for_each if the GIL is enabled.
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn locked_for_each<F>(&self, closure: F) -> PyResult<()>
     where
         F: Fn(Bound<'py, PyAny>) -> PyResult<()>;
@@ -420,6 +421,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     }
 
     /// Iterates over a list while holding a critical section, calling a closure on each item
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn locked_for_each<F>(&self, closure: F) -> PyResult<()>
     where
         F: Fn(Bound<'py, PyAny>) -> PyResult<()>,
@@ -517,6 +519,7 @@ impl<'py> BoundListIterator<'py> {
 
     #[inline]
     #[cfg(not(feature = "nightly"))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn nth(
         index: &mut Index,
         length: &mut Length,
@@ -588,6 +591,7 @@ impl<'py> BoundListIterator<'py> {
 
     #[inline]
     #[cfg(not(feature = "nightly"))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn nth_back(
         index: &mut Index,
         length: &mut Length,
@@ -616,6 +620,7 @@ impl<'py> BoundListIterator<'py> {
     }
 
     #[allow(dead_code)]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn with_critical_section<R>(
         &mut self,
         f: impl FnOnce(&mut Index, &mut Length, &Bound<'py, PyList>) -> R,
@@ -653,6 +658,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
 
     #[inline]
     #[cfg(not(feature = "nightly"))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
         self.with_critical_section(|index, length, list| Self::nth(index, length, list, n))
     }
@@ -680,7 +686,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API), not(feature = "nightly")))]
     fn fold<B, F>(mut self, init: B, mut f: F) -> B
     where
         Self: Sized,
@@ -696,7 +702,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(all(Py_GIL_DISABLED, feature = "nightly"))]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API), feature = "nightly"))]
     fn try_fold<B, F, R>(&mut self, init: B, mut f: F) -> R
     where
         Self: Sized,
@@ -713,7 +719,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API), not(feature = "nightly")))]
     fn all<F>(&mut self, mut f: F) -> bool
     where
         Self: Sized,
@@ -730,7 +736,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API), not(feature = "nightly")))]
     fn any<F>(&mut self, mut f: F) -> bool
     where
         Self: Sized,
@@ -747,7 +753,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API), not(feature = "nightly")))]
     fn find<P>(&mut self, mut predicate: P) -> Option<Self::Item>
     where
         Self: Sized,
@@ -764,7 +770,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API), not(feature = "nightly")))]
     fn find_map<B, F>(&mut self, mut f: F) -> Option<B>
     where
         Self: Sized,
@@ -781,7 +787,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     }
 
     #[inline]
-    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API), not(feature = "nightly")))]
     fn position<P>(&mut self, mut predicate: P) -> Option<usize>
     where
         Self: Sized,
@@ -848,12 +854,13 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
 
     #[inline]
     #[cfg(not(feature = "nightly"))]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
         self.with_critical_section(|index, length, list| Self::nth_back(index, length, list, n))
     }
 
     #[inline]
-    #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API), not(feature = "nightly")))]
     fn rfold<B, F>(mut self, init: B, mut f: F) -> B
     where
         Self: Sized,
@@ -869,7 +876,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
     }
 
     #[inline]
-    #[cfg(all(Py_GIL_DISABLED, feature = "nightly"))]
+    #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API), feature = "nightly"))]
     fn try_rfold<B, F, R>(&mut self, init: B, mut f: F) -> R
     where
         Self: Sized,

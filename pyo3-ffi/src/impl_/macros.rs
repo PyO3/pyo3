@@ -324,6 +324,8 @@ macro_rules! extern_libpython {
         extern_libpython!(@impl $abi { $($body)* }
             // abi3
             "python3", "python3_d",
+            // abi3t
+            "python3t", "python3t_d",
             // Python 3.8 - 3.15
             "python38", "python38_d",
             "python39", "python39_d",

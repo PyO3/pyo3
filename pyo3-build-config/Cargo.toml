@@ -38,7 +38,12 @@ abi3-py310 = ["abi3-py311"]
 abi3-py311 = ["abi3-py312"]
 abi3-py312 = ["abi3-py313"]
 abi3-py313 = ["abi3-py314"]
-abi3-py314 = ["abi3"]
+abi3-py314 = ["abi3-py315"]
+abi3-py315 = ["abi3"]
+
+# These features are enabled by pyo3 when building free-threaded Stable ABI extension modules.
+abi3t = []
+abi3t-py315 = ["abi3t"]
 
 [package.metadata.docs.rs]
 features = ["resolve-config"]

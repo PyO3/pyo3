@@ -182,6 +182,7 @@ pub trait PyDictMethods<'py>: crate::sealed::Sealed {
     /// nightly feature is not enabled because we cannot implement an optimised version of
     /// `iter().try_fold()` on stable yet. If your iteration is infallible then this method has the
     /// same performance as `.iter().for_each()`.
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn locked_for_each<F>(&self, closure: F) -> PyResult<()>
     where
         F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>;
@@ -370,6 +371,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         BoundDictIterator::new(self.clone())
     }
 
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn locked_for_each<F>(&self, f: F) -> PyResult<()>
     where
         F: Fn(Bound<'py, PyAny>, Bound<'py, PyAny>) -> PyResult<()>,
@@ -527,10 +529,25 @@ pub struct BoundDictIterator<'py> {
 
 enum DictIterImpl {
     DictIter {
+        #[cfg(not(Py_TARGET_ABI3T))]
         ppos: ffi::Py_ssize_t,
         di_used: ffi::Py_ssize_t,
         remaining: ffi::Py_ssize_t,
+        #[cfg(Py_TARGET_ABI3T)]
+        iter: *mut ffi::PyObject,
     },
+}
+
+#[cfg(Py_TARGET_ABI3T)]
+impl Drop for DictIterImpl {
+    fn drop(&mut self) {
+        match self {
+            Self::DictIter { iter, .. } => {
+                // safety: owned value that cannot be null by construction
+                unsafe { ffi::Py_DECREF(*iter) };
+            }
+        }
+    }
 }
 
 impl DictIterImpl {
@@ -546,7 +563,10 @@ impl DictIterImpl {
             Self::DictIter {
                 di_used,
                 remaining,
+                #[cfg(not(Py_TARGET_ABI3T))]
                 ppos,
+                #[cfg(Py_TARGET_ABI3T)]
+                iter,
                 ..
             } => {
                 let ma_used = dict_len(dict);
@@ -575,26 +595,55 @@ impl DictIterImpl {
                     panic!("dictionary keys changed during iteration");
                 };
 
-                let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-                let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+                #[cfg(not(Py_TARGET_ABI3T))]
+                {
+                    let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+                    let mut value: *mut ffi::PyObject = std::ptr::null_mut();
 
-                if unsafe { ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) != 0 } {
-                    *remaining -= 1;
+                    if unsafe { ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) != 0 } {
+                        *remaining -= 1;
+                        let py = dict.py();
+                        // Safety:
+                        // - PyDict_Next returns borrowed values
+                        // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
+                        Some((
+                            unsafe { key.assume_borrowed_unchecked(py).to_owned() },
+                            unsafe { value.assume_borrowed_unchecked(py).to_owned() },
+                        ))
+                    } else {
+                        None
+                    }
+                }
+                #[cfg(Py_TARGET_ABI3T)]
+                {
                     let py = dict.py();
-                    // Safety:
-                    // - PyDict_Next returns borrowed values
-                    // - we have already checked that `PyDict_Next` succeeded, so we can assume these to be non-null
-                    Some((
-                        unsafe { key.assume_borrowed_unchecked(py).to_owned() },
-                        unsafe { value.assume_borrowed_unchecked(py).to_owned() },
-                    ))
-                } else {
-                    None
+                    let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+                    let key = match unsafe { ffi::compat::PyIter_NextItem(*iter, &mut key) } {
+                        -1 => panic!(
+                            "Iterating over dictionary failed with error '{}'",
+                            PyErr::fetch(py)
+                        ),
+                        0 => return None,
+                        1 => unsafe { key.assume_owned_unchecked(py) },
+                        x => panic!("Unknown return value from PyIter_NextItem: {}", x),
+                    };
+                    // get_item can only fail if another thread concurrently
+                    // removed the key, so we know that remaining definitely
+                    // needs to be decremented no matter what.
+                    *remaining -= 1;
+                    let value = match dict.get_item(&key) {
+                        Ok(value) => value?,
+                        Err(e) => {
+                            panic!("Iterating over dictionary failed with error '{}'", e)
+                        }
+                    };
+                    Some((key, value))
                 }
             }
         }
     }
 
+    #[cfg(not(Py_TARGET_ABI3T))]
     #[cfg(Py_GIL_DISABLED)]
     #[inline]
     fn with_critical_section<F, R>(&mut self, dict: &Bound<'_, PyDict>, f: F) -> R
@@ -614,6 +663,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
+        #[cfg(not(Py_TARGET_ABI3T))]
         #[cfg(Py_GIL_DISABLED)]
         {
             self.inner
@@ -621,8 +671,12 @@ impl<'py> Iterator for BoundDictIterator<'py> {
                     inner.next_unchecked(&self.dict)
                 })
         }
-        #[cfg(not(Py_GIL_DISABLED))]
+        #[cfg(any(Py_TARGET_ABI3T, not(Py_GIL_DISABLED)))]
         {
+            // SAFETY: next_unchecked always owns strong references to
+            // items in the dict under Py_TARGET_ABI3T. Iteration
+            // uses an iterator object, relying on CPython guarantees
+            // that the PyDict and PyIter APIs are safe.
             unsafe { self.inner.next_unchecked(&self.dict) }
         }
     }
@@ -643,6 +697,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
     #[inline]
     #[cfg(Py_GIL_DISABLED)]
+    #[cfg(not(Py_TARGET_ABI3T))]
     fn fold<B, F>(mut self, init: B, mut f: F) -> B
     where
         Self: Sized,
@@ -675,6 +730,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 
     #[inline]
+    #[cfg(not(Py_TARGET_ABI3T))]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn all<F>(&mut self, mut f: F) -> bool
     where
@@ -692,6 +748,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 
     #[inline]
+    #[cfg(not(Py_TARGET_ABI3T))]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn any<F>(&mut self, mut f: F) -> bool
     where
@@ -709,6 +766,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 
     #[inline]
+    #[cfg(not(Py_TARGET_ABI3T))]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn find<P>(&mut self, mut predicate: P) -> Option<Self::Item>
     where
@@ -726,6 +784,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 
     #[inline]
+    #[cfg(not(Py_TARGET_ABI3T))]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn find_map<B, F>(&mut self, mut f: F) -> Option<B>
     where
@@ -743,6 +802,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     }
 
     #[inline]
+    #[cfg(not(Py_TARGET_ABI3T))]
     #[cfg(all(Py_GIL_DISABLED, not(feature = "nightly")))]
     fn position<P>(&mut self, mut predicate: P) -> Option<usize>
     where
@@ -772,14 +832,26 @@ impl ExactSizeIterator for BoundDictIterator<'_> {
 
 impl<'py> BoundDictIterator<'py> {
     fn new(dict: Bound<'py, PyDict>) -> Self {
-        let remaining = dict_len(&dict);
-
+        let di_used = dict_len(&dict);
+        #[cfg(Py_TARGET_ABI3T)]
+        let iter = {
+            let new_iter = unsafe { ffi::PyObject_GetIter(dict.as_ptr()) };
+            assert!(
+                !new_iter.is_null(),
+                "Converting dict to iterator failed with error '{}'",
+                PyErr::fetch(dict.py())
+            );
+            new_iter
+        };
         Self {
             dict,
             inner: DictIterImpl::DictIter {
+                #[cfg(not(Py_TARGET_ABI3T))]
                 ppos: 0,
-                di_used: remaining,
-                remaining,
+                di_used,
+                remaining: di_used,
+                #[cfg(Py_TARGET_ABI3T)]
+                iter,
             },
         }
     }
@@ -933,7 +1005,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PyAnyMethods as _, PyTuple};
+    use crate::types::PyAnyMethods as _;
+    use crate::types::PyTuple;
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
