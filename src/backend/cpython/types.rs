@@ -6,8 +6,8 @@ use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
-    PyAny, PyCode, PyCodeInput, PyDateTime, PyDict, PyFrozenSet, PyList, PyModule, PyString, PyTime,
-    PyTuple, PyType, PyTypeMethods, PyTzInfo,
+    PyAny, PyCode, PyCodeInput, PyDateTime, PyDict, PyFrame, PyFrozenSet, PyList, PyModule,
+    PyString, PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo,
 };
 use crate::{ffi, IntoPyObject, IntoPyObjectExt, Py, Python};
 use crate::py_result_ext::PyResultExt;
@@ -227,6 +227,41 @@ pub(crate) fn pyfunction_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject 
 pub(crate) fn code_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     TYPE.import(py, "types", "CodeType").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn frame_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+    &raw mut ffi::backend::cpython::pyframe::PyFrame_Type
+}
+
+pub(crate) fn new_frame<'py>(
+    py: Python<'py>,
+    file_name: &std::ffi::CStr,
+    func_name: &std::ffi::CStr,
+    line_number: i32,
+) -> PyResult<Bound<'py, PyFrame>> {
+    // Safety: thread is attached because we have a Python token.
+    let state = unsafe { ffi::compat::PyThreadState_GetUnchecked() };
+    let code = crate::types::PyCode::empty(py, file_name, func_name, line_number);
+    let globals = PyDict::new(py);
+    let locals = PyDict::new(py);
+
+    unsafe {
+        Ok(ffi::backend::cpython::frameobject::PyFrame_New(
+            state,
+            code.into_ptr().cast(),
+            globals.as_ptr(),
+            locals.as_ptr(),
+        )
+        .cast::<ffi::PyObject>()
+        .assume_owned_or_err(py)?
+        .cast_into_unchecked::<PyFrame>())
+    }
+}
+
+#[inline]
+pub(crate) unsafe fn frame_check(object: *mut ffi::PyObject) -> std::ffi::c_int {
+    ffi::backend::cpython::pyframe::PyFrame_Check(object)
 }
 
 #[inline]

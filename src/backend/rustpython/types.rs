@@ -8,8 +8,9 @@ use crate::type_object::PyTypeInfo;
 use crate::intern;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
-    PyAny, PyCode, PyCodeInput, PyDateTime, PyDict, PyDictMethods, PyFrozenSet, PyList, PyModule,
-    PySet, PyString, PyStringMethods, PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo,
+    PyAny, PyCode, PyCodeInput, PyCodeMethods, PyDateTime, PyDict, PyDictMethods, PyFrame,
+    PyFrozenSet, PyList, PyModule, PySet, PyString, PyStringMethods, PyTime, PyTuple, PyType,
+    PyTypeMethods, PyTzInfo,
 };
 use crate::{ffi, IntoPyObject, IntoPyObjectExt, Py, Python};
 use std::sync::{Mutex, OnceLock};
@@ -287,6 +288,57 @@ pub(crate) fn pyfunction_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
 pub(crate) fn code_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     TYPE.import(py, "types", "CodeType").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn frame_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "types", "FrameType").unwrap().as_type_ptr()
+}
+
+pub(crate) fn new_frame<'py>(
+    py: Python<'py>,
+    file_name: &std::ffi::CStr,
+    func_name: &std::ffi::CStr,
+    line_number: i32,
+) -> PyResult<Bound<'py, PyFrame>> {
+    let mut source = String::new();
+    for _ in 1..line_number.max(2) - 1 {
+        source.push('\n');
+    }
+    source.push_str("def ");
+    source.push_str(func_name.to_str().unwrap());
+    source.push_str("():\n    raise RuntimeError()\n");
+    source.push_str(func_name.to_str().unwrap());
+    source.push_str("()\n");
+    let source = std::ffi::CString::new(source).unwrap();
+    let code = PyCode::compile(py, source.as_c_str(), file_name, PyCodeInput::File)?;
+    let globals = PyDict::new(py);
+    match code.run(Some(&globals), Some(&globals)) {
+        Err(err) => {
+            let mut tb = err.traceback(py).ok_or_else(|| {
+                crate::PyErr::new::<crate::exceptions::PyRuntimeError, _>(
+                    "RustPython failed to produce a traceback for PyFrame::new",
+                )
+            })?;
+            loop {
+                let next = tb.getattr("tb_next")?;
+                if next.is_none() {
+                    break;
+                }
+                tb = next.cast_into()?;
+            }
+            Ok(tb.getattr("tb_frame")?.cast_into()?)
+        }
+        Ok(_) => Err(crate::PyErr::new::<crate::exceptions::PyRuntimeError, _>(
+            "RustPython frame construction unexpectedly succeeded without traceback",
+        )),
+    }
+}
+
+#[inline]
+pub(crate) unsafe fn frame_check(object: *mut ffi::PyObject) -> std::ffi::c_int {
+    ffi::PyObject_TypeCheck(object, frame_type_object(Python::assume_attached()))
 }
 
 #[inline]
