@@ -6,7 +6,6 @@ src/exceptions.rs
 src/impl_/pyclass.rs
 src/internal/get_slot.rs
 src/lib.rs
-src/marshal.rs
 src/pycell/impl_.rs
 src/types/any.rs
 src/types/boolobject.rs
