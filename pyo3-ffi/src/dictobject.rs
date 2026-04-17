@@ -82,7 +82,7 @@ extern_libpython! {
     pub fn PyDict_SetDefaultRef(
         mp: *mut PyObject,
         key: *mut PyObject,
-        default_obj: *mut PyObject,
+        default_value: *mut PyObject,
         result: *mut *mut PyObject,
     ) -> c_int;
     // skipped 3.10 / ex-non-limited PyObject_GenericGetDict
