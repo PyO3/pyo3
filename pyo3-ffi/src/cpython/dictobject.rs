@@ -45,6 +45,14 @@ pub struct PyDictObject {
 }
 
 extern_libpython! {
+    #[cfg(Py_3_15)]
+    pub fn PyFrozenDict_New(iterable: *mut PyObject) -> *mut PyObject;
+}
+
+// skipped private _PyDict_GetItem_KnownHash
+// skipped private _PyDict_GetItemStringWithError
+
+extern_libpython! {
     pub fn PyDict_SetDefault(
         mp: *mut PyObject,
         key: *mut PyObject,
@@ -58,9 +66,19 @@ extern_libpython! {
         default_obj: *mut PyObject,
         result: *mut *mut PyObject,
     ) -> c_int;
-    */
+    */ 
+}
+
+// skipped PyDict_GET_SIZE
+
+extern_libpython! {
     #[cfg(Py_3_13)]
     pub fn PyDict_ContainsString(mp: *mut PyObject, key: *const c_char) -> c_int;
+}
+
+// skipped private _PyDict_NewPresized
+
+extern_libpython! {
     #[cfg(Py_3_13)]
     pub fn PyDict_Pop(dict: *mut PyObject, key: *mut PyObject, result: *mut *mut PyObject)
         -> c_int;
@@ -70,22 +88,7 @@ extern_libpython! {
         key: *const c_char,
         result: *mut *mut PyObject,
     ) -> c_int;
-    #[cfg(Py_3_12)]
-    pub fn PyDict_ClearWatcher(watcher_id: c_int) -> c_int;
-    #[cfg(Py_3_12)]
-    pub fn PyDict_Watch(watcher_id: c_int, dict: *mut PyObject) -> c_int;
-    #[cfg(Py_3_12)]
-    pub fn PyDict_Unwatch(watcher_id: c_int, dict: *mut PyObject) -> c_int;
-    #[cfg(Py_3_15)]
-    pub fn PyFrozenDict_New(iterable: *mut PyObject) -> *mut PyObject;
 }
-
-// skipped private _PyDict_GetItem_KnownHash
-// skipped private _PyDict_GetItemStringWithError
-
-// skipped PyDict_GET_SIZE
-
-// skipped private _PyDict_NewPresized
 
 // skipped private _PyDict_Pop
 
@@ -95,3 +98,12 @@ extern_libpython! {
 // skipped PyDict_WatchCallback
 
 // skipped PyDict_AddWatcher
+
+extern_libpython! {
+    #[cfg(Py_3_12)]
+    pub fn PyDict_ClearWatcher(watcher_id: c_int) -> c_int;
+    #[cfg(Py_3_12)]
+    pub fn PyDict_Watch(watcher_id: c_int, dict: *mut PyObject) -> c_int;
+    #[cfg(Py_3_12)]
+    pub fn PyDict_Unwatch(watcher_id: c_int, dict: *mut PyObject) -> c_int;
+}
