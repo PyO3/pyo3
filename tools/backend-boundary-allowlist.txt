@@ -25,7 +25,6 @@ src/types/iterator.rs
 src/types/mapping.rs
 src/types/mod.rs
 src/types/module.rs
-src/types/pysuper.rs
 src/types/sequence.rs
 src/types/traceback.rs
 src/types/typeobject.rs

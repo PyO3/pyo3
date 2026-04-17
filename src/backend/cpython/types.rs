@@ -59,6 +59,12 @@ pub(crate) fn range_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
 }
 
 #[inline]
+pub(crate) fn super_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(_py, "builtins", "super").unwrap().as_type_ptr()
+}
+
+#[inline]
 pub(crate) fn capsule_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::PyCapsule_Type
 }
