@@ -21,6 +21,11 @@ pub(crate) fn dict_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
 }
 
 #[inline]
+pub(crate) fn any_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+    &raw mut ffi::PyBaseObject_Type
+}
+
+#[inline]
 pub(crate) fn module_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::PyModule_Type
 }

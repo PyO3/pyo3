@@ -26,6 +26,12 @@ pub(crate) fn dict_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
 }
 
 #[inline]
+pub(crate) fn any_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "object").unwrap().as_type_ptr()
+}
+
+#[inline]
 pub(crate) fn module_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     TYPE.import(py, "types", "ModuleType").unwrap().as_type_ptr()

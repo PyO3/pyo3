@@ -136,6 +136,31 @@ macro_rules! opaque_native_type_layout {
 }
 pub(crate) use opaque_native_type_layout;
 
+macro_rules! pyany_native_layout {
+    () => {
+        #[cfg(not(PyRustPython))]
+        impl $crate::impl_::pyclass::PyClassBaseType for $crate::PyAny {
+            type LayoutAsBase = $crate::impl_::pycell::PyClassObjectBase<$crate::ffi::PyObject>;
+            type BaseNativeType = $crate::PyAny;
+            type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+            type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
+            type Layout<T: $crate::impl_::pyclass::PyClassImpl> =
+                $crate::impl_::pycell::PyStaticClassObject<T>;
+        }
+
+        #[cfg(PyRustPython)]
+        impl $crate::impl_::pyclass::PyClassBaseType for $crate::PyAny {
+            type LayoutAsBase = $crate::impl_::pycell::PyClassObjectBase<$crate::ffi::PyObject>;
+            type BaseNativeType = $crate::PyAny;
+            type Initializer = $crate::impl_::pyclass_init::PyNativeTypeInitializer<Self>;
+            type PyClassMutability = $crate::pycell::impl_::ImmutableClass;
+            type Layout<T: $crate::impl_::pyclass::PyClassImpl> =
+                $crate::backend::rustpython_storage::PySemanticSidecarClassObject<T>;
+        }
+    };
+}
+pub(crate) use pyany_native_layout;
+
 macro_rules! string_raw_data_api {
     ($($item:item)*) => {
         $(

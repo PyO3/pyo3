@@ -6,5 +6,4 @@ src/exceptions.rs
 src/impl_/pyclass.rs
 src/lib.rs
 src/pycell/impl_.rs
-src/types/any.rs
 src/types/frame.rs
