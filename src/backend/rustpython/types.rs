@@ -53,6 +53,12 @@ pub(crate) fn string_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
 }
 
 #[inline]
+pub(crate) fn int_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "int").unwrap().as_type_ptr()
+}
+
+#[inline]
 pub(crate) fn bytes_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     TYPE.import(py, "builtins", "bytes").unwrap().as_type_ptr()

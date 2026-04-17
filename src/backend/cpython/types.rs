@@ -39,6 +39,11 @@ pub(crate) fn string_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
 }
 
 #[inline]
+pub(crate) fn int_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+    &raw mut ffi::PyLong_Type
+}
+
+#[inline]
 pub(crate) fn bytes_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::PyBytes_Type
 }
