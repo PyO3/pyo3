@@ -66,7 +66,7 @@ extern_libpython! {
         default_obj: *mut PyObject,
         result: *mut *mut PyObject,
     ) -> c_int;
-    */ 
+    */
 }
 
 // skipped PyDict_GET_SIZE
