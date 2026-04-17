@@ -67,6 +67,14 @@ pub(crate) fn slice_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
 }
 
 #[inline]
+pub(crate) fn mappingproxy_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "_types", "MappingProxyType")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[inline]
 pub(crate) fn list_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     TYPE.import(py, "builtins", "list").unwrap().as_type_ptr()

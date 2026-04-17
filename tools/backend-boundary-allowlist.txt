@@ -26,7 +26,6 @@ src/types/frame.rs
 src/types/function.rs
 src/types/iterator.rs
 src/types/mapping.rs
-src/types/mappingproxy.rs
 src/types/mod.rs
 src/types/module.rs
 src/types/num.rs

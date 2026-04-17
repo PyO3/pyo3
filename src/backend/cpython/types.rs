@@ -49,6 +49,11 @@ pub(crate) fn slice_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
 }
 
 #[inline]
+pub(crate) fn mappingproxy_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+    &raw mut ffi::PyDictProxy_Type
+}
+
+#[inline]
 pub(crate) fn list_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::PyList_Type
 }
