@@ -4,6 +4,7 @@ use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
 use crate::{ffi, Bound, PyResult, PyTypeInfo, Python};
 use std::ffi::{c_int, c_void};
+use std::thread;
 
 const PYO3_RUSTPYTHON_HEAP_TYPE_ATTR: &str = "__pyo3_rustpython_heap_type__";
 
@@ -65,6 +66,22 @@ pub(crate) fn finalize_type(
 
 pub(crate) fn object_init_slot_type() -> c_int {
     ffi::Py_tp_init
+}
+
+pub(crate) fn thread_checker_matches_runtime_or_owner(owner: thread::ThreadId) -> bool {
+    let current = thread::current().id();
+    current == owner
+        || {
+            #[cfg(PyRustPython)]
+            {
+                crate::ffi::rustpython_runtime_thread_id()
+                    .is_some_and(|runtime_thread| runtime_thread == current)
+            }
+            #[cfg(not(PyRustPython))]
+            {
+                false
+            }
+        }
 }
 
 unsafe extern "C" fn rustpython_noop_init(

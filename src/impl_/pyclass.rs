@@ -1019,17 +1019,8 @@ impl<T> PyClassThreadChecker<T> for NoopThreadChecker {
 pub struct ThreadCheckerImpl(thread::ThreadId);
 
 impl ThreadCheckerImpl {
-    #[cfg(PyRustPython)]
     fn matches_runtime_or_owner(&self) -> bool {
-        let current = thread::current().id();
-        current == self.0
-            || crate::ffi::rustpython_runtime_thread_id()
-                .is_some_and(|runtime_thread| runtime_thread == current)
-    }
-
-    #[cfg(not(PyRustPython))]
-    fn matches_runtime_or_owner(&self) -> bool {
-        thread::current().id() == self.0
+        crate::backend::current::pyclass::thread_checker_matches_runtime_or_owner(self.0)
     }
 
     fn ensure(&self, type_name: &'static str) {

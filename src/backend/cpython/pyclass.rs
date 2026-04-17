@@ -2,6 +2,7 @@ use crate::impl_::pyclass::PyClassImpl;
 use crate::types::PyType;
 use crate::{ffi, Bound, PyResult, PyTypeInfo, Python};
 use std::ffi::{c_int, c_void};
+use std::thread;
 
 pub(crate) fn install_post_init_storage<T: PyClassImpl + PyTypeInfo>(
     _py: Python<'_>,
@@ -43,4 +44,8 @@ pub(crate) fn finalize_type(
 
 pub(crate) fn object_init_slot_type() -> c_int {
     ffi::Py_tp_init
+}
+
+pub(crate) fn thread_checker_matches_runtime_or_owner(owner: thread::ThreadId) -> bool {
+    thread::current().id() == owner
 }
