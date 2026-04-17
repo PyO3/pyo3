@@ -44,6 +44,11 @@ pub(crate) fn bytes_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
 }
 
 #[inline]
+pub(crate) fn bytearray_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+    &raw mut ffi::PyByteArray_Type
+}
+
+#[inline]
 pub(crate) fn capsule_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::PyCapsule_Type
 }
