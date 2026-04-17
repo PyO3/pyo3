@@ -93,29 +93,26 @@ macro_rules! impl_slots {
                     ty: *mut ffi::PyTypeObject,
                     #[cfg(all(Py_LIMITED_API, not(Py_3_10)))] is_runtime_3_10: bool
                 ) -> Self::Type {
-                    #[cfg(not(any(Py_LIMITED_API, PyRustPython)))]
-                    {
-                        unsafe {(*ty).$field }
-                    }
-
-                    #[cfg(any(Py_LIMITED_API, PyRustPython))]
-                    {
-                        #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
+                    crate::backend::current::type_slot_access!(
+                        unsafe { (*ty).$field },
                         {
-                            // Calling PyType_GetSlot on static types is not valid before Python 3.10
-                            // ... so the workaround is to first do a runtime check for these versions
-                            // (3.8, 3.9) and then look in the type object anyway. This is only ok
-                            // because we know that the interpreter is not going to change the size
-                            // of the type objects for these historical versions.
-                            if !is_runtime_3_10 && unsafe {ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE)} == 0
+                            #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
                             {
-                                return unsafe {(*ty.cast::<PyTypeObject39Snapshot>()).$field};
+                                // Calling PyType_GetSlot on static types is not valid before Python 3.10
+                                // ... so the workaround is to first do a runtime check for these versions
+                                // (3.8, 3.9) and then look in the type object anyway. This is only ok
+                                // because we know that the interpreter is not going to change the size
+                                // of the type objects for these historical versions.
+                                if !is_runtime_3_10 && unsafe {ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE)} == 0
+                                {
+                                    return unsafe {(*ty.cast::<PyTypeObject39Snapshot>()).$field};
+                                }
                             }
-                        }
 
-                        // SAFETY: slot type is set carefully to be valid
-                        unsafe {std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::$slot))}
-                    }
+                            // SAFETY: slot type is set carefully to be valid
+                            unsafe {std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::$slot))}
+                        }
+                    )
                 }
             }
         )*

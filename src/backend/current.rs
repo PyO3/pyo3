@@ -151,3 +151,16 @@ macro_rules! tuple_slice_api {
     };
 }
 pub(crate) use tuple_slice_api;
+
+macro_rules! type_slot_access {
+    ($direct:expr, $indirect:block) => {{
+        #[cfg(not(any(Py_LIMITED_API, PyRustPython)))]
+        {
+            $direct
+        }
+
+        #[cfg(any(Py_LIMITED_API, PyRustPython))]
+        $indirect
+    }};
+}
+pub(crate) use type_slot_access;
