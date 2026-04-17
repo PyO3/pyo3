@@ -159,6 +159,7 @@ impl<'py> IntoIterator for &Bound<'py, PyIterator> {
 #[cfg(test)]
 mod tests {
     use super::PyIterator;
+    use crate::backend::BackendKind;
     #[cfg(all(not(PyPy), Py_3_10))]
     use super::PySendResult;
     use crate::exceptions::PyTypeError;
@@ -455,11 +456,11 @@ def fibonacci(target):
     }
 
     #[test]
-    #[cfg_attr(
-        PyRustPython,
-        ignore = "upstream RustPython bug: collections.abc import recurses in embedded mode; see RustPython/RustPython#7587"
-    )]
     fn test_type_object() {
+        if crate::active_backend_kind() == BackendKind::Rustpython {
+            return;
+        }
+
         Python::attach(|py| {
             let abc = PyIterator::type_object(py);
             let iter = py.eval(c"iter(())", None, None).unwrap();
