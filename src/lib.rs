@@ -414,24 +414,9 @@ pub mod buffer;
 /// Backend contracts and implementations used to realize PyO3 semantics.
 pub mod backend;
 
-#[cfg(all(feature = "runtime-cpython", feature = "runtime-rustpython"))]
-compile_error!("features `runtime-cpython` and `runtime-rustpython` are mutually exclusive");
-#[cfg(all(feature = "runtime-rustpython", not(PyRustPython)))]
-compile_error!("feature `runtime-rustpython` requires the `PyRustPython` cfg from the build scripts");
-#[cfg(all(feature = "runtime-cpython", PyRustPython))]
-compile_error!("cfg `PyRustPython` is only valid with feature `runtime-rustpython`");
-
-#[cfg(feature = "runtime-cpython")]
-pub use crate::backend::cpython::CpythonBackend as ActiveBackend;
-#[cfg(feature = "runtime-rustpython")]
-pub use crate::backend::rustpython::RustPythonBackend as ActiveBackend;
 #[cfg(feature = "runtime-rustpython")]
 pub use crate::backend::rustpython::RustPythonBackend;
-
-/// Returns the backend selected for this build.
-pub const fn active_backend_kind() -> crate::backend::BackendKind {
-    <ActiveBackend as crate::backend::Backend>::KIND
-}
+pub use crate::backend::{active_backend_kind, ActiveBackend};
 pub mod call;
 pub mod conversion;
 mod conversions;
