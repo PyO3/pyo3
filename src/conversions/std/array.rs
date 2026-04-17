@@ -2,11 +2,8 @@ use crate::conversion::{FromPyObjectOwned, FromPyObjectSequence, IntoPyObject};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
 use crate::types::any::PyAnyMethods;
-#[cfg(not(PyRustPython))]
 use crate::types::PySequence;
-#[cfg(PyRustPython)]
 use crate::types::{PyStringMethods, PyTypeMethods};
-#[cfg(not(PyRustPython))]
 use crate::{err::CastError, PyTypeInfo};
 use crate::{ffi, FromPyObject, PyAny, PyResult, Python};
 use crate::{exceptions, Borrowed, Bound, PyErr};
@@ -74,8 +71,7 @@ where
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
     if unsafe { ffi::PySequence_Check(obj.as_ptr()) } == 0 {
-        #[cfg(PyRustPython)]
-        {
+        if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
             let from = obj
                 .get_type()
                 .qualname()
@@ -86,10 +82,7 @@ where
             )));
         }
 
-        #[cfg(not(PyRustPython))]
-        {
-            return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
-        }
+        return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
     }
 
     let seq_len = obj.len()?;
