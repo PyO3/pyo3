@@ -11,7 +11,6 @@ src/types/any.rs
 src/types/boolobject.rs
 src/types/float.rs
 src/types/frame.rs
-src/types/function.rs
 src/types/mapping.rs
 src/types/mod.rs
 src/types/module.rs

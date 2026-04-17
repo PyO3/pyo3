@@ -101,6 +101,20 @@ pub(crate) fn complex_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
 }
 
 #[inline]
+pub(crate) fn cfunction_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+    &raw mut ffi::PyCFunction_Type
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[inline]
+pub(crate) fn pyfunction_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(_py, "types", "FunctionType")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[inline]
 pub(crate) fn code_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     TYPE.import(py, "types", "CodeType").unwrap().as_type_ptr()
