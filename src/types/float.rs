@@ -3,15 +3,9 @@ use crate::conversion::IntoPyObject;
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
-#[cfg(PyRustPython)]
-use crate::sync::PyOnceLock;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, Python,
 };
-#[cfg(PyRustPython)]
-use crate::types::{PyType, PyTypeMethods};
-#[cfg(PyRustPython)]
-use crate::Py;
 use std::convert::Infallible;
 use std::ffi::c_double;
 
@@ -29,26 +23,12 @@ use std::ffi::c_double;
 #[repr(transparent)]
 pub struct PyFloat(PyAny);
 
-#[cfg(not(PyRustPython))]
 pyobject_subclassable_native_type!(PyFloat, crate::ffi::PyFloatObject);
 
-#[cfg(not(PyRustPython))]
 pyobject_native_type!(
     PyFloat,
     ffi::PyFloatObject,
-    pyobject_native_static_type_object!(ffi::PyFloat_Type),
-    "builtins",
-    "float",
-    #checkfunction=ffi::PyFloat_Check
-);
-
-#[cfg(PyRustPython)]
-pyobject_native_type_core!(
-    PyFloat,
-    |py| {
-        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "builtins", "float").unwrap().as_type_ptr()
-    },
+    crate::backend::current::types::float_type_object,
     "builtins",
     "float",
     #checkfunction=ffi::PyFloat_Check
@@ -128,8 +108,7 @@ impl<'py> FromPyObject<'_, 'py> for f64 {
     // PyFloat_AsDouble returns -1.0 upon failure
     #[allow(clippy::float_cmp)]
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
-        #[cfg(PyRustPython)]
-        {
+        if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
             if unsafe { ffi::PyFloat_CheckExact(obj.as_ptr()) != 0 } {
                 return Ok(unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) });
             }
@@ -145,9 +124,11 @@ impl<'py> FromPyObject<'_, 'py> for f64 {
         // allows us to have an optimized fast path for the case when
         // we have exactly a `float` object (it's not worth going through
         // `isinstance` machinery for subclasses).
-        #[cfg(all(not(Py_LIMITED_API), not(PyRustPython)))]
-        if let Ok(float) = obj.cast_exact::<PyFloat>() {
-            return Ok(float.value());
+        #[cfg(not(Py_LIMITED_API))]
+        if crate::active_backend_kind() != crate::backend::BackendKind::Rustpython {
+            if let Ok(float) = obj.cast_exact::<PyFloat>() {
+                return Ok(float.value());
+            }
         }
 
         let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };

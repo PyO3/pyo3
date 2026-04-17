@@ -180,6 +180,12 @@ pub(crate) fn complex_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
 }
 
 #[inline]
+pub(crate) fn float_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "float").unwrap().as_type_ptr()
+}
+
+#[inline]
 pub(crate) fn cfunction_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     TYPE.import(py, "builtins", "builtin_function_or_method")
