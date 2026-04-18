@@ -11,7 +11,7 @@ use crate::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
             tp_dealloc_with_gc, PyClassImpl, PyClassItemsIter, PyObjectOffset,
         },
-        pymethods::{_call_clear, Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter},
+        pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
     },
     pycell::impl_::PyClassObjectLayout,
@@ -64,7 +64,11 @@ where
                 method_defs: Vec::new(),
                 member_defs: Vec::new(),
                 getset_builders: HashMap::new(),
-                #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
+                #[cfg(all(
+                    not(Py_LIMITED_API),
+                    not(Py_3_10),
+                    not(feature = "runtime-rustpython")
+                ))]
                 cleanup: Vec::new(),
                 tp_base: base,
                 tp_dealloc: dealloc,
@@ -73,6 +77,7 @@ where
                 is_sequence,
                 is_immutable_type,
                 has_new: false,
+                has_init: false,
                 has_dealloc: false,
                 has_getitem: false,
                 has_setitem: false,
@@ -80,7 +85,7 @@ where
                 has_clear: false,
                 dict_offset: None,
                 class_flags: 0,
-                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API), not(feature = "runtime-rustpython")))]
                 buffer_procs: Default::default(),
             }
             .type_doc(doc)
@@ -112,8 +117,8 @@ where
     }
 }
 
-#[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
-type PyTypeBuilderCleanup = Box<dyn Fn(&PyTypeBuilder, *mut ffi::PyTypeObject)>;
+#[cfg(all(not(Py_LIMITED_API), not(Py_3_10), not(feature = "runtime-rustpython")))]
+type PyTypeBuilderCleanup = Box<dyn Fn(*mut ffi::PyTypeObject)>;
 
 struct PyTypeBuilder {
     slots: Vec<ffi::PyType_Slot>,
@@ -123,7 +128,7 @@ struct PyTypeBuilder {
     /// Used to patch the type objects for the things there's no
     /// PyType_FromSpec API for... there's no reason this should work,
     /// except for that it does and we have tests.
-    #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
+    #[cfg(all(not(Py_LIMITED_API), not(Py_3_10), not(feature = "runtime-rustpython")))]
     cleanup: Vec<PyTypeBuilderCleanup>,
     tp_base: *mut ffi::PyTypeObject,
     tp_dealloc: ffi::destructor,
@@ -132,6 +137,7 @@ struct PyTypeBuilder {
     is_sequence: bool,
     is_immutable_type: bool,
     has_new: bool,
+    has_init: bool,
     has_dealloc: bool,
     has_getitem: bool,
     has_setitem: bool,
@@ -140,7 +146,7 @@ struct PyTypeBuilder {
     dict_offset: Option<PyObjectOffset>,
     class_flags: c_ulong,
     // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
-    #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+    #[cfg(all(not(Py_3_9), not(Py_LIMITED_API), not(feature = "runtime-rustpython")))]
     buffer_procs: ffi::PyBufferProcs,
 }
 
@@ -150,6 +156,7 @@ impl PyTypeBuilder {
     unsafe fn push_slot<T>(&mut self, slot: c_int, pfunc: *mut T) {
         match slot {
             ffi::Py_tp_new => self.has_new = true,
+            ffi::Py_tp_init => self.has_init = true,
             ffi::Py_tp_dealloc => self.has_dealloc = true,
             ffi::Py_mp_subscript => self.has_getitem = true,
             ffi::Py_mp_ass_subscript => self.has_setitem = true,
@@ -158,13 +165,13 @@ impl PyTypeBuilder {
                 self.class_flags |= ffi::Py_TPFLAGS_HAVE_GC;
             }
             ffi::Py_tp_clear => self.has_clear = true,
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API), not(feature = "runtime-rustpython")))]
             ffi::Py_bf_getbuffer => {
                 // Safety: slot.pfunc is a valid function pointer
                 self.buffer_procs.bf_getbuffer =
                     Some(unsafe { std::mem::transmute::<*mut T, ffi::getbufferproc>(pfunc) });
             }
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
+            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API), not(feature = "runtime-rustpython")))]
             ffi::Py_bf_releasebuffer => {
                 // Safety: slot.pfunc is a valid function pointer
                 self.buffer_procs.bf_releasebuffer =
@@ -239,53 +246,95 @@ impl PyTypeBuilder {
 
         // PyPy automatically adds __dict__ getter / setter.
         #[cfg(not(PyPy))]
-        // Supported on unlimited API for all versions, and on 3.9+ for limited API
-        #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
-        if let Some(dict_offset) = self.dict_offset {
-            let get_dict;
-            let closure;
-            // PyObject_GenericGetDict not in the limited API until Python 3.10.
-            #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
-            {
-                let _ = dict_offset;
-                get_dict = ffi::PyObject_GenericGetDict;
-                closure = ptr::null_mut();
-            }
-
-            // ... so we write a basic implementation ourselves
-            #[cfg(not(any(not(Py_LIMITED_API), Py_3_10)))]
-            {
-                extern "C" fn get_dict_impl(
-                    object: *mut ffi::PyObject,
-                    closure: *mut c_void,
-                ) -> *mut ffi::PyObject {
-                    unsafe {
-                        trampoline(|_| {
-                            let dict_offset = closure as ffi::Py_ssize_t;
-                            // we don't support negative dict_offset here; PyO3 doesn't set it negative
-                            assert!(dict_offset > 0);
-                            let dict_ptr =
-                                object.byte_offset(dict_offset).cast::<*mut ffi::PyObject>();
-                            if (*dict_ptr).is_null() {
-                                std::ptr::write(dict_ptr, ffi::PyDict_New());
-                            }
-                            Ok(ffi::compat::Py_XNewRef(*dict_ptr))
-                        })
+        if crate::backend::current::pyclass::supports_managed_dict_and_weaklist_offsets() {
+            if let Some(dict_offset) = self.dict_offset {
+                let get_dict: ffi::getter;
+                let closure: *mut c_void;
+                #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+                if crate::backend::current::pyclass::use_generic_dict_getter() {
+                    let _ = dict_offset;
+                    extern "C" fn get_dict_impl(
+                        object: *mut ffi::PyObject,
+                        closure: *mut c_void,
+                    ) -> *mut ffi::PyObject {
+                        unsafe { ffi::PyObject_GenericGetDict(object, closure) }
                     }
+                    get_dict = get_dict_impl;
+                    closure = ptr::null_mut();
+                } else {
+                    extern "C" fn get_dict_impl(
+                        object: *mut ffi::PyObject,
+                        closure: *mut c_void,
+                    ) -> *mut ffi::PyObject {
+                        unsafe {
+                            trampoline(|_| {
+                                let dict_offset = closure as ffi::Py_ssize_t;
+                                // we don't support negative dict_offset here; PyO3 doesn't set it negative
+                                assert!(dict_offset > 0);
+                                let dict_ptr =
+                                    object.byte_offset(dict_offset).cast::<*mut ffi::PyObject>();
+                                if (*dict_ptr).is_null() {
+                                    std::ptr::write(dict_ptr, ffi::PyDict_New());
+                                }
+                                Ok(ffi::compat::Py_XNewRef(*dict_ptr))
+                            })
+                        }
+                    }
+
+                    get_dict = get_dict_impl;
+                    closure = match dict_offset {
+                        PyObjectOffset::Absolute(offset) => offset as _,
+                        #[cfg(Py_3_12)]
+                        PyObjectOffset::Relative(_) => unreachable!(
+                            "relative __dict__ offsets are not supported in this fallback path"
+                        ),
+                    };
+                }
+                #[cfg(not(any(not(Py_LIMITED_API), Py_3_10)))]
+                {
+                    extern "C" fn get_dict_impl(
+                        object: *mut ffi::PyObject,
+                        closure: *mut c_void,
+                    ) -> *mut ffi::PyObject {
+                        unsafe {
+                            trampoline(|_| {
+                                let dict_offset = closure as ffi::Py_ssize_t;
+                                assert!(dict_offset > 0);
+                                let dict_ptr =
+                                    object.byte_offset(dict_offset).cast::<*mut ffi::PyObject>();
+                                if (*dict_ptr).is_null() {
+                                    std::ptr::write(dict_ptr, ffi::PyDict_New());
+                                }
+                                Ok(ffi::compat::Py_XNewRef(*dict_ptr))
+                            })
+                        }
+                    }
+
+                    get_dict = get_dict_impl;
+                    closure = match dict_offset {
+                        PyObjectOffset::Absolute(offset) => offset as _,
+                        #[cfg(Py_3_12)]
+                        PyObjectOffset::Relative(_) => unreachable!(
+                            "relative __dict__ offsets are not supported in this fallback path"
+                        ),
+                    };
                 }
 
-                get_dict = get_dict_impl;
-                let PyObjectOffset::Absolute(offset) = dict_offset;
-                closure = offset as _;
+                extern "C" fn set_dict_impl(
+                    object: *mut ffi::PyObject,
+                    value: *mut ffi::PyObject,
+                    closure: *mut c_void,
+                ) -> std::ffi::c_int {
+                    unsafe { ffi::PyObject_GenericSetDict(object, value, closure) }
+                }
+                property_defs.push(ffi::PyGetSetDef {
+                    name: c"__dict__".as_ptr(),
+                    get: Some(get_dict),
+                    set: Some(set_dict_impl),
+                    doc: ptr::null(),
+                    closure,
+                });
             }
-
-            property_defs.push(ffi::PyGetSetDef {
-                name: c"__dict__".as_ptr(),
-                get: Some(get_dict),
-                set: Some(ffi::PyObject_GenericSetDict),
-                doc: ptr::null(),
-                closure,
-            });
         }
 
         // Safety: Py_tp_getset expects a raw vec of PyGetSetDef
@@ -348,19 +397,18 @@ impl PyTypeBuilder {
         if !slice.is_empty() {
             unsafe { self.push_slot(ffi::Py_tp_doc, type_doc.as_ptr() as *mut c_char) }
 
-            #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
-            {
+            #[cfg(all(not(Py_LIMITED_API), not(Py_3_10), not(feature = "runtime-rustpython")))]
+            if crate::backend::current::pyclass::use_pre_310_heaptype_doc_cleanup() {
                 // Until CPython 3.10, tp_doc was treated specially for
                 // heap-types, and it removed the text_signature value from it.
                 // We go in after the fact and replace tp_doc with something
                 // that _does_ include the text_signature value!
-                self.cleanup
-                    .push(Box::new(move |_self, type_object| unsafe {
-                        ffi::PyObject_Free((*type_object).tp_doc as _);
-                        let data = ffi::PyMem_Malloc(slice.len());
-                        data.copy_from(slice.as_ptr() as _, slice.len());
-                        (*type_object).tp_doc = data as _;
-                    }))
+                self.cleanup.push(Box::new(move |type_object| unsafe {
+                    ffi::PyObject_Free((*type_object).tp_doc as _);
+                    let data = ffi::PyMem_Malloc(slice.len());
+                    data.copy_from(slice.as_ptr() as _, slice.len());
+                    (*type_object).tp_doc = data as _;
+                }))
             }
         }
         self
@@ -373,8 +421,7 @@ impl PyTypeBuilder {
     ) -> Self {
         self.dict_offset = dict_offset;
 
-        #[cfg(Py_3_9)]
-        {
+        if crate::backend::current::pyclass::supports_managed_dict_and_weaklist_offsets() {
             #[inline(always)]
             fn offset_def(name: &'static CStr, offset: PyObjectOffset) -> ffi::PyMemberDef {
                 let (offset, flags) = match offset {
@@ -408,27 +455,26 @@ impl PyTypeBuilder {
 
         // Setting buffer protocols, tp_dictoffset and tp_weaklistoffset via slots doesn't work until
         // Python 3.9, so on older versions we must manually fixup the type object.
-        #[cfg(all(not(Py_LIMITED_API), not(Py_3_9)))]
-        {
-            self.cleanup
-                .push(Box::new(move |builder, type_object| unsafe {
-                    (*(*type_object).tp_as_buffer).bf_getbuffer = builder.buffer_procs.bf_getbuffer;
-                    (*(*type_object).tp_as_buffer).bf_releasebuffer =
-                        builder.buffer_procs.bf_releasebuffer;
+        #[cfg(all(not(Py_3_9), not(Py_LIMITED_API), not(feature = "runtime-rustpython")))]
+        if crate::backend::current::pyclass::use_pre_39_type_object_fixup() {
+            let buffer_procs = self.buffer_procs;
+            self.cleanup.push(Box::new(move |type_object| unsafe {
+                (*(*type_object).tp_as_buffer).bf_getbuffer = buffer_procs.bf_getbuffer;
+                (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer_procs.bf_releasebuffer;
 
-                    match dict_offset {
-                        Some(PyObjectOffset::Absolute(offset)) => {
-                            (*type_object).tp_dictoffset = offset;
-                        }
-                        None => {}
+                match dict_offset {
+                    Some(PyObjectOffset::Absolute(offset)) => {
+                        (*type_object).tp_dictoffset = offset;
                     }
-                    match weaklist_offset {
-                        Some(PyObjectOffset::Absolute(offset)) => {
-                            (*type_object).tp_weaklistoffset = offset;
-                        }
-                        None => {}
+                    None => {}
+                }
+                match weaklist_offset {
+                    Some(PyObjectOffset::Absolute(offset)) => {
+                        (*type_object).tp_weaklistoffset = offset;
                     }
-                }));
+                    None => {}
+                }
+            }));
         }
         self
     }
@@ -457,6 +503,20 @@ impl PyTypeBuilder {
             #[cfg(Py_3_10)]
             {
                 self.class_flags |= ffi::Py_TPFLAGS_DISALLOW_INSTANTIATION;
+            }
+        }
+
+        if let Some(init_slot) = crate::backend::current::pyclass::maybe_object_init_slot(
+            py,
+            self.has_new,
+            self.has_init,
+            self.tp_base,
+        ) {
+            unsafe {
+                self.push_slot(
+                    crate::backend::current::pyclass::object_init_slot_type(),
+                    init_slot,
+                )
             }
         }
 
@@ -523,12 +583,14 @@ impl PyTypeBuilder {
                 .cast_into_unchecked::<PyType>()
         };
 
+        crate::backend::current::pyclass::finalize_type(&type_object, module_name)?;
+
         #[cfg(not(Py_3_11))]
         bpo_45315_workaround(py, class_name);
 
-        #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
+        #[cfg(all(not(Py_LIMITED_API), not(Py_3_10), not(feature = "runtime-rustpython")))]
         for cleanup in std::mem::take(&mut self.cleanup) {
-            cleanup(&self, type_object.as_type_ptr());
+            cleanup(type_object.as_type_ptr());
         }
 
         Ok(PyClassTypeObject {

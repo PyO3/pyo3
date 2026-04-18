@@ -21,10 +21,9 @@ use std::convert::Infallible;
 #[repr(transparent)]
 pub struct PySlice(PyAny);
 
-pyobject_native_type!(
+pyobject_native_type_core!(
     PySlice,
-    ffi::PySliceObject,
-    pyobject_native_static_type_object!(ffi::PySlice_Type),
+    |py| crate::backend::current::types::slice_type_object(py),
     "builtins",
     "slice",
     #checkfunction=ffi::PySlice_Check

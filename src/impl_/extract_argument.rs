@@ -571,14 +571,47 @@ impl FunctionDescription {
         );
         let mut positional_only_keyword_arguments = Vec::new();
         for (kwarg_name_py, value) in kwargs {
-            // Safety: All keyword arguments should be UTF-8 strings, but if it's not, `.to_str()`
-            // will return an error anyway.
             #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-            let kwarg_name = unsafe { kwarg_name_py.cast_unchecked::<PyString>() }.to_str();
+            let kwarg_name = kwarg_name_py
+                .cast::<PyString>()
+                .ok()
+                .and_then(|name| name.to_str().ok());
 
             #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
             let kwarg_name = kwarg_name_py.extract::<crate::pybacked::PyBackedStr>();
 
+            #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+            if let Some(kwarg_name_owned) = kwarg_name {
+                let kwarg_name = kwarg_name_owned;
+
+                // Try to place parameter in keyword only parameters
+                if let Some(i) = self.find_keyword_parameter_in_keyword_only(kwarg_name) {
+                    if output[i + num_positional_parameters]
+                        .replace(value)
+                        .is_some()
+                    {
+                        return Err(self.multiple_values_for_argument(kwarg_name));
+                    }
+                    continue;
+                }
+
+                // Repeat for positional parameters
+                if let Some(i) = self.find_keyword_parameter_in_positional(kwarg_name) {
+                    if i < self.positional_only_parameters {
+                        // If accepting **kwargs, then it's allowed for the name of the
+                        // kwarg to conflict with a positional-only argument - the value
+                        // will go into **kwargs anyway.
+                        if K::handle_varkeyword(varkeywords, kwarg_name_py, value, self).is_err() {
+                            positional_only_keyword_arguments.push(kwarg_name_owned);
+                        }
+                    } else if output[i].replace(value).is_some() {
+                        return Err(self.multiple_values_for_argument(kwarg_name));
+                    }
+                    continue;
+                }
+            };
+
+            #[cfg(all(not(Py_3_10), Py_LIMITED_API))]
             if let Ok(kwarg_name_owned) = kwarg_name {
                 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
                 let kwarg_name = kwarg_name_owned;
@@ -610,7 +643,7 @@ impl FunctionDescription {
                     }
                     continue;
                 }
-            };
+            }
 
             K::handle_varkeyword(varkeywords, kwarg_name_py, value, self)?
         }

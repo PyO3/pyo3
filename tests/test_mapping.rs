@@ -122,6 +122,10 @@ fn test_delitem() {
 }
 
 #[test]
+#[cfg_attr(
+    PyRustPython,
+    ignore = "blocked on embedded collections import recursion: RustPython/RustPython#7587"
+)]
 fn mapping_is_not_sequence() {
     Python::attach(|py| {
         let mut index = HashMap::new();

@@ -2,12 +2,6 @@ use super::PyDict;
 use super::{PyAnyMethods as _, PyDictMethods as _};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-#[cfg(any(Py_LIMITED_API, PyPy))]
-use crate::sync::PyOnceLock;
-#[cfg(any(Py_LIMITED_API, PyPy))]
-use crate::types::{PyType, PyTypeMethods};
-#[cfg(any(Py_LIMITED_API, PyPy))]
-use crate::Py;
 use crate::{ffi, Bound, PyAny, PyResult, Python};
 use std::ffi::CStr;
 
@@ -18,22 +12,9 @@ use std::ffi::CStr;
 #[repr(transparent)]
 pub struct PyCode(PyAny);
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 pyobject_native_type_core!(
     PyCode,
-    pyobject_native_static_type_object!(ffi::PyCode_Type),
-    "types",
-    "CodeType",
-    #checkfunction=ffi::PyCode_Check
-);
-
-#[cfg(any(Py_LIMITED_API, PyPy))]
-pyobject_native_type_core!(
-    PyCode,
-    |py| {
-        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "types", "CodeType").unwrap().as_type_ptr()
-    },
+    |py| crate::backend::current::types::code_type_object(py),
     "types",
     "CodeType"
 );
@@ -69,19 +50,13 @@ impl PyCode {
         }
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     pub(crate) fn empty<'py>(
         py: Python<'py>,
         file_name: &CStr,
         func_name: &CStr,
         first_line_number: i32,
     ) -> Bound<'py, PyCode> {
-        unsafe {
-            ffi::PyCode_NewEmpty(file_name.as_ptr(), func_name.as_ptr(), first_line_number)
-                .cast::<ffi::PyObject>()
-                .assume_owned(py)
-                .cast_into_unchecked()
-        }
+        crate::backend::current::types::empty_code(py, file_name, func_name, first_line_number)
     }
 }
 

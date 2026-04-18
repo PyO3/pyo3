@@ -3,7 +3,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::sync::critical_section::with_critical_section;
-use crate::{ffi, PyAny, Python};
+use crate::{backend, ffi, PyAny, Python};
 use std::slice;
 
 /// Represents a Python `bytearray`.
@@ -16,7 +16,13 @@ use std::slice;
 #[repr(transparent)]
 pub struct PyByteArray(PyAny);
 
-pyobject_native_type_core!(PyByteArray, pyobject_native_static_type_object!(ffi::PyByteArray_Type), "builtins", "bytearray", #checkfunction=ffi::PyByteArray_Check);
+pyobject_native_type_core!(
+    PyByteArray,
+    backend::current::types::bytearray_type_object,
+    "builtins",
+    "bytearray",
+    #checkfunction=ffi::PyByteArray_Check
+);
 
 impl PyByteArray {
     /// Creates a new Python bytearray object.

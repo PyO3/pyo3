@@ -46,37 +46,13 @@ use crate::{types::PyAny, Bound};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use std::cell::UnsafeCell;
 
-#[cfg(Py_GIL_DISABLED)]
-struct CSGuard(crate::ffi::PyCriticalSection);
-
-#[cfg(Py_GIL_DISABLED)]
-impl Drop for CSGuard {
-    fn drop(&mut self) {
-        unsafe {
-            crate::ffi::PyCriticalSection_End(&mut self.0);
-        }
-    }
-}
-
-#[cfg(Py_GIL_DISABLED)]
-struct CS2Guard(crate::ffi::PyCriticalSection2);
-
-#[cfg(Py_GIL_DISABLED)]
-impl Drop for CS2Guard {
-    fn drop(&mut self) {
-        unsafe {
-            crate::ffi::PyCriticalSection2_End(&mut self.0);
-        }
-    }
-}
-
 /// Allows access to data protected by a PyMutex in a critical section
 ///
 /// Used with the `with_critical_section_mutex` and
 /// `with_critical_section_mutex2` functions. See the documentation of those
 /// functions for more details.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
-pub struct EnteredCriticalSection<'a, T>(&'a UnsafeCell<T>);
+pub struct EnteredCriticalSection<'a, T>(pub(crate) &'a UnsafeCell<T>);
 
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 impl<T> EnteredCriticalSection<'_, T> {
@@ -130,16 +106,7 @@ pub fn with_critical_section<F, R>(object: &Bound<'_, PyAny>, f: F) -> R
 where
     F: FnOnce() -> R,
 {
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        let mut guard = CSGuard(unsafe { std::mem::zeroed() });
-        unsafe { crate::ffi::PyCriticalSection_Begin(&mut guard.0, object.as_ptr()) };
-        f()
-    }
-    #[cfg(not(Py_GIL_DISABLED))]
-    {
-        f()
-    }
+    crate::backend::current::sync::with_critical_section(object, f)
 }
 
 /// Executes a closure with a Python critical section held on two objects.
@@ -157,16 +124,7 @@ pub fn with_critical_section2<F, R>(a: &Bound<'_, PyAny>, b: &Bound<'_, PyAny>, 
 where
     F: FnOnce() -> R,
 {
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        let mut guard = CS2Guard(unsafe { std::mem::zeroed() });
-        unsafe { crate::ffi::PyCriticalSection2_Begin(&mut guard.0, a.as_ptr(), b.as_ptr()) };
-        f()
-    }
-    #[cfg(not(Py_GIL_DISABLED))]
-    {
-        f()
-    }
+    crate::backend::current::sync::with_critical_section2(a, b, f)
 }
 
 /// Executes a closure with a Python critical section held on a `PyMutex`.
@@ -195,16 +153,7 @@ pub fn with_critical_section_mutex<F, R, T>(_py: Python<'_>, mutex: &PyMutex<T>,
 where
     F: for<'s> FnOnce(EnteredCriticalSection<'s, T>) -> R,
 {
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        let mut guard = CSGuard(unsafe { std::mem::zeroed() });
-        unsafe { crate::ffi::PyCriticalSection_BeginMutex(&mut guard.0, &mut *mutex.mutex.get()) };
-        f(EnteredCriticalSection(&mutex.data))
-    }
-    #[cfg(not(Py_GIL_DISABLED))]
-    {
-        f(EnteredCriticalSection(&mutex.data))
-    }
+    crate::backend::current::sync::with_critical_section_mutex(_py, mutex, f)
 }
 
 /// Executes a closure with a Python critical section held on two `PyMutex` instances.
@@ -238,28 +187,7 @@ pub fn with_critical_section_mutex2<F, R, T1, T2>(
 where
     F: for<'s> FnOnce(EnteredCriticalSection<'s, T1>, EnteredCriticalSection<'s, T2>) -> R,
 {
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        let mut guard = CS2Guard(unsafe { std::mem::zeroed() });
-        unsafe {
-            crate::ffi::PyCriticalSection2_BeginMutex(
-                &mut guard.0,
-                &mut *m1.mutex.get(),
-                &mut *m2.mutex.get(),
-            )
-        };
-        f(
-            EnteredCriticalSection(&m1.data),
-            EnteredCriticalSection(&m2.data),
-        )
-    }
-    #[cfg(not(Py_GIL_DISABLED))]
-    {
-        f(
-            EnteredCriticalSection(&m1.data),
-            EnteredCriticalSection(&m2.data),
-        )
-    }
+    crate::backend::current::sync::with_critical_section_mutex2(_py, m1, m2, f)
 }
 
 // We are building wasm Python with pthreads disabled and all these

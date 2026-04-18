@@ -227,7 +227,7 @@ where
         Ok(())
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        unsafe { tp_dealloc(slf, &T::type_object(py)) };
+        crate::backend::current::pyclass_base_tp_dealloc!(py, slf, &T::type_object(py));
     }
 }
 
@@ -247,7 +247,7 @@ impl<T: PyTypeInfo> PyClassObjectBaseLayout<T> for PyVariableClassObjectBase {
         Ok(())
     }
     unsafe fn tp_dealloc(py: Python<'_>, slf: *mut ffi::PyObject) {
-        unsafe { tp_dealloc(slf, &T::type_object(py)) };
+        crate::backend::current::pyclass_base_tp_dealloc!(py, slf, &T::type_object(py));
     }
 }
 
@@ -264,10 +264,10 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
 
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
-        if std::ptr::eq(type_ptr, &raw const ffi::PyBaseObject_Type) {
+        if std::ptr::eq(type_ptr, crate::types::PyAny::type_object_raw(py)) {
             let tp_free = actual_type
                 .get_slot(TP_FREE)
-                .expect("PyBaseObject_Type should have tp_free");
+                .expect("object type should have tp_free");
             return tp_free(slf.cast());
         }
 
@@ -310,6 +310,12 @@ pub trait PyClassObjectBaseLayout<T>: PyLayout<T> {
 pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset;
+
+    /// Whether pyclass contents are physically embedded in the Python object layout.
+    ///
+    /// Backends may keep contents out-of-line while still reporting semantic size/offset
+    /// information for type creation and tests.
+    const HAS_EMBEDDED_CONTENTS: bool = true;
 
     /// Used to set `PyType_Spec::basicsize`
     /// ([docs](https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize))
@@ -363,7 +369,7 @@ impl<T: PyClassImpl> PyClassObjectContents<T> {
         }
     }
 
-    unsafe fn dealloc(&mut self, py: Python<'_>, py_object: *mut ffi::PyObject) {
+    pub(crate) unsafe fn dealloc(&mut self, py: Python<'_>, py_object: *mut ffi::PyObject) {
         if self.thread_checker.can_drop(py) {
             unsafe { ManuallyDrop::drop(&mut self.value) };
         }
@@ -635,13 +641,13 @@ mod tests {
 
     #[test]
     fn test_inherited_size() {
-        let base_size = PyStaticClassObject::<BaseWithData>::BASIC_SIZE;
+        let base_size = <BaseWithData as PyClassImpl>::Layout::BASIC_SIZE;
         assert!(base_size > 0); // negative indicates variable sized
         assert_eq!(
             base_size,
-            PyStaticClassObject::<ChildWithoutData>::BASIC_SIZE
+            <ChildWithoutData as PyClassImpl>::Layout::BASIC_SIZE
         );
-        assert!(base_size < PyStaticClassObject::<ChildWithData>::BASIC_SIZE);
+        assert!(base_size < <ChildWithData as PyClassImpl>::Layout::BASIC_SIZE);
     }
 
     fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}

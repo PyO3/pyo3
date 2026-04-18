@@ -519,6 +519,10 @@ struct WeakRefDunderDictSupport {
 
 #[test]
 #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+#[cfg_attr(
+    PyRustPython,
+    ignore = "blocked on RustPython/RustPython#7587: stdlib weakref import recurses under embedding"
+)]
 fn weakref_dunder_dict_support() {
     Python::attach(|py| {
         let inst = Py::new(
@@ -544,6 +548,10 @@ struct WeakRefSupport {
 
 #[test]
 #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+#[cfg_attr(
+    PyRustPython,
+    ignore = "blocked on RustPython/RustPython#7587: stdlib weakref import recurses under embedding"
+)]
 fn weakref_support() {
     Python::attach(|py| {
         let inst = Py::new(
@@ -570,6 +578,10 @@ struct InheritWeakRef {
 
 #[test]
 #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+#[cfg_attr(
+    PyRustPython,
+    ignore = "blocked on RustPython/RustPython#7587: stdlib weakref import recurses under embedding"
+)]
 fn inherited_weakref() {
     Python::attach(|py| {
         let inst = Py::new(
@@ -696,6 +708,10 @@ fn test_unsendable_dict() {
 
 #[test]
 #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+#[cfg_attr(
+    PyRustPython,
+    ignore = "blocked on RustPython/RustPython#7587: stdlib weakref import recurses under embedding"
+)]
 fn test_unsendable_dict_with_weakref() {
     #[pyclass(dict, unsendable, weakref)]
     struct UnsendableDictClassWithWeakRef {}

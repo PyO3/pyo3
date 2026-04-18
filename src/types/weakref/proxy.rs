@@ -6,8 +6,10 @@ use crate::inspect::{type_hint_identifier, type_hint_union, PyStaticExpr};
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeCheck;
-use crate::types::any::PyAny;
-use crate::{ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python};
+use crate::types::any::{PyAny, PyAnyMethods};
+use crate::{
+    ffi, types::PyModule, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
+};
 
 /// Represents any Python `weakref` Proxy type.
 ///
@@ -38,7 +40,23 @@ unsafe impl PyTypeCheck for PyWeakrefProxy {
 
     fn classinfo_object(py: Python<'_>) -> Bound<'_, PyAny> {
         static TYPE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
-        TYPE.import(py, "weakref", "ProxyTypes").unwrap().clone()
+        TYPE.get_or_try_init(py, || {
+            let module = PyModule::import(py, "_weakref")?;
+            PyResult::Ok(
+                crate::types::PyTuple::new(
+                    py,
+                    [
+                        module.getattr("ProxyType")?,
+                        module.getattr("CallableProxyType")?,
+                    ],
+                )?
+                .into_any()
+                .unbind(),
+            )
+        })
+        .unwrap()
+        .bind(py)
+        .clone()
     }
 }
 

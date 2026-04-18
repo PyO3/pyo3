@@ -50,7 +50,13 @@ use std::ptr::{self, NonNull};
 #[repr(transparent)]
 pub struct PyCapsule(PyAny);
 
-pyobject_native_type_core!(PyCapsule, pyobject_native_static_type_object!(ffi::PyCapsule_Type), "types", "CapsuleType", #checkfunction=ffi::PyCapsule_CheckExact);
+pyobject_native_type_core!(
+    PyCapsule,
+    |py| crate::backend::current::types::capsule_type_object(py),
+    "types",
+    "CapsuleType",
+    #checkfunction=ffi::PyCapsule_CheckExact
+);
 
 impl PyCapsule {
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
@@ -103,6 +109,12 @@ impl PyCapsule {
             // - `capsule` is known to be a borrowed reference to the capsule being destroyed
             // - `name` is known to be the capsule's name
             let ptr = unsafe { ffi::PyCapsule_GetPointer(capsule, name) };
+
+            if ptr.is_null() {
+                // Invalid capsules should not abort process teardown; treat them as already emptied.
+                unsafe { ffi::PyErr_Clear() };
+                return;
+            }
 
             // SAFETY: `capsule` was knowingly constructed from a `Box<T>` and is now being
             // destroyed, so we reconstruct the Box and drop it.
@@ -642,6 +654,11 @@ unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_v
 
     // SAFETY: `capsule` is known to be a valid capsule object
     let (ptr, ctx) = unsafe { get_pointer_ctx(capsule) };
+
+    if ptr.is_null() {
+        unsafe { ffi::PyErr_Clear() };
+        return;
+    }
 
     // SAFETY: `capsule` was knowingly constructed with a boxed `CapsuleContents<T, F>`
     // and is now being destroyed, so we can move the data from the box.

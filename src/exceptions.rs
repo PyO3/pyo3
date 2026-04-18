@@ -287,7 +287,7 @@ macro_rules! impl_native_exception (
 
         $crate::impl_exception_boilerplate!($name);
         $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject }, "builtins", $python_name $(, #checkfunction=$checkfunction)?);
-        $crate::pyobject_subclassable_native_type!($name, $layout);
+        $crate::backend::current::native_exception_subclassable_type!($name, $layout);
     );
     ($name:ident, $exc_name:ident, $python_name:expr, $doc:expr) => (
         impl_native_exception!($name, $exc_name, $python_name, $doc, $crate::ffi::PyBaseExceptionObject);
@@ -883,10 +883,42 @@ impl_native_exception!(
 
 #[cfg(test)]
 macro_rules! test_exception {
-    ($exc_ty:ident $(, |$py:tt| $constructor:expr )?) => {
+    ($(#[$attr:meta])* $exc_ty:ident $(, |$py:tt| $constructor:expr )?) => {
+        $(#[$attr])*
         #[allow(non_snake_case, reason = "test matches exception name")]
         #[test]
         fn $exc_ty () {
+            use super::$exc_ty;
+
+            $crate::Python::attach(|py| {
+                let err: $crate::PyErr = {
+                    None
+                    $(
+                        .or(Some({ let $py = py; $constructor }))
+                    )?
+                        .unwrap_or($exc_ty::new_err("a test exception"))
+                };
+
+                assert!(err.is_instance_of::<$exc_ty>(py));
+
+                let value = err.value(py).as_any().cast::<$exc_ty>().unwrap();
+
+                assert!($crate::PyErr::from(value.clone()).is_instance_of::<$exc_ty>(py));
+            })
+        }
+    };
+}
+
+#[cfg(test)]
+macro_rules! test_exception_embedded_import_bug {
+    ($exc_ty:ident $(, |$py:tt| $constructor:expr )?) => {
+        #[allow(non_snake_case, reason = "test matches exception name")]
+        #[test]
+        fn $exc_ty() {
+            if $crate::active_backend_kind() == $crate::backend::BackendKind::Rustpython {
+                return;
+            }
+
             use super::$exc_ty;
 
             $crate::Python::attach(|py| {
@@ -921,17 +953,17 @@ pub mod asyncio {
 
     #[cfg(test)]
     mod tests {
-        test_exception!(CancelledError);
-        test_exception!(InvalidStateError);
-        test_exception!(TimeoutError);
-        test_exception!(IncompleteReadError, |_| IncompleteReadError::new_err((
-            "partial", "expected"
-        )));
-        test_exception!(LimitOverrunError, |_| LimitOverrunError::new_err((
+        test_exception_embedded_import_bug!(CancelledError);
+        test_exception_embedded_import_bug!(InvalidStateError);
+        test_exception_embedded_import_bug!(TimeoutError);
+        test_exception_embedded_import_bug!(IncompleteReadError, |_| IncompleteReadError::new_err(
+            ("partial", "expected")
+        ));
+        test_exception_embedded_import_bug!(LimitOverrunError, |_| LimitOverrunError::new_err((
             "message", "consumed"
         )));
-        test_exception!(QueueEmpty);
-        test_exception!(QueueFull);
+        test_exception_embedded_import_bug!(QueueEmpty);
+        test_exception_embedded_import_bug!(QueueFull);
     }
 }
 
@@ -944,9 +976,9 @@ pub mod socket {
 
     #[cfg(test)]
     mod tests {
-        test_exception!(herror);
-        test_exception!(gaierror);
-        test_exception!(timeout);
+        test_exception_embedded_import_bug!(herror);
+        test_exception_embedded_import_bug!(gaierror);
+        test_exception_embedded_import_bug!(timeout);
     }
 }
 
@@ -962,6 +994,9 @@ mod tests {
 
     #[test]
     fn test_check_exception() {
+        if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
+            return;
+        }
         Python::attach(|py| {
             let err: PyErr = gaierror::new_err(());
             let socket = py
@@ -986,6 +1021,9 @@ mod tests {
 
     #[test]
     fn test_check_exception_nested() {
+        if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
+            return;
+        }
         Python::attach(|py| {
             let err: PyErr = MessageError::new_err(());
             let email = py

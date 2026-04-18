@@ -1,6 +1,6 @@
 use crate::sealed::Sealed;
 use crate::types::PyAnyMethods;
-use crate::{ffi, Bound, PyAny, PyResult, PyTypeInfo, Python};
+use crate::{backend, ffi, Bound, PyAny, PyResult, PyTypeInfo, Python};
 
 /// Represents a Python `range`.
 ///
@@ -12,7 +12,13 @@ use crate::{ffi, Bound, PyAny, PyResult, PyTypeInfo, Python};
 #[repr(transparent)]
 pub struct PyRange(PyAny);
 
-pyobject_native_type_core!(PyRange, pyobject_native_static_type_object!(ffi::PyRange_Type), "builtins", "range", #checkfunction=ffi::PyRange_Check);
+pyobject_native_type_core!(
+    PyRange,
+    backend::current::types::range_type_object,
+    "builtins",
+    "range",
+    #checkfunction=ffi::PyRange_Check
+);
 
 impl<'py> PyRange {
     /// Creates a new Python `range` object with a default step of 1.

@@ -472,6 +472,10 @@ def test_cross_compilation_windows(session: nox.Session):
     env = os.environ.copy()
     env["XWIN_ARCH"] = "x86_64"
 
+    # The GNU cross-compilation lane uses plain `cargo build`, so the Rust
+    # standard library for that target must be installed explicitly.
+    _run(session, "rustup", "target", "add", "x86_64-pc-windows-gnu")
+
     # abi3
     _run_cargo(
         session,
@@ -544,6 +548,8 @@ def docs(session: nox.Session, nightly: bool = False, internal: bool = False) ->
         rustdoc_flags.append("--cfg docsrs")
         toolchain_flags.append("+nightly")
         cargo_flags.extend(["-Z", "unstable-options", "-Z", "rustdoc-scrape-examples"])
+    else:
+        toolchain_flags.append("+stable")
 
     if internal:
         rustdoc_flags.append("--Z unstable-options")

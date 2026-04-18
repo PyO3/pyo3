@@ -16,13 +16,11 @@ use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
 #[repr(transparent)]
 pub struct PyDict(PyAny);
 
-#[cfg(not(GraalPy))]
-pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
+crate::backend::current::dict_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
 
-pyobject_native_type!(
+pyobject_native_type_core!(
     PyDict,
-    ffi::PyDictObject,
-    pyobject_native_static_type_object!(ffi::PyDict_Type),
+    |py| crate::backend::current::types::dict_type_object(py),
     "builtins",
     "dict",
     #checkfunction=ffi::PyDict_Check
@@ -36,7 +34,7 @@ pub struct PyDictKeys(PyAny);
 #[cfg(not(any(PyPy, GraalPy)))]
 pyobject_native_type_core!(
     PyDictKeys,
-    pyobject_native_static_type_object!(ffi::PyDictKeys_Type),
+    |py| crate::backend::current::types::dict_keys_type_object(py),
     "builtins",
     "dict_keys",
     #checkfunction=ffi::PyDictKeys_Check
@@ -50,7 +48,7 @@ pub struct PyDictValues(PyAny);
 #[cfg(not(any(PyPy, GraalPy)))]
 pyobject_native_type_core!(
     PyDictValues,
-    pyobject_native_static_type_object!(ffi::PyDictValues_Type),
+    |py| crate::backend::current::types::dict_values_type_object(py),
     "builtins",
     "dict_values",
     #checkfunction=ffi::PyDictValues_Check
@@ -64,7 +62,7 @@ pub struct PyDictItems(PyAny);
 #[cfg(not(any(PyPy, GraalPy)))]
 pyobject_native_type_core!(
     PyDictItems,
-    pyobject_native_static_type_object!(ffi::PyDictItems_Type),
+    |py| crate::backend::current::types::dict_items_type_object(py),
     "builtins",
     "dict_items",
     #checkfunction=ffi::PyDictItems_Check
@@ -508,15 +506,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyDict> {
 }
 
 fn dict_len(dict: &Bound<'_, PyDict>) -> Py_ssize_t {
-    #[cfg(any(PyPy, GraalPy, Py_LIMITED_API, Py_GIL_DISABLED))]
-    unsafe {
-        ffi::PyDict_Size(dict.as_ptr())
-    }
-
-    #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API, Py_GIL_DISABLED)))]
-    unsafe {
-        (*dict.as_ptr().cast::<ffi::PyDictObject>()).ma_used
-    }
+    crate::backend::current::types::dict_len(dict.as_ptr())
 }
 
 /// PyO3 implementation of an iterator for a Python `dict` object.
@@ -1523,6 +1513,10 @@ mod tests {
             let dict = abc_dict(py);
             let items = dict.call_method0("items").unwrap();
             assert!(items.is_instance(&py.get_type::<PyDictItems>()).unwrap());
+            assert_eq!(
+                items.get_type().as_ptr().cast(),
+                crate::backend::current::types::dict_items_type_object(py)
+            );
         })
     }
 

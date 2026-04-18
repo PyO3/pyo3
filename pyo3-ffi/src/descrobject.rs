@@ -35,36 +35,72 @@ impl Default for PyGetSetDef {
     }
 }
 
-extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyClassMethodDescr_Type")]
-    pub static mut PyClassMethodDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyGetSetDescr_Type")]
-    pub static mut PyGetSetDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMemberDescr_Type")]
-    pub static mut PyMemberDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMethodDescr_Type")]
-    pub static mut PyMethodDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyWrapperDescr_Type")]
-    pub static mut PyWrapperDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyDictProxy_Type")]
-    pub static mut PyDictProxy_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyProperty_Type")]
-    pub static mut PyProperty_Type: PyTypeObject;
+pub type wrapperfunc = Option<
+    unsafe extern "C" fn(
+        slf: *mut PyObject,
+        args: *mut PyObject,
+        wrapped: *mut c_void,
+    ) -> *mut PyObject,
+>;
+
+pub type wrapperfunc_kwds = Option<
+    unsafe extern "C" fn(
+        slf: *mut PyObject,
+        args: *mut PyObject,
+        wrapped: *mut c_void,
+        kwds: *mut PyObject,
+    ) -> *mut PyObject,
+>;
+
+#[repr(C)]
+pub struct wrapperbase {
+    pub name: *const c_char,
+    pub offset: c_int,
+    pub function: *mut c_void,
+    pub wrapper: wrapperfunc,
+    pub doc: *const c_char,
+    pub flags: c_int,
+    pub name_strobj: *mut PyObject,
 }
 
-extern_libpython! {
-    pub fn PyDescr_NewMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyDescr_NewClassMethod")]
-    pub fn PyDescr_NewClassMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef)
-        -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyDescr_NewMember")]
-    pub fn PyDescr_NewMember(arg1: *mut PyTypeObject, arg2: *mut PyMemberDef) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyDescr_NewGetSet")]
-    pub fn PyDescr_NewGetSet(arg1: *mut PyTypeObject, arg2: *mut PyGetSetDef) -> *mut PyObject;
+pub const PyWrapperFlag_KEYWORDS: c_int = 1;
 
-    #[cfg_attr(PyPy, link_name = "PyPyDictProxy_New")]
-    pub fn PyDictProxy_New(arg1: *mut PyObject) -> *mut PyObject;
-    pub fn PyWrapper_New(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
+#[repr(C)]
+pub struct PyDescrObject {
+    pub ob_base: PyObject,
+    pub d_type: *mut PyTypeObject,
+    pub d_name: *mut PyObject,
+    pub d_qualname: *mut PyObject,
+}
+
+#[repr(C)]
+pub struct PyMethodDescrObject {
+    pub d_common: PyDescrObject,
+    pub d_method: *mut PyMethodDef,
+    #[cfg(not(PyPy))]
+    pub vectorcall: Option<crate::vectorcallfunc>,
+}
+
+#[repr(C)]
+pub struct PyMemberDescrObject {
+    pub d_common: PyDescrObject,
+    #[cfg(not(Py_3_11))]
+    pub d_member: *mut PyGetSetDef,
+    #[cfg(Py_3_11)]
+    pub d_member: *mut PyMemberDef,
+}
+
+#[repr(C)]
+pub struct PyGetSetDescrObject {
+    pub d_common: PyDescrObject,
+    pub d_getset: *mut PyGetSetDef,
+}
+
+#[repr(C)]
+pub struct PyWrapperDescrObject {
+    pub d_common: PyDescrObject,
+    pub d_base: *mut wrapperbase,
+    pub d_wrapped: *mut c_void,
 }
 
 /// Represents the [PyMemberDef](https://docs.python.org/3/c-api/structures.html#c.PyMemberDef)
@@ -126,7 +162,9 @@ pub const Py_AUDIT_READ: c_int = 2; // Added in 3.10, harmless no-op before that
 pub const _Py_WRITE_RESTRICTED: c_int = 4; // Deprecated, no-op. Do not reuse the value.
 pub const Py_RELATIVE_OFFSET: c_int = 8;
 
-extern_libpython! {
-    pub fn PyMember_GetOne(addr: *const c_char, l: *mut PyMemberDef) -> *mut PyObject;
-    pub fn PyMember_SetOne(addr: *mut c_char, l: *mut PyMemberDef, value: *mut PyObject) -> c_int;
-}
+pub use crate::backend::current::descrobject::{
+    PyClassMethodDescr_Type, PyDescr_NewClassMethod, PyDescr_NewGetSet, PyDescr_NewMember,
+    PyDescr_NewMethod, PyDictProxy_New, PyDictProxy_Type, PyGetSetDescr_Type, PyMemberDescr_Type,
+    PyMember_GetOne, PyMember_SetOne, PyMethodDescr_Type, PyProperty_Type, PyWrapperDescr_Type,
+    PyWrapper_New,
+};

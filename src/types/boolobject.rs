@@ -10,7 +10,6 @@ use crate::{
     types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, Python,
 };
 use std::convert::Infallible;
-use std::ptr;
 
 /// Represents a Python `bool`.
 ///
@@ -22,7 +21,14 @@ use std::ptr;
 #[repr(transparent)]
 pub struct PyBool(PyAny);
 
-pyobject_native_type!(PyBool, ffi::PyObject, pyobject_native_static_type_object!(ffi::PyBool_Type), "builtins", "bool", #checkfunction=ffi::PyBool_Check);
+pyobject_native_type!(
+    PyBool,
+    ffi::PyObject,
+    crate::backend::current::types::bool_type_object,
+    "builtins",
+    "bool",
+    #checkfunction=ffi::PyBool_Check
+);
 
 impl PyBool {
     /// Depending on `val`, returns `true` or `false`.
@@ -55,7 +61,7 @@ pub trait PyBoolMethods<'py>: crate::sealed::Sealed {
 impl<'py> PyBoolMethods<'py> for Bound<'py, PyBool> {
     #[inline]
     fn is_true(&self) -> bool {
-        unsafe { ptr::eq(self.as_ptr(), ffi::Py_True()) }
+        unsafe { ffi::Py_IsTrue(self.as_ptr()) != 0 }
     }
 }
 
@@ -198,32 +204,12 @@ impl FromPyObject<'_, '_> for bool {
                 ))
             };
 
-            #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-            unsafe {
-                let ptr = obj.as_ptr();
+            let meth = obj
+                .lookup_special(crate::intern!(obj.py(), "__bool__"))?
+                .ok_or_else(|| missing_conversion(obj))?;
 
-                if let Some(tp_as_number) = (*(*ptr).ob_type).tp_as_number.as_ref() {
-                    if let Some(nb_bool) = tp_as_number.nb_bool {
-                        match (nb_bool)(ptr) {
-                            0 => return Ok(false),
-                            1 => return Ok(true),
-                            _ => return Err(crate::PyErr::fetch(obj.py())),
-                        }
-                    }
-                }
-
-                return Err(missing_conversion(obj));
-            }
-
-            #[cfg(any(Py_LIMITED_API, PyPy))]
-            {
-                let meth = obj
-                    .lookup_special(crate::intern!(obj.py(), "__bool__"))?
-                    .ok_or_else(|| missing_conversion(obj))?;
-
-                let obj = meth.call0()?.cast_into::<PyBool>()?;
-                return Ok(obj.is_true());
-            }
+            let obj = meth.call0()?.cast_into::<PyBool>()?;
+            return Ok(obj.is_true());
         }
 
         Err(err.into())

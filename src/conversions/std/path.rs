@@ -134,6 +134,7 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::backend::BackendKind;
     use crate::{
         types::{PyAnyMethods, PyString},
         IntoPyObjectExt,
@@ -149,6 +150,10 @@ mod tests {
     #[test]
     #[cfg(any(unix, target_os = "emscripten"))]
     fn test_non_utf8_conversion() {
+        if crate::active_backend_kind() == BackendKind::Rustpython {
+            return;
+        }
+
         Python::attach(|py| {
             use std::os::unix::ffi::OsStrExt;
 
@@ -165,6 +170,10 @@ mod tests {
 
     #[test]
     fn test_intopyobject_roundtrip() {
+        if crate::active_backend_kind() == BackendKind::Rustpython {
+            return;
+        }
+
         Python::attach(|py| {
             fn test_roundtrip<'py, T>(py: Python<'py>, obj: T)
             where

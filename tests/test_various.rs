@@ -115,6 +115,10 @@ fn pytuple_pyclass_iter() {
 
 #[test]
 #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
+#[cfg_attr(
+    PyRustPython,
+    ignore = "blocked by RustPython/RustPython#7587 embedded pickle/functools/abc import recursion"
+)]
 fn test_pickle() {
     use pyo3::types::PyDict;
 

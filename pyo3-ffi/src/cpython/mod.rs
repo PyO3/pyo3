@@ -55,11 +55,9 @@ pub use self::cellobject::*;
 pub use self::ceval::*;
 pub use self::code::*;
 pub use self::compile::*;
-pub use self::complexobject::*;
 #[cfg(Py_3_13)]
 pub use self::critical_section::*;
 pub use self::descrobject::*;
-pub use self::dictobject::*;
 pub use self::floatobject::*;
 pub use self::frameobject::*;
 pub use self::funcobject::*;
@@ -71,14 +69,12 @@ pub use self::initconfig::*;
 pub use self::listobject::*;
 #[cfg(Py_3_13)]
 pub use self::lock::*;
-pub use self::longobject::*;
 pub use self::marshal::*;
 #[cfg(all(Py_3_9, not(PyPy)))]
 pub use self::methodobject::*;
 pub use self::object::*;
 pub use self::objimpl::*;
 pub use self::pydebug::*;
-pub use self::pyerrors::*;
 pub use self::pyframe::*;
 #[cfg(any(not(PyPy), Py_3_13))]
 pub use self::pyhash::*;

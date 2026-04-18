@@ -1,3 +1,4 @@
+use crate::backend::current;
 use crate::byteswriter::PyBytesWriter;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
@@ -49,7 +50,13 @@ use std::str;
 #[repr(transparent)]
 pub struct PyBytes(PyAny);
 
-pyobject_native_type_core!(PyBytes, pyobject_native_static_type_object!(ffi::PyBytes_Type), "builtins", "bytes", #checkfunction=ffi::PyBytes_Check);
+pyobject_native_type_core!(
+    PyBytes,
+    |py| current::types::bytes_type_object(py),
+    "builtins",
+    "bytes",
+    #checkfunction=ffi::PyBytes_Check
+);
 
 impl PyBytes {
     /// Creates a new Python bytestring object.

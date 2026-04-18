@@ -127,8 +127,14 @@ impl<'py> IntoPyObject<'py> for SystemTime {
     const OUTPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let duration_since_unix_epoch =
-            self.duration_since(UNIX_EPOCH).unwrap().into_pyobject(py)?;
+        let duration_since_unix_epoch = self.duration_since(UNIX_EPOCH).unwrap();
+        if duration_since_unix_epoch > max_duration_since_unix_epoch_py(py)? {
+            return Err(PyOverflowError::new_err(
+                "Overflow error when converting the time to Python",
+            ));
+        }
+
+        let duration_since_unix_epoch = duration_since_unix_epoch.into_pyobject(py)?;
         unix_epoch_py(py)?
             .add(duration_since_unix_epoch)?
             .cast_into()
@@ -160,6 +166,17 @@ fn unix_epoch_py(py: Python<'_>) -> PyResult<Borrowed<'_, '_, PyDateTime>> {
         .bind_borrowed(py))
 }
 
+fn max_duration_since_unix_epoch_py(py: Python<'_>) -> PyResult<Duration> {
+    static MAX_DURATION: PyOnceLock<Duration> = PyOnceLock::new();
+    MAX_DURATION
+        .get_or_try_init(py, || {
+            let utc = PyTzInfo::utc(py)?;
+            let max = PyDateTime::new(py, 9999, 12, 31, 23, 59, 59, 999_999, Some(&utc))?;
+            max.sub(unix_epoch_py(py)?)?.extract()
+        })
+        .copied()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,10 +185,9 @@ mod tests {
     #[test]
     fn test_duration_frompyobject() {
         Python::attach(|py| {
-            assert_eq!(
-                new_timedelta(py, 0, 0, 0).extract::<Duration>().unwrap(),
-                Duration::new(0, 0)
-            );
+            let td0 = new_timedelta(py, 0, 0, 0);
+            let d0 = td0.extract::<Duration>().unwrap();
+            assert_eq!(d0, Duration::new(0, 0));
             assert_eq!(
                 new_timedelta(py, 1, 0, 0).extract::<Duration>().unwrap(),
                 Duration::new(86400, 0)
@@ -389,9 +405,8 @@ mod tests {
         seconds: i32,
         microseconds: i32,
     ) -> Bound<'_, PyAny> {
-        timedelta_class(py)
-            .call1((days, seconds, microseconds))
-            .unwrap()
+        let cls = timedelta_class(py);
+        cls.call1((days, seconds, microseconds)).unwrap()
     }
 
     fn datetime_class(py: Python<'_>) -> Bound<'_, PyAny> {

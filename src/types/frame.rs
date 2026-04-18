@@ -4,7 +4,6 @@ use crate::sealed::Sealed;
 use crate::types::{PyCode, PyDict};
 use crate::PyAny;
 use crate::{ffi, Bound, PyResult, Python};
-use pyo3_ffi::PyObject;
 use std::ffi::CStr;
 
 /// Represents a Python frame.
@@ -16,10 +15,10 @@ pub struct PyFrame(PyAny);
 
 pyobject_native_type_core!(
     PyFrame,
-    pyobject_native_static_type_object!(ffi::PyFrame_Type),
+    |py| crate::backend::current::types::frame_type_object(py),
     "types",
     "FrameType",
-    #checkfunction=ffi::PyFrame_Check
+    #checkfunction=crate::backend::current::types::frame_check
 );
 
 impl PyFrame {
@@ -30,27 +29,7 @@ impl PyFrame {
         func_name: &CStr,
         line_number: i32,
     ) -> PyResult<Bound<'py, PyFrame>> {
-        // Safety: Thread is attached because we have a python token
-        let state = unsafe { ffi::compat::PyThreadState_GetUnchecked() };
-        let code = PyCode::empty(py, file_name, func_name, line_number);
-        let globals = PyDict::new(py);
-        let locals = PyDict::new(py);
-
-        // SAFETY:
-        // - we're attached to the interpreter
-        // - `PyFrame_New` returns an owned reference or raises an exception
-        // - the result is a frame object
-        unsafe {
-            Ok(ffi::PyFrame_New(
-                state,
-                code.into_ptr().cast(),
-                globals.as_ptr(),
-                locals.as_ptr(),
-            )
-            .cast::<PyObject>()
-            .assume_owned_or_err(py)?
-            .cast_into_unchecked::<PyFrame>())
-        }
+        crate::backend::current::types::new_frame(py, file_name, func_name, line_number)
     }
 }
 

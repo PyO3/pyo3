@@ -313,6 +313,10 @@ impl Sequence {
 }
 
 #[test]
+#[cfg_attr(
+    PyRustPython,
+    ignore = "blocked by RustPython/RustPython#7587 embedded collections import recursion"
+)]
 fn sequence() {
     Python::attach(|py| {
         PySequence::register::<Sequence>(py).unwrap();
@@ -672,6 +676,10 @@ impl OnceFuture {
 
 #[test]
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
+#[cfg_attr(
+    PyRustPython,
+    ignore = "blocked by RustPython/RustPython#7587 embedded asyncio import recursion"
+)]
 fn test_await() {
     Python::attach(|py| {
         let once = py.get_type::<OnceFuture>();
@@ -691,9 +699,7 @@ asyncio.run(main())
 "#;
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Once", once).unwrap();
-        py.run(source, Some(&globals), None)
-            .map_err(|e| e.display(py))
-            .unwrap();
+        py.run(source, Some(&globals), None).unwrap();
     });
 }
 
@@ -722,6 +728,10 @@ impl AsyncIterator {
 
 #[test]
 #[cfg(not(target_arch = "wasm32"))] // Won't work without wasm32 event loop (e.g., Pyodide has WebLoop)
+#[cfg_attr(
+    PyRustPython,
+    ignore = "blocked by RustPython/RustPython#7587 embedded asyncio import recursion"
+)]
 fn test_anext_aiter() {
     Python::attach(|py| {
         let once = py.get_type::<OnceFuture>();
@@ -748,9 +758,7 @@ asyncio.run(main())
         globals
             .set_item("AsyncIterator", py.get_type::<AsyncIterator>())
             .unwrap();
-        py.run(source, Some(&globals), None)
-            .map_err(|e| e.display(py))
-            .unwrap();
+        py.run(source, Some(&globals), None).unwrap();
     });
 }
 

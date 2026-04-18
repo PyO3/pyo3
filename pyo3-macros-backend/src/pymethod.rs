@@ -10,7 +10,7 @@ use crate::pyfunction::WarningFactory;
 use crate::utils::PythonDoc;
 use crate::utils::{Ctx, StaticIdent};
 use crate::{
-    method::{FnArg, FnSpec, FnType, SelfType},
+    method::{FnArg, FnSpec, FnType, RegularArg, SelfType},
     pyfunction::PyFunctionOptions,
 };
 use crate::{quotes, utils};
@@ -45,6 +45,12 @@ pub struct MethodAndSlotDef {
     pub associated_method: TokenStream,
     /// The slot def which will be used to register this pymethod
     pub slot_def: TokenStream,
+    /// Optional callable-view method for this slot-backed method.
+    ///
+    /// The frontend preserves this semantic method form so backends can decide
+    /// whether they need a normal Python-visible method in addition to a raw
+    /// slot definition.
+    pub callable_method: Option<MethodAndMethodDef>,
 }
 
 #[cfg(feature = "experimental-inspect")]
@@ -62,7 +68,7 @@ impl MethodAndSlotDef {
 pub enum GeneratedPyMethod {
     Method(MethodAndMethodDef),
     Proto(MethodAndSlotDef),
-    SlotTraitImpl(String, TokenStream),
+    SlotTraitImpl(String, TokenStream, Option<MethodAndMethodDef>),
 }
 
 pub struct PyMethod<'a> {
@@ -260,7 +266,13 @@ pub fn gen_py_method(
             ensure_no_forbidden_protocol_attributes(&proto_kind, spec, &method.method_name)?;
             match proto_kind {
                 PyMethodProtoKind::Slot(slot_def) => {
-                    let slot = slot_def.generate_type_slot(cls, spec, &method.method_name, ctx)?;
+                    let slot = slot_def.generate_type_slot(
+                        cls,
+                        spec,
+                        &method.method_name,
+                        spec.get_doc(meth_attrs).as_ref(),
+                        ctx,
+                    )?;
                     GeneratedPyMethod::Proto(slot)
                 }
                 PyMethodProtoKind::Call => {
@@ -274,7 +286,18 @@ pub fn gen_py_method(
                 }
                 PyMethodProtoKind::SlotFragment(slot_fragment_def) => {
                     let proto = slot_fragment_def.generate_pyproto_fragment(cls, spec, ctx)?;
-                    GeneratedPyMethod::SlotTraitImpl(method.method_name, proto)
+                    let callable_method = impl_slot_callable_method_def(
+                        cls,
+                        spec,
+                        slot_fragment_def.extract_error_mode,
+                        spec.get_doc(meth_attrs).as_ref(),
+                        ctx,
+                    )?;
+                    GeneratedPyMethod::SlotTraitImpl(
+                        method.method_name,
+                        proto,
+                        Some(callable_method),
+                    )
                 }
             }
         }
@@ -371,11 +394,27 @@ pub fn impl_py_method_def(
     doc: Option<&PythonDoc>,
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
-    let Ctx { pyo3_path, .. } = ctx;
     let wrapper_ident = format_ident!("__pymethod_{}__", spec.python_name);
+    impl_py_method_def_with_wrapper(cls, spec, doc, &wrapper_ident, ExtractErrorMode::Raise, ctx)
+}
+
+fn impl_py_method_def_with_wrapper(
+    cls: &syn::Type,
+    spec: &FnSpec<'_>,
+    doc: Option<&PythonDoc>,
+    wrapper_ident: &Ident,
+    extract_error_mode: ExtractErrorMode,
+    ctx: &Ctx,
+) -> Result<MethodAndMethodDef> {
+    let Ctx { pyo3_path, .. } = ctx;
     let calling_convention = CallingConvention::from_signature(&spec.signature);
-    let associated_method =
-        spec.get_wrapper_function(&wrapper_ident, Some(cls), calling_convention, ctx)?;
+    let associated_method = spec.get_wrapper_function(
+        wrapper_ident,
+        Some(cls),
+        calling_convention,
+        extract_error_mode,
+        ctx,
+    )?;
     let methoddef = spec.get_methoddef(
         quote! { #cls::#wrapper_ident },
         doc,
@@ -391,11 +430,89 @@ pub fn impl_py_method_def(
     })
 }
 
+fn impl_slot_callable_method_def(
+    cls: &syn::Type,
+    spec: &FnSpec<'_>,
+    extract_error_mode: ExtractErrorMode,
+    doc: Option<&PythonDoc>,
+    ctx: &Ctx,
+) -> Result<MethodAndMethodDef> {
+    let mut callable_spec = spec.clone();
+    ensure_slot_callable_method_defaults(&mut callable_spec);
+    let wrapper_ident = format_ident!("__pymethod_rustpython_{}__", spec.python_name);
+    impl_py_method_def_with_wrapper(
+        cls,
+        &callable_spec,
+        doc,
+        &wrapper_ident,
+        extract_error_mode,
+        ctx,
+    )
+}
+
+fn ensure_slot_callable_method_defaults(spec: &mut FnSpec<'_>) {
+    if spec.signature.attribute.is_some() {
+        return;
+    }
+
+    let trailing_optional_count = spec
+        .signature
+        .arguments
+        .iter()
+        .rev()
+        .take_while(|arg| {
+            matches!(
+                arg,
+                FnArg::Regular(RegularArg {
+                    option_wrapped_type: Some(_),
+                    ..
+                })
+            )
+        })
+        .count();
+
+    if trailing_optional_count == 0 {
+        return;
+    }
+
+    let defaults = &mut spec
+        .signature
+        .python_signature
+        .default_positional_parameters;
+    if defaults.len() >= trailing_optional_count {
+        // Keep per-argument defaults in sync with the already-normalized
+        // Python signature defaults below.
+    } else {
+        defaults.resize_with(trailing_optional_count, || {
+            syn::parse_quote!(::std::option::Option::None)
+        });
+    }
+
+    for arg in spec
+        .signature
+        .arguments
+        .iter_mut()
+        .rev()
+        .take(trailing_optional_count)
+    {
+        if let FnArg::Regular(RegularArg { default_value, .. }) = arg {
+            if default_value.is_none() {
+                *default_value = Some(Box::new(syn::parse_quote!(::std::option::Option::None)));
+            }
+        }
+    }
+}
+
 fn impl_call_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> Result<MethodAndSlotDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let wrapper_ident = syn::Ident::new("__pymethod___call____", Span::call_site());
-    let associated_method =
-        spec.get_wrapper_function(&wrapper_ident, Some(cls), CallingConvention::Varargs, ctx)?;
+    let associated_method = spec.get_wrapper_function(
+        &wrapper_ident,
+        Some(cls),
+        CallingConvention::Varargs,
+        ExtractErrorMode::Raise,
+        ctx,
+    )?;
     let slot_def = quote! {
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_call,
@@ -405,6 +522,7 @@ fn impl_call_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> Result<Metho
     Ok(MethodAndSlotDef {
         associated_method,
         slot_def,
+        callable_method: None,
     })
 }
 
@@ -462,6 +580,7 @@ fn impl_traverse_slot(
     Ok(MethodAndSlotDef {
         associated_method,
         slot_def,
+        callable_method: None,
     })
 }
 
@@ -508,6 +627,7 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
     Ok(MethodAndSlotDef {
         associated_method,
         slot_def,
+        callable_method: None,
     })
 }
 
@@ -670,6 +790,7 @@ pub fn impl_py_setter_def(
                 arg,
                 ident,
                 quote!(::std::option::Option::Some(_value)),
+                ExtractErrorMode::Raise,
                 &mut holders,
                 ctx,
             );
@@ -1365,6 +1486,7 @@ impl SlotDef {
         cls: &syn::Type,
         spec: &FnSpec<'_>,
         method_name: &str,
+        doc: Option<&PythonDoc>,
         ctx: &Ctx,
     ) -> Result<MethodAndSlotDef> {
         let Ctx { pyo3_path, .. } = ctx;
@@ -1418,9 +1540,27 @@ impl SlotDef {
                 pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(#func_ty, #cls::#wrapper_ident) as #pyo3_path::ffi::#func_ty as _
             }
         };
+        let callable_method = if matches!(
+            method_name,
+            "__richcmp__" | "__getbuffer__" | "__releasebuffer__"
+        ) || matches!(
+            calling_convention,
+            SlotCallingConvention::TpNew | SlotCallingConvention::TpInit
+        ) {
+            None
+        } else {
+            Some(impl_slot_callable_method_def(
+                cls,
+                spec,
+                *extract_error_mode,
+                doc,
+                ctx,
+            )?)
+        };
         Ok(MethodAndSlotDef {
             associated_method,
             slot_def,
+            callable_method,
         })
     }
 }
@@ -1457,7 +1597,8 @@ fn generate_method_body(
                 quote! { *mut #pyo3_path::ffi::PyObject },
                 quote! { *mut #pyo3_path::ffi::PyObject },
             ];
-            let (arg_convert, args) = impl_arg_params(spec, Some(cls), false, holders, ctx);
+            let (arg_convert, args) =
+                impl_arg_params(spec, Some(cls), false, extract_error_mode, holders, ctx);
             let args = self_arg.into_iter().chain(args);
             let call = quote_spanned! {*output_span=> #cls::#rust_name(#(#args),*) };
 
@@ -1487,9 +1628,11 @@ fn generate_method_body(
                 let result = #call;
                 #pyo3_path::impl_::pymethods::tp_new_impl::<
                     _,
+                    _,
+                    _,
                     { #pyo3_path::impl_::pyclass::IsPyClass::<#output>::VALUE },
                     { #pyo3_path::impl_::pyclass::IsInitializerTuple::<#output>::VALUE }
-                >(py, result, _slf)
+                >(py, result, _slf, _args, _kwargs)
             };
             (arg_idents, arg_types, body)
         }
@@ -1504,7 +1647,8 @@ fn generate_method_body(
                 quote! { *mut #pyo3_path::ffi::PyObject },
                 quote! { *mut #pyo3_path::ffi::PyObject },
             ];
-            let (arg_convert, args) = impl_arg_params(spec, Some(cls), false, holders, ctx);
+            let (arg_convert, args) =
+                impl_arg_params(spec, Some(cls), false, extract_error_mode, holders, ctx);
             let args = self_arg.into_iter().chain(args);
             let call = quote! {{
                 let r = #cls::#rust_name(#(#args),*);

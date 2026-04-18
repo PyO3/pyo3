@@ -8,7 +8,7 @@ use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
-use crate::types::{PyAny, PyDict, PyList, PyType, PyTypeMethods};
+use crate::types::{PyAny, PyList, PyType, PyTypeMethods};
 use crate::{ffi, Py, Python};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
@@ -22,6 +22,11 @@ use crate::{ffi, Py, Python};
 pub struct PyMapping(PyAny);
 
 pyobject_native_type_named!(PyMapping);
+
+#[allow(dead_code)]
+pub(crate) fn is_registered_mapping_type(object: &Bound<'_, PyAny>) -> bool {
+    crate::backend::current::types::is_registered_mapping_type(object)
+}
 
 unsafe impl PyTypeInfo for PyMapping {
     const NAME: &'static str = "Mapping";
@@ -41,15 +46,7 @@ unsafe impl PyTypeInfo for PyMapping {
 
     #[inline]
     fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
-        // Using `is_instance` for `collections.abc.Mapping` is slow, so provide
-        // optimized case dict as a well-known mapping
-        PyDict::is_type_of(object)
-            || object
-                .is_instance(&Self::type_object(object.py()).into_any())
-                .unwrap_or_else(|err| {
-                    err.write_unraisable(object.py(), Some(object));
-                    false
-                })
+        crate::backend::current::types::mapping_is_type_of(object)
     }
 }
 
@@ -59,8 +56,7 @@ impl PyMapping {
     /// This registration is required for a pyclass to be castable from `PyAny` to `PyMapping`.
     pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
         let ty = T::type_object(py);
-        Self::type_object(py).call_method1("register", (ty,))?;
-        Ok(())
+        crate::backend::current::types::register_mapping_type(&ty)
     }
 }
 
@@ -197,7 +193,10 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{exceptions::PyKeyError, types::PyTuple};
+    use crate::{
+        exceptions::PyKeyError,
+        types::{PyDict, PyTuple},
+    };
 
     use super::*;
     use crate::conversion::IntoPyObject;
@@ -348,6 +347,9 @@ mod tests {
 
     #[test]
     fn test_type_object() {
+        if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
+            return;
+        }
         Python::attach(|py| {
             let abc = PyMapping::type_object(py);
             assert!(PyDict::new(py).is_instance(&abc).unwrap());

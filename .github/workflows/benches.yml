@@ -40,9 +40,14 @@ jobs:
         with:
           tool: cargo-codspeed
 
-      - name: Run the benchmarks
+      - name: Run the benchmarks with CodSpeed upload
+        if: ${{ github.repository == 'PyO3/pyo3' }}
         uses: CodSpeedHQ/action@v4
         with:
           run: uvx nox -s codspeed
           token: ${{ secrets.CODSPEED_TOKEN }}
           mode: simulation
+
+      - name: Run the benchmarks without upload
+        if: ${{ github.repository != 'PyO3/pyo3' }}
+        run: uvx nox -s codspeed

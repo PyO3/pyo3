@@ -1,3 +1,4 @@
+use crate::backend::current::types::complex_type_object;
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::py_result_ext::PyResultExt;
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
@@ -26,7 +27,7 @@ pyobject_subclassable_native_type!(PyComplex, ffi::PyComplexObject);
 pyobject_native_type!(
     PyComplex,
     ffi::PyComplexObject,
-    pyobject_native_static_type_object!(ffi::PyComplex_Type),
+    complex_type_object,
     "builtins",
     "complex",
     #checkfunction=ffi::PyComplex_Check

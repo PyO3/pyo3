@@ -1,15 +1,18 @@
-use crate::err::{PyErr, PyResult};
+use crate::err::PyResult;
+#[cfg(PyPy)]
+use crate::exceptions;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
+use crate::instance::BoundObject;
 use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
-    any::PyAnyMethods, list::PyListMethods, string::PyStringMethods, PyAny, PyCFunction, PyDict,
-    PyList, PyString,
+    any::PyAnyMethods, dict::PyDict, list::PyList, list::PyListMethods, string::PyStringMethods,
+    PyAny, PyCFunction, PyString,
 };
-use crate::{
-    exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
-};
+#[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
+use crate::PyErr;
+use crate::{ffi, Borrowed, Bound, IntoPyObject, IntoPyObjectExt, Py, Python};
 use std::borrow::Cow;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use std::ffi::c_int;
@@ -32,7 +35,13 @@ use std::str;
 #[repr(transparent)]
 pub struct PyModule(PyAny);
 
-pyobject_native_type_core!(PyModule, pyobject_native_static_type_object!(ffi::PyModule_Type), "types", "ModuleType", #checkfunction=ffi::PyModule_Check);
+pyobject_native_type_core!(
+    PyModule,
+    |py| crate::backend::current::types::module_type_object(py),
+    "types",
+    "ModuleType",
+    #checkfunction=ffi::PyModule_Check
+);
 
 impl PyModule {
     /// Creates a new module object with the `__name__` attribute set to `name`.  When creating
@@ -91,12 +100,7 @@ impl PyModule {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        let name = name.into_pyobject_or_pyerr(py)?;
-        unsafe {
-            ffi::PyImport_Import(name.as_ptr())
-                .assume_owned_or_err(py)
-                .cast_into_unchecked()
-        }
+        crate::backend::current::types::module_import(py, name)
     }
 
     /// Creates and loads a module named `module_name`,
@@ -416,18 +420,8 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
 
     fn index(&self) -> PyResult<Bound<'py, PyList>> {
         let __all__ = __all__(self.py());
-        match self.getattr(__all__) {
-            Ok(idx) => idx.cast_into().map_err(PyErr::from),
-            Err(err) => {
-                if err.is_instance_of::<exceptions::PyAttributeError>(self.py()) {
-                    let l = PyList::empty(self.py());
-                    self.setattr(__all__, &l)?;
-                    Ok(l)
-                } else {
-                    Err(err)
-                }
-            }
-        }
+        let dict = self.dict();
+        crate::backend::current::types::module_index(self, &dict, __all__)
     }
 
     fn name(&self) -> PyResult<Bound<'py, PyString>> {
@@ -577,6 +571,9 @@ mod tests {
     fn module_filename() {
         use crate::types::string::PyStringMethods;
         Python::attach(|py| {
+            if crate::backend::current::types::module_filename_test_should_skip() {
+                return;
+            }
             let site = PyModule::import(py, "site").unwrap();
             assert!(site
                 .filename()

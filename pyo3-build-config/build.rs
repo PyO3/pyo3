@@ -47,6 +47,13 @@ fn generate_build_configs() -> Result<()> {
 }
 
 fn main() {
+    if std::env::var("CARGO_FEATURE_RUNTIME_RUSTPYTHON").is_ok() {
+        let _ = configure(None, "pyo3-build-config-file.txt");
+        let _ = configure(None, "pyo3-build-config.txt");
+        println!("cargo:rustc-cfg=PyRustPython");
+        return;
+    }
+
     if std::env::var("CARGO_FEATURE_RESOLVE_CONFIG").is_ok() {
         if let Err(e) = generate_build_configs() {
             eprintln!("error: {}", e.report());

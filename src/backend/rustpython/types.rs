@@ -1,0 +1,548 @@
+use crate::err::{self, PyResult};
+use crate::ffi::Py_ssize_t;
+use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::instance::{Borrowed, Bound, BoundObject};
+use crate::intern;
+use crate::py_result_ext::PyResultExt;
+use crate::sync::PyOnceLock;
+use crate::type_object::PyTypeInfo;
+use crate::types::any::PyAnyMethods;
+use crate::types::{
+    PyAny, PyCode, PyCodeInput, PyCodeMethods, PyDateTime, PyDict, PyDictMethods, PyFrame,
+    PyFrozenSet, PyList, PyModule, PySet, PyString, PyStringMethods, PyTime, PyTuple, PyType,
+    PyTypeMethods, PyTzInfo,
+};
+use crate::{ffi, IntoPyObject, IntoPyObjectExt, Py, Python};
+use std::sync::{Mutex, OnceLock};
+
+fn registered_mapping_types() -> &'static Mutex<Vec<usize>> {
+    static REGISTRY: OnceLock<Mutex<Vec<usize>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+#[inline]
+pub(crate) fn dict_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "dict").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn any_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "object").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn module_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "types", "ModuleType")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[cfg(not(any(PyPy, GraalPy)))]
+fn dict_view_type_object(
+    py: Python<'_>,
+    method: &str,
+    cache: &PyOnceLock<Py<PyType>>,
+) -> *mut ffi::PyTypeObject {
+    cache
+        .get_or_init(py, || {
+            let dict = PyDict::new(py);
+            let view = dict.call_method0(method).unwrap();
+            view.get_type().unbind()
+        })
+        .bind(py)
+        .as_type_ptr()
+}
+
+#[cfg(not(any(PyPy, GraalPy)))]
+#[inline]
+pub(crate) fn dict_keys_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    dict_view_type_object(py, "keys", &TYPE)
+}
+
+#[cfg(not(any(PyPy, GraalPy)))]
+#[inline]
+pub(crate) fn dict_values_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    dict_view_type_object(py, "values", &TYPE)
+}
+
+#[cfg(not(any(PyPy, GraalPy)))]
+#[inline]
+pub(crate) fn dict_items_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    dict_view_type_object(py, "items", &TYPE)
+}
+
+#[inline]
+pub(crate) fn string_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "str").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn int_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "int").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn bytes_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "bytes").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn bytearray_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "bytearray")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn range_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "range").unwrap().as_type_ptr()
+}
+
+pub(crate) fn empty_code<'py>(
+    py: Python<'py>,
+    file_name: &std::ffi::CStr,
+    _func_name: &std::ffi::CStr,
+    _first_line_number: i32,
+) -> Bound<'py, PyCode> {
+    crate::types::PyCode::compile(py, c"", file_name, PyCodeInput::File)
+        .expect("RustPython backend failed to create an empty code object")
+}
+
+#[inline]
+pub(crate) fn module_import<'py, N>(py: Python<'py>, name: N) -> PyResult<Bound<'py, PyModule>>
+where
+    N: IntoPyObject<'py, Target = PyString>,
+{
+    let name = name.into_pyobject_or_pyerr(py)?;
+    unsafe {
+        let name = name.into_any().into_bound();
+        let name: Bound<'py, PyString> = name.cast_into_unchecked();
+        let name = name.to_cow()?;
+        let c_name = std::ffi::CString::new(name.as_ref()).map_err(|_| {
+            crate::err::PyErr::new::<crate::exceptions::PyValueError, _>(
+                "module name contains NUL byte",
+            )
+        })?;
+        let module = ffi::PyImport_ImportModule(c_name.as_ptr());
+        module.assume_owned_or_err(py).cast_into_unchecked()
+    }
+}
+
+#[inline]
+pub(crate) fn mapping_is_type_of(object: &Bound<'_, PyAny>) -> bool {
+    PyDict::is_type_of(object)
+        || unsafe { ffi::PyMapping_Check(object.as_ptr()) != 0 }
+        || is_registered_mapping_type(object)
+}
+
+pub(crate) fn is_registered_mapping_type(object: &Bound<'_, PyAny>) -> bool {
+    registered_mapping_types()
+        .lock()
+        .unwrap()
+        .iter()
+        .copied()
+        .any(|ptr| unsafe {
+            ffi::PyObject_TypeCheck(object.as_ptr(), ptr as *mut ffi::PyTypeObject) != 0
+        })
+}
+
+pub(crate) fn register_mapping_type(ty: &Bound<'_, PyType>) -> PyResult<()> {
+    let ptr = ty.as_type_ptr() as usize;
+    let mut registry = registered_mapping_types().lock().unwrap();
+    if !registry.contains(&ptr) {
+        registry.push(ptr);
+    }
+    Ok(())
+}
+
+fn registered_sequence_types() -> &'static Mutex<Vec<usize>> {
+    static REGISTRY: OnceLock<Mutex<Vec<usize>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+pub(crate) fn sequence_is_type_of(object: &Bound<'_, PyAny>) -> bool {
+    let is_registered_sequence = registered_sequence_types()
+        .lock()
+        .unwrap()
+        .iter()
+        .copied()
+        .any(|ptr| unsafe {
+            ffi::PyObject_TypeCheck(object.as_ptr(), ptr as *mut ffi::PyTypeObject) != 0
+        });
+    let is_builtin_sequence = PyList::is_type_of(object) || PyTuple::is_type_of(object);
+    let is_sequence_protocol = unsafe { ffi::PySequence_Check(object.as_ptr()) != 0 };
+    let is_mapping_protocol = unsafe { ffi::PyMapping_Check(object.as_ptr()) != 0 };
+    let is_registered_mapping = is_registered_mapping_type(object);
+
+    is_builtin_sequence
+        || is_registered_sequence
+        || (is_sequence_protocol && !is_mapping_protocol && !is_registered_mapping)
+}
+
+pub(crate) fn register_sequence_type(ty: &Bound<'_, PyType>) -> PyResult<()> {
+    let ptr = ty.as_type_ptr() as usize;
+    let mut registry = registered_sequence_types().lock().unwrap();
+    if !registry.contains(&ptr) {
+        registry.push(ptr);
+    }
+    Ok(())
+}
+
+#[inline]
+pub(crate) fn module_index<'py>(
+    module: &Bound<'py, PyModule>,
+    dict: &Bound<'py, PyDict>,
+    __all__: &Bound<'py, PyString>,
+) -> PyResult<Bound<'py, PyList>> {
+    match PyDictMethods::get_item(dict, __all__) {
+        Ok(Some(idx)) => idx.cast_into().map_err(crate::err::PyErr::from),
+        Ok(None) => {
+            let l = crate::types::PyList::empty(module.py());
+            dict.set_item(__all__, &l)?;
+            Ok(l)
+        }
+        Err(err) => Err(err),
+    }
+}
+
+#[inline]
+pub(crate) fn module_filename_test_should_skip() -> bool {
+    true
+}
+
+#[inline]
+pub(crate) fn super_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "super").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn weakref_reference_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "_weakref", "ReferenceType")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn traceback_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "types", "TracebackType")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn capsule_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "_types", "CapsuleType")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn complex_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "complex")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn bool_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "bool").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn float_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "float").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn cfunction_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "builtin_function_or_method")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn type_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "type").unwrap().as_type_ptr()
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[inline]
+pub(crate) fn pyfunction_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "types", "FunctionType")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn code_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "types", "CodeType").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn frame_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "types", "FrameType").unwrap().as_type_ptr()
+}
+
+pub(crate) fn new_frame<'py>(
+    py: Python<'py>,
+    file_name: &std::ffi::CStr,
+    func_name: &std::ffi::CStr,
+    line_number: i32,
+) -> PyResult<Bound<'py, PyFrame>> {
+    let mut source = String::new();
+    for _ in 1..line_number.max(2) - 1 {
+        source.push('\n');
+    }
+    source.push_str("def ");
+    source.push_str(func_name.to_str().unwrap());
+    source.push_str("():\n    raise RuntimeError()\n");
+    source.push_str(func_name.to_str().unwrap());
+    source.push_str("()\n");
+    let source = std::ffi::CString::new(source).unwrap();
+    let code = PyCode::compile(py, source.as_c_str(), file_name, PyCodeInput::File)?;
+    let globals = PyDict::new(py);
+    match code.run(Some(&globals), Some(&globals)) {
+        Err(err) => {
+            let mut tb = err.traceback(py).ok_or_else(|| {
+                crate::PyErr::new::<crate::exceptions::PyRuntimeError, _>(
+                    "RustPython failed to produce a traceback for PyFrame::new",
+                )
+            })?;
+            loop {
+                let next = tb.getattr("tb_next")?;
+                if next.is_none() {
+                    break;
+                }
+                tb = next.cast_into()?;
+            }
+            Ok(tb.getattr("tb_frame")?.cast_into()?)
+        }
+        Ok(_) => Err(crate::PyErr::new::<crate::exceptions::PyRuntimeError, _>(
+            "RustPython frame construction unexpectedly succeeded without traceback",
+        )),
+    }
+}
+
+#[inline]
+pub(crate) unsafe fn frame_check(object: *mut ffi::PyObject) -> std::ffi::c_int {
+    ffi::PyObject_TypeCheck(object, frame_type_object(Python::assume_attached()))
+}
+
+#[inline]
+pub(crate) fn slice_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "slice").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn mappingproxy_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "_types", "MappingProxyType")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn list_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "list").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn tuple_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "tuple").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn type_mro<'py>(ty: &Bound<'py, PyType>) -> Bound<'py, PyTuple> {
+    ty.getattr(intern!(ty.py(), "__mro__"))
+        .expect("Cannot get `__mro__` from object.")
+        .extract()
+        .expect("Unexpected type in `__mro__` attribute.")
+}
+
+#[inline]
+pub(crate) fn type_bases<'py>(ty: &Bound<'py, PyType>) -> Bound<'py, PyTuple> {
+    ty.getattr(intern!(ty.py(), "__bases__"))
+        .expect("Cannot get `__bases__` from object.")
+        .extract()
+        .expect("Unexpected type in `__bases__` attribute.")
+}
+
+#[inline]
+pub(crate) fn set_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "set").unwrap().as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn frozenset_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    TYPE.import(py, "builtins", "frozenset")
+        .unwrap()
+        .as_type_ptr()
+}
+
+#[inline]
+pub(crate) fn dict_len(dict: *mut ffi::PyObject) -> Py_ssize_t {
+    unsafe { ffi::PyDict_Size(dict) }
+}
+
+pub(crate) struct PyFrozenSetBuilderState<'py> {
+    py_set: Bound<'py, PySet>,
+}
+
+pub(crate) fn new_frozenset_builder(py: Python<'_>) -> PyResult<PyFrozenSetBuilderState<'_>> {
+    Ok(PyFrozenSetBuilderState {
+        py_set: unsafe {
+            ffi::PySet_New(std::ptr::null_mut())
+                .assume_owned_or_err(py)?
+                .cast_into_unchecked()
+        },
+    })
+}
+
+pub(crate) fn frozenset_builder_add<'py, K>(
+    builder: &mut PyFrozenSetBuilderState<'py>,
+    key: K,
+) -> PyResult<()>
+where
+    K: IntoPyObject<'py>,
+{
+    fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
+        err::error_on_minusone(set.py(), unsafe {
+            ffi::PySet_Add(set.as_ptr(), key.as_ptr())
+        })
+    }
+
+    inner(
+        &builder.py_set,
+        key.into_pyobject_or_pyerr(builder.py_set.py())?
+            .into_any()
+            .as_borrowed(),
+    )
+}
+
+pub(crate) fn frozenset_builder_finalize(
+    builder: PyFrozenSetBuilderState<'_>,
+) -> Bound<'_, PyFrozenSet> {
+    unsafe {
+        ffi::PyFrozenSet_New(builder.py_set.as_ptr())
+            .assume_owned_or_err(builder.py_set.py())
+            .expect("PyFrozenSet_New from PySet should succeed")
+            .cast_into_unchecked()
+    }
+}
+
+#[track_caller]
+pub(crate) fn try_new_tuple_from_iter<'py>(
+    py: Python<'py>,
+    mut elements: impl ExactSizeIterator<Item = PyResult<Bound<'py, PyAny>>>,
+) -> PyResult<Bound<'py, PyTuple>> {
+    unsafe {
+        let len: Py_ssize_t = elements
+            .len()
+            .try_into()
+            .expect("out of range integral type conversion attempted on `elements.len()`");
+        let list = ffi::PyList_New(len.try_into().expect("tuple too large"));
+        let list = list
+            .assume_owned(py)
+            .cast_into_unchecked::<crate::types::PyList>();
+        let mut counter: Py_ssize_t = 0;
+        for (index, obj) in (&mut elements).take(len as usize).enumerate() {
+            err::error_on_minusone(
+                py,
+                ffi::PyList_SetItem(list.as_ptr(), index as Py_ssize_t, obj?.into_ptr()),
+            )?;
+            counter += 1;
+        }
+        assert!(elements.next().is_none(), "Attempted to create PyTuple but `elements` was larger than reported by its `ExactSizeIterator` implementation.");
+        assert_eq!(len, counter, "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
+        Ok(ffi::PySequence_Tuple(list.as_ptr())
+            .assume_owned(py)
+            .cast_into_unchecked())
+    }
+}
+
+pub(crate) fn array_into_tuple<'py, const N: usize>(
+    py: Python<'py>,
+    array: [Bound<'py, PyAny>; N],
+) -> Bound<'py, PyTuple> {
+    unsafe {
+        let list = ffi::PyList_New(N.try_into().expect("0 < N <= 12"));
+        for (index, obj) in array.into_iter().enumerate() {
+            let rc = ffi::PyList_SetItem(list, index as ffi::Py_ssize_t, obj.into_ptr());
+            err::error_on_minusone(py, rc).expect("failed to initialize tuple list staging buffer");
+        }
+        ffi::PySequence_Tuple(list)
+            .assume_owned(py)
+            .cast_into_unchecked()
+    }
+}
+
+#[inline]
+pub(crate) fn tuple_len(tuple: *mut ffi::PyObject) -> usize {
+    unsafe { ffi::PyTuple_Size(tuple) as usize }
+}
+
+pub(crate) unsafe fn borrowed_tuple_item_for_extract<'a, 'py>(
+    tuple: Borrowed<'a, 'py, PyTuple>,
+    index: usize,
+) -> PyResult<Borrowed<'a, 'py, PyAny>> {
+    unsafe {
+        ffi::PyTuple_GetItem(tuple.as_ptr(), index as Py_ssize_t).assume_borrowed_or_err(tuple.py())
+    }
+}
+
+pub(crate) unsafe fn borrowed_tuple_item_unchecked<'a, 'py>(
+    tuple: Borrowed<'a, 'py, PyTuple>,
+    index: usize,
+) -> Borrowed<'a, 'py, PyAny> {
+    unsafe {
+        ffi::PyTuple_GetItem(tuple.as_ptr(), index as Py_ssize_t)
+            .assume_borrowed_or_err(tuple.py())
+            .expect("caller must provide an in-bounds tuple index")
+    }
+}
+
+pub(crate) fn datetime_tzinfo<'py>(value: &Bound<'py, PyDateTime>) -> Option<Bound<'py, PyTzInfo>> {
+    let res = value.getattr("tzinfo").ok()?;
+    if res.is_none() {
+        None
+    } else {
+        Some(unsafe { res.cast_into_unchecked() })
+    }
+}
+
+pub(crate) fn time_tzinfo<'py>(value: &Bound<'py, PyTime>) -> Option<Bound<'py, PyTzInfo>> {
+    let res = value.getattr("tzinfo").ok()?;
+    if res.is_none() {
+        None
+    } else {
+        Some(unsafe { res.cast_into_unchecked() })
+    }
+}

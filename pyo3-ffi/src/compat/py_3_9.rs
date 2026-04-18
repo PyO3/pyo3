@@ -15,6 +15,6 @@ compat_function!(
 
     #[inline]
     pub unsafe fn PyObject_CallMethodNoArgs(obj: *mut crate::PyObject, name: *mut crate::PyObject) -> *mut crate::PyObject {
-        crate::PyObject_CallMethodObjArgs(obj, name, std::ptr::null_mut::<crate::PyObject>())
+        crate::backend::current::compat_py_3_9::PyObject_CallMethodNoArgs(obj, name)
     }
 );

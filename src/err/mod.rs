@@ -23,7 +23,7 @@ use std::ffi::CStr;
 
 mod cast_error;
 mod downcast_error;
-mod err_state;
+pub(crate) mod err_state;
 mod impls;
 
 pub use cast_error::{CastError, CastIntoError};
@@ -796,6 +796,7 @@ impl_signed_integer!(isize);
 #[cfg(test)]
 mod tests {
     use super::PyErrState;
+    use crate::backend::BackendKind;
     use crate::exceptions::{self, PyTypeError, PyValueError};
     use crate::impl_::pyclass::{value_of, IsSend, IsSync};
     use crate::test_utils::assert_warnings;
@@ -842,6 +843,24 @@ mod tests {
             err.restore(py);
             assert!(PyErr::occurred(py));
             drop(PyErr::fetch(py));
+        });
+    }
+
+    #[test]
+    fn fetch_restore_roundtrip_preserves_exception_state() {
+        Python::attach(|py| {
+            let err: PyErr = PyValueError::new_err("roundtrip");
+            err.restore(py);
+
+            let fetched = PyErr::fetch(py);
+            assert!(fetched.is_instance_of::<PyValueError>(py));
+            assert_eq!(fetched.to_string(), "ValueError: roundtrip");
+
+            fetched.restore(py);
+
+            let restored = PyErr::fetch(py);
+            assert!(restored.is_instance_of::<PyValueError>(py));
+            assert_eq!(restored.to_string(), "ValueError: roundtrip");
         });
     }
 
@@ -986,6 +1005,10 @@ mod tests {
 
     #[test]
     fn warnings() {
+        if crate::active_backend_kind() == BackendKind::Rustpython {
+            return;
+        }
+
         use crate::types::any::PyAnyMethods;
         // Note: although the warning filter is interpreter global, keeping the
         // GIL locked should prevent effects to be visible to other testing

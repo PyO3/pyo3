@@ -1,3 +1,4 @@
+use crate::backend;
 use crate::err::{error_on_minusone, PyResult};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, PyString};
 use crate::{ffi, Bound, PyAny};
@@ -16,7 +17,7 @@ pub struct PyTraceback(PyAny);
 
 pyobject_native_type_core!(
     PyTraceback,
-    pyobject_native_static_type_object!(ffi::PyTraceBack_Type),
+    backend::current::types::traceback_type_object,
     "builtins",
     "traceback",
     #checkfunction=ffi::PyTraceBack_Check

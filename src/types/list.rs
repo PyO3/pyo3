@@ -21,7 +21,7 @@ pub struct PyList(PyAny);
 
 pyobject_native_type_core!(
     PyList,
-    pyobject_native_static_type_object!(ffi::PyList_Type),
+    |py| crate::backend::current::types::list_type_object(py),
     "builtins", "list",
     #checkfunction=ffi::PyList_Check
 );

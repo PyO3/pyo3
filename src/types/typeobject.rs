@@ -19,7 +19,13 @@ use super::PyString;
 #[repr(transparent)]
 pub struct PyType(PyAny);
 
-pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyType_Type), "builtins", "type", #checkfunction=ffi::PyType_Check);
+pyobject_native_type_core!(
+    PyType,
+    crate::backend::current::types::type_type_object,
+    "builtins",
+    "type",
+    #checkfunction=ffi::PyType_Check
+);
 
 impl PyType {
     /// Creates a new type object.
@@ -200,45 +206,11 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     }
 
     fn mro(&self) -> Bound<'py, PyTuple> {
-        #[cfg(any(Py_LIMITED_API, PyPy))]
-        let mro = self
-            .getattr(intern!(self.py(), "__mro__"))
-            .expect("Cannot get `__mro__` from object.")
-            .extract()
-            .expect("Unexpected type in `__mro__` attribute.");
-
-        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-        let mro = unsafe {
-            use crate::ffi_ptr_ext::FfiPtrExt;
-            (*self.as_type_ptr())
-                .tp_mro
-                .assume_borrowed(self.py())
-                .to_owned()
-                .cast_into_unchecked()
-        };
-
-        mro
+        crate::backend::current::types::type_mro(self)
     }
 
     fn bases(&self) -> Bound<'py, PyTuple> {
-        #[cfg(any(Py_LIMITED_API, PyPy))]
-        let bases = self
-            .getattr(intern!(self.py(), "__bases__"))
-            .expect("Cannot get `__bases__` from object.")
-            .extract()
-            .expect("Unexpected type in `__bases__` attribute.");
-
-        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-        let bases = unsafe {
-            use crate::ffi_ptr_ext::FfiPtrExt;
-            (*self.as_type_ptr())
-                .tp_bases
-                .assume_borrowed(self.py())
-                .to_owned()
-                .cast_into_unchecked()
-        };
-
-        bases
+        crate::backend::current::types::type_bases(self)
     }
 }
 

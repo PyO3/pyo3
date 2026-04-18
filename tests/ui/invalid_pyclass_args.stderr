@@ -424,10 +424,10 @@ warning: use of deprecated associated constant `pyo3::impl_::deprecated::HasAuto
     = note: this warning originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
-   --> tests/ui/invalid_pyclass_args.rs:205:12
+   --> tests/ui/invalid_pyclass_args.rs:203:1
     |
-205 |     field: Box<dyn std::error::Error + Send + Sync>,
-    |            ^^^ the trait `PyClass` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
+203 | #[pyclass(new = "from_fields")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyClass` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
     |
     = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
     = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
@@ -451,15 +451,16 @@ note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
 ...
     |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
-   --> tests/ui/invalid_pyclass_args.rs:205:12
-    |
-205 |     field: Box<dyn std::error::Error + Send + Sync>,
-    |            ^^^ the trait `pyo3::impl_::pyclass::ExtractPyClassWithClone` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
-    |
-    = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
-    = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
+    --> tests/ui/invalid_pyclass_args.rs:203:1
+     |
+203 | #[pyclass(new = "from_fields")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `pyo3::impl_::pyclass::ExtractPyClassWithClone` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
+     |
+     = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
+     = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
     = help: the following other types implement trait `pyo3::impl_::pyclass::ExtractPyClassWithClone`:
               Coord
               Coord2
@@ -480,12 +481,13 @@ note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
 ...
     |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `dyn std::error::Error + Send + Sync: Clone` is not satisfied
-   --> tests/ui/invalid_pyclass_args.rs:205:12
+   --> tests/ui/invalid_pyclass_args.rs:203:1
     |
-205 |     field: Box<dyn std::error::Error + Send + Sync>,
-    |            ^^^ the trait `Clone` is not implemented for `dyn std::error::Error + Send + Sync`
+203 | #[pyclass(new = "from_fields")]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `dyn std::error::Error + Send + Sync`
     |
 help: the following other types implement trait `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`
    --> src/impl_/extract_argument.rs
@@ -518,6 +520,7 @@ note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
 ...
     |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
    --> tests/ui/invalid_pyclass_args.rs:208:1

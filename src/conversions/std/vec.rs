@@ -1,13 +1,17 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
+use crate::types::PySequence;
+use crate::types::{PyStringMethods, PyTypeMethods};
 use crate::{
     conversion::{FromPyObject, FromPyObjectOwned, FromPyObjectSequence, IntoPyObject},
     exceptions::PyTypeError,
     ffi,
-    types::{PyAnyMethods, PySequence, PyString},
-    Borrowed, CastError, PyResult, PyTypeInfo,
+    ffi_ptr_ext::FfiPtrExt,
+    types::{PyAnyMethods, PyString},
+    Borrowed, PyResult,
 };
 use crate::{Bound, PyAny, PyErr, Python};
+use crate::{CastError, PyTypeInfo};
 
 impl<'py, T> IntoPyObject<'py> for Vec<T>
 where
@@ -78,13 +82,41 @@ where
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
-    if unsafe { ffi::PySequence_Check(obj.as_ptr()) } == 0 {
+    let is_sequence = unsafe { ffi::PySequence_Check(obj.as_ptr()) } != 0;
+
+    if !is_sequence {
+        if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
+            let from = obj
+                .get_type()
+                .name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|_| "object".to_owned());
+            return Err(PyTypeError::new_err(format!(
+                "'{from}' object is not an instance of 'collections.abc.Sequence'"
+            )));
+        }
+
         return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
+    }
+
+    if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
+        let len = unsafe { ffi::PySequence_Size(obj.as_ptr()) };
+        crate::err::error_on_minusone(obj.py(), len)?;
+        let mut v = Vec::with_capacity(len as usize);
+        for index in 0..(len as usize) {
+            let item = unsafe {
+                ffi::PySequence_GetItem(obj.as_ptr(), index as ffi::Py_ssize_t)
+                    .assume_owned_or_err(obj.py())?
+            };
+            v.push(item.extract::<T>().map_err(Into::into)?);
+        }
+        return Ok(v);
     }
 
     let mut v = Vec::with_capacity(obj.len().unwrap_or(0));
     for item in obj.try_iter()? {
-        v.push(item?.extract::<T>().map_err(Into::into)?);
+        let item = item?;
+        v.push(item.extract::<T>().map_err(Into::into)?);
     }
     Ok(v)
 }

@@ -1,5 +1,5 @@
 use super::any::PyAnyMethods;
-use crate::{ffi, instance::Bound, IntoPyObject, PyAny, Python};
+use crate::{backend, ffi, instance::Bound, IntoPyObject, PyAny, Python};
 use std::convert::Infallible;
 
 /// Represents a Python `int` object.
@@ -13,7 +13,13 @@ use std::convert::Infallible;
 #[repr(transparent)]
 pub struct PyInt(PyAny);
 
-pyobject_native_type_core!(PyInt, pyobject_native_static_type_object!(ffi::PyLong_Type), "builtins", "int", #checkfunction=ffi::PyLong_Check);
+pyobject_native_type_core!(
+    PyInt,
+    backend::current::types::int_type_object,
+    "builtins",
+    "int",
+    #checkfunction=ffi::PyLong_Check
+);
 
 impl PyInt {
     /// Creates a new Python int object.

@@ -85,7 +85,7 @@ parking_lot = { version = "0.12.3", features = ["arc_lock"] }
 pyo3-build-config = { path = "pyo3-build-config", version = "=0.28.3", features = ["resolve-config"] }
 
 [features]
-default = ["macros"]
+default = ["macros", "runtime-cpython"]
 
 # Enables support for `async fn` for `#[pyfunction]` and `#[pymethods]`.
 experimental-async = ["macros", "pyo3-macros/experimental-async"]
@@ -96,6 +96,13 @@ experimental-inspect = ["pyo3-macros/experimental-inspect"]
 
 # Enables macros: #[pyclass], #[pymodule], #[pyfunction] etc.
 macros = ["pyo3-macros"]
+
+# Select the experimental RustPython runtime backend.
+runtime-rustpython = ["pyo3-ffi/runtime-rustpython", "pyo3-build-config/runtime-rustpython"]
+
+# Select the reference CPython-family runtime backend.
+# This path remains responsible for existing CPython, PyPy, and GraalPy support.
+runtime-cpython = []
 
 # Enables multiple #[pymethods] per #[pyclass]
 multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
@@ -175,6 +182,7 @@ full = [
 
 [workspace]
 members = [
+    "xtask",
     "pyo3-ffi",
     "pyo3-build-config",
     "pyo3-macros",

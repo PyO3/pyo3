@@ -161,6 +161,7 @@ mod tests {
     use super::PyIterator;
     #[cfg(all(not(PyPy), Py_3_10))]
     use super::PySendResult;
+    use crate::backend::BackendKind;
     use crate::exceptions::PyTypeError;
     #[cfg(all(not(PyPy), Py_3_10))]
     use crate::types::PyNone;
@@ -456,6 +457,10 @@ def fibonacci(target):
 
     #[test]
     fn test_type_object() {
+        if crate::active_backend_kind() == BackendKind::Rustpython {
+            return;
+        }
+
         Python::attach(|py| {
             let abc = PyIterator::type_object(py);
             let iter = py.eval(c"iter(())", None, None).unwrap();

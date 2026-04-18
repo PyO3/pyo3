@@ -1,0 +1,56 @@
+#[cfg(PyRustPython)]
+pub mod boolobject;
+#[cfg(PyRustPython)]
+pub mod bytearrayobject;
+#[cfg(PyRustPython)]
+pub mod bytesobject;
+#[cfg(PyRustPython)]
+pub mod compat_py_3_9;
+#[cfg(PyRustPython)]
+pub mod complexobject;
+#[cfg(PyRustPython)]
+pub mod critical_section;
+#[cfg(PyRustPython)]
+#[cfg(not(Py_LIMITED_API))]
+pub mod datetime;
+#[cfg(PyRustPython)]
+pub mod descrobject;
+#[cfg(PyRustPython)]
+pub mod dictobject;
+#[cfg(PyRustPython)]
+pub mod floatobject;
+#[cfg(PyRustPython)]
+pub mod listobject;
+#[cfg(PyRustPython)]
+pub mod lock;
+#[cfg(PyRustPython)]
+pub mod longobject;
+#[cfg(PyRustPython)]
+pub mod moduleobject;
+#[cfg(PyRustPython)]
+pub mod object;
+#[cfg(PyRustPython)]
+#[cfg(any(Py_3_11, PyRustPython))]
+pub mod pybuffer;
+#[cfg(PyRustPython)]
+pub mod pycapsule;
+#[cfg(PyRustPython)]
+pub mod pyerrors;
+#[cfg(PyRustPython)]
+pub mod pymem;
+#[cfg(PyRustPython)]
+pub mod refcount;
+#[cfg(PyRustPython)]
+pub mod runtime;
+#[cfg(PyRustPython)]
+pub mod setobject;
+#[cfg(PyRustPython)]
+pub mod sliceobject;
+#[cfg(PyRustPython)]
+pub mod tupleobject;
+#[cfg(PyRustPython)]
+pub mod unicodeobject;
+#[cfg(PyRustPython)]
+pub mod warnings;
+#[cfg(PyRustPython)]
+pub mod weakrefobject;

@@ -442,7 +442,7 @@ unsafe fn call_super_traverse(
     while traverse_eq(traverse, current_traverse) {
         ty = unsafe { get_slot(ty, TP_BASE) };
         if ty.is_null() {
-            break;
+            return 0;
         }
         traverse = unsafe { get_slot(ty, TP_TRAVERSE) };
     }
@@ -510,7 +510,7 @@ unsafe fn call_super_clear(
     while clear_eq(clear, current_clear) {
         let base = ty.get_slot(TP_BASE);
         if base.is_null() {
-            break;
+            return 0;
         }
         ty = unsafe { PyType::from_borrowed_type_ptr(py, base) };
         clear = ty.get_slot(TP_CLEAR);
@@ -687,15 +687,80 @@ pub trait AsyncIterResultOptionKind {
 
 impl<Value, Error> AsyncIterResultOptionKind for Result<Option<Value>, Error> {}
 
-pub unsafe fn tp_new_impl<'py, T, const IS_PYCLASS: bool, const IS_INITIALIZER_TUPLE: bool>(
+pub trait ConstructorInputArg {
+    fn into_ptr(self) -> *mut ffi::PyObject;
+}
+
+impl ConstructorInputArg for *mut ffi::PyObject {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self
+    }
+}
+
+impl ConstructorInputArg for () {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        std::ptr::null_mut()
+    }
+}
+
+impl<'a, 'py> ConstructorInputArg for crate::Borrowed<'a, 'py, crate::PyAny> {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.as_ptr()
+    }
+}
+
+impl<'a, 'py> ConstructorInputArg for Option<crate::Borrowed<'a, 'py, crate::PyAny>> {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.map_or(std::ptr::null_mut(), |obj| obj.as_ptr())
+    }
+}
+
+impl<'py, T> ConstructorInputArg for crate::Bound<'py, T> {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.as_ptr()
+    }
+}
+
+impl<'a, 'py, T> ConstructorInputArg for &'a crate::Bound<'py, T> {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.as_ptr()
+    }
+}
+
+impl<'py, T> ConstructorInputArg for Option<crate::Bound<'py, T>> {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.map_or(std::ptr::null_mut(), |obj| obj.as_ptr())
+    }
+}
+
+impl<'a, 'py, T> ConstructorInputArg for Option<&'a crate::Bound<'py, T>> {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self.map_or(std::ptr::null_mut(), |obj| obj.as_ptr())
+    }
+}
+
+pub unsafe fn tp_new_impl<
+    'py,
+    T,
+    A: ConstructorInputArg,
+    K: ConstructorInputArg,
+    const IS_PYCLASS: bool,
+    const IS_INITIALIZER_TUPLE: bool,
+>(
     py: Python<'py>,
     obj: T,
     cls: *mut ffi::PyTypeObject,
+    args: A,
+    kwargs: K,
 ) -> PyResult<*mut ffi::PyObject>
 where
     T: super::pyclass_init::PyClassInit<'py, IS_PYCLASS, IS_INITIALIZER_TUPLE>,
 {
     unsafe {
+        let args_ptr = args.into_ptr();
+        let kwargs_ptr = kwargs.into_ptr();
+        let _guard =
+            super::pyclass_init::NativeTypeConstructorArgsGuard::push(args_ptr, kwargs_ptr);
         obj.init(crate::Borrowed::from_ptr_unchecked(py, cls.cast()).cast_unchecked())
             .map(Bound::into_ptr)
     }

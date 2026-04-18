@@ -910,6 +910,9 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
     nitems: ffi::Py_ssize_t,
 ) -> *mut ffi::PyObject {
     let py = unsafe { Python::assume_attached() };
+    if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
+        return unsafe { ffi::PyType_GenericAlloc(subtype, nitems) };
+    }
 
     let self_type = T::type_object_raw(py);
     // If this type is a variable type or the subtype is not equal to this type, we cannot use the
@@ -932,6 +935,9 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
 /// - `obj` must be a valid pointer to an instance of T (not a subclass).
 /// - The calling thread must be attached to the interpreter
 pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_void) {
+    if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
+        return;
+    }
     let obj = obj as *mut ffi::PyObject;
     unsafe {
         debug_assert_eq!(
@@ -1019,20 +1025,23 @@ impl<T> PyClassThreadChecker<T> for NoopThreadChecker {
 pub struct ThreadCheckerImpl(thread::ThreadId);
 
 impl ThreadCheckerImpl {
+    fn matches_runtime_or_owner(&self) -> bool {
+        crate::backend::current::pyclass::thread_checker_matches_runtime_or_owner(self.0)
+    }
+
     fn ensure(&self, type_name: &'static str) {
-        assert_eq!(
-            thread::current().id(),
-            self.0,
+        assert!(
+            self.matches_runtime_or_owner(),
             "{type_name} is unsendable, but sent to another thread"
         );
     }
 
     fn check(&self) -> bool {
-        thread::current().id() == self.0
+        self.matches_runtime_or_owner()
     }
 
     fn can_drop(&self, py: Python<'_>, type_name: &'static str) -> bool {
-        if thread::current().id() != self.0 {
+        if !self.matches_runtime_or_owner() {
             PyRuntimeError::new_err(format!(
                 "{type_name} is unsendable, but is being dropped on another thread"
             ))
@@ -1221,7 +1230,7 @@ impl<
         doc: Option<&'static CStr>,
     ) -> PyMethodDefType {
         use crate::pyclass::boolean_struct::private::Boolean;
-        if ClassT::Frozen::VALUE {
+        if ClassT::Frozen::VALUE && <ClassT as PyClassImpl>::Layout::HAS_EMBEDDED_CONTENTS {
             let (offset, flags) = match <ClassT as PyClassImpl>::Layout::CONTENTS_OFFSET {
                 PyObjectOffset::Absolute(offset) => (offset, ffi::Py_READONLY),
                 #[cfg(Py_3_12)]
@@ -1344,7 +1353,13 @@ where
     let class_obj = unsafe { class_ptr.as_ref() };
 
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe { inner::<FieldT>(py, NonNull::from(class_obj.contents()).cast(), OFFSET) }
+    unsafe {
+        inner::<FieldT>(
+            py,
+            NonNull::new_unchecked(class_obj.get_ptr()).cast(),
+            OFFSET,
+        )
+    }
 }
 
 /// Gets a field value from a pyclass and produces a python value using `IntoPyObject` for `FieldT`,
@@ -1385,7 +1400,13 @@ where
     let class_obj = unsafe { class_ptr.as_ref() };
 
     // SAFETY: _holder prevents mutable aliasing, caller upholds other safety invariants
-    unsafe { inner::<FieldT>(py, NonNull::from(class_obj.contents()).cast(), OFFSET) }
+    unsafe {
+        inner::<FieldT>(
+            py,
+            NonNull::new_unchecked(class_obj.get_ptr()).cast(),
+            OFFSET,
+        )
+    }
 }
 
 pub struct ConvertField<
@@ -1441,6 +1462,17 @@ mod tests {
 
         assert_eq!(methods.len(), 1);
         assert!(slots.is_empty());
+
+        if !<FrozenClass as PyClassImpl>::Layout::HAS_EMBEDDED_CONTENTS {
+            match methods.first() {
+                Some(PyMethodDefType::Getter(getter)) => {
+                    assert_eq!(getter.name, c"value");
+                    assert_eq!(getter.doc, None);
+                }
+                _ => panic!("Expected a Getter"),
+            }
+            return;
+        }
 
         match methods.first() {
             Some(PyMethodDefType::StructMember(member)) => {
@@ -1558,9 +1590,17 @@ mod tests {
         let generator = unsafe {
             PyClassGetterGenerator::<MyClass, Py<PyAny>, FIELD_OFFSET, true, true, true>::new()
         };
-        let PyMethodDefType::StructMember(def) =
-            generator.generate(c"my_field", Some(c"My field doc"))
-        else {
+        let generated = generator.generate(c"my_field", Some(c"My field doc"));
+        if !<MyClass as PyClassImpl>::Layout::HAS_EMBEDDED_CONTENTS {
+            let PyMethodDefType::Getter(def) = generated else {
+                panic!("Expected a Getter");
+            };
+            assert_eq!(def.name, c"my_field");
+            assert_eq!(def.doc, Some(c"My field doc"));
+            return;
+        }
+
+        let PyMethodDefType::StructMember(def) = generated else {
             panic!("Expected a StructMember");
         };
         // SAFETY: def.name originated from a CStr

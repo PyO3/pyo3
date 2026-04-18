@@ -2,12 +2,10 @@
 
 //! Support for the Python `marshal` format.
 
-use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::py_result_ext::PyResultExt;
+use crate::types::PyAnyMethods;
 use crate::types::{PyAny, PyBytes};
-use crate::{ffi, Bound};
+use crate::Bound;
 use crate::{PyResult, Python};
-use std::ffi::c_int;
 
 /// The current version of the marshal binary format.
 pub const VERSION: i32 = 4;
@@ -33,11 +31,12 @@ pub const VERSION: i32 = 4;
 /// # });
 /// ```
 pub fn dumps<'py>(object: &Bound<'py, PyAny>, version: i32) -> PyResult<Bound<'py, PyBytes>> {
-    unsafe {
-        ffi::PyMarshal_WriteObjectToString(object.as_ptr(), version as c_int)
-            .assume_owned_or_err(object.py())
+    let marshal = object.py().import("marshal")?;
+    Ok(unsafe {
+        marshal
+            .call_method1("dumps", (object, version))?
             .cast_into_unchecked()
-    }
+    })
 }
 
 /// Deserialize an object from bytes using the Python built-in marshal module.
@@ -46,10 +45,8 @@ where
     B: AsRef<[u8]> + ?Sized,
 {
     let data = data.as_ref();
-    unsafe {
-        ffi::PyMarshal_ReadObjectFromString(data.as_ptr().cast(), data.len() as isize)
-            .assume_owned_or_err(py)
-    }
+    let marshal = py.import("marshal")?;
+    marshal.call_method1("loads", (data,))
 }
 
 #[cfg(test)]

@@ -7,7 +7,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
-use crate::types::{any::PyAnyMethods, PyAny, PyList, PyTuple, PyType, PyTypeMethods};
+use crate::types::{PyAny, PyList, PyTuple, PyType, PyTypeMethods};
 use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
@@ -39,16 +39,7 @@ unsafe impl PyTypeInfo for PySequence {
 
     #[inline]
     fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
-        // Using `is_instance` for `collections.abc.Sequence` is slow, so provide
-        // optimized cases for list and tuples as common well-known sequences
-        PyList::is_type_of(object)
-            || PyTuple::is_type_of(object)
-            || object
-                .is_instance(&Self::type_object(object.py()).into_any())
-                .unwrap_or_else(|err| {
-                    err.write_unraisable(object.py(), Some(object));
-                    false
-                })
+        crate::backend::current::types::sequence_is_type_of(object)
     }
 }
 
@@ -58,8 +49,7 @@ impl PySequence {
     /// This registration is required for a pyclass to be castable from `PyAny` to `PySequence`.
     pub fn register<T: PyTypeInfo>(py: Python<'_>) -> PyResult<()> {
         let ty = T::type_object(py);
-        Self::type_object(py).call_method1("register", (ty,))?;
-        Ok(())
+        crate::backend::current::types::register_sequence_type(&ty)
     }
 }
 
@@ -743,6 +733,9 @@ mod tests {
 
     #[test]
     fn test_type_object() {
+        if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
+            return;
+        }
         Python::attach(|py| {
             let abc = PySequence::type_object(py);
             assert!(PyList::empty(py).is_instance(&abc).unwrap());

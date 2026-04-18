@@ -14,6 +14,7 @@ use crate::attributes::{
     ModuleAttribute, NameAttribute, NameLitStr, NewImplTypeAttribute, NewImplTypeAttributeValue,
     RenameAllAttribute, StrFormatterAttribute,
 };
+use crate::backend_spec::ClassSpec;
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{
@@ -268,6 +269,16 @@ pub fn build_py_class(
     methods_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
     args.options.take_pyo3_options(&mut class.attrs)?;
+
+    let _class_spec = ClassSpec::new(
+        class.ident.clone(),
+        get_class_python_name(&class.ident, &args).to_string(),
+        args.options
+            .module
+            .as_ref()
+            .map(|module| module.value.value()),
+        matches!(methods_type, PyClassMethodsType::Specialization),
+    );
 
     let ctx = &Ctx::new(&args.options.krate, None);
     let doc = utils::get_doc(&class.attrs, None);
@@ -577,6 +588,16 @@ pub fn build_py_enum(
     method_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
     args.options.take_pyo3_options(&mut enum_.attrs)?;
+
+    let _class_spec = ClassSpec::new(
+        enum_.ident.clone(),
+        get_class_python_name(&enum_.ident, &args).to_string(),
+        args.options
+            .module
+            .as_ref()
+            .map(|module| module.value.value()),
+        matches!(method_type, PyClassMethodsType::Specialization),
+    );
 
     let ctx = &Ctx::new(&args.options.krate, None);
     if let Some(extends) = &args.options.extends {
@@ -1827,13 +1848,14 @@ fn generate_protocol_slot(
     #[cfg(feature = "experimental-inspect")] introspection_data: FunctionIntrospectionData<'_>,
     ctx: &Ctx,
 ) -> syn::Result<MethodAndSlotDef> {
-    let spec = FnSpec::parse(
+    let mut spec = FnSpec::parse(
         &mut method.sig,
         &mut method.attrs,
         PyFunctionOptions::default(),
     )?;
+    spec.python_name = syn::Ident::new(name, spec.python_name.span());
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
-    let mut def = slot.generate_type_slot(cls, &spec, name, ctx)?;
+    let mut def = slot.generate_type_slot(cls, &spec, name, None, ctx)?;
     #[cfg(feature = "experimental-inspect")]
     def.add_introspection(introspection_data.generate(ctx, cls));
     Ok(def)
@@ -1857,6 +1879,7 @@ fn generate_default_protocol_slot(
         &syn::parse_quote!(#cls),
         &spec,
         &format!("__default_{name}__"),
+        None,
         ctx,
     )?;
     #[cfg(feature = "experimental-inspect")]
@@ -2049,7 +2072,7 @@ fn complex_enum_struct_variant_new<'a>(
 
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
     let mut def =
-        __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", ctx)?;
+        __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", None, ctx)?;
     #[cfg(feature = "experimental-inspect")]
     def.add_introspection(method_introspection_code(
         &spec,
@@ -2114,7 +2137,7 @@ fn complex_enum_tuple_variant_new<'a>(
 
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
     let mut def =
-        __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", ctx)?;
+        __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", None, ctx)?;
     #[cfg(feature = "experimental-inspect")]
     def.add_introspection(method_introspection_code(
         &spec,
@@ -2544,10 +2567,10 @@ fn pyclass_hash(
     match options.hash {
         Some(opt) => {
             let mut hash_impl = parse_quote_spanned! { opt.span() =>
-                fn __pyo3__generated____hash__(&self) -> u64 {
+                fn __pyo3__generated____hash__(&self) -> isize {
                     let mut s = ::std::collections::hash_map::DefaultHasher::new();
                     ::std::hash::Hash::hash(self, &mut s);
-                    ::std::hash::Hasher::finish(&s)
+                    ::std::hash::Hasher::finish(&s) as isize
                 }
             };
             let hash_slot = generate_protocol_slot(
@@ -2559,7 +2582,7 @@ fn pyclass_hash(
                 FunctionIntrospectionData {
                     names: &["__hash__"],
                     arguments: Vec::new(),
-                    returns: parse_quote! { ::std::primitive::u64 },
+                    returns: parse_quote! { ::std::primitive::isize },
                     is_returning_not_implemented_on_extraction_error: false,
                 },
                 ctx,
@@ -2874,14 +2897,29 @@ impl<'a> PyClassImplsBuilder<'a> {
         let default_methods = self
             .default_methods
             .iter()
-            .map(|meth| &meth.associated_method)
+            .map(|meth| meth.associated_method.clone())
             .chain(
                 self.default_slots
                     .iter()
-                    .map(|meth| &meth.associated_method),
-            );
+                    .map(|slot| slot.associated_method.clone()),
+            )
+            .chain(self.default_slots.iter().filter_map(|slot| {
+                slot.callable_method.as_ref().map(|callable| {
+                    let associated_method = &callable.associated_method;
+                    crate::backend::current::rustpython_cfg_item(quote!(#associated_method))
+                })
+            }));
 
-        let default_method_defs = self.default_methods.iter().map(|meth| &meth.method_def);
+        let default_method_defs = self
+            .default_methods
+            .iter()
+            .map(|meth| meth.method_def.clone())
+            .chain(self.default_slots.iter().filter_map(|slot| {
+                slot.callable_method.as_ref().map(|callable| {
+                    let method_def = &callable.method_def;
+                    crate::backend::current::rustpython_cfg_item(quote!(#method_def))
+                })
+            }));
         let default_slot_defs = self.default_slots.iter().map(|slot| &slot.slot_def);
         let freelist_slots = self.freelist_slots(ctx);
 
@@ -3012,6 +3050,7 @@ impl<'a> PyClassImplsBuilder<'a> {
 
             #pyclass_base_type_impl
 
+            #[allow(unexpected_cfgs)]
             impl #pyo3_path::impl_::pyclass::PyClassImpl for #cls {
                 const MODULE: ::std::option::Option<&str> = #module;
                 const IS_BASETYPE: bool = #is_basetype;
@@ -3064,7 +3103,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
 
             #[doc(hidden)]
-            #[allow(non_snake_case)]
+            #[allow(non_snake_case, unexpected_cfgs)]
             impl #cls {
                 #(#default_methods)*
             }

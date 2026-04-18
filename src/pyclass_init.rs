@@ -154,6 +154,9 @@ impl<T: PyClass> PyClassInitializer<T> {
         // SAFETY: `contents` is a non-null pointer to the space allocated for our
         // `PyClassObjectContents` (either statically in Rust or dynamically by Python)
         unsafe { (*contents).write(PyClassObjectContents::new(self.init)) };
+        if !<T as PyClassImpl>::Layout::HAS_EMBEDDED_CONTENTS {
+            crate::backend::current::pyclass::install_post_init_storage::<T>(py, obj);
+        }
 
         // Safety: obj is a valid pointer to an object of type `target_type`, which` is a known
         // subclass of `T`

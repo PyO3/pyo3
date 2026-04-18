@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use super::PyMapping;
+use crate::backend::current;
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
@@ -14,7 +15,7 @@ pub struct PyMappingProxy(PyAny);
 
 pyobject_native_type_core!(
     PyMappingProxy,
-    pyobject_native_static_type_object!(ffi::PyDictProxy_Type),
+    |py| current::types::mappingproxy_type_object(py),
     "types",
     "MappingProxyType"
 );

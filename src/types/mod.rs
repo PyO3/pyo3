@@ -238,6 +238,14 @@ macro_rules! pyobject_subclassable_native_type {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! pyobject_subclassable_native_type_opaque {
+    ($name:ty $(;$generics:ident)*) => {
+        $crate::backend::current::opaque_native_type_layout!($name $(;$generics)*);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! pyobject_native_type_sized {
     ($name:ty, $layout:path $(;$generics:ident)*) => {
         unsafe impl $crate::type_object::PyLayout<$name> for $layout {}

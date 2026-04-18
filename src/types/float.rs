@@ -28,7 +28,7 @@ pyobject_subclassable_native_type!(PyFloat, crate::ffi::PyFloatObject);
 pyobject_native_type!(
     PyFloat,
     ffi::PyFloatObject,
-    pyobject_native_static_type_object!(ffi::PyFloat_Type),
+    crate::backend::current::types::float_type_object,
     "builtins",
     "float",
     #checkfunction=ffi::PyFloat_Check
@@ -108,13 +108,27 @@ impl<'py> FromPyObject<'_, 'py> for f64 {
     // PyFloat_AsDouble returns -1.0 upon failure
     #[allow(clippy::float_cmp)]
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+        if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
+            if unsafe { ffi::PyFloat_CheckExact(obj.as_ptr()) != 0 } {
+                return Ok(unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) });
+            }
+            if unsafe { ffi::PyLong_CheckExact(obj.as_ptr()) != 0 } {
+                return Ok(unsafe { ffi::PyLong_AsDouble(obj.as_ptr()) });
+            }
+            return Err(crate::exceptions::PyTypeError::new_err(
+                "must be real number, not str",
+            ));
+        }
+
         // On non-limited API, .value() uses PyFloat_AS_DOUBLE which
         // allows us to have an optimized fast path for the case when
         // we have exactly a `float` object (it's not worth going through
         // `isinstance` machinery for subclasses).
         #[cfg(not(Py_LIMITED_API))]
-        if let Ok(float) = obj.cast_exact::<PyFloat>() {
-            return Ok(float.value());
+        if crate::active_backend_kind() != crate::backend::BackendKind::Rustpython {
+            if let Ok(float) = obj.cast_exact::<PyFloat>() {
+                return Ok(float.value());
+            }
         }
 
         let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::backend_spec::MethodSpec;
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::get_doc;
@@ -115,6 +116,23 @@ fn check_pyfunction(pyo3_path: &PyO3CratePath, meth: &mut ImplItemFn) -> syn::Re
     error.map_or(Ok(()), Err)
 }
 
+fn method_spec(spec: &crate::method::FnSpec<'_>) -> MethodSpec {
+    let is_constructor = matches!(
+        &spec.tp,
+        &crate::method::FnType::FnClass(_)
+            if spec.python_name == syn::Ident::new("__new__", spec.python_name.span())
+    );
+
+    MethodSpec::new(
+        spec.python_name.to_string(),
+        matches!(&spec.tp, &crate::method::FnType::FnClass(_)),
+        matches!(&spec.tp, &crate::method::FnType::FnStatic),
+        matches!(&spec.tp, &crate::method::FnType::Getter(_)),
+        matches!(&spec.tp, &crate::method::FnType::Setter(_)),
+        is_constructor,
+    )
+}
+
 pub fn impl_methods(
     ty: &syn::Type,
     impls: &mut [syn::ImplItem],
@@ -125,6 +143,7 @@ pub fn impl_methods(
     let mut proto_impls = Vec::new();
     let mut methods = Vec::new();
     let mut associated_methods = Vec::new();
+    let mut method_specs = Vec::new();
 
     let mut implemented_proto_fragments = HashSet::new();
 
@@ -139,6 +158,7 @@ pub fn impl_methods(
 
                     check_pyfunction(&ctx.pyo3_path, meth)?;
                     let method = PyMethod::parse(&mut meth.sig, &mut meth.attrs, fun_options)?;
+                    method_specs.push(method_spec(&method.spec));
                     #[cfg(feature = "experimental-inspect")]
                     extra_fragments.push(method_introspection_code(
                         &method.spec,
@@ -156,18 +176,51 @@ pub fn impl_methods(
                             associated_methods.push(quote!(#(#attrs)* #associated_method));
                             methods.push(quote!(#(#attrs)* #method_def));
                         }
-                        GeneratedPyMethod::SlotTraitImpl(method_name, token_stream) => {
+                        GeneratedPyMethod::SlotTraitImpl(
+                            method_name,
+                            token_stream,
+                            callable_method,
+                        ) => {
                             implemented_proto_fragments.insert(method_name);
                             let attrs = get_cfg_attributes(&meth.attrs);
                             extra_fragments.push(quote!(#(#attrs)* #token_stream));
+                            if let Some(MethodAndMethodDef {
+                                associated_method,
+                                method_def,
+                            }) = callable_method
+                            {
+                                associated_methods.push(
+                                    crate::backend::current::rustpython_cfg_item(
+                                        quote!(#(#attrs)* #associated_method),
+                                    ),
+                                );
+                                methods.push(crate::backend::current::rustpython_cfg_item(
+                                    quote!(#(#attrs)* #method_def),
+                                ));
+                            }
                         }
                         GeneratedPyMethod::Proto(MethodAndSlotDef {
                             associated_method,
                             slot_def,
+                            callable_method,
                         }) => {
                             let attrs = get_cfg_attributes(&meth.attrs);
                             proto_impls.push(quote!(#(#attrs)* #slot_def));
                             associated_methods.push(quote!(#(#attrs)* #associated_method));
+                            if let Some(MethodAndMethodDef {
+                                associated_method,
+                                method_def,
+                            }) = callable_method
+                            {
+                                associated_methods.push(
+                                    crate::backend::current::rustpython_cfg_item(
+                                        quote!(#(#attrs)* #associated_method),
+                                    ),
+                                );
+                                methods.push(crate::backend::current::rustpython_cfg_item(
+                                    quote!(#(#attrs)* #method_def),
+                                ));
+                            }
                         }
                     }
                 }
@@ -215,6 +268,7 @@ pub fn impl_methods(
         .try_combine_syn_errors()?;
 
     let ctx = &Ctx::new(&options.krate, None);
+    let _ = method_specs;
 
     add_shared_proto_slots(ty, &mut proto_impls, implemented_proto_fragments, ctx);
 
@@ -229,7 +283,7 @@ pub fn impl_methods(
         #items
 
         #[doc(hidden)]
-        #[allow(non_snake_case)]
+        #[allow(non_snake_case, unexpected_cfgs)]
         impl #ty {
             #(#associated_methods)*
         }
@@ -287,7 +341,7 @@ fn impl_py_methods(
 ) -> TokenStream {
     let Ctx { pyo3_path, .. } = ctx;
     quote! {
-        #[allow(unknown_lints, non_local_definitions)]
+        #[allow(unknown_lints, non_local_definitions, unexpected_cfgs)]
         impl #pyo3_path::impl_::pyclass::PyMethods<#ty>
             for #pyo3_path::impl_::pyclass::PyClassImplCollector<#ty>
         {
