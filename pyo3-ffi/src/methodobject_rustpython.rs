@@ -2,7 +2,7 @@ use crate::object::*;
 use crate::pyerrors::PyErr_GetRaisedException;
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
-use rustpython_vm::builtins::{PyBaseException, PyNativeFunction, PyNativeMethod, PyStr, PyType};
+use rustpython_vm::builtins::{PyBaseException, PyStr, PyType};
 use rustpython_vm::function::{FuncArgs, PyMethodDef as RpMethodDef, PyMethodFlags as RpMethodFlags};
 use rustpython_vm::{AsObject, PyObjectRef};
 use std::collections::HashMap;
@@ -269,18 +269,6 @@ fn doc_from_internal_doc<'a>(name: &str, internal_doc: &'a str) -> &'a str {
 }
 
 fn current_method_doc(obj: &PyObjectRef) -> Option<(&'static str, &'static str)> {
-    if let Some(native_method) = obj.downcast_ref::<PyNativeMethod>() {
-        let method_def = native_method.method_def();
-        if let Some(raw_doc) = method_def.doc {
-            return Some((method_def.name, raw_doc));
-        }
-    }
-    if let Some(native_function) = obj.downcast_ref::<PyNativeFunction>() {
-        let method_def = native_function.method_def();
-        if let Some(raw_doc) = method_def.doc {
-            return Some((method_def.name, raw_doc));
-        }
-    }
     let metadata = lookup_method_metadata(obj)?;
     if metadata.method_def == 0 {
         return None;

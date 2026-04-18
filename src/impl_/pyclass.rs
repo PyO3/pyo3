@@ -910,6 +910,9 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
     nitems: ffi::Py_ssize_t,
 ) -> *mut ffi::PyObject {
     let py = unsafe { Python::assume_attached() };
+    if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
+        return unsafe { ffi::PyType_GenericAlloc(subtype, nitems) };
+    }
 
     let self_type = T::type_object_raw(py);
     // If this type is a variable type or the subtype is not equal to this type, we cannot use the
@@ -932,6 +935,9 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
 /// - `obj` must be a valid pointer to an instance of T (not a subclass).
 /// - The calling thread must be attached to the interpreter
 pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_void) {
+    if crate::active_backend_kind() == crate::backend::BackendKind::Rustpython {
+        return;
+    }
     let obj = obj as *mut ffi::PyObject;
     unsafe {
         debug_assert_eq!(

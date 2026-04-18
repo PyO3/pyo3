@@ -246,7 +246,7 @@ fn current_exception() -> Option<PyBaseExceptionRef> {
     let ptr = (*current_exception_slot()
         .lock()
         .expect("RustPython exception slot poisoned"))? as *mut PyObject;
-    unsafe { crate::Py_IncRef(ptr) };
+    unsafe { crate::object::Py_IncRef(ptr) };
     match unsafe { ptr_to_pyobject_ref_owned(ptr) }.downcast::<PyBaseException>() {
         Ok(exc) => Some(exc),
         Err(obj) => {

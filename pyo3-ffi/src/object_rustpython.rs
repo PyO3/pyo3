@@ -355,6 +355,19 @@ pub type SidecarTraverse =
     unsafe extern "C" fn(*mut PyObject, visitproc, *mut c_void) -> c_int;
 pub type SidecarClear = unsafe extern "C" fn(*mut PyObject, visitproc, *mut c_void);
 
+#[repr(C)]
+struct InstanceDictMirror {
+    d: rustpython_vm::common::lock::PyRwLock<rustpython_vm::builtins::PyDictRef>,
+}
+
+#[repr(C, align(8))]
+struct HiddenMemberPrefix {
+    dict: Option<InstanceDictMirror>,
+    slots: Box<[rustpython_vm::common::lock::PyRwLock<Option<PyObjectRef>>]>,
+}
+
+const WEAKREF_LIST_PREFIX_SIZE: usize = 2 * std::mem::size_of::<usize>();
+
 #[derive(Debug)]
 struct FfiSidecarOwner {
     owner: *mut PyObject,
@@ -367,21 +380,45 @@ struct FfiSidecarOwner {
 unsafe impl Send for FfiSidecarOwner {}
 unsafe impl Sync for FfiSidecarOwner {}
 
+fn hidden_sidecar_slot(
+    obj: &rustpython_vm::PyObject,
+    slot: usize,
+) -> Option<&rustpython_vm::common::lock::PyRwLock<Option<PyObjectRef>>> {
+    let flags = obj.class().slots.flags;
+    let member_count = obj.class().slots.member_count;
+    if slot >= member_count || member_count == 0 {
+        return None;
+    }
+
+    let has_ext = flags.has_feature(rustpython_vm::types::PyTypeFlags::HAS_DICT) || member_count > 0;
+    if !has_ext {
+        return None;
+    }
+
+    let has_weakref = flags.has_feature(rustpython_vm::types::PyTypeFlags::HAS_WEAKREF);
+    let offset = if has_weakref {
+        WEAKREF_LIST_PREFIX_SIZE + std::mem::size_of::<HiddenMemberPrefix>()
+    } else {
+        std::mem::size_of::<HiddenMemberPrefix>()
+    };
+    let self_addr = (obj as *const rustpython_vm::PyObject as *const u8).addr();
+    let ext_ptr =
+        core::ptr::with_exposed_provenance::<HiddenMemberPrefix>(self_addr.wrapping_sub(offset));
+    let ext = unsafe { &*ext_ptr };
+    ext.slots.get(slot)
+}
+
 impl MaybeTraverse for FfiSidecarOwner {
     const HAS_TRAVERSE: bool = true;
     const HAS_CLEAR: bool = true;
 
     fn try_traverse(&self, traverse_fn: &mut rustpython_vm::object::TraverseFn<'_>) {
-        unsafe extern "C" fn visit_trampoline(
-            obj: *mut PyObject,
-            arg: *mut c_void,
-        ) -> c_int {
+        unsafe extern "C" fn visit_trampoline(obj: *mut PyObject, arg: *mut c_void) -> c_int {
             if obj.is_null() {
                 return 0;
             }
-            let tracer_fn = unsafe {
-                &mut *arg.cast::<&mut rustpython_vm::object::TraverseFn<'_>>()
-            };
+            let tracer_fn =
+                unsafe { &mut *arg.cast::<&mut rustpython_vm::object::TraverseFn<'_>>() };
             let obj_ref = unsafe { ptr_to_pyobject_ref_borrowed(obj) };
             (*tracer_fn)(obj_ref.as_object());
             0
@@ -398,10 +435,7 @@ impl MaybeTraverse for FfiSidecarOwner {
     }
 
     fn try_clear(&mut self, out: &mut Vec<PyObjectRef>) {
-        unsafe extern "C" fn collect_trampoline(
-            obj: *mut PyObject,
-            arg: *mut c_void,
-        ) -> c_int {
+        unsafe extern "C" fn collect_trampoline(obj: *mut PyObject, arg: *mut c_void) -> c_int {
             if obj.is_null() {
                 return 0;
             }
@@ -457,15 +491,13 @@ pub unsafe fn PyBackend_InstallSidecarOwner(
             None,
         );
         let holder_obj: PyObjectRef = holder.into();
-        let member_count = obj_ref.class().slots.member_count;
         let metadata = heap_type_metadata_for_obj(obj_ref.as_object());
-        if metadata.hidden_sidecar_slot >= member_count {
+        let Some(slot_ref) =
+            hidden_sidecar_slot(obj_ref.as_object(), metadata.hidden_sidecar_slot)
+        else {
             return -1;
-        }
-        if member_count == 0 {
-            return -1;
-        }
-        obj_ref.set_slot(metadata.hidden_sidecar_slot, Some(holder_obj));
+        };
+        *slot_ref.write() = Some(holder_obj);
         0
     })
 }
@@ -473,14 +505,10 @@ pub unsafe fn PyBackend_InstallSidecarOwner(
 unsafe fn clear_hidden_sidecar_owner(obj: *mut rustpython_vm::PyObject) {
     let obj_ref = unsafe { &*obj };
     let metadata = heap_type_metadata_for_obj(obj_ref);
-    if metadata.hidden_sidecar_slot == usize::MAX {
+    let Some(slot_ref) = hidden_sidecar_slot(obj_ref, metadata.hidden_sidecar_slot) else {
         return;
-    }
-    let member_count = obj_ref.class().slots.member_count;
-    if metadata.hidden_sidecar_slot >= member_count || member_count == 0 {
-        return;
-    }
-    obj_ref.set_slot(metadata.hidden_sidecar_slot, None);
+    };
+    *slot_ref.write() = None;
 }
 
 struct FfiHeapBufferOwner {
@@ -2691,7 +2719,6 @@ pub unsafe fn PyType_FromSpec(spec: *mut PyType_Spec) -> *mut PyObject {
                 }
                 crate::Py_tp_free => {
                     metadata.tp_free = (*slot_ptr).pfunc as usize;
-                    slots.free.store(Some(heap_tp_free_wrapper));
                 }
                 crate::Py_tp_call => metadata.tp_call = (*slot_ptr).pfunc as usize,
                 crate::Py_tp_hash => metadata.tp_hash = (*slot_ptr).pfunc as usize,

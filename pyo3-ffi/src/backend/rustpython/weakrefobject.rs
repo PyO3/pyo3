@@ -1,7 +1,7 @@
 use crate::object::*;
 use crate::pyerrors::PyErr_SetRaisedException;
 use crate::rustpython_runtime;
-use rustpython_vm::builtins::{PyWeak, PyWeakProxy};
+use rustpython_vm::builtins::PyWeak;
 use std::ffi::c_int;
 
 pub static mut _PyWeakref_RefType: PyTypeObject = PyTypeObject { _opaque: [] };
@@ -112,7 +112,7 @@ pub unsafe fn PyWeakref_GetObject(reference: *mut PyObject) -> *mut PyObject {
     rustpython_runtime::with_vm(|vm| {
         let reference = ptr_to_pyobject_ref_borrowed(reference);
         if let Some(weak) = reference.downcast_ref::<PyWeak>() {
-            return weak.upgrade_object().map_or_else(
+            return weak.upgrade().map_or_else(
                 || pyobject_ref_as_ptr(&vm.ctx.none()),
                 |obj| pyobject_ref_as_ptr(&obj),
             );
@@ -131,15 +131,6 @@ pub unsafe fn PyWeakref_GetObject(reference: *mut PyObject) -> *mut PyObject {
                 }
             } else {
                 std::ptr::null_mut()
-            };
-        }
-        if let Some(proxy) = reference.downcast_ref::<PyWeakProxy>() {
-            return match proxy.upgrade_object(vm) {
-                Ok(obj) => pyobject_ref_as_ptr(&obj),
-                Err(exc) => {
-                    PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
-                    std::ptr::null_mut()
-                }
             };
         }
         match reference.call((), vm) {
@@ -161,7 +152,7 @@ pub unsafe fn PyWeakref_GetRef(reference: *mut PyObject, pobj: *mut *mut PyObjec
     rustpython_runtime::with_vm(|vm| {
         let reference = ptr_to_pyobject_ref_borrowed(reference);
         if let Some(weak) = reference.downcast_ref::<PyWeak>() {
-            return match weak.upgrade_object() {
+            return match weak.upgrade() {
                 Some(obj) => {
                     *pobj = pyobject_ref_to_ptr(obj);
                     1
@@ -197,18 +188,6 @@ pub unsafe fn PyWeakref_GetRef(reference: *mut PyObject, pobj: *mut *mut PyObjec
                     vm.new_type_error("weakref proxy missing __pyo3_referent__".to_owned()).into(),
                 ));
                 -1
-            };
-        }
-        if let Some(proxy) = reference.downcast_ref::<PyWeakProxy>() {
-            return match proxy.upgrade_object(vm) {
-                Ok(obj) => {
-                    *pobj = pyobject_ref_to_ptr(obj);
-                    1
-                }
-                Err(exc) => {
-                    PyErr_SetRaisedException(pyobject_ref_to_ptr(exc.into()));
-                    -1
-                }
             };
         }
         match reference.call((), vm) {

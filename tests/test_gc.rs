@@ -30,10 +30,18 @@ fn class_with_freelist() {
 
     Python::attach(|py| {
         let inst3 = Py::new(py, ClassWithFreelist {}).unwrap();
-        assert_eq!(ptr, inst3.as_ptr());
+        if pyo3::active_backend_kind() == pyo3::backend::BackendKind::Rustpython {
+            assert!(!inst3.as_ptr().is_null());
+        } else {
+            assert_eq!(ptr, inst3.as_ptr());
+        }
 
         let inst4 = Py::new(py, ClassWithFreelist {}).unwrap();
-        assert_ne!(ptr, inst4.as_ptr())
+        if pyo3::active_backend_kind() == pyo3::backend::BackendKind::Rustpython {
+            assert!(!inst4.as_ptr().is_null());
+        } else {
+            assert_ne!(ptr, inst4.as_ptr())
+        }
     });
 }
 

@@ -24,19 +24,11 @@ pub unsafe fn PyObject_Free(ptr: *mut c_void) {
     if ptr.is_null() {
         return;
     }
-    unsafe { rustpython_vm::object::free_raw_pybaseobject_allocation(ptr.cast()) };
+    unsafe { crate::PyMem_Free(ptr) };
 }
 
 #[inline]
 pub unsafe fn PyObject_Init(arg1: *mut PyObject, _arg2: *mut PyTypeObject) -> *mut PyObject {
-    if !arg1.is_null() && !_arg2.is_null() {
-        crate::rustpython_runtime::with_vm(|_vm| {
-            let cls_obj = crate::object::ptr_to_pyobject_ref_borrowed(_arg2.cast());
-            if let Ok(cls) = cls_obj.downcast::<rustpython_vm::builtins::PyType>() {
-                unsafe { rustpython_vm::object::reinit_raw_object(arg1.cast(), cls) };
-            }
-        });
-    }
     arg1
 }
 
@@ -116,7 +108,7 @@ pub unsafe fn PyObject_GC_Del(arg1: *mut c_void) {
     if arg1.is_null() {
         return;
     }
-    unsafe { rustpython_vm::object::free_raw_pybaseobject_allocation(arg1.cast()) };
+    unsafe { crate::PyMem_Free(arg1) };
 }
 
 #[cfg(any(all(Py_3_9, not(PyPy)), Py_3_10))]
