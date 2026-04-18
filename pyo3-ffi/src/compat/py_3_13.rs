@@ -177,3 +177,28 @@ compat_function!(
         0
     }
 );
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyObject_GetOptionalAttr(
+        obj: *mut crate::PyObject,
+        name: *mut crate::PyObject,
+        result: *mut *mut crate::PyObject,
+    ) -> std::ffi::c_int {
+        use crate::{PyErr_Clear, PyErr_ExceptionMatches, PyExc_AttributeError, PyObject_GetAttr};
+
+        let attr = PyObject_GetAttr(obj, name);
+        if !attr.is_null() {
+            *result = attr;
+            return 1; // found
+        }
+        *result = std::ptr::null_mut();
+        if PyErr_ExceptionMatches(PyExc_AttributeError) != 0 {
+            PyErr_Clear();
+            return 0; // not found
+        }
+        -1 // other error
+    }
+);

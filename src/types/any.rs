@@ -1024,34 +1024,20 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             any: &Bound<'py, PyAny>,
             attr_name: Borrowed<'_, 'py, PyString>,
         ) -> PyResult<Option<Bound<'py, PyAny>>> {
-            #[cfg(Py_3_13)]
-            {
-                let mut resp_ptr: *mut ffi::PyObject = std::ptr::null_mut();
-                match unsafe {
-                    ffi::PyObject_GetOptionalAttr(any.as_ptr(), attr_name.as_ptr(), &mut resp_ptr)
-                } {
-                    // Attribute found, result is a new strong reference
-                    1 => {
-                        let bound = unsafe { Bound::from_owned_ptr(any.py(), resp_ptr) };
-                        Ok(Some(bound))
-                    }
-                    // Attribute not found, result is NULL
-                    0 => Ok(None),
-
-                    // An error occurred (other than AttributeError)
-                    _ => Err(PyErr::fetch(any.py())),
-                }
-            }
-
-            #[cfg(not(Py_3_13))]
-            {
-                match any.getattr(attr_name) {
-                    Ok(bound) => Ok(Some(bound)),
-                    Err(err) if err.is_instance_of::<PyAttributeError>(any.py()) => {
-                        Ok(None)
-                    }
-                    Err(err) => Err(err),
-                }
+            let mut resp_ptr: *mut ffi::PyObject = std::ptr::null_mut();
+            match unsafe {
+                ffi::compat::PyObject_GetOptionalAttr(
+                    any.as_ptr(),
+                    attr_name.as_ptr(),
+                    &mut resp_ptr,
+                )
+            } {
+                // Attribute found, result is a new strong reference
+                1 => Ok(Some(unsafe { Bound::from_owned_ptr(any.py(), resp_ptr) })),
+                // Attribute not found
+                0 => Ok(None),
+                // An error occurred (other than AttributeError)
+                _ => Err(PyErr::fetch(any.py())),
             }
         }
 
@@ -1803,11 +1789,7 @@ class Obj:
             )
             .unwrap();
 
-            let obj = module
-                .getattr("Obj")
-                .unwrap()
-                .call0()
-                .unwrap();
+            let obj = module.getattr("Obj").unwrap().call0().unwrap();
 
             // An AttributeError subclass should be treated as "attribute not found"
             let result = obj.getattr_opt("missing").unwrap();
