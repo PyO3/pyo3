@@ -19,6 +19,7 @@ pub mod longobject;
 #[cfg(PyRustPython)]
 pub mod pycapsule;
 #[cfg(PyRustPython)]
+#[cfg(any(Py_3_11, PyRustPython))]
 pub mod pybuffer;
 #[cfg(PyRustPython)]
 pub mod pymem;
@@ -31,6 +32,7 @@ pub mod dictobject;
 #[cfg(PyRustPython)]
 pub mod descrobject;
 #[cfg(PyRustPython)]
+#[cfg(not(Py_LIMITED_API))]
 pub mod datetime;
 #[cfg(PyRustPython)]
 pub mod listobject;

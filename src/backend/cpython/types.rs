@@ -6,9 +6,11 @@ use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
-    PyAny, PyCode, PyCodeInput, PyDateTime, PyDict, PyFrame, PyFrozenSet, PyList, PyModule,
-    PyString, PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo,
+    PyAny, PyCode, PyCodeInput, PyDateTime, PyDict, PyFrozenSet, PyList, PyModule, PyString,
+    PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo,
 };
+#[cfg(not(Py_LIMITED_API))]
+use crate::types::PyFrame;
 use crate::{ffi, IntoPyObject, IntoPyObjectExt, Py, Python};
 use crate::py_result_ext::PyResultExt;
 
@@ -230,10 +232,12 @@ pub(crate) fn code_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
 }
 
 #[inline]
+#[cfg(not(Py_LIMITED_API))]
 pub(crate) fn frame_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::backend::cpython::pyframe::PyFrame_Type
 }
 
+#[cfg(not(Py_LIMITED_API))]
 pub(crate) fn new_frame<'py>(
     py: Python<'py>,
     file_name: &std::ffi::CStr,
@@ -260,6 +264,7 @@ pub(crate) fn new_frame<'py>(
 }
 
 #[inline]
+#[cfg(not(Py_LIMITED_API))]
 pub(crate) unsafe fn frame_check(object: *mut ffi::PyObject) -> std::ffi::c_int {
     ffi::backend::cpython::pyframe::PyFrame_Check(object)
 }

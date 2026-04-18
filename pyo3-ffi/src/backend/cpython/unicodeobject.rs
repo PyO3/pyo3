@@ -1,6 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use crate::unicodeobject::{Py_UCS4, Py_UNICODE};
+use crate::unicodeobject::Py_UCS4;
 use libc::wchar_t;
 use std::ffi::{c_char, c_int, c_void};
 

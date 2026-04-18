@@ -7,6 +7,7 @@ pub mod floatobject;
 pub mod frameobject;
 pub mod longobject;
 pub mod pycapsule;
+#[cfg(any(Py_3_11, PyRustPython))]
 pub mod pybuffer;
 pub mod pymem;
 pub mod refcount;
@@ -15,6 +16,7 @@ pub mod bytesobject;
 pub mod compat_py_3_9;
 pub mod dictobject;
 pub mod descrobject;
+#[cfg(not(Py_LIMITED_API))]
 pub mod datetime;
 pub mod listobject;
 pub mod pyerrors;

@@ -61,6 +61,16 @@ const _Py_REF_SHARED_SHIFT: isize = 2;
 pub use crate::backend::current::refcount::{
     Py_CLEAR, Py_INCREF, Py_REFCNT, Py_SETREF, Py_XDECREF, Py_XINCREF, Py_XSETREF,
 };
+#[cfg(not(PyRustPython))]
+pub use crate::backend::current::refcount::{Py_DecRef, Py_IncRef};
+#[cfg(PyRustPython)]
+pub use crate::object::Py_IncRef;
+
+#[cfg(PyRustPython)]
+#[inline]
+pub unsafe fn Py_DecRef(obj: *mut PyObject) {
+    crate::object::Py_DECREF(obj);
+}
 
 extern_libpython! {
     #[cfg(all(Py_3_10, Py_LIMITED_API, not(PyPy)))]

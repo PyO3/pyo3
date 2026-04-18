@@ -1,4 +1,4 @@
-#[cfg(not(PyRustPython))]
+#[cfg(all(not(PyRustPython), not(Py_LIMITED_API)))]
 pub use crate::cpython::pyerrors::*;
 
 use crate::object::*;

@@ -1,3 +1,4 @@
+#[cfg(not(Py_LIMITED_API))]
 pub mod datetime {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::datetime::*;
@@ -33,6 +34,7 @@ pub mod pyerrors {
     pub use crate::backend::cpython::pyerrors::*;
 }
 
+#[cfg(any(Py_3_11, PyRustPython))]
 pub mod pybuffer {
     #[cfg(PyRustPython)]
     pub use crate::backend::rustpython::pybuffer::*;

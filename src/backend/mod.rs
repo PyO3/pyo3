@@ -5,6 +5,7 @@
 #[path = "cpython/mod.rs"]
 pub mod cpython;
 pub mod current;
+#[cfg(PyRustPython)]
 #[path = "rustpython/mod.rs"]
 pub mod rustpython;
 #[cfg(PyRustPython)]
