@@ -230,8 +230,3 @@ bare_urls = "warn"
 
 [lints]
 workspace = true
-
-[patch."https://github.com/RustPython/RustPython"]
-rustpython = { path = "../rustpython-fork" }
-rustpython-vm = { path = "../rustpython-fork/crates/vm" }
-rustpython-derive = { path = "../rustpython-fork/crates/derive" }

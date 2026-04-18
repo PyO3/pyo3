@@ -246,7 +246,8 @@ impl PyTypeBuilder {
             if let Some(dict_offset) = self.dict_offset {
                 let get_dict: ffi::getter;
                 let closure: *mut c_void;
-            if crate::backend::current::pyclass::use_generic_dict_getter() {
+                #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+                if crate::backend::current::pyclass::use_generic_dict_getter() {
                     let _ = dict_offset;
                     extern "C" fn get_dict_impl(
                         object: *mut ffi::PyObject,
@@ -265,6 +266,35 @@ impl PyTypeBuilder {
                             trampoline(|_| {
                                 let dict_offset = closure as ffi::Py_ssize_t;
                                 // we don't support negative dict_offset here; PyO3 doesn't set it negative
+                                assert!(dict_offset > 0);
+                                let dict_ptr =
+                                    object.byte_offset(dict_offset).cast::<*mut ffi::PyObject>();
+                                if (*dict_ptr).is_null() {
+                                    std::ptr::write(dict_ptr, ffi::PyDict_New());
+                                }
+                                Ok(ffi::compat::Py_XNewRef(*dict_ptr))
+                            })
+                        }
+                    }
+
+                    get_dict = get_dict_impl;
+                    closure = match dict_offset {
+                        PyObjectOffset::Absolute(offset) => offset as _,
+                        #[cfg(Py_3_12)]
+                        PyObjectOffset::Relative(_) => unreachable!(
+                            "relative __dict__ offsets are not supported in this fallback path"
+                        ),
+                    };
+                }
+                #[cfg(not(any(not(Py_LIMITED_API), Py_3_10)))]
+                {
+                    extern "C" fn get_dict_impl(
+                        object: *mut ffi::PyObject,
+                        closure: *mut c_void,
+                    ) -> *mut ffi::PyObject {
+                        unsafe {
+                            trampoline(|_| {
+                                let dict_offset = closure as ffi::Py_ssize_t;
                                 assert!(dict_offset > 0);
                                 let dict_ptr =
                                     object.byte_offset(dict_offset).cast::<*mut ffi::PyObject>();

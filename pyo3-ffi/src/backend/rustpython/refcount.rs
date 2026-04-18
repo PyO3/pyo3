@@ -2,6 +2,16 @@ use crate::object::{PyObject, Py_IncRef};
 use crate::pyport::Py_ssize_t;
 
 #[inline]
+pub unsafe fn Py_IncRef(op: *mut PyObject) {
+    crate::object::Py_IncRef(op);
+}
+
+#[inline]
+pub unsafe fn Py_DecRef(op: *mut PyObject) {
+    crate::object::Py_DECREF(op);
+}
+
+#[inline]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     if ob.is_null() {
         return 0;
@@ -24,7 +34,7 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
 
 #[inline]
 pub unsafe fn Py_DECREF(op: *mut PyObject) {
-    crate::object::Py_DECREF(op);
+    Py_DecRef(op);
 }
 
 #[inline]

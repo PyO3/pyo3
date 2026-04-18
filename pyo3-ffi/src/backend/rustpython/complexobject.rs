@@ -9,6 +9,12 @@ pub static mut PyComplex_Type: PyTypeObject = PyTypeObject { _opaque: [] };
 #[cfg(PyRustPython)]
 opaque_struct!(pub PyComplexObject);
 
+#[repr(C)]
+pub struct Py_complex {
+    pub real: c_double,
+    pub imag: c_double,
+}
+
 #[inline]
 pub unsafe fn PyComplex_Check(op: *mut PyObject) -> c_int {
     if op.is_null() {
@@ -47,6 +53,14 @@ pub unsafe fn PyComplex_FromDoubles(real: c_double, imag: c_double) -> *mut PyOb
             Err(_) => std::ptr::null_mut(),
         }
     })
+}
+
+#[inline]
+pub unsafe fn PyComplex_AsCComplex(op: *mut PyObject) -> Py_complex {
+    Py_complex {
+        real: unsafe { PyComplex_RealAsDouble(op) },
+        imag: unsafe { PyComplex_ImagAsDouble(op) },
+    }
 }
 
 #[inline]
