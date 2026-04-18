@@ -281,5 +281,3 @@ PyO3 is licensed under the [Apache-2.0 license](LICENSE-APACHE) or the [MIT lice
 Python is licensed under the [Python License](https://docs.python.org/3/license.html).
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in PyO3 by you, as defined in the Apache License, shall be dual-licensed as above, without any additional terms or conditions.
-
-[![Deploys by Netlify](https://www.netlify.com/assets/badges/netlify-badge-color-accent.svg)](https://www.netlify.com)
