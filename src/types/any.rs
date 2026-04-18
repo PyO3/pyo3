@@ -1047,16 +1047,10 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             {
                 match any.getattr(attr_name) {
                     Ok(bound) => Ok(Some(bound)),
-                    Err(err) => {
-                        if err
-                            .get_type(any.py())
-                            .is_subclass_of::<PyAttributeError>()?
-                        {
-                            Ok(None)
-                        } else {
-                            Err(err)
-                        }
+                    Err(err) if err.is_instance_of::<PyAttributeError>(any.py()) => {
+                        Ok(None)
                     }
+                    Err(err) => Err(err),
                 }
             }
         }
