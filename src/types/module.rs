@@ -10,10 +10,12 @@ use crate::types::{
 };
 use crate::{ffi, Borrowed, Bound, IntoPyObject, IntoPyObjectExt, Py, Python};
 #[cfg(PyPy)]
-use crate::{err::PyErr, exceptions};
+use crate::exceptions;
 use std::borrow::Cow;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use std::ffi::c_int;
+#[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
+use crate::PyErr;
 use std::ffi::CStr;
 use std::str;
 
