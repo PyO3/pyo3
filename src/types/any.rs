@@ -1048,12 +1048,13 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
                 match any.getattr(attr_name) {
                     Ok(bound) => Ok(Some(bound)),
                     Err(err) => {
-                        let err_type = err
+                        if err
                             .get_type(any.py())
-                            .is(PyType::new::<PyAttributeError>(any.py()));
-                        match err_type {
-                            true => Ok(None),
-                            false => Err(err),
+                            .is_subclass_of::<PyAttributeError>()?
+                        {
+                            Ok(None)
+                        } else {
+                            Err(err)
                         }
                     }
                 }
@@ -1786,6 +1787,37 @@ class Test:
                 .unwrap_err()
                 .to_string()
                 .contains("This is an intentional error"));
+        });
+    }
+
+    #[test]
+    fn test_getattr_opt_attribute_error_subclass() {
+        Python::attach(|py| {
+            let module = PyModule::from_code(
+                py,
+                cr#"
+class CustomAttrError(AttributeError):
+    pass
+
+class Obj:
+    @property
+    def missing(self):
+        raise CustomAttrError("not here")
+                "#,
+                c"test.py",
+                &generate_unique_module_name("test"),
+            )
+            .unwrap();
+
+            let obj = module
+                .getattr("Obj")
+                .unwrap()
+                .call0()
+                .unwrap();
+
+            // An AttributeError subclass should be treated as "attribute not found"
+            let result = obj.getattr_opt("missing").unwrap();
+            assert!(result.is_none());
         });
     }
 
