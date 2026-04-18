@@ -11,6 +11,7 @@ pub use crate::Py_T_INT as T_INT;
 pub use crate::Py_T_LONG as T_LONG;
 pub use crate::Py_T_LONGLONG as T_LONGLONG;
 pub use crate::Py_T_OBJECT_EX as T_OBJECT_EX;
+pub use crate::Py_T_PYSSIZET as T_PYSSIZET;
 pub use crate::Py_T_SHORT as T_SHORT;
 pub use crate::Py_T_STRING as T_STRING;
 pub use crate::Py_T_STRING_INPLACE as T_STRING_INPLACE;
@@ -20,11 +21,9 @@ pub use crate::Py_T_ULONG as T_ULONG;
 pub use crate::Py_T_ULONGLONG as T_ULONGLONG;
 pub use crate::Py_T_USHORT as T_USHORT;
 #[allow(deprecated)]
-pub use crate::_Py_T_OBJECT as T_OBJECT;
-
-pub use crate::Py_T_PYSSIZET as T_PYSSIZET;
-#[allow(deprecated)]
 pub use crate::_Py_T_NONE as T_NONE;
+#[allow(deprecated)]
+pub use crate::_Py_T_OBJECT as T_OBJECT;
 
 /* Flags */
 pub use crate::Py_READONLY as READONLY;
