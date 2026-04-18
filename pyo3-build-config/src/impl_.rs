@@ -13,6 +13,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
     str::{self, FromStr},
+    sync::LazyLock,
 };
 
 pub use target_lexicon::Triple;
@@ -51,26 +52,146 @@ thread_local! {
     static READ_ENV_VARS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
 }
 
-/// Gets an environment variable owned by cargo.
-///
-/// Environment variables set by cargo are expected to be valid UTF8.
-pub fn cargo_env_var(var: &str) -> Option<String> {
-    env::var_os(var).map(|os_string| os_string.to_str().unwrap().into())
+pub static BUILD_CTX: LazyLock<BuildScriptContext> = LazyLock::new(BuildScriptContext::new);
+
+pub struct BuildScriptContext {
+    pub ext: ExtEnv,
+    pub cargo: CargoEnv,
 }
 
-/// Gets an external environment variable, and registers the build script to rerun if
-/// the variable changes.
-pub fn env_var(var: &str) -> Option<OsString> {
-    if cfg!(feature = "resolve-config") {
-        println!("cargo:rerun-if-env-changed={var}");
+pub struct ExtEnv {
+    pub is_print_config: LazyLock<bool>,
+    pub use_abi13_forward_compatibility: LazyLock<bool>,
+    pub pyo3_config_file: LazyLock<Option<PathBuf>>,
+    pub pyo3_python: LazyLock<Option<OsString>>,
+    pub pyo3_no_python: LazyLock<bool>,
+    pub pyo3_build_extension_module: LazyLock<bool>,
+    pub pyo3_cross: LazyLock<Option<OsString>>,
+    pub pyo3_cross_lib_dir: LazyLock<Option<OsString>>,
+    pub pyo3_cross_python_version: LazyLock<Option<OsString>>,
+    pub pyo3_cross_python_implementation: LazyLock<Option<OsString>>,
+    pub python_sysconfigdata_name: LazyLock<Option<OsString>>,
+    pub virtual_env: LazyLock<Option<OsString>>,
+    pub conda_prefix: LazyLock<Option<OsString>>,
+}
+
+pub struct CargoEnv {
+    pub dep_python_pyo3_config: LazyLock<Option<String>>,
+    pub cargo_feature_abi3: LazyLock<bool>,
+    pub cargo_feature_extension_module: LazyLock<bool>,
+
+    /// The minimum supported Python version from PyO3 `abi3-py*` features.
+    /// Must be called from a PyO3 crate build script.
+    pub abi3_version: LazyLock<Option<PythonVersion>>,
+    pub cargo_cfg_target_pointer_width:
+        LazyLock<Result<u32, Box<dyn std::error::Error + Send + Sync>>>,
+    pub cargo_cfg_target_os: LazyLock<String>,
+    pub cargo_feature_auto_initialize: LazyLock<bool>,
+}
+
+impl BuildScriptContext {
+    pub fn new() -> Self {
+        Self {
+            ext: ExtEnv::new(),
+            cargo: CargoEnv::new(),
+        }
     }
-    #[cfg(test)]
-    {
-        READ_ENV_VARS.with(|env_vars| {
-            env_vars.borrow_mut().push(var.to_owned());
-        });
+}
+
+impl Default for BuildScriptContext {
+    fn default() -> Self {
+        Self::new()
     }
-    env::var_os(var)
+}
+
+impl ExtEnv {
+    pub fn new() -> Self {
+        Self {
+            is_print_config: LazyLock::new(|| {
+                Self::env_var("PYO3_PRINT_CONFIG").is_some_and(|os_str| os_str == "1")
+            }),
+            use_abi13_forward_compatibility: LazyLock::new(|| {
+                Self::env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY")
+                    .is_some_and(&|os_str| os_str == "1")
+            }),
+            pyo3_config_file: LazyLock::new(|| {
+                Self::env_var("PYO3_CONFIG_FILE").map(PathBuf::from)
+            }),
+            pyo3_python: LazyLock::new(|| Self::env_var("PYO3_PYTHON")),
+            pyo3_no_python: LazyLock::new(|| Self::env_var("PYO3_NO_PYTHON").is_none()),
+            pyo3_build_extension_module: LazyLock::new(|| {
+                Self::env_var("PYO3_BUILD_EXTENSION_MODULE").is_some()
+            }),
+            pyo3_cross: LazyLock::new(|| Self::env_var("PYO3_CROSS")),
+            pyo3_cross_lib_dir: LazyLock::new(|| Self::env_var("PYO3_CROSS_LIB_DIR")),
+            pyo3_cross_python_version: LazyLock::new(|| Self::env_var("PYO3_CROSS_PYTHON_VERSION")),
+            pyo3_cross_python_implementation: LazyLock::new(|| {
+                Self::env_var("PYO3_CROSS_PYTHON_IMPLEMENTATION")
+            }),
+            python_sysconfigdata_name: LazyLock::new(|| {
+                Self::env_var("_PYTHON_SYSCONFIGDATA_NAME")
+            }),
+            virtual_env: LazyLock::new(|| Self::env_var("VIRTUAL_ENV")),
+            conda_prefix: LazyLock::new(|| Self::env_var("CONDA_PREFIX")),
+        }
+    }
+
+    /// Gets an external environment variable, and registers the build script to rerun if
+    /// the variable changes.
+    pub fn env_var(var: &str) -> Option<OsString> {
+        if cfg!(feature = "resolve-config") {
+            println!("cargo:rerun-if-env-changed={var}");
+        }
+        #[cfg(test)]
+        {
+            READ_ENV_VARS.with(|env_vars| {
+                env_vars.borrow_mut().push(var.to_owned());
+            });
+        }
+        env::var_os(var)
+    }
+}
+
+impl CargoEnv {
+    fn new() -> Self {
+        Self {
+            dep_python_pyo3_config: LazyLock::new(|| Self::cargo_env_var("DEP_PYTHON_PYO3_CONFIG")),
+            cargo_feature_abi3: LazyLock::new(|| {
+                Self::cargo_env_var("CARGO_FEATURE_ABI3").is_some()
+            }),
+            cargo_feature_extension_module: LazyLock::new(|| {
+                Self::cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some()
+            }),
+            abi3_version: LazyLock::new(|| {
+                let minor_version = (MINIMUM_SUPPORTED_VERSION.minor..=ABI3_MAX_MINOR)
+                    .find(|i| Self::cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{i}")).is_some());
+                minor_version.map(|minor| PythonVersion { major: 3, minor })
+            }),
+            cargo_cfg_target_pointer_width: LazyLock::new(|| {
+                Ok(
+                    match Self::cargo_env_var("CARGO_CFG_TARGET_POINTER_WIDTH").as_deref() {
+                        Some("64") => 64,
+                        Some("32") => 32,
+                        Some(x) => bail!("unexpected Rust target pointer width: {}", x),
+                        None => bail!("CARGO_CFG_TARGET_POINTER_WIDTH is unset"),
+                    },
+                )
+            }),
+            cargo_cfg_target_os: LazyLock::new(|| {
+                Self::cargo_env_var("CARGO_CFG_TARGET_OS").unwrap()
+            }),
+            cargo_feature_auto_initialize: LazyLock::new(|| {
+                Self::cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some()
+            }),
+        }
+    }
+
+    /// Gets an environment variable owned by cargo.
+    ///
+    /// Environment variables set by cargo are expected to be valid UTF8.
+    pub fn cargo_env_var(var: &str) -> Option<String> {
+        env::var_os(var).map(|os_string| os_string.to_str().unwrap().into())
+    }
 }
 
 /// Gets the compilation target triple from environment variables set by Cargo.
@@ -455,8 +576,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     /// The `abi3` features, if set, may apply an `abi3` constraint to the Python version.
     #[allow(dead_code)] // only used in build.rs
     pub(super) fn from_pyo3_config_file_env() -> Option<Result<Self>> {
-        env_var("PYO3_CONFIG_FILE").map(|path| {
-            let path = Path::new(&path);
+        BUILD_CTX.ext.pyo3_config_file.as_ref().map(|path| {
             println!("cargo:rerun-if-changed={}", path.display());
             // Absolute path is necessary because this build script is run with a cwd different to the
             // original `cargo build` instruction.
@@ -473,7 +593,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             // TODO: abi3 is a property of the build mode, not the interpreter. Should this be
             // removed from `InterpreterConfig`?
             config.abi3 |= is_abi3();
-            config.fixup_for_abi3_version(get_abi3_version())?;
+            config.fixup_for_abi3_version(*BUILD_CTX.cargo.abi3_version)?;
 
             Ok(config)
         })
@@ -490,8 +610,11 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 
     #[doc(hidden)]
     pub fn from_cargo_dep_env() -> Option<Result<Self>> {
-        cargo_env_var("DEP_PYTHON_PYO3_CONFIG")
-            .map(|buf| InterpreterConfig::from_reader(&*unescape(&buf)))
+        BUILD_CTX
+            .cargo
+            .dep_python_pyo3_config
+            .as_ref()
+            .map(|buf| InterpreterConfig::from_reader(&*unescape(buf)))
     }
 
     #[doc(hidden)]
@@ -834,24 +957,14 @@ impl FromStr for PythonImplementation {
 ///
 /// Returns `false` if `PYO3_NO_PYTHON` environment variable is set.
 fn have_python_interpreter() -> bool {
-    env_var("PYO3_NO_PYTHON").is_none()
+    *BUILD_CTX.ext.pyo3_no_python
 }
 
 /// Checks if `abi3` or any of the `abi3-py3*` features is enabled for the PyO3 crate.
 ///
 /// Must be called from a PyO3 crate build script.
 fn is_abi3() -> bool {
-    cargo_env_var("CARGO_FEATURE_ABI3").is_some()
-        || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_some_and(|os_str| os_str == "1")
-}
-
-/// Gets the minimum supported Python version from PyO3 `abi3-py*` features.
-///
-/// Must be called from a PyO3 crate build script.
-pub fn get_abi3_version() -> Option<PythonVersion> {
-    let minor_version = (MINIMUM_SUPPORTED_VERSION.minor..=ABI3_MAX_MINOR)
-        .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{i}")).is_some());
-    minor_version.map(|minor| PythonVersion { major: 3, minor })
+    *BUILD_CTX.cargo.cargo_feature_abi3 || *BUILD_CTX.ext.use_abi13_forward_compatibility
 }
 
 /// Checks if the `extension-module` feature is enabled for the PyO3 crate.
@@ -862,8 +975,7 @@ pub fn get_abi3_version() -> Option<PythonVersion> {
 ///
 /// Must be called from a PyO3 crate build script.
 pub fn is_extension_module() -> bool {
-    cargo_env_var("CARGO_FEATURE_EXTENSION_MODULE").is_some()
-        || env_var("PYO3_BUILD_EXTENSION_MODULE").is_some()
+    *BUILD_CTX.cargo.cargo_feature_extension_module || *BUILD_CTX.ext.pyo3_build_extension_module
 }
 
 /// Checks if we need to link to `libpython` for the target.
@@ -1002,10 +1114,13 @@ impl CrossCompileEnvVars {
     /// Registers the build script to rerun if any of the variables changes.
     fn from_env() -> Self {
         CrossCompileEnvVars {
-            pyo3_cross: env_var("PYO3_CROSS"),
-            pyo3_cross_lib_dir: env_var("PYO3_CROSS_LIB_DIR"),
-            pyo3_cross_python_version: env_var("PYO3_CROSS_PYTHON_VERSION"),
-            pyo3_cross_python_implementation: env_var("PYO3_CROSS_PYTHON_IMPLEMENTATION"),
+            pyo3_cross: BUILD_CTX.ext.pyo3_cross.clone(),
+            pyo3_cross_lib_dir: BUILD_CTX.ext.pyo3_cross_lib_dir.clone(),
+            pyo3_cross_python_version: BUILD_CTX.ext.pyo3_cross_python_version.clone(),
+            pyo3_cross_python_implementation: BUILD_CTX
+                .ext
+                .pyo3_cross_python_implementation
+                .clone(),
         }
     }
 
@@ -1412,13 +1527,13 @@ pub fn find_all_sysconfigdata(cross: &CrossCompileConfig) -> Result<Vec<PathBuf>
         return Ok(Vec::new());
     };
 
-    let sysconfig_name = env_var("_PYTHON_SYSCONFIGDATA_NAME");
+    let sysconfig_name = BUILD_CTX.ext.python_sysconfigdata_name.as_deref();
     let mut sysconfig_paths = sysconfig_paths
         .iter()
         .filter_map(|p| {
             let canonical = fs::canonicalize(p).ok();
             match &sysconfig_name {
-                Some(_) => canonical.filter(|p| p.file_stem() == sysconfig_name.as_deref()),
+                Some(_) => canonical.filter(|p| p.file_stem() == sysconfig_name),
                 None => canonical,
             }
         })
@@ -1554,7 +1669,7 @@ fn cross_compile_from_sysconfigdata(
 fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<InterpreterConfig> {
     let version = cross_compile_config
         .version
-        .or_else(get_abi3_version)
+        .or_else(|| *BUILD_CTX.cargo.abi3_version)
         .ok_or_else(||
             format!(
                 "PYO3_CROSS_PYTHON_VERSION or an abi3-py3* feature must be specified \
@@ -1829,11 +1944,14 @@ fn conda_env_interpreter(conda_prefix: &OsStr, windows: bool) -> PathBuf {
 }
 
 fn get_env_interpreter() -> Option<PathBuf> {
-    match (env_var("VIRTUAL_ENV"), env_var("CONDA_PREFIX")) {
+    match (
+        BUILD_CTX.ext.virtual_env.as_ref(),
+        BUILD_CTX.ext.conda_prefix.as_ref(),
+    ) {
         // Use cfg rather than CARGO_CFG_TARGET_OS because this affects where files are located on the
         // build host
-        (Some(dir), None) => Some(venv_interpreter(&dir, cfg!(windows))),
-        (None, Some(dir)) => Some(conda_env_interpreter(&dir, cfg!(windows))),
+        (Some(dir), None) => Some(venv_interpreter(dir, cfg!(windows))),
+        (None, Some(dir)) => Some(conda_env_interpreter(dir, cfg!(windows))),
         (Some(_), Some(_)) => {
             warn!(
                 "Both VIRTUAL_ENV and CONDA_PREFIX are set. PyO3 will ignore both of these for \
@@ -1857,7 +1975,7 @@ pub fn find_interpreter() -> Result<PathBuf> {
     // See https://github.com/PyO3/pyo3/issues/2724
     println!("cargo:rerun-if-env-changed=PYO3_ENVIRONMENT_SIGNATURE");
 
-    if let Some(exe) = env_var("PYO3_PYTHON") {
+    if let Some(exe) = BUILD_CTX.ext.pyo3_python.as_ref() {
         Ok(exe.into())
     } else if let Some(env_interpreter) = get_env_interpreter() {
         Ok(env_interpreter)
@@ -1900,7 +2018,7 @@ fn get_host_interpreter(abi3_version: Option<PythonVersion>) -> Result<Interpret
 pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
     let interpreter_config = if let Some(cross_config) = cross_compiling_from_cargo_env()? {
         let mut interpreter_config = load_cross_compile_config(cross_config)?;
-        interpreter_config.fixup_for_abi3_version(get_abi3_version())?;
+        interpreter_config.fixup_for_abi3_version(*BUILD_CTX.cargo.abi3_version)?;
         Some(interpreter_config)
     } else {
         None
@@ -1914,7 +2032,7 @@ pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
 #[allow(dead_code, unused_mut)]
 pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     let host = Triple::host();
-    let abi3_version = get_abi3_version();
+    let abi3_version = *BUILD_CTX.cargo.abi3_version;
 
     // See if we can safely skip the Python interpreter configuration detection.
     // Unix "abi3" extension modules can usually be built without any interpreter.

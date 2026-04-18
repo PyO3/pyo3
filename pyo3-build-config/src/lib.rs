@@ -20,7 +20,8 @@ use std::{env, process::Command, str::FromStr, sync::OnceLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
-    CrossCompileConfig, InterpreterConfig, PythonImplementation, PythonVersion, Triple,
+    BuildScriptContext, CrossCompileConfig, InterpreterConfig, PythonImplementation, PythonVersion,
+    Triple, BUILD_CTX,
 };
 
 use target_lexicon::OperatingSystem;
@@ -314,8 +315,8 @@ pub mod pyo3_build_script_impl {
         pub use crate::errors::*;
     }
     pub use crate::impl_::{
-        cargo_env_var, env_var, is_linking_libpython_for_target, make_cross_compile_config,
-        target_triple_from_env, InterpreterConfig, PythonVersion,
+        is_linking_libpython_for_target, make_cross_compile_config, target_triple_from_env,
+        InterpreterConfig, PythonVersion,
     };
     pub enum BuildConfigSource {
         /// Config was provided by `PYO3_CONFIG_FILE`.
