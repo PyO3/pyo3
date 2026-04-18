@@ -561,7 +561,11 @@ impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{exceptions::PyLookupError, types::PyAnyMethods as _, IntoPyObject};
+    use crate::{
+        exceptions::PyLookupError,
+        types::{bytes::PyBytesMethods, PyAnyMethods as _},
+        IntoPyObject,
+    };
 
     #[test]
     fn test_to_cow_utf8() {
