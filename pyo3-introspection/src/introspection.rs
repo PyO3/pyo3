@@ -1,6 +1,6 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator,
-    VariableLengthArgument,
+    Argument, Arguments, Attribute, Class, Constant, Expr, Function, ImportAlias, Module, Operator,
+    Statement, VariableLengthArgument,
 };
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use goblin::elf::section_header::SHN_XINDEX;
@@ -52,6 +52,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
             members,
             doc,
             incomplete,
+            stubs,
         } = chunk
         {
             if name == main_module_name {
@@ -65,6 +66,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
                     name,
                     members,
                     *incomplete,
+                    stubs,
                     doc.as_deref(),
                     &chunks_by_id,
                     &chunks_by_parent,
@@ -82,6 +84,7 @@ fn convert_module(
     name: &str,
     members: &[String],
     mut incomplete: bool,
+    stubs: &[ChunkStatement],
     docstring: Option<&str>,
     chunks_by_id: &HashMap<&str, &Chunk>,
     chunks_by_parent: &HashMap<&str, Vec<&Chunk>>,
@@ -114,6 +117,35 @@ fn convert_module(
         functions,
         attributes,
         incomplete,
+        stubs: stubs
+            .iter()
+            .map(|statement| match statement {
+                ChunkStatement::ImportFrom {
+                    module,
+                    names,
+                    level,
+                } => Statement::ImportFrom {
+                    module: module.clone(),
+                    names: names
+                        .iter()
+                        .map(|alias| ImportAlias {
+                            name: alias.name.clone(),
+                            asname: alias.asname.clone(),
+                        })
+                        .collect(),
+                    level: *level,
+                },
+                ChunkStatement::Import { names } => Statement::Import {
+                    names: names
+                        .iter()
+                        .map(|alias| ImportAlias {
+                            name: alias.name.clone(),
+                            asname: alias.asname.clone(),
+                        })
+                        .collect(),
+                },
+            })
+            .collect(),
         docstring: docstring.map(Into::into),
     })
 }
@@ -139,12 +171,14 @@ fn convert_members<'a>(
                 members,
                 incomplete,
                 doc,
+                stubs,
             } => {
                 modules.push(convert_module(
                     id,
                     name,
                     members,
                     *incomplete,
+                    stubs,
                     doc.as_deref(),
                     chunks_by_id,
                     chunks_by_parent,
@@ -686,6 +720,8 @@ enum Chunk {
         #[serde(default)]
         doc: Option<String>,
         incomplete: bool,
+        #[serde(default)]
+        stubs: Vec<ChunkStatement>,
     },
     Class {
         id: String,
@@ -751,6 +787,25 @@ struct ChunkArgument {
     default: Option<ChunkExpr>,
     #[serde(default)]
     annotation: Option<ChunkExpr>,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+enum ChunkStatement {
+    ImportFrom {
+        module: String,
+        names: Vec<ChunkAlias>,
+        level: usize,
+    },
+    Import {
+        names: Vec<ChunkAlias>,
+    },
+}
+
+#[derive(Deserialize)]
+struct ChunkAlias {
+    name: String,
+    asname: Option<String>,
 }
 
 #[derive(Deserialize)]
