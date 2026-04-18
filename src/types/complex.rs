@@ -1,8 +1,8 @@
+use crate::backend::current::types::complex_type_object;
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::py_result_ext::PyResultExt;
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::types::any::PyAnyMethods;
-use crate::backend::current::types::complex_type_object;
 use crate::{ffi, Bound, PyAny, Python};
 use std::ffi::c_double;
 

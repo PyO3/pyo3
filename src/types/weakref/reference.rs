@@ -1,5 +1,5 @@
-use crate::err::PyResult;
 use crate::backend;
+use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::types::any::PyAny;

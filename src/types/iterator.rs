@@ -159,9 +159,9 @@ impl<'py> IntoIterator for &Bound<'py, PyIterator> {
 #[cfg(test)]
 mod tests {
     use super::PyIterator;
-    use crate::backend::BackendKind;
     #[cfg(all(not(PyPy), Py_3_10))]
     use super::PySendResult;
+    use crate::backend::BackendKind;
     use crate::exceptions::PyTypeError;
     #[cfg(all(not(PyPy), Py_3_10))]
     use crate::types::PyNone;

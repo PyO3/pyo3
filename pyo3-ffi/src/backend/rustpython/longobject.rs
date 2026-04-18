@@ -4,7 +4,9 @@ use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
 use libc::size_t;
 use rustpython_vm::TryFromBorrowedObject;
-use std::ffi::{c_char, c_double, c_int, c_long, c_longlong, c_uchar, c_ulong, c_ulonglong, c_void};
+use std::ffi::{
+    c_char, c_double, c_int, c_long, c_longlong, c_uchar, c_ulong, c_ulonglong, c_void,
+};
 
 opaque_struct!(pub PyLongObject);
 
@@ -220,14 +222,19 @@ pub unsafe fn _PyLong_AsByteArray(
     let out = std::slice::from_raw_parts_mut(bytes, n);
     out.fill(if is_signed != 0 { 0xff } else { 0x00 });
     if is_signed != 0 {
-        let value = match rustpython_runtime::with_vm(|vm| i128::try_from_borrowed_object(vm, &obj)) {
+        let value = match rustpython_runtime::with_vm(|vm| i128::try_from_borrowed_object(vm, &obj))
+        {
             Ok(value) => value,
             Err(exc) => {
                 set_vm_exception(exc);
                 return -1;
             }
         };
-        let full = if little_endian != 0 { value.to_le_bytes() } else { value.to_be_bytes() };
+        let full = if little_endian != 0 {
+            value.to_le_bytes()
+        } else {
+            value.to_be_bytes()
+        };
         let count = n.min(full.len());
         if little_endian != 0 {
             out[..count].copy_from_slice(&full[..count]);
@@ -235,14 +242,19 @@ pub unsafe fn _PyLong_AsByteArray(
             out[n - count..].copy_from_slice(&full[full.len() - count..]);
         }
     } else {
-        let value = match rustpython_runtime::with_vm(|vm| u128::try_from_borrowed_object(vm, &obj)) {
+        let value = match rustpython_runtime::with_vm(|vm| u128::try_from_borrowed_object(vm, &obj))
+        {
             Ok(value) => value,
             Err(exc) => {
                 set_vm_exception(exc);
                 return -1;
             }
         };
-        let full = if little_endian != 0 { value.to_le_bytes() } else { value.to_be_bytes() };
+        let full = if little_endian != 0 {
+            value.to_le_bytes()
+        } else {
+            value.to_be_bytes()
+        };
         let count = n.min(full.len());
         if little_endian != 0 {
             out[..count].copy_from_slice(&full[..count]);
@@ -275,7 +287,9 @@ pub unsafe fn _PyLong_FromByteArray(
         buf[..count].copy_from_slice(&src[..count]);
         if is_signed != 0 {
             let value = i128::from_le_bytes(buf);
-            return rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.new_int(value).into()));
+            return rustpython_runtime::with_vm(|vm| {
+                pyobject_ref_to_ptr(vm.ctx.new_int(value).into())
+            });
         }
         let value = u128::from_le_bytes(buf);
         return rustpython_runtime::with_vm(|vm| pyobject_ref_to_ptr(vm.ctx.new_int(value).into()));

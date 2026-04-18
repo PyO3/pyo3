@@ -1,9 +1,7 @@
 #![allow(missing_docs)]
 
 use crate::ffi::{self, SidecarCleanup};
-use crate::impl_::pycell::{
-    GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout,
-};
+use crate::impl_::pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout};
 use crate::impl_::pyclass::{PyClassBaseType, PyClassImpl, PyClassThreadChecker, PyObjectOffset};
 use crate::internal::get_slot::{TP_CLEAR, TP_TRAVERSE};
 use crate::pycell::impl_::{PyClassObjectContents, PyClassObjectLayout};
@@ -27,7 +25,8 @@ trait SemanticBaseInlineSize {
 }
 
 impl SemanticBaseInlineSize for crate::types::PyAny {
-    const BASIC_SIZE: usize = mem::size_of::<crate::impl_::pycell::PyClassObjectBase<ffi::PyObject>>();
+    const BASIC_SIZE: usize =
+        mem::size_of::<crate::impl_::pycell::PyClassObjectBase<ffi::PyObject>>();
 }
 
 impl<T> SemanticBaseInlineSize for T
@@ -97,8 +96,7 @@ fn owner_registry() -> &'static Mutex<HashMap<usize, bool>> {
 unsafe extern "C" fn cleanup_sidecar_entry<T: PyClassImpl + PyTypeInfo>(
     owner: *mut ffi::PyObject,
     sidecar: *mut std::ffi::c_void,
-)
-where
+) where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {
     let py = unsafe { Python::assume_attached() };
@@ -112,7 +110,10 @@ where
     }
 }
 
-unsafe extern "C" fn cleanup_all_sidecars(owner: *mut ffi::PyObject, _marker: *mut std::ffi::c_void) {
+unsafe extern "C" fn cleanup_all_sidecars(
+    owner: *mut ffi::PyObject,
+    _marker: *mut std::ffi::c_void,
+) {
     let owner_key = owner as usize;
     owner_registry().lock().unwrap().remove(&owner_key);
 
@@ -166,8 +167,10 @@ pub(crate) unsafe extern "C" fn clear_sidecars(
     let _ = owner;
 }
 
-pub(crate) fn install_sidecar_owner<T: PyClassImpl + PyTypeInfo>(_py: Python<'_>, obj: *mut ffi::PyObject)
-where
+pub(crate) fn install_sidecar_owner<T: PyClassImpl + PyTypeInfo>(
+    _py: Python<'_>,
+    obj: *mut ffi::PyObject,
+) where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {
     let obj_key = obj as usize;
@@ -198,7 +201,9 @@ pub struct PySidecarClassObject<T: PyClassImpl> {
 
 unsafe impl<T: PyClassImpl> PyLayout<T> for PySidecarClassObject<T> {}
 
-impl<T: PyClassImpl<Layout = Self> + PyTypeInfo> PyClassObjectLayout<T> for PySidecarClassObject<T> {
+impl<T: PyClassImpl<Layout = Self> + PyTypeInfo> PyClassObjectLayout<T>
+    for PySidecarClassObject<T>
+{
     const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Absolute(0);
     const HAS_EMBEDDED_CONTENTS: bool = false;
     const BASIC_SIZE: ffi::Py_ssize_t = 0;
@@ -213,13 +218,23 @@ impl<T: PyClassImpl<Layout = Self> + PyTypeInfo> PyClassObjectLayout<T> for PySi
 
     fn contents(&self) -> &PyClassObjectContents<T> {
         let ptr = get_sidecar_slot::<T>(self as *const Self as *const ffi::PyObject)
-            .unwrap_or_else(|| panic!("missing RustPython sidecar for {}", std::any::type_name::<T>()));
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing RustPython sidecar for {}",
+                    std::any::type_name::<T>()
+                )
+            });
         unsafe { &*ptr }
     }
 
     fn contents_mut(&mut self) -> &mut PyClassObjectContents<T> {
-        let ptr = get_sidecar_slot::<T>(self as *mut Self as *mut ffi::PyObject)
-            .unwrap_or_else(|| panic!("missing RustPython sidecar for {}", std::any::type_name::<T>()));
+        let ptr =
+            get_sidecar_slot::<T>(self as *mut Self as *mut ffi::PyObject).unwrap_or_else(|| {
+                panic!(
+                    "missing RustPython sidecar for {}",
+                    std::any::type_name::<T>()
+                )
+            });
         unsafe { &mut *ptr }
     }
 
@@ -272,13 +287,23 @@ where
 
     fn contents(&self) -> &PyClassObjectContents<T> {
         let ptr = get_sidecar_slot::<T>(self as *const Self as *const ffi::PyObject)
-            .unwrap_or_else(|| panic!("missing RustPython sidecar for {}", std::any::type_name::<T>()));
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing RustPython sidecar for {}",
+                    std::any::type_name::<T>()
+                )
+            });
         unsafe { &*ptr }
     }
 
     fn contents_mut(&mut self) -> &mut PyClassObjectContents<T> {
-        let ptr = get_sidecar_slot::<T>(self as *mut Self as *mut ffi::PyObject)
-            .unwrap_or_else(|| panic!("missing RustPython sidecar for {}", std::any::type_name::<T>()));
+        let ptr =
+            get_sidecar_slot::<T>(self as *mut Self as *mut ffi::PyObject).unwrap_or_else(|| {
+                panic!(
+                    "missing RustPython sidecar for {}",
+                    std::any::type_name::<T>()
+                )
+            });
         unsafe { &mut *ptr }
     }
 
@@ -319,7 +344,8 @@ where
     }
 }
 
-impl<T: PyClassImpl<Layout = Self> + PyTypeInfo> PyClassObjectBaseLayout<T> for PySidecarClassObject<T>
+impl<T: PyClassImpl<Layout = Self> + PyTypeInfo> PyClassObjectBaseLayout<T>
+    for PySidecarClassObject<T>
 where
     <T::BaseType as PyClassBaseType>::LayoutAsBase: PyClassObjectBaseLayout<T::BaseType>,
 {

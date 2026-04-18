@@ -1,21 +1,21 @@
 use crate::err::PyResult;
+#[cfg(PyPy)]
+use crate::exceptions;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::BoundObject;
 use crate::impl_::callback::IntoPyCallbackOutput;
-use crate::pyclass::PyClass;
+use crate::instance::BoundObject;
 use crate::py_result_ext::PyResultExt;
+use crate::pyclass::PyClass;
 use crate::types::{
     any::PyAnyMethods, dict::PyDict, list::PyList, list::PyListMethods, string::PyStringMethods,
     PyAny, PyCFunction, PyString,
 };
+#[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
+use crate::PyErr;
 use crate::{ffi, Borrowed, Bound, IntoPyObject, IntoPyObjectExt, Py, Python};
-#[cfg(PyPy)]
-use crate::exceptions;
 use std::borrow::Cow;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use std::ffi::c_int;
-#[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-use crate::PyErr;
 use std::ffi::CStr;
 use std::str;
 

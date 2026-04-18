@@ -8,8 +8,7 @@ use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeCheck;
 use crate::types::any::{PyAny, PyAnyMethods};
 use crate::{
-    ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
-    types::PyModule,
+    ffi, types::PyModule, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
 };
 
 /// Represents any Python `weakref` Proxy type.

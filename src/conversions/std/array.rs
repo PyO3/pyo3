@@ -5,8 +5,8 @@ use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
 use crate::types::{PyStringMethods, PyTypeMethods};
 use crate::{err::CastError, PyTypeInfo};
-use crate::{ffi, FromPyObject, PyAny, PyResult, Python};
 use crate::{exceptions, Borrowed, Bound, PyErr};
+use crate::{ffi, FromPyObject, PyAny, PyResult, Python};
 
 impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
 where

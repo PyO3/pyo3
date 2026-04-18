@@ -5,7 +5,9 @@ use crate::{ffi, Borrowed, PyResult};
 use std::borrow::Cow;
 use std::str;
 
-pub(crate) fn to_cow<'a>(string: Borrowed<'a, '_, crate::types::PyString>) -> PyResult<Cow<'a, str>> {
+pub(crate) fn to_cow<'a>(
+    string: Borrowed<'a, '_, crate::types::PyString>,
+) -> PyResult<Cow<'a, str>> {
     let bytes = unsafe {
         ffi::PyUnicode_AsUTF8String(string.as_ptr())
             .assume_owned_or_err(string.py())?
@@ -16,7 +18,9 @@ pub(crate) fn to_cow<'a>(string: Borrowed<'a, '_, crate::types::PyString>) -> Py
     ))
 }
 
-pub(crate) fn to_string_lossy<'a>(string: Borrowed<'a, '_, crate::types::PyString>) -> Cow<'a, str> {
+pub(crate) fn to_string_lossy<'a>(
+    string: Borrowed<'a, '_, crate::types::PyString>,
+) -> Cow<'a, str> {
     let bytes = unsafe {
         #[cfg(PyRustPython)]
         let owned = ffi::PyUnicode_AsWtf8String(string.as_ptr()).assume_owned(string.py());

@@ -164,7 +164,7 @@ pub const Py_RELATIVE_OFFSET: c_int = 8;
 
 pub use crate::backend::current::descrobject::{
     PyClassMethodDescr_Type, PyDescr_NewClassMethod, PyDescr_NewGetSet, PyDescr_NewMember,
-    PyDescr_NewMethod, PyDictProxy_New, PyDictProxy_Type, PyGetSetDescr_Type,
-    PyMemberDescr_Type, PyMember_GetOne, PyMember_SetOne, PyMethodDescr_Type, PyProperty_Type,
-    PyWrapperDescr_Type, PyWrapper_New,
+    PyDescr_NewMethod, PyDictProxy_New, PyDictProxy_Type, PyGetSetDescr_Type, PyMemberDescr_Type,
+    PyMember_GetOne, PyMember_SetOne, PyMethodDescr_Type, PyProperty_Type, PyWrapperDescr_Type,
+    PyWrapper_New,
 };

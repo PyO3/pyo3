@@ -11,9 +11,8 @@ use crate::err::err_state::lazy_into_normalized_ffi_tuple;
 pub(crate) fn fetch(py: Python<'_>) -> Option<PyErrStateNormalized> {
     #[cfg(Py_3_12)]
     {
-        unsafe { ffi::PyErr_GetRaisedException().assume_owned_or_opt(py) }.map(|pvalue| {
-            PyErrStateNormalized::new(unsafe { pvalue.cast_into_unchecked() })
-        })
+        unsafe { ffi::PyErr_GetRaisedException().assume_owned_or_opt(py) }
+            .map(|pvalue| PyErrStateNormalized::new(unsafe { pvalue.cast_into_unchecked() }))
     }
 
     #[cfg(not(Py_3_12))]

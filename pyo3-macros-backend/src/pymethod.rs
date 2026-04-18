@@ -395,14 +395,7 @@ pub fn impl_py_method_def(
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
     let wrapper_ident = format_ident!("__pymethod_{}__", spec.python_name);
-    impl_py_method_def_with_wrapper(
-        cls,
-        spec,
-        doc,
-        &wrapper_ident,
-        ExtractErrorMode::Raise,
-        ctx,
-    )
+    impl_py_method_def_with_wrapper(cls, spec, doc, &wrapper_ident, ExtractErrorMode::Raise, ctx)
 }
 
 fn impl_py_method_def_with_wrapper(
@@ -482,7 +475,10 @@ fn ensure_slot_callable_method_defaults(spec: &mut FnSpec<'_>) {
         return;
     }
 
-    let defaults = &mut spec.signature.python_signature.default_positional_parameters;
+    let defaults = &mut spec
+        .signature
+        .python_signature
+        .default_positional_parameters;
     if defaults.len() >= trailing_optional_count {
         // Keep per-argument defaults in sync with the already-normalized
         // Python signature defaults below.
@@ -501,9 +497,7 @@ fn ensure_slot_callable_method_defaults(spec: &mut FnSpec<'_>) {
     {
         if let FnArg::Regular(RegularArg { default_value, .. }) = arg {
             if default_value.is_none() {
-                *default_value = Some(Box::new(
-                    syn::parse_quote!(::std::option::Option::None),
-                ));
+                *default_value = Some(Box::new(syn::parse_quote!(::std::option::Option::None)));
             }
         }
     }
@@ -1549,12 +1543,10 @@ impl SlotDef {
         let callable_method = if matches!(
             method_name,
             "__richcmp__" | "__getbuffer__" | "__releasebuffer__"
-        )
-            || matches!(
-                calling_convention,
-                SlotCallingConvention::TpNew | SlotCallingConvention::TpInit
-            )
-        {
+        ) || matches!(
+            calling_convention,
+            SlotCallingConvention::TpNew | SlotCallingConvention::TpInit
+        ) {
             None
         } else {
             Some(impl_slot_callable_method_def(

@@ -2,17 +2,17 @@ use crate::err::{self, PyResult};
 use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound, BoundObject};
+use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
+#[cfg(not(Py_LIMITED_API))]
+use crate::types::PyFrame;
 use crate::types::{
     PyAny, PyCode, PyCodeInput, PyDateTime, PyDict, PyFrozenSet, PyList, PyModule, PyString,
     PyTime, PyTuple, PyType, PyTypeMethods, PyTzInfo,
 };
-#[cfg(not(Py_LIMITED_API))]
-use crate::types::PyFrame;
 use crate::{ffi, IntoPyObject, IntoPyObjectExt, Py, Python};
-use crate::py_result_ext::PyResultExt;
 
 #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
 use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
@@ -322,9 +322,7 @@ pub(crate) fn frozenset_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
 
 #[inline]
 pub(crate) fn dict_len(dict: *mut ffi::PyObject) -> Py_ssize_t {
-    unsafe {
-        ffi::PyDict_Size(dict)
-    }
+    unsafe { ffi::PyDict_Size(dict) }
 }
 
 pub(crate) struct PyFrozenSetBuilderState<'py> {
@@ -432,7 +430,8 @@ pub(crate) unsafe fn borrowed_tuple_item_for_extract<'a, 'py>(
 ) -> PyResult<Borrowed<'a, 'py, PyAny>> {
     #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe {
-        Ok(ffi::PyTuple_GET_ITEM(tuple.as_ptr(), index as Py_ssize_t).assume_borrowed_unchecked(tuple.py()))
+        Ok(ffi::PyTuple_GET_ITEM(tuple.as_ptr(), index as Py_ssize_t)
+            .assume_borrowed_unchecked(tuple.py()))
     }
 
     #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
@@ -446,7 +445,8 @@ pub(crate) unsafe fn borrowed_tuple_item_unchecked<'a, 'py>(
     index: usize,
 ) -> Borrowed<'a, 'py, PyAny> {
     unsafe {
-        ffi::PyTuple_GET_ITEM(tuple.as_ptr(), index as Py_ssize_t).assume_borrowed_unchecked(tuple.py())
+        ffi::PyTuple_GET_ITEM(tuple.as_ptr(), index as Py_ssize_t)
+            .assume_borrowed_unchecked(tuple.py())
     }
 }
 

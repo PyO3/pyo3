@@ -5,7 +5,9 @@ use crate::{ffi, Borrowed, PyResult};
 use std::borrow::Cow;
 use std::str;
 
-pub(crate) fn to_cow<'a>(string: Borrowed<'a, '_, crate::types::PyString>) -> PyResult<Cow<'a, str>> {
+pub(crate) fn to_cow<'a>(
+    string: Borrowed<'a, '_, crate::types::PyString>,
+) -> PyResult<Cow<'a, str>> {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     {
         return string.to_str().map(Cow::Borrowed);
@@ -24,7 +26,9 @@ pub(crate) fn to_cow<'a>(string: Borrowed<'a, '_, crate::types::PyString>) -> Py
     }
 }
 
-pub(crate) fn to_string_lossy<'a>(string: Borrowed<'a, '_, crate::types::PyString>) -> Cow<'a, str> {
+pub(crate) fn to_string_lossy<'a>(
+    string: Borrowed<'a, '_, crate::types::PyString>,
+) -> Cow<'a, str> {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     if let Ok(value) = string.to_str() {
         return Cow::Borrowed(value);

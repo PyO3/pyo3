@@ -185,7 +185,8 @@ pub unsafe fn PyWeakref_GetRef(reference: *mut PyObject, pobj: *mut *mut PyObjec
                 }
             } else {
                 PyErr_SetRaisedException(pyobject_ref_to_ptr(
-                    vm.new_type_error("weakref proxy missing __pyo3_referent__".to_owned()).into(),
+                    vm.new_type_error("weakref proxy missing __pyo3_referent__".to_owned())
+                        .into(),
                 ));
                 -1
             };

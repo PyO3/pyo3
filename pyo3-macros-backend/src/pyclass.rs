@@ -273,7 +273,10 @@ pub fn build_py_class(
     let _class_spec = ClassSpec::new(
         class.ident.clone(),
         get_class_python_name(&class.ident, &args).to_string(),
-        args.options.module.as_ref().map(|module| module.value.value()),
+        args.options
+            .module
+            .as_ref()
+            .map(|module| module.value.value()),
         matches!(methods_type, PyClassMethodsType::Specialization),
     );
 
@@ -589,7 +592,10 @@ pub fn build_py_enum(
     let _class_spec = ClassSpec::new(
         enum_.ident.clone(),
         get_class_python_name(&enum_.ident, &args).to_string(),
-        args.options.module.as_ref().map(|module| module.value.value()),
+        args.options
+            .module
+            .as_ref()
+            .map(|module| module.value.value()),
         matches!(method_type, PyClassMethodsType::Specialization),
     );
 
@@ -2065,13 +2071,8 @@ fn complex_enum_struct_variant_new<'a>(
     };
 
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
-    let mut def = __NEW__.generate_type_slot(
-        &variant_cls_type,
-        &spec,
-        "__default___new____",
-        None,
-        ctx,
-    )?;
+    let mut def =
+        __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", None, ctx)?;
     #[cfg(feature = "experimental-inspect")]
     def.add_introspection(method_introspection_code(
         &spec,
@@ -2135,13 +2136,8 @@ fn complex_enum_tuple_variant_new<'a>(
     };
 
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
-    let mut def = __NEW__.generate_type_slot(
-        &variant_cls_type,
-        &spec,
-        "__default___new____",
-        None,
-        ctx,
-    )?;
+    let mut def =
+        __NEW__.generate_type_slot(&variant_cls_type, &spec, "__default___new____", None, ctx)?;
     #[cfg(feature = "experimental-inspect")]
     def.add_introspection(method_introspection_code(
         &spec,

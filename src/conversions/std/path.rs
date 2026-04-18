@@ -133,8 +133,8 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::backend::BackendKind;
     use super::*;
+    use crate::backend::BackendKind;
     use crate::{
         types::{PyAnyMethods, PyString},
         IntoPyObjectExt,

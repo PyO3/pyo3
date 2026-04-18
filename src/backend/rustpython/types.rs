@@ -2,10 +2,10 @@ use crate::err::{self, PyResult};
 use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound, BoundObject};
+use crate::intern;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
-use crate::intern;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
     PyAny, PyCode, PyCodeInput, PyCodeMethods, PyDateTime, PyDict, PyDictMethods, PyFrame,
@@ -35,11 +35,17 @@ pub(crate) fn any_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
 #[inline]
 pub(crate) fn module_type_object(py: Python<'_>) -> *mut ffi::PyTypeObject {
     static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-    TYPE.import(py, "types", "ModuleType").unwrap().as_type_ptr()
+    TYPE.import(py, "types", "ModuleType")
+        .unwrap()
+        .as_type_ptr()
 }
 
 #[cfg(not(any(PyPy, GraalPy)))]
-fn dict_view_type_object(py: Python<'_>, method: &str, cache: &PyOnceLock<Py<PyType>>) -> *mut ffi::PyTypeObject {
+fn dict_view_type_object(
+    py: Python<'_>,
+    method: &str,
+    cache: &PyOnceLock<Py<PyType>>,
+) -> *mut ffi::PyTypeObject {
     cache
         .get_or_init(py, || {
             let dict = PyDict::new(py);
@@ -146,7 +152,9 @@ pub(crate) fn is_registered_mapping_type(object: &Bound<'_, PyAny>) -> bool {
         .unwrap()
         .iter()
         .copied()
-        .any(|ptr| unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), ptr as *mut ffi::PyTypeObject) != 0 })
+        .any(|ptr| unsafe {
+            ffi::PyObject_TypeCheck(object.as_ptr(), ptr as *mut ffi::PyTypeObject) != 0
+        })
 }
 
 pub(crate) fn register_mapping_type(ty: &Bound<'_, PyType>) -> PyResult<()> {
@@ -169,7 +177,9 @@ pub(crate) fn sequence_is_type_of(object: &Bound<'_, PyAny>) -> bool {
         .unwrap()
         .iter()
         .copied()
-        .any(|ptr| unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), ptr as *mut ffi::PyTypeObject) != 0 });
+        .any(|ptr| unsafe {
+            ffi::PyObject_TypeCheck(object.as_ptr(), ptr as *mut ffi::PyTypeObject) != 0
+        });
     let is_builtin_sequence = PyList::is_type_of(object) || PyTuple::is_type_of(object);
     let is_sequence_protocol = unsafe { ffi::PySequence_Check(object.as_ptr()) != 0 };
     let is_mapping_protocol = unsafe { ffi::PyMapping_Check(object.as_ptr()) != 0 };
@@ -424,7 +434,9 @@ where
     K: IntoPyObject<'py>,
 {
     fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
-        err::error_on_minusone(set.py(), unsafe { ffi::PySet_Add(set.as_ptr(), key.as_ptr()) })
+        err::error_on_minusone(set.py(), unsafe {
+            ffi::PySet_Add(set.as_ptr(), key.as_ptr())
+        })
     }
 
     inner(
@@ -457,7 +469,9 @@ pub(crate) fn try_new_tuple_from_iter<'py>(
             .try_into()
             .expect("out of range integral type conversion attempted on `elements.len()`");
         let list = ffi::PyList_New(len.try_into().expect("tuple too large"));
-        let list = list.assume_owned(py).cast_into_unchecked::<crate::types::PyList>();
+        let list = list
+            .assume_owned(py)
+            .cast_into_unchecked::<crate::types::PyList>();
         let mut counter: Py_ssize_t = 0;
         for (index, obj) in (&mut elements).take(len as usize).enumerate() {
             err::error_on_minusone(
@@ -499,7 +513,9 @@ pub(crate) unsafe fn borrowed_tuple_item_for_extract<'a, 'py>(
     tuple: Borrowed<'a, 'py, PyTuple>,
     index: usize,
 ) -> PyResult<Borrowed<'a, 'py, PyAny>> {
-    unsafe { ffi::PyTuple_GetItem(tuple.as_ptr(), index as Py_ssize_t).assume_borrowed_or_err(tuple.py()) }
+    unsafe {
+        ffi::PyTuple_GetItem(tuple.as_ptr(), index as Py_ssize_t).assume_borrowed_or_err(tuple.py())
+    }
 }
 
 pub(crate) unsafe fn borrowed_tuple_item_unchecked<'a, 'py>(

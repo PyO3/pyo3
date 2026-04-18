@@ -6,10 +6,11 @@ use crate::inspect::{type_hint_subscript, PyStaticExpr};
 use crate::type_object::PyTypeInfo;
 use crate::{
     conversion::{FromPyObjectOwned, IntoPyObject},
+    ffi,
     types::{
         any::PyAnyMethods, frozenset::PyFrozenSetMethods, set::PySetMethods, PyFrozenSet, PySet,
     },
-    ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
 };
 
 impl<'py, K, S> IntoPyObject<'py> for collections::HashSet<K, S>
@@ -71,7 +72,9 @@ where
             }
             Ok(values)
         } else {
-            Err(crate::exceptions::PyTypeError::new_err("expected set or frozenset"))
+            Err(crate::exceptions::PyTypeError::new_err(
+                "expected set or frozenset",
+            ))
         }
     }
 }
@@ -134,7 +137,9 @@ where
             }
             Ok(values)
         } else {
-            Err(crate::exceptions::PyTypeError::new_err("expected set or frozenset"))
+            Err(crate::exceptions::PyTypeError::new_err(
+                "expected set or frozenset",
+            ))
         }
     }
 }
@@ -184,5 +189,4 @@ mod tests {
             assert_eq!(hs, hso.extract().unwrap());
         });
     }
-
 }

@@ -5,7 +5,10 @@ use pyo3::types::{PyDict, PyList, PyTuple, PyTypeMethods};
 
 #[test]
 fn active_backend_defaults_to_cpython_family() {
-    assert_eq!(pyo3::active_backend_kind(), pyo3::backend::BackendKind::Cpython);
+    assert_eq!(
+        pyo3::active_backend_kind(),
+        pyo3::backend::BackendKind::Cpython
+    );
 }
 
 #[test]

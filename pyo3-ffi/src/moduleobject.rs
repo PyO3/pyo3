@@ -105,10 +105,9 @@ pub struct PyModuleDef {
 
 // Runtime module APIs live in the backend dispatcher.
 pub use crate::backend::current::moduleobject::{
-    PyModule_Check, PyModule_CheckExact, PyModule_GetDef, PyModule_GetDict,
-    PyModule_GetFilename, PyModule_GetFilenameObject, PyModule_GetName, PyModule_GetNameObject,
-    PyModule_GetState, PyModule_New, PyModule_NewObject, PyModule_Type, PyModuleDef_Init,
-    PyModuleDef_Type,
+    PyModuleDef_Init, PyModuleDef_Type, PyModule_Check, PyModule_CheckExact, PyModule_GetDef,
+    PyModule_GetDict, PyModule_GetFilename, PyModule_GetFilenameObject, PyModule_GetName,
+    PyModule_GetNameObject, PyModule_GetState, PyModule_New, PyModule_NewObject, PyModule_Type,
 };
 
 #[cfg(Py_3_15)]

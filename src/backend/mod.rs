@@ -21,7 +21,9 @@ mod tests;
 #[cfg(all(feature = "runtime-cpython", feature = "runtime-rustpython"))]
 compile_error!("features `runtime-cpython` and `runtime-rustpython` are mutually exclusive");
 #[cfg(all(feature = "runtime-rustpython", not(PyRustPython)))]
-compile_error!("feature `runtime-rustpython` requires the `PyRustPython` cfg from the build scripts");
+compile_error!(
+    "feature `runtime-rustpython` requires the `PyRustPython` cfg from the build scripts"
+);
 #[cfg(all(feature = "runtime-cpython", PyRustPython))]
 compile_error!("cfg `PyRustPython` is only valid with feature `runtime-rustpython`");
 

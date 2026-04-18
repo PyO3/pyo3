@@ -1,7 +1,7 @@
 use crate::object::*;
 use crate::rustpython_runtime;
-use rustpython_vm::AsObject;
 use rustpython_vm::builtins::PyBool;
+use rustpython_vm::AsObject;
 use std::ffi::{c_int, c_long};
 
 #[inline]
@@ -51,5 +51,9 @@ pub unsafe fn Py_IsFalse(x: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyBool_FromLong(arg1: c_long) -> *mut PyObject {
-    if arg1 == 0 { Py_False() } else { Py_True() }
+    if arg1 == 0 {
+        Py_False()
+    } else {
+        Py_True()
+    }
 }

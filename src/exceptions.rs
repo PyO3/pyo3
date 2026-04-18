@@ -956,14 +956,12 @@ pub mod asyncio {
         test_exception_embedded_import_bug!(CancelledError);
         test_exception_embedded_import_bug!(InvalidStateError);
         test_exception_embedded_import_bug!(TimeoutError);
-        test_exception_embedded_import_bug!(
-            IncompleteReadError,
-            |_| IncompleteReadError::new_err(("partial", "expected"))
-        );
-        test_exception_embedded_import_bug!(
-            LimitOverrunError,
-            |_| LimitOverrunError::new_err(("message", "consumed"))
-        );
+        test_exception_embedded_import_bug!(IncompleteReadError, |_| IncompleteReadError::new_err(
+            ("partial", "expected")
+        ));
+        test_exception_embedded_import_bug!(LimitOverrunError, |_| LimitOverrunError::new_err((
+            "message", "consumed"
+        )));
         test_exception_embedded_import_bug!(QueueEmpty);
         test_exception_embedded_import_bug!(QueueFull);
     }

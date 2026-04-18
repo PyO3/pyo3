@@ -70,18 +70,17 @@ pub(crate) fn object_init_slot_type() -> c_int {
 
 pub(crate) fn thread_checker_matches_runtime_or_owner(owner: thread::ThreadId) -> bool {
     let current = thread::current().id();
-    current == owner
-        || {
-            #[cfg(PyRustPython)]
-            {
-                crate::ffi::rustpython_runtime_thread_id()
-                    .is_some_and(|runtime_thread| runtime_thread == current)
-            }
-            #[cfg(not(PyRustPython))]
-            {
-                false
-            }
+    current == owner || {
+        #[cfg(PyRustPython)]
+        {
+            crate::ffi::rustpython_runtime_thread_id()
+                .is_some_and(|runtime_thread| runtime_thread == current)
         }
+        #[cfg(not(PyRustPython))]
+        {
+            false
+        }
+    }
 }
 
 unsafe extern "C" fn rustpython_noop_init(

@@ -595,9 +595,9 @@ crate::backend::backend_rustpython_item! {
 }
 
 // Additional headers that are not exported by Python.h
+pub mod backend;
 #[deprecated(note = "Python 3.12")]
 pub mod structmember;
-pub mod backend;
 
 // "Limited API" definitions matching Python's `include/cpython` directory.
 crate::backend::backend_cpython_exports!();

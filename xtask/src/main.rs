@@ -33,20 +33,32 @@ fn load_allowlist(root: &Path) -> HashSet<String> {
 fn is_frontend_path(rel: &Path) -> bool {
     rel.extension().is_some_and(|ext| ext == "rs")
         && rel.file_name().and_then(|name| name.to_str()) != Some("tests.rs")
-        && !rel.components().any(|c| c == Component::Normal("backend".as_ref()))
-        && !rel.components().any(|c| c == Component::Normal("tests".as_ref()))
+        && !rel
+            .components()
+            .any(|c| c == Component::Normal("backend".as_ref()))
+        && !rel
+            .components()
+            .any(|c| c == Component::Normal("tests".as_ref()))
 }
 
 fn main() -> anyhow::Result<()> {
     let cmd = env::args().nth(1).unwrap_or_default();
-    anyhow::ensure!(cmd == "check-backend-boundary", "expected `check-backend-boundary`");
+    anyhow::ensure!(
+        cmd == "check-backend-boundary",
+        "expected `check-backend-boundary`"
+    );
 
     let root = repo_root();
     let allowlist = load_allowlist(&root);
     let mut violations = Vec::new();
 
     for frontend_root in frontend_roots() {
-        visit(&root, &root.join(frontend_root), &allowlist, &mut violations)?;
+        visit(
+            &root,
+            &root.join(frontend_root),
+            &allowlist,
+            &mut violations,
+        )?;
     }
     if !violations.is_empty() {
         for violation in &violations {

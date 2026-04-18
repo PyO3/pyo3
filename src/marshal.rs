@@ -2,8 +2,8 @@
 
 //! Support for the Python `marshal` format.
 
-use crate::types::{PyAny, PyBytes};
 use crate::types::PyAnyMethods;
+use crate::types::{PyAny, PyBytes};
 use crate::Bound;
 use crate::{PyResult, Python};
 

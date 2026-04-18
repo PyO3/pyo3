@@ -1,7 +1,7 @@
 use crate::object::*;
 use crate::rustpython_runtime;
-use rustpython_vm::AsObject;
 use rustpython_vm::builtins::PyComplex;
+use rustpython_vm::AsObject;
 use std::ffi::{c_double, c_int};
 
 pub static mut PyComplex_Type: PyTypeObject = PyTypeObject { _opaque: [] };
@@ -42,13 +42,7 @@ pub unsafe fn PyComplex_CheckExact(op: *mut PyObject) -> c_int {
 #[inline]
 pub unsafe fn PyComplex_FromDoubles(real: c_double, imag: c_double) -> *mut PyObject {
     rustpython_runtime::with_vm(|vm| {
-        match vm
-            .ctx
-            .types
-            .complex_type
-            .as_object()
-            .call((real, imag), vm)
-        {
+        match vm.ctx.types.complex_type.as_object().call((real, imag), vm) {
             Ok(complex) => pyobject_ref_to_ptr(complex),
             Err(_) => std::ptr::null_mut(),
         }

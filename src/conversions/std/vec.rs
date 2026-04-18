@@ -1,5 +1,7 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
+use crate::types::PySequence;
+use crate::types::{PyStringMethods, PyTypeMethods};
 use crate::{
     conversion::{FromPyObject, FromPyObjectOwned, FromPyObjectSequence, IntoPyObject},
     exceptions::PyTypeError,
@@ -8,10 +10,8 @@ use crate::{
     types::{PyAnyMethods, PyString},
     Borrowed, PyResult,
 };
-use crate::{CastError, PyTypeInfo};
-use crate::types::PySequence;
-use crate::types::{PyStringMethods, PyTypeMethods};
 use crate::{Bound, PyAny, PyErr, Python};
+use crate::{CastError, PyTypeInfo};
 
 impl<'py, T> IntoPyObject<'py> for Vec<T>
 where

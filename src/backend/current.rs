@@ -1,43 +1,43 @@
 pub mod runtime {
-    #[cfg(PyRustPython)]
-    pub(crate) use crate::backend::rustpython::runtime::*;
     #[cfg(not(PyRustPython))]
     pub(crate) use crate::backend::cpython::runtime::*;
+    #[cfg(PyRustPython)]
+    pub(crate) use crate::backend::rustpython::runtime::*;
 }
 
 pub mod err_state {
-    #[cfg(PyRustPython)]
-    pub(crate) use crate::backend::rustpython::err_state::*;
     #[cfg(not(PyRustPython))]
     pub(crate) use crate::backend::cpython::err_state::*;
+    #[cfg(PyRustPython)]
+    pub(crate) use crate::backend::rustpython::err_state::*;
 }
 
 pub mod pyclass {
-    #[cfg(PyRustPython)]
-    pub(crate) use crate::backend::rustpython::pyclass::*;
     #[cfg(not(PyRustPython))]
     pub(crate) use crate::backend::cpython::pyclass::*;
+    #[cfg(PyRustPython)]
+    pub(crate) use crate::backend::rustpython::pyclass::*;
 }
 
 pub mod sync {
-    #[cfg(PyRustPython)]
-    pub(crate) use crate::backend::rustpython::sync::*;
     #[cfg(not(PyRustPython))]
     pub(crate) use crate::backend::cpython::sync::*;
+    #[cfg(PyRustPython)]
+    pub(crate) use crate::backend::rustpython::sync::*;
 }
 
 pub mod string {
-    #[cfg(PyRustPython)]
-    pub(crate) use crate::backend::rustpython::string::*;
     #[cfg(not(PyRustPython))]
     pub(crate) use crate::backend::cpython::string::*;
+    #[cfg(PyRustPython)]
+    pub(crate) use crate::backend::rustpython::string::*;
 }
 
 pub mod types {
-    #[cfg(PyRustPython)]
-    pub(crate) use crate::backend::rustpython::types::*;
     #[cfg(not(PyRustPython))]
     pub(crate) use crate::backend::cpython::types::*;
+    #[cfg(PyRustPython)]
+    pub(crate) use crate::backend::rustpython::types::*;
 }
 
 macro_rules! dict_subclassable_native_type {

@@ -27,11 +27,7 @@ pub unsafe fn PyErr_WarnEx(
         vm.call_method(
             &warnings,
             "warn",
-            (
-                vm.ctx.new_str(message),
-                category,
-                stack_level.max(0) as i32,
-            ),
+            (vm.ctx.new_str(message), category, stack_level.max(0) as i32),
         )
         .map(|_| 0)
         .unwrap_or_else(|exc| {

@@ -13,6 +13,6 @@ pub struct PySliceObject {
 }
 
 pub use crate::backend::current::sliceobject::{
-    PyEllipsis_Type, PySlice_AdjustIndices, PySlice_Check, PySlice_GetIndices, PySlice_GetIndicesEx,
-    PySlice_New, PySlice_Type, PySlice_Unpack, Py_Ellipsis,
+    PyEllipsis_Type, PySlice_AdjustIndices, PySlice_Check, PySlice_GetIndices,
+    PySlice_GetIndicesEx, PySlice_New, PySlice_Type, PySlice_Unpack, Py_Ellipsis,
 };

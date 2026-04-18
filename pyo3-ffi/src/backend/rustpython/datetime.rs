@@ -15,12 +15,21 @@ fn import_datetime(
     let _ = vm.import("_operator", 0);
     let datetime = vm.import("datetime", 0)?;
     if datetime.get_attr("datetime_CAPI", vm).is_err() {
-        let required_attrs = ["date", "datetime", "time", "timedelta", "tzinfo", "timezone"];
+        let required_attrs = [
+            "date",
+            "datetime",
+            "time",
+            "timedelta",
+            "tzinfo",
+            "timezone",
+        ];
         let has_runtime_surface = required_attrs
             .iter()
             .all(|name| datetime.get_attr(*name, vm).is_ok());
         if !has_runtime_surface {
-            return Err(vm.new_attribute_error("module 'datetime' has no attribute 'datetime_CAPI'"));
+            return Err(
+                vm.new_attribute_error("module 'datetime' has no attribute 'datetime_CAPI'")
+            );
         }
     }
     Ok(datetime)
@@ -140,11 +149,13 @@ fn call_datetime_type(
         return std::ptr::null_mut();
     }
     let cls_obj = unsafe { ptr_to_pyobject_ref_borrowed(cls.cast()) };
-    rustpython_runtime::with_vm(|vm| match cls_obj.call_with_args(FuncArgs::new(positional, kwargs), vm) {
-        Ok(obj) => pyobject_ref_to_ptr(obj),
-        Err(exc) => {
-            set_vm_exception(exc);
-            std::ptr::null_mut()
+    rustpython_runtime::with_vm(|vm| {
+        match cls_obj.call_with_args(FuncArgs::new(positional, kwargs), vm) {
+            Ok(obj) => pyobject_ref_to_ptr(obj),
+            Err(exc) => {
+                set_vm_exception(exc);
+                std::ptr::null_mut()
+            }
         }
     })
 }
@@ -352,7 +363,9 @@ unsafe extern "C" fn datetime_from_timestamp(
                     {
                         Ok(tuple) => tuple.as_slice().to_vec(),
                         Err(_) => {
-                            set_vm_exception(vm.new_type_error("expected tuple args for datetime.fromtimestamp"));
+                            set_vm_exception(
+                                vm.new_type_error("expected tuple args for datetime.fromtimestamp"),
+                            );
                             return std::ptr::null_mut();
                         }
                     }
@@ -372,7 +385,11 @@ unsafe extern "C" fn datetime_from_timestamp(
                             })
                             .collect(),
                         Err(_) => {
-                            set_vm_exception(vm.new_type_error("expected dict kwargs for datetime.fromtimestamp"));
+                            set_vm_exception(
+                                vm.new_type_error(
+                                    "expected dict kwargs for datetime.fromtimestamp",
+                                ),
+                            );
                             return std::ptr::null_mut();
                         }
                     }
@@ -410,7 +427,9 @@ unsafe extern "C" fn date_from_timestamp(
             {
                 Ok(tuple) => tuple.as_slice().to_vec(),
                 Err(_) => {
-                    set_vm_exception(vm.new_type_error("expected tuple args for date.fromtimestamp"));
+                    set_vm_exception(
+                        vm.new_type_error("expected tuple args for date.fromtimestamp"),
+                    );
                     return std::ptr::null_mut();
                 }
             }
@@ -434,12 +453,14 @@ pub unsafe fn import_datetime_api() -> *mut PyDateTime_CAPI {
                 return std::ptr::null_mut();
             }
         };
-        let load_type =
-            |name: &'static str| -> Result<*mut PyTypeObject, rustpython_vm::builtins::PyBaseExceptionRef> {
-                datetime
-                    .get_attr(name, vm)
-                    .map(|obj| pyobject_ref_as_ptr(&obj).cast::<PyTypeObject>())
-            };
+        let load_type = |name: &'static str| -> Result<
+            *mut PyTypeObject,
+            rustpython_vm::builtins::PyBaseExceptionRef,
+        > {
+            datetime
+                .get_attr(name, vm)
+                .map(|obj| pyobject_ref_as_ptr(&obj).cast::<PyTypeObject>())
+        };
 
         let date_type = match load_type("date") {
             Ok(value) => value,

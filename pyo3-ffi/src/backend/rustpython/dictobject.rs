@@ -2,10 +2,10 @@ use crate::object::*;
 use crate::pyerrors::{clear_vm_exception, set_vm_exception};
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
-use rustpython_vm::protocol::PyIterReturn;
 use rustpython_vm::builtins::PyDict;
-use rustpython_vm::{AsObject, PyPayload};
+use rustpython_vm::protocol::PyIterReturn;
 use rustpython_vm::PyObjectRef;
+use rustpython_vm::{AsObject, PyPayload};
 use std::ffi::{c_char, c_int, CStr};
 
 pub static mut PyDict_Type: PyTypeObject = PyTypeObject { _opaque: [] };
@@ -49,7 +49,11 @@ unsafe fn as_dict_exact(obj: *mut PyObject) -> Option<rustpython_vm::PyRef<PyDic
 
 #[inline]
 fn cstr_key(ptr: *const c_char) -> Option<String> {
-    (!ptr.is_null()).then(|| unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned())
+    (!ptr.is_null()).then(|| {
+        unsafe { CStr::from_ptr(ptr) }
+            .to_string_lossy()
+            .into_owned()
+    })
 }
 
 #[inline]
@@ -396,7 +400,10 @@ pub unsafe fn PyDictKeys_Check(op: *mut PyObject) -> c_int {
         return 0;
     };
     rustpython_runtime::with_vm(|vm| {
-        let Ok(keys_type) = vm.import("builtins", 0).and_then(|m| m.get_attr("dict_keys", vm)) else {
+        let Ok(keys_type) = vm
+            .import("builtins", 0)
+            .and_then(|m| m.get_attr("dict_keys", vm))
+        else {
             return 0;
         };
         obj.is_instance(&keys_type, vm).unwrap_or(false).into()
@@ -409,7 +416,10 @@ pub unsafe fn PyDictValues_Check(op: *mut PyObject) -> c_int {
         return 0;
     };
     rustpython_runtime::with_vm(|vm| {
-        let Ok(values_type) = vm.import("builtins", 0).and_then(|m| m.get_attr("dict_values", vm)) else {
+        let Ok(values_type) = vm
+            .import("builtins", 0)
+            .and_then(|m| m.get_attr("dict_values", vm))
+        else {
             return 0;
         };
         obj.is_instance(&values_type, vm).unwrap_or(false).into()
@@ -422,7 +432,10 @@ pub unsafe fn PyDictItems_Check(op: *mut PyObject) -> c_int {
         return 0;
     };
     rustpython_runtime::with_vm(|vm| {
-        let Ok(items_type) = vm.import("builtins", 0).and_then(|m| m.get_attr("dict_items", vm)) else {
+        let Ok(items_type) = vm
+            .import("builtins", 0)
+            .and_then(|m| m.get_attr("dict_items", vm))
+        else {
             return 0;
         };
         obj.is_instance(&items_type, vm).unwrap_or(false).into()

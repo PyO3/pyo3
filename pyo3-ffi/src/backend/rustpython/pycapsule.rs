@@ -51,7 +51,9 @@ impl PyCapsulePayload {
             (None, true) => true,
             (Some(_), true) => false,
             (None, false) => false,
-            (Some(stored), false) => unsafe { CStr::from_ptr(requested).to_bytes() == stored.as_bytes() },
+            (Some(stored), false) => unsafe {
+                CStr::from_ptr(requested).to_bytes() == stored.as_bytes()
+            },
         }
     }
 }
@@ -71,7 +73,10 @@ impl Drop for PyCapsulePayload {
                 .unwrap()
                 .insert(self_ptr as usize, state);
             unsafe { destructor(self_ptr.cast()) };
-            destructing_capsules().lock().unwrap().remove(&(self_ptr as usize));
+            destructing_capsules()
+                .lock()
+                .unwrap()
+                .remove(&(self_ptr as usize));
         }
     }
 }
@@ -87,7 +92,9 @@ impl PyPayload for PyCapsulePayload {
 }
 
 fn capsule_payload(capsule: &PyObjectRef) -> Option<&PyCapsulePayload> {
-    capsule.downcast_ref::<PyCapsulePayload>().map(|payload| &**payload)
+    capsule
+        .downcast_ref::<PyCapsulePayload>()
+        .map(|payload| &**payload)
 }
 
 fn destructing_capsules() -> &'static Mutex<HashMap<usize, DestructingCapsuleState>> {
@@ -147,15 +154,17 @@ pub unsafe fn PyCapsule_GetPointer(capsule: *mut PyObject, name: *const c_char) 
             (None, true) => true,
             (Some(_), true) => false,
             (None, false) => false,
-            (Some(stored), false) => unsafe { CStr::from_ptr(name).to_bytes() == stored.as_bytes() },
+            (Some(stored), false) => unsafe {
+                CStr::from_ptr(name).to_bytes() == stored.as_bytes()
+            },
         };
         return if name_matches {
             state.pointer
         } else {
             rustpython_runtime::with_vm(|vm| {
-                set_vm_exception(vm.new_value_error(
-                    "PyCapsule_GetPointer called with incorrect name",
-                ));
+                set_vm_exception(
+                    vm.new_value_error("PyCapsule_GetPointer called with incorrect name"),
+                );
             });
             std::ptr::null_mut()
         };
@@ -169,16 +178,16 @@ pub unsafe fn PyCapsule_GetPointer(capsule: *mut PyObject, name: *const c_char) 
     };
     if !payload.name_matches(name) {
         rustpython_runtime::with_vm(|vm| {
-            set_vm_exception(vm.new_value_error(
-                "PyCapsule_GetPointer called with incorrect name",
-            ));
+            set_vm_exception(vm.new_value_error("PyCapsule_GetPointer called with incorrect name"));
         });
         return std::ptr::null_mut();
     }
     let pointer = payload.pointer.load(Ordering::Relaxed);
     if pointer.is_null() {
         rustpython_runtime::with_vm(|vm| {
-            set_vm_exception(vm.new_value_error("PyCapsule_GetPointer called with invalid PyCapsule"));
+            set_vm_exception(
+                vm.new_value_error("PyCapsule_GetPointer called with invalid PyCapsule"),
+            );
         });
     }
     pointer
@@ -207,7 +216,14 @@ pub unsafe fn PyCapsule_GetName(capsule: *mut PyObject) -> *const c_char {
     }
     let obj = ptr_to_pyobject_ref_borrowed(capsule);
     capsule_payload(&obj)
-        .and_then(|payload| payload.name.lock().unwrap().as_ref().map(|name| name.as_ptr()))
+        .and_then(|payload| {
+            payload
+                .name
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|name| name.as_ptr())
+        })
         .unwrap_or(std::ptr::null())
 }
 
@@ -225,7 +241,9 @@ pub unsafe fn PyCapsule_GetContext(capsule: *mut PyObject) -> *mut c_void {
     };
     if payload.pointer.load(Ordering::Relaxed).is_null() {
         rustpython_runtime::with_vm(|vm| {
-            set_vm_exception(vm.new_value_error("PyCapsule_GetContext called with invalid PyCapsule"));
+            set_vm_exception(
+                vm.new_value_error("PyCapsule_GetContext called with invalid PyCapsule"),
+            );
         });
         return std::ptr::null_mut();
     }
@@ -320,7 +338,9 @@ pub unsafe fn PyCapsule_Import(name: *const c_char, _no_block: c_int) -> *mut c_
     };
     let Some((module_name, attr_name)) = path.rsplit_once('.') else {
         rustpython_runtime::with_vm(|vm| {
-            set_vm_exception(vm.new_value_error("PyCapsule_Import name must include module and attribute"));
+            set_vm_exception(
+                vm.new_value_error("PyCapsule_Import name must include module and attribute"),
+            );
         });
         return std::ptr::null_mut();
     };

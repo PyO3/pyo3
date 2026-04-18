@@ -1,5 +1,5 @@
-use crate::byteswriter::PyBytesWriter;
 use crate::backend::current;
+use crate::byteswriter::PyBytesWriter;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::{ffi, Py, PyAny, PyResult, Python};

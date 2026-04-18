@@ -1,6 +1,6 @@
 use crate::object::{
-    ptr_to_pyobject_ref_borrowed, pyobject_ref_as_ptr, pyobject_ref_to_ptr, PyObject,
-    PyTypeObject, PyVarObject, Py_SIZE,
+    ptr_to_pyobject_ref_borrowed, pyobject_ref_as_ptr, pyobject_ref_to_ptr, PyObject, PyTypeObject,
+    PyVarObject, Py_SIZE,
 };
 use crate::pyerrors::{PyErr_SetString, PyExc_IndexError, PyExc_TypeError};
 use crate::pyport::Py_ssize_t;
@@ -49,7 +49,10 @@ pub unsafe fn PyTuple_Check(op: *mut PyObject) -> c_int {
         return 0;
     }
     let obj = ptr_to_pyobject_ref_borrowed(op);
-    rustpython_runtime::with_vm(|vm| obj.class().fast_issubclass(vm.ctx.types.tuple_type.as_object()) as c_int)
+    rustpython_runtime::with_vm(|vm| {
+        obj.class()
+            .fast_issubclass(vm.ctx.types.tuple_type.as_object()) as c_int
+    })
 }
 
 #[inline]
@@ -105,7 +108,11 @@ pub unsafe fn PyTuple_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyO
 }
 
 #[inline]
-pub unsafe fn PyTuple_SetItem(arg1: *mut PyObject, _arg2: Py_ssize_t, _arg3: *mut PyObject) -> c_int {
+pub unsafe fn PyTuple_SetItem(
+    arg1: *mut PyObject,
+    _arg2: Py_ssize_t,
+    _arg3: *mut PyObject,
+) -> c_int {
     PyErr_SetString(
         PyExc_TypeError,
         c"PyTuple_SetItem is not supported on RustPython tuple objects; callers must use backend-safe tuple construction".as_ptr(),
@@ -131,7 +138,11 @@ pub unsafe fn PyTuple_GetSlice(
     let low = arg2.clamp(0, len) as usize;
     let high = arg3.clamp(low as Py_ssize_t, len) as usize;
     rustpython_runtime::with_vm(|vm| {
-        pyobject_ref_to_ptr(vm.ctx.new_tuple(inner.as_slice()[low..high].to_vec()).into())
+        pyobject_ref_to_ptr(
+            vm.ctx
+                .new_tuple(inner.as_slice()[low..high].to_vec())
+                .into(),
+        )
     })
 }
 

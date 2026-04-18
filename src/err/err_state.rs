@@ -175,14 +175,12 @@ impl PyErrStateNormalized {
         pvalue: *mut ffi::PyObject,
         ptraceback: *mut ffi::PyObject,
     ) -> Self {
-        drop(
-            unsafe {
-                ptype
-                    .assume_owned_or_opt(py)
-                    .expect("Exception type missing")
-                    .cast_into_unchecked::<PyType>()
-            },
-        );
+        drop(unsafe {
+            ptype
+                .assume_owned_or_opt(py)
+                .expect("Exception type missing")
+                .cast_into_unchecked::<PyType>()
+        });
         let normalized = Self {
             pvalue: unsafe {
                 pvalue
@@ -194,7 +192,8 @@ impl PyErrStateNormalized {
         };
         normalized.set_ptraceback(
             py,
-            unsafe { ptraceback.assume_owned_or_opt(py) }.map(|b| unsafe { b.cast_into_unchecked() }),
+            unsafe { ptraceback.assume_owned_or_opt(py) }
+                .map(|b| unsafe { b.cast_into_unchecked() }),
         );
         normalized
     }

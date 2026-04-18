@@ -11,7 +11,7 @@ use crate::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
             tp_dealloc_with_gc, PyClassImpl, PyClassItemsIter, PyObjectOffset,
         },
-        pymethods::{_call_clear, Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter},
+        pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
     },
     pycell::impl_::PyClassObjectLayout,
@@ -64,7 +64,11 @@ where
                 method_defs: Vec::new(),
                 member_defs: Vec::new(),
                 getset_builders: HashMap::new(),
-                #[cfg(all(not(Py_LIMITED_API), not(Py_3_10), not(feature = "runtime-rustpython")))]
+                #[cfg(all(
+                    not(Py_LIMITED_API),
+                    not(Py_3_10),
+                    not(feature = "runtime-rustpython")
+                ))]
                 cleanup: Vec::new(),
                 tp_base: base,
                 tp_dealloc: dealloc,
@@ -399,13 +403,12 @@ impl PyTypeBuilder {
                 // heap-types, and it removed the text_signature value from it.
                 // We go in after the fact and replace tp_doc with something
                 // that _does_ include the text_signature value!
-                self.cleanup
-                    .push(Box::new(move |type_object| unsafe {
-                        ffi::PyObject_Free((*type_object).tp_doc as _);
-                        let data = ffi::PyMem_Malloc(slice.len());
-                        data.copy_from(slice.as_ptr() as _, slice.len());
-                        (*type_object).tp_doc = data as _;
-                    }))
+                self.cleanup.push(Box::new(move |type_object| unsafe {
+                    ffi::PyObject_Free((*type_object).tp_doc as _);
+                    let data = ffi::PyMem_Malloc(slice.len());
+                    data.copy_from(slice.as_ptr() as _, slice.len());
+                    (*type_object).tp_doc = data as _;
+                }))
             }
         }
         self
@@ -455,25 +458,23 @@ impl PyTypeBuilder {
         #[cfg(all(not(Py_3_9), not(Py_LIMITED_API), not(feature = "runtime-rustpython")))]
         if crate::backend::current::pyclass::use_pre_39_type_object_fixup() {
             let buffer_procs = self.buffer_procs;
-            self.cleanup
-                .push(Box::new(move |type_object| unsafe {
-                    (*(*type_object).tp_as_buffer).bf_getbuffer = buffer_procs.bf_getbuffer;
-                    (*(*type_object).tp_as_buffer).bf_releasebuffer =
-                        buffer_procs.bf_releasebuffer;
+            self.cleanup.push(Box::new(move |type_object| unsafe {
+                (*(*type_object).tp_as_buffer).bf_getbuffer = buffer_procs.bf_getbuffer;
+                (*(*type_object).tp_as_buffer).bf_releasebuffer = buffer_procs.bf_releasebuffer;
 
-                    match dict_offset {
-                        Some(PyObjectOffset::Absolute(offset)) => {
-                            (*type_object).tp_dictoffset = offset;
-                        }
-                        None => {}
+                match dict_offset {
+                    Some(PyObjectOffset::Absolute(offset)) => {
+                        (*type_object).tp_dictoffset = offset;
                     }
-                    match weaklist_offset {
-                        Some(PyObjectOffset::Absolute(offset)) => {
-                            (*type_object).tp_weaklistoffset = offset;
-                        }
-                        None => {}
+                    None => {}
+                }
+                match weaklist_offset {
+                    Some(PyObjectOffset::Absolute(offset)) => {
+                        (*type_object).tp_weaklistoffset = offset;
                     }
-                }));
+                    None => {}
+                }
+            }));
         }
         self
     }
@@ -512,7 +513,10 @@ impl PyTypeBuilder {
             self.tp_base,
         ) {
             unsafe {
-                self.push_slot(crate::backend::current::pyclass::object_init_slot_type(), init_slot)
+                self.push_slot(
+                    crate::backend::current::pyclass::object_init_slot_type(),
+                    init_slot,
+                )
             }
         }
 

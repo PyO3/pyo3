@@ -1,6 +1,8 @@
 use crate::types::PyIterator;
-use crate::{err::PyErr, ffi, ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, Bound, PyAny, Python};
 use crate::PyResult;
+use crate::{
+    err::PyErr, ffi, ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, Bound, PyAny, Python,
+};
 use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt};
 use std::ptr;
 

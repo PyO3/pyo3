@@ -11,33 +11,37 @@ pub mod complexobject;
 #[cfg(PyRustPython)]
 pub mod critical_section;
 #[cfg(PyRustPython)]
-pub mod lock;
+#[cfg(not(Py_LIMITED_API))]
+pub mod datetime;
+#[cfg(PyRustPython)]
+pub mod descrobject;
+#[cfg(PyRustPython)]
+pub mod dictobject;
 #[cfg(PyRustPython)]
 pub mod floatobject;
 #[cfg(PyRustPython)]
+pub mod listobject;
+#[cfg(PyRustPython)]
+pub mod lock;
+#[cfg(PyRustPython)]
 pub mod longobject;
 #[cfg(PyRustPython)]
-pub mod pycapsule;
+pub mod moduleobject;
+#[cfg(PyRustPython)]
+pub mod object;
 #[cfg(PyRustPython)]
 #[cfg(any(Py_3_11, PyRustPython))]
 pub mod pybuffer;
+#[cfg(PyRustPython)]
+pub mod pycapsule;
+#[cfg(PyRustPython)]
+pub mod pyerrors;
 #[cfg(PyRustPython)]
 pub mod pymem;
 #[cfg(PyRustPython)]
 pub mod refcount;
 #[cfg(PyRustPython)]
-pub mod moduleobject;
-#[cfg(PyRustPython)]
-pub mod dictobject;
-#[cfg(PyRustPython)]
-pub mod descrobject;
-#[cfg(PyRustPython)]
-#[cfg(not(Py_LIMITED_API))]
-pub mod datetime;
-#[cfg(PyRustPython)]
-pub mod listobject;
-#[cfg(PyRustPython)]
-pub mod pyerrors;
+pub mod runtime;
 #[cfg(PyRustPython)]
 pub mod setobject;
 #[cfg(PyRustPython)]
@@ -50,7 +54,3 @@ pub mod unicodeobject;
 pub mod warnings;
 #[cfg(PyRustPython)]
 pub mod weakrefobject;
-#[cfg(PyRustPython)]
-pub mod object;
-#[cfg(PyRustPython)]
-pub mod runtime;

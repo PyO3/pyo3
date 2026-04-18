@@ -1,10 +1,10 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
+use rustpython_vm::builtins::PySlice;
 use rustpython_vm::AsObject;
 use rustpython_vm::PyPayload;
 use rustpython_vm::TryFromBorrowedObject;
-use rustpython_vm::builtins::PySlice;
 use std::ffi::c_int;
 
 pub static mut PySlice_Type: PyTypeObject = PyTypeObject { _opaque: [] };
@@ -121,7 +121,11 @@ pub unsafe fn PySlice_Unpack(
         let start_value = match isize::try_from_borrowed_object(vm, start_obj) {
             Ok(v) => v,
             Err(_) if vm.is_none(start_obj) => {
-                if step_value < 0 { isize::MAX } else { 0 }
+                if step_value < 0 {
+                    isize::MAX
+                } else {
+                    0
+                }
             }
             Err(_) => return -1,
         };
@@ -129,7 +133,11 @@ pub unsafe fn PySlice_Unpack(
         let stop_value = match isize::try_from_borrowed_object(vm, stop_obj) {
             Ok(v) => v,
             Err(_) if vm.is_none(stop_obj) => {
-                if step_value < 0 { isize::MIN } else { isize::MAX }
+                if step_value < 0 {
+                    isize::MIN
+                } else {
+                    isize::MAX
+                }
             }
             Err(_) => return -1,
         };

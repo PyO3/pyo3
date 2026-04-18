@@ -409,10 +409,10 @@ pub mod impl_;
 mod internal_tricks;
 mod internal;
 
-pub mod buffer;
 #[allow(missing_docs)]
 /// Backend contracts and implementations used to realize PyO3 semantics.
 pub mod backend;
+pub mod buffer;
 
 #[cfg(feature = "runtime-rustpython")]
 pub use crate::backend::rustpython::RustPythonBackend;

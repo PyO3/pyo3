@@ -208,7 +208,9 @@ pub unsafe fn PyErr_CheckSignals() -> c_int {
 
 fn set_current_exception(exc: Option<PyBaseExceptionRef>) {
     let new_ptr = exc.map(|exc| pyobject_ref_to_ptr(exc.into()) as usize);
-    let mut slot = current_exception_slot().lock().expect("RustPython exception slot poisoned");
+    let mut slot = current_exception_slot()
+        .lock()
+        .expect("RustPython exception slot poisoned");
     let old_ptr = std::mem::replace(&mut *slot, new_ptr);
     drop(slot);
     if let Some(old_ptr) = old_ptr {
@@ -297,7 +299,9 @@ fn cstr_to_string(ptr: *const c_char) -> String {
     if ptr.is_null() {
         String::new()
     } else {
-        unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned()
+        unsafe { CStr::from_ptr(ptr) }
+            .to_string_lossy()
+            .into_owned()
     }
 }
 
@@ -422,12 +426,9 @@ pub unsafe fn PyErr_GivenExceptionMatches(arg1: *mut PyObject, arg2: *mut PyObje
         let expected = ptr_to_pyobject_ref_borrowed(arg2);
 
         if let Ok(tuple) = expected.clone().downcast::<PyTuple>() {
-            return tuple
-                .as_slice()
-                .iter()
-                .any(|candidate| unsafe {
-                    PyErr_GivenExceptionMatches(arg1, pyobject_ref_as_ptr(candidate)) != 0
-                }) as c_int;
+            return tuple.as_slice().iter().any(|candidate| unsafe {
+                PyErr_GivenExceptionMatches(arg1, pyobject_ref_as_ptr(candidate)) != 0
+            }) as c_int;
         }
 
         let given_type = if let Ok(exc) = given.clone().downcast::<PyBaseException>() {
@@ -527,7 +528,9 @@ pub unsafe fn PyException_SetTraceback(arg1: *mut PyObject, arg2: *mut PyObject)
         } else {
             ptr_to_pyobject_ref_borrowed(arg2)
         };
-        exc.set_attr("__traceback__", value, vm).map(|_| 0).unwrap_or(-1)
+        exc.set_attr("__traceback__", value, vm)
+            .map(|_| 0)
+            .unwrap_or(-1)
     })
 }
 

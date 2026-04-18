@@ -23,7 +23,10 @@ fn backend_runtime_attach_roundtrip() {
     Python::attach(|py| {
         let err = pyo3::exceptions::PyRuntimeError::new_err("reinitialized");
         err.restore(py);
-        assert_eq!(pyo3::PyErr::fetch(py).to_string(), "RuntimeError: reinitialized");
+        assert_eq!(
+            pyo3::PyErr::fetch(py).to_string(),
+            "RuntimeError: reinitialized"
+        );
     });
 }
 
@@ -54,7 +57,9 @@ fn main_thread_can_import_re() {
 fn main_thread_warnings_filterwarnings_works() {
     Python::attach(|py| {
         let warnings = py.import("warnings").expect("import warnings");
-        warnings.call_method0("resetwarnings").expect("resetwarnings");
+        warnings
+            .call_method0("resetwarnings")
+            .expect("resetwarnings");
         let cls = py.get_type::<pyo3::exceptions::PyUserWarning>();
         warnings
             .call_method1("filterwarnings", ("error", "", &cls, "pyo3test"))

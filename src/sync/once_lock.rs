@@ -1,6 +1,4 @@
-use crate::{
-    types::any::PyAnyMethods, Bound, Py, PyResult, PyTypeCheck, Python,
-};
+use crate::{types::any::PyAnyMethods, Bound, Py, PyResult, PyTypeCheck, Python};
 
 /// An equivalent to [`std::sync::OnceLock`] for initializing objects while attached to
 /// the Python interpreter.
@@ -74,12 +72,10 @@ impl<T> PyOnceLock<T> {
     where
         F: FnOnce() -> Result<T, E>,
     {
-        self.inner
-            .get()
-            .map_or_else(
-                || crate::backend::current::sync::once_lock_get_or_try_init(&self.inner, py, f),
-                Ok,
-            )
+        self.inner.get().map_or_else(
+            || crate::backend::current::sync::once_lock_get_or_try_init(&self.inner, py, f),
+            Ok,
+        )
     }
 
     /// Get the contents of the cell mutably. This is only possible if the reference to the cell is
@@ -170,7 +166,6 @@ where
         .map(|ty| ty.bind(py))
     }
 }
-
 
 #[cfg(test)]
 mod tests {

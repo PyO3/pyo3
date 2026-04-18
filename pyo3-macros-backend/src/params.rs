@@ -198,7 +198,14 @@ fn impl_arg_param(
             let from_py_with = format_ident!("from_py_with_{}", pos);
             let arg_value = quote!(#args_array[#option_pos]);
             *option_pos += 1;
-            impl_regular_arg_param(arg, from_py_with, arg_value, extract_error_mode, holders, ctx)
+            impl_regular_arg_param(
+                arg,
+                from_py_with,
+                arg_value,
+                extract_error_mode,
+                holders,
+                ctx,
+            )
         }
         FnArg::VarArgs(arg) => {
             let span = Span::call_site().located_at(arg.ty.span());

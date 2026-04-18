@@ -1,7 +1,5 @@
 use crate::object::{ptr_to_pyobject_ref_borrowed, pyobject_ref_to_ptr, PyObject, PyTypeObject};
-use crate::pybuffer::{
-    getbufferproc, releasebufferproc, Py_buffer, PyBUF_FULL_RO, PyBUF_WRITABLE,
-};
+use crate::pybuffer::{getbufferproc, releasebufferproc, PyBUF_FULL_RO, PyBUF_WRITABLE, Py_buffer};
 use crate::pyerrors::{set_vm_exception, PyErr_Clear, PyErr_SetString, PyExc_BufferError};
 use crate::pyport::Py_ssize_t;
 use crate::rustpython_runtime;
@@ -199,7 +197,10 @@ pub unsafe fn PyObject_CheckBuffer(obj: *mut PyObject) -> c_int {
 
 pub unsafe fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer, flags: c_int) -> c_int {
     if obj.is_null() || view.is_null() {
-        set_buffer_error(PyExc_BufferError, "PyObject_GetBuffer received a null pointer");
+        set_buffer_error(
+            PyExc_BufferError,
+            "PyObject_GetBuffer received a null pointer",
+        );
         return -1;
     }
 
@@ -217,22 +218,24 @@ pub unsafe fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer, flags
             }
         }
         unsafe {
-            (*view).internal = Box::into_raw(Box::new(BufferViewState::HeapType(
-                HeapTypeBufferView {
+            (*view).internal =
+                Box::into_raw(Box::new(BufferViewState::HeapType(HeapTypeBufferView {
                     releasebuffer: (metadata.bf_releasebuffer != 0)
                         .then(|| std::mem::transmute(metadata.bf_releasebuffer)),
-                },
-            ))) as *mut c_void;
+                }))) as *mut c_void;
         }
         unsafe { PyErr_Clear() };
         return 0;
     }
 
     let obj_ref = ptr_to_pyobject_ref_borrowed(obj);
-    let result = rustpython_runtime::with_vm(|vm| match RpBuffer::try_from_borrowed_object(vm, &obj_ref) {
-        Ok(buffer) => Ok(buffer),
-        Err(_) => Err(vm.new_type_error("object does not support the buffer protocol")),
-    });
+    let result =
+        rustpython_runtime::with_vm(
+            |vm| match RpBuffer::try_from_borrowed_object(vm, &obj_ref) {
+                Ok(buffer) => Ok(buffer),
+                Err(_) => Err(vm.new_type_error("object does not support the buffer protocol")),
+            },
+        );
     let buffer = match result {
         Ok(buffer) => buffer,
         Err(exc) => {
@@ -310,7 +313,10 @@ pub unsafe fn PyBuffer_ToContiguous(
     _order: c_char,
 ) -> c_int {
     if buf.is_null() || view.is_null() {
-        set_buffer_error(PyExc_BufferError, "PyBuffer_ToContiguous received a null pointer");
+        set_buffer_error(
+            PyExc_BufferError,
+            "PyBuffer_ToContiguous received a null pointer",
+        );
         return -1;
     }
     let len = len.max(0) as usize;
@@ -364,7 +370,10 @@ pub unsafe fn PyBuffer_FromContiguous(
         }
         ptr::copy_nonoverlapping(buf.cast::<u8>(), internal.contiguous.as_mut_ptr(), len);
         if internal.write_back().is_err() {
-            set_buffer_error(PyExc_BufferError, "failed to write contiguous bytes back to source");
+            set_buffer_error(
+                PyExc_BufferError,
+                "failed to write contiguous bytes back to source",
+            );
             return -1;
         }
         (*view).buf = internal.contiguous.as_mut_ptr().cast();
