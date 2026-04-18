@@ -1,6 +1,7 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::sealed::Sealed;
+use crate::types::{PyCode, PyDict};
 use crate::PyAny;
 use crate::{ffi, Bound, PyResult, Python};
 use std::ffi::CStr;

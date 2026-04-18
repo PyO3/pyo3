@@ -1,4 +1,4 @@
-use crate::object::{PyObject, Py_IncRef};
+use crate::object::PyObject;
 use crate::pyport::Py_ssize_t;
 
 #[inline]
