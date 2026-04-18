@@ -23,6 +23,7 @@ pub struct PyMapping(PyAny);
 
 pyobject_native_type_named!(PyMapping);
 
+#[allow(dead_code)]
 pub(crate) fn is_registered_mapping_type(object: &Bound<'_, PyAny>) -> bool {
     crate::backend::current::types::is_registered_mapping_type(object)
 }

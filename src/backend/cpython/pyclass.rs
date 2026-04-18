@@ -18,10 +18,12 @@ pub(crate) fn use_generic_dict_getter() -> bool {
     cfg!(any(Py_3_10, not(Py_LIMITED_API)))
 }
 
+#[allow(dead_code)]
 pub(crate) fn use_pre_310_heaptype_doc_cleanup() -> bool {
     cfg!(all(not(Py_LIMITED_API), not(Py_3_10)))
 }
 
+#[allow(dead_code)]
 pub(crate) fn use_pre_39_type_object_fixup() -> bool {
     cfg!(all(not(Py_LIMITED_API), not(Py_3_9)))
 }

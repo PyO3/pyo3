@@ -7,7 +7,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
-use crate::types::{any::PyAnyMethods, PyAny, PyList, PyTuple, PyType, PyTypeMethods};
+use crate::types::{PyAny, PyList, PyTuple, PyType, PyTypeMethods};
 use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python};
 
 /// Represents a reference to a Python object supporting the sequence protocol.

@@ -31,11 +31,13 @@ pub(crate) fn initialize_embedded() {
 pub(crate) fn initialize_embedded() {}
 
 #[cfg(not(any(PyPy, GraalPy)))]
+#[allow(dead_code)]
 pub(crate) fn finalize() {
     unsafe { ffi::Py_Finalize() };
 }
 
 #[cfg(any(PyPy, GraalPy))]
+#[allow(dead_code)]
 pub(crate) fn finalize() {}
 
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -67,6 +69,7 @@ pub(crate) fn wait_for_initialization() {
     });
 }
 
+#[allow(dead_code)]
 pub(crate) fn ensure_initialized_or_panic() {
     START.call_once_force(|_| unsafe {
         assert_ne!(

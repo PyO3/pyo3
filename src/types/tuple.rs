@@ -145,32 +145,32 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// by avoiding a reference count change.
     fn get_borrowed_item<'a>(&'a self, index: usize) -> PyResult<Borrowed<'a, 'py, PyAny>>;
 
-    /// Gets the tuple item at the specified index. Undefined behavior on bad index, or if the tuple
-    /// contains a null pointer at the specified index. Use with caution.
-    ///
-    /// # Safety
-    ///
-    /// - Caller must verify that the index is within the bounds of the tuple.
-    /// - A null pointer is only legal in a tuple which is in the process of being initialized, callers
-    ///   can typically assume the tuple item is non-null unless they are knowingly filling an
-    ///   uninitialized tuple. (If a tuple were to contain a null pointer element, accessing it from Python
-    ///   typically causes a segfault.)
     crate::backend::current::tuple_unchecked_item_api! {
+        /// Gets the tuple item at the specified index. Undefined behavior on bad index, or if the tuple
+        /// contains a null pointer at the specified index. Use with caution.
+        ///
+        /// # Safety
+        ///
+        /// - Caller must verify that the index is within the bounds of the tuple.
+        /// - A null pointer is only legal in a tuple which is in the process of being initialized, callers
+        ///   can typically assume the tuple item is non-null unless they are knowingly filling an
+        ///   uninitialized tuple. (If a tuple were to contain a null pointer element, accessing it from Python
+        ///   typically causes a segfault.)
         unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
     }
 
-    /// Like [`get_item_unchecked`][PyTupleMethods::get_item_unchecked], but returns a borrowed object,
-    /// which is a slight performance optimization by avoiding a reference count change.
-    ///
-    /// # Safety
-    ///
-    /// See [`get_item_unchecked`][PyTupleMethods::get_item_unchecked].
     crate::backend::current::tuple_unchecked_item_api! {
+        /// Like [`get_item_unchecked`][PyTupleMethods::get_item_unchecked], but returns a borrowed object,
+        /// which is a slight performance optimization by avoiding a reference count change.
+        ///
+        /// # Safety
+        ///
+        /// See [`get_item_unchecked`][PyTupleMethods::get_item_unchecked].
         unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny>;
     }
 
-    /// Returns `self` as a slice of objects.
     crate::backend::current::tuple_slice_api! {
+        /// Returns `self` as a slice of objects.
         fn as_slice(&self) -> &[Bound<'py, PyAny>];
     }
 
@@ -292,10 +292,11 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
         }
     }
 
-    /// # Safety
-    ///
-    /// See `get_item_unchecked` in `PyTupleMethods`.
     crate::backend::current::tuple_unchecked_item_api! {
+        /// # Safety
+        ///
+        /// See `get_item_unchecked` in `PyTupleMethods`.
+        #[allow(dead_code)]
         unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
             unsafe { crate::backend::current::types::borrowed_tuple_item_unchecked(self, index) }
         }

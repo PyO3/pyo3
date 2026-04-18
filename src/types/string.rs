@@ -3,7 +3,6 @@ use crate::exceptions::PyUnicodeDecodeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::py_result_ext::PyResultExt;
-use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
 use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
 use std::borrow::Cow;
@@ -297,21 +296,21 @@ pub trait PyStringMethods<'py>: crate::sealed::Sealed {
     /// Encodes this string as a Python `bytes` object, using UTF-8 encoding.
     fn encode_utf8(&self) -> PyResult<Bound<'py, PyBytes>>;
 
-    /// Obtains the raw data backing the Python string.
-    ///
-    /// If the Python string object was created through legacy APIs, its internal storage format
-    /// will be canonicalized before data is returned.
-    ///
-    /// # Safety
-    ///
-    /// This function implementation relies on manually decoding a C bitfield. In practice, this
-    /// works well on common little-endian architectures such as x86_64, where the bitfield has a
-    /// common representation (even if it is not part of the C spec). The PyO3 CI tests this API on
-    /// x86_64 platforms.
-    ///
-    /// By using this API, you accept responsibility for testing that PyStringData behaves as
-    /// expected on the targets where you plan to distribute your software.
     crate::backend::current::string_raw_data_api! {
+        /// Obtains the raw data backing the Python string.
+        ///
+        /// If the Python string object was created through legacy APIs, its internal storage format
+        /// will be canonicalized before data is returned.
+        ///
+        /// # Safety
+        ///
+        /// This function implementation relies on manually decoding a C bitfield. In practice, this
+        /// works well on common little-endian architectures such as x86_64, where the bitfield has a
+        /// common representation (even if it is not part of the C spec). The PyO3 CI tests this API on
+        /// x86_64 platforms.
+        ///
+        /// By using this API, you accept responsibility for testing that PyStringData behaves as
+        /// expected on the targets where you plan to distribute your software.
         unsafe fn data(&self) -> PyResult<PyStringData<'_>>;
     }
 }

@@ -131,6 +131,7 @@ pub(crate) fn mapping_is_type_of(object: &Bound<'_, PyAny>) -> bool {
 }
 
 #[inline]
+#[allow(dead_code)]
 pub(crate) fn is_registered_mapping_type(_object: &Bound<'_, PyAny>) -> bool {
     false
 }
@@ -160,6 +161,7 @@ pub(crate) fn register_sequence_type(ty: &Bound<'_, PyType>) -> PyResult<()> {
 }
 
 #[inline]
+#[allow(dead_code)]
 pub(crate) fn module_filename_test_should_skip() -> bool {
     false
 }
@@ -266,7 +268,7 @@ pub(crate) fn new_frame<'py>(
 #[inline]
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) unsafe fn frame_check(object: *mut ffi::PyObject) -> std::ffi::c_int {
-    ffi::backend::cpython::pyframe::PyFrame_Check(object)
+    unsafe { ffi::backend::cpython::pyframe::PyFrame_Check(object) }
 }
 
 #[inline]
@@ -307,11 +309,13 @@ pub(crate) fn type_bases<'py>(ty: &Bound<'py, PyType>) -> Bound<'py, PyTuple> {
 }
 
 #[inline]
+#[allow(dead_code)]
 pub(crate) fn set_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::PySet_Type
 }
 
 #[inline]
+#[allow(dead_code)]
 pub(crate) fn frozenset_type_object(_py: Python<'_>) -> *mut ffi::PyTypeObject {
     &raw mut ffi::PyFrozenSet_Type
 }
