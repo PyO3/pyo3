@@ -548,6 +548,8 @@ def docs(session: nox.Session, nightly: bool = False, internal: bool = False) ->
         rustdoc_flags.append("--cfg docsrs")
         toolchain_flags.append("+nightly")
         cargo_flags.extend(["-Z", "unstable-options", "-Z", "rustdoc-scrape-examples"])
+    else:
+        toolchain_flags.append("+stable")
 
     if internal:
         rustdoc_flags.append("--Z unstable-options")
