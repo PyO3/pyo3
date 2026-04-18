@@ -59,6 +59,7 @@ pub use crate::backend::current::pybuffer::{
     PyBuffer_GetPointer, PyBuffer_IsContiguous, PyBuffer_Release, PyBuffer_SizeFromFormat,
     PyBuffer_ToContiguous, PyObject_CheckBuffer, PyObject_CopyData, PyObject_GetBuffer,
 };
+pub(crate) use crate::backend::current::pybuffer::{BufferViewState, HeapTypeBufferView};
 
 /// Maximum number of dimensions
 pub const PyBUF_MAX_NDIM: usize = 64;

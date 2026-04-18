@@ -3,6 +3,12 @@ use crate::pybuffer::Py_buffer;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int, c_void};
 
+pub(crate) struct HeapTypeBufferView;
+
+pub(crate) enum BufferViewState {
+    HeapType(HeapTypeBufferView),
+}
+
 /* Return 1 if the getbuffer function is available, otherwise return 0. */
 extern_libpython! {
     #[cfg(not(PyPy))]

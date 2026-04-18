@@ -154,7 +154,41 @@ struct DispatchState<F, R> {
     panic: UnsafeCell<Option<Box<dyn Any + Send + 'static>>>,
 }
 
+// SAFETY: `F` and `R` are only accessed after the runtime thread has finished
+// executing the closure and signaled completion through `done_rx.recv()`.
+// This wrapper exists only for transitional call sites in `with_vm` which still
+// capture non-`Send` CPython-style raw pointers. New cross-thread dispatch code
+// should use `dispatch` directly and satisfy the `Send` bounds.
+struct UncheckedDispatchState<F, R>(DispatchState<F, R>);
+
+unsafe impl<F, R> Send for UncheckedDispatchState<F, R> {}
+
 unsafe fn dispatch_call<F, R>(payload: usize, vm: &VirtualMachine)
+where
+    F: FnOnce(&VirtualMachine) -> R + Send,
+    R: Send,
+{
+    let state = unsafe { &*(payload as *const DispatchState<F, R>) };
+    let closure = unsafe {
+        (&mut *state.closure.get())
+            .take()
+            .expect("RustPython runtime dispatch closure missing")
+    };
+    let outcome = panic::catch_unwind(AssertUnwindSafe(|| closure(vm)));
+
+    unsafe {
+        match outcome {
+            Ok(result) => {
+                (*state.result.get()).write(result);
+            }
+            Err(err) => {
+                *state.panic.get() = Some(err);
+            }
+        }
+    }
+}
+
+unsafe fn dispatch_call_unchecked<F, R>(payload: usize, vm: &VirtualMachine)
 where
     F: FnOnce(&VirtualMachine) -> R,
 {
@@ -180,7 +214,8 @@ where
 
 fn dispatch<F, R>(f: F) -> R
 where
-    F: FnOnce(&VirtualMachine) -> R,
+    F: FnOnce(&VirtualMachine) -> R + Send,
+    R: Send,
 {
     if ON_RUNTIME_THREAD.with(|flag| flag.get()) {
         return f(current_vm().expect("RustPython runtime thread missing current VM"));
@@ -200,7 +235,7 @@ where
     runtime
         .tx
         .send(RuntimeRequest::Call {
-            thunk: dispatch_call::<F, R>,
+            thunk: dispatch_call_unchecked::<F, R>,
             payload,
             done_tx,
         })
@@ -214,6 +249,44 @@ where
     }
 
     unsafe { (*state.result.get()).assume_init_read() }
+}
+
+unsafe fn dispatch_unchecked<F, R>(f: F) -> R
+where
+    F: FnOnce(&VirtualMachine) -> R,
+{
+    if ON_RUNTIME_THREAD.with(|flag| flag.get()) {
+        return f(current_vm().expect("RustPython runtime thread missing current VM"));
+    }
+
+    let runtime = runtime();
+    debug_assert_ne!(runtime.thread_id, std::thread::current().id());
+
+    let state = UncheckedDispatchState(DispatchState {
+        closure: UnsafeCell::new(Some(f)),
+        result: UnsafeCell::new(MaybeUninit::uninit()),
+        panic: UnsafeCell::new(None),
+    });
+    let payload = (&state.0 as *const DispatchState<_, _>) as usize;
+    let (done_tx, done_rx) = mpsc::sync_channel(1);
+
+    runtime
+        .tx
+        .send(RuntimeRequest::Call {
+            thunk: dispatch_call_unchecked::<F, R>,
+            payload,
+            done_tx,
+        })
+        .expect("RustPython runtime thread terminated during dispatch");
+    done_rx
+        .recv()
+        .expect("RustPython runtime thread terminated before dispatch completed");
+
+    if let Some(err) = (&mut *state.0.panic.get()).take() {
+        panic::resume_unwind(err);
+    }
+
+    (*state.0.result.get()).assume_init_read()
 }
 
 pub(crate) fn initialize() {
@@ -276,5 +349,9 @@ pub(crate) fn with_vm<R>(f: impl FnOnce(&VirtualMachine) -> R) -> R {
         "RustPython FFI used outside an attached interpreter context"
     );
 
-    dispatch(f)
+    // SAFETY: `with_vm` is the legacy bridge for the CPython-shaped FFI layer,
+    // which still passes raw pointers and other non-`Send` values through the
+    // runtime thread hop. The stricter `dispatch` helper is available for new
+    // code; callers here are validated by PyO3's single-runtime-thread model.
+    unsafe { dispatch_unchecked(f) }
 }
