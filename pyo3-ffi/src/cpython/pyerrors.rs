@@ -233,6 +233,7 @@ pub struct PyAttributeErrorObject {
 extern_libpython! {
     pub fn PySignal_SetWakeupFd(fd: c_int) -> c_int;
     pub fn PyErr_SyntaxLocationObject(filename: *mut PyObject, lineno: c_int, col_offset: c_int);
+    #[cfg(Py_3_10)]
     pub fn PyErr_RangedSyntaxLocationObject(
         filename: *mut PyObject,
         lineno: c_int,
