@@ -175,7 +175,7 @@ pub struct PyNameErrorObject {
     pub cause: *mut PyObject,
     #[cfg(not(PyPy))]
     pub suppress_context: char,
-    pub name: *mut PyObject
+    pub name: *mut PyObject,
 }
 
 #[repr(C)]
@@ -197,7 +197,7 @@ pub struct PyAttributeErrorObject {
     #[cfg(not(PyPy))]
     pub suppress_context: char,
     pub obj: *mut PyObject,
-    pub name: *mut PyObject
+    pub name: *mut PyObject,
 }
 
 // skipped PyEnvironmentErrorObject
