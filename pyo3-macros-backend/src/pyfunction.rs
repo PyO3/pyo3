@@ -24,9 +24,9 @@ use syn::punctuated::Punctuated;
 use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, LitStr, Path, Result, Token};
 
-mod signature;
+pub mod signature;
 
-pub use self::signature::{ConstructorAttribute, FunctionSignature, SignatureAttribute};
+pub use self::signature::{ConstructorAttribute, FunctionSignature, Signature, SignatureAttribute};
 
 #[derive(Clone, Debug)]
 pub struct PyFunctionArgPyO3Attributes {
@@ -235,6 +235,20 @@ impl ToTokens for PyFunctionWarningAttribute {
     }
 }
 
+#[derive(Clone)]
+pub struct OverloadAttribute {
+    pub kw: attributes::kw::overload,
+    pub value: Signature,
+}
+
+impl Parse for OverloadAttribute {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let kw = input.parse()?;
+        let value = input.parse()?;
+        Ok(Self { kw, value })
+    }
+}
+
 #[derive(Default)]
 pub struct PyFunctionOptions {
     pub pass_module: Option<attributes::kw::pass_module>,
@@ -243,6 +257,7 @@ pub struct PyFunctionOptions {
     pub text_signature: Option<TextSignatureAttribute>,
     pub krate: Option<CrateAttribute>,
     pub warnings: Vec<PyFunctionWarning>,
+    pub overloads: Vec<OverloadAttribute>,
 }
 
 impl Parse for PyFunctionOptions {
@@ -263,6 +278,7 @@ pub enum PyFunctionOption {
     TextSignature(TextSignatureAttribute),
     Crate(CrateAttribute),
     Warning(PyFunctionWarningAttribute),
+    Overload(OverloadAttribute),
 }
 
 impl Parse for PyFunctionOption {
@@ -280,6 +296,8 @@ impl Parse for PyFunctionOption {
             input.parse().map(PyFunctionOption::Crate)
         } else if lookahead.peek(attributes::kw::warn) {
             input.parse().map(PyFunctionOption::Warning)
+        } else if lookahead.peek(attributes::kw::overload) {
+            input.parse().map(PyFunctionOption::Overload)
         } else {
             Err(lookahead.error())
         }
@@ -318,6 +336,17 @@ impl PyFunctionOptions {
                 PyFunctionOption::Warning(warning) => {
                     self.warnings.push(warning.into());
                 }
+                PyFunctionOption::Overload(overload) => {
+                    ensure_spanned!(
+                        cfg!(feature = "experimental-inspect"),
+                        overload.kw.span() => "`overload` is only supported with the `experimental-inspect` feature"
+                    );
+                    ensure_spanned!(
+                        overload.value.returns.is_some(),
+                        overload.kw.span() => "`overload` must include a return type annotation (e.g. `overload(x: \"int\") -> \"int\"`)"
+                    );
+                    self.overloads.push(overload);
+                }
             }
         }
         Ok(())
@@ -346,6 +375,7 @@ pub fn impl_wrap_pyfunction(
         text_signature,
         krate,
         warnings,
+        overloads,
     } = options;
 
     let ctx = &Ctx::new(&krate, Some(&func.sig));
@@ -395,12 +425,15 @@ pub fn impl_wrap_pyfunction(
         asyncness: func.sig.asyncness,
         unsafety: func.sig.unsafety,
         warnings,
+        overloads,
         output: func.sig.output.clone(),
     };
 
     let vis = &func.vis;
     let name = &func.sig.ident;
 
+    #[cfg(feature = "experimental-inspect")]
+    let overload_sigs: Vec<_> = spec.overloads.iter().map(|o| o.value.clone()).collect();
     #[cfg(feature = "experimental-inspect")]
     let introspection = function_introspection_code(
         pyo3_path,
@@ -414,6 +447,7 @@ pub fn impl_wrap_pyfunction(
         false,
         get_doc(&func.attrs, None).as_ref(),
         None,
+        &overload_sigs,
     );
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
