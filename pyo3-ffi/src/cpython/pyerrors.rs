@@ -242,6 +242,5 @@ extern_libpython! {
         end_col_offset: c_int,
     );
     pub fn PyErr_ProgramTextObject(filename: *mut PyObject, lineno: c_int) -> *mut PyObject;
-    pub(crate) fn _Py_FatalErrorFunc(func: *const c_char, message: *const c_char);
     pub static PyExc_PythonFinalizationError: *mut PyObject;
 }
