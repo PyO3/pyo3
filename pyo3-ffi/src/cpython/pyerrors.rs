@@ -232,21 +232,15 @@ pub struct PyAttributeErrorObject {
 
 extern_libpython! {
     pub fn PySignal_SetWakeupFd(fd: c_int) -> c_int;
-    pub fn PyErr_SyntaxLocationObject(
-        filename: *mut PyObject,
-        lineno: c_int,
-        col_offset: c_int);
+    pub fn PyErr_SyntaxLocationObject(filename: *mut PyObject, lineno: c_int, col_offset: c_int);
     pub fn PyErr_RangedSyntaxLocationObject(
         filename: *mut PyObject,
         lineno: c_int,
         col_offset: c_int,
         end_lineno: c_int,
-        end_col_offset: c_int);
-    pub fn PyErr_ProgramTextObject(
-        filename: *mut PyObject,
-        lineno: c_int) -> *mut PyObject;
-    pub(crate) fn _Py_FatalErrorFunc(
-        func: *const c_char,
-        message: *const c_char);
+        end_col_offset: c_int,
+    );
+    pub fn PyErr_ProgramTextObject(filename: *mut PyObject, lineno: c_int) -> *mut PyObject;
+    pub(crate) fn _Py_FatalErrorFunc(func: *const c_char, message: *const c_char);
     pub static PyExc_PythonFinalizationError: *mut PyObject;
 }
