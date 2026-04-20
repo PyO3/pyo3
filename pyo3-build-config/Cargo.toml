@@ -20,8 +20,7 @@ target-lexicon = "0.13.3"
 [features]
 default = []
 
-# Attempt to resolve a Python interpreter config for building in the build
-# script. If this feature isn't enabled, the build script no-ops.
+# deprecated
 resolve-config = []
 
 # deprecated
@@ -29,16 +28,3 @@ extension-module = []
 
 # deprecated: no longer needed, raw-dylib is used instead
 generate-import-lib = []
-
-# These features are enabled by pyo3 when building Stable ABI extension modules.
-abi3 = []
-abi3-py38 = ["abi3-py39"]
-abi3-py39 = ["abi3-py310"]
-abi3-py310 = ["abi3-py311"]
-abi3-py311 = ["abi3-py312"]
-abi3-py312 = ["abi3-py313"]
-abi3-py313 = ["abi3-py314"]
-abi3-py314 = ["abi3"]
-
-[package.metadata.docs.rs]
-features = ["resolve-config"]

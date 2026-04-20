@@ -23,16 +23,16 @@ default = []
 extension-module = ["pyo3-build-config/extension-module"]
 
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
-abi3 = ["pyo3-build-config/abi3"]
+abi3 = []
 
 # With abi3, we can manually set the minimum Python version.
-abi3-py38 = ["abi3-py39", "pyo3-build-config/abi3-py38"]
-abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39"]
-abi3-py310 = ["abi3-py311", "pyo3-build-config/abi3-py310"]
-abi3-py311 = ["abi3-py312", "pyo3-build-config/abi3-py311"]
-abi3-py312 = ["abi3-py313", "pyo3-build-config/abi3-py312"]
-abi3-py313 = ["abi3-py314", "pyo3-build-config/abi3-py313"]
-abi3-py314 = ["abi3", "pyo3-build-config/abi3-py314"]
+abi3-py38 = ["abi3-py39"]
+abi3-py39 = ["abi3-py310"]
+abi3-py310 = ["abi3-py311"]
+abi3-py311 = ["abi3-py312"]
+abi3-py312 = ["abi3-py313"]
+abi3-py313 = ["abi3-py314"]
+abi3-py314 = ["abi3"]
 
 # deprecated: no longer needed, raw-dylib is used instead
 generate-import-lib = ["pyo3-build-config/generate-import-lib"]

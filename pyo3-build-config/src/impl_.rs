@@ -1,6 +1,3 @@
-//! Main implementation module included in both the `pyo3-build-config` library crate
-//! and its build script.
-
 #[cfg(test)]
 use std::cell::RefCell;
 use std::{
@@ -61,9 +58,7 @@ pub fn cargo_env_var(var: &str) -> Option<String> {
 /// Gets an external environment variable, and registers the build script to rerun if
 /// the variable changes.
 pub fn env_var(var: &str) -> Option<OsString> {
-    if cfg!(feature = "resolve-config") {
-        println!("cargo:rerun-if-env-changed={var}");
-    }
+    println!("cargo:rerun-if-env-changed={var}");
     #[cfg(test)]
     {
         READ_ENV_VARS.with(|env_vars| {
@@ -490,7 +485,8 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 
     #[doc(hidden)]
     pub fn from_cargo_dep_env() -> Option<Result<Self>> {
-        cargo_env_var("DEP_PYTHON_PYO3_CONFIG")
+        cargo_env_var("DEP_PYTHON_PYO3_CONFIG") // from `pyo3-ffi`
+            .or_else(|| cargo_env_var("DEP_PYO3_PYTHON_PYO3_CONFIG")) // forwared by `pyo3`
             .map(|buf| InterpreterConfig::from_reader(&*unescape(&buf)))
     }
 
@@ -583,7 +579,6 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     /// This requires knowledge of the final target, so cannot be done when the config file is
     /// inlined into `pyo3-build-config` at build time and instead needs to be done when
     /// resolving the build config for linking.
-    #[cfg(any(test, feature = "resolve-config"))]
     pub(crate) fn apply_default_lib_name_to_config_file(&mut self, target: &Triple) {
         if self.lib_name.is_none() {
             self.lib_name = Some(default_lib_name_for_target(
@@ -1909,9 +1904,7 @@ pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
     Ok(interpreter_config)
 }
 
-/// Generates an interpreter config which will be hard-coded into the pyo3-build-config crate.
-/// Only used by `pyo3-build-config` build script.
-#[allow(dead_code, unused_mut)]
+/// Generates an interpreter config suitable for the build host.
 pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     let host = Triple::host();
     let abi3_version = get_abi3_version();
@@ -2874,17 +2867,17 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(
-        target_os = "linux",
-        target_arch = "x86_64",
-        feature = "resolve-config"
-    ))]
+    #[cfg(all(target_os = "linux", target_arch = "x86_64",))]
     fn parse_sysconfigdata() {
         // A best effort attempt to get test coverage for the sysconfigdata parsing.
         // Might not complete successfully depending on host installation; that's ok as long as
         // CI demonstrates this path is covered!
 
-        let interpreter_config = crate::get();
+        let Ok(interpreter_config) = make_interpreter_config() else {
+            // Couldn't get an interpreter config, won't be able to test a matching sysconfigdata,
+            // never mind. (This is intended for coverage, don't mind if it fails if it doesn't run.)
+            return;
+        };
 
         let lib_dir = match &interpreter_config.lib_dir {
             Some(lib_dir) => Path::new(lib_dir),
@@ -2910,7 +2903,16 @@ mod tests {
             _ => return,
         };
         let sysconfigdata = super::parse_sysconfigdata(sysconfigdata_path).unwrap();
-        let parsed_config = InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap();
+        let mut parsed_config = InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap();
+
+        // Workaround case where empty `PYTHONFRAMEWORKPREFIX` is returned as empty string instead of None,
+        // which causes the assert_eq! below to fail.
+        //
+        // TODO: probably should deprecate using this variable at all, seemingly only used in `add_python_framework_link_args`
+        // which is probably a strictly worse version of `add_libpython_rpath_link_args`.
+        if parsed_config.python_framework_prefix.as_deref() == Some("") {
+            parsed_config.python_framework_prefix = None;
+        }
 
         assert_eq!(
             parsed_config,

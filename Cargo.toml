@@ -22,6 +22,9 @@ exclude = [
     "/tests/ui",
 ]
 edition = "2021"
+# this allows PyO3 to forward build-config from `pyo3-ffi` to avoid downstream crates
+# needing to depend on `pyo3-ffi` directly to use `pyo3-build-config` functionality.
+links = "pyo3-python"
 rust-version.workspace = true
 
 [dependencies]
@@ -82,7 +85,7 @@ uuid = { version = "1.10.0", features = ["v4"] }
 parking_lot = { version = "0.12.3", features = ["arc_lock"] }
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "=0.28.3", features = ["resolve-config"] }
+pyo3-build-config = { path = "pyo3-build-config", version = "=0.28.3" }
 
 [features]
 default = ["macros"]
@@ -106,16 +109,16 @@ multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
 extension-module = ["pyo3-ffi/extension-module"]
 
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
-abi3 = ["pyo3-build-config/abi3", "pyo3-ffi/abi3"]
+abi3 = ["pyo3-ffi/abi3"]
 
 # With abi3, we can manually set the minimum Python version.
-abi3-py38 = ["abi3-py39", "pyo3-build-config/abi3-py38", "pyo3-ffi/abi3-py38"]
-abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39", "pyo3-ffi/abi3-py39"]
-abi3-py310 = ["abi3-py311", "pyo3-build-config/abi3-py310", "pyo3-ffi/abi3-py310"]
-abi3-py311 = ["abi3-py312", "pyo3-build-config/abi3-py311", "pyo3-ffi/abi3-py311"]
-abi3-py312 = ["abi3-py313", "pyo3-build-config/abi3-py312", "pyo3-ffi/abi3-py312"]
-abi3-py313 = ["abi3-py314", "pyo3-build-config/abi3-py313", "pyo3-ffi/abi3-py313"]
-abi3-py314 = ["abi3", "pyo3-build-config/abi3-py314", "pyo3-ffi/abi3-py314"]
+abi3-py38 = ["abi3-py39", "pyo3-ffi/abi3-py38"]
+abi3-py39 = ["abi3-py310", "pyo3-ffi/abi3-py39"]
+abi3-py310 = ["abi3-py311", "pyo3-ffi/abi3-py310"]
+abi3-py311 = ["abi3-py312", "pyo3-ffi/abi3-py311"]
+abi3-py312 = ["abi3-py313", "pyo3-ffi/abi3-py312"]
+abi3-py313 = ["abi3-py314", "pyo3-ffi/abi3-py313"]
+abi3-py314 = ["abi3", "pyo3-ffi/abi3-py314"]
 
 # deprecated: no longer needed, raw-dylib is used instead
 generate-import-lib = ["pyo3-ffi/generate-import-lib"]
