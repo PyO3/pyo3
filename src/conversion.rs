@@ -230,6 +230,15 @@ pub trait IntoPyObjectExt<'py>: IntoPyObject<'py> + into_pyobject_ext::Sealed {
         }
     }
 
+    /// Converts `self` into a Owned or Borrowed Python object, dropping type information.
+    #[inline]
+    fn into_object_py_any(
+        self,
+        py: Python<'py>,
+    ) -> PyResult<<Self::Output as BoundObject<'py, Self::Target>>::Any> {
+        Ok(self.into_pyobject(py).map_err(Into::into)?.into_any())
+    }
+
     /// Converts `self` into an owned Python object, dropping type information and unbinding it
     /// from the `'py` lifetime.
     #[inline]
