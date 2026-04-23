@@ -1772,7 +1772,7 @@ fn default_lib_name_unix(
         },
 
         PythonImplementation::GraalPy => Ok("python-native".to_string()),
-        PythonImplementation::RustPython => Ok("rustpython-capi".to_string()),
+        PythonImplementation::RustPython => Ok("rustpython_capi".to_string()),
     }
 }
 

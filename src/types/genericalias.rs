@@ -2,6 +2,12 @@ use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, Bound, PyAny, Python};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 
 /// Represents a Python [`types.GenericAlias`](https://docs.python.org/3/library/types.html#types.GenericAlias) object.
 ///
@@ -14,10 +20,25 @@ use crate::{ffi, Bound, PyAny, Python};
 #[repr(transparent)]
 pub struct PyGenericAlias(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type!(
     PyGenericAlias,
     ffi::PyDictObject,
     pyobject_native_static_type_object!(ffi::Py_GenericAliasType),
+    "builtins",
+    "GenericAlias"
+);
+
+#[cfg(RustPython)]
+pyobject_native_type!(
+    PyGenericAlias,
+    ffi::PyDictObject,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "GenericAlias")
+            .unwrap()
+            .as_type_ptr()
+    },
     "builtins",
     "GenericAlias"
 );

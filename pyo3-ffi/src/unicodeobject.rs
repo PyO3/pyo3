@@ -15,8 +15,10 @@ pub type Py_UCS2 = u16;
 pub type Py_UCS1 = u8;
 
 extern_libpython! {
+    #[cfg(not(RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Type")]
     pub static mut PyUnicode_Type: PyTypeObject;
+    #[cfg(not(RustPython))]
     pub static mut PyUnicodeIter_Type: PyTypeObject;
 
     #[cfg(PyPy)]
@@ -36,8 +38,14 @@ pub unsafe fn PyUnicode_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 #[cfg(not(PyPy))]
+#[cfg(not(RustPython))]
 pub unsafe fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyUnicode_Type)
+}
+
+extern_libpython! {
+    #[cfg(all(RustPython, not(PyPy)))]
+    pub fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int;
 }
 
 pub const Py_UNICODE_REPLACEMENT_CHARACTER: Py_UCS4 = 0xFFFD;

@@ -1,5 +1,11 @@
 use super::any::PyAnyMethods;
 use crate::{ffi, instance::Bound, IntoPyObject, PyAny, Python};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 use std::convert::Infallible;
 
 /// Represents a Python `int` object.
@@ -13,7 +19,20 @@ use std::convert::Infallible;
 #[repr(transparent)]
 pub struct PyInt(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyInt, pyobject_native_static_type_object!(ffi::PyLong_Type), "builtins", "int", #checkfunction=ffi::PyLong_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyInt,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "int").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "int",
+    #checkfunction=ffi::PyLong_Check
+);
 
 impl PyInt {
     /// Creates a new Python int object.
