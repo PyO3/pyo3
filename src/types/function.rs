@@ -7,6 +7,12 @@ use crate::{
     impl_::pymethods::{self, PyMethodDef},
     types::{PyCapsule, PyDict, PyModule, PyTuple},
 };
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 use crate::{Bound, PyAny, PyResult, Python};
 use std::cell::UnsafeCell;
 use std::ffi::CStr;
@@ -19,7 +25,22 @@ use std::ptr::NonNull;
 #[repr(transparent)]
 pub struct PyCFunction(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyCFunction, pyobject_native_static_type_object!(ffi::PyCFunction_Type), "builtins", "builtin_function_or_method", #checkfunction=ffi::PyCFunction_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyCFunction,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "builtin_function_or_method")
+            .unwrap()
+            .as_type_ptr()
+    },
+    "builtins",
+    "builtin_function_or_method",
+    #checkfunction=ffi::PyCFunction_Check
+);
 
 impl PyCFunction {
     /// Create a new built-in function with keywords (*args and/or **kwargs).

@@ -7,14 +7,34 @@ use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyIterator, PyList};
 use crate::{ffi, Python};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 
 /// Represents a Python `mappingproxy`.
 #[repr(transparent)]
 pub struct PyMappingProxy(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(
     PyMappingProxy,
     pyobject_native_static_type_object!(ffi::PyDictProxy_Type),
+    "types",
+    "MappingProxyType"
+);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyMappingProxy,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "MappingProxyType")
+            .unwrap()
+            .as_type_ptr()
+    },
     "types",
     "MappingProxyType"
 );
@@ -414,7 +434,7 @@ mod tests {
         });
     }
 
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn abc_mappingproxy(py: Python<'_>) -> Bound<'_, PyMappingProxy> {
         let mut map = HashMap::<&'static str, i32>::new();
         map.insert("a", 1);
@@ -425,7 +445,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn mappingproxy_keys_view() {
         Python::attach(|py| {
             let mappingproxy = abc_mappingproxy(py);
@@ -435,7 +455,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn mappingproxy_values_view() {
         Python::attach(|py| {
             let mappingproxy = abc_mappingproxy(py);
@@ -445,7 +465,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn mappingproxy_items_view() {
         Python::attach(|py| {
             let mappingproxy = abc_mappingproxy(py);

@@ -6,6 +6,12 @@ use crate::{
     py_result_ext::PyResultExt,
 };
 use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 use std::ptr;
 
 /// Represents a Python `set`.
@@ -21,11 +27,24 @@ pub struct PySet(PyAny);
 #[cfg(not(any(PyPy, GraalPy)))]
 pyobject_subclassable_native_type!(PySet, crate::ffi::PySetObject);
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(all(not(any(PyPy, GraalPy)), not(RustPython)))]
 pyobject_native_type!(
     PySet,
     ffi::PySetObject,
     pyobject_native_static_type_object!(ffi::PySet_Type),
+    "builtins",
+    "set",
+    #checkfunction=ffi::PySet_Check
+);
+
+#[cfg(all(not(any(PyPy, GraalPy)), RustPython))]
+pyobject_native_type!(
+    PySet,
+    ffi::PySetObject,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "set").unwrap().as_type_ptr()
+    },
     "builtins",
     "set",
     #checkfunction=ffi::PySet_Check

@@ -5,19 +5,29 @@ use std::ffi::{c_double, c_int};
 // TODO: remove (see https://github.com/PyO3/pyo3/pull/1341#issuecomment-751515985)
 opaque_struct!(pub PyFloatObject);
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyFloat_Type")]
     pub static mut PyFloat_Type: PyTypeObject;
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyFloat_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &raw mut PyFloat_Type)
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyFloat_CheckExact(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyFloat_Type)
+}
+
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyFloat_Check(op: *mut PyObject) -> c_int;
+    #[cfg(RustPython)]
+    pub fn PyFloat_CheckExact(op: *mut PyObject) -> c_int;
 }
 
 // skipped Py_RETURN_NAN
