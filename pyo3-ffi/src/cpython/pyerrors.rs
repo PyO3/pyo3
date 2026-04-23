@@ -155,8 +155,6 @@ pub struct PyStopIterationObject {
     pub value: *mut PyObject,
 }
 
-// skipped _PyErr_ChainExceptions
-
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyNameErrorObject {
@@ -203,30 +201,9 @@ pub struct PyAttributeErrorObject {
 // skipped PyEnvironmentErrorObject
 // skipped PyWindowsErrorObject
 
-// skipped _PyErr_SetKeyError
-// skipped _PyErr_GetTopmostException
-// skipped _PyErr_GetExcInfo
+// skipped _PyErr_ChainExceptions
+// skipped PyUnstable_Exc_PrepReraiseStar
 
-// skipped PyErr_SetFromErrnoWithUnicodeFilename
-
-// skipped _PyErr_FormatFromCause
-
-// skipped PyErr_SetFromWindowsErrWithUnicodeFilename
-// skipped PyErr_SetExcFromWindowsErrWithUnicodeFilename
-
-// skipped _PyErr_TrySetFromCause
-
-// skipped PySignal_SetWakeupFd
-// skipped _PyErr_CheckSignals
-
-// skipped PyErr_SyntaxLocationObject
-// skipped PyErr_RangedSyntaxLocationObject
-// skipped PyErr_ProgramTextObject
-
-// skipped _PyErr_ProgramDecodedTextObject
-// skipped _PyUnicodeTranslateError_Create
-// skipped _PyErr_WriteUnraisableMsg
-// skipped _Py_FatalErrorFunc
 // skipped _Py_FatalErrorFormat
 // skipped Py_FatalError
 
