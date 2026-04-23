@@ -45,6 +45,11 @@ jobs:
           key: lychee-${{ github.run_id }}
           restore-keys: lychee-
 
+      - name: Upload lychee cache for inspection
+        uses: actions/upload-artifact@v7
+        with:
+          name: lychee-cache
+
       # This builds the book in target/guide/.
       - name: Build the guide
         run: |
