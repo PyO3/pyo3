@@ -49,6 +49,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: lychee-cache
+          path: .lycheecache
 
       # This builds the book in target/guide/.
       - name: Build the guide
