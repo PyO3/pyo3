@@ -20,5 +20,5 @@ extern_libpython! {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyTraceBack_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyTraceBack_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyTraceBack_Type)
 }

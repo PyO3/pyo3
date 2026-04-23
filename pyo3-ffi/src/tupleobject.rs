@@ -15,7 +15,7 @@ pub unsafe fn PyTuple_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyTuple_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyTuple_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyTuple_Type)
 }
 
 extern_libpython! {
