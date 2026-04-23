@@ -14,15 +14,19 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  NOX_DEFAULT_VENV_BACKEND: uv
+  UV_PYTHON: "3.14"
 
 jobs:
   guide-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.14"
+          # codspeed action needs to be run from within the final Python environment
+          activate-environment: true
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
       - uses: dtolnay/rust-toolchain@nightly
 
@@ -45,18 +49,9 @@ jobs:
           key: lychee-${{ github.run_id }}
           restore-keys: lychee-
 
-      - name: Upload lychee cache for inspection
-        uses: actions/upload-artifact@v7
-        with:
-          name: lychee-cache
-          path: .lycheecache
-          include-hidden-files: true
-
       # This builds the book in target/guide/.
       - name: Build the guide
-        run: |
-          python -m pip install --upgrade pip && pip install nox[uv]
-          nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
+        run: uvx nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
         env:
           PYO3_VERSION_TAG: ${{ github.event_name == 'release' && steps.prepare_tag.outputs.tag_name || 'main' }}
           # allows lychee to get better rate limits from github
@@ -86,9 +81,7 @@ jobs:
           echo "PYO3_VERSION=${PYO3_VERSION}" >> $GITHUB_ENV
 
       - name: Build the site
-        run: |
-          python -m pip install --upgrade pip && pip install nox[uv] towncrier requests
-          nox -s build-netlify-site -- ${{ (github.ref != 'refs/heads/main' && '--preview') || '' }}
+        run: uvx --with requests nox -s build-netlify-site -- ${{ (github.ref != 'refs/heads/main' && '--preview') || '' }}
 
       # Upload the built site as an artifact for deploy workflow to consume
       - name: Upload Build Artifact

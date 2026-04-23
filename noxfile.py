@@ -776,6 +776,24 @@ def check_guide(session: nox.Session):
         *session.posargs,
     )
 
+    # We prune connection errors from the cache so that flaky / down sites will be retried
+    # without just causing PRs to fail until the cache expires
+    cache_path = Path(".lycheecache")
+
+    # Cache is a simple CSV of url, status, timestamp; filter out entries without a status code.
+    # (we also have --cache-exclude-status set above)
+    # see also https://github.com/lycheeverse/lychee/issues/2156 for context
+    if cache_path.exists():
+        lines = cache_path.read_text().splitlines()
+        new_lines = []
+        for line in lines:
+            url, status, timestamp = line.split(",", 2)
+            if not status:
+                session.log(f"Pruning lychee cache entry for {url} with empty status")
+                continue
+                new_lines.append(line)
+        cache_path.write_text("\n".join(new_lines) + "\n")
+
     try:
         # check all links in the guide
         _run(
