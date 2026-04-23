@@ -791,7 +791,7 @@ def check_guide(session: nox.Session):
             if not status:
                 session.log(f"Pruning lychee cache entry for {url} with empty status")
                 continue
-                new_lines.append(line)
+            new_lines.append(line)
         cache_path.write_text("\n".join(new_lines) + "\n")
 
     try:
