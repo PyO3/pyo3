@@ -11,8 +11,14 @@ pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyLong_Type)
+}
+
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyLong_CheckExact(op: *mut PyObject) -> c_int;
 }
 
 extern_libpython! {

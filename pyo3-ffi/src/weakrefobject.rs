@@ -10,8 +10,11 @@ pub use crate::_PyWeakReference as PyWeakReference;
 extern_libpython! {
     // TODO: PyO3 is depending on this symbol in `reference.rs`, we should change this and
     // remove the export as this is a private symbol.
+    #[cfg(not(RustPython))]
     pub static mut _PyWeakref_RefType: PyTypeObject;
+    #[cfg(not(RustPython))]
     static mut _PyWeakref_ProxyType: PyTypeObject;
+    #[cfg(not(RustPython))]
     static mut _PyWeakref_CallableProxyType: PyTypeObject;
 
     #[cfg(PyPy)]
@@ -29,21 +32,39 @@ extern_libpython! {
 
 #[inline]
 #[cfg(not(PyPy))]
+#[cfg(not(RustPython))]
 pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &raw mut _PyWeakref_RefType)
 }
 
-#[inline]
-#[cfg(not(PyPy))]
-pub unsafe fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut _PyWeakref_RefType)
+extern_libpython! {
+    #[cfg(all(RustPython, not(PyPy)))]
+    pub fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
 #[cfg(not(PyPy))]
+#[cfg(not(RustPython))]
+pub unsafe fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int {
+    Py_IS_TYPE(op, &raw mut _PyWeakref_RefType)
+}
+
+extern_libpython! {
+    #[cfg(all(RustPython, not(PyPy)))]
+    pub fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int;
+}
+
+#[inline]
+#[cfg(not(PyPy))]
+#[cfg(not(RustPython))]
 pub unsafe fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int {
     (Py_IS_TYPE(op, &raw mut _PyWeakref_ProxyType) > 0
         || Py_IS_TYPE(op, &raw mut _PyWeakref_CallableProxyType) > 0) as c_int
+}
+
+extern_libpython! {
+    #[cfg(all(RustPython, not(PyPy)))]
+    pub fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int;
 }
 
 #[inline]

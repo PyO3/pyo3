@@ -7,14 +7,34 @@ use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyIterator, PyList};
 use crate::{ffi, Python};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 
 /// Represents a Python `mappingproxy`.
 #[repr(transparent)]
 pub struct PyMappingProxy(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(
     PyMappingProxy,
     pyobject_native_static_type_object!(ffi::PyDictProxy_Type),
+    "types",
+    "MappingProxyType"
+);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyMappingProxy,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "MappingProxyType")
+            .unwrap()
+            .as_type_ptr()
+    },
     "types",
     "MappingProxyType"
 );

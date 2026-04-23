@@ -4,8 +4,14 @@ use crate::object::*;
 use std::ffi::{c_int, c_long};
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyBool_Type)
+}
+
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyBool_Check(op: *mut PyObject) -> c_int;
 }
 
 extern_libpython! {

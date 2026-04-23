@@ -2,6 +2,7 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int};
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyBytes_Type")]
     pub static mut PyBytes_Type: PyTypeObject;
@@ -14,8 +15,14 @@ pub unsafe fn PyBytes_Check(op: *mut PyObject) -> c_int {
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyBytes_CheckExact(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyBytes_Type)
+}
+
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyBytes_CheckExact(op: *mut PyObject) -> c_int;
 }
 
 extern_libpython! {

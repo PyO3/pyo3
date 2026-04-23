@@ -2,6 +2,7 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int};
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyDict_Type")]
     pub static mut PyDict_Type: PyTypeObject;
@@ -13,8 +14,14 @@ pub unsafe fn PyDict_Check(op: *mut PyObject) -> c_int {
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyDict_Type)
+}
+
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyDict_CheckExact(op: *mut PyObject) -> c_int;
 }
 
 extern_libpython! {
@@ -88,6 +95,7 @@ extern_libpython! {
     // skipped 3.10 / ex-non-limited PyObject_GenericGetDict
 }
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     pub static mut PyDictKeys_Type: PyTypeObject;
     pub static mut PyDictValues_Type: PyTypeObject;
@@ -95,18 +103,30 @@ extern_libpython! {
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyDictKeys_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &raw mut PyDictKeys_Type)
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyDictValues_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &raw mut PyDictValues_Type)
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyDictItems_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &raw mut PyDictItems_Type)
+}
+
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyDictKeys_Check(op: *mut PyObject) -> c_int;
+    #[cfg(RustPython)]
+    pub fn PyDictValues_Check(op: *mut PyObject) -> c_int;
+    #[cfg(RustPython)]
+    pub fn PyDictItems_Check(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
@@ -114,6 +134,7 @@ pub unsafe fn PyDictViewSet_Check(op: *mut PyObject) -> c_int {
     (PyDictKeys_Check(op) != 0 || PyDictItems_Check(op) != 0) as c_int
 }
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     pub static mut PyDictIterKey_Type: PyTypeObject;
     pub static mut PyDictIterValue_Type: PyTypeObject;

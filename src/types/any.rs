@@ -12,6 +12,8 @@ use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
 use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py, Python};
+#[cfg(RustPython)]
+use crate::{sync::PyOnceLock, types::typeobject::PyTypeMethods};
 #[allow(deprecated)]
 use crate::{DowncastError, DowncastIntoError};
 use std::cell::UnsafeCell;
@@ -41,9 +43,23 @@ fn PyObject_Check(_: *mut ffi::PyObject) -> c_int {
 }
 
 // We follow stub writing guidelines and use "object" instead of "typing.Any": https://typing.python.org/en/latest/guides/writing_stubs.html#using-any
+#[cfg(not(RustPython))]
 pyobject_native_type_info!(
     PyAny,
     pyobject_native_static_type_object!(ffi::PyBaseObject_Type),
+    "typing",
+    "Any",
+    Some("builtins"),
+    #checkfunction=PyObject_Check
+);
+
+#[cfg(RustPython)]
+pyobject_native_type_info!(
+    PyAny,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "object").unwrap().as_type_ptr()
+    },
     "typing",
     "Any",
     Some("builtins"),

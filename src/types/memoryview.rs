@@ -2,6 +2,12 @@ use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, Bound, PyAny};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 
 /// Represents a Python `memoryview`.
 ///
@@ -10,7 +16,20 @@ use crate::{ffi, Bound, PyAny};
 #[repr(transparent)]
 pub struct PyMemoryView(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyMemoryView, pyobject_native_static_type_object!(ffi::PyMemoryView_Type), "builtins", "memoryview", #checkfunction=ffi::PyMemoryView_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyMemoryView,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "memoryview").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "memoryview",
+    #checkfunction=ffi::PyMemoryView_Check
+);
 
 impl PyMemoryView {
     /// Creates a new Python `memoryview` object from another Python object that

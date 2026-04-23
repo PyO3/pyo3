@@ -4,6 +4,12 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::get_ssize_index;
 use crate::types::sequence::PySequenceMethods;
 use crate::types::{PySequence, PyTuple};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python};
 use std::iter::FusedIterator;
 #[cfg(feature = "nightly")]
@@ -19,10 +25,23 @@ use std::num::NonZero;
 #[repr(transparent)]
 pub struct PyList(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(
     PyList,
     pyobject_native_static_type_object!(ffi::PyList_Type),
     "builtins", "list",
+    #checkfunction=ffi::PyList_Check
+);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyList,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "list").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "list",
     #checkfunction=ffi::PyList_Check
 );
 
