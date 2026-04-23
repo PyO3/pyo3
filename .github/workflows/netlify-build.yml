@@ -50,6 +50,7 @@ jobs:
         with:
           name: lychee-cache
           path: .lycheecache
+          include-hidden-files: true
 
       # This builds the book in target/guide/.
       - name: Build the guide
