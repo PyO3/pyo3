@@ -45,10 +45,10 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
         return Ok(());
     }
 
-    match interpreter_config.abi.implementation {
+    match interpreter_config.target_abi.implementation {
         PythonImplementation::CPython => {
             let versions = SUPPORTED_VERSIONS_CPYTHON;
-            let interp_version = interpreter_config.abi.version;
+            let interp_version = interpreter_config.target_abi.version;
             ensure!(
                 interp_version >= versions.min,
                 "the configured Python interpreter version ({}) is lower than PyO3's minimum supported version ({})",
@@ -70,7 +70,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 let mut error = MaximumVersionExceeded::new(interpreter_config, versions.max);
                 let major = interp_version.major;
                 let minor = interp_version.minor;
-                if interpreter_config.abi.kind.is_free_threaded() {
+                if interpreter_config.target_abi.kind.is_free_threaded() {
                     error.add_help(&format!(
                         "the free-threaded build of CPython {major}{minor} does not support the limited API so this check cannot be suppressed.",
                     ));
@@ -84,29 +84,29 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 }
             }
 
-            if interpreter_config.abi.kind.is_free_threaded() {
+            if interpreter_config.target_abi.kind.is_free_threaded() {
                 let min_free_threaded_version = PythonVersion {
                     major: 3,
                     minor: 14,
                 };
                 ensure!(
-                    interpreter_config.abi.version >= min_free_threaded_version,
+                    interpreter_config.target_abi.version >= min_free_threaded_version,
                     "PyO3 does not support the free-threaded build of CPython versions below {}, the selected Python version is {}",
                     min_free_threaded_version,
-                    interpreter_config.abi.version,
+                    interpreter_config.target_abi.version,
                 );
             }
         }
         PythonImplementation::PyPy => {
             let versions = SUPPORTED_VERSIONS_PYPY;
             ensure!(
-                interpreter_config.abi.version >= versions.min,
+                interpreter_config.target_abi.version >= versions.min,
                 "the configured PyPy interpreter version ({}) is lower than PyO3's minimum supported version ({})",
-                interpreter_config.abi.version,
+                interpreter_config.target_abi.version,
                 versions.min,
             );
             // PyO3 does not support abi3, so we cannot offer forward compatibility
-            if interpreter_config.abi.version > versions.max {
+            if interpreter_config.target_abi.version > versions.max {
                 let error = MaximumVersionExceeded::new(interpreter_config, versions.max);
                 return Err(error.finish().into());
             }
@@ -114,13 +114,13 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
         PythonImplementation::GraalPy => {
             let versions = SUPPORTED_VERSIONS_GRAALPY;
             ensure!(
-                interpreter_config.abi.version >= versions.min,
+                interpreter_config.target_abi.version >= versions.min,
                 "the configured GraalPy interpreter version ({}) is lower than PyO3's minimum supported version ({})",
-                interpreter_config.abi.version,
+                interpreter_config.target_abi.version,
                 versions.min,
             );
             // GraalPy does not support abi3, so we cannot offer forward compatibility
-            if interpreter_config.abi.version > versions.max {
+            if interpreter_config.target_abi.version > versions.max {
                 let error = MaximumVersionExceeded::new(interpreter_config, versions.max);
                 return Err(error.finish().into());
             }
@@ -128,10 +128,10 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
         PythonImplementation::RustPython => {}
     }
 
-    if let PythonAbiKind::Abi3 = interpreter_config.abi.kind {
-        match interpreter_config.abi.implementation {
+    if let PythonAbiKind::Abi3 = interpreter_config.target_abi.kind {
+        match interpreter_config.target_abi.implementation {
             PythonImplementation::CPython => {
-                if interpreter_config.abi.kind.is_free_threaded() {
+                if interpreter_config.target_abi.kind.is_free_threaded() {
                     warn!(
                             "The free-threaded build of CPython does not support abi3 so the build artifacts will be version-specific."
                     )

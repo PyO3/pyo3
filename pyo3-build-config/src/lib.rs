@@ -20,7 +20,8 @@ use std::{env, process::Command, str::FromStr, sync::OnceLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
-    CrossCompileConfig, InterpreterConfig, PythonAbi, PythonImplementation, PythonVersion, Triple,
+    CrossCompileConfig, InterpreterConfig, InterpreterConfigBuilder, PythonAbi,
+    PythonImplementation, PythonVersion, Triple,
 };
 
 use target_lexicon::OperatingSystem;
@@ -390,13 +391,13 @@ pub mod pyo3_build_script_impl {
             interpreter_config: &InterpreterConfig,
             supported_version: PythonVersion,
         ) -> Self {
-            let implementation = match interpreter_config.abi.implementation {
+            let implementation = match interpreter_config.target_abi.implementation {
                 PythonImplementation::CPython => "Python",
                 PythonImplementation::PyPy => "PyPy",
                 PythonImplementation::GraalPy => "GraalPy",
                 PythonImplementation::RustPython => "RustPython",
             };
-            let version = &interpreter_config.abi.version;
+            let version = &interpreter_config.target_abi.version;
             let message = format!(
                 "the configured {implementation} version ({version}) is newer than PyO3's maximum supported version ({supported_version})\n\
                 = help: this package is being built with PyO3 version {current_version}\n\
@@ -483,10 +484,14 @@ mod tests {
     #[test]
     fn python_framework_link_args() {
         let mut buf = Vec::new();
-
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY313;
+        let target_abi = PythonAbiBuilder::new(implementation, version).finalize();
         let interpreter_config = InterpreterConfig {
-            abi: PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY313)
-                .finalize(),
+            implementation,
+            version,
+            target_abi,
+            abi3: false,
             shared: true,
             lib_name: None,
             lib_dir: None,
@@ -523,9 +528,14 @@ mod tests {
     #[test]
     #[cfg(feature = "resolve-config")]
     fn test_maximum_version_exceeded_formatting() {
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY313;
+        let target_abi = PythonAbiBuilder::new(implementation, version).finalize();
         let interpreter_config = InterpreterConfig {
-            abi: PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY313)
-                .finalize(),
+            implementation,
+            version,
+            target_abi,
+            abi3: false,
             shared: true,
             lib_name: None,
             lib_dir: None,
