@@ -10,6 +10,8 @@ use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
 use crate::internal::get_slot::{TP_DEALLOC, TP_FREE};
+#[cfg(RustPython)]
+use crate::sync::PyOnceLock;
 use crate::type_object::{PyLayout, PySizedLayout, PyTypeInfo};
 use crate::types::PyType;
 use crate::{ffi, PyClass, Python};
@@ -264,7 +266,18 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
 
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
+        #[cfg(not(RustPython))]
         if std::ptr::eq(type_ptr, &raw const ffi::PyBaseObject_Type) {
+            let tp_free = actual_type
+                .get_slot(TP_FREE)
+                .expect("PyBaseObject_Type should have tp_free");
+            return tp_free(slf.cast());
+        }
+        #[cfg(RustPython)]
+        if std::ptr::eq(type_ptr, {
+            static TYPE: PyOnceLock<crate::Py<PyType>> = PyOnceLock::new();
+            TYPE.import(py, "builtins", "object").unwrap().as_type_ptr()
+        }) {
             let tp_free = actual_type
                 .get_slot(TP_FREE)
                 .expect("PyBaseObject_Type should have tp_free");

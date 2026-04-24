@@ -6,6 +6,12 @@ use crate::type_object::PyTypeInfo;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, Python,
 };
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 use std::convert::Infallible;
 use std::ffi::c_double;
 
@@ -25,10 +31,24 @@ pub struct PyFloat(PyAny);
 
 pyobject_subclassable_native_type!(PyFloat, crate::ffi::PyFloatObject);
 
+#[cfg(not(RustPython))]
 pyobject_native_type!(
     PyFloat,
     ffi::PyFloatObject,
     pyobject_native_static_type_object!(ffi::PyFloat_Type),
+    "builtins",
+    "float",
+    #checkfunction=ffi::PyFloat_Check
+);
+
+#[cfg(RustPython)]
+pyobject_native_type!(
+    PyFloat,
+    ffi::PyFloatObject,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "float").unwrap().as_type_ptr()
+    },
     "builtins",
     "float",
     #checkfunction=ffi::PyFloat_Check

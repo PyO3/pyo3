@@ -3,19 +3,29 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::{c_char, c_int, c_void};
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyModule_Type")]
     pub static mut PyModule_Type: PyTypeObject;
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &raw mut PyModule_Type)
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyModule_Type)
+}
+
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyModule_Check(op: *mut PyObject) -> c_int;
+    #[cfg(RustPython)]
+    pub fn PyModule_CheckExact(op: *mut PyObject) -> c_int;
 }
 
 extern_libpython! {
@@ -45,6 +55,7 @@ extern_libpython! {
     pub fn PyModuleDef_Init(arg1: *mut PyModuleDef) -> *mut PyObject;
 }
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     pub static mut PyModuleDef_Type: PyTypeObject;
 }

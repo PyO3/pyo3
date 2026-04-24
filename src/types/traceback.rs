@@ -1,6 +1,12 @@
 use crate::err::{error_on_minusone, PyResult};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, PyString};
 use crate::{ffi, Bound, PyAny};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 use crate::{types::PyFrame, PyTypeCheck, Python};
 
@@ -14,9 +20,22 @@ use crate::{types::PyFrame, PyTypeCheck, Python};
 #[repr(transparent)]
 pub struct PyTraceback(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(
     PyTraceback,
     pyobject_native_static_type_object!(ffi::PyTraceBack_Type),
+    "builtins",
+    "traceback",
+    #checkfunction=ffi::PyTraceBack_Check
+);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyTraceback,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "traceback").unwrap().as_type_ptr()
+    },
     "builtins",
     "traceback",
     #checkfunction=ffi::PyTraceBack_Check

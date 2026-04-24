@@ -45,6 +45,7 @@ extern_libpython! {
     // skipped non-limited _PySet_Update
 }
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPySet_Type")]
     pub static mut PySet_Type: PyTypeObject;
@@ -79,8 +80,14 @@ extern_libpython! {
 
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(RustPython))]
 pub unsafe fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &raw mut PyFrozenSet_Type) as c_int
+}
+
+extern_libpython! {
+    #[cfg(all(RustPython, not(any(PyPy, GraalPy))))]
+    pub fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int;
 }
 
 extern_libpython! {
@@ -91,9 +98,15 @@ extern_libpython! {
 
 #[inline]
 #[cfg(not(PyPy))]
+#[cfg(not(RustPython))]
 pub unsafe fn PyFrozenSet_Check(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &raw mut PyFrozenSet_Type
         || PyType_IsSubtype(Py_TYPE(ob), &raw mut PyFrozenSet_Type) != 0) as c_int
+}
+
+extern_libpython! {
+    #[cfg(all(RustPython, not(PyPy)))]
+    pub fn PyFrozenSet_Check(ob: *mut PyObject) -> c_int;
 }
 
 extern_libpython! {
@@ -104,21 +117,39 @@ extern_libpython! {
 
 #[inline]
 #[cfg(not(PyPy))]
+#[cfg(not(RustPython))]
 pub unsafe fn PyAnySet_CheckExact(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &raw mut PySet_Type || Py_TYPE(ob) == &raw mut PyFrozenSet_Type) as c_int
 }
 
+extern_libpython! {
+    #[cfg(all(RustPython, not(PyPy)))]
+    pub fn PyAnySet_CheckExact(ob: *mut PyObject) -> c_int;
+}
+
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyAnySet_Check(ob: *mut PyObject) -> c_int {
     (PyAnySet_CheckExact(ob) != 0
         || PyType_IsSubtype(Py_TYPE(ob), &raw mut PySet_Type) != 0
         || PyType_IsSubtype(Py_TYPE(ob), &raw mut PyFrozenSet_Type) != 0) as c_int
 }
 
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyAnySet_Check(ob: *mut PyObject) -> c_int;
+}
+
 #[inline]
 #[cfg(Py_3_10)]
+#[cfg(not(RustPython))]
 pub unsafe fn PySet_CheckExact(op: *mut PyObject) -> c_int {
     crate::Py_IS_TYPE(op, &raw mut PySet_Type)
+}
+
+extern_libpython! {
+    #[cfg(all(RustPython, Py_3_10))]
+    pub fn PySet_CheckExact(op: *mut PyObject) -> c_int;
 }
 
 extern_libpython! {
@@ -129,7 +160,13 @@ extern_libpython! {
 
 #[inline]
 #[cfg(not(PyPy))]
+#[cfg(not(RustPython))]
 pub unsafe fn PySet_Check(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &raw mut PySet_Type || PyType_IsSubtype(Py_TYPE(ob), &raw mut PySet_Type) != 0)
         as c_int
+}
+
+extern_libpython! {
+    #[cfg(all(RustPython, not(PyPy)))]
+    pub fn PySet_Check(ob: *mut PyObject) -> c_int;
 }

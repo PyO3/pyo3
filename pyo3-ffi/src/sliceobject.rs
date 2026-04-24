@@ -35,6 +35,7 @@ pub struct PySliceObject {
     pub step: *mut PyObject,
 }
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPySlice_Type")]
     pub static mut PySlice_Type: PyTypeObject;
@@ -42,8 +43,14 @@ extern_libpython! {
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PySlice_Type)
+}
+
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PySlice_Check(op: *mut PyObject) -> c_int;
 }
 
 extern_libpython! {
