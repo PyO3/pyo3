@@ -305,7 +305,7 @@ mod tests {
         Python::attach(|py| {
             let check_err = |err: PyErr, expected_msg: &str| {
                 let py_err = err.into_bound_py_any(py).unwrap();
-                assert!(py_err.is_instance_of::<crate::exceptions::PyValueError>());
+                assert!(py_err.is_instance_of::<exceptions::PyValueError>());
                 let msg = py_err.str().unwrap().to_string();
                 assert_eq!(msg, expected_msg);
             };
