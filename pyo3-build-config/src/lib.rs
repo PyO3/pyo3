@@ -14,7 +14,8 @@ use std::{env, process::Command, str::FromStr, sync::LazyLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
-    CrossCompileConfig, InterpreterConfig, PythonImplementation, PythonVersion, Triple,
+    CrossCompileConfig, InterpreterConfig, InterpreterConfigBuilder, PythonImplementation,
+    PythonVersion, Triple,
 };
 
 use target_lexicon::OperatingSystem;
@@ -107,7 +108,7 @@ fn _add_libpython_rpath_link_args(
     mut writer: impl std::io::Write,
 ) {
     if is_linking_libpython {
-        if let Some(lib_dir) = interpreter_config.lib_dir.as_ref() {
+        if let Some(lib_dir) = interpreter_config.lib_dir() {
             writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}").unwrap();
         }
     }
@@ -138,7 +139,7 @@ fn _add_python_framework_link_args(
     mut writer: impl std::io::Write,
 ) {
     if matches!(triple.operating_system, OperatingSystem::Darwin(_)) && link_libpython {
-        if let Some(framework_prefix) = interpreter_config.python_framework_prefix.as_ref() {
+        if let Some(framework_prefix) = interpreter_config.python_framework_prefix() {
             writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{framework_prefix}").unwrap();
         }
     }
@@ -303,13 +304,13 @@ pub mod pyo3_build_script_impl {
             interpreter_config: &InterpreterConfig,
             supported_version: PythonVersion,
         ) -> Self {
-            let implementation = match interpreter_config.implementation {
+            let implementation = match interpreter_config.implementation() {
                 PythonImplementation::CPython => "Python",
                 PythonImplementation::PyPy => "PyPy",
                 PythonImplementation::GraalPy => "GraalPy",
                 PythonImplementation::RustPython => "RustPython",
             };
-            let version = &interpreter_config.version;
+            let version = interpreter_config.version();
             let message = format!(
                 "the configured {implementation} version ({version}) is newer than PyO3's maximum supported version ({supported_version})\n\
                 = help: this package is being built with PyO3 version {current_version}\n\
@@ -346,6 +347,7 @@ fn rustc_minor_version() -> Option<u32> {
 }
 
 #[cfg(test)]
+#[expect(deprecated, reason = "accessing config directly")]
 mod tests {
     use crate::impl_::escape;
 
@@ -397,26 +399,14 @@ mod tests {
     #[test]
     fn python_framework_link_args() {
         let mut buf = Vec::new();
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY313;
+        let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
+            .python_framework_prefix(
+                "/Applications/Xcode.app/Contents/Developer/Library/Frameworks".into(),
+            )
+            .finalize();
 
-        let interpreter_config = InterpreterConfig {
-            implementation: PythonImplementation::CPython,
-            version: PythonVersion {
-                major: 3,
-                minor: 13,
-            },
-            shared: true,
-            abi3: false,
-            lib_name: None,
-            lib_dir: None,
-            executable: None,
-            pointer_width: None,
-            build_flags: BuildFlags::default(),
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix: Some(
-                "/Applications/Xcode.app/Contents/Developer/Library/Frameworks".to_string(),
-            ),
-        };
         // Does nothing on non-mac
         _add_python_framework_link_args(
             &interpreter_config,
@@ -440,29 +430,12 @@ mod tests {
 
     #[test]
     fn test_maximum_version_exceeded_formatting() {
-        let interpreter_config = InterpreterConfig {
-            implementation: PythonImplementation::CPython,
-            version: PythonVersion {
-                major: 3,
-                minor: 13,
-            },
-            shared: true,
-            abi3: false,
-            lib_name: None,
-            lib_dir: None,
-            executable: None,
-            pointer_width: None,
-            build_flags: BuildFlags::default(),
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix: None,
-        };
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY313;
+        let interpreter_config = InterpreterConfigBuilder::new(implementation, version).finalize();
         let mut error = pyo3_build_script_impl::MaximumVersionExceeded::new(
             &interpreter_config,
-            PythonVersion {
-                major: 3,
-                minor: 12,
-            },
+            PythonVersion::PY312,
         );
         error.add_help("this is a help message");
         let error = error.finish();
@@ -481,23 +454,9 @@ mod tests {
         // There should be no other tests or config in the environment
         assert!(InterpreterConfig::from_cargo_dep_env().is_none());
 
-        let interpreter_config = InterpreterConfig {
-            implementation: PythonImplementation::CPython,
-            version: PythonVersion {
-                major: 3,
-                minor: 13,
-            },
-            shared: true,
-            abi3: false,
-            lib_name: None,
-            lib_dir: None,
-            executable: None,
-            pointer_width: None,
-            build_flags: BuildFlags::default(),
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix: None,
-        };
+        let interpreter_config =
+            InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY313)
+                .finalize();
         let mut buf = Vec::new();
         interpreter_config.to_writer(&mut buf).unwrap();
         let config_string = escape(&buf);
