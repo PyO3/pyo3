@@ -1640,7 +1640,8 @@ class _ConfigFile:
         self._config_file.truncate(0)
         self._config_file.write(
             f"""\
-abi={implementation}-version_specific(false)-{version}
+implementation={implementation}
+version={version}
 build_flags={",".join(build_flags)}
 suppress_build_script_link_lines=true
 """
