@@ -2985,7 +2985,7 @@ mod tests {
         assert!(builder
             .unwrap_err()
             .to_string()
-            .contains("ABI already chosen!"));
+            .contains("ABI kind already set to"));
 
         let builder = PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY39)
             .free_threaded();
