@@ -164,7 +164,7 @@ pub fn function_introspection_code(
         );
     }
     if !overloads.is_empty() {
-        let overload_nodes: Vec<AttributedIntrospectionNode<'_>> = overloads
+        let overload_nodes = overloads
             .iter()
             .map(|overload| {
                 let mut overload_map = HashMap::new();
