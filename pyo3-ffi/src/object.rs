@@ -652,10 +652,10 @@ pub unsafe fn Py_IsNone(x: *mut PyObject) -> c_int {
 #[inline]
 pub unsafe fn Py_RETURN_NONE() -> *mut PyObject {
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
-    Py_NewRef(Py_None())
+    return Py_NewRef(Py_None());
 
     #[cfg(all(not(GraalPy), all(Py_3_13, Py_LIMITED_API)))]
-    Py_None()
+    return Py_None();
 }
 
 extern_libpython! {
@@ -682,10 +682,10 @@ pub unsafe fn Py_NotImplemented() -> *mut PyObject {
 #[inline]
 pub unsafe fn Py_RETURN_NOTIMPLEMENTED() -> *mut PyObject {
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
-    Py_NewRef(Py_NotImplemented())
+    return Py_NewRef(Py_NotImplemented());
 
     #[cfg(all(not(GraalPy), all(Py_3_13, Py_LIMITED_API)))]
-    Py_NotImplemented()
+    return Py_NotImplemented();
 }
 
 /* Rich comparison opcodes */
