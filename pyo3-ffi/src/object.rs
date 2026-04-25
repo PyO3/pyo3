@@ -3,7 +3,7 @@ use crate::pyport::{Py_hash_t, Py_ssize_t};
 use crate::refcount;
 #[cfg(Py_GIL_DISABLED)]
 use crate::PyMutex;
-#[cfg(all(not(Py_3_13), Py_LIMITED_API))]
+#[cfg(all(not(Py_3_13), Py_3_10, Py_LIMITED_API, not(PyPy)))]
 use crate::Py_NewRef;
 use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::mem;
@@ -651,10 +651,10 @@ pub unsafe fn Py_IsNone(x: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn Py_RETURN_NONE() -> *mut PyObject {
-    #[cfg(all(not(Py_3_13), Py_LIMITED_API))]
+    #[cfg(all(not(Py_3_13), Py_3_10, Py_LIMITED_API, not(PyPy)))]
     return Py_NewRef(Py_None());
 
-    #[cfg(Py_3_13)]
+    #[cfg(Py_3_10)]
     return Py_None();
 }
 
@@ -681,10 +681,10 @@ pub unsafe fn Py_NotImplemented() -> *mut PyObject {
 
 #[inline]
 pub unsafe fn Py_RETURN_NOTIMPLEMENTED() -> *mut PyObject {
-    #[cfg(all(not(Py_3_13), Py_LIMITED_API))]
+    #[cfg(all(not(Py_3_13), Py_3_10, Py_LIMITED_API, not(PyPy)))]
     return Py_NewRef(Py_NotImplemented());
 
-    #[cfg(Py_3_13)]
+    #[cfg(Py_3_10)]
     return Py_NotImplemented();
 }
 
