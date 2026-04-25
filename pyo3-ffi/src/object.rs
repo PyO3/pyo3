@@ -4,7 +4,7 @@ use crate::refcount;
 #[cfg(Py_GIL_DISABLED)]
 use crate::PyMutex;
 #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
-use crate::Py_NewRef;
+use pyo3_ffi::*;
 use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::mem;
 #[cfg(Py_GIL_DISABLED)]
