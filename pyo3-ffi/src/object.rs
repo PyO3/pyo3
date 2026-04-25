@@ -653,7 +653,8 @@ pub unsafe fn Py_IsNone(x: *mut PyObject) -> c_int {
 pub unsafe fn Py_RETURN_NONE() -> *mut PyObject {
     #[cfg(all(not(Py_3_13), Py_3_10, Py_LIMITED_API, not(PyPy)))]
     {
-        Py_NewRef(Py_None())
+        let obj = Py_None();
+        Py_NewRef(obj)
     }
 
     #[cfg(Py_3_10)]
@@ -687,7 +688,8 @@ pub unsafe fn Py_NotImplemented() -> *mut PyObject {
 pub unsafe fn Py_RETURN_NOTIMPLEMENTED() -> *mut PyObject {
     #[cfg(all(not(Py_3_13), Py_3_10, Py_LIMITED_API, not(PyPy)))]
     {
-        Py_NewRef(Py_NotImplemented())
+        let obj = Py_NotImplemented();
+        Py_NewRef(obj)
     }
 
     #[cfg(Py_3_10)]
