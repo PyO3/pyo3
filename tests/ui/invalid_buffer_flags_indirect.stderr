@@ -1,0 +1,19 @@
+error[E0599]: the method `indirect` exists for struct `PyBufferRequest<buffer::py_buffer_flags::PyBufferFlags<false, true, true, true, false, 0>>`, but its trait bounds were not satisfied
+ --> tests/ui/invalid_buffer_flags_indirect.rs:4:50
+  |
+4 |       let _ = PyBufferRequest::simple().indirect().indirect();
+  |                                                    ^^^^^^^^ method cannot be called due to unsatisfied trait bounds
+  |
+ ::: src/buffer.rs
+  |
+  | /     pub struct PyBufferFlags<
+  | |         const FORMAT: bool,
+  | |         const SHAPE: bool,
+  | |         const STRIDE: bool,
+... |
+  | |         const CONTIGUITY: u8,
+  | |     >;
+  | |_____- doesn't satisfy `_: CanRequestIndirect`
+  |
+  = note: the following trait bounds were not satisfied:
+          `buffer::py_buffer_flags::PyBufferFlags<false, true, true, true, false, 0>: buffer::py_buffer_flags::CanRequestIndirect`
