@@ -247,7 +247,7 @@ pub unsafe fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
 
 #[inline]
 #[cfg(not(all(Py_LIMITED_API, Py_3_15)))]
-pub unsafe fn Py_SET_SIZE(ob: *mut PyVarObject, size: Py_ssize_t {
+pub unsafe fn Py_SET_SIZE(ob: *mut PyVarObject, size: Py_ssize_t) {
     (*ob).ob_size = size
 }
 
