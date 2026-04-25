@@ -330,11 +330,34 @@ impl Number {
     }
 }
 
+#[cfg(feature = "experimental-inspect")]
+#[pyclass]
+struct ClassWithOverloads;
+
+#[cfg(feature = "experimental-inspect")]
+#[pymethods]
+impl ClassWithOverloads {
+    #[new]
+    fn new() -> Self {
+        ClassWithOverloads
+    }
+
+    #[pyo3(overload(x: "int") -> "int")]
+    #[pyo3(overload(x: "str") -> "str")]
+    #[pyo3(signature = (x))]
+    fn process<'py>(&self, x: Bound<'py, PyAny>) -> Bound<'py, PyAny> {
+        x
+    }
+}
+
 #[pymodule]
 pub mod pyclasses {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     #[pymodule_export]
     use super::ClassWithDict;
+    #[cfg(feature = "experimental-inspect")]
+    #[pymodule_export]
+    use super::ClassWithOverloads;
     #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     #[pymodule_export]
     use super::SubClassWithInit;
