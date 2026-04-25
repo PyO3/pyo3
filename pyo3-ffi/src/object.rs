@@ -236,7 +236,7 @@ pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
 extern_libpython! {
     pub fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int;
     pub fn Py_SET_SIZE(ob: *mut PyVarObject, size: Py_ssize_t);
-    pub fn Py_SET_TYPE(ob: *mut PyObject, type: *mut PyTypeObject);
+    pub fn Py_SET_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject);
 }
 
 #[inline]
