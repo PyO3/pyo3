@@ -411,6 +411,7 @@ mod internal;
 
 pub mod buffer;
 pub mod call;
+pub mod capsule;
 pub mod conversion;
 mod conversions;
 #[cfg(feature = "experimental-async")]
