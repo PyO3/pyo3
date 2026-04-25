@@ -11,6 +11,7 @@ use syn::{parse_quote, DataEnum, DeriveInput, Fields, Ident, Index, Result};
 
 struct ItemOption(Option<syn::Lit>);
 
+#[cfg_attr(feature = "experimental-inspect", expect(clippy::large_enum_variant))]
 enum IntoPyObjectTypes {
     Transparent(syn::Type),
     Opaque {
