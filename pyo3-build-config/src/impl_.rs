@@ -760,7 +760,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     }
 }
 
-#[derive(Debug)]
+#[cfg_attr(test, derive(Debug))]
 pub struct InterpreterConfigBuilder {
     implementation: PythonImplementation,
     version: PythonVersion,
@@ -800,7 +800,7 @@ impl InterpreterConfigBuilder {
     pub fn target_abi(self, target_abi: PythonAbi) -> Result<InterpreterConfigBuilder> {
         ensure!(
             self.target_abi.is_none(),
-            "Target ABI already set to {:?}",
+            "Target ABI already set to {}",
             target_abi
         );
         Ok(InterpreterConfigBuilder {
@@ -939,7 +939,7 @@ impl InterpreterConfigBuilder {
     }
 }
 
-#[derive(Debug)]
+#[cfg_attr(test, derive(Debug))]
 pub struct PythonAbiBuilder {
     implementation: PythonImplementation,
     version: PythonVersion,
@@ -975,8 +975,8 @@ impl PythonAbiBuilder {
     pub fn abi3(self) -> Result<PythonAbiBuilder> {
         if self.kind.is_some() {
             bail!(
-                "ABI kind already set to {:?}, cannot set to abi3",
-                self.kind
+                "ABI kind already set to {}, cannot set to abi3",
+                self.kind.unwrap()
             )
         }
 
@@ -1004,8 +1004,8 @@ impl PythonAbiBuilder {
     pub fn free_threaded(self) -> Result<PythonAbiBuilder> {
         if self.kind.is_some() {
             bail!(
-                "Target ABI already set to {:?}, cannot set to free-threaded",
-                self.kind
+                "Target ABI already set to {}, cannot set to free-threaded",
+                self.kind.unwrap()
             )
         }
         if self.version < PythonVersion::PY313 {
@@ -1034,7 +1034,8 @@ impl PythonAbiBuilder {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(test, derive(Debug))]
 pub struct PythonAbi {
     /// The Python implementation flavor.
     ///
@@ -1078,7 +1079,8 @@ impl FromStr for PythonAbi {
 }
 
 /// The "kind" of stable ABI. Either abi3 or abi3t currently.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(test, derive(Debug))]
 pub enum PythonAbiKind {
     /// The original stable ABI, supporting Python 3.2 and up
     Abi3,
@@ -1128,7 +1130,8 @@ impl PythonAbiKind {
 }
 
 /// Whether the ABI is for the GIL-enabled or free-threaded build.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(test, derive(Debug))]
 pub enum GilUsed {
     /// The original PyObject layout
     GilEnabled,
