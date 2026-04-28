@@ -280,7 +280,6 @@ pub mod example {
       arg
    }
 }
-# }
 ```
 
 It enables the [work-in-progress capacity of PyO3 to autogenerate type stubs](../type-stub.md) to generate a file with the correct type hints:
