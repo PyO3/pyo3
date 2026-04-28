@@ -353,11 +353,8 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             version
         };
 
-        let mut abi_builder = PythonAbiBuilder::new(implementation, target_version);
-
-        if is_abi3() || abi3_version.is_some() {
-            abi_builder = abi_builder.abi3()?;
-        }
+        let mut abi_builder =
+            PythonAbiBuilder::from_build_env(implementation, target_version, abi3_version)?;
 
         if gil_disabled {
             abi_builder = abi_builder.free_threaded()?;
@@ -455,11 +452,8 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             None => false,
         };
         let cygwin = soabi.ends_with("cygwin");
-        let mut abi_builder = PythonAbiBuilder::from_build_env(
-            implementation,
-            version,
-            if is_abi3() { Some(version) } else { None },
-        )?;
+        let mut abi_builder =
+            PythonAbiBuilder::from_build_env(implementation, version, Some(version))?;
         if gil_disabled && abi_builder.kind.is_none() {
             abi_builder = abi_builder.free_threaded()?;
         }
@@ -969,7 +963,7 @@ impl PythonAbiBuilder {
             version: abi3_version.unwrap_or(version),
             kind: None,
         };
-        if abi3_version.is_some() && is_abi3() {
+        if is_abi3() {
             builder.abi3()
         } else {
             Ok(builder)
@@ -2010,11 +2004,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         .implementation
         .unwrap_or(PythonImplementation::CPython);
     let gil_disabled: bool = cross_compile_config.abiflags.as_deref() == Some("t");
-    let mut abi_builder = PythonAbiBuilder::from_build_env(
-        implementation,
-        version,
-        if is_abi3() { Some(version) } else { None },
-    )?;
+    let mut abi_builder = PythonAbiBuilder::from_build_env(implementation, version, Some(version))?;
     // The build environment might imply an abi3 build, which can't be free-threaded
     if gil_disabled && abi_builder.kind.is_none() {
         abi_builder = abi_builder.free_threaded()?;
