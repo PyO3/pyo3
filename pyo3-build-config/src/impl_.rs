@@ -353,8 +353,11 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             version
         };
 
-        let mut abi_builder =
-            PythonAbiBuilder::from_build_env(implementation, target_version, abi3_version)?;
+        let mut abi_builder = if gil_disabled {
+            PythonAbiBuilder::new(implementation, target_version)
+        } else {
+            PythonAbiBuilder::from_build_env(implementation, target_version, abi3_version)?
+        };
 
         if gil_disabled {
             abi_builder = abi_builder.free_threaded()?;
@@ -599,14 +602,6 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let target_abi =
             if !(is_abi3() || target_abi.is_some() || abi3.is_some() || build_flags.is_some()) {
                 PythonAbiBuilder::new(implementation, version).finalize()
-            } else if (abi3.is_some() && abi3.unwrap()) || is_abi3() {
-                if abi3.is_some() && abi3.unwrap() {
-                    warn!("abi3 configuration file option is deprecated, set target_abi instead");
-                }
-                PythonAbiBuilder::new(implementation, version)
-                    .abi3()
-                    .unwrap()
-                    .finalize()
             } else if let Some(ref flags) = build_flags {
                 if flags.0.contains(&BuildFlag::Py_GIL_DISABLED) {
                     PythonAbiBuilder::new(implementation, version)
@@ -621,6 +616,14 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                     );
                     target_abi.unwrap_or(PythonAbiBuilder::new(implementation, version).finalize())
                 }
+            } else if (abi3.is_some() && abi3.unwrap()) || is_abi3() {
+                if abi3.is_some() && abi3.unwrap() {
+                    warn!("abi3 configuration file option is deprecated, set target_abi instead");
+                }
+                PythonAbiBuilder::new(implementation, version)
+                    .abi3()
+                    .unwrap()
+                    .finalize()
             } else {
                 ensure!(
                     !(target_abi.is_some() && abi3.is_some()),
