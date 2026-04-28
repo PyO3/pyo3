@@ -268,7 +268,6 @@ Type:      builtin_function_or_method
 The `signature` attribute can also contain type hints:
 
 ```rust
-# #[cfg(feature = "experimental-inspect")] {
 use pyo3::prelude::*;
 
 #[pymodule]
