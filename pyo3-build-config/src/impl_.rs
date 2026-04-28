@@ -455,12 +455,12 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             None => false,
         };
         let cygwin = soabi.ends_with("cygwin");
-        let mut abi_builder =
-            PythonAbiBuilder::from_build_env(implementation, version, Some(version))?;
-        if gil_disabled && abi_builder.kind.is_none() {
-            abi_builder = abi_builder.free_threaded()?;
+        let target_abi = if gil_disabled {
+            PythonAbiBuilder::new(implementation, version).free_threaded()?
+        } else {
+            PythonAbiBuilder::from_build_env(implementation, version, Some(version))?
         }
-        let target_abi = abi_builder.finalize();
+        .finalize();
         let lib_name = Some(default_lib_name_unix(
             target_abi,
             cygwin,
