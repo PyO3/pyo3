@@ -355,6 +355,10 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 
         let mut abi_builder = PythonAbiBuilder::new(implementation, target_version);
 
+        if is_abi3() || abi3_version.is_some() {
+            abi_builder = abi_builder.abi3()?;
+        }
+
         if gil_disabled {
             abi_builder = abi_builder.free_threaded()?;
         }
