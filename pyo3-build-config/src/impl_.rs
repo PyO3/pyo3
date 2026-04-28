@@ -977,11 +977,8 @@ impl PythonAbiBuilder {
     }
 
     pub fn abi3(self) -> Result<PythonAbiBuilder> {
-        if self.kind.is_some() {
-            bail!(
-                "ABI kind already set to {}, cannot set to abi3",
-                self.kind.unwrap()
-            )
+        if let Some(kind) = self.kind {
+            bail!("ABI kind already set to {kind}, cannot set to abi3",)
         }
 
         // PyPy and GraalPy don't support abi3; don't adjust the version
@@ -1006,11 +1003,8 @@ impl PythonAbiBuilder {
     }
 
     pub fn free_threaded(self) -> Result<PythonAbiBuilder> {
-        if self.kind.is_some() {
-            bail!(
-                "Target ABI already set to {}, cannot set to free-threaded",
-                self.kind.unwrap()
-            )
+        if let Some(kind) = self.kind {
+            bail!("Target ABI already set to {kind}, cannot set to free-threaded",)
         }
         if self.version < PythonVersion::PY313 {
             let version = self.version;
