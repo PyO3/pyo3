@@ -87,6 +87,10 @@ name = "bench_intern"
 harness = false
 
 [[bench]]
+name = "bench_native_enum"
+harness = false
+
+[[bench]]
 name = "bench_extract"
 harness = false
 
