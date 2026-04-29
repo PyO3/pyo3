@@ -257,15 +257,11 @@ pub fn print_feature_cfgs() {
 /// - <https://doc.rust-lang.org/nightly/cargo/reference/build-scripts.html#rustc-check-cfg>
 #[doc(hidden)]
 pub fn print_expected_cfgs() {
-    if rustc_minor_version().is_some_and(|version| version < 80) {
-        // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
-        return;
-    }
-
     println!("cargo:rustc-check-cfg=cfg(Py_LIMITED_API)");
     println!("cargo:rustc-check-cfg=cfg(Py_GIL_DISABLED)");
     println!("cargo:rustc-check-cfg=cfg(PyPy)");
     println!("cargo:rustc-check-cfg=cfg(GraalPy)");
+    println!("cargo:rustc-check-cfg=cfg(RustPython)");
     println!("cargo:rustc-check-cfg=cfg(py_sys_config, values(\"Py_DEBUG\", \"Py_REF_DEBUG\", \"Py_TRACE_REFS\", \"COUNT_ALLOCS\"))");
     println!("cargo:rustc-check-cfg=cfg(pyo3_disable_reference_pool)");
     println!("cargo:rustc-check-cfg=cfg(pyo3_leak_on_drop_without_reference_pool)");
@@ -398,6 +394,7 @@ pub mod pyo3_build_script_impl {
                 PythonImplementation::CPython => "Python",
                 PythonImplementation::PyPy => "PyPy",
                 PythonImplementation::GraalPy => "GraalPy",
+                PythonImplementation::RustPython => "RustPython",
             };
             let version = &interpreter_config.version;
             let message = format!(
