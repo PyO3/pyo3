@@ -53,7 +53,6 @@ error[E0277]: the trait bound `&str: From<&pyo3::Bound<'_, pyo3::types::PyModule
              `String` implements `From<Box<str>>`
              `String` implements `From<Cow<'_, str>>`
              `String` implements `From<char>`
-             `String` implements `From<uuid::Uuid>`
    = note: required for `&pyo3::Bound<'_, pyo3::types::PyModule>` to implement `Into<&str>`
 
 error: aborting due to 8 previous errors

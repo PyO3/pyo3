@@ -12,14 +12,14 @@ fn main() {
 
     let mut config = Config::rustc("tests/ui");
 
-    // Various configurations of of
+    // Various configurations of UI_TEST environment variable for different CI modes
     match std::env::var("UI_TEST").as_deref() {
         // Default is to run the test as normal, erroring if output is not as expected.
         Err(VarError::NotPresent) => {
-            config.output_conflict_handling = ui_test::error_on_output_conflict
+            config.output_conflict_handling = error_on_output_conflict_normalized
         }
         // Used to update the output files to match expected output
-        Ok("bless") => config.output_conflict_handling = ui_test::bless_output_files,
+        Ok("bless") => config.output_conflict_handling = bless_output_files_normalized,
         // This mode is useful for exercising coverage of the proc macros, e.g. on the
         // nightly compiler and MSRV, where the output may differ from expected.
         Ok("ignore") => {
@@ -162,13 +162,13 @@ fn main() {
         // Some trait implementations which are only emitted with certain
         // features enabled
         (
-            Regex::new(r"\n\s+`i32` implements `From<deranged::RangedI32<MIN, MAX>>`")
+            Regex::new(r"\n[ \t]*`i32` implements `From<deranged::RangedI32<MIN, MAX>>`")
                 .unwrap()
                 .into(),
             Vec::new(),
         ),
         (
-            Regex::new(r"\n\s+`String` implements `From<uuid::UUID>`")
+            Regex::new(r"\n[ \t]*`String` implements `From<uuid::Uuid>`")
                 .unwrap()
                 .into(),
             Vec::new(),
@@ -179,6 +179,93 @@ fn main() {
     ctrlc::set_handler(move || abort_check.abort()).unwrap();
 
     run_tests(config).unwrap();
+}
+
+/// Strips line:col information from src file references in error messages.
+///
+/// e.g. the following block:
+///
+/// ```
+///    --> src/impl_/extract_argument.rs:226:8
+///     |
+/// 220 | pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+///     |        ---------------- required by a bound in this function
+/// ...
+/// 226 |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
+///     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+///     = note: required for `CancelHandle` to implement `FromPyObject<'_, '_>`
+///     = note: required for `CancelHandle` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
+/// ```
+///
+/// becomes:
+///
+/// ```
+///  --> src/impl_/extract_argument.rs
+///   |
+///   | pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+///   |        ---------------- required by a bound in this function
+/// ...
+///   |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
+///   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
+///   = note: required for `CancelHandle` to implement `FromPyObject<'_, '_>`
+///   = note: required for `CancelHandle` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
+/// ```
+///
+/// Regex replacement via `ui_test`'s `normalize_stderr` can't express the transformation
+/// we need here, so we write a custom wrapper which modifies the output before passing
+/// to `ui_test`'s normal output handling machinery.
+#[cfg(all(feature = "macros", not(target_arch = "wasm32")))]
+fn normalize_src_blocks(output: &[u8]) -> Vec<u8> {
+    use std::sync::LazyLock;
+
+    use regex::bytes::{Captures, Regex};
+
+    // Matches the full block which we want to replace.
+    //
+    // The first line with the src path is captured, and then all following lines starting with either a line number and `|` or just `...`
+    // are captured as the "listing".
+    static SRC_BLOCK: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(
+            r"\n[ \t]*--> (src/\S+?):\d+:\d+((?:\n[ \t]*\d*[ \t]*[|=][^\n]*|\n[ \t]*\.\.\.)+)",
+        )
+        .unwrap()
+    });
+
+    // Matches a gutter line in the listing (potentially with a line number)
+    static GUTTER: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"\n[ \t]*\d*[ \t]*([|=])").unwrap());
+
+    SRC_BLOCK
+        .replace_all(output, |captures: &Captures<'_>| {
+            // always normalize gutter to two spaces, arrow to one space,
+            // this leads to best stability
+            let mut out = b"\n --> ".to_vec();
+            out.extend_from_slice(&captures[1]);
+            let listing = GUTTER.replace_all(&captures[2], b"\n  $1");
+            out.extend_from_slice(&listing);
+            out
+        })
+        .into_owned()
+}
+
+#[cfg(all(feature = "macros", not(target_arch = "wasm32")))]
+fn error_on_output_conflict_normalized(
+    path: &std::path::Path,
+    output: &[u8],
+    errors: &mut Vec<ui_test::Error>,
+    config: &ui_test::per_test_config::TestConfig,
+) {
+    ui_test::error_on_output_conflict(path, &normalize_src_blocks(output), errors, config);
+}
+
+#[cfg(all(feature = "macros", not(target_arch = "wasm32")))]
+fn bless_output_files_normalized(
+    path: &std::path::Path,
+    output: &[u8],
+    errors: &mut Vec<ui_test::Error>,
+    config: &ui_test::per_test_config::TestConfig,
+) {
+    ui_test::bless_output_files(path, &normalize_src_blocks(output), errors, config);
 }
 
 #[cfg(any(not(feature = "macros"), target_arch = "wasm32"))]

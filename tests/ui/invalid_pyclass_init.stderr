@@ -5,13 +5,13 @@ error[E0277]: the trait bound `i32: pyo3::impl_::callback::IntoPyCallbackOutput<
     |                           ^^^ the trait `pyo3::impl_::callback::IntoPyCallbackOutput<'_, i32>` is not implemented for `i32`
     |
 help: the following other types implement trait `pyo3::impl_::callback::IntoPyCallbackOutput<'py, Target>`
-   --> src/impl_/callback.rs:127:1
-    |
-127 | impl IntoPyCallbackOutput<'_, ffi::Py_ssize_t> for usize {
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `usize` implements `pyo3::impl_::callback::IntoPyCallbackOutput<'_, isize>`
+ --> src/impl_/callback.rs
+  |
+  | impl IntoPyCallbackOutput<'_, ffi::Py_ssize_t> for usize {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `usize` implements `pyo3::impl_::callback::IntoPyCallbackOutput<'_, isize>`
 ...
-143 | impl IntoPyCallbackOutput<'_, usize> for usize {
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `usize` implements `pyo3::impl_::callback::IntoPyCallbackOutput<'_, usize>`
+  | impl IntoPyCallbackOutput<'_, usize> for usize {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `usize` implements `pyo3::impl_::callback::IntoPyCallbackOutput<'_, usize>`
 
 error: aborting due to 1 previous error
 

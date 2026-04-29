@@ -28,6 +28,7 @@ mod gh_4394 {
     pub struct Version;
 }
 
+#[pymodule]
 mod from_py_with {
     use pyo3::prelude::*;
     use pyo3::types::PyBytes;

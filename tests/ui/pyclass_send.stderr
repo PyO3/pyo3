@@ -11,12 +11,12 @@ note: required because it appears within the type `NotSyncNotSend`
 5 | struct NotSyncNotSend(*mut c_void);
   |        ^^^^^^^^^^^^^^
 note: required by a bound in `pyo3::impl_::pyclass::assertions::assert_pyclass_send_sync`
- --> src/impl_/pyclass/assertions.rs:6:8
+ --> src/impl_/pyclass/assertions.rs
   |
-4 | pub const fn assert_pyclass_send_sync<T>()
+  | pub const fn assert_pyclass_send_sync<T>()
   |              ------------------------ required by a bound in this function
-5 | where
-6 |     T: Send + Sync,
+  | where
+  |     T: Send + Sync,
   |        ^^^^ required by this bound in `assert_pyclass_send_sync`
 
 error[E0277]: `*mut c_void` cannot be shared between threads safely
@@ -32,12 +32,12 @@ note: required because it appears within the type `NotSyncNotSend`
 5 | struct NotSyncNotSend(*mut c_void);
   |        ^^^^^^^^^^^^^^
 note: required by a bound in `pyo3::impl_::pyclass::assertions::assert_pyclass_send_sync`
- --> src/impl_/pyclass/assertions.rs:6:15
+ --> src/impl_/pyclass/assertions.rs
   |
-4 | pub const fn assert_pyclass_send_sync<T>()
+  | pub const fn assert_pyclass_send_sync<T>()
   |              ------------------------ required by a bound in this function
-5 | where
-6 |     T: Send + Sync,
+  | where
+  |     T: Send + Sync,
   |               ^^^^ required by this bound in `assert_pyclass_send_sync`
 
 error[E0277]: `*mut c_void` cannot be shared between threads safely
@@ -53,13 +53,13 @@ note: required because it appears within the type `SendNotSync`
 10 | struct SendNotSync(*mut c_void);
    |        ^^^^^^^^^^^
 note: required by a bound in `pyo3::impl_::pyclass::assertions::assert_pyclass_send_sync`
-  --> src/impl_/pyclass/assertions.rs:6:15
-   |
- 4 | pub const fn assert_pyclass_send_sync<T>()
-   |              ------------------------ required by a bound in this function
- 5 | where
- 6 |     T: Send + Sync,
-   |               ^^^^ required by this bound in `assert_pyclass_send_sync`
+ --> src/impl_/pyclass/assertions.rs
+  |
+  | pub const fn assert_pyclass_send_sync<T>()
+  |              ------------------------ required by a bound in this function
+  | where
+  |     T: Send + Sync,
+  |               ^^^^ required by this bound in `assert_pyclass_send_sync`
 
 error[E0277]: `*mut c_void` cannot be sent between threads safely
   --> tests/ui/pyclass_send.rs:15:8
@@ -74,13 +74,13 @@ note: required because it appears within the type `SyncNotSend`
 15 | struct SyncNotSend(*mut c_void);
    |        ^^^^^^^^^^^
 note: required by a bound in `pyo3::impl_::pyclass::assertions::assert_pyclass_send_sync`
-  --> src/impl_/pyclass/assertions.rs:6:8
-   |
- 4 | pub const fn assert_pyclass_send_sync<T>()
-   |              ------------------------ required by a bound in this function
- 5 | where
- 6 |     T: Send + Sync,
-   |        ^^^^ required by this bound in `assert_pyclass_send_sync`
+ --> src/impl_/pyclass/assertions.rs
+  |
+  | pub const fn assert_pyclass_send_sync<T>()
+  |              ------------------------ required by a bound in this function
+  | where
+  |     T: Send + Sync,
+  |        ^^^^ required by this bound in `assert_pyclass_send_sync`
 
 error: aborting due to 4 previous errors
 

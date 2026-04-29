@@ -10,11 +10,11 @@ note: expected this to be `pyo3::pyclass::boolean_struct::False`
   3 | #[pyclass]
     | ^^^^^^^^^^
 note: required by a bound in `pyo3::impl_::extract_argument::extract_pyclass_ref_mut`
-   --> src/impl_/extract_argument.rs:212:56
-    |
-212 | pub fn extract_pyclass_ref_mut<'a, 'holder, T: PyClass<Frozen = False>>(
-    |                                                        ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
-    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+ --> src/impl_/extract_argument.rs
+  |
+  | pub fn extract_pyclass_ref_mut<'a, 'holder, T: PyClass<Frozen = False>>(
+  |                                                        ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
+  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0271]: type mismatch resolving `<ComplexEnum as PyClass>::Frozen == False`
    --> tests/ui/invalid_pymethod_enum.rs:9:1
@@ -28,11 +28,11 @@ note: expected this to be `pyo3::pyclass::boolean_struct::False`
   3 | #[pyclass]
     | ^^^^^^^^^^
 note: required by a bound in `PyClassGuardMut`
-   --> src/pyclass/guard.rs:600:43
-    |
-600 | pub struct PyClassGuardMut<'a, T: PyClass<Frozen = False>> {
-    |                                           ^^^^^^^^^^^^^^ required by this bound in `PyClassGuardMut`
-    = note: this error originates in the attribute macro `pymethods` which comes from the expansion of the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+ --> src/pyclass/guard.rs
+  |
+  | pub struct PyClassGuardMut<'a, T: PyClass<Frozen = False>> {
+  |                                           ^^^^^^^^^^^^^^ required by this bound in `PyClassGuardMut`
+  = note: this error originates in the attribute macro `pymethods` which comes from the expansion of the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0271]: type mismatch resolving `<TupleEnum as PyClass>::Frozen == False`
    --> tests/ui/invalid_pymethod_enum.rs:30:24
@@ -46,11 +46,11 @@ note: expected this to be `pyo3::pyclass::boolean_struct::False`
  21 | #[pyclass]
     | ^^^^^^^^^^
 note: required by a bound in `pyo3::impl_::extract_argument::extract_pyclass_ref_mut`
-   --> src/impl_/extract_argument.rs:212:56
-    |
-212 | pub fn extract_pyclass_ref_mut<'a, 'holder, T: PyClass<Frozen = False>>(
-    |                                                        ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
-    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+ --> src/impl_/extract_argument.rs
+  |
+  | pub fn extract_pyclass_ref_mut<'a, 'holder, T: PyClass<Frozen = False>>(
+  |                                                        ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
+  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0271]: type mismatch resolving `<TupleEnum as PyClass>::Frozen == False`
    --> tests/ui/invalid_pymethod_enum.rs:27:1
@@ -64,11 +64,11 @@ note: expected this to be `pyo3::pyclass::boolean_struct::False`
  21 | #[pyclass]
     | ^^^^^^^^^^
 note: required by a bound in `PyClassGuardMut`
-   --> src/pyclass/guard.rs:600:43
-    |
-600 | pub struct PyClassGuardMut<'a, T: PyClass<Frozen = False>> {
-    |                                           ^^^^^^^^^^^^^^ required by this bound in `PyClassGuardMut`
-    = note: this error originates in the attribute macro `pymethods` which comes from the expansion of the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+ --> src/pyclass/guard.rs
+  |
+  | pub struct PyClassGuardMut<'a, T: PyClass<Frozen = False>> {
+  |                                           ^^^^^^^^^^^^^^ required by this bound in `PyClassGuardMut`
+  = note: this error originates in the attribute macro `pymethods` which comes from the expansion of the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: aborting due to 4 previous errors
 

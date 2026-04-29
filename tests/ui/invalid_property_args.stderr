@@ -66,13 +66,13 @@ error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
              and $N others
      = note: required for `PhantomData<i32>` to implement `for<'py> pyo3::impl_::pyclass::PyO3GetField<'py>`
 note: required by a bound in `pyo3::impl_::pyclass::PyClassGetterGenerator::<ClassT, FieldT, OFFSET, false, false, IMPLEMENTS_INTOPYOBJECT>::generate`
-    --> src/impl_/pyclass.rs:1308:26
-     |
-1304 |     pub const fn generate(&self, name: &'static CStr, doc: Option<&'static CStr>) -> PyMethodDefType
-     |                  -------- required by a bound in this associated function
+ --> src/impl_/pyclass.rs
+  |
+  |     pub const fn generate(&self, name: &'static CStr, doc: Option<&'static CStr>) -> PyMethodDefType
+  |                  -------- required by a bound in this associated function
 ...
-1308 |         for<'py> FieldT: PyO3GetField<'py>,
-     |                          ^^^^^^^^^^^^^^^^^ required by this bound in `PyClassGetterGenerator::<ClassT, FieldT, OFFSET, false, false, IMPLEMENTS_INTOPYOBJECT>::generate`
+  |         for<'py> FieldT: PyO3GetField<'py>,
+  |                          ^^^^^^^^^^^^^^^^^ required by this bound in `PyClassGetterGenerator::<ClassT, FieldT, OFFSET, false, false, IMPLEMENTS_INTOPYOBJECT>::generate`
 
 error: aborting due to 9 previous errors
 
