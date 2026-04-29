@@ -142,9 +142,6 @@ fn main() {
     // differs on `experimental-inspect` feature
     #[cfg(feature = "experimental-inspect")]
     config.skip_files.extend([
-        // some functionality requires the feature
-        "invalid_annotation.rs".into(),
-        "invalid_annotation_return.rs".into(),
         // extra error messages appear due to additional macro processing
         // would be nice to somehow make this not a problem
         "duplicate_pymodule_submodule.rs".into(),
@@ -154,12 +151,29 @@ fn main() {
         "invalid_pyfunction_argument.rs".into(),
     ]);
 
-    // Normalize multiple trailing newlines to a single newline
-    config
-        .comment_defaults
-        .base()
-        .normalize_stderr
-        .push((Regex::new("\n\n$").unwrap().into(), vec![b'\n']));
+    config.comment_defaults.base().normalize_stderr.extend([
+        // Normalize multiple trailing newlines to a single newline
+        (Regex::new("\n\n$").unwrap().into(), vec![b'\n']),
+        // Normalize counts of "and N others" in trait implementations
+        (
+            Regex::new(r"and \d+ others").unwrap().into(),
+            b"and $$N others".to_vec(),
+        ),
+        // Some trait implementations which are only emitted with certain
+        // features enabled
+        (
+            Regex::new(r"\n\s+`i32` implements `From<deranged::RangedI32<MIN, MAX>>`")
+                .unwrap()
+                .into(),
+            Vec::new(),
+        ),
+        (
+            Regex::new(r"\n\s+`String` implements `From<uuid::UUID>`")
+                .unwrap()
+                .into(),
+            Vec::new(),
+        ),
+    ]);
 
     let abort_check = config.abort_check.clone();
     ctrlc::set_handler(move || abort_check.abort()).unwrap();

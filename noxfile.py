@@ -78,7 +78,7 @@ def _supported_interpreter_versions(
     min_minor = int(min_version.split(".")[1])
     max_minor = int(max_version.split(".")[1])
     versions = [f"{major}.{minor}" for minor in range(min_minor, max_minor + 1)]
-    # Add free-threaded builds for 3.13+
+    # Add free-threaded builds for 3.14+
     if python_impl == "cpython":
         versions += [f"{major}.{minor}t" for minor in range(14, max_minor + 1)]
     return versions

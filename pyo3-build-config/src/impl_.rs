@@ -191,6 +191,7 @@ impl InterpreterConfig {
             PythonImplementation::CPython => {}
             PythonImplementation::PyPy => out.push("cargo:rustc-cfg=PyPy".to_owned()),
             PythonImplementation::GraalPy => out.push("cargo:rustc-cfg=GraalPy".to_owned()),
+            PythonImplementation::RustPython => out.push("cargo:rustc-cfg=RustPython".to_owned()),
         }
 
         // If Py_GIL_DISABLED is set, do not build with limited API support
@@ -780,6 +781,7 @@ pub enum PythonImplementation {
     CPython,
     PyPy,
     GraalPy,
+    RustPython,
 }
 
 impl PythonImplementation {
@@ -813,6 +815,7 @@ impl Display for PythonImplementation {
             PythonImplementation::CPython => write!(f, "CPython"),
             PythonImplementation::PyPy => write!(f, "PyPy"),
             PythonImplementation::GraalPy => write!(f, "GraalVM"),
+            PythonImplementation::RustPython => write!(f, "RustPython"),
         }
     }
 }
@@ -824,6 +827,7 @@ impl FromStr for PythonImplementation {
             "CPython" => Ok(PythonImplementation::CPython),
             "PyPy" => Ok(PythonImplementation::PyPy),
             "GraalVM" => Ok(PythonImplementation::GraalPy),
+            "RustPython" => Ok(PythonImplementation::RustPython),
             _ => bail!("unknown interpreter: {}", s),
         }
     }
@@ -1768,6 +1772,7 @@ fn default_lib_name_unix(
         },
 
         PythonImplementation::GraalPy => Ok("python-native".to_string()),
+        PythonImplementation::RustPython => Ok("rustpython-capi".to_string()),
     }
 }
 

@@ -15,7 +15,7 @@ pub unsafe fn PyTuple_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyTuple_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyTuple_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyTuple_Type)
 }
 
 extern_libpython! {
@@ -35,6 +35,8 @@ extern_libpython! {
     ) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyTuple_Pack")]
     pub fn PyTuple_Pack(arg1: Py_ssize_t, ...) -> *mut PyObject;
+    #[cfg(any(all(Py_3_15, not(Py_LIMITED_API)), RustPython))]
+    pub fn PyTuple_FromArray(array: *const *mut PyObject, size: Py_ssize_t) -> *mut PyObject;
     #[cfg(not(Py_3_9))]
     pub fn PyTuple_ClearFreeList() -> c_int;
 }

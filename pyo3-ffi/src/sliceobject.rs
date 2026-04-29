@@ -43,7 +43,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PySlice_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PySlice_Type)
 }
 
 extern_libpython! {

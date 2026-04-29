@@ -440,7 +440,7 @@ error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Pyt
               HashOptAndManualHash
               HashOptRequiresHash
               NewFromFieldsWithManualNew
-            and 6 others
+            and $N others
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
 note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
@@ -469,7 +469,7 @@ error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Pyt
               HashOptAndManualHash
               HashOptRequiresHash
               NewFromFieldsWithManualNew
-            and 3 others
+            and $N others
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
 note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
