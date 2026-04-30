@@ -222,6 +222,13 @@ impl InterpreterConfig {
                 GilUsed::GilEnabled => {}
             },
         }
+        for flag in &self.build_flags.0 {
+            match flag {
+                // already handled by target ABI logic above
+                BuildFlag::Py_GIL_DISABLED => continue,
+                flag => out.push(format!("cargo:rustc-cfg=py_sys_config=\"{flag}\"")),
+            }
+        }
         out
     }
 
@@ -3381,10 +3388,10 @@ mod tests {
         );
 
         let interpreter_config = InterpreterConfig {
-            implementation: PythonImplementation::CPython,
-            version: PythonVersion {
-                major: 3,
-                minor: 15,
+            target_abi: PythonAbi {
+                implementation: PythonImplementation::CPython,
+                version: PythonVersion::PY315,
+                ..interpreter_config.target_abi
             },
             ..interpreter_config
         };
@@ -3449,7 +3456,7 @@ mod tests {
             .build_flags(flags)
             .unwrap_err()
             .to_string()
-            .contains("target ABI is not free-threaded"));
+            .contains("is not free-threaded"));
 
         let builder =
             InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY314);
@@ -3569,7 +3576,7 @@ mod tests {
 
         // abi3
         config.target_abi = PythonAbi {
-            kind: PythonAbiKind::Abi3,
+            kind: PythonAbiKind::Stable(StableAbi::Abi3),
             ..config.target_abi
         };
         config.lib_name = None;
