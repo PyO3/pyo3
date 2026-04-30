@@ -128,6 +128,25 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
         PythonImplementation::RustPython => {}
     }
 
+    if let PythonAbiKind::Abi3t = interpreter_config.target_abi.kind {
+        match interpreter_config.target_abi.implementation {
+            PythonImplementation::CPython => {
+                ensure!(
+                    interpreter_config.target_abi.version >= PythonVersion::PY315,
+                    "Abi3t builds are not supported on CPython targets before Python 3.15"
+                )
+            }
+            PythonImplementation::PyPy => warn!(
+                "PyPy does not yet support abi3t so the build artifacts will be version-specific. \
+                 See https://github.com/pypy/pypy/issues/3397 for more information."
+            ),
+            PythonImplementation::GraalPy => warn!(
+                "GraalPy does not support abi3t so the build artifacts will be version-specific."
+            ),
+            PythonImplementation::RustPython => {}
+        }
+    }
+
     if let PythonAbiKind::Abi3 = interpreter_config.target_abi.kind {
         match interpreter_config.target_abi.implementation {
             PythonImplementation::CPython => {
