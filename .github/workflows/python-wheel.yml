@@ -1,0 +1,108 @@
+name: Build and release wheels
+
+on:
+  pull_request: # TODO: remove before merging
+  merge_group:
+    types: [ checks_requested ]
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  pypi_linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [x86_64, x86, aarch64, armv7, s390x, ppc64le]
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist --compatibility pypi
+          manylinux: auto
+          working-directory: pyo3-introspection
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wheels-linux-${{ matrix.target }}
+          path: dist
+
+  pypi_windows:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: windows-latest
+            target: x64
+          - runner: windows-latest
+            target: x86
+          - runner: windows-11-arm
+            target: aarch64
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.platform.target }}
+          args: --release --out dist --compatibility pypi
+          working-directory: pyo3-introspection
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wheels-windows-${{ matrix.platform.target }}
+          path: dist
+
+  pypi_macos:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: macos-15-intel
+            target: x86_64
+          - runner: macos-latest
+            target: aarch64
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.platform.target }}
+          args: --release --out dist --compatibility pypi
+          working-directory: pyo3-introspection
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wheels-macos-${{ matrix.platform.target }}
+          path: dist
+
+  pypi_sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+          working-directory: pyo3-introspection
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wheels-sdist
+          path: dist
+
+  pypi_release:
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    permissions:
+      id-token: write
+
+    runs-on: ubuntu-latest
+    environment: release
+    needs: [pypi_linux, pypi_windows, pypi_macos, pypi_sdist]
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
