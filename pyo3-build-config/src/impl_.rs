@@ -612,12 +612,12 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         } else {
             false
         };
-        let target_abi = if target_abi.is_some() {
+        let target_abi = if let Some(target_abi) = target_abi {
             ensure!(
-                !(target_abi.is_some() && abi3.is_some()),
+                abi3.is_none(),
                 "Invalid config that sets both target_abi and abi3."
             );
-            target_abi.unwrap()
+            target_abi
         } else if is_abi3t() {
             PythonAbiBuilder::new(implementation, version)
                 .stable_abi(StableAbi::Abi3t)
