@@ -4,6 +4,9 @@ inputs:
   name:
     description: 'The name of the coverage report'
     required: true
+  token:
+    description: 'Codecov upload token'
+    required: true
 runs:
   using: "composite"
   steps:
@@ -15,5 +18,5 @@ runs:
     uses: codecov/codecov-action@v6
     with:
       files: coverage.json
-      name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}
-      token: ${{ secrets.CODECOV_TOKEN }}
+      name: ${{ inputs.name }}
+      token: ${{ inputs.token }}

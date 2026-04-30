@@ -613,6 +613,7 @@ jobs:
       - uses: ./.github/actions/report-coverage
         with:
           name: test-version-limits
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   check-feature-powerset:
     needs: [fmt, resolve]

@@ -134,6 +134,7 @@ jobs:
         continue-on-error: ${{ inputs.os == 'windows-11-arm' }}
         with:
           name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
     env:
       CARGO_TERM_VERBOSE: ${{ inputs.verbose }}
