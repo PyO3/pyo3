@@ -10,7 +10,7 @@
 mod errors;
 mod impl_;
 
-use std::{env, process::Command, str::FromStr, sync::OnceLock};
+use std::{env, process::Command, str::FromStr, sync::LazyLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
@@ -146,17 +146,19 @@ fn _add_python_framework_link_args(
 
 /// Loads the configuration determined from the build environment.
 ///
-/// Because this will never change in a given compilation run, this is cached in a `OnceLock`.
+/// This function must be called from a build script, and requires a direct dependency on at
+/// least one of `pyo3` or `pyo3-ffi`.
 pub fn get() -> &'static InterpreterConfig {
-    static CONFIG: OnceLock<InterpreterConfig> = OnceLock::new();
-    CONFIG.get_or_init(|| {
-        let Some(interpreter_config) = InterpreterConfig::from_cargo_dep_env() else {
-            panic!(
-                "`pyo3_build_config::get()` requires a direct dependency on `pyo3` or `pyo3-ffi`"
-            )
-        };
-        interpreter_config.expect("failed to parse PyO3 config")
-    })
+    static CONFIG: LazyLock<InterpreterConfig> = LazyLock::new(get_inner);
+    &CONFIG
+}
+
+#[track_caller]
+fn get_inner() -> InterpreterConfig {
+    let Some(interpreter_config) = InterpreterConfig::from_cargo_dep_env() else {
+        panic!("`pyo3_build_config::get()` requires a direct dependency on `pyo3` or `pyo3-ffi`")
+    };
+    interpreter_config.expect("failed to parse PyO3 config")
 }
 
 /// Helper to print a feature cfg with a minimum rust version required.
@@ -332,8 +334,7 @@ pub mod pyo3_build_script_impl {
 }
 
 fn rustc_minor_version() -> Option<u32> {
-    static RUSTC_MINOR_VERSION: OnceLock<Option<u32>> = OnceLock::new();
-    *RUSTC_MINOR_VERSION.get_or_init(|| {
+    static RUSTC_MINOR_VERSION: LazyLock<Option<u32>> = LazyLock::new(|| {
         let rustc = env::var_os("RUSTC")?;
         let output = Command::new(rustc).arg("--version").output().ok()?;
         let version = core::str::from_utf8(&output.stdout).ok()?;
@@ -342,11 +343,14 @@ fn rustc_minor_version() -> Option<u32> {
             return None;
         }
         pieces.next()?.parse().ok()
-    })
+    });
+    *RUSTC_MINOR_VERSION
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::impl_::escape;
+
     use super::*;
 
     #[test]
@@ -472,5 +476,45 @@ mod tests {
             = help: this is a help message"
         );
         assert_eq!(error, expected);
+    }
+
+    #[test]
+    fn test_interpreter_config_from_cargo_env() {
+        // There should be no other tests or config in the environment
+        assert!(InterpreterConfig::from_cargo_dep_env().is_none());
+
+        let interpreter_config = InterpreterConfig {
+            implementation: PythonImplementation::CPython,
+            version: PythonVersion {
+                major: 3,
+                minor: 13,
+            },
+            shared: true,
+            abi3: false,
+            lib_name: None,
+            lib_dir: None,
+            executable: None,
+            pointer_width: None,
+            build_flags: BuildFlags::default(),
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+            python_framework_prefix: None,
+        };
+        let mut buf = Vec::new();
+        interpreter_config.to_writer(&mut buf).unwrap();
+        let config_string = escape(&buf);
+        // SAFETY: no other tests use `crate::get()`
+        unsafe { std::env::set_var(InterpreterConfig::PYO3_FFI_CONFIG_ENV_VAR, &config_string) };
+
+        assert_eq!(get_inner(), interpreter_config);
+
+        // Repeat with PyO3 env var
+        // SAFETY: no other tests use `crate::get()`
+        unsafe {
+            std::env::remove_var(InterpreterConfig::PYO3_FFI_CONFIG_ENV_VAR);
+            std::env::set_var(InterpreterConfig::PYO3_CONFIG_ENV_VAR, &config_string)
+        }
+
+        assert_eq!(get_inner(), interpreter_config);
     }
 }

@@ -205,8 +205,7 @@ impl InterpreterConfig {
         out
     }
 
-    #[doc(hidden)]
-    pub fn from_interpreter(interpreter: impl AsRef<Path>) -> Result<Self> {
+    fn from_interpreter(interpreter: impl AsRef<Path>) -> Result<Self> {
         const SCRIPT: &str = r#"
 # Allow the script to run on Python 2, so that nicer error can be printed later.
 from __future__ import print_function
@@ -448,7 +447,6 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     /// Import an externally-provided config file.
     ///
     /// The `abi3` features, if set, may apply an `abi3` constraint to the Python version.
-    #[allow(dead_code)] // only used in build.rs
     pub(super) fn from_pyo3_config_file_env() -> Option<Result<Self>> {
         env_var("PYO3_CONFIG_FILE").map(|path| {
             let path = Path::new(&path);
@@ -474,8 +472,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         })
     }
 
-    #[doc(hidden)]
-    pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
+    fn from_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         let config_file = std::fs::File::open(path)
             .with_context(|| format!("failed to open PyO3 config file at {}", path.display()))?;
@@ -483,15 +480,18 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         InterpreterConfig::from_reader(reader)
     }
 
-    #[doc(hidden)]
-    pub fn from_cargo_dep_env() -> Option<Result<Self>> {
-        cargo_env_var("DEP_PYTHON_PYO3_CONFIG") // from `pyo3-ffi`
-            .or_else(|| cargo_env_var("DEP_PYO3_PYTHON_PYO3_CONFIG")) // forwared by `pyo3`
+    /// Environment variable populated via pyo3-ffi's build script
+    pub(crate) const PYO3_FFI_CONFIG_ENV_VAR: &str = "DEP_PYTHON_PYO3_CONFIG";
+    /// Environment variable populated via pyo3's build script by forwarding the value from pyo3-ffi
+    pub(crate) const PYO3_CONFIG_ENV_VAR: &str = "DEP_PYO3_PYTHON_PYO3_CONFIG";
+
+    pub(crate) fn from_cargo_dep_env() -> Option<Result<Self>> {
+        cargo_env_var(Self::PYO3_FFI_CONFIG_ENV_VAR)
+            .or_else(|| cargo_env_var(Self::PYO3_CONFIG_ENV_VAR))
             .map(|buf| InterpreterConfig::from_reader(&*unescape(&buf)))
     }
 
-    #[doc(hidden)]
-    pub fn from_reader(reader: impl Read) -> Result<Self> {
+    fn from_reader(reader: impl Read) -> Result<Self> {
         let reader = BufReader::new(reader);
         let lines = reader.lines();
 
@@ -778,18 +778,15 @@ pub enum PythonImplementation {
 }
 
 impl PythonImplementation {
-    #[doc(hidden)]
-    pub fn is_pypy(self) -> bool {
+    fn is_pypy(self) -> bool {
         self == PythonImplementation::PyPy
     }
 
-    #[doc(hidden)]
-    pub fn is_graalpy(self) -> bool {
+    fn is_graalpy(self) -> bool {
         self == PythonImplementation::GraalPy
     }
 
-    #[doc(hidden)]
-    pub fn from_soabi(soabi: &str) -> Result<Self> {
+    fn from_soabi(soabi: &str) -> Result<Self> {
         if soabi.starts_with("pypy") {
             Ok(PythonImplementation::PyPy)
         } else if soabi.starts_with("cpython") {
@@ -971,7 +968,6 @@ impl CrossCompileConfig {
     ///
     /// The conversion can not fail because `PYO3_CROSS_LIB_DIR` variable
     /// is ensured contain a valid UTF-8 string.
-    #[allow(dead_code)]
     fn lib_dir_string(&self) -> Option<String> {
         self.lib_dir
             .as_ref()
@@ -1098,7 +1094,6 @@ pub fn cross_compiling_from_to(
 ///
 /// This must be called from PyO3's build script, because it relies on environment
 /// variables such as `CARGO_CFG_TARGET_OS` which aren't available at any other time.
-#[allow(dead_code)]
 pub fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
     let env_vars = CrossCompileEnvVars::from_env();
     let host = Triple::host();
@@ -1277,12 +1272,12 @@ impl Sysconfigdata {
         self.0.get(k.as_ref()).map(String::as_str)
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn new() -> Self {
         Sysconfigdata(HashMap::new())
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn insert<S: Into<String>>(&mut self, k: S, v: S) {
         self.0.insert(k.into(), v.into());
     }
@@ -1330,7 +1325,6 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 ///
 /// Returns `None` if the library directory is not available, and a runtime error
 /// when no or multiple sysconfigdata files are found.
-#[allow(dead_code)]
 fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
     let mut sysconfig_paths = find_all_sysconfigdata(cross)?;
     if sysconfig_paths.is_empty() {
@@ -1522,7 +1516,6 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Result<
 /// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
 ///
 /// Returns `None` when the target Python library directory is not set.
-#[allow(dead_code)]
 fn cross_compile_from_sysconfigdata(
     cross_compile_config: &CrossCompileConfig,
 ) -> Result<Option<InterpreterConfig>> {
@@ -1545,7 +1538,6 @@ fn cross_compile_from_sysconfigdata(
 /// Windows, macOS and Linux.
 ///
 /// Must be called from a PyO3 crate build script.
-#[allow(unused_mut, dead_code)]
 fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<InterpreterConfig> {
     let version = cross_compile_config
         .version
@@ -1573,15 +1565,13 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         &cross_compile_config.target,
     );
 
-    let mut lib_dir = cross_compile_config.lib_dir_string();
-
     Ok(InterpreterConfig {
         implementation,
         version,
         shared: true,
         abi3,
         lib_name: Some(lib_name),
-        lib_dir,
+        lib_dir: cross_compile_config.lib_dir_string(),
         executable: None,
         pointer_width: None,
         build_flags: BuildFlags::default(),
@@ -1641,7 +1631,6 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> Result<Interpre
 /// when no target Python interpreter is found.
 ///
 /// Must be called from a PyO3 crate build script.
-#[allow(dead_code)]
 fn load_cross_compile_config(
     cross_compile_config: CrossCompileConfig,
 ) -> Result<InterpreterConfig> {
@@ -1668,7 +1657,6 @@ const WINDOWS_ABI3_LIB_NAME: &str = "python3";
 const WINDOWS_ABI3_DEBUG_LIB_NAME: &str = "python3_d";
 
 /// Generates the default library name for the target platform.
-#[allow(dead_code)]
 fn default_lib_name_for_target(
     version: PythonVersion,
     implementation: PythonImplementation,
@@ -1891,7 +1879,6 @@ fn get_host_interpreter(abi3_version: Option<PythonVersion>) -> Result<Interpret
 ///
 /// This must be called from PyO3's build script, because it relies on environment variables such as
 /// CARGO_CFG_TARGET_OS which aren't available at any other time.
-#[allow(dead_code)]
 pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
     let interpreter_config = if let Some(cross_config) = cross_compiling_from_cargo_env()? {
         let mut interpreter_config = load_cross_compile_config(cross_config)?;
@@ -1936,7 +1923,7 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     Ok(interpreter_config)
 }
 
-fn escape(bytes: &[u8]) -> String {
+pub(crate) fn escape(bytes: &[u8]) -> String {
     let mut escaped = String::with_capacity(2 * bytes.len());
 
     for byte in bytes {
