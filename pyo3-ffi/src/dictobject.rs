@@ -14,7 +14,7 @@ pub unsafe fn PyDict_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyDict_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyDict_Type)
 }
 
 extern_libpython! {
@@ -76,6 +76,13 @@ extern_libpython! {
     pub fn PyDict_GetItemStringRef(
         dp: *mut PyObject,
         key: *const c_char,
+        result: *mut *mut PyObject,
+    ) -> c_int;
+    #[cfg(all(Py_3_13, any(not(Py_LIMITED_API), Py_3_15)))]
+    pub fn PyDict_SetDefaultRef(
+        mp: *mut PyObject,
+        key: *mut PyObject,
+        default_value: *mut PyObject,
         result: *mut *mut PyObject,
     ) -> c_int;
     // skipped 3.10 / ex-non-limited PyObject_GenericGetDict

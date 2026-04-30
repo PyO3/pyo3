@@ -17,7 +17,7 @@ codspeed-criterion-compat = "4.0"
 criterion = "0.8.0"
 num-bigint = "0.4.3"
 rust_decimal = { version = "1.0.0", default-features = false }
-hashbrown = "0.16"
+hashbrown = "0.17"
 
 [features]
 abi3 = ["pyo3/abi3"]

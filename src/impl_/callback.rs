@@ -131,7 +131,7 @@ impl IntoPyCallbackOutput<'_, ffi::Py_ssize_t> for usize {
     }
 }
 
-// Converters needed for `#[pyproto]` implementations
+// Conversion traits needed by pyo3's macros
 
 impl IntoPyCallbackOutput<'_, bool> for bool {
     #[inline]

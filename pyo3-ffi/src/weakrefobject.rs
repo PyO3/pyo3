@@ -36,14 +36,14 @@ pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut _PyWeakref_RefType) as c_int
+    Py_IS_TYPE(op, &raw mut _PyWeakref_RefType)
 }
 
 #[inline]
 #[cfg(not(PyPy))]
 pub unsafe fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int {
-    ((Py_TYPE(op) == &raw mut _PyWeakref_ProxyType)
-        || (Py_TYPE(op) == &raw mut _PyWeakref_CallableProxyType)) as c_int
+    (Py_IS_TYPE(op, &raw mut _PyWeakref_ProxyType) > 0
+        || Py_IS_TYPE(op, &raw mut _PyWeakref_CallableProxyType) > 0) as c_int
 }
 
 #[inline]
