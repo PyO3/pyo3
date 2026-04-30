@@ -1,0 +1,19 @@
+name: 'Report coverage'
+description: 'Generate coverage report using cargo-llvm-cov and upload it to Codecov'
+inputs:
+  name:
+    description: 'The name of the coverage report'
+    required: true
+runs:
+  using: "composite"
+  steps:
+  - name: Generate coverage report
+    shell: bash
+    run: uvx nox -s generate-coverage-report
+
+  - name: Upload coverage report
+    uses: codecov/codecov-action@v6
+    with:
+      files: coverage.json
+      name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}
+      token: ${{ secrets.CODECOV_TOKEN }}

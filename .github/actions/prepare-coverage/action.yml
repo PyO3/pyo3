@@ -1,0 +1,12 @@
+name: 'Prepare coverage'
+description: 'Installs cargo-llvm-cov and prepares the environment for coverage collection'
+runs:
+  using: "composite"
+  steps:
+  - name: Install cargo-llvm-cov
+    uses: taiki-e/install-action@cargo-llvm-cov
+  - name: Prepare coverage environment
+    shell: bash
+    run: |
+      cargo llvm-cov clean --workspace --profraw-only
+      uvx nox -s set-coverage-env

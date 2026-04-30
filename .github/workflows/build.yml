@@ -1,6 +1,9 @@
 on:
   workflow_call:
     inputs:
+      sha:
+        required: true
+        type: string
       os:
         required: true
         type: string
@@ -34,14 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.2
         with:
-          # For PRs, we need to run on the real PR head, not the resultant merge of the PR into the target branch.
-          #
-          # This is necessary for coverage reporting to make sense; we then get exactly the coverage change
-          # between the base branch and the real PR head.
-          #
-          # If it were run on the merge commit the problem is that the coverage potentially does not align
-          # with the commit diff, because the merge may affect line numbers.
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.sha }}
 
       # installs using setup-python do not work for arm macOS 3.9 and below
       - if: ${{ !(inputs.os == 'macos-latest' && contains(fromJSON('["3.8", "3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64') }}
@@ -119,13 +115,7 @@ jobs:
         if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy')) }}
         run: nox -s ffi-check
 
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-
-      - name: Prepare coverage environment
-        run: |
-          cargo llvm-cov clean --workspace --profraw-only
-          nox -s set-coverage-env
+      - uses: ./.github/actions/prepare-coverage
 
       - name: Build docs
         run: nox -s docs
@@ -139,25 +129,11 @@ jobs:
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
-      - name: Generate coverage report
-        # needs investigation why llvm-cov fails on windows-11-arm
-        continue-on-error: ${{ inputs.os == 'windows-11-arm' }}
-        run: cargo llvm-cov
-          --package=pyo3
-          --package=pyo3-build-config
-          --package=pyo3-macros-backend
-          --package=pyo3-macros
-          --package=pyo3-ffi
-          report --codecov --output-path coverage.json
-
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v6
+      - uses: ./.github/actions/report-coverage
         # needs investigation why llvm-cov fails on windows-11-arm
         continue-on-error: ${{ inputs.os == 'windows-11-arm' }}
         with:
-          files: coverage.json
           name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}
-          token: ${{ secrets.CODECOV_TOKEN }}
 
     env:
       CARGO_TERM_VERBOSE: ${{ inputs.verbose }}

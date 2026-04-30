@@ -12,6 +12,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  NOX_DEFAULT_VENV_BACKEND: uv
 
 jobs:
   fmt:
@@ -37,6 +38,15 @@ jobs:
     outputs:
       MSRV: ${{ steps.resolve-msrv.outputs.MSRV }}
       verbose: ${{ runner.debug == '1' }}
+      save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      # For PRs, we need to run on the real PR head, not the resultant merge of the PR into the target branch.
+      #
+      # This is necessary for coverage reporting to make sense; we then get exactly the coverage change
+      # between the base branch and the real PR head.
+      #
+      # If it were run on the merge commit the problem is that the coverage potentially does not align
+      # with the commit diff, because the merge may affect line numbers.
+      coverage-sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v6.0.2
       - uses: actions/setup-python@v6
@@ -136,6 +146,7 @@ jobs:
     needs: [fmt, resolve]
     uses: ./.github/workflows/build.yml
     with:
+      sha: ${{ needs.resolve.outputs.coverage-sha }}
       os: ${{ matrix.platform.os }}
       python-version: ${{ matrix.python-version }}
       python-architecture: ${{ matrix.platform.python-architecture }}
@@ -211,6 +222,7 @@ jobs:
     needs: [fmt, resolve]
     uses: ./.github/workflows/build.yml
     with:
+      sha: ${{ needs.resolve.outputs.coverage-sha }}
       os: ${{ matrix.platform.os }}
       python-version: ${{ matrix.python-version }}
       python-architecture: ${{ matrix.platform.python-architecture }}
@@ -581,20 +593,26 @@ jobs:
       - run: python3 -m nox -s test
 
   test-version-limits:
-    needs: [fmt]
+    needs: [fmt, resolve]
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          ref: ${{ needs.resolve.outputs.coverage-sha }}
+      - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: ${{ needs.resolve.outputs.save-cache }}
       - uses: dtolnay/rust-toolchain@stable
-      - run: python3 -m pip install --upgrade pip && pip install nox[uv]
-      - run: python3 -m nox -s test-version-limits
+      - uses: ./.github/actions/prepare-coverage
+      - run: uvx nox -s test-version-limits
+      - uses: ./.github/actions/report-coverage
+        with:
+          name: test-version-limits
 
   check-feature-powerset:
     needs: [fmt, resolve]
