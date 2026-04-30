@@ -116,6 +116,7 @@ jobs:
         run: nox -s ffi-check
 
       - uses: ./.github/actions/prepare-coverage
+        if: ${{ inputs.os == 'windows-11-arm' }} # https://github.com/rust-lang/rust/issues/150123
 
       - name: Build docs
         run: nox -s docs
@@ -130,8 +131,7 @@ jobs:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
       - uses: ./.github/actions/report-coverage
-        # needs investigation why llvm-cov fails on windows-11-arm
-        continue-on-error: ${{ inputs.os == 'windows-11-arm' }}
+        if: ${{ inputs.os == 'windows-11-arm' }} # https://github.com/rust-lang/rust/issues/150123
         with:
           name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}
           token: ${{ secrets.CODECOV_TOKEN }}
