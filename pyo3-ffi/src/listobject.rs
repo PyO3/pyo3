@@ -16,7 +16,7 @@ pub unsafe fn PyList_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyList_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyList_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyList_Type)
 }
 
 extern_libpython! {

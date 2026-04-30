@@ -5,7 +5,7 @@ use std::ffi::{c_int, c_long};
 
 #[inline]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyBool_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyBool_Type)
 }
 
 extern_libpython! {

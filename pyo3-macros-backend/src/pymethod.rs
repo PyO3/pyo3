@@ -1474,9 +1474,11 @@ fn generate_method_body(
             });
 
             let output = if let syn::ReturnType::Type(_, ty) = &spec.output {
+                let mut ty = ty.clone();
+                utils::elide_lifetimes(&mut ty);
                 ty
             } else {
-                &parse_quote!(())
+                parse_quote!(())
             };
             let body = quote! {
                 #text_signature_impl

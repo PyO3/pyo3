@@ -1,4 +1,5 @@
-use crate::object::{PyObject, PyTypeObject, Py_TYPE};
+use crate::object::{PyObject, PyTypeObject};
+use crate::Py_IS_TYPE;
 use std::ffi::{c_char, c_int};
 
 extern_libpython! {
@@ -12,17 +13,17 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyContext_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyContext_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyContext_Type)
 }
 
 #[inline]
 pub unsafe fn PyContextVar_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyContextVar_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyContextVar_Type)
 }
 
 #[inline]
 pub unsafe fn PyContextToken_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyContextToken_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyContextToken_Type)
 }
 
 extern_libpython! {

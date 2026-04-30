@@ -375,3 +375,19 @@ pub(crate) fn locate_tokens_at(tokens: TokenStream, span: Span) -> TokenStream {
     let output_span = tokens.span().located_at(span);
     set_span_recursively(tokens, output_span)
 }
+
+/// Replaces all explicit lifetimes in `self` with elided (`'_`) lifetimes
+///
+/// This is useful if `Self` is used in `const` context, where explicit
+/// lifetimes are not allowed (yet).
+pub(crate) fn elide_lifetimes(ty: &mut syn::Type) {
+    struct ElideLifetimesVisitor;
+
+    impl syn::visit_mut::VisitMut for ElideLifetimesVisitor {
+        fn visit_lifetime_mut(&mut self, l: &mut syn::Lifetime) {
+            *l = syn::Lifetime::new("'_", l.span());
+        }
+    }
+
+    syn::visit_mut::VisitMut::visit_type_mut(&mut ElideLifetimesVisitor, ty);
+}

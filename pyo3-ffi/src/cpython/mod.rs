@@ -1,6 +1,7 @@
 pub(crate) mod abstract_;
-// skipped bytearrayobject.h
+pub(crate) mod bytearrayobject;
 pub(crate) mod bytesobject;
+pub(crate) mod cellobject;
 #[cfg(not(PyPy))]
 pub(crate) mod ceval;
 pub(crate) mod code;
@@ -40,12 +41,16 @@ pub(crate) mod pythonrun;
 pub(crate) mod floatobject;
 pub(crate) mod pyframe;
 pub(crate) mod pyhash;
+pub(crate) mod traceback;
 pub(crate) mod tupleobject;
 pub(crate) mod unicodeobject;
+pub(crate) mod warnings;
 pub(crate) mod weakrefobject;
 
 pub use self::abstract_::*;
+pub use self::bytearrayobject::*;
 pub use self::bytesobject::*;
+pub use self::cellobject::*;
 #[cfg(not(PyPy))]
 pub use self::ceval::*;
 pub use self::code::*;
@@ -82,7 +87,9 @@ pub use self::pylifecycle::*;
 pub use self::pymem::*;
 pub use self::pystate::*;
 pub use self::pythonrun::*;
+pub use self::traceback::*;
 pub use self::tupleobject::*;
 pub use self::unicodeobject::*;
+pub use self::warnings::*;
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use self::weakrefobject::*;

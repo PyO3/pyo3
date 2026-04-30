@@ -10,12 +10,12 @@ error[E0271]: type mismatch resolving `<Foo as PyClass>::Frozen == False`
 11 |     fn mut_method(&mut self) {}
    |                   ^ type mismatch resolving `<Foo as PyClass>::Frozen == False`
    |
-note: expected this to be `False`
+note: expected this to be `pyo3::pyclass::boolean_struct::False`
   --> tests/ui/invalid_frozen_pyclass_borrow.rs:3:1
    |
  3 | #[pyclass(frozen)]
    | ^^^^^^^^^^^^^^^^^^
-note: required by a bound in `extract_pyclass_ref_mut`
+note: required by a bound in `pyo3::impl_::extract_argument::extract_pyclass_ref_mut`
   --> src/impl_/extract_argument.rs
    |
    | pub fn extract_pyclass_ref_mut<'a, 'holder, T: PyClass<Frozen = False>>(
@@ -28,7 +28,7 @@ error[E0271]: type mismatch resolving `<Foo as PyClass>::Frozen == False`
 9 | #[pymethods]
   | ^^^^^^^^^^^^ type mismatch resolving `<Foo as PyClass>::Frozen == False`
   |
-note: expected this to be `False`
+note: expected this to be `pyo3::pyclass::boolean_struct::False`
  --> tests/ui/invalid_frozen_pyclass_borrow.rs:3:1
   |
 3 | #[pyclass(frozen)]
@@ -46,7 +46,7 @@ error[E0271]: type mismatch resolving `<Foo as PyClass>::Frozen == False`
 15 |     let borrow = foo.bind(py).borrow_mut();
    |                               ^^^^^^^^^^ type mismatch resolving `<Foo as PyClass>::Frozen == False`
    |
-note: expected this to be `False`
+note: expected this to be `pyo3::pyclass::boolean_struct::False`
   --> tests/ui/invalid_frozen_pyclass_borrow.rs:3:1
    |
  3 | #[pyclass(frozen)]
@@ -67,7 +67,7 @@ error[E0271]: type mismatch resolving `<ImmutableChild as PyClass>::Frozen == Fa
 25 |     let borrow = child.bind(py).borrow_mut();
    |                                 ^^^^^^^^^^ type mismatch resolving `<ImmutableChild as PyClass>::Frozen == False`
    |
-note: expected this to be `False`
+note: expected this to be `pyo3::pyclass::boolean_struct::False`
   --> tests/ui/invalid_frozen_pyclass_borrow.rs:21:1
    |
 21 | #[pyclass(frozen, extends = MutableBase)]
@@ -88,7 +88,7 @@ error[E0271]: type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
 29 |     class.get();
    |           ^^^ type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
    |
-note: expected this to be `True`
+note: expected this to be `pyo3::pyclass::boolean_struct::True`
   --> tests/ui/invalid_frozen_pyclass_borrow.rs:18:1
    |
 18 | #[pyclass(subclass)]
@@ -109,7 +109,7 @@ error[E0271]: type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
 33 |     class.get();
    |           ^^^ type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
    |
-note: expected this to be `True`
+note: expected this to be `pyo3::pyclass::boolean_struct::True`
   --> tests/ui/invalid_frozen_pyclass_borrow.rs:18:1
    |
 18 | #[pyclass(subclass)]

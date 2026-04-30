@@ -8,7 +8,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PySeqIter_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PySeqIter_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PySeqIter_Type)
 }
 
 extern_libpython! {
@@ -18,7 +18,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyCallIter_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyCallIter_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyCallIter_Type)
 }
 
 extern_libpython! {

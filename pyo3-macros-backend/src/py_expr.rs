@@ -5,7 +5,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use std::borrow::Cow;
 use syn::visit_mut::{visit_type_mut, VisitMut};
-use syn::{Expr, ExprLit, ExprPath, Lifetime, Lit, Type};
+use syn::{Expr, ExprLit, ExprPath, Lit, Type};
 
 /// A Python expression
 ///
@@ -268,24 +268,8 @@ fn clean_type(mut t: Type, self_type: Option<&Type>) -> Type {
     if let Some(self_type) = self_type {
         replace_self(&mut t, self_type);
     }
-    elide_lifetimes(&mut t);
+    crate::utils::elide_lifetimes(&mut t);
     t
-}
-
-/// Replaces all explicit lifetimes in `self` with elided (`'_`) lifetimes
-///
-/// This is useful if `Self` is used in `const` context, where explicit
-/// lifetimes are not allowed (yet).
-fn elide_lifetimes(ty: &mut Type) {
-    struct ElideLifetimesVisitor;
-
-    impl VisitMut for ElideLifetimesVisitor {
-        fn visit_lifetime_mut(&mut self, l: &mut Lifetime) {
-            *l = Lifetime::new("'_", l.span());
-        }
-    }
-
-    ElideLifetimesVisitor.visit_type_mut(ty);
 }
 
 // Replace Self in types with the given type

@@ -10,5 +10,5 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyRange_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyRange_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyRange_Type)
 }

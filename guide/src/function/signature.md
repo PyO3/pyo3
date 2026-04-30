@@ -265,10 +265,9 @@ Type:      builtin_function_or_method
 
 ### Type annotations in the signature
 
-When the `experimental-inspect` Cargo feature is enabled, the `signature` attribute can also contain type hints:
+The `signature` attribute can also contain type hints:
 
 ```rust
-# #[cfg(feature = "experimental-inspect")] {
 use pyo3::prelude::*;
 
 #[pymodule]
@@ -281,21 +280,21 @@ pub mod example {
       arg
    }
 }
-# }
 ```
 
 It enables the [work-in-progress capacity of PyO3 to autogenerate type stubs](../type-stub.md) to generate a file with the correct type hints:
 
 ```python
-def list_of_int_identity(arg: list[int]) -> list[int]: ...
+def list_of_int_identity(arg: "list[int]") -> "list[int]": ...
 ```
 
 instead of the generic:
 
 ```python
-import typing
+from typing import Any
 
-def list_of_int_identity(arg: typing.Any) -> typing.Any: ...
+def list_of_int_identity(arg: Any) -> Any: ...
 ```
 
-Note that currently type annotations must be written as Rust strings.
+Note that currently type annotations must be written as strings.
+Future enhancements of PyO3's typing support may include the ability to parse a limited subset of Python's type expression syntax.
