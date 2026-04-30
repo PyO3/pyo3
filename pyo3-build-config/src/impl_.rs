@@ -897,10 +897,11 @@ impl InterpreterConfigBuilder {
         ensure!(self.build_flags.is_none(), "Build flags already set!");
         let build_flags = if build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) {
             if let Some(target_abi) = self.target_abi {
-                ensure!(
-                    target_abi.kind.is_free_threaded(),
-                    "build_flags contains Py_GIL_DISABLED but target ABI '{target_abi}' is not free-threaded"
-                );
+                if !target_abi.kind.is_free_threaded() {
+                    warn!(
+                        "build_flags contains Py_GIL_DISABLED but target ABI '{target_abi}' is not free-threaded"
+                    );
+                }
             }
             build_flags
         } else if let Some(target_abi) = self.target_abi {
@@ -2561,7 +2562,9 @@ mod tests {
                 .unwrap()
                 .finalize()
         );
-        assert!(InterpreterConfig::from_reader("version=3.13\ntarget_abi=CPython-version_specific(gil_enabled)-3.13\nbuild_flags=Py_GIL_DISABLED".as_bytes()).unwrap_err().to_string().contains("is not free-threaded"))
+        let mut flags = BuildFlags::default();
+        flags.0.insert(BuildFlag::Py_GIL_DISABLED);
+        assert_eq!(InterpreterConfig::from_reader("version=3.13\ntarget_abi=CPython-version_specific(gil_enabled)-3.13\nbuild_flags=Py_GIL_DISABLED".as_bytes()).unwrap(), InterpreterConfigBuilder::new(implementation, version).build_flags(flags).unwrap().finalize());
     }
 
     #[test]
@@ -3518,13 +3521,17 @@ mod tests {
             InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY314);
         let mut flags = BuildFlags::new();
         flags.0.insert(BuildFlag::Py_GIL_DISABLED);
-        assert!(builder
-            .stable_abi(StableAbi::Abi3)
-            .unwrap()
-            .build_flags(flags)
-            .unwrap_err()
-            .to_string()
-            .contains("is not free-threaded"));
+        assert!(
+            builder
+                .stable_abi(StableAbi::Abi3)
+                .unwrap()
+                .build_flags(flags)
+                .unwrap()
+                .finalize()
+                .target_abi
+                .kind
+                == PythonAbiKind::Stable(StableAbi::Abi3)
+        );
 
         let builder =
             InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY314);
