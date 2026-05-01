@@ -11,7 +11,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyMemoryView_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyMemoryView_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyMemoryView_Type)
 }
 
 // skipped non-limited PyMemoryView_GET_BUFFER

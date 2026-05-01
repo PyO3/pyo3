@@ -79,7 +79,7 @@ fn test_compile_errors() {
     t.pass("tests/ui/pymodule_missing_docs.rs");
     #[cfg(not(any(Py_LIMITED_API, feature = "experimental-inspect")))]
     t.pass("tests/ui/forbid_unsafe.rs");
-    #[cfg(all(Py_LIMITED_API, not(Py_3_12), not(feature = "experimental-async")))]
+    #[cfg(all(Py_LIMITED_API, not(Py_3_12), feature = "experimental-async"))]
     // output changes with async feature
     t.compile_fail("tests/ui/abi3_inheritance.rs");
     #[cfg(all(Py_LIMITED_API, not(Py_3_9)))]
