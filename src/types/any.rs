@@ -980,15 +980,23 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        let py = self.py();
-        let result = unsafe {
-            ffi::compat::PyObject_HasAttrWithError(
-                self.as_ptr(),
-                attr_name.into_pyobject(py).map_err(Into::into)?.as_ptr(),
-            )
-        };
-        error_on_minusone(py, result)?;
-        Ok(result > 0)
+        fn inner<'py>(
+            any: &Bound<'py, PyAny>,
+            attr_name: Borrowed<'_, '_, PyString>,
+        ) -> PyResult<bool> {
+            let result =
+                unsafe { ffi::compat::PyObject_HasAttrWithError(any.as_ptr(), attr_name.as_ptr()) };
+            error_on_minusone(any.py(), result)?;
+            Ok(result > 0)
+        }
+
+        inner(
+            self,
+            attr_name
+                .into_pyobject(self.py())
+                .map_err(Into::into)?
+                .as_borrowed(),
+        )
     }
 
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
