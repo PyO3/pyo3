@@ -6,9 +6,7 @@ extern_libpython! {
     pub fn PyTraceBack_Here(arg1: *mut crate::PyFrameObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Print")]
     pub fn PyTraceBack_Print(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
     #[cfg(not(RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Type")]
     pub static mut PyTraceBack_Type: PyTypeObject;

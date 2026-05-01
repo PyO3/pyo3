@@ -26,9 +26,7 @@ extern_libpython! {
     pub fn PyModule_Check(op: *mut PyObject) -> c_int;
     #[cfg(RustPython)]
     pub fn PyModule_CheckExact(op: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyModule_NewObject")]
     pub fn PyModule_NewObject(name: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyModule_New")]
@@ -143,19 +141,20 @@ pub const Py_MOD_GIL_USED: *mut c_void = 0 as *mut c_void;
 #[cfg(Py_3_13)]
 pub const Py_MOD_GIL_NOT_USED: *mut c_void = 1 as *mut c_void;
 
-#[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 extern_libpython! {
+    #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
     pub fn PyUnstable_Module_SetGIL(module: *mut PyObject, gil: *mut c_void) -> c_int;
-}
 
-#[cfg(Py_3_15)]
-extern_libpython! {
+    #[cfg(Py_3_15)]
     pub fn PyModule_FromSlotsAndSpec(
         slots: *const PyModuleDef_Slot,
         spec: *mut PyObject,
     ) -> *mut PyObject;
+    #[cfg(Py_3_15)]
     pub fn PyModule_Exec(_mod: *mut PyObject) -> c_int;
+    #[cfg(Py_3_15)]
     pub fn PyModule_GetStateSize(_mod: *mut PyObject, result: *mut Py_ssize_t) -> c_int;
+    #[cfg(Py_3_15)]
     pub fn PyModule_GetToken(module: *mut PyObject, result: *mut *mut c_void) -> c_int;
 }
 

@@ -24,9 +24,7 @@ pub unsafe fn PyList_CheckExact(op: *mut PyObject) -> c_int {
 extern_libpython! {
     #[cfg(RustPython)]
     pub fn PyList_CheckExact(op: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyList_New")]
     pub fn PyList_New(size: Py_ssize_t) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyList_Size")]

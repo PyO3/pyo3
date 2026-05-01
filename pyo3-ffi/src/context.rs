@@ -40,9 +40,7 @@ extern_libpython! {
     pub fn PyContextVar_CheckExact(op: *mut PyObject) -> c_int;
     #[cfg(RustPython)]
     pub fn PyContextToken_CheckExact(op: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
     pub fn PyContext_New() -> *mut PyObject;
     pub fn PyContext_Copy(ctx: *mut PyObject) -> *mut PyObject;
     pub fn PyContext_CopyCurrent() -> *mut PyObject;

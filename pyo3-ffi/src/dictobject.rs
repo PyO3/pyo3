@@ -22,9 +22,7 @@ pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
 extern_libpython! {
     #[cfg(RustPython)]
     pub fn PyDict_CheckExact(op: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyDict_New")]
     pub fn PyDict_New() -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDict_GetItem")]

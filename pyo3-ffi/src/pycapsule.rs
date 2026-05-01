@@ -18,9 +18,7 @@ pub unsafe fn PyCapsule_CheckExact(ob: *mut PyObject) -> c_int {
 extern_libpython! {
     #[cfg(RustPython)]
     pub fn PyCapsule_CheckExact(ob: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyCapsule_New")]
     pub fn PyCapsule_New(
         pointer: *mut c_void,

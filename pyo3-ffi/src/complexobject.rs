@@ -24,9 +24,7 @@ extern_libpython! {
     pub fn PyComplex_Check(op: *mut PyObject) -> c_int;
     #[cfg(RustPython)]
     pub fn PyComplex_CheckExact(op: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
     // skipped non-limited PyComplex_FromCComplex
     #[cfg_attr(PyPy, link_name = "PyPyComplex_FromDoubles")]
     pub fn PyComplex_FromDoubles(real: c_double, imag: c_double) -> *mut PyObject;

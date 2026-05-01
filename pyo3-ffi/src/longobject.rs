@@ -19,9 +19,7 @@ pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
 extern_libpython! {
     #[cfg(RustPython)]
     pub fn PyLong_CheckExact(op: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyLong_FromLong")]
     pub fn PyLong_FromLong(arg1: c_long) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyLong_FromUnsignedLong")]

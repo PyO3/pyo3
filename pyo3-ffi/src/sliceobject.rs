@@ -51,9 +51,7 @@ pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
 extern_libpython! {
     #[cfg(RustPython)]
     pub fn PySlice_Check(op: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPySlice_New")]
     pub fn PySlice_New(
         start: *mut PyObject,

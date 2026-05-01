@@ -27,9 +27,7 @@ extern_libpython! {
     pub fn PyByteArray_Check(op: *mut PyObject) -> c_int;
     #[cfg(RustPython)]
     pub fn PyByteArray_CheckExact(op: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyByteArray_FromObject")]
     pub fn PyByteArray_FromObject(o: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyByteArray_Concat")]

@@ -88,9 +88,7 @@ pub unsafe fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int {
 extern_libpython! {
     #[cfg(all(RustPython, not(any(PyPy, GraalPy))))]
     pub fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
     #[cfg(PyPy)]
     #[link_name = "PyPyFrozenSet_Check"]
     pub fn PyFrozenSet_Check(ob: *mut PyObject) -> c_int;
@@ -107,9 +105,7 @@ pub unsafe fn PyFrozenSet_Check(ob: *mut PyObject) -> c_int {
 extern_libpython! {
     #[cfg(all(RustPython, not(PyPy)))]
     pub fn PyFrozenSet_Check(ob: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
     #[cfg(PyPy)]
     #[link_name = "PyPyAnySet_CheckExact"]
     pub fn PyAnySet_CheckExact(ob: *mut PyObject) -> c_int;
@@ -150,9 +146,7 @@ pub unsafe fn PySet_CheckExact(op: *mut PyObject) -> c_int {
 extern_libpython! {
     #[cfg(all(RustPython, Py_3_10))]
     pub fn PySet_CheckExact(op: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
     #[cfg(PyPy)]
     #[link_name = "PyPySet_Check"]
     pub fn PySet_Check(ob: *mut PyObject) -> c_int;
