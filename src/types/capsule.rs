@@ -40,7 +40,7 @@ use std::ptr::{self, NonNull};
 ///
 /// In particular, note that Rust's default `#[repr(Rust)]` and `extern "Rust"` functions have no stability
 /// guarantees, so storing and dereferencing a pointer to a Rust function in a capsule which was produced
-/// by a separate compiled extension is likely UB.
+/// by a separate compiled extension is UB.
 ///
 /// If the data opaque to Python needs to be only accessed within a single extension, it is recommended to
 /// use a `#[pyclass]` with no public getters/setters. PyO3 can guarantee the type safety of the contents
