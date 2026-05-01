@@ -2,6 +2,7 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 use std::ffi::c_int;
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyTuple_Type")]
     pub static mut PyTuple_Type: PyTypeObject;
@@ -14,11 +15,15 @@ pub unsafe fn PyTuple_Check(op: *mut PyObject) -> c_int {
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyTuple_CheckExact(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyTuple_Type)
 }
 
 extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyTuple_CheckExact(op: *mut PyObject) -> c_int;
+
     #[cfg_attr(PyPy, link_name = "PyPyTuple_New")]
     pub fn PyTuple_New(size: Py_ssize_t) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyTuple_Size")]

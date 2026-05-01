@@ -4,6 +4,12 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::box_into_non_null;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, PyAny};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 use crate::{Bound, Python};
 use crate::{PyErr, PyResult};
 use std::ffi::{c_char, c_int, c_void};
@@ -75,7 +81,20 @@ use std::ptr::{self, NonNull};
 #[repr(transparent)]
 pub struct PyCapsule(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyCapsule, pyobject_native_static_type_object!(ffi::PyCapsule_Type), "types", "CapsuleType", #checkfunction=ffi::PyCapsule_CheckExact);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyCapsule,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "CapsuleType").unwrap().as_type_ptr()
+    },
+    "types",
+    "CapsuleType",
+    #checkfunction=ffi::PyCapsule_CheckExact
+);
 
 impl PyCapsule {
     /// Constructs a new capsule whose contents are `value`, associated with `name`.

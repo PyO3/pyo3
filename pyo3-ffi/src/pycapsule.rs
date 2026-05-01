@@ -1,6 +1,7 @@
 use crate::object::*;
 use std::ffi::{c_char, c_int, c_void};
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyCapsule_Type")]
     pub static mut PyCapsule_Type: PyTypeObject;
@@ -9,11 +10,15 @@ extern_libpython! {
 pub type PyCapsule_Destructor = unsafe extern "C" fn(o: *mut PyObject);
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyCapsule_CheckExact(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &raw mut PyCapsule_Type) as c_int
 }
 
 extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyCapsule_CheckExact(ob: *mut PyObject) -> c_int;
+
     #[cfg_attr(PyPy, link_name = "PyPyCapsule_New")]
     pub fn PyCapsule_New(
         pointer: *mut c_void,

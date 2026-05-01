@@ -4,6 +4,12 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::sync::critical_section::with_critical_section;
 use crate::{ffi, PyAny, Python};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 use std::slice;
 
 /// Represents a Python `bytearray`.
@@ -16,7 +22,20 @@ use std::slice;
 #[repr(transparent)]
 pub struct PyByteArray(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyByteArray, pyobject_native_static_type_object!(ffi::PyByteArray_Type), "builtins", "bytearray", #checkfunction=ffi::PyByteArray_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyByteArray,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "bytearray").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "bytearray",
+    #checkfunction=ffi::PyByteArray_Check
+);
 
 impl PyByteArray {
     /// Creates a new Python bytearray object.
