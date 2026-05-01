@@ -1,18 +1,18 @@
-#[cfg(not(GraalPy))]
+#[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
 use crate::longobject::PyLongObject;
 use crate::object::*;
 use std::ffi::{c_int, c_long};
 
 #[inline]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyBool_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyBool_Type)
 }
 
 extern_libpython! {
-    #[cfg(not(GraalPy))]
+    #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
     #[cfg_attr(PyPy, link_name = "_PyPy_FalseStruct")]
     static mut _Py_FalseStruct: PyLongObject;
-    #[cfg(not(GraalPy))]
+    #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
     #[cfg_attr(PyPy, link_name = "_PyPy_TrueStruct")]
     static mut _Py_TrueStruct: PyLongObject;
 
@@ -24,16 +24,24 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn Py_False() -> *mut PyObject {
-    #[cfg(not(GraalPy))]
+    #[cfg(all(not(GraalPy), all(Py_3_13, Py_LIMITED_API)))]
+    return Py_GetConstantBorrowed(Py_CONSTANT_FALSE);
+
+    #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
     return (&raw mut _Py_FalseStruct).cast();
+
     #[cfg(GraalPy)]
     return _Py_FalseStructReference;
 }
 
 #[inline]
 pub unsafe fn Py_True() -> *mut PyObject {
-    #[cfg(not(GraalPy))]
+    #[cfg(all(not(GraalPy), all(Py_3_13, Py_LIMITED_API)))]
+    return Py_GetConstantBorrowed(Py_CONSTANT_TRUE);
+
+    #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
     return (&raw mut _Py_TrueStruct).cast();
+
     #[cfg(GraalPy)]
     return _Py_TrueStructReference;
 }

@@ -33,14 +33,14 @@ fn bench_call_1(b: &mut Bencher<'_>) {
 
         let foo_module = &module.getattr("foo").unwrap();
         let args = (
-            1.into_pyobject(py).unwrap(),
+            1i32.into_pyobject(py).unwrap(),
             "s".into_pyobject(py).unwrap(),
-            1.23.into_pyobject(py).unwrap(),
+            1.23f64.into_pyobject(py).unwrap(),
         );
 
         b.iter(|| {
             for _ in 0..1000 {
-                black_box(foo_module).call1(args.clone()).unwrap();
+                black_box(foo_module).call1(&args).unwrap();
             }
         });
     })
@@ -52,17 +52,15 @@ fn bench_call(b: &mut Bencher<'_>) {
 
         let foo_module = &module.getattr("foo").unwrap();
         let args = (
-            1.into_pyobject(py).unwrap(),
+            1i32.into_pyobject(py).unwrap(),
             "s".into_pyobject(py).unwrap(),
-            1.23.into_pyobject(py).unwrap(),
+            1.23f64.into_pyobject(py).unwrap(),
         );
         let kwargs = [("d", 1), ("e", 42)].into_py_dict(py).unwrap();
 
         b.iter(|| {
             for _ in 0..1000 {
-                black_box(foo_module)
-                    .call(args.clone(), Some(&kwargs))
-                    .unwrap();
+                black_box(foo_module).call(&args, Some(&kwargs)).unwrap();
             }
         });
     })
@@ -77,7 +75,7 @@ fn bench_call_one_arg(b: &mut Bencher<'_>) {
 
         b.iter(|| {
             for _ in 0..1000 {
-                black_box(foo_module).call1((arg.clone(),)).unwrap();
+                black_box(foo_module).call1((&arg,)).unwrap();
             }
         });
     })
@@ -116,17 +114,16 @@ class Foo:
         );
 
         let foo_module = &module.getattr("Foo").unwrap().call0().unwrap();
+        let meth = "foo".into_pyobject(py).unwrap();
         let args = (
-            1.into_pyobject(py).unwrap(),
+            1i32.into_pyobject(py).unwrap(),
             "s".into_pyobject(py).unwrap(),
-            1.23.into_pyobject(py).unwrap(),
+            1.23f64.into_pyobject(py).unwrap(),
         );
 
         b.iter(|| {
             for _ in 0..1000 {
-                black_box(foo_module)
-                    .call_method1("foo", args.clone())
-                    .unwrap();
+                black_box(foo_module).call_method1(&meth, &args).unwrap();
             }
         });
     })
@@ -144,17 +141,19 @@ class Foo:
         );
 
         let foo_module = &module.getattr("Foo").unwrap().call0().unwrap();
+        let meth = "foo".into_pyobject(py).unwrap();
+
         let args = (
-            1.into_pyobject(py).unwrap(),
+            1i32.into_pyobject(py).unwrap(),
             "s".into_pyobject(py).unwrap(),
-            1.23.into_pyobject(py).unwrap(),
+            1.23f64.into_pyobject(py).unwrap(),
         );
         let kwargs = [("d", 1), ("e", 42)].into_py_dict(py).unwrap();
 
         b.iter(|| {
             for _ in 0..1000 {
                 black_box(foo_module)
-                    .call_method("foo", args.clone(), Some(&kwargs))
+                    .call_method(&meth, &args, Some(&kwargs))
                     .unwrap();
             }
         });
@@ -173,13 +172,12 @@ class Foo:
         );
 
         let foo_module = &module.getattr("Foo").unwrap().call0().unwrap();
+        let meth = "foo".into_pyobject(py).unwrap();
         let arg = 1i32.into_pyobject(py).unwrap();
 
         b.iter(|| {
             for _ in 0..1000 {
-                black_box(foo_module)
-                    .call_method1("foo", (arg.clone(),))
-                    .unwrap();
+                black_box(foo_module).call_method1(&meth, (&arg,)).unwrap();
             }
         });
     })

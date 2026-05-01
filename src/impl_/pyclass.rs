@@ -238,6 +238,14 @@ pub trait PyClassImpl: Sized + 'static {
     fn lazy_type_object() -> &'static LazyTypeObject<Self>;
 }
 
+mod generic_pyclass {
+    use crate::PyClass;
+
+    pub trait Sealed {}
+
+    impl<T: PyClass> Sealed for T {}
+}
+
 /// Iterator used to process all class items during type instantiation.
 pub struct PyClassItemsIter {
     /// Iteration state
@@ -305,7 +313,7 @@ impl Iterator for PyClassItemsIter {
 macro_rules! slot_fragment_trait {
     ($trait_name:ident, $($default_method:tt)*) => {
         #[allow(non_camel_case_types, reason = "to match Python dunder names")]
-        pub trait $trait_name<T>: Sized {
+        pub trait $trait_name<T>: Sized + pymethods::Sealed {
             $($default_method)*
         }
 
@@ -896,7 +904,7 @@ pub use generate_pyclass_richcompare_slot;
 ///
 /// Do not implement this trait manually. Instead, use `#[pyclass(freelist = N)]`
 /// on a Rust struct to implement it.
-pub trait PyClassWithFreeList: PyClass {
+pub trait PyClassWithFreeList: PyClass + generic_pyclass::Sealed {
     fn get_free_list(py: Python<'_>) -> &'static Mutex<PyObjectFreeList>;
 }
 
@@ -971,7 +979,7 @@ pub trait PyClassInventory: inventory::Collect {
 
 // Items from #[pymethods] if not using inventory.
 #[cfg(not(feature = "multiple-pymethods"))]
-pub trait PyMethods<T> {
+pub trait PyMethods<T>: pymethods::Sealed {
     fn py_methods(self) -> &'static PyClassItems;
 }
 
@@ -983,6 +991,15 @@ impl<T> PyMethods<T> for &'_ PyClassImplCollector<T> {
             slots: &[],
         }
     }
+}
+
+mod pymethods {
+    use crate::impl_::pyclass::PyClassImplCollector;
+
+    pub trait Sealed {}
+
+    impl<T> Sealed for &PyClassImplCollector<T> {}
+    impl<T> Sealed for PyClassImplCollector<T> {}
 }
 
 // Thread checkers
@@ -1060,21 +1077,15 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
 }
 
 /// Trait denoting that this class is suitable to be used as a base type for PyClass.
-#[cfg_attr(
-    Py_LIMITED_API,
-    diagnostic::on_unimplemented(
-        message = "pyclass `{Self}` cannot be subclassed",
-        label = "required for `#[pyclass(extends={Self})]`",
-        note = "`{Self}` must have `#[pyclass(subclass)]` to be eligible for subclassing",
-        note = "with the `abi3` feature enabled, PyO3 does not support subclassing native types",
-    )
+#[diagnostic::on_unimplemented(
+    message = "pyclass `{Self}` cannot be subclassed",
+    label = "required for `#[pyclass(extends={Self})]`",
+    note = "`{Self}` must have `#[pyclass(subclass)]` to be eligible for subclassing"
 )]
 #[cfg_attr(
-    not(Py_LIMITED_API),
+    all(Py_LIMITED_API, not(Py_3_12)),
     diagnostic::on_unimplemented(
-        message = "pyclass `{Self}` cannot be subclassed",
-        label = "required for `#[pyclass(extends={Self})]`",
-        note = "`{Self}` must have `#[pyclass(subclass)]` to be eligible for subclassing",
+        note = "subclassing native types requires Python >= 3.12 when using the `abi3` feature",
     )
 )]
 pub trait PyClassBaseType: Sized {
@@ -1283,7 +1294,7 @@ where
     label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
     note = "implement `IntoPyObject` for `&{Self}` or `IntoPyObject + Clone` for `{Self}` to define the conversion"
 )]
-pub trait PyO3GetField<'py>: IntoPyObject<'py> + Clone {}
+pub trait PyO3GetField<'py>: IntoPyObject<'py> + Clone + pyo3_get_field::Sealed {}
 impl<'py, T> PyO3GetField<'py> for T where T: IntoPyObject<'py> + Clone {}
 
 /// Base case attempts to use IntoPyObject + Clone
@@ -1302,6 +1313,14 @@ impl<ClassT: PyClass, FieldT, const OFFSET: usize, const IMPLEMENTS_INTOPYOBJECT
             doc,
         })
     }
+}
+
+mod pyo3_get_field {
+    use crate::IntoPyObject;
+
+    pub trait Sealed {}
+
+    impl<'py, T: IntoPyObject<'py>> Sealed for T {}
 }
 
 /// ensures `obj` is not mutably aliased
@@ -1419,7 +1438,7 @@ impl<const IMPLEMENTS_INTOPYOBJECT: bool> ConvertField<false, IMPLEMENTS_INTOPYO
     }
 }
 
-pub trait ExtractPyClassWithClone {}
+pub trait ExtractPyClassWithClone: generic_pyclass::Sealed {}
 
 #[cfg(test)]
 #[cfg(feature = "macros")]

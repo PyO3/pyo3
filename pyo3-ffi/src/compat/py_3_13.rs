@@ -132,6 +132,78 @@ compat_function!(
 );
 
 compat_function!(
+    originally_defined_for(all(Py_3_13, any(not(Py_LIMITED_API), Py_3_15)));
+
+    #[inline]
+    pub unsafe fn PyDict_SetDefaultRef(
+        mp: *mut crate::PyObject,
+        key: *mut crate::PyObject,
+        default_value: *mut crate::PyObject,
+        result: *mut *mut crate::PyObject,
+    ) -> std::ffi::c_int {
+        use crate::{
+            compat::{PyDict_GetItemRef, Py_NewRef},
+            PyDict_SetItem, PyObject, Py_DECREF,
+        };
+        let mut value: *mut PyObject = std::ptr::null_mut();
+        if PyDict_GetItemRef(mp, key, &mut value) < 0 {
+            // get error
+            if !result.is_null() {
+                *result = std::ptr::null_mut();
+            }
+            return -1;
+        }
+        if !value.is_null() {
+            // present
+            if !result.is_null() {
+                *result = value;
+            } else {
+                Py_DECREF(value);
+            }
+            return 1;
+        }
+
+        // missing, set the item
+        if PyDict_SetItem(mp, key, default_value) < 0 {
+            // set error
+            if !result.is_null() {
+                *result = std::ptr::null_mut();
+            }
+            return -1;
+        }
+        if !result.is_null() {
+            *result = Py_NewRef(default_value);
+        }
+        0
+    }
+);
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyObject_GetOptionalAttr(
+        obj: *mut crate::PyObject,
+        name: *mut crate::PyObject,
+        result: *mut *mut crate::PyObject,
+    ) -> std::ffi::c_int {
+        use crate::{PyErr_Clear, PyErr_ExceptionMatches, PyExc_AttributeError, PyObject_GetAttr};
+
+        let attr = PyObject_GetAttr(obj, name);
+        if !attr.is_null() {
+            *result = attr;
+            return 1; // found
+        }
+        *result = std::ptr::null_mut();
+        if PyErr_ExceptionMatches(PyExc_AttributeError) != 0 {
+            PyErr_Clear();
+            return 0; // not found
+        }
+        -1 // other error
+    }
+);
+
+compat_function!(
     originally_defined_for(Py_3_13);
 
     #[inline]
@@ -140,24 +212,5 @@ compat_function!(
         let rc = crate::compat::PyObject_GetOptionalAttr(obj, attr_name, &mut res);
         crate::Py_XDECREF(res);
         rc
-    }
-);
-
-compat_function!(
-    originally_defined_for(Py_3_13);
-
-    #[inline]
-    pub unsafe fn PyObject_GetOptionalAttr(obj: *mut crate::PyObject, attr_name: *mut crate::PyObject, result: *mut *mut crate::PyObject,) -> std::ffi::c_int {
-        *result = crate::PyObject_GetAttr(obj, attr_name);
-        if !(*result).is_null() {
-            1
-        } else if crate::PyErr_Occurred().is_null() {
-            0
-        } else if crate::PyErr_ExceptionMatches(crate::PyExc_AttributeError) > 0 {
-            crate::PyErr_Clear();
-            0
-        } else {
-            -1
-        }
     }
 );

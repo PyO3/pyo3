@@ -78,7 +78,7 @@ def _supported_interpreter_versions(
     min_minor = int(min_version.split(".")[1])
     max_minor = int(max_version.split(".")[1])
     versions = [f"{major}.{minor}" for minor in range(min_minor, max_minor + 1)]
-    # Add free-threaded builds for 3.13+
+    # Add free-threaded builds for 3.14+
     if python_impl == "cpython":
         versions += [f"{major}.{minor}t" for minor in range(14, max_minor + 1)]
     return versions
@@ -757,9 +757,6 @@ def check_guide(session: nox.Session):
         # rust docs
         "(https://docs.rs/[^#]+)#[a-zA-Z0-9._-]*": "$1",
     }
-    remap_args = []
-    for key, value in remaps.items():
-        remap_args.extend(("--remap", f"{key} {value}"))
 
     excludes = [
         # exclude some old http links from copyright notices, known to fail
@@ -769,7 +766,15 @@ def check_guide(session: nox.Session):
         "https://github.com/PyO3/pyo3/pull/938",
     ]
 
-    exclude_args = [f"--exclude={arg}" for arg in excludes]
+    common_args = (
+        *(f"--remap={key} {value}" for key, value in remaps.items()),
+        *(f"--exclude={arg}" for arg in excludes),
+        "--cache",
+        "--max-cache-age=7d",
+        "--cache-exclude-status=400..600",
+        "--accept=200,429",
+        *session.posargs,
+    )
 
     try:
         # check all links in the guide
@@ -778,13 +783,8 @@ def check_guide(session: nox.Session):
             "lychee",
             "--include-fragments",
             str(PYO3_GUIDE_TARGET),
-            *remap_args,
-            *exclude_args,
-            "--accept=200,429",
-            "--cache",
-            "--max-cache-age=7d",
             f"--root-dir={PYO3_GUIDE_TARGET}",
-            *session.posargs,
+            *common_args,
             external=True,
         )
         # check external links in the docs
@@ -793,16 +793,9 @@ def check_guide(session: nox.Session):
             session,
             "lychee",
             str(PYO3_DOCS_TARGET),
-            *remap_args,
+            # don't check intra-doc links, rustdoc already handled those
             f"--exclude=file://{PYO3_DOCS_TARGET}",
-            # exclude some old http links from copyright notices, known to fail
-            *exclude_args,
-            "--accept=200,429",
-            # reduce the concurrency to avoid rate-limit from `pyo3.rs`
-            "--max-concurrency=32",
-            "--cache",
-            "--max-cache-age=7d",
-            *session.posargs,
+            *common_args,
             external=True,
         )
     except nox.command.CommandFailed:
@@ -924,7 +917,7 @@ def _format_ffi_extern(session: nox.Session, *, check: bool = False):
 
         if new_content != content:
             originals[path] = content
-            path.write_text(new_content)
+            path.write_text(new_content, newline="\n")
             files_to_format.append(path)
 
     if not files_to_format:
@@ -939,7 +932,7 @@ def _format_ffi_extern(session: nox.Session, *, check: bool = False):
     except Exception:
         # Restore originals on failure
         for path, content in originals.items():
-            path.write_text(content)
+            path.write_text(content, newline="\n")
         raise
 
     # Restore the macro invocations
@@ -968,9 +961,9 @@ def _format_ffi_extern(session: nox.Session, *, check: bool = False):
         if check and content != originals[path]:
             changed.append(path)
             # Restore original so we don't leave dirty files in CI
-            path.write_text(originals[path])
+            path.write_text(originals[path], newline="\n")
         else:
-            path.write_text(content)
+            path.write_text(content, newline="\n")
 
     if check and changed:
         session.error(

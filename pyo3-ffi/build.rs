@@ -122,6 +122,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 return Err(error.finish().into());
             }
         }
+        PythonImplementation::RustPython => {}
     }
 
     if interpreter_config.abi3 {
@@ -140,6 +141,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
             PythonImplementation::GraalPy => warn!(
                 "GraalPy does not support abi3 so the build artifacts will be version-specific."
             ),
+            PythonImplementation::RustPython => {}
         }
     }
 

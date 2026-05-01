@@ -11,7 +11,7 @@ use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
-use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py};
+use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py, Python};
 #[allow(deprecated)]
 use crate::{DowncastError, DowncastIntoError};
 use std::cell::UnsafeCell;
@@ -1018,26 +1018,29 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        let py = self.py();
-        let mut resp_ptr: *mut ffi::PyObject = std::ptr::null_mut();
-        match unsafe {
-            ffi::compat::PyObject_GetOptionalAttr(
-                self.as_ptr(),
-                attr_name.into_pyobject(py).map_err(Into::into)?.as_ptr(),
-                &mut resp_ptr,
-            )
-        } {
-            // Attribute found, result is a new strong reference
-            1 => {
-                let bound = unsafe { Bound::from_owned_ptr(py, resp_ptr) };
-                Ok(Some(bound))
+        fn inner<'py>(
+            any: &Bound<'py, PyAny>,
+            attr_name: Borrowed<'_, 'py, PyString>,
+        ) -> PyResult<Option<Bound<'py, PyAny>>> {
+            let mut resp_ptr: *mut ffi::PyObject = std::ptr::null_mut();
+            match unsafe {
+                ffi::compat::PyObject_GetOptionalAttr(
+                    any.as_ptr(),
+                    attr_name.as_ptr(),
+                    &mut resp_ptr,
+                )
+            } {
+                // Attribute found, result is a new strong reference
+                1 => Ok(Some(unsafe { Bound::from_owned_ptr(any.py(), resp_ptr) })),
+                // Attribute not found
+                0 => Ok(None),
+                // An error occurred (other than AttributeError)
+                _ => Err(PyErr::fetch(any.py())),
             }
-            // Attribute not found, result is NULL
-            0 => Ok(None),
-
-            // An error occurred (other than AttributeError)
-            _ => Err(PyErr::fetch(py)),
         }
+
+        let py = self.py();
+        inner(self, attr_name.into_pyobject_or_pyerr(py)?.as_borrowed())
     }
 
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
@@ -1762,6 +1765,33 @@ class Test:
                 .unwrap_err()
                 .to_string()
                 .contains("This is an intentional error"));
+        });
+    }
+
+    #[test]
+    fn test_getattr_opt_attribute_error_subclass() {
+        Python::attach(|py| {
+            let module = PyModule::from_code(
+                py,
+                cr#"
+class CustomAttrError(AttributeError):
+    pass
+
+class Obj:
+    @property
+    def missing(self):
+        raise CustomAttrError("not here")
+                "#,
+                c"test.py",
+                &generate_unique_module_name("test"),
+            )
+            .unwrap();
+
+            let obj = module.getattr("Obj").unwrap().call0().unwrap();
+
+            // An AttributeError subclass should be treated as "attribute not found"
+            let result = obj.getattr_opt("missing").unwrap();
+            assert!(result.is_none());
         });
     }
 

@@ -4,9 +4,16 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
+#[cfg(RustPython)]
+use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
+#[cfg(all(
+    not(any(PyPy, GraalPy)),
+    any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)
+))]
+use crate::BoundObject;
 use crate::{
     exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
@@ -14,12 +21,20 @@ use std::iter::FusedIterator;
 #[cfg(feature = "nightly")]
 use std::num::NonZero;
 
+#[cfg(all(
+    not(any(PyPy, GraalPy)),
+    any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)
+))]
+use libc::size_t;
+
 #[inline]
 #[track_caller]
+#[cfg_attr(RustPython, allow(unused_mut))]
 fn try_new_from_iter<'py>(
     py: Python<'py>,
     mut elements: impl ExactSizeIterator<Item = PyResult<Bound<'py, PyAny>>>,
 ) -> PyResult<Bound<'py, PyTuple>> {
+    #[cfg(not(RustPython))]
     unsafe {
         // PyTuple_New checks for overflow but has a bad error message, so we check ourselves
         let len: Py_ssize_t = elements
@@ -47,6 +62,15 @@ fn try_new_from_iter<'py>(
         assert_eq!(len, counter, "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
 
         Ok(tup)
+    }
+
+    #[cfg(RustPython)]
+    unsafe {
+        let elements = elements.collect::<PyResult<Vec<_>>>()?;
+        // SAFETY: list is layout compatible with *const *mut crate::PyObject
+        ffi::PyTuple_FromArray(elements.as_ptr().cast(), elements.len() as _)
+            .assume_owned_or_err(py)
+            .cast_into_unchecked()
     }
 }
 
@@ -657,14 +681,14 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         ) -> PyResult<Bound<'py, PyAny>> {
             let py = function.py();
             // We need this to drop the arguments correctly.
-            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
+            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_VectorcallDict(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
-                    $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    const { with_vectorcall_arguments_offset($length) },
                     kwargs.as_ptr(),
                 )
                 .assume_owned_or_err(py)
@@ -678,27 +702,26 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             _: crate::call::private::Token,
         ) -> PyResult<Bound<'py, PyAny>> {
             let py = function.py();
-            // We need this to drop the arguments correctly.
-            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
 
             #[cfg(not(Py_LIMITED_API))]
             if $length == 1 {
                 return unsafe {
                     ffi::PyObject_CallOneArg(
                        function.as_ptr(),
-                       args_bound[0].as_ptr()
+                       args_objects.0.as_ptr()
                     )
                     .assume_owned_or_err(py)
                 };
             }
 
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
+            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_Vectorcall(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
-                    $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    const { with_vectorcall_arguments_offset($length) },
                     std::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
@@ -713,28 +736,27 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             _: crate::call::private::Token,
         ) -> PyResult<Bound<'py, PyAny>> {
             let py = object.py();
-            // We need this to drop the arguments correctly.
-            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
 
             #[cfg(not(Py_LIMITED_API))]
             if $length == 1 {
                 return unsafe {
                     ffi::PyObject_CallMethodOneArg(
-                            object.as_ptr(),
-                            method_name.as_ptr(),
-                            args_bound[0].as_ptr(),
+                       object.as_ptr(),
+                       method_name.as_ptr(),
+                       args_objects.0.as_ptr()
                     )
                     .assume_owned_or_err(py)
                 };
             }
 
-            let mut args = [object.as_ptr(), $(args_bound[$n].as_ptr()),*];
+            let mut args = [object.as_ptr(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_VectorcallMethod(
                     method_name.as_ptr(),
                     args.as_mut_ptr(),
                     // +1 for the receiver.
-                    1 + $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    const { with_vectorcall_arguments_offset(1 + $length) },
                     std::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
@@ -785,15 +807,14 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             _: crate::call::private::Token,
         ) -> PyResult<Bound<'py, PyAny>> {
             let py = function.py();
-            // We need this to drop the arguments correctly.
-            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
+            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_VectorcallDict(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
-                    $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    const { with_vectorcall_arguments_offset($length) },
                     kwargs.as_ptr(),
                 )
                 .assume_owned_or_err(py)
@@ -807,27 +828,26 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             _: crate::call::private::Token,
         ) -> PyResult<Bound<'py, PyAny>> {
             let py = function.py();
-            // We need this to drop the arguments correctly.
-            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
 
             #[cfg(not(Py_LIMITED_API))]
             if $length == 1 {
                 return unsafe {
                     ffi::PyObject_CallOneArg(
                        function.as_ptr(),
-                       args_bound[0].as_ptr()
+                       args_objects.0.as_ptr()
                     )
                     .assume_owned_or_err(py)
                 };
             }
 
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_bound[$n].as_ptr()),*];
+            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_Vectorcall(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
-                    $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    const { with_vectorcall_arguments_offset($length) },
                     std::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
@@ -842,8 +862,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             _: crate::call::private::Token,
         ) -> PyResult<Bound<'py, PyAny>> {
             let py = object.py();
-            // We need this to drop the arguments correctly.
-            let args_bound = [$(self.$n.into_bound_py_any(py)?,)*];
+            let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
 
             #[cfg(not(Py_LIMITED_API))]
             if $length == 1 {
@@ -851,19 +870,19 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                     ffi::PyObject_CallMethodOneArg(
                             object.as_ptr(),
                             method_name.as_ptr(),
-                            args_bound[0].as_ptr(),
+                            args_objects.0.as_ptr(),
                     )
                     .assume_owned_or_err(py)
                 };
             }
 
-            let mut args = [object.as_ptr(), $(args_bound[$n].as_ptr()),*];
+            let mut args = [object.as_ptr(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_VectorcallMethod(
                     method_name.as_ptr(),
                     args.as_mut_ptr(),
                     // +1 for the receiver.
-                    1 + $length + ffi::PY_VECTORCALL_ARGUMENTS_OFFSET,
+                    const { with_vectorcall_arguments_offset(1 + $length) },
                     std::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
@@ -929,6 +948,7 @@ fn array_into_tuple<'py, const N: usize>(
     py: Python<'py>,
     array: [Bound<'py, PyAny>; N],
 ) -> Bound<'py, PyTuple> {
+    #[cfg(not(RustPython))]
     unsafe {
         let ptr = ffi::PyTuple_New(N.try_into().expect("0 < N <= 12"));
         let tup = ptr.assume_owned(py).cast_into_unchecked();
@@ -940,6 +960,27 @@ fn array_into_tuple<'py, const N: usize>(
         }
         tup
     }
+
+    // SAFETY: array is layout compatible with *const *mut crate::PyObject
+    // and does not steal the bound reference.
+    #[cfg(RustPython)]
+    unsafe {
+        ffi::PyTuple_FromArray(array.as_ptr().cast(), N.try_into().expect("0 < N <= 12"))
+            .assume_owned(py)
+            .cast_into_unchecked()
+    }
+}
+
+/// Add `PY_VECTORCALL_ARGUMENTS_OFFSET` to the given number, checking for overflow at compile time.
+///
+/// Guarantees that we don't accidentally overflow a `size_t` should this get changed in the future.
+#[cfg(all(
+    not(any(PyPy, GraalPy)),
+    any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)
+))]
+const fn with_vectorcall_arguments_offset(n: size_t) -> size_t {
+    n.checked_add(ffi::PY_VECTORCALL_ARGUMENTS_OFFSET)
+        .expect("overflow adding PY_VECTORCALL_ARGUMENTS_OFFSET")
 }
 
 tuple_conversion!(1, (ref0, 0, T0));

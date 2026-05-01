@@ -318,24 +318,9 @@ fn int_to_py_bytes<'py>(
 #[inline]
 #[cfg(any(not(Py_3_13), Py_LIMITED_API))]
 fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
-    let py = long.py();
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        // fast path
-        let n_bits = unsafe { crate::ffi::_PyLong_NumBits(long.as_ptr()) };
-        if n_bits == (-1isize as usize) {
-            return Err(crate::PyErr::fetch(py));
-        }
-        Ok(n_bits)
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    {
-        // slow path
-        use crate::types::PyAnyMethods;
-        long.call_method0(crate::intern!(py, "bit_length"))
-            .and_then(|any| any.extract())
-    }
+    use crate::types::PyAnyMethods;
+    long.call_method0(crate::intern!(long.py(), "bit_length"))
+        .and_then(|any| any.extract())
 }
 
 #[cfg(test)]

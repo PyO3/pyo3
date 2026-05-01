@@ -12,7 +12,7 @@ pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyLong_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyLong_Type)
 }
 
 extern_libpython! {
@@ -85,6 +85,8 @@ extern_libpython! {
 #[cfg(not(Py_LIMITED_API))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
+    #[cfg(not(Py_3_13))]
+    #[doc(hidden)]
     pub fn _PyLong_NumBits(obj: *mut PyObject) -> size_t;
 }
 

@@ -1297,7 +1297,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 ///
 /// # Example: Storing Python objects in `#[pyclass]` structs
 ///
-/// Usually `Bound<'py, T>` is recommended for interacting with Python objects as its lifetime `'py`
+/// Usually [`Bound<'py, T>`] is recommended for interacting with Python objects as its lifetime `'py`
 /// proves the thread is attached to the Python interpreter and that enables many operations to be
 /// done as efficiently as possible.
 ///
@@ -1335,7 +1335,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// }
 /// ```
 ///
-/// [`Py`]`<T>` can be used to get around this by removing the lifetime from `dict` and with it the proof of attachment.
+/// `Py<T>` can be used to get around this by removing the lifetime from `dict` and with it the proof of attachment.
 ///
 /// ```rust
 /// use pyo3::prelude::*;
@@ -1410,9 +1410,9 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 ///
 /// # Example: Shared ownership of Python objects
 ///
-/// `Py<T>` can be used to share ownership of a Python object, similar to std's [`Rc`]`<T>`.
-/// As with [`Rc`]`<T>`, cloning it increases its reference count rather than duplicating
-/// the underlying object.
+/// `Py<T>` can be used to share ownership of a Python object.
+/// As with [`Rc<T>`] and [`Arc<T>`], cloning it increases its reference count rather than
+/// duplicating the underlying object.
 ///
 /// This can be done using either [`Py::clone_ref`] or [`Py<T>`]'s [`Clone`] trait implementation.
 /// [`Py::clone_ref`] is recommended; the [`Clone`] implementation will panic if the thread
@@ -1449,20 +1449,20 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 ///
 /// # Preventing reference cycles
 ///
-/// It is easy to accidentally create reference cycles using [`Py`]`<T>`.
+/// It is easy to accidentally create reference cycles using `Py<T>`.
 /// The Python interpreter can break these reference cycles within pyclasses if they
 /// [integrate with the garbage collector][gc]. If your pyclass contains other Python
 /// objects you should implement it to avoid leaking memory.
 ///
 /// # A note on Python reference counts
 ///
-/// Dropping a [`Py`]`<T>` will eventually decrease Python's reference count
+/// Dropping a `Py<T>` will eventually decrease Python's reference count
 /// of the pointed-to variable, allowing Python's garbage collector to free
 /// the associated memory, but this may not happen immediately.  This is
-/// because a [`Py`]`<T>` can be dropped at any time, but the Python reference
+/// because a `Py<T>` can be dropped at any time, but the Python reference
 /// count can only be modified when the thread is attached to the Python interpreter.
 ///
-/// If a [`Py`]`<T>` is dropped while its thread is attached to the Python interpreter
+/// If a `Py<T>` is dropped while its thread is attached to the Python interpreter
 /// then the Python reference count will be decreased immediately.
 /// Otherwise, the reference count will be decreased the next time the thread is
 /// attached to the interpreter.
@@ -1473,12 +1473,22 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 ///
 /// # A note on `Send` and `Sync`
 ///
-/// [`Py<T>`] implements [`Send`] and [`Sync`], as Python allows objects to be freely
+/// `Py<T>` implements [`Send`] and [`Sync`], as Python allows objects to be freely
 /// shared between threads.
 ///
-/// [`Rc`]: std::rc::Rc
+/// # FFI safety
+///
+/// `Py<T>` is guaranteed to have the same memory layout as a non-null pointer to a Python object ([`NonNull<ffi::PyObject>`]).
+/// This also means that `Option<Py<T>>` also has the same memory layout and can be used when the pointer might be null.
+///
+/// `Py<T>` represents an owned reference to a Python object, so it should only be used as an FFI function argument or return
+/// value when there is ownership transfer. Without ownership transfer, `*mut ffi::PyObject` or `NonNull<ffi::PyObject>`
+/// are more appropriate.
+///
+/// [`Rc<T>`]: std::rc::Rc
+/// [`Arc<T>`]: std::sync::Arc
 /// [`RefCell`]: std::cell::RefCell
-/// [gc]: https://pyo3.rs/main/class/protocols.html#garbage-collector-integration
+#[doc = concat!("[gc]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class/protocols.html#garbage-collector-integration")]
 #[repr(transparent)]
 pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
 
