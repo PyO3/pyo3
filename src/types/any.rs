@@ -11,7 +11,7 @@ use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
-use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py, Python};
+use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py};
 #[allow(deprecated)]
 use crate::{DowncastError, DowncastIntoError};
 use std::cell::UnsafeCell;
