@@ -1,14 +1,10 @@
 use crate::moduleobject::PyModuleDef;
 use crate::object::PyObject;
 use crate::pytypedefs::{PyInterpreterState, PyThreadState};
-use std::ffi::c_int;
+use std::ffi::{c_int, c_long};
 
 #[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
-#[cfg(not(PyPy))]
 use crate::PyFrameObject;
-
-#[cfg(not(PyPy))]
-use std::ffi::c_long;
 
 pub const MAX_CO_EXTRA_USERS: c_int = 255;
 
@@ -26,7 +22,7 @@ extern_libpython! {
     #[cfg(not(PyPy))]
     pub fn PyInterpreterState_GetDict(arg1: *mut PyInterpreterState) -> *mut PyObject;
 
-    #[cfg(not(PyPy))]
+    #[cfg_attr(PyPy, link_name = "PyPyInterpreterState_GetID")]
     pub fn PyInterpreterState_GetID(arg1: *mut PyInterpreterState) -> i64;
 
     #[cfg_attr(PyPy, link_name = "PyPyState_AddModule")]
@@ -58,17 +54,17 @@ extern_libpython! {
     pub fn PyThreadState_Swap(arg1: *mut PyThreadState) -> *mut PyThreadState;
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_GetDict")]
     pub fn PyThreadState_GetDict() -> *mut PyObject;
-    #[cfg(not(PyPy))]
+    #[cfg_attr(PyPy, link_name = "PyPyThreadState_SetAsyncExc")]
     pub fn PyThreadState_SetAsyncExc(arg1: c_long, arg2: *mut PyObject) -> c_int;
 
     #[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
-    #[cfg(not(PyPy))]
+    #[cfg_attr(PyPy, link_name = "PyPyThreadState_GetInterpreter")]
     pub fn PyThreadState_GetInterpreter(arg1: *mut PyThreadState) -> *mut PyInterpreterState;
     #[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
-    #[cfg(not(PyPy))]
+    #[cfg_attr(PyPy, link_name = "PyPyThreadState_GetFrame")]
     pub fn PyThreadState_GetFrame(arg1: *mut PyThreadState) -> *mut PyFrameObject;
     #[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
-    #[cfg(not(PyPy))]
+    #[cfg_attr(PyPy, link_name = "PyPyThreadState_GetRecursionLimit")]
     pub fn PyThreadState_GetID(arg1: *mut PyThreadState) -> i64;
 }
 
@@ -145,6 +141,6 @@ pub use self::raw::PyGILState_Ensure;
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyGILState_Release")]
     pub fn PyGILState_Release(arg1: PyGILState_STATE);
-    #[cfg(not(PyPy))]
+    #[cfg_attr(PyPy, link_name = "PyPyGILState_GetThisThreadState")]
     pub fn PyGILState_GetThisThreadState() -> *mut PyThreadState;
 }
