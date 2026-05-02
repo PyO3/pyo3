@@ -678,9 +678,11 @@ jobs:
             flags: "-i python3.13 --features pyo3/generate-import-lib"
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.14"
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
+          # so that maturin-action will pick up the installed Python from uv
+          activate-environment: true
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: examples/maturin-starter
