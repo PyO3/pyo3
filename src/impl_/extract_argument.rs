@@ -216,6 +216,47 @@ pub fn extract_pyclass_ref_mut<'a, 'holder, T: PyClass<Frozen = False>>(
     Ok(&mut *holder.insert(PyClassGuardMut::try_borrow_mut_from_borrowed(obj.cast()?)?))
 }
 
+/// Trusted variant of [`extract_pyclass_ref`]: performs an unchecked cast for
+/// extension-type slot receivers where CPython guarantees the receiver type.
+///
+/// This is valid when called from generated slot wrappers installed on a specific
+/// extension type, because CPython's slot dispatch contract ensures the receiver
+/// is an instance of that type (or a compatible subtype) before invoking the slot.
+///
+/// # Safety
+/// The caller must ensure that `obj` is an instance of `T`. This invariant is
+/// upheld by CPython when dispatching through type slots.
+#[inline]
+pub unsafe fn extract_pyclass_ref_trusted<'a, 'holder, T: PyClass>(
+    obj: Borrowed<'a, '_, PyAny>,
+    holder: &'holder mut Option<PyClassGuard<'a, T>>,
+) -> PyResult<&'holder T> {
+    // Safety: caller guarantees obj is of type T via CPython slot receiver contract
+    Ok(
+        &*holder.insert(PyClassGuard::try_borrow_from_borrowed(unsafe {
+            obj.cast_unchecked::<T>()
+        })?),
+    )
+}
+
+/// Trusted variant of [`extract_pyclass_ref_mut`]: performs an unchecked cast for
+/// extension-type slot receivers where CPython guarantees the receiver type.
+///
+/// # Safety
+/// Same as [`extract_pyclass_ref_trusted`].
+#[inline]
+pub unsafe fn extract_pyclass_ref_mut_trusted<'a, 'holder, T: PyClass<Frozen = False>>(
+    obj: Borrowed<'a, '_, PyAny>,
+    holder: &'holder mut Option<PyClassGuardMut<'a, T>>,
+) -> PyResult<&'holder mut T> {
+    // Safety: caller guarantees obj is of type T via CPython slot receiver contract
+    Ok(
+        &mut *holder.insert(PyClassGuardMut::try_borrow_mut_from_borrowed(unsafe {
+            obj.cast_unchecked::<T>()
+        })?),
+    )
+}
+
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
 pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
     obj: Borrowed<'a, 'py, PyAny>,

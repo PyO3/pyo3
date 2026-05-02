@@ -44,6 +44,22 @@ fn instance_method() {
     });
 }
 
+/// Test that CPython's method-wrapper descriptor rejects wrong receiver types
+/// when `tp_methods` entries are called with a bad `self` from Python.
+/// This validates that the trusted self conversion in generated wrappers is safe:
+/// even though the Rust code skips a runtime type check, CPython enforces the
+/// receiver type before the C function is reached.
+#[test]
+fn tp_methods_receiver_type_checked_by_cpython() {
+    Python::attach(|py| {
+        let cls = py.get_type::<InstanceMethod>();
+        // Calling an unbound method with a wrong-type `self` raises TypeError.
+        // CPython's method-wrapper descriptor enforces the type before our Rust
+        // wrapper is invoked.
+        py_expect_exception!(py, cls, "cls.method(object())", PyTypeError);
+    });
+}
+
 #[pyclass]
 struct InstanceMethodWithArgs {
     member: i32,

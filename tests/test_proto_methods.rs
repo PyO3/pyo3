@@ -813,6 +813,18 @@ assert c.counter.count == 4
 # __delete__
 del c.counter
 assert c.counter.count == 1
+
+# wrong receiver type should be rejected by CPython slot wrapper
+for call in (
+    lambda: Counter.__get__(object(), Class()),
+    lambda: Counter.__set__(object(), Class(), Counter()),
+    lambda: Counter.__delete__(object(), Class()),
+):
+    try:
+        call()
+        assert False, "expected TypeError"
+    except TypeError:
+        pass
 "#
         );
         let globals = PyModule::import(py, "__main__").unwrap().dict();
