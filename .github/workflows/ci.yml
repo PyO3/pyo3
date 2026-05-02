@@ -13,6 +13,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   NOX_DEFAULT_VENV_BACKEND: uv
+  UV_PYTHON: 3.14
 
 jobs:
   fmt:
@@ -604,6 +605,8 @@ jobs:
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ needs.resolve.outputs.save-cache }}
@@ -612,7 +615,7 @@ jobs:
       - run: uvx nox -s test-version-limits
       - uses: ./.github/actions/report-coverage
         with:
-          name: test-version-limits
+          name: ${{ github.job }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
   check-feature-powerset:
@@ -686,6 +689,7 @@ jobs:
       - name: Setup cross-compiler
         if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
         run: sudo apt-get install -y mingw-w64 llvm
+      - uses: ./.github/actions/prepare-coverage
       - name: Compile version-specific library
         uses: PyO3/maturin-action@v1
         with:
@@ -698,31 +702,38 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           args: --release -m examples/maturin-starter/Cargo.toml --features abi3 ${{ matrix.flags }}
+      - uses: ./.github/actions/report-coverage
+        with:
+          name: ${{ github.job }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   test-cross-compilation-windows:
-    needs: [fmt]
+    needs: [fmt, resolve]
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.14"
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
-          components: rust-src
+          components: rust-src,llvm-tools-preview
       # load cache (prepared in ci-cache-warmup.yml)
       - uses: actions/cache/restore@v5
         with:
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
+      - name: Setup cross-compiler
+        run: sudo apt-get install -y mingw-w64 llvm
+      - uses: ./.github/actions/prepare-coverage
       - name: Test cross compile to Windows
-        run: |
-          set -ex
-          sudo apt-get install -y mingw-w64 llvm
-          pip install nox
-          nox -s test-cross-compilation-windows
+        run: uvx nox -s test-cross-compilation-windows
+      - uses: ./.github/actions/report-coverage
+        with:
+          name: ${{ github.job }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   test-introspection:
     needs: [fmt]
