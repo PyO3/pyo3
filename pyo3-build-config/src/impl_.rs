@@ -1818,10 +1818,16 @@ where
 }
 
 fn venv_interpreter(virtual_env: &OsStr, windows: bool) -> PathBuf {
+    let venv = Path::new(virtual_env);
+    // Rebuild if the virtual environment configuration changes
+    println!(
+        "cargo:rerun-if-changed={}",
+        venv.join("pyvenv.cfg").display()
+    );
     if windows {
-        Path::new(virtual_env).join("Scripts").join("python.exe")
+        venv.join("Scripts").join("python.exe")
     } else {
-        Path::new(virtual_env).join("bin").join("python")
+        venv.join("bin").join("python")
     }
 }
 
