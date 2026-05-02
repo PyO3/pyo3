@@ -1,0 +1,19 @@
+error[E0599]: the method `f_contiguous` exists for struct `PyBufferRequest<buffer::py_buffer_flags::PyBufferFlags<false, true, true, false, false, 1>>`, but its trait bounds were not satisfied
+ --> tests/ui/invalid_buffer_flags_contiguity.rs:4:54
+  |
+4 |       let _ = PyBufferRequest::simple().c_contiguous().f_contiguous();
+  |                                                        ^^^^^^^^^^^^ method cannot be called due to unsatisfied trait bounds
+  |
+ ::: src/buffer.rs
+  |
+  | /     pub struct PyBufferFlags<
+  | |         const FORMAT: bool,
+  | |         const SHAPE: bool,
+  | |         const STRIDE: bool,
+... |
+  | |         const CONTIGUITY: u8,
+  | |     >;
+  | |_____- doesn't satisfy `_: CanRequestContiguity`
+  |
+  = note: the following trait bounds were not satisfied:
+          `buffer::py_buffer_flags::PyBufferFlags<false, true, true, false, false, 1>: buffer::py_buffer_flags::CanRequestContiguity`
