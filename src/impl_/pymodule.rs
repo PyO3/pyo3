@@ -3,8 +3,8 @@
 use std::{
     cell::UnsafeCell,
     ffi::CStr,
+    ffi::{c_int, c_void},
     marker::PhantomData,
-    os::raw::{c_int, c_void},
 };
 
 #[cfg(all(
@@ -418,7 +418,7 @@ impl PyAddToModule for ModuleDef {
 
 #[cfg(test)]
 mod tests {
-    use std::{borrow::Cow, ffi::CStr, os::raw::c_int};
+    use std::{borrow::Cow, ffi::c_int, ffi::CStr};
 
     use crate::{
         ffi,

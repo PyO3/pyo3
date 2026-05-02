@@ -15,8 +15,8 @@ use crate::{
 };
 use std::{
     ffi::CStr,
+    ffi::{c_int, c_void},
     marker::PhantomData,
-    os::raw::{c_int, c_void},
     ptr::{self, NonNull},
     sync::Mutex,
     thread,

@@ -7,7 +7,7 @@
 
 use std::{
     any::Any,
-    os::raw::c_int,
+    ffi::c_int,
     panic::{self, UnwindSafe},
 };
 

@@ -1,7 +1,7 @@
 use std::{
+    ffi::{c_int, c_void},
     marker::PhantomData,
     num::NonZero,
-    os::raw::{c_int, c_void},
 };
 
 use crate::{ffi, Py};

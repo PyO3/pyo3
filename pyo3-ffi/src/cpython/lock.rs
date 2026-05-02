@@ -1,5 +1,5 @@
 #[cfg(Py_3_14)]
-use std::os::raw::c_int;
+use std::ffi::c_int;
 use std::sync::atomic::AtomicU8;
 
 #[repr(transparent)]
