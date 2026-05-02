@@ -423,6 +423,7 @@ mod instance;
 mod interpreter_lifecycle;
 pub mod marker;
 pub mod marshal;
+pub mod stdio;
 #[macro_use]
 pub mod sync;
 pub(crate) mod byteswriter;
