@@ -1,53 +1,28 @@
 error[E0277]: pyclass `PyDict` cannot be subclassed
- --> tests/ui/abi3_nativetype_inheritance.rs:5:1
-  |
-5 | #[pyclass(extends=PyDict)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ required for `#[pyclass(extends=PyDict)]`
-  |
-  = help: the trait `pyo3::impl_::pyclass::PyClassBaseType` is not implemented for `PyDict`
-  = note: `PyDict` must have `#[pyclass(subclass)]` to be eligible for subclassing
-  = note: subclassing native types requires Python >= 3.12 when using the `abi3` feature
-<<<<<<< HEAD
-help: the trait `PyClassBaseType` is implemented for `PyAny`
-  --> src/types/any.rs:55:1
+  --> tests/ui/abi3_nativetype_inheritance.rs:5:1
    |
-55 | impl crate::impl_::pyclass::PyClassBaseType for PyAny {
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
-=======
+ 5 | #[pyclass(extends=PyDict)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ required for `#[pyclass(extends=PyDict)]`
+   |
+   = help: the trait `pyo3::impl_::pyclass::PyClassBaseType` is not implemented for `PyDict`
+   = note: `PyDict` must have `#[pyclass(subclass)]` to be eligible for subclassing
+   = note: subclassing native types requires Python >= 3.12 when using the `abi3` feature
 help: the trait `pyo3::impl_::pyclass::PyClassBaseType` is implemented for `PyAny`
  --> src/types/any.rs
   |
   | impl crate::impl_::pyclass::PyClassBaseType for PyAny {
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
->>>>>>> main
 
 error[E0277]: pyclass `PyDict` cannot be subclassed
- --> tests/ui/abi3_nativetype_inheritance.rs:5:19
-  |
-5 | #[pyclass(extends=PyDict)]
-  |                   ^^^^^^ required for `#[pyclass(extends=PyDict)]`
-  |
-  = help: the trait `pyo3::impl_::pyclass::PyClassBaseType` is not implemented for `PyDict`
-  = note: `PyDict` must have `#[pyclass(subclass)]` to be eligible for subclassing
-  = note: subclassing native types requires Python >= 3.12 when using the `abi3` feature
-<<<<<<< HEAD
-help: the trait `PyClassBaseType` is implemented for `PyAny`
-   --> src/types/any.rs:55:1
+   --> tests/ui/abi3_nativetype_inheritance.rs:5:19
     |
- 55 | impl crate::impl_::pyclass::PyClassBaseType for PyAny {
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: required by a bound in `PyClassImpl::BaseType`
-   --> src/impl_/pyclass.rs:184:33
+  5 | #[pyclass(extends=PyDict)]
+    |                   ^^^^^^ required for `#[pyclass(extends=PyDict)]`
     |
-184 |     type BaseType: PyTypeInfo + PyClassBaseType;
-    |                                 ^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::BaseType`
-
-error: aborting due to 2 previous errors
-
-For more information about this error, try `rustc --explain E0277`.
-=======
+    = help: the trait `pyo3::impl_::pyclass::PyClassBaseType` is not implemented for `PyDict`
+    = note: `PyDict` must have `#[pyclass(subclass)]` to be eligible for subclassing
+    = note: subclassing native types requires Python >= 3.12 when using the `abi3` feature
 help: the trait `pyo3::impl_::pyclass::PyClassBaseType` is implemented for `PyAny`
  --> src/types/any.rs
   |
@@ -58,4 +33,7 @@ note: required by a bound in `pyo3::impl_::pyclass::PyClassImpl::BaseType`
   |
   |     type BaseType: PyTypeInfo + PyClassBaseType;
   |                                 ^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::BaseType`
->>>>>>> main
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0277`.
