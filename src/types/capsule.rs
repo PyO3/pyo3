@@ -48,7 +48,7 @@ use std::ptr::{self, NonNull};
 ///
 /// # Example
 /// ```
-/// use pyo3::{prelude::*, types::PyCapsule, ffi::c_str};
+/// use pyo3::{prelude::*, types::PyCapsule};
 ///
 /// #[repr(C)]
 /// struct Foo {
@@ -88,7 +88,7 @@ impl PyCapsule {
     /// # Example
     ///
     /// ```
-    /// use pyo3::{prelude::*, types::PyCapsule, ffi::c_str};
+    /// use pyo3::{prelude::*, types::PyCapsule};
     /// use std::ffi::CStr;
     /// use std::ptr::NonNull;
     ///
