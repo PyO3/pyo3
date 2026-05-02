@@ -3,6 +3,8 @@ use crate::pyport::{Py_hash_t, Py_ssize_t};
 use crate::refcount;
 #[cfg(Py_GIL_DISABLED)]
 use crate::PyMutex;
+#[cfg(all(not(Py_3_13), Py_3_10, Py_LIMITED_API, not(PyPy)))]
+use crate::Py_NewRef;
 use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::mem;
 #[cfg(Py_GIL_DISABLED)]
@@ -233,6 +235,8 @@ pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
 #[cfg(all(Py_LIMITED_API, Py_3_15))]
 extern_libpython! {
     pub fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int;
+    pub fn Py_SET_SIZE(ob: *mut PyVarObject, size: Py_ssize_t);
+    pub fn Py_SET_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject);
 }
 
 #[inline]
@@ -241,9 +245,11 @@ pub unsafe fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
     (Py_TYPE(ob) == tp) as c_int
 }
 
-// skipped Py_SET_TYPE
-
-// skipped Py_SET_SIZE
+#[inline]
+#[cfg(not(all(Py_LIMITED_API, Py_3_15)))]
+pub unsafe fn Py_SET_SIZE(ob: *mut PyVarObject, size: Py_ssize_t) {
+    (*ob).ob_size = size
+}
 
 pub type unaryfunc = unsafe extern "C" fn(*mut PyObject) -> *mut PyObject;
 pub type binaryfunc = unsafe extern "C" fn(*mut PyObject, *mut PyObject) -> *mut PyObject;
@@ -643,7 +649,19 @@ pub unsafe fn Py_IsNone(x: *mut PyObject) -> c_int {
     Py_Is(x, Py_None())
 }
 
-// skipped Py_RETURN_NONE
+#[inline]
+pub unsafe fn Py_RETURN_NONE() -> *mut PyObject {
+    #[cfg(all(not(Py_3_13), Py_3_10, Py_LIMITED_API, not(PyPy)))]
+    {
+        let obj = Py_None();
+        Py_NewRef(obj)
+    }
+
+    #[cfg(Py_3_10)]
+    {
+        Py_None()
+    }
+}
 
 extern_libpython! {
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
@@ -666,7 +684,19 @@ pub unsafe fn Py_NotImplemented() -> *mut PyObject {
     return _Py_NotImplementedStructReference;
 }
 
-// skipped Py_RETURN_NOTIMPLEMENTED
+#[inline]
+pub unsafe fn Py_RETURN_NOTIMPLEMENTED() -> *mut PyObject {
+    #[cfg(all(not(Py_3_13), Py_3_10, Py_LIMITED_API, not(PyPy)))]
+    {
+        let obj = Py_NotImplemented();
+        Py_NewRef(obj)
+    }
+
+    #[cfg(Py_3_10)]
+    {
+        Py_NotImplemented()
+    }
+}
 
 /* Rich comparison opcodes */
 pub const Py_LT: c_int = 0;
