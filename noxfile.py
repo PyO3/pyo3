@@ -1427,35 +1427,62 @@ def update_ui_tests(session: nox.Session):
 
 @nox.session(name="test-introspection")
 def test_introspection(session: nox.Session):
-    session.install("maturin")
-    session.install("ruff")
-    options = []
-    target = os.environ.get("CARGO_BUILD_TARGET")
-    if target is not None:
-        options += ("--target", target)
-    profile = os.environ.get("CARGO_BUILD_PROFILE")
-    if profile == "release":
-        options.append("--release")
-    session.run_always(
-        "maturin",
-        "develop",
-        "-m",
-        "./pytests/Cargo.toml",
-        "--features",
-        "experimental-async,experimental-inspect",
-        *options,
-    )
-    lib_file = session.run(
-        "python",
-        "-c",
-        "import pyo3_pytests; print(pyo3_pytests.pyo3_pytests.__file__)",
-        silent=True,
-    ).strip()
-    _run_cargo_test(
-        session,
-        package="pyo3-introspection",
-        env={"PYO3_PYTEST_LIB_PATH": lib_file},
-    )
+    with tempfile.TemporaryDirectory() as stub_dir:
+        session.install("maturin")
+        session.install("ruff")
+        options = []
+        target = os.environ.get("CARGO_BUILD_TARGET")
+        if target is not None:
+            options += ("--target", target)
+        profile = os.environ.get("CARGO_BUILD_PROFILE")
+        if profile == "release":
+            options.append("--release")
+        _run(
+            session,
+            "maturin",
+            "develop",
+            "-m",
+            "./pytests/Cargo.toml",
+            "--features",
+            "experimental-async,experimental-inspect",
+            *options,
+        )
+        lib_file = session.run(
+            "python",
+            "-c",
+            "import pyo3_pytests; print(pyo3_pytests.pyo3_pytests.__file__)",
+            silent=True,
+        ).strip()
+        _run_cargo(
+            session,
+            "run",
+            "-p",
+            "pyo3-introspection",
+            "--",
+            lib_file,
+            "pyo3_pytests",
+            stub_dir,
+        )
+        _run(session, "ruff", "format", stub_dir)
+        _ensure_directory_equals(Path(stub_dir), Path("pytests/stubs"))
+
+
+def _ensure_directory_equals(expected_dir: Path, actual_dir: Path):
+    # Assert all expected files are in actual and are equals
+    for expected_file_path in expected_dir.rglob("*"):
+        file_path = expected_file_path.relative_to(expected_dir)
+        actual_file_path = actual_dir / file_path
+        assert actual_file_path.exists(), f"File {file_path} does not exist"
+        assert expected_file_path.read_text() == actual_file_path.read_text(), (
+            f"Content is different in {file_path}"
+        )
+    # Assert all actual files are expected
+    for actual_file_path in actual_dir.rglob("*"):
+        file_path = actual_file_path.relative_to(actual_dir)
+        expected_file_path = expected_dir / file_path
+        assert expected_file_path.exists(), (
+            f"File {file_path} exist even if not expected"
+        )
 
 
 @lru_cache()
