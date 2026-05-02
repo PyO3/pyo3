@@ -202,3 +202,15 @@ compat_function!(
         -1 // other error
     }
 );
+
+compat_function!(
+    originally_defined_for(Py_3_13);
+
+    #[inline]
+    pub unsafe fn PyObject_HasAttrWithError(obj: *mut crate::PyObject, attr_name: *mut crate::PyObject) -> std::ffi::c_int {
+        let mut res: *mut crate::PyObject = std::ptr::null_mut();
+        let rc = crate::compat::PyObject_GetOptionalAttr(obj, attr_name, &mut res);
+        crate::Py_XDECREF(res);
+        rc
+    }
+);
