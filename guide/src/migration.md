@@ -36,6 +36,17 @@ fn bytes_to_str<'a>(py: Python<'_>, bytes: &'a [u8]) -> PyResult<&'a str> {
 For `string::FromUtf16Error` and `char::DecodeUtf16Error` the Rust error types do not contain any of the information required to construct a `UnicodeDecodeError`.
 To raise a Python `UnicodeDecodeError` a new error should be manually constructed by calling `PyUnicodeDecodeError::new_err(...)`.
 
+### `pyo3_build_config` APIs now require a direct dependency on `pyo3` or `pyo3-ffi`
+
+Prior to PyO3 0.28, `pyo3-build-config` would inline part of the build configuration into the crate in its own build script.
+This worked for simple builds but not for cross-compiling; `pyo3-ffi`'s build script would need to re-implement a lot of the same machinery to correctly configure the build for cross-compilation.
+There were also edge cases where `pyo3-build-config` would use this inlined configuration incorrectly and misconfigure the build - e.g. [when cross compiling with `buck` or `bazel` build systems](https://github.com/PyO3/pyo3/issues/4579).
+
+In PyO3 0.29, `pyo3-build-config` no longer inlines any configuration into itself and instead requires a direct dependency on either `pyo3-ffi` or `pyo3` to load the configuration resolved from `pyo3-ffi`'s build script.
+
+This has upside of faster compilation - `pyo3-build-config` no longer has a build script and never recompiles when changing Python version.
+It also guarantees that all builds are based on the single fully-configured build configuration resolved by `pyo3-ffi`.
+
 ## from 0.27.* to 0.28
 
 ### Default to supporting free-threaded Python

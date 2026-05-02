@@ -3,9 +3,9 @@ use pyo3_build_config::{
     pyo3_build_script_impl::{
         cargo_env_var, env_var, errors::Result, is_linking_libpython_for_target,
         resolve_build_config, target_triple_from_env, BuildConfig, BuildConfigSource,
-        InterpreterConfig, MaximumVersionExceeded, PythonVersion,
+        MaximumVersionExceeded,
     },
-    warn, PythonImplementation,
+    warn, InterpreterConfig, PythonImplementation, PythonVersion,
 };
 
 /// Minimum Python version PyO3 supports.
