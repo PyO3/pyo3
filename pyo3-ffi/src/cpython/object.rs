@@ -6,6 +6,7 @@ use std::mem;
 // skipped private _Py_NewReference
 // skipped private _Py_NewReferenceNoTotal
 // skipped private _Py_ResurrectReference
+// skipped private _Py_ForgetReference
 
 // skipped private _Py_GetGlobalRefTotal
 // skipped private _Py_GetRefTotal
@@ -277,6 +278,8 @@ pub struct PyTypeObject {
     pub tp_next: *mut PyTypeObject,
     #[cfg(Py_3_13)]
     pub tp_versions_used: u16,
+    #[cfg(Py_3_15)]
+    pub _tp_iteritem: Option<object::_Py_iteritemfunc>,
 }
 
 #[cfg(Py_3_11)]
