@@ -492,6 +492,7 @@ pub fn method_introspection_code(
     } else {
         spec.output.clone()
     };
+    let overload_sigs: Vec<_> = spec.overloads.iter().map(|o| o.value.clone()).collect();
     function_introspection_code(
         pyo3_path,
         None,
@@ -504,5 +505,6 @@ pub fn method_introspection_code(
         is_returning_not_implemented_on_extraction_error,
         get_doc(attrs, None).as_ref(),
         Some(parent),
+        &overload_sigs,
     )
 }

@@ -10,7 +10,7 @@ use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
 use crate::params::is_forwarded_args;
 #[cfg(feature = "experimental-inspect")]
 use crate::py_expr::PyExpr;
-use crate::pyfunction::{PyFunctionWarning, WarningFactory};
+use crate::pyfunction::{OverloadAttribute, PyFunctionWarning, WarningFactory};
 use crate::utils::Ctx;
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
@@ -449,6 +449,8 @@ pub struct FnSpec<'a> {
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
     pub warnings: Vec<PyFunctionWarning>,
+    #[cfg_attr(not(feature = "experimental-inspect"), allow(dead_code))]
+    pub overloads: Vec<OverloadAttribute>,
     pub output: syn::ReturnType,
 }
 
@@ -491,6 +493,7 @@ impl<'a> FnSpec<'a> {
             name,
             signature,
             warnings,
+            overloads,
             ..
         } = options;
 
@@ -528,6 +531,7 @@ impl<'a> FnSpec<'a> {
             asyncness: sig.asyncness,
             unsafety: sig.unsafety,
             warnings,
+            overloads,
             output: sig.output.clone(),
         })
     }

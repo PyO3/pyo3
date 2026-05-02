@@ -10,6 +10,7 @@
 
 use crate::method::{FnArg, RegularArg};
 use crate::py_expr::PyExpr;
+use crate::pyfunction::signature::{Signature, SignatureItem};
 use crate::pyfunction::FunctionSignature;
 use crate::utils::{PyO3CratePath, PythonDoc, StrOrExpr};
 use proc_macro2::{Span, TokenStream};
@@ -109,6 +110,7 @@ pub fn function_introspection_code(
     is_returning_not_implemented_on_extraction_error: bool,
     doc: Option<&PythonDoc>,
     parent: Option<&Type>,
+    overloads: &[Signature],
 ) -> TokenStream {
     let mut desc = HashMap::from([
         ("type", IntrospectionNode::String("function".into())),
@@ -160,6 +162,26 @@ pub fn function_introspection_code(
             "parent",
             IntrospectionNode::IntrospectionId(Some(Cow::Borrowed(parent))),
         );
+    }
+    if !overloads.is_empty() {
+        let overload_nodes = overloads
+            .iter()
+            .map(|overload| {
+                let mut overload_map = HashMap::new();
+                overload_map.insert(
+                    "arguments",
+                    overload_arguments_from_signature(overload, first_argument),
+                );
+                if let Some((_, returns)) = &overload.returns {
+                    overload_map.insert(
+                        "returns",
+                        IntrospectionNode::TypeHint(Cow::Owned(returns.as_type_hint())),
+                    );
+                }
+                IntrospectionNode::Map(overload_map).into()
+            })
+            .collect();
+        desc.insert("overloads", IntrospectionNode::List(overload_nodes));
     }
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
@@ -302,23 +324,7 @@ fn arguments_introspection_data<'a>(
         kwarg = Some(IntrospectionNode::Map(params));
     }
 
-    let mut map = HashMap::new();
-    if !posonlyargs.is_empty() {
-        map.insert("posonlyargs", IntrospectionNode::List(posonlyargs));
-    }
-    if !args.is_empty() {
-        map.insert("args", IntrospectionNode::List(args));
-    }
-    if let Some(vararg) = vararg {
-        map.insert("vararg", vararg);
-    }
-    if !kwonlyargs.is_empty() {
-        map.insert("kwonlyargs", IntrospectionNode::List(kwonlyargs));
-    }
-    if let Some(kwarg) = kwarg {
-        map.insert("kwarg", kwarg);
-    }
-    IntrospectionNode::Map(map)
+    build_arguments_map(posonlyargs, args, vararg, kwonlyargs, kwarg)
 }
 
 fn argument_introspection_data<'a>(
@@ -345,6 +351,137 @@ fn argument_introspection_data<'a>(
         );
     }
     IntrospectionNode::Map(params).into()
+}
+
+fn overload_arguments_from_signature<'a>(
+    signature: &'a Signature,
+    first_argument: Option<&'a str>,
+) -> IntrospectionNode<'a> {
+    let mut posonlyargs = Vec::new();
+    let mut args = Vec::new();
+    let mut vararg = None;
+    let mut kwonlyargs = Vec::new();
+    let mut kwarg = None;
+
+    let mut seen_posargs_sep = false;
+
+    if let Some(first_argument) = first_argument {
+        posonlyargs.push(
+            IntrospectionNode::Map(
+                [("name", IntrospectionNode::String(first_argument.into()))].into(),
+            )
+            .into(),
+        );
+        seen_posargs_sep = true;
+    }
+    let mut seen_varargs_sep = false;
+
+    for item in &signature.items {
+        match item {
+            SignatureItem::Argument(arg) => {
+                let mut params: HashMap<&'static str, IntrospectionNode<'a>> = [(
+                    "name",
+                    IntrospectionNode::String(arg.ident.to_string().into()),
+                )]
+                .into();
+                if let Some((_, annotation)) = &arg.colon_and_annotation {
+                    params.insert(
+                        "annotation",
+                        IntrospectionNode::TypeHint(Cow::Owned(annotation.as_type_hint())),
+                    );
+                }
+                if let Some((_, default)) = &arg.eq_and_default {
+                    params.insert(
+                        "default",
+                        IntrospectionNode::TypeHint(Cow::Owned(PyExpr::constant_from_expression(
+                            default,
+                        ))),
+                    );
+                }
+                let node: AttributedIntrospectionNode<'a> = IntrospectionNode::Map(params).into();
+                if seen_varargs_sep {
+                    kwonlyargs.push(node);
+                } else if !seen_posargs_sep {
+                    posonlyargs.push(node);
+                } else {
+                    args.push(node);
+                }
+            }
+            SignatureItem::PosargsSep(_) => {
+                seen_posargs_sep = true;
+            }
+            SignatureItem::VarargsSep(_) => {
+                seen_varargs_sep = true;
+                if !seen_posargs_sep {
+                    args.append(&mut posonlyargs);
+                }
+            }
+            SignatureItem::Varargs(v) => {
+                seen_varargs_sep = true;
+                if !seen_posargs_sep {
+                    args.append(&mut posonlyargs);
+                }
+                let mut params: HashMap<&'static str, IntrospectionNode<'a>> = [(
+                    "name",
+                    IntrospectionNode::String(v.ident.to_string().into()),
+                )]
+                .into();
+                if let Some((_, annotation)) = &v.colon_and_annotation {
+                    params.insert(
+                        "annotation",
+                        IntrospectionNode::TypeHint(Cow::Owned(annotation.as_type_hint())),
+                    );
+                }
+                vararg = Some(IntrospectionNode::Map(params));
+            }
+            SignatureItem::Kwargs(kw) => {
+                let mut params: HashMap<&'static str, IntrospectionNode<'a>> = [(
+                    "name",
+                    IntrospectionNode::String(kw.ident.to_string().into()),
+                )]
+                .into();
+                if let Some((_, annotation)) = &kw.colon_and_annotation {
+                    params.insert(
+                        "annotation",
+                        IntrospectionNode::TypeHint(Cow::Owned(annotation.as_type_hint())),
+                    );
+                }
+                kwarg = Some(IntrospectionNode::Map(params));
+            }
+        }
+    }
+
+    if !seen_posargs_sep && !seen_varargs_sep {
+        args.append(&mut posonlyargs);
+    }
+
+    build_arguments_map(posonlyargs, args, vararg, kwonlyargs, kwarg)
+}
+
+fn build_arguments_map<'a>(
+    posonlyargs: Vec<AttributedIntrospectionNode<'a>>,
+    args: Vec<AttributedIntrospectionNode<'a>>,
+    vararg: Option<IntrospectionNode<'a>>,
+    kwonlyargs: Vec<AttributedIntrospectionNode<'a>>,
+    kwarg: Option<IntrospectionNode<'a>>,
+) -> IntrospectionNode<'a> {
+    let mut map = HashMap::new();
+    if !posonlyargs.is_empty() {
+        map.insert("posonlyargs", IntrospectionNode::List(posonlyargs));
+    }
+    if !args.is_empty() {
+        map.insert("args", IntrospectionNode::List(args));
+    }
+    if let Some(vararg) = vararg {
+        map.insert("vararg", vararg);
+    }
+    if !kwonlyargs.is_empty() {
+        map.insert("kwonlyargs", IntrospectionNode::List(kwonlyargs));
+    }
+    if let Some(kwarg) = kwarg {
+        map.insert("kwarg", kwarg);
+    }
+    IntrospectionNode::Map(map)
 }
 
 enum IntrospectionNode<'a> {
