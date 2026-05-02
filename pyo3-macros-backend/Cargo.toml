@@ -30,4 +30,4 @@ workspace = true
 
 [features]
 experimental-async = []
-experimental-inspect = []
+experimental-inspect = ["proc-macro2/span-locations"]

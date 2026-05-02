@@ -168,6 +168,7 @@ impl PythonDoc {
 }
 
 /// A plain string or an expression
+#[cfg_attr(feature = "experimental-inspect", expect(clippy::large_enum_variant))]
 #[derive(Clone)]
 pub enum StrOrExpr {
     Str { value: String, span: Option<Span> },
