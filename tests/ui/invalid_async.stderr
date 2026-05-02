@@ -5,13 +5,15 @@ error: async functions are only supported with the `experimental-async` feature
   | ^^^^^
 
 error: async functions are only supported with the `experimental-async` feature
-  --> tests/ui/invalid_async.rs:13:5
+  --> tests/ui/invalid_async.rs:14:5
    |
-13 |     async fn __anext__(mut _pyself: PyRefMut<'_, Self>) -> PyResult<i32> {
+14 |     async fn __anext__(mut _pyself: PyRefMut<'_, Self>) -> PyResult<i32> {
    |     ^^^^^
 
 error: async functions are only supported with the `experimental-async` feature
-  --> tests/ui/invalid_async.rs:17:5
+  --> tests/ui/invalid_async.rs:19:5
    |
-17 |     async fn foo(&self) {}
+19 |     async fn foo(&self) {}
    |     ^^^^^
+
+error: aborting due to 3 previous errors

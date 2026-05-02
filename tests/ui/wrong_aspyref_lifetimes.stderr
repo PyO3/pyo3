@@ -6,3 +6,5 @@ error: lifetime may not live long enough
   |                                                    | |
   |                                                    | return type of closure is &'2 pyo3::Bound<'_, PyDict>
   |                                                    has type `Python<'1>`
+
+error: aborting due to 1 previous error

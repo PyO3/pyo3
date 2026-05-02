@@ -41,17 +41,17 @@ note: required by a bound in `pyo3::impl_::pyclass::assertions::assert_pyclass_s
   |               ^^^^ required by this bound in `assert_pyclass_send_sync`
 
 error[E0277]: `*mut c_void` cannot be shared between threads safely
- --> tests/ui/pyclass_send.rs:8:8
-  |
-8 | struct SendNotSync(*mut c_void);
-  |        ^^^^^^^^^^^ `*mut c_void` cannot be shared between threads safely
-  |
-  = help: within `SendNotSync`, the trait `Sync` is not implemented for `*mut c_void`
+  --> tests/ui/pyclass_send.rs:10:8
+   |
+10 | struct SendNotSync(*mut c_void);
+   |        ^^^^^^^^^^^ `*mut c_void` cannot be shared between threads safely
+   |
+   = help: within `SendNotSync`, the trait `Sync` is not implemented for `*mut c_void`
 note: required because it appears within the type `SendNotSync`
- --> tests/ui/pyclass_send.rs:8:8
-  |
-8 | struct SendNotSync(*mut c_void);
-  |        ^^^^^^^^^^^
+  --> tests/ui/pyclass_send.rs:10:8
+   |
+10 | struct SendNotSync(*mut c_void);
+   |        ^^^^^^^^^^^
 note: required by a bound in `pyo3::impl_::pyclass::assertions::assert_pyclass_send_sync`
  --> src/impl_/pyclass/assertions.rs
   |
@@ -62,22 +62,26 @@ note: required by a bound in `pyo3::impl_::pyclass::assertions::assert_pyclass_s
   |               ^^^^ required by this bound in `assert_pyclass_send_sync`
 
 error[E0277]: `*mut c_void` cannot be sent between threads safely
-  --> tests/ui/pyclass_send.rs:12:8
+  --> tests/ui/pyclass_send.rs:15:8
    |
-12 | struct SyncNotSend(*mut c_void);
+15 | struct SyncNotSend(*mut c_void);
    |        ^^^^^^^^^^^ `*mut c_void` cannot be sent between threads safely
    |
    = help: within `SyncNotSend`, the trait `Send` is not implemented for `*mut c_void`
 note: required because it appears within the type `SyncNotSend`
-  --> tests/ui/pyclass_send.rs:12:8
+  --> tests/ui/pyclass_send.rs:15:8
    |
-12 | struct SyncNotSend(*mut c_void);
+15 | struct SyncNotSend(*mut c_void);
    |        ^^^^^^^^^^^
 note: required by a bound in `pyo3::impl_::pyclass::assertions::assert_pyclass_send_sync`
-  --> src/impl_/pyclass/assertions.rs
-   |
-   | pub const fn assert_pyclass_send_sync<T>()
-   |              ------------------------ required by a bound in this function
-   | where
-   |     T: Send + Sync,
-   |        ^^^^ required by this bound in `assert_pyclass_send_sync`
+ --> src/impl_/pyclass/assertions.rs
+  |
+  | pub const fn assert_pyclass_send_sync<T>()
+  |              ------------------------ required by a bound in this function
+  | where
+  |     T: Send + Sync,
+  |        ^^^^ required by this bound in `assert_pyclass_send_sync`
+
+error: aborting due to 4 previous errors
+
+For more information about this error, try `rustc --explain E0277`.

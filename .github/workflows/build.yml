@@ -98,8 +98,8 @@ jobs:
         run: nox -s set-msrv-package-versions
 
       - if: inputs.rust != 'stable'
-        name: Ignore changed error messages when using trybuild
-        run: echo "TRYBUILD=overwrite" >> "$GITHUB_ENV"
+        name: Ignore changed error messages for ui tests (still run for coverage)
+        run: echo "UI_TEST=ignore" >> "$GITHUB_ENV"
 
       - uses: dorny/paths-filter@v4
         if: ${{ inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') }}
