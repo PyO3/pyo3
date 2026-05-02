@@ -540,7 +540,7 @@ fn module_initialization(
         pub static _PYO3_DEF: #pyo3_path::impl_::pymodule::ModuleDef = {
             use #pyo3_path::impl_::pymodule as impl_;
 
-            unsafe extern "C" fn __pyo3_module_exec(module: *mut #pyo3_path::ffi::PyObject) -> ::std::os::raw::c_int {
+            unsafe extern "C" fn __pyo3_module_exec(module: *mut #pyo3_path::ffi::PyObject) -> ::std::ffi::c_int {
                 #pyo3_path::impl_::trampoline::module_exec(module, #module_exec)
             }
 
