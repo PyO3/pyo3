@@ -7,10 +7,13 @@ use std::ffi::c_int;
 use crate::Py_buffer;
 
 #[cfg(not(PyPy))]
+use crate::PyThreadState;
+#[cfg(all(Py_3_9, not(PyPy)))]
 use crate::{
-    vectorcallfunc, PyCallable_Check, PyThreadState, PyThreadState_GET, PyTuple_Check,
-    PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL,
+    vectorcallfunc, PyCallable_Check, PyThreadState_GET, PyTuple_Check, PyType_HasFeature,
+    Py_TPFLAGS_HAVE_VECTORCALL,
 };
+
 use libc::size_t;
 
 extern_libpython! {
@@ -51,6 +54,7 @@ pub unsafe fn PyVectorcall_NARGS(n: size_t) -> Py_ssize_t {
 
 #[cfg(not(PyPy))]
 #[inline(always)]
+#[cfg(Py_3_9)]
 pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcallfunc> {
     assert!(!callable.is_null());
     let tp = crate::Py_TYPE(callable);
@@ -66,7 +70,8 @@ pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcal
 
 #[cfg(not(PyPy))]
 #[inline(always)]
-pub unsafe fn _PyObject_VectorcallTstate(
+#[cfg(Py_3_9)]
+unsafe fn _PyObject_VectorcallTstate(
     tstate: *mut PyThreadState,
     callable: *mut PyObject,
     args: *const *mut PyObject,
@@ -88,6 +93,7 @@ pub unsafe fn _PyObject_VectorcallTstate(
     }
 }
 
+#[cfg(Py_3_9)]
 #[cfg(not(any(PyPy, GraalPy, Py_3_11)))] // exported as a function from 3.11, see abstract.rs
 #[inline(always)]
 pub unsafe fn PyObject_Vectorcall(
@@ -100,12 +106,8 @@ pub unsafe fn PyObject_Vectorcall(
 }
 
 extern_libpython! {
-    #[cfg_attr(
-        all(not(any(PyPy, GraalPy)), not(Py_3_9)),
-        link_name = "_PyObject_VectorcallDict"
-    )]
-    #[cfg_attr(all(PyPy, not(Py_3_9)), link_name = "_PyPyObject_VectorcallDict")]
     #[cfg_attr(all(PyPy, Py_3_9), link_name = "PyPyObject_VectorcallDict")]
+    #[cfg(Py_3_9)]
     pub fn PyObject_VectorcallDict(
         callable: *mut PyObject,
         args: *const *mut PyObject,
@@ -122,47 +124,9 @@ extern_libpython! {
     ) -> *mut PyObject;
 }
 
-#[cfg(not(any(PyPy, GraalPy)))]
-#[inline(always)]
-pub unsafe fn _PyObject_FastCallTstate(
-    tstate: *mut PyThreadState,
-    func: *mut PyObject,
-    args: *const *mut PyObject,
-    nargs: Py_ssize_t,
-) -> *mut PyObject {
-    _PyObject_VectorcallTstate(tstate, func, args, nargs as size_t, std::ptr::null_mut())
-}
-
-#[cfg(not(any(PyPy, GraalPy)))]
-#[inline(always)]
-pub unsafe fn _PyObject_FastCall(
-    func: *mut PyObject,
-    args: *const *mut PyObject,
-    nargs: Py_ssize_t,
-) -> *mut PyObject {
-    _PyObject_FastCallTstate(PyThreadState_GET(), func, args, nargs)
-}
-
 #[cfg(not(PyPy))]
 #[inline(always)]
-pub unsafe fn _PyObject_CallNoArg(func: *mut PyObject) -> *mut PyObject {
-    _PyObject_VectorcallTstate(
-        PyThreadState_GET(),
-        func,
-        std::ptr::null_mut(),
-        0,
-        std::ptr::null_mut(),
-    )
-}
-
-extern_libpython! {
-    #[cfg(PyPy)]
-    #[link_name = "_PyPyObject_CallNoArg"]
-    pub fn _PyObject_CallNoArg(func: *mut PyObject) -> *mut PyObject;
-}
-
-#[cfg(not(PyPy))]
-#[inline(always)]
+#[cfg(Py_3_9)]
 pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
     assert!(!arg.is_null());
     let args_array = [std::ptr::null_mut(), arg];

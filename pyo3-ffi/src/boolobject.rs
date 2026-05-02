@@ -47,11 +47,13 @@ pub unsafe fn Py_True() -> *mut PyObject {
 }
 
 #[inline]
+#[cfg(Py_3_10)]
 pub unsafe fn Py_IsTrue(x: *mut PyObject) -> c_int {
     Py_Is(x, Py_True())
 }
 
 #[inline]
+#[cfg(Py_3_10)]
 pub unsafe fn Py_IsFalse(x: *mut PyObject) -> c_int {
     Py_Is(x, Py_False())
 }

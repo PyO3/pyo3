@@ -168,6 +168,7 @@ pub struct PyVarObject {
 #[inline]
 #[cfg(not(any(GraalPy, PyPy)))]
 #[cfg_attr(docsrs, doc(cfg(all())))]
+#[cfg(Py_3_10)]
 pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
     (x == y).into()
 }
@@ -176,6 +177,7 @@ pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
 #[cfg_attr(docsrs, doc(cfg(all())))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPy_Is")]
+    #[cfg(Py_3_10)]
     pub fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int;
 }
 
@@ -633,6 +635,7 @@ pub unsafe fn Py_None() -> *mut PyObject {
 }
 
 #[inline]
+#[cfg(Py_3_10)]
 pub unsafe fn Py_IsNone(x: *mut PyObject) -> c_int {
     Py_Is(x, Py_None())
 }

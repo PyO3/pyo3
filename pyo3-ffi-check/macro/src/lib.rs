@@ -2,6 +2,7 @@ use std::{
     collections::HashSet,
     env, fs,
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
@@ -195,6 +196,9 @@ fn get_fields_from_file(path: &Path) -> Vec<String> {
 
 // C Macros are re-exported in pyo3-ffi as functions with the same name to get roughly equivalent semantics,
 // these are excluded here.
+//
+// This is only checked if the function doesn't have `extern "C"`, so if these macros are replaced by symbols,
+// they will end up being included in the check.
 const MACRO_EXCLUSIONS: &[&str] = &[
     "PyAnySet_Check",
     "PyAnySet_CheckExact",
@@ -207,6 +211,7 @@ const MACRO_EXCLUSIONS: &[&str] = &[
     "PyBytes_CheckExact",
     "PyCFunction_Check",
     "PyCFunction_CheckExact",
+    "PyCFunction_New",
     "PyCFunction_GET_CLASS",
     "PyCFunction_GET_FLAGS",
     "PyCFunction_GET_FUNCTION",
@@ -302,6 +307,8 @@ const MACRO_EXCLUSIONS: &[&str] = &[
     "PyObject_New",
     "PyObject_NewVar",
     "PyObject_TypeCheck",
+    "PyParser_SimpleParseFile",
+    "PyParser_SimpleParseString",
     "PyRange_Check",
     "PySeqIter_Check",
     "PySet_Check",
@@ -320,6 +327,8 @@ const MACRO_EXCLUSIONS: &[&str] = &[
     "PyThreadState_GET",
     "PyTime_Check",
     "PyTime_CheckExact",
+    "PyTime_FromTime",
+    "PyTime_FromTimeAndFold",
     "PyTimeZone_FromOffset",
     "PyTimeZone_FromOffsetAndName",
     "PyTraceBack_Check",
@@ -333,12 +342,14 @@ const MACRO_EXCLUSIONS: &[&str] = &[
     "PyType_FastSubclass",
     "PyType_HasFeature",
     "PyType_IS_GC",
+    "PyType_SUPPORTS_WEAKREFS",
     "PyUnicode_1BYTE_DATA",
     "PyUnicode_2BYTE_DATA",
     "PyUnicode_4BYTE_DATA",
     "PyUnicode_Check",
     "PyUnicode_CheckExact",
     "PyUnicode_ClearFreeList",
+    "PyUnicode_DATA",
     "PyUnicode_Encode",
     "PyUnicode_EncodeASCII",
     "PyUnicode_EncodeCharmap",
@@ -351,7 +362,11 @@ const MACRO_EXCLUSIONS: &[&str] = &[
     "PyUnicode_EncodeUTF8",
     "PyUnicode_EncodeUnicodeEscape",
     "PyUnicode_GET_LENGTH",
+    "PyUnicode_IS_ASCII",
+    "PyUnicode_IS_COMPACT",
+    "PyUnicode_IS_COMPACT_ASCII",
     "PyUnicode_IS_READY",
+    "PyUnicode_KIND",
     "PyUnicode_READY",
     "PyUnicode_TransformDecimalToASCII",
     "PyUnicode_TranslateCharmap",
@@ -359,19 +374,28 @@ const MACRO_EXCLUSIONS: &[&str] = &[
     "PyWeakref_CheckProxy",
     "PyWeakref_CheckRef",
     "PyWeakref_CheckRefExact",
+    "PyVectorcall_NARGS",
     "Py_CLEAR",
+    "Py_CompileString",
     "Py_CompileStringFlags",
     "Py_DECREF",
     "Py_Ellipsis",
     "Py_False",
+    "Py_GETENV",
     "Py_INCREF",
     "Py_IS_TYPE",
     "Py_None",
     "Py_NotImplemented",
+    "Py_REFCNT",
     "Py_SIZE",
     "Py_True",
+    "Py_TYPE",
     "Py_XDECREF",
     "Py_XINCREF",
+];
+
+// TODO: probably need to clean these up
+const EXCLUDED_SYMBOLS: &[&str] = &[
     // CPython deprecated these but the symbols still exist, pyo3-ffi will probably clean them up anyway
     "_PyCode_GetExtra",
     "_PyCode_SetExtra",
@@ -379,11 +403,7 @@ const MACRO_EXCLUSIONS: &[&str] = &[
     // FIXME: probably outdated definitions that fail to build, need investigation,
     // temporarily here to make the build pass to get CI running
     "_PyFloat_CAST",
-    "_PyObject_CallNoArg",
-    "_PyObject_FastCall",
-    "_PyObject_FastCallTstate",
     "_PyObject_MakeTpCall",
-    "_PyObject_VectorcallTstate",
     "_PyRun_AnyFileObject",
     "_PyRun_InteractiveLoopObject",
     "_PyRun_SimpleFileObject",
@@ -393,6 +413,9 @@ const MACRO_EXCLUSIONS: &[&str] = &[
     "_Py_CheckFunctionResult",
     "PyCode_New",
     "PyCode_NewWithPosOnlyArgs",
+    // This symbol was not in headers but still public until Python 3.10,
+    // should be able to remove this exclusion once support for 3.9 dropped
+    "Py_GetArgcArgv",
 ];
 
 #[proc_macro]
@@ -411,13 +434,15 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
         let entry = entry.unwrap();
 
         let file_name = entry.file_name().unwrap().to_string_lossy().into_owned();
+        let bindgen_path = doc_dir.join("bindgen").join(&file_name);
+
         let function_name = file_name
             .strip_prefix("fn.")
             .unwrap()
             .strip_suffix(".html")
             .unwrap();
 
-        if MACRO_EXCLUSIONS.contains(&function_name) {
+        if EXCLUDED_SYMBOLS.contains(&function_name) {
             continue;
         }
 
@@ -426,8 +451,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             // If the function doesn't exist in PyPy, for now we don't care:
             // - For PyO3 inline functions it's probably fine to include anyway
             // - For extern symbols - PyPy may add them in a future release
-            let bingen_path = doc_dir.join(format!("bindgen/fn.{}.html", function_name));
-            if !bingen_path.exists() {
+            if !bindgen_path.exists() {
                 continue;
             }
         }
@@ -436,7 +460,55 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             modifiers,
             arg_count,
             variadic,
-        } = get_function_info(function_name, &entry);
+        } = match (function_name, get_function_info(function_name, &entry)) {
+            (_, Ok(info)) => info,
+            // In some cases symbols and macros differ only by case, which is a problem for case-insensitive filesystems.
+            //
+            // Hard-code workarounds for this cases here.
+            //
+            // Maybe one day the rustdoc json output can be used to avoid this problem
+            ("Py_INCREF", Err(FunctionNameMismatch(e))) if e == "Py_IncRef" => FunctionInfo {
+                modifiers: quote!(),
+                arg_count: 1,
+                variadic: false,
+            },
+            ("Py_IncRef", Err(FunctionNameMismatch(e))) if e == "Py_INCREF" => FunctionInfo {
+                modifiers: quote!(extern "C"),
+                arg_count: 1,
+                variadic: false,
+            },
+            ("Py_DECREF", Err(FunctionNameMismatch(e))) if e == "Py_DecRef" => FunctionInfo {
+                modifiers: quote!(),
+                arg_count: 1,
+                variadic: false,
+            },
+            ("Py_DecRef", Err(FunctionNameMismatch(e))) if e == "Py_DECREF" => FunctionInfo {
+                modifiers: quote!(extern "C"),
+                arg_count: 1,
+                variadic: false,
+            },
+            ("PyThreadState_GET", Err(FunctionNameMismatch(e))) if e == "PyThreadState_Get" => {
+                FunctionInfo {
+                    modifiers: quote!(),
+                    arg_count: 0,
+                    variadic: false,
+                }
+            }
+            ("PyThreadState_Get", Err(FunctionNameMismatch(e))) if e == "PyThreadState_GET" => {
+                FunctionInfo {
+                    modifiers: quote!(extern "C"),
+                    arg_count: 0,
+                    variadic: false,
+                }
+            }
+            (function_name, Err(FunctionNameMismatch(unexpected))) => {
+                let error_message = format!(
+                    "parsed unexpected function declaration for `{function_name}`: {unexpected}",
+                );
+                output.extend(quote!(compile_error!(#error_message);));
+                continue;
+            }
+        };
 
         let function_ident = Ident::new(function_name, Span::call_site());
 
@@ -445,11 +517,32 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
         let vararg = if variadic { Some(quote!(, ...)) } else { None };
 
         if !modifiers.to_string().contains(r#"extern "C""#) {
-            // if the function is not extern "C", it's a static inline function, pyo3-ffi uses the Rust abi,
-            // bindgen uses the C abi still
+            // if the function is not extern "C":
+            // - could be a Rust reimplementation of a C macro, ro
+            // - a static inline function in the C headers, pyo3-ffi uses the Rust abi, bindgen uses the C abi still
+
+            // If a macro, then there will be no symbol from bindgen at all, so skip
+            if MACRO_EXCLUSIONS.contains(&function_name) {
+                if bindgen_path.exists() {
+                    let error_message = format!(
+                        "`{function_name}` is in the macro exclusion list but a symbol was found in bindgen bindings, this likely means the macro was replaced by a symbol",
+                    );
+                    output.extend(quote!(compile_error!(#error_message);));
+                }
+                continue;
+            }
+
             output
                 .extend(quote!(#macro_name!(@inline #function_ident, (#(#arg_types),*) #vararg);));
         } else {
+            if function_name == "Py_INCREF" {
+                panic!(
+                    "{modifiers}, {}, {}",
+                    modifiers.to_string().contains(r#"extern "C""#),
+                    entry.display()
+                );
+            }
+
             output.extend(
                 quote!(#macro_name!(#function_ident, [#modifiers] (#(#arg_types),* #vararg));),
             );
@@ -465,26 +558,43 @@ struct FunctionInfo {
     variadic: bool,
 }
 
-fn get_function_info(name: &str, path: &Path) -> FunctionInfo {
-    let html = fs::read_to_string(path).unwrap();
+// Error returned when the function definition does not match the expected name of the file
+struct FunctionNameMismatch(String);
+
+fn get_function_info(
+    function_name: &str,
+    path: &Path,
+) -> Result<FunctionInfo, FunctionNameMismatch> {
+    let html = fs::read_to_string(path).expect("file not found");
     let html = scraper::Html::parse_document(&html);
     let selector = scraper::Selector::parse("pre.item-decl code").unwrap();
 
-    let code_el = html.select(&selector).next().unwrap();
+    let code_el = html
+        .select(&selector)
+        .next()
+        .expect("failed to find code element in function doc");
     let text = code_el.text().collect::<String>();
 
-    // skip "pub " prefix
-    let text = text.strip_prefix("pub ").unwrap();
+    static FUNCTION_DECL_REGEX: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"^pub\s+(.*?)\sfn\s+([^(<]*)").unwrap());
+
+    let captures = FUNCTION_DECL_REGEX
+        .captures(&text)
+        .expect("failed to parse function declaration with regex");
 
     // find modifiers, e.g. `unsafe extern "C"`
-    let left_paren = text.find('(').unwrap();
-    let modifiers = text[..left_paren]
-        .strip_suffix(name)
-        .unwrap()
-        .strip_suffix(" fn ")
-        .unwrap()
-        .parse()
-        .unwrap();
+    let modifiers = captures.get(1).unwrap().as_str().parse().unwrap();
+
+    // find function name
+    let parsed_name = captures.get(2).unwrap().as_str().to_string();
+
+    if parsed_name != function_name {
+        return Err(FunctionNameMismatch(parsed_name));
+    }
+
+    let left_paren = text
+        .find('(')
+        .expect("function declaration should have opening paren");
 
     // Extract text between parens
     let start = left_paren + 1;
@@ -522,11 +632,11 @@ fn get_function_info(name: &str, path: &Path) -> FunctionInfo {
         arg_count += 1;
     }
 
-    FunctionInfo {
+    Ok(FunctionInfo {
         modifiers,
         arg_count,
         variadic,
-    }
+    })
 }
 
 fn get_macro_name_from_input(
