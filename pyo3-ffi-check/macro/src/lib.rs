@@ -17,8 +17,7 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
         Err(err) => return err.into(),
     };
 
-    let doc_dir = get_doc_dir();
-    let structs_glob = format!("{}/pyo3_ffi/struct.*.html", doc_dir.display());
+    let structs_glob = format!("{}/pyo3_ffi/struct.*.html", DOC_DIR.display());
 
     let mut output = TokenStream::new();
 
@@ -57,9 +56,31 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
     .into()
 }
 
-fn get_doc_dir() -> PathBuf {
-    PathBuf::from(env::var_os("PYO3_FFI_CHECK_DOC_DIR").unwrap())
-}
+static DOC_DIR: LazyLock<PathBuf> =
+    LazyLock::new(|| PathBuf::from(env::var_os("PYO3_FFI_CHECK_DOC_DIR").unwrap()));
+
+static BINDGEN_FUNCTION_NAMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
+    // parse all the function names from the bindgen index file
+    let index_file = DOC_DIR.join("bindgen/index.html");
+
+    // the functions are in `a` elements with class "fn", and the full path is in the
+    // `title` attribute
+    let html = fs::read_to_string(index_file).unwrap();
+    let html = scraper::Html::parse_document(&html);
+    let selector = scraper::Selector::parse("a.fn").unwrap();
+
+    html.select(&selector)
+        .map(|el| {
+            el.value()
+                .attr("title")
+                .unwrap()
+                .rsplit_once("::")
+                .unwrap()
+                .1
+                .to_string()
+        })
+        .collect()
+});
 
 /// Macro which expands to multiple macro calls, one per field in a pyo3-ffi
 /// struct.
@@ -105,13 +126,12 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
         .into();
     }
 
-    let doc_dir = get_doc_dir();
-    let pyo3_ffi_struct_file = doc_dir.join(format!("pyo3_ffi/struct.{}.html", struct_name));
-    let mut bindgen_struct_file = doc_dir.join(format!("bindgen/struct.{}.html", struct_name));
+    let pyo3_ffi_struct_file = DOC_DIR.join(format!("pyo3_ffi/struct.{}.html", struct_name));
+    let mut bindgen_struct_file = DOC_DIR.join(format!("bindgen/struct.{}.html", struct_name));
 
     // might be a type alias
     if !bindgen_struct_file.exists() {
-        let type_alias_file = doc_dir.join(format!("bindgen/type.{}.html", struct_name));
+        let type_alias_file = DOC_DIR.join(format!("bindgen/type.{}.html", struct_name));
         if type_alias_file.exists() {
             bindgen_struct_file = type_alias_file;
         } else {
@@ -425,8 +445,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
         Err(err) => return err.into(),
     };
 
-    let doc_dir = get_doc_dir();
-    let functions_glob = format!("{}/pyo3_ffi/fn.*.html", doc_dir.display());
+    let functions_glob = format!("{}/pyo3_ffi/fn.*.html", DOC_DIR.display());
 
     let mut output = TokenStream::new();
 
@@ -434,7 +453,6 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
         let entry = entry.unwrap();
 
         let file_name = entry.file_name().unwrap().to_string_lossy().into_owned();
-        let bindgen_path = doc_dir.join("bindgen").join(&file_name);
 
         let function_name = file_name
             .strip_prefix("fn.")
@@ -451,7 +469,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             // If the function doesn't exist in PyPy, for now we don't care:
             // - For PyO3 inline functions it's probably fine to include anyway
             // - For extern symbols - PyPy may add them in a future release
-            if !bindgen_path.exists() {
+            if !BINDGEN_FUNCTION_NAMES.contains(function_name) {
                 continue;
             }
         }
@@ -523,7 +541,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
 
             // If a macro, then there will be no symbol from bindgen at all, so skip
             if MACRO_EXCLUSIONS.contains(&function_name) {
-                if bindgen_path.exists() {
+                if BINDGEN_FUNCTION_NAMES.contains(function_name) {
                     let error_message = format!(
                         "`{function_name}` is in the macro exclusion list but a symbol was found in bindgen bindings, this likely means the macro was replaced by a symbol",
                     );
