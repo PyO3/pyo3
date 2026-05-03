@@ -1,12 +1,12 @@
 #[cfg(not(Py_LIMITED_API))]
 use crate::PyMutex;
+#[cfg(any(all(Py_GIL_DISABLED, Py_3_13), Py_3_15))]
 use crate::PyObject;
 
 #[cfg(all(Py_LIMITED_API, Py_3_15))]
 opaque_struct!(pub PyMutex);
 
 #[cfg(any(all(Py_GIL_DISABLED, Py_3_13, not(Py_LIMITED_API)), Py_3_15,))]
-#[repr(C)]
 #[repr(C)]
 pub struct PyCriticalSection {
     _cs_prev: usize,

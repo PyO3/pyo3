@@ -573,7 +573,7 @@ fn module_initialization(
             /// the module on Python 3.15 and newer.
             #[doc(hidden)]
             #[export_name = #pymodexport_symbol]
-            pub unsafe extern "C" fn __pyo3_export() -> *mut #pyo3_path::ffi::PyModuleDef_Slot {
+            pub unsafe extern "C" fn __pyo3_export() -> *mut #pyo3_path::ffi::PySlot {
                 _PYO3_DEF.get_slots()
             }
         });

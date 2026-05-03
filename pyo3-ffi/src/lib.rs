@@ -439,6 +439,7 @@ pub use self::compile::*;
 pub use self::complexobject::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::context::*;
+#[cfg(Py_3_15)]
 pub use self::critical_section::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::*;
@@ -481,6 +482,8 @@ pub use self::rangeobject::*;
 pub use self::refcount::*;
 pub use self::setobject::*;
 pub use self::sliceobject::*;
+pub use self::slots::*;
+pub use self::slots_generated::*;
 pub use self::structseq::*;
 pub use self::sysmodule::*;
 pub use self::traceback::*;
@@ -572,6 +575,8 @@ mod rangeobject;
 mod refcount;
 mod setobject;
 mod sliceobject;
+mod slots;
+mod slots_generated;
 mod structseq;
 mod sysmodule;
 mod traceback;
