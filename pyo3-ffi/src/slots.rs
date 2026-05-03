@@ -100,7 +100,7 @@ pub const fn PySlot_STATIC_DATA(NAME: u16, VALUE: *mut c_void) -> PySlot {
     }
 }
 
-pub const fn PySplot_PTR(NAME: u16, VALUE: *mut c_void) -> PySlot {
+pub const fn PySlot_PTR(NAME: u16, VALUE: *mut c_void) -> PySlot {
     PySlot {
         sl_id: NAME,
         sl_flags: PySlot_INTPTR,
@@ -109,7 +109,7 @@ pub const fn PySplot_PTR(NAME: u16, VALUE: *mut c_void) -> PySlot {
     }
 }
 
-pub const fn PySplot_PTR_STATIC(NAME: u16, VALUE: *mut c_void) -> PySlot {
+pub const fn PySlot_PTR_STATIC(NAME: u16, VALUE: *mut c_void) -> PySlot {
     PySlot {
         sl_id: NAME,
         sl_flags: PySlot_INTPTR | PySlot_STATIC,
