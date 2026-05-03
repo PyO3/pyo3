@@ -439,6 +439,7 @@ pub use self::compile::*;
 pub use self::complexobject::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::context::*;
+pub use self::critical_section::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::*;
 pub use self::descrobject::*;
@@ -504,6 +505,7 @@ mod compile;
 mod complexobject;
 #[cfg(not(Py_LIMITED_API))]
 mod context;
+mod critical_section;
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
 mod descrobject;
