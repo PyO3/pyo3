@@ -49,6 +49,7 @@ pub struct ModuleDef {
     name: &'static CStr,
     #[cfg(Py_3_15)]
     doc: &'static CStr,
+    #[cfg(Py_3_15)]
     slots: &'static PyModuleSlots,
     /// Interpreter ID where module was initialized (not applicable on PyPy).
     #[cfg(all(
@@ -101,6 +102,7 @@ impl ModuleDef {
             name,
             #[cfg(Py_3_15)]
             doc,
+            #[cfg(Py_3_15)]
             slots,
             // -1 is never expected to be a valid interpreter ID
             #[cfg(all(
@@ -227,9 +229,35 @@ impl ModuleDef {
                 .map(|py_module| py_module.clone_ref(py))
         }
     }
-    pub fn get_slots(&'static self) -> *mut ffi::PyModuleDef_Slot {
-        self.slots.0.get() as *mut ffi::PyModuleDef_Slot
+    #[cfg(Py_3_15)]
+    pub fn get_slots(&'static self) -> *mut ffi::PySlot {
+        self.slots.0.get() as *mut ffi::PySlot
     }
+}
+
+/// Defines the `PyModExport_<name>` entry point used by Python 3.15 and newer.
+///
+/// This is wrapped in a `macro_rules!` so the proc-macro backend can emit a single
+/// version-agnostic invocation; the body only expands on Python 3.15+, where
+/// `ffi::PySlot` is defined.
+#[cfg(Py_3_15)]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __pyo3_pymodexport {
+    ($symbol:literal, $def:path) => {
+        #[doc(hidden)]
+        #[export_name = $symbol]
+        pub unsafe extern "C" fn __pyo3_export() -> *mut $crate::ffi::PySlot {
+            $def.get_slots()
+        }
+    };
+}
+
+#[cfg(not(Py_3_15))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __pyo3_pymodexport {
+    ($symbol:literal, $def:path) => {};
 }
 
 /// Type of the exec slot used to initialise module contents
@@ -249,7 +277,10 @@ const MAX_SLOTS_WITH_TRAILING_NULL: usize = MAX_SLOTS + 1;
 /// actual slots pushed due to the need to have a zeroed element on the end.
 pub struct PyModuleSlotsBuilder {
     // values (initially all zeroed)
+    #[cfg(not(Py_3_15))]
     values: [ffi::PyModuleDef_Slot; MAX_SLOTS_WITH_TRAILING_NULL],
+    #[cfg(Py_3_15)]
+    values: [ffi::PySlot; MAX_SLOTS_WITH_TRAILING_NULL],
     // current length
     len: usize,
 }
@@ -270,11 +301,18 @@ impl PyModuleSlotsBuilder {
     }
 
     pub const fn with_mod_exec(self, exec: ModuleExecSlot) -> Self {
-        self.push(ffi::Py_mod_exec, exec as *mut c_void)
+        #[cfg(not(Py_3_15))]
+        {
+            self.push(ffi::Py_mod_exec, exec as *mut c_void)
+        }
+        #[cfg(Py_3_15)]
+        {
+            self.push_value(ffi::PySlot_FUNC!(ffi::Py_mod_exec, exec))
+        }
     }
 
     pub const fn with_gil_used(self, gil_used: bool) -> Self {
-        #[cfg(Py_3_13)]
+        #[cfg(all(Py_3_13, not(Py_3_15)))]
         {
             self.push(
                 ffi::Py_mod_gil,
@@ -284,6 +322,18 @@ impl PyModuleSlotsBuilder {
                     ffi::Py_MOD_GIL_NOT_USED
                 },
             )
+        }
+
+        #[cfg(Py_3_15)]
+        {
+            self.push_value(ffi::PySlot_DATA(
+                ffi::Py_mod_gil,
+                if gil_used {
+                    ffi::Py_MOD_GIL_USED
+                } else {
+                    ffi::Py_MOD_GIL_NOT_USED
+                },
+            ))
         }
 
         #[cfg(not(Py_3_13))]
@@ -297,7 +347,10 @@ impl PyModuleSlotsBuilder {
     pub const fn with_name(self, name: &'static CStr) -> Self {
         #[cfg(Py_3_15)]
         {
-            self.push(ffi::Py_mod_name, name.as_ptr() as *mut c_void)
+            self.push_value(ffi::PySlot_STATIC_DATA(
+                ffi::Py_mod_name,
+                name.as_ptr() as *mut c_void,
+            ))
         }
 
         #[cfg(not(Py_3_15))]
@@ -312,7 +365,10 @@ impl PyModuleSlotsBuilder {
         #[cfg(Py_3_15)]
         {
             ffi::PyABIInfo_VAR!(ABI_INFO);
-            self.push(ffi::Py_mod_abi, std::ptr::addr_of_mut!(ABI_INFO).cast())
+            self.push_value(ffi::PySlot_STATIC_DATA(
+                ffi::Py_mod_abi,
+                std::ptr::addr_of_mut!(ABI_INFO).cast(),
+            ))
         }
 
         #[cfg(not(Py_3_15))]
@@ -324,7 +380,10 @@ impl PyModuleSlotsBuilder {
     pub const fn with_doc(self, doc: &'static CStr) -> Self {
         #[cfg(Py_3_15)]
         {
-            self.push(ffi::Py_mod_doc, doc.as_ptr() as *mut c_void)
+            self.push_value(ffi::PySlot_STATIC_DATA(
+                ffi::Py_mod_doc,
+                doc.as_ptr() as *mut c_void,
+            ))
         }
 
         #[cfg(not(Py_3_15))]
@@ -339,21 +398,39 @@ impl PyModuleSlotsBuilder {
         PyModuleSlots(UnsafeCell::new(self.values))
     }
 
-    const fn push(mut self, slot: c_int, value: *mut c_void) -> Self {
+    #[cfg(not(Py_3_15))]
+    const fn push(mut self, slot: u16, value: *mut c_void) -> Self {
         // Required to guarantee there's still a zeroed element
         // at the end
         assert!(
             self.len < MAX_SLOTS,
             "Cannot add more than MAX_SLOTS slots to a PyModuleSlots",
         );
-        self.values[self.len] = ffi::PyModuleDef_Slot { slot, value };
+        self.values[self.len] = ffi::PyModuleDef_Slot {
+            slot: slot as c_int,
+            value,
+        };
+        self.len += 1;
+        self
+    }
+
+    #[cfg(Py_3_15)]
+    const fn push_value(mut self, value: ffi::PySlot) -> Self {
+        assert!(
+            self.len < MAX_SLOTS,
+            "Cannot add more than MAX_SLOTS slots to a PyModuleSlots",
+        );
+        self.values[self.len] = value;
         self.len += 1;
         self
     }
 }
 
 /// Wrapper to safely store module slots, to be used in a `ModuleDef`.
+#[cfg(not(Py_3_15))]
 pub struct PyModuleSlots(UnsafeCell<[ffi::PyModuleDef_Slot; MAX_SLOTS_WITH_TRAILING_NULL]>);
+#[cfg(Py_3_15)]
+pub struct PyModuleSlots(UnsafeCell<[ffi::PySlot; MAX_SLOTS_WITH_TRAILING_NULL]>);
 
 // It might be possible to avoid this with SyncUnsafeCell in the future
 //
@@ -508,7 +585,6 @@ mod tests {
             assert_eq!(module_def.name, NAME);
             assert_eq!(module_def.doc, DOC);
         }
-        assert_eq!(module_def.slots.0.get(), SLOTS.0.get());
     }
 
     #[test]

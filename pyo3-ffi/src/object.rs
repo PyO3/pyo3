@@ -3,6 +3,8 @@ use crate::pyport::{Py_hash_t, Py_ssize_t};
 use crate::refcount;
 #[cfg(Py_GIL_DISABLED)]
 use crate::PyMutex;
+#[cfg(Py_3_15)]
+use crate::PySlot;
 use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::mem;
 #[cfg(Py_GIL_DISABLED)]
@@ -275,6 +277,14 @@ pub type hashfunc = unsafe extern "C" fn(*mut PyObject) -> Py_hash_t;
 pub type richcmpfunc = unsafe extern "C" fn(*mut PyObject, *mut PyObject, c_int) -> *mut PyObject;
 pub type getiterfunc = unsafe extern "C" fn(*mut PyObject) -> *mut PyObject;
 pub type iternextfunc = unsafe extern "C" fn(*mut PyObject) -> *mut PyObject;
+#[cfg(Py_3_15)]
+#[repr(C)]
+pub struct _PyObjectIndexPair {
+    pub object: *mut PyObject,
+    pub index: Py_ssize_t,
+}
+#[cfg(Py_3_15)]
+pub type _Py_iteritemfunc = unsafe extern "C" fn(*mut PyObject, Py_ssize_t) -> _PyObjectIndexPair;
 pub type descrgetfunc =
     unsafe extern "C" fn(*mut PyObject, *mut PyObject, *mut PyObject) -> *mut PyObject;
 pub type descrsetfunc = unsafe extern "C" fn(*mut PyObject, *mut PyObject, *mut PyObject) -> c_int;
@@ -376,6 +386,14 @@ extern_libpython! {
     #[cfg(Py_3_12)]
     #[cfg_attr(PyPy, link_name = "PyPyType_GetTypeDataSize")]
     pub fn PyType_GetTypeDataSize(cls: *mut PyTypeObject) -> Py_ssize_t;
+
+    #[cfg(Py_3_14)]
+    #[cfg_attr(PyPy, link_name = "PyPyType_GetBaseByToken")]
+    pub fn PyType_GetBaseByToken(type_: *mut PyTypeObject, token: *mut c_void, result: *mut *mut PyTypeObject) -> c_int;
+
+    #[cfg(Py_3_15)]
+    #[cfg_attr(PyPy, link_name = "PyPyType_FromSlot")]
+    pub fn PyType_FromSlots(slots: *mut PySlot) -> *mut PyObject;
 
     #[cfg_attr(PyPy, link_name = "PyPyType_IsSubtype")]
     pub fn PyType_IsSubtype(a: *mut PyTypeObject, b: *mut PyTypeObject) -> c_int;

@@ -1,6 +1,8 @@
 use crate::methodobject::PyMethodDef;
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+#[cfg(Py_3_15)]
+use crate::slots::PySlot;
 use std::ffi::{c_char, c_int, c_void};
 
 extern_libpython! {
@@ -85,33 +87,6 @@ impl Default for PyModuleDef_Slot {
     }
 }
 
-pub const Py_mod_create: c_int = 1;
-pub const Py_mod_exec: c_int = 2;
-#[cfg(Py_3_12)]
-pub const Py_mod_multiple_interpreters: c_int = 3;
-#[cfg(Py_3_13)]
-pub const Py_mod_gil: c_int = 4;
-#[cfg(Py_3_15)]
-pub const Py_mod_abi: c_int = 5;
-#[cfg(Py_3_15)]
-pub const Py_mod_name: c_int = 6;
-#[cfg(Py_3_15)]
-pub const Py_mod_doc: c_int = 7;
-#[cfg(Py_3_15)]
-pub const Py_mod_state_size: c_int = 8;
-#[cfg(Py_3_15)]
-pub const Py_mod_methods: c_int = 9;
-#[cfg(Py_3_15)]
-pub const Py_mod_state_traverse: c_int = 10;
-#[cfg(Py_3_15)]
-pub const Py_mod_state_clear: c_int = 11;
-#[cfg(Py_3_15)]
-pub const Py_mod_state_free: c_int = 12;
-#[cfg(Py_3_15)]
-pub const Py_mod_token: c_int = 13;
-
-// skipped private _Py_mod_LAST_SLOT
-
 #[cfg(Py_3_12)]
 #[allow(
     clippy::zero_ptr,
@@ -140,7 +115,7 @@ extern_libpython! {
 #[cfg(Py_3_15)]
 extern_libpython! {
     pub fn PyModule_FromSlotsAndSpec(
-        slots: *const PyModuleDef_Slot,
+        slots: *const PySlot,
         spec: *mut PyObject,
     ) -> *mut PyObject;
     pub fn PyModule_Exec(_mod: *mut PyObject) -> c_int;
