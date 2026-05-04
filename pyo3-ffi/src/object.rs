@@ -277,11 +277,13 @@ pub type hashfunc = unsafe extern "C" fn(*mut PyObject) -> Py_hash_t;
 pub type richcmpfunc = unsafe extern "C" fn(*mut PyObject, *mut PyObject, c_int) -> *mut PyObject;
 pub type getiterfunc = unsafe extern "C" fn(*mut PyObject) -> *mut PyObject;
 pub type iternextfunc = unsafe extern "C" fn(*mut PyObject) -> *mut PyObject;
+#[cfg(Py_3_15)]
 #[repr(C)]
 pub struct _PyObjectIndexPair {
     pub object: *mut PyObject,
     pub index: Py_ssize_t,
 }
+#[cfg(Py_3_15)]
 pub type _Py_iteritemfunc = unsafe extern "C" fn(*mut PyObject, Py_ssize_t) -> _PyObjectIndexPair;
 pub type descrgetfunc =
     unsafe extern "C" fn(*mut PyObject, *mut PyObject, *mut PyObject) -> *mut PyObject;

@@ -1,16 +1,21 @@
+#[cfg(Py_3_15)]
 use crate::Py_ssize_t;
+#[cfg(Py_3_15)]
 use std::ffi::c_void;
 
+#[cfg(Py_3_15)]
 pub type _Py_funcptr_t = unsafe extern "C" fn();
 
 #[derive(Copy, Clone)]
 #[repr(C)]
+#[cfg(Py_3_15)]
 pub union _anon_union_32b {
     pub sl_reserved: u32,
 }
 
 #[derive(Copy, Clone)]
 #[repr(C)]
+#[cfg(Py_3_15)]
 pub union _anon_union_64b {
     pub sl_ptr: *mut c_void,
     pub sl_func: _Py_funcptr_t,
@@ -21,6 +26,7 @@ pub union _anon_union_64b {
 
 #[derive(Copy, Clone)]
 #[repr(C)]
+#[cfg(Py_3_15)]
 pub struct PySlot {
     pub sl_id: u16,
     pub sl_flags: u16,
@@ -28,6 +34,10 @@ pub struct PySlot {
     pub anon2: _anon_union_64b,
 }
 
+#[cfg(not(Py_3_15))]
+opaque_struct!(pub PySlot);
+
+#[cfg(Py_3_15)]
 impl PartialEq for PySlot {
     fn eq(&self, other: &Self) -> bool {
         unsafe {
@@ -41,11 +51,16 @@ impl PartialEq for PySlot {
     }
 }
 
+#[cfg(Py_3_15)]
 pub const PySlot_OPTIONAL: u16 = 0x01;
+#[cfg(Py_3_15)]
 pub const PySlot_STATIC: u16 = 0x02;
+#[cfg(Py_3_15)]
 pub const PySlot_INTPTR: u16 = 0x04;
+#[cfg(Py_3_15)]
 pub const Py_slot_invalid: u16 = 0xffff;
 
+#[cfg(Py_3_15)]
 pub const fn PySlot_DATA(NAME: u16, VALUE: *mut c_void) -> PySlot {
     PySlot {
         sl_id: NAME,
@@ -63,6 +78,7 @@ pub const fn PySlot_DATA(NAME: u16, VALUE: *mut c_void) -> PySlot {
 /// share size and ABI with `_Py_funcptr_t` — but CPython will eventually call
 /// the function with a particular signature, and a mismatch is UB.)
 #[macro_export]
+#[cfg(Py_3_15)]
 macro_rules! PySlot_FUNC {
     ($name:expr, $value:expr) => {
         $crate::PySlot {
@@ -76,6 +92,7 @@ macro_rules! PySlot_FUNC {
     };
 }
 
+#[cfg(Py_3_15)]
 pub const fn PySlot_SIZE(NAME: u16, VALUE: Py_ssize_t) -> PySlot {
     PySlot {
         sl_id: NAME,
@@ -85,6 +102,7 @@ pub const fn PySlot_SIZE(NAME: u16, VALUE: Py_ssize_t) -> PySlot {
     }
 }
 
+#[cfg(Py_3_15)]
 pub const fn PySlot_INT64(NAME: u16, VALUE: i64) -> PySlot {
     PySlot {
         sl_id: NAME,
@@ -94,6 +112,7 @@ pub const fn PySlot_INT64(NAME: u16, VALUE: i64) -> PySlot {
     }
 }
 
+#[cfg(Py_3_15)]
 pub const fn PySlot_UINT64(NAME: u16, VALUE: u64) -> PySlot {
     PySlot {
         sl_id: NAME,
@@ -103,6 +122,7 @@ pub const fn PySlot_UINT64(NAME: u16, VALUE: u64) -> PySlot {
     }
 }
 
+#[cfg(Py_3_15)]
 pub const fn PySlot_STATIC_DATA(NAME: u16, VALUE: *mut c_void) -> PySlot {
     PySlot {
         sl_id: NAME,
@@ -112,6 +132,7 @@ pub const fn PySlot_STATIC_DATA(NAME: u16, VALUE: *mut c_void) -> PySlot {
     }
 }
 
+#[cfg(Py_3_15)]
 pub const fn PySlot_PTR(NAME: u16, VALUE: *mut c_void) -> PySlot {
     PySlot {
         sl_id: NAME,
@@ -121,6 +142,7 @@ pub const fn PySlot_PTR(NAME: u16, VALUE: *mut c_void) -> PySlot {
     }
 }
 
+#[cfg(Py_3_15)]
 pub const fn PySlot_PTR_STATIC(NAME: u16, VALUE: *mut c_void) -> PySlot {
     PySlot {
         sl_id: NAME,
@@ -130,6 +152,7 @@ pub const fn PySlot_PTR_STATIC(NAME: u16, VALUE: *mut c_void) -> PySlot {
     }
 }
 
+#[cfg(Py_3_15)]
 pub const fn PySlot_END() -> PySlot {
     unsafe { std::mem::zeroed() }
 }
