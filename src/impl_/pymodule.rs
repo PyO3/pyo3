@@ -279,12 +279,7 @@ impl PyModuleSlotsBuilder {
         }
         #[cfg(Py_3_15)]
         {
-            self.push_value(ffi::PySlot_FUNC(ffi::Py_mod_exec, unsafe {
-                std::mem::transmute::<
-                    unsafe extern "C" fn(*mut pyo3_ffi::PyObject) -> i32,
-                    ffi::_Py_funcptr_t,
-                >(exec)
-            }))
+            self.push_value(ffi::PySlot_FUNC!(ffi::Py_mod_exec, exec))
         }
     }
 

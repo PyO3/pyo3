@@ -32,20 +32,10 @@ pub static mut SEQUENTIAL_SLOTS: [PySlot; SEQUENTIAL_SLOTS_LEN] = [
         Py_mod_state_size,
         mem::size_of::<sequential_state>() as Py_ssize_t,
     ),
-    PySlot_FUNC(Py_mod_state_traverse, unsafe {
-        std::mem::transmute::<traverseproc, _Py_funcptr_t>(sequential_traverse)
-    }),
-    PySlot_FUNC(Py_mod_state_clear, unsafe {
-        std::mem::transmute::<inquiry, _Py_funcptr_t>(sequential_clear)
-    }),
-    PySlot_FUNC(Py_mod_state_free, unsafe {
-        std::mem::transmute::<freefunc, _Py_funcptr_t>(sequential_free)
-    }),
-    PySlot_FUNC(Py_mod_exec, unsafe {
-        std::mem::transmute::<unsafe extern "C" fn(*mut PyObject) -> c_int, _Py_funcptr_t>(
-            sequential_exec,
-        )
-    }),
+    PySlot_FUNC!(Py_mod_state_traverse, sequential_traverse),
+    PySlot_FUNC!(Py_mod_state_clear, sequential_clear),
+    PySlot_FUNC!(Py_mod_state_free, sequential_free),
+    PySlot_FUNC!(Py_mod_exec, sequential_exec),
     PySlot_DATA(
         Py_mod_multiple_interpreters,
         Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
@@ -68,7 +58,7 @@ pub static mut SEQUENTIAL_SLOTS: [PyModuleDef_Slot; SEQUENTIAL_SLOTS_LEN] = [
     #[cfg(Py_GIL_DISABLED)]
     PyModuleDef_Slot {
         slot: Py_mod_gil,
-        vale: Py_MOD_GIL_NOT_USED,
+        value: Py_MOD_GIL_NOT_USED,
     },
 ];
 

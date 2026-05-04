@@ -55,13 +55,25 @@ pub const fn PySlot_DATA(NAME: u16, VALUE: *mut c_void) -> PySlot {
     }
 }
 
-pub const fn PySlot_FUNC(NAME: u16, VALUE: _Py_funcptr_t) -> PySlot {
-    PySlot {
-        sl_id: NAME,
-        sl_flags: 0,
-        anon1: _anon_union_32b { sl_reserved: 0 },
-        anon2: _anon_union_64b { sl_func: VALUE },
-    }
+/// # Safety
+///
+/// Like the C macro, this performs no signature check on `$value`. The caller
+/// must ensure the function pointer is appropriate for the given slot id.
+/// (Constructing the `PySlot` is itself sound — all `extern "C"` fn pointers
+/// share size and ABI with `_Py_funcptr_t` — but CPython will eventually call
+/// the function with a particular signature, and a mismatch is UB.)
+#[macro_export]
+macro_rules! PySlot_FUNC {
+    ($name:expr, $value:expr) => {
+        $crate::PySlot {
+            sl_id: $name,
+            sl_flags: 0,
+            anon1: $crate::_anon_union_32b { sl_reserved: 0 },
+            anon2: $crate::_anon_union_64b {
+                sl_func: unsafe { ::std::mem::transmute::<_, $crate::_Py_funcptr_t>($value) },
+            },
+        }
+    };
 }
 
 pub const fn PySlot_SIZE(NAME: u16, VALUE: Py_ssize_t) -> PySlot {

@@ -189,7 +189,7 @@
 //! static mut SLOTS: [PySlot; SLOTS_LEN] = [
 //!     PySlot_STATIC_DATA(Py_mod_abi, std::ptr::addr_of_mut!(ABI_INFO).cast()),
 //!     PySlot_STATIC_DATA(Py_mod_name, c"string_sum".as_ptr() as *mut c_void),
-//!     PySlot_STATIC_DATA(Py_mod_name, c"A Python module written in Rust.".as_ptr() as *mut c_void),
+//!     PySlot_STATIC_DATA(Py_mod_doc, c"A Python module written in Rust.".as_ptr() as *mut c_void),
 //!     PySlot_STATIC_DATA(Py_mod_methods, (&raw mut METHODS).cast()),
 //!     PySlot_DATA(Py_mod_multiple_interpreters, Py_MOD_PER_INTERPRETER_GIL_SUPPORTED),
 //!     #[cfg(Py_GIL_DISABLED)]
