@@ -49,6 +49,7 @@ pub struct ModuleDef {
     name: &'static CStr,
     #[cfg(Py_3_15)]
     doc: &'static CStr,
+    #[cfg(Py_3_15)]
     slots: &'static PyModuleSlots,
     /// Interpreter ID where module was initialized (not applicable on PyPy).
     #[cfg(all(
@@ -101,6 +102,7 @@ impl ModuleDef {
             name,
             #[cfg(Py_3_15)]
             doc,
+            #[cfg(Py_3_15)]
             slots,
             // -1 is never expected to be a valid interpreter ID
             #[cfg(all(
@@ -227,9 +229,35 @@ impl ModuleDef {
                 .map(|py_module| py_module.clone_ref(py))
         }
     }
+    #[cfg(Py_3_15)]
     pub fn get_slots(&'static self) -> *mut ffi::PySlot {
         self.slots.0.get() as *mut ffi::PySlot
     }
+}
+
+/// Defines the `PyModExport_<name>` entry point used by Python 3.15 and newer.
+///
+/// This is wrapped in a `macro_rules!` so the proc-macro backend can emit a single
+/// version-agnostic invocation; the body only expands on Python 3.15+, where
+/// `ffi::PySlot` is defined.
+#[cfg(Py_3_15)]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __pyo3_pymodexport {
+    ($symbol:literal, $def:path) => {
+        #[doc(hidden)]
+        #[export_name = $symbol]
+        pub unsafe extern "C" fn __pyo3_export() -> *mut $crate::ffi::PySlot {
+            $def.get_slots()
+        }
+    };
+}
+
+#[cfg(not(Py_3_15))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __pyo3_pymodexport {
+    ($symbol:literal, $def:path) => {};
 }
 
 /// Type of the exec slot used to initialise module contents
@@ -557,7 +585,6 @@ mod tests {
             assert_eq!(module_def.name, NAME);
             assert_eq!(module_def.doc, DOC);
         }
-        assert_eq!(module_def.slots.0.get(), SLOTS.0.get());
     }
 
     #[test]

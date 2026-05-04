@@ -476,6 +476,7 @@ pub use self::rangeobject::*;
 pub use self::refcount::*;
 pub use self::setobject::*;
 pub use self::sliceobject::*;
+#[cfg(Py_3_15)]
 pub use self::slots::*;
 pub use self::slots_generated::*;
 pub use self::structseq::*;

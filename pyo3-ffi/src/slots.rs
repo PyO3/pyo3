@@ -34,9 +34,6 @@ pub struct PySlot {
     pub anon2: _anon_union_64b,
 }
 
-#[cfg(not(Py_3_15))]
-opaque_struct!(pub PySlot);
-
 #[cfg(Py_3_15)]
 impl PartialEq for PySlot {
     fn eq(&self, other: &Self) -> bool {
