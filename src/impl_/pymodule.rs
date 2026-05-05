@@ -1,5 +1,4 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
-
 use std::{
     cell::UnsafeCell,
     ffi::CStr,
@@ -399,17 +398,14 @@ impl PyModuleSlotsBuilder {
     }
 
     #[cfg(not(Py_3_15))]
-    const fn push(mut self, slot: u16, value: *mut c_void) -> Self {
+    const fn push(mut self, slot: c_int, value: *mut c_void) -> Self {
         // Required to guarantee there's still a zeroed element
         // at the end
         assert!(
             self.len < MAX_SLOTS,
             "Cannot add more than MAX_SLOTS slots to a PyModuleSlots",
         );
-        self.values[self.len] = ffi::PyModuleDef_Slot {
-            slot: slot as c_int,
-            value,
-        };
+        self.values[self.len] = ffi::PyModuleDef_Slot { slot, value };
         self.len += 1;
         self
     }

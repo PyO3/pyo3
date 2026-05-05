@@ -1,7 +1,7 @@
 #[cfg(Py_3_15)]
 use crate::Py_ssize_t;
 #[cfg(Py_3_15)]
-use std::ffi::c_void;
+use std::ffi::{c_int, c_void};
 
 #[cfg(Py_3_15)]
 pub type _Py_funcptr_t = unsafe extern "C" fn();
@@ -43,10 +43,18 @@ pub const PySlot_INTPTR: u16 = 0x04;
 #[cfg(Py_3_15)]
 pub const Py_slot_invalid: u16 = 0xffff;
 
+const fn safe_cast_c_int_to_u16(val: i32) -> u16 {
+    if val >= 0 && val <= u16::MAX as c_int {
+        val as u16
+    } else {
+        panic!("Slot ID out of range for u16!");
+    }
+}
+
 #[cfg(Py_3_15)]
-pub const fn PySlot_DATA(NAME: u16, VALUE: *mut c_void) -> PySlot {
+pub const fn PySlot_DATA(NAME: c_int, VALUE: *mut c_void) -> PySlot {
     PySlot {
-        sl_id: NAME,
+        sl_id: safe_cast_c_int_to_u16(NAME),
         sl_flags: PySlot_INTPTR,
         anon1: _anon_union_32b { sl_reserved: 0 },
         anon2: _anon_union_64b { sl_ptr: VALUE },
@@ -63,7 +71,11 @@ pub const fn PySlot_DATA(NAME: u16, VALUE: *mut c_void) -> PySlot {
 macro_rules! PySlot_FUNC {
     ($name:expr, $fn_ty:ty, $value:expr) => {
         $crate::PySlot {
-            sl_id: $name,
+            sl_id: if $name >= 0 && $name <= u16::MAX as c_int {
+                $name as u16
+            } else {
+                panic!("Slot ID out of range for u16!");
+            },
             sl_flags: 0,
             anon1: $crate::_anon_union_32b { sl_reserved: 0 },
             anon2: $crate::_anon_union_64b {
@@ -74,9 +86,9 @@ macro_rules! PySlot_FUNC {
 }
 
 #[cfg(Py_3_15)]
-pub const fn PySlot_SIZE(NAME: u16, VALUE: Py_ssize_t) -> PySlot {
+pub const fn PySlot_SIZE(NAME: c_int, VALUE: Py_ssize_t) -> PySlot {
     PySlot {
-        sl_id: NAME,
+        sl_id: safe_cast_c_int_to_u16(NAME),
         sl_flags: 0,
         anon1: _anon_union_32b { sl_reserved: 0 },
         anon2: _anon_union_64b { sl_size: VALUE },
@@ -84,9 +96,9 @@ pub const fn PySlot_SIZE(NAME: u16, VALUE: Py_ssize_t) -> PySlot {
 }
 
 #[cfg(Py_3_15)]
-pub const fn PySlot_INT64(NAME: u16, VALUE: i64) -> PySlot {
+pub const fn PySlot_INT64(NAME: c_int, VALUE: i64) -> PySlot {
     PySlot {
-        sl_id: NAME,
+        sl_id: safe_cast_c_int_to_u16(NAME),
         sl_flags: 0,
         anon1: _anon_union_32b { sl_reserved: 0 },
         anon2: _anon_union_64b { sl_int64: VALUE },
@@ -94,9 +106,9 @@ pub const fn PySlot_INT64(NAME: u16, VALUE: i64) -> PySlot {
 }
 
 #[cfg(Py_3_15)]
-pub const fn PySlot_UINT64(NAME: u16, VALUE: u64) -> PySlot {
+pub const fn PySlot_UINT64(NAME: c_int, VALUE: u64) -> PySlot {
     PySlot {
-        sl_id: NAME,
+        sl_id: safe_cast_c_int_to_u16(NAME),
         sl_flags: 0,
         anon1: _anon_union_32b { sl_reserved: 0 },
         anon2: _anon_union_64b { sl_uint64: VALUE },
@@ -104,9 +116,9 @@ pub const fn PySlot_UINT64(NAME: u16, VALUE: u64) -> PySlot {
 }
 
 #[cfg(Py_3_15)]
-pub const fn PySlot_STATIC_DATA(NAME: u16, VALUE: *mut c_void) -> PySlot {
+pub const fn PySlot_STATIC_DATA(NAME: c_int, VALUE: *mut c_void) -> PySlot {
     PySlot {
-        sl_id: NAME,
+        sl_id: safe_cast_c_int_to_u16(NAME),
         sl_flags: PySlot_STATIC,
         anon1: _anon_union_32b { sl_reserved: 0 },
         anon2: _anon_union_64b { sl_ptr: VALUE },
@@ -114,9 +126,9 @@ pub const fn PySlot_STATIC_DATA(NAME: u16, VALUE: *mut c_void) -> PySlot {
 }
 
 #[cfg(Py_3_15)]
-pub const fn PySlot_PTR(NAME: u16, VALUE: *mut c_void) -> PySlot {
+pub const fn PySlot_PTR(NAME: c_int, VALUE: *mut c_void) -> PySlot {
     PySlot {
-        sl_id: NAME,
+        sl_id: safe_cast_c_int_to_u16(NAME),
         sl_flags: PySlot_INTPTR,
         anon1: _anon_union_32b { sl_reserved: 0 },
         anon2: _anon_union_64b { sl_ptr: VALUE },
@@ -124,9 +136,9 @@ pub const fn PySlot_PTR(NAME: u16, VALUE: *mut c_void) -> PySlot {
 }
 
 #[cfg(Py_3_15)]
-pub const fn PySlot_PTR_STATIC(NAME: u16, VALUE: *mut c_void) -> PySlot {
+pub const fn PySlot_PTR_STATIC(NAME: c_int, VALUE: *mut c_void) -> PySlot {
     PySlot {
-        sl_id: NAME,
+        sl_id: safe_cast_c_int_to_u16(NAME),
         sl_flags: PySlot_INTPTR | PySlot_STATIC,
         anon1: _anon_union_32b { sl_reserved: 0 },
         anon2: _anon_union_64b { sl_ptr: VALUE },

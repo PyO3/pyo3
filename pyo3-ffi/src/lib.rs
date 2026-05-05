@@ -167,12 +167,12 @@
 //! #[cfg(not(Py_3_15))]
 //! static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
 //!     PyModuleDef_Slot {
-//!         slot: Py_mod_multiple_interpreters as c_int,
+//!         slot: Py_mod_multiple_interpreters,
 //!         value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
 //!     },
 //!     #[cfg(Py_GIL_DISABLED)]
 //!     PyModuleDef_Slot {
-//!         slot: Py_mod_gil as c_int,
+//!         slot: Py_mod_gil,
 //!         value: Py_MOD_GIL_NOT_USED,
 //!     },
 //!     PyModuleDef_Slot {
@@ -485,7 +485,6 @@ pub use self::structseq::*;
 pub use self::sysmodule::*;
 pub use self::traceback::*;
 pub use self::tupleobject::*;
-pub use self::typeslots::*;
 pub use self::unicodeobject::*;
 pub use self::warnings::*;
 pub use self::weakrefobject::*;
@@ -579,7 +578,6 @@ mod sysmodule;
 mod traceback;
 // skipped tracemalloc.h
 mod tupleobject;
-mod typeslots;
 mod unicodeobject;
 mod warnings;
 mod weakrefobject;
