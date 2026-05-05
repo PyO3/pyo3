@@ -397,11 +397,11 @@ mod fast_128bit_int_conversion {
                             unsafe { digits.add(i).write(rest as u32 & ((1 << 30) - 1)) };
                             rest >>= 30;
                         }
-                        Ok(unsafe {
+                        unsafe {
                             ffi::PyLongWriter_Finish(long_writer)
                                 .assume_owned_or_err(py)
                                 .cast_into_unchecked()
-                        })
+                        }
                     }
                     #[cfg(all(Py_3_13, not(Py_3_14)))]
                     {
@@ -678,11 +678,10 @@ fn err_if_invalid_value<T: PartialEq>(
 
 macro_rules! nonzero_int_impl {
     ($nonzero_type:ty, $primitive_type:ty) => {
-        type Error = <$primitive_type as IntoPyObject<'py>>::Error;
-        {
+        impl<'py> IntoPyObject<'py> for $nonzero_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
-            type Error = Infallible;
+            type Error = <$primitive_type as IntoPyObject<'py>>::Error;
 
             #[cfg(feature = "experimental-inspect")]
             const OUTPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
