@@ -64,6 +64,10 @@ pub static mut SEQUENTIAL_SLOTS: [PyModuleDef_Slot; SEQUENTIAL_SLOTS_LEN] = [
         slot: Py_mod_gil,
         value: Py_MOD_GIL_NOT_USED,
     },
+    PyModuleDef_Slot {
+        slot: 0,
+        value: ptr::null_mut(),
+    },
 ];
 
 unsafe extern "C" fn sequential_exec(module: *mut PyObject) -> c_int {
