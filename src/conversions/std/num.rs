@@ -679,6 +679,7 @@ fn err_if_invalid_value<T: PartialEq>(
 macro_rules! nonzero_int_impl {
     ($nonzero_type:ty, $primitive_type:ty) => {
         type Error = <$primitive_type as IntoPyObject<'py>>::Error;
+        {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
