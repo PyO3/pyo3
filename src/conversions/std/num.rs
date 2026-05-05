@@ -363,7 +363,7 @@ mod fast_128bit_int_conversion {
             impl<'py> IntoPyObject<'py> for $rust_type {
                 type Target = PyInt;
                 type Output = Bound<'py, Self::Target>;
-                type Error = Infallible;
+                type Error = PyErr;
 
                 #[cfg(feature = "experimental-inspect")]
                 const OUTPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
@@ -389,7 +389,7 @@ mod fast_128bit_int_conversion {
                             )
                         };
                         if long_writer.is_null() {
-                            PyErr::fetch(py).restore(py);
+                            return Err(PyErr::fetch(py));
                         }
                         let digits = ptr.cast::<u32>();
                         let mut rest = abs;
@@ -399,7 +399,7 @@ mod fast_128bit_int_conversion {
                         }
                         Ok(unsafe {
                             ffi::PyLongWriter_Finish(long_writer)
-                                .assume_owned(py)
+                                .assume_owned_or_err(py)
                                 .cast_into_unchecked()
                         })
                     }
@@ -419,7 +419,7 @@ mod fast_128bit_int_conversion {
             impl<'py> IntoPyObject<'py> for &$rust_type {
                 type Target = PyInt;
                 type Output = Bound<'py, Self::Target>;
-                type Error = Infallible;
+                type Error = PyErr;
 
                 #[cfg(feature = "experimental-inspect")]
                 const OUTPUT_TYPE: PyStaticExpr = <$rust_type>::OUTPUT_TYPE;
@@ -678,7 +678,7 @@ fn err_if_invalid_value<T: PartialEq>(
 
 macro_rules! nonzero_int_impl {
     ($nonzero_type:ty, $primitive_type:ty) => {
-        impl<'py> IntoPyObject<'py> for $nonzero_type {
+        type Error = <$primitive_type as IntoPyObject<'py>>::Error;
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
             type Error = Infallible;
@@ -695,7 +695,7 @@ macro_rules! nonzero_int_impl {
         impl<'py> IntoPyObject<'py> for &$nonzero_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
-            type Error = Infallible;
+            type Error = <$nonzero_type as IntoPyObject<'py>>::Error;
 
             #[cfg(feature = "experimental-inspect")]
             const OUTPUT_TYPE: PyStaticExpr = <$nonzero_type>::OUTPUT_TYPE;
