@@ -389,7 +389,11 @@ extern_libpython! {
 
     #[cfg(Py_3_14)]
     #[cfg_attr(PyPy, link_name = "PyPyType_GetBaseByToken")]
-    pub fn PyType_GetBaseByToken(type_: *mut PyTypeObject, token: *mut c_void, result: *mut *mut PyTypeObject) -> c_int;
+    pub fn PyType_GetBaseByToken(
+        type_: *mut PyTypeObject,
+        token: *mut c_void,
+        result: *mut *mut PyTypeObject,
+    ) -> c_int;
 
     #[cfg(Py_3_15)]
     #[cfg_attr(PyPy, link_name = "PyPyType_FromSlot")]
