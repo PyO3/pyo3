@@ -1,3 +1,5 @@
+#[cfg(not(Py_3_15))]
+use std::ffi::c_int;
 #[cfg(Py_3_15)]
 use std::ffi::c_void;
 use std::ffi::{c_char, c_long};
@@ -58,12 +60,12 @@ static mut SLOTS: [PySlot; SLOTS_LEN] = [
 static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
     #[cfg(Py_3_12)]
     PyModuleDef_Slot {
-        slot: Py_mod_multiple_interpreters,
+        slot: Py_mod_multiple_interpreters as c_int,
         value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
     },
     #[cfg(Py_GIL_DISABLED)]
     PyModuleDef_Slot {
-        slot: Py_mod_gil,
+        slot: Py_mod_gil as c_int,
         value: Py_MOD_GIL_NOT_USED,
     },
     PyModuleDef_Slot {
