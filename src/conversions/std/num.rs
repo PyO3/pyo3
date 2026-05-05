@@ -390,7 +390,7 @@ mod fast_128bit_int_conversion {
                         };
                         if long_writer.is_null() {
                             PyErr::fetch(py).restore(py);
-                            panic!("failed to create Python inr");
+                            panic!("failed to create Python int");
                         }
                         let digits = digits_ptr.cast::<u32>();
                         let mut rest = abs;
