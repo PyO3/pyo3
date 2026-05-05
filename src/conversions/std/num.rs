@@ -379,7 +379,7 @@ mod fast_128bit_int_conversion {
                             value
                         };
                         let bits = 128 - abs.leading_zeros() as usize;
-                        let n_digits = if bits == 0 { 1 } else { (bits + 29) / 30 };
+                        let n_digits = if bits == 0 { 1 } else { bits.div_ceil(30) };
                         let mut digits_ptr = std::ptr::null_mut();
                         let long_writer = unsafe {
                             ffi::PyLongWriter_Create(
