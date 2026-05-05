@@ -495,7 +495,11 @@ impl PyAddToModule for ModuleDef {
 
 #[cfg(test)]
 mod tests {
-    use std::{borrow::Cow, ffi::CStr, os::raw::c_int};
+    use std::{
+        borrow::Cow,
+        ffi::CStr,
+        os::raw::{c_int, c_void},
+    };
 
     use crate::{
         ffi,
@@ -597,8 +601,31 @@ mod tests {
             .with_gil_used(false)
             .with_abi_info();
 
-        assert!(builder.values[builder.len] == unsafe { std::mem::zeroed() });
-        assert!(builder.values[builder.len - 1] != unsafe { std::mem::zeroed() });
+        #[cfg(Py_3_15)]
+        type SlotType = ffi::PySlot;
+        #[cfg(not(Py_3_15))]
+        type SlotType = ffi::PyModuleDef_Slot;
+
+        let zeroed: SlotType = unsafe { std::mem::zeroed() };
+
+        assert!(
+            unsafe {
+                libc::memcmp(
+                    &builder.values[builder.len] as *const SlotType as *const c_void,
+                    &zeroed as *const SlotType as *const c_void,
+                    std::mem::size_of::<SlotType>(),
+                )
+            } == 0
+        );
+        assert!(
+            unsafe {
+                libc::memcmp(
+                    &builder.values[builder.len - 1] as *const SlotType as *const c_void,
+                    &zeroed as *const SlotType as *const c_void,
+                    std::mem::size_of::<SlotType>(),
+                )
+            } != 0
+        );
         assert!(builder.len == MAX_SLOTS);
 
         let result = std::panic::catch_unwind(|| builder.with_mod_exec(module_exec).build());

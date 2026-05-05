@@ -35,20 +35,6 @@ pub struct PySlot {
 }
 
 #[cfg(Py_3_15)]
-impl PartialEq for PySlot {
-    fn eq(&self, other: &Self) -> bool {
-        unsafe {
-            // memcmp returns 0 if the memory blocks are identical
-            libc::memcmp(
-                self as *const Self as *const c_void,
-                other as *const Self as *const c_void,
-                std::mem::size_of::<Self>(),
-            ) == 0
-        }
-    }
-}
-
-#[cfg(Py_3_15)]
 pub const PySlot_OPTIONAL: u16 = 0x01;
 #[cfg(Py_3_15)]
 pub const PySlot_STATIC: u16 = 0x02;
