@@ -495,11 +495,7 @@ impl PyAddToModule for ModuleDef {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        borrow::Cow,
-        ffi::CStr,
-        os::raw::{c_int, c_void},
-    };
+    use std::{borrow::Cow, ffi::CStr, os::raw::c_int};
 
     use crate::{
         ffi,
@@ -608,24 +604,19 @@ mod tests {
 
         let zeroed: SlotType = unsafe { std::mem::zeroed() };
 
-        assert!(
+        fn raw_bytes(inst: &SlotType) -> &[u8] {
             unsafe {
-                libc::memcmp(
-                    &builder.values[builder.len] as *const SlotType as *const c_void,
-                    &zeroed as *const SlotType as *const c_void,
+                std::slice::from_raw_parts(
+                    inst as *const SlotType as *const u8,
                     std::mem::size_of::<SlotType>(),
                 )
-            } == 0
-        );
-        assert!(
-            unsafe {
-                libc::memcmp(
-                    &builder.values[builder.len - 1] as *const SlotType as *const c_void,
-                    &zeroed as *const SlotType as *const c_void,
-                    std::mem::size_of::<SlotType>(),
-                )
-            } != 0
-        );
+            }
+        }
+        let second_last_bytes = raw_bytes(&builder.values[builder.len - 1]);
+        let end_slot_bytes = raw_bytes(&builder.values[builder.len]);
+        let zeroed_bytes = raw_bytes(&zeroed);
+        assert_eq!(end_slot_bytes, zeroed_bytes);
+        assert_ne!(second_last_bytes, zeroed_bytes);
         assert!(builder.len == MAX_SLOTS);
 
         let result = std::panic::catch_unwind(|| builder.with_mod_exec(module_exec).build());
