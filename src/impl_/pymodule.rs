@@ -596,27 +596,30 @@ mod tests {
             .with_doc(c"some doc")
             .with_gil_used(false)
             .with_abi_info();
+        let second_last = builder.values[builder.len - 1];
+        let last = builder.values[builder.len];
 
         #[cfg(Py_3_15)]
-        type SlotType = ffi::PySlot;
-        #[cfg(not(Py_3_15))]
-        type SlotType = ffi::PyModuleDef_Slot;
-
-        let zeroed: SlotType = unsafe { std::mem::zeroed() };
-
-        fn raw_bytes(inst: &SlotType) -> &[u8] {
-            unsafe {
-                std::slice::from_raw_parts(
-                    inst as *const SlotType as *const u8,
-                    std::mem::size_of::<SlotType>(),
-                )
+        {
+            let zeroed = unsafe { std::mem::zeroed() };
+            fn raw_bytes(inst: &ffi::PySlot) -> &[u8] {
+                unsafe {
+                    std::slice::from_raw_parts(
+                        inst as *const ffi::PySlot as *const u8,
+                        std::mem::size_of::<ffi::PySlot>(),
+                    )
+                }
             }
+            let zeroed_bytes = raw_bytes(&zeroed);
+            assert_eq!(raw_bytes(&last), zeroed_bytes);
+            assert_ne!(raw_bytes(&second_last), zeroed_bytes);
         }
-        let second_last_bytes = raw_bytes(&builder.values[builder.len - 1]);
-        let end_slot_bytes = raw_bytes(&builder.values[builder.len]);
-        let zeroed_bytes = raw_bytes(&zeroed);
-        assert_eq!(end_slot_bytes, zeroed_bytes);
-        assert_ne!(second_last_bytes, zeroed_bytes);
+        #[cfg(not(Py_3_15))]
+        {
+            let zeroed = ffi::PyModuleDef_Slot::default();
+            assert_eq!(last, zeroed);
+            assert_ne!(second_last, zeroed);
+        }
         assert!(builder.len == MAX_SLOTS);
 
         let result = std::panic::catch_unwind(|| builder.with_mod_exec(module_exec).build());
