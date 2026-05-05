@@ -373,7 +373,11 @@ mod fast_128bit_int_conversion {
                     {
                         let value = self as u128;
                         let negative = $is_signed && value < 0;
-                        let abs = if negative { value.wrapping_neg() } else { value };
+                        let abs = if negative {
+                            value.wrapping_neg()
+                        } else {
+                            value
+                        };
                         let bits = 128 - abs.leading_zeros() as usize;
                         let n_digits = if bits == 0 { 1 } else { (bits + 29) / 30 };
                         let mut digits_ptr = std::ptr::null_mut();
@@ -447,7 +451,9 @@ mod fast_128bit_int_conversion {
                         let long_export = unsafe { long_export.assume_init() };
                         if long_export.digits.is_null() {
                             return <$rust_type>::try_from(long_export.value).map_err(|_| {
-                                exceptions::PyOverflowError::new_err("Python int larger than 128 bits")
+                                exceptions::PyOverflowError::new_err(
+                                    "Python int larger than 128 bits",
+                                )
                             });
                         }
                         let overflow = || {
