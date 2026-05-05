@@ -617,8 +617,8 @@ mod tests {
         #[cfg(not(Py_3_15))]
         {
             let zeroed = ffi::PyModuleDef_Slot::default();
-            assert_eq!(last, zeroed);
-            assert_ne!(second_last, zeroed);
+            assert!(last == zeroed);
+            assert!(second_last != zeroed);
         }
         assert!(builder.len == MAX_SLOTS);
 
