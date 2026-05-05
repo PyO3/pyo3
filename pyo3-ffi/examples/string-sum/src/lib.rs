@@ -1,5 +1,3 @@
-#[cfg(not(Py_3_15))]
-use std::ffi::c_int;
 #[cfg(Py_3_15)]
 use std::ffi::c_void;
 use std::ffi::{c_char, c_long};
