@@ -865,6 +865,28 @@ mod test_128bit_integers {
     }
 
     #[test]
+    fn test_u128_negative() {
+        Python::attach(|py| {
+            let obj = py.eval(c"-1", None, None).unwrap();
+            let err = obj.extract::<u128>().unwrap_err();
+            assert!(err.is_instance_of::<exceptions::PyOverflowError>(py));
+        })
+    }
+
+    #[test]
+    fn test_i128_boundary_overflow() {
+        Python::attach(|py| {
+            let obj = py.eval(c"-(2**127) - 1", None, None).unwrap();
+            let err = obj.extract::<i128>().unwrap_err();
+            assert!(err.is_instance_of::<exceptions::PyOverflowError>(py));
+
+            let obj = py.eval(c"2**127", None, None).unwrap();
+            let err = obj.extract::<i128>().unwrap_err();
+            assert!(err.is_instance_of::<exceptions::PyOverflowError>(py));
+        })
+    }
+
+    #[test]
     fn test_nonzero_i128_max() {
         Python::attach(|py| {
             let v = NonZeroI128::new(i128::MAX).unwrap();
@@ -913,7 +935,7 @@ mod test_128bit_integers {
         Python::attach(|py| {
             let obj = py.eval(c"1 << 130", None, None).unwrap();
             let err = obj.extract::<NonZeroU128>().unwrap_err();
-            assert!(err.is_instance_of::<crate::exceptions::PyOverflowError>(py));
+            assert!(err.is_instance_of::<exceptions::PyOverflowError>(py));
         })
     }
 
