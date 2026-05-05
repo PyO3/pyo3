@@ -172,7 +172,7 @@
 //!     },
 //!     #[cfg(Py_GIL_DISABLED)]
 //!     PyModuleDef_Slot {
-//!         slot: Py_mod_gil,
+//!         slot: Py_mod_gil as c_int,
 //!         value: Py_MOD_GIL_NOT_USED,
 //!     },
 //!     PyModuleDef_Slot {
