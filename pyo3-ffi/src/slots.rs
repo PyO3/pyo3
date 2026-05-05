@@ -43,6 +43,7 @@ pub const PySlot_INTPTR: u16 = 0x04;
 #[cfg(Py_3_15)]
 pub const Py_slot_invalid: u16 = 0xffff;
 
+#[cfg(Py_3_15)]
 const fn safe_cast_c_int_to_u16(val: i32) -> u16 {
     if val >= 0 && val <= u16::MAX as c_int {
         val as u16
