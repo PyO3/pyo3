@@ -6,6 +6,8 @@ use libc::size_t;
 #[cfg(Py_3_13)]
 use std::ffi::c_void;
 use std::ffi::{c_int, c_uchar};
+#[cfg(Py_3_14)]
+use crate::Py_uintptr_t;
 
 #[cfg(Py_3_13)]
 extern_libpython! {
@@ -24,6 +26,29 @@ pub const Py_ASNATIVEBYTES_NATIVE_ENDIAN: c_int = 3;
 pub const Py_ASNATIVEBYTES_UNSIGNED_BUFFER: c_int = 4;
 #[cfg(Py_3_13)]
 pub const Py_ASNATIVEBYTES_REJECT_NEGATIVE: c_int = 8;
+
+#[cfg(Py_3_14)]
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct PyLongLayout {
+    pub bits_per_digit: u8,
+    pub digit_size: u8,
+    pub digits_order: i8,
+    pub digit_endianness: i8,
+}
+
+#[cfg(Py_3_14)]
+#[repr(C)]
+pub struct PyLongExport {
+    pub value: i64,
+    pub negative: u8,
+    pub ndigits: Py_ssize_t,
+    pub digits: *const c_void,
+    pub _reserved: Py_uintptr_t,
+}
+
+#[cfg(Py_3_14)]
+opaque_struct!(pub PyLongWriter);
 
 extern_libpython! {
     // skipped _PyLong_Sign
@@ -71,4 +96,26 @@ extern_libpython! {
     ) -> c_int;
 
     // skipped _PyLong_GCD
+
+    #[cfg(Py_3_14)]
+    pub fn PyLong_GetNativeLayout() -> *const PyLongLayout;
+
+    #[cfg(Py_3_14)]
+    pub fn PyLong_Export(obj: *mut PyObject, export_long: *mut PyLongExport) -> c_int;
+
+    #[cfg(Py_3_14)]
+    pub fn PyLong_FreeExport(export_long: *mut PyLongExport);
+
+    #[cfg(Py_3_14)]
+    pub fn PyLongWriter_Create(
+        negative: c_int,
+        ndigits: Py_ssize_t,
+        digits: *mut *mut c_void,
+    ) -> *mut PyLongWriter;
+
+    #[cfg(Py_3_14)]
+    pub fn PyLongWriter_Finish(writer: *mut PyLongWriter) -> *mut PyObject;
+
+    #[cfg(Py_3_14)]
+    pub fn PyLongWriter_Discard(writer: *mut PyLongWriter);
 }
