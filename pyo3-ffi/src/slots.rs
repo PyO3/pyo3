@@ -69,21 +69,19 @@ pub const fn PySlot_DATA(NAME: u16, VALUE: *mut c_void) -> PySlot {
 
 /// # Safety
 ///
-/// Like the C macro, this performs no signature check on `$value`. The caller
-/// must ensure the function pointer is appropriate for the given slot id.
-/// (Constructing the `PySlot` is itself sound — all `extern "C"` fn pointers
-/// share size and ABI with `_Py_funcptr_t` — but CPython will eventually call
-/// the function with a particular signature, and a mismatch is UB.)
+/// `$fn_ty$` must be the action found-pointer type of `$value` and must be a
+/// valid signature for slot `$name`. A mismatch between the slot and expected signature
+/// from CPython's point of view is UB.
 #[macro_export]
 #[cfg(Py_3_15)]
 macro_rules! PySlot_FUNC {
-    ($name:expr, $value:expr) => {
+    ($name:expr, $fn_ty:ty, $value:expr) => {
         $crate::PySlot {
             sl_id: $name,
             sl_flags: 0,
             anon1: $crate::_anon_union_32b { sl_reserved: 0 },
             anon2: $crate::_anon_union_64b {
-                sl_func: unsafe { ::std::mem::transmute::<_, $crate::_Py_funcptr_t>($value) },
+                sl_func: unsafe { ::std::mem::transmute::<$fn_ty, $crate::_Py_funcptr_t>($value) },
             },
         }
     };
