@@ -128,6 +128,8 @@
 //! ```rust,no_run
 //! #[cfg(Py_3_15)]
 //! use std::ffi::c_void;
+//! #[cfg(not(Py_3_15))]
+//! use std::ffi::c_int;
 //! use std::ffi::{c_char, c_long};
 //! use std::ptr;
 //!
@@ -165,7 +167,7 @@
 //! #[cfg(not(Py_3_15))]
 //! static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
 //!     PyModuleDef_Slot {
-//!         slot: Py_mod_multiple_interpreters,
+//!         slot: Py_mod_multiple_interpreters as c_int,
 //!         value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
 //!     },
 //!     #[cfg(Py_GIL_DISABLED)]
