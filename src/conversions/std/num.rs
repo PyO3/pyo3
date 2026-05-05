@@ -372,7 +372,7 @@ mod fast_128bit_int_conversion {
                     #[cfg(Py_3_14)]
                     {
                         let value = self as u128;
-                        let negative = $is_signed && value < 0;
+                        let negative = $is_signed && (self as i128) < 0;
                         let abs = if negative {
                             value.wrapping_neg()
                         } else {
