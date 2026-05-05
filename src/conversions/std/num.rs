@@ -380,19 +380,18 @@ mod fast_128bit_int_conversion {
                         };
                         let bits = 128 - abs.leading_zeros() as usize;
                         let n_digits = if bits == 0 { 1 } else { bits.div_ceil(30) };
-                        let mut digits_ptr = std::ptr::null_mut();
+                        let mut ptr = std::ptr::null_mut();
                         let long_writer = unsafe {
                             ffi::PyLongWriter_Create(
                                 negative.into(),
                                 n_digits as ffi::Py_ssize_t,
-                                &mut digits_ptr,
+                                &mut ptr,
                             )
                         };
                         if long_writer.is_null() {
                             PyErr::fetch(py).restore(py);
-                            panic!("failed to create Python int");
                         }
-                        let digits = digits_ptr.cast::<u32>();
+                        let digits = ptr.cast::<u32>();
                         let mut rest = abs;
                         for i in 0..n_digits {
                             unsafe { digits.add(i).write(rest as u32 & ((1 << 30) - 1)) };
