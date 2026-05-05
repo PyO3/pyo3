@@ -562,7 +562,7 @@ pub(crate) fn int_from_le_bytes<'py, const IS_SIGNED: bool>(
     }
 }
 
-#[cfg(all(Py_3_13, all(not(Py_3_14), not(Py_LIMITED_API))))]
+#[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
 pub(crate) fn int_from_ne_bytes<'py, const IS_SIGNED: bool>(
     py: Python<'py>,
     bytes: &[u8],
