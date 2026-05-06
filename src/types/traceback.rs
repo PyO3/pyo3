@@ -34,7 +34,7 @@ pyobject_native_type_core!(
     PyTraceback,
     |py| {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "builtins", "traceback").unwrap().as_type_ptr()
+        TYPE.import(py, "types", "TracebackType").unwrap().as_type_ptr()
     },
     "builtins",
     "traceback",
