@@ -783,7 +783,7 @@ pub struct InterpreterConfigBuilder {
     pointer_width: Option<u32>,
     build_flags: Option<BuildFlags>,
     suppress_build_script_link_lines: Option<bool>,
-    extra_build_script_lines: Option<Vec<String>>,
+    extra_build_script_lines: Vec<String>,
     python_framework_prefix: Option<String>,
 }
 
@@ -803,7 +803,7 @@ impl InterpreterConfigBuilder {
             pointer_width: None,
             build_flags: None,
             suppress_build_script_link_lines: None,
-            extra_build_script_lines: None,
+            extra_build_script_lines: vec![],
             python_framework_prefix: None,
         }
     }
@@ -877,7 +877,7 @@ impl InterpreterConfigBuilder {
         extra_build_script_lines: Vec<String>,
     ) -> InterpreterConfigBuilder {
         InterpreterConfigBuilder {
-            extra_build_script_lines: Some(extra_build_script_lines),
+            extra_build_script_lines: extra_build_script_lines,
             ..self
         }
     }
@@ -947,7 +947,7 @@ impl InterpreterConfigBuilder {
             suppress_build_script_link_lines: self
                 .suppress_build_script_link_lines
                 .unwrap_or(false),
-            extra_build_script_lines: self.extra_build_script_lines.unwrap_or(vec![]),
+            extra_build_script_lines: self.extra_build_script_lines,
             python_framework_prefix: self.python_framework_prefix,
         }
     }
