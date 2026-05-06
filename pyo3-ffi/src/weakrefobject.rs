@@ -18,15 +18,15 @@ extern_libpython! {
     static mut _PyWeakref_CallableProxyType: PyTypeObject;
 
     #[cfg(any(PyPy, RustPython))]
-    #[link_name = "PyPyWeakref_CheckRef"]
+    #[cfg_attr(PyPy, link_name = "PyPyWeakref_CheckRef")]
     pub fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int;
 
     #[cfg(any(PyPy, RustPython))]
-    #[link_name = "PyPyWeakref_CheckRefExact"]
+    #[cfg_attr(PyPy, link_name = "PyPyWeakref_CheckRefExact")]
     pub fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int;
 
     #[cfg(any(PyPy, RustPython))]
-    #[link_name = "PyPyWeakref_CheckProxy"]
+    #[cfg_attr(PyPy, link_name = "PyPyWeakref_CheckProxy")]
     pub fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int;
 }
 

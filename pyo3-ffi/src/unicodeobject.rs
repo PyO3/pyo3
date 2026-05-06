@@ -22,11 +22,11 @@ extern_libpython! {
     pub static mut PyUnicodeIter_Type: PyTypeObject;
 
     #[cfg(any(PyPy, RustPython))]
-    #[link_name = "PyPyUnicode_Check"]
+    #[cfg_attr(PyPy, link_name = "PyPyUnicode_Check")]
     pub fn PyUnicode_Check(op: *mut PyObject) -> c_int;
 
     #[cfg(any(PyPy, RustPython))]
-    #[link_name = "PyPyUnicode_CheckExact"]
+    #[cfg_attr(PyPy, link_name = "PyPyUnicode_CheckExact")]
     pub fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int;
 }
 
