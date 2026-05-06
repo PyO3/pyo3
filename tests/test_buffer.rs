@@ -4,7 +4,7 @@
 
 use pyo3::{buffer::PyBuffer, exceptions::PyBufferError, ffi, prelude::*};
 use std::{
-    os::raw::{c_int, c_void},
+    ffi::{c_int, c_void},
     ptr,
 };
 

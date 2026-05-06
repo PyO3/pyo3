@@ -242,9 +242,10 @@ impl MyDict {
         // call the super types __init__
         PySuper::new(&PyDict::type_object(slf.py()), slf)?
             .call_method("__init__", args.to_owned(), kwargs)?;
-        // Note: if `MyDict` allows further subclassing, and this is called from such a subclass,
-        // then this will not that any overrides into account that such a subclass may have defined.
-        // In such a case it may be preferred to just call `slf.set_item` and let Python figure it out.
+        // Note: if `MyDict` allows further subclassing (i.e. uses the `#[pyclass(subclass)]` option), and
+        // this is called from such a subclass, then this will not respect any overrides that subclass may
+        // have defined. Accordingly if `MyDict` allows subclassing it may be preferred to just call
+        // `slf.set_item` and let Python resolve the correct subclass method.
         slf.as_super().set_item("my_key", "always insert this key")?;
         Ok(())
     }

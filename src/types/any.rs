@@ -1,8 +1,8 @@
 use crate::call::PyCallArgs;
 use crate::class::basic::CompareOp;
 use crate::conversion::{FromPyObject, IntoPyObject};
-use crate::err::{PyErr, PyResult};
-use crate::exceptions::{PyAttributeError, PyTypeError};
+use crate::err::{error_on_minusone, PyErr, PyResult};
+use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pycell::PyStaticClassObject;
 use crate::instance::Bound;
@@ -11,7 +11,7 @@ use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
-use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py, Python};
+use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py};
 #[allow(deprecated)]
 use crate::{DowncastError, DowncastIntoError};
 use std::cell::UnsafeCell;
@@ -980,17 +980,23 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        // PyObject_HasAttr suppresses all exceptions, which was the behaviour of `hasattr` in Python 2.
-        // Use an implementation which suppresses only AttributeError, which is consistent with `hasattr` in Python 3.
-        fn inner(py: Python<'_>, getattr_result: PyResult<Bound<'_, PyAny>>) -> PyResult<bool> {
-            match getattr_result {
-                Ok(_) => Ok(true),
-                Err(err) if err.is_instance_of::<PyAttributeError>(py) => Ok(false),
-                Err(e) => Err(e),
-            }
+        fn inner<'py>(
+            any: &Bound<'py, PyAny>,
+            attr_name: Borrowed<'_, '_, PyString>,
+        ) -> PyResult<bool> {
+            let result =
+                unsafe { ffi::compat::PyObject_HasAttrWithError(any.as_ptr(), attr_name.as_ptr()) };
+            error_on_minusone(any.py(), result)?;
+            Ok(result > 0)
         }
 
-        inner(self.py(), self.getattr(attr_name))
+        inner(
+            self,
+            attr_name
+                .into_pyobject(self.py())
+                .map_err(Into::into)?
+                .as_borrowed(),
+        )
     }
 
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
