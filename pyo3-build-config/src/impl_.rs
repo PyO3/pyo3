@@ -889,11 +889,11 @@ impl InterpreterConfigBuilder {
         extra_build_script_lines: Vec<String>,
     ) -> Result<InterpreterConfigBuilder> {
         ensure!(
-            self.extra_build_script_lines.len() == 0,
+            self.extra_build_script_lines.is_empty(),
             "extra_build_script_lines already set!"
         );
         Ok(InterpreterConfigBuilder {
-            extra_build_script_lines: extra_build_script_lines,
+            extra_build_script_lines,
             ..self
         })
     }
