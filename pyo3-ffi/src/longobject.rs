@@ -39,6 +39,56 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyLong_AsUnsignedLongMask")]
     pub fn PyLong_AsUnsignedLongMask(arg1: *mut PyObject) -> c_ulong;
     // skipped non-limited _PyLong_AsInt
+
+    // skipped non-limited PyLong_FromInt32
+    // skipped non-limited PyLong_FromUInt32
+    // skipped non-limited PyLong_FromInt64
+    // skipped non-limited PyLong_FromUInt64
+
+    // skipped non-limited PyLong_AsInt32
+    // skipped non-limited PyLong_AsUInt32
+    // skipped non-limited PyLong_AsInt64
+    // skipped non-limited PyLong_AsUInt64
+}
+
+#[cfg(Py_3_13)]
+pub const Py_ASNATIVEBYTES_DEFAULTS: c_int = -1;
+#[cfg(Py_3_13)]
+pub const Py_ASNATIVEBYTES_BIG_ENDIAN: c_int = 0;
+#[cfg(Py_3_13)]
+pub const Py_ASNATIVEBYTES_LITTLE_ENDIAN: c_int = 1;
+#[cfg(Py_3_13)]
+pub const Py_ASNATIVEBYTES_NATIVE_ENDIAN: c_int = 3;
+#[cfg(Py_3_13)]
+pub const Py_ASNATIVEBYTES_UNSIGNED_BUFFER: c_int = 4;
+#[cfg(Py_3_13)]
+pub const Py_ASNATIVEBYTES_REJECT_NEGATIVE: c_int = 8;
+#[cfg(Py_3_13)]
+pub const Py_ASNATIVEBYTES_ALLOW_INDEX: c_int = 16;
+
+extern_libpython! {
+    #[cfg(Py_3_13)]
+    pub fn PyLong_AsNativeBytes(
+        v: *mut PyObject,
+        buffer: *mut c_void,
+        n_bytes: Py_ssize_t,
+        flags: c_int,
+    ) -> Py_ssize_t;
+
+    #[cfg(Py_3_13)]
+    pub fn PyLong_FromNativeBytes(
+        buffer: *const c_void,
+        n_bytes: size_t,
+        flags: c_int,
+    ) -> *mut PyObject;
+
+    #[cfg(Py_3_13)]
+    pub fn PyLong_FromUnsignedNativeBytes(
+        buffer: *const c_void,
+        n_bytes: size_t,
+        flags: c_int,
+    ) -> *mut PyObject;
+
     pub fn PyLong_GetInfo() -> *mut PyObject;
     // skipped PyLong_AS_LONG
 
@@ -46,15 +96,6 @@ extern_libpython! {
     // skipped PyLong_AsPid
     // skipped _Py_PARSE_INTPTR
     // skipped _Py_PARSE_UINTPTR
-
-    // skipped non-limited _PyLong_UnsignedShort_Converter
-    // skipped non-limited _PyLong_UnsignedInt_Converter
-    // skipped non-limited _PyLong_UnsignedLong_Converter
-    // skipped non-limited _PyLong_UnsignedLongLong_Converter
-    // skipped non-limited _PyLong_Size_t_Converter
-
-    // skipped non-limited _PyLong_DigitValue
-    // skipped non-limited _PyLong_Frexp
 
     #[cfg_attr(PyPy, link_name = "PyPyLong_AsDouble")]
     pub fn PyLong_AsDouble(arg1: *mut PyObject) -> c_double;
@@ -82,23 +123,7 @@ extern_libpython! {
     ) -> *mut PyObject;
 }
 
-#[cfg(not(Py_LIMITED_API))]
-extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
-    #[cfg(not(Py_3_13))]
-    #[doc(hidden)]
-    pub fn _PyLong_NumBits(obj: *mut PyObject) -> size_t;
-}
-
-// skipped non-limited _PyLong_Format
-// skipped non-limited _PyLong_FormatWriter
-// skipped non-limited _PyLong_FormatBytesWriter
-// skipped non-limited _PyLong_FormatAdvancedWriter
-
 extern_libpython! {
     pub fn PyOS_strtoul(arg1: *const c_char, arg2: *mut *mut c_char, arg3: c_int) -> c_ulong;
     pub fn PyOS_strtol(arg1: *const c_char, arg2: *mut *mut c_char, arg3: c_int) -> c_long;
 }
-
-// skipped non-limited _PyLong_Rshift
-// skipped non-limited _PyLong_Lshift
