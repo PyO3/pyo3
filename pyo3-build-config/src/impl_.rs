@@ -414,13 +414,13 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 
         Ok(InterpreterConfigBuilder::new(implementation, version)
             .target_abi(target_abi)?
-            .shared(shared)
-            .lib_name(Some(lib_name))
-            .lib_dir(lib_dir)
-            .executable(map.get("executable").cloned())
-            .pointer_width(calcsize_pointer * 8)
+            .shared(shared)?
+            .lib_name(Some(lib_name))?
+            .lib_dir(lib_dir)?
+            .executable(map.get("executable").cloned())?
+            .pointer_width(calcsize_pointer * 8)?
             .build_flags(BuildFlags::from_interpreter(interpreter)?)?
-            .python_framework_prefix(python_framework_prefix)
+            .python_framework_prefix(python_framework_prefix)?
             .finalize())
     }
 
@@ -487,12 +487,12 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 
         Ok(InterpreterConfigBuilder::new(implementation, version)
             .target_abi(target_abi)?
-            .shared(shared || framework)
-            .lib_dir(lib_dir)
-            .lib_name(lib_name)
-            .pointer_width(pointer_width)
+            .shared(shared || framework)?
+            .lib_dir(lib_dir)?
+            .lib_name(lib_name)?
+            .pointer_width(pointer_width)?
             .build_flags(build_flags)?
-            .python_framework_prefix(python_framework_prefix)
+            .python_framework_prefix(python_framework_prefix)?
             .finalize())
     }
 
@@ -626,17 +626,22 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             );
             target_abi
         } else if is_abi3t() {
+            ensure!(
+                !is_abi3(),
+                "Cannot simultaneously enable features that enable abi3 and abi3t builds"
+            );
             PythonAbiBuilder::new(implementation, version)
                 .stable_abi(StableAbi::Abi3t)
                 .unwrap()
                 .finalize()
         } else if flags_contains_free_threaded {
+            // This fires even if is_abi3() is True for backward compatibility reasons
             PythonAbiBuilder::new(implementation, version)
                 .free_threaded()
                 .unwrap()
                 .finalize()
-        } else if (abi3.is_some() && abi3.unwrap()) || is_abi3() {
-            if abi3.is_some() && abi3.unwrap() {
+        } else if (abi3 == Some(true)) || is_abi3() {
+            if abi3 == Some(true) {
                 warn!("abi3 configuration file option is deprecated, set target_abi instead");
             }
             PythonAbiBuilder::new(implementation, version)
@@ -652,17 +657,17 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             .target_abi(target_abi)
             // cannot fail because this is a newly-created InterpreterConfigBuilder with no target ABI set
             .unwrap()
-            .shared(shared.unwrap_or(true))
-            .lib_name(lib_name)
-            .lib_dir(lib_dir)
-            .executable(executable)
+            .shared(shared.unwrap_or(true))?
+            .lib_name(lib_name)?
+            .lib_dir(lib_dir)?
+            .executable(executable)?
             .build_flags(build_flags)?
-            .suppress_build_script_link_lines(suppress_build_script_link_lines)
-            .extra_build_script_lines(extra_build_script_lines)
-            .python_framework_prefix(python_framework_prefix);
+            .suppress_build_script_link_lines(suppress_build_script_link_lines)?
+            .extra_build_script_lines(extra_build_script_lines)?
+            .python_framework_prefix(python_framework_prefix)?;
 
         let builder = if let Some(pointer_width) = pointer_width {
-            builder.pointer_width(pointer_width)
+            builder.pointer_width(pointer_width)?
         } else {
             builder
         };
@@ -849,77 +854,69 @@ impl InterpreterConfigBuilder {
                 .unwrap()
                 .finalize(),
         )
-        // this can't panic because abi3() is called on a builder with no chosen ABI
-        .unwrap()
-        .build_flags(BuildFlags::default())
     }
 
-    pub fn lib_name(self, lib_name: Option<String>) -> InterpreterConfigBuilder {
-        InterpreterConfigBuilder { lib_name, ..self }
+    pub fn lib_name(self, lib_name: Option<String>) -> Result<InterpreterConfigBuilder> {
+        ensure!(self.lib_name.is_none(), "lib_name already set!");
+        Ok(InterpreterConfigBuilder { lib_name, ..self })
     }
 
-    pub fn pointer_width(self, pointer_width: u32) -> InterpreterConfigBuilder {
-        InterpreterConfigBuilder {
+    pub fn pointer_width(self, pointer_width: u32) -> Result<InterpreterConfigBuilder> {
+        ensure!(self.pointer_width.is_none(), "pointer_width already set!");
+        Ok(InterpreterConfigBuilder {
             pointer_width: Some(pointer_width),
             ..self
-        }
+        })
     }
 
-    pub fn executable(self, executable: Option<String>) -> InterpreterConfigBuilder {
-        InterpreterConfigBuilder { executable, ..self }
+    pub fn executable(self, executable: Option<String>) -> Result<InterpreterConfigBuilder> {
+        ensure!(self.executable.is_none(), "executable already set!");
+        Ok(InterpreterConfigBuilder { executable, ..self })
     }
 
     pub fn suppress_build_script_link_lines(
         self,
         suppress_build_script_link_lines: Option<bool>,
-    ) -> InterpreterConfigBuilder {
-        InterpreterConfigBuilder {
+    ) -> Result<InterpreterConfigBuilder> {
+        ensure!(
+            self.suppress_build_script_link_lines.is_none(),
+            "suppress_build_script_link_lines already set!"
+        );
+        Ok(InterpreterConfigBuilder {
             suppress_build_script_link_lines,
             ..self
-        }
+        })
     }
 
     pub fn extra_build_script_lines(
         self,
         extra_build_script_lines: Vec<String>,
-    ) -> InterpreterConfigBuilder {
-        InterpreterConfigBuilder {
+    ) -> Result<InterpreterConfigBuilder> {
+        ensure!(
+            self.extra_build_script_lines.len() == 0,
+            "extra_build_script_lines already set!"
+        );
+        Ok(InterpreterConfigBuilder {
             extra_build_script_lines: extra_build_script_lines,
             ..self
-        }
+        })
     }
 
-    pub fn lib_dir(self, lib_dir: Option<String>) -> InterpreterConfigBuilder {
-        InterpreterConfigBuilder { lib_dir, ..self }
+    pub fn lib_dir(self, lib_dir: Option<String>) -> Result<InterpreterConfigBuilder> {
+        ensure!(self.lib_dir.is_none(), "lib_dir already set!");
+        Ok(InterpreterConfigBuilder { lib_dir, ..self })
     }
 
-    pub fn shared(self, shared: bool) -> InterpreterConfigBuilder {
-        InterpreterConfigBuilder {
+    pub fn shared(self, shared: bool) -> Result<InterpreterConfigBuilder> {
+        ensure!(self.shared.is_none(), "shared already set!");
+        Ok(InterpreterConfigBuilder {
             shared: Some(shared),
             ..self
-        }
+        })
     }
 
     pub fn build_flags(self, build_flags: BuildFlags) -> Result<InterpreterConfigBuilder> {
         ensure!(self.build_flags.is_none(), "Build flags already set!");
-        let build_flags = if build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) {
-            if let Some(target_abi) = self.target_abi {
-                if !target_abi.kind.is_free_threaded() {
-                    warn!(
-                        "build_flags contains Py_GIL_DISABLED but target ABI '{target_abi}' is not free-threaded"
-                    );
-                }
-            }
-            build_flags
-        } else if let Some(target_abi) = self.target_abi {
-            let mut flags = build_flags.clone();
-            if target_abi.kind.is_free_threaded() {
-                flags.0.insert(BuildFlag::Py_GIL_DISABLED);
-            }
-            flags
-        } else {
-            build_flags
-        };
         Ok(InterpreterConfigBuilder {
             build_flags: Some(build_flags),
             ..self
@@ -929,14 +926,47 @@ impl InterpreterConfigBuilder {
     pub fn python_framework_prefix(
         self,
         python_framework_prefix: Option<String>,
-    ) -> InterpreterConfigBuilder {
-        InterpreterConfigBuilder {
+    ) -> Result<InterpreterConfigBuilder> {
+        ensure!(
+            self.python_framework_prefix.is_none(),
+            "Python_framework_prefix already set!"
+        );
+        Ok(InterpreterConfigBuilder {
             python_framework_prefix,
             ..self
-        }
+        })
     }
 
     pub fn finalize(self) -> InterpreterConfig {
+        let build_flags = if let Some(mut build_flags) = self.build_flags {
+            if build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) {
+                if let Some(target_abi) = self.target_abi {
+                    if !target_abi.kind.is_free_threaded() {
+                        warn!(
+                            "build_flags contains Py_GIL_DISABLED but target ABI '{target_abi}' is not free-threaded"
+                        );
+                    }
+                }
+            } else if let Some(target_abi) = self.target_abi {
+                if target_abi.kind.is_free_threaded() {
+                    build_flags.0.insert(BuildFlag::Py_GIL_DISABLED);
+                }
+            }
+            build_flags
+        } else if let Some(target_abi) = self.target_abi {
+            let mut flags = if let Some(ref build_flags) = self.build_flags {
+                build_flags.clone()
+            } else {
+                BuildFlags::default()
+            };
+            if target_abi.kind.is_free_threaded() {
+                flags.0.insert(BuildFlag::Py_GIL_DISABLED);
+            }
+            flags
+        } else {
+            BuildFlags::default()
+        };
+        dbg!(&build_flags);
         #[allow(deprecated)]
         InterpreterConfig {
             implementation: self.implementation,
@@ -945,12 +975,16 @@ impl InterpreterConfigBuilder {
             target_abi: self
                 .target_abi
                 .unwrap_or(PythonAbiBuilder::new(self.implementation, self.version).finalize()),
-            abi3: false,
+            abi3: if let Some(target_abi) = self.target_abi {
+                matches!(target_abi.kind, PythonAbiKind::Stable(StableAbi::Abi3))
+            } else {
+                false
+            },
             lib_name: self.lib_name,
             lib_dir: self.lib_dir,
             executable: self.executable,
             pointer_width: self.pointer_width,
-            build_flags: self.build_flags.unwrap_or_default(),
+            build_flags: build_flags,
             suppress_build_script_link_lines: self
                 .suppress_build_script_link_lines
                 .unwrap_or(false),
@@ -1080,14 +1114,12 @@ impl FromStr for PythonAbi {
     type Err = crate::errors::Error;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<&str> = value.split("-").collect();
-        let implementation = parts[0].parse()?;
-        let kind = parts[1].parse()?;
-        let version: PythonVersion = parts[2].parse()?;
+        let mut parts = value.splitn(3, "-");
+        let msg = "Invalid ABI string representation: {value}";
         Ok(PythonAbi {
-            implementation,
-            kind,
-            version,
+            implementation: parts.next().ok_or(msg)?.parse()?,
+            kind: parts.next().ok_or(msg)?.parse()?,
+            version: parts.next().ok_or(msg)?.parse()?,
         })
     }
 }
@@ -2060,8 +2092,8 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
 
     Ok(InterpreterConfigBuilder::new(implementation, version)
         .target_abi(target_abi)?
-        .lib_name(Some(lib_name))
-        .lib_dir(lib_dir)
+        .lib_name(Some(lib_name))?
+        .lib_dir(lib_dir)?
         .finalize())
 }
 
@@ -2082,7 +2114,7 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> Result<Interpre
     // abi3() sets the target_abi on the builder struct so unwrapping is safe
     let target_abi = builder.target_abi.unwrap();
     Ok(if host.operating_system == OperatingSystem::Windows {
-        builder.lib_name(Some(default_lib_name_windows(target_abi, false, false)?))
+        builder.lib_name(Some(default_lib_name_windows(target_abi, false, false)?))?
     } else {
         builder
     }
@@ -2463,10 +2495,15 @@ mod tests {
             .stable_abi(StableAbi::Abi3)
             .unwrap()
             .pointer_width(32)
+            .unwrap()
             .executable(Some("executable".into()))
+            .unwrap()
             .lib_dir(Some("lib_name".into()))
+            .unwrap()
             .lib_name(Some("lib_name".into()))
+            .unwrap()
             .extra_build_script_lines(vec!["cargo:test1".to_string(), "cargo:test2".to_string()])
+            .unwrap()
             .finalize();
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
@@ -2501,10 +2538,15 @@ mod tests {
             .stable_abi(StableAbi::Abi3)
             .unwrap()
             .pointer_width(32)
+            .unwrap()
             .executable(Some("executable".into()))
+            .unwrap()
             .lib_name(Some("lib_name".into()))
+            .unwrap()
             .lib_dir(Some("lib_dir\\n".into()))
+            .unwrap()
             .extra_build_script_lines(vec!["cargo:test1".to_string(), "cargo:test2".to_string()])
+            .unwrap()
             .finalize();
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
@@ -2695,8 +2737,11 @@ mod tests {
                 .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
                 .unwrap()
                 .lib_dir(Some("/usr/lib".into()))
+                .unwrap()
                 .lib_name(Some("python3.8".into()))
+                .unwrap()
                 .pointer_width(64)
+                .unwrap()
                 .finalize()
         );
     }
@@ -2720,8 +2765,11 @@ mod tests {
                 .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
                 .unwrap()
                 .lib_dir(Some("/usr/lib".into()))
+                .unwrap()
                 .lib_name(Some("python3.8".into()))
+                .unwrap()
                 .pointer_width(64)
+                .unwrap()
                 .finalize()
         );
 
@@ -2742,9 +2790,13 @@ mod tests {
                 .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
                 .unwrap()
                 .lib_dir(Some("/usr/lib".into()))
+                .unwrap()
                 .lib_name(Some("python3.8".into()))
+                .unwrap()
                 .pointer_width(64)
+                .unwrap()
                 .shared(false)
+                .unwrap()
                 .finalize()
         );
     }
@@ -2760,6 +2812,7 @@ mod tests {
             .stable_abi(StableAbi::Abi3)
             .unwrap()
             .lib_name(Some("python3".into()))
+            .unwrap()
             .finalize();
         assert_eq!(default_abi3_config(&host, min_version).unwrap(), config);
     }
@@ -2797,7 +2850,9 @@ mod tests {
         let version = PythonVersion::PY38;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .lib_name(Some("python38".into()))
+            .unwrap()
             .lib_dir(Some("C:\\some\\path".into()))
+            .unwrap()
             .finalize();
         assert_eq!(default_cross_compile(&cross_config).unwrap(), config);
     }
@@ -2822,7 +2877,9 @@ mod tests {
         let version = PythonVersion::PY38;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .lib_name(Some("python38".into()))
+            .unwrap()
             .lib_dir(Some("/usr/lib/mingw".into()))
+            .unwrap()
             .finalize();
         assert_eq!(default_cross_compile(&cross_config).unwrap(), config);
     }
@@ -2847,7 +2904,9 @@ mod tests {
         let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .lib_name(Some("python3.9".into()))
+            .unwrap()
             .lib_dir(Some("/usr/arm64/lib".into()))
+            .unwrap()
             .finalize();
         assert_eq!(default_cross_compile(&cross_config).unwrap(), config);
     }
@@ -2871,6 +2930,7 @@ mod tests {
         let version = PythonVersion::PY311;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .lib_name(Some("pypy3.11-c".into()))
+            .unwrap()
             .finalize();
         assert_eq!(default_cross_compile(&cross_config).unwrap(), config);
     }
@@ -3409,6 +3469,7 @@ mod tests {
         let version = PythonVersion::PY311;
         let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
             .lib_name(Some("python3".into()))
+            .unwrap()
             .finalize();
         assert_eq!(
             interpreter_config.build_script_outputs(),
@@ -3447,6 +3508,7 @@ mod tests {
             .stable_abi(StableAbi::Abi3)
             .unwrap()
             .lib_name(Some("python3".into()))
+            .unwrap()
             .finalize();
 
         assert_eq!(
@@ -3507,6 +3569,7 @@ mod tests {
             .free_threaded()
             .unwrap()
             .lib_name(Some("python3".into()))
+            .unwrap()
             .finalize();
         assert_eq!(
             interpreter_config.build_script_outputs(),
@@ -3548,12 +3611,8 @@ mod tests {
 
         let builder =
             InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY314);
-        let config = builder.free_threaded().unwrap();
-        assert!(config
-            .build_flags
-            .unwrap()
-            .0
-            .contains(&BuildFlag::Py_GIL_DISABLED))
+        let config = builder.free_threaded().unwrap().finalize();
+        assert!(config.build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED))
     }
 
     #[test]
@@ -3564,6 +3623,7 @@ mod tests {
         let version = PythonVersion::PY38;
         let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
             .lib_name(Some("python3".into()))
+            .unwrap()
             .build_flags(build_flags)
             .unwrap()
             .finalize();
