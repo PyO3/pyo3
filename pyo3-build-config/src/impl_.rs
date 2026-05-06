@@ -886,16 +886,29 @@ impl InterpreterConfigBuilder {
 
     pub fn build_flags(self, build_flags: BuildFlags) -> Result<InterpreterConfigBuilder> {
         ensure!(self.build_flags.is_none(), "Build flags already set!");
-        if let Some(target_abi) = self.target_abi {
+        let target_abi = if let Some(target_abi) = self.target_abi {
             if build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) {
-                ensure!(
-                    target_abi.kind != PythonAbiKind::Stable(StableAbi::Abi3),
-                    "Targeting an abi3 build so cannot set build_flags containing Py_GIL_DISABLED."
-                )
+                if target_abi.kind == PythonAbiKind::Stable(StableAbi::Abi3) {
+                    warn!(
+                        "Targeting an abi3 build but build_flags contains Py_GIL_DISABLED, falling back to a version-specific build"
+                    );
+                    Some(
+                        PythonAbiBuilder::new(target_abi.implementation, target_abi.version)
+                            .free_threaded()?
+                            .finalize(),
+                    )
+                } else {
+                    Some(target_abi)
+                }
+            } else {
+                Some(target_abi)
             }
-        }
+        } else {
+            None
+        };
         Ok(InterpreterConfigBuilder {
             build_flags: Some(build_flags),
+            target_abi,
             ..self
         })
     }
@@ -1101,7 +1114,10 @@ impl FromStr for PythonAbi {
     }
 }
 
-/// The "kind" of stable ABI. Either abi3 or abi3t currently.
+/// The "kind" of ABI.
+///
+/// Either a variety of stable ABI or a GIL-enabled or free-threaded
+/// version-specific ABI.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(test, derive(Debug))]
 pub enum PythonAbiKind {
@@ -1150,7 +1166,7 @@ impl PythonAbiKind {
     }
 }
 
-/// Whether the ABI is for the GIL-enabled or free-threaded build.
+/// The the variety of stable ABI
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(test, derive(Debug))]
 pub enum StableAbi {
@@ -1311,6 +1327,9 @@ fn have_python_interpreter() -> bool {
     env_var("PYO3_NO_PYTHON").is_none()
 }
 
+/// Checks if `abi3` or any of the `abi3-py3*` features is enabled for the PyO3 crate.
+///
+/// Must be called from a PyO3 crate build script.
 fn is_abi3() -> bool {
     cargo_env_var("CARGO_FEATURE_ABI3").is_some()
         || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_some_and(|os_str| os_str == "1")
@@ -1647,8 +1666,8 @@ impl FromStr for BuildFlag {
 /// is the equivalent of `#ifdef {varname}` in C.
 ///
 /// see Misc/SpecialBuilds.txt in the python source for what these mean.
-#[cfg_attr(test, derive(PartialEq, Eq))]
-#[derive(Debug, Clone, Default)]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
+#[derive(Clone, Default)]
 pub struct BuildFlags(pub HashSet<BuildFlag>);
 
 impl BuildFlags {
