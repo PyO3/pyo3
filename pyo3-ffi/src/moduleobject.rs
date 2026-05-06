@@ -51,10 +51,8 @@ extern_libpython! {
     pub fn PyModule_GetState(arg1: *mut PyObject) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyModuleDef_Init")]
     pub fn PyModuleDef_Init(arg1: *mut PyModuleDef) -> *mut PyObject;
-}
 
-#[cfg(not(RustPython))]
-extern_libpython! {
+    #[cfg(not(RustPython))]
     pub static mut PyModuleDef_Type: PyTypeObject;
 }
 

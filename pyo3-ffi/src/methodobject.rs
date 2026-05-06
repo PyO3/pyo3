@@ -18,38 +18,33 @@ pub struct PyCFunctionObject {
     pub vectorcall: Option<crate::vectorcallfunc>,
 }
 
-#[cfg(not(RustPython))]
 extern_libpython! {
+    #[cfg(not(RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_Type")]
     pub static mut PyCFunction_Type: PyTypeObject;
-}
 
-#[cfg(Py_3_9)]
-#[inline]
-#[cfg(not(RustPython))]
-pub unsafe fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PyCFunction_Type)
-}
-
-#[cfg(Py_3_9)]
-#[inline]
-#[cfg(not(RustPython))]
-pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &raw mut PyCFunction_Type)
-}
-
-#[cfg(not(Py_3_9))]
-#[inline]
-#[cfg(not(RustPython))]
-pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PyCFunction_Type)
-}
-
-extern_libpython! {
     #[cfg(all(RustPython, Py_3_9))]
     pub fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int;
     #[cfg(RustPython)]
     pub fn PyCFunction_Check(op: *mut PyObject) -> c_int;
+}
+
+#[cfg(all(Py_3_9, not(RustPython)))]
+#[inline]
+pub unsafe fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int {
+    Py_IS_TYPE(op, &raw mut PyCFunction_Type)
+}
+
+#[cfg(all(Py_3_9, not(RustPython)))]
+#[inline]
+pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
+    PyObject_TypeCheck(op, &raw mut PyCFunction_Type)
+}
+
+#[cfg(all(Py_3_9, not(RustPython)))]
+#[inline]
+pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
+    Py_IS_TYPE(op, &raw mut PyCFunction_Type)
 }
 
 pub type PyCFunction =
