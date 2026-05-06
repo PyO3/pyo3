@@ -64,6 +64,12 @@ def test_eq(ty: Type[EqType]):
     assert not c == 1
     assert c != 1
 
+    # Ensure that passing a wrong self type from Python does not cause UB
+    with pytest.raises(TypeError):
+        ty.__eq__(object(), 1)  # type: ignore[operator]
+    with pytest.raises(TypeError):
+        ty.__ne__(object(), 1)  # type: ignore[operator]
+
     with pytest.raises(TypeError):
         assert a <= b  # type: ignore[operator]
 
@@ -175,6 +181,16 @@ def test_ordered(ty: Type[OrderedType]):
     assert c >= a
     assert c > b
     assert c >= b
+
+    # Ensure that passing a wrong self type from Python does not cause UB
+    with pytest.raises(TypeError):
+        ty.__lt__(object(), 1)  # type: ignore[operator]
+    with pytest.raises(TypeError):
+        ty.__le__(object(), 1)  # type: ignore[operator]
+    with pytest.raises(TypeError):
+        ty.__gt__(object(), 1)  # type: ignore[operator]
+    with pytest.raises(TypeError):
+        ty.__ge__(object(), 1)  # type: ignore[operator]
 
 
 class PyOrderedDefaultNe:

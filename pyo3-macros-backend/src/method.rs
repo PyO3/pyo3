@@ -322,6 +322,17 @@ pub enum SelfType {
     },
 }
 
+#[derive(Clone, Copy, Debug)]
+enum SelfConversionPolicyInner {
+    /// The receiver's type is guaranteed by CPython's slot/method dispatch contract.
+    /// Used for all extension-type method and slot entrypoints.
+    Trusted,
+    /// The receiver's type is verified at runtime. Used for number-protocol
+    /// binary operator fragments where the CPython dispatch contract does not
+    /// guarantee the receiver type.
+    Checked,
+}
+
 /// Receiver conversion policy for extension-type method wrappers.
 ///
 /// Controls whether the `self` receiver is validated with a runtime type check
@@ -338,23 +349,27 @@ pub enum SelfType {
 /// function is reached.
 ///
 /// `Checked` should be used in cases where that guarantee does not hold:
-/// - Standalone `#[pyfunction]`s (no class receiver).
 /// - Number-protocol binary operator fragments (`__add__`, `__radd__`, …,
 ///   `__pow__`, `__rpow__`): CPython combines the forward and reflected
 ///   fragments into a single `nb_add`/`nb_power` slot, and the runtime helper
 ///   may call the reflected fragment with the operands swapped, meaning `_slf`
 ///   can arrive with a non-class type.  The existing
-///   `ExtractErrorMode::NotImplemented` behaviour on type mismatch is preserved
+///   `ExtractErrorMode::NotImplemented` behavior on type mismatch is preserved
 ///   by using `Checked` for those fragments.
 #[derive(Clone, Copy, Debug)]
-pub enum SelfConversionPolicy {
-    /// The receiver's type is guaranteed by CPython's slot/method dispatch contract.
-    /// Used for all extension-type method and slot entrypoints.
-    Trusted,
-    /// The receiver's type is verified at runtime. Used for standalone functions
-    /// and number-protocol binary operator fragments where the CPython dispatch
-    /// contract does not guarantee the receiver type.
-    Checked,
+pub struct SelfConversionPolicy(SelfConversionPolicyInner);
+
+impl SelfConversionPolicy {
+    pub const fn checked() -> Self {
+        Self(SelfConversionPolicyInner::Checked)
+    }
+
+    // Using the trusted conversion incorrectly can lead to incorrect runtime
+    // behavior and memory safety issues, so this is marked `unsafe` and usage
+    // should be justified by the caller.
+    pub const unsafe fn trusted() -> Self {
+        Self(SelfConversionPolicyInner::Trusted)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -407,8 +422,8 @@ impl SelfType {
                     quote! { unsafe { #pyo3_path::impl_::extract_argument::#cast_fn(#py, #slf) } };
                 let holder = holders.push_holder(*span);
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
-                match self_conversion {
-                    SelfConversionPolicy::Trusted => {
+                match self_conversion.0 {
+                    SelfConversionPolicyInner::Trusted => {
                         let method = if *mutable {
                             syn::Ident::new("extract_pyclass_ref_mut_trusted", *span)
                         } else {
@@ -429,7 +444,7 @@ impl SelfType {
                         };
                         error_mode.handle_error(trusted_call, ctx)
                     }
-                    SelfConversionPolicy::Checked => {
+                    SelfConversionPolicyInner::Checked => {
                         let method = if *mutable {
                             syn::Ident::new("extract_pyclass_ref_mut", *span)
                         } else {
@@ -454,8 +469,8 @@ impl SelfType {
                     quote! { unsafe { #pyo3_path::Bound::ref_from_ptr(#py, &#slf) } }
                 };
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
-                let receiver = match self_conversion {
-                    SelfConversionPolicy::Trusted => {
+                let receiver = match self_conversion.0 {
+                    SelfConversionPolicyInner::Trusted => {
                         // Use `quote!` (not `quote_spanned!`) for the inner `unsafe` block so
                         // that it has `Span::call_site()` and does not trigger
                         // `#![forbid(unsafe_code)]` in user crates.
@@ -470,7 +485,7 @@ impl SelfType {
                             ::std::result::Result::<_, #pyo3_path::PyErr>::Ok(#cast)
                         }
                     }
-                    SelfConversionPolicy::Checked => {
+                    SelfConversionPolicyInner::Checked => {
                         quote_spanned! { *span =>
                             #bound_ref.cast::<#cls>()
                                 .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)

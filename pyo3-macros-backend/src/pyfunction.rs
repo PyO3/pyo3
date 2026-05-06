@@ -434,7 +434,7 @@ pub fn impl_wrap_pyfunction(
         &wrapper_ident,
         None,
         calling_convention,
-        SelfConversionPolicy::Checked,
+        SelfConversionPolicy::checked(),
         ctx,
     )?;
     let methoddef = spec.get_methoddef(
