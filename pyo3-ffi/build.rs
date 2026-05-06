@@ -70,9 +70,9 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 let mut error = MaximumVersionExceeded::new(interpreter_config, versions.max);
                 let major = interp_version.major;
                 let minor = interp_version.minor;
-                if interpreter_config.target_abi.kind.free_threaded() {
+                if interpreter_config.target_abi.kind.is_free_threaded() {
                     error.add_help(&format!(
-                        "the free-threaded build of CPython {major}{minor} does not support the limited API so this check cannot be suppressed.",
+                        "the free-threaded build of CPython {major}.{minor} does not support the limited API so this check cannot be suppressed.",
                     ));
                     return Err(error.finish().into());
                 }
@@ -84,7 +84,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 }
             }
 
-            if interpreter_config.target_abi.kind.free_threaded() {
+            if interpreter_config.target_abi.kind.is_free_threaded() {
                 let min_free_threaded_version = PythonVersion {
                     major: 3,
                     minor: 14,
@@ -134,13 +134,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 StableAbi::Abi3t => {
                     bail!("Abi3t builds are not yet supported")
                 }
-                StableAbi::Abi3 => {
-                    if interpreter_config.target_abi.kind.free_threaded() {
-                        warn!(
-                                "The free-threaded build of CPython does not support abi3 so the build artifacts will be version-specific."
-                            )
-                    }
-                }
+                StableAbi::Abi3 => {}
             },
             PythonImplementation::PyPy => warn!(
                 "PyPy does not yet support {abi} so the build artifacts will be version-specific. \
