@@ -23,7 +23,7 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_Type")]
     pub static mut PyCFunction_Type: PyTypeObject;
 
-    #[cfg(all(RustPython, Py_3_9))]
+    #[cfg(RustPython)]
     pub fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int;
     #[cfg(RustPython)]
     pub fn PyCFunction_Check(op: *mut PyObject) -> c_int;
@@ -41,7 +41,7 @@ pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &raw mut PyCFunction_Type)
 }
 
-#[cfg(all(Py_3_9, not(RustPython)))]
+#[cfg(not(any(Py_3_9, RustPython)))]
 #[inline]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyCFunction_Type)
