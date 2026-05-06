@@ -20,8 +20,8 @@ use std::{env, process::Command, str::FromStr, sync::OnceLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
-    CrossCompileConfig, InterpreterConfig, InterpreterConfigBuilder, PythonAbi, PythonAbiBuilder,
-    PythonImplementation, PythonVersion, Triple,
+    CrossCompileConfig, GilUsed, InterpreterConfig, InterpreterConfigBuilder, PythonAbi,
+    PythonAbiBuilder, PythonAbiKind, PythonImplementation, PythonVersion, StableAbi, Triple,
 };
 
 use target_lexicon::OperatingSystem;
