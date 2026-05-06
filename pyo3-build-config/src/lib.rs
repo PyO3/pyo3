@@ -491,7 +491,6 @@ mod tests {
             .python_framework_prefix(Some(
                 "/Applications/Xcode.app/Contents/Developer/Library/Frameworks".to_string(),
             ))
-            .unwrap()
             .finalize()
             .unwrap();
         // Does nothing on non-mac

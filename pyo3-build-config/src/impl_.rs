@@ -150,7 +150,7 @@ pub struct InterpreterConfig {
     /// `implementation` set to `PythonImplementation::CPython` and `version` set
     /// to `PythonVersion {major: 3, minor: 9}` is equivalent to setting `target_abi`
     /// to `PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion
-    /// {major: 3, minor: 9}).stable_abi(StableAbi::Abi3)?.finalize()?`.
+    /// {major: 3, minor: 9}).stable_abi(StableAbi::Abi3)?.finalize()`.
     ///
     /// Serialized to `abi3`.
     #[deprecated(note = "Set a target_abi that is abi3 instead")]
@@ -619,8 +619,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         } else if flags_contains_free_threaded {
             // This fires even if is_abi3() is True for backward compatibility reasons
             PythonAbiBuilder::new(implementation, version)
-                .free_threaded()
-                .unwrap()
+                .free_threaded()?
                 .finalize()
         } else if (abi3 == Some(true)) || is_abi3() {
             if abi3 == Some(true) {
@@ -889,6 +888,7 @@ impl InterpreterConfigBuilder {
         let target_abi = if let Some(target_abi) = self.target_abi {
             if build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) {
                 if target_abi.kind == PythonAbiKind::Stable(StableAbi::Abi3) {
+                    // Not an error for backward compatibility reasons
                     warn!(
                         "Targeting an abi3 build but build_flags contains Py_GIL_DISABLED, falling back to a version-specific build"
                     );
@@ -897,6 +897,8 @@ impl InterpreterConfigBuilder {
                             .free_threaded()?
                             .finalize(),
                     )
+                } else if target_abi.kind == PythonAbiKind::VersionSpecific(GilUsed::GilEnabled) {
+                    bail!("Py_GIL_DISABLED is in build_flags bug target_abi '{target_abi}' is not free-threaded")
                 } else {
                     Some(target_abi)
                 }
@@ -925,23 +927,19 @@ impl InterpreterConfigBuilder {
 
     pub fn finalize(self) -> Result<InterpreterConfig> {
         let mut build_flags = self.build_flags.unwrap_or_default();
-        let target_abi = if build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) {
-            self.target_abi.unwrap_or_else(|| {
+        let target_abi = match self.target_abi {
+            Some(t) => t,
+            None if build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED) => {
                 PythonAbiBuilder::new(self.implementation, self.version)
-                    .free_threaded()
-                    // cannot panic because this is a freshly created PythonAbiBuilder
-                    .unwrap()
+                    .free_threaded()?
                     .finalize()
-            })
-        } else {
-            self.target_abi.unwrap_or_else(|| {
-                PythonAbiBuilder::new(self.implementation, self.version).finalize()
-            })
+            }
+            None => PythonAbiBuilder::new(self.implementation, self.version).finalize(),
         };
         if target_abi.kind.is_free_threaded() {
             build_flags.0.insert(BuildFlag::Py_GIL_DISABLED);
         } else {
-            ensure!(!build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED), "Build flags contains Py_GIL_DISABLED but target ABI '{target_abi} is not free-threaded.")
+            ensure!(!build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED), "Build flags contains Py_GIL_DISABLED but target ABI '{target_abi}' is not free-threaded.")
         }
         #[allow(deprecated)]
         Ok(InterpreterConfig {
@@ -2418,11 +2416,6 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     let abi3_version = get_abi3_version();
     let abi3t_version = get_abi3t_version();
 
-    ensure!(
-        !(abi3_version.is_some() && abi3t_version.is_some()),
-        "Cannot simultaneously enable abi3 and abi3t features"
-    );
-
     // See if we can safely skip the Python interpreter configuration detection.
     // Unix stable ABI extension modules can usually be built without any interpreter.
     let need_interpreter =
@@ -2618,7 +2611,7 @@ mod tests {
         );
         // target_abi=gil_enabled with build_flags=Py_GIL_DISABLED is inconsistent and rejected.
         assert!(InterpreterConfig::from_reader("version=3.13\ntarget_abi=CPython-version_specific(gil_enabled)-3.13\nbuild_flags=Py_GIL_DISABLED".as_bytes()).is_err());
-        // build_flags=Py_GIL_DISABLED on a builder without target_abi is also rejected.
+        // build_flags=Py_GIL_DISABLED on a builder without target_abi is ok
         let mut flags = BuildFlags::default();
         flags.0.insert(BuildFlag::Py_GIL_DISABLED);
         assert!(InterpreterConfigBuilder::new(implementation, version)
@@ -3597,11 +3590,15 @@ mod tests {
             InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY314);
         let mut flags = BuildFlags::new();
         flags.0.insert(BuildFlag::Py_GIL_DISABLED);
-        assert!(builder
+        let config = builder
             .stable_abi(StableAbi::Abi3)
             .unwrap()
             .build_flags(flags)
-            .is_err());
+            .unwrap()
+            .finalize()
+            .unwrap();
+        // build flags win due to backward compatbility (abi3 feature is a no-op on ft builds)
+        assert!(config.target_abi.kind == PythonAbiKind::VersionSpecific(GilUsed::FreeThreaded));
 
         let builder =
             InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY314);
