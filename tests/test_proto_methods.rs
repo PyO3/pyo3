@@ -847,18 +847,9 @@ asyncio.run(main())
             .unwrap();
 
         // Ensure that passing a wrong self type from Python does not cause UB
-        py_expect_exception!(
-            py,
-            AsyncIterator,
-            "AsyncIterator.__aiter__(object())",
-            PyTypeError
-        );
-        py_expect_exception!(
-            py,
-            AsyncIterator,
-            "AsyncIterator.__anext__(object())",
-            PyTypeError
-        );
+        let atype = py.get_type::<AsyncIterator>();
+        py_expect_exception!(py, atype, "AsyncIterator.__aiter__(object())", PyTypeError);
+        py_expect_exception!(py, atype, "AsyncIterator.__anext__(object())", PyTypeError);
     });
 }
 
