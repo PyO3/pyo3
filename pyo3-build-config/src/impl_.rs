@@ -83,6 +83,25 @@ pub fn target_triple_from_env() -> Triple {
         .expect("Unrecognized TARGET environment variable value")
 }
 
+fn sanitize_abi3_version(
+    abi3_version: Option<PythonVersion>,
+    version: PythonVersion,
+) -> Result<PythonVersion> {
+    if let Some(min_version) = abi3_version {
+        ensure!(
+            min_version <= version,
+            "cannot set a minimum Python version {} higher than the interpreter version {} \
+             (the minimum Python version is implied by the abi3-py3{} feature)",
+            min_version,
+            version,
+            min_version.minor
+        );
+        Ok(min_version)
+    } else {
+        Ok(version)
+    }
+}
+
 /// Configuration needed by PyO3 to build for the correct Python implementation.
 ///
 /// Usually this is queried directly from the Python interpreter, or overridden using the
@@ -343,25 +362,13 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             _ => panic!("Unknown Py_GIL_DISABLED value"),
         };
 
-        let target_version = if let Some(min_version) = abi3_version {
-            ensure!(
-                min_version <= version,
-                "cannot set a minimum Python version {} higher than the interpreter version {} \
-                 (the minimum Python version is implied by the abi3-py3{} feature)",
-                min_version,
-                version,
-                min_version.minor
-            );
-            min_version
-        } else {
-            version
-        };
+        let target_version = sanitize_abi3_version(abi3_version, version)?;
 
         let mut abi_builder = if gil_disabled {
             PythonAbiBuilder::new(implementation, target_version)
         } else {
             // we already
-            PythonAbiBuilder::from_build_env(implementation, target_version, abi3_version)
+            PythonAbiBuilder::from_build_env(implementation, target_version, abi3_version)?
         };
 
         if gil_disabled {
@@ -466,7 +473,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 .free_threaded()
                 .unwrap()
         } else {
-            PythonAbiBuilder::from_build_env(implementation, version, Some(version))
+            PythonAbiBuilder::from_build_env(implementation, version, Some(version))?
         }
         .finalize();
         let lib_name = Some(default_lib_name_unix(
@@ -513,7 +520,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 config.implementation,
                 config.version,
                 abi3_version,
-            );
+            )?;
             // only allow free-threaded builds if the build environment didn't force an abi3 build
             if config.target_abi.kind.is_free_threaded() && abi_builder.kind.is_none() {
                 abi_builder = abi_builder.free_threaded()?;
@@ -973,17 +980,17 @@ impl PythonAbiBuilder {
         implementation: PythonImplementation,
         version: PythonVersion,
         abi3_version: Option<PythonVersion>,
-    ) -> PythonAbiBuilder {
+    ) -> Result<PythonAbiBuilder> {
         let builder = PythonAbiBuilder {
             implementation,
-            version: abi3_version.unwrap_or(version),
+            version: sanitize_abi3_version(abi3_version, version)?,
             kind: None,
         };
         if is_abi3() {
             // freshly created builder without an ABI kind so this can't fail
-            builder.stable_abi(StableAbi::Abi3).unwrap()
+            builder.stable_abi(StableAbi::Abi3)
         } else {
-            builder
+            Ok(builder)
         }
     }
 
@@ -2040,7 +2047,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         .implementation
         .unwrap_or(PythonImplementation::CPython);
     let gil_disabled: bool = cross_compile_config.abiflags.as_deref() == Some("t");
-    let mut abi_builder = PythonAbiBuilder::from_build_env(implementation, version, Some(version));
+    let mut abi_builder = PythonAbiBuilder::from_build_env(implementation, version, Some(version))?;
     // The build environment might imply an abi3 build, which can't be free-threaded
     if gil_disabled && abi_builder.kind.is_none() {
         abi_builder = abi_builder.free_threaded()?;
@@ -2354,7 +2361,7 @@ pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
             config.implementation,
             config.version,
             get_abi3_version(),
-        );
+        )?;
         if config.target_abi.kind.is_free_threaded() && abi_builder.kind.is_none() {
             abi_builder = abi_builder.free_threaded()?;
         }
