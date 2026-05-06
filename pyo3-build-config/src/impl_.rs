@@ -364,10 +364,10 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 
         let target_version = sanitize_abi3_version(abi3_version, version)?;
 
+        // TODO: fall back to abi3t builds on 3.15t and newer
         let mut abi_builder = if gil_disabled {
             PythonAbiBuilder::new(implementation, target_version)
         } else {
-            // we already
             PythonAbiBuilder::from_build_env(implementation, target_version, abi3_version)?
         };
 
