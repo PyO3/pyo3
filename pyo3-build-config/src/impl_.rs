@@ -1018,10 +1018,6 @@ impl PythonAbiBuilder {
             self.kind.unwrap(),
             kind
         );
-        ensure!(
-            kind == StableAbi::Abi3 || kind == StableAbi::Abi3t,
-            "Cannot set a stable abi build with a version-specific ABI kind '{kind}'"
-        );
         let mut build_version = self.version;
         if self.version.minor > STABLE_ABI_MAX_MINOR {
             warn!("Automatically falling back to {kind}-py3{STABLE_ABI_MAX_MINOR} because current Python is higher than the maximum supported");
@@ -2622,6 +2618,26 @@ mod tests {
             .target_abi
             .kind
             .is_free_threaded());
+
+        let mut flags = BuildFlags::default();
+        flags.0.insert(BuildFlag::Py_GIL_DISABLED);
+        assert!(
+            InterpreterConfigBuilder::new(implementation, PythonVersion::PY312)
+                .build_flags(flags)
+                .unwrap()
+                .finalize()
+                .is_err()
+        );
+
+        let mut flags = BuildFlags::default();
+        flags.0.insert(BuildFlag::Py_GIL_DISABLED);
+        assert!(
+            InterpreterConfigBuilder::new(implementation, PythonVersion::PY312)
+                .stable_abi(StableAbi::Abi3)
+                .unwrap()
+                .build_flags(flags)
+                .is_err()
+        );
     }
 
     #[test]
@@ -3195,6 +3211,20 @@ mod tests {
             .version
             .minor,
             STABLE_ABI_MAX_MINOR
+        );
+
+        assert!("invalid".parse::<PythonAbi>().is_err());
+        assert!("CPython-invalid".parse::<PythonAbi>().is_err());
+        assert!("CPython-version_specific(free_threaded)-invalid"
+            .parse::<PythonAbi>()
+            .is_err());
+
+        assert!(
+            PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY314)
+                .stable_abi(StableAbi::Abi3)
+                .unwrap()
+                .free_threaded()
+                .is_err()
         );
     }
 
