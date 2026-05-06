@@ -705,11 +705,13 @@ pub unsafe fn PyType_HasFeature(ty: *mut PyTypeObject, feature: c_ulong) -> c_in
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyType_FastSubclass(t: *mut PyTypeObject, f: c_ulong) -> c_int {
     PyType_HasFeature(t, f)
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TYPE_SUBCLASS)
 }
@@ -723,6 +725,8 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyType_Check(op: *mut PyObject) -> c_int;
     #[cfg(RustPython)]
     pub fn PyType_CheckExact(op: *mut PyObject) -> c_int;
 

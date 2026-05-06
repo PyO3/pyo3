@@ -6,6 +6,7 @@ use std::ffi::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong
 opaque_struct!(pub PyLongObject);
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LONG_SUBCLASS)
 }
@@ -17,6 +18,8 @@ pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyLong_Check(op: *mut PyObject) -> c_int;
     #[cfg(RustPython)]
     pub fn PyLong_CheckExact(op: *mut PyObject) -> c_int;
 
