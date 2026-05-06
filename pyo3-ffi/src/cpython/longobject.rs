@@ -11,9 +11,13 @@ extern_libpython! {
     // skipped PyUnstable_Long_IsCompact
     // skipped PyUnstable_Long_CompactValue
 
-    // skipped PyLong_IsPositive
-    // skipped PyLong_IsNegative
-    // skipped PyLong_IsZero
+    #[cfg(Py_3_14)]
+    pub fn PyLong_IsPositive(obj: *mut PyObject) -> c_int;
+    #[cfg(Py_3_14)]
+    pub fn PyLong_IsNegative(obj: *mut PyObject) -> c_int;
+    #[cfg(Py_3_14)]
+    pub fn PyLong_IsZero(obj: *mut PyObject) -> c_int;
+
     // skipped PyLong_GetSign
 
     // skipped _PyLong_Sign
