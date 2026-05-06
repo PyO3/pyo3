@@ -3369,8 +3369,8 @@ mod tests {
             PythonImplementation::CPython
         );
         assert_eq!(
-            parsed_config.is_free_threaded(),
-            interpreter_config.is_free_threaded()
+            parsed_config.target_abi.kind.is_free_threaded(),
+            interpreter_config.target_abi.kind.is_free_threaded()
         );
         assert_eq!(parsed_config.pointer_width, Some(64));
     }
