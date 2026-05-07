@@ -377,6 +377,12 @@ mod fast_128bit_int_conversion {
                 const OUTPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
 
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                    #[cfg(Py_3_13)]
+                    let from_native_bytes = || {
+                        let bytes = self.to_ne_bytes();
+                        Ok(int_from_ne_bytes::<{ $is_signed }>(py, &bytes))
+                    };
+
                     #[cfg(Py_3_14)]
                     {
                         if get_bits_per_digit() == PY_LONG_DIGIT_BITS {
@@ -418,14 +424,12 @@ mod fast_128bit_int_conversion {
                                     .cast_into_unchecked()
                             }
                         } else {
-                            let bytes = self.to_ne_bytes();
-                            Ok(int_from_ne_bytes::<{ $is_signed }>(py, &bytes))
+                            from_native_bytes()
                         }
                     }
                     #[cfg(all(Py_3_13, not(Py_3_14)))]
                     {
-                        let bytes = self.to_ne_bytes();
-                        Ok(int_from_ne_bytes::<{ $is_signed }>(py, &bytes))
+                        from_native_bytes()
                     }
                     #[cfg(not(Py_3_13))]
                     {
@@ -457,10 +461,10 @@ mod fast_128bit_int_conversion {
 
                 fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                     let num = nb_index(&ob)?;
+                    let mut buffer = [0u8; std::mem::size_of::<$rust_type>()];
                     #[cfg(Py_3_14)]
                     {
                         if get_bits_per_digit() != PY_LONG_DIGIT_BITS {
-                            let mut buf = [0u8; std::mem::size_of::<$rust_type>()];
                             let mut flags = ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN;
                             if !$is_signed {
                                 flags |= ffi::Py_ASNATIVEBYTES_UNSIGNED_BUFFER
@@ -469,8 +473,9 @@ mod fast_128bit_int_conversion {
                             let actual_size: usize = unsafe {
                                 ffi::PyLong_AsNativeBytes(
                                     num.as_ptr(),
-                                    buf.as_mut_ptr().cast(),
-                                    buf.len()
+                                    buffer.as_mut_ptr().cast(),
+                                    buffer
+                                        .len()
                                         .try_into()
                                         .expect("length of buffer fits in Py_ssize_t"),
                                     flags,
@@ -478,12 +483,12 @@ mod fast_128bit_int_conversion {
                             }
                             .try_into()
                             .map_err(|_| PyErr::fetch(ob.py()))?;
-                            if actual_size as usize > buf.len() {
+                            if actual_size as usize > buffer.len() {
                                 return Err(crate::exceptions::PyOverflowError::new_err(
                                     "Python int larger than 128 bits",
                                 ));
                             }
-                            return Ok(<$rust_type>::from_ne_bytes(buf));
+                            return Ok(<$rust_type>::from_ne_bytes(buffer));
                         }
 
                         let mut long_export = MaybeUninit::<ffi::PyLongExport>::uninit();
@@ -543,7 +548,6 @@ mod fast_128bit_int_conversion {
                     }
                     #[cfg(not(Py_3_14))]
                     {
-                        let mut buffer = [0u8; std::mem::size_of::<$rust_type>()];
                         #[cfg(not(Py_3_13))]
                         {
                             crate::err::error_on_minusone(ob.py(), unsafe {
