@@ -366,7 +366,7 @@ mod fast_128bit_int_conversion {
 
         *DIGITS.get_or_init(|| {
             let layout = unsafe { &*ffi::PyLong_GetNativeLayout() };
-            layout.bits_per_digit == PYLONG_BITS_IN_DIGIT
+            layout.bits_per_digit == PYLONG_BITS_IN_DIGIT as u8
         })
     }
 
