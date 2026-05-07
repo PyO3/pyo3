@@ -51,23 +51,23 @@ extern_libpython! {
     // skipped non-limited PyLong_AsUInt64
 }
 
-#[cfg(Py_3_13)]
+#[cfg(any(Py_3_14, all(Py_3_13, not(Py_LIMITED_API))))]
 pub const Py_ASNATIVEBYTES_DEFAULTS: c_int = -1;
-#[cfg(Py_3_13)]
+#[cfg(any(Py_3_14, all(Py_3_13, not(Py_LIMITED_API))))]
 pub const Py_ASNATIVEBYTES_BIG_ENDIAN: c_int = 0;
-#[cfg(Py_3_13)]
+#[cfg(any(Py_3_14, all(Py_3_13, not(Py_LIMITED_API))))]
 pub const Py_ASNATIVEBYTES_LITTLE_ENDIAN: c_int = 1;
-#[cfg(Py_3_13)]
+#[cfg(any(Py_3_14, all(Py_3_13, not(Py_LIMITED_API))))]
 pub const Py_ASNATIVEBYTES_NATIVE_ENDIAN: c_int = 3;
-#[cfg(Py_3_13)]
+#[cfg(any(Py_3_14, all(Py_3_13, not(Py_LIMITED_API))))]
 pub const Py_ASNATIVEBYTES_UNSIGNED_BUFFER: c_int = 4;
-#[cfg(Py_3_13)]
+#[cfg(any(Py_3_14, all(Py_3_13, not(Py_LIMITED_API))))]
 pub const Py_ASNATIVEBYTES_REJECT_NEGATIVE: c_int = 8;
-#[cfg(Py_3_13)]
+#[cfg(any(Py_3_14, all(Py_3_13, not(Py_LIMITED_API))))]
 pub const Py_ASNATIVEBYTES_ALLOW_INDEX: c_int = 16;
 
 extern_libpython! {
-    #[cfg(Py_3_13)]
+    #[cfg(any(Py_3_14, all(Py_3_13, not(Py_LIMITED_API))))]
     pub fn PyLong_AsNativeBytes(
         v: *mut PyObject,
         buffer: *mut c_void,
@@ -75,14 +75,14 @@ extern_libpython! {
         flags: c_int,
     ) -> Py_ssize_t;
 
-    #[cfg(Py_3_13)]
+    #[cfg(any(Py_3_14, all(Py_3_13, not(Py_LIMITED_API))))]
     pub fn PyLong_FromNativeBytes(
         buffer: *const c_void,
         n_bytes: size_t,
         flags: c_int,
     ) -> *mut PyObject;
 
-    #[cfg(Py_3_13)]
+    #[cfg(any(Py_3_14, all(Py_3_13, not(Py_LIMITED_API))))]
     pub fn PyLong_FromUnsignedNativeBytes(
         buffer: *const c_void,
         n_bytes: size_t,
