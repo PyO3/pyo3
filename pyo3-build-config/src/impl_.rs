@@ -2641,6 +2641,12 @@ mod tests {
                 .finalize()
                 .is_err()
         );
+
+        assert!(
+            InterpreterConfigBuilder::new(implementation, PythonVersion::PY38)
+                .free_threaded()
+                .is_err()
+        );
     }
 
     #[test]
