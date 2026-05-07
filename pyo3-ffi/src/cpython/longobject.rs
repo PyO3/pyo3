@@ -5,9 +5,6 @@ use std::ffi::{c_int, c_uchar};
 // skipped _PyLong_CAST
 
 extern_libpython! {
-    #[cfg(Py_3_13)]
-    pub fn PyUnstable_Long_IsCompact(u: *mut PyObject, base: c_int) -> *mut PyObject;
-
     // skipped PyUnstable_Long_IsCompact
     // skipped PyUnstable_Long_CompactValue
 
