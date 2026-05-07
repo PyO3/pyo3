@@ -33,15 +33,15 @@ enum Bits {
     C = 4,
 }
 
-#[py_native_enum(rename = "Colour")]
-enum Colour {
+#[py_native_enum(name = "Colour")]
+enum RenamedColor {
     Red,
     Green,
 }
 
 #[py_native_enum]
 enum Named {
-    #[native_enum(rename = "FIRST")]
+    #[native_enum(name = "FIRST")]
     First,
     Second,
 }
@@ -256,7 +256,7 @@ fn test_flag_enum() {
 #[test]
 fn test_rename_class() {
     Python::attach(|py| {
-        let cls = Colour::py_enum_class(py).unwrap();
+        let cls = RenamedColor::py_enum_class(py).unwrap();
         py_run!(py, cls, "assert cls.__name__ == 'Colour'");
     });
 }

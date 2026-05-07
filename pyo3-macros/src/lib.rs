@@ -194,11 +194,11 @@ pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
 ///
 /// Supported enum-level attributes via `#[native_enum(...)]`:
 /// - `base = "IntEnum"` — choose the Python base class (default: `"Enum"`)
-/// - `rename = "PyName"` — override the Python class name (default: Rust ident)
+/// - `name = "PyName"` — override the Python class name (default: Rust ident)
 /// - `module = "my_module"` — set the `module` kwarg on the functional API
 ///
 /// Supported variant-level attributes via `#[native_enum(...)]`:
-/// - `rename = "py_name"` — override this member's Python name
+/// - `name = "py_name"` — override this member's Python name
 /// - `value = 42` or `value = "str"` — explicit value (overrides Rust discriminant)
 ///
 /// [`NativeEnum`]: https://docs.rs/pyo3/latest/pyo3/native_enum/trait.NativeEnum.html
@@ -214,11 +214,11 @@ pub fn derive_native_enum(item: TokenStream) -> TokenStream {
 ///
 /// Supported options via `#[py_native_enum(...)]`:
 /// - `base = "IntEnum"` — choose the Python base class (default: `"Enum"`)
-/// - `rename = "PyName"` — override the Python class name (default: Rust ident)
+/// - `name = "PyName"` — override the Python class name (default: Rust ident)
 /// - `module = "my_module"` — set the `module` kwarg on the functional API
 ///
 /// Supported per-variant options via `#[native_enum(...)]`:
-/// - `rename = "py_name"` — override this member's Python name
+/// - `name = "py_name"` — override this member's Python name
 /// - `value = 42` or `value = "str"` — explicit value
 ///
 /// [`enum.Enum`]: https://docs.python.org/3/library/enum.html

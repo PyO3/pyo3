@@ -1,4 +1,6 @@
-use crate::attributes::{kw, take_attributes, CrateAttribute, KeywordAttribute, ModuleAttribute};
+use crate::attributes::{
+    kw, take_attributes, CrateAttribute, KeywordAttribute, ModuleAttribute, NameAttribute,
+};
 use crate::utils::Ctx;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -8,11 +10,10 @@ use syn::{
 };
 
 type BaseAttribute = KeywordAttribute<kw::base, LitStr>;
-type RenameAttribute = KeywordAttribute<kw::rename, LitStr>;
 
 enum NativeEnumOption {
     Base(BaseAttribute),
-    Rename(RenameAttribute),
+    Name(NameAttribute),
     Module(ModuleAttribute),
     Crate(CrateAttribute),
 }
@@ -22,8 +23,8 @@ impl syn::parse::Parse for NativeEnumOption {
         let lookahead = input.lookahead1();
         if lookahead.peek(kw::base) {
             input.parse().map(NativeEnumOption::Base)
-        } else if lookahead.peek(kw::rename) {
-            input.parse().map(NativeEnumOption::Rename)
+        } else if lookahead.peek(kw::name) {
+            input.parse().map(NativeEnumOption::Name)
         } else if lookahead.peek(kw::module) {
             input.parse().map(NativeEnumOption::Module)
         } else if lookahead.peek(Token![crate]) {
@@ -38,7 +39,7 @@ impl syn::parse::Parse for NativeEnumOption {
 #[derive(Default)]
 pub struct PyNativeEnumArgs {
     base: Option<BaseAttribute>,
-    rename: Option<RenameAttribute>,
+    name: Option<NameAttribute>,
     module: Option<ModuleAttribute>,
     krate: Option<CrateAttribute>,
 }
@@ -56,7 +57,7 @@ impl PyNativeEnumArgs {
         }
         match option {
             NativeEnumOption::Base(base) => set_option!(base),
-            NativeEnumOption::Rename(rename) => set_option!(rename),
+            NativeEnumOption::Name(name) => set_option!(name),
             NativeEnumOption::Module(module) => set_option!(module),
             NativeEnumOption::Crate(krate) => set_option!(krate),
         }
@@ -96,7 +97,7 @@ enum ValueLit {
     Str(String),
 }
 
-impl syn::parse::Parse for ValueLit {
+impl Parse for ValueLit {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(LitInt) {
@@ -110,19 +111,18 @@ impl syn::parse::Parse for ValueLit {
     }
 }
 
-type VariantRenameAttribute = KeywordAttribute<kw::rename, LitStr>;
 type VariantValueAttribute = KeywordAttribute<kw::value, ValueLit>;
 
 enum NativeEnumVariantOption {
-    Rename(VariantRenameAttribute),
+    Name(NameAttribute),
     Value(VariantValueAttribute),
 }
 
-impl syn::parse::Parse for NativeEnumVariantOption {
+impl Parse for NativeEnumVariantOption {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
-        if lookahead.peek(kw::rename) {
-            input.parse().map(NativeEnumVariantOption::Rename)
+        if lookahead.peek(kw::name) {
+            input.parse().map(NativeEnumVariantOption::Name)
         } else if lookahead.peek(kw::value) {
             input.parse().map(NativeEnumVariantOption::Value)
         } else {
@@ -133,7 +133,7 @@ impl syn::parse::Parse for NativeEnumVariantOption {
 
 #[derive(Default)]
 struct VariantAttrs {
-    rename: Option<VariantRenameAttribute>,
+    name: Option<NameAttribute>,
     value: Option<VariantValueAttribute>,
 }
 
@@ -149,7 +149,7 @@ impl VariantAttrs {
             }};
         }
         match option {
-            NativeEnumVariantOption::Rename(rename) => set_option!(rename),
+            NativeEnumVariantOption::Name(name) => set_option!(name),
             NativeEnumVariantOption::Value(value) => set_option!(value),
         }
         Ok(())
@@ -181,9 +181,9 @@ fn impl_native_enum(
     let pyo3 = &ctx.pyo3_path;
 
     let py_name = args
-        .rename
+        .name
         .as_ref()
-        .map(|r| r.value.value())
+        .map(|n| n.value.0.to_string())
         .unwrap_or_else(|| ident.to_string());
 
     let module_opt = match &args.module {
@@ -237,9 +237,9 @@ fn impl_native_enum(
         let variant_attrs = VariantAttrs::take_from_attrs(&mut variant.attrs)?;
         let rust_name = variant.ident.to_string();
         let py_member_name = variant_attrs
-            .rename
+            .name
             .as_ref()
-            .map(|r| r.value.value())
+            .map(|n| n.value.0.to_string())
             .unwrap_or_else(|| rust_name.clone());
         let variant_ident = &variant.ident;
 
