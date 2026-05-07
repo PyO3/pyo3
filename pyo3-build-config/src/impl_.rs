@@ -120,9 +120,9 @@ fn apply_build_env_to_config(mut config: InterpreterConfig) -> Result<Interprete
 
 /// Configuration needed by PyO3 to build for the correct Python implementation.
 ///
-/// The version and implementation fields on the correspond to the interpreter
+/// The version and implementation fields correspond to the interpreter
 /// used to host a build. These need not be the same as the implementation and
-/// version set for the build target in the `target_abi` field.
+/// version fields set for the build target in the `target_abi` field.
 ///
 /// Usually this is queried directly from the Python interpreter, or overridden using the
 /// `PYO3_CONFIG_FILE` environment variable.
