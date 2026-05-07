@@ -1,0 +1,1 @@
+A set of crates to test `pyo3-introspection` backward compatibility support.
