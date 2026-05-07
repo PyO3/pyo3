@@ -252,6 +252,8 @@ fn impl_native_enum(
                 if let Some((_, expr)) = &variant.discriminant {
                     let int_val: i64 = extract_discriminant_i64(expr)?;
                     quote! { #pyo3::native_enum::VariantValue::Int(#int_val) }
+                } else if base_str == "StrEnum" {
+                    quote! { #pyo3::native_enum::VariantValue::Str(#py_member_name) }
                 } else {
                     quote! { #pyo3::native_enum::VariantValue::Auto }
                 }
@@ -398,6 +400,13 @@ pub fn build_derive_native_enum(input: &mut DeriveInput) -> syn::Result<TokenStr
             ))
         }
     };
+    if let Some(lt) = input.generics.lifetimes().next() {
+        bail_spanned!(lt.span() => "#[derive(NativeEnum)] cannot have lifetime parameters");
+    }
+    ensure_spanned!(
+        input.generics.params.is_empty(),
+        input.generics.span() => "#[derive(NativeEnum)] cannot have generic parameters"
+    );
     let args = PyNativeEnumArgs::take_from_attrs(&mut input.attrs)?;
     impl_native_enum(&input.ident, &args, &mut data_enum.variants)
 }
@@ -407,6 +416,13 @@ pub fn native_enum_impl(
     item: &mut syn::ItemEnum,
     args: PyNativeEnumArgs,
 ) -> syn::Result<TokenStream> {
+    if let Some(lt) = item.generics.lifetimes().next() {
+        bail_spanned!(lt.span() => "#[native_enum] cannot have lifetime parameters");
+    }
+    ensure_spanned!(
+        item.generics.params.is_empty(),
+        item.generics.span() => "#[native_enum] cannot have generic parameters"
+    );
     impl_native_enum(&item.ident, &args, &mut item.variants)
 }
 

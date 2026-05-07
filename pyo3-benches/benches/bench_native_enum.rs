@@ -25,13 +25,13 @@ enum Status {
 // Measures the PyOnceLock cache-hit path: get + clone_ref + into_bound.
 fn bench_py_enum_class(b: &mut Bencher<'_>) {
     Python::attach(|py| {
-        b.iter(|| Color::py_enum_class(py).unwrap());
+        b.iter(|| black_box(Color::py_enum_class(py).unwrap()));
     });
 }
 
 fn bench_int_enum_class(b: &mut Bencher<'_>) {
     Python::attach(|py| {
-        b.iter(|| Status::py_enum_class(py).unwrap());
+        b.iter(|| black_box(Status::py_enum_class(py).unwrap()));
     });
 }
 

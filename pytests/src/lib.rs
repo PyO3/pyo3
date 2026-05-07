@@ -11,6 +11,7 @@ mod dict_iter;
 mod enums;
 mod exception;
 mod misc;
+mod native_enums;
 mod objstore;
 mod othermod;
 mod path;
@@ -35,9 +36,9 @@ mod pyo3_pytests {
     #[pymodule_export]
     use {
         awaitable::awaitable, comparisons::comparisons, consts::consts, dict_iter::dict_iter,
-        enums::enums, exception::exception, misc::misc, objstore::objstore, othermod::othermod,
-        path::path, pyclasses::pyclasses, pyfunctions::pyfunctions, sequence::sequence,
-        subclassing::subclassing,
+        enums::enums, exception::exception, misc::misc, native_enums::native_enums,
+        objstore::objstore, othermod::othermod, path::path, pyclasses::pyclasses,
+        pyfunctions::pyfunctions, sequence::sequence, subclassing::subclassing,
     };
 
     // Inserting to sys.modules allows importing submodules nicely from Python
@@ -52,6 +53,7 @@ mod pyo3_pytests {
         sys_modules.set_item("pyo3_pytests.datetime", m.getattr("datetime")?)?;
         sys_modules.set_item("pyo3_pytests.dict_iter", m.getattr("dict_iter")?)?;
         sys_modules.set_item("pyo3_pytests.enums", m.getattr("enums")?)?;
+        sys_modules.set_item("pyo3_pytests.native_enums", m.getattr("native_enums")?)?;
         sys_modules.set_item("pyo3_pytests.misc", m.getattr("misc")?)?;
         sys_modules.set_item("pyo3_pytests.objstore", m.getattr("objstore")?)?;
         sys_modules.set_item("pyo3_pytests.othermod", m.getattr("othermod")?)?;

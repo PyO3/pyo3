@@ -1,0 +1,5 @@
+error: unknown native_enum base: `NotABase`. Expected one of: Enum, IntEnum, StrEnum, Flag, IntFlag
+ --> tests/ui/invalid_native_enum_base.rs:3:25
+  |
+3 | #[py_native_enum(base = "NotABase")]
+  |                         ^^^^^^^^^^
