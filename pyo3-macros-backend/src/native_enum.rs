@@ -334,10 +334,10 @@ fn impl_native_enum(
                     obj,
                     #pyo3::intern!(obj.py(), "name"),
                 )?;
-                let name = #pyo3::types::PyAnyMethods::extract::<&str>(
+                let name = #pyo3::types::PyAnyMethods::extract::<::std::string::String>(
                     &name_obj
                 )?;
-                match name {
+                match name.as_str() {
                     #(#from_arms)*
                     other => ::std::result::Result::Err(
                         #pyo3::exceptions::PyValueError::new_err(
