@@ -358,11 +358,16 @@ mod fast_128bit_int_conversion {
     use super::*;
 
     #[cfg(Py_3_14)]
-    const PY_LONG_DIGIT_BITS: usize = 30;
+    const PYLONG_BITS_IN_DIGIT: usize = 30;
 
     #[cfg(Py_3_14)]
-    fn get_bits_per_digit() -> usize {
-        unsafe { (*ffi::PyLong_GetNativeLayout()).bits_per_digit as usize }
+    fn is_30bit_layout() -> bool {
+        static DIGITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
+        *DIGITS.get_or_init(|| {
+            let layout = unsafe { &*ffi::PyLong_GetNativeLayout() };
+            layout.bits_per_digit == PYLONG_BITS_IN_DIGIT
+        })
     }
 
     // for 128bit Integers
@@ -379,8 +384,8 @@ mod fast_128bit_int_conversion {
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     #[cfg(Py_3_14)]
                     {
-                        if get_bits_per_digit() == PY_LONG_DIGIT_BITS {
-                            const DIGIT_MASK: u32 = (1 << PY_LONG_DIGIT_BITS) - 1;
+                        if !is_30bit_layout() {
+                            const DIGIT_MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
 
                             let value = self as u128;
                             let negative = $is_signed && (self as i128) < 0;
@@ -393,7 +398,7 @@ mod fast_128bit_int_conversion {
                             let n_digits = if bits == 0 {
                                 1
                             } else {
-                                bits.div_ceil(PY_LONG_DIGIT_BITS)
+                                bits.div_ceil(PYLONG_BITS_IN_DIGIT)
                             };
                             let mut ptr = std::ptr::null_mut();
                             let long_writer = unsafe {
@@ -410,7 +415,7 @@ mod fast_128bit_int_conversion {
                             let mut rest = abs;
                             for i in 0..n_digits {
                                 unsafe { digits.add(i).write(rest as u32 & DIGIT_MASK) };
-                                rest >>= PY_LONG_DIGIT_BITS;
+                                rest >>= PYLONG_BITS_IN_DIGIT;
                             }
                             return unsafe {
                                 ffi::PyLongWriter_Finish(long_writer)
@@ -456,7 +461,7 @@ mod fast_128bit_int_conversion {
                     let num = nb_index(&ob)?;
                     #[cfg(Py_3_14)]
                     {
-                        if get_bits_per_digit() == PY_LONG_DIGIT_BITS {
+                        if !is_30bit_layout() {
                             let mut long_export = MaybeUninit::<ffi::PyLongExport>::uninit();
                             unsafe {
                                 crate::err::error_on_minusone(
@@ -492,7 +497,7 @@ mod fast_128bit_int_conversion {
                                 if i == 4 && digit >> 8 != 0 {
                                     overflowed = true;
                                 }
-                                abs |= digit << (i * PY_LONG_DIGIT_BITS);
+                                abs |= digit << (i * PYLONG_BITS_IN_DIGIT);
                             }
                             unsafe { ffi::PyLong_FreeExport(long_export.as_mut_ptr()) };
                             if overflowed {
