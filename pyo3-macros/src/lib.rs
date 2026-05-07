@@ -201,7 +201,7 @@ pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
 /// - `rename = "py_name"` — override this member's Python name
 /// - `value = 42` or `value = "str"` — explicit value (overrides Rust discriminant)
 ///
-/// [`NativeEnum`]: pyo3::native_enum::NativeEnum
+/// [`NativeEnum`]: https://docs.rs/pyo3/latest/pyo3/native_enum/trait.NativeEnum.html
 /// [`enum.Enum`]: https://docs.python.org/3/library/enum.html
 #[proc_macro_derive(NativeEnum, attributes(native_enum))]
 pub fn derive_native_enum(item: TokenStream) -> TokenStream {
