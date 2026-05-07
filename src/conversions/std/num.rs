@@ -384,7 +384,7 @@ mod fast_128bit_int_conversion {
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     #[cfg(Py_3_14)]
                     {
-                        if !is_30bit_layout() {
+                        if is_30bit_layout() {
                             const DIGIT_MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
 
                             let value = self as u128;
@@ -461,7 +461,7 @@ mod fast_128bit_int_conversion {
                     let num = nb_index(&ob)?;
                     #[cfg(Py_3_14)]
                     {
-                        if !is_30bit_layout() {
+                        if is_30bit_layout() {
                             let mut long_export = MaybeUninit::<ffi::PyLongExport>::uninit();
                             unsafe {
                                 crate::err::error_on_minusone(
