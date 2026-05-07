@@ -109,12 +109,18 @@ fn apply_build_env_to_config(mut config: InterpreterConfig) -> Result<Interprete
     // only allow free-threaded builds if the build environment didn't force an abi3 build
     if config.target_abi.kind.is_free_threaded() && abi_builder.kind.is_none() {
         abi_builder = abi_builder.free_threaded()?;
+    } else if let PythonAbiKind::Stable(stable_abi) = config.target_abi.kind {
+        abi_builder = abi_builder.stable_abi(stable_abi)?;
     }
     config.target_abi = abi_builder.finalize();
     Ok(config)
 }
 
 /// Configuration needed by PyO3 to build for the correct Python implementation.
+///
+/// The version and implementation fields on the correspond to the interpreter
+/// used to host a build. These need not be the same as the implementation and
+/// version set for the build target in the `target_abi` field.
 ///
 /// Usually this is queried directly from the Python interpreter, or overridden using the
 /// `PYO3_CONFIG_FILE` environment variable.
@@ -242,8 +248,9 @@ impl InterpreterConfig {
             PythonAbiKind::Stable(kind) => {
                 out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
                 if kind == StableAbi::Abi3t {
-                    out.push("cargo:rustc-cfg=Py_GIL_DISABLED".to_owned());
-                    out.push("cargo:rustc-cfg=Py_TARGET_ABI3T".to_owned());
+                    // out.push("cargo:rustc-cfg=Py_GIL_DISABLED".to_owned());
+                    // out.push("cargo:rustc-cfg=Py_TARGET_ABI3T".to_owned());
+                    panic!("Abi3t builds are not yet supported");
                 }
             }
             PythonAbiKind::VersionSpecific(kind) => match kind {
@@ -419,7 +426,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             .lib_name(Some(lib_name))
             .lib_dir(lib_dir)
             .executable(map.get("executable").cloned())
-            .pointer_width(calcsize_pointer * 8)
+            .pointer_width(Some(calcsize_pointer * 8))
             .build_flags(BuildFlags::from_interpreter(interpreter)?)?
             .python_framework_prefix(python_framework_prefix)
             .finalize()
@@ -476,8 +483,8 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             cygwin,
             sysconfigdata.get_value("LDVERSION"),
         )?);
-        let pointer_width =
-            parse_key!(sysconfigdata, "SIZEOF_VOID_P").map(|bytes_width: u32| bytes_width * 8)?;
+        let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
+            .map(|bytes_width: u32| Some(bytes_width * 8))?;
         let build_flags = BuildFlags::from_sysconfigdata(sysconfigdata);
 
         InterpreterConfigBuilder::new(implementation, version)
@@ -645,13 +652,8 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             .build_flags(build_flags)?
             .suppress_build_script_link_lines(suppress_build_script_link_lines)
             .extra_build_script_lines(extra_build_script_lines)
-            .python_framework_prefix(python_framework_prefix);
-
-        let builder = if let Some(pointer_width) = pointer_width {
-            builder.pointer_width(pointer_width)
-        } else {
-            builder
-        };
+            .python_framework_prefix(python_framework_prefix)
+            .pointer_width(pointer_width);
 
         builder.finalize()
     }
@@ -762,6 +764,10 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             envs,
         )
     }
+
+    pub fn is_free_threaded(&self) -> bool {
+        self.target_abi.kind.is_free_threaded()
+    }
 }
 
 #[cfg_attr(test, derive(Debug))]
@@ -818,9 +824,7 @@ impl InterpreterConfigBuilder {
         let version = self.version;
         self.target_abi(
             PythonAbiBuilder::new(implementation, version)
-                .stable_abi(kind)
-                // this can't panic because stable_abi() is called on a builder with no chosen ABI
-                .unwrap()
+                .stable_abi(kind)?
                 .finalize(),
         )
     }
@@ -830,9 +834,7 @@ impl InterpreterConfigBuilder {
         let version: PythonVersion = self.version;
         self.target_abi(
             PythonAbiBuilder::new(implementation, version)
-                .free_threaded()
-                // this can't panic because abi3() is called on a builder with no chosen ABI
-                .unwrap()
+                .free_threaded()?
                 .finalize(),
         )
     }
@@ -841,9 +843,9 @@ impl InterpreterConfigBuilder {
         InterpreterConfigBuilder { lib_name, ..self }
     }
 
-    pub fn pointer_width(self, pointer_width: u32) -> InterpreterConfigBuilder {
+    pub fn pointer_width(self, pointer_width: Option<u32>) -> InterpreterConfigBuilder {
         InterpreterConfigBuilder {
-            pointer_width: Some(pointer_width),
+            pointer_width,
             ..self
         }
     }
@@ -989,7 +991,6 @@ impl PythonAbiBuilder {
             kind: None,
         };
         if is_abi3() {
-            // freshly created builder without an ABI kind so this can't fail
             builder.stable_abi(StableAbi::Abi3)
         } else {
             Ok(builder)
@@ -1126,7 +1127,7 @@ impl Display for PythonAbiKind {
         match self {
             PythonAbiKind::Stable(stable_abi) => write!(f, "{stable_abi}"),
             PythonAbiKind::VersionSpecific(gil_used) => {
-                write!(f, "version_specific({gil_used})")
+                write!(f, "{gil_used}")
             }
         }
     }
@@ -1139,12 +1140,8 @@ impl FromStr for PythonAbiKind {
         match value {
             "abi3" => Ok(PythonAbiKind::Stable(StableAbi::Abi3)),
             "abi3t" => Ok(PythonAbiKind::Stable(StableAbi::Abi3t)),
-            "version_specific(free_threaded)" => {
-                Ok(PythonAbiKind::VersionSpecific(GilUsed::FreeThreaded))
-            }
-            "version_specific(gil_enabled)" => {
-                Ok(PythonAbiKind::VersionSpecific(GilUsed::GilEnabled))
-            }
+            "free_threaded" => Ok(PythonAbiKind::VersionSpecific(GilUsed::FreeThreaded)),
+            "gil_enabled" => Ok(PythonAbiKind::VersionSpecific(GilUsed::GilEnabled)),
             _ => Err(format!("Unrecognized ABI name: {value}").into()),
         }
     }
@@ -2481,7 +2478,7 @@ mod tests {
         let config = InterpreterConfigBuilder::new(implementation, version)
             .stable_abi(StableAbi::Abi3)
             .unwrap()
-            .pointer_width(32)
+            .pointer_width(Some(32))
             .executable(Some("executable".into()))
             .lib_dir(Some("lib_name".into()))
             .lib_name(Some("lib_name".into()))
@@ -2521,7 +2518,7 @@ mod tests {
         let config = InterpreterConfigBuilder::new(implementation, version)
             .stable_abi(StableAbi::Abi3)
             .unwrap()
-            .pointer_width(32)
+            .pointer_width(Some(32))
             .executable(Some("executable".into()))
             .lib_name(Some("lib_name".into()))
             .lib_dir(Some("lib_dir\\n".into()))
@@ -2596,7 +2593,7 @@ mod tests {
         // Canonical: target_abi=free_threaded.
         assert_eq!(
             InterpreterConfig::from_reader(
-                "version=3.13\ntarget_abi=CPython-version_specific(free_threaded)-3.13".as_bytes()
+                "version=3.13\ntarget_abi=CPython-free_threaded-3.13".as_bytes()
             )
             .unwrap(),
             InterpreterConfigBuilder::new(implementation, version)
@@ -2606,7 +2603,11 @@ mod tests {
                 .unwrap()
         );
         // target_abi=gil_enabled with build_flags=Py_GIL_DISABLED is inconsistent and rejected.
-        assert!(InterpreterConfig::from_reader("version=3.13\ntarget_abi=CPython-version_specific(gil_enabled)-3.13\nbuild_flags=Py_GIL_DISABLED".as_bytes()).is_err());
+        assert!(InterpreterConfig::from_reader(
+            "version=3.13\ntarget_abi=CPython-gil_enabled-3.13\nbuild_flags=Py_GIL_DISABLED"
+                .as_bytes()
+        )
+        .is_err());
         // build_flags=Py_GIL_DISABLED on a builder without target_abi is ok
         let mut flags = BuildFlags::default();
         flags.0.insert(BuildFlag::Py_GIL_DISABLED);
@@ -2759,7 +2760,7 @@ mod tests {
                 .unwrap()
                 .lib_dir(Some("/usr/lib".into()))
                 .lib_name(Some("python3.8".into()))
-                .pointer_width(64)
+                .pointer_width(Some(64))
                 .finalize()
                 .unwrap()
         );
@@ -2785,7 +2786,7 @@ mod tests {
                 .unwrap()
                 .lib_dir(Some("/usr/lib".into()))
                 .lib_name(Some("python3.8".into()))
-                .pointer_width(64)
+                .pointer_width(Some(64))
                 .finalize()
                 .unwrap()
         );
@@ -2808,7 +2809,7 @@ mod tests {
                 .unwrap()
                 .lib_dir(Some("/usr/lib".into()))
                 .lib_name(Some("python3.8".into()))
-                .pointer_width(64)
+                .pointer_width(Some(64))
                 .shared(false)
                 .finalize()
                 .unwrap()
@@ -3217,7 +3218,7 @@ mod tests {
 
         assert!("invalid".parse::<PythonAbi>().is_err());
         assert!("CPython-invalid".parse::<PythonAbi>().is_err());
-        assert!("CPython-version_specific(free_threaded)-invalid"
+        assert!("CPython-free_threaded-invalid"
             .parse::<PythonAbi>()
             .is_err());
 
