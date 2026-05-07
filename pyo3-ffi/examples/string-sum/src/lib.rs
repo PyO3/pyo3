@@ -36,29 +36,26 @@ PyABIInfo_VAR!(ABI_INFO);
 
 const SLOTS_LEN: usize =
     1 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize + 4 * (cfg!(Py_3_15) as usize);
+#[cfg(Py_3_15)]
+static mut SLOTS: [PySlot; SLOTS_LEN] = [
+    PySlot_STATIC_DATA(Py_mod_abi, (&raw mut ABI_INFO).cast()),
+    // safety: Python does not write to these static fields
+    PySlot_STATIC_DATA(Py_mod_name, c"string_sum".as_ptr() as *mut c_void),
+    PySlot_STATIC_DATA(
+        Py_mod_doc,
+        c"A Python module written in Rust.".as_ptr() as *mut c_void,
+    ),
+    PySlot_STATIC_DATA(Py_mod_methods, (&raw mut METHODS).cast()),
+    PySlot_DATA(
+        Py_mod_multiple_interpreters,
+        Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
+    ),
+    #[cfg(Py_GIL_DISABLED)]
+    PySlot_DATA(Py_mod_gil, Py_MOD_GIL_NOT_USED),
+    PySlot_END(),
+];
+#[cfg(not(Py_3_15))]
 static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
-    #[cfg(Py_3_15)]
-    PyModuleDef_Slot {
-        slot: Py_mod_abi,
-        value: (&raw mut ABI_INFO).cast(),
-    },
-    #[cfg(Py_3_15)]
-    PyModuleDef_Slot {
-        slot: Py_mod_name,
-        // safety: Python does not write to this field
-        value: c"string_sum".as_ptr() as *mut c_void,
-    },
-    #[cfg(Py_3_15)]
-    PyModuleDef_Slot {
-        slot: Py_mod_doc,
-        // safety: Python does not write to this field
-        value: c"A Python module written in Rust.".as_ptr() as *mut c_void,
-    },
-    #[cfg(Py_3_15)]
-    PyModuleDef_Slot {
-        slot: Py_mod_methods,
-        value: (&raw mut METHODS).cast(),
-    },
     #[cfg(Py_3_12)]
     PyModuleDef_Slot {
         slot: Py_mod_multiple_interpreters,

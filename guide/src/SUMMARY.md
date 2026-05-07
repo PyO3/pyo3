@@ -32,6 +32,7 @@
 - [Performance](performance.md)
 - [Type stub generation and introspection](type-stub.md)
 - [Advanced topics](advanced.md)
+  - [Sharing types between packages](advanced/sharing-types.md)
 - [Building and distribution](building-and-distribution.md)
   - [Supporting multiple Python versions](building-and-distribution/multiple-python-versions.md)
 - [Useful crates](ecosystem.md)
