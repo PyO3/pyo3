@@ -450,7 +450,7 @@ pub use pyo3_macros::{
 
 /// A proc macro used to expose a Rust enum to Python as an [`enum.Enum`] subclass.
 ///
-/// This is the attribute macro form of [`NativeEnum`], consistent with the [`pyclass`] style.
+/// This is the attribute macro form of [`NativeEnum`], consistent with the [`macro@pyclass`] style.
 ///
 /// [`enum.Enum`]: https://docs.python.org/3/library/enum.html
 #[cfg(feature = "macros")]

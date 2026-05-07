@@ -31,7 +31,11 @@ def test_color_len():
 
 def test_color_iter():
     members = list(native_enums.Color)
-    assert members == [native_enums.Color.Red, native_enums.Color.Green, native_enums.Color.Blue]
+    assert members == [
+        native_enums.Color.Red,
+        native_enums.Color.Green,
+        native_enums.Color.Blue,
+    ]
 
 
 def test_color_contains():
