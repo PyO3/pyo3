@@ -377,12 +377,6 @@ mod fast_128bit_int_conversion {
                 const OUTPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
 
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-                    #[cfg(Py_3_13)]
-                    let from_native_bytes = || {
-                        let bytes = self.to_ne_bytes();
-                        Ok(int_from_ne_bytes::<{ $is_signed }>(py, &bytes))
-                    };
-
                     #[cfg(Py_3_14)]
                     {
                         if get_bits_per_digit() == PY_LONG_DIGIT_BITS {
@@ -418,18 +412,17 @@ mod fast_128bit_int_conversion {
                                 unsafe { digits.add(i).write(rest as u32 & DIGIT_MASK) };
                                 rest >>= PY_LONG_DIGIT_BITS;
                             }
-                            unsafe {
+                            return unsafe {
                                 ffi::PyLongWriter_Finish(long_writer)
                                     .assume_owned_or_err(py)
                                     .cast_into_unchecked()
-                            }
-                        } else {
-                            from_native_bytes()
+                            };
                         }
                     }
-                    #[cfg(all(Py_3_13, not(Py_3_14)))]
+                    #[cfg(Py_3_13)]
                     {
-                        from_native_bytes()
+                        let bytes = self.to_ne_bytes();
+                        Ok(int_from_ne_bytes::<{ $is_signed }>(py, &bytes))
                     }
                     #[cfg(not(Py_3_13))]
                     {
@@ -461,133 +454,112 @@ mod fast_128bit_int_conversion {
 
                 fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                     let num = nb_index(&ob)?;
-                    let mut buffer = [0u8; std::mem::size_of::<$rust_type>()];
                     #[cfg(Py_3_14)]
                     {
-                        if get_bits_per_digit() != PY_LONG_DIGIT_BITS {
-                            let mut flags = ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN;
-                            if !$is_signed {
-                                flags |= ffi::Py_ASNATIVEBYTES_UNSIGNED_BUFFER
-                                    | ffi::Py_ASNATIVEBYTES_REJECT_NEGATIVE;
+                        if get_bits_per_digit() == PY_LONG_DIGIT_BITS {
+                            let mut long_export = MaybeUninit::<ffi::PyLongExport>::uninit();
+                            unsafe {
+                                crate::err::error_on_minusone(
+                                    num.py(),
+                                    ffi::PyLong_Export(
+                                        num.as_ptr().cast(),
+                                        long_export.as_mut_ptr(),
+                                    ),
+                                )?;
                             }
-                            let actual_size: usize = unsafe {
-                                ffi::PyLong_AsNativeBytes(
-                                    num.as_ptr(),
-                                    buffer.as_mut_ptr().cast(),
-                                    buffer
-                                        .len()
-                                        .try_into()
-                                        .expect("length of buffer fits in Py_ssize_t"),
-                                    flags,
-                                )
+                            let long_export_ref = unsafe { long_export.assume_init_ref() };
+                            if long_export_ref.digits.is_null() {
+                                return <$rust_type>::try_from(long_export_ref.value).map_err(
+                                    |_| {
+                                        exceptions::PyOverflowError::new_err(
+                                            "Python int larger than 128 bits",
+                                        )
+                                    },
+                                );
                             }
-                            .try_into()
-                            .map_err(|_| PyErr::fetch(ob.py()))?;
-                            if actual_size as usize > buffer.len() {
-                                return Err(crate::exceptions::PyOverflowError::new_err(
-                                    "Python int larger than 128 bits",
-                                ));
-                            }
-                            return Ok(<$rust_type>::from_ne_bytes(buffer));
-                        }
-
-                        let mut long_export = MaybeUninit::<ffi::PyLongExport>::uninit();
-                        unsafe {
-                            crate::err::error_on_minusone(
-                                num.py(),
-                                ffi::PyLong_Export(num.as_ptr().cast(), long_export.as_mut_ptr()),
-                            )?;
-                        }
-                        let long_export_ref = unsafe { long_export.assume_init_ref() };
-                        if long_export_ref.digits.is_null() {
-                            return <$rust_type>::try_from(long_export_ref.value).map_err(|_| {
+                            let overflow = || {
                                 exceptions::PyOverflowError::new_err(
                                     "Python int larger than 128 bits",
                                 )
-                            });
-                        }
-                        let overflow = || {
-                            exceptions::PyOverflowError::new_err("Python int larger than 128 bits")
-                        };
-                        let n_digits = long_export_ref.ndigits as usize;
-                        let negative = long_export_ref.negative != 0;
-                        let digits = long_export_ref.digits.cast::<u32>();
-                        let mut abs = 0_u128;
-                        let mut overflowed = n_digits > 5;
-                        for i in 0..n_digits.min(5) {
-                            let digit = u128::from(unsafe { digits.add(i).read() });
-                            if i == 4 && digit >> 8 != 0 {
-                                overflowed = true;
+                            };
+                            let n_digits = long_export_ref.ndigits as usize;
+                            let negative = long_export_ref.negative != 0;
+                            let digits = long_export_ref.digits.cast::<u32>();
+                            let mut abs = 0_u128;
+                            let mut overflowed = n_digits > 5;
+                            for i in 0..n_digits.min(5) {
+                                let digit = u128::from(unsafe { digits.add(i).read() });
+                                if i == 4 && digit >> 8 != 0 {
+                                    overflowed = true;
+                                }
+                                abs |= digit << (i * PY_LONG_DIGIT_BITS);
                             }
-                            abs |= digit << (i * PY_LONG_DIGIT_BITS);
-                        }
-                        unsafe { ffi::PyLong_FreeExport(long_export.as_mut_ptr()) };
-                        if overflowed {
-                            return Err(overflow());
-                        }
-                        if !$is_signed {
-                            if negative {
-                                return Err(exceptions::PyOverflowError::new_err(
-                                    "can't convert negative int to unsigned",
-                                ));
-                            }
-                            return <$rust_type>::try_from(abs).map_err(|_| overflow());
-                        }
-                        let signed = if negative {
-                            if abs > 1_u128 << 127 {
+                            unsafe { ffi::PyLong_FreeExport(long_export.as_mut_ptr()) };
+                            if overflowed {
                                 return Err(overflow());
                             }
-                            (abs.wrapping_neg()) as i128
-                        } else {
-                            if abs > i128::MAX as u128 {
-                                return Err(overflow());
-                            }
-                            abs as i128
-                        };
-                        <$rust_type>::try_from(signed).map_err(|_| overflow())
-                    }
-                    #[cfg(not(Py_3_14))]
-                    {
-                        #[cfg(not(Py_3_13))]
-                        {
-                            crate::err::error_on_minusone(ob.py(), unsafe {
-                                ffi::_PyLong_AsByteArray(
-                                    num.as_ptr() as *mut ffi::PyLongObject,
-                                    buffer.as_mut_ptr(),
-                                    buffer.len(),
-                                    1,
-                                    $is_signed.into(),
-                                )
-                            })?;
-                            Ok(<$rust_type>::from_le_bytes(buffer))
-                        }
-                        #[cfg(Py_3_13)]
-                        {
-                            let mut flags = ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN;
                             if !$is_signed {
-                                flags |= ffi::Py_ASNATIVEBYTES_UNSIGNED_BUFFER
-                                    | ffi::Py_ASNATIVEBYTES_REJECT_NEGATIVE;
+                                if negative {
+                                    return Err(exceptions::PyOverflowError::new_err(
+                                        "can't convert negative int to unsigned",
+                                    ));
+                                }
+                                return <$rust_type>::try_from(abs).map_err(|_| overflow());
                             }
-                            let actual_size: usize = unsafe {
-                                ffi::PyLong_AsNativeBytes(
-                                    num.as_ptr(),
-                                    buffer.as_mut_ptr().cast(),
-                                    buffer
-                                        .len()
-                                        .try_into()
-                                        .expect("length of buffer fits in Py_ssize_t"),
-                                    flags,
-                                )
-                            }
-                            .try_into()
-                            .map_err(|_| PyErr::fetch(ob.py()))?;
-                            if actual_size as usize > buffer.len() {
-                                return Err(crate::exceptions::PyOverflowError::new_err(
-                                    "Python int larger than 128 bits",
-                                ));
-                            }
-                            Ok(<$rust_type>::from_ne_bytes(buffer))
+                            let signed = if negative {
+                                if abs > 1_u128 << 127 {
+                                    return Err(overflow());
+                                }
+                                (abs.wrapping_neg()) as i128
+                            } else {
+                                if abs > i128::MAX as u128 {
+                                    return Err(overflow());
+                                }
+                                abs as i128
+                            };
+                            return <$rust_type>::try_from(signed).map_err(|_| overflow());
                         }
+                    }
+                    let mut buffer = [0u8; std::mem::size_of::<$rust_type>()];
+                    #[cfg(not(Py_3_13))]
+                    {
+                        crate::err::error_on_minusone(ob.py(), unsafe {
+                            ffi::_PyLong_AsByteArray(
+                                num.as_ptr() as *mut ffi::PyLongObject,
+                                buffer.as_mut_ptr(),
+                                buffer.len(),
+                                1,
+                                $is_signed.into(),
+                            )
+                        })?;
+                        Ok(<$rust_type>::from_le_bytes(buffer))
+                    }
+                    #[cfg(Py_3_13)]
+                    {
+                        let mut flags = ffi::Py_ASNATIVEBYTES_NATIVE_ENDIAN;
+                        if !$is_signed {
+                            flags |= ffi::Py_ASNATIVEBYTES_UNSIGNED_BUFFER
+                                | ffi::Py_ASNATIVEBYTES_REJECT_NEGATIVE;
+                        }
+                        let actual_size: usize = unsafe {
+                            ffi::PyLong_AsNativeBytes(
+                                num.as_ptr(),
+                                buffer.as_mut_ptr().cast(),
+                                buffer
+                                    .len()
+                                    .try_into()
+                                    .expect("length of buffer fits in Py_ssize_t"),
+                                flags,
+                            )
+                        }
+                        .try_into()
+                        .map_err(|_| PyErr::fetch(ob.py()))?;
+                        if actual_size as usize > buffer.len() {
+                            return Err(crate::exceptions::PyOverflowError::new_err(
+                                "Python int larger than 128 bits",
+                            ));
+                        }
+                        Ok(<$rust_type>::from_ne_bytes(buffer))
                     }
                 }
             }
