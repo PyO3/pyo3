@@ -22,7 +22,6 @@ extern_libpython! {
 
     // skipped _PyLong_Sign
 
-    #[cfg(not(Py_LIMITED_API))]
     #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
     #[cfg(not(Py_3_13))]
     #[doc(hidden)]
