@@ -107,10 +107,12 @@ fn apply_build_env_to_config(mut config: InterpreterConfig) -> Result<Interprete
     let mut abi_builder =
         PythonAbiBuilder::from_build_env(config.implementation, config.version, abi3_version)?;
     // only allow free-threaded builds if the build environment didn't force an abi3 build
-    if config.target_abi.kind.is_free_threaded() && abi_builder.kind.is_none() {
-        abi_builder = abi_builder.free_threaded()?;
-    } else if let PythonAbiKind::Stable(stable_abi) = config.target_abi.kind {
-        abi_builder = abi_builder.stable_abi(stable_abi)?;
+    if abi_builder.kind.is_none() {
+        if let PythonAbiKind::VersionSpecific(GilUsed::FreeThreaded) = config.target_abi.kind {
+            abi_builder = abi_builder.free_threaded()?;
+        } else if let PythonAbiKind::Stable(stable_abi) = config.target_abi.kind {
+            abi_builder = abi_builder.stable_abi(stable_abi)?;
+        }
     }
     config.target_abi = abi_builder.finalize();
     Ok(config)
@@ -158,7 +160,7 @@ pub struct InterpreterConfig {
     /// to `PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion
     /// {major: 3, minor: 9}).stable_abi(StableAbi::Abi3)?.finalize()`.
     ///
-    /// Serialized to `abi3`.
+    /// This field is not serialized, only read for backwards compatibility.
     #[deprecated(note = "Set a target_abi that is abi3 instead")]
     pub abi3: bool,
 
@@ -248,8 +250,6 @@ impl InterpreterConfig {
             PythonAbiKind::Stable(kind) => {
                 out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
                 if kind == StableAbi::Abi3t {
-                    // out.push("cargo:rustc-cfg=Py_GIL_DISABLED".to_owned());
-                    // out.push("cargo:rustc-cfg=Py_TARGET_ABI3T".to_owned());
                     panic!("Abi3t builds are not yet supported");
                 }
             }
@@ -830,8 +830,8 @@ impl InterpreterConfigBuilder {
     }
 
     pub fn free_threaded(self) -> Result<InterpreterConfigBuilder> {
-        let implementation: PythonImplementation = self.implementation;
-        let version: PythonVersion = self.version;
+        let implementation = self.implementation;
+        let version = self.version;
         self.target_abi(
             PythonAbiBuilder::new(implementation, version)
                 .free_threaded()?
@@ -1033,9 +1033,11 @@ impl PythonAbiBuilder {
     }
 
     pub fn free_threaded(self) -> Result<PythonAbiBuilder> {
-        if let Some(kind) = self.kind {
-            bail!("Target ABI already set to {kind}, cannot set to free-threaded",)
-        }
+        ensure!(
+            self.kind.is_none(),
+            "Target ABI already set to {}, cannot set to free-threaded",
+            self.kind.unwrap()
+        );
         if self.version < PythonVersion::PY313 {
             let version = self.version;
             bail!(
@@ -2065,7 +2067,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
     let implementation = cross_compile_config
         .implementation
         .unwrap_or(PythonImplementation::CPython);
-    let gil_disabled: bool = cross_compile_config.abiflags.as_deref() == Some("t");
+    let gil_disabled = cross_compile_config.abiflags.as_deref() == Some("t");
     let mut abi_builder = PythonAbiBuilder::from_build_env(implementation, version, Some(version))?;
     // The build environment might imply an abi3 build, which can't be free-threaded
     if gil_disabled && abi_builder.kind.is_none() {
@@ -2075,7 +2077,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
 
     let lib_name = default_lib_name_for_target(target_abi, &cross_compile_config.target);
 
-    let mut lib_dir = cross_compile_config.lib_dir_string();
+    let lib_dir = cross_compile_config.lib_dir_string();
 
     InterpreterConfigBuilder::new(implementation, version)
         .target_abi(target_abi)?
@@ -3032,7 +3034,7 @@ mod tests {
         );
         assert_eq!(
             super::default_lib_name_windows(
-                PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY39)
+                PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY310)
                     .stable_abi(StableAbi::Abi3)
                     .unwrap()
                     .finalize(),
@@ -3040,7 +3042,7 @@ mod tests {
                 true,
             )
             .unwrap(),
-            "python39_d",
+            "python3_d",
         );
         // abi3 debug builds on windows use version-specific lib on 3.9 and older
         // to workaround https://github.com/python/cpython/issues/101614
