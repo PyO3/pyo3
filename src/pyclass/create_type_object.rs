@@ -11,7 +11,7 @@ use crate::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
             tp_dealloc_with_gc, PyClassImpl, PyClassItemsIter, PyObjectOffset,
         },
-        pymethods::{_call_clear, Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter},
+        pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
         trampoline::trampoline,
     },
     pycell::impl_::PyClassObjectLayout,

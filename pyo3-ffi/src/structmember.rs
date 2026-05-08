@@ -2,8 +2,6 @@ use std::ffi::c_int;
 
 pub use crate::PyMemberDef;
 
-#[allow(deprecated)]
-pub use crate::_Py_T_OBJECT as T_OBJECT;
 pub use crate::Py_T_BOOL as T_BOOL;
 pub use crate::Py_T_BYTE as T_BYTE;
 pub use crate::Py_T_CHAR as T_CHAR;
@@ -21,10 +19,12 @@ pub use crate::Py_T_UINT as T_UINT;
 pub use crate::Py_T_ULONG as T_ULONG;
 pub use crate::Py_T_ULONGLONG as T_ULONGLONG;
 pub use crate::Py_T_USHORT as T_USHORT;
+#[allow(deprecated)]
+pub use crate::_Py_T_OBJECT as T_OBJECT;
 
+pub use crate::Py_T_PYSSIZET as T_PYSSIZET;
 #[allow(deprecated)]
 pub use crate::_Py_T_NONE as T_NONE;
-pub use crate::Py_T_PYSSIZET as T_PYSSIZET;
 
 /* Flags */
 pub use crate::Py_READONLY as READONLY;
