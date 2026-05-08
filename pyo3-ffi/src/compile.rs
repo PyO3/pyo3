@@ -1,4 +1,4 @@
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 pub const Py_single_input: c_int = 256;
 pub const Py_file_input: c_int = 257;

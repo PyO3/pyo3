@@ -1,18 +1,18 @@
 use crate::pyport::Py_ssize_t;
 use crate::PyObject;
 #[cfg(all(not(Py_LIMITED_API), py_sys_config = "Py_REF_DEBUG"))]
-use std::ffi::c_char;
+use core::ffi::c_char;
 #[cfg(any(Py_3_12, all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API))))]
-use std::ffi::c_int;
+use core::ffi::c_int;
 #[cfg(all(Py_3_14, any(not(Py_GIL_DISABLED), target_pointer_width = "32")))]
-use std::ffi::c_long;
+use core::ffi::c_long;
 #[cfg(any(Py_GIL_DISABLED, all(Py_3_12, not(Py_3_14))))]
-use std::ffi::c_uint;
+use core::ffi::c_uint;
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
-use std::ffi::c_ulong;
-use std::ptr;
+use core::ffi::c_ulong;
+use core::ptr;
 #[cfg(Py_GIL_DISABLED)]
-use std::sync::atomic::Ordering::Relaxed;
+use core::sync::atomic::Ordering::Relaxed;
 
 #[cfg(all(Py_3_14, not(Py_3_15)))]
 const _Py_STATICALLY_ALLOCATED_FLAG: c_int = 1 << 7;
@@ -298,8 +298,8 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
 
             #[cfg(py_sys_config = "Py_REF_DEBUG")]
             if (*op).ob_refcnt.ob_refcnt < 0 {
-                let location = std::panic::Location::caller();
-                let filename = std::ffi::CString::new(location.file()).unwrap();
+                let location = core::panic::Location::caller();
+                let filename = core::ffi::CString::new(location.file()).unwrap();
                 _Py_NegativeRefcount(filename.as_ptr(), location.line() as i32, op);
             }
 

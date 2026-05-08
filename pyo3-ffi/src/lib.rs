@@ -127,9 +127,9 @@
 //! **`src/lib.rs`**
 //! ```rust,no_run
 //! #[cfg(Py_3_15)]
-//! use std::ffi::c_void;
-//! use std::ffi::{c_char, c_long};
-//! use std::ptr;
+//! use core::ffi::c_void;
+//! use core::ffi::{c_char, c_long};
+//! use core::ptr;
 //!
 //! use pyo3_ffi::*;
 //!
@@ -256,7 +256,7 @@
 //!         let mut size = 0;
 //!         let p = PyUnicode_AsUTF8AndSize(obj_repr, &mut size);
 //!         if !p.is_null() {
-//!             let s = std::str::from_utf8_unchecked(std::slice::from_raw_parts(
+//!             let s = core::str::from_utf8_unchecked(core::slice::from_raw_parts(
 //!                 p.cast::<u8>(),
 //!                 size as usize,
 //!             ));
@@ -278,18 +278,18 @@
 //!             PyExc_TypeError,
 //!             c"sum_as_string expected 2 positional arguments".as_ptr(),
 //!         );
-//!         return std::ptr::null_mut();
+//!         return core::ptr::null_mut();
 //!     }
 //!
 //!     let (first, second) = (*args, *args.add(1));
 //!
 //!     let first = match parse_arg_as_i32(first, 1) {
 //!         Some(x) => x,
-//!         None => return std::ptr::null_mut(),
+//!         None => return core::ptr::null_mut(),
 //!     };
 //!     let second = match parse_arg_as_i32(second, 2) {
 //!         Some(x) => x,
-//!         None => return std::ptr::null_mut(),
+//!         None => return core::ptr::null_mut(),
 //!     };
 //!
 //!     match first.checked_add(second) {
@@ -299,7 +299,7 @@
 //!         }
 //!         None => {
 //!             PyErr_SetString(PyExc_OverflowError, c"arguments too large to add".as_ptr());
-//!             std::ptr::null_mut()
+//!             core::ptr::null_mut()
 //!         }
 //!     }
 //! }
@@ -399,7 +399,7 @@ macro_rules! opaque_struct {
 /// Examples:
 ///
 /// ```rust,no_run
-/// use std::ffi::CStr;
+/// use core::ffi::CStr;
 ///
 /// const HELLO: &CStr = pyo3_ffi::c_str!("hello");
 /// static WORLD: &CStr = pyo3_ffi::c_str!("world");
@@ -414,8 +414,8 @@ macro_rules! c_str {
 
 /// Private helper for `c_str!` macro.
 #[doc(hidden)]
-pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &std::ffi::CStr {
-    match std::ffi::CStr::from_bytes_with_nul(s.as_bytes()) {
+pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &core::ffi::CStr {
+    match core::ffi::CStr::from_bytes_with_nul(s.as_bytes()) {
         Ok(cstr) => cstr,
         Err(_) => panic!("string contains nul bytes"),
     }

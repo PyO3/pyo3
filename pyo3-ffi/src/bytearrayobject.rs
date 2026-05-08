@@ -1,6 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::ffi::{c_char, c_int};
+use core::ffi::{c_char, c_int};
 
 #[cfg(not(RustPython))]
 extern_libpython! {

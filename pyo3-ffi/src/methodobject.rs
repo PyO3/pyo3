@@ -4,8 +4,8 @@ use crate::object::{PyObject, PyTypeObject};
 use crate::PyObject_TypeCheck;
 #[cfg(not(RustPython))]
 use crate::Py_IS_TYPE;
-use std::ffi::{c_char, c_int, c_void};
-use std::{mem, ptr};
+use core::ffi::{c_char, c_int, c_void};
+use core::{mem, ptr};
 
 #[cfg(all(Py_3_9, not(Py_LIMITED_API), not(GraalPy)))]
 pub struct PyCFunctionObject {
@@ -206,10 +206,10 @@ impl PartialEq for PyMethodDefPointer {
     }
 }
 
-impl std::fmt::Pointer for PyMethodDefPointer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Pointer for PyMethodDefPointer {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let ptr = unsafe { self.Void };
-        std::fmt::Pointer::fmt(&ptr, f)
+        core::fmt::Pointer::fmt(&ptr, f)
     }
 }
 
@@ -232,7 +232,7 @@ extern_libpython! {
 #[cfg(Py_3_9)]
 #[inline]
 pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject {
-    PyCFunction_NewEx(ml, slf, std::ptr::null_mut())
+    PyCFunction_NewEx(ml, slf, core::ptr::null_mut())
 }
 
 #[cfg(Py_3_9)]
@@ -242,7 +242,7 @@ pub unsafe fn PyCFunction_NewEx(
     slf: *mut PyObject,
     module: *mut PyObject,
 ) -> *mut PyObject {
-    PyCMethod_New(ml, slf, module, std::ptr::null_mut())
+    PyCMethod_New(ml, slf, module, core::ptr::null_mut())
 }
 
 #[cfg(Py_3_9)]

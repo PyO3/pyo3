@@ -1,6 +1,6 @@
 use crate::object::PyObject;
 use crate::PyFrameObject;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 #[repr(C)]
 pub struct PyTracebackObject {

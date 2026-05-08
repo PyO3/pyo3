@@ -1,8 +1,8 @@
 use crate::{vectorcallfunc, PyObject, Py_TYPE, Py_ssize_t};
 #[cfg(all(any(not(PyPy), not(Py_3_11)), not(Py_3_12)))]
-use std::ffi::c_char;
+use core::ffi::c_char;
 #[cfg(not(Py_3_11))]
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::{
@@ -44,7 +44,7 @@ extern_libpython! {
 
 #[cfg(not(Py_3_12))]
 const PY_VECTORCALL_ARGUMENTS_OFFSET: size_t = (1 as size_t)
-    .checked_shl((8 * std::mem::size_of::<size_t>() - 1) as u32)
+    .checked_shl((8 * core::mem::size_of::<size_t>() - 1) as u32)
     .expect("size_t should fit the flag bits");
 
 #[cfg(Py_3_12)] // public API from 3.12
@@ -97,7 +97,7 @@ unsafe fn _PyObject_VectorcallTstate(
         }
         Some(func) => {
             let res = func(callable, args, nargsf, kwnames);
-            _Py_CheckFunctionResult(tstate, callable, res, std::ptr::null_mut())
+            _Py_CheckFunctionResult(tstate, callable, res, core::ptr::null_mut())
         }
     }
 }
@@ -132,11 +132,11 @@ extern_libpython! {
 #[inline(always)]
 pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
     assert!(!arg.is_null());
-    let args_array = [std::ptr::null_mut(), arg];
+    let args_array = [core::ptr::null_mut(), arg];
     let args = args_array.as_ptr().offset(1); // For PY_VECTORCALL_ARGUMENTS_OFFSET
     let tstate = PyThreadState_GET();
     let nargsf = 1 | PY_VECTORCALL_ARGUMENTS_OFFSET;
-    _PyObject_VectorcallTstate(tstate, func, args, nargsf, std::ptr::null_mut())
+    _PyObject_VectorcallTstate(tstate, func, args, nargsf, core::ptr::null_mut())
 }
 
 extern_libpython! {
@@ -155,7 +155,7 @@ pub unsafe fn PyObject_CallMethodNoArgs(
         name,
         &self_,
         1 | PY_VECTORCALL_ARGUMENTS_OFFSET,
-        std::ptr::null_mut(),
+        core::ptr::null_mut(),
     )
 }
 
@@ -172,7 +172,7 @@ pub unsafe fn PyObject_CallMethodOneArg(
         name,
         args.as_ptr(),
         2 | PY_VECTORCALL_ARGUMENTS_OFFSET,
-        std::ptr::null_mut(),
+        core::ptr::null_mut(),
     )
 }
 
@@ -200,12 +200,12 @@ extern_libpython! {
     pub fn PyBuffer_GetPointer(
         view: *mut Py_buffer,
         indices: *mut Py_ssize_t,
-    ) -> *mut std::ffi::c_void;
+    ) -> *mut core::ffi::c_void;
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_SizeFromFormat")]
     pub fn PyBuffer_SizeFromFormat(format: *const c_char) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_ToContiguous")]
     pub fn PyBuffer_ToContiguous(
-        buf: *mut std::ffi::c_void,
+        buf: *mut core::ffi::c_void,
         view: *mut Py_buffer,
         len: Py_ssize_t,
         order: c_char,
@@ -213,7 +213,7 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_FromContiguous")]
     pub fn PyBuffer_FromContiguous(
         view: *mut Py_buffer,
-        buf: *mut std::ffi::c_void,
+        buf: *mut core::ffi::c_void,
         len: Py_ssize_t,
         order: c_char,
     ) -> c_int;
@@ -231,7 +231,7 @@ extern_libpython! {
     pub fn PyBuffer_FillInfo(
         view: *mut Py_buffer,
         o: *mut PyObject,
-        buf: *mut std::ffi::c_void,
+        buf: *mut core::ffi::c_void,
         len: Py_ssize_t,
         readonly: c_int,
         flags: c_int,

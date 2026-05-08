@@ -4,9 +4,9 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 
 #[cfg(all(not(PyPy), Py_3_13))]
-use std::ffi::c_char;
+use core::ffi::c_char;
 #[cfg(all(not(PyPy), Py_3_12))]
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 #[cfg(not(PyPy))]
 opaque_struct!(pub PyDictKeysObject);

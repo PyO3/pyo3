@@ -1,5 +1,5 @@
 use crate::object::*;
-use std::ffi::{c_double, c_int};
+use core::ffi::{c_double, c_int};
 
 #[cfg(Py_LIMITED_API)]
 // TODO: remove (see https://github.com/PyO3/pyo3/pull/1341#issuecomment-751515985)

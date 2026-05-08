@@ -1,7 +1,7 @@
 use crate::methodobject::PyMethodDef;
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::ffi::{c_char, c_int, c_void};
+use core::ffi::{c_char, c_int, c_void};
 
 #[cfg(not(RustPython))]
 extern_libpython! {
@@ -73,7 +73,7 @@ pub const PyModuleDef_HEAD_INIT: PyModuleDef_Base = PyModuleDef_Base {
     ob_base: PyObject_HEAD_INIT,
     m_init: None,
     m_index: 0,
-    m_copy: std::ptr::null_mut(),
+    m_copy: core::ptr::null_mut(),
 };
 
 #[repr(C)]
@@ -87,7 +87,7 @@ impl Default for PyModuleDef_Slot {
     fn default() -> PyModuleDef_Slot {
         PyModuleDef_Slot {
             slot: 0,
-            value: std::ptr::null_mut(),
+            value: core::ptr::null_mut(),
         }
     }
 }
