@@ -605,8 +605,6 @@ jobs:
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ needs.resolve.outputs.save-cache }}
@@ -721,7 +719,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
-          components: rust-src,llvm-tools-preview
+          components: rust-src
       # load cache (prepared in ci-cache-warmup.yml)
       - uses: actions/cache/restore@v5
         with:

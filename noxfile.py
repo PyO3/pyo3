@@ -176,7 +176,7 @@ def coverage(session: nox.Session) -> None:
 def set_coverage_env(session: nox.Session) -> None:
     """For use in GitHub Actions to set coverage environment variables."""
     with open(os.environ["GITHUB_ENV"], "a") as env_file:
-        for k, v in _get_coverage_env().items():
+        for k, v in _get_coverage_env(*session.posargs).items():
             print(f"{k}={v}", file=env_file)
 
 
@@ -1519,11 +1519,14 @@ _RELEASE_LINE_START = "release: "
 _HOST_LINE_START = "host: "
 
 
-def _get_coverage_env() -> Dict[str, str]:
+def _get_coverage_env(*flags: str) -> Dict[str, str]:
     llvm_cov_execution_env = os.environ.copy()
     # prevent llvm-cov from hanging asking to install llvm-tools-preview
-    llvm_cov_execution_env["CARGO_LLVM_COV_SETUP"] = "no"
-    output = _get_output("cargo", "llvm-cov", "show-env", env=llvm_cov_execution_env)
+    # (allow user to override this, if they wish, e.g. in CI)
+    llvm_cov_execution_env.setdefault("CARGO_LLVM_COV_SETUP", "no")
+    output = _get_output(
+        "cargo", "llvm-cov", "show-env", *flags, env=llvm_cov_execution_env
+    )
 
     env = {}
     for line in output.strip().splitlines():

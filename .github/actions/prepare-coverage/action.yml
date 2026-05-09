@@ -1,12 +1,23 @@
 name: 'Prepare coverage'
 description: 'Installs cargo-llvm-cov and prepares the environment for coverage collection'
+inputs:
+  host_only:
+    description: 'Whether to prepare the environment for host-only coverage collection'
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
   - name: Install cargo-llvm-cov
-    uses: taiki-e/install-action@cargo-llvm-cov
+  # FIXME: install test branch, should revert to install-action before merge
+  # uses: taiki-e/install-action@cargo-llvm-cov
+    run: cargo install --git https://github.com/davidhewitt/cargo-llvm-cov --branch coverage-host-only
+    shell: bash
+
   - name: Prepare coverage environment
     shell: bash
     run: |
       cargo llvm-cov clean --workspace --profraw-only
-      uvx nox -s set-coverage-env
+      uvx nox -s set-coverage-env -- ${{ inputs.host_only && --coverage-host-only || "" }}
+    env:
+      CARGO_LLVM_COV_SETUP: "yes"
