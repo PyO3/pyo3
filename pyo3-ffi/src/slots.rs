@@ -68,16 +68,16 @@ pub const fn PySlot_DATA(NAME: c_int, VALUE: *mut c_void) -> PySlot {
     }
 }
 
-/// Safety: VALUE must be the correct function pointer type for the
-/// corresponding slot ID.  Neither CPython or pyo3-ffi do type checking here.
 #[cfg(Py_3_15)]
-pub const unsafe fn PySlot_FUNC(NAME: c_int, VALUE: *mut c_void) -> PySlot {
+pub const fn PySlot_FUNC(NAME: c_int, VALUE: Option<*mut c_void>) -> PySlot {
     PySlot {
         sl_id: safe_cast_c_int_to_u16(NAME),
         sl_flags: 0,
         anon1: _anon_union_32b { sl_reserved: 0 },
         anon2: _anon_union_64b {
-            sl_func: Some(unsafe { std::mem::transmute::<*mut c_void, _Py_funcptr_t>(VALUE) }),
+            sl_func: Some(unsafe {
+                std::mem::transmute::<*mut c_void, _Py_funcptr_t>(VALUE.unwrap())
+            }),
         },
     }
 }

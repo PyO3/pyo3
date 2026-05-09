@@ -306,8 +306,10 @@ impl PyModuleSlotsBuilder {
         }
         #[cfg(Py_3_15)]
         {
-            // safety: exec cannot be NULL and is the correct function pointer type
-            self.push_value(unsafe { ffi::PySlot_FUNC(ffi::Py_mod_exec, exec as *mut c_void) })
+            self.push_value(ffi::PySlot_FUNC(
+                ffi::Py_mod_exec,
+                Some(exec as *mut c_void),
+            ))
         }
     }
 
