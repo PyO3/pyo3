@@ -6,6 +6,8 @@ use crate::pybacked::PyBackedStr;
 use crate::types::any::PyAnyMethods;
 use crate::types::PyTuple;
 use crate::{ffi, Bound, PyAny, PyTypeInfo, Python};
+#[cfg(RustPython)]
+use crate::{sync::PyOnceLock, Py};
 
 use super::PyString;
 
@@ -19,7 +21,20 @@ use super::PyString;
 #[repr(transparent)]
 pub struct PyType(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyType_Type), "builtins", "type", #checkfunction=ffi::PyType_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyType,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "type").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "type",
+    #checkfunction=ffi::PyType_Check
+);
 
 impl PyType {
     /// Creates a new type object.

@@ -11,7 +11,7 @@ pub use self::datetime::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfo
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, RustPython)))]
 pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
 pub use self::ellipsis::PyEllipsis;
 pub use self::float::{PyFloat, PyFloatMethods};

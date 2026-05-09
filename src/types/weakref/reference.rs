@@ -1,14 +1,14 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, RustPython))]
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAny;
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, RustPython))]
 use crate::types::typeobject::PyTypeMethods;
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, RustPython))]
 use crate::types::PyType;
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, RustPython))]
 use crate::Py;
 use crate::{ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt};
 
@@ -20,10 +20,10 @@ use super::PyWeakrefMethods;
 #[repr(transparent)]
 pub struct PyWeakrefReference(PyAny);
 
-#[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
+#[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API, RustPython)))]
 pyobject_subclassable_native_type!(PyWeakrefReference, ffi::PyWeakReference);
 
-#[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
+#[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API, RustPython)))]
 pyobject_native_type!(
     PyWeakrefReference,
     ffi::PyWeakReference,
@@ -36,7 +36,7 @@ pyobject_native_type!(
 );
 
 // When targeting alternative or multiple interpreters, it is better to not use the internal API.
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, RustPython))]
 pyobject_native_type_core!(
     PyWeakrefReference,
     |py| {

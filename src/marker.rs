@@ -268,29 +268,29 @@ mod nightly {
         /// });
         /// ```
         pub unsafe auto trait Ungil {}
+
+        impl !Ungil for crate::Python<'_> {}
+
+        // This means that PyString, PyList, etc all inherit !Ungil from  this.
+        impl !Ungil for crate::PyAny {}
+
+        impl<T> !Ungil for crate::PyRef<'_, T> {}
+        impl<T> !Ungil for crate::PyRefMut<'_, T> {}
+
+        // FFI pointees
+        impl !Ungil for crate::ffi::PyObject {}
+        impl !Ungil for crate::ffi::PyLongObject {}
+
+        impl !Ungil for crate::ffi::PyThreadState {}
+        impl !Ungil for crate::ffi::PyInterpreterState {}
+        impl !Ungil for crate::ffi::PyWeakReference {}
+        impl !Ungil for crate::ffi::PyFrameObject {}
+        impl !Ungil for crate::ffi::PyCodeObject {}
+        #[cfg(not(Py_LIMITED_API))]
+        impl !Ungil for crate::ffi::PyDictKeysObject {}
+        #[cfg(not(any(Py_LIMITED_API, Py_3_10)))]
+        impl !Ungil for crate::ffi::PyArena {}
     }
-
-    impl !Ungil for crate::Python<'_> {}
-
-    // This means that PyString, PyList, etc all inherit !Ungil from  this.
-    impl !Ungil for crate::PyAny {}
-
-    impl<T> !Ungil for crate::PyRef<'_, T> {}
-    impl<T> !Ungil for crate::PyRefMut<'_, T> {}
-
-    // FFI pointees
-    impl !Ungil for crate::ffi::PyObject {}
-    impl !Ungil for crate::ffi::PyLongObject {}
-
-    impl !Ungil for crate::ffi::PyThreadState {}
-    impl !Ungil for crate::ffi::PyInterpreterState {}
-    impl !Ungil for crate::ffi::PyWeakReference {}
-    impl !Ungil for crate::ffi::PyFrameObject {}
-    impl !Ungil for crate::ffi::PyCodeObject {}
-    #[cfg(not(Py_LIMITED_API))]
-    impl !Ungil for crate::ffi::PyDictKeysObject {}
-    #[cfg(not(any(Py_LIMITED_API, Py_3_10)))]
-    impl !Ungil for crate::ffi::PyArena {}
 }
 
 #[cfg(feature = "nightly")]
