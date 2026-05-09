@@ -353,33 +353,86 @@ int_convert_u64_or_i64!(
     true
 );
 
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+pub(crate) const PYLONG_BITS_IN_DIGIT: usize = 30;
+
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+pub(crate) fn is_30bit_layout() -> bool {
+    static DIGITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
+    const PYLONG_DIGIT_SIZE: u8 = 4;
+    const PYLONG_DIGITS_ORDER: i8 = -1;
+
+    #[cfg(target_endian = "little")]
+    const NATIVE_DIGIT_ENDIANNESS: i8 = -1;
+    #[cfg(target_endian = "big")]
+    const NATIVE_DIGIT_ENDIANNESS: i8 = 1;
+
+    *DIGITS.get_or_init(|| {
+        let layout = unsafe { &*ffi::PyLong_GetNativeLayout() };
+        layout.bits_per_digit == PYLONG_BITS_IN_DIGIT as u8
+            && layout.digit_size == PYLONG_DIGIT_SIZE
+            && layout.digits_order == PYLONG_DIGITS_ORDER
+            && layout.digit_endianness == NATIVE_DIGIT_ENDIANNESS
+    })
+}
+
+// Builds an int from an iterator of 30-bit digits
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+pub(crate) fn pylong_from_digits<'py, I: ExactSizeIterator<Item = u32>>(
+    py: Python<'py>,
+    negative: bool,
+    digits: I,
+) -> PyResult<Bound<'py, PyInt>> {
+    let n_digits = digits.len();
+    let mut ptr = std::ptr::null_mut();
+    let writer =
+        unsafe { ffi::PyLongWriter_Create(negative.into(), n_digits as ffi::Py_ssize_t, &mut ptr) };
+    if writer.is_null() {
+        return Err(PyErr::fetch(py));
+    }
+    let digit_ptr = ptr.cast::<u32>();
+    for (i, d) in digits.enumerate() {
+        unsafe { digit_ptr.add(i).write(d) };
+    }
+    unsafe {
+        ffi::PyLongWriter_Finish(writer)
+            .assume_owned_or_err(py)
+            .cast_into_unchecked()
+    }
+}
+
+// Visits 30-bit digits LSB-first and deals with freeing the export
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+pub(crate) fn pylong_visit_digits<R>(
+    obj: Borrowed<'_, '_, PyAny>,
+    f: impl FnOnce(bool, i64, Option<&[u32]>) -> PyResult<R>,
+) -> PyResult<R> {
+    let mut long_export = MaybeUninit::<ffi::PyLongExport>::uninit();
+    unsafe {
+        crate::err::error_on_minusone(
+            obj.py(),
+            ffi::PyLong_Export(obj.as_ptr(), long_export.as_mut_ptr()),
+        )?;
+    }
+    let long_export_ref = unsafe { long_export.assume_init_ref() };
+    let negative = long_export_ref.negative != 0;
+    let compact = long_export_ref.value;
+    let result = if long_export_ref.digits.is_null() {
+        f(negative, compact, None)
+    } else {
+        let n_digits = long_export_ref.ndigits as usize;
+        let digits_ptr = long_export_ref.digits.cast::<u32>();
+        let digits = unsafe { std::slice::from_raw_parts(digits_ptr, n_digits) };
+        f(negative, compact, Some(digits))
+    };
+    unsafe { ffi::PyLong_FreeExport(long_export.as_mut_ptr()) };
+    result
+}
+
 #[cfg(not(Py_LIMITED_API))]
 mod fast_128bit_int_conversion {
     use super::*;
-
-    #[cfg(Py_3_14)]
-    const PYLONG_BITS_IN_DIGIT: usize = 30;
-
-    #[cfg(Py_3_14)]
-    fn is_30bit_layout() -> bool {
-        static DIGITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-
-        const PYLONG_DIGIT_SIZE: u8 = 4;
-        const PYLONG_DIGITS_ORDER: i8 = -1;
-
-        #[cfg(target_endian = "little")]
-        const NATIVE_DIGIT_ENDIANNESS: i8 = -1;
-        #[cfg(target_endian = "big")]
-        const NATIVE_DIGIT_ENDIANNESS: i8 = 1;
-
-        *DIGITS.get_or_init(|| {
-            let layout = unsafe { &*ffi::PyLong_GetNativeLayout() };
-            layout.bits_per_digit == PYLONG_BITS_IN_DIGIT as u8
-                && layout.digit_size == PYLONG_DIGIT_SIZE
-                && layout.digits_order == PYLONG_DIGITS_ORDER
-                && layout.digit_endianness == NATIVE_DIGIT_ENDIANNESS
-        })
-    }
 
     // for 128bit Integers
     macro_rules! int_convert_128 {
@@ -397,7 +450,6 @@ mod fast_128bit_int_conversion {
                     {
                         if is_30bit_layout() {
                             const DIGIT_MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
-
                             let value = self as u128;
                             let negative = $is_signed && (self as i128) < 0;
                             let abs = if negative {
@@ -411,28 +463,9 @@ mod fast_128bit_int_conversion {
                             } else {
                                 bits.div_ceil(PYLONG_BITS_IN_DIGIT)
                             };
-                            let mut ptr = std::ptr::null_mut();
-                            let long_writer = unsafe {
-                                ffi::PyLongWriter_Create(
-                                    negative.into(),
-                                    n_digits as ffi::Py_ssize_t,
-                                    &mut ptr,
-                                )
-                            };
-                            if long_writer.is_null() {
-                                return Err(PyErr::fetch(py));
-                            }
-                            let digits = ptr.cast::<u32>();
-                            let mut rest = abs;
-                            for i in 0..n_digits {
-                                unsafe { digits.add(i).write(rest as u32 & DIGIT_MASK) };
-                                rest >>= PYLONG_BITS_IN_DIGIT;
-                            }
-                            return unsafe {
-                                ffi::PyLongWriter_Finish(long_writer)
-                                    .assume_owned_or_err(py)
-                                    .cast_into_unchecked()
-                            };
+                            let digits = (0..n_digits)
+                                .map(|i| (abs >> (i * PYLONG_BITS_IN_DIGIT)) as u32 & DIGIT_MASK);
+                            return pylong_from_digits(py, negative, digits);
                         }
                     }
                     #[cfg(Py_3_13)]
@@ -473,64 +506,53 @@ mod fast_128bit_int_conversion {
                     #[cfg(Py_3_14)]
                     {
                         if is_30bit_layout() {
-                            let mut long_export = MaybeUninit::<ffi::PyLongExport>::uninit();
-                            unsafe {
-                                crate::err::error_on_minusone(
-                                    num.py(),
-                                    ffi::PyLong_Export(num.as_ptr(), long_export.as_mut_ptr()),
-                                )?;
-                            }
-                            let long_export_ref = unsafe { long_export.assume_init_ref() };
-                            if long_export_ref.digits.is_null() {
-                                let value = long_export_ref.value;
-                                unsafe { ffi::PyLong_FreeExport(long_export.as_mut_ptr()) };
-                                return <$rust_type>::try_from(value).map_err(|_| {
-                                    exceptions::PyOverflowError::new_err(
-                                        "Python int larger than 128 bits",
-                                    )
-                                });
-                            }
                             let overflow = || {
                                 exceptions::PyOverflowError::new_err(
                                     "Python int larger than 128 bits",
                                 )
                             };
-                            let n_digits = long_export_ref.ndigits as usize;
-                            let negative = long_export_ref.negative != 0;
-                            let digits = long_export_ref.digits.cast::<u32>();
-                            let mut abs = 0_u128;
-                            let mut overflowed = n_digits > 5;
-                            for i in 0..n_digits.min(5) {
-                                let digit = u128::from(unsafe { digits.add(i).read() });
-                                if i == 4 && digit >> 8 != 0 {
-                                    overflowed = true;
-                                }
-                                abs |= digit << (i * PYLONG_BITS_IN_DIGIT);
-                            }
-                            unsafe { ffi::PyLong_FreeExport(long_export.as_mut_ptr()) };
-                            if overflowed {
-                                return Err(overflow());
-                            }
-                            if !$is_signed {
-                                if negative {
-                                    return Err(exceptions::PyOverflowError::new_err(
-                                        "can't convert negative int to unsigned",
-                                    ));
-                                }
-                                return <$rust_type>::try_from(abs).map_err(|_| overflow());
-                            }
-                            let signed = if negative {
-                                if abs > 1_u128 << 127 {
-                                    return Err(overflow());
-                                }
-                                (abs.wrapping_neg()) as i128
-                            } else {
-                                if abs > i128::MAX as u128 {
-                                    return Err(overflow());
-                                }
-                                abs as i128
-                            };
-                            return <$rust_type>::try_from(signed).map_err(|_| overflow());
+                            return pylong_visit_digits(
+                                num.as_any().as_borrowed(),
+                                |negative, compact, digits| {
+                                    let Some(digits) = digits else {
+                                        return <$rust_type>::try_from(compact)
+                                            .map_err(|_| overflow());
+                                    };
+                                    let n_digits = digits.len();
+                                    let mut abs = 0_u128;
+                                    let mut overflowed = n_digits > 5;
+                                    for (i, &digit) in digits.iter().take(5).enumerate() {
+                                        let d = u128::from(digit);
+                                        if i == 4 && d >> 8 != 0 {
+                                            overflowed = true;
+                                        }
+                                        abs |= d << (i * PYLONG_BITS_IN_DIGIT);
+                                    }
+                                    if overflowed {
+                                        return Err(overflow());
+                                    }
+                                    if !$is_signed {
+                                        if negative {
+                                            return Err(exceptions::PyOverflowError::new_err(
+                                                "can't convert negative int to unsigned",
+                                            ));
+                                        }
+                                        return <$rust_type>::try_from(abs).map_err(|_| overflow());
+                                    }
+                                    let signed = if negative {
+                                        if abs > 1_u128 << 127 {
+                                            return Err(overflow());
+                                        }
+                                        (abs.wrapping_neg()) as i128
+                                    } else {
+                                        if abs > i128::MAX as u128 {
+                                            return Err(overflow());
+                                        }
+                                        abs as i128
+                                    };
+                                    <$rust_type>::try_from(signed).map_err(|_| overflow())
+                                },
+                            );
                         }
                     }
                     let mut buffer = [0u8; std::mem::size_of::<$rust_type>()];
