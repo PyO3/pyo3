@@ -30,7 +30,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: wheels-linux-${{ matrix.target }}
-          path: dist
+          path: pyo3-introspection/dist
 
   pypi_windows:
     runs-on: ${{ matrix.platform.runner }}
@@ -54,7 +54,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: wheels-windows-${{ matrix.platform.target }}
-          path: dist
+          path: pyo3-introspection/dist
 
   pypi_macos:
     runs-on: ${{ matrix.platform.runner }}
@@ -75,7 +75,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: wheels-macos-${{ matrix.platform.target }}
-          path: dist
+          path: pyo3-introspection/dist
 
   pypi_sdist:
     runs-on: ubuntu-latest
@@ -89,7 +89,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: wheels-sdist
-          path: dist
+          path: pyo3-introspection/dist
 
   pypi_release:
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
@@ -103,6 +103,6 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           pattern: wheels-*
-          path: dist
+          path: pyo3-introspection/dist
           merge-multiple: true
       - uses: pypa/gh-action-pypi-publish@release/v1
