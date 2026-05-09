@@ -161,9 +161,9 @@
 //!     PyMethodDef::zeroed(),
 //! ];
 //!
-//! #[cfg(not(Py_3_15))]
 //! const SLOTS_LEN: usize =
-//!     1 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize;
+//!     1 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize + 4 * (cfg!(Py_3_15) as usize);
+//!
 //! #[cfg(not(Py_3_15))]
 //! static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
 //!     PyModuleDef_Slot {
@@ -184,9 +184,6 @@
 //! #[cfg(Py_3_15)]
 //! PyABIInfo_VAR!(ABI_INFO);
 //!
-//! #[cfg(Py_3_15)]
-//! const SLOTS_LEN: usize =
-//!     1 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize + 4 * (cfg!(Py_3_15) as usize);
 //! #[cfg(Py_3_15)]
 //! static mut SLOTS: [PySlot; SLOTS_LEN] = [
 //!     PySlot_STATIC_DATA(Py_mod_abi, std::ptr::addr_of_mut!(ABI_INFO).cast()),
