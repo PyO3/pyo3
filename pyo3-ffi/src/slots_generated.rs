@@ -2,7 +2,11 @@ use std::ffi::c_int;
 
 #[allow(unused_variables)]
 const fn _Py_SLOT_COMPAT_VALUE(OLD: c_int, NEW: c_int) -> c_int {
-    if cfg!(Py_3_15) { NEW } else { OLD }
+    if cfg!(Py_3_15) {
+        NEW
+    } else {
+        OLD
+    }
 }
 
 #[cfg(Py_3_15)]
