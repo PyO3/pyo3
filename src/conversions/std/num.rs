@@ -424,8 +424,8 @@ pub(crate) fn pylong_visit_digits<R>(
         f(negative, compact, None)
     } else {
         let n_digits = long_export_ref.ndigits as usize;
-        let digits_ptr = long_export_ref.digits.cast::<u32>();
-        let digits = unsafe { std::slice::from_raw_parts(digits_ptr, n_digits) };
+        let ptr = long_export_ref.digits.cast::<u32>();
+        let digits = unsafe { std::slice::from_raw_parts(ptr, n_digits) };
         f(negative, compact, Some(digits))
     };
     unsafe { ffi::PyLong_FreeExport(long_export.as_mut_ptr()) };
