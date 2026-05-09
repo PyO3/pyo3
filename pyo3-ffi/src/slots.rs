@@ -68,8 +68,10 @@ pub const fn PySlot_DATA(NAME: c_int, VALUE: *mut c_void) -> PySlot {
     }
 }
 
+/// Safety: VALUE must be the correct function pointer type for the
+/// corresponding slot ID.  Neither CPython or pyo3-ffi do type checking here.
 #[cfg(Py_3_15)]
-pub const fn PySlot_FUNC(NAME: c_int, VALUE: *mut c_void) -> PySlot {
+pub const unsafe fn PySlot_FUNC(NAME: c_int, VALUE: *mut c_void) -> PySlot {
     PySlot {
         sl_id: safe_cast_c_int_to_u16(NAME),
         sl_flags: 0,
