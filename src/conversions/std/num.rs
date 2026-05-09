@@ -364,9 +364,20 @@ mod fast_128bit_int_conversion {
     fn is_30bit_layout() -> bool {
         static DIGITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
 
+        const PYLONG_DIGIT_SIZE: u8 = 4;
+        const PYLONG_DIGITS_ORDER: i8 = -1;
+
+        #[cfg(target_endian = "little")]
+        const NATIVE_DIGIT_ENDIANNESS: i8 = -1;
+        #[cfg(target_endian = "big")]
+        const NATIVE_DIGIT_ENDIANNESS: i8 = 1;
+
         *DIGITS.get_or_init(|| {
             let layout = unsafe { &*ffi::PyLong_GetNativeLayout() };
             layout.bits_per_digit == PYLONG_BITS_IN_DIGIT as u8
+                && layout.digit_size == PYLONG_DIGIT_SIZE
+                && layout.digits_order == PYLONG_DIGITS_ORDER
+                && layout.digit_endianness == NATIVE_DIGIT_ENDIANNESS
         })
     }
 
@@ -466,10 +477,7 @@ mod fast_128bit_int_conversion {
                             unsafe {
                                 crate::err::error_on_minusone(
                                     num.py(),
-                                    ffi::PyLong_Export(
-                                        num.as_ptr().cast(),
-                                        long_export.as_mut_ptr(),
-                                    ),
+                                    ffi::PyLong_Export(num.as_ptr(), long_export.as_mut_ptr()),
                                 )?;
                             }
                             let long_export_ref = unsafe { long_export.assume_init_ref() };
