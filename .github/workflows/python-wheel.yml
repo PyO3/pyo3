@@ -1,7 +1,6 @@
 name: Build and release wheels
 
 on:
-  pull_request: # TODO: remove before merging
   merge_group:
     types: [ checks_requested ]
   workflow_dispatch:
