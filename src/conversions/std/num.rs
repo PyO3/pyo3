@@ -379,6 +379,7 @@ pub(crate) fn is_30bit_layout() -> bool {
 
 // Builds an int from an iterator of 30-bit digits
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+#[inline]
 pub(crate) fn pylong_from_digits<'py, I: ExactSizeIterator<Item = u32>>(
     py: Python<'py>,
     negative: bool,
@@ -404,6 +405,7 @@ pub(crate) fn pylong_from_digits<'py, I: ExactSizeIterator<Item = u32>>(
 
 // Visits 30-bit digits LSB-first and deals with freeing the export
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+#[inline]
 pub(crate) fn pylong_visit_digits<R>(
     obj: Borrowed<'_, '_, PyAny>,
     f: impl FnOnce(bool, i64, Option<&[u32]>) -> PyResult<R>,
