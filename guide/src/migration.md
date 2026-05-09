@@ -38,7 +38,7 @@ To raise a Python `UnicodeDecodeError` a new error should be manually constructe
 
 ### `pyo3_build_config` APIs now require a direct dependency on `pyo3` or `pyo3-ffi`
 
-Prior to PyO3 0.28, `pyo3-build-config` would inline part of the build configuration into the crate in its own build script.
+Prior to PyO3 0.29, `pyo3-build-config` would inline part of the build configuration into the crate in its own build script.
 This worked for simple builds but not for cross-compiling; `pyo3-ffi`'s build script would need to re-implement a lot of the same machinery to correctly configure the build for cross-compilation.
 There were also edge cases where `pyo3-build-config` would use this inlined configuration incorrectly and misconfigure the build - e.g. [when cross compiling with `buck` or `bazel` build systems](https://github.com/PyO3/pyo3/issues/4579).
 
