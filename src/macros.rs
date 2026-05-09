@@ -149,17 +149,19 @@ macro_rules! py_run_impl {
 ///     let example = PyModule::from_code(
 ///         py,
 ///         c"from collections.abc import Callable
-/// def add_two_and_three(add: Callable[[int, int], int]) -> int:
+/// def add_two_and_three(add: 'Callable[[int, int], int]') -> int:
 ///     return add(2, 3)",
 ///         c"example.py",
 ///         c"",
 ///     )?;
 ///
+///     // `add_two_and_three` is a Python function defined in the code above
 ///     let add_two_and_three = example.getattr("add_two_and_three")?;
 ///
-///     let result = add_two_and_three
-///         .call1((wrap_pyfunction!(add, example)?,))?
-///         .extract::<i32>()?;
+///     // `add` is a Python function defined by the `#[pyfunction]` macro
+///     let add = wrap_pyfunction!(add, py)?;
+///
+///     let result = add_two_and_three.call1((add,))?.extract::<i32>()?;
 ///
 ///     assert_eq!(result, 5);
 ///

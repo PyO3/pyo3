@@ -20,8 +20,8 @@ use crate::{
 };
 use std::{
     collections::HashMap,
+    ffi::{c_char, c_int, c_ulong, c_void},
     ffi::{CStr, CString},
-    os::raw::{c_char, c_int, c_ulong, c_void},
     ptr::{self, NonNull},
 };
 

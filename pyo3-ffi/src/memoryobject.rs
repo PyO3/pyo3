@@ -5,11 +5,16 @@ use std::ffi::{c_char, c_int};
 // skipped _PyManagedBuffer_Type
 
 extern_libpython! {
+    #[cfg(not(RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyMemoryView_Type")]
     pub static mut PyMemoryView_Type: PyTypeObject;
+
+    #[cfg(RustPython)]
+    pub fn PyMemoryView_Check(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyMemoryView_Check(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyMemoryView_Type)
 }
