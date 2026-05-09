@@ -482,13 +482,13 @@ mod fast_128bit_int_conversion {
                             }
                             let long_export_ref = unsafe { long_export.assume_init_ref() };
                             if long_export_ref.digits.is_null() {
-                                return <$rust_type>::try_from(long_export_ref.value).map_err(
-                                    |_| {
-                                        exceptions::PyOverflowError::new_err(
-                                            "Python int larger than 128 bits",
-                                        )
-                                    },
-                                );
+                                let value = long_export_ref.value;
+                                unsafe { ffi::PyLong_FreeExport(long_export.as_mut_ptr()) };
+                                return <$rust_type>::try_from(value).map_err(|_| {
+                                    exceptions::PyOverflowError::new_err(
+                                        "Python int larger than 128 bits",
+                                    )
+                                });
                             }
                             let overflow = || {
                                 exceptions::PyOverflowError::new_err(
@@ -596,7 +596,6 @@ pub(crate) fn int_from_le_bytes<'py, const IS_SIGNED: bool>(
 }
 
 #[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
-#[allow(dead_code)]
 pub(crate) fn int_from_ne_bytes<'py, const IS_SIGNED: bool>(
     py: Python<'py>,
     bytes: &[u8],
