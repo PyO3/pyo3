@@ -5,6 +5,12 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyList, PyMapping};
 use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 
 /// Represents a Python `dict`.
 ///
@@ -19,6 +25,7 @@ pub struct PyDict(PyAny);
 #[cfg(not(GraalPy))]
 pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
 
+#[cfg(not(RustPython))]
 pyobject_native_type!(
     PyDict,
     ffi::PyDictObject,
@@ -28,12 +35,25 @@ pyobject_native_type!(
     #checkfunction=ffi::PyDict_Check
 );
 
+#[cfg(RustPython)]
+pyobject_native_type!(
+    PyDict,
+    ffi::PyDictObject,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "dict").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "dict",
+    #checkfunction=ffi::PyDict_Check
+);
+
 /// Represents a Python `dict_keys`.
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, RustPython)))]
 #[repr(transparent)]
 pub struct PyDictKeys(PyAny);
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, RustPython)))]
 pyobject_native_type_core!(
     PyDictKeys,
     pyobject_native_static_type_object!(ffi::PyDictKeys_Type),
@@ -43,11 +63,11 @@ pyobject_native_type_core!(
 );
 
 /// Represents a Python `dict_values`.
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, RustPython)))]
 #[repr(transparent)]
 pub struct PyDictValues(PyAny);
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, RustPython)))]
 pyobject_native_type_core!(
     PyDictValues,
     pyobject_native_static_type_object!(ffi::PyDictValues_Type),
@@ -57,11 +77,11 @@ pyobject_native_type_core!(
 );
 
 /// Represents a Python `dict_items`.
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, RustPython)))]
 #[repr(transparent)]
 pub struct PyDictItems(PyAny);
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, RustPython)))]
 pyobject_native_type_core!(
     PyDictItems,
     pyobject_native_static_type_object!(ffi::PyDictItems_Type),
@@ -1487,7 +1507,7 @@ mod tests {
         });
     }
 
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn abc_dict(py: Python<'_>) -> Bound<'_, PyDict> {
         let mut map = HashMap::<&'static str, i32>::new();
         map.insert("a", 1);
@@ -1497,7 +1517,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn dict_keys_view() {
         Python::attach(|py| {
             let dict = abc_dict(py);
@@ -1507,7 +1527,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn dict_values_view() {
         Python::attach(|py| {
             let dict = abc_dict(py);
@@ -1517,7 +1537,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn dict_items_view() {
         Python::attach(|py| {
             let dict = abc_dict(py);

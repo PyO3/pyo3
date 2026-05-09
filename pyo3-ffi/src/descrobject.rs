@@ -35,6 +35,7 @@ impl Default for PyGetSetDef {
     }
 }
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyClassMethodDescr_Type")]
     pub static mut PyClassMethodDescr_Type: PyTypeObject;
