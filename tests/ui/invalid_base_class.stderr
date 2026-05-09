@@ -4,9 +4,9 @@ error[E0277]: pyclass `PyBool` cannot be subclassed
 4 | #[pyclass(extends=PyBool)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ required for `#[pyclass(extends=PyBool)]`
   |
-  = help: the trait `PyClassBaseType` is not implemented for `PyBool`
+  = help: the trait `pyo3::impl_::pyclass::PyClassBaseType` is not implemented for `PyBool`
   = note: `PyBool` must have `#[pyclass(subclass)]` to be eligible for subclassing
-  = help: the following other types implement trait `PyClassBaseType`:
+  = help: the following other types implement trait `pyo3::impl_::pyclass::PyClassBaseType`:
             PyAny
             PyArithmeticError
             PyAssertionError
@@ -24,9 +24,9 @@ error[E0277]: pyclass `PyBool` cannot be subclassed
 4 | #[pyclass(extends=PyBool)]
   |                   ^^^^^^ required for `#[pyclass(extends=PyBool)]`
   |
-  = help: the trait `PyClassBaseType` is not implemented for `PyBool`
+  = help: the trait `pyo3::impl_::pyclass::PyClassBaseType` is not implemented for `PyBool`
   = note: `PyBool` must have `#[pyclass(subclass)]` to be eligible for subclassing
-  = help: the following other types implement trait `PyClassBaseType`:
+  = help: the following other types implement trait `pyo3::impl_::pyclass::PyClassBaseType`:
             PyAny
             PyArithmeticError
             PyAssertionError
@@ -36,7 +36,7 @@ error[E0277]: pyclass `PyBool` cannot be subclassed
             PyBlockingIOError
             PyBrokenPipeError
           and $N others
-note: required by a bound in `PyClassImpl::BaseType`
+note: required by a bound in `pyo3::impl_::pyclass::PyClassImpl::BaseType`
  --> src/impl_/pyclass.rs
   |
   |     type BaseType: PyTypeInfo + PyClassBaseType;

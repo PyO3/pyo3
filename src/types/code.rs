@@ -1,5 +1,5 @@
-use super::PyAnyMethods as _;
 use super::PyDict;
+use super::{PyAnyMethods as _, PyDictMethods as _};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 #[cfg(any(Py_LIMITED_API, PyPy))]
@@ -8,7 +8,7 @@ use crate::sync::PyOnceLock;
 use crate::types::{PyType, PyTypeMethods};
 #[cfg(any(Py_LIMITED_API, PyPy))]
 use crate::Py;
-use crate::{ffi, Bound, PyAny, PyErr, PyResult, Python};
+use crate::{ffi, Bound, PyAny, PyResult, Python};
 use std::ffi::CStr;
 
 /// Represents a Python code object.
@@ -127,28 +127,8 @@ impl<'py> PyCodeMethods<'py> for Bound<'py, PyCode> {
         // - https://github.com/python/cpython/pull/24564 (the same fix in CPython 3.10)
         // - https://github.com/PyO3/pyo3/issues/3370
         let builtins_s = crate::intern!(self.py(), "__builtins__");
-        let has_builtins = globals.contains(builtins_s)?;
-        if !has_builtins {
-            crate::sync::critical_section::with_critical_section(globals, || {
-                // check if another thread set __builtins__ while this thread was blocked on the critical section
-                let has_builtins = globals.contains(builtins_s)?;
-                if !has_builtins {
-                    // Inherit current builtins.
-                    let builtins = unsafe { ffi::PyEval_GetBuiltins() };
-
-                    // `PyDict_SetItem` doesn't take ownership of `builtins`, but `PyEval_GetBuiltins`
-                    // seems to return a borrowed reference, so no leak here.
-                    if unsafe {
-                        ffi::PyDict_SetItem(globals.as_ptr(), builtins_s.as_ptr(), builtins)
-                    } == -1
-                    {
-                        return Err(PyErr::fetch(self.py()));
-                    }
-                }
-                Ok(())
-            })?;
-        }
-
+        let builtins = unsafe { ffi::PyEval_GetBuiltins().assume_borrowed_unchecked(self.py()) };
+        globals.set_default(builtins_s, builtins)?;
         unsafe {
             ffi::PyEval_EvalCode(self.as_ptr(), globals.as_ptr(), locals.as_ptr())
                 .assume_owned_or_err(self.py())

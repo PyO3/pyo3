@@ -11,7 +11,7 @@ use crate::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
             tp_dealloc_with_gc, PyClassImpl, PyClassItemsIter, PyObjectOffset,
         },
-        pymethods::{Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, _call_clear},
+        pymethods::{_call_clear, Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter},
         trampoline::trampoline,
     },
     pycell::impl_::PyClassObjectLayout,
@@ -20,8 +20,8 @@ use crate::{
 };
 use std::{
     collections::HashMap,
+    ffi::{c_char, c_int, c_ulong, c_void},
     ffi::{CStr, CString},
-    os::raw::{c_char, c_int, c_ulong, c_void},
     ptr::{self, NonNull},
 };
 

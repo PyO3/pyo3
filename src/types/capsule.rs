@@ -4,6 +4,12 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::box_into_non_null;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, PyAny};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 use crate::{Bound, Python};
 use crate::{PyErr, PyResult};
 use std::ffi::{c_char, c_int, c_void};
@@ -24,6 +30,27 @@ use std::ptr::{self, NonNull};
 ///
 /// For APIs available on capsule objects, see the [`PyCapsuleMethods`] trait which is implemented for
 /// [`Bound<'py, PyCapsule>`][Bound].
+///
+/// # Safety
+///
+/// `capsule` objects are designed to share data opaque to Python code between multiple compiled extensions.
+/// This comes with a loss of type safety, and the best defense against invalid casts is to use the
+/// [capsule name][CapsuleName] to hint at the expected type of capsule contents.
+///
+/// Once the capsule name is verified, it is also crucial that the data stored within has a stable layout
+/// guaranteed between the producer and consumer of the capsule. Practically speaking, this means that:
+/// - any structs stored in capsules should be [`#[repr(C)]`][repr-c],
+/// - any enums stored within should either be [`#[repr(C)]`][enum-repr-c] or have a [fixed primitive representation], and
+/// - any function pointers stored within should have a fixed ABI (e.g. `extern "C"`) and only use arguments and return values
+///   which themselves have a stable layout.
+///
+/// In particular, note that Rust's default `#[repr(Rust)]` and `extern "Rust"` functions have no stability
+/// guarantees, so storing and dereferencing a pointer to a Rust function in a capsule which was produced
+/// by a separate compiled extension is UB.
+///
+/// If the data opaque to Python needs to be only accessed within a single extension, it is recommended to
+/// use a `#[pyclass]` with no public getters/setters. PyO3 can guarantee the type safety of the contents
+/// and provide a safe API for accessing it (e.g. via [`Bound::borrow`] and [`Bound::get`]).
 ///
 /// # Example
 /// ```
@@ -47,10 +74,27 @@ use std::ptr::{self, NonNull};
 /// });
 /// assert!(r.is_ok());
 /// ```
+///
+/// [repr-c]: <https://doc.rust-lang.org/reference/type-layout.html#the-c-representation>
+/// [enum-repr-c]: <https://doc.rust-lang.org/reference/type-layout.html#reprc-enums-with-fields>
+/// [fixed primitive representation]: <https://doc.rust-lang.org/reference/type-layout.html#primitive-representation-of-enums-with-fields>
 #[repr(transparent)]
 pub struct PyCapsule(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyCapsule, pyobject_native_static_type_object!(ffi::PyCapsule_Type), "types", "CapsuleType", #checkfunction=ffi::PyCapsule_CheckExact);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyCapsule,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "CapsuleType").unwrap().as_type_ptr()
+    },
+    "types",
+    "CapsuleType",
+    #checkfunction=ffi::PyCapsule_CheckExact
+);
 
 impl PyCapsule {
     /// Constructs a new capsule whose contents are `value`, associated with `name`.

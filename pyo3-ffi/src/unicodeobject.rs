@@ -15,29 +15,31 @@ pub type Py_UCS2 = u16;
 pub type Py_UCS1 = u8;
 
 extern_libpython! {
+    #[cfg(not(RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Type")]
     pub static mut PyUnicode_Type: PyTypeObject;
+    #[cfg(not(RustPython))]
     pub static mut PyUnicodeIter_Type: PyTypeObject;
 
-    #[cfg(PyPy)]
-    #[link_name = "PyPyUnicode_Check"]
+    #[cfg(any(PyPy, RustPython))]
+    #[cfg_attr(PyPy, link_name = "PyPyUnicode_Check")]
     pub fn PyUnicode_Check(op: *mut PyObject) -> c_int;
 
-    #[cfg(PyPy)]
-    #[link_name = "PyPyUnicode_CheckExact"]
+    #[cfg(any(PyPy, RustPython))]
+    #[cfg_attr(PyPy, link_name = "PyPyUnicode_CheckExact")]
     pub fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, RustPython)))]
 pub unsafe fn PyUnicode_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_UNICODE_SUBCLASS)
 }
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, RustPython)))]
 pub unsafe fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyUnicode_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyUnicode_Type)
 }
 
 pub const Py_UNICODE_REPLACEMENT_CHARACTER: Py_UCS4 = 0xFFFD;

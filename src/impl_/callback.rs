@@ -14,7 +14,7 @@ pub trait PyCallbackOutput: Copy + py_callback_output::Sealed {
 
 /// Seals `PyCallbackOutput` so that types outside PyO3 cannot implement it.
 mod py_callback_output {
-    use std::os::raw::c_int;
+    use std::ffi::c_int;
 
     use pyo3_ffi::Py_ssize_t;
 
@@ -131,7 +131,7 @@ impl IntoPyCallbackOutput<'_, ffi::Py_ssize_t> for usize {
     }
 }
 
-// Converters needed for `#[pyproto]` implementations
+// Conversion traits needed by pyo3's macros
 
 impl IntoPyCallbackOutput<'_, bool> for bool {
     #[inline]

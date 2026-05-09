@@ -249,7 +249,6 @@
 //! ```rust
 //! use pyo3::prelude::*;
 //! use pyo3::types::IntoPyDict;
-//! use pyo3::ffi::c_str;
 //!
 //! fn main() -> PyResult<()> {
 //!     Python::attach(|py| {

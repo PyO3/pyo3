@@ -15,6 +15,13 @@ use crate::BoundObject;
 use crate::{
     exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
+#[cfg(RustPython)]
+use crate::{
+    py_result_ext::PyResultExt,
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 use std::iter::FusedIterator;
 #[cfg(feature = "nightly")]
 use std::num::NonZero;
@@ -27,10 +34,12 @@ use libc::size_t;
 
 #[inline]
 #[track_caller]
+#[cfg_attr(RustPython, allow(unused_mut))]
 fn try_new_from_iter<'py>(
     py: Python<'py>,
     mut elements: impl ExactSizeIterator<Item = PyResult<Bound<'py, PyAny>>>,
 ) -> PyResult<Bound<'py, PyTuple>> {
+    #[cfg(not(RustPython))]
     unsafe {
         // PyTuple_New checks for overflow but has a bad error message, so we check ourselves
         let len: Py_ssize_t = elements
@@ -59,6 +68,15 @@ fn try_new_from_iter<'py>(
 
         Ok(tup)
     }
+
+    #[cfg(RustPython)]
+    unsafe {
+        let elements = elements.collect::<PyResult<Vec<_>>>()?;
+        // SAFETY: list is layout compatible with *const *mut crate::PyObject
+        ffi::PyTuple_FromArray(elements.as_ptr().cast(), elements.len() as _)
+            .assume_owned_or_err(py)
+            .cast_into_unchecked()
+    }
 }
 
 /// Represents a Python `tuple` object.
@@ -71,7 +89,20 @@ fn try_new_from_iter<'py>(
 #[repr(transparent)]
 pub struct PyTuple(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyTuple_Type), "builtins", "tuple", #checkfunction=ffi::PyTuple_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyTuple,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "tuple").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "tuple",
+    #checkfunction=ffi::PyTuple_Check
+);
 
 impl PyTuple {
     /// Constructs a new tuple with the given elements.
@@ -935,6 +966,7 @@ fn array_into_tuple<'py, const N: usize>(
     py: Python<'py>,
     array: [Bound<'py, PyAny>; N],
 ) -> Bound<'py, PyTuple> {
+    #[cfg(not(RustPython))]
     unsafe {
         let ptr = ffi::PyTuple_New(N.try_into().expect("0 < N <= 12"));
         let tup = ptr.assume_owned(py).cast_into_unchecked();
@@ -945,6 +977,15 @@ fn array_into_tuple<'py, const N: usize>(
             ffi::PyTuple_SetItem(ptr, index as ffi::Py_ssize_t, obj.into_ptr());
         }
         tup
+    }
+
+    // SAFETY: array is layout compatible with *const *mut crate::PyObject
+    // and does not steal the bound reference.
+    #[cfg(RustPython)]
+    unsafe {
+        ffi::PyTuple_FromArray(array.as_ptr().cast(), N.try_into().expect("0 < N <= 12"))
+            .assume_owned(py)
+            .cast_into_unchecked()
     }
 }
 

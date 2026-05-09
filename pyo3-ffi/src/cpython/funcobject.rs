@@ -1,4 +1,4 @@
-use crate::PyObject;
+use crate::{PyObject, Py_IS_TYPE};
 use std::ffi::c_int;
 
 #[cfg(all(not(any(PyPy, GraalPy)), not(Py_3_10)))]
@@ -65,7 +65,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyFunction_Check(op: *mut PyObject) -> c_int {
-    (crate::Py_TYPE(op) == &raw mut PyFunction_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyFunction_Type)
 }
 
 extern_libpython! {

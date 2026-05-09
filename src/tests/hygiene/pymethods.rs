@@ -566,3 +566,14 @@ impl WarningDummy2 {
     #[pyo3(warn(message = "this class-method raises user-defined warning", category = UserDefinedWarning))]
     fn multiple_warnings_fn_with_custom_category(&self) {}
 }
+
+#[crate::pyclass(crate = "crate")]
+struct NewReturnsNamedLifetime;
+
+#[crate::pymethods(crate = "crate")]
+impl NewReturnsNamedLifetime {
+    #[new]
+    fn new<'py>(py: crate::Python<'py>) -> crate::PyResult<crate::Bound<'py, Self>> {
+        crate::Bound::new(py, Self)
+    }
+}

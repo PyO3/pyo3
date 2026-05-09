@@ -1,6 +1,6 @@
 #[cfg(any(Py_3_11, all(Py_3_9, not(PyPy))))]
 use crate::PyFrameObject;
-use crate::{PyObject, PyTypeObject, Py_TYPE};
+use crate::{PyObject, PyTypeObject, Py_IS_TYPE};
 #[cfg(Py_3_12)]
 use std::ffi::c_char;
 use std::ffi::c_int;
@@ -32,13 +32,13 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyFrame_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyFrame_Type)
 }
 
 #[cfg(Py_3_13)]
 #[inline]
 pub unsafe fn PyFrameLocalsProxy_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyFrameLocalsProxy_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyFrameLocalsProxy_Type)
 }
 
 extern_libpython! {
