@@ -335,7 +335,6 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyObject_GC_New", ""),
     ("PyObject_GC_NewVar", ""),
     ("PyObject_GC_Resize", ""),
-    ("PyObject_GET_WEAKREFS_LISTPTR", "not(Py_3_10)"),
     ("PyObject_IS_GC", "not(Py_3_9)"),
     ("PyObject_New", ""),
     ("PyObject_NewVar", ""),
@@ -450,26 +449,16 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "_Py_CheckFunctionResult",
     "PyCode_New",
     "PyCode_NewWithPosOnlyArgs",
-    // This symbol was not in headers but still public until Python 3.10,
-    // should be able to remove this exclusion once support for 3.9 dropped
-    "Py_GetArgcArgv",
-    // pyo3-ffi defined these functions for 3.8 but they only exist for 3.9+
-    "PyObject_CallOneArg",
-    "PyObject_Vectorcall",
-    "PyVectorcall_Function",
-    // Needs investigation
     "PyCFunction_New",
-    // pyo3-ffi declares these as `extern "C"` but bindgen has no matching symbol on
-    // newer Python versions because CPython removed/privatised them. They should
-    // ultimately be `#[cfg(not(Py_3_X))]`-gated in pyo3-ffi.
-    "PyFrame_BlockSetup",         // removed in 3.11
-    "PySys_AddWarnOption",        // removed in 3.13
-    "PySys_AddWarnOptionUnicode", // removed in 3.13
-    "PySys_AddXOption",           // removed in 3.13
-    "PySys_HasWarnOptions",       // removed in 3.13
-    "PySys_SetPath",              // removed in 3.13
-    "PyUnicode_ClearFreeList",    // removed in 3.10
-    "PyUnicode_Encode",           // removed in 3.11
+    "PyObject_GET_WEAKREFS_LISTPTR",
+    "PyFrame_BlockSetup",
+    "PySys_AddWarnOption",
+    "PySys_AddWarnOptionUnicode",
+    "PySys_AddXOption",
+    "PySys_HasWarnOptions",
+    "PySys_SetPath",
+    "PyUnicode_ClearFreeList",
+    "PyUnicode_Encode",
     "PyUnicode_EncodeASCII",
     "PyUnicode_EncodeCharmap",
     "PyUnicode_EncodeDecimal",
@@ -480,11 +469,22 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "PyUnicode_EncodeUTF16",
     "PyUnicode_EncodeUTF32",
     "PyUnicode_EncodeUnicodeEscape",
-    "PyUnicode_TransformDecimalToASCII", // removed in 3.11
-    "PyUnicode_TranslateCharmap",        // removed in 3.13
-    "_Py_HashBytes",                     // bindgen has no symbol on 3.13
+    "PyUnicode_TransformDecimalToASCII",
+    "PyUnicode_TranslateCharmap",
+    "_Py_HashBytes",
+    // This symbol was not in headers but still public until Python 3.10,
+    // should be able to remove this exclusion once support for 3.9 dropped
+    "Py_GetArgcArgv",
+    // pyo3-ffi defined these functions for 3.8 but they only exist for 3.9+
+    "PyObject_CallOneArg",
+    "PyObject_Vectorcall",
+    "PyVectorcall_Function",
     // Needs fixing: since 3.9 it takes thread state as first argument
     "_PyEval_EvalFrameDefault",
+    // CPython gates these on a HAVE_FORK macro, pyo3-ffi needs to replicate this?
+    "PyOS_BeforeFork",
+    "PyOS_AfterFork_Parent",
+    "PyOS_AfterFork_Child",
 ];
 
 #[proc_macro]
