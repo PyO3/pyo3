@@ -462,12 +462,12 @@ mod fast_128bit_int_conversion {
                     {
                         if is_30bit_layout() {
                             const DIGIT_MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
-                            let value = self as u128;
-                            let negative = $is_signed && (self as i128) < 0;
+                            let signed = self as i128;
+                            let negative = $is_signed && signed < 0;
                             let abs = if negative {
-                                value.wrapping_neg()
+                                signed.unsigned_abs()
                             } else {
-                                value
+                                self as u128
                             };
                             let bits = 128 - abs.leading_zeros() as usize;
                             let n_digits = bits.div_ceil(PYLONG_BITS_IN_DIGIT).max(1);
