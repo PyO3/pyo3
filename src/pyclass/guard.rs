@@ -7,11 +7,11 @@ use crate::pycell::PyBorrowMutError;
 use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
 use crate::pyclass::boolean_struct::False;
 use crate::{ffi, Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyClass, PyErr};
-use std::convert::Infallible;
-use std::fmt;
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
-use std::ptr::NonNull;
+use core::convert::Infallible;
+use core::fmt;
+use core::marker::PhantomData;
+use core::ops::{Deref, DerefMut};
+use core::ptr::NonNull;
 
 /// A wrapper type for an immutably borrowed value from a `PyClass`.
 ///
@@ -34,7 +34,7 @@ use std::ptr::NonNull;
 ///   uniqueness of `&mut` references. As such those references have to be
 ///   tracked dynamically at runtime, using [`PyClassGuard`] and
 ///   [`PyClassGuardMut`] defined in this module. This works similar to std's
-///   [`RefCell`](std::cell::RefCell) type. Especially when building for
+///   [`RefCell`](core::cell::RefCell) type. Especially when building for
 ///   free-threaded Python it gets harder to track which thread borrows which
 ///   object at any time. This can lead to method calls failing with
 ///   [`PyBorrowError`]. In these cases consider using `frozen` classes together
@@ -142,7 +142,7 @@ impl<'a, T: PyClass> PyClassGuard<'a, T> {
     where
         F: FnOnce(&T) -> &U,
     {
-        let slf = std::mem::ManuallyDrop::new(self); // the borrow is released when dropping the `PyClassGuardMap`
+        let slf = core::mem::ManuallyDrop::new(self); // the borrow is released when dropping the `PyClassGuardMap`
         PyClassGuardMap {
             ptr: NonNull::from(f(&slf)),
             checker: slf.as_class_object().borrow_checker(),
@@ -271,7 +271,7 @@ where
             self.as_class_object().borrow_checker().release_borrow()
         };
         PyClassGuard {
-            ptr: std::mem::ManuallyDrop::new(self).ptr,
+            ptr: core::mem::ManuallyDrop::new(self).ptr,
             marker: PhantomData,
         }
     }
@@ -526,7 +526,7 @@ impl From<PyClassGuardError<'_, '_>> for PyErr {
 /// # }
 /// #[pyfunction]
 /// fn swap_numbers(a: &mut Number, b: &mut Number) {
-///     std::mem::swap(&mut a.inner, &mut b.inner);
+///     core::mem::swap(&mut a.inner, &mut b.inner);
 /// }
 /// # fn main() {
 /// #     Python::attach(|py| {
@@ -562,7 +562,7 @@ impl From<PyClassGuardError<'_, '_>> for PyErr {
 ///     if !a.is(b) {
 ///         let mut a: PyClassGuardMut<'_, Number> = a.extract()?;
 ///         let mut b: PyClassGuardMut<'_, Number> = b.extract()?;
-///         std::mem::swap(&mut a.inner, &mut b.inner);
+///         core::mem::swap(&mut a.inner, &mut b.inner);
 ///     } else {
 ///         // Do nothing - they are the same object, so don't need swapping.
 ///     }
@@ -654,7 +654,7 @@ impl<'a, T: PyClass<Frozen = False>> PyClassGuardMut<'a, T> {
     where
         F: FnOnce(&mut T) -> &mut U,
     {
-        let mut slf = std::mem::ManuallyDrop::new(self); // the borrow is released when dropping the `PyClassGuardMap`
+        let mut slf = core::mem::ManuallyDrop::new(self); // the borrow is released when dropping the `PyClassGuardMap`
         PyClassGuardMap {
             ptr: NonNull::from(f(&mut slf)),
             checker: slf.as_class_object().borrow_checker(),
@@ -687,7 +687,7 @@ where
         // `PyClassGuardMut` is only available for non-frozen classes, so there
         // is no possibility of leaking borrows like `PyClassGuard`
         PyClassGuardMut {
-            ptr: std::mem::ManuallyDrop::new(self).ptr,
+            ptr: core::mem::ManuallyDrop::new(self).ptr,
             marker: PhantomData,
         }
     }

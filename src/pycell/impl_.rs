@@ -1,10 +1,10 @@
 #![allow(missing_docs)]
 //! Crate-private implementation of PyClassObject
 
-use std::cell::UnsafeCell;
-use std::marker::PhantomData;
-use std::mem::{offset_of, ManuallyDrop, MaybeUninit};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use core::cell::UnsafeCell;
+use core::marker::PhantomData;
+use core::mem::{offset_of, ManuallyDrop, MaybeUninit};
+use core::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
@@ -267,14 +267,14 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
 
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
         #[cfg(not(RustPython))]
-        if std::ptr::eq(type_ptr, &raw const ffi::PyBaseObject_Type) {
+        if core::ptr::eq(type_ptr, &raw const ffi::PyBaseObject_Type) {
             let tp_free = actual_type
                 .get_slot(TP_FREE)
                 .expect("PyBaseObject_Type should have tp_free");
             return tp_free(slf.cast());
         }
         #[cfg(RustPython)]
-        if std::ptr::eq(type_ptr, {
+        if core::ptr::eq(type_ptr, {
             static TYPE: PyOnceLock<crate::Py<PyType>> = PyOnceLock::new();
             TYPE.import(py, "builtins", "object").unwrap().as_type_ptr()
         }) {
@@ -402,7 +402,7 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyStaticClassObje
     };
 
     const BASIC_SIZE: ffi::Py_ssize_t = {
-        let size = std::mem::size_of::<Self>();
+        let size = core::mem::size_of::<Self>();
         assert!(size <= ffi::Py_ssize_t::MAX as usize);
         size as _
     };
@@ -517,7 +517,7 @@ impl<T: PyClass<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassObject
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Relative(0);
     const BASIC_SIZE: ffi::Py_ssize_t = {
-        let size = std::mem::size_of::<PyClassObjectContents<T>>();
+        let size = core::mem::size_of::<PyClassObjectContents<T>>();
         assert!(size <= ffi::Py_ssize_t::MAX as usize);
         // negative to indicate 'extra' space that cpython will allocate for us
         -(size as ffi::Py_ssize_t)

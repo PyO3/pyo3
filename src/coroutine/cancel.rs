@@ -1,7 +1,8 @@
 use crate::{Py, PyAny};
-use std::future::poll_fn;
-use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll, Waker};
+use alloc::sync::Arc;
+use core::future::poll_fn;
+use core::task::{Context, Poll, Waker};
+use std::sync::Mutex;
 
 #[derive(Debug, Default)]
 struct Inner {

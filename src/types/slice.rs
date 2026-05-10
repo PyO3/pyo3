@@ -13,7 +13,7 @@ use crate::{
     Py,
 };
 use crate::{Bound, IntoPyObject, PyAny, Python};
-use std::convert::Infallible;
+use core::convert::Infallible;
 
 /// Represents a Python `slice`.
 ///

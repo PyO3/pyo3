@@ -12,8 +12,8 @@ use crate::{
     types::{PyType, PyTypeMethods},
     Py,
 };
-use std::convert::Infallible;
-use std::ffi::c_double;
+use core::convert::Infallible;
+use core::ffi::c_double;
 
 /// Represents a Python `float` object.
 ///

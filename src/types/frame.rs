@@ -4,8 +4,8 @@ use crate::sealed::Sealed;
 use crate::types::{PyCode, PyDict};
 use crate::PyAny;
 use crate::{ffi, Bound, PyResult, Python};
+use core::ffi::CStr;
 use pyo3_ffi::PyObject;
-use std::ffi::CStr;
 
 /// Represents a Python frame.
 ///

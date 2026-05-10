@@ -9,7 +9,7 @@ use crate::{
     types::{PyType, PyTypeMethods},
     Py,
 };
-use std::ffi::c_double;
+use core::ffi::c_double;
 
 /// Represents a Python [`complex`](https://docs.python.org/3/library/functions.html#complex) object.
 ///
@@ -69,7 +69,7 @@ mod not_limited_impls {
     use crate::Borrowed;
 
     use super::*;
-    use std::ops::{Add, Div, Mul, Neg, Sub};
+    use core::ops::{Add, Div, Mul, Neg, Sub};
 
     macro_rules! bin_ops {
         ($trait:ident, $fn:ident, $op:tt) => {

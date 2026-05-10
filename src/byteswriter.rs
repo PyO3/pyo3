@@ -16,12 +16,12 @@ use crate::{
     py_result_ext::PyResultExt,
 };
 use crate::{types::PyBytes, Bound, IntoPyObject, PyErr, PyResult, Python};
-use std::io::IoSlice;
 #[cfg(not(Py_LIMITED_API))]
-use std::{
+use core::{
     mem::ManuallyDrop,
     ptr::{self, NonNull},
 };
+use std::io::IoSlice;
 
 pub struct PyBytesWriter<'py> {
     python: Python<'py>,
@@ -211,7 +211,7 @@ impl std::io::Write for PyBytesWriter<'_> {
         self.buffer.write_all(buf)
     }
 
-    fn write_fmt(&mut self, args: std::fmt::Arguments<'_>) -> std::io::Result<()> {
+    fn write_fmt(&mut self, args: core::fmt::Arguments<'_>) -> std::io::Result<()> {
         self.buffer.write_fmt(args)
     }
 }
