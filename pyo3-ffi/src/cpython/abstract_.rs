@@ -64,7 +64,6 @@ extern_libpython! {
 
 #[cfg(not(any(PyPy, Py_3_11)))]
 #[inline(always)]
-#[cfg(Py_3_9)]
 pub unsafe fn PyVectorcall_Function(callable: *mut PyObject) -> Option<vectorcallfunc> {
     assert!(!callable.is_null());
     let tp = crate::Py_TYPE(callable);
@@ -103,7 +102,6 @@ unsafe fn _PyObject_VectorcallTstate(
     }
 }
 
-#[cfg(Py_3_9)]
 #[cfg(not(any(PyPy, GraalPy, Py_3_11)))] // exported as a function from 3.11, see abstract.rs
 #[inline(always)]
 pub unsafe fn PyObject_Vectorcall(
@@ -128,7 +126,6 @@ extern_libpython! {
 
 #[cfg(not(any(Py_3_12, PyPy)))]
 #[inline(always)]
-#[cfg(Py_3_9)]
 pub unsafe fn PyObject_CallOneArg(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
     assert!(!arg.is_null());
     let args_array = [std::ptr::null_mut(), arg];

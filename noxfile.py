@@ -1111,7 +1111,7 @@ def set_msrv_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    _run_cargo(session, "run", _FFI_CHECK)
+    _run_cargo(session, "run", _FFI_CHECK, "--message-format=short")
     _check_raw_dylib_macro(session)
 
 

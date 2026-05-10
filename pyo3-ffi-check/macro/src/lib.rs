@@ -215,203 +215,220 @@ fn get_fields_from_file(path: &Path) -> Vec<String> {
 }
 
 // C Macros are re-exported in pyo3-ffi as functions with the same name to get roughly equivalent semantics,
-// these are excluded here.
+// bindgen doesn't generate symbols for C macros, we note their exclusions here.
 //
-// This is only checked if the function doesn't have `extern "C"`, so if these macros are replaced by symbols,
-// they will end up being included in the check.
-const MACRO_EXCLUSIONS: &[&str] = &[
-    "PyAnySet_Check",
-    "PyAnySet_CheckExact",
-    "PyAsyncGen_CheckExact",
-    "PyBool_Check",
-    "PyByteArray_Check",
-    "PyByteArray_CheckExact",
-    "PyBytes_AS_STRING",
-    "PyBytes_Check",
-    "PyBytes_CheckExact",
-    "PyCFunction_Check",
-    "PyCFunction_CheckExact",
-    "PyCFunction_New",
-    "PyCFunction_GET_CLASS",
-    "PyCFunction_GET_FLAGS",
-    "PyCFunction_GET_FUNCTION",
-    "PyCFunction_GET_SELF",
-    "PyCMethod_Check",
-    "PyCMethod_CheckExact",
-    "PyCallIter_Check",
-    "PyCapsule_CheckExact",
-    "PyCode_Check",
-    "PyComplex_Check",
-    "PyComplex_CheckExact",
-    "PyContext_CheckExact",
-    "PyContextToken_CheckExact",
-    "PyContextVar_CheckExact",
-    "PyCoro_CheckExact",
-    "PyDate_Check",
-    "PyDate_CheckExact",
-    "PyDateTimeAPI",
-    "PyDateTime_Check",
-    "PyDateTime_CheckExact",
-    "PyDateTime_DATE_GET_FOLD",
-    "PyDateTime_DATE_GET_HOUR",
-    "PyDateTime_DATE_GET_MICROSECOND",
-    "PyDateTime_DATE_GET_MINUTE",
-    "PyDateTime_DATE_GET_SECOND",
-    "PyDateTime_DATE_GET_TZINFO",
-    "PyDateTime_DELTA_GET_DAYS",
-    "PyDateTime_DELTA_GET_MICROSECONDS",
-    "PyDateTime_DELTA_GET_SECONDS",
-    "PyDateTime_FromTimestamp",
-    "PyDateTime_GET_DAY",
-    "PyDateTime_GET_MONTH",
-    "PyDateTime_GET_YEAR",
-    "PyDateTime_IMPORT",
-    "PyDateTime_TIME_GET_FOLD",
-    "PyDateTime_TIME_GET_HOUR",
-    "PyDateTime_TIME_GET_MICROSECOND",
-    "PyDateTime_TIME_GET_MINUTE",
-    "PyDateTime_TIME_GET_SECOND",
-    "PyDateTime_TIME_GET_TZINFO",
-    "PyDateTime_TimeZone_UTC",
-    "PyDate_FromTimestamp",
-    "PyDelta_Check",
-    "PyDelta_CheckExact",
-    "PyDict_Check",
-    "PyDict_CheckExact",
-    "PyDictItems_Check",
-    "PyDictKeys_Check",
-    "PyDictValues_Check",
-    "PyDictViewSet_Check",
-    "PyExceptionClass_Check",
-    "PyExceptionInstance_Check",
-    "PyExceptionInstance_Class",
-    "PyFloat_AS_DOUBLE",
-    "PyFloat_Check",
-    "PyFloat_CheckExact",
-    "PyFrame_BlockSetup",
-    "PyFrame_Check",
-    "PyFrameLocalsProxy_Check",
-    "PyFrozenSet_Check",
-    "PyFrozenSet_CheckExact",
-    "PyFunction_Check",
-    "PyGen_Check",
-    "PyGen_CheckExact",
-    "PyImport_ImportModuleEx",
-    "PyList_Check",
-    "PyList_CheckExact",
-    "PyList_GET_ITEM",
-    "PyList_GET_SIZE",
-    "PyList_SET_ITEM",
-    "PyLong_Check",
-    "PyLong_CheckExact",
-    "PyMapping_DelItem",
-    "PyMapping_DelItemString",
-    "PyMarshal_ReadLastObjectFromFile",
-    "PyMarshal_ReadLongFromFile",
-    "PyMarshal_ReadObjectFromFile",
-    "PyMarshal_ReadObjectFromString",
-    "PyMarshal_ReadShortFromFile",
-    "PyMarshal_WriteLongToFile",
-    "PyMarshal_WriteObjectToFile",
-    "PyMarshal_WriteObjectToString",
-    "PyMemoryView_Check",
-    "PyModule_Check",
-    "PyModule_CheckExact",
-    "PyModule_Create",
-    "PyModule_FromDefAndSpec",
-    "PyObject_CallMethodNoArgs",
-    "PyObject_CallMethodOneArg",
-    "PyObject_GC_New",
-    "PyObject_GC_NewVar",
-    "PyObject_GC_Resize",
-    "PyObject_New",
-    "PyObject_NewVar",
-    "PyObject_TypeCheck",
-    "PyParser_SimpleParseFile",
-    "PyParser_SimpleParseString",
-    "PyRange_Check",
-    "PySeqIter_Check",
-    "PySet_Check",
-    "PySet_CheckExact",
-    "PySet_GET_SIZE",
-    "PySlice_Check",
-    "PyStructSequence_GET_ITEM",
-    "PyStructSequence_SET_ITEM",
-    "PySys_AddWarnOption",
-    "PySys_AddWarnOptionUnicode",
-    "PySys_AddXOption",
-    "PySys_HasWarnOptions",
-    "PySys_SetPath",
-    "PyTZInfo_Check",
-    "PyTZInfo_CheckExact",
-    "PyThreadState_GET",
-    "PyTime_Check",
-    "PyTime_CheckExact",
-    "PyTime_FromTime",
-    "PyTime_FromTimeAndFold",
-    "PyTimeZone_FromOffset",
-    "PyTimeZone_FromOffsetAndName",
-    "PyTraceBack_Check",
-    "PyTuple_Check",
-    "PyTuple_CheckExact",
-    "PyTuple_GET_ITEM",
-    "PyTuple_GET_SIZE",
-    "PyTuple_SET_ITEM",
-    "PyType_Check",
-    "PyType_CheckExact",
-    "PyType_FastSubclass",
-    "PyType_HasFeature",
-    "PyType_IS_GC",
-    "PyType_SUPPORTS_WEAKREFS",
-    "PyUnicode_1BYTE_DATA",
-    "PyUnicode_2BYTE_DATA",
-    "PyUnicode_4BYTE_DATA",
-    "PyUnicode_Check",
-    "PyUnicode_CheckExact",
-    "PyUnicode_ClearFreeList",
-    "PyUnicode_DATA",
-    "PyUnicode_Encode",
-    "PyUnicode_EncodeASCII",
-    "PyUnicode_EncodeCharmap",
-    "PyUnicode_EncodeDecimal",
-    "PyUnicode_EncodeLatin1",
-    "PyUnicode_EncodeRawUnicodeEscape",
-    "PyUnicode_EncodeUTF16",
-    "PyUnicode_EncodeUTF32",
-    "PyUnicode_EncodeUTF7",
-    "PyUnicode_EncodeUTF8",
-    "PyUnicode_EncodeUnicodeEscape",
-    "PyUnicode_GET_LENGTH",
-    "PyUnicode_IS_ASCII",
-    "PyUnicode_IS_COMPACT",
-    "PyUnicode_IS_COMPACT_ASCII",
-    "PyUnicode_IS_READY",
-    "PyUnicode_KIND",
-    "PyUnicode_READY",
-    "PyUnicode_TransformDecimalToASCII",
-    "PyUnicode_TranslateCharmap",
-    "PyWeakref_Check",
-    "PyWeakref_CheckProxy",
-    "PyWeakref_CheckRef",
-    "PyWeakref_CheckRefExact",
-    "PyVectorcall_NARGS",
-    "Py_CLEAR",
-    "Py_CompileString",
-    "Py_CompileStringFlags",
-    "Py_DECREF",
-    "Py_Ellipsis",
-    "Py_False",
-    "Py_GETENV",
-    "Py_INCREF",
-    "Py_IS_TYPE",
-    "Py_None",
-    "Py_NotImplemented",
-    "Py_REFCNT",
-    "Py_SIZE",
-    "Py_True",
-    "Py_TYPE",
-    "Py_XDECREF",
-    "Py_XINCREF",
+// Each entry is `(name, cfg)` where `cfg` is a Rust `cfg` predicate (e.g. `"Py_3_8"`,
+// `"not(Py_3_11)"`, `"all(PyPy, not(Py_3_10))"`) describing the configurations in which the
+// symbol exists as a macro in C. An empty string means "all known configurations".
+const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
+    ("PyAnySet_Check", ""),
+    ("PyAnySet_CheckExact", ""),
+    ("PyAsyncGen_CheckExact", ""),
+    ("PyBool_Check", ""),
+    ("PyByteArray_AS_STRING", ""),
+    ("PyByteArray_GET_SIZE", ""),
+    ("PyByteArray_Check", ""),
+    ("PyByteArray_CheckExact", ""),
+    ("PyBytes_AS_STRING", ""),
+    ("PyBytes_Check", ""),
+    ("PyBytes_CheckExact", ""),
+    ("PyCFunction_Check", ""),
+    ("PyCFunction_CheckExact", ""),
+    ("PyCFunction_New", ""),
+    ("PyCFunction_GET_CLASS", ""),
+    ("PyCFunction_GET_FLAGS", ""),
+    ("PyCFunction_GET_FUNCTION", ""),
+    ("PyCFunction_GET_SELF", ""),
+    ("PyCMethod_Check", ""),
+    ("PyCMethod_CheckExact", ""),
+    ("PyCallIter_Check", ""),
+    ("PyCapsule_CheckExact", ""),
+    ("PyCell_Check", ""),
+    ("PyCode_Check", ""),
+    ("PyComplex_Check", ""),
+    ("PyComplex_CheckExact", ""),
+    ("PyContext_CheckExact", ""),
+    ("PyContextToken_CheckExact", ""),
+    ("PyContextVar_CheckExact", ""),
+    ("PyCoro_CheckExact", ""),
+    ("PyDate_Check", ""),
+    ("PyDate_CheckExact", ""),
+    ("PyDate_FromDate", ""),
+    ("PyDateTimeAPI", ""),
+    ("PyDateTime_Check", ""),
+    ("PyDateTime_CheckExact", ""),
+    ("PyDateTime_DATE_GET_FOLD", ""),
+    ("PyDateTime_DATE_GET_HOUR", ""),
+    ("PyDateTime_DATE_GET_MICROSECOND", ""),
+    ("PyDateTime_DATE_GET_MINUTE", ""),
+    ("PyDateTime_DATE_GET_SECOND", ""),
+    ("PyDateTime_DATE_GET_TZINFO", ""),
+    ("PyDateTime_DELTA_GET_DAYS", ""),
+    ("PyDateTime_DELTA_GET_MICROSECONDS", ""),
+    ("PyDateTime_DELTA_GET_SECONDS", ""),
+    ("PyDateTime_FromTimestamp", ""),
+    ("PyDateTime_FromDateAndTime", ""),
+    ("PyDateTime_FromDateAndTimeAndFold", ""),
+    ("PyDateTime_GET_DAY", ""),
+    ("PyDateTime_GET_MONTH", ""),
+    ("PyDateTime_GET_YEAR", ""),
+    ("PyDateTime_IMPORT", ""),
+    ("PyDateTime_TIME_GET_FOLD", ""),
+    ("PyDateTime_TIME_GET_HOUR", ""),
+    ("PyDateTime_TIME_GET_MICROSECOND", ""),
+    ("PyDateTime_TIME_GET_MINUTE", ""),
+    ("PyDateTime_TIME_GET_SECOND", ""),
+    ("PyDateTime_TIME_GET_TZINFO", ""),
+    ("PyDateTime_TimeZone_UTC", ""),
+    ("PyDate_FromTimestamp", ""),
+    ("PyDelta_Check", ""),
+    ("PyDelta_CheckExact", ""),
+    ("PyDelta_FromDSU", ""),
+    ("PyDict_Check", ""),
+    ("PyDict_CheckExact", ""),
+    ("PyDictItems_Check", ""),
+    ("PyDictKeys_Check", ""),
+    ("PyDictValues_Check", ""),
+    ("PyDictViewSet_Check", ""),
+    ("PyExceptionClass_Check", ""),
+    ("PyExceptionInstance_Check", ""),
+    ("PyExceptionInstance_Class", ""),
+    ("PyEval_CallObject", "not(Py_3_13)"),
+    ("PyFloat_AS_DOUBLE", ""),
+    ("PyFloat_Check", ""),
+    ("PyFloat_CheckExact", ""),
+    ("PyFrame_BlockSetup", ""),
+    ("PyFrame_Check", ""),
+    ("PyFrameLocalsProxy_Check", ""),
+    ("PyFrozenSet_Check", ""),
+    ("PyFrozenSet_CheckExact", ""),
+    ("PyFunction_Check", ""),
+    ("PyGen_Check", ""),
+    ("PyGen_CheckExact", ""),
+    ("PyHeapType_GET_MEMBERS", "not(Py_3_11)"),
+    ("PyImport_ImportModuleEx", ""),
+    ("PyList_Check", ""),
+    ("PyList_CheckExact", ""),
+    ("PyList_GET_ITEM", ""),
+    ("PyList_GET_SIZE", ""),
+    ("PyList_SET_ITEM", ""),
+    ("PyLong_Check", ""),
+    ("PyLong_CheckExact", ""),
+    ("PyMapping_DelItem", ""),
+    ("PyMapping_DelItemString", ""),
+    ("PyMemoryView_Check", ""),
+    ("PyModule_Check", ""),
+    ("PyModule_CheckExact", ""),
+    ("PyModule_Create", ""),
+    ("PyModule_FromDefAndSpec", ""),
+    ("PyObject_CallMethodNoArgs", ""),
+    ("PyObject_CallMethodOneArg", ""),
+    ("PyObject_CheckBuffer", "not(Py_3_9)"),
+    (
+        "PyObject_DelAttr",
+        "any(all(not(PyPy), not(Py_3_13)), all(PyPy, Py_3_11))",
+    ),
+    (
+        "PyObject_DelAttrString",
+        "any(all(not(PyPy), not(Py_3_13)), all(PyPy, Py_3_11))",
+    ),
+    ("PyObject_GC_New", ""),
+    ("PyObject_GC_NewVar", ""),
+    ("PyObject_GC_Resize", ""),
+    ("PyObject_GET_WEAKREFS_LISTPTR", "not(Py_3_10)"),
+    ("PyObject_IS_GC", "not(Py_3_9)"),
+    ("PyObject_New", ""),
+    ("PyObject_NewVar", ""),
+    ("PyObject_TypeCheck", ""),
+    ("PyParser_SimpleParseFile", ""),
+    ("PyParser_SimpleParseString", ""),
+    ("PyRange_Check", ""),
+    ("PySeqIter_Check", ""),
+    ("PySequence_Fast_GET_ITEM", ""),
+    ("PySequence_Fast_GET_SIZE", ""),
+    ("PySequence_Fast_ITEMS", ""),
+    ("PySequence_ITEM", ""),
+    ("PySet_Check", ""),
+    ("PySet_CheckExact", ""),
+    ("PySet_GET_SIZE", ""),
+    ("PySlice_Check", ""),
+    ("PyStructSequence_GET_ITEM", ""),
+    ("PyStructSequence_SET_ITEM", ""),
+    ("PySys_AddWarnOption", ""),
+    ("PySys_AddWarnOptionUnicode", ""),
+    ("PySys_AddXOption", ""),
+    ("PySys_HasWarnOptions", ""),
+    ("PySys_SetPath", ""),
+    ("PyTZInfo_Check", ""),
+    ("PyTZInfo_CheckExact", ""),
+    ("PyThreadState_GET", ""),
+    ("PyTime_Check", ""),
+    ("PyTime_CheckExact", ""),
+    ("PyTime_FromTime", ""),
+    ("PyTime_FromTimeAndFold", ""),
+    ("PyTimeZone_FromOffset", ""),
+    ("PyTimeZone_FromOffsetAndName", ""),
+    ("PyTraceBack_Check", ""),
+    ("PyTuple_Check", ""),
+    ("PyTuple_CheckExact", ""),
+    ("PyTuple_GET_ITEM", ""),
+    ("PyTuple_GET_SIZE", ""),
+    ("PyTuple_SET_ITEM", ""),
+    ("PyType_Check", ""),
+    ("PyType_CheckExact", ""),
+    ("PyType_FastSubclass", ""),
+    ("PyType_HasFeature", ""),
+    ("PyType_IS_GC", ""),
+    ("PyType_SUPPORTS_WEAKREFS", "not(Py_3_11)"),
+    ("PyUnicode_1BYTE_DATA", ""),
+    ("PyUnicode_2BYTE_DATA", ""),
+    ("PyUnicode_4BYTE_DATA", ""),
+    ("PyUnicode_Check", ""),
+    ("PyUnicode_CheckExact", ""),
+    ("PyUnicode_ClearFreeList", ""),
+    ("PyUnicode_DATA", "not(Py_3_14)"),
+    ("PyUnicode_Encode", ""),
+    ("PyUnicode_EncodeASCII", ""),
+    ("PyUnicode_EncodeCharmap", ""),
+    ("PyUnicode_EncodeDecimal", ""),
+    ("PyUnicode_EncodeLatin1", ""),
+    ("PyUnicode_EncodeRawUnicodeEscape", ""),
+    ("PyUnicode_EncodeUTF16", ""),
+    ("PyUnicode_EncodeUTF32", ""),
+    ("PyUnicode_EncodeUTF7", ""),
+    ("PyUnicode_EncodeUTF8", ""),
+    ("PyUnicode_EncodeUnicodeEscape", ""),
+    ("PyUnicode_GET_LENGTH", ""),
+    ("PyUnicode_IS_ASCII", ""),
+    ("PyUnicode_IS_COMPACT", ""),
+    ("PyUnicode_IS_COMPACT_ASCII", ""),
+    ("PyUnicode_IS_READY", ""),
+    ("PyUnicode_KIND", "not(Py_3_14)"),
+    ("PyUnicode_READY", ""),
+    ("PyUnicode_TransformDecimalToASCII", ""),
+    ("PyUnicode_TranslateCharmap", ""),
+    ("PyWeakref_Check", ""),
+    ("PyWeakref_CheckProxy", ""),
+    ("PyWeakref_CheckRef", ""),
+    ("PyWeakref_CheckRefExact", ""),
+    ("PyVectorcall_NARGS", "not(Py_3_12)"),
+    ("Py_CLEAR", ""),
+    ("Py_CompileString", "not(Py_3_10)"),
+    ("Py_CompileStringFlags", ""),
+    ("Py_DECREF", ""),
+    ("Py_Ellipsis", ""),
+    ("Py_False", ""),
+    ("Py_GETENV", "not(Py_3_11)"),
+    ("Py_INCREF", ""),
+    ("Py_IS_TYPE", ""),
+    ("Py_None", ""),
+    ("Py_NotImplemented", ""),
+    ("Py_REFCNT", "not(Py_3_14)"),
+    ("Py_SIZE", ""),
+    ("Py_True", ""),
+    ("Py_TYPE", "not(Py_3_14)"),
+    ("Py_XDECREF", ""),
+    ("Py_XINCREF", ""),
 ];
 
 // TODO: probably need to clean these up
@@ -436,6 +453,38 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     // This symbol was not in headers but still public until Python 3.10,
     // should be able to remove this exclusion once support for 3.9 dropped
     "Py_GetArgcArgv",
+    // pyo3-ffi defined these functions for 3.8 but they only exist for 3.9+
+    "PyObject_CallOneArg",
+    "PyObject_Vectorcall",
+    "PyVectorcall_Function",
+    // Needs investigation
+    "PyCFunction_New",
+    // pyo3-ffi declares these as `extern "C"` but bindgen has no matching symbol on
+    // newer Python versions because CPython removed/privatised them. They should
+    // ultimately be `#[cfg(not(Py_3_X))]`-gated in pyo3-ffi.
+    "PyFrame_BlockSetup",         // removed in 3.11
+    "PySys_AddWarnOption",        // removed in 3.13
+    "PySys_AddWarnOptionUnicode", // removed in 3.13
+    "PySys_AddXOption",           // removed in 3.13
+    "PySys_HasWarnOptions",       // removed in 3.13
+    "PySys_SetPath",              // removed in 3.13
+    "PyUnicode_ClearFreeList",    // removed in 3.10
+    "PyUnicode_Encode",           // removed in 3.11
+    "PyUnicode_EncodeASCII",
+    "PyUnicode_EncodeCharmap",
+    "PyUnicode_EncodeDecimal",
+    "PyUnicode_EncodeLatin1",
+    "PyUnicode_EncodeRawUnicodeEscape",
+    "PyUnicode_EncodeUTF7",
+    "PyUnicode_EncodeUTF8",
+    "PyUnicode_EncodeUTF16",
+    "PyUnicode_EncodeUTF32",
+    "PyUnicode_EncodeUnicodeEscape",
+    "PyUnicode_TransformDecimalToASCII", // removed in 3.11
+    "PyUnicode_TranslateCharmap",        // removed in 3.13
+    "_Py_HashBytes",                     // bindgen has no symbol on 3.13
+    // Needs fixing: since 3.9 it takes thread state as first argument
+    "_PyEval_EvalFrameDefault",
 ];
 
 #[proc_macro]
@@ -534,36 +583,62 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
 
         let vararg = if variadic { Some(quote!(, ...)) } else { None };
 
-        if !modifiers.to_string().contains(r#"extern "C""#) {
-            // if the function is not extern "C":
-            // - could be a Rust reimplementation of a C macro, ro
-            // - a static inline function in the C headers, pyo3-ffi uses the Rust abi, bindgen uses the C abi still
-
-            // If a macro, then there will be no symbol from bindgen at all, so skip
-            if MACRO_EXCLUSIONS.contains(&function_name) {
-                if BINDGEN_FUNCTION_NAMES.contains(function_name) {
-                    let error_message = format!(
-                        "`{function_name}` is in the macro exclusion list but a symbol was found in bindgen bindings, this likely means the macro was replaced by a symbol",
-                    );
-                    output.extend(quote!(compile_error!(#error_message);));
-                }
-                continue;
-            }
-
-            output
-                .extend(quote!(#macro_name!(@inline #function_ident, (#(#arg_types),*) #vararg);));
+        // if the function is not extern "C":
+        // - could be a Rust reimplementation of a C macro, or
+        // - a static inline function in the C headers, pyo3-ffi uses the Rust abi, bindgen uses the C abi still
+        //
+        // The for_all_functions macro has two forms accordingly
+        let (inline, modifiers) = if !modifiers.to_string().contains(r#"extern "C""#) {
+            // inline form takes @inline at front, no modifiers
+            (quote!( @inline ), quote!())
         } else {
-            if function_name == "Py_INCREF" {
-                panic!(
-                    "{modifiers}, {}, {}",
-                    modifiers.to_string().contains(r#"extern "C""#),
-                    entry.display()
+            // regular form taks the modifiers
+            (quote!(), quote!([#modifiers]))
+        };
+
+        // If a macro, then there will be no symbol from bindgen at all. To avoid
+        // exclusions overreaching we have use cfg to document the expected macro range.
+        let macro_exclusion_cfg: Option<TokenStream> = MACRO_EXCLUSIONS
+            .iter()
+            .find(|(n, _)| *n == function_name)
+            .map(|(_, cfg)| if cfg.is_empty() { "all()" } else { *cfg })
+            .map(|cfg| cfg.parse().expect("failed to parse macro exclusion cfg"));
+
+        let has_symbol = BINDGEN_FUNCTION_NAMES.contains(function_name);
+
+        match (macro_exclusion_cfg, has_symbol) {
+            (Some(cfg), true) => {
+                // emit an error if checking within the cfgs where a macro is expected
+                let error_message = format!(
+                    "`{function_name}` is in MACRO_EXCLUSIONS but a symbol was found in bindgen bindings, this likely means the exclusion cfg `{cfg}` is incorrect",
+                );
+                output.extend(quote!(#[cfg(#cfg)] compile_error!(#error_message);));
+                // if not within the macro range, we found a symbol, this should be good
+                output.extend(
+                    quote!(#[cfg(not(#cfg))] #macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg));),
                 );
             }
-
-            output.extend(
-                quote!(#macro_name!(#function_ident, [#modifiers] (#(#arg_types),* #vararg));),
-            );
+            (Some(cfg), false) => {
+                // emit an error if outside the cfgs where a macro is expected - should
+                // be a static inline function in both pyo3-ffi and bindgen
+                let error_message = format!(
+                    "`{function_name}` is only expected to be a macro for versions `{cfg}`, but no symbol was found in bindgen bindings (means the symbol is probably still a macro in the headers)",
+                );
+                output.extend(quote!(#[cfg(not(#cfg))] compile_error!(#error_message);));
+            }
+            (None, true) => {
+                // emit the comparison macro to check that the argument count matches
+                output.extend(
+                    quote!(#macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg));),
+                );
+            }
+            (None, false) => {
+                // Not in MACRO_EXCLUSIONS, should have a symbol from bindgen
+                let error_message = format!(
+                    "`{function_name}` is not in MACRO_EXCLUSIONS and no symbol was found in bindgen bindings",
+                );
+                output.extend(quote!(compile_error!(#error_message);));
+            }
         }
     }
 
