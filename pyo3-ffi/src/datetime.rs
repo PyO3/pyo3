@@ -604,12 +604,12 @@ pub const PyDateTime_CAPSULE_NAME: &CStr = c"datetime.datetime_CAPI";
 /// `PyDateTime_IMPORT` is called
 #[inline]
 pub unsafe fn PyDateTimeAPI() -> *mut PyDateTime_CAPI {
-    PyDateTimeAPI_impl.load(core::sync::atomic::Ordering::SeqCst)
+    PyDateTimeAPI_impl.load(Ordering::Acquire)
 }
 
 /// Populates the `PyDateTimeAPI` object
 pub unsafe fn PyDateTime_IMPORT() {
-    if PyDateTimeAPI_impl.load(Ordering::SeqCst).is_null() {
+    if PyDateTimeAPI_impl.load(Ordering::Relaxed).is_null() {
         // PyPy expects the C-API to be initialized via PyDateTime_Import, so trying to use
         // `PyCapsule_Import` will behave unexpectedly in pypy.
         #[cfg(PyPy)]
@@ -628,8 +628,8 @@ pub unsafe fn PyDateTime_IMPORT() {
         let _ = PyDateTimeAPI_impl.compare_exchange(
             ptr::null_mut(),
             py_datetime_c_api,
-            Ordering::SeqCst,
-            Ordering::SeqCst,
+            Ordering::Release,
+            Ordering::Relaxed,
         );
     }
 }
