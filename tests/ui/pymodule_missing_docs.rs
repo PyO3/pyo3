@@ -1,3 +1,4 @@
+//@check-pass
 #![deny(missing_docs)]
 //! Some crate docs
 

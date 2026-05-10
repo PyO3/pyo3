@@ -1,9 +1,9 @@
+//@check-pass
 #![forbid(unsafe_code)]
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 use pyo3::*;
 
-#[expect(unexpected_cfgs)]
 #[path = "../../src/tests/hygiene/mod.rs"]
 mod hygiene;
 
@@ -28,6 +28,7 @@ mod gh_4394 {
     pub struct Version;
 }
 
+#[pymodule]
 mod from_py_with {
     use pyo3::prelude::*;
     use pyo3::types::PyBytes;

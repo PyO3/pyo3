@@ -9,3 +9,5 @@ error: cannot find attribute `pymodule_export` in this scope
   |
 5 |     #[pymodule_export]
   |       ^^^^^^^^^^^^^^^
+
+error: aborting due to 2 previous errors
