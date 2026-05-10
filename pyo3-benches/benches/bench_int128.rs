@@ -2,9 +2,10 @@ use std::hint::black_box;
 
 use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
 
-use pyo3::conversion::IntoPyObject;
-use pyo3::prelude::*;
-use pyo3::types::PyInt;
+use pyo3::{
+    prelude::*,
+    types::PyInt, conversion::IntoPyObject
+};
 
 fn into_u128(b: &mut Bencher<'_>, value: u128) {
     Python::attach(|py| {

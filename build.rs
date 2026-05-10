@@ -43,6 +43,10 @@ fn configure_pyo3() -> Result<()> {
 
     print_feature_cfgs();
 
+    // Forwards interpreter config under the links = "pyo3-python" configuration,
+    // which allows consumers of `pyo3-build-config` APIs to depend on pyo3 instead of pyo3-ffi.
+    interpreter_config.to_cargo_dep_env()?;
+
     // Make `cargo test` etc work on macOS with Xcode bundled Python
     add_python_framework_link_args();
 

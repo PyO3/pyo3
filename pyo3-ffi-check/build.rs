@@ -35,4 +35,9 @@ fn main() {
     // Because `pyo3-ffi` is a dependency, libpython is linked, this ensures `main.rs` can run.
     // Slightly needless (no symbols from libpython are actually called), but simple to do.
     pyo3_build_config::add_libpython_rpath_link_args();
+
+    // Forward config into this crate's compilation, so that `ffi-check` macro can consume it.
+    let pyo3_config_raw =
+        std::env::var("DEP_PYTHON_PYO3_CONFIG").expect("PYO3_CONFIG environment variable not set");
+    println!("cargo:rustc-env=DEP_PYTHON_PYO3_CONFIG={pyo3_config_raw}");
 }
