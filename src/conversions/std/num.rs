@@ -229,7 +229,7 @@ impl<'py> IntoPyObject<'py> for &'_ u8 {
         _: crate::conversion::private::Token,
     ) -> Result<Bound<'py, PyAny>, PyErr>
     where
-    // I: AsRef<[u8]>, but the compiler needs it expressed via the trait for some reason
+        // I: AsRef<[u8]>, but the compiler needs it expressed via the trait for some reason
         I: AsRef<[<Self as Reference>::BaseType]>,
     {
         Ok(PyBytes::new(py, iter.as_ref()).into_any())
