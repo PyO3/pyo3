@@ -114,8 +114,12 @@ pub unsafe fn PyObject_Vectorcall(
 }
 
 extern_libpython! {
+    #[cfg_attr(
+        all(not(any(PyPy, GraalPy)), not(Py_3_9)),
+        link_name = "_PyObject_VectorcallDict"
+    )]
+    #[cfg_attr(all(PyPy, not(Py_3_9)), link_name = "_PyPyObject_VectorcallDict")]
     #[cfg_attr(all(PyPy, Py_3_9), link_name = "PyPyObject_VectorcallDict")]
-    #[cfg(Py_3_9)]
     pub fn PyObject_VectorcallDict(
         callable: *mut PyObject,
         args: *const *mut PyObject,

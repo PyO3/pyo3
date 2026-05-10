@@ -343,20 +343,18 @@ pub unsafe fn Py_XDECREF(op: *mut PyObject) {
 }
 
 extern_libpython! {
-    #[cfg(all(Py_3_10, Py_LIMITED_API))]
+    #[cfg(all(Py_3_10, Py_LIMITED_API, not(PyPy)))]
     #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
-    #[cfg_attr(PyPy, link_name = "PyPy_NewRef")]
     pub fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject;
-    #[cfg(all(Py_3_10, Py_LIMITED_API))]
+    #[cfg(all(Py_3_10, Py_LIMITED_API, not(PyPy)))]
     #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
-    #[cfg_attr(PyPy, link_name = "PyPy_XNewRef")]
     pub fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject;
 }
 
 // macro _Py_NewRef not public; reimplemented directly inside Py_NewRef here
 // macro _Py_XNewRef not public; reimplemented directly inside Py_XNewRef here
 
-#[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+#[cfg(all(Py_3_10, any(not(Py_LIMITED_API), PyPy)))]
 #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
 #[inline]
 pub unsafe fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject {
@@ -364,7 +362,7 @@ pub unsafe fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject {
     obj
 }
 
-#[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
+#[cfg(all(Py_3_10, any(not(Py_LIMITED_API), PyPy)))]
 #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
 #[inline]
 pub unsafe fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject {
