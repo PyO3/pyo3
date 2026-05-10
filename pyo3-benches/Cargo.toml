@@ -20,7 +20,7 @@ rust_decimal = { version = "1.0.0", default-features = false }
 hashbrown = "0.17"
 
 [features]
-abi3 = ["pyo3-build-config/abi3"]
+abi3 = ["pyo3/abi3"]
 
 [[bench]]
 name = "bench_any"
