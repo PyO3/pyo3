@@ -377,6 +377,16 @@ pub(crate) fn is_30bit_layout() -> bool {
     })
 }
 
+#[cfg(Py_3_14)]
+struct ExportGuard(ffi::PyLongExport);
+
+#[cfg(Py_3_14)]
+impl Drop for ExportGuard {
+    fn drop(&mut self) {
+        unsafe { ffi::PyLong_FreeExport(&mut self.0) };
+    }
+}
+
 // Builds an int from an iterator of 30-bit digits
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[inline]
@@ -385,10 +395,11 @@ pub(crate) fn pylong_from_digits<'py, I: ExactSizeIterator<Item = u32>>(
     negative: bool,
     digits: I,
 ) -> PyResult<Bound<'py, PyInt>> {
-    let n_digits = digits.len();
+    let digits_len = digits.len();
     let mut ptr = std::ptr::null_mut();
-    let writer =
-        unsafe { ffi::PyLongWriter_Create(negative.into(), n_digits as ffi::Py_ssize_t, &mut ptr) };
+    let writer = unsafe {
+        ffi::PyLongWriter_Create(negative.into(), digits_len as ffi::Py_ssize_t, &mut ptr)
+    };
     if writer.is_null() {
         return Err(PyErr::fetch(py));
     }
@@ -417,16 +428,17 @@ pub(crate) fn pylong_visit_digits<R>(
             ffi::PyLong_Export(obj.as_ptr(), long_export.as_mut_ptr()),
         )?;
     }
-    let long_export_ref = unsafe { long_export.assume_init_ref() };
+    let export_guard = ExportGuard(unsafe { raw.assume_init() });
+    let long_export_ref = &export.0;
     let negative = long_export_ref.negative != 0;
-    let compact = long_export_ref.value;
+    let value = long_export_ref.value;
     let result = if long_export_ref.digits.is_null() {
-        f(negative, compact, None)
+        f(negative, value, None)
     } else {
         let n_digits = long_export_ref.ndigits as usize;
         let ptr = long_export_ref.digits.cast::<u32>();
         let digits = unsafe { std::slice::from_raw_parts(ptr, n_digits) };
-        f(negative, compact, Some(digits))
+        f(negative, value, Some(digits))
     };
     unsafe { ffi::PyLong_FreeExport(long_export.as_mut_ptr()) };
     result

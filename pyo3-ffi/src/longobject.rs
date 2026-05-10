@@ -40,15 +40,23 @@ extern_libpython! {
     pub fn PyLong_AsUnsignedLongMask(arg1: *mut PyObject) -> c_ulong;
     // skipped non-limited _PyLong_AsInt
 
-    // skipped non-limited PyLong_FromInt32
-    // skipped non-limited PyLong_FromUInt32
-    // skipped non-limited PyLong_FromInt64
-    // skipped non-limited PyLong_FromUInt64
+    #[cfg(Py_3_14)]
+    pub fn PyLong_FromInt32(arg1: i32) -> *mut PyObject;
+    #[cfg(Py_3_14)]
+    pub fn PyLong_FromUInt32(arg1: u32) -> *mut PyObject;
+    #[cfg(Py_3_14)]
+    pub fn PyLong_FromInt64(arg1: i64) -> *mut PyObject;
+    #[cfg(Py_3_14)]
+    pub fn PyLong_FromUInt64(arg1: u64) -> *mut PyObject;
 
-    // skipped non-limited PyLong_AsInt32
-    // skipped non-limited PyLong_AsUInt32
-    // skipped non-limited PyLong_AsInt64
-    // skipped non-limited PyLong_AsUInt64
+    #[cfg(Py_3_14)]
+    pub fn PyLong_AsInt32(arg1: *mut PyObject, arg2: *mut i32) -> c_int;
+    #[cfg(Py_3_14)]
+    pub fn PyLong_AsUInt32(arg1: *mut PyObject, arg2: *mut u32) -> c_int;
+    #[cfg(Py_3_14)]
+    pub fn PyLong_AsInt64(arg1: *mut PyObject, arg2: *mut i64) -> c_int;
+    #[cfg(Py_3_14)]
+    pub fn PyLong_AsUInt64(arg1: *mut PyObject, arg2: *mut u64) -> c_int;
 }
 
 #[cfg(any(Py_3_14, all(Py_3_13, not(Py_LIMITED_API))))]
