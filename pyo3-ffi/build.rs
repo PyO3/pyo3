@@ -1,11 +1,11 @@
 use pyo3_build_config::{
     bail, ensure, print_feature_cfgs,
     pyo3_build_script_impl::{
-        cargo_env_var, env_var, errors::Result, is_linking_libpython_for_target,
-        resolve_build_config, target_triple_from_env, BuildConfig, BuildConfigSource,
-        InterpreterConfig, MaximumVersionExceeded, PythonVersion,
+        errors::Result, is_linking_libpython_for_target, resolve_build_config,
+        target_triple_from_env, BuildConfig, BuildConfigSource, InterpreterConfig,
+        MaximumVersionExceeded, PythonVersion,
     },
-    warn, PythonImplementation,
+    warn, PythonImplementation, BUILD_CTX,
 };
 
 /// Minimum Python version PyO3 supports.
@@ -74,8 +74,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                     return Err(error.finish().into());
                 }
 
-                if env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_none_or(|os_str| os_str != "1")
-                {
+                if !*BUILD_CTX.ext.use_abi13_forward_compatibility {
                     error.add_help("set PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the stable ABI");
                     return Err(error.finish().into());
                 }
@@ -151,15 +150,10 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
 fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result<()> {
     if let Some(pointer_width) = interpreter_config.pointer_width {
         // Try to check whether the target architecture matches the python library
-        let rust_target = match cargo_env_var("CARGO_CFG_TARGET_POINTER_WIDTH")
-            .unwrap()
-            .as_str()
-        {
-            "64" => 64,
-            "32" => 32,
-            x => bail!("unexpected Rust target pointer width: {}", x),
+        let rust_target = match &*BUILD_CTX.cargo.cargo_cfg_target_pointer_width {
+            Ok(target) => *target,
+            Err(e) => bail!("{e}"),
         };
-
         ensure!(
             rust_target == pointer_width,
             "your Rust target architecture ({}-bit) does not match your python interpreter ({}-bit)",
@@ -172,7 +166,7 @@ fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result
 
 fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
     let interpreter_config = &build_config.interpreter_config;
-    let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
+    let target_os = BUILD_CTX.cargo.cargo_cfg_target_os.clone();
 
     let lib_name = interpreter_config
         .lib_name
@@ -225,7 +219,7 @@ fn configure_pyo3() -> Result<()> {
     let build_config = resolve_build_config(&target)?;
     let interpreter_config = &build_config.interpreter_config;
 
-    if env_var("PYO3_PRINT_CONFIG").is_some_and(|os_str| os_str == "1") {
+    if *BUILD_CTX.ext.is_print_config {
         print_config_and_exit(interpreter_config);
     }
 
