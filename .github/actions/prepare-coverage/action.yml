@@ -11,7 +11,7 @@ runs:
   - name: Install cargo-llvm-cov
   # FIXME: install test branch, should revert to install-action before merge
   # uses: taiki-e/install-action@cargo-llvm-cov
-    run: cargo install --git https://github.com/davidhewitt/cargo-llvm-cov --branch coverage-host-only
+    run: cargo install --git https://github.com/davidhewitt/cargo-llvm-cov --branch coverage-host-only cargo--llvm-cov
     shell: bash
 
   - name: Prepare coverage environment
