@@ -41,7 +41,7 @@ generate-import-lib = ["pyo3-build-config/generate-import-lib"]
 paste = "1"
 
 [build-dependencies]
-pyo3-build-config = { path = "../pyo3-build-config", version = "=0.28.3", features = ["resolve-config"] }
+pyo3-build-config = { path = "../pyo3-build-config", version = "=0.28.3" }
 
 [lints]
 workspace = true

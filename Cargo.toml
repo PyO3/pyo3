@@ -22,8 +22,12 @@ exclude = [
     "/tests/ui",
 ]
 edition = "2021"
-# this allows PyO3 to forward build-config from `pyo3-ffi` to avoid downstream crates
+# This allows PyO3 to forward build-config from `pyo3-ffi` to avoid downstream crates
 # needing to depend on `pyo3-ffi` directly to use `pyo3-build-config` functionality.
+#
+# See also https://github.com/rust-lang/cargo/issues/3544 and
+# https://github.com/rust-lang/cargo/pull/16436 which may allow this to be
+# reverted in the future.
 links = "pyo3-python"
 rust-version.workspace = true
 
