@@ -428,7 +428,7 @@ pub(crate) fn pylong_visit_digits<R>(
             ffi::PyLong_Export(obj.as_ptr(), long_export.as_mut_ptr()),
         )?;
     }
-    let export_guard = ExportGuard(unsafe { raw.assume_init() });
+    let export_guard = ExportGuard(unsafe { long_export.assume_init() });
     let long_export_ref = &export.0;
     let negative = long_export_ref.negative != 0;
     let value = long_export_ref.value;
