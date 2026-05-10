@@ -229,7 +229,7 @@ impl<'py> IntoPyObject<'py> for &'_ u8 {
         _: crate::conversion::private::Token,
     ) -> Result<Bound<'py, PyAny>, PyErr>
     where
-        // I: AsRef<[u8]>, but the compiler needs it expressed via the trait for some reason
+    // I: AsRef<[u8]>, but the compiler needs it expressed via the trait for some reason
         I: AsRef<[<Self as Reference>::BaseType]>,
     {
         Ok(PyBytes::new(py, iter.as_ref()).into_any())
@@ -377,10 +377,10 @@ pub(crate) fn is_30bit_layout() -> bool {
     })
 }
 
-#[cfg(Py_3_14)]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 struct ExportGuard(ffi::PyLongExport);
 
-#[cfg(Py_3_14)]
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 impl Drop for ExportGuard {
     fn drop(&mut self) {
         unsafe { ffi::PyLong_FreeExport(&mut self.0) };
@@ -429,19 +429,17 @@ pub(crate) fn pylong_visit_digits<R>(
         )?;
     }
     let export_guard = ExportGuard(unsafe { long_export.assume_init() });
-    let long_export_ref = &export.0;
+    let long_export_ref = &export_guard.0;
     let negative = long_export_ref.negative != 0;
     let value = long_export_ref.value;
-    let result = if long_export_ref.digits.is_null() {
+    if long_export_ref.digits.is_null() {
         f(negative, value, None)
     } else {
         let n_digits = long_export_ref.ndigits as usize;
         let ptr = long_export_ref.digits.cast::<u32>();
         let digits = unsafe { std::slice::from_raw_parts(ptr, n_digits) };
         f(negative, value, Some(digits))
-    };
-    unsafe { ffi::PyLong_FreeExport(long_export.as_mut_ptr()) };
-    result
+    }
 }
 
 #[cfg(not(Py_LIMITED_API))]
