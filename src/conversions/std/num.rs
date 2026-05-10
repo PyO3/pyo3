@@ -472,11 +472,7 @@ mod fast_128bit_int_conversion {
                                 value
                             };
                             let bits = 128 - abs.leading_zeros() as usize;
-                            let n_digits = if bits == 0 {
-                                1
-                            } else {
-                                bits.div_ceil(PYLONG_BITS_IN_DIGIT)
-                            };
+                            let n_digits = bits.div_ceil(PYLONG_BITS_IN_DIGIT).max(1);
                             let digits = (0..n_digits)
                                 .map(|i| (abs >> (i * PYLONG_BITS_IN_DIGIT)) as u32 & DIGIT_MASK);
                             return pylong_from_digits(py, negative, digits);
