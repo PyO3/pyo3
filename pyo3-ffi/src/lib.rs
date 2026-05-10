@@ -371,12 +371,20 @@
     clippy::missing_safety_doc,
     clippy::ptr_eq
 )]
+#![warn(
+    clippy::alloc_instead_of_core,
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core
+)]
 #![warn(elided_lifetimes_in_paths, unused_lifetimes)]
 // This crate is a hand-maintained translation of CPython's headers, so requiring "unsafe"
 // blocks within those translations increases maintenance burden without providing any
 // additional safety. The safety of the functions in this crate is determined by the
 // original CPython headers
 #![allow(unsafe_op_in_unsafe_fn)]
+
+#[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
+extern crate std;
 
 // Until `extern type` is stabilized, use the recommended approach to
 // model opaque types:
