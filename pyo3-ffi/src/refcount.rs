@@ -299,7 +299,7 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
             #[cfg(py_sys_config = "Py_REF_DEBUG")]
             if (*op).ob_refcnt.ob_refcnt < 0 {
                 let location = core::panic::Location::caller();
-                let filename = core::ffi::CString::new(location.file()).unwrap();
+                let filename = std::ffi::CString::new(location.file()).unwrap();
                 _Py_NegativeRefcount(filename.as_ptr(), location.line() as i32, op);
             }
 
