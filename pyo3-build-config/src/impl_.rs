@@ -1,6 +1,3 @@
-//! Main implementation module included in both the `pyo3-build-config` library crate
-//! and its build script.
-
 #[cfg(test)]
 use std::cell::RefCell;
 use std::{
@@ -61,9 +58,7 @@ pub fn cargo_env_var(var: &str) -> Option<String> {
 /// Gets an external environment variable, and registers the build script to rerun if
 /// the variable changes.
 pub fn env_var(var: &str) -> Option<OsString> {
-    if cfg!(feature = "resolve-config") {
-        println!("cargo:rerun-if-env-changed={var}");
-    }
+    println!("cargo:rerun-if-env-changed={var}");
     #[cfg(test)]
     {
         READ_ENV_VARS.with(|env_vars| {
@@ -83,31 +78,10 @@ pub fn target_triple_from_env() -> Triple {
         .expect("Unrecognized TARGET environment variable value")
 }
 
-fn sanitize_stable_abi_version(
-    stable_abi_version: Option<PythonVersion>,
-    version: PythonVersion,
-) -> Result<PythonVersion> {
-    if let Some(min_version) = stable_abi_version {
-        ensure!(
-            min_version <= version,
-            "cannot set a minimum Python version {} higher than the interpreter version {} \
-             (the minimum Python version is implied by the abi3-py3{} feature)",
-            min_version,
-            version,
-            min_version.minor
-        );
-        Ok(min_version)
-    } else {
-        Ok(version)
-    }
-}
-
 fn apply_build_env_to_config(mut config: InterpreterConfig) -> Result<InterpreterConfig> {
-    let stable_abi_version = get_abi3_version().or(get_abi3t_version());
     let mut abi_builder = PythonAbiBuilder::from_build_env(
         config.implementation,
         config.version,
-        stable_abi_version,
         config.target_abi.kind.is_free_threaded(),
     )?;
     // only allow free-threaded builds if the build environment didn't force an abi3 build
@@ -275,11 +249,7 @@ impl InterpreterConfig {
         out
     }
 
-    #[doc(hidden)]
-    pub fn from_interpreter(
-        interpreter: impl AsRef<Path>,
-        stable_abi_version: Option<PythonVersion>,
-    ) -> Result<Self> {
+    fn from_interpreter(interpreter: impl AsRef<Path>) -> Result<Self> {
         const SCRIPT: &str = r#"
 # Allow the script to run on Python 2, so that nicer error can be printed later.
 from __future__ import print_function
@@ -386,13 +356,8 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             _ => panic!("Unknown Py_GIL_DISABLED value"),
         };
 
-        let target_abi = PythonAbiBuilder::from_sysconfig(
-            implementation,
-            version,
-            stable_abi_version,
-            gil_disabled,
-        )?
-        .finalize();
+        let target_abi =
+            PythonAbiBuilder::from_sysconfig(implementation, version, gil_disabled)?.finalize();
 
         let cygwin = map["cygwin"].as_str() == "True";
 
@@ -412,9 +377,6 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 map.get("ld_version").map(String::as_str),
             )?
         };
-
-        dbg!(&lib_name);
-        dbg!(format!("{target_abi}"));
 
         let lib_dir = if cfg!(windows) {
             map.get("base_prefix")
@@ -488,8 +450,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         };
         let cygwin = soabi.ends_with("cygwin");
         let target_abi =
-            PythonAbiBuilder::from_sysconfig(implementation, version, None, gil_disabled)?
-                .finalize();
+            PythonAbiBuilder::from_sysconfig(implementation, version, gil_disabled)?.finalize();
         let lib_name = Some(default_lib_name_unix(
             target_abi,
             cygwin,
@@ -513,7 +474,6 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     /// Import an externally-provided config file.
     ///
     /// The `abi3` features, if set, may apply an `abi3` constraint to the Python version.
-    #[allow(dead_code)] // only used in build.rs
     pub(super) fn from_pyo3_config_file_env() -> Option<Result<Self>> {
         env_var("PYO3_CONFIG_FILE").map(|path| {
             let path = Path::new(&path);
@@ -532,8 +492,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         })
     }
 
-    #[doc(hidden)]
-    pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
+    fn from_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         let config_file = std::fs::File::open(path)
             .with_context(|| format!("failed to open PyO3 config file at {}", path.display()))?;
@@ -541,14 +500,18 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         InterpreterConfig::from_reader(reader)
     }
 
-    #[doc(hidden)]
-    pub fn from_cargo_dep_env() -> Option<Result<Self>> {
-        cargo_env_var("DEP_PYTHON_PYO3_CONFIG")
+    /// Environment variable populated via pyo3-ffi's build script
+    pub(crate) const PYO3_FFI_CONFIG_ENV_VAR: &str = "DEP_PYTHON_PYO3_CONFIG";
+    /// Environment variable populated via pyo3's build script by forwarding the value from pyo3-ffi
+    pub(crate) const PYO3_CONFIG_ENV_VAR: &str = "DEP_PYO3_PYTHON_PYO3_CONFIG";
+
+    pub(crate) fn from_cargo_dep_env() -> Option<Result<Self>> {
+        cargo_env_var(Self::PYO3_FFI_CONFIG_ENV_VAR)
+            .or_else(|| cargo_env_var(Self::PYO3_CONFIG_ENV_VAR))
             .map(|buf| InterpreterConfig::from_reader(&*unescape(&buf)))
     }
 
-    #[doc(hidden)]
-    pub fn from_reader(reader: impl Read) -> Result<Self> {
+    fn from_reader(reader: impl Read) -> Result<Self> {
         let reader = BufReader::new(reader);
         let lines = reader.lines();
 
@@ -675,7 +638,6 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     /// This requires knowledge of the final target, so cannot be done when the config file is
     /// inlined into `pyo3-build-config` at build time and instead needs to be done when
     /// resolving the build config for linking.
-    #[cfg(any(test, feature = "resolve-config"))]
     pub(crate) fn apply_default_lib_name_to_config_file(&mut self, target: &Triple) {
         if self.lib_name.is_none() {
             self.lib_name = Some(default_lib_name_for_target(self.target_abi, target));
@@ -995,12 +957,11 @@ impl PythonAbiBuilder {
     pub fn from_build_env(
         implementation: PythonImplementation,
         version: PythonVersion,
-        stable_abi_version: Option<PythonVersion>,
         gil_disabled: bool,
     ) -> Result<PythonAbiBuilder> {
         let builder = PythonAbiBuilder {
             implementation,
-            version: sanitize_stable_abi_version(stable_abi_version, version)?,
+            version,
             kind: None,
         };
         if is_abi3() {
@@ -1017,20 +978,13 @@ impl PythonAbiBuilder {
     pub fn from_sysconfig(
         implementation: PythonImplementation,
         version: PythonVersion,
-        stable_abi_version: Option<PythonVersion>,
         gil_disabled: bool,
     ) -> Result<PythonAbiBuilder> {
-        let target_version = sanitize_stable_abi_version(stable_abi_version, version)?;
         if gil_disabled {
             // TODO: fall back to abi3t builds on 3.15t and newer
-            PythonAbiBuilder::new(implementation, target_version).free_threaded()
+            PythonAbiBuilder::new(implementation, version).free_threaded()
         } else {
-            PythonAbiBuilder::from_build_env(
-                implementation,
-                target_version,
-                stable_abi_version,
-                gil_disabled,
-            )
+            PythonAbiBuilder::from_build_env(implementation, version, gil_disabled)
         }
     }
 
@@ -1287,18 +1241,11 @@ pub enum PythonImplementation {
 }
 
 impl PythonImplementation {
-    #[doc(hidden)]
-    pub fn is_pypy(self) -> bool {
+    fn is_pypy(self) -> bool {
         self == PythonImplementation::PyPy
     }
 
-    #[doc(hidden)]
-    pub fn is_graalpy(self) -> bool {
-        self == PythonImplementation::GraalPy
-    }
-
-    #[doc(hidden)]
-    pub fn from_soabi(soabi: &str) -> Result<Self> {
+    fn from_soabi(soabi: &str) -> Result<Self> {
         if soabi.starts_with("pypy") {
             Ok(PythonImplementation::PyPy)
         } else if soabi.starts_with("cpython") {
@@ -1499,7 +1446,6 @@ impl CrossCompileConfig {
     ///
     /// The conversion can not fail because `PYO3_CROSS_LIB_DIR` variable
     /// is ensured contain a valid UTF-8 string.
-    #[allow(dead_code)]
     fn lib_dir_string(&self) -> Option<String> {
         self.lib_dir
             .as_ref()
@@ -1626,7 +1572,6 @@ pub fn cross_compiling_from_to(
 ///
 /// This must be called from PyO3's build script, because it relies on environment
 /// variables such as `CARGO_CFG_TARGET_OS` which aren't available at any other time.
-#[allow(dead_code)]
 pub fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
     let env_vars = CrossCompileEnvVars::from_env();
     let host = Triple::host();
@@ -1805,12 +1750,12 @@ impl Sysconfigdata {
         self.0.get(k.as_ref()).map(String::as_str)
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn new() -> Self {
         Sysconfigdata(HashMap::new())
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn insert<S: Into<String>>(&mut self, k: S, v: S) {
         self.0.insert(k.into(), v.into());
     }
@@ -1858,7 +1803,6 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 ///
 /// Returns `None` if the library directory is not available, and a runtime error
 /// when no or multiple sysconfigdata files are found.
-#[allow(dead_code)]
 fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
     let mut sysconfig_paths = find_all_sysconfigdata(cross)?;
     if sysconfig_paths.is_empty() {
@@ -2050,7 +1994,6 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Result<
 /// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
 ///
 /// Returns `None` when the target Python library directory is not set.
-#[allow(dead_code)]
 fn cross_compile_from_sysconfigdata(
     cross_compile_config: &CrossCompileConfig,
 ) -> Result<Option<InterpreterConfig>> {
@@ -2073,7 +2016,6 @@ fn cross_compile_from_sysconfigdata(
 /// Windows, macOS and Linux.
 ///
 /// Must be called from a PyO3 crate build script.
-#[allow(unused_mut, dead_code)]
 fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<InterpreterConfig> {
     let version = cross_compile_config
         .version
@@ -2092,8 +2034,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         .implementation
         .unwrap_or(PythonImplementation::CPython);
     let gil_disabled = cross_compile_config.abiflags.as_deref() == Some("t");
-    let mut abi_builder =
-        PythonAbiBuilder::from_build_env(implementation, version, Some(version), gil_disabled)?;
+    let mut abi_builder = PythonAbiBuilder::from_build_env(implementation, version, gil_disabled)?;
     // The build environment might imply an abi3 build, which can't be free-threaded
     if gil_disabled && abi_builder.kind.is_none() {
         abi_builder = abi_builder.free_threaded()?;
@@ -2158,7 +2099,6 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> Result<Interpre
 /// when no target Python interpreter is found.
 ///
 /// Must be called from a PyO3 crate build script.
-#[allow(dead_code)]
 fn load_cross_compile_config(
     cross_compile_config: CrossCompileConfig,
 ) -> Result<InterpreterConfig> {
@@ -2402,11 +2342,10 @@ pub fn find_interpreter() -> Result<PathBuf> {
 /// Locates and extracts the build host Python interpreter configuration.
 ///
 /// Lowers the configured Python version to `abi3_version` if required.
-fn get_host_interpreter(stable_abi_version: Option<PythonVersion>) -> Result<InterpreterConfig> {
+fn get_host_interpreter(_stable_abi_version: Option<PythonVersion>) -> Result<InterpreterConfig> {
     let interpreter_path = find_interpreter()?;
 
-    let interpreter_config =
-        InterpreterConfig::from_interpreter(interpreter_path, stable_abi_version)?;
+    let interpreter_config = InterpreterConfig::from_interpreter(interpreter_path)?;
 
     Ok(interpreter_config)
 }
@@ -2415,7 +2354,6 @@ fn get_host_interpreter(stable_abi_version: Option<PythonVersion>) -> Result<Int
 ///
 /// This must be called from PyO3's build script, because it relies on environment variables such as
 /// CARGO_CFG_TARGET_OS which aren't available at any other time.
-#[allow(dead_code)]
 pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
     let interpreter_config = if let Some(cross_config) = cross_compiling_from_cargo_env()? {
         Some(apply_build_env_to_config(load_cross_compile_config(
@@ -2428,9 +2366,7 @@ pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
     Ok(interpreter_config)
 }
 
-/// Generates an interpreter config which will be hard-coded into the pyo3-build-config crate.
-/// Only used by `pyo3-build-config` build script.
-#[allow(dead_code, unused_mut)]
+/// Generates an interpreter config suitable for the build host.
 pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     let host = Triple::host();
     let abi3_version = get_abi3_version();
@@ -2463,7 +2399,7 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     Ok(interpreter_config)
 }
 
-fn escape(bytes: &[u8]) -> String {
+pub(crate) fn escape(bytes: &[u8]) -> String {
     let mut escaped = String::with_capacity(2 * bytes.len());
 
     for byte in bytes {
@@ -3363,41 +3299,17 @@ mod tests {
     }
 
     #[test]
-    fn abi3_version_cannot_be_higher_than_interpreter() {
-        if !have_python_interpreter() {
-            return;
-        }
-
-        let interpreter = get_host_interpreter(Some(PythonVersion {
-            major: 3,
-            minor: 45,
-        }));
-        assert!(interpreter.unwrap_err().to_string().contains(
-            "cannot set a minimum Python version 3.45 higher than the interpreter version"
-        ));
-
-        let host_version = get_host_interpreter(None).unwrap().version;
-        if host_version >= PythonVersion::PY313 {
-            let interpreter = get_host_interpreter(Some(PythonVersion::PY313));
-            assert_eq!(
-                interpreter.unwrap().target_abi.version,
-                PythonVersion::PY313
-            );
-        }
-    }
-
-    #[test]
-    #[cfg(all(
-        target_os = "linux",
-        target_arch = "x86_64",
-        feature = "resolve-config"
-    ))]
+    #[cfg(all(target_os = "linux", target_arch = "x86_64",))]
     fn parse_sysconfigdata() {
         // A best effort attempt to get test coverage for the sysconfigdata parsing.
         // Might not complete successfully depending on host installation; that's ok as long as
         // CI demonstrates this path is covered!
 
-        let interpreter_config = crate::get();
+        let Ok(interpreter_config) = make_interpreter_config() else {
+            // Couldn't get an interpreter config, won't be able to test a matching sysconfigdata,
+            // never mind. (This is intended for coverage, don't mind if it fails if it doesn't run.)
+            return;
+        };
 
         let lib_dir = match &interpreter_config.lib_dir {
             Some(lib_dir) => Path::new(lib_dir),
@@ -3423,7 +3335,16 @@ mod tests {
             _ => return,
         };
         let sysconfigdata = super::parse_sysconfigdata(sysconfigdata_path).unwrap();
-        let parsed_config = InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap();
+        let mut parsed_config = InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap();
+
+        // Workaround case where empty `PYTHONFRAMEWORKPREFIX` is returned as empty string instead of None,
+        // which causes the assert_eq! below to fail.
+        //
+        // TODO: probably should deprecate using this variable at all, seemingly only used in `add_python_framework_link_args`
+        // which is probably a strictly worse version of `add_libpython_rpath_link_args`.
+        if parsed_config.python_framework_prefix.as_deref() == Some("") {
+            parsed_config.python_framework_prefix = None;
+        }
 
         assert_eq!(parsed_config.implementation, PythonImplementation::CPython);
         assert_eq!(

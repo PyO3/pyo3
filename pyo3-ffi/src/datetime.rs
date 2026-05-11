@@ -11,9 +11,9 @@ use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
 use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_IS_TYPE, Py_None};
 use std::ffi::c_char;
 use std::ffi::c_int;
+use std::ffi::CStr;
 use std::ptr;
-use std::sync::Once;
-use std::{cell::UnsafeCell, ffi::CStr};
+use std::sync::atomic::{AtomicPtr, Ordering};
 #[cfg(not(PyPy))]
 use {crate::Py_hash_t, std::ffi::c_uchar};
 // Type struct wrappers
@@ -604,12 +604,12 @@ pub const PyDateTime_CAPSULE_NAME: &CStr = c"datetime.datetime_CAPI";
 /// `PyDateTime_IMPORT` is called
 #[inline]
 pub unsafe fn PyDateTimeAPI() -> *mut PyDateTime_CAPI {
-    *PyDateTimeAPI_impl.ptr.get()
+    PyDateTimeAPI_impl.load(Ordering::Acquire)
 }
 
 /// Populates the `PyDateTimeAPI` object
 pub unsafe fn PyDateTime_IMPORT() {
-    if !PyDateTimeAPI_impl.once.is_completed() {
+    if PyDateTimeAPI_impl.load(Ordering::Relaxed).is_null() {
         // PyPy expects the C-API to be initialized via PyDateTime_Import, so trying to use
         // `PyCapsule_Import` will behave unexpectedly in pypy.
         #[cfg(PyPy)]
@@ -624,11 +624,13 @@ pub unsafe fn PyDateTime_IMPORT() {
         }
 
         // Protect against race conditions when the datetime API is concurrently
-        // initialized in multiple threads. UnsafeCell.get() cannot panic so this
-        // won't panic either.
-        PyDateTimeAPI_impl.once.call_once(|| {
-            *PyDateTimeAPI_impl.ptr.get() = py_datetime_c_api;
-        });
+        // initialized in multiple threads.
+        let _ = PyDateTimeAPI_impl.compare_exchange(
+            ptr::null_mut(),
+            py_datetime_c_api,
+            Ordering::Release,
+            Ordering::Relaxed,
+        );
     }
 }
 
@@ -839,13 +841,4 @@ extern_libpython! {
 
 // Rust specific implementation details
 
-struct PyDateTimeAPISingleton {
-    once: Once,
-    ptr: UnsafeCell<*mut PyDateTime_CAPI>,
-}
-unsafe impl Sync for PyDateTimeAPISingleton {}
-
-static PyDateTimeAPI_impl: PyDateTimeAPISingleton = PyDateTimeAPISingleton {
-    once: Once::new(),
-    ptr: UnsafeCell::new(ptr::null_mut()),
-};
+static PyDateTimeAPI_impl: AtomicPtr<PyDateTime_CAPI> = AtomicPtr::new(ptr::null_mut());
