@@ -551,7 +551,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             (_, Ok(info)) => info,
             // In some cases symbols and macros differ only by case, which is a problem for case-insensitive filesystems.
             //
-            // Hard-code workarounds for this cases here.
+            // Hard-code workarounds for these cases here.
             //
             // Maybe one day the rustdoc json output can be used to avoid this problem
             ("Py_INCREF", Err(FunctionNameMismatch(e))) if e == "Py_IncRef" => FunctionInfo {
@@ -612,7 +612,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             // inline form takes @inline at front, no modifiers
             (quote!( @inline ), quote!())
         } else {
-            // regular form taks the modifiers
+            // regular form takes the modifiers
             (quote!(), quote!([#modifiers]))
         };
 
