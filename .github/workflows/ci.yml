@@ -679,8 +679,9 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
-          # so that maturin-action will pick up the installed Python from uv
-          activate-environment: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.UV_PYTHON }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: examples/maturin-starter
