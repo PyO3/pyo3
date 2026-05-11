@@ -31,6 +31,8 @@ jobs:
         run: nox -s rustfmt
       - name: Check markdown formatting (rumdl)
         run: nox -s rumdl
+      - name: Check `required-features` in Cargo.toml
+        run: nox -s check-test-features
 
   resolve:
     runs-on: ubuntu-latest
