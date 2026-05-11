@@ -32,7 +32,7 @@ pub static mut SEQUENTIAL_SLOTS: [PySlot; SEQUENTIAL_SLOTS_LEN] = [
         Py_mod_state_size,
         mem::size_of::<sequential_state>() as Py_ssize_t,
     ),
-    // safety: all these funciton pointers are non-null by construction
+    // safety: all these function pointers are non-null by construction
     unsafe { PySlot_FUNC(Py_mod_state_traverse, sequential_traverse as *mut c_void) },
     unsafe { PySlot_FUNC(Py_mod_state_clear, sequential_clear as *mut c_void) },
     unsafe { PySlot_FUNC(Py_mod_state_free, sequential_free as *mut c_void) },
