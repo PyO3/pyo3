@@ -1,6 +1,6 @@
 //! `PyClass` and related traits.
 use crate::{ffi, impl_::pyclass::PyClassImpl, PyTypeInfo};
-use std::{cmp::Ordering, os::raw::c_int};
+use std::{cmp::Ordering, ffi::c_int};
 
 mod create_type_object;
 mod gc;

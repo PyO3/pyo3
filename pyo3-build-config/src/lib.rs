@@ -20,8 +20,8 @@ use std::{env, process::Command, str::FromStr, sync::OnceLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
-    CrossCompileConfig, InterpreterConfig, InterpreterConfigBuilder, PythonAbi,
-    PythonImplementation, PythonVersion, Triple,
+    CrossCompileConfig, GilUsed, InterpreterConfig, InterpreterConfigBuilder, PythonAbi,
+    PythonAbiBuilder, PythonAbiKind, PythonImplementation, PythonVersion, StableAbi, Triple,
 };
 
 use target_lexicon::OperatingSystem;
@@ -493,24 +493,12 @@ mod tests {
         let mut buf = Vec::new();
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY313;
-        let target_abi = PythonAbiBuilder::new(implementation, version).finalize();
-        let interpreter_config = InterpreterConfig {
-            implementation,
-            version,
-            target_abi,
-            abi3: false,
-            shared: true,
-            lib_name: None,
-            lib_dir: None,
-            executable: None,
-            pointer_width: None,
-            build_flags: BuildFlags::default(),
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix: Some(
+        let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
+            .python_framework_prefix(Some(
                 "/Applications/Xcode.app/Contents/Developer/Library/Frameworks".to_string(),
-            ),
-        };
+            ))
+            .finalize()
+            .unwrap();
         // Does nothing on non-mac
         _add_python_framework_link_args(
             &interpreter_config,
@@ -537,22 +525,9 @@ mod tests {
     fn test_maximum_version_exceeded_formatting() {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY313;
-        let target_abi = PythonAbiBuilder::new(implementation, version).finalize();
-        let interpreter_config = InterpreterConfig {
-            implementation,
-            version,
-            target_abi,
-            abi3: false,
-            shared: true,
-            lib_name: None,
-            lib_dir: None,
-            executable: None,
-            pointer_width: None,
-            build_flags: BuildFlags::default(),
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix: None,
-        };
+        let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
+            .finalize()
+            .unwrap();
         let mut error = pyo3_build_script_impl::MaximumVersionExceeded::new(
             &interpreter_config,
             PythonVersion {

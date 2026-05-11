@@ -72,7 +72,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 let minor = interp_version.minor;
                 if interpreter_config.target_abi.kind.is_free_threaded() {
                     error.add_help(&format!(
-                        "the free-threaded build of CPython {major}{minor} does not support the limited API so this check cannot be suppressed.",
+                        "the free-threaded build of CPython {major}.{minor} does not support the limited API so this check cannot be suppressed.",
                     ));
                     return Err(error.finish().into());
                 }
@@ -137,13 +137,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                         "Abi3t builds are not supported on CPython targets before Python 3.15"
                     )
                 }
-                StableAbi::Abi3 => {
-                    if interpreter_config.target_abi.kind.is_free_threaded() {
-                        warn!(
-                                "The free-threaded build of CPython does not support abi3 so the build artifacts will be version-specific."
-                            )
-                    }
-                }
+                StableAbi::Abi3 => {}
             },
             PythonImplementation::PyPy => warn!(
                 "PyPy does not yet support {abi} so the build artifacts will be version-specific. \
