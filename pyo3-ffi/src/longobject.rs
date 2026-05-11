@@ -45,7 +45,8 @@ extern_libpython! {
     pub fn PyLong_AsUnsignedLong(arg1: *mut PyObject) -> c_ulong;
     #[cfg_attr(PyPy, link_name = "PyPyLong_AsUnsignedLongMask")]
     pub fn PyLong_AsUnsignedLongMask(arg1: *mut PyObject) -> c_ulong;
-    // skipped non-limited _PyLong_AsInt
+
+    // skipped non-limited PyLong_AsInt
 
     #[cfg(Py_3_14)]
     pub fn PyLong_FromInt32(arg1: i32) -> *mut PyObject;

@@ -522,6 +522,11 @@ mod fast_128bit_int_conversion {
                             return pylong_visit_digits(
                                 num.as_any().as_borrowed(),
                                 |negative, compact, digits| {
+                                    if !$is_signed && negative {
+                                        return Err(exceptions::PyOverflowError::new_err(
+                                            "can't convert negative int to unsigned",
+                                        ));
+                                    }
                                     let Some(digits) = digits else {
                                         return <$rust_type>::try_from(compact)
                                             .map_err(|_| overflow());
@@ -540,11 +545,6 @@ mod fast_128bit_int_conversion {
                                         return Err(overflow());
                                     }
                                     if !$is_signed {
-                                        if negative {
-                                            return Err(exceptions::PyOverflowError::new_err(
-                                                "can't convert negative int to unsigned",
-                                            ));
-                                        }
                                         return <$rust_type>::try_from(abs).map_err(|_| overflow());
                                     }
                                     let signed = if negative {
