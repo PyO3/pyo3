@@ -659,12 +659,10 @@ jobs:
           - os: "ubuntu-latest"
             target: "x86_64-unknown-linux-gnu"
             flags: "-i python3.13"
-            manylinux: auto
           # ubuntu x86_64 -> aarch64
           - os: "ubuntu-latest"
             target: "aarch64-unknown-linux-gnu"
             flags: "-i python3.13"
-            manylinux: auto
           # ubuntu x86_64 -> windows x86_64
           - os: "ubuntu-latest"
             target: "x86_64-pc-windows-gnu"
@@ -695,14 +693,14 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          manylinux: ${{ matrix.manylinux }}
           args: --profile=dev -m examples/maturin-starter/Cargo.toml ${{ matrix.flags }}
+          container: off
       - name: Compile abi3 library
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          manylinux: ${{ matrix.manylinux }}
           args: --profile=dev -m examples/maturin-starter/Cargo.toml --features abi3 ${{ matrix.flags }}
+          container: off
       - uses: ./.github/actions/report-coverage
         with:
           name: ${{ github.job }}
