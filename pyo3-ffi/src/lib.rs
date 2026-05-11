@@ -166,6 +166,7 @@
 //!
 //! #[cfg(not(Py_3_15))]
 //! static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
+//!     #[cfg(Py_3_12)]
 //!     PyModuleDef_Slot {
 //!         slot: Py_mod_multiple_interpreters,
 //!         value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
