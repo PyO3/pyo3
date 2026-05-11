@@ -237,7 +237,6 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyBytes_CheckExact", ""),
     ("PyCFunction_Check", "not(PyPy)"),
     ("PyCFunction_CheckExact", ""),
-    ("PyCFunction_New", ""),
     ("PyCFunction_GET_CLASS", ""),
     ("PyCFunction_GET_FLAGS", ""),
     ("PyCFunction_GET_FUNCTION", ""),
@@ -300,7 +299,6 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyFloat_AS_DOUBLE", "not(PyPy)"),
     ("PyFloat_Check", "not(PyPy)"),
     ("PyFloat_CheckExact", "not(PyPy)"),
-    ("PyFrame_BlockSetup", ""),
     ("PyFrame_Check", ""),
     ("PyFrameLocalsProxy_Check", ""),
     ("PyFrozenSet_Check", "not(PyPy)"),
@@ -356,11 +354,6 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PySlice_Check", ""),
     ("PyStructSequence_GET_ITEM", ""),
     ("PyStructSequence_SET_ITEM", ""),
-    ("PySys_AddWarnOption", ""),
-    ("PySys_AddWarnOptionUnicode", ""),
-    ("PySys_AddXOption", ""),
-    ("PySys_HasWarnOptions", ""),
-    ("PySys_SetPath", ""),
     ("PyTZInfo_Check", "not(PyPy)"),
     ("PyTZInfo_CheckExact", "not(PyPy)"),
     ("PyThreadState_GET", ""),
@@ -387,19 +380,7 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyUnicode_4BYTE_DATA", ""),
     ("PyUnicode_Check", "not(PyPy)"),
     ("PyUnicode_CheckExact", "not(PyPy)"),
-    ("PyUnicode_ClearFreeList", ""),
     ("PyUnicode_DATA", "not(Py_3_14)"),
-    ("PyUnicode_Encode", ""),
-    ("PyUnicode_EncodeASCII", ""),
-    ("PyUnicode_EncodeCharmap", ""),
-    ("PyUnicode_EncodeDecimal", ""),
-    ("PyUnicode_EncodeLatin1", ""),
-    ("PyUnicode_EncodeRawUnicodeEscape", ""),
-    ("PyUnicode_EncodeUTF16", ""),
-    ("PyUnicode_EncodeUTF32", ""),
-    ("PyUnicode_EncodeUTF7", ""),
-    ("PyUnicode_EncodeUTF8", ""),
-    ("PyUnicode_EncodeUnicodeEscape", ""),
     ("PyUnicode_GET_LENGTH", ""),
     ("PyUnicode_IS_ASCII", ""),
     ("PyUnicode_IS_COMPACT", ""),
@@ -407,8 +388,6 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyUnicode_IS_READY", ""),
     ("PyUnicode_KIND", "not(Py_3_14)"),
     ("PyUnicode_READY", ""),
-    ("PyUnicode_TransformDecimalToASCII", ""),
-    ("PyUnicode_TranslateCharmap", ""),
     ("PyWeakref_Check", "not(PyPy)"),
     ("PyWeakref_CheckProxy", "not(PyPy)"),
     ("PyWeakref_CheckRef", "not(PyPy)"),
@@ -422,11 +401,9 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("Py_False", ""),
     ("Py_GETENV", "not(Py_3_11)"),
     ("Py_INCREF", ""),
-    ("Py_IS_TYPE", ""),
     ("Py_None", ""),
     ("Py_NotImplemented", ""),
     ("Py_REFCNT", "not(Py_3_14)"),
-    ("Py_SIZE", ""),
     ("Py_True", ""),
     ("Py_TYPE", "not(Py_3_14)"),
     ("Py_XDECREF", ""),
@@ -506,6 +483,31 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "Py_IS_TYPE",
     "Py_SIZE",
 ];
+
+// Assert at compile time that `MACRO_EXCLUSIONS` and `EXCLUDED_SYMBOLS` are disjoint
+const _: () = {
+    let mut i = 0;
+    while i < MACRO_EXCLUSIONS.len() {
+        let (macro_exclusion, _) = MACRO_EXCLUSIONS[i];
+        let mut j = 0;
+        'symbols: while j < EXCLUDED_SYMBOLS.len() {
+            let symbol_exclusion = EXCLUDED_SYMBOLS[j];
+            let mut k = 0;
+            while k < macro_exclusion.len() && k < symbol_exclusion.len() {
+                if macro_exclusion.as_bytes()[k] != symbol_exclusion.as_bytes()[k] {
+                    j += 1;
+                    continue 'symbols;
+                }
+                k += 1;
+            }
+            // If this panic fires, the message will indicate the symbol which
+            // is in both lists; probably easiest to remove from `MACRO_EXCLUSIONS` until
+            // the root cause for the full exclusion is fixed.
+            panic!("{}", macro_exclusion);
+        }
+        i += 1;
+    }
+};
 
 #[proc_macro]
 pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
