@@ -229,3 +229,179 @@ bare_urls = "warn"
 
 [lints]
 workspace = true
+
+# Many tests are only relevant on certain feature combinations;
+# CI is marginally more efficient if `required-feature` is specified to avoid
+# building and launching empty test suites.
+
+[[test]]
+name = "test_anyhow"
+required-features = ["anyhow"]
+
+[[test]]
+name = "test_append_to_inittab"
+required-features = ["macros"]
+
+[[test]]
+name = "test_arithmetics"
+required-features = ["macros"]
+
+[[test]]
+name = "test_buffer"
+required-features = ["macros"]
+
+[[test]]
+name = "test_buffer_protocol"
+required-features = ["macros"]
+
+[[test]]
+name = "test_bytes"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_attributes"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_basics"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_comparisons"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_conversion"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_formatting"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_init"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_new"
+required-features = ["macros"]
+
+[[test]]
+name = "test_compile_error"
+required-features = ["macros"]
+
+[[test]]
+name = "test_coroutine"
+required-features = ["experimental-async"]
+
+[[test]]
+name = "test_declarative_module"
+required-features = ["macros"]
+
+[[test]]
+name = "test_default_impls"
+required-features = ["macros"]
+
+[[test]]
+name = "test_enum"
+required-features = ["macros"]
+
+[[test]]
+name = "test_exceptions"
+required-features = ["macros"]
+
+[[test]]
+name = "test_field_cfg"
+required-features = ["macros"]
+
+[[test]]
+name = "test_frompy_intopy_roundtrip"
+required-features = ["macros"]
+
+[[test]]
+name = "test_frompyobject"
+required-features = ["macros"]
+
+[[test]]
+name = "test_gc"
+required-features = ["macros"]
+
+[[test]]
+name = "test_getter_setter"
+required-features = ["macros"]
+
+[[test]]
+name = "test_inheritance"
+required-features = ["macros"]
+
+[[test]]
+name = "test_intopyobject"
+required-features = ["macros"]
+
+[[test]]
+name = "test_macro_docs"
+required-features = ["macros"]
+
+[[test]]
+name = "test_macros"
+required-features = ["macros"]
+
+[[test]]
+name = "test_mapping"
+required-features = ["macros"]
+
+[[test]]
+name = "test_methods"
+required-features = ["macros"]
+
+[[test]]
+name = "test_module"
+required-features = ["macros"]
+
+[[test]]
+name = "test_multiple_pymethods"
+required-features = ["multiple-pymethods"]
+
+[[test]]
+name = "test_proto_methods"
+required-features = ["macros"]
+
+[[test]]
+name = "test_pyfunction"
+required-features = ["macros"]
+
+[[test]]
+name = "test_pyself"
+required-features = ["macros"]
+
+[[test]]
+name = "test_sequence"
+required-features = ["macros"]
+
+[[test]]
+name = "test_serde"
+required-features = ["serde"]
+
+[[test]]
+name = "test_static_slots"
+required-features = ["macros"]
+
+[[test]]
+name = "test_string"
+required-features = ["macros"]
+
+[[test]]
+name = "test_super"
+required-features = ["macros"]
+
+[[test]]
+name = "test_text_signature"
+required-features = ["macros"]
+
+[[test]]
+name = "test_variable_arguments"
+required-features = ["macros"]
+
+[[test]]
+name = "test_various"
+required-features = ["macros"]
