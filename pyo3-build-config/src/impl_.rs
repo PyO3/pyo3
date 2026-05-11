@@ -2280,7 +2280,7 @@ fn default_lib_name_unix(abi: PythonAbi, cygwin: bool, ld_version: Option<&str>)
         },
 
         PythonImplementation::GraalPy => Ok("python-native".to_string()),
-        PythonImplementation::RustPython => Ok("rustpython-capi".to_string()),
+        PythonImplementation::RustPython => Ok("rustpython_capi".to_string()),
     }
 }
 

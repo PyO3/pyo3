@@ -10,6 +10,11 @@ use crate::types::{
 use crate::{
     exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
 };
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+};
 use std::borrow::Cow;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use std::ffi::c_int;
@@ -32,7 +37,20 @@ use std::str;
 #[repr(transparent)]
 pub struct PyModule(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyModule, pyobject_native_static_type_object!(ffi::PyModule_Type), "types", "ModuleType", #checkfunction=ffi::PyModule_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyModule,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "ModuleType").unwrap().as_type_ptr()
+    },
+    "types",
+    "ModuleType",
+    #checkfunction=ffi::PyModule_Check
+);
 
 impl PyModule {
     /// Creates a new module object with the `__name__` attribute set to `name`.  When creating

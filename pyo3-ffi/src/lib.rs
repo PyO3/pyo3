@@ -425,6 +425,7 @@ pub mod compat;
 mod impl_;
 
 pub use self::abstract_::*;
+#[cfg(not(RustPython))]
 pub use self::bltinmodule::*;
 pub use self::boolobject::*;
 pub use self::bytearrayobject::*;
@@ -441,6 +442,7 @@ pub use self::critical_section::*;
 pub use self::datetime::*;
 pub use self::descrobject::*;
 pub use self::dictobject::*;
+#[cfg(not(RustPython))]
 pub use self::enumobject::*;
 pub use self::fileobject::*;
 pub use self::fileutils::*;
@@ -492,6 +494,7 @@ pub use self::weakrefobject::*;
 mod abstract_;
 // skipped asdl.h
 // skipped ast.h
+#[cfg(not(RustPython))]
 mod bltinmodule;
 mod boolobject;
 mod bytearrayobject;
@@ -510,6 +513,7 @@ pub(crate) mod datetime;
 mod descrobject;
 mod dictobject;
 // skipped dynamic_annotations.h
+#[cfg(not(RustPython))]
 mod enumobject;
 // skipped errcode.h
 // skipped exports.h

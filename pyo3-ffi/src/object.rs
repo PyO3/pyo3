@@ -183,13 +183,13 @@ opaque_struct!(pub PyVarObject);
 // skipped private _PyVarObject_CAST
 
 #[inline]
-#[cfg(not(any(GraalPy, PyPy)))]
+#[cfg(not(any(GraalPy, PyPy, RustPython)))]
 #[cfg_attr(docsrs, doc(cfg(all())))]
 pub unsafe fn Py_Is(x: *mut PyObject, y: *mut PyObject) -> c_int {
     (x == y).into()
 }
 
-#[cfg(any(GraalPy, PyPy))]
+#[cfg(any(GraalPy, PyPy, RustPython))]
 #[cfg_attr(docsrs, doc(cfg(all())))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPy_Is")]
@@ -226,18 +226,9 @@ extern_libpython! {
     pub fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject;
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-#[cfg(all(Py_LIMITED_API, Py_3_15))]
-extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPy_SIZE")]
-    pub fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name = "PyPy_IS_TYPE")]
-    pub fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int;
-    // skipped Py_SET_SIZE
-}
-
 // skip _Py_TYPE compat shim
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyLong_Type")]
     pub static mut PyLong_Type: PyTypeObject;
@@ -247,6 +238,7 @@ extern_libpython! {
 
 #[cfg(not(all(Py_LIMITED_API, Py_3_15)))]
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
     #[cfg(not(GraalPy))]
     {
@@ -258,8 +250,15 @@ pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
     _Py_SIZE(ob)
 }
 
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t;
+    #[cfg(any(all(Py_LIMITED_API, Py_3_15), RustPython))]
+    pub fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int;
+}
+
 #[inline]
-#[cfg(not(all(Py_LIMITED_API, Py_3_15)))]
+#[cfg(not(any(all(Py_LIMITED_API, Py_3_15), RustPython)))]
 pub unsafe fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
     (Py_TYPE(ob) == tp) as c_int
 }
@@ -431,16 +430,17 @@ pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_
 
 extern_libpython! {
     /// built-in 'type'
+    #[cfg(not(RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyType_Type")]
     pub static mut PyType_Type: PyTypeObject;
     /// built-in 'object'
+    #[cfg(not(RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyBaseObject_Type")]
     pub static mut PyBaseObject_Type: PyTypeObject;
     /// built-in 'super'
+    #[cfg(not(RustPython))]
     pub static mut PySuper_Type: PyTypeObject;
-}
 
-extern_libpython! {
     pub fn PyType_GetFlags(arg1: *mut PyTypeObject) -> c_ulong;
 
     #[cfg_attr(PyPy, link_name = "PyPyType_Ready")]
@@ -658,9 +658,7 @@ extern_libpython! {
     #[cfg(Py_3_13)]
     #[cfg_attr(PyPy, link_name = "PyPy_GetConstantBorrowed")]
     pub fn Py_GetConstantBorrowed(constant_id: c_uint) -> *mut PyObject;
-}
 
-extern_libpython! {
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
     #[cfg_attr(PyPy, link_name = "_PyPy_NoneStruct")]
     static mut _Py_NoneStruct: PyObject;
@@ -745,11 +743,13 @@ pub unsafe fn PyType_HasFeature(ty: *mut PyTypeObject, feature: c_ulong) -> c_in
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyType_FastSubclass(t: *mut PyTypeObject, f: c_ulong) -> c_int {
     PyType_HasFeature(t, f)
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TYPE_SUBCLASS)
 }
@@ -757,11 +757,17 @@ pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
 // skipped _PyType_CAST
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyType_Type)
 }
 
 extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyType_Check(op: *mut PyObject) -> c_int;
+    #[cfg(RustPython)]
+    pub fn PyType_CheckExact(op: *mut PyObject) -> c_int;
+
     #[cfg(any(Py_3_13, all(Py_3_11, not(Py_LIMITED_API))))]
     #[cfg_attr(PyPy, link_name = "PyPyType_GetModuleByDef")]
     pub fn PyType_GetModuleByDef(
