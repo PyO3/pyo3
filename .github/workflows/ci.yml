@@ -696,13 +696,13 @@ jobs:
         with:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
-          args: --release -m examples/maturin-starter/Cargo.toml ${{ matrix.flags }}
+          args: --profile=dev -m examples/maturin-starter/Cargo.toml ${{ matrix.flags }}
       - name: Compile abi3 library
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
-          args: --release -m examples/maturin-starter/Cargo.toml --features abi3 ${{ matrix.flags }}
+          args: --profile=dev -m examples/maturin-starter/Cargo.toml --features abi3 ${{ matrix.flags }}
       - uses: ./.github/actions/report-coverage
         with:
           name: ${{ github.job }}

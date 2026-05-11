@@ -182,16 +182,8 @@ def set_coverage_env(session: nox.Session) -> None:
 
 @nox.session(name="generate-coverage-report", venv_backend="none")
 def generate_coverage_report(session: nox.Session) -> None:
-    if "lcov" in session.posargs:
-        args = ("--lcov", "--output-path=lcov.info")
-
-    elif "html" in session.posargs:
-        args = ("--html",)
-    else:
-        args = (
-            "--codecov",
-            "--output-path=coverage.json",
-        )
+    # default to `--html` report if no additional arguments provided (convenient for local use)
+    posargs = ("--html",) if not session.posargs else tuple(session.posargs)
 
     _run_cargo(
         session,
@@ -203,7 +195,7 @@ def generate_coverage_report(session: nox.Session) -> None:
         "--package=pyo3-ffi",
         "--include-build-script",
         "report",
-        *args,
+        *posargs,
     )
 
 
