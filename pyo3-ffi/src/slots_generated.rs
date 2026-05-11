@@ -10,7 +10,7 @@ const fn _Py_SLOT_COMPAT_VALUE(OLD: c_int, NEW: c_int) -> c_int {
 }
 
 #[cfg(Py_3_15)]
-pub const Py_slot_end: u16 = 0;
+pub const Py_slot_end: c_int = 0;
 pub const Py_mp_subscript: c_int = 5;
 pub const Py_nb_absolute: c_int = 6;
 pub const Py_nb_add: c_int = 7;
