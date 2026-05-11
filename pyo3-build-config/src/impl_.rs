@@ -2224,10 +2224,7 @@ fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<
             WINDOWS_STABLE_ABI_LIB_NAME.to_owned()
         };
         if abi.kind == PythonAbiKind::Stable(StableAbi::Abi3t) {
-            lib_name.insert_str(
-                lib_name.find("python3").expect("invalid windows DLL name") + "python3".len(),
-                "t",
-            );
+            lib_name = lib_name.replace("python3", "python3t");
         }
         Ok(lib_name)
     } else if mingw {
