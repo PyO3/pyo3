@@ -200,7 +200,6 @@ fn ascii() {
             // 2 and 4 byte macros return nonsense for this string instance.
             assert_eq!(PyUnicode_KIND(ptr), PyUnicode_1BYTE_KIND);
 
-            // _PyUnicode_NONCOMPACT_DATA isn't valid for compact strings.
             assert!(!PyUnicode_DATA(ptr).is_null());
 
             assert_eq!(PyUnicode_GET_LENGTH(ptr), s.len().unwrap() as Py_ssize_t);
@@ -241,7 +240,6 @@ fn ucs4() {
             assert!(!PyUnicode_4BYTE_DATA(ptr).is_null());
             assert_eq!(PyUnicode_KIND(ptr), PyUnicode_4BYTE_KIND);
 
-            // _PyUnicode_NONCOMPACT_DATA isn't valid for compact strings.
             assert!(!PyUnicode_DATA(ptr).is_null());
 
             assert_eq!(

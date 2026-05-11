@@ -71,6 +71,25 @@ fn main() {
 
     pyo3_ffi_check_macro::for_all_structs!(check_struct);
 
+    // This macro attempts to check that both functions exist and have the same number of arguments, it is
+    // difficult to check the argument types match.
+    macro_rules! check_function {
+        ($name:ident, [$($modifiers:tt)*] ($($arg_types:tt)*)) => {{
+            #[allow(deprecated)]
+            { pyo3_ffi::$name as $($modifiers)* fn($($arg_types)*) -> _ };
+            bindings::$name as $($modifiers)* fn($($arg_types)*) -> _;
+        }};
+        // case when the function is an inline function in the headers, in which case pyo3-ffi will use the
+        // Rust abi and the extern symbol uses the C abi
+        (@inline $name:ident, ($($arg_types:tt)*)) => {{
+            #[allow(deprecated)]
+            { pyo3_ffi::$name as unsafe fn($($arg_types)*) -> _ };
+            bindings::$name as unsafe extern "C" fn($($arg_types)*) -> _;
+        }};
+    }
+
+    pyo3_ffi_check_macro::for_all_functions!(check_function);
+
     if failed {
         exit(1);
     } else {
