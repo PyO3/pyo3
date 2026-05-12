@@ -3057,17 +3057,12 @@ mod tests {
 
         assert_eq!(
             parsed_config,
-            InterpreterConfigBuilder::new(
-                implementation,
-                interpreter_config.version,
-                PythonAbiBuilder::new(implementation, interpreter_config.version).finalize()
-            )
-            .build_flags(interpreter_config.build_flags.0.clone())
-            .pointer_width(64)
-            .lib_dir(interpreter_config.lib_dir.to_owned())
-            .lib_name(interpreter_config.lib_name.to_owned())
-            .finalize()
-            .unwrap()
+            InterpreterConfigBuilder::new(implementation, interpreter_config.version,)
+                .build_flags(interpreter_config.build_flags().clone())
+                .pointer_width(64)
+                .lib_dir_opt(interpreter_config.lib_dir().map(str::to_owned))
+                .lib_name_opt(interpreter_config.lib_name().map(str::to_owned))
+                .finalize()
         )
     }
 
