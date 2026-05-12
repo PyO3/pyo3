@@ -501,13 +501,13 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             .abi3(abi3)
             .shared(shared)
             .lib_name(lib_name)
-            .lib_dir_opt(lib_dir)
+            .lib_dir(lib_dir)
             .executable(map["executable"].clone())
             .pointer_width(calcsize_pointer * 8)
             .build_flags(BuildFlags::from_interpreter(interpreter)?)
-            .python_framework_prefix_opt(python_framework_prefix);
+            .python_framework_prefix(python_framework_prefix);
 
-        Ok(builder.finalize())
+        builder.finalize()
     }
 
     /// Generate from parsed sysconfigdata file
@@ -570,13 +570,13 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let builder = InterpreterConfigBuilder::new(implementation, version)
             .abi3(abi3)
             .shared(shared || framework)
-            .pointer_width_opt(pointer_width)
-            .lib_name_opt(lib_name)
-            .lib_dir_opt(lib_dir)
-            .python_framework_prefix_opt(python_framework_prefix)
+            .pointer_width(pointer_width)
+            .lib_name(lib_name)
+            .lib_dir(lib_dir)
+            .python_framework_prefix(python_framework_prefix)
             .build_flags(build_flags);
 
-        Ok(builder.finalize())
+        builder.finalize()
     }
 
     /// Import an externally-provided config file.
@@ -696,16 +696,16 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let builder = InterpreterConfigBuilder::new(implementation, version)
             .abi3(abi3)
             .shared(shared.unwrap_or(true))
-            .lib_name_opt(lib_name)
-            .lib_dir_opt(lib_dir)
-            .executable_opt(executable)
-            .pointer_width_opt(pointer_width)
+            .lib_name(lib_name)
+            .lib_dir(lib_dir)
+            .executable(executable)
+            .pointer_width(pointer_width)
             .build_flags(build_flags)
             .suppress_build_script_link_lines(suppress_build_script_link_lines.unwrap_or(false))
             .extra_build_script_lines(extra_build_script_lines)
-            .python_framework_prefix_opt(python_framework_prefix);
+            .python_framework_prefix(python_framework_prefix);
 
-        Ok(builder.finalize())
+        builder.finalize()
     }
 
     /// Helper function to apply a default lib_name if none is set in `PYO3_CONFIG_FILE`.
@@ -859,14 +859,14 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 pub struct InterpreterConfigBuilder {
     implementation: PythonImplementation,
     version: PythonVersion,
-    shared: Option<bool>,
-    abi3: Option<bool>,
+    shared: bool,
+    abi3: bool,
     lib_name: Option<String>,
     lib_dir: Option<String>,
     executable: Option<String>,
     pointer_width: Option<u32>,
-    build_flags: Option<BuildFlags>,
-    suppress_build_script_link_lines: Option<bool>,
+    build_flags: BuildFlags,
+    suppress_build_script_link_lines: bool,
     extra_build_script_lines: Vec<String>,
     python_framework_prefix: Option<String>,
 }
@@ -879,36 +879,39 @@ impl InterpreterConfigBuilder {
         InterpreterConfigBuilder {
             implementation,
             version,
-            shared: None,
-            abi3: None,
+            shared: true,
+            abi3: false,
             lib_name: None,
             lib_dir: None,
             executable: None,
             pointer_width: None,
-            build_flags: None,
-            suppress_build_script_link_lines: None,
+            build_flags: BuildFlags::default(),
+            suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
         }
     }
 
     pub fn abi3(mut self, abi3: bool) -> InterpreterConfigBuilder {
-        self.abi3 = Some(abi3);
+        self.abi3 = abi3;
         self
     }
 
-    pub fn lib_name(mut self, lib_name: String) -> InterpreterConfigBuilder {
-        self.lib_name = Some(lib_name);
+    pub fn lib_name(mut self, lib_name: impl Into<Option<String>>) -> InterpreterConfigBuilder {
+        self.lib_name = lib_name.into();
         self
     }
 
-    pub fn pointer_width(mut self, pointer_width: u32) -> InterpreterConfigBuilder {
-        self.pointer_width = Some(pointer_width);
+    pub fn pointer_width(
+        mut self,
+        pointer_width: impl Into<Option<u32>>,
+    ) -> InterpreterConfigBuilder {
+        self.pointer_width = pointer_width.into();
         self
     }
 
-    pub fn executable(mut self, executable: String) -> InterpreterConfigBuilder {
-        self.executable = Some(executable);
+    pub fn executable(mut self, executable: impl Into<Option<String>>) -> InterpreterConfigBuilder {
+        self.executable = executable.into();
         self
     }
 
@@ -916,7 +919,7 @@ impl InterpreterConfigBuilder {
         mut self,
         suppress_build_script_link_lines: bool,
     ) -> InterpreterConfigBuilder {
-        self.suppress_build_script_link_lines = Some(suppress_build_script_link_lines);
+        self.suppress_build_script_link_lines = suppress_build_script_link_lines;
         self
     }
 
@@ -928,81 +931,48 @@ impl InterpreterConfigBuilder {
         self
     }
 
-    pub fn lib_dir(mut self, lib_dir: String) -> InterpreterConfigBuilder {
-        self.lib_dir = Some(lib_dir);
+    pub fn lib_dir(mut self, lib_dir: impl Into<Option<String>>) -> InterpreterConfigBuilder {
+        self.lib_dir = lib_dir.into();
         self
     }
 
     pub fn shared(mut self, shared: bool) -> InterpreterConfigBuilder {
-        self.shared = Some(shared);
+        self.shared = shared;
         self
     }
 
     pub fn build_flags(mut self, build_flags: BuildFlags) -> InterpreterConfigBuilder {
-        self.build_flags = Some(build_flags);
+        self.build_flags = build_flags;
         self
     }
 
     pub fn python_framework_prefix(
-        self,
-        python_framework_prefix: String,
+        mut self,
+        python_framework_prefix: impl Into<Option<String>>,
     ) -> InterpreterConfigBuilder {
-        InterpreterConfigBuilder {
-            python_framework_prefix: Some(python_framework_prefix),
-            ..self
-        }
+        self.python_framework_prefix = python_framework_prefix.into();
+        self
     }
 
-    pub fn finalize(self) -> InterpreterConfig {
+    pub fn finalize(self) -> Result<InterpreterConfig> {
         #[expect(
             deprecated,
             reason = "constructing an InterpreterConfig directly, need to write to fields"
         )]
-        InterpreterConfig {
+        Ok(InterpreterConfig {
             implementation: self.implementation,
             version: self.version,
-            shared: self.shared.unwrap_or(true),
-            abi3: self.abi3.unwrap_or(false),
+            shared: self.shared,
+            abi3: self.abi3,
             lib_name: self.lib_name,
             lib_dir: self.lib_dir,
             executable: self.executable,
             pointer_width: self.pointer_width,
-            build_flags: self.build_flags.unwrap_or_default(),
-            suppress_build_script_link_lines: self
-                .suppress_build_script_link_lines
-                .unwrap_or(false),
+            build_flags: self.build_flags,
+            suppress_build_script_link_lines: self.suppress_build_script_link_lines,
             extra_build_script_lines: self.extra_build_script_lines,
             python_framework_prefix: self.python_framework_prefix,
-        }
-    }
-
-    // private variants of some methods where it's convenient to potentially pass None
-    fn pointer_width_opt(mut self, pointer_width: Option<u32>) -> InterpreterConfigBuilder {
-        self.pointer_width = pointer_width;
-        self
-    }
-
-    fn executable_opt(mut self, executable: Option<String>) -> InterpreterConfigBuilder {
-        self.executable = executable;
-        self
-    }
-
-    fn lib_name_opt(mut self, lib_name: Option<String>) -> InterpreterConfigBuilder {
-        self.lib_name = lib_name;
-        self
-    }
-
-    fn lib_dir_opt(mut self, lib_dir: Option<String>) -> InterpreterConfigBuilder {
-        self.lib_dir = lib_dir;
-        self
-    }
-
-    fn python_framework_prefix_opt(
-        mut self,
-        python_framework_prefix: Option<String>,
-    ) -> InterpreterConfigBuilder {
-        self.python_framework_prefix = python_framework_prefix;
-        self
+        })
     }
 }
 
@@ -1870,9 +1840,9 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
     let builder = InterpreterConfigBuilder::new(implementation, version)
         .abi3(abi3)
         .lib_name(lib_name)
-        .lib_dir_opt(cross_compile_config.lib_dir_string());
+        .lib_dir(cross_compile_config.lib_dir_string());
 
-    Ok(builder.finalize())
+    builder.finalize()
 }
 
 /// Generates "default" interpreter configuration when compiling "abi3" extensions
@@ -1904,9 +1874,9 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> Result<Interpre
 
     let builder = InterpreterConfigBuilder::new(implementation, version)
         .abi3(abi3)
-        .lib_name_opt(lib_name);
+        .lib_name(lib_name);
 
-    Ok(builder.finalize())
+    builder.finalize()
 }
 
 /// Detects the cross compilation target interpreter configuration from all
@@ -2269,11 +2239,12 @@ mod tests {
         let config = InterpreterConfigBuilder::new(implementation, version)
             .abi3(true)
             .pointer_width(32)
-            .executable("executable".into())
-            .lib_dir("lib_name".into())
-            .lib_name("lib_name".into())
+            .executable("executable".to_string())
+            .lib_dir("lib_name".to_string())
+            .lib_name("lib_name".to_string())
             .extra_build_script_lines(vec!["cargo:test1".to_string(), "cargo:test2".to_string()])
-            .finalize();
+            .finalize()
+            .unwrap();
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
 
@@ -2290,7 +2261,8 @@ mod tests {
         };
         let config = InterpreterConfigBuilder::new(implementation, version)
             .build_flags(build_flags)
-            .finalize();
+            .finalize()
+            .unwrap();
 
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
@@ -2305,11 +2277,12 @@ mod tests {
         let config = InterpreterConfigBuilder::new(implementation, version)
             .abi3(true)
             .pointer_width(32)
-            .executable("executable".into())
-            .lib_name("lib_name".into())
-            .lib_dir("lib_dir\\n".into())
+            .executable("executable".to_string())
+            .lib_name("lib_name".to_string())
+            .lib_dir("lib_dir\\n".to_string())
             .extra_build_script_lines(vec!["cargo:test1".to_string(), "cargo:test2".to_string()])
-            .finalize();
+            .finalize()
+            .unwrap();
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
 
@@ -2325,7 +2298,9 @@ mod tests {
         let version = PythonVersion::PY38;
         assert_eq!(
             InterpreterConfig::from_reader("version=3.8".as_bytes()).unwrap(),
-            InterpreterConfigBuilder::new(implementation, version,).finalize()
+            InterpreterConfigBuilder::new(implementation, version,)
+                .finalize()
+                .unwrap()
         )
     }
 
@@ -2337,7 +2312,9 @@ mod tests {
         assert_eq!(
             InterpreterConfig::from_reader("version=3.8\next_suffix=.python38.so".as_bytes())
                 .unwrap(),
-            InterpreterConfigBuilder::new(implementation, version,).finalize()
+            InterpreterConfigBuilder::new(implementation, version,)
+                .finalize()
+                .unwrap()
         )
     }
 
@@ -2431,10 +2408,11 @@ mod tests {
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
             InterpreterConfigBuilder::new(implementation, version,)
                 .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
-                .lib_dir("/usr/lib".into())
-                .lib_name("python3.8".into())
+                .lib_dir("/usr/lib".to_string())
+                .lib_name("python3.8".to_string())
                 .pointer_width(64)
                 .finalize()
+                .unwrap()
         );
     }
 
@@ -2455,10 +2433,11 @@ mod tests {
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
             InterpreterConfigBuilder::new(implementation, version,)
                 .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
-                .lib_dir("/usr/lib".into())
-                .lib_name("python3.8".into())
+                .lib_dir("/usr/lib".to_string())
+                .lib_name("python3.8".to_string())
                 .pointer_width(64)
                 .finalize()
+                .unwrap()
         );
 
         sysconfigdata = Sysconfigdata::new();
@@ -2476,11 +2455,12 @@ mod tests {
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
             InterpreterConfigBuilder::new(implementation, version,)
                 .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
-                .lib_dir("/usr/lib".into())
-                .lib_name("python3.8".into())
+                .lib_dir("/usr/lib".to_string())
+                .lib_name("python3.8".to_string())
                 .pointer_width(64)
                 .shared(false)
                 .finalize()
+                .unwrap()
         );
     }
 
@@ -2493,8 +2473,9 @@ mod tests {
         let version = PythonVersion::PY38;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .abi3(true)
-            .lib_name("python3".into())
-            .finalize();
+            .lib_name("python3".to_string())
+            .finalize()
+            .unwrap();
         assert_eq!(default_abi3_config(&host, min_version).unwrap(), config);
     }
 
@@ -2506,7 +2487,8 @@ mod tests {
         let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .abi3(true)
-            .finalize();
+            .finalize()
+            .unwrap();
         assert_eq!(default_abi3_config(&host, min_version).unwrap(), config);
     }
 
@@ -2529,9 +2511,10 @@ mod tests {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY38;
         let config = InterpreterConfigBuilder::new(implementation, version)
-            .lib_name("python38".into())
-            .lib_dir("C:\\some\\path".into())
-            .finalize();
+            .lib_name("python38".to_string())
+            .lib_dir("C:\\some\\path".to_string())
+            .finalize()
+            .unwrap();
         assert_eq!(default_cross_compile(&cross_config).unwrap(), config);
     }
 
@@ -2554,9 +2537,10 @@ mod tests {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY38;
         let config = InterpreterConfigBuilder::new(implementation, version)
-            .lib_name("python38".into())
-            .lib_dir("/usr/lib/mingw".into())
-            .finalize();
+            .lib_name("python38".to_string())
+            .lib_dir("/usr/lib/mingw".to_string())
+            .finalize()
+            .unwrap();
         assert_eq!(default_cross_compile(&cross_config).unwrap(), config);
     }
 
@@ -2579,9 +2563,10 @@ mod tests {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
-            .lib_name("python3.9".into())
-            .lib_dir("/usr/arm64/lib".into())
-            .finalize();
+            .lib_name("python3.9".to_string())
+            .lib_dir("/usr/arm64/lib".to_string())
+            .finalize()
+            .unwrap();
         assert_eq!(default_cross_compile(&cross_config).unwrap(), config);
     }
 
@@ -2603,8 +2588,9 @@ mod tests {
         let implementation = PythonImplementation::PyPy;
         let version = PythonVersion::PY311;
         let config = InterpreterConfigBuilder::new(implementation, version)
-            .lib_name("pypy3.11-c".into())
-            .finalize();
+            .lib_name("pypy3.11-c".to_string())
+            .finalize()
+            .unwrap();
         assert_eq!(default_cross_compile(&cross_config).unwrap(), config);
     }
 
@@ -2988,7 +2974,7 @@ mod tests {
         )
         .abi3(true);
 
-        let mut config = builder.finalize();
+        let mut config = builder.finalize().unwrap();
 
         config
             .fixup_for_abi3_version(Some(PythonVersion::PY38))
@@ -3002,7 +2988,7 @@ mod tests {
             InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY38)
                 .abi3(true);
 
-        let mut config = builder.finalize();
+        let mut config = builder.finalize().unwrap();
 
         assert!(config
             .fixup_for_abi3_version(Some(PythonVersion::PY39))
@@ -3069,9 +3055,10 @@ mod tests {
             )
             .build_flags(interpreter_config.build_flags().clone())
             .pointer_width(64)
-            .lib_dir_opt(interpreter_config.lib_dir().map(str::to_owned))
-            .lib_name_opt(interpreter_config.lib_name().map(str::to_owned))
+            .lib_dir(interpreter_config.lib_dir().map(str::to_owned))
+            .lib_name(interpreter_config.lib_name().map(str::to_owned))
             .finalize()
+            .unwrap()
         )
     }
 
@@ -3192,7 +3179,9 @@ mod tests {
     fn test_build_script_outputs_base() {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY311;
-        let interpreter_config = InterpreterConfigBuilder::new(implementation, version).finalize();
+        let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
+            .finalize()
+            .unwrap();
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
@@ -3203,8 +3192,9 @@ mod tests {
             ]
         );
 
-        let interpreter_config =
-            InterpreterConfigBuilder::new(PythonImplementation::PyPy, version).finalize();
+        let interpreter_config = InterpreterConfigBuilder::new(PythonImplementation::PyPy, version)
+            .finalize()
+            .unwrap();
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
@@ -3223,7 +3213,8 @@ mod tests {
         let version = PythonVersion::PY39;
         let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
             .abi3(true)
-            .finalize();
+            .finalize()
+            .unwrap();
 
         assert_eq!(
             interpreter_config.build_script_outputs(),
@@ -3236,7 +3227,8 @@ mod tests {
 
         let interpreter_config = InterpreterConfigBuilder::new(PythonImplementation::PyPy, version)
             .abi3(true)
-            .finalize();
+            .finalize()
+            .unwrap();
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
@@ -3256,7 +3248,8 @@ mod tests {
         let version = PythonVersion::PY313;
         let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
             .build_flags(build_flags)
-            .finalize();
+            .finalize()
+            .unwrap();
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
@@ -3279,7 +3272,8 @@ mod tests {
         let version = PythonVersion::PY38;
         let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
             .build_flags(build_flags)
-            .finalize();
+            .finalize()
+            .unwrap();
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
@@ -3322,7 +3316,9 @@ mod tests {
     fn test_apply_default_lib_name_to_config_file() {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY39;
-        let mut config = InterpreterConfigBuilder::new(implementation, version).finalize();
+        let mut config = InterpreterConfigBuilder::new(implementation, version)
+            .finalize()
+            .unwrap();
 
         let unix = Triple::from_str("x86_64-unknown-linux-gnu").unwrap();
         let win_x64 = Triple::from_str("x86_64-pc-windows-msvc").unwrap();

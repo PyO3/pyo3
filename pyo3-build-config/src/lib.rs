@@ -403,9 +403,10 @@ mod tests {
         let version = PythonVersion::PY313;
         let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
             .python_framework_prefix(
-                "/Applications/Xcode.app/Contents/Developer/Library/Frameworks".into(),
+                "/Applications/Xcode.app/Contents/Developer/Library/Frameworks".to_string(),
             )
-            .finalize();
+            .finalize()
+            .unwrap();
 
         // Does nothing on non-mac
         _add_python_framework_link_args(
@@ -432,7 +433,9 @@ mod tests {
     fn test_maximum_version_exceeded_formatting() {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY313;
-        let interpreter_config = InterpreterConfigBuilder::new(implementation, version).finalize();
+        let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
+            .finalize()
+            .unwrap();
         let mut error = pyo3_build_script_impl::MaximumVersionExceeded::new(
             &interpreter_config,
             PythonVersion::PY312,
@@ -456,7 +459,8 @@ mod tests {
 
         let interpreter_config =
             InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY313)
-                .finalize();
+                .finalize()
+                .unwrap();
         let mut buf = Vec::new();
         interpreter_config.to_writer(&mut buf).unwrap();
         let config_string = escape(&buf);
