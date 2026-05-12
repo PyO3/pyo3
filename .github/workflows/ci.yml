@@ -650,7 +650,7 @@ jobs:
       - uses: ./.github/actions/report-coverage
         with:
           name: ${{ github.job }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   check-feature-powerset:
     needs: [fmt, resolve]
