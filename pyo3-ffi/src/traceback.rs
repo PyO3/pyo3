@@ -1,24 +1,23 @@
 use crate::object::*;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Here")]
     pub fn PyTraceBack_Here(arg1: *mut crate::PyFrameObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Print")]
     pub fn PyTraceBack_Print(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
-}
 
-extern_libpython! {
+    #[cfg(not(RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Type")]
     pub static mut PyTraceBack_Type: PyTypeObject;
 
-    #[cfg(PyPy)]
-    #[link_name = "PyPyTraceBack_Check"]
+    #[cfg(any(PyPy, RustPython))]
+    #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Check")]
     pub fn PyTraceBack_Check(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, RustPython)))]
 pub unsafe fn PyTraceBack_Check(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyTraceBack_Type)
 }

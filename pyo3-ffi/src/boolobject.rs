@@ -1,14 +1,18 @@
 #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
 use crate::longobject::PyLongObject;
 use crate::object::*;
-use std::ffi::{c_int, c_long};
+use core::ffi::{c_int, c_long};
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyBool_Type)
 }
 
 extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyBool_Check(op: *mut PyObject) -> c_int;
+
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
     #[cfg_attr(PyPy, link_name = "_PyPy_FalseStruct")]
     static mut _Py_FalseStruct: PyLongObject;

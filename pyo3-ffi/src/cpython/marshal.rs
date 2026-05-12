@@ -1,6 +1,6 @@
 use crate::{PyObject, Py_ssize_t};
+use core::ffi::{c_char, c_int, c_long};
 use libc::FILE;
-use std::ffi::{c_char, c_int, c_long};
 
 #[cfg(Py_3_15)]
 pub const Py_MARSHAL_VERSION: c_int = 6;

@@ -93,10 +93,7 @@ def _supported_interpreter_versions(
 
 
 PY_VERSIONS = _supported_interpreter_versions("cpython")
-# We don't yet support abi3-py315 but do support cp315 and cp315t
-# version-specific builds
 ABI3_PY_VERSIONS = [p for p in PY_VERSIONS if not p.endswith("t")]
-ABI3_PY_VERSIONS.remove("3.15")
 PYPY_VERSIONS = _supported_interpreter_versions("pypy")
 
 
@@ -983,6 +980,82 @@ def format_ffi_extern(session: nox.Session):
     _format_ffi_extern(session)
 
 
+_INNER_CFG_RE = re.compile(r"^#!\[\s*cfg\s*\((.*)\)\s*\]\s*$")
+_FEATURE_RE = re.compile(r'feature\s*=\s*"([^"]+)"')
+
+
+def _read_inner_cfgs(path: Path) -> List[str]:
+    """Return the bodies of leading `#![cfg(...)]` inner attributes."""
+    cfgs: List[str] = []
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped == "" or stripped.startswith("//"):
+                continue
+            if not stripped.startswith("#!["):
+                break
+            m = _INNER_CFG_RE.match(stripped)
+            if m:
+                cfgs.append(m.group(1).strip())
+    return cfgs
+
+
+@nox.session(name="check-test-features", venv_backend="none")
+def check_test_features(session: nox.Session) -> None:
+    if toml is None:
+        session.error("requires Python 3.11 or `toml` to be installed")
+
+    expected_tests = {}
+    errors = []
+    for path in sorted((PYO3_DIR / "tests").glob("test_*.rs")):
+        features = set()
+        for body in _read_inner_cfgs(path):
+            feature = _FEATURE_RE.search(body)
+            if not feature:
+                continue
+
+            if feature.group(0) != body:
+                # To keep the this check simple, expect a single simple `cfg` per required feature
+                errors.append(
+                    f'{path}: please use simple `#![cfg(feature = "...")] for feature predicates, got `#![cfg({body})]`'
+                )
+
+            features.add(feature.group(1))
+
+        if features:
+            expected_tests[path.stem] = sorted(features)
+
+    declared_tests = {
+        test["name"]: test
+        for test in toml.loads((PYO3_DIR / "Cargo.toml").read_text()).get("test", [])
+    }
+    all_test_names = sorted(expected_tests.keys() | declared_tests.keys())
+
+    for test in all_test_names:
+        if (expected := expected_tests.get(test)) is None:
+            errors.append(f"Remove [[test]] entry for {test!r} from Cargo.toml")
+            continue
+
+        declared = declared_tests.get(test, {})
+        declared_features = declared.get("required-features", [])
+
+        if set(declared_features) != set(expected):
+            errors.append(
+                f"""- Update Cargo.toml for test {test}:
+
+    [[test]]
+    name = "{test}"
+    required-features = [{", ".join(f'"{f}"' for f in expected)}]
+                """
+            )
+
+    if errors:
+        print("Errors found in test feature predicates:", file=sys.stderr)
+        for error in errors:
+            print("  " + error, file=sys.stderr)
+        session.error()
+
+
 @nox.session(name="address-sanitizer", venv_backend="none")
 def address_sanitizer(session: nox.Session):
     _run_cargo(
@@ -1114,7 +1187,7 @@ def set_msrv_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    _run_cargo(session, "run", _FFI_CHECK)
+    _run_cargo(session, "run", _FFI_CHECK, "--message-format=short")
     _check_raw_dylib_macro(session)
 
 
@@ -1128,19 +1201,26 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.6")
         _run_cargo(session, "check", env=env, expect_error=True)
 
+        # We allow building with our max version + 1, to support
+        # development work
         assert "3.16" not in PY_VERSIONS
         config_file.set("CPython", "3.16")
+        _run_cargo(session, "check", env=env)
+
+        # We do not allow allow building with max version + 2
+        assert "3.17" not in PY_VERSIONS
+        config_file.set("CPython", "3.17")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        # 3.16 CPython should build if abi3 is explicitly requested
+        # max version + 2 should build if abi3 is explicitly requested
         _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
 
-        # 3.15 CPython should build with forward compatibility
-        # TODO: check on 3.16 when adding abi3-py315 support
-        config_file.set("CPython", "3.15")
+        # ... and also should build with forward compatibility
+        config_file.set("CPython", "3.16")
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
+        # we only support 3.11 PyPy
         assert "3.10" not in PYPY_VERSIONS
         config_file.set("PyPy", "3.10")
         _run_cargo(session, "check", env=env, expect_error=True)
@@ -1430,35 +1510,62 @@ def update_ui_tests(session: nox.Session):
 
 @nox.session(name="test-introspection")
 def test_introspection(session: nox.Session):
-    session.install("maturin")
-    session.install("ruff")
-    options = []
-    target = os.environ.get("CARGO_BUILD_TARGET")
-    if target is not None:
-        options += ("--target", target)
-    profile = os.environ.get("CARGO_BUILD_PROFILE")
-    if profile == "release":
-        options.append("--release")
-    session.run_always(
-        "maturin",
-        "develop",
-        "-m",
-        "./pytests/Cargo.toml",
-        "--features",
-        "experimental-async,experimental-inspect",
-        *options,
-    )
-    lib_file = session.run(
-        "python",
-        "-c",
-        "import pyo3_pytests; print(pyo3_pytests.pyo3_pytests.__file__)",
-        silent=True,
-    ).strip()
-    _run_cargo_test(
-        session,
-        package="pyo3-introspection",
-        env={"PYO3_PYTEST_LIB_PATH": lib_file},
-    )
+    with tempfile.TemporaryDirectory() as stub_dir:
+        session.install("maturin")
+        session.install("ruff")
+        options = []
+        target = os.environ.get("CARGO_BUILD_TARGET")
+        if target is not None:
+            options += ("--target", target)
+        profile = os.environ.get("CARGO_BUILD_PROFILE")
+        if profile == "release":
+            options.append("--release")
+        _run(
+            session,
+            "maturin",
+            "develop",
+            "-m",
+            "./pytests/Cargo.toml",
+            "--features",
+            "experimental-async,experimental-inspect",
+            *options,
+        )
+        lib_file = session.run(
+            "python",
+            "-c",
+            "import pyo3_pytests; print(pyo3_pytests.pyo3_pytests.__file__)",
+            silent=True,
+        ).strip()
+        _run_cargo(
+            session,
+            "run",
+            "-p",
+            "pyo3-introspection",
+            "--",
+            lib_file,
+            "pyo3_pytests",
+            stub_dir,
+        )
+        _run(session, "ruff", "format", stub_dir)
+        _ensure_directory_equals(Path(stub_dir), Path("pytests/stubs"))
+
+
+def _ensure_directory_equals(expected_dir: Path, actual_dir: Path):
+    # Assert all expected files are in actual and are equals
+    for expected_file_path in expected_dir.rglob("*"):
+        file_path = expected_file_path.relative_to(expected_dir)
+        actual_file_path = actual_dir / file_path
+        assert actual_file_path.exists(), f"File {file_path} does not exist"
+        assert expected_file_path.read_text() == actual_file_path.read_text(), (
+            f"Content is different in {file_path}"
+        )
+    # Assert all actual files are expected
+    for actual_file_path in actual_dir.rglob("*"):
+        file_path = actual_file_path.relative_to(actual_dir)
+        expected_file_path = expected_dir / file_path
+        assert expected_file_path.exists(), (
+            f"File {file_path} exist even if not expected"
+        )
 
 
 @lru_cache()

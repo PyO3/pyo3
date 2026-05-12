@@ -1,6 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::ffi::{c_char, c_int};
+use core::ffi::{c_char, c_int};
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetNone")]
@@ -72,12 +72,18 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyException_SetContext")]
     pub fn PyException_SetContext(arg1: *mut PyObject, arg2: *mut PyObject);
 
+    #[cfg(RustPython)]
+    pub fn PyExceptionClass_Check(x: *mut PyObject) -> c_int;
+    #[cfg(RustPython)]
+    pub fn PyExceptionInstance_Check(x: *mut PyObject) -> c_int;
+
     #[cfg(PyPy)]
     #[link_name = "PyPyExceptionInstance_Class"]
     pub fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject;
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyExceptionClass_Check(x: *mut PyObject) -> c_int {
     (PyType_Check(x) != 0
         && PyType_FastSubclass(x as *mut PyTypeObject, Py_TPFLAGS_BASE_EXC_SUBCLASS) != 0)
@@ -85,6 +91,7 @@ pub unsafe fn PyExceptionClass_Check(x: *mut PyObject) -> c_int {
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyExceptionInstance_Check(x: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(x), Py_TPFLAGS_BASE_EXC_SUBCLASS)
 }

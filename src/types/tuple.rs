@@ -4,8 +4,6 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
-#[cfg(RustPython)]
-use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
@@ -16,6 +14,13 @@ use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
 use crate::BoundObject;
 use crate::{
     exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
+};
+#[cfg(RustPython)]
+use crate::{
+    py_result_ext::PyResultExt,
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
 };
 use std::iter::FusedIterator;
 #[cfg(feature = "nightly")]
@@ -84,7 +89,20 @@ fn try_new_from_iter<'py>(
 #[repr(transparent)]
 pub struct PyTuple(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyTuple_Type), "builtins", "tuple", #checkfunction=ffi::PyTuple_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyTuple,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "tuple").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "tuple",
+    #checkfunction=ffi::PyTuple_Check
+);
 
 impl PyTuple {
     /// Constructs a new tuple with the given elements.

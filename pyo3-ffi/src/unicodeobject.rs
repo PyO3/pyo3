@@ -1,7 +1,7 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+use core::ffi::{c_char, c_int, c_void};
 use libc::wchar_t;
-use std::ffi::{c_char, c_int, c_void};
 
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(
@@ -15,27 +15,29 @@ pub type Py_UCS2 = u16;
 pub type Py_UCS1 = u8;
 
 extern_libpython! {
+    #[cfg(not(RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Type")]
     pub static mut PyUnicode_Type: PyTypeObject;
+    #[cfg(not(RustPython))]
     pub static mut PyUnicodeIter_Type: PyTypeObject;
 
-    #[cfg(PyPy)]
-    #[link_name = "PyPyUnicode_Check"]
+    #[cfg(any(PyPy, RustPython))]
+    #[cfg_attr(PyPy, link_name = "PyPyUnicode_Check")]
     pub fn PyUnicode_Check(op: *mut PyObject) -> c_int;
 
-    #[cfg(PyPy)]
-    #[link_name = "PyPyUnicode_CheckExact"]
+    #[cfg(any(PyPy, RustPython))]
+    #[cfg_attr(PyPy, link_name = "PyPyUnicode_CheckExact")]
     pub fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, RustPython)))]
 pub unsafe fn PyUnicode_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_UNICODE_SUBCLASS)
 }
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(not(any(PyPy, RustPython)))]
 pub unsafe fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyUnicode_Type)
 }
@@ -118,16 +120,22 @@ extern_libpython! {
         encoding: *const c_char,
         errors: *const c_char,
     ) -> *mut PyObject;
+    #[cfg(not(Py_3_15))]
+    #[deprecated(note = "use PyCodec_Decode() instead")]
     pub fn PyUnicode_AsDecodedObject(
         unicode: *mut PyObject,
         encoding: *const c_char,
         errors: *const c_char,
     ) -> *mut PyObject;
+    #[cfg(not(Py_3_15))]
+    #[deprecated(note = "use PyCodec_Decode() instead")]
     pub fn PyUnicode_AsDecodedUnicode(
         unicode: *mut PyObject,
         encoding: *const c_char,
         errors: *const c_char,
     ) -> *mut PyObject;
+    #[cfg(not(Py_3_15))]
+    #[deprecated(note = "use PyCodec_Encode() instead")]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsEncodedObject")]
     pub fn PyUnicode_AsEncodedObject(
         unicode: *mut PyObject,
@@ -140,6 +148,8 @@ extern_libpython! {
         encoding: *const c_char,
         errors: *const c_char,
     ) -> *mut PyObject;
+    #[cfg(not(Py_3_15))]
+    #[deprecated(note = "use PyCodec_Encode() instead")]
     pub fn PyUnicode_AsEncodedUnicode(
         unicode: *mut PyObject,
         encoding: *const c_char,
