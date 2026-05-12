@@ -964,7 +964,7 @@ impl PythonAbiBuilder {
             version,
             kind: None,
         };
-        if is_abi3() {
+        if is_abi3() && !gil_disabled {
             builder.stable_abi(StableAbi::Abi3)
         } else if is_abi3t() {
             builder.stable_abi(StableAbi::Abi3t)
