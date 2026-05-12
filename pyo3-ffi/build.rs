@@ -79,15 +79,15 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                         if env_var("PYO3_USE_ABI3T_FORWARD_COMPATIBILITY")
                             .is_none_or(|os_str| os_str != "1")
                         {
-                            error.add_help(&format!(
+                            error.add_help(
                                 "set PYO3_USE_ABI3T_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the free-threaded stable ABI"
-                            ));
+                            );
                             return Err(error.finish().into());
                         }
                     } else {
-                        error.add_help(&format!(
+                        error.add_help(format!(
                             "the free-threaded build of CPython {major}.{minor} does not support the limited API so this check cannot be suppressed.",
-                        ));
+                        ).as_str());
                         return Err(error.finish().into());
                     }
                 }
