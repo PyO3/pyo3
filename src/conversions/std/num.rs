@@ -394,22 +394,20 @@ pub(crate) fn pylong_from_digits<'py, I: ExactSizeIterator<Item = u32>>(
     py: Python<'py>,
     negative: bool,
     digits: I,
-) -> PyResult<Bound<'py, PyInt>> {
+) -> Bound<'py, PyInt> {
     let digits_len = digits.len();
     let mut ptr = std::ptr::null_mut();
     let writer = unsafe {
         ffi::PyLongWriter_Create(negative.into(), digits_len as ffi::Py_ssize_t, &mut ptr)
     };
-    if writer.is_null() {
-        return Err(PyErr::fetch(py));
-    }
+    assert!(!writer.is_null(), "PyLongWriter_Create returned NULL");
     let digit_ptr = ptr.cast::<u32>();
     for (i, d) in digits.enumerate() {
         unsafe { digit_ptr.add(i).write(d) };
     }
     unsafe {
         ffi::PyLongWriter_Finish(writer)
-            .assume_owned_or_err(py)
+            .assume_owned(py)
             .cast_into_unchecked()
     }
 }
@@ -452,7 +450,7 @@ mod fast_128bit_int_conversion {
             impl<'py> IntoPyObject<'py> for $rust_type {
                 type Target = PyInt;
                 type Output = Bound<'py, Self::Target>;
-                type Error = PyErr;
+                type Error = Infallible;
 
                 #[cfg(feature = "experimental-inspect")]
                 const OUTPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
@@ -473,7 +471,7 @@ mod fast_128bit_int_conversion {
                             let n_digits = bits.div_ceil(PYLONG_BITS_IN_DIGIT).max(1);
                             let digits = (0..n_digits)
                                 .map(|i| (abs >> (i * PYLONG_BITS_IN_DIGIT)) as u32 & DIGIT_MASK);
-                            return pylong_from_digits(py, negative, digits);
+                            return Ok(pylong_from_digits(py, negative, digits));
                         }
                     }
                     #[cfg(Py_3_13)]
@@ -492,7 +490,7 @@ mod fast_128bit_int_conversion {
             impl<'py> IntoPyObject<'py> for &$rust_type {
                 type Target = PyInt;
                 type Output = Bound<'py, Self::Target>;
-                type Error = PyErr;
+                type Error = Infallible;
 
                 #[cfg(feature = "experimental-inspect")]
                 const OUTPUT_TYPE: PyStaticExpr = <$rust_type>::OUTPUT_TYPE;
@@ -744,7 +742,7 @@ macro_rules! nonzero_int_impl {
         impl<'py> IntoPyObject<'py> for $nonzero_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
-            type Error = <$primitive_type as IntoPyObject<'py>>::Error;
+            type Error = Infallible;
 
             #[cfg(feature = "experimental-inspect")]
             const OUTPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
@@ -758,7 +756,7 @@ macro_rules! nonzero_int_impl {
         impl<'py> IntoPyObject<'py> for &$nonzero_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
-            type Error = <$nonzero_type as IntoPyObject<'py>>::Error;
+            type Error = Infallible;
 
             #[cfg(feature = "experimental-inspect")]
             const OUTPUT_TYPE: PyStaticExpr = <$nonzero_type>::OUTPUT_TYPE;
