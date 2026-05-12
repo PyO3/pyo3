@@ -1,5 +1,5 @@
 use crate::object::*;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 #[cfg(all(not(PyPy), Py_LIMITED_API, not(GraalPy)))]
 opaque_struct!(pub PyWeakReference);

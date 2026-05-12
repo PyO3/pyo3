@@ -1,5 +1,5 @@
 use crate::object::*;
-use std::ffi::{c_char, c_int, c_void};
+use core::ffi::{c_char, c_int, c_void};
 
 #[cfg(not(RustPython))]
 extern_libpython! {

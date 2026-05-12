@@ -2,7 +2,7 @@ use crate::object::*;
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::pyport::Py_hash_t;
 use crate::pyport::Py_ssize_t;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 pub const PySet_MINSIZE: usize = 8;
 

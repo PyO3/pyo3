@@ -1,6 +1,6 @@
 use crate::PyThreadState;
 use crate::{PyFrameObject, PyInterpreterState, PyObject};
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 // skipped private _PyInterpreterState_RequiresIDRef
 // skipped private _PyInterpreterState_RequireIDRef

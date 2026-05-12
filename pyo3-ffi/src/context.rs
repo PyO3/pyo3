@@ -3,7 +3,7 @@ use crate::object::PyObject;
 use crate::object::PyTypeObject;
 #[cfg(not(RustPython))]
 use crate::Py_IS_TYPE;
-use std::ffi::{c_char, c_int};
+use core::ffi::{c_char, c_int};
 
 #[cfg(not(RustPython))]
 extern_libpython! {

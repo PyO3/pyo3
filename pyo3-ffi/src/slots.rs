@@ -1,7 +1,7 @@
 #[cfg(Py_3_15)]
 use crate::Py_ssize_t;
 #[cfg(Py_3_15)]
-use std::ffi::{c_int, c_void};
+use core::ffi::{c_int, c_void};
 
 #[cfg(Py_3_15)]
 pub type _Py_funcptr_t = unsafe extern "C" fn();
@@ -78,7 +78,7 @@ pub const unsafe fn PySlot_FUNC(NAME: c_int, VALUE: *mut c_void) -> PySlot {
         sl_flags: 0,
         anon1: _anon_union_32b { sl_reserved: 0 },
         anon2: _anon_union_64b {
-            sl_func: Some(unsafe { std::mem::transmute::<*mut c_void, _Py_funcptr_t>(VALUE) }),
+            sl_func: Some(unsafe { core::mem::transmute::<*mut c_void, _Py_funcptr_t>(VALUE) }),
         },
     }
 }
@@ -145,5 +145,5 @@ pub const fn PySlot_PTR_STATIC(NAME: c_int, VALUE: *mut c_void) -> PySlot {
 
 #[cfg(Py_3_15)]
 pub const fn PySlot_END() -> PySlot {
-    unsafe { std::mem::zeroed() }
+    unsafe { core::mem::zeroed() }
 }

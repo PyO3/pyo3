@@ -5,10 +5,10 @@ use crate::refcount;
 use crate::PyMutex;
 #[cfg(Py_3_15)]
 use crate::PySlot;
-use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
-use std::mem;
+use core::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
+use core::mem;
 #[cfg(Py_GIL_DISABLED)]
-use std::sync::atomic::{AtomicIsize, AtomicU32};
+use core::sync::atomic::{AtomicIsize, AtomicU32};
 
 #[cfg(Py_LIMITED_API)]
 opaque_struct!(pub PyTypeObject);
@@ -75,8 +75,8 @@ pub union PyObjectObRefcnt {
 }
 
 #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
-impl std::fmt::Debug for PyObjectObRefcnt {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for PyObjectObRefcnt {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", unsafe { self.ob_refcnt })
     }
 }
@@ -118,7 +118,7 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
-const _: () = assert!(std::mem::align_of::<PyObject>() >= _PyObject_MIN_ALIGNMENT);
+const _: () = assert!(core::mem::align_of::<PyObject>() >= _PyObject_MIN_ALIGNMENT);
 
 #[allow(
     clippy::declare_interior_mutable_const,
@@ -147,7 +147,7 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_refcnt: 1,
     #[cfg(PyPy)]
     ob_pypy_link: 0,
-    ob_type: std::ptr::null_mut(),
+    ob_type: core::ptr::null_mut(),
 };
 
 // skipped _Py_UNOWNED_TID
@@ -718,7 +718,7 @@ pub unsafe fn PyType_HasFeature(ty: *mut PyTypeObject, feature: c_ulong) -> c_in
     let flags = PyType_GetFlags(ty);
 
     #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-    let flags = (*ty).tp_flags.load(std::sync::atomic::Ordering::Relaxed);
+    let flags = (*ty).tp_flags.load(core::sync::atomic::Ordering::Relaxed);
 
     #[cfg(all(not(Py_LIMITED_API), not(Py_GIL_DISABLED)))]
     let flags = (*ty).tp_flags;
