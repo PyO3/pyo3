@@ -441,15 +441,6 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "_PyEval_RequestCodeExtraIndex",
     // FIXME: probably outdated definitions that fail to build, need investigation,
     // temporarily here to make the build pass to get CI running
-    "_PyFloat_CAST",
-    "_PyObject_MakeTpCall",
-    "_PyRun_AnyFileObject",
-    "_PyRun_InteractiveLoopObject",
-    "_PyRun_SimpleFileObject",
-    "_PySequence_IterSearch",
-    "_PySet_NextEntry",
-    "_PyUnicode_CheckConsistency",
-    "_Py_CheckFunctionResult",
     "PyCode_New",
     "PyCode_NewWithPosOnlyArgs",
     "PyCFunction_New",
@@ -474,7 +465,6 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "PyUnicode_EncodeUnicodeEscape",
     "PyUnicode_TransformDecimalToASCII",
     "PyUnicode_TranslateCharmap",
-    "_Py_HashBytes",
     // This symbol was not in headers but still public until Python 3.10,
     // should be able to remove this exclusion once support for 3.9 dropped
     "Py_GetArgcArgv",
@@ -491,10 +481,6 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "PyOS_BeforeFork",
     "PyOS_AfterFork_Parent",
     "PyOS_AfterFork_Child",
-    // Private symbols that pyo3-ffi should stop exporting
-    "_PyUnicode_COMPACT_DATA",
-    "_PyUnicode_NONCOMPACT_DATA",
-    "_PyUnicode_Ready",
     // See https://github.com/python/cpython/pull/139166/changes#r3214904694
     "Py_IS_TYPE",
     "Py_SIZE",
