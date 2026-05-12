@@ -70,11 +70,26 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 let mut error = MaximumVersionExceeded::new(interpreter_config, versions.max);
                 let major = interp_version.major;
                 let minor = interp_version.minor;
-                if interpreter_config.target_abi.kind.is_free_threaded() {
-                    error.add_help(&format!(
-                        "the free-threaded build of CPython {major}.{minor} does not support the limited API so this check cannot be suppressed.",
-                    ));
-                    return Err(error.finish().into());
+                let py_3_15 = PythonVersion {
+                    major: 3,
+                    minor: 15,
+                };
+                if interpreter_config.target_abi.kind().is_free_threaded() {
+                    if (PythonVersion { major, minor }) > py_3_15 {
+                        if env_var("PYO3_USE_ABI3T_FORWARD_COMPATIBILITY")
+                            .is_none_or(|os_str| os_str != "1")
+                        {
+                            error.add_help(&format!(
+                                "set PYO3_USE_ABI3T_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the free-threaded stable ABI"
+                            ));
+                            return Err(error.finish().into());
+                        }
+                    } else {
+                        error.add_help(&format!(
+                            "the free-threaded build of CPython {major}.{minor} does not support the limited API so this check cannot be suppressed.",
+                        ));
+                        return Err(error.finish().into());
+                    }
                 }
 
                 if env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_none_or(|os_str| os_str != "1")
