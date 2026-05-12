@@ -743,7 +743,7 @@ jobs:
           container: off
       - uses: ./.github/actions/report-coverage
         with:
-          name: ${{ github.job }}
+          name: ${{ github.job }}/${{ matrix.os }}/${{ matrix.target }}
           token: ${{ secrets.CODECOV_TOKEN }}
 
   test-cross-compilation-windows:
