@@ -9,8 +9,12 @@
 //! interpreter.
 //!
 //! This module provides synchronization primitives which are able to synchronize under these conditions.
-use crate::types::PyAny;
-use crate::{internal::state::SuspendAttach, sealed::Sealed, types::PyString, Bound, Py, Python};
+use crate::{
+    internal::state::SuspendAttach,
+    sealed::Sealed,
+    types::{PyAny, PyString},
+    Bound, Py, Python,
+};
 use std::{
     cell::UnsafeCell,
     marker::PhantomData,

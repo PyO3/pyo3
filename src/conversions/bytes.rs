@@ -114,8 +114,7 @@ impl<'py> IntoPyObject<'py> for &Bytes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PyAnyMethods, PyBytes};
-    use crate::types::{PyByteArray, PyByteArrayMethods};
+    use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods, PyBytes};
     use crate::Python;
 
     #[test]

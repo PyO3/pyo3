@@ -11,8 +11,7 @@ use crate::{
     },
     Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo, Python,
 };
-use std::sync::Arc;
-use std::{borrow::Borrow, convert::Infallible, ops::Deref, ptr::NonNull};
+use std::{borrow::Borrow, convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
 
 /// An equivalent to `String` where the storage is owned by a Python `bytes` or `str` object.
 ///
@@ -742,7 +741,6 @@ mod test {
                 b1.hash(&mut hasher);
                 hasher.finish()
             };
-            assert_eq!(h, h1);
 
             let b2: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
             let h2 = {
@@ -751,6 +749,7 @@ mod test {
                 hasher.finish()
             };
 
+            assert_eq!(h, h1);
             assert_eq!(h, h2);
         });
     }

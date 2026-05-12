@@ -794,13 +794,13 @@ impl ExactSizeIterator for BoundDictIterator<'_> {
 
 impl<'py> BoundDictIterator<'py> {
     fn new(dict: Bound<'py, PyDict>) -> Self {
-        let di_used = dict_len(&dict);
+        let remaining = dict_len(&dict);
         Self {
             dict,
             inner: DictIterImpl::DictIter {
                 ppos: 0,
-                di_used,
-                remaining: di_used,
+                di_used: remaining,
+                remaining,
             },
         }
     }
@@ -954,8 +954,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::PyAnyMethods as _;
-    use crate::types::PyTuple;
+    use crate::types::{PyAnyMethods as _, PyTuple};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]

@@ -6,8 +6,7 @@ use crate::inspect::PyStaticExpr;
 use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
-use crate::types::{PyByteArray, PyByteArrayMethods};
-use crate::types::{PyBytes, PyInt};
+use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
 use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
 use std::convert::Infallible;
 use std::ffi::c_long;
@@ -256,14 +255,12 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
         obj: Borrowed<'_, 'py, PyAny>,
         _: crate::conversion::private::Token,
     ) -> Option<impl FromPyObjectSequence<Target = u8>> {
-        {
-            if let Ok(bytes) = obj.cast::<PyBytes>() {
-                Some(BytesSequenceExtractor::Bytes(bytes))
-            } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
-                Some(BytesSequenceExtractor::ByteArray(byte_array))
-            } else {
-                None
-            }
+        if let Ok(bytes) = obj.cast::<PyBytes>() {
+            Some(BytesSequenceExtractor::Bytes(bytes))
+        } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
+            Some(BytesSequenceExtractor::ByteArray(byte_array))
+        } else {
+            None
         }
     }
 }
