@@ -3052,7 +3052,7 @@ mod tests {
             _ => return,
         };
         let sysconfigdata = super::parse_sysconfigdata(sysconfigdata_path).unwrap();
-        let parsed_config = InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap();
+        let mut parsed_config = InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap();
 
         // Workaround case where empty `PYTHONFRAMEWORKPREFIX` is returned as empty string instead of None,
         // which causes the assert_eq! below to fail.
