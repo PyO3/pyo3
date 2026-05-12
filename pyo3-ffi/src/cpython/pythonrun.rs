@@ -9,21 +9,9 @@ use libc::FILE;
 
 extern_libpython! {
     pub fn PyRun_SimpleStringFlags(arg1: *const c_char, arg2: *mut PyCompilerFlags) -> c_int;
-    pub fn _PyRun_SimpleFileObject(
-        fp: *mut FILE,
-        filename: *mut PyObject,
-        closeit: c_int,
-        flags: *mut PyCompilerFlags,
-    ) -> c_int;
     pub fn PyRun_AnyFileExFlags(
         fp: *mut FILE,
         filename: *const c_char,
-        closeit: c_int,
-        flags: *mut PyCompilerFlags,
-    ) -> c_int;
-    pub fn _PyRun_AnyFileObject(
-        fp: *mut FILE,
-        filename: *mut PyObject,
         closeit: c_int,
         flags: *mut PyCompilerFlags,
     ) -> c_int;
@@ -46,11 +34,6 @@ extern_libpython! {
     pub fn PyRun_InteractiveLoopFlags(
         fp: *mut FILE,
         filename: *const c_char,
-        flags: *mut PyCompilerFlags,
-    ) -> c_int;
-    pub fn _PyRun_InteractiveLoopObject(
-        fp: *mut FILE,
-        filename: *mut PyObject,
         flags: *mut PyCompilerFlags,
     ) -> c_int;
 
@@ -94,9 +77,7 @@ extern_libpython! {
         errcode: *mut c_int,
         arena: *mut PyArena,
     ) -> *mut _mod;
-}
 
-extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyRun_StringFlags")]
     pub fn PyRun_StringFlags(
         arg1: *const c_char,
@@ -150,8 +131,6 @@ pub unsafe fn Py_CompileStringFlags(
 ) -> *mut PyObject {
     Py_CompileStringExFlags(string, p, s, f, -1)
 }
-
-// skipped _Py_SourceAsString
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyRun_String")]
