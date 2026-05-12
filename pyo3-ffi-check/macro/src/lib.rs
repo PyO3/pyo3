@@ -424,6 +424,9 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("Py_TYPE", "not(Py_3_14)"),
     ("Py_XDECREF", ""),
     ("Py_XINCREF", ""),
+    ("_PyCode_GetExtra", "Py_3_12"),
+    ("_PyCode_SetExtra", "Py_3_12"),
+    ("_PyEval_RequestCodeExtraIndex", "Py_3_12"),
     // These functions were only added in 3.10, but pyo3-ffi defines them for
     // all versions. Technically not macros but the machinery happens to work
     // the same way.
@@ -435,10 +438,11 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
 
 // TODO: probably need to clean these up
 const EXCLUDED_SYMBOLS: &[&str] = &[
-    // CPython deprecated these but the symbols still exist, pyo3-ffi will probably clean them up anyway
-    "_PyCode_GetExtra",
-    "_PyCode_SetExtra",
-    "_PyEval_RequestCodeExtraIndex",
+    // CPython moved these to the unstable API in 3.12, we exposed these for all versions just
+    // to keep it simpler to migrate
+    "PyUnstable_Code_GetExtra",
+    "PyUnstable_Code_SetExtra",
+    "PyUnstable_Eval_RequestCodeExtraIndex",
     // FIXME: probably outdated definitions that fail to build, need investigation,
     // temporarily here to make the build pass to get CI running
     "_PyFloat_CAST",
@@ -483,10 +487,6 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "PyObject_Vectorcall",
     "PyVectorcall_Function",
     "PyObject_VectorcallDict",
-    // Needs fixing: since 3.9 it takes thread state as first argument
-    "_PyEval_EvalFrameDefault",
-    // Needs fixing: argument count is wrong on 3.13 against headers
-    "_PyLong_AsByteArray",
     // CPython gates these on a HAVE_FORK macro, pyo3-ffi needs to replicate this?
     "PyOS_BeforeFork",
     "PyOS_AfterFork_Parent",
