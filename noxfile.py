@@ -980,6 +980,82 @@ def format_ffi_extern(session: nox.Session):
     _format_ffi_extern(session)
 
 
+_INNER_CFG_RE = re.compile(r"^#!\[\s*cfg\s*\((.*)\)\s*\]\s*$")
+_FEATURE_RE = re.compile(r'feature\s*=\s*"([^"]+)"')
+
+
+def _read_inner_cfgs(path: Path) -> List[str]:
+    """Return the bodies of leading `#![cfg(...)]` inner attributes."""
+    cfgs: List[str] = []
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped == "" or stripped.startswith("//"):
+                continue
+            if not stripped.startswith("#!["):
+                break
+            m = _INNER_CFG_RE.match(stripped)
+            if m:
+                cfgs.append(m.group(1).strip())
+    return cfgs
+
+
+@nox.session(name="check-test-features", venv_backend="none")
+def check_test_features(session: nox.Session) -> None:
+    if toml is None:
+        session.error("requires Python 3.11 or `toml` to be installed")
+
+    expected_tests = {}
+    errors = []
+    for path in sorted((PYO3_DIR / "tests").glob("test_*.rs")):
+        features = set()
+        for body in _read_inner_cfgs(path):
+            feature = _FEATURE_RE.search(body)
+            if not feature:
+                continue
+
+            if feature.group(0) != body:
+                # To keep the this check simple, expect a single simple `cfg` per required feature
+                errors.append(
+                    f'{path}: please use simple `#![cfg(feature = "...")] for feature predicates, got `#![cfg({body})]`'
+                )
+
+            features.add(feature.group(1))
+
+        if features:
+            expected_tests[path.stem] = sorted(features)
+
+    declared_tests = {
+        test["name"]: test
+        for test in toml.loads((PYO3_DIR / "Cargo.toml").read_text()).get("test", [])
+    }
+    all_test_names = sorted(expected_tests.keys() | declared_tests.keys())
+
+    for test in all_test_names:
+        if (expected := expected_tests.get(test)) is None:
+            errors.append(f"Remove [[test]] entry for {test!r} from Cargo.toml")
+            continue
+
+        declared = declared_tests.get(test, {})
+        declared_features = declared.get("required-features", [])
+
+        if set(declared_features) != set(expected):
+            errors.append(
+                f"""- Update Cargo.toml for test {test}:
+
+    [[test]]
+    name = "{test}"
+    required-features = [{", ".join(f'"{f}"' for f in expected)}]
+                """
+            )
+
+    if errors:
+        print("Errors found in test feature predicates:", file=sys.stderr)
+        for error in errors:
+            print("  " + error, file=sys.stderr)
+        session.error()
+
+
 @nox.session(name="address-sanitizer", venv_backend="none")
 def address_sanitizer(session: nox.Session):
     _run_cargo(
@@ -1111,7 +1187,7 @@ def set_msrv_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    _run_cargo(session, "run", _FFI_CHECK)
+    _run_cargo(session, "run", _FFI_CHECK, "--message-format=short")
     _check_raw_dylib_macro(session)
 
 

@@ -1,80 +1,79 @@
-#[cfg(feature = "serde")]
-mod test_serde {
-    use pyo3::prelude::*;
+#![cfg(feature = "serde")]
 
-    use serde::{Deserialize, Serialize};
+use pyo3::prelude::*;
 
-    #[pyclass]
-    #[derive(Debug, Serialize, Deserialize)]
-    struct Group {
-        name: String,
-    }
+use serde::{Deserialize, Serialize};
 
-    #[pyclass]
-    #[derive(Debug, Serialize, Deserialize)]
-    struct User {
-        username: String,
-        group: Option<Py<Group>>,
-        friends: Vec<Py<User>>,
-    }
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize)]
+struct Group {
+    name: String,
+}
 
-    #[test]
-    fn test_serialize() {
-        let friend1 = User {
-            username: "friend 1".into(),
-            group: None,
-            friends: vec![],
-        };
-        let friend2 = User {
-            username: "friend 2".into(),
-            group: None,
-            friends: vec![],
-        };
+#[pyclass]
+#[derive(Debug, Serialize, Deserialize)]
+struct User {
+    username: String,
+    group: Option<Py<Group>>,
+    friends: Vec<Py<User>>,
+}
 
-        let user = Python::attach(|py| {
-            let py_friend1 = Py::new(py, friend1).expect("failed to create friend 1");
-            let py_friend2 = Py::new(py, friend2).expect("failed to create friend 2");
+#[test]
+fn test_serialize() {
+    let friend1 = User {
+        username: "friend 1".into(),
+        group: None,
+        friends: vec![],
+    };
+    let friend2 = User {
+        username: "friend 2".into(),
+        group: None,
+        friends: vec![],
+    };
 
-            let friends = vec![py_friend1, py_friend2];
-            let py_group = Py::new(
-                py,
-                Group {
-                    name: "group name".into(),
-                },
-            )
-            .unwrap();
+    let user = Python::attach(|py| {
+        let py_friend1 = Py::new(py, friend1).expect("failed to create friend 1");
+        let py_friend2 = Py::new(py, friend2).expect("failed to create friend 2");
 
-            User {
-                username: "danya".into(),
-                group: Some(py_group),
-                friends,
-            }
-        });
+        let friends = vec![py_friend1, py_friend2];
+        let py_group = Py::new(
+            py,
+            Group {
+                name: "group name".into(),
+            },
+        )
+        .unwrap();
 
-        let serialized = serde_json::to_string(&user).expect("failed to serialize");
-        assert_eq!(
-            serialized,
-            r#"{"username":"danya","group":{"name":"group name"},"friends":[{"username":"friend 1","group":null,"friends":[]},{"username":"friend 2","group":null,"friends":[]}]}"#
-        );
-    }
+        User {
+            username: "danya".into(),
+            group: Some(py_group),
+            friends,
+        }
+    });
 
-    #[test]
-    fn test_deserialize() {
-        let serialized = r#"{"username": "danya", "friends":
+    let serialized = serde_json::to_string(&user).expect("failed to serialize");
+    assert_eq!(
+        serialized,
+        r#"{"username":"danya","group":{"name":"group name"},"friends":[{"username":"friend 1","group":null,"friends":[]},{"username":"friend 2","group":null,"friends":[]}]}"#
+    );
+}
+
+#[test]
+fn test_deserialize() {
+    let serialized = r#"{"username": "danya", "friends":
         [{"username": "friend", "group": {"name": "danya's friends"}, "friends": []}]}"#;
-        let user: User = serde_json::from_str(serialized).expect("failed to deserialize");
+    let user: User = serde_json::from_str(serialized).expect("failed to deserialize");
 
-        assert_eq!(user.username, "danya");
-        assert!(user.group.is_none());
-        assert_eq!(user.friends.len(), 1usize);
-        let friend = user.friends.first().unwrap();
+    assert_eq!(user.username, "danya");
+    assert!(user.group.is_none());
+    assert_eq!(user.friends.len(), 1usize);
+    let friend = user.friends.first().unwrap();
 
-        Python::attach(|py| {
-            assert_eq!(friend.borrow(py).username, "friend");
-            assert_eq!(
-                friend.borrow(py).group.as_ref().unwrap().borrow(py).name,
-                "danya's friends"
-            )
-        });
-    }
+    Python::attach(|py| {
+        assert_eq!(friend.borrow(py).username, "friend");
+        assert_eq!(
+            friend.borrow(py).group.as_ref().unwrap().borrow(py).name,
+            "danya's friends"
+        )
+    });
 }

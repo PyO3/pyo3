@@ -41,7 +41,7 @@
 //! PyO3 uses `rustc`'s `--cfg` flags to enable or disable code used for different Python versions.
 //! If you want to do this for your own crate, you can do so with the [`pyo3-build-config`] crate.
 //!
-//! - `Py_3_8`, `Py_3_9`, `Py_3_10`, `Py_3_11`, `Py_3_12`, `Py_3_13`, `Py_3_14`: Marks code that is
+//! - `Py_3_8`, `Py_3_9`, `Py_3_10`, `Py_3_11`, `Py_3_12`, `Py_3_13`, `Py_3_14`, `Py_3_15`: Marks code that is
 //!    only enabled when compiling for a given minimum Python version.
 //! - `Py_LIMITED_API`: Marks code enabled when the `abi3` feature flag is enabled.
 //! - `Py_GIL_DISABLED`: Marks code that runs only in the free-threaded build of CPython.
@@ -129,6 +129,8 @@
 //! ```rust,no_run
 //! #[cfg(Py_3_15)]
 //! use core::ffi::c_void;
+//! #[cfg(not(Py_3_15))]
+//! use core::ffi::c_int;
 //! use core::ffi::{c_char, c_long};
 //! use core::ptr;
 //!
@@ -160,34 +162,11 @@
 //!     PyMethodDef::zeroed(),
 //! ];
 //!
-//! #[cfg(Py_3_15)]
-//! PyABIInfo_VAR!(ABI_INFO);
-//!
 //! const SLOTS_LEN: usize =
 //!     1 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize + 4 * (cfg!(Py_3_15) as usize);
+//!
+//! #[cfg(not(Py_3_15))]
 //! static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
-//!     #[cfg(Py_3_15)]
-//!     PyModuleDef_Slot {
-//!         slot: Py_mod_abi,
-//!         value: (&raw mut ABI_INFO).cast(),
-//!     },
-//!     #[cfg(Py_3_15)]
-//!     PyModuleDef_Slot {
-//!         slot: Py_mod_name,
-//!         // safety: Python does not write to this field
-//!         value: c"string_sum".as_ptr() as *mut c_void,
-//!     },
-//!     #[cfg(Py_3_15)]
-//!     PyModuleDef_Slot {
-//!         slot: Py_mod_doc,
-//!         // safety: Python does not write to this field
-//!         value: c"A Python module written in Rust.".as_ptr() as *mut c_void,
-//!     },
-//!     #[cfg(Py_3_15)]
-//!     PyModuleDef_Slot {
-//!         slot: Py_mod_methods,
-//!         value: (&raw mut METHODS).cast(),
-//!     },
 //!     #[cfg(Py_3_12)]
 //!     PyModuleDef_Slot {
 //!         slot: Py_mod_multiple_interpreters,
@@ -204,6 +183,21 @@
 //!     },
 //! ];
 //!
+//! #[cfg(Py_3_15)]
+//! PyABIInfo_VAR!(ABI_INFO);
+//!
+//! #[cfg(Py_3_15)]
+//! static mut SLOTS: [PySlot; SLOTS_LEN] = [
+//!     PySlot_STATIC_DATA(Py_mod_abi, core::ptr::addr_of_mut!(ABI_INFO).cast()),
+//!     PySlot_STATIC_DATA(Py_mod_name, c"string_sum".as_ptr() as *mut c_void),
+//!     PySlot_STATIC_DATA(Py_mod_doc, c"A Python module written in Rust.".as_ptr() as *mut c_void),
+//!     PySlot_STATIC_DATA(Py_mod_methods, (&raw mut METHODS).cast()),
+//!     PySlot_DATA(Py_mod_multiple_interpreters, Py_MOD_PER_INTERPRETER_GIL_SUPPORTED),
+//!     #[cfg(Py_GIL_DISABLED)]
+//!     PySlot_DATA(Py_mod_gil, Py_MOD_GIL_NOT_USED),
+//!     PySlot_END(),
+//! ];
+//!
 //! // The module initialization function
 //! #[cfg(not(Py_3_15))]
 //! #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
@@ -215,7 +209,7 @@
 //! #[cfg(Py_3_15)]
 //! #[allow(non_snake_case, reason = "must be named `PyModExport_<your_module>`")]
 //! #[no_mangle]
-//! pub unsafe extern "C" fn PyModExport_string_sum() -> *mut PyModuleDef_Slot {
+//! pub unsafe extern "C" fn PyModExport_string_sum() -> *mut PySlot {
 //!     (&raw mut SLOTS).cast()
 //! }
 //!
@@ -449,6 +443,8 @@ pub use self::compile::*;
 pub use self::complexobject::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::context::*;
+#[cfg(Py_3_13)]
+pub use self::critical_section::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::*;
 pub use self::descrobject::*;
@@ -491,11 +487,13 @@ pub use self::rangeobject::*;
 pub use self::refcount::*;
 pub use self::setobject::*;
 pub use self::sliceobject::*;
+#[cfg(Py_3_15)]
+pub use self::slots::*;
+pub use self::slots_generated::*;
 pub use self::structseq::*;
 pub use self::sysmodule::*;
 pub use self::traceback::*;
 pub use self::tupleobject::*;
-pub use self::typeslots::*;
 pub use self::unicodeobject::*;
 pub use self::warnings::*;
 pub use self::weakrefobject::*;
@@ -516,6 +514,7 @@ mod compile;
 mod complexobject;
 #[cfg(not(Py_LIMITED_API))]
 mod context;
+mod critical_section;
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;
 mod descrobject;
@@ -583,12 +582,13 @@ mod rangeobject;
 mod refcount;
 mod setobject;
 mod sliceobject;
+mod slots;
+mod slots_generated;
 mod structseq;
 mod sysmodule;
 mod traceback;
 // skipped tracemalloc.h
 mod tupleobject;
-mod typeslots;
 mod unicodeobject;
 mod warnings;
 mod weakrefobject;

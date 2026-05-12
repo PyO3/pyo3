@@ -28,6 +28,7 @@ extern_libpython! {
         deprecated(note = "Deprecated since Python 3.11. Use `PyConfig.program_name` instead.")
     )]
     pub fn Py_SetProgramName(arg1: *const wchar_t);
+    #[cfg(not(Py_3_15))]
     #[cfg_attr(PyPy, link_name = "PyPy_GetProgramName")]
     #[cfg_attr(
         Py_3_13,
@@ -40,6 +41,7 @@ extern_libpython! {
         deprecated(note = "Deprecated since Python 3.11. Use `PyConfig.home` instead.")
     )]
     pub fn Py_SetPythonHome(arg1: *const wchar_t);
+    #[cfg(not(Py_3_15))]
     #[cfg_attr(
         Py_3_13,
         deprecated(
@@ -47,21 +49,25 @@ extern_libpython! {
         )
     )]
     pub fn Py_GetPythonHome() -> *mut wchar_t;
+    #[cfg(not(Py_3_15))]
     #[cfg_attr(
         Py_3_13,
         deprecated(note = "Deprecated since Python 3.13. Use `sys.executable` instead.")
     )]
     pub fn Py_GetProgramFullPath() -> *mut wchar_t;
+    #[cfg(not(Py_3_15))]
     #[cfg_attr(
         Py_3_13,
         deprecated(note = "Deprecated since Python 3.13. Use `sys.prefix` instead.")
     )]
     pub fn Py_GetPrefix() -> *mut wchar_t;
+    #[cfg(not(Py_3_15))]
     #[cfg_attr(
         Py_3_13,
         deprecated(note = "Deprecated since Python 3.13. Use `sys.exec_prefix` instead.")
     )]
     pub fn Py_GetExecPrefix() -> *mut wchar_t;
+    #[cfg(not(Py_3_15))]
     #[cfg_attr(
         Py_3_13,
         deprecated(note = "Deprecated since Python 3.13. Use `sys.path` instead.")
