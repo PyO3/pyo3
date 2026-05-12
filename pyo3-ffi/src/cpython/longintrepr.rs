@@ -32,7 +32,7 @@ pub struct PyLongExport {
     pub negative: u8,
     pub ndigits: Py_ssize_t,
     pub digits: *const c_void,
-    pub _reserved: Py_uintptr_t,
+    _reserved: Py_uintptr_t,
 }
 
 extern_libpython! {
