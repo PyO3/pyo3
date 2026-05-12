@@ -74,7 +74,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                     major: 3,
                     minor: 15,
                 };
-                if interpreter_config.target_abi.kind().is_free_threaded() {
+                if interpreter_config.target_abi().kind().is_free_threaded() {
                     if (PythonVersion { major, minor }) > py_3_15 {
                         if env_var("PYO3_USE_ABI3T_FORWARD_COMPATIBILITY")
                             .is_none_or(|os_str| os_str != "1")
@@ -108,7 +108,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                     interpreter_config.target_abi().version() >= min_free_threaded_version,
                     "PyO3 does not support the free-threaded build of CPython versions below {}, the selected Python version is {}",
                     min_free_threaded_version,
-                    interpreter_config.target_abi.version(),
+                    interpreter_config.target_abi().version(),
                 );
             }
         }
@@ -148,7 +148,11 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
             PythonImplementation::CPython => match abi {
                 StableAbi::Abi3t => {
                     ensure!(
-                        interpreter_config.target_abi().version() >= PythonVersion::PY315,
+                        interpreter_config.target_abi().version()
+                            >= PythonVersion {
+                                major: 3,
+                                minor: 15
+                            },
                         "Abi3t builds are not supported on CPython targets before Python 3.15"
                     )
                 }

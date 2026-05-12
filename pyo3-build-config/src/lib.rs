@@ -14,8 +14,8 @@ use std::{env, process::Command, str::FromStr, sync::LazyLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
-    CrossCompileConfig, GilUsed, InterpreterConfigBuilder, PythonAbi, PythonAbiBuilder,
-    PythonAbiKind, PythonImplementation, PythonVersion, StableAbi, Triple,
+    CrossCompileConfig, GilUsed, InterpreterConfig, InterpreterConfigBuilder, PythonAbi,
+    PythonAbiBuilder, PythonAbiKind, PythonImplementation, PythonVersion, StableAbi, Triple,
 };
 
 use target_lexicon::OperatingSystem;
@@ -311,13 +311,13 @@ pub mod pyo3_build_script_impl {
             interpreter_config: &InterpreterConfig,
             supported_version: PythonVersion,
         ) -> Self {
-            let implementation = match interpreter_config.target_abi.implementation() {
+            let implementation = match interpreter_config.target_abi().implementation() {
                 PythonImplementation::CPython => "Python",
                 PythonImplementation::PyPy => "PyPy",
                 PythonImplementation::GraalPy => "GraalPy",
                 PythonImplementation::RustPython => "RustPython",
             };
-            let version = &interpreter_config.target_abi.version();
+            let version = &interpreter_config.target_abi().version();
             let message = format!(
                 "the configured {implementation} version ({version}) is newer than PyO3's maximum supported version ({supported_version})\n\
                 = help: this package is being built with PyO3 version {current_version}\n\
@@ -409,9 +409,9 @@ mod tests {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY313;
         let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
-            .python_framework_prefix(Some(
+            .python_framework_prefix(
                 "/Applications/Xcode.app/Contents/Developer/Library/Frameworks".to_string(),
-            ))
+            )
             .finalize()
             .unwrap();
 
