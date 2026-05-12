@@ -9,6 +9,16 @@ use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use pyo3_build_config::PythonVersion;
 use quote::quote;
 
+const PY_3_15: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 15,
+};
+
+const PY_3_12: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 12,
+};
+
 /// Macro which expands to multiple macro calls, one per pyo3-ffi struct.
 #[proc_macro]
 pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -34,7 +44,7 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
             .strip_suffix(".html")
             .unwrap();
 
-        if pyo3_build_config::get().target_abi.version < PythonVersion::PY315
+        if pyo3_build_config::get().target_abi().version() < PY_3_15
             && struct_name == "PyBytesWriter"
         {
             // PyBytesWriter was added in Python 3.15
@@ -160,7 +170,7 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
         // bindgen picked `type_` as the field name to avoid the `type` keyword, but PyO3 uses `type_code`
         all_fields.remove("type_");
     } else if struct_name == "PyObject"
-        && pyo3_build_config::get().target_abi.version >= PythonVersion::PY312
+        && pyo3_build_config::get().target_abi().version() >= PY_3_12
     {
         // bindgen picked `__bindgen_anon_1` as the field name for the anonymous union containing ob_refcnt,
         // PyO3 uses ob_refcnt directly
@@ -178,8 +188,7 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
 
         let field_ident = Ident::new(&field_name, Span::call_site());
 
-        let bindgen_field_ident = if (pyo3_build_config::get().target_abi.version
-            >= PythonVersion::PY312)
+        let bindgen_field_ident = if (pyo3_build_config::get().target_abi().version() >= PY_3_12)
             && struct_name == "PyObject"
             && field_name == "ob_refcnt"
         {
@@ -554,7 +563,8 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             continue;
         }
 
-        if pyo3_build_config::get().implementation == pyo3_build_config::PythonImplementation::PyPy
+        if pyo3_build_config::get().implementation()
+            == pyo3_build_config::PythonImplementation::PyPy
         {
             // If the function doesn't exist in PyPy, for now we don't care:
             // - For PyO3 inline functions it's probably fine to include anyway

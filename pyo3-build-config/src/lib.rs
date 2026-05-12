@@ -14,8 +14,8 @@ use std::{env, process::Command, str::FromStr, sync::LazyLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
-    CrossCompileConfig, GilUsed, InterpreterConfig, InterpreterConfigBuilder, PythonAbi,
-    PythonAbiBuilder, PythonAbiKind, PythonImplementation, PythonVersion, StableAbi, Triple,
+    CrossCompileConfig, GilUsed, InterpreterConfigBuilder, PythonAbi, PythonAbiBuilder,
+    PythonAbiKind, PythonImplementation, PythonVersion, StableAbi, Triple,
 };
 
 use target_lexicon::OperatingSystem;
@@ -108,7 +108,7 @@ fn _add_libpython_rpath_link_args(
     mut writer: impl std::io::Write,
 ) {
     if is_linking_libpython {
-        if let Some(lib_dir) = interpreter_config.lib_dir.as_ref() {
+        if let Some(lib_dir) = interpreter_config.lib_dir() {
             writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}").unwrap();
         }
     }
@@ -139,7 +139,7 @@ fn _add_python_framework_link_args(
     mut writer: impl std::io::Write,
 ) {
     if matches!(triple.operating_system, OperatingSystem::Darwin(_)) && link_libpython {
-        if let Some(framework_prefix) = interpreter_config.python_framework_prefix.as_ref() {
+        if let Some(framework_prefix) = interpreter_config.python_framework_prefix() {
             writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{framework_prefix}").unwrap();
         }
     }
@@ -354,6 +354,7 @@ fn rustc_minor_version() -> Option<u32> {
 }
 
 #[cfg(test)]
+#[expect(deprecated, reason = "accessing config directly")]
 mod tests {
     use crate::impl_::escape;
 
@@ -413,6 +414,7 @@ mod tests {
             ))
             .finalize()
             .unwrap();
+
         // Does nothing on non-mac
         _add_python_framework_link_args(
             &interpreter_config,
@@ -443,10 +445,7 @@ mod tests {
             .unwrap();
         let mut error = pyo3_build_script_impl::MaximumVersionExceeded::new(
             &interpreter_config,
-            PythonVersion {
-                major: 3,
-                minor: 12,
-            },
+            PythonVersion::PY312,
         );
         error.add_help("this is a help message");
         let error = error.finish();

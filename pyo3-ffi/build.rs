@@ -45,10 +45,10 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
         return Ok(());
     }
 
-    match interpreter_config.target_abi.implementation() {
+    match interpreter_config.target_abi().implementation() {
         PythonImplementation::CPython => {
             let versions = SUPPORTED_VERSIONS_CPYTHON;
-            let interp_version = interpreter_config.target_abi.version();
+            let interp_version = interpreter_config.target_abi().version();
             ensure!(
                 interp_version >= versions.min,
                 "the configured Python interpreter version ({}) is lower than PyO3's minimum supported version ({})",
@@ -99,13 +99,13 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 }
             }
 
-            if interpreter_config.target_abi.kind().is_free_threaded() {
+            if interpreter_config.target_abi().kind().is_free_threaded() {
                 let min_free_threaded_version = PythonVersion {
                     major: 3,
                     minor: 14,
                 };
                 ensure!(
-                    interpreter_config.target_abi.version() >= min_free_threaded_version,
+                    interpreter_config.target_abi().version() >= min_free_threaded_version,
                     "PyO3 does not support the free-threaded build of CPython versions below {}, the selected Python version is {}",
                     min_free_threaded_version,
                     interpreter_config.target_abi.version(),
@@ -115,13 +115,13 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
         PythonImplementation::PyPy => {
             let versions = SUPPORTED_VERSIONS_PYPY;
             ensure!(
-                interpreter_config.target_abi.version() >= versions.min,
+                interpreter_config.target_abi().version() >= versions.min,
                 "the configured PyPy interpreter version ({}) is lower than PyO3's minimum supported version ({})",
-                interpreter_config.target_abi.version(),
+                interpreter_config.target_abi().version(),
                 versions.min,
             );
             // PyO3 does not support abi3, so we cannot offer forward compatibility
-            if interpreter_config.target_abi.version() > versions.max {
+            if interpreter_config.target_abi().version() > versions.max {
                 let error = MaximumVersionExceeded::new(interpreter_config, versions.max);
                 return Err(error.finish().into());
             }
@@ -129,13 +129,13 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
         PythonImplementation::GraalPy => {
             let versions = SUPPORTED_VERSIONS_GRAALPY;
             ensure!(
-                interpreter_config.target_abi.version() >= versions.min,
+                interpreter_config.target_abi().version() >= versions.min,
                 "the configured GraalPy interpreter version ({}) is lower than PyO3's minimum supported version ({})",
-                interpreter_config.target_abi.version(),
+                interpreter_config.target_abi().version(),
                 versions.min,
             );
             // GraalPy does not support abi3, so we cannot offer forward compatibility
-            if interpreter_config.target_abi.version() > versions.max {
+            if interpreter_config.target_abi().version() > versions.max {
                 let error = MaximumVersionExceeded::new(interpreter_config, versions.max);
                 return Err(error.finish().into());
             }
@@ -143,12 +143,12 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
         PythonImplementation::RustPython => {}
     }
 
-    if let PythonAbiKind::Stable(abi) = interpreter_config.target_abi.kind() {
-        match interpreter_config.target_abi.implementation() {
+    if let PythonAbiKind::Stable(abi) = interpreter_config.target_abi().kind() {
+        match interpreter_config.target_abi().implementation() {
             PythonImplementation::CPython => match abi {
                 StableAbi::Abi3t => {
                     ensure!(
-                        interpreter_config.target_abi.version() >= PythonVersion::PY315,
+                        interpreter_config.target_abi().version() >= PythonVersion::PY315,
                         "Abi3t builds are not supported on CPython targets before Python 3.15"
                     )
                 }
@@ -169,7 +169,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
 }
 
 fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result<()> {
-    if let Some(pointer_width) = interpreter_config.pointer_width {
+    if let Some(pointer_width) = interpreter_config.pointer_width() {
         // Try to check whether the target architecture matches the python library
         let rust_target = match cargo_env_var("CARGO_CFG_TARGET_POINTER_WIDTH")
             .unwrap()
@@ -195,8 +195,7 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
     let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
 
     let lib_name = interpreter_config
-        .lib_name
-        .as_ref()
+        .lib_name()
         .ok_or("attempted to link to Python shared library but config does not contain lib_name")?;
 
     if target_os == "windows" {
@@ -211,14 +210,14 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
     } else {
         println!(
             "cargo:rustc-link-lib={link_model}{lib_name}",
-            link_model = if interpreter_config.shared {
+            link_model = if interpreter_config.shared() {
                 ""
             } else {
                 "static="
             },
         );
 
-        if let Some(lib_dir) = &interpreter_config.lib_dir {
+        if let Some(lib_dir) = interpreter_config.lib_dir() {
             println!("cargo:rustc-link-search=native={lib_dir}");
         } else if matches!(build_config.source, BuildConfigSource::CrossCompile) {
             warn!(
@@ -256,7 +255,7 @@ fn configure_pyo3() -> Result<()> {
     interpreter_config.to_cargo_dep_env()?;
 
     if is_linking_libpython_for_target(&target)
-        && !interpreter_config.suppress_build_script_link_lines
+        && !interpreter_config.suppress_build_script_link_lines()
     {
         emit_link_config(&build_config)?;
     }
@@ -266,7 +265,7 @@ fn configure_pyo3() -> Result<()> {
     }
 
     // Extra lines come last, to support last write wins.
-    for line in &interpreter_config.extra_build_script_lines {
+    for line in interpreter_config.extra_build_script_lines() {
         println!("{line}");
     }
 
