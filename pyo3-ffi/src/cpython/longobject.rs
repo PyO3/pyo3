@@ -1,7 +1,6 @@
 use crate::{longobject::*, object::*};
+use core::ffi::{c_int, c_uchar};
 use libc::size_t;
-use std::ffi::{c_int, c_uchar};
-
 
 // skipped _PyLong_CAST
 
