@@ -78,7 +78,7 @@ pub const unsafe fn PySlot_FUNC(NAME: c_int, VALUE: *mut c_void) -> PySlot {
         sl_flags: 0,
         anon1: _anon_union_32b { sl_reserved: 0 },
         anon2: _anon_union_64b {
-            sl_func: unsafe { std::mem::transmute::<*mut c_void, _Py_funcptr_t>(VALUE) },
+            sl_func: unsafe { core::mem::transmute::<*mut c_void, _Py_funcptr_t>(VALUE) },
         },
     }
 }
