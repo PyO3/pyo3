@@ -1868,7 +1868,6 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
     );
 
     let builder = InterpreterConfigBuilder::new(implementation, version)
-        .shared(true)
         .abi3(abi3)
         .lib_name(lib_name)
         .lib_dir_opt(cross_compile_config.lib_dir_string());
@@ -1904,7 +1903,6 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> Result<Interpre
     };
 
     let builder = InterpreterConfigBuilder::new(implementation, version)
-        .shared(true)
         .abi3(abi3)
         .lib_name_opt(lib_name);
 
