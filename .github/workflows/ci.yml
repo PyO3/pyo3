@@ -699,11 +699,13 @@ jobs:
           - os: "ubuntu-latest"
             target: "aarch64-unknown-linux-gnu"
             flags: "-i python3.13"
+            apt-packages: gcc-aarch64-linux-gnu
           # ubuntu x86_64 -> windows x86_64
           - os: "ubuntu-latest"
             target: "x86_64-pc-windows-gnu"
             # TODO: remove pyo3/generate-import-lib feature when maturin supports cross compiling to Windows without it
             flags: "-i python3.13 --features pyo3/generate-import-lib"
+            apt-packages: mingw-w64 llvm
           # windows x86_64 -> aarch64
           - os: "windows-latest"
             target: "aarch64-pc-windows-msvc"
@@ -721,9 +723,9 @@ jobs:
           workspaces: examples/maturin-starter
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
           key: ${{ matrix.target }}
-      - name: Setup cross-compiler
-        if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
-        run: sudo apt-get install -y mingw-w64 llvm
+      - name: Setup cross-compiler packages
+        if: ${{ matrix.apt-packages }}
+        run: sudo apt-get install -y ${{ matrix.apt-packages }}
       - uses: ./.github/actions/prepare-coverage
       - name: Compile version-specific library
         uses: PyO3/maturin-action@v1
@@ -740,7 +742,7 @@ jobs:
       - uses: ./.github/actions/report-coverage
         with:
           name: ${{ github.job }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   test-cross-compilation-windows:
     needs: [fmt, resolve]
@@ -768,7 +770,7 @@ jobs:
       - uses: ./.github/actions/report-coverage
         with:
           name: ${{ github.job }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   test-introspection:
     needs: [fmt]
