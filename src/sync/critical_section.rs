@@ -42,15 +42,20 @@ use crate::types::PyMutex;
 
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use crate::Python;
-#[cfg(not(Py_TARGET_ABI3T))]
 use crate::{types::PyAny, Bound};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use std::cell::UnsafeCell;
 
-#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
+#[cfg(all(
+    Py_GIL_DISABLED,
+    any(all(not(Py_LIMITED_API), not(Py_3_15)), all(Py_LIMITED_API, Py_3_15))
+))]
 struct CSGuard(crate::ffi::PyCriticalSection);
 
-#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
+#[cfg(all(
+    Py_GIL_DISABLED,
+    any(all(not(Py_LIMITED_API), not(Py_3_15)), all(Py_LIMITED_API, Py_3_15))
+))]
 impl Drop for CSGuard {
     fn drop(&mut self) {
         unsafe {
@@ -59,10 +64,16 @@ impl Drop for CSGuard {
     }
 }
 
-#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
+#[cfg(all(
+    Py_GIL_DISABLED,
+    any(all(not(Py_LIMITED_API), not(Py_3_15)), all(Py_LIMITED_API, Py_3_15))
+))]
 struct CS2Guard(crate::ffi::PyCriticalSection2);
 
-#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
+#[cfg(all(
+    Py_GIL_DISABLED,
+    any(all(not(Py_LIMITED_API), not(Py_3_15)), all(Py_LIMITED_API, Py_3_15))
+))]
 impl Drop for CS2Guard {
     fn drop(&mut self) {
         unsafe {
@@ -126,7 +137,6 @@ impl<T> EnteredCriticalSection<'_, T> {
 ///
 /// This is structurally equivalent to the use of the paired Py_BEGIN_CRITICAL_SECTION and
 /// Py_END_CRITICAL_SECTION C-API macros.
-#[cfg(not(Py_TARGET_ABI3T))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
 pub fn with_critical_section<F, R>(object: &Bound<'_, PyAny>, f: F) -> R
 where
@@ -154,7 +164,6 @@ where
 ///
 /// This is structurally equivalent to the use of the paired
 /// Py_BEGIN_CRITICAL_SECTION2 and Py_END_CRITICAL_SECTION2 C-API macros.
-#[cfg(not(Py_TARGET_ABI3T))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
 pub fn with_critical_section2<F, R>(a: &Bound<'_, PyAny>, b: &Bound<'_, PyAny>, f: F) -> R
 where
@@ -271,40 +280,30 @@ where
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "macros")]
-    #[cfg(not(Py_TARGET_ABI3T))]
     use super::{with_critical_section, with_critical_section2};
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
     use super::{with_critical_section_mutex, with_critical_section_mutex2};
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
     use crate::types::PyMutex;
-    #[cfg(all(not(Py_TARGET_ABI3T), feature = "macros"))]
+    #[cfg(feature = "macros")]
     use std::sync::atomic::{AtomicBool, Ordering};
-    #[cfg(all(
-        not(Py_TARGET_ABI3T),
-        any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14))
-    ))]
+    #[cfg(any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14)))]
     use std::sync::Barrier;
 
-    #[cfg(all(not(Py_TARGET_ABI3T), feature = "macros"))]
+    #[cfg(feature = "macros")]
     use crate::Py;
-    #[cfg(all(
-        not(Py_TARGET_ABI3T),
-        any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14))
-    ))]
+    #[cfg(any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14)))]
     use crate::Python;
 
-    #[cfg(not(Py_TARGET_ABI3T))]
     #[cfg(feature = "macros")]
     #[crate::pyclass(crate = "crate")]
     struct VecWrapper(Vec<isize>);
 
-    #[cfg(not(Py_TARGET_ABI3T))]
     #[cfg(feature = "macros")]
     #[crate::pyclass(crate = "crate")]
     struct BoolWrapper(AtomicBool);
 
     #[cfg(feature = "macros")]
-    #[cfg(not(Py_TARGET_ABI3T))]
     #[test]
     fn test_critical_section() {
         let barrier = Barrier::new(2);
@@ -370,7 +369,6 @@ mod tests {
 
     #[cfg(feature = "macros")]
     #[test]
-    #[cfg(not(Py_TARGET_ABI3T))]
     fn test_critical_section2() {
         let barrier = Barrier::new(3);
 
@@ -453,7 +451,6 @@ mod tests {
 
     #[cfg(feature = "macros")]
     #[test]
-    #[cfg(not(Py_TARGET_ABI3T))]
     fn test_critical_section2_same_object_no_deadlock() {
         let barrier = Barrier::new(2);
 
@@ -519,7 +516,6 @@ mod tests {
 
     #[cfg(feature = "macros")]
     #[test]
-    #[cfg(not(Py_TARGET_ABI3T))]
     fn test_critical_section2_two_containers() {
         let (vec1, vec2) = Python::attach(|py| {
             (

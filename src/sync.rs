@@ -9,7 +9,6 @@
 //! interpreter.
 //!
 //! This module provides synchronization primitives which are able to synchronize under these conditions.
-#[cfg(not(Py_TARGET_ABI3T))]
 use crate::types::PyAny;
 use crate::{internal::state::SuspendAttach, sealed::Sealed, types::PyString, Bound, Py, Python};
 use std::{
@@ -27,7 +26,6 @@ pub(crate) mod once_lock;
     since = "0.28.0",
     note = "use pyo3::sync::critical_section::with_critical_section instead"
 )]
-#[cfg(not(Py_TARGET_ABI3T))]
 pub fn with_critical_section<F, R>(object: &Bound<'_, PyAny>, f: F) -> R
 where
     F: FnOnce() -> R,
@@ -40,7 +38,6 @@ where
     since = "0.28.0",
     note = "use pyo3::sync::critical_section::with_critical_section2 instead"
 )]
-#[cfg(not(Py_TARGET_ABI3T))]
 pub fn with_critical_section2<F, R>(a: &Bound<'_, PyAny>, b: &Bound<'_, PyAny>, f: F) -> R
 where
     F: FnOnce() -> R,

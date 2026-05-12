@@ -115,7 +115,6 @@ impl<'py> IntoPyObject<'py> for &Bytes {
 mod tests {
     use super::*;
     use crate::types::{PyAnyMethods, PyBytes};
-    #[cfg(not(Py_TARGET_ABI3T))]
     use crate::types::{PyByteArray, PyByteArrayMethods};
     use crate::Python;
 
@@ -132,7 +131,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(Py_TARGET_ABI3T))]
     fn test_bytearray() {
         Python::attach(|py| {
             let py_bytearray = PyByteArray::new(py, b"foobar");

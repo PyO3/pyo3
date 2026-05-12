@@ -4,15 +4,13 @@
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_union;
-#[cfg(any(feature = "experimental-inspect", not(Py_TARGET_ABI3T)))]
-use crate::types::bytearray::PyByteArray;
-#[cfg(not(Py_TARGET_ABI3T))]
-use crate::types::bytearray::PyByteArrayMethods;
 use crate::{
-    types::{bytes::PyBytesMethods, string::PyStringMethods, PyBytes, PyString, PyTuple},
+    types::{
+        bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
+        PyBytes, PyString, PyTuple,
+    },
     Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo, Python,
 };
-#[cfg(not(Py_TARGET_ABI3T))]
 use std::sync::Arc;
 use std::{borrow::Borrow, convert::Infallible, ops::Deref, ptr::NonNull};
 
@@ -192,7 +190,6 @@ pub struct PyBackedBytes {
 #[cfg_attr(feature = "py-clone", derive(Clone))]
 enum PyBackedBytesStorage {
     Python(Py<PyBytes>),
-    #[cfg(not(Py_TARGET_ABI3T))]
     Rust(Arc<[u8]>),
 }
 
@@ -206,7 +203,6 @@ impl PyBackedBytes {
                 PyBackedBytesStorage::Python(bytes) => {
                     PyBackedBytesStorage::Python(bytes.clone_ref(py))
                 }
-                #[cfg(not(Py_TARGET_ABI3T))]
                 PyBackedBytesStorage::Rust(bytes) => PyBackedBytesStorage::Rust(bytes.clone()),
             },
             data: self.data,
@@ -270,7 +266,6 @@ impl From<Bound<'_, PyBytes>> for PyBackedBytes {
     }
 }
 
-#[cfg(not(Py_TARGET_ABI3T))]
 impl From<Bound<'_, PyByteArray>> for PyBackedBytes {
     fn from(py_bytearray: Bound<'_, PyByteArray>) -> Self {
         let s = Arc::<[u8]>::from(py_bytearray.to_vec());
@@ -289,39 +284,23 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyBackedBytes {
     const INPUT_TYPE: PyStaticExpr = type_hint_union!(PyBytes::TYPE_HINT, PyByteArray::TYPE_HINT);
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
-        #[cfg(not(Py_TARGET_ABI3T))]
-        {
-            if let Ok(bytes) = obj.cast::<PyBytes>() {
-                Ok(Self::from(bytes.to_owned()))
-            } else if let Ok(bytearray) = obj.cast::<PyByteArray>() {
-                Ok(Self::from(bytearray.to_owned()))
-            } else {
-                Err(CastError::new(
-                    obj,
-                    PyTuple::new(
-                        obj.py(),
-                        [
-                            PyBytes::type_object(obj.py()),
-                            PyByteArray::type_object(obj.py()),
-                        ],
-                    )
-                    .unwrap()
-                    .into_any(),
-                ))
-            }
-        }
-        #[cfg(Py_TARGET_ABI3T)]
-        {
-            if let Ok(bytes) = obj.cast::<PyBytes>() {
-                Ok(Self::from(bytes.to_owned()))
-            } else {
-                Err(CastError::new(
-                    obj,
-                    PyTuple::new(obj.py(), [PyBytes::type_object(obj.py())])
-                        .unwrap()
-                        .into_any(),
-                ))
-            }
+        if let Ok(bytes) = obj.cast::<PyBytes>() {
+            Ok(Self::from(bytes.to_owned()))
+        } else if let Ok(bytearray) = obj.cast::<PyByteArray>() {
+            Ok(Self::from(bytearray.to_owned()))
+        } else {
+            Err(CastError::new(
+                obj,
+                PyTuple::new(
+                    obj.py(),
+                    [
+                        PyBytes::type_object(obj.py()),
+                        PyByteArray::type_object(obj.py()),
+                    ],
+                )
+                .unwrap()
+                .into_any(),
+            ))
         }
     }
 }
@@ -337,7 +316,6 @@ impl<'py> IntoPyObject<'py> for PyBackedBytes {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self.storage {
             PyBackedBytesStorage::Python(bytes) => Ok(bytes.into_bound(py)),
-            #[cfg(not(Py_TARGET_ABI3T))]
             PyBackedBytesStorage::Rust(bytes) => Ok(PyBytes::new(py, &bytes)),
         }
     }
@@ -354,7 +332,6 @@ impl<'py> IntoPyObject<'py> for &PyBackedBytes {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match &self.storage {
             PyBackedBytesStorage::Python(bytes) => Ok(bytes.bind(py).clone()),
-            #[cfg(not(Py_TARGET_ABI3T))]
             PyBackedBytesStorage::Rust(bytes) => Ok(PyBytes::new(py, bytes)),
         }
     }
@@ -520,7 +497,6 @@ mod test {
     }
 
     #[test]
-    #[cfg(not(Py_TARGET_ABI3T))]
     fn py_backed_bytes_from_bytearray() {
         Python::attach(|py| {
             let b = PyByteArray::new(py, b"abcde");
@@ -542,7 +518,6 @@ mod test {
     }
 
     #[test]
-    #[cfg(not(Py_TARGET_ABI3T))]
     fn rust_backed_bytes_into_pyobject() {
         Python::attach(|py| {
             let orig_bytes = PyByteArray::new(py, b"abcde");
@@ -694,7 +669,6 @@ mod test {
             let b1: PyBackedBytes = PyBytes::new(py, b"abcde").into();
             let b2 = b1.clone_ref(py);
             assert_eq!(b1, b2);
-            #[cfg_attr(Py_TARGET_ABI3T, allow(irrefutable_let_patterns))]
             let (PyBackedBytesStorage::Python(s1), PyBackedBytesStorage::Python(s2)) =
                 (&b1.storage, &b2.storage)
             else {
@@ -708,7 +682,6 @@ mod test {
     }
 
     #[cfg(feature = "py-clone")]
-    #[cfg(not(Py_TARGET_ABI3T))]
     #[test]
     fn test_backed_bytes_from_bytearray_clone() {
         Python::attach(|py| {
@@ -721,7 +694,6 @@ mod test {
         });
     }
 
-    #[cfg(not(Py_TARGET_ABI3T))]
     #[test]
     fn test_backed_bytes_from_bytearray_clone_ref() {
         Python::attach(|py| {
@@ -741,7 +713,6 @@ mod test {
     }
 
     #[test]
-    #[cfg(not(Py_TARGET_ABI3T))]
     fn test_backed_bytes_eq() {
         Python::attach(|py| {
             let b1: PyBackedBytes = PyBytes::new(py, b"abcde").into();
@@ -773,17 +744,14 @@ mod test {
             };
             assert_eq!(h, h1);
 
-            #[cfg(not(Py_TARGET_ABI3T))]
-            {
-                let b2: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
-                let h2 = {
-                    let mut hasher = DefaultHasher::new();
-                    b2.hash(&mut hasher);
-                    hasher.finish()
-                };
+            let b2: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
+            let h2 = {
+                let mut hasher = DefaultHasher::new();
+                b2.hash(&mut hasher);
+                hasher.finish()
+            };
 
-                assert_eq!(h, h2);
-            }
+            assert_eq!(h, h2);
         });
     }
 
