@@ -361,7 +361,23 @@ jobs:
                 rust-target: "aarch64-unknown-linux-gnu",
               }
           - rust: stable
+            python-version: "3.14t"
+            platform:
+              {
+                os: "ubuntu-24.04-arm",
+                python-architecture: "arm64",
+                rust-target: "aarch64-unknown-linux-gnu",
+              }
+          - rust: stable
             python-version: "3.14"
+            platform:
+              {
+                os: "windows-11-arm",
+                python-architecture: "arm64",
+                rust-target: "aarch64-pc-windows-msvc",
+              }
+          - rust: stable
+            python-version: "3.14t"
             platform:
               {
                 os: "windows-11-arm",

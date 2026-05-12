@@ -1,5 +1,5 @@
 use crate::object::*;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Here")]

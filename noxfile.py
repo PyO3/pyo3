@@ -1211,20 +1211,27 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.6")
         _run_cargo(session, "check", env=env, expect_error=True)
 
+        # We allow building with our max version + 1, to support
+        # development work
+        assert "3.16" not in PY_VERSIONS
+        config_file.set("CPython", "3.16")
+        _run_cargo(session, "check", env=env)
+
+        # We do not allow allow building with max version + 2
         assert "3.17" not in PY_VERSIONS
         config_file.set("CPython", "3.17")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        # 3.17 CPython should build if abi3 is explicitly requested
+        # max version + 2 should build if abi3 is explicitly requested
         _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
 
-        # 3.16 CPython should build with forward compatibility
-        # TODO: check on 3.17 when adding abi3-py316 support
+        # ... and also should build with forward compatibility
         config_file.set("CPython", "3.16")
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
         del env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"]
 
+        # we only support 3.11 PyPy
         assert "3.10" not in PYPY_VERSIONS
         config_file.set("PyPy", "3.10")
         _run_cargo(session, "check", env=env, expect_error=True)

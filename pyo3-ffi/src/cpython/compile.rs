@@ -8,8 +8,8 @@ use crate::pythonrun::*;
 use crate::PyCodeObject;
 use crate::INT_MAX;
 #[cfg(not(any(PyPy, Py_3_10)))]
-use std::ffi::c_char;
-use std::ffi::c_int;
+use core::ffi::c_char;
+use core::ffi::c_int;
 
 // skipped PyCF_MASK
 // skipped PyCF_MASK_OBSOLETE

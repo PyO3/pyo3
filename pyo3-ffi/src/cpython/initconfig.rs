@@ -1,8 +1,8 @@
 /* --- PyStatus ----------------------------------------------- */
 
 use crate::Py_ssize_t;
+use core::ffi::{c_char, c_int, c_ulong};
 use libc::wchar_t;
-use std::ffi::{c_char, c_int, c_ulong};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

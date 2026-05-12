@@ -1,4 +1,4 @@
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 #[allow(unused_variables)]
 const fn _Py_SLOT_COMPAT_VALUE(OLD: c_int, NEW: c_int) -> c_int {

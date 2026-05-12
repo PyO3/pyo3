@@ -1,7 +1,7 @@
 #[cfg(Py_3_15)]
 use crate::Py_ssize_t;
 #[cfg(Py_3_15)]
-use std::ffi::{c_int, c_void};
+use core::ffi::{c_int, c_void};
 
 #[cfg(Py_3_15)]
 pub type _Py_funcptr_t = unsafe extern "C" fn();
@@ -145,5 +145,5 @@ pub const fn PySlot_PTR_STATIC(NAME: c_int, VALUE: *mut c_void) -> PySlot {
 
 #[cfg(Py_3_15)]
 pub const fn PySlot_END() -> PySlot {
-    unsafe { std::mem::zeroed() }
+    unsafe { core::mem::zeroed() }
 }
