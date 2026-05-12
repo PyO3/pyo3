@@ -42,7 +42,13 @@ macro_rules! py_format {
             static INTERNED: $crate::sync::PyOnceLock<$crate::Py<$crate::types::PyString>> = $crate::sync::PyOnceLock::new();
             Ok(
                 INTERNED
-                .get_or_init($py, || $crate::types::PyString::intern($py, static_string).unbind())
+                .get_or_init($py, || {
+                    if let Ok(static_c_string) = ::std::ffi::CString::new(static_string) {
+                        $crate::types::PyString::intern_cstr($py, &static_c_string).unbind()
+                    } else {
+                        $crate::types::PyString::intern($py, static_string).unbind()
+                    }
+                })
                 .bind($py)
                 .to_owned()
             )
