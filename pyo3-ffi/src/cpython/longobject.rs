@@ -58,7 +58,7 @@ extern_libpython! {
 
     #[cfg(not(Py_3_13))]
     #[cfg_attr(PyPy, link_name = "_PyPyLong_FromByteArray")]
-    #[doc(hidden)]  // used in PyO3's older bytes conversions, but not otherwise public API
+    #[doc(hidden)] // used in PyO3's older bytes conversions, but not otherwise public API
     pub fn _PyLong_FromByteArray(
         bytes: *const c_uchar,
         n: size_t,
@@ -67,7 +67,7 @@ extern_libpython! {
     ) -> *mut PyObject;
 
     #[cfg(not(Py_3_13))]
-    #[doc(hidden)]  // used in PyO3's older bytes conversions, but not otherwise public API
+    #[doc(hidden)] // used in PyO3's older bytes conversions, but not otherwise public API
     #[cfg_attr(PyPy, link_name = "_PyPyLong_AsByteArrayO")]
     pub fn _PyLong_AsByteArray(
         v: *mut PyLongObject,

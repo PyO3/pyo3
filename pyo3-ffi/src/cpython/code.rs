@@ -149,7 +149,11 @@ extern_libpython! {
     ) -> c_int;
 
     #[cfg_attr(not(Py_3_12), link_name = "_PyCode_SetExtra")]
-    pub fn PyUnstable_Code_SetExtra(code: *mut PyObject, index: Py_ssize_t, extra: *mut c_void) -> c_int;
+    pub fn PyUnstable_Code_SetExtra(
+        code: *mut PyObject,
+        index: Py_ssize_t,
+        extra: *mut c_void,
+    ) -> c_int;
 }
 
 #[deprecated(since = "0.29.0", note = "renamed to PyUnstable_Code_GetExtra")]
