@@ -64,7 +64,7 @@ fn main() {
         .parse_callbacks(Box::new(ParseCallbacks));
 
     if matches!(
-        config.implementation,
+        config.implementation(),
         pyo3_build_config::PythonImplementation::PyPy
     ) {
         builder = builder.parse_callbacks(Box::new(PyPyReplaceCallbacks));
