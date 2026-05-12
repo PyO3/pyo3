@@ -187,6 +187,13 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
             // the field name in the C API is `type`, but that's a keyword in Rust
             // so PyO3 picked type_code, bindgen picked type_
             Ident::new("type_", Span::call_site())
+        } else if struct_name == "PySlot" && field_name == "anon1" {
+            // PySlot has two anonymous unions (since they aren't allowed in Rust,
+            // PyO3 invented names for them); bindgen names the first one __bindgen_anon_1
+            Ident::new("__bindgen_anon_1", Span::call_site())
+        } else if struct_name == "PySlot" && field_name == "anon2" {
+            // ...and the second one __bindgen_anon_2
+            Ident::new("__bindgen_anon_2", Span::call_site())
         } else {
             field_ident.clone()
         };
@@ -352,6 +359,15 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PySet_CheckExact", "not(PyPy)"),
     ("PySet_GET_SIZE", ""),
     ("PySlice_Check", ""),
+    ("PySlot_DATA", ""),
+    ("PySlot_END", ""),
+    ("PySlot_FUNC", ""),
+    ("PySlot_INT64", ""),
+    ("PySlot_PTR", ""),
+    ("PySlot_PTR_STATIC", ""),
+    ("PySlot_SIZE", ""),
+    ("PySlot_STATIC_DATA", ""),
+    ("PySlot_UINT64", ""),
     ("PyStructSequence_GET_ITEM", ""),
     ("PyStructSequence_SET_ITEM", ""),
     ("PyTZInfo_Check", "not(PyPy)"),
