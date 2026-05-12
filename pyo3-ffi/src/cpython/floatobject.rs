@@ -1,6 +1,8 @@
 #[cfg(GraalPy)]
 use crate::PyFloat_AsDouble;
-use crate::{PyFloat_Check, PyObject};
+#[cfg(not(GraalPy))]
+use crate::PyFloat_Check;
+use crate::PyObject;
 use core::ffi::c_double;
 
 #[repr(C)]
