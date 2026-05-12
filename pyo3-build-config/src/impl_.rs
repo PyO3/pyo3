@@ -3053,16 +3053,27 @@ mod tests {
         };
         let sysconfigdata = super::parse_sysconfigdata(sysconfigdata_path).unwrap();
         let parsed_config = InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap();
-        let implementation = PythonImplementation::CPython;
+
+        // Workaround case where empty `PYTHONFRAMEWORKPREFIX` is returned as empty string instead of None,
+        // which causes the assert_eq! below to fail.
+        //
+        // TODO: probably should deprecate using this variable at all, seemingly only used in `add_python_framework_link_args`
+        // which is probably a strictly worse version of `add_libpython_rpath_link_args`.
+        if parsed_config.python_framework_prefix.as_deref() == Some("") {
+            parsed_config.python_framework_prefix = None;
+        }
 
         assert_eq!(
             parsed_config,
-            InterpreterConfigBuilder::new(implementation, interpreter_config.version,)
-                .build_flags(interpreter_config.build_flags().clone())
-                .pointer_width(64)
-                .lib_dir_opt(interpreter_config.lib_dir().map(str::to_owned))
-                .lib_name_opt(interpreter_config.lib_name().map(str::to_owned))
-                .finalize()
+            InterpreterConfigBuilder::new(
+                interpreter_config.implementation,
+                interpreter_config.version,
+            )
+            .build_flags(interpreter_config.build_flags().clone())
+            .pointer_width(64)
+            .lib_dir_opt(interpreter_config.lib_dir().map(str::to_owned))
+            .lib_name_opt(interpreter_config.lib_name().map(str::to_owned))
+            .finalize()
         )
     }
 
@@ -3320,15 +3331,15 @@ mod tests {
         let win_arm64 = Triple::from_str("aarch64-pc-windows-msvc").unwrap();
 
         config.apply_default_lib_name_to_config_file(&unix);
-        assert_eq!(config.lib_name(), Some("python3.9".into()));
+        assert_eq!(config.lib_name, Some("python3.9".into()));
 
         config.lib_name = None;
         config.apply_default_lib_name_to_config_file(&win_x64);
-        assert_eq!(config.lib_name(), Some("python39".into()));
+        assert_eq!(config.lib_name, Some("python39".into()));
 
         config.lib_name = None;
         config.apply_default_lib_name_to_config_file(&win_arm64);
-        assert_eq!(config.lib_name(), Some("python39".into()));
+        assert_eq!(config.lib_name, Some("python39".into()));
 
         // PyPy
         config.implementation = PythonImplementation::PyPy;
