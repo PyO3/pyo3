@@ -1,4 +1,5 @@
-#![cfg(all(feature = "macros", not(PyPy)))]
+#![cfg(feature = "macros")]
+#![cfg(not(PyPy))]
 
 use pyo3::prelude::*;
 

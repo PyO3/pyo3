@@ -1,6 +1,6 @@
 use crate::object::PyObject;
+use core::ffi::{c_char, c_int};
 use libc::wchar_t;
-use std::ffi::{c_char, c_int};
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPySys_GetObject")]
@@ -31,6 +31,7 @@ extern_libpython! {
     pub fn PySys_FormatStdout(format: *const c_char, ...);
     pub fn PySys_FormatStderr(format: *const c_char, ...);
 
+    #[cfg(not(Py_3_15))]
     #[cfg_attr(
         Py_3_13,
         deprecated(

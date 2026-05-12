@@ -1,7 +1,7 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+use core::ffi::{c_char, c_int, c_void};
 use libc::wchar_t;
-use std::ffi::{c_char, c_int, c_void};
 
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(
@@ -120,16 +120,22 @@ extern_libpython! {
         encoding: *const c_char,
         errors: *const c_char,
     ) -> *mut PyObject;
+    #[cfg(not(Py_3_15))]
+    #[deprecated(note = "use PyCodec_Decode() instead")]
     pub fn PyUnicode_AsDecodedObject(
         unicode: *mut PyObject,
         encoding: *const c_char,
         errors: *const c_char,
     ) -> *mut PyObject;
+    #[cfg(not(Py_3_15))]
+    #[deprecated(note = "use PyCodec_Decode() instead")]
     pub fn PyUnicode_AsDecodedUnicode(
         unicode: *mut PyObject,
         encoding: *const c_char,
         errors: *const c_char,
     ) -> *mut PyObject;
+    #[cfg(not(Py_3_15))]
+    #[deprecated(note = "use PyCodec_Encode() instead")]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsEncodedObject")]
     pub fn PyUnicode_AsEncodedObject(
         unicode: *mut PyObject,
@@ -142,6 +148,8 @@ extern_libpython! {
         encoding: *const c_char,
         errors: *const c_char,
     ) -> *mut PyObject;
+    #[cfg(not(Py_3_15))]
+    #[deprecated(note = "use PyCodec_Encode() instead")]
     pub fn PyUnicode_AsEncodedUnicode(
         unicode: *mut PyObject,
         encoding: *const c_char,

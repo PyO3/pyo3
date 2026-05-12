@@ -32,6 +32,8 @@ fn main() {
     println!("cargo:rerun-if-changed=definitions");
     println!("cargo:rerun-if-changed=../pyo3-ffi");
 
+    pyo3_build_config::use_pyo3_cfgs();
+
     // Because `pyo3-ffi` is a dependency, libpython is linked, this ensures `main.rs` can run.
     // Slightly needless (no symbols from libpython are actually called), but simple to do.
     pyo3_build_config::add_libpython_rpath_link_args();

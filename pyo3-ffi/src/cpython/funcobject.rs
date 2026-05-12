@@ -1,5 +1,5 @@
 use crate::{PyObject, Py_IS_TYPE};
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 #[cfg(all(not(any(PyPy, GraalPy)), not(Py_3_10)))]
 #[repr(C)]

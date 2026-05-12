@@ -88,7 +88,7 @@ impl<'a> PyStringData<'a> {
                     .into())
                 }
             },
-            Self::Ucs4(data) => match data.iter().map(|&c| core::char::from_u32(c)).collect() {
+            Self::Ucs4(data) => match data.iter().copied().map(char::from_u32).collect() {
                 Some(s) => Ok(Cow::Owned(s)),
                 None => Err(PyUnicodeDecodeError::new(
                     py,

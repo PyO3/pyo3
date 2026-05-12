@@ -1,7 +1,7 @@
 #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
 use crate::longobject::PyLongObject;
 use crate::object::*;
-use std::ffi::{c_int, c_long};
+use core::ffi::{c_int, c_long};
 
 #[inline]
 #[cfg(not(RustPython))]
