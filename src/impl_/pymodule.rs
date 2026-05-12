@@ -318,7 +318,8 @@ impl PyModuleSlotsBuilder {
         }
         #[cfg(Py_3_15)]
         {
-            self.push_value(ffi::PySlot_FUNC!(ffi::Py_mod_exec, ModuleExecSlot, exec))
+            // safety: exce is not NULL
+            self.push_value(unsafe { ffi::PySlot_FUNC(ffi::Py_mod_exec, exec as *mut c_void) })
         }
     }
 
@@ -378,7 +379,7 @@ impl PyModuleSlotsBuilder {
             ffi::PyABIInfo_VAR!(ABI_INFO);
             self.push_value(ffi::PySlot_STATIC_DATA(
                 ffi::Py_mod_abi,
-                std::ptr::addr_of_mut!(ABI_INFO).cast(),
+                (&raw mut ABI_INFO).cast(),
             ))
         }
 

@@ -1,7 +1,6 @@
 #[cfg(Py_3_15)]
 use std::ffi::c_void;
 use std::ffi::{c_char, c_long};
-use std::ptr;
 
 use pyo3_ffi::*;
 
@@ -68,7 +67,7 @@ static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
     },
     PyModuleDef_Slot {
         slot: 0,
-        value: ptr::null_mut(),
+        value: std::ptr::null_mut(),
     },
 ];
 

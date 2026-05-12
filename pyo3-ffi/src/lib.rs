@@ -161,11 +161,12 @@
 //!     PyMethodDef::zeroed(),
 //! ];
 //!
-//! #[cfg(not(Py_3_15))]
 //! const SLOTS_LEN: usize =
-//!     1 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize;
+//!     1 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize + 4 * (cfg!(Py_3_15) as usize);
+//!
 //! #[cfg(not(Py_3_15))]
 //! static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
+//!     #[cfg(Py_3_12)]
 //!     PyModuleDef_Slot {
 //!         slot: Py_mod_multiple_interpreters,
 //!         value: Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
@@ -184,9 +185,6 @@
 //! #[cfg(Py_3_15)]
 //! PyABIInfo_VAR!(ABI_INFO);
 //!
-//! #[cfg(Py_3_15)]
-//! const SLOTS_LEN: usize =
-//!     1 + cfg!(Py_3_12) as usize + cfg!(Py_GIL_DISABLED) as usize + 4 * (cfg!(Py_3_15) as usize);
 //! #[cfg(Py_3_15)]
 //! static mut SLOTS: [PySlot; SLOTS_LEN] = [
 //!     PySlot_STATIC_DATA(Py_mod_abi, std::ptr::addr_of_mut!(ABI_INFO).cast()),
@@ -436,7 +434,7 @@ pub use self::compile::*;
 pub use self::complexobject::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::context::*;
-#[cfg(any(all(Py_3_13, not(Py_LIMITED_API)), Py_3_15))]
+#[cfg(Py_3_13)]
 pub use self::critical_section::*;
 #[cfg(not(Py_LIMITED_API))]
 pub use self::datetime::*;

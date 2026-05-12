@@ -32,14 +32,11 @@ pub static mut SEQUENTIAL_SLOTS: [PySlot; SEQUENTIAL_SLOTS_LEN] = [
         Py_mod_state_size,
         mem::size_of::<sequential_state>() as Py_ssize_t,
     ),
-    PySlot_FUNC!(Py_mod_state_traverse, traverseproc, sequential_traverse),
-    PySlot_FUNC!(Py_mod_state_clear, inquiry, sequential_clear),
-    PySlot_FUNC!(Py_mod_state_free, freefunc, sequential_free),
-    PySlot_FUNC!(
-        Py_mod_exec,
-        unsafe extern "C" fn(*mut PyObject) -> c_int,
-        sequential_exec
-    ),
+    // safety: all these function pointers are non-null by construction
+    unsafe { PySlot_FUNC(Py_mod_state_traverse, sequential_traverse as *mut c_void) },
+    unsafe { PySlot_FUNC(Py_mod_state_clear, sequential_clear as *mut c_void) },
+    unsafe { PySlot_FUNC(Py_mod_state_free, sequential_free as *mut c_void) },
+    unsafe { PySlot_FUNC(Py_mod_exec, sequential_exec as *mut c_void) },
     PySlot_DATA(
         Py_mod_multiple_interpreters,
         Py_MOD_PER_INTERPRETER_GIL_SUPPORTED,
