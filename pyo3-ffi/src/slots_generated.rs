@@ -1,9 +1,16 @@
-use std::ffi::c_int;
+use core::ffi::c_int;
 
-pub const Py_bf_getbuffer: c_int = 1;
-pub const Py_bf_releasebuffer: c_int = 2;
-pub const Py_mp_ass_subscript: c_int = 3;
-pub const Py_mp_length: c_int = 4;
+#[allow(unused_variables)]
+const fn _Py_SLOT_COMPAT_VALUE(OLD: c_int, NEW: c_int) -> c_int {
+    if cfg!(Py_3_15) {
+        NEW
+    } else {
+        OLD
+    }
+}
+
+#[cfg(Py_3_15)]
+pub const Py_slot_end: c_int = 0;
 pub const Py_mp_subscript: c_int = 5;
 pub const Py_nb_absolute: c_int = 6;
 pub const Py_nb_add: c_int = 7;
@@ -80,3 +87,52 @@ pub const Py_am_await: c_int = 77;
 pub const Py_am_aiter: c_int = 78;
 pub const Py_am_anext: c_int = 79;
 pub const Py_tp_finalize: c_int = 80;
+pub const Py_am_send: c_int = 81;
+pub const Py_tp_vectorcall: c_int = 82;
+pub const Py_tp_token: c_int = 83;
+pub const Py_mod_create: c_int = _Py_SLOT_COMPAT_VALUE(1, 84);
+pub const Py_mod_exec: c_int = _Py_SLOT_COMPAT_VALUE(2, 85);
+pub const Py_mod_multiple_interpreters: c_int = _Py_SLOT_COMPAT_VALUE(3, 86);
+pub const Py_mod_gil: c_int = _Py_SLOT_COMPAT_VALUE(4, 87);
+pub const Py_bf_getbuffer: c_int = _Py_SLOT_COMPAT_VALUE(1, 88);
+pub const Py_bf_releasebuffer: c_int = _Py_SLOT_COMPAT_VALUE(2, 89);
+pub const Py_mp_ass_subscript: c_int = _Py_SLOT_COMPAT_VALUE(3, 90);
+pub const Py_mp_length: c_int = _Py_SLOT_COMPAT_VALUE(4, 91);
+#[cfg(Py_3_15)]
+pub const Py_slot_subslots: c_int = 92;
+#[cfg(Py_3_15)]
+pub const Py_tp_slots: c_int = 93;
+#[cfg(Py_3_15)]
+pub const Py_mod_slots: c_int = 94;
+#[cfg(Py_3_15)]
+pub const Py_tp_name: c_int = 95;
+#[cfg(Py_3_15)]
+pub const Py_tp_basicsize: c_int = 96;
+#[cfg(Py_3_15)]
+pub const Py_tp_extra_basicsize: c_int = 97;
+#[cfg(Py_3_15)]
+pub const Py_tp_itemsize: c_int = 98;
+#[cfg(Py_3_15)]
+pub const Py_tp_flags: c_int = 99;
+#[cfg(Py_3_15)]
+pub const Py_mod_name: c_int = 100;
+#[cfg(Py_3_15)]
+pub const Py_mod_doc: c_int = 101;
+#[cfg(Py_3_15)]
+pub const Py_mod_state_size: c_int = 102;
+#[cfg(Py_3_15)]
+pub const Py_mod_methods: c_int = 103;
+#[cfg(Py_3_15)]
+pub const Py_mod_state_traverse: c_int = 104;
+#[cfg(Py_3_15)]
+pub const Py_mod_state_clear: c_int = 105;
+#[cfg(Py_3_15)]
+pub const Py_mod_state_free: c_int = 106;
+#[cfg(Py_3_15)]
+pub const Py_tp_metaclass: c_int = 107;
+#[cfg(Py_3_15)]
+pub const Py_tp_module: c_int = 108;
+#[cfg(Py_3_15)]
+pub const Py_mod_abi: c_int = 109;
+#[cfg(Py_3_15)]
+pub const Py_mod_token: c_int = 110;

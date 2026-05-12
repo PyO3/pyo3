@@ -1,5 +1,5 @@
 use crate::object::*;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 #[cfg(all(not(PyPy), Py_LIMITED_API, not(GraalPy)))]
 opaque_struct!(pub PyWeakReference);
@@ -60,6 +60,7 @@ extern_libpython! {
     pub fn PyWeakref_NewRef(ob: *mut PyObject, callback: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyWeakref_NewProxy")]
     pub fn PyWeakref_NewProxy(ob: *mut PyObject, callback: *mut PyObject) -> *mut PyObject;
+    #[cfg(not(Py_3_15))]
     #[cfg_attr(PyPy, link_name = "PyPyWeakref_GetObject")]
     #[cfg_attr(
         Py_3_13,

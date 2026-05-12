@@ -1,6 +1,6 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 extern_libpython! {
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]

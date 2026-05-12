@@ -181,6 +181,7 @@ fn print_feature_cfg(minor_version_required: u32, cfg: &str) {
 /// so this function is unstable.
 #[doc(hidden)]
 pub fn print_feature_cfgs() {
+    print_feature_cfg(84, "const_is_null");
     print_feature_cfg(85, "fn_ptr_eq");
     print_feature_cfg(86, "from_bytes_with_nul_error");
 }

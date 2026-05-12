@@ -4,8 +4,8 @@ use crate::pyport::Py_ssize_t;
 #[cfg(not(GraalPy))]
 use crate::PyCodeObject;
 #[cfg(not(GraalPy))]
-use std::ffi::c_char;
-use std::ffi::{c_int, c_void};
+use core::ffi::c_char;
+use core::ffi::{c_int, c_void};
 
 // skipped private _PY_MONITORING_LOCAL_EVENTS
 // skipped private _PY_MONITORING_UNGROUPED_EVENTS

@@ -1,8 +1,8 @@
 use crate::methodobject::PyMethodDef;
 use crate::object::{PyObject, PyTypeObject};
 use crate::Py_ssize_t;
-use std::ffi::{c_char, c_int, c_void};
-use std::ptr;
+use core::ffi::{c_char, c_int, c_void};
+use core::ptr;
 
 pub type getter = unsafe extern "C" fn(slf: *mut PyObject, closure: *mut c_void) -> *mut PyObject;
 pub type setter =

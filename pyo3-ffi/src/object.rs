@@ -3,10 +3,12 @@ use crate::pyport::{Py_hash_t, Py_ssize_t};
 use crate::refcount;
 #[cfg(Py_GIL_DISABLED)]
 use crate::PyMutex;
-use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
-use std::mem;
+#[cfg(Py_3_15)]
+use crate::PySlot;
+use core::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
+use core::mem;
 #[cfg(Py_GIL_DISABLED)]
-use std::sync::atomic::{AtomicIsize, AtomicU32};
+use core::sync::atomic::{AtomicIsize, AtomicU32};
 
 #[cfg(Py_LIMITED_API)]
 opaque_struct!(pub PyTypeObject);
@@ -73,8 +75,8 @@ pub union PyObjectObRefcnt {
 }
 
 #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
-impl std::fmt::Debug for PyObjectObRefcnt {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for PyObjectObRefcnt {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", unsafe { self.ob_refcnt })
     }
 }
@@ -116,7 +118,7 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
-const _: () = assert!(std::mem::align_of::<PyObject>() >= _PyObject_MIN_ALIGNMENT);
+const _: () = assert!(core::mem::align_of::<PyObject>() >= _PyObject_MIN_ALIGNMENT);
 
 #[allow(
     clippy::declare_interior_mutable_const,
@@ -145,7 +147,7 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_refcnt: 1,
     #[cfg(PyPy)]
     ob_pypy_link: 0,
-    ob_type: std::ptr::null_mut(),
+    ob_type: core::ptr::null_mut(),
 };
 
 // skipped _Py_UNOWNED_TID
@@ -279,6 +281,14 @@ pub type hashfunc = unsafe extern "C" fn(*mut PyObject) -> Py_hash_t;
 pub type richcmpfunc = unsafe extern "C" fn(*mut PyObject, *mut PyObject, c_int) -> *mut PyObject;
 pub type getiterfunc = unsafe extern "C" fn(*mut PyObject) -> *mut PyObject;
 pub type iternextfunc = unsafe extern "C" fn(*mut PyObject) -> *mut PyObject;
+#[cfg(Py_3_15)]
+#[repr(C)]
+pub struct _PyObjectIndexPair {
+    pub object: *mut PyObject,
+    pub index: Py_ssize_t,
+}
+#[cfg(Py_3_15)]
+pub type _Py_iteritemfunc = unsafe extern "C" fn(*mut PyObject, Py_ssize_t) -> _PyObjectIndexPair;
 pub type descrgetfunc =
     unsafe extern "C" fn(*mut PyObject, *mut PyObject, *mut PyObject) -> *mut PyObject;
 pub type descrsetfunc = unsafe extern "C" fn(*mut PyObject, *mut PyObject, *mut PyObject) -> c_int;
@@ -380,6 +390,18 @@ extern_libpython! {
     #[cfg(Py_3_12)]
     #[cfg_attr(PyPy, link_name = "PyPyType_GetTypeDataSize")]
     pub fn PyType_GetTypeDataSize(cls: *mut PyTypeObject) -> Py_ssize_t;
+
+    #[cfg(Py_3_14)]
+    #[cfg_attr(PyPy, link_name = "PyPyType_GetBaseByToken")]
+    pub fn PyType_GetBaseByToken(
+        type_: *mut PyTypeObject,
+        token: *mut c_void,
+        result: *mut *mut PyTypeObject,
+    ) -> c_int;
+
+    #[cfg(Py_3_15)]
+    #[cfg_attr(PyPy, link_name = "PyPyType_FromSlot")]
+    pub fn PyType_FromSlots(slots: *mut PySlot) -> *mut PyObject;
 
     #[cfg_attr(PyPy, link_name = "PyPyType_IsSubtype")]
     pub fn PyType_IsSubtype(a: *mut PyTypeObject, b: *mut PyTypeObject) -> c_int;
@@ -696,7 +718,7 @@ pub unsafe fn PyType_HasFeature(ty: *mut PyTypeObject, feature: c_ulong) -> c_in
     let flags = PyType_GetFlags(ty);
 
     #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-    let flags = (*ty).tp_flags.load(std::sync::atomic::Ordering::Relaxed);
+    let flags = (*ty).tp_flags.load(core::sync::atomic::Ordering::Relaxed);
 
     #[cfg(all(not(Py_LIMITED_API), not(Py_GIL_DISABLED)))]
     let flags = (*ty).tp_flags;

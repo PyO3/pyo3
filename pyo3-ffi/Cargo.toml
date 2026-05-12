@@ -32,7 +32,8 @@ abi3-py310 = ["abi3-py311"]
 abi3-py311 = ["abi3-py312"]
 abi3-py312 = ["abi3-py313"]
 abi3-py313 = ["abi3-py314"]
-abi3-py314 = ["abi3"]
+abi3-py314 = ["abi3-py315"]
+abi3-py315 = ["abi3"]
 
 # deprecated: no longer needed, raw-dylib is used instead
 generate-import-lib = ["pyo3-build-config/generate-import-lib"]
