@@ -257,7 +257,7 @@ mod nightly {
         ///
         /// ```rust
         /// # use pyo3::prelude::*;
-        /// use alloc::rc::Rc;
+        /// use std::rc::Rc;
         ///
         /// Python::attach(|py| {
         ///     let rc = Rc::new(42);
