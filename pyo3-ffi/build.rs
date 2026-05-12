@@ -45,10 +45,10 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
         return Ok(());
     }
 
-    match interpreter_config.target_abi.implementation {
+    match interpreter_config.target_abi.implementation() {
         PythonImplementation::CPython => {
             let versions = SUPPORTED_VERSIONS_CPYTHON;
-            let interp_version = interpreter_config.target_abi.version;
+            let interp_version = interpreter_config.target_abi.version();
             ensure!(
                 interp_version >= versions.min,
                 "the configured Python interpreter version ({}) is lower than PyO3's minimum supported version ({})",
@@ -84,29 +84,29 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 }
             }
 
-            if interpreter_config.target_abi.kind.is_free_threaded() {
+            if interpreter_config.target_abi.kind().is_free_threaded() {
                 let min_free_threaded_version = PythonVersion {
                     major: 3,
                     minor: 14,
                 };
                 ensure!(
-                    interpreter_config.target_abi.version >= min_free_threaded_version,
+                    interpreter_config.target_abi.version() >= min_free_threaded_version,
                     "PyO3 does not support the free-threaded build of CPython versions below {}, the selected Python version is {}",
                     min_free_threaded_version,
-                    interpreter_config.target_abi.version,
+                    interpreter_config.target_abi.version(),
                 );
             }
         }
         PythonImplementation::PyPy => {
             let versions = SUPPORTED_VERSIONS_PYPY;
             ensure!(
-                interpreter_config.target_abi.version >= versions.min,
+                interpreter_config.target_abi.version() >= versions.min,
                 "the configured PyPy interpreter version ({}) is lower than PyO3's minimum supported version ({})",
-                interpreter_config.target_abi.version,
+                interpreter_config.target_abi.version(),
                 versions.min,
             );
             // PyO3 does not support abi3, so we cannot offer forward compatibility
-            if interpreter_config.target_abi.version > versions.max {
+            if interpreter_config.target_abi.version() > versions.max {
                 let error = MaximumVersionExceeded::new(interpreter_config, versions.max);
                 return Err(error.finish().into());
             }
@@ -114,13 +114,13 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
         PythonImplementation::GraalPy => {
             let versions = SUPPORTED_VERSIONS_GRAALPY;
             ensure!(
-                interpreter_config.target_abi.version >= versions.min,
+                interpreter_config.target_abi.version() >= versions.min,
                 "the configured GraalPy interpreter version ({}) is lower than PyO3's minimum supported version ({})",
-                interpreter_config.target_abi.version,
+                interpreter_config.target_abi.version(),
                 versions.min,
             );
             // GraalPy does not support abi3, so we cannot offer forward compatibility
-            if interpreter_config.target_abi.version > versions.max {
+            if interpreter_config.target_abi.version() > versions.max {
                 let error = MaximumVersionExceeded::new(interpreter_config, versions.max);
                 return Err(error.finish().into());
             }
@@ -128,12 +128,12 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
         PythonImplementation::RustPython => {}
     }
 
-    if let PythonAbiKind::Stable(abi) = interpreter_config.target_abi.kind {
-        match interpreter_config.target_abi.implementation {
+    if let PythonAbiKind::Stable(abi) = interpreter_config.target_abi.kind() {
+        match interpreter_config.target_abi.implementation() {
             PythonImplementation::CPython => match abi {
                 StableAbi::Abi3t => {
                     ensure!(
-                        interpreter_config.target_abi.version >= PythonVersion::PY315,
+                        interpreter_config.target_abi.version() >= PythonVersion::PY315,
                         "Abi3t builds are not supported on CPython targets before Python 3.15"
                     )
                 }

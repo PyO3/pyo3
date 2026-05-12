@@ -311,13 +311,13 @@ pub mod pyo3_build_script_impl {
             interpreter_config: &InterpreterConfig,
             supported_version: PythonVersion,
         ) -> Self {
-            let implementation = match interpreter_config.target_abi.implementation {
+            let implementation = match interpreter_config.target_abi.implementation() {
                 PythonImplementation::CPython => "Python",
                 PythonImplementation::PyPy => "PyPy",
                 PythonImplementation::GraalPy => "GraalPy",
                 PythonImplementation::RustPython => "RustPython",
             };
-            let version = &interpreter_config.target_abi.version;
+            let version = &interpreter_config.target_abi.version();
             let message = format!(
                 "the configured {implementation} version ({version}) is newer than PyO3's maximum supported version ({supported_version})\n\
                 = help: this package is being built with PyO3 version {current_version}\n\
