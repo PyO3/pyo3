@@ -34,6 +34,11 @@ pub(crate) const MAXIMUM_SUPPORTED_VERSION_PYPY: PythonVersion = PythonVersion {
     minor: 11,
 };
 
+pub(crate) const MINIMUM_SUPPORTED_VERSION_ABI3T: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 15,
+};
+
 /// GraalPy may implement the same CPython version over multiple releases.
 const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
     major: 25,
@@ -614,9 +619,9 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 "Invalid config that sets both target_abi and abi3."
             );
             target_abi
-        } else if is_abi3t() {
+        } else if get_abi3t_version().is_some() {
             ensure!(
-                !is_abi3(),
+                !get_abi3_version().is_some(),
                 "Cannot simultaneously enable features that enable abi3 and abi3t builds"
             );
             PythonAbiBuilder::new(implementation, version)
@@ -624,11 +629,11 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 .unwrap()
                 .finalize()
         } else if flags_contains_free_threaded {
-            // This fires even if is_abi3() is True for backward compatibility reasons
+            // This fires even if get_abi3_version().is_some() is True for backward compatibility reasons
             PythonAbiBuilder::new(implementation, version)
                 .free_threaded()?
                 .finalize()
-        } else if (abi3 == Some(true)) || is_abi3() {
+        } else if (abi3 == Some(true)) || get_abi3_version().is_some() {
             if abi3 == Some(true) {
                 warn!("abi3 configuration file option is deprecated, set target_abi instead");
             }
@@ -990,9 +995,9 @@ impl PythonAbiBuilder {
             version: sanitize_stable_abi_version(stable_abi_version, version)?,
             kind: None,
         };
-        if is_abi3() && !gil_disabled {
+        if get_abi3_version().is_some() && !gil_disabled {
             builder.stable_abi(StableAbi::Abi3)
-        } else if is_abi3t() {
+        } else if get_abi3t_version().is_some() {
             builder.stable_abi(StableAbi::Abi3t)
         } else if gil_disabled {
             builder.free_threaded()
@@ -1303,26 +1308,17 @@ fn have_python_interpreter() -> bool {
     env_var("PYO3_NO_PYTHON").is_none()
 }
 
-/// Checks if `abi3` or any of the `abi3-py3*` features is enabled for the PyO3 crate.
-///
-/// Must be called from a PyO3 crate build script.
-fn is_abi3() -> bool {
-    cargo_env_var("CARGO_FEATURE_ABI3").is_some()
-        || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_some_and(|os_str| os_str == "1")
-}
-
-/// Checks if `abi3t` or any of the `abi3t-py3*` features is enabled for the PyO3 crate.
-///
-/// Must be called from a PyO3 crate build script.
-fn is_abi3t() -> bool {
-    cargo_env_var("CARGO_FEATURE_ABI3T").is_some()
-        || env_var("PYO3_USE_ABI3T_FORWARD_COMPATIBILITY").is_some_and(|os_str| os_str == "1")
-}
-
 /// Gets the minimum supported Python version from PyO3 `abi3-py*` features.
 ///
-/// Must be called from a PyO3 crate build script.
+/// Must be called from a PyO3 crate build script. Returns None if an `abi3-py*`
+/// feature is activated that is unsupported on the target Python version or if
+/// no `abi3` or `abi3-py3*` feature is active.
 pub fn get_abi3_version() -> Option<PythonVersion> {
+    if !(cargo_env_var("CARGO_FEATURE_ABI3").is_some()
+        || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_some_and(|os_str| os_str == "1"))
+    {
+        return None;
+    }
     let minor_version = (MINIMUM_SUPPORTED_VERSION.minor..=STABLE_ABI_MAX_MINOR)
         .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{i}")).is_some());
     minor_version.map(|minor| PythonVersion { major: 3, minor })
@@ -1330,9 +1326,16 @@ pub fn get_abi3_version() -> Option<PythonVersion> {
 
 /// Gets the minimum supported Python version from PyO3 `abi3t-py*` features.
 ///
-/// Must be called from a PyO3 crate build script.
+/// Must be called from a PyO3 crate build script. Returns None if an `abi3t-py*`
+/// feature is activated that is unsupported on the target Python version or if
+/// no `abi3t` or `abi3t-py3*` feature is active.
 pub fn get_abi3t_version() -> Option<PythonVersion> {
-    let minor_version = (MINIMUM_SUPPORTED_VERSION.minor..=STABLE_ABI_MAX_MINOR)
+    if !(cargo_env_var("CARGO_FEATURE_ABI3T").is_some()
+        || env_var("PYO3_USE_ABI3T_FORWARD_COMPATIBILITY").is_some_and(|os_str| os_str == "1"))
+    {
+        return None;
+    }
+    let minor_version = (MINIMUM_SUPPORTED_VERSION_ABI3T.minor..=STABLE_ABI_MAX_MINOR)
         .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3T_PY3{i}")).is_some());
     minor_version.map(|minor| PythonVersion { major: 3, minor })
 }
