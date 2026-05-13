@@ -429,9 +429,11 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("Py_False", ""),
     ("Py_GETENV", "not(Py_3_11)"),
     ("Py_INCREF", ""),
+    ("Py_IS_TYPE", "not(Py_3_15)"), // symbol added for stable abi on 3.15
     ("Py_None", ""),
     ("Py_NotImplemented", ""),
     ("Py_REFCNT", "not(Py_3_14)"),
+    ("Py_SIZE", "not(Py_3_15)"), // symbol added for stable abi on 3.15
     ("Py_True", ""),
     ("Py_TYPE", "not(Py_3_14)"),
     ("Py_XDECREF", ""),
