@@ -50,9 +50,9 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
             let versions = SUPPORTED_VERSIONS_CPYTHON;
             let interp_version = interpreter_config.target_abi().version();
             ensure!(
-                interp_version >= versions.min,
+                interpreter_config.version() >= versions.min,
                 "the configured Python interpreter version ({}) is lower than PyO3's minimum supported version ({})",
-                interp_version,
+                interpreter_config.version(),
                 versions.min,
             );
             let v_plus_1 = PythonVersion {

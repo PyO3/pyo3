@@ -143,9 +143,9 @@ pub struct InterpreterConfig {
     pub shared: bool,
 
     /// The ABI to use for the compilation target.
+    /// See the documentation for the PythonAbi enum for more details.
     ///
     /// Serialized to `target_abi`.
-    /// See the documentation for the PythonAbi enum for more details.
     target_abi: PythonAbi,
 
     /// Serialized to `abi3`.
@@ -271,11 +271,19 @@ impl InterpreterConfig {
         self.shared
     }
 
-    /// The target ABI to build for
+    /// The ABI to use for the compilation target.
+    /// See the documentation for the PythonAbi enum for more details.
     ///
-    /// Serialized to `target_abi`
+    /// Serialized to `target_abi`.
     pub fn target_abi(&self) -> PythonAbi {
         self.target_abi
+    }
+
+    /// Whether linking against the stable/limited Python 3 API.
+    ///
+    /// Not serialized, see the target_abi instead.
+    pub fn abi3(&self) -> bool {
+        matches!(self.target_abi.kind, PythonAbiKind::Stable(StableAbi::Abi3))
     }
 
     /// The name of the link library defining Python.
@@ -746,7 +754,6 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             PythonAbiBuilder::new(implementation, version).finalize()?
         };
 
-        let build_flags = build_flags.unwrap_or_default();
         let builder = InterpreterConfigBuilder::new(implementation, version)
             .target_abi(target_abi)
             .shared(shared.unwrap_or(true))
@@ -754,7 +761,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             .lib_dir(lib_dir)
             .executable(executable)
             .pointer_width(pointer_width)
-            .build_flags(build_flags)
+            .build_flags(build_flags.unwrap_or_default())
             .suppress_build_script_link_lines(suppress_build_script_link_lines.unwrap_or(false))
             .extra_build_script_lines(extra_build_script_lines)
             .python_framework_prefix(python_framework_prefix);
@@ -3665,7 +3672,6 @@ mod tests {
         let version = PythonVersion::PY39;
         let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
             .stable_abi(StableAbi::Abi3)
-            .lib_name("python3".to_string())
             .finalize()
             .unwrap();
 
@@ -3720,14 +3726,12 @@ mod tests {
 
     #[test]
     fn test_build_script_outputs_gil_disabled() {
-        let implementation = PythonImplementation::CPython;
-        let version = PythonVersion::PY313;
-        let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
-            .free_threaded()
-            .unwrap()
-            .lib_name("python3".to_string())
-            .finalize()
-            .unwrap();
+        let interpreter_config =
+            InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY313)
+                .free_threaded()
+                .unwrap()
+                .finalize()
+                .unwrap();
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
