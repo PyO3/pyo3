@@ -377,6 +377,7 @@
 // original CPython headers
 #![allow(unsafe_op_in_unsafe_fn)]
 
+#[cfg(not(PyPy))]
 extern crate alloc;
 #[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
 extern crate std;
