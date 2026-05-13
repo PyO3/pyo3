@@ -46,16 +46,10 @@ use crate::{types::PyAny, Bound};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use std::cell::UnsafeCell;
 
-#[cfg(all(
-    Py_GIL_DISABLED,
-    any(all(not(Py_LIMITED_API), not(Py_3_15)), all(Py_LIMITED_API, Py_3_15))
-))]
+#[cfg(all(Py_GIL_DISABLED, any(not(Py_LIMITED_API), not(Py_3_15), Py_3_15)))]
 struct CSGuard(crate::ffi::PyCriticalSection);
 
-#[cfg(all(
-    Py_GIL_DISABLED,
-    any(all(not(Py_LIMITED_API), not(Py_3_15)), all(Py_LIMITED_API, Py_3_15))
-))]
+#[cfg(all(Py_GIL_DISABLED, any(not(Py_LIMITED_API), not(Py_3_15), Py_3_15)))]
 impl Drop for CSGuard {
     fn drop(&mut self) {
         unsafe {
@@ -64,16 +58,10 @@ impl Drop for CSGuard {
     }
 }
 
-#[cfg(all(
-    Py_GIL_DISABLED,
-    any(all(not(Py_LIMITED_API), not(Py_3_15)), all(Py_LIMITED_API, Py_3_15))
-))]
+#[cfg(all(Py_GIL_DISABLED, any(not(Py_LIMITED_API), not(Py_3_15), Py_3_15)))]
 struct CS2Guard(crate::ffi::PyCriticalSection2);
 
-#[cfg(all(
-    Py_GIL_DISABLED,
-    any(all(not(Py_LIMITED_API), not(Py_3_15)), all(Py_LIMITED_API, Py_3_15))
-))]
+#[cfg(all(Py_GIL_DISABLED, any(not(Py_LIMITED_API), not(Py_3_15), Py_3_15)))]
 impl Drop for CS2Guard {
     fn drop(&mut self) {
         unsafe {
