@@ -493,9 +493,6 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "PyOS_BeforeFork",
     "PyOS_AfterFork_Parent",
     "PyOS_AfterFork_Child",
-    // See https://github.com/python/cpython/pull/139166/changes#r3214904694
-    "Py_IS_TYPE",
-    "Py_SIZE",
 ];
 
 // Assert at compile time that `MACRO_EXCLUSIONS` and `EXCLUDED_SYMBOLS` are disjoint
