@@ -91,7 +91,7 @@ jobs:
           path: pyo3-introspection/dist
 
   pypi_release:
-    if: contains(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/')
     permissions:
       id-token: write
 
