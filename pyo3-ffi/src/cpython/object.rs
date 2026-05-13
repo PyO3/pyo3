@@ -409,7 +409,7 @@ extern_libpython! {
 
     pub fn PyUnstable_TryIncRef(obj: *mut PyObject) -> c_int;
 
-    pub fn PyUnstable_EnableTryIncRef(obj: *mut PyObject) -> c_void;
+    pub fn PyUnstable_EnableTryIncRef(obj: *mut PyObject);
 
     pub fn PyUnstable_Object_IsUniquelyReferenced(op: *mut PyObject) -> c_int;
 }
