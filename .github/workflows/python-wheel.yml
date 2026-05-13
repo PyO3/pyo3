@@ -91,7 +91,7 @@ jobs:
           path: pyo3-introspection/dist
 
   pypi_release:
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    if: contains(github.ref, 'refs/tags/')
     permissions:
       id-token: write
 
