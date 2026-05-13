@@ -634,8 +634,6 @@ impl<'py> Iterator for BoundDictIterator<'py> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        // SAFETY: Iteration uses an iterator object, relying on CPython
-        // guarantees that the PyDict and PyIter APIs are safe.
         #[cfg(Py_GIL_DISABLED)]
         {
             self.inner
@@ -795,6 +793,7 @@ impl ExactSizeIterator for BoundDictIterator<'_> {
 impl<'py> BoundDictIterator<'py> {
     fn new(dict: Bound<'py, PyDict>) -> Self {
         let remaining = dict_len(&dict);
+
         Self {
             dict,
             inner: DictIterImpl::DictIter {
