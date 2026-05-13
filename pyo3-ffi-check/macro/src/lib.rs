@@ -155,12 +155,16 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
     }
 
     let pyo3_ffi_fields = get_fields_from_file(&pyo3_ffi_struct_file);
-    let bindgen_fields = get_fields_from_file(&bindgen_struct_file);
 
-    if pyo3_ffi_fields.is_empty() {
-        // probably an opaque type on PyO3 side, skip
+    if pyo3_ffi_fields.len() == 2
+        && pyo3_ffi_fields.contains(&"_data".to_string())
+        && pyo3_ffi_fields.contains(&"_marker".to_string())
+    {
+        // looks like an opaque type on the PyO3 side, skip
         return TokenStream::new().into();
     }
+
+    let bindgen_fields = get_fields_from_file(&bindgen_struct_file);
 
     let mut all_fields: HashSet<_> = pyo3_ffi_fields.into_iter().chain(bindgen_fields).collect();
 
@@ -704,9 +708,11 @@ fn get_function_info(
     static FUNCTION_DECL_REGEX: LazyLock<regex::Regex> =
         LazyLock::new(|| regex::Regex::new(r"^pub\s+(.*?)\sfn\s+([^(<]*)").unwrap());
 
-    let captures = FUNCTION_DECL_REGEX
-        .captures(&text)
-        .expect("failed to parse function declaration with regex");
+    let Some(captures) = FUNCTION_DECL_REGEX.captures(&text) else {
+        panic!(
+            "failed to parse function declaration for `{function_name}` with regex, got: {text}"
+        );
+    };
 
     // find modifiers, e.g. `unsafe extern "C"`
     let modifiers = captures.get(1).unwrap().as_str().parse().unwrap();
