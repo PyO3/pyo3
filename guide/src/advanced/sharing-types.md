@@ -392,7 +392,7 @@ Using vtables introduces overhead (e.g. prevents inlining), however this is a ne
 
 ### Error handling across the boundary { #error-handling }
 
-Similar to many other types, PyO3's `PyErr` type is is not currently `#[repr(C)]`, so cannot be shared across the package boundary.
+Similar to many other types, PyO3's `PyErr` type is not currently `#[repr(C)]`, so cannot be shared across the package boundary.
 
 The simplest approach to handling errors across the boundary is to use `Option` return types in the API struct, and to return `None` on error.
 This is the approach taken in the [example project].

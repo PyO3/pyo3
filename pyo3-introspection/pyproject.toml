@@ -1,0 +1,33 @@
+[project]
+name = "pyo3-introspection"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Rust",
+]
+dynamic = [
+    "authors",
+    "description",
+    "keywords",
+    "license",
+    "license-files",
+    "maintainers",
+    "readme",
+    "version",
+]
+
+[project.urls]
+Changelog = "https://github.com/PyO3/pyo3/blob/main/CHANGELOG.md"
+Documentation = "https://pyo3.rs/"
+Homepage = "https://pyo3.rs/"
+Source = "https://github.com/PyO3/pyo3/tree/main/pyo3-introspection"
+Tracker = "https://github.com/PyO3/pyo3/issues"
+
+[build-system]
+requires = ["maturin>=1,<2"]
+build-backend = "maturin"
+
+[tool.maturin]
+bindings = "bin"
