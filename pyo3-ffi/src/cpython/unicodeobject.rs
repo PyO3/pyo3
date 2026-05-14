@@ -461,6 +461,10 @@ pub const SSTATE_INTERNED_IMMORTAL_STATIC: c_uint = 3;
 // skipped PyUnicode_CHECK_INTERNED
 
 #[cfg(any(Py_3_12, GraalPy))]
+#[cfg_attr(
+    Py_3_14,
+    deprecated(note = "Deprecated since Python 3.14. This API does nothing since Python 3.12.")
+)]
 #[inline]
 pub unsafe fn PyUnicode_IS_READY(_op: *mut PyObject) -> c_uint {
     // kept in CPython for backwards compatibility
