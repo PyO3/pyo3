@@ -237,10 +237,10 @@ def clippy(session: nox.Session) -> bool:
         session.error("one or more jobs failed")
 
 
-def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
+def _clippy(session: nox.Session, *, env: Dict[str, str] = None, version: Optional[Tuple[int, int]]) -> bool:
     success = True
     env = env or os.environ
-    for feature_set in _get_feature_sets():
+    for feature_set in _get_feature_sets(version):
         try:
             _run_cargo(
                 session,
@@ -300,9 +300,9 @@ def codspeed(session: nox.Session) -> bool:
 def clippy_all(session: nox.Session) -> None:
     success = True
 
-    def _clippy_with_config(env: Dict[str, str]) -> None:
+    def _clippy_with_config(env: Dict[str, str], version: Optional[Tuple[int, int]]) -> None:
         nonlocal success
-        success &= _clippy(session, env=env)
+        success &= _clippy(session, env=env, version=version)
 
     _for_all_version_configs(session, _clippy_with_config)
     success &= _clippy_additional_workspaces(session)
@@ -315,7 +315,7 @@ def clippy_all(session: nox.Session) -> None:
 def check_all(session: nox.Session) -> None:
     success = True
 
-    def _check(env: Dict[str, str]) -> None:
+    def _check(env: Dict[str, str], version: Tuple[int, int]) -> None:
         nonlocal success
         for feature_set in _get_feature_sets():
             try:
@@ -1653,8 +1653,11 @@ def _get_rust_default_target() -> str:
 
 
 @lru_cache()
-def _get_feature_sets() -> Tuple[Optional[str], ...]:
+def _get_feature_sets(version: Optional[Tuple[int, int]] = None) -> Tuple[Optional[str], ...]:
     """Returns feature sets to use for Rust jobs"""
+    if version == None:
+        version = sys.version_info[:2]
+
     cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
 
     features = "full"
@@ -1667,13 +1670,13 @@ def _get_feature_sets() -> Tuple[Optional[str], ...]:
         features += ",nightly"
 
     if FREE_THREADED_BUILD:
-        if sys.version_info >= (3, 15):
+        if version >= (3, 15):
             return (None, "abi3t", features, f"abi3t,{features}")
         else:
             return (None, features)
 
     # do fewer abi3t builds?
-    if sys.version_info >= (3, 15):
+    if version >= (3, 15):
         return (
             None,
             "abi3",
@@ -1795,7 +1798,8 @@ def _for_all_version_configs(
         def _job_with_config(implementation, version):
             session.log(f"{implementation} {version}")
             config_file.set(implementation, version)
-            job(env)
+            major_minor = tuple(map(int, version.strip("t").split(".")))
+            job(env, major_minor)
 
         for version in PY_VERSIONS:
             _job_with_config("CPython", version)
