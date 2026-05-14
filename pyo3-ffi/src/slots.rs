@@ -18,7 +18,7 @@ pub union _anon_union_32b {
 #[cfg(Py_3_15)]
 pub union _anon_union_64b {
     pub sl_ptr: *mut c_void,
-    pub sl_func: _Py_funcptr_t,
+    pub sl_func: Option<_Py_funcptr_t>,
     pub sl_size: Py_ssize_t,
     pub sl_int64: i64,
     pub sl_uint64: u64,
@@ -78,7 +78,7 @@ pub const unsafe fn PySlot_FUNC(NAME: c_int, VALUE: *mut c_void) -> PySlot {
         sl_flags: 0,
         anon1: _anon_union_32b { sl_reserved: 0 },
         anon2: _anon_union_64b {
-            sl_func: unsafe { core::mem::transmute::<*mut c_void, _Py_funcptr_t>(VALUE) },
+            sl_func: Some(unsafe { core::mem::transmute::<*mut c_void, _Py_funcptr_t>(VALUE) }),
         },
     }
 }
