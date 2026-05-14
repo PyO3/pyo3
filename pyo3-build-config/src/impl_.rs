@@ -625,11 +625,6 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             let mut config = InterpreterConfig::from_path(path)
                 .context("failed to parse contents of PYO3_CONFIG_FILE")?
                 .apply_build_env()?;
-            // For config files which don't apply a lib name, apply a default which we can use
-            // for linking.
-            if config.lib_name.is_none() {
-                config.lib_name = Some(default_lib_name_for_target(config.target_abi, target));
-            }
 
             // For config files which don't apply a lib name, apply a default which we can use
             // for linking.
@@ -2296,7 +2291,7 @@ fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<
     } else if abi.kind().is_free_threaded() {
         #[expect(deprecated, reason = "using constant internally")]
         {
-            ensure!(abi.version() >= PythonVersion::PY313, "Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", abi.version.major, abi.version.minor);
+            ensure!(abi.version() >= PythonVersion::PY313, "Cannot compile extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", abi.version.major, abi.version.minor);
         }
         if debug {
             Ok(format!(
@@ -2328,7 +2323,7 @@ fn default_lib_name_unix(abi: PythonAbi, cygwin: bool, ld_version: Option<&str>)
                 } else if abi.kind.is_free_threaded() {
                     #[expect(deprecated, reason = "using constant internally")]
                     {
-                        ensure!(abi.version >= PythonVersion::PY313, "Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", abi.version.major, abi.version.minor);
+                        ensure!(abi.version >= PythonVersion::PY313, "Cannot compile extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", abi.version.major, abi.version.minor);
                     }
                     Ok(format!(
                         "python{}.{}t",
