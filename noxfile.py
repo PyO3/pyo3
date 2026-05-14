@@ -1672,7 +1672,7 @@ def _get_feature_sets(
     version: Optional[Tuple[int, int]] = None,
 ) -> Tuple[Optional[str], ...]:
     """Returns feature sets to use for Rust jobs"""
-    if version == None:
+    if version is None:
         version = sys.version_info[:2]
 
     cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
