@@ -68,8 +68,12 @@ pyobject_native_type_info!(
 );
 
 pyobject_native_type_sized!(PyAny, ffi::PyObject);
-// We could use pyobject_subclassable_native_type here, but for now only on
-// opaque PyObject builds to not introduce behavior changes on older Python releases
+// We could use pyobject_subclassable_native_type for all builds here, but for
+// now only on opaque PyObject builds to not introduce unintended behavior
+// changes on older Python releases.
+//
+// The difference is that pyobject_subclassable_native_type will use variable
+// object size for inheritance rather than PyStaticClassObject
 #[cfg(not(Py_TARGET_ABI3T))]
 impl crate::impl_::pyclass::PyClassBaseType for PyAny {
     type LayoutAsBase = PyClassObjectBase<ffi::PyObject>;

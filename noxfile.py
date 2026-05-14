@@ -100,7 +100,7 @@ def test(session: nox.Session) -> None:
 
 @nox.session(name="test-rust", venv_backend="none")
 def test_rust(session: nox.Session):
-    _run_cargo_test(session, package="pyo3-build-config", features="resolve-config")
+    _run_cargo_test(session, package="pyo3-build-config")
     _run_cargo_test(session, package="pyo3-macros-backend")
     _run_cargo_test(session, package="pyo3-macros")
 
@@ -1207,8 +1207,9 @@ def test_version_limits(session: nox.Session):
     with _config_file() as config_file:
         env["PYO3_CONFIG_FILE"] = config_file.name
 
+        # Oldest-support Python version - 1 should error
         assert "3.7" not in PY_VERSIONS
-        config_file.set("CPython", "3.6")
+        config_file.set("CPython", "3.7")
         _run_cargo(session, "check", env=env, expect_error=True)
 
         # We allow building with our max version + 1, to support
