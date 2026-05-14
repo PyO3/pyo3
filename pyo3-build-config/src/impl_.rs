@@ -389,7 +389,7 @@ impl InterpreterConfig {
 
     fn from_interpreter(
         interpreter: impl AsRef<Path>,
-        abi3_version: Option<PythonVersion>,
+        stable_abi_version: Option<PythonVersion>,
     ) -> Result<Self> {
         const SCRIPT: &str = r#"
 # Allow the script to run on Python 2, so that nicer error can be printed later.
@@ -498,7 +498,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         };
 
         let target_abi =
-            PythonAbi::from_build_env(implementation, version, abi3_version, gil_disabled)?;
+            PythonAbi::from_build_env(implementation, version, stable_abi_version, gil_disabled)?;
 
         let cygwin = map["cygwin"].as_str() == "True";
 
@@ -984,7 +984,7 @@ impl PythonAbi {
         };
         let builder = if get_abi3_version().is_some() && !gil_disabled {
             builder.stable_abi(StableAbi::Abi3)
-        } else if get_abi3t_version().is_some() {
+        } else if get_abi3t_version().is_some() && version >= MINIMUM_SUPPORTED_VERSION_ABI3T {
             builder.stable_abi(StableAbi::Abi3t)
         } else if gil_disabled {
             builder.free_threaded()
@@ -2173,35 +2173,39 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         .finalize()
 }
 
-fn default_stable_abi_config(
-    host: &Triple,
-    abi3_version: Option<PythonVersion>,
-    abi3t_version: Option<PythonVersion>,
-) -> Result<InterpreterConfig> {
-    if abi3_version.is_some() && abi3t_version.is_some() {
-        bail!("Cannot simultaneously set abi3 and abi3t features")
-    } else if let Some(version) = abi3_version {
-        default_abi3_config(host, version)
-    } else if abi3t_version.is_some() {
-        bail!("Abi3t support has not yet been implemented")
-    } else {
-        bail!("Neither abi3 or abi3t features are enabled")
-    }
-}
-
-/// Generates "default" interpreter configuration when compiling "abi3" extensions
+/// Generates "default" interpreter configuration when compiling stable ABI extensions
 /// without a working Python interpreter.
 ///
-/// `version` specifies the minimum supported Stable ABI CPython version.
+/// `abi3_version` or `abi3t_version` specifies the minimum supported Stable ABI
+/// CPython version and which stable ABI to target.
 ///
 /// This should work for most CPython extension modules when compiling on
 /// Windows, macOS and Linux.
 ///
 /// Must be called from a PyO3 crate build script.
-fn default_abi3_config(host: &Triple, version: PythonVersion) -> Result<InterpreterConfig> {
+fn default_stable_abi_config(
+    host: &Triple,
+    abi3_version: Option<PythonVersion>,
+    abi3t_version: Option<PythonVersion>,
+) -> Result<InterpreterConfig> {
+    if abi3_version.is_none() && abi3t_version.is_none() {
+        bail!("Neither abi3 or abi3t features are enabled")
+    }
+    let (stable_abi, version) = if let Some(version) = abi3_version {
+        (StableAbi::Abi3, version)
+    } else if let Some(version) = abi3t_version {
+        (StableAbi::Abi3t, version)
+    } else {
+        unreachable!();
+    };
+
+    if stable_abi == StableAbi::Abi3t && version < MINIMUM_SUPPORTED_VERSION_ABI3T {
+        bail!("Cannot target an abi3t version below {MINIMUM_SUPPORTED_VERSION_ABI3T}")
+    }
+
     // FIXME: PyPy & GraalPy do not support the Stable ABI.
     let target_abi = PythonAbiBuilder::new(PythonImplementation::CPython, version)
-        .stable_abi(StableAbi::Abi3)
+        .stable_abi(stable_abi)
         .finalize()?;
     let builder = InterpreterConfigBuilder::new(PythonImplementation::CPython, version)
         .target_abi(target_abi);
@@ -2498,10 +2502,6 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     let host = Triple::host();
     let abi3_version = get_abi3_version();
     let abi3t_version = get_abi3t_version();
-    ensure!(
-        !(abi3_version.is_some() && abi3t_version.is_some()),
-        "Cannot simultaneously enable abi3 and abi3t features"
-    );
 
     // See if we can safely skip the Python interpreter configuration detection.
     // Unix stable ABI extension modules can usually be built without any interpreter.
@@ -2914,8 +2914,6 @@ mod tests {
     #[test]
     fn windows_hardcoded_abi3_compile() {
         let host = triple!("x86_64-pc-windows-msvc");
-        let min_version = "3.8".parse().unwrap();
-
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY38;
         let config = InterpreterConfigBuilder::new(implementation, version)
@@ -2923,20 +2921,80 @@ mod tests {
             .lib_name("python3".to_string())
             .finalize()
             .unwrap();
-        assert_eq!(default_abi3_config(&host, min_version).unwrap(), config);
+        assert_eq!(
+            default_stable_abi_config(&host, Some(version), None).unwrap(),
+            config
+        );
+    }
+
+    #[test]
+    fn windows_hardcoded_abi3t_compile() {
+        let host = triple!("x86_64-pc-windows-msvc");
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion {
+            major: 3,
+            minor: 15,
+        };
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .stable_abi(StableAbi::Abi3t)
+            .lib_name("python3t".to_string())
+            .finalize()
+            .unwrap();
+        assert_eq!(
+            default_stable_abi_config(&host, None, Some(version)).unwrap(),
+            config
+        );
     }
 
     #[test]
     fn unix_hardcoded_abi3_compile() {
         let host = triple!("x86_64-unknown-linux-gnu");
-        let min_version = "3.9".parse().unwrap();
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .stable_abi(StableAbi::Abi3)
             .finalize()
             .unwrap();
-        assert_eq!(default_abi3_config(&host, min_version).unwrap(), config);
+        assert_eq!(
+            default_stable_abi_config(&host, Some(version), None).unwrap(),
+            config
+        );
+    }
+
+    #[test]
+    fn unix_hardcoded_abi3t_compile() {
+        let host = triple!("x86_64-unknown-linux-gnu");
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion {
+            major: 3,
+            minor: 15,
+        };
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .stable_abi(StableAbi::Abi3t)
+            .finalize()
+            .unwrap();
+        assert_eq!(
+            default_stable_abi_config(&host, None, Some(version)).unwrap(),
+            config
+        );
+    }
+
+    #[test]
+    fn default_stable_abi_config_corner_cases() {
+        let host = triple!("x86_64-unknown-linux-gnu");
+        let py315 = Some("3.15".parse().unwrap());
+        let py39 = Some("3.9".parse().unwrap());
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY39;
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .stable_abi(StableAbi::Abi3)
+            .finalize()
+            .unwrap();
+        assert_eq!(
+            default_stable_abi_config(&host, py39, py315).unwrap(),
+            config
+        );
+        assert!(default_stable_abi_config(&host, None, py39).is_err());
     }
 
     #[test]

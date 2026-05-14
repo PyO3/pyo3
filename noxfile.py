@@ -1259,8 +1259,16 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.17t")
         _run_cargo(session, "check", env=env, expect_error=True)
 
-        # 3.17t CPython should build if abi3 is explicitly requested
+        # 3.17t CPython should build if abi3t is explicitly requested
         _run_cargo(session, "check", "--features=pyo3/abi3t", env=env)
+
+        # abi3t builds should succeed on Python versions that support abi3t
+        config_file.set("CPython", "3.14")
+        _run_cargo(session, "check", "--features=pyo3/abi3t", env=env)
+
+        # ... also if both abi3 and abi3t features are enabled
+        config_file.set("CPython", "3.14")
+        _run_cargo(session, "check", "--features=pyo3/abi3t,pyo3/abi3", env=env)
 
     # attempt to build with latest version and check that abi3 version
     # configured matches the feature
