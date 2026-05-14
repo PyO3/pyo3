@@ -733,14 +733,6 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 "Invalid config that sets both target_abi and abi3."
             );
             target_abi
-        } else if get_abi3t_version().is_some() {
-            ensure!(
-                get_abi3_version().is_none(),
-                "Cannot simultaneously enable features that enable abi3 and abi3t builds"
-            );
-            PythonAbiBuilder::new(implementation, version)
-                .stable_abi(StableAbi::Abi3t)
-                .finalize()?
         } else if flags_contains_free_threaded {
             // This fires even if is_abi3() is True for backward compatibility reasons
             PythonAbiBuilder::new(implementation, version)
