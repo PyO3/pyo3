@@ -142,10 +142,6 @@ pub struct InterpreterConfig {
     )]
     pub shared: bool,
 
-    /// The ABI to use for the compilation target.
-    /// See the documentation for the PythonAbi enum for more details.
-    ///
-    /// Serialized to `target_abi`.
     target_abi: PythonAbi,
 
     /// Serialized to `abi3`.
