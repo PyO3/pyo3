@@ -636,6 +636,12 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 config.lib_name = Some(default_lib_name_for_target(config.target_abi, target));
             }
 
+            // For config files which don't apply a lib name, apply a default which we can use
+            // for linking.
+            if config.lib_name.is_none() {
+                config.lib_name = Some(default_lib_name_for_target(config.target_abi, target));
+            }
+
             Ok(config)
         })
     }
