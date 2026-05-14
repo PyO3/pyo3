@@ -733,9 +733,9 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 "Invalid config that sets both target_abi and abi3."
             );
             target_abi
-        } else if is_abi3t() {
+        } else if get_abi3t_version().is_some() {
             ensure!(
-                !is_abi3(),
+                get_abi3_version().is_none(),
                 "Cannot simultaneously enable features that enable abi3 and abi3t builds"
             );
             PythonAbiBuilder::new(implementation, version)
@@ -873,7 +873,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         self.target_abi = PythonAbi::from_build_env(
             self.implementation,
             self.version,
-            get_abi3_version().or(get_abi3t_version()),
+            exact_stable_abi_version(get_abi3_version().or(get_abi3t_version())),
             self.target_abi.kind().is_free_threaded(),
         )?;
         Ok(self)
@@ -990,9 +990,9 @@ impl PythonAbi {
             version: sanitize_stable_abi_version(stable_abi_version, version)?,
             kind: None,
         };
-        let builder = if is_abi3() && !gil_disabled {
+        let builder = if get_abi3_version().is_some() && !gil_disabled {
             builder.stable_abi(StableAbi::Abi3)
-        } else if is_abi3t() {
+        } else if get_abi3t_version().is_some() {
             builder.stable_abi(StableAbi::Abi3t)
         } else if gil_disabled {
             builder.free_threaded()
@@ -1415,20 +1415,14 @@ fn have_python_interpreter() -> bool {
     env_var("PYO3_NO_PYTHON").is_none()
 }
 
-/// Checks if `abi3` or any of the `abi3-py3*` features is enabled for the PyO3 crate.
+/// The target stable ABI version.
 ///
-/// Must be called from a PyO3 crate build script.
-fn is_abi3() -> bool {
-    cargo_env_var("CARGO_FEATURE_ABI3").is_some()
-        || env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_some_and(|os_str| os_str == "1")
-}
-
-/// Checks if `abi3t` or any of the `abi3t-py3*` features is enabled for the PyO3 crate.
-///
-/// Must be called from a PyO3 crate build script.
-fn is_abi3t() -> bool {
-    cargo_env_var("CARGO_FEATURE_ABI3T").is_some()
-        || env_var("PYO3_USE_ABI3T_FORWARD_COMPATIBILITY").is_some_and(|os_str| os_str == "1")
+/// For abi3(t)-py* builds a specific version is chosen, otherwise the builds is
+/// for the stable ABI exposed by the host python interpreter version.
+#[derive(Debug, Copy, Clone)]
+pub enum StableAbiVersion {
+    Current,
+    Target(PythonVersion),
 }
 
 /// Gets the minimum supported Python version from PyO3 `abi3-py*` features.
@@ -1436,10 +1430,17 @@ fn is_abi3t() -> bool {
 /// Must be called from a PyO3 crate build script. Returns None if an `abi3-py*`
 /// feature is activated that is unsupported or if no `abi3-py3*` feature is
 /// active.
-pub fn get_abi3_version() -> Option<PythonVersion> {
+pub fn get_abi3_version() -> Option<StableAbiVersion> {
     let minor_version = (MINIMUM_SUPPORTED_VERSION.minor..=STABLE_ABI_MAX_MINOR)
         .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3_PY3{i}")).is_some());
-    minor_version.map(|minor| PythonVersion { major: 3, minor })
+    minor_version.map_or(
+        if cargo_env_var("CARGO_FEATURE_ABI3").is_some() {
+            Some(StableAbiVersion::Current)
+        } else {
+            None
+        },
+        |minor| Some(StableAbiVersion::Target(PythonVersion { major: 3, minor })),
+    )
 }
 
 /// Gets the minimum supported Python version from PyO3 `abi3t-py*` features.
@@ -1447,10 +1448,17 @@ pub fn get_abi3_version() -> Option<PythonVersion> {
 /// Must be called from a PyO3 crate build script. Returns None if an `abi3t-py*`
 /// feature is activated that is unsupported or if no `abi3t-py3*` feature is
 /// active.
-pub fn get_abi3t_version() -> Option<PythonVersion> {
+pub fn get_abi3t_version() -> Option<StableAbiVersion> {
     let minor_version = (MINIMUM_SUPPORTED_VERSION_ABI3T.minor..=STABLE_ABI_MAX_MINOR)
         .find(|i| cargo_env_var(&format!("CARGO_FEATURE_ABI3T_PY3{i}")).is_some());
-    minor_version.map(|minor| PythonVersion { major: 3, minor })
+    minor_version.map_or(
+        if cargo_env_var("CARGO_FEATURE_ABI3T").is_some() {
+            Some(StableAbiVersion::Current)
+        } else {
+            None
+        },
+        |minor| Some(StableAbiVersion::Target(PythonVersion { major: 3, minor })),
+    )
 }
 
 /// Checks if the `extension-module` feature is enabled for the PyO3 crate.
@@ -2127,6 +2135,13 @@ fn cross_compile_from_sysconfigdata(
     }
 }
 
+fn exact_stable_abi_version(version: Option<StableAbiVersion>) -> Option<PythonVersion> {
+    version.and_then(|v| match v {
+        StableAbiVersion::Current => None,
+        StableAbiVersion::Target(inner) => Some(inner),
+    })
+}
+
 /// Generates "default" cross compilation information for the target.
 ///
 /// This should work for most CPython extension modules when targeting
@@ -2136,8 +2151,8 @@ fn cross_compile_from_sysconfigdata(
 fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<InterpreterConfig> {
     let version = cross_compile_config
         .version
-        .or_else(get_abi3_version)
-        .or_else(get_abi3t_version)
+        .or_else(|| exact_stable_abi_version(get_abi3_version()))
+        .or_else(|| exact_stable_abi_version(get_abi3t_version()))
         .ok_or_else(||
             format!(
                 "PYO3_CROSS_PYTHON_VERSION or either an abi3-py3* or abi3t-py3* feature must be specified \
@@ -2492,7 +2507,7 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     let abi3_version = get_abi3_version();
     let abi3t_version = get_abi3t_version();
     ensure!(
-        !(is_abi3t() && is_abi3()),
+        !(abi3_version.is_some() && abi3t_version.is_some()),
         "Cannot simultaneously enable abi3 and abi3t features"
     );
 
@@ -2502,7 +2517,7 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
         (abi3_version.is_none() && abi3t_version.is_none()) || require_libdir_for_target(&host);
 
     if have_python_interpreter() {
-        match get_host_interpreter(abi3_version.or(abi3t_version)) {
+        match get_host_interpreter(exact_stable_abi_version(abi3_version.or(abi3t_version))) {
             Ok(interpreter_config) => return Ok(interpreter_config),
             // Bail if the interpreter configuration is required to build.
             Err(e) if need_interpreter => return Err(e),
@@ -2514,7 +2529,11 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
         }
     }
 
-    let interpreter_config = default_stable_abi_config(&host, abi3_version, abi3t_version)?;
+    let interpreter_config = default_stable_abi_config(
+        &host,
+        exact_stable_abi_version(abi3_version),
+        exact_stable_abi_version(abi3t_version),
+    )?;
 
     Ok(interpreter_config)
 }
