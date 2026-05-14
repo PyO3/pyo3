@@ -651,16 +651,16 @@ mod tests {
 
     #[test]
     fn test_inherited_size() {
-        #[cfg(Py_TARGET_ABI3T)]
+        #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
         type ClassObject<T> = PyVariableClassObject<T>;
-        #[cfg(not(Py_TARGET_ABI3T))]
+        #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
         type ClassObject<T> = PyStaticClassObject<T>;
 
         let base_without_data_size = ClassObject::<BaseWithoutData>::BASIC_SIZE;
         let base_with_data_size = ClassObject::<BaseWithData>::BASIC_SIZE;
         let child_without_data_size = ClassObject::<ChildWithoutData>::BASIC_SIZE;
         let child_with_data_size = ClassObject::<ChildWithData>::BASIC_SIZE;
-        #[cfg(Py_TARGET_ABI3T)]
+        #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
         {
             assert!(base_without_data_size < 0); // negative indicates variable sized
             assert!(base_with_data_size < base_without_data_size);
@@ -670,7 +670,7 @@ mod tests {
                 child_with_data_size
             );
         }
-        #[cfg(not(Py_TARGET_ABI3T))]
+        #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
         {
             assert!(base_without_data_size > 0);
             assert!(base_with_data_size > base_without_data_size);

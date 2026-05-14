@@ -154,12 +154,12 @@ mod foo {
     }
 }
 
-# #[cfg(not(Py_TARGET_ABI3T))]
+# #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 fn main() -> PyResult<()> {
     pyo3::append_to_inittab!(foo);
     Python::attach(|py| Python::run(py, c"import foo; foo.add_one(6)", None, None))
 }
-# #[cfg(Py_TARGET_ABI3T)]
+# #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
 # fn main() -> () {}
 ```
 

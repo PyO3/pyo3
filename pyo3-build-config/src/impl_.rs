@@ -368,7 +368,6 @@ impl InterpreterConfig {
                 out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
                 if kind == StableAbi::Abi3t {
                     out.push("cargo:rustc-cfg=Py_GIL_DISABLED".to_owned());
-                    out.push("cargo:rustc-cfg=Py_TARGET_ABI3T".to_owned());
                 }
             }
             PythonAbiKind::VersionSpecific(kind) => match kind {

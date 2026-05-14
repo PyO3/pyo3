@@ -195,7 +195,6 @@ pub fn print_feature_cfgs() {
 pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(Py_LIMITED_API)");
     println!("cargo:rustc-check-cfg=cfg(Py_GIL_DISABLED)");
-    println!("cargo:rustc-check-cfg=cfg(Py_TARGET_ABI3T)");
     println!("cargo:rustc-check-cfg=cfg(PyPy)");
     println!("cargo:rustc-check-cfg=cfg(GraalPy)");
     println!("cargo:rustc-check-cfg=cfg(RustPython)");
