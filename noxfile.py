@@ -237,7 +237,12 @@ def clippy(session: nox.Session) -> bool:
         session.error("one or more jobs failed")
 
 
-def _clippy(session: nox.Session, *, env: Dict[str, str] = None, version: Optional[Tuple[int, int]]) -> bool:
+def _clippy(
+    session: nox.Session,
+    *,
+    env: Dict[str, str] = None,
+    version: Optional[Tuple[int, int]],
+) -> bool:
     success = True
     env = env or os.environ
     for feature_set in _get_feature_sets(version):
@@ -300,7 +305,9 @@ def codspeed(session: nox.Session) -> bool:
 def clippy_all(session: nox.Session) -> None:
     success = True
 
-    def _clippy_with_config(env: Dict[str, str], version: Optional[Tuple[int, int]]) -> None:
+    def _clippy_with_config(
+        env: Dict[str, str], version: Optional[Tuple[int, int]]
+    ) -> None:
         nonlocal success
         success &= _clippy(session, env=env, version=version)
 
@@ -1661,7 +1668,9 @@ def _get_rust_default_target() -> str:
 
 
 @lru_cache()
-def _get_feature_sets(version: Optional[Tuple[int, int]] = None) -> Tuple[Optional[str], ...]:
+def _get_feature_sets(
+    version: Optional[Tuple[int, int]] = None,
+) -> Tuple[Optional[str], ...]:
     """Returns feature sets to use for Rust jobs"""
     if version == None:
         version = sys.version_info[:2]
