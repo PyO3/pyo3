@@ -96,4 +96,13 @@ fn test_compile_errors() {
     t.pass("tests/ui/pyclass_probe.rs");
     t.compile_fail("tests/ui/invalid_pyfunction_warn.rs");
     t.compile_fail("tests/ui/invalid_pymethods_warn.rs");
+    // `pyo3::buffer` is unavailable with abi3 before Python 3.11.
+    #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+    t.compile_fail("tests/ui/invalid_buffer_flags_contiguity.rs");
+    #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+    t.compile_fail("tests/ui/invalid_buffer_flags_duplicate_format.rs");
+    #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+    t.compile_fail("tests/ui/invalid_buffer_flags.rs");
+    #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+    t.compile_fail("tests/ui/invalid_buffer_flags_indirect.rs");
 }

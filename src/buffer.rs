@@ -55,24 +55,20 @@ struct RawBuffer(ffi::Py_buffer, PhantomPinned);
 unsafe impl Send for PyUntypedBuffer {}
 unsafe impl Sync for PyUntypedBuffer {}
 
-impl<T> Debug for PyBuffer<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        debug_buffer("PyBuffer", &self.0, f)
-    }
-}
-
-impl Debug for PyUntypedBuffer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        debug_buffer("PyUntypedBuffer", self, f)
-    }
-}
-
 fn debug_buffer(
     name: &str,
-    b: &PyUntypedBuffer,
+    raw: &ffi::Py_buffer,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
-    let raw = b.raw();
+    let ndim = raw.ndim as usize;
+    let format = NonNull::new(raw.format).map(|p| unsafe { CStr::from_ptr(p.as_ptr()) });
+    let shape = NonNull::new(raw.shape)
+        .map(|p| unsafe { slice::from_raw_parts(p.as_ptr().cast::<usize>(), ndim) });
+    let strides =
+        NonNull::new(raw.strides).map(|p| unsafe { slice::from_raw_parts(p.as_ptr(), ndim) });
+    let suboffsets =
+        NonNull::new(raw.suboffsets).map(|p| unsafe { slice::from_raw_parts(p.as_ptr(), ndim) });
+
     f.debug_struct(name)
         .field("buf", &raw.buf)
         .field("obj", &raw.obj)
@@ -80,12 +76,24 @@ fn debug_buffer(
         .field("itemsize", &raw.itemsize)
         .field("readonly", &raw.readonly)
         .field("ndim", &raw.ndim)
-        .field("format", &b.format())
-        .field("shape", &b.shape())
-        .field("strides", &b.strides())
-        .field("suboffsets", &b.suboffsets())
+        .field("format", &format)
+        .field("shape", &shape)
+        .field("strides", &strides)
+        .field("suboffsets", &suboffsets)
         .field("internal", &raw.internal)
         .finish()
+}
+
+impl<T> Debug for PyBuffer<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        debug_buffer("PyBuffer", self.raw(), f)
+    }
+}
+
+impl Debug for PyUntypedBuffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        debug_buffer("PyUntypedBuffer", self.raw(), f)
+    }
 }
 
 /// Represents the type of a Python buffer element.
@@ -784,6 +792,832 @@ impl_element!(isize, SignedInteger);
 impl_element!(f32, Float);
 impl_element!(f64, Float);
 
+#[repr(u8)]
+enum PyBufferContiguity {
+    Undefined = 0,
+    C = 1,
+    F = 2,
+    Any = 3,
+}
+
+const CONTIGUITY_UNDEFINED: u8 = PyBufferContiguity::Undefined as u8;
+const CONTIGUITY_C: u8 = PyBufferContiguity::C as u8;
+const CONTIGUITY_F: u8 = PyBufferContiguity::F as u8;
+const CONTIGUITY_ANY: u8 = PyBufferContiguity::Any as u8;
+
+/// Type-safe buffer request. The state parameter is intentionally hidden
+/// behind this wrapper so the internal encoding can evolve.
+///
+/// The requested flags constrain what exporters are allowed to return. For example,
+/// without shape information, only 1-dimensional buffers are permitted, and accessors
+/// for unrequested metadata are unavailable on the typed view.
+pub struct PyBufferRequest<
+    Flags: PyBufferRequestType = RequestFlags<
+        false,
+        false,
+        false,
+        false,
+        false,
+        CONTIGUITY_UNDEFINED,
+    >,
+>(c_int, PhantomData<Flags>);
+
+mod py_buffer_flags {
+    pub struct PyBufferFlags<
+        const FORMAT: bool,
+        const SHAPE: bool,
+        const STRIDE: bool,
+        const INDIRECT: bool,
+        const WRITABLE: bool,
+        const CONTIGUITY: u8,
+    >;
+
+    #[diagnostic::on_unimplemented(
+        message = "format information has already been requested for this buffer request",
+        note = "remove the extra `.format()` call"
+    )]
+    pub trait CanRequestFormat {}
+    #[diagnostic::do_not_recommend]
+    impl<
+            const SHAPE: bool,
+            const STRIDE: bool,
+            const INDIRECT: bool,
+            const WRITABLE: bool,
+            const CONTIGUITY: u8,
+        > CanRequestFormat for PyBufferFlags<false, SHAPE, STRIDE, INDIRECT, WRITABLE, CONTIGUITY>
+    {
+    }
+
+    #[diagnostic::on_unimplemented(
+        message = "shape information has already been requested for this buffer request",
+        note = "remove the extra `.nd()` call"
+    )]
+    pub trait CanRequestShape {}
+    #[diagnostic::do_not_recommend]
+    impl<
+            const FORMAT: bool,
+            const STRIDE: bool,
+            const INDIRECT: bool,
+            const WRITABLE: bool,
+            const CONTIGUITY: u8,
+        > CanRequestShape for PyBufferFlags<FORMAT, false, STRIDE, INDIRECT, WRITABLE, CONTIGUITY>
+    {
+    }
+
+    #[diagnostic::on_unimplemented(
+        message = "stride information has already been requested for this buffer request",
+        note = "remove the extra `.strides()` call"
+    )]
+    pub trait CanRequestStrides {}
+    #[diagnostic::do_not_recommend]
+    impl<
+            const FORMAT: bool,
+            const SHAPE: bool,
+            const INDIRECT: bool,
+            const WRITABLE: bool,
+            const CONTIGUITY: u8,
+        > CanRequestStrides
+        for PyBufferFlags<FORMAT, SHAPE, false, INDIRECT, WRITABLE, CONTIGUITY>
+    {
+    }
+
+    #[diagnostic::on_unimplemented(
+        message = "suboffsets can only be requested on a direct unconstrained buffer request",
+        note = "call `.indirect()` before any contiguity builder, and only once"
+    )]
+    pub trait CanRequestIndirect {}
+    #[diagnostic::do_not_recommend]
+    impl<const FORMAT: bool, const SHAPE: bool, const STRIDE: bool, const WRITABLE: bool>
+        CanRequestIndirect
+        for PyBufferFlags<FORMAT, SHAPE, STRIDE, false, WRITABLE, { super::CONTIGUITY_UNDEFINED }>
+    {
+    }
+
+    #[diagnostic::on_unimplemented(
+        message = "writability has already been requested for this buffer request",
+        note = "remove the extra `.writable()` call"
+    )]
+    pub trait CanRequestWritable {}
+    #[diagnostic::do_not_recommend]
+    impl<
+            const FORMAT: bool,
+            const SHAPE: bool,
+            const STRIDE: bool,
+            const INDIRECT: bool,
+            const CONTIGUITY: u8,
+        > CanRequestWritable for PyBufferFlags<FORMAT, SHAPE, STRIDE, INDIRECT, false, CONTIGUITY>
+    {
+    }
+
+    #[diagnostic::on_unimplemented(
+        message = "contiguity has already been constrained for this buffer request",
+        note = "only one of `.c_contiguous()`, `.f_contiguous()`, or `.any_contiguous()` may be used"
+    )]
+    pub trait CanRequestContiguity {}
+    #[diagnostic::do_not_recommend]
+    impl<
+            const FORMAT: bool,
+            const SHAPE: bool,
+            const STRIDE: bool,
+            const INDIRECT: bool,
+            const WRITABLE: bool,
+        > CanRequestContiguity
+        for PyBufferFlags<
+            FORMAT,
+            SHAPE,
+            STRIDE,
+            INDIRECT,
+            WRITABLE,
+            { super::CONTIGUITY_UNDEFINED },
+        >
+    {
+    }
+
+    pub trait GuaranteesWritable {}
+    #[diagnostic::do_not_recommend]
+    impl<
+            const FORMAT: bool,
+            const SHAPE: bool,
+            const STRIDE: bool,
+            const INDIRECT: bool,
+            const CONTIGUITY: u8,
+        > GuaranteesWritable for PyBufferFlags<FORMAT, SHAPE, STRIDE, INDIRECT, true, CONTIGUITY>
+    {
+    }
+
+    pub trait GuaranteesCContiguous {}
+    #[diagnostic::do_not_recommend]
+    impl<
+            const FORMAT: bool,
+            const SHAPE: bool,
+            const STRIDE: bool,
+            const INDIRECT: bool,
+            const WRITABLE: bool,
+        > GuaranteesCContiguous
+        for PyBufferFlags<FORMAT, SHAPE, STRIDE, INDIRECT, WRITABLE, { super::CONTIGUITY_C }>
+    {
+    }
+
+    pub trait GuaranteesFContiguous {}
+    #[diagnostic::do_not_recommend]
+    impl<
+            const FORMAT: bool,
+            const SHAPE: bool,
+            const STRIDE: bool,
+            const INDIRECT: bool,
+            const WRITABLE: bool,
+        > GuaranteesFContiguous
+        for PyBufferFlags<FORMAT, SHAPE, STRIDE, INDIRECT, WRITABLE, { super::CONTIGUITY_F }>
+    {
+    }
+
+    /// Marker trait for buffer flags which have requested format information.
+    #[diagnostic::on_unimplemented(
+        message = "format information is not available with the requested buffer flags",
+        note = "use `.format()` when building a buffer request to request format information",
+        note = "`PyBufferRequest::simple()` and `PyBufferRequest::simple().writable()` also imply u8 format"
+    )]
+    pub trait IncludesFormat {
+        const ASSUME_U8: bool;
+    }
+
+    #[diagnostic::do_not_recommend]
+    impl<
+            const SHAPE: bool,
+            const STRIDE: bool,
+            const INDIRECT: bool,
+            const WRITABLE: bool,
+            const CONTIGUITY: u8,
+        > IncludesFormat for PyBufferFlags<true, SHAPE, STRIDE, INDIRECT, WRITABLE, CONTIGUITY>
+    {
+        const ASSUME_U8: bool = false;
+    }
+
+    // Simple (maybe writable) buffers also have an implied u8 format.
+    #[diagnostic::do_not_recommend]
+    impl<const WRITABLE: bool> IncludesFormat
+        for PyBufferFlags<false, false, false, false, WRITABLE, { super::CONTIGUITY_UNDEFINED }>
+    {
+        const ASSUME_U8: bool = true;
+    }
+
+    #[diagnostic::on_unimplemented(
+        message = "shape information is not available with the requested buffer flags",
+        note = "use `.nd()` when building a buffer request to request shape information"
+    )]
+    pub trait IncludesShape {}
+    #[diagnostic::do_not_recommend]
+    impl<
+            const FORMAT: bool,
+            const STRIDE: bool,
+            const INDIRECT: bool,
+            const WRITABLE: bool,
+            const CONTIGUITY: u8,
+        > IncludesShape for PyBufferFlags<FORMAT, true, STRIDE, INDIRECT, WRITABLE, CONTIGUITY>
+    {
+    }
+
+    #[diagnostic::on_unimplemented(
+        message = "strides information is not available with the requested buffer flags",
+        note = "use `.strides()` when building a buffer request to request stride information"
+    )]
+    pub trait IncludesStrides {}
+    #[diagnostic::do_not_recommend]
+    impl<
+            const FORMAT: bool,
+            const SHAPE: bool,
+            const INDIRECT: bool,
+            const WRITABLE: bool,
+            const CONTIGUITY: u8,
+        > IncludesStrides for PyBufferFlags<FORMAT, SHAPE, true, INDIRECT, WRITABLE, CONTIGUITY>
+    {
+    }
+
+    #[diagnostic::on_unimplemented(
+        message = "suboffsets information is not available with the requested buffer flags",
+        note = "use `.indirect()` when building a buffer request to request suboffset information"
+    )]
+    pub trait IncludesSuboffsets {}
+    #[diagnostic::do_not_recommend]
+    impl<
+            const FORMAT: bool,
+            const SHAPE: bool,
+            const STRIDE: bool,
+            const WRITABLE: bool,
+            const CONTIGUITY: u8,
+        > IncludesSuboffsets for PyBufferFlags<FORMAT, SHAPE, STRIDE, true, WRITABLE, CONTIGUITY>
+    {
+    }
+
+    pub trait Sealed {}
+    impl<
+            const FORMAT: bool,
+            const SHAPE: bool,
+            const STRIDE: bool,
+            const INDIRECT: bool,
+            const WRITABLE: bool,
+            const CONTIGUITY: u8,
+        > Sealed for PyBufferFlags<FORMAT, SHAPE, STRIDE, INDIRECT, WRITABLE, CONTIGUITY>
+    {
+    }
+}
+
+use self::py_buffer_flags::PyBufferFlags as RequestFlags;
+
+/// Trait implemented by all hidden [`PyBufferRequest`] states.
+pub trait PyBufferRequestType: py_buffer_flags::Sealed {
+    /// The contiguity requirement encoded by these flags.
+    const CONTIGUITY: u8;
+
+    /// Whether these flags require a writable buffer.
+    const WRITABLE: bool;
+
+    /// The state after requesting format information.
+    type WithFormat: PyBufferRequestType + py_buffer_flags::IncludesFormat;
+
+    /// The state after requesting shape information.
+    type WithShape: PyBufferRequestType + py_buffer_flags::IncludesShape;
+
+    /// The state after requesting strides information.
+    type WithStrides: PyBufferRequestType
+        + py_buffer_flags::IncludesShape
+        + py_buffer_flags::IncludesStrides;
+
+    /// The state after requesting indirect / suboffset information.
+    type WithIndirect: PyBufferRequestType
+        + py_buffer_flags::IncludesShape
+        + py_buffer_flags::IncludesStrides
+        + py_buffer_flags::IncludesSuboffsets;
+
+    /// The state after requesting writability.
+    type WithWritable: PyBufferRequestType;
+
+    /// The state after requesting C contiguity.
+    type WithCContiguous: PyBufferRequestType;
+
+    /// The state after requesting Fortran contiguity.
+    type WithFContiguous: PyBufferRequestType;
+
+    /// The state after requesting either C or Fortran contiguity.
+    type WithAnyContiguous: PyBufferRequestType;
+}
+
+impl<
+        const FORMAT: bool,
+        const SHAPE: bool,
+        const STRIDE: bool,
+        const INDIRECT: bool,
+        const WRITABLE: bool,
+        const CONTIGUITY_REQ: u8,
+    > PyBufferRequestType
+    for RequestFlags<FORMAT, SHAPE, STRIDE, INDIRECT, WRITABLE, CONTIGUITY_REQ>
+{
+    const CONTIGUITY: u8 = CONTIGUITY_REQ;
+    const WRITABLE: bool = WRITABLE;
+
+    type WithFormat = RequestFlags<true, SHAPE, STRIDE, INDIRECT, WRITABLE, CONTIGUITY_REQ>;
+    type WithShape = RequestFlags<FORMAT, true, STRIDE, INDIRECT, WRITABLE, CONTIGUITY_REQ>;
+    type WithStrides = RequestFlags<FORMAT, true, true, INDIRECT, WRITABLE, CONTIGUITY_REQ>;
+    type WithIndirect = RequestFlags<FORMAT, true, true, true, WRITABLE, CONTIGUITY_UNDEFINED>;
+    type WithWritable = RequestFlags<FORMAT, SHAPE, STRIDE, INDIRECT, true, CONTIGUITY_REQ>;
+    type WithCContiguous = RequestFlags<FORMAT, true, true, false, WRITABLE, CONTIGUITY_C>;
+    type WithFContiguous = RequestFlags<FORMAT, true, true, false, WRITABLE, CONTIGUITY_F>;
+    type WithAnyContiguous = RequestFlags<FORMAT, true, true, false, WRITABLE, CONTIGUITY_ANY>;
+}
+
+impl<Flags> PyBufferRequest<Flags>
+where
+    Flags: PyBufferRequestType + py_buffer_flags::CanRequestFormat,
+{
+    /// Request format information.
+    pub const fn format(self) -> PyBufferRequest<Flags::WithFormat> {
+        PyBufferRequest(self.0 | ffi::PyBUF_FORMAT, PhantomData)
+    }
+}
+
+impl<Flags> PyBufferRequest<Flags>
+where
+    Flags: PyBufferRequestType + py_buffer_flags::CanRequestShape,
+{
+    /// Request shape information.
+    pub const fn nd(self) -> PyBufferRequest<Flags::WithShape> {
+        PyBufferRequest(self.0 | ffi::PyBUF_ND, PhantomData)
+    }
+}
+
+impl<Flags> PyBufferRequest<Flags>
+where
+    Flags: PyBufferRequestType + py_buffer_flags::CanRequestStrides,
+{
+    /// Request strides information. Implies shape.
+    pub const fn strides(self) -> PyBufferRequest<Flags::WithStrides> {
+        PyBufferRequest(self.0 | ffi::PyBUF_STRIDES, PhantomData)
+    }
+}
+
+impl<Flags> PyBufferRequest<Flags>
+where
+    Flags: PyBufferRequestType + py_buffer_flags::CanRequestIndirect,
+{
+    /// Request suboffsets (indirect). Implies shape and strides.
+    pub const fn indirect(self) -> PyBufferRequest<Flags::WithIndirect> {
+        PyBufferRequest(self.0 | ffi::PyBUF_INDIRECT, PhantomData)
+    }
+}
+
+impl<Flags> PyBufferRequest<Flags>
+where
+    Flags: PyBufferRequestType + py_buffer_flags::CanRequestWritable,
+{
+    /// Request a writable buffer.
+    pub const fn writable(self) -> PyBufferRequest<Flags::WithWritable> {
+        PyBufferRequest(self.0 | ffi::PyBUF_WRITABLE, PhantomData)
+    }
+}
+
+impl<Flags> PyBufferRequest<Flags>
+where
+    Flags: PyBufferRequestType + py_buffer_flags::CanRequestContiguity,
+{
+    /// Require C-contiguous layout. Implies shape and strides.
+    pub const fn c_contiguous(self) -> PyBufferRequest<Flags::WithCContiguous> {
+        PyBufferRequest(self.0 | ffi::PyBUF_C_CONTIGUOUS, PhantomData)
+    }
+
+    /// Require Fortran-contiguous layout. Implies shape and strides.
+    pub const fn f_contiguous(self) -> PyBufferRequest<Flags::WithFContiguous> {
+        PyBufferRequest(self.0 | ffi::PyBUF_F_CONTIGUOUS, PhantomData)
+    }
+
+    /// Require contiguous layout (C or Fortran). Implies shape and strides.
+    ///
+    /// The specific contiguity order is not known at compile time,
+    /// so this does not unlock non-Option slice accessors.
+    pub const fn any_contiguous(self) -> PyBufferRequest<Flags::WithAnyContiguous> {
+        PyBufferRequest(self.0 | ffi::PyBUF_ANY_CONTIGUOUS, PhantomData)
+    }
+}
+
+impl PyBufferRequest {
+    /// Create a base buffer request. Chain builder methods to add flags.
+    pub const fn simple(
+    ) -> PyBufferRequest<RequestFlags<false, false, false, false, false, CONTIGUITY_UNDEFINED>>
+    {
+        PyBufferRequest(ffi::PyBUF_SIMPLE, PhantomData)
+    }
+
+    /// Create a writable request for all buffer information including suboffsets.
+    pub const fn full(
+    ) -> PyBufferRequest<RequestFlags<true, true, true, true, true, CONTIGUITY_UNDEFINED>> {
+        PyBufferRequest(ffi::PyBUF_FULL, PhantomData)
+    }
+
+    /// Create a read-only request for all buffer information including suboffsets.
+    pub const fn full_ro(
+    ) -> PyBufferRequest<RequestFlags<true, true, true, true, false, CONTIGUITY_UNDEFINED>> {
+        PyBufferRequest(ffi::PyBUF_FULL_RO, PhantomData)
+    }
+
+    /// Create a writable request for format, shape, and strides.
+    pub const fn records(
+    ) -> PyBufferRequest<RequestFlags<true, true, true, false, true, CONTIGUITY_UNDEFINED>> {
+        PyBufferRequest(ffi::PyBUF_RECORDS, PhantomData)
+    }
+
+    /// Create a read-only request for format, shape, and strides.
+    pub const fn records_ro(
+    ) -> PyBufferRequest<RequestFlags<true, true, true, false, false, CONTIGUITY_UNDEFINED>> {
+        PyBufferRequest(ffi::PyBUF_RECORDS_RO, PhantomData)
+    }
+
+    /// Create a writable request for shape and strides.
+    pub const fn strided(
+    ) -> PyBufferRequest<RequestFlags<false, true, true, false, true, CONTIGUITY_UNDEFINED>> {
+        PyBufferRequest(ffi::PyBUF_STRIDED, PhantomData)
+    }
+
+    /// Create a read-only request for shape and strides.
+    pub const fn strided_ro(
+    ) -> PyBufferRequest<RequestFlags<false, true, true, false, false, CONTIGUITY_UNDEFINED>> {
+        PyBufferRequest(ffi::PyBUF_STRIDED_RO, PhantomData)
+    }
+
+    /// Create a writable C-contiguous request.
+    pub const fn contig(
+    ) -> PyBufferRequest<RequestFlags<false, true, false, false, true, CONTIGUITY_C>> {
+        PyBufferRequest(ffi::PyBUF_CONTIG, PhantomData)
+    }
+
+    /// Create a read-only C-contiguous request.
+    pub const fn contig_ro(
+    ) -> PyBufferRequest<RequestFlags<false, true, false, false, false, CONTIGUITY_C>> {
+        PyBufferRequest(ffi::PyBUF_CONTIG_RO, PhantomData)
+    }
+}
+
+/// A typed form of [`PyUntypedBufferView`]. Not constructible directly — use
+/// [`PyBufferView::with()`] or [`PyBufferView::with_flags()`].
+#[repr(transparent)]
+pub struct PyBufferView<
+    T,
+    Flags: PyBufferRequestType = RequestFlags<true, true, true, true, false, CONTIGUITY_UNDEFINED>,
+>(PyUntypedBufferView<Flags>, PhantomData<[T]>);
+
+/// Stack-allocated untyped buffer view.
+///
+/// Unlike [`PyUntypedBuffer`] which heap-allocates, this places the `Py_buffer` on the
+/// stack. The scoped closure API ensures the buffer cannot be moved.
+///
+/// Use [`with_flags()`](Self::with_flags) with a [`PyBufferRequest`] value to acquire a view.
+/// The available accessors depend on the flags used.
+pub struct PyUntypedBufferView<
+    Flags: PyBufferRequestType = RequestFlags<
+        false,
+        false,
+        false,
+        false,
+        false,
+        CONTIGUITY_UNDEFINED,
+    >,
+> {
+    raw: ffi::Py_buffer,
+    _flags: PhantomData<Flags>,
+}
+
+impl<Flags: PyBufferRequestType> PyUntypedBufferView<Flags> {
+    /// Gets the pointer to the start of the buffer memory.
+    #[inline]
+    pub fn buf_ptr(&self) -> *mut c_void {
+        self.raw.buf
+    }
+
+    /// Returns the Python object that owns the buffer data.
+    #[inline]
+    pub fn obj<'py>(&self, py: Python<'py>) -> Option<&Bound<'py, PyAny>> {
+        unsafe { Bound::ref_from_ptr_or_opt(py, &self.raw.obj).as_ref() }
+    }
+
+    /// Gets whether the underlying buffer is read-only.
+    #[inline]
+    pub fn readonly(&self) -> bool {
+        !Flags::WRITABLE && self.raw.readonly != 0
+    }
+
+    /// Gets the size of a single element, in bytes.
+    #[inline]
+    pub fn item_size(&self) -> usize {
+        self.raw.itemsize as usize
+    }
+
+    /// Gets the total number of items.
+    #[inline]
+    pub fn item_count(&self) -> usize {
+        (self.raw.len as usize) / (self.raw.itemsize as usize)
+    }
+
+    /// `item_size() * item_count()`.
+    /// For contiguous arrays, this is the length of the underlying memory block.
+    #[inline]
+    pub fn len_bytes(&self) -> usize {
+        self.raw.len as usize
+    }
+
+    /// Gets the number of dimensions.
+    ///
+    /// May be 0 to indicate a single scalar value.
+    #[inline]
+    pub fn dimensions(&self) -> usize {
+        self.raw.ndim as usize
+    }
+
+    /// Gets whether the buffer is contiguous in C-style order.
+    #[inline]
+    pub fn is_c_contiguous(&self) -> bool {
+        Flags::CONTIGUITY == CONTIGUITY_C
+            || unsafe { ffi::PyBuffer_IsContiguous(&self.raw, b'C' as std::ffi::c_char) != 0 }
+    }
+
+    /// Gets whether the buffer is contiguous in Fortran-style order.
+    #[inline]
+    pub fn is_fortran_contiguous(&self) -> bool {
+        Flags::CONTIGUITY == CONTIGUITY_F
+            || unsafe { ffi::PyBuffer_IsContiguous(&self.raw, b'F' as std::ffi::c_char) != 0 }
+    }
+}
+
+impl<Flags: PyBufferRequestType> PyUntypedBufferView<Flags> {
+    /// A [struct module style](https://docs.python.org/3/c-api/buffer.html#c.Py_buffer.format)
+    /// string describing the contents of a single item.
+    #[inline]
+    pub fn format(&self) -> &CStr
+    where
+        Flags: py_buffer_flags::IncludesFormat,
+    {
+        if Flags::ASSUME_U8 {
+            return ffi::c_str!("B");
+        }
+
+        debug_assert!(!self.raw.format.is_null());
+        unsafe { CStr::from_ptr(self.raw.format) }
+    }
+
+    /// Attempt to interpret this untyped view as containing elements of type `T`.
+    pub fn as_typed<T: Element>(&self) -> PyResult<&PyBufferView<T, Flags>>
+    where
+        Flags: py_buffer_flags::IncludesFormat,
+    {
+        self.ensure_compatible_with::<T>()?;
+        // SAFETY: PyBufferView<T, ..> is repr(transparent) around PyUntypedBufferView<..>
+        Ok(unsafe {
+            NonNull::from(self)
+                .cast::<PyBufferView<T, Flags>>()
+                .as_ref()
+        })
+    }
+
+    fn ensure_compatible_with<T: Element>(&self) -> PyResult<()>
+    where
+        Flags: py_buffer_flags::IncludesFormat,
+    {
+        check_buffer_compatibility::<T>(self.raw.buf, self.item_size(), self.format())
+    }
+
+    /// Returns the shape array. `shape[i]` is the length of dimension `i`.
+    ///
+    /// Despite Python using an array of signed integers, the values are guaranteed to be
+    /// non-negative. However, dimensions of length 0 are possible and might need special
+    /// attention.
+    #[inline]
+    pub fn shape(&self) -> &[usize]
+    where
+        Flags: py_buffer_flags::IncludesShape,
+    {
+        debug_assert!(!self.raw.shape.is_null());
+        unsafe { slice::from_raw_parts(self.raw.shape.cast(), self.raw.ndim as usize) }
+    }
+
+    /// Returns the strides array.
+    ///
+    /// Stride values can be any integer. For regular arrays, strides are usually positive,
+    /// but a consumer MUST be able to handle the case `strides[n] <= 0`.
+    #[inline]
+    pub fn strides(&self) -> &[isize]
+    where
+        Flags: py_buffer_flags::IncludesStrides,
+    {
+        debug_assert!(!self.raw.strides.is_null());
+        unsafe { slice::from_raw_parts(self.raw.strides, self.raw.ndim as usize) }
+    }
+
+    /// Returns the suboffsets array.
+    ///
+    /// May return `None` even when suboffsets were requested if the exporter sets
+    /// `suboffsets` to `NULL`.
+    #[inline]
+    pub fn suboffsets(&self) -> Option<&[isize]>
+    where
+        Flags: py_buffer_flags::IncludesSuboffsets,
+    {
+        if self.raw.suboffsets.is_null() {
+            return None;
+        }
+
+        Some(unsafe { slice::from_raw_parts(self.raw.suboffsets, self.raw.ndim as usize) })
+    }
+}
+
+/// Check that a buffer is compatible with element type `T`.
+fn check_buffer_compatibility<T: Element>(
+    buf: *mut c_void,
+    itemsize: usize,
+    format: &CStr,
+) -> PyResult<()> {
+    let name = std::any::type_name::<T>();
+
+    if mem::size_of::<T>() != itemsize || !T::is_compatible_format(format) {
+        return Err(PyBufferError::new_err(format!(
+            "buffer contents are not compatible with {name}"
+        )));
+    }
+
+    if buf.align_offset(mem::align_of::<T>()) != 0 {
+        return Err(PyBufferError::new_err(format!(
+            "buffer contents are insufficiently aligned for {name}"
+        )));
+    }
+
+    Ok(())
+}
+
+impl PyUntypedBufferView {
+    /// Acquire a buffer view with the given flags,
+    /// pass it to `f`, then release the buffer.
+    ///
+    /// Use [`PyBufferRequest::simple()`] or one of the compound-request constructors such as
+    /// [`PyBufferRequest::full_ro()`] to acquire a view.
+    ///
+    /// The requested flags constrain what exporters may return. For example, without shape
+    /// information only 1-dimensional buffers are permitted.
+    pub fn with_flags<Flags: PyBufferRequestType, R>(
+        obj: &Bound<'_, PyAny>,
+        flags: PyBufferRequest<Flags>,
+        f: impl FnOnce(&PyUntypedBufferView<Flags>) -> R,
+    ) -> PyResult<R> {
+        let mut raw = mem::MaybeUninit::<ffi::Py_buffer>::uninit();
+
+        err::error_on_minusone(obj.py(), unsafe {
+            ffi::PyObject_GetBuffer(obj.as_ptr(), raw.as_mut_ptr(), flags.0)
+        })?;
+
+        let view = PyUntypedBufferView {
+            raw: unsafe { raw.assume_init() },
+            _flags: PhantomData,
+        };
+
+        Ok(f(&view))
+    }
+}
+
+impl<Flags: PyBufferRequestType> Drop for PyUntypedBufferView<Flags> {
+    fn drop(&mut self) {
+        unsafe { ffi::PyBuffer_Release(&mut self.raw) }
+    }
+}
+
+impl<Flags: PyBufferRequestType> Debug for PyUntypedBufferView<Flags> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        debug_buffer("PyUntypedBufferView", &self.raw, f)
+    }
+}
+
+impl<T: Element> PyBufferView<T> {
+    /// Acquire a typed buffer view with `PyBufferRequest::full_ro()` flags,
+    /// validating that the buffer format is compatible with `T`.
+    pub fn with<R>(obj: &Bound<'_, PyAny>, f: impl FnOnce(&PyBufferView<T>) -> R) -> PyResult<R> {
+        PyUntypedBufferView::with_flags(obj, PyBufferRequest::full_ro(), |view| {
+            view.as_typed::<T>().map(f)
+        })?
+    }
+
+    /// Acquire a typed buffer view with the given flags.
+    ///
+    /// [`ffi::PyBUF_FORMAT`] is implicitly added for type validation. As with
+    /// [`PyUntypedBufferView::with_flags`], the requested flags also constrain what exporters
+    /// may return.
+    pub fn with_flags<Flags: PyBufferRequestType, R>(
+        obj: &Bound<'_, PyAny>,
+        flags: PyBufferRequest<Flags>,
+        f: impl FnOnce(&PyBufferView<T, Flags::WithFormat>) -> R,
+    ) -> PyResult<R> {
+        let mut raw = mem::MaybeUninit::<ffi::Py_buffer>::uninit();
+
+        err::error_on_minusone(obj.py(), unsafe {
+            ffi::PyObject_GetBuffer(obj.as_ptr(), raw.as_mut_ptr(), flags.0 | ffi::PyBUF_FORMAT)
+        })?;
+
+        let view = PyUntypedBufferView::<Flags::WithFormat> {
+            raw: unsafe { raw.assume_init() },
+            _flags: PhantomData,
+        };
+
+        view.as_typed::<T>().map(f)
+    }
+}
+
+impl<T: Element, Flags: PyBufferRequestType> PyBufferView<T, Flags> {
+    /// Gets the buffer memory as a slice.
+    ///
+    /// Returns `None` if the buffer is not C-contiguous.
+    ///
+    /// The returned slice uses type [`ReadOnlyCell<T>`] because it's theoretically possible
+    /// for any call into the Python runtime to modify the values in the slice.
+    pub fn as_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [ReadOnlyCell<T>]> {
+        if !self.is_c_contiguous() {
+            return None;
+        }
+
+        Some(unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) })
+    }
+
+    /// Gets the buffer memory as a mutable slice.
+    ///
+    /// Returns `None` if the buffer is read-only or not C-contiguous.
+    ///
+    /// The returned slice uses type [`Cell<T>`](cell::Cell) because it's theoretically possible
+    /// for any call into the Python runtime to modify the values in the slice.
+    pub fn as_mut_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [cell::Cell<T>]> {
+        if self.readonly() || !self.is_c_contiguous() {
+            return None;
+        }
+
+        Some(unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) })
+    }
+}
+
+// C-contiguous guaranteed — no contiguity check needed.
+impl<T: Element, Flags> PyBufferView<T, Flags>
+where
+    Flags: PyBufferRequestType + py_buffer_flags::GuaranteesCContiguous,
+{
+    /// Gets the buffer memory as a slice. The buffer is guaranteed C-contiguous.
+    pub fn as_contiguous_slice<'a>(&'a self, _py: Python<'a>) -> &'a [ReadOnlyCell<T>] {
+        unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) }
+    }
+}
+
+// C-contiguous + writable guaranteed — no checks needed.
+impl<T: Element, Flags> PyBufferView<T, Flags>
+where
+    Flags: PyBufferRequestType
+        + py_buffer_flags::GuaranteesCContiguous
+        + py_buffer_flags::GuaranteesWritable,
+{
+    /// Gets the buffer memory as a mutable slice.
+    /// The buffer is guaranteed C-contiguous and writable.
+    pub fn as_contiguous_mut_slice<'a>(&'a self, _py: Python<'a>) -> &'a [cell::Cell<T>] {
+        unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) }
+    }
+}
+
+// Fortran-contiguous guaranteed.
+impl<T: Element, Flags> PyBufferView<T, Flags>
+where
+    Flags: PyBufferRequestType + py_buffer_flags::GuaranteesFContiguous,
+{
+    /// Gets the buffer memory as a slice. The buffer is guaranteed Fortran-contiguous.
+    pub fn as_fortran_contiguous_slice<'a>(&'a self, _py: Python<'a>) -> &'a [ReadOnlyCell<T>] {
+        unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) }
+    }
+}
+
+// Fortran-contiguous + writable guaranteed.
+impl<T: Element, Flags> PyBufferView<T, Flags>
+where
+    Flags: PyBufferRequestType
+        + py_buffer_flags::GuaranteesFContiguous
+        + py_buffer_flags::GuaranteesWritable,
+{
+    /// Gets the buffer memory as a mutable slice.
+    /// The buffer is guaranteed Fortran-contiguous and writable.
+    pub fn as_fortran_contiguous_mut_slice<'a>(&'a self, _py: Python<'a>) -> &'a [cell::Cell<T>] {
+        unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) }
+    }
+}
+
+impl<T, Flags: PyBufferRequestType> std::ops::Deref for PyBufferView<T, Flags> {
+    type Target = PyUntypedBufferView<Flags>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T, Flags: PyBufferRequestType> Debug for PyBufferView<T, Flags> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        debug_buffer("PyBufferView", &self.0.raw, f)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -802,14 +1636,29 @@ mod tests {
                 concat!(
                     "PyBuffer {{ buf: {:?}, obj: {:?}, ",
                     "len: 5, itemsize: 1, readonly: 1, ",
-                    "ndim: 1, format: \"B\", shape: [5], ",
-                    "strides: [1], suboffsets: None, internal: {:?} }}",
+                    "ndim: 1, format: Some(\"B\"), shape: Some([5]), ",
+                    "strides: Some([1]), suboffsets: None, internal: {:?} }}",
                 ),
                 buffer.raw().buf,
                 buffer.raw().obj,
                 buffer.raw().internal
             );
             let debug_repr = format!("{:?}", buffer);
+            assert_eq!(debug_repr, expected);
+
+            let untyped = PyUntypedBuffer::get(&bytes).unwrap();
+            let expected = format!(
+                concat!(
+                    "PyUntypedBuffer {{ buf: {:?}, obj: {:?}, ",
+                    "len: 5, itemsize: 1, readonly: 1, ",
+                    "ndim: 1, format: Some(\"B\"), shape: Some([5]), ",
+                    "strides: Some([1]), suboffsets: None, internal: {:?} }}",
+                ),
+                untyped.raw().buf,
+                untyped.raw().obj,
+                untyped.raw().internal
+            );
+            let debug_repr = format!("{:?}", untyped);
             assert_eq!(debug_repr, expected);
         });
     }
@@ -928,6 +1777,27 @@ mod tests {
             (c"=d", Float { bytes: 8 }),
             (c"=z", Unknown),
             (c"=0", Unknown),
+            // bare char (no prefix) goes to native_element_type_from_type_char
+            (
+                c"b",
+                SignedInteger {
+                    bytes: size_of::<c_schar>(),
+                },
+            ),
+            (
+                c"B",
+                UnsignedInteger {
+                    bytes: size_of::<c_uchar>(),
+                },
+            ),
+            (c"?", Bool),
+            (c"f", Float { bytes: 4 }),
+            (c"d", Float { bytes: 8 }),
+            (c"z", Unknown),
+            // <, >, ! prefixes go to standard_element_type_from_type_char
+            (c"<i", SignedInteger { bytes: 4 }),
+            (c">H", UnsignedInteger { bytes: 2 }),
+            (c"!q", SignedInteger { bytes: 8 }),
             // unknown prefix -> Unknown
             (c":b", Unknown),
         ] {
@@ -965,6 +1835,7 @@ mod tests {
             assert_eq!(slice.len(), 5);
             assert_eq!(slice[0].get(), b'a');
             assert_eq!(slice[2].get(), b'c');
+            assert_eq!(unsafe { *slice[0].as_ptr() }, b'a');
 
             assert_eq!(unsafe { *(buffer.get_ptr(&[1]).cast::<u8>()) }, b'b');
 
@@ -1039,24 +1910,6 @@ mod tests {
     }
 
     #[test]
-    fn test_untyped_buffer() {
-        Python::attach(|py| {
-            let bytes = PyBytes::new(py, b"abcde");
-            let untyped = PyUntypedBuffer::get(&bytes).unwrap();
-            assert_eq!(untyped.dimensions(), 1);
-            assert_eq!(untyped.item_count(), 5);
-            assert_eq!(untyped.format().to_str().unwrap(), "B");
-            assert_eq!(untyped.shape(), [5]);
-
-            let typed: &PyBuffer<u8> = untyped.as_typed().unwrap();
-            assert_eq!(typed.dimensions(), 1);
-            assert_eq!(typed.item_count(), 5);
-            assert_eq!(typed.format().to_str().unwrap(), "B");
-            assert_eq!(typed.shape(), [5]);
-        });
-    }
-
-    #[test]
     fn test_obj_getter() {
         Python::attach(|py| {
             let bytes = PyBytes::new(py, b"hello");
@@ -1076,6 +1929,576 @@ mod tests {
                 let rebound = owner_ref.bind(py);
                 assert!(rebound.is_instance_of::<PyBytes>());
             });
+        });
+    }
+
+    #[test]
+    fn test_copy_to_fortran_slice() {
+        Python::attach(|py| {
+            let array = py
+                .import("array")
+                .unwrap()
+                .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
+                .unwrap();
+            let buffer = PyBuffer::get(&array).unwrap();
+
+            // wrong length
+            assert!(buffer.copy_to_fortran_slice(py, &mut [0.0f32]).is_err());
+            // correct length
+            let mut arr = [0.0f32; 4];
+            buffer.copy_to_fortran_slice(py, &mut arr).unwrap();
+            assert_eq!(arr, [1.0, 1.5, 2.0, 2.5]);
+        });
+    }
+
+    #[test]
+    fn test_copy_from_slice_wrong_length() {
+        Python::attach(|py| {
+            let array = py
+                .import("array")
+                .unwrap()
+                .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
+                .unwrap();
+            let buffer = PyBuffer::get(&array).unwrap();
+            // writable buffer, but wrong length
+            assert!(!buffer.readonly());
+            assert!(buffer.copy_from_slice(py, &[0.0f32; 2]).is_err());
+            assert!(buffer.copy_from_fortran_slice(py, &[0.0f32; 2]).is_err());
+        });
+    }
+
+    #[test]
+    fn test_untyped_buffer() {
+        Python::attach(|py| {
+            let bytes = PyBytes::new(py, b"abcde");
+            let buffer = PyUntypedBuffer::get(&bytes).unwrap();
+            assert_eq!(buffer.dimensions(), 1);
+            assert_eq!(buffer.item_count(), 5);
+            assert_eq!(buffer.format().to_str().unwrap(), "B");
+            assert_eq!(buffer.shape(), [5]);
+            assert!(!buffer.buf_ptr().is_null());
+            assert_eq!(buffer.strides(), &[1]);
+            assert_eq!(buffer.len_bytes(), 5);
+            assert_eq!(buffer.item_size(), 1);
+            assert!(buffer.readonly());
+            assert!(buffer.suboffsets().is_none());
+
+            assert!(format!("{:?}", buffer).starts_with("PyUntypedBuffer { buf: "));
+
+            let typed: &PyBuffer<u8> = buffer.as_typed().unwrap();
+            assert_eq!(typed.dimensions(), 1);
+            assert_eq!(typed.item_count(), 5);
+            assert_eq!(typed.format().to_str().unwrap(), "B");
+            assert_eq!(typed.shape(), [5]);
+        });
+    }
+
+    #[test]
+    fn test_untyped_buffer_view() {
+        Python::attach(|py| {
+            let bytes = PyBytes::new(py, b"abcde");
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::full_ro(), |view| {
+                assert!(!view.buf_ptr().is_null());
+                assert_eq!(view.len_bytes(), 5);
+                assert_eq!(view.item_size(), 1);
+                assert_eq!(view.item_count(), 5);
+                assert!(view.readonly());
+                assert_eq!(view.dimensions(), 1);
+                // with_flags() uses PyBufferRequest::full_ro() — all Known, direct return types
+                assert_eq!(view.format().to_str().unwrap(), "B");
+                assert_eq!(view.shape(), [5]);
+                assert_eq!(view.strides(), [1]);
+                assert!(view.suboffsets().is_none());
+                assert!(view.is_c_contiguous());
+                assert!(view.is_fortran_contiguous());
+                assert!(view.obj(py).unwrap().is(&bytes));
+            })
+            .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_typed_buffer_view() {
+        Python::attach(|py| {
+            let bytes = PyBytes::new(py, b"abcde");
+            PyBufferView::<u8>::with(&bytes, |view| {
+                assert_eq!(view.dimensions(), 1);
+                assert_eq!(view.item_count(), 5);
+                // PyBufferView::with uses PyBufferRequest::full_ro() — all Known
+                assert_eq!(view.format().to_str().unwrap(), "B");
+                assert_eq!(view.shape(), [5]);
+                assert!(view.suboffsets().is_none());
+
+                let slice = view.as_slice(py).unwrap();
+                assert_eq!(slice.len(), 5);
+                assert_eq!(slice[0].get(), b'a');
+                assert_eq!(slice[4].get(), b'e');
+
+                // bytes are read-only
+                assert!(view.as_mut_slice(py).is_none());
+            })
+            .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_buffer_view_array() {
+        Python::attach(|py| {
+            let array = py
+                .import("array")
+                .unwrap()
+                .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
+                .unwrap();
+            PyBufferView::<f32>::with(&array, |view| {
+                assert_eq!(view.dimensions(), 1);
+                assert_eq!(view.item_count(), 4);
+                assert_eq!(view.format().to_str().unwrap(), "f");
+                assert_eq!(view.shape(), [4]);
+
+                let slice = view.as_slice(py).unwrap();
+                assert_eq!(slice.len(), 4);
+                assert_eq!(slice[0].get(), 1.0);
+                assert_eq!(slice[3].get(), 2.5);
+
+                // array.array is writable
+                let mut_slice = view.as_mut_slice(py).unwrap();
+                assert_eq!(mut_slice[0].get(), 1.0);
+                mut_slice[3].set(2.75);
+                assert_eq!(slice[3].get(), 2.75);
+            })
+            .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_buffer_view_with_flags() {
+        Python::attach(|py| {
+            let bytes = PyBytes::new(py, b"abcde");
+
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::simple(), |view| {
+                assert_eq!(view.item_count(), 5);
+                assert_eq!(view.len_bytes(), 5);
+                assert!(view.readonly());
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::simple().nd(), |view| {
+                assert_eq!(view.item_count(), 5);
+                assert_eq!(view.shape(), [5]);
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::simple().strides(), |view| {
+                assert_eq!(view.shape(), [5]);
+                assert_eq!(view.strides(), [1]);
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::simple().indirect(), |view| {
+                assert_eq!(view.shape(), [5]);
+                assert_eq!(view.strides(), [1]);
+                assert!(view.suboffsets().is_none());
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::simple().format(), |view| {
+                assert_eq!(view.item_count(), 5);
+                assert_eq!(view.format().to_str().unwrap(), "B");
+            })
+            .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_typed_buffer_view_with_flags() {
+        Python::attach(|py| {
+            let array = py
+                .import("array")
+                .unwrap()
+                .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
+                .unwrap();
+
+            PyBufferView::<f32>::with_flags(&array, PyBufferRequest::simple().nd(), |view| {
+                assert_eq!(view.item_count(), 4);
+                assert_eq!(view.format().to_str().unwrap(), "f");
+                assert_eq!(view.shape(), [4]);
+
+                let slice = view.as_slice(py).unwrap();
+                assert_eq!(slice[0].get(), 1.0);
+                assert_eq!(slice[3].get(), 2.5);
+
+                let mut_slice = view.as_mut_slice(py).unwrap();
+                mut_slice[0].set(9.0);
+                assert_eq!(slice[0].get(), 9.0);
+            })
+            .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_typed_buffer_view_with_flags_incompatible() {
+        Python::attach(|py| {
+            let bytes = PyBytes::new(py, b"abcde");
+            let result =
+                PyBufferView::<f32>::with_flags(&bytes, PyBufferRequest::simple().nd(), |_view| {});
+            assert!(result.is_err());
+        });
+    }
+
+    #[test]
+    fn test_c_contiguous_slice() {
+        Python::attach(|py| {
+            let array = py
+                .import("array")
+                .unwrap()
+                .call_method("array", ("f", (1.0, 1.5, 2.0)), None)
+                .unwrap();
+
+            // C_CONTIGUOUS: guaranteed contiguous readonly access (no Option)
+            PyBufferView::<f32>::with_flags(
+                &array,
+                PyBufferRequest::simple().c_contiguous(),
+                |view| {
+                    let slice = view.as_contiguous_slice(py);
+                    assert_eq!(slice.len(), 3);
+                    assert_eq!(slice[0].get(), 1.0);
+                    assert_eq!(slice[2].get(), 2.0);
+                },
+            )
+            .unwrap();
+
+            // C_CONTIGUOUS | WRITABLE (via CONTIG combined with STRIDES-level):
+            // no predefined constant, but we can use PyBufferView::with on a writable array
+            // and the Option-based as_mut_slice still works
+            PyBufferView::<f32>::with(&array, |view| {
+                let mut_slice = view.as_mut_slice(py).unwrap();
+                mut_slice[2].set(9.0);
+                assert_eq!(view.as_slice(py).unwrap()[2].get(), 9.0);
+            })
+            .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_buffer_view_error() {
+        Python::attach(|py| {
+            let list = crate::types::PyList::empty(py);
+            let result =
+                PyUntypedBufferView::with_flags(&list, PyBufferRequest::full_ro(), |_view| {});
+            assert!(result.is_err());
+        });
+    }
+
+    #[test]
+    fn test_flag_builders() {
+        fn assert_direct<
+            const FORMAT: bool,
+            const SHAPE: bool,
+            const STRIDE: bool,
+            const WRITABLE: bool,
+            const CONTIGUITY: u8,
+        >(
+            _: PyBufferRequest<RequestFlags<FORMAT, SHAPE, STRIDE, false, WRITABLE, CONTIGUITY>>,
+        ) {
+        }
+
+        fn assert_indirect<
+            const FORMAT: bool,
+            const SHAPE: bool,
+            const STRIDE: bool,
+            const WRITABLE: bool,
+            const CONTIGUITY: u8,
+        >(
+            _: PyBufferRequest<RequestFlags<FORMAT, SHAPE, STRIDE, true, WRITABLE, CONTIGUITY>>,
+        ) {
+        }
+
+        assert_direct(PyBufferRequest::simple());
+        assert_direct(PyBufferRequest::records_ro());
+        assert_direct(PyBufferRequest::strided_ro());
+        assert_direct(PyBufferRequest::contig_ro());
+        assert_indirect(PyBufferRequest::simple().indirect());
+        assert_indirect(PyBufferRequest::full_ro());
+        assert_indirect(PyBufferRequest::full());
+        assert_direct(PyBufferRequest::full_ro().c_contiguous());
+        assert_direct(PyBufferRequest::full().c_contiguous());
+
+        Python::attach(|py| {
+            let bytes = PyBytes::new(py, b"abcde");
+            let array = py
+                .import("array")
+                .unwrap()
+                .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
+                .unwrap();
+
+            // Primitive builders
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::simple(), |view| {
+                assert_eq!(view.format().to_str().unwrap(), "B");
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::simple().format(), |view| {
+                assert_eq!(view.format().to_str().unwrap(), "B");
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::simple().nd(), |view| {
+                assert_eq!(view.shape(), [5]);
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::simple().strides(), |view| {
+                assert_eq!(view.shape(), [5]);
+                assert_eq!(view.strides(), [1]);
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::simple().indirect(), |view| {
+                assert_eq!(view.shape(), [5]);
+                assert_eq!(view.strides(), [1]);
+                assert!(view.suboffsets().is_none());
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&array, PyBufferRequest::simple().writable(), |view| {
+                assert_eq!(view.format().to_str().unwrap(), "B");
+                assert!(!view.readonly());
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(
+                &array,
+                PyBufferRequest::simple().writable().nd(),
+                |view| {
+                    assert_eq!(view.shape(), [4]);
+                    assert!(!view.readonly());
+                },
+            )
+            .unwrap();
+
+            // Chained primitive builders
+            PyUntypedBufferView::with_flags(
+                &bytes,
+                PyBufferRequest::simple().nd().format(),
+                |view| {
+                    assert_eq!(view.shape(), [5]);
+                    assert_eq!(view.format().to_str().unwrap(), "B");
+                },
+            )
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(
+                &bytes,
+                PyBufferRequest::simple().strides().format(),
+                |view| {
+                    assert_eq!(view.shape(), [5]);
+                    assert_eq!(view.strides(), [1]);
+                    assert_eq!(view.format().to_str().unwrap(), "B");
+                },
+            )
+            .unwrap();
+
+            // Contiguity builders
+            PyUntypedBufferView::with_flags(
+                &bytes,
+                PyBufferRequest::simple().c_contiguous(),
+                |view| {
+                    assert_eq!(view.shape(), [5]);
+                    assert_eq!(view.strides(), [1]);
+                },
+            )
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(
+                &bytes,
+                PyBufferRequest::simple().f_contiguous(),
+                |view| {
+                    assert_eq!(view.shape(), [5]);
+                    assert_eq!(view.strides(), [1]);
+                },
+            )
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(
+                &bytes,
+                PyBufferRequest::simple().any_contiguous(),
+                |view| {
+                    assert_eq!(view.shape(), [5]);
+                    assert_eq!(view.strides(), [1]);
+                },
+            )
+            .unwrap();
+
+            // Compound requests (read-only)
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::full_ro(), |view| {
+                assert_eq!(view.format().to_str().unwrap(), "B");
+                assert_eq!(view.shape(), [5]);
+                assert_eq!(view.strides(), [1]);
+                assert!(view.suboffsets().is_none());
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::records_ro(), |view| {
+                assert_eq!(view.format().to_str().unwrap(), "B");
+                assert_eq!(view.shape(), [5]);
+                assert_eq!(view.strides(), [1]);
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::strided_ro(), |view| {
+                assert_eq!(view.shape(), [5]);
+                assert_eq!(view.strides(), [1]);
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::contig_ro(), |view| {
+                assert_eq!(view.shape(), [5]);
+                assert!(view.is_c_contiguous());
+            })
+            .unwrap();
+
+            // Writable compound requests
+            PyUntypedBufferView::with_flags(&array, PyBufferRequest::full(), |view| {
+                assert_eq!(view.format().to_str().unwrap(), "f");
+                assert_eq!(view.shape(), [4]);
+                assert_eq!(view.strides(), [4]);
+                assert!(view.suboffsets().is_none());
+                assert!(!view.readonly());
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&array, PyBufferRequest::records(), |view| {
+                assert_eq!(view.format().to_str().unwrap(), "f");
+                assert_eq!(view.shape(), [4]);
+                assert!(!view.readonly());
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&array, PyBufferRequest::strided(), |view| {
+                assert_eq!(view.shape(), [4]);
+                assert_eq!(view.strides(), [4]);
+                assert!(!view.readonly());
+            })
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(&array, PyBufferRequest::contig(), |view| {
+                assert_eq!(view.shape(), [4]);
+                assert!(!view.readonly());
+                assert!(view.is_c_contiguous());
+            })
+            .unwrap();
+
+            // Compound + contiguity
+            PyUntypedBufferView::with_flags(
+                &bytes,
+                PyBufferRequest::full_ro().c_contiguous(),
+                |view| {
+                    assert_eq!(view.format().to_str().unwrap(), "B");
+                    assert_eq!(view.shape(), [5]);
+                    assert_eq!(view.strides(), [1]);
+                },
+            )
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(
+                &array,
+                PyBufferRequest::full().c_contiguous(),
+                |view| {
+                    assert_eq!(view.format().to_str().unwrap(), "f");
+                    assert!(!view.readonly());
+                },
+            )
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(
+                &bytes,
+                PyBufferRequest::strided_ro().format(),
+                |view| {
+                    assert_eq!(view.format().to_str().unwrap(), "B");
+                    assert_eq!(view.shape(), [5]);
+                    assert_eq!(view.strides(), [1]);
+                },
+            )
+            .unwrap();
+
+            PyUntypedBufferView::with_flags(
+                &bytes,
+                PyBufferRequest::simple().c_contiguous().format(),
+                |view| {
+                    assert_eq!(view.format().to_str().unwrap(), "B");
+                    assert_eq!(view.shape(), [5]);
+                },
+            )
+            .unwrap();
+
+            // Contiguity builder on typed view
+            PyBufferView::<u8>::with_flags(&bytes, PyBufferRequest::simple().format(), |view| {
+                assert_eq!(view.format().to_str().unwrap(), "B");
+                assert_eq!(view.item_count(), 5);
+            })
+            .unwrap();
+
+            PyBufferView::<f32>::with_flags(&array, PyBufferRequest::contig(), |view| {
+                let slice = view.as_contiguous_slice(py);
+                assert_eq!(slice[0].get(), 1.0);
+            })
+            .unwrap();
+
+            // Writable + contiguity on typed view
+            PyBufferView::<f32>::with_flags(&array, PyBufferRequest::contig(), |view| {
+                let slice = view.as_contiguous_slice(py);
+                assert_eq!(slice[0].get(), 1.0);
+                let mut_slice = view.as_contiguous_mut_slice(py);
+                mut_slice[0].set(9.0);
+                assert_eq!(slice[0].get(), 9.0);
+            })
+            .unwrap();
+
+            // SIMPLE format() returns "B"
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::simple(), |view| {
+                assert_eq!(view.format().to_str().unwrap(), "B");
+            })
+            .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_buffer_view_debug() {
+        Python::attach(|py| {
+            let bytes = PyBytes::new(py, b"abcde");
+
+            // Debug always uses raw_format/raw_shape/raw_strides (Option in output)
+            PyUntypedBufferView::with_flags(&bytes, PyBufferRequest::full_ro(), |view| {
+                let expected = format!(
+                    concat!(
+                        "PyUntypedBufferView {{ buf: {:?}, obj: {:?}, ",
+                        "len: 5, itemsize: 1, readonly: 1, ",
+                        "ndim: 1, format: Some(\"B\"), shape: Some([5]), ",
+                        "strides: Some([1]), suboffsets: None, internal: {:?} }}",
+                    ),
+                    view.raw.buf, view.raw.obj, view.raw.internal,
+                );
+
+                let debug_repr = format!("{:?}", view);
+                assert_eq!(debug_repr, expected);
+            })
+            .unwrap();
+
+            PyBufferView::<u8>::with(&bytes, |view| {
+                let expected = format!(
+                    concat!(
+                        "PyBufferView {{ buf: {:?}, obj: {:?}, ",
+                        "len: 5, itemsize: 1, readonly: 1, ",
+                        "ndim: 1, format: Some(\"B\"), shape: Some([5]), ",
+                        "strides: Some([1]), suboffsets: None, internal: {:?} }}",
+                    ),
+                    view.0.raw.buf, view.0.raw.obj, view.0.raw.internal,
+                );
+
+                let debug_repr = format!("{:?}", view);
+                assert_eq!(debug_repr, expected);
+            })
+            .unwrap();
         });
     }
 }

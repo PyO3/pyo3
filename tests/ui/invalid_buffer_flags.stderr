@@ -1,0 +1,17 @@
+error[E0277]: format information is not available with the requested buffer flags
+ --> tests/ui/invalid_buffer_flags.rs:9:18
+  |
+9 |             view.format();
+  |                  ^^^^^^ unsatisfied trait bound
+  |
+  = help: the trait `buffer::py_buffer_flags::IncludesFormat` is not implemented for `buffer::py_buffer_flags::PyBufferFlags<false, true, true, false, true, 0>`
+  = note: use `.format()` when building a buffer request to request format information
+  = note: `PyBufferRequest::simple()` and `PyBufferRequest::simple().writable()` also imply u8 format
+note: required by a bound in `PyUntypedBufferView::<Flags>::format`
+ --> src/buffer.rs
+  |
+  |     pub fn format(&self) -> &CStr
+  |            ------ required by a bound in this associated function
+  |     where
+  |         Flags: py_buffer_flags::IncludesFormat,
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyUntypedBufferView::<Flags>::format`
