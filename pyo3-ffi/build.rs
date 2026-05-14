@@ -75,7 +75,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                     minor: 15,
                 };
                 if interpreter_config.target_abi().kind().is_free_threaded() {
-                    if (PythonVersion { major, minor }) > py_3_15 {
+                    if (PythonVersion { major, minor }) >= py_3_15 {
                         if env_var("PYO3_USE_ABI3T_FORWARD_COMPATIBILITY")
                             .is_none_or(|os_str| os_str != "1")
                         {
