@@ -756,10 +756,8 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             PythonAbiBuilder::new(implementation, version)
                 .free_threaded()
                 .finalize()?
-        } else if (abi3 == Some(true)) || get_abi3_version().is_some() {
-            if abi3 == Some(true) {
-                warn!("abi3 configuration file option is deprecated, set target_abi instead");
-            }
+        } else if abi3 == Some(true) {
+            warn!("abi3 configuration file option is deprecated, set target_abi instead");
             PythonAbiBuilder::new(implementation, version)
                 .stable_abi(StableAbi::Abi3)
                 .finalize()?
