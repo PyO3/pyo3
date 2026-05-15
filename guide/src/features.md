@@ -7,13 +7,20 @@ By default, only the `macros` feature is enabled.
 
 ## Features to select the target ABI
 
-Each version of CPython exposes an ABI corresponding to the C API that is particular to that version. Extensions built for this "version-specific" ABI can only be imported by Python interpreters with the same major version, since the Python C API and ABI are subject to change in every major release. Python also supports a [limited API](https://docs.python.org/3/c-api/stable.html#limited-c-api) and [stable ABI](https://docs.python.org/3/c-api/stable.html#stable-abi). Extensions targeting the stable ABI defined by Python 3.X can be imported by any subsequent Python version newer than Python 3.X, but not older versions.
+Each version of CPython exposes an ABI corresponding to the C API that is particular to that version.
+Extensions built for this "version-specific" ABI can only be imported by Python interpreters with the same major version, since the Python C API and ABI are subject to change in every major release.
+Python also supports a [limited API](https://docs.python.org/3/c-api/stable.html#limited-c-api) and [stable ABI](https://docs.python.org/3/c-api/stable.html#stable-abi).
+Extensions targeting the stable ABI defined by Python 3.X can be imported by any subsequent Python version newer than Python 3.X, but not older versions.
 
-There are two "flavors" of stable ABI: `abi3`, supported on Python 3.2 and newer but *not* the free-threaded builds and `abi3t`, supported on Python 3.15 and newer for both the GIL-enabled and free-threaded builds of Python. PyO3 supports building extensions targeting both flavors of stable ABI.
+There are two "flavors" of stable ABI: `abi3`, supported on Python 3.2 and newer but *not* the free-threaded builds and `abi3t`, supported on Python 3.15 and newer for both the GIL-enabled and free-threaded builds of Python.
+PyO3 supports building extensions targeting both flavors of stable ABI.
 
-When PyO3 finds a "host" python interpreter and no `abi3` or `abi3t` feature is active, it will generate extensions targetting the version-specific ABI for the host Python version. For example, when ``pip`` or ``uv`` installs a Python package that includes Rust dependencies that depend on PyO3, the host interpreter is the interpreter running ``pip`` or the interpreter from the activated ``uv`` environment.
+When PyO3 finds a "host" python interpreter and no `abi3` or `abi3t` feature is active, it will generate extensions targetting the version-specific ABI for the host Python version.
+For example, when ``pip`` or ``uv`` installs a Python package that includes Rust dependencies that depend on PyO3, the host interpreter is the interpreter running ``pip`` or the interpreter from the activated ``uv`` environment.
 
-To build for the stable ABIs, you must activate an `abi3` and/or an `abi3t` feature. You can simultaneously activate both features. This will produce an `abi3` extension on the GIL-enabled and a version-specific extension on Python 3.14 and an `abi3t` extension on Python 3.15 and newer.
+To build for the stable ABIs, you must activate an `abi3` and/or an `abi3t` feature.
+You can simultaneously activate both features.
+This will produce an `abi3` extension on the GIL-enabled and a version-specific extension on Python 3.14 and an `abi3t` extension on Python 3.15 and newer.
 
 ### `abi3`
 
@@ -21,9 +28,11 @@ This feature is used when building Python extension modules to create wheels whi
 
 It restricts PyO3's API to a subset of the full Python API which is guaranteed by [PEP 384](https://www.python.org/dev/peps/pep-0384/) to be forwards-compatible with future Python versions.
 
-Since no particular "target" Python version is implied by this feature, it will generate an `abi3` extension targeting the stable ABI defined by the "host" Python interpreter. As such, this feature requires a host Python interpreter is present and cannot be used for cross-compilation.
+Since no particular "target" Python version is implied by this feature, it will generate an `abi3` extension targeting the stable ABI defined by the "host" Python interpreter.
+As such, this feature requires a host Python interpreter is present and cannot be used for cross-compilation.
 
-If you are using this feature to distribute extensions, you should ensure your minimum supported Python version is installed to do the build. However, see the description of the `abi3-pyXY` feature if you would like to generate extensions targeting an older Python version using a recent Python interpreter.
+If you are using this feature to distribute extensions, you should ensure your minimum supported Python version is installed to do the build.
+However, see the description of the `abi3-pyXY` feature if you would like to generate extensions targeting an older Python version using a recent Python interpreter.
 
 See the [building and distribution](building-and-distribution.md#py_limited_apiabi3) section for further detail.
 
@@ -33,7 +42,8 @@ See the [building and distribution](building-and-distribution.md#py_limited_apia
 
 These features are extensions of the `abi3` feature to specify the exact minimum Python version which the multiple-version-wheel will support.
 
-They can be used to target versions of the ABI defined by Python versions released before the "host" python interpreter. They can also be used without any host interpreter at all to cross-compile.
+They can be used to target versions of the ABI defined by Python versions released before the "host" python interpreter.
+They can also be used without any host interpreter at all to cross-compile.
 
 See the [building and distribution](building-and-distribution.md#minimum-python-version-for-abi3) section for further detail.
 
@@ -43,9 +53,11 @@ This feature is used when building Python extension modules to create wheels whi
 
 It restricts PyO3's API to a subset of the full Python API which is guaranteed by [PEP 384](https://www.python.org/dev/peps/pep-0384/) and [PEP 803](https://www.python.org/dev/peps/pep-0803/) to be forwards-compatible with future Python versions and be importable by the free-threaded and GIL-enabled interpreter.
 
-Since no particular "target" Python version is implied by this feature, it will generate an `abi3` extension targeting the stable ABI defined by the "host" Python interpreter. As such, this feature requires a host Python interpreter is present and cannot be used for cross-compilation.
+Since no particular "target" Python version is implied by this feature, it will generate an `abi3` extension targeting the stable ABI defined by the "host" Python interpreter.
+As such, this feature requires a host Python interpreter is present and cannot be used for cross-compilation.
 
-If you are using this feature to distribute extensions, you should ensure your minimum supported Python version is installed to do the build. However, see the description of the `abi3t-pyXY` feature if you would like to generate extensions targeting an older Python version using a recent Python interpreter.
+If you are using this feature to distribute extensions, you should ensure your minimum supported Python version is installed to do the build.
+However, see the description of the `abi3t-pyXY` feature if you would like to generate extensions targeting an older Python version using a recent Python interpreter.
 
 Activating an `abi3t` and targeting Python 3.14 and older is a no-op: the build will produce an extension but it will not be an `abi3t` extension, since `abi3t` is unsupported before Python 3.15.
 
@@ -57,7 +69,8 @@ See the [building and distribution](building-and-distribution.md#py_limited_apia
 
 These features are extensions of the `abi3t` feature to specify the exact minimum Python version which the multiple-version-wheel will support.
 
-They can be used to target versions of the ABI defined by Python versions released before the "host" python interpreter. They can also be used without any host interpreter at all to cross-compile.
+They can be used to target versions of the ABI defined by Python versions released before the "host" python interpreter.
+They can also be used without any host interpreter at all to cross-compile.
 
 Activating an `abi3t` and targeting Python 3.14 and older is a no-op: the build will produce an extension but it will not be an `abi3t` extension, since `abi3t` is unsupported before Python 3.15.
 
@@ -116,7 +129,8 @@ These macros require a number of dependencies which may not be needed by users w
 Disabling this feature enables faster builds for those users, as these dependencies will not be built if this feature is disabled.
 
 > [!NOTE]
-> This feature is enabled by default. To disable it, set `default-features = false` for the `pyo3` entry in your Cargo.toml.
+> This feature is enabled by default.
+> To disable it, set `default-features = false` for the `pyo3` entry in your Cargo.toml.
 
 ### `multiple-pymethods`
 

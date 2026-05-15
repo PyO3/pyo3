@@ -103,7 +103,8 @@ The PyO3 ecosystem has two packaging tools, [`maturin`] and [`setuptools-rust`],
 PyO3 has some functionality for configuring projects when building Python extension modules:
 
 - The `PYO3_BUILD_EXTENSION_MODULE` environment variable, which must be set when building Python extension modules. `maturin` and `setuptools-rust` set this automatically.
-- The `abi3` and `abi3t` Cargo feature and their version-specific `abi3-pyXY` and `abi3t-pyXY` companions, which are used to opt-in to the limited Python API and a flavor of stable ABI in order to support multiple Python versions in a single wheel. The free-threaded build of CPython cannot load `abi3` wheels but both builds can load `abi3t` wheels.
+- The `abi3` and `abi3t` Cargo feature and their version-specific `abi3-pyXY` and `abi3t-pyXY` companions, which are used to opt-in to the limited Python API and a flavor of stable ABI in order to support multiple Python versions in a single wheel.
+  The free-threaded build of CPython cannot load `abi3` wheels but both builds can load `abi3t` wheels.
 
 This section describes the packaging tools before describing how to build manually without them.
 It then proceeds with an explanation of the `PYO3_BUILD_EXTENSION_MODULE` environment variable.
@@ -245,14 +246,18 @@ This should only be set when building a library for distribution.
 
 By default, Python extension modules can only be used with the same Python version they were compiled against.
 For example, an extension module built for Python 3.5 can't be imported in Python 3.8.
-[PEP 384](https://www.python.org/dev/peps/pep-0384/) introduced the idea of the limited Python API, which would have a stable ABI enabling extension modules built with it to be used against multiple Python versions. The ABI defined by PEP 384 is called `abi3`, since it's stable for all Python 3.X releases. In 2026, the steering council approved [PEP 803](https://www.python.org/dev/peps/pep-0803/)) which defines a new stable ABI, `abi3t`, that can be used on the free-threaded build of CPython. Extensions built using the `abit3` ABI are importable on both the GIL-enabled and free-threaded builds of any CPython version newer than the target version. So, `abi3t` extensions built for the Python 3.15 limited API will be importable on Python 3.16, 3.17, and all future Python 3.X versions.
+[PEP 384](https://www.python.org/dev/peps/pep-0384/) introduced the idea of the limited Python API, which would have a stable ABI enabling extension modules built with it to be used against multiple Python versions.
+The ABI defined by PEP 384 is called `abi3`, since it's stable for all Python 3.X releases.
+In 2026, the steering council approved [PEP 803](https://www.python.org/dev/peps/pep-0803/)) which defines a new stable ABI, `abi3t`, that can be used on the free-threaded build of CPython.
+Extensions built using the `abit3` ABI are importable on both the GIL-enabled and free-threaded builds of any CPython version newer than the target version.
+So, `abi3t` extensions built for the Python 3.15 limited API will be importable on Python 3.16, 3.17, and all future Python 3.X versions.
 
 The advantage of building extension modules using the limited Python API is that package vendors only need to build and distribute a single copy (for each OS / architecture), and users can install it on all Python versions from the [minimum version](#minimum-python-version-for-abi3) and up.
 The downside of this is that PyO3 can't use optimizations which rely on being compiled against a known exact Python version.
 It's up to you to decide whether this matters for your extension module.
-It's also possible to design your extension module such that you can distribute `abi3` or `abi3t`  wheels but allow users compiling from source to benefit from additional optimizations - see the [support for multiple python versions](./building-and-distribution/multiple-python-versions.md) section of this guide, in particular the `#[cfg(Py_LIMITED_API)]` flag.
+It's also possible to design your extension module such that you can distribute `abi3` or `abi3t` wheels but allow users compiling from source to benefit from additional optimizations - see the [support for multiple python versions](./building-and-distribution/multiple-python-versions.md) section of this guide, in particular the `#[cfg(Py_LIMITED_API)]` flag.
 
-There are three steps involved in targeting `abi3` or `abi3t`  when building Python packages as wheels:
+There are three steps involved in targeting `abi3` or `abi3t` when building Python packages as wheels:
 
 1. Enable the `abi3` and/or `abi3t` feature in `pyo3`.
    This ensures `pyo3` only calls Python C-API functions which are part of the stable API, and on Windows also ensures that the project links against the correct shared object (no special behavior is required on other platforms):
@@ -262,9 +267,13 @@ There are three steps involved in targeting `abi3` or `abi3t`  when building Pyt
    pyo3 = { {{#PYO3_CRATE_VERSION}}, features = ["abi3", "abi3t"] }
    ```
 
-   Enabling both the `"abi3"` and `"abi3t"` features will produce an abi3 extension if the host interpreter is a GIL-enabled interpreter and an abi3t extension with a host free-threaded interpreter. If you always want to produce `abi3t` wheels, you can enable just the `"abi3t"` feature, which will produce extensions targeting `abi3t` if the host interpreter is Python 3.15 or newer, but will produce version-specific extensions otherwise. If you only enable the `"abi3"` feature, you will produce `abi3` extensions if the host interpreter is a GIL-enabled build of CPython and version-specific extensions otherwise.
+   Enabling both the `"abi3"` and `"abi3t"` features will produce an abi3 extension if the host interpreter is a GIL-enabled interpreter and an abi3t extension with a host free-threaded interpreter.
+   If you always want to produce `abi3t` wheels, you can enable just the `"abi3t"` feature, which will produce extensions targeting `abi3t` if the host interpreter is Python 3.15 or newer, but will produce version-specific extensions otherwise.
+   If you only enable the `"abi3"` feature, you will produce `abi3` extensions if the host interpreter is a GIL-enabled build of CPython and version-specific extensions otherwise.
 
-   We suggest enabling both features and using multiple python interpreters to build several wheels. You can build an `abi3` wheel for your minimum supported Python version, a `cp314t` version-specific wheel using a free-threaded Python 3.14 interpreter, and an `abi3t` wheel using a Python 3.15 interpreter. This will produce wheels targeting all versions of CPython that PyO3 supports.
+   We suggest enabling both features and using multiple python interpreters to build several wheels.
+   You can build an `abi3` wheel for your minimum supported Python version, a `cp314t` version-specific wheel using a free-threaded Python 3.14 interpreter, and an `abi3t` wheel using a Python 3.15 interpreter.
+   This will produce wheels targeting all versions of CPython that PyO3 supports.
 
 2. Ensure that the built shared objects are correctly marked as `abi3` and `abi3t`.
    This is accomplished by telling your build system that you're using the limited API.
@@ -290,7 +299,8 @@ PyO3 is only able to link your extension module to abi3 version up to and includ
 E.g., if you set `abi3-py39` and try to compile the crate with a host of Python 3.8, the build will fail.
 
 > [!NOTE]
-> If you set more that one of these `abi3` version feature flags the lowest version always wins. For example, with both `abi3-py38` and `abi3-py39` set, PyO3 would build a wheel which supports Python 3.8 and up.
+> If you set more that one of these `abi3` version feature flags the lowest version always wins.
+> For example, with both `abi3-py38` and `abi3-py39` set, PyO3 would build a wheel which supports Python 3.8 and up.
 
 #### Building stable ABI extension modules without a Python interpreter
 

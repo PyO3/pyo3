@@ -76,7 +76,8 @@ This `#[cfg]` marks code that will only be present on Python versions before (bu
 #[cfg(Py_GIL_DISABLED)]
 ```
 
-This `#[cfg]` marks code that will only be present for free-threaded builds of CPython. You might use this in situations where the GIL provides thread safety but the free-threaded build needs extra synchronization logic.
+This `#[cfg]` marks code that will only be present for free-threaded builds of CPython.
+You might use this in situations where the GIL provides thread safety but the free-threaded build needs extra synchronization logic.
 
 ```text
 #[cfg(not(Py_LIMITED_API))]
@@ -96,7 +97,8 @@ Patterns like this are commonly seen on Python APIs which were added to the limi
 #[cfg(all(Py_GIL_DISABLED, Py_LIMITED_API))]
 ```
 
-This marks code which is available only for the free-threaded `abi3t` stable ABI. You might use this if you need some sort of custom locking implementation in code that makes strong assumptions about the GIL providing thread safety.
+This marks code which is available only for the free-threaded `abi3t` stable ABI.
+You might use this if you need some sort of custom locking implementation in code that makes strong assumptions about the GIL providing thread safety.
 
 ```text
 #[cfg(PyPy)]
