@@ -85,6 +85,7 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
                 }),
                 is_async: false,
                 docstring: None,
+                overloads: Vec::new(),
             },
             &imports,
             None,
@@ -175,36 +176,89 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
 }
 
 fn function_stubs(function: &Function, imports: &Imports, class_name: Option<&str>) -> String {
+    if function.overloads.is_empty() {
+        return single_function_stub(
+            &function.name,
+            &function.decorators,
+            &function.arguments,
+            function.returns.as_ref(),
+            function.is_async,
+            function.docstring.as_deref(),
+            imports,
+            class_name,
+        );
+    }
+
+    let mut buffer = String::new();
+
+    for overload in &function.overloads {
+        let mut overload_decorators = vec![Expr::Attribute {
+            value: Box::new(Expr::Name {
+                id: "typing".into(),
+            }),
+            attr: "overload".into(),
+        }];
+        overload_decorators.extend(function.decorators.iter().cloned());
+
+        buffer.push_str(&single_function_stub(
+            &function.name,
+            &overload_decorators,
+            &overload.arguments,
+            overload.returns.as_ref(),
+            function.is_async,
+            None,
+            imports,
+            class_name,
+        ));
+        buffer.push('\n');
+    }
+
+    buffer.truncate(buffer.trim_end_matches('\n').len());
+
+    buffer
+}
+
+#[expect(clippy::too_many_arguments)]
+fn single_function_stub(
+    name: &str,
+    decorators: &[Expr],
+    arguments: &Arguments,
+    returns: Option<&Expr>,
+    is_async: bool,
+    docstring: Option<&str>,
+    imports: &Imports,
+    class_name: Option<&str>,
+) -> String {
     // Signature
     let mut parameters = Vec::new();
-    for argument in &function.arguments.positional_only_arguments {
+    for argument in &arguments.positional_only_arguments {
         parameters.push(argument_stub(argument, imports));
     }
-    if !function.arguments.positional_only_arguments.is_empty() {
+    if !arguments.positional_only_arguments.is_empty() {
         parameters.push("/".into());
     }
-    for argument in &function.arguments.arguments {
+    for argument in &arguments.arguments {
         parameters.push(argument_stub(argument, imports));
     }
-    if let Some(argument) = &function.arguments.vararg {
+    if let Some(argument) = &arguments.vararg {
         parameters.push(format!(
             "*{}",
             variable_length_argument_stub(argument, imports)
         ));
-    } else if !function.arguments.keyword_only_arguments.is_empty() {
+    } else if !arguments.keyword_only_arguments.is_empty() {
         parameters.push("*".into());
     }
-    for argument in &function.arguments.keyword_only_arguments {
+    for argument in &arguments.keyword_only_arguments {
         parameters.push(argument_stub(argument, imports));
     }
-    if let Some(argument) = &function.arguments.kwarg {
+    if let Some(argument) = &arguments.kwarg {
         parameters.push(format!(
             "**{}",
             variable_length_argument_stub(argument, imports)
         ));
     }
     let mut buffer = String::new();
-    for decorator in &function.decorators {
+    for decorator in decorators {
         buffer.push('@');
         // We remove the class name if it's a prefix to get nicer decorators
         let mut decorator_buffer = String::new();
@@ -217,20 +271,20 @@ fn function_stubs(function: &Function, imports: &Imports, class_name: Option<&st
         buffer.push_str(&decorator_buffer);
         buffer.push('\n');
     }
-    if function.is_async {
+    if is_async {
         buffer.push_str("async ");
     }
 
     buffer.push_str("def ");
-    buffer.push_str(&function.name);
+    buffer.push_str(name);
     buffer.push('(');
     buffer.push_str(&parameters.join(", "));
     buffer.push(')');
-    if let Some(returns) = &function.returns {
+    if let Some(returns) = returns {
         buffer.push_str(" -> ");
         imports.serialize_expr(returns, &mut buffer);
     }
-    if let Some(docstring) = &function.docstring {
+    if let Some(docstring) = docstring {
         buffer.push_str(":\n    \"\"\"");
         for line in docstring.lines() {
             buffer.push_str("\n    ");
@@ -562,29 +616,42 @@ impl ElementsUsedInAnnotations {
         for decorator in &function.decorators {
             self.walk_expr(decorator);
         }
-        for arg in function
-            .arguments
+        if function.overloads.is_empty() {
+            self.walk_arguments(&function.arguments, function.returns.as_ref());
+        }
+        if !function.overloads.is_empty() {
+            self.module_to_name
+                .entry("typing".into())
+                .or_default()
+                .insert("overload".into());
+        }
+        for overload in &function.overloads {
+            self.walk_arguments(&overload.arguments, overload.returns.as_ref());
+        }
+    }
+
+    fn walk_arguments(&mut self, arguments: &Arguments, returns: Option<&Expr>) {
+        for arg in arguments
             .positional_only_arguments
             .iter()
-            .chain(&function.arguments.arguments)
-            .chain(&function.arguments.keyword_only_arguments)
+            .chain(&arguments.arguments)
+            .chain(&arguments.keyword_only_arguments)
         {
             if let Some(type_hint) = &arg.annotation {
                 self.walk_expr(type_hint);
             }
         }
-        for arg in function
-            .arguments
+        for arg in arguments
             .vararg
             .as_ref()
             .iter()
-            .chain(&function.arguments.kwarg.as_ref())
+            .chain(&arguments.kwarg.as_ref())
         {
             if let Some(type_hint) = &arg.annotation {
                 self.walk_expr(type_hint);
             }
         }
-        if let Some(type_hint) = &function.returns {
+        if let Some(type_hint) = returns {
             self.walk_expr(type_hint);
         }
     }
@@ -669,6 +736,7 @@ mod tests {
             }),
             is_async: false,
             docstring: None,
+            overloads: Vec::new(),
         };
         assert_eq!(
             "def func(posonly, /, arg, *varargs, karg: \"str\", **kwarg: \"str\") -> \"list[str]\": ...",
@@ -711,6 +779,7 @@ mod tests {
             returns: None,
             is_async: false,
             docstring: None,
+            overloads: Vec::new(),
         };
         assert_eq!(
             "def afunc(posonly=1, /, arg=True, *, karg: \"str\" = \"foo\"): ...",
@@ -733,6 +802,7 @@ mod tests {
             returns: None,
             is_async: true,
             docstring: None,
+            overloads: Vec::new(),
         };
         assert_eq!(
             "async def foo(): ...",
@@ -828,6 +898,7 @@ mod tests {
                     returns: Some(big_type.clone()),
                     is_async: false,
                     docstring: None,
+                    overloads: Vec::new(),
                 }],
                 attributes: Vec::new(),
                 incomplete: true,
@@ -848,5 +919,347 @@ mod tests {
         let mut output = String::new();
         imports.serialize_expr(&big_type, &mut output);
         assert_eq!(output, "dict[A, (A3.C, A3.D, B, A2, int, int2, float)]");
+    }
+
+    #[test]
+    fn function_stubs_with_overloads() {
+        use crate::model::OverloadSignature;
+
+        let str_int = Expr::Constant {
+            value: Constant::Str("int".into()),
+        };
+        let str_str = Expr::Constant {
+            value: Constant::Str("str".into()),
+        };
+        let str_int_or_str = Expr::Constant {
+            value: Constant::Str("int | str".into()),
+        };
+
+        let module = Module {
+            name: "test".into(),
+            modules: Vec::new(),
+            classes: Vec::new(),
+            functions: vec![Function {
+                name: "process".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: vec![Argument {
+                        name: "x".into(),
+                        default_value: None,
+                        annotation: Some(str_int_or_str.clone()),
+                    }],
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: Some(str_int_or_str),
+                is_async: false,
+                docstring: None,
+                overloads: vec![
+                    OverloadSignature {
+                        arguments: Arguments {
+                            positional_only_arguments: Vec::new(),
+                            arguments: vec![Argument {
+                                name: "x".into(),
+                                default_value: None,
+                                annotation: Some(str_int.clone()),
+                            }],
+                            vararg: None,
+                            keyword_only_arguments: Vec::new(),
+                            kwarg: None,
+                        },
+                        returns: Some(str_int),
+                    },
+                    OverloadSignature {
+                        arguments: Arguments {
+                            positional_only_arguments: Vec::new(),
+                            arguments: vec![Argument {
+                                name: "x".into(),
+                                default_value: None,
+                                annotation: Some(str_str.clone()),
+                            }],
+                            vararg: None,
+                            keyword_only_arguments: Vec::new(),
+                            kwarg: None,
+                        },
+                        returns: Some(str_str),
+                    },
+                ],
+            }],
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        let stubs = module_stubs(&module, &[]);
+        assert_eq!(
+            stubs,
+            "from typing import overload\n\n@overload\ndef process(x: \"int\") -> \"int\": ...\n@overload\ndef process(x: \"str\") -> \"str\": ...\n"
+        );
+    }
+
+    #[test]
+    fn overloaded_method_stubs_on_class() {
+        use crate::model::OverloadSignature;
+
+        let str_int = Expr::Constant {
+            value: Constant::Str("int".into()),
+        };
+        let str_str = Expr::Constant {
+            value: Constant::Str("str".into()),
+        };
+
+        let module = Module {
+            name: "test".into(),
+            modules: Vec::new(),
+            classes: vec![Class {
+                name: "MyClass".into(),
+                bases: Vec::new(),
+                methods: vec![Function {
+                    name: "process".into(),
+                    decorators: Vec::new(),
+                    arguments: Arguments {
+                        positional_only_arguments: vec![Argument {
+                            name: "self".into(),
+                            default_value: None,
+                            annotation: None,
+                        }],
+                        arguments: vec![Argument {
+                            name: "x".into(),
+                            default_value: None,
+                            annotation: None,
+                        }],
+                        vararg: None,
+                        keyword_only_arguments: Vec::new(),
+                        kwarg: None,
+                    },
+                    returns: None,
+                    is_async: false,
+                    docstring: None,
+                    overloads: vec![
+                        OverloadSignature {
+                            arguments: Arguments {
+                                positional_only_arguments: vec![Argument {
+                                    name: "self".into(),
+                                    default_value: None,
+                                    annotation: None,
+                                }],
+                                arguments: vec![Argument {
+                                    name: "x".into(),
+                                    default_value: None,
+                                    annotation: Some(str_int.clone()),
+                                }],
+                                vararg: None,
+                                keyword_only_arguments: Vec::new(),
+                                kwarg: None,
+                            },
+                            returns: Some(str_int),
+                        },
+                        OverloadSignature {
+                            arguments: Arguments {
+                                positional_only_arguments: vec![Argument {
+                                    name: "self".into(),
+                                    default_value: None,
+                                    annotation: None,
+                                }],
+                                arguments: vec![Argument {
+                                    name: "x".into(),
+                                    default_value: None,
+                                    annotation: Some(str_str.clone()),
+                                }],
+                                vararg: None,
+                                keyword_only_arguments: Vec::new(),
+                                kwarg: None,
+                            },
+                            returns: Some(str_str),
+                        },
+                    ],
+                }],
+                attributes: Vec::new(),
+                decorators: Vec::new(),
+                inner_classes: Vec::new(),
+                docstring: None,
+            }],
+            functions: Vec::new(),
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        let stubs = module_stubs(&module, &[]);
+        assert_eq!(
+            stubs,
+            concat!(
+                "from typing import overload\n\n",
+                "class MyClass:\n",
+                "    @overload\n",
+                "    def process(self, /, x: \"int\") -> \"int\": ...\n",
+                "    @overload\n",
+                "    def process(self, /, x: \"str\") -> \"str\": ...\n",
+            )
+        );
+    }
+
+    #[test]
+    fn overloaded_function_with_keyword_only_args() {
+        use crate::model::OverloadSignature;
+
+        let str_int = Expr::Constant {
+            value: Constant::Str("int".into()),
+        };
+        let str_str = Expr::Constant {
+            value: Constant::Str("str".into()),
+        };
+
+        let module = Module {
+            name: "test".into(),
+            modules: Vec::new(),
+            classes: Vec::new(),
+            functions: vec![Function {
+                name: "fetch".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: vec![Argument {
+                        name: "url".into(),
+                        default_value: None,
+                        annotation: Some(str_str.clone()),
+                    }],
+                    vararg: None,
+                    keyword_only_arguments: vec![Argument {
+                        name: "timeout".into(),
+                        default_value: Some(Expr::Constant {
+                            value: Constant::Int("30".into()),
+                        }),
+                        annotation: Some(str_int.clone()),
+                    }],
+                    kwarg: None,
+                },
+                returns: Some(str_str.clone()),
+                is_async: false,
+                docstring: None,
+                overloads: vec![
+                    OverloadSignature {
+                        arguments: Arguments {
+                            positional_only_arguments: Vec::new(),
+                            arguments: vec![Argument {
+                                name: "url".into(),
+                                default_value: None,
+                                annotation: Some(str_str.clone()),
+                            }],
+                            vararg: None,
+                            keyword_only_arguments: vec![Argument {
+                                name: "timeout".into(),
+                                default_value: Some(Expr::Constant {
+                                    value: Constant::Int("30".into()),
+                                }),
+                                annotation: Some(str_int.clone()),
+                            }],
+                            kwarg: None,
+                        },
+                        returns: Some(str_str.clone()),
+                    },
+                    OverloadSignature {
+                        arguments: Arguments {
+                            positional_only_arguments: Vec::new(),
+                            arguments: vec![Argument {
+                                name: "url".into(),
+                                default_value: None,
+                                annotation: Some(str_str.clone()),
+                            }],
+                            vararg: None,
+                            keyword_only_arguments: vec![Argument {
+                                name: "timeout".into(),
+                                default_value: None,
+                                annotation: Some(str_str.clone()),
+                            }],
+                            kwarg: None,
+                        },
+                        returns: Some(str_int),
+                    },
+                ],
+            }],
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        let stubs = module_stubs(&module, &[]);
+        assert_eq!(
+            stubs,
+            concat!(
+                "from typing import overload\n\n",
+                "@overload\n",
+                "def fetch(url: \"str\", *, timeout: \"int\" = 30) -> \"str\": ...\n",
+                "@overload\n",
+                "def fetch(url: \"str\", *, timeout: \"str\") -> \"int\": ...\n",
+            )
+        );
+    }
+
+    #[test]
+    fn overloaded_function_preserves_existing_decorators() {
+        use crate::model::OverloadSignature;
+
+        let str_int = Expr::Constant {
+            value: Constant::Str("int".into()),
+        };
+
+        let module = Module {
+            name: "test".into(),
+            modules: Vec::new(),
+            classes: vec![Class {
+                name: "MyClass".into(),
+                bases: Vec::new(),
+                methods: vec![Function {
+                    name: "my_method".into(),
+                    decorators: vec![Expr::Name {
+                        id: "staticmethod".into(),
+                    }],
+                    arguments: Arguments {
+                        positional_only_arguments: Vec::new(),
+                        arguments: Vec::new(),
+                        vararg: None,
+                        keyword_only_arguments: Vec::new(),
+                        kwarg: None,
+                    },
+                    returns: None,
+                    is_async: false,
+                    docstring: None,
+                    overloads: vec![OverloadSignature {
+                        arguments: Arguments {
+                            positional_only_arguments: Vec::new(),
+                            arguments: vec![Argument {
+                                name: "x".into(),
+                                default_value: None,
+                                annotation: Some(str_int.clone()),
+                            }],
+                            vararg: None,
+                            keyword_only_arguments: Vec::new(),
+                            kwarg: None,
+                        },
+                        returns: Some(str_int),
+                    }],
+                }],
+                attributes: Vec::new(),
+                decorators: Vec::new(),
+                inner_classes: Vec::new(),
+                docstring: None,
+            }],
+            functions: Vec::new(),
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        let stubs = module_stubs(&module, &[]);
+        // @overload should come before @staticmethod
+        assert_eq!(
+            stubs,
+            concat!(
+                "from typing import overload\n\n",
+                "class MyClass:\n",
+                "    @overload\n",
+                "    @staticmethod\n",
+                "    def my_method(x: \"int\") -> \"int\": ...\n",
+            )
+        );
     }
 }

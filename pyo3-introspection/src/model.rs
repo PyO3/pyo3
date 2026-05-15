@@ -31,6 +31,14 @@ pub struct Function {
     pub returns: Option<Expr>,
     pub is_async: bool,
     pub docstring: Option<String>,
+    /// `@overload` variants for this function
+    pub overloads: Vec<OverloadSignature>,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub struct OverloadSignature {
+    pub arguments: Arguments,
+    pub returns: Option<Expr>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
