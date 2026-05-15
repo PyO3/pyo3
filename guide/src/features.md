@@ -34,7 +34,7 @@ As such, this feature requires a host Python interpreter is present and cannot b
 If you are using this feature to distribute extensions, you should ensure your minimum supported Python version is installed to do the build.
 However, see the description of the `abi3-pyXY` feature if you would like to generate extensions targeting an older Python version using a recent Python interpreter.
 
-See the [building and distribution](building-and-distribution.md#py_limited_apiabi3) section for further detail.
+See the [building and distribution](building-and-distribution.md#py_limited_apiabi3abi3t) section for further detail.
 
 ### The `abi3-pyXY` features
 
@@ -45,7 +45,7 @@ These features are extensions of the `abi3` feature to specify the exact minimum
 They can be used to target versions of the ABI defined by Python versions released before the "host" python interpreter.
 They can also be used without any host interpreter at all to cross-compile.
 
-See the [building and distribution](building-and-distribution.md#minimum-python-version-for-abi3) section for further detail.
+See the [building and distribution](building-and-distribution.md#minimum-python-version-for-abi3-and-abi3t-builds) section for further detail.
 
 ### `abi3t`
 
@@ -61,7 +61,7 @@ However, see the description of the `abi3t-pyXY` feature if you would like to ge
 
 Activating an `abi3t` and targeting Python 3.14 and older is a no-op: the build will produce an extension but it will not be an `abi3t` extension, since `abi3t` is unsupported before Python 3.15.
 
-See the [building and distribution](building-and-distribution.md#py_limited_apiabi3) section for further detail.
+See the [building and distribution](building-and-distribution.md#py_limited_apiabi3abi3t) section for further detail.
 
 ### The `abi3t-pyXY` features
 
@@ -74,7 +74,7 @@ They can also be used without any host interpreter at all to cross-compile.
 
 Activating an `abi3t` and targeting Python 3.14 and older is a no-op: the build will produce an extension but it will not be an `abi3t` extension, since `abi3t` is unsupported before Python 3.15.
 
-See the [building and distribution](building-and-distribution.md#minimum-python-version-for-abi3) section for further detail.
+See the [building and distribution](building-and-distribution.md#minimum-python-version-for-abi3-and-abi3t-builds) section for further detail.
 
 ## Features for embedding Python in Rust
 

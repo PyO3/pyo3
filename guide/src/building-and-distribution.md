@@ -252,7 +252,7 @@ In 2026, the steering council approved [PEP 803](https://www.python.org/dev/peps
 Extensions built using the `abit3` ABI are importable on both the GIL-enabled and free-threaded builds of any CPython version newer than the target version.
 So, `abi3t` extensions built for the Python 3.15 limited API will be importable on Python 3.16, 3.17, and all future Python 3.X versions.
 
-The advantage of building extension modules using the limited Python API is that package vendors only need to build and distribute a single copy (for each OS / architecture), and users can install it on all Python versions from the [minimum version](#minimum-python-version-for-abi3) and up.
+The advantage of building extension modules using the limited Python API is that package vendors only need to build and distribute a single copy (for each OS / architecture), and users can install it on all Python versions from the [minimum version](#minimum-python-version-for-abi3-and-abi3t-builds) and up.
 The downside of this is that PyO3 can't use optimizations which rely on being compiled against a known exact Python version.
 It's up to you to decide whether this matters for your extension module.
 It's also possible to design your extension module such that you can distribute `abi3` or `abi3t` wheels but allow users compiling from source to benefit from additional optimizations - see the [support for multiple python versions](./building-and-distribution/multiple-python-versions.md) section of this guide, in particular the `#[cfg(Py_LIMITED_API)]` flag.
@@ -284,7 +284,7 @@ There are three steps involved in targeting `abi3` or `abi3t` when building Pyth
 3. Ensure that the `.whl` is correctly marked as `abi3` or `abi3t`.
    For projects using `setuptools`, this is accomplished by passing `--py-limited-api=cp3x` (where `x` is the minimum Python version supported by the wheel, e.g. `--py-limited-api=cp35` for Python 3.5) to `setup.py bdist_wheel`.
 
-#### Minimum Python version for stable ABI builds
+#### Minimum Python version for `abi3` and `abi3t` builds
 
 Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py38`, `abi3-py39`, `abi3-py310` etc. to set the minimum required Python version for your `abi3` wheel.
 For example, if you set the `abi3-py38` feature, your wheel can be used on all Python 3 versions from Python 3.8 and up.
