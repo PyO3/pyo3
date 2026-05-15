@@ -25,7 +25,7 @@ fn function_only_supported_on_python_3_8_and_up() {}
 fn function_only_supported_before_python_3_8() {}
 
 #[cfg(not(Py_LIMITED_API))]
-fn function_incompatible_with_abi3_feature() {}
+fn function_incompatible_with_stable_abi_feature() {}
 ```
 
 The following sections first show how to add these `#[cfg]` flags to your build process, and then cover some common patterns flags in a little more detail.
@@ -73,11 +73,17 @@ There are similar options `Py_3_9`, `Py_3_10`, `Py_3_11` and so on for each mino
 This `#[cfg]` marks code that will only be present on Python versions before (but not including) Python 3.8.
 
 ```text
+#[cfg(Py_GIL_DISABLED)]
+```
+
+This `#[cfg]` marks code that will only be present for free-threaded builds of CPython. You might use this in situations where the GIL provides thread safety but the free-threaded build needs extra synchronization logic.
+
+```text
 #[cfg(not(Py_LIMITED_API))]
 ```
 
-This `#[cfg]` marks code that is only available when building for the unlimited Python API (i.e. PyO3's `abi3` feature is not enabled).
-This might be useful if you want to ship your extension module as an `abi3` wheel and also allow users to compile it from source to make use of optimizations only possible with the unlimited API.
+This `#[cfg]` marks code that is only available when building for the unlimited Python API (i.e. PyO3's `abi3` or `abi3t` features are not enabled).
+This might be useful if you want to ship your extension module as an `abi3` or `abi3t` wheel and also allow users to compile it from source to make use of optimizations only possible with the unlimited API.
 
 ```text
 #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
@@ -87,6 +93,12 @@ This `#[cfg]` marks code which is available when running Python 3.9 or newer, or
 Patterns like this are commonly seen on Python APIs which were added to the limited Python API in a specific minor version.
 
 ```text
+#[cfg(all(Py_GIL_DISABLED, Py_LIMITED_API))]
+```
+
+This marks code which is available only for the free-threaded `abi3t` stable ABI. You might use this if you need some sort of custom locking implementation in code that makes strong assumptions about the GIL providing thread safety.
+
+```text
 #[cfg(PyPy)]
 ```
 
@@ -94,7 +106,7 @@ This `#[cfg]` marks code which is running on PyPy.
 
 ## Checking the Python version at runtime
 
-When building with PyO3's `abi3` feature, your extension module will be compiled against a specific [minimum version](../building-and-distribution.md#minimum-python-version-for-abi3) of Python, but may be running on newer Python versions.
+When building with PyO3's `abi3` or `abi3t` features, your extension module will be compiled against a specific [minimum version](../building-and-distribution.md#minimum-python-version-for-abi3) of Python, but may be running on newer Python versions.
 
 For example with PyO3's `abi3-py38` feature, your extension module will be compiled as if it were for Python 3.8.
 If you were using `pyo3-build-config`, `#[cfg(Py_3_8)]` would be present.

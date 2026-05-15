@@ -28,28 +28,57 @@ An example output of doing this is shown below:
 
 ```console
 $ PYO3_PRINT_CONFIG=1 cargo build
-   Compiling pyo3 v0.14.1 (/home/david/dev/pyo3)
-error: failed to run custom build command for `pyo3 v0.14.1 (/home/david/dev/pyo3)`
+   Compiling pyo3-ffi v0.28.3 (/Users/goldbaum/Documents/pyo3/pyo3-ffi)
+error: failed to run custom build command for `pyo3-ffi v0.28.3 (/Users/goldbaum/Documents/pyo3/pyo3-ffi)`
 
 Caused by:
-  process didn't exit successfully: `/home/david/dev/pyo3/target/debug/build/pyo3-7a8cf4fe22e959b7/build-script-build` (exit status: 101)
+  process didn't exit successfully: `/Users/goldbaum/Documents/pyo3/target/debug/build/pyo3-ffi-120b26b17564bf98/build-script-build` (exit status: 101)
   --- stdout
+  cargo:rustc-check-cfg=cfg(Py_LIMITED_API)
+  cargo:rustc-check-cfg=cfg(Py_GIL_DISABLED)
+  cargo:rustc-check-cfg=cfg(PyPy)
+  cargo:rustc-check-cfg=cfg(GraalPy)
+  cargo:rustc-check-cfg=cfg(RustPython)
+  cargo:rustc-check-cfg=cfg(py_sys_config, values("Py_DEBUG", "Py_REF_DEBUG", "Py_TRACE_REFS", "COUNT_ALLOCS"))
+  cargo:rustc-check-cfg=cfg(pyo3_disable_reference_pool)
+  cargo:rustc-check-cfg=cfg(pyo3_leak_on_drop_without_reference_pool)
+  cargo:rustc-check-cfg=cfg(Py_3_8)
+  cargo:rustc-check-cfg=cfg(Py_3_9)
+  cargo:rustc-check-cfg=cfg(Py_3_10)
+  cargo:rustc-check-cfg=cfg(Py_3_11)
+  cargo:rustc-check-cfg=cfg(Py_3_12)
+  cargo:rustc-check-cfg=cfg(Py_3_13)
+  cargo:rustc-check-cfg=cfg(Py_3_14)
+  cargo:rustc-check-cfg=cfg(Py_3_15)
+  cargo:rustc-check-cfg=cfg(Py_3_16)
+  cargo:rustc-check-cfg=cfg(pyo3_dll, values("python3", "python3_d", "python3t", "python3t_d", "python38", "python38_d", "python39", "python39_d", "python310", "python310_d", "python311", "python311_d", "python312", "python312_d", "python313", "python313_d", "python313t", "python313t_d", "python314", "python314_d", "python314t", "python314t_d", "python315", "python315_d", "python315t", "python315t_d", "python316", "python316_d", "python316t", "python316t_d", "libpypy3.11-c"))
+  cargo:rerun-if-env-changed=PYO3_CONFIG_FILE
   cargo:rerun-if-env-changed=PYO3_CROSS
   cargo:rerun-if-env-changed=PYO3_CROSS_LIB_DIR
   cargo:rerun-if-env-changed=PYO3_CROSS_PYTHON_VERSION
+  cargo:rerun-if-env-changed=PYO3_CROSS_PYTHON_IMPLEMENTATION
+  cargo:rerun-if-env-changed=PYO3_NO_PYTHON
+  cargo:rerun-if-env-changed=PYO3_ENVIRONMENT_SIGNATURE
+  cargo:rerun-if-env-changed=PYO3_PYTHON
+  cargo:rerun-if-env-changed=VIRTUAL_ENV
+  cargo:rerun-if-env-changed=CONDA_PREFIX
+  cargo:rerun-if-env-changed=PATH
   cargo:rerun-if-env-changed=PYO3_PRINT_CONFIG
 
   -- PYO3_PRINT_CONFIG=1 is set, printing configuration and halting compile --
   implementation=CPython
-  version=3.8
+  version=3.14
   shared=true
-  abi3=false
-  lib_name=python3.8
-  lib_dir=/usr/lib
-  executable=/usr/bin/python
+  target_abi=CPython-free_threaded-3.14
+  lib_name=python3.14t
+  lib_dir=/Users/goldbaum/.pyenv/versions/3.14.4t/lib
+  executable=/Users/goldbaum/.pyenv/versions/3.14.4t/bin/python
   pointer_width=64
-  build_flags=
+  build_flags=Py_GIL_DISABLED
+  python_framework_prefix=
   suppress_build_script_link_lines=false
+
+  note: unset the PYO3_PRINT_CONFIG environment variable and retry to compile with the above config
 ```
 
 The `PYO3_ENVIRONMENT_SIGNATURE` environment variable can be used to trigger rebuilds when its value changes, it has no other effect.
@@ -74,7 +103,7 @@ The PyO3 ecosystem has two packaging tools, [`maturin`] and [`setuptools-rust`],
 PyO3 has some functionality for configuring projects when building Python extension modules:
 
 - The `PYO3_BUILD_EXTENSION_MODULE` environment variable, which must be set when building Python extension modules. `maturin` and `setuptools-rust` set this automatically.
-- The `abi3` Cargo feature and its version-specific `abi3-pyXY` companions, which are used to opt-in to the limited Python API in order to support multiple Python versions in a single wheel.
+- The `abi3` and `abi3t` Cargo feature and their version-specific `abi3-pyXY` and `abi3t-pyXY` companions, which are used to opt-in to the limited Python API and a flavor of stable ABI in order to support multiple Python versions in a single wheel. The free-threaded build of CPython cannot load `abi3` wheels but both builds can load `abi3t` wheels.
 
 This section describes the packaging tools before describing how to build manually without them.
 It then proceeds with an explanation of the `PYO3_BUILD_EXTENSION_MODULE` environment variable.
@@ -212,42 +241,47 @@ This should only be set when building a library for distribution.
 >
 > Projects are encouraged to migrate off the feature, as it caused [major development pain](faq.md#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror) due to the lack of linking.
 
-### `Py_LIMITED_API`/`abi3`
+### `Py_LIMITED_API`/`abi3`/`abi3t`
 
 By default, Python extension modules can only be used with the same Python version they were compiled against.
 For example, an extension module built for Python 3.5 can't be imported in Python 3.8.
-[PEP 384](https://www.python.org/dev/peps/pep-0384/) introduced the idea of the limited Python API, which would have a stable ABI enabling extension modules built with it to be used against multiple Python versions.
-This is also known as `abi3`.
+[PEP 384](https://www.python.org/dev/peps/pep-0384/) introduced the idea of the limited Python API, which would have a stable ABI enabling extension modules built with it to be used against multiple Python versions. The ABI defined by PEP 384 is called `abi3`, since it's stable for all Python 3.X releases. In 2026, the steering council approved [PEP 803](https://www.python.org/dev/peps/pep-0803/)) which defines a new stable ABI, `abi3t`, that can be used on the free-threaded build of CPython. Extensions built using the `abit3` ABI are importable on both the GIL-enabled and free-threaded builds of any CPython version newer than the target version. So, `abi3t` extensions built for the Python 3.15 limited API will be importable on Python 3.16, 3.17, and all future Python 3.X versions.
 
 The advantage of building extension modules using the limited Python API is that package vendors only need to build and distribute a single copy (for each OS / architecture), and users can install it on all Python versions from the [minimum version](#minimum-python-version-for-abi3) and up.
 The downside of this is that PyO3 can't use optimizations which rely on being compiled against a known exact Python version.
 It's up to you to decide whether this matters for your extension module.
-It's also possible to design your extension module such that you can distribute `abi3` wheels but allow users compiling from source to benefit from additional optimizations - see the [support for multiple python versions](./building-and-distribution/multiple-python-versions.md) section of this guide, in particular the `#[cfg(Py_LIMITED_API)]` flag.
+It's also possible to design your extension module such that you can distribute `abi3` or `abi3t`  wheels but allow users compiling from source to benefit from additional optimizations - see the [support for multiple python versions](./building-and-distribution/multiple-python-versions.md) section of this guide, in particular the `#[cfg(Py_LIMITED_API)]` flag.
 
-There are three steps involved in making use of `abi3` when building Python packages as wheels:
+There are three steps involved in targeting `abi3` or `abi3t`  when building Python packages as wheels:
 
-1. Enable the `abi3` feature in `pyo3`.
+1. Enable the `abi3` and/or `abi3t` feature in `pyo3`.
    This ensures `pyo3` only calls Python C-API functions which are part of the stable API, and on Windows also ensures that the project links against the correct shared object (no special behavior is required on other platforms):
 
    ```toml
    [dependencies]
-   pyo3 = { {{#PYO3_CRATE_VERSION}}, features = ["abi3"] }
+   pyo3 = { {{#PYO3_CRATE_VERSION}}, features = ["abi3", "abi3t"] }
    ```
 
-2. Ensure that the built shared objects are correctly marked as `abi3`.
+   Enabling both the `"abi3"` and `"abi3t"` features will produce an abi3 extension if the host interpreter is a GIL-enabled interpreter and an abi3t extension with a host free-threaded interpreter. If you always want to produce `abi3t` wheels, you can enable just the `"abi3t"` feature, which will produce extensions targeting `abi3t` if the host interpreter is Python 3.15 or newer, but will produce version-specific extensions otherwise. If you only enable the `"abi3"` feature, you will produce `abi3` extensions if the host interpreter is a GIL-enabled build of CPython and version-specific extensions otherwise.
+
+   We suggest enabling both features and using multiple python interpreters to build several wheels. You can build an `abi3` wheel for your minimum supported Python version, a `cp314t` version-specific wheel using a free-threaded Python 3.14 interpreter, and an `abi3t` wheel using a Python 3.15 interpreter. This will produce wheels targeting all versions of CPython that PyO3 supports.
+
+2. Ensure that the built shared objects are correctly marked as `abi3` and `abi3t`.
    This is accomplished by telling your build system that you're using the limited API.
-   [`maturin`] >= 0.9.0 and [`setuptools-rust`] >= 0.11.4 support `abi3` wheels.
+   [`maturin`] >= 0.9.0 and [`setuptools-rust`] >= 0.11.4 support `abi3` wheels and [`maturin`] >= 1.14 supports `abi3t` wheels.
 
-   See the [corresponding](https://github.com/PyO3/maturin/pull/353) [PRs](https://github.com/PyO3/setuptools-rust/pull/82) for more.
+   See the [corresponding](https://github.com/PyO3/maturin/pull/353) [PRs](https://github.com/PyO3/setuptools-rust/pull/82) [for](https://github.com/PyO3/maturin/pull/3113) more.
 
-3. Ensure that the `.whl` is correctly marked as `abi3`.
+3. Ensure that the `.whl` is correctly marked as `abi3` or `abi3t`.
    For projects using `setuptools`, this is accomplished by passing `--py-limited-api=cp3x` (where `x` is the minimum Python version supported by the wheel, e.g. `--py-limited-api=cp35` for Python 3.5) to `setup.py bdist_wheel`.
 
-#### Minimum Python version for `abi3`
+#### Minimum Python version for stable ABI builds
 
 Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py38`, `abi3-py39`, `abi3-py310` etc. to set the minimum required Python version for your `abi3` wheel.
 For example, if you set the `abi3-py38` feature, your wheel can be used on all Python 3 versions from Python 3.8 and up.
 `maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp38-abi3-manylinux2020_x86_64.whl`.
+
+Similarly, there is an `abi3t-py315` feature and future PyO3 versions will offer `abi3t-py316` and so on.
 
 As your extension module may be run with multiple different Python versions you may occasionally find you need to check the Python version at runtime to customize behavior.
 See [the relevant section of this guide](./building-and-distribution/multiple-python-versions.md#checking-the-python-version-at-runtime) on supporting multiple Python versions at runtime.
@@ -258,14 +292,14 @@ E.g., if you set `abi3-py39` and try to compile the crate with a host of Python 
 > [!NOTE]
 > If you set more that one of these `abi3` version feature flags the lowest version always wins. For example, with both `abi3-py38` and `abi3-py39` set, PyO3 would build a wheel which supports Python 3.8 and up.
 
-#### Building `abi3` extension modules without a Python interpreter
+#### Building stable ABI extension modules without a Python interpreter
 
 As an advanced feature, you can build a PyO3 wheel without calling Python interpreter with the environment variable `PYO3_NO_PYTHON` set.
-Also, if the build host Python interpreter is not found or is too old or otherwise unusable, PyO3 will still attempt to compile `abi3` extension modules after displaying a warning message.
+Also, if the build host Python interpreter is not found or is too old or otherwise unusable, PyO3 will still attempt to compile stable ABI extension modules after displaying a warning message.
 
 #### Missing features
 
-Due to limitations in the Python API, there are a few `pyo3` features that do not work when compiling for `abi3`.
+Due to limitations in the Python API, there are a few `pyo3` features that do not work when compiling for either `abi3` or `abi3t`.
 These are:
 
 - `#[pyo3(text_signature = "...")]` does not work on classes until Python 3.10 or greater.
