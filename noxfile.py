@@ -134,7 +134,7 @@ def test_rust(session: nox.Session):
             and "abi3t" not in feature_set
             and "full" in feature_set
             and sys.version_info >= (3, 9)
-            and sys.implementation_name.name != "pypy"
+            and sys.implementation.name != "pypy"
         ):
             # run abi3-py38 tests to check abi3 forward compatibility
             _run_cargo_test(
