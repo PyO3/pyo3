@@ -1,8 +1,5 @@
-use std::{
-    ffi::CStr,
-    marker::PhantomData,
-    thread::{self, ThreadId},
-};
+use core::{ffi::CStr, marker::PhantomData};
+use std::thread::{self, ThreadId};
 
 #[cfg(Py_3_14)]
 use crate::err::error_on_minusone;
@@ -207,7 +204,7 @@ impl LazyTypeObjectInner {
                 unsafe {
                     (*type_object.as_type_ptr()).tp_flags.fetch_or(
                         ffi::Py_TPFLAGS_IMMUTABLETYPE,
-                        std::sync::atomic::Ordering::Relaxed,
+                        core::sync::atomic::Ordering::Relaxed,
                     )
                 };
                 unsafe { ffi::PyType_Modified(type_object.as_type_ptr()) };

@@ -9,7 +9,7 @@ use crate::types::{PyType, PyTypeMethods};
 #[cfg(any(Py_LIMITED_API, PyPy))]
 use crate::Py;
 use crate::{ffi, Bound, PyAny, PyResult, Python};
-use std::ffi::CStr;
+use core::ffi::CStr;
 
 /// Represents a Python code object.
 ///
