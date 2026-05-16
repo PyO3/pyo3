@@ -196,7 +196,7 @@ impl PyCapsule {
     ) -> PyResult<Bound<'py, Self>>
     where
         T: 'static + Send,
-        F: FnOnce(T, *mut c_void) + Send,
+        F: FnOnce(T, *mut c_void) + Send + 'static,
     {
         // Sanity check for capsule layout
         debug_assert_eq!(offset_of!(CapsuleContents::<T, F>, value), 0);
@@ -229,7 +229,7 @@ impl PyCapsule {
         since = "0.29.0",
         note = "use `PyCapsule::new_with_value_and_destructor` instead"
     )]
-    pub fn new_with_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send>(
+    pub fn new_with_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send + 'static>(
         py: Python<'_>,
         value: T,
         name: Option<CString>,
@@ -652,7 +652,7 @@ impl CapsuleName {
 
 // C layout, as casting the capsule pointer to `T` depends on `T` being first.
 #[repr(C)]
-struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void) + Send> {
+struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void) + Send + 'static> {
     /// Value of the capsule
     value: T,
     /// Destructor to be used by the capsule
@@ -663,7 +663,10 @@ struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void) + Send> {
 }
 
 // Wrapping ffi::PyCapsule_Destructor for a user supplied FnOnce(T) for capsule destructor
-unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send>(
+unsafe extern "C" fn capsule_destructor<
+    T: 'static + Send,
+    F: FnOnce(T, *mut c_void) + Send + 'static,
+>(
     capsule: *mut ffi::PyObject,
 ) {
     /// Gets the pointer and context from the capsule.
