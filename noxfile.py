@@ -94,6 +94,9 @@ def _supported_interpreter_versions(
 
 PY_VERSIONS = _supported_interpreter_versions("cpython")
 ABI3_PY_VERSIONS = [p for p in PY_VERSIONS if not p.endswith("t")]
+ABI3T_PY_VERSIONS = [
+    p for p in PY_VERSIONS if p.endswith("t") and int(p.split(".")[1].strip("t")) > 14
+]
 PYPY_VERSIONS = _supported_interpreter_versions("pypy")
 
 
@@ -132,22 +135,33 @@ def test_rust(session: nox.Session):
         # We need to pass the feature set to the test command
         # so that it can be used in the test code
         # (e.g. for `#[cfg(feature = "abi3-py38")]`)
-        if feature_set and "abi3" in feature_set and FREE_THREADED_BUILD:
-            # free-threaded builds don't support abi3 yet
-            continue
-
         _run_cargo_test(session, features=feature_set, extra_flags=flags)
-
         if (
             feature_set
             and "abi3" in feature_set
+            and "abi3t" not in feature_set
             and "full" in feature_set
             and sys.version_info >= (3, 9)
+            and sys.implementation.name != "pypy"
         ):
             # run abi3-py38 tests to check abi3 forward compatibility
             _run_cargo_test(
                 session,
                 features=feature_set.replace("abi3", "abi3-py38"),
+                extra_flags=flags,
+            )
+
+        if (
+            feature_set
+            and "abi3t" in feature_set
+            and "full" in feature_set
+            and sys.version_info >= (3, 16)
+        ):
+            # run abi3t-py315 tests to check for abi3t forward
+            # compatibility
+            _run_cargo_test(
+                session,
+                features=feature_set.replace("abi3t", "abi3t-py315"),
                 extra_flags=flags,
             )
 
@@ -227,10 +241,15 @@ def clippy(session: nox.Session) -> bool:
         session.error("one or more jobs failed")
 
 
-def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
+def _clippy(
+    session: nox.Session,
+    *,
+    env: Dict[str, str] = None,
+    version: Optional[Tuple[int, int]],
+) -> bool:
     success = True
     env = env or os.environ
-    for feature_set in _get_feature_sets():
+    for feature_set in _get_feature_sets(version):
         try:
             _run_cargo(
                 session,
@@ -290,9 +309,11 @@ def codspeed(session: nox.Session) -> bool:
 def clippy_all(session: nox.Session) -> None:
     success = True
 
-    def _clippy_with_config(env: Dict[str, str]) -> None:
+    def _clippy_with_config(
+        env: Dict[str, str], version: Optional[Tuple[int, int]]
+    ) -> None:
         nonlocal success
-        success &= _clippy(session, env=env)
+        success &= _clippy(session, env=env, version=version)
 
     _for_all_version_configs(session, _clippy_with_config)
     success &= _clippy_additional_workspaces(session)
@@ -305,7 +326,7 @@ def clippy_all(session: nox.Session) -> None:
 def check_all(session: nox.Session) -> None:
     success = True
 
-    def _check(env: Dict[str, str]) -> None:
+    def _check(env: Dict[str, str], version: Tuple[int, int]) -> None:
         nonlocal success
         for feature_set in _get_feature_sets():
             try:
@@ -1197,8 +1218,9 @@ def test_version_limits(session: nox.Session):
     with _config_file() as config_file:
         env["PYO3_CONFIG_FILE"] = config_file.name
 
-        assert "3.6" not in PY_VERSIONS
-        config_file.set("CPython", "3.6")
+        # Oldest-support Python version - 1 should error
+        assert "3.7" not in PY_VERSIONS
+        config_file.set("CPython", "3.7")
         _run_cargo(session, "check", env=env, expect_error=True)
 
         # We allow building with our max version + 1, to support
@@ -1219,6 +1241,7 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.16")
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
+        del env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"]
 
         # we only support 3.11 PyPy
         assert "3.10" not in PYPY_VERSIONS
@@ -1232,6 +1255,31 @@ def test_version_limits(session: nox.Session):
         # 3.14t is PyO3's minimum version of free-threaded Python
         config_file.set("CPython", "3.14t")
         _run_cargo(session, "check", env=env)
+
+        # 3.15t is PyO3's maximum version of free-threaded Python
+        config_file.set("CPython", "3.15t")
+        _run_cargo(session, "check", env=env)
+
+        # 3.16t should build with abi3t forward compatibility
+        config_file.set("CPython", "3.16t")
+        env["PYO3_USE_ABI3T_FORWARD_COMPATIBILITY"] = "1"
+        _run_cargo(session, "check", env=env)
+        del env["PYO3_USE_ABI3T_FORWARD_COMPATIBILITY"]
+
+        # 3.17t isn't supported
+        config_file.set("CPython", "3.17t")
+        _run_cargo(session, "check", env=env, expect_error=True)
+
+        # 3.17t CPython should build if abi3t is explicitly requested
+        _run_cargo(session, "check", "--features=pyo3/abi3t", env=env)
+
+        # abi3t builds should succeed on Python versions that support abi3t
+        config_file.set("CPython", "3.14")
+        _run_cargo(session, "check", "--features=pyo3/abi3t", env=env)
+
+        # ... also if both abi3 and abi3t features are enabled
+        config_file.set("CPython", "3.14")
+        _run_cargo(session, "check", "--features=pyo3/abi3t,pyo3/abi3", env=env)
 
     # attempt to build with latest version and check that abi3 version
     # configured matches the feature
@@ -1254,7 +1302,7 @@ def test_version_limits(session: nox.Session):
     # "An abi3-py3* feature must be specified when compiling without a Python
     # interpreter."
     #
-    # then `ABI3_MAX_MINOR` in `pyo3-build-config/src/impl_.rs` is probably outdated.
+    # then `STABLE_ABI_MAX_MINOR` in `pyo3-build-config/src/impl_.rs` is probably outdated.
     assert f"version=3.{max_minor_version}" in stderr, (
         f"Expected to see version=3.{max_minor_version}, got: \n\n{stderr}"
     )
@@ -1274,6 +1322,9 @@ def _check_raw_dylib_macro(session: nox.Session):
         if minor >= 13:
             expected_dlls.add(f"python3{minor}t")
             expected_dlls.add(f"python3{minor}t_d")
+        if minor >= 15:
+            expected_dlls.add("python3t")
+            expected_dlls.add("python3t_d")
 
     # PyPy DLL names (libpypy3.X-c.dll)
     pypy_min, pypy_max = _parse_supported_interpreter_version("pypy")
@@ -1418,6 +1469,10 @@ def check_feature_powerset(session: nox.Session):
         f"abi3-py3{ver.split('.')[1]}" for ver in ABI3_PY_VERSIONS
     }
 
+    EXPECTED_ABI3T_FEATURES = {
+        f"abi3t-py3{ver.split('.')[1].strip('t')}" for ver in ABI3T_PY_VERSIONS
+    }
+
     EXCLUDED_FROM_FULL = {
         "nightly",
         "extension-module",
@@ -1431,20 +1486,37 @@ def check_feature_powerset(session: nox.Session):
     features = cargo_toml["features"]
 
     full_feature = set(features["full"])
-    abi3_features = {feature for feature in features if feature.startswith("abi3")}
+    abi3_features = {
+        feature
+        for feature in features
+        if feature.startswith("abi3") and not feature.startswith("abi3t")
+    }
     abi3_version_features = abi3_features - {"abi3"}
 
-    unexpected_abi3_features = abi3_version_features - EXPECTED_ABI3_FEATURES
-    if unexpected_abi3_features:
+    abi3t_features = {feature for feature in features if feature.startswith("abi3t")}
+    abi3t_version_features = abi3t_features - {"abi3t"}
+
+    unexpected_stable_abi_features = (
+        abi3_version_features - EXPECTED_ABI3_FEATURES - EXPECTED_ABI3T_FEATURES
+    )
+    if unexpected_stable_abi_features:
         session.error(
-            f"unexpected `abi3` features found in Cargo.toml: {unexpected_abi3_features}"
+            f"unexpected `abi3` or `abi3t` features found in Cargo.toml: {unexpected_stable_abi_features}"
         )
 
     missing_abi3_features = EXPECTED_ABI3_FEATURES - abi3_version_features
     if missing_abi3_features:
         session.error(f"missing `abi3` features in Cargo.toml: {missing_abi3_features}")
 
-    expected_full_feature = features.keys() - EXCLUDED_FROM_FULL - abi3_features
+    missing_abi3t_features = EXPECTED_ABI3T_FEATURES - abi3t_version_features
+    if missing_abi3t_features:
+        session.error(
+            f"missing `abi3t` features in Cargo.toml: {missing_abi3t_features}"
+        )
+
+    expected_full_feature = (
+        features.keys() - EXCLUDED_FROM_FULL - abi3_features - abi3t_features
+    )
 
     uncovered_features = expected_full_feature - full_feature
     if uncovered_features:
@@ -1473,6 +1545,7 @@ def check_feature_powerset(session: nox.Session):
     features_to_skip = [
         *(EXCLUDED_FROM_FULL),
         *abi3_version_features,
+        *abi3t_version_features,
     ]
 
     # deny warnings
@@ -1485,17 +1558,18 @@ def check_feature_powerset(session: nox.Session):
         subcommand = "minimal-versions"
 
     comma_join = ",".join
-    _run_cargo(
-        session,
-        subcommand,
-        "--feature-powerset",
-        '--optional-deps=""',
-        f'--skip="{comma_join(features_to_skip)}"',
-        *(f"--group-features={comma_join(group)}" for group in features_to_group),
-        "check",
-        "--all-targets",
-        env=env,
-    )
+    for abi_name in ["abi3", "abi3t"]:
+        _run_cargo(
+            session,
+            subcommand,
+            "--feature-powerset",
+            '--optional-deps=""',
+            f'--skip="{comma_join(features_to_skip + [abi_name])}"',
+            *(f"--group-features={comma_join(group)}" for group in features_to_group),
+            "check",
+            "--all-targets",
+            env=env,
+        )
 
 
 @nox.session(name="update-ui-tests", venv_backend="none")
@@ -1598,8 +1672,13 @@ def _get_rust_default_target() -> str:
 
 
 @lru_cache()
-def _get_feature_sets() -> Tuple[Optional[str], ...]:
+def _get_feature_sets(
+    version: Optional[Tuple[int, int]] = None,
+) -> Tuple[Optional[str], ...]:
     """Returns feature sets to use for Rust jobs"""
+    if version is None:
+        version = sys.version_info[:2]
+
     cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
 
     features = "full"
@@ -1611,6 +1690,24 @@ def _get_feature_sets() -> Tuple[Optional[str], ...]:
     if is_rust_nightly():
         features += ",nightly"
 
+    if FREE_THREADED_BUILD:
+        if version >= (3, 15):
+            return (None, "abi3t", features, f"abi3t,{features}")
+        else:
+            return (None, features)
+
+    # do fewer abi3t builds?
+    # TODO re-enable Windows abi3t builds once 3.15.0b2 is released.
+    # See https://github.com/python/cpython/issues/149887
+    if version >= (3, 15) and sys.platform != "win32":
+        return (
+            None,
+            "abi3",
+            "abi3t",
+            features,
+            f"abi3,{features}",
+            f"abi3t,{features}",
+        )
     return (None, "abi3", features, f"abi3,{features}")
 
 
@@ -1730,7 +1827,8 @@ def _for_all_version_configs(
         def _job_with_config(implementation, version):
             session.log(f"{implementation} {version}")
             config_file.set(implementation, version)
-            job(env)
+            major_minor = tuple(map(int, version.strip("t").split(".")))
+            job(env, major_minor)
 
         for version in PY_VERSIONS:
             _job_with_config("CPython", version)

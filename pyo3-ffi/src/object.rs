@@ -1,15 +1,14 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
-#[cfg(Py_GIL_DISABLED)]
-use crate::refcount;
-#[cfg(Py_GIL_DISABLED)]
-use crate::PyMutex;
 #[cfg(Py_3_15)]
 use crate::PySlot;
+#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
+use crate::{refcount, PyMutex};
 use core::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use core::mem;
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
 use core::sync::atomic::{AtomicIsize, AtomicU32};
 
+// from pytypedefs.h
 #[cfg(Py_LIMITED_API)]
 opaque_struct!(pub PyTypeObject);
 
@@ -93,6 +92,7 @@ const _PyObject_MIN_ALIGNMENT: usize = 4;
 // not currently possible to use constant variables with repr(align()), see
 // https://github.com/rust-lang/rust/issues/52840
 
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 #[cfg_attr(not(all(Py_3_15, Py_GIL_DISABLED)), repr(C))]
 #[cfg_attr(all(Py_3_15, Py_GIL_DISABLED), repr(C, align(4)))]
 #[derive(Debug)]
@@ -118,8 +118,10 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 const _: () = assert!(core::mem::align_of::<PyObject>() >= _PyObject_MIN_ALIGNMENT);
 
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 #[allow(
     clippy::declare_interior_mutable_const,
     reason = "contains atomic refcount on free-threaded builds"
@@ -150,10 +152,15 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_type: core::ptr::null_mut(),
 };
 
+// from pytypedefs.h
+#[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
+opaque_struct!(pub PyObject);
+
 // skipped _Py_UNOWNED_TID
 
 // skipped _PyObject_CAST
 
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyVarObject {
@@ -164,6 +171,10 @@ pub struct PyVarObject {
     #[cfg(GraalPy)]
     pub _ob_size_graalpy: Py_ssize_t,
 }
+
+// from pytypedefs.h
+#[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
+opaque_struct!(pub PyVarObject);
 
 // skipped private _PyVarObject_CAST
 
@@ -221,6 +232,7 @@ extern_libpython! {
     pub static mut PyBool_Type: PyTypeObject;
 }
 
+#[cfg(not(all(Py_LIMITED_API, Py_3_15)))]
 #[inline]
 #[cfg(not(RustPython))]
 pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
