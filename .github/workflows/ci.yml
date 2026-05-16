@@ -727,6 +727,8 @@ jobs:
         if: ${{ matrix.apt-packages }}
         run: sudo apt-get install -y ${{ matrix.apt-packages }}
       - uses: ./.github/actions/prepare-coverage
+        with:
+         host_only: true
       - name: Compile version-specific library
         uses: PyO3/maturin-action@v1
         with:
