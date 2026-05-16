@@ -51,8 +51,16 @@ PYO3_DOCS_TARGET = PYO3_TARGET / "doc"
 FREE_THREADED_BUILD = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 
 
-def _get_output(*args: str) -> str:
-    return subprocess.run(args, capture_output=True, text=True, check=True).stdout
+def _get_output(*args: str, env: Optional[Dict[str, str]] = None) -> str:
+    try:
+        return subprocess.run(
+            args, capture_output=True, text=True, check=True, stdin=None, env=env
+        ).stdout
+    except subprocess.CalledProcessError as e:
+        print(f"Command {args} failed with exit code {e.returncode}")
+        print(f"stdout:\n{e.stdout}")
+        print(f"stderr:\n{e.stderr}")
+        raise nox.command.CommandFailed() from e
 
 
 def _parse_supported_interpreter_version(
@@ -165,18 +173,14 @@ def coverage(session: nox.Session) -> None:
 def set_coverage_env(session: nox.Session) -> None:
     """For use in GitHub Actions to set coverage environment variables."""
     with open(os.environ["GITHUB_ENV"], "a") as env_file:
-        for k, v in _get_coverage_env().items():
+        for k, v in _get_coverage_env(*session.posargs).items():
             print(f"{k}={v}", file=env_file)
 
 
 @nox.session(name="generate-coverage-report", venv_backend="none")
 def generate_coverage_report(session: nox.Session) -> None:
-    cov_format = "codecov"
-    output_file = "coverage.json"
-
-    if "lcov" in session.posargs:
-        cov_format = "lcov"
-        output_file = "lcov.info"
+    # default to `--html` report if no additional arguments provided (convenient for local use)
+    posargs = ("--html",) if not session.posargs else tuple(session.posargs)
 
     _run_cargo(
         session,
@@ -186,10 +190,9 @@ def generate_coverage_report(session: nox.Session) -> None:
         "--package=pyo3-macros-backend",
         "--package=pyo3-macros",
         "--package=pyo3-ffi",
+        "--include-build-script",
         "report",
-        f"--{cov_format}",
-        "--output-path",
-        output_file,
+        *posargs,
     )
 
 
@@ -1615,10 +1618,16 @@ _RELEASE_LINE_START = "release: "
 _HOST_LINE_START = "host: "
 
 
-def _get_coverage_env() -> Dict[str, str]:
-    env = {}
-    output = _get_output("cargo", "llvm-cov", "show-env")
+def _get_coverage_env(*flags: str) -> Dict[str, str]:
+    llvm_cov_execution_env = os.environ.copy()
+    # prevent llvm-cov from hanging asking to install llvm-tools-preview
+    # (allow user to override this, if they wish, e.g. in CI)
+    llvm_cov_execution_env.setdefault("CARGO_LLVM_COV_SETUP", "no")
+    output = _get_output(
+        "cargo", "llvm-cov", "show-env", *flags, env=llvm_cov_execution_env
+    )
 
+    env = {}
     for line in output.strip().splitlines():
         (key, value) = line.split("=", maxsplit=1)
         # Strip single or double quotes from the variable value
