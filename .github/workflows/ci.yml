@@ -712,6 +712,8 @@ jobs:
             flags: "-i python3.13 --features pyo3/generate-import-lib"
     steps:
       - uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ needs.resolve.outputs.coverage-sha }}
       - uses: astral-sh/setup-uv@v7
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
@@ -764,6 +766,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ needs.resolve.outputs.coverage-sha }}
       - uses: astral-sh/setup-uv@v7
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
@@ -779,6 +783,8 @@ jobs:
       - name: Setup cross-compiler
         run: sudo apt-get install -y mingw-w64 llvm
       - uses: ./.github/actions/prepare-coverage
+        with:
+          host_only: true
       - name: Test cross compile to Windows
         run: uvx nox -s test-cross-compilation-windows
       - uses: ./.github/actions/report-coverage
