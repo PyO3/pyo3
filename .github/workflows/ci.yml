@@ -644,7 +644,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ needs.resolve.outputs.save-cache }}
-      - uses: dtolnay/rust-toolchain@stable
       - uses: ./.github/actions/prepare-coverage
       - run: uvx nox -s test-version-limits
       - uses: ./.github/actions/report-coverage
@@ -682,7 +681,7 @@ jobs:
       - run: python3 -m nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
 
   test-cross-compilation:
-    needs: [fmt]
+    needs: [fmt, resolve]
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ${{ matrix.os }}
     name: test-cross-compilation ${{ matrix.os }} -> ${{ matrix.target }}

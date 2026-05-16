@@ -15,6 +15,6 @@ runs:
     shell: bash
     run: |
       cargo llvm-cov clean --workspace
-      uvx nox -s set-coverage-env -- ${{ inputs.host_only && '--coverage-host-only' || '' }}
+      uvx nox -s set-coverage-env -- ${{ inputs.host_only == 'true' && '--coverage-host-only' || '' }}
     env:
       CARGO_LLVM_COV_SETUP: "yes"
