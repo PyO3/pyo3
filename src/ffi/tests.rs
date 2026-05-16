@@ -118,7 +118,7 @@ fn test_timezone_from_offset_and_name() {
 #[test]
 #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 fn ascii_object_bitfield() {
-    let ob_base: PyObject = unsafe { std::mem::zeroed() };
+    let ob_base: PyObject = unsafe { core::mem::zeroed() };
 
     #[cfg_attr(Py_3_14, allow(unused_mut, unused_variables))]
     let mut o = PyASCIIObject {
@@ -128,7 +128,7 @@ fn ascii_object_bitfield() {
         hash: 0,
         state: 0u32,
         #[cfg(not(Py_3_12))]
-        wstr: std::ptr::null_mut() as *mut wchar_t,
+        wstr: core::ptr::null_mut() as *mut wchar_t,
     };
 
     #[cfg(not(Py_3_14))]

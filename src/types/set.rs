@@ -12,7 +12,7 @@ use crate::{
     types::{PyType, PyTypeMethods},
     Py,
 };
-use std::ptr;
+use core::ptr;
 
 /// Represents a Python `set`.
 ///

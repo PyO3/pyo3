@@ -17,10 +17,10 @@ use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py};
 use crate::{sync::PyOnceLock, types::typeobject::PyTypeMethods};
 #[allow(deprecated)]
 use crate::{DowncastError, DowncastIntoError};
-use std::cell::UnsafeCell;
-use std::cmp::Ordering;
-use std::ffi::c_int;
-use std::ptr;
+use core::cell::UnsafeCell;
+use core::cmp::Ordering;
+use core::ffi::c_int;
+use core::ptr;
 
 /// Represents any Python object.
 ///
@@ -238,7 +238,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyFloat;
-    /// use std::cmp::Ordering;
+    /// use core::cmp::Ordering;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
@@ -477,7 +477,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// def function(*args, **kwargs):
@@ -534,7 +534,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// def function(*args, **kwargs):
@@ -571,7 +571,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// class A:
@@ -617,7 +617,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// class A:
@@ -654,7 +654,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// class A:
@@ -1056,7 +1056,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             any: &Bound<'py, PyAny>,
             attr_name: Borrowed<'_, 'py, PyString>,
         ) -> PyResult<Option<Bound<'py, PyAny>>> {
-            let mut resp_ptr: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut resp_ptr: *mut ffi::PyObject = core::ptr::null_mut();
             match unsafe {
                 ffi::compat::PyObject_GetOptionalAttr(
                     any.as_ptr(),
@@ -1684,8 +1684,8 @@ mod tests {
         types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
         Bound, BoundObject, IntoPyObject, PyTypeInfo, Python,
     };
+    use core::fmt::Debug;
     use pyo3_ffi::c_str;
-    use std::fmt::Debug;
 
     #[test]
     fn test_lookup_special() {
@@ -2103,7 +2103,7 @@ class SimpleClass:
             2.5,
             0.0,
             3.0,
-            std::f64::consts::PI,
+            core::f64::consts::PI,
             10.0,
             10.0 / 3.0,
             -1_000_000.0,

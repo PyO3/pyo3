@@ -84,13 +84,13 @@ impl PartialEq<(u8, u8, u8)> for PythonVersionInfo {
 }
 
 impl PartialOrd<(u8, u8)> for PythonVersionInfo {
-    fn partial_cmp(&self, other: &(u8, u8)) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &(u8, u8)) -> Option<core::cmp::Ordering> {
         (self.major, self.minor).partial_cmp(other)
     }
 }
 
 impl PartialOrd<(u8, u8, u8)> for PythonVersionInfo {
-    fn partial_cmp(&self, other: &(u8, u8, u8)) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &(u8, u8, u8)) -> Option<core::cmp::Ordering> {
         (self.major, self.minor, self.patch).partial_cmp(other)
     }
 }

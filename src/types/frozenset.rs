@@ -13,7 +13,7 @@ use crate::{
     Py,
 };
 use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt};
-use std::ptr;
+use core::ptr;
 
 /// Allows building a Python `frozenset` one item at a time
 pub struct PyFrozenSetBuilder<'py> {

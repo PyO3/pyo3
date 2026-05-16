@@ -55,12 +55,12 @@ use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 use crate::{intern, Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
 #[cfg(feature = "experimental-inspect")]
 use crate::{type_hint_identifier, PyTypeInfo};
+use alloc::borrow::Cow;
 use jiff::civil::{Date, DateTime, ISOWeekDate, Time};
 use jiff::tz::{Offset, TimeZone};
 use jiff::{SignedDuration, Span, Timestamp, Zoned};
 #[cfg(feature = "jiff-02")]
 use jiff_02 as jiff;
-use std::borrow::Cow;
 
 fn datetime_to_pydatetime<'py>(
     py: Python<'py>,
@@ -604,8 +604,8 @@ impl From<jiff::Error> for PyErr {
 mod tests {
     use super::*;
     use crate::{types::PyTuple, BoundObject};
+    use core::cmp::Ordering;
     use jiff::tz::Offset;
-    use std::cmp::Ordering;
 
     #[test]
     // Only Python>=3.9 has the zoneinfo package
@@ -860,7 +860,7 @@ mod tests {
     #[test]
     #[cfg(all(Py_3_9, not(windows)))]
     fn test_ambiguous_datetime_to_pyobject() {
-        use std::str::FromStr;
+        use core::str::FromStr;
         let dates = [
             Zoned::from_str("2020-10-24 23:00:00[UTC]").unwrap(),
             Zoned::from_str("2020-10-25 00:00:00[UTC]").unwrap(),
@@ -1069,22 +1069,22 @@ mod tests {
     mod proptests {
         use super::*;
         use crate::types::IntoPyDict;
+        use alloc::ffi::CString;
         use jiff::tz::TimeZoneTransition;
         use jiff::SpanRelativeTo;
         use proptest::prelude::*;
-        use std::ffi::CString;
 
         // This is to skip the test if we are creating an invalid date, like February 31.
         #[track_caller]
         fn try_date(year: i16, month: i8, day: i8) -> Result<Date, TestCaseError> {
-            let location = std::panic::Location::caller();
+            let location = core::panic::Location::caller();
             Date::new(year, month, day)
                 .map_err(|err| TestCaseError::reject(format!("{location}: {err:?}")))
         }
 
         #[track_caller]
         fn try_time(hour: i8, min: i8, sec: i8, micro: i32) -> Result<Time, TestCaseError> {
-            let location = std::panic::Location::caller();
+            let location = core::panic::Location::caller();
             Time::new(hour, min, sec, micro * 1000)
                 .map_err(|err| TestCaseError::reject(format!("{location}: {err:?}")))
         }
@@ -1102,7 +1102,7 @@ mod tests {
         ) -> Result<Zoned, TestCaseError> {
             let date = try_date(year, month, day)?;
             let time = try_time(hour, min, sec, micro)?;
-            let location = std::panic::Location::caller();
+            let location = core::panic::Location::caller();
             DateTime::from_parts(date, time)
                 .to_zoned(tz)
                 .map_err(|err| TestCaseError::reject(format!("{location}: {err:?}")))

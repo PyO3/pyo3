@@ -11,8 +11,8 @@ use crate::{
 };
 #[cfg(RustPython)]
 use crate::{sync::PyOnceLock, types::PyType, Py};
-use std::convert::Infallible;
-use std::ptr;
+use core::convert::Infallible;
+use core::ptr;
 
 /// Represents a Python `bool`.
 ///

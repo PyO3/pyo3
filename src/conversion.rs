@@ -11,8 +11,8 @@ use crate::{
     Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyClassGuard, PyErr, PyRef, PyRefMut,
     PyTypeCheck, Python,
 };
-use std::convert::Infallible;
-use std::marker::PhantomData;
+use core::convert::Infallible;
+use core::marker::PhantomData;
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
 ///
@@ -375,9 +375,9 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// The output type may also depend on the Python lifetime `'py`. This allows the output type to
 /// keep interacting with the Python interpreter. See also [`Bound<'py, T>`].
 ///
-/// [`Cow<'a, str>`]: std::borrow::Cow
-/// [`Cow::Borrowed`]: std::borrow::Cow::Borrowed
-/// [`Cow::Owned`]: std::borrow::Cow::Owned
+/// [`Cow<'a, str>`]: alloc::borrow::Cow
+/// [`Cow::Borrowed`]: alloc::borrow::Cow::Borrowed
+/// [`Cow::Owned`]: alloc::borrow::Cow::Owned
 /// [guide]: https://pyo3.rs/latest/conversions/traits.html#deriving-frompyobject
 pub trait FromPyObject<'a, 'py>: Sized {
     /// The type returned in the event of a conversion error.
@@ -506,7 +506,7 @@ pub(crate) use from_py_object_sequence::FromPyObjectSequence;
 /// ```
 ///
 /// [`PyList`]: crate::types::PyList
-/// [`Arc<T>`]: std::sync::Arc
+/// [`Arc<T>`]: alloc::sync::Arc
 pub trait FromPyObjectOwned<'py>: for<'a> FromPyObject<'a, 'py> {}
 impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py> {}
 

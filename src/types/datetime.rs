@@ -32,7 +32,7 @@ use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, 
 use crate::{sync::PyOnceLock, Py};
 use crate::{Borrowed, Bound, IntoPyObject, PyAny, Python};
 #[cfg(not(Py_LIMITED_API))]
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 #[cfg(not(Py_LIMITED_API))]
 fn ensure_datetime_api(py: Python<'_>) -> PyResult<&'static PyDateTime_CAPI> {
@@ -782,7 +782,7 @@ impl PyTzInfo {
             let api = ensure_datetime_api(py)?;
             let delta = offset.into_pyobject(py).map_err(Into::into)?;
             unsafe {
-                (api.TimeZone_FromTimeZone)(delta.as_ptr(), std::ptr::null_mut())
+                (api.TimeZone_FromTimeZone)(delta.as_ptr(), core::ptr::null_mut())
                     .assume_owned_or_err(py)
                     .cast_into_unchecked()
             }
