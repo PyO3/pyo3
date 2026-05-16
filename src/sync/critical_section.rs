@@ -198,7 +198,7 @@ where
     #[cfg(Py_GIL_DISABLED)]
     {
         let mut guard = CSGuard(unsafe { core::mem::zeroed() });
-        unsafe { crate::ffi::PyCriticalSection_BeginMutex(&mut guard.0, &mut *mutex.mutex.get()) };
+        unsafe { crate::ffi::PyCriticalSection_BeginMutex(&raw mut guard.0, mutex.mutex.get()) };
         f(EnteredCriticalSection(&mutex.data))
     }
     #[cfg(not(Py_GIL_DISABLED))]
@@ -243,9 +243,9 @@ where
         let mut guard = CS2Guard(unsafe { core::mem::zeroed() });
         unsafe {
             crate::ffi::PyCriticalSection2_BeginMutex(
-                &mut guard.0,
-                &mut *m1.mutex.get(),
-                &mut *m2.mutex.get(),
+                &raw mut guard.0,
+                m1.mutex.get(),
+                m2.mutex.get(),
             )
         };
         f(
