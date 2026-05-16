@@ -696,6 +696,7 @@ jobs:
           - os: "ubuntu-latest"
             target: "x86_64-unknown-linux-gnu"
             flags: "-i python3.13"
+            manylinux: auto
           # ubuntu x86_64 -> aarch64
           - os: "ubuntu-latest"
             target: "aarch64-unknown-linux-gnu"
@@ -733,13 +734,25 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --profile=dev -m examples/maturin-starter/Cargo.toml ${{ matrix.flags }}
-          container: off
+          manylinux: ${{ matrix.manylinux }}
+          docker-options: >-
+            -e LLVM_PROFILE_FILE
+            -e __CARGO_LLVM_COV_RUSTC_WRAPPER
+            -e __CARGO_LLVM_COV_RUSTC_WRAPPER_RUSTFLAGS
+            -e __CARGO_LLVM_COV_RUSTC_WRAPPER_CRATE_NAMES
+            -v /home/runner/.cargo/bin/cargo-llvm-cov:/home/runner/.cargo/bin/cargo-llvm-cov
       - name: Compile abi3 library
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           args: --profile=dev -m examples/maturin-starter/Cargo.toml --features abi3 ${{ matrix.flags }}
-          container: off
+          manylinux: ${{ matrix.manylinux }}
+          docker-options: >-
+            -e LLVM_PROFILE_FILE
+            -e __CARGO_LLVM_COV_RUSTC_WRAPPER
+            -e __CARGO_LLVM_COV_RUSTC_WRAPPER_RUSTFLAGS
+            -e __CARGO_LLVM_COV_RUSTC_WRAPPER_CRATE_NAMES
+            -v /home/runner/.cargo/bin/cargo-llvm-cov:/home/runner/.cargo/bin/cargo-llvm-cov
       - uses: ./.github/actions/report-coverage
         with:
           name: ${{ github.job }}/${{ matrix.os }}/${{ matrix.target }}
