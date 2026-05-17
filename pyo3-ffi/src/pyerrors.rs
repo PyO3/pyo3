@@ -312,7 +312,7 @@ extern_libpython! {
     ) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyErr_BadInternalCall")]
     pub fn PyErr_BadInternalCall();
-    pub fn _PyErr_BadInternalCall(filename: *const c_char, lineno: c_int);
+    pub(crate) fn _PyErr_BadInternalCall(filename: *const c_char, lineno: c_int);
     #[cfg_attr(PyPy, link_name = "PyPyErr_NewException")]
     pub fn PyErr_NewException(
         name: *const c_char,
