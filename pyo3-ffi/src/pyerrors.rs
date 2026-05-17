@@ -310,9 +310,24 @@ extern_libpython! {
         arg2: *mut PyObject,
         arg3: *mut PyObject,
     ) -> *mut PyObject;
+    #[cfg(PyPy)]
     #[cfg_attr(PyPy, link_name = "PyPyErr_BadInternalCall")]
     pub fn PyErr_BadInternalCall();
-    pub fn _PyErr_BadInternalCall(filename: *const c_char, lineno: c_int);
+
+    #[cfg(not(PyPy))]
+    fn _PyErr_BadInternalCall(filename: *const c_char, lineno: c_int);
+}
+
+#[cfg(not(PyPy))]
+#[track_caller]
+#[inline]
+pub unsafe fn PyErr_BadInternalCall() {
+    let location = core::panic::Location::caller();
+    let filename = alloc::ffi::CString::new(location.file()).unwrap();
+    unsafe { _PyErr_BadInternalCall(filename.as_ptr(), location.line() as c_int) }
+}
+
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyErr_NewException")]
     pub fn PyErr_NewException(
         name: *const c_char,
