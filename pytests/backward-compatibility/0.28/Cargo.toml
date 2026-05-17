@@ -1,0 +1,16 @@
+[workspace]
+
+[package]
+name = "pyo3-backward-compatibility-028"
+version = "0.0.0"
+description = "Backward compatibility tests for pyo3-introspection"
+edition = "2021"
+publish = false
+rust-version = "1.83"
+
+[dependencies]
+pyo3 = { version = "0.28", features = ["experimental-inspect"] }
+
+[lib]
+name = "pyo3_backward_compatibility_028"
+crate-type = ["cdylib"]
