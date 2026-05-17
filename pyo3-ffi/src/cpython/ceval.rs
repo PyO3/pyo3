@@ -6,7 +6,10 @@ extern_libpython! {
     // skipped non-limited _PyEval_CallTracing
 
     #[cfg(not(Py_3_11))]
-    pub(crate) fn _PyEval_EvalFrameDefault(arg1: *mut crate::PyFrameObject, exc: c_int) -> *mut PyObject;
+    pub(crate) fn _PyEval_EvalFrameDefault(
+        arg1: *mut crate::PyFrameObject,
+        exc: c_int,
+    ) -> *mut PyObject;
 
     #[cfg(Py_3_11)]
     pub(crate) fn _PyEval_EvalFrameDefault(
