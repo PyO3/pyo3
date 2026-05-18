@@ -1,11 +1,16 @@
 use core::ffi::{c_int, c_void};
+use core::num::NonZero;
 
 // skipped PyThread_type_lock
 // skipped PyLockStatus
 // skipped PyThread_init_thread
 // skipped PyThread_start_new_thread
 // skipped PyThread_exit_thread
-// skipped PyThread_get_thread_ident
+
+extern_libpython! {
+    pub fn PyThread_get_thread_ident() -> NonZero<u64>;
+}
+
 // skipped PyThread_get_thread_native_id
 // skipped PyThread_allocate_lock
 // skipped PyThread_free_lock
