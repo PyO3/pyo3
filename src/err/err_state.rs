@@ -1,9 +1,7 @@
 use core::cell::UnsafeCell;
-use std::{
-    sync::{Mutex, Once},
-    thread::ThreadId,
-};
+use std::sync::{Mutex, Once};
 
+use crate::platform::thread::{self, ThreadId};
 #[cfg(not(Py_3_12))]
 use crate::sync::MutexExt;
 use crate::{
@@ -94,7 +92,7 @@ impl PyErrState {
         // re-entrancy guarantees.
         if let Some(thread) = self.normalizing_thread.lock().unwrap().as_ref() {
             assert!(
-                !(*thread == std::thread::current().id()),
+                !(*thread == thread::current().id()),
                 "Re-entrant normalization of PyErrState detected"
             );
         }
@@ -105,7 +103,7 @@ impl PyErrState {
                 self.normalizing_thread
                     .lock()
                     .unwrap()
-                    .replace(std::thread::current().id());
+                    .replace(thread::current().id());
 
                 // Safety: no other thread can access the inner value while we are normalizing it.
                 let state = unsafe {
