@@ -953,9 +953,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::HashMap;
     use crate::types::{PyAnyMethods as _, PyTuple};
     use alloc::collections::BTreeMap;
-    use std::collections::HashMap;
 
     #[test]
     fn test_new() {

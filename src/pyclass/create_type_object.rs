@@ -1,5 +1,6 @@
 use crate::exceptions::PyAttributeError;
 use crate::impl_::pymethods::{Deleter, PyDeleterDef};
+use crate::platform::HashMap;
 #[cfg(not(Py_3_10))]
 use crate::types::typeobject::PyTypeMethods;
 use crate::{
@@ -23,7 +24,7 @@ use core::{
     ffi::{c_char, c_int, c_ulong, c_void},
     ptr::{self, NonNull},
 };
-use std::{collections::HashMap, ffi::CString};
+use std::ffi::CString;
 
 pub(crate) struct PyClassTypeObject {
     pub type_object: Py<PyType>,
