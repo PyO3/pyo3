@@ -128,7 +128,7 @@ abi3-py315 = ["abi3", "pyo3-ffi/abi3-py315"]
 abi3t = ["pyo3-ffi/abi3t"]
 
 # With abi3t, we can manually set the minimum Python version.
-abi3t-py315 = ["abi3t"]
+abi3t-py315 = ["abi3t", "pyo3-ffi/abi3t-py315"]
 
 # deprecated: no longer needed, raw-dylib is used instead
 generate-import-lib = ["pyo3-ffi/generate-import-lib"]
