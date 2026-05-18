@@ -1064,7 +1064,7 @@ impl PythonAbiKind {
     }
 }
 
-/// The the variety of stable ABI
+/// The variety of stable ABI
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(test, derive(Debug))]
 pub enum StableAbi {
