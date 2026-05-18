@@ -1,6 +1,6 @@
 use crate::model::{
-    Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator,
-    VariableLengthArgument,
+    Argument, Arguments, Attribute, Class, Constant, Expr, Function, ImportAlias, Module, Operator,
+    Statement, VariableLengthArgument,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
@@ -95,7 +95,27 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
     if let Some(docstring) = &module.docstring {
         final_elements.push(format!("\"\"\"\n{docstring}\n\"\"\""));
     }
-    final_elements.extend(imports.imports);
+    for (module, names) in &imports.imports {
+        let mut line = String::new();
+        if let Some(module) = module {
+            line.push_str("from ");
+            line.push_str(module);
+            line.push(' ');
+        }
+        line.push_str("import");
+        for (i, name) in names.iter().enumerate() {
+            if i > 0 {
+                line.push(',');
+            }
+            line.push(' ');
+            line.push_str(&name.name);
+            if let Some(asname) = &name.asname {
+                line.push_str(" as ");
+                line.push_str(asname);
+            }
+        }
+        final_elements.push(line);
+    }
     final_elements.extend(elements);
 
     let mut output = String::new();
@@ -294,7 +314,7 @@ fn variable_length_argument_stub(argument: &VariableLengthArgument, imports: &Im
 #[derive(Default)]
 struct Imports {
     /// Import lines ready to use
-    imports: Vec<String>,
+    imports: BTreeMap<Option<String>, Vec<ImportAlias>>,
     /// Renaming map: from module name and member name return the name to use in type hints
     renaming: BTreeMap<(String, String), String>,
 }
@@ -311,7 +331,7 @@ impl Imports {
         let mut elements_used_in_annotations = ElementsUsedInAnnotations::new();
         elements_used_in_annotations.walk_module(module);
 
-        let mut imports = Vec::new();
+        let mut imports = BTreeMap::<Option<String>, Vec<ImportAlias>>::new();
         let mut renaming = BTreeMap::new();
         let mut local_name_to_module_and_attribute = BTreeMap::new();
 
@@ -334,10 +354,38 @@ impl Imports {
             local_name_to_module_and_attribute
                 .insert(name.clone(), (current_module_name.clone(), name.clone()));
         }
-        // We don't process the current module elements, no need to care about them
-        local_name_to_module_and_attribute.remove(&current_module_name);
 
-        // We process then imports, normalizing local imports
+        // Also, we insert the imports from the user-provided stub
+        for statement in &module.stubs {
+            let (module, names) = match statement {
+                Statement::Import { names } => (None, names),
+                Statement::ImportFrom {
+                    module,
+                    names,
+                    level,
+                } => {
+                    // We build the python module relative path
+                    let mut module = module.clone();
+                    for _ in 0..*level {
+                        module = format!(".{module}")
+                    }
+                    (Some(module), names)
+                }
+            };
+            for name in names {
+                let module_and_name = (module.clone().unwrap_or_default(), name.name.clone());
+                let local_name = name.asname.as_ref().unwrap_or(&name.name).clone();
+                local_name_to_module_and_attribute
+                    .insert(local_name.clone(), module_and_name.clone());
+                renaming.insert(module_and_name, local_name);
+            }
+            imports
+                .entry(module)
+                .or_default()
+                .extend(names.iter().cloned());
+        }
+
+        // Finally, We process imports from built-in annotations (always absolute)
         for (module, attrs) in &elements_used_in_annotations.module_to_name {
             let mut import_for_module = Vec::new();
             for attr in attrs {
@@ -345,6 +393,18 @@ impl Imports {
                 let (root_attr, attr_path) = attr
                     .split_once('.')
                     .map_or((attr.as_str(), None), |(root, path)| (root, Some(path)));
+
+                if let Some(local_name) = renaming.get(&(module.clone(), root_attr.to_owned())) {
+                    // it's already imported, we make sure to get a renaming for the nested class if relevant
+                    if let Some(attr_path) = &attr_path {
+                        renaming.insert(
+                            (module.clone(), attr.clone()),
+                            format!("{local_name}.{attr_path}"),
+                        );
+                    }
+                    continue;
+                }
+
                 let mut local_name = root_attr.to_owned();
                 let mut already_imported = false;
                 while let Some((possible_conflict_module, possible_conflict_attr)) =
@@ -383,21 +443,31 @@ impl Imports {
                     let is_not_aliased_builtin = module == "builtins" && local_name == root_attr;
                     if !is_not_aliased_builtin {
                         import_for_module.push(if local_name == root_attr {
-                            local_name
+                            ImportAlias {
+                                name: local_name,
+                                asname: None,
+                            }
                         } else {
-                            format!("{root_attr} as {local_name}")
+                            ImportAlias {
+                                name: root_attr.into(),
+                                asname: Some(local_name),
+                            }
                         });
                     }
                 }
             }
             if !import_for_module.is_empty() {
-                imports.push(format!(
-                    "from {module} import {}",
-                    import_for_module.join(", ")
-                ));
+                imports
+                    .entry(Some(module.clone()))
+                    .or_default()
+                    .extend(import_for_module);
             }
         }
-        imports.sort(); // We make sure they are sorted
+
+        // We sort imports
+        for names in imports.values_mut() {
+            names.sort_by(|l, r| (&l.name, &l.asname).cmp(&(&r.name, &r.asname)));
+        }
 
         Self { imports, renaming }
     }
@@ -628,7 +698,7 @@ impl ElementsUsedInAnnotations {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::Arguments;
+    use crate::model::{Arguments, ImportAlias, Statement};
 
     #[test]
     fn function_stubs_with_variable_length() {
@@ -770,6 +840,14 @@ mod tests {
                                 attr: "B".into(),
                             },
                             Expr::Attribute {
+                                value: Box::new(Expr::Name { id: "foo".into() }),
+                                attr: "C".into(),
+                            },
+                            Expr::Attribute {
+                                value: Box::new(Expr::Name { id: "foo".into() }),
+                                attr: "D".into(),
+                            },
+                            Expr::Attribute {
                                 value: Box::new(Expr::Name { id: "bat".into() }),
                                 attr: "A".into(),
                             },
@@ -831,22 +909,116 @@ mod tests {
                 }],
                 attributes: Vec::new(),
                 incomplete: true,
+                stubs: vec![
+                    Statement::ImportFrom {
+                        module: "foo".into(),
+                        names: vec![
+                            ImportAlias {
+                                name: "A".into(),
+                                asname: Some("AAlt".into()),
+                            },
+                            ImportAlias {
+                                name: "B".into(),
+                                asname: Some("B2".into()),
+                            },
+                            ImportAlias {
+                                name: "C".into(),
+                                asname: None,
+                            },
+                        ],
+                        level: 0,
+                    },
+                    Statement::Import {
+                        names: vec![ImportAlias {
+                            name: "bat".into(),
+                            asname: None,
+                        }],
+                    },
+                    Statement::ImportFrom {
+                        module: "bat".into(),
+                        names: vec![ImportAlias {
+                            name: "D".into(),
+                            asname: None,
+                        }],
+                        level: 0,
+                    },
+                ],
                 docstring: None,
             },
             &["foo"],
         );
         assert_eq!(
-            &imports.imports,
-            &[
-                "from _typeshed import Incomplete",
-                "from bat import A as A2",
-                "from builtins import int as int2",
-                "from foo import A as A3, B",
-                "from typing import final"
-            ]
+            imports.imports,
+            BTreeMap::from([
+                (
+                    None,
+                    vec![ImportAlias {
+                        name: "bat".into(),
+                        asname: None
+                    }]
+                ),
+                (
+                    Some("_typeshed".to_string()),
+                    vec![ImportAlias {
+                        name: "Incomplete".into(),
+                        asname: None
+                    }]
+                ),
+                (
+                    Some("bat".into()),
+                    vec![
+                        ImportAlias {
+                            name: "A".into(),
+                            asname: Some("A2".into())
+                        },
+                        ImportAlias {
+                            name: "D".into(),
+                            asname: None
+                        }
+                    ]
+                ),
+                (
+                    Some("builtins".into()),
+                    vec![ImportAlias {
+                        name: "int".into(),
+                        asname: Some("int2".into())
+                    }]
+                ),
+                (
+                    Some("foo".into()),
+                    vec![
+                        ImportAlias {
+                            name: "A".into(),
+                            asname: Some("AAlt".into())
+                        },
+                        ImportAlias {
+                            name: "B".into(),
+                            asname: Some("B2".into())
+                        },
+                        ImportAlias {
+                            name: "C".into(),
+                            asname: None
+                        },
+                        ImportAlias {
+                            name: "D".into(),
+                            asname: Some("D2".into())
+                        }
+                    ]
+                ),
+                (
+                    Some("typing".into()),
+                    vec![ImportAlias {
+                        name: "final".into(),
+                        asname: None
+                    }]
+                ),
+            ])
         );
         let mut output = String::new();
         imports.serialize_expr(&big_type, &mut output);
-        assert_eq!(output, "dict[A, (A3.C, A3.D, B, A2, int, int2, float)]");
+        assert_eq!(
+            output,
+            "dict[A, (AAlt.C, AAlt.D, B2, C, D2, A2, int, int2, float)]"
+        );
     }
 }

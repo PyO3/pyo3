@@ -32,6 +32,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pymethods_duplicates.rs");
     t.compile_fail("tests/ui/invalid_pymethod_enum.rs");
     t.compile_fail("tests/ui/invalid_pymethod_names.rs");
+    #[cfg(not(feature = "experimental-inspect"))]
     t.compile_fail("tests/ui/invalid_pymodule_args.rs");
     t.compile_fail("tests/ui/invalid_pycallargs.rs");
     t.compile_fail("tests/ui/reject_generics.rs");
