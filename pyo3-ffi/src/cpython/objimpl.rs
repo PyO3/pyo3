@@ -12,7 +12,7 @@ use crate::object::*;
 
 #[cfg(not(Py_3_11))]
 extern_libpython! {
-    pub fn _Py_GetAllocatedBlocks() -> crate::Py_ssize_t;
+    pub(crate) fn _Py_GetAllocatedBlocks() -> crate::Py_ssize_t;
 }
 
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -54,8 +54,8 @@ pub unsafe fn PyObject_IS_GC(o: *mut PyObject) -> c_int {
 
 #[cfg(not(Py_3_11))]
 extern_libpython! {
-    pub fn _PyObject_GC_Malloc(size: size_t) -> *mut PyObject;
-    pub fn _PyObject_GC_Calloc(size: size_t) -> *mut PyObject;
+    pub(crate) fn _PyObject_GC_Malloc(size: size_t) -> *mut PyObject;
+    pub(crate) fn _PyObject_GC_Calloc(size: size_t) -> *mut PyObject;
 }
 
 #[inline]
