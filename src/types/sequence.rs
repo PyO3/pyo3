@@ -360,6 +360,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::prelude::*;
     use crate::types::{PyAnyMethods, PyList, PySequence, PySequenceMethods, PyTuple};
     use crate::{IntoPyObject, Py, PyAny, PyTypeInfo, Python};
     use core::ptr;

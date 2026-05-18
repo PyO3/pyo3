@@ -190,6 +190,7 @@ impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefProxy> {
 #[cfg(test)]
 mod tests {
     use crate::exceptions::{PyAttributeError, PyReferenceError, PyTypeError};
+    use crate::platform::prelude::*;
     use crate::types::any::{PyAny, PyAnyMethods};
     use crate::types::weakref::{PyWeakrefMethods, PyWeakrefProxy};
     use crate::{Bound, PyResult, Python};

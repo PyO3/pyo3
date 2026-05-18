@@ -714,9 +714,9 @@ fn py_datetime_to_datetime_with_timezone<Tz: TimeZone>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
     use crate::{test_utils::assert_warnings, types::PyTuple, BoundObject};
     use core::cmp::Ordering;
-    use std::panic;
 
     #[test]
     // Only Python>=3.9 has the zoneinfo package
@@ -898,9 +898,9 @@ mod tests {
         Python::attach(|py| {
             let low_days: i32 = -1000000000;
             // This is possible
-            assert!(panic::catch_unwind(|| Duration::days(low_days as i64)).is_ok());
+            assert!(std::panic::catch_unwind(|| Duration::days(low_days as i64)).is_ok());
             // This panics on PyDelta::new
-            assert!(panic::catch_unwind(|| {
+            assert!(std::panic::catch_unwind(|| {
                 let py_delta = new_py_datetime_ob(py, "timedelta", (low_days, 0, 0));
                 if let Ok(_duration) = py_delta.extract::<Duration>() {
                     // So we should never get here
@@ -910,9 +910,9 @@ mod tests {
 
             let high_days: i32 = 1000000000;
             // This is possible
-            assert!(panic::catch_unwind(|| Duration::days(high_days as i64)).is_ok());
+            assert!(std::panic::catch_unwind(|| Duration::days(high_days as i64)).is_ok());
             // This panics on PyDelta::new
-            assert!(panic::catch_unwind(|| {
+            assert!(std::panic::catch_unwind(|| {
                 let py_delta = new_py_datetime_ob(py, "timedelta", (high_days, 0, 0));
                 if let Ok(_duration) = py_delta.extract::<Duration>() {
                     // So we should never get here
