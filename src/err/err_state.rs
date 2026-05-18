@@ -1,7 +1,7 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use core::cell::UnsafeCell;
+use core::cell::{Cell, UnsafeCell};
 use std::{
     sync::{Mutex, Once},
     thread::ThreadId,
@@ -22,7 +22,7 @@ pub(crate) struct PyErrState {
     // after normalization.
     normalized: Once,
     // Guard against re-entrancy when normalizing the exception state.
-    normalizing_thread: Mutex<Option<ThreadId>>,
+    normalizing_thread: Cell<Option<ThreadId>>,
     inner: UnsafeCell<Option<PyErrStateInner>>,
 }
 
@@ -67,7 +67,7 @@ impl PyErrState {
     fn from_inner(inner: PyErrStateInner) -> Self {
         Self {
             normalized: Once::new(),
-            normalizing_thread: Mutex::new(None),
+            normalizing_thread: Cell::new(None),
             inner: UnsafeCell::new(Some(inner)),
         }
     }
@@ -95,9 +95,10 @@ impl PyErrState {
 
         // Guard against re-entrant normalization, because `Once` does not provide
         // re-entrancy guarantees.
-        if let Some(thread) = self.normalizing_thread.lock().unwrap().as_ref() {
-            assert!(
-                !(*thread == std::thread::current().id()),
+        if let Some(thread) = self.normalizing_thread.get() {
+            assert_ne!(
+                thread,
+                std::thread::current().id(),
                 "Re-entrant normalization of PyErrState detected"
             );
         }
@@ -106,9 +107,7 @@ impl PyErrState {
         py.detach(|| {
             self.normalized.call_once(|| {
                 self.normalizing_thread
-                    .lock()
-                    .unwrap()
-                    .replace(std::thread::current().id());
+                    .set(Some(std::thread::current().id()));
 
                 // Safety: no other thread can access the inner value while we are normalizing it.
                 let state = unsafe {
