@@ -99,6 +99,14 @@ fn test_getattr() {
             .getattr("other_attr")
             .unwrap_err()
             .is_instance_of::<PyAttributeError>(py));
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(
+            py,
+            example_py,
+            "type(example_py).__getattr__(object(), 'test')",
+            PyTypeError
+        );
     })
 }
 
@@ -115,6 +123,14 @@ fn test_setattr() {
                 .unwrap(),
             15,
         );
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(
+            py,
+            example_py,
+            "type(example_py).__setattr__(object(), 'test', None)",
+            PyTypeError
+        );
     })
 }
 
@@ -124,6 +140,14 @@ fn test_delattr() {
         let example_py = make_example(py);
         example_py.delattr("special_custom_attr").unwrap();
         assert!(example_py.getattr("special_custom_attr").unwrap().is_none());
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(
+            py,
+            example_py,
+            "type(example_py).__delattr__(object(), 'test')",
+            PyTypeError
+        );
     })
 }
 
@@ -132,6 +156,14 @@ fn test_str() {
     Python::attach(|py| {
         let example_py = make_example(py);
         assert_eq!(example_py.str().unwrap(), "5");
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(
+            py,
+            example_py,
+            "type(example_py).__str__(object())",
+            PyTypeError
+        );
     })
 }
 
@@ -140,6 +172,14 @@ fn test_repr() {
     Python::attach(|py| {
         let example_py = make_example(py);
         assert_eq!(example_py.repr().unwrap(), "ExampleClass(value=5)");
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(
+            py,
+            example_py,
+            "type(example_py).__repr__(object())",
+            PyTypeError
+        );
     })
 }
 
@@ -148,6 +188,14 @@ fn test_hash() {
     Python::attach(|py| {
         let example_py = make_example(py);
         assert_eq!(example_py.hash().unwrap(), 5);
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(
+            py,
+            example_py,
+            "type(example_py).__hash__(object())",
+            PyTypeError
+        );
     })
 }
 
@@ -158,6 +206,14 @@ fn test_bool() {
         assert!(example_py.is_truthy().unwrap());
         example_py.borrow_mut().value = 0;
         assert!(!example_py.is_truthy().unwrap());
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(
+            py,
+            example_py,
+            "type(example_py).__bool__(object())",
+            PyTypeError
+        );
     })
 }
 
@@ -387,6 +443,10 @@ fn iterator() {
         .unwrap();
         py_assert!(py, inst, "iter(inst) is inst");
         py_assert!(py, inst, "list(inst) == [5, 6, 7]");
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(py, inst, "type(inst).__iter__(object())", PyTypeError);
+        py_expect_exception!(py, inst, "type(inst).__next__(object())", PyTypeError);
     });
 }
 
@@ -412,6 +472,9 @@ fn callable() {
 
         let nc = Py::new(py, NotCallable).unwrap();
         py_assert!(py, nc, "not callable(nc)");
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(py, c, "type(c).__call__(object(), 7)", PyTypeError);
     });
 }
 
@@ -441,6 +504,9 @@ fn setitem() {
             assert_eq!(c.val, 2);
         }
         py_expect_exception!(py, c, "del c[1]", PyNotImplementedError);
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(py, c, "type(c).__setitem__(object(), 1, 2)", PyTypeError);
     });
 }
 
@@ -466,6 +532,9 @@ fn delitem() {
             assert_eq!(c.key, 1);
         }
         py_expect_exception!(py, c, "c[1] = 2", PyNotImplementedError);
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(py, c, "type(c).__delitem__(object(), 1)", PyTypeError);
     });
 }
 
@@ -517,6 +586,9 @@ fn contains() {
         py_run!(py, c, "assert 1 in c");
         py_run!(py, c, "assert -1 not in c");
         py_expect_exception!(py, c, "assert 'wrong type' not in c", PyTypeError);
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(py, c, "type(c).__contains__(object(), 1)", PyTypeError);
     });
 }
 
@@ -547,6 +619,9 @@ fn test_getitem() {
 
         py_assert!(py, ob, "ob[1] == 'int'");
         py_assert!(py, ob, "ob[100:200:1] == 'slice'");
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(py, ob, "type(ob).__getitem__(object(), 1)", PyTypeError);
     });
 }
 
@@ -569,6 +644,14 @@ fn getattr_doesnt_override_member() {
         let inst = Py::new(py, ClassWithGetAttr { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 4");
         py_assert!(py, inst, "inst.a == 8");
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(
+            py,
+            inst,
+            "type(inst).__getattr__(object(), 'a')",
+            PyTypeError
+        );
     });
 }
 
@@ -597,6 +680,14 @@ fn getattribute_overrides_member() {
         let inst = Py::new(py, ClassWithGetAttribute { data: 4 }).unwrap();
         py_assert!(py, inst, "inst.data == 8");
         py_expect_exception!(py, inst, "inst.y == 8", PyAttributeError, "y");
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(
+            py,
+            inst,
+            "type(inst).__getattribute__(object(), 'data')",
+            PyTypeError
+        );
     });
 }
 
@@ -690,10 +781,13 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 asyncio.run(main())
 "#;
         let globals = PyModule::import(py, "__main__").unwrap().dict();
-        globals.set_item("Once", once).unwrap();
+        globals.set_item("Once", once.clone()).unwrap();
         py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        py_expect_exception!(py, once, "Once.__await__(object())", PyTypeError);
     });
 }
 
@@ -751,6 +845,11 @@ asyncio.run(main())
         py.run(source, Some(&globals), None)
             .map_err(|e| e.display(py))
             .unwrap();
+
+        // Ensure that passing a wrong self type from Python does not cause UB
+        let atype = py.get_type::<AsyncIterator>();
+        py_expect_exception!(py, atype, "AsyncIterator.__aiter__(object())", PyTypeError);
+        py_expect_exception!(py, atype, "AsyncIterator.__anext__(object())", PyTypeError);
     });
 }
 
@@ -813,6 +912,18 @@ assert c.counter.count == 4
 # __delete__
 del c.counter
 assert c.counter.count == 1
+
+# wrong receiver type should be rejected by CPython slot wrapper
+for call in (
+    lambda: Counter.__get__(object(), Class()),
+    lambda: Counter.__set__(object(), Class(), Counter()),
+    lambda: Counter.__delete__(object(), Class()),
+):
+    try:
+        call()
+        assert False, "expected TypeError"
+    except TypeError:
+        pass
 "#
         );
         let globals = PyModule::import(py, "__main__").unwrap().dict();
