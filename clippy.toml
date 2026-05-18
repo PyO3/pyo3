@@ -1,0 +1,3 @@
+[[disallowed-types]]
+path = "std::thread::ThreadId"
+reason = "Use crate::platform::ThreadId for `no_std` compatibility"
