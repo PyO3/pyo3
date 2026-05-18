@@ -1,3 +1,5 @@
+#[allow(unused_imports, reason = "conditionally used")]
+use crate::platform::prelude::*;
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
@@ -1442,6 +1444,7 @@ pub trait ExtractPyClassWithClone: generic_pyclass::Sealed {}
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
+    use crate::platform::prelude::*;
     use crate::pycell::impl_::PyClassObjectContents;
 
     use super::*;

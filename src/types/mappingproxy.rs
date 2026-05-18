@@ -148,6 +148,7 @@ impl<'py> Iterator for BoundMappingProxyIterator<'py, '_> {
 mod tests {
 
     use super::*;
+    use crate::platform::prelude::*;
     use crate::types::dict::*;
     use crate::Python;
     use crate::{

@@ -953,6 +953,7 @@ pub mod socket {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
     use crate::types::any::PyAnyMethods;
     use crate::types::{IntoPyDict, PyDict};
     use crate::{IntoPyObjectExt as _, PyErr};

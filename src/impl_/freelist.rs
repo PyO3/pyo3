@@ -9,6 +9,7 @@
 //! [1]: https://en.wikipedia.org/wiki/Free_list
 
 use crate::ffi;
+use crate::platform::prelude::*;
 use core::mem;
 
 /// Represents a slot of a [`PyObjectFreeList`].

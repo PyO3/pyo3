@@ -3,6 +3,7 @@ use crate::err::PyResult;
 use crate::impl_::pyclass::ExtractPyClassWithClone;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_identifier, type_hint_subscript, PyStaticExpr};
+use crate::platform::prelude::*;
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
 use crate::types::PyList;
@@ -441,6 +442,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
 }
 
 mod from_py_object_sequence {
+    use crate::platform::prelude::*;
     use crate::PyResult;
 
     /// Private trait for implementing specialized sequence extraction for `Vec<u8>` and `[u8; N]`

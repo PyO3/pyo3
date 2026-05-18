@@ -953,6 +953,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
     use crate::types::{PyAnyMethods as _, PyTuple};
     use alloc::collections::BTreeMap;
     use std::collections::HashMap;

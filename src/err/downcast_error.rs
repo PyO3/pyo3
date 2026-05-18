@@ -130,6 +130,7 @@ fn display_downcast_error(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
 
     #[test]
     fn test_display_downcast_error() {

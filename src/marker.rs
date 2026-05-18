@@ -797,6 +797,7 @@ impl<'unbound> Python<'unbound> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
     use crate::{
         internal::state::ForbidAttaching,
         types::{IntoPyDict, PyList},

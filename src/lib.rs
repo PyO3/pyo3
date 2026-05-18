@@ -1,3 +1,4 @@
+#![no_std]
 #![warn(
     clippy::alloc_instead_of_core,
     clippy::std_instead_of_alloc,
@@ -342,7 +343,9 @@
 #![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 //! [`Ungil`]: crate::marker::Ungil
 
+#[macro_use]
 extern crate alloc;
+extern crate std;
 
 pub use crate::class::*;
 pub use crate::conversion::{FromPyObject, IntoPyObject, IntoPyObjectExt};
@@ -363,6 +366,8 @@ pub use crate::version::PythonVersionInfo;
 pub(crate) mod ffi_ptr_ext;
 pub(crate) mod py_result_ext;
 pub(crate) mod sealed;
+
+mod platform;
 
 /// Old module which contained some implementation details of the `#[pyproto]` module.
 ///
