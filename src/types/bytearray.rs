@@ -334,6 +334,7 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
     }
 }
 
+#[allow(clippy::disallowed_types, reason = "tests")]
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};

@@ -2,10 +2,7 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 
 use core::cell::{Cell, UnsafeCell};
-use std::{
-    sync::{Mutex, Once},
-    thread::ThreadId,
-};
+use std::{sync::Once, thread::ThreadId};
 
 #[cfg(not(Py_3_12))]
 use crate::sync::MutexExt;

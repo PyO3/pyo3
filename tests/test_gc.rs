@@ -5,14 +5,15 @@
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::ffi;
+use pyo3::platform::sync::non_poison::Mutex;
 use pyo3::prelude::*;
 #[cfg(not(Py_GIL_DISABLED))]
 use pyo3::py_run;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::sync::Once;
-use std::sync::{Arc, Mutex};
 
 mod test_utils;
 
@@ -498,7 +499,7 @@ struct DropDuringTraversal {
 impl DropDuringTraversal {
     #[expect(clippy::unnecessary_wraps)]
     fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        let mut cycle_ref = self.cycle.lock().unwrap();
+        let mut cycle_ref = self.cycle.lock();
         *cycle_ref = None;
         Ok(())
     }
@@ -520,7 +521,7 @@ fn drop_during_traversal_with_gil() {
         )
         .unwrap();
 
-        *inst.borrow_mut(py).cycle.lock().unwrap() = Some(inst.clone_ref(py));
+        *inst.borrow_mut(py).cycle.lock() = Some(inst.clone_ref(py));
 
         check.assert_not_dropped();
         let ptr = inst.as_ptr();
@@ -554,7 +555,7 @@ fn drop_during_traversal_without_gil() {
         )
         .unwrap();
 
-        *inst.borrow_mut(py).cycle.lock().unwrap() = Some(inst.clone_ref(py));
+        *inst.borrow_mut(py).cycle.lock() = Some(inst.clone_ref(py));
 
         check.assert_not_dropped();
         inst
@@ -756,7 +757,7 @@ fn test_drop_buffer_during_traversal_without_gil() {
     impl BufferDropDuringTraversal {
         #[expect(clippy::unnecessary_wraps)]
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-            self.inner.lock().unwrap().take();
+            self.inner.lock().take();
             Ok(())
         }
 

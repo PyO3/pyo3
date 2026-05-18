@@ -62,6 +62,7 @@ impl<T: crate::type_object::PyTypeInfo> Sealed for PyNativeTypeInitializer<T> {}
 impl<T: crate::pyclass::PyClass> Sealed for PyClassInitializer<T> {}
 
 impl Sealed for std::sync::Once {}
+#[allow(clippy::disallowed_types)]
 impl<T> Sealed for std::sync::Mutex<T> {}
 #[cfg(feature = "lock_api")]
 impl<R, T> Sealed for lock_api::Mutex<R, T> {}

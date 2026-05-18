@@ -1,0 +1,3 @@
+[[disallowed-types]]
+path = "std::sync::Mutex"
+reason = "use crate::platform::sync::non_poison::Mutex for `no_std` compatibility"
