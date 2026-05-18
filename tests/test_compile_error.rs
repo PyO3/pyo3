@@ -96,4 +96,6 @@ fn test_compile_errors() {
     t.pass("tests/ui/pyclass_probe.rs");
     t.compile_fail("tests/ui/invalid_pyfunction_warn.rs");
     t.compile_fail("tests/ui/invalid_pymethods_warn.rs");
+    t.compile_fail("tests/ui/invalid_native_enum_base.rs");
+    t.compile_fail("tests/ui/native_enum_generic.rs");
 }

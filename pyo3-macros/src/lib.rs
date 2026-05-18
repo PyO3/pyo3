@@ -5,9 +5,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
-    build_derive_from_pyobject, build_derive_into_pyobject, build_py_class, build_py_enum,
-    build_py_function, build_py_methods, pymodule_function_impl, pymodule_module_impl, PyClassArgs,
-    PyClassMethodsType, PyFunctionOptions, PyModuleOptions,
+    build_derive_from_pyobject, build_derive_into_pyobject, build_derive_native_enum,
+    build_py_class, build_py_enum, build_py_function, build_py_methods, native_enum_impl,
+    pymodule_function_impl, pymodule_module_impl, PyClassArgs, PyClassMethodsType,
+    PyFunctionOptions, PyModuleOptions, PyNativeEnumArgs,
 };
 use quote::quote;
 use syn::{parse_macro_input, Item};
@@ -183,6 +184,51 @@ pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(item as syn::DeriveInput);
     let expanded = build_derive_from_pyobject(&ast).unwrap_or_compile_error();
     quote!(
+        #expanded
+    )
+    .into()
+}
+
+/// Derives [`NativeEnum`] for a fieldless Rust enum, exposing it to Python as an
+/// [`enum.Enum`] subclass.
+///
+/// Supported enum-level attributes via `#[native_enum(...)]`:
+/// - `base = "IntEnum"` — choose the Python base class (default: `"Enum"`)
+/// - `name = "PyName"` — override the Python class name (default: Rust ident)
+/// - `module = "my_module"` — set the `module` kwarg on the functional API
+///
+/// Supported variant-level attributes via `#[native_enum(...)]`:
+/// - `name = "py_name"` — override this member's Python name
+/// - `value = 42` or `value = "str"` — explicit value (overrides Rust discriminant)
+///
+/// [`NativeEnum`]: https://docs.rs/pyo3/latest/pyo3/native_enum/trait.NativeEnum.html
+/// [`enum.Enum`]: https://docs.python.org/3/library/enum.html
+#[proc_macro_derive(NativeEnum, attributes(native_enum))]
+pub fn derive_native_enum(item: TokenStream) -> TokenStream {
+    let mut ast = parse_macro_input!(item as syn::DeriveInput);
+    let expanded = build_derive_native_enum(&mut ast).unwrap_or_compile_error();
+    quote!(#expanded).into()
+}
+
+/// Attribute macro form of `#[derive(NativeEnum)]`, consistent with the `#[pyclass]` style.
+///
+/// Supported options via `#[py_native_enum(...)]`:
+/// - `base = "IntEnum"` — choose the Python base class (default: `"Enum"`)
+/// - `name = "PyName"` — override the Python class name (default: Rust ident)
+/// - `module = "my_module"` — set the `module` kwarg on the functional API
+///
+/// Supported per-variant options via `#[native_enum(...)]`:
+/// - `name = "py_name"` — override this member's Python name
+/// - `value = 42` or `value = "str"` — explicit value
+///
+/// [`enum.Enum`]: https://docs.python.org/3/library/enum.html
+#[proc_macro_attribute]
+pub fn py_native_enum(attr: TokenStream, input: TokenStream) -> TokenStream {
+    let mut ast = parse_macro_input!(input as syn::ItemEnum);
+    let args = parse_macro_input!(attr as PyNativeEnumArgs);
+    let expanded = native_enum_impl(&mut ast, args).unwrap_or_compile_error();
+    quote!(
+        #ast
         #expanded
     )
     .into()

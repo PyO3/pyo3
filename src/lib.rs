@@ -431,6 +431,7 @@ mod instance;
 mod interpreter_lifecycle;
 pub mod marker;
 pub mod marshal;
+pub mod native_enum;
 #[macro_use]
 pub mod sync;
 pub(crate) mod byteswriter;
@@ -452,8 +453,16 @@ pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{
-    pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef,
+    pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef, NativeEnum,
 };
+
+/// A proc macro used to expose a Rust enum to Python as an [`enum.Enum`] subclass.
+///
+/// This is the attribute macro form of [`NativeEnum`], consistent with the [`macro@pyclass`] style.
+///
+/// [`enum.Enum`]: https://docs.python.org/3/library/enum.html
+#[cfg(feature = "macros")]
+pub use pyo3_macros::py_native_enum;
 
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.
 ///
