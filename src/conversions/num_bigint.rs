@@ -47,11 +47,13 @@
 //! assert n + 1 == value
 //! ```
 
+#[allow(unused_imports, reason = "conditionally used")]
+use crate::platform::prelude::*;
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
-    conversion::IntoPyObject, std::num::nb_index, types::PyInt, Borrowed, Bound, FromPyObject,
-    PyAny, PyErr, PyResult, Python,
+    conversion::IntoPyObject, conversions::std::num::nb_index, types::PyInt, Borrowed, Bound,
+    FromPyObject, PyAny, PyErr, PyResult, Python,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -435,7 +437,7 @@ class C:
             macro_rules! test {
                 ($T:ty, $value:expr, $py:expr) => {
                     let value = $value;
-                    println!("{}: {}", stringify!($T), value);
+                    std::println!("{}: {}", stringify!($T), value);
                     let python_value = value.clone().into_pyobject(py).unwrap();
                     let roundtrip_value = python_value.extract::<$T>().unwrap();
                     assert_eq!(value, roundtrip_value);

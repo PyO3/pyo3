@@ -271,6 +271,8 @@ mod tests {
     use super::{with_critical_section, with_critical_section2};
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
     use super::{with_critical_section_mutex, with_critical_section_mutex2};
+    #[allow(unused_imports, reason = "conditionally used")]
+    use crate::platform::prelude::*;
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
     use crate::types::PyMutex;
     #[cfg(feature = "macros")]

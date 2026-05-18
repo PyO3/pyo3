@@ -362,6 +362,8 @@ impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakref> {
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports, reason = "conditionally used")]
+    use crate::platform::prelude::*;
     use crate::types::any::{PyAny, PyAnyMethods};
     use crate::types::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefReference};
     use crate::{Bound, PyResult, Python};

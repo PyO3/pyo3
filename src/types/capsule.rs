@@ -2,6 +2,7 @@
 
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::box_into_non_null;
+use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, PyAny};
 #[cfg(RustPython)]
@@ -666,6 +667,7 @@ fn name_ptr(name: Option<&CStr>) -> *const c_char {
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::prelude::*;
     use crate::prelude::PyModule;
     use crate::types::capsule::PyCapsuleMethods;
     use crate::types::module::PyModuleMethods;

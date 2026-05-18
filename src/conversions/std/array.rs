@@ -132,6 +132,7 @@ pub(crate) fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::prelude::*;
     #[cfg(panic = "unwind")]
     use core::sync::atomic::{AtomicUsize, Ordering};
     #[cfg(panic = "unwind")]
