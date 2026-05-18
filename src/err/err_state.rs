@@ -1,8 +1,9 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+use crate::platform::sync::Once;
 use core::cell::{Cell, UnsafeCell};
-use std::{sync::Once, thread::ThreadId};
+use std::thread::ThreadId;
 
 #[cfg(not(Py_3_12))]
 use crate::sync::MutexExt;
