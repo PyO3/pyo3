@@ -1,5 +1,5 @@
+use crate::platform::thread::{self, ThreadId};
 use core::{ffi::CStr, marker::PhantomData};
-use std::thread::{self, ThreadId};
 
 #[cfg(Py_3_14)]
 use crate::err::error_on_minusone;
