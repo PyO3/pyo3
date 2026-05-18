@@ -6,6 +6,7 @@ use crate::err::{PyErr, PyResult};
 use crate::impl_::pyclass::PyClassImpl;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+use crate::platform::prelude::*;
 use crate::pycell::impl_::PyClassObjectLayout;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
@@ -2512,6 +2513,8 @@ mod tests {
     use super::{Bound, IntoPyObject, Py};
     #[cfg(all(feature = "macros", panic = "unwind"))]
     use crate::exceptions::PyValueError;
+    #[allow(unused_imports, reason = "conditionally used")]
+    use crate::platform::prelude::*;
     use crate::test_utils::generate_unique_module_name;
     #[cfg(all(feature = "macros", panic = "unwind"))]
     use crate::test_utils::UnraisableCapture;

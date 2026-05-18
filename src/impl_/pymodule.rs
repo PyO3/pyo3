@@ -1,4 +1,6 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
+#[allow(unused_imports, reason = "conditionally used")]
+use crate::platform::prelude::*;
 use core::{
     cell::UnsafeCell,
     ffi::CStr,

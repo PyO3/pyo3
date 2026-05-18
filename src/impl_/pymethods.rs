@@ -704,6 +704,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports, reason = "conditionally used")]
+    use crate::platform::prelude::*;
+
     #[test]
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn test_fastcall_function_with_keywords() {

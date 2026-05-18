@@ -108,6 +108,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
     use crate::types::{PyBytes, PyBytesMethods, PyDict, PyList};
 
     #[test]

@@ -4,6 +4,8 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
+#[allow(unused_imports, reason = "used to build docs")]
+use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
@@ -1107,6 +1109,7 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::prelude::*;
     use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
     use crate::{IntoPyObject, Python};
     #[cfg(feature = "nightly")]

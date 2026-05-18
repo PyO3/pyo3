@@ -592,6 +592,8 @@ where
 mod tests {
     use super::*;
 
+    #[allow(unused_imports, reason = "conditionally used")]
+    use crate::platform::prelude::*;
     use crate::prelude::*;
     use crate::pyclass::boolean_struct::{False, True};
 
