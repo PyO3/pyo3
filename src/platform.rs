@@ -14,6 +14,8 @@ pub(crate) mod prelude {
     pub use std::eprintln;
 }
 
+pub mod sync;
+
 #[cfg(feature = "hashbrown")]
 pub use hashbrown::{HashMap, HashSet};
 
