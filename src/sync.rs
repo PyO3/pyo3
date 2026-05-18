@@ -406,6 +406,7 @@ impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
 }
 
 #[cfg(wip_feature_std)]
+#[allow(clippy::disallowed_types)]
 impl<T> MutexExt<T> for std::sync::Mutex<T> {
     type LockResult<'a>
         = std::sync::LockResult<std::sync::MutexGuard<'a, T>>
@@ -729,6 +730,7 @@ mod rwlock_ext_sealed {
     impl<R, T> Sealed for alloc::sync::Arc<lock_api::RwLock<R, T>> {}
 }
 
+#[allow(clippy::disallowed_types, reason = "tests")]
 #[cfg(test)]
 mod tests {
     use super::*;
