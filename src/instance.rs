@@ -18,11 +18,11 @@ use crate::{
     PyRefMut, PyTypeInfo, Python,
 };
 use crate::{internal::state, PyTypeCheck};
-use std::marker::PhantomData;
-use std::mem::ManuallyDrop;
-use std::ops::Deref;
-use std::ptr;
-use std::ptr::NonNull;
+use core::marker::PhantomData;
+use core::mem::ManuallyDrop;
+use core::ops::Deref;
+use core::ptr;
+use core::ptr::NonNull;
 
 /// Owned or borrowed Python smart pointer with a lifetime `'py` signalling
 /// attachment to the Python interpreter.
@@ -328,7 +328,7 @@ impl<'py, T> Bound<'py, T> {
     #[inline]
     pub unsafe fn cast_into_unchecked<U>(self) -> Bound<'py, U> {
         // SAFETY: caller has upheld the safety contract, all `Bound` have the same layout
-        unsafe { std::mem::transmute(self) }
+        unsafe { core::mem::transmute(self) }
     }
 }
 
@@ -624,7 +624,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    /// use core::sync::atomic::{AtomicUsize, Ordering};
     /// # use pyo3::prelude::*;
     ///
     /// #[pyclass(frozen)]
@@ -758,15 +758,15 @@ where
     }
 }
 
-impl<T> std::fmt::Debug for Bound<'_, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+impl<T> core::fmt::Debug for Bound<'_, T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         let any = self.as_any();
         python_format(any, any.repr(), f)
     }
 }
 
-impl<T> std::fmt::Display for Bound<'_, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+impl<T> core::fmt::Display for Bound<'_, T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         let any = self.as_any();
         python_format(any, any.str(), f)
     }
@@ -775,15 +775,15 @@ impl<T> std::fmt::Display for Bound<'_, T> {
 fn python_format(
     any: &Bound<'_, PyAny>,
     format_result: PyResult<Bound<'_, PyString>>,
-    f: &mut std::fmt::Formatter<'_>,
-) -> Result<(), std::fmt::Error> {
+    f: &mut core::fmt::Formatter<'_>,
+) -> Result<(), core::fmt::Error> {
     match format_result {
         Result::Ok(s) => return f.write_str(&s.to_string_lossy()),
         Result::Err(err) => err.write_unraisable(any.py(), Some(any)),
     }
 
     match any.get_type().name() {
-        Result::Ok(name) => std::write!(f, "<unprintable {name} object>"),
+        Result::Ok(name) => core::write!(f, "<unprintable {name} object>"),
         Result::Err(_err) => f.write_str("<unprintable object>"),
     }
 }
@@ -1082,7 +1082,7 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    /// use core::sync::atomic::{AtomicUsize, Ordering};
     /// # use pyo3::prelude::*;
     ///
     /// #[pyclass(frozen)]
@@ -1130,7 +1130,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object (or null, which will cause a panic)
-    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// - similar to `core::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     ///
@@ -1153,7 +1153,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object, or null
-    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// - similar to `core::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     #[inline]
@@ -1172,7 +1172,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object, or null
-    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// - similar to `core::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     #[inline]
@@ -1191,7 +1191,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object. It must not be null.
-    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// - similar to `core::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     #[inline]
@@ -1203,7 +1203,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object.
-    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// - similar to `core::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     #[inline]
@@ -1227,8 +1227,8 @@ impl<T> AsRef<Py<PyAny>> for Borrowed<'_, '_, T> {
     }
 }
 
-impl<T> std::fmt::Debug for Borrowed<'_, '_, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T> core::fmt::Debug for Borrowed<'_, '_, T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         Bound::fmt(self, f)
     }
 }
@@ -1485,9 +1485,9 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// value when there is ownership transfer. Without ownership transfer, `*mut ffi::PyObject` or `NonNull<ffi::PyObject>`
 /// are more appropriate.
 ///
-/// [`Rc<T>`]: std::rc::Rc
-/// [`Arc<T>`]: std::sync::Arc
-/// [`RefCell`]: std::cell::RefCell
+/// [`Rc<T>`]: alloc::rc::Rc
+/// [`Arc<T>`]: alloc::sync::Arc
+/// [`RefCell`]: core::cell::RefCell
 #[doc = concat!("[gc]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class/protocols.html#garbage-collector-integration")]
 #[repr(transparent)]
 pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
@@ -1699,7 +1699,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    /// use core::sync::atomic::{AtomicUsize, Ordering};
     /// # use pyo3::prelude::*;
     ///
     /// #[pyclass(frozen)]
@@ -2170,7 +2170,7 @@ impl<T> AsRef<Py<PyAny>> for Py<T> {
     }
 }
 
-impl<T> std::convert::From<Py<T>> for Py<PyAny>
+impl<T> core::convert::From<Py<T>> for Py<PyAny>
 where
     T: DerefToPyAny,
 {
@@ -2180,7 +2180,7 @@ where
     }
 }
 
-impl<T> std::convert::From<Bound<'_, T>> for Py<PyAny>
+impl<T> core::convert::From<Bound<'_, T>> for Py<PyAny>
 where
     T: DerefToPyAny,
 {
@@ -2190,7 +2190,7 @@ where
     }
 }
 
-impl<T> std::convert::From<Bound<'_, T>> for Py<T> {
+impl<T> core::convert::From<Bound<'_, T>> for Py<T> {
     #[inline]
     fn from(other: Bound<'_, T>) -> Self {
         other.unbind()
@@ -2209,13 +2209,13 @@ impl<T> From<&Bound<'_, T>> for Py<T> {
     }
 }
 
-impl<T> std::convert::From<Borrowed<'_, '_, T>> for Py<T> {
+impl<T> core::convert::From<Borrowed<'_, '_, T>> for Py<T> {
     fn from(value: Borrowed<'_, '_, T>) -> Self {
         value.unbind()
     }
 }
 
-impl<'py, T> std::convert::From<PyRef<'py, T>> for Py<T>
+impl<'py, T> core::convert::From<PyRef<'py, T>> for Py<T>
 where
     T: PyClass,
 {
@@ -2226,7 +2226,7 @@ where
     }
 }
 
-impl<'py, T> std::convert::From<PyRefMut<'py, T>> for Py<T>
+impl<'py, T> core::convert::From<PyRefMut<'py, T>> for Py<T>
 where
     T: PyClass<Frozen = False>,
 {
@@ -2337,17 +2337,17 @@ where
     }
 }
 
-impl<T> std::fmt::Display for Py<T>
+impl<T> core::fmt::Display for Py<T>
 where
     T: PyTypeInfo,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Python::attach(|py| std::fmt::Display::fmt(self.bind(py), f))
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        Python::attach(|py| core::fmt::Display::fmt(self.bind(py), f))
     }
 }
 
-impl<T> std::fmt::Debug for Py<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T> core::fmt::Debug for Py<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_tuple("Py").field(&self.0.as_ptr()).finish()
     }
 }
@@ -2517,7 +2517,7 @@ mod tests {
     use crate::test_utils::UnraisableCapture;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, IntoPyObjectExt, PyAny, PyResult, Python};
-    use std::ffi::CStr;
+    use core::ffi::CStr;
 
     #[test]
     fn test_call() {
@@ -2778,7 +2778,7 @@ a = A()
                     py,
                     (&mut dropped) as *mut _ as usize,
                     c"bound_from_borrowed_ptr_constructors",
-                    |ptr, _| unsafe { std::ptr::write(ptr as *mut bool, true) },
+                    |ptr, _| unsafe { core::ptr::write(ptr as *mut bool, true) },
                 )
                 .unwrap();
 
@@ -2820,7 +2820,7 @@ a = A()
                     py,
                     (&mut dropped) as *mut _ as usize,
                     c"borrowed_ptr_constructors",
-                    |ptr, _| unsafe { std::ptr::write(ptr as *mut bool, true) },
+                    |ptr, _| unsafe { core::ptr::write(ptr as *mut bool, true) },
                 )
                 .unwrap();
 
@@ -2875,7 +2875,7 @@ a = A()
     #[test]
     fn test_constructors_panic_on_null() {
         Python::attach(|py| {
-            const NULL: *mut ffi::PyObject = std::ptr::null_mut();
+            const NULL: *mut ffi::PyObject = core::ptr::null_mut();
 
             #[expect(deprecated, reason = "Py<T> constructors")]
             // SAFETY: calling all constructors with null pointer to test panic behavior

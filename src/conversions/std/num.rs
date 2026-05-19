@@ -8,10 +8,10 @@ use crate::py_result_ext::PyResultExt;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
 use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
-use std::convert::Infallible;
-use std::ffi::c_long;
-use std::mem::MaybeUninit;
-use std::num::{
+use core::convert::Infallible;
+use core::ffi::c_long;
+use core::mem::MaybeUninit;
+use core::num::{
     NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
     NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
 };
@@ -278,7 +278,7 @@ impl BytesSequenceExtractor<'_, '_> {
             }
             // Safety: `slice` and `out` are guaranteed not to overlap due to `&mut` reference on `out`.
             unsafe {
-                std::ptr::copy_nonoverlapping(slice.as_ptr(), out.as_mut_ptr().cast(), out.len())
+                core::ptr::copy_nonoverlapping(slice.as_ptr(), out.as_mut_ptr().cast(), out.len())
             };
             Ok(())
         };
@@ -310,7 +310,7 @@ impl FromPyObjectSequence for BytesSequenceExtractor<'_, '_> {
 
         // Safety: `[u8; N]` has the same layout as `[MaybeUninit<u8>; N]`
         let slice = unsafe {
-            std::slice::from_raw_parts_mut(out.as_mut_ptr().cast::<MaybeUninit<u8>>(), N)
+            core::slice::from_raw_parts_mut(out.as_mut_ptr().cast::<MaybeUninit<u8>>(), N)
         };
 
         self.fill_slice(slice)?;
@@ -561,7 +561,7 @@ mod fast_128bit_int_conversion {
                             );
                         }
                     }
-                    let mut buffer = [0u8; std::mem::size_of::<$rust_type>()];
+                    let mut buffer = [0u8; core::mem::size_of::<$rust_type>()];
                     #[cfg(not(Py_3_13))]
                     {
                         crate::err::error_on_minusone(ob.py(), unsafe {
@@ -810,7 +810,7 @@ mod test_128bit_integers {
     use proptest::prelude::*;
 
     #[cfg(not(target_arch = "wasm32"))]
-    use std::ffi::CString;
+    use alloc::ffi::CString;
 
     #[cfg(not(target_arch = "wasm32"))]
     proptest! {
@@ -1022,7 +1022,7 @@ mod test_128bit_integers {
 mod tests {
     use crate::types::PyAnyMethods;
     use crate::{IntoPyObject, Python};
-    use std::num::*;
+    use core::num::*;
 
     #[test]
     fn test_u32_max() {
@@ -1169,7 +1169,7 @@ mod tests {
                 use crate::conversion::IntoPyObject;
                 use crate::types::PyAnyMethods;
                 use crate::Python;
-                use std::num::*;
+                use core::num::*;
 
                 #[test]
                 fn from_py_string_type_error() {

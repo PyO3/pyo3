@@ -17,7 +17,7 @@ where
     #[cfg(feature = "experimental-inspect")]
     const OUTPUT_TYPE: PyStaticExpr = T::SEQUENCE_OUTPUT_TYPE;
 
-    /// Turns [`[u8; N]`](std::array) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
+    /// Turns [`[u8; N]`](core::array) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///
     /// [`PyBytes`]: crate::types::PyBytes
     /// [`PyList`]: crate::types::PyList
@@ -82,7 +82,7 @@ where
     })
 }
 
-// TODO use std::array::try_from_fn, if that stabilises:
+// TODO use core::array::try_from_fn, if that stabilises:
 // (https://github.com/rust-lang/rust/issues/89379)
 fn array_try_from_fn<E, F, T, const N: usize>(mut cb: F) -> Result<[T; N], E>
 where
@@ -133,10 +133,9 @@ pub(crate) fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
 #[cfg(test)]
 mod tests {
     #[cfg(panic = "unwind")]
-    use std::{
-        panic,
-        sync::atomic::{AtomicUsize, Ordering},
-    };
+    use core::sync::atomic::{AtomicUsize, Ordering};
+    #[cfg(panic = "unwind")]
+    use std::panic;
 
     use crate::{
         conversion::IntoPyObject,

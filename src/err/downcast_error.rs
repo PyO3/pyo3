@@ -1,6 +1,6 @@
 #![allow(deprecated)]
 
-use std::borrow::Cow;
+use alloc::borrow::Cow;
 
 use crate::{
     exceptions,
@@ -75,7 +75,7 @@ impl PyErrArguments for DowncastErrorArguments {
 }
 
 /// Convert `CastError` to Python `TypeError`.
-impl std::convert::From<DowncastError<'_, '_>> for PyErr {
+impl core::convert::From<DowncastError<'_, '_>> for PyErr {
     fn from(err: DowncastError<'_, '_>) -> PyErr {
         let args = DowncastErrorArguments {
             from: err.from.get_type().into(),
@@ -86,16 +86,16 @@ impl std::convert::From<DowncastError<'_, '_>> for PyErr {
     }
 }
 
-impl std::error::Error for DowncastError<'_, '_> {}
+impl core::error::Error for DowncastError<'_, '_> {}
 
-impl std::fmt::Display for DowncastError<'_, '_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+impl core::fmt::Display for DowncastError<'_, '_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         display_downcast_error(f, &self.from, &self.to)
     }
 }
 
 /// Convert `DowncastIntoError` to Python `TypeError`.
-impl std::convert::From<DowncastIntoError<'_>> for PyErr {
+impl core::convert::From<DowncastIntoError<'_>> for PyErr {
     fn from(err: DowncastIntoError<'_>) -> PyErr {
         let args = DowncastErrorArguments {
             from: err.from.get_type().into(),
@@ -106,23 +106,23 @@ impl std::convert::From<DowncastIntoError<'_>> for PyErr {
     }
 }
 
-impl std::error::Error for DowncastIntoError<'_> {}
+impl core::error::Error for DowncastIntoError<'_> {}
 
-impl std::fmt::Display for DowncastIntoError<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+impl core::fmt::Display for DowncastIntoError<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         display_downcast_error(f, &self.from, &self.to)
     }
 }
 
 fn display_downcast_error(
-    f: &mut std::fmt::Formatter<'_>,
+    f: &mut core::fmt::Formatter<'_>,
     from: &Bound<'_, PyAny>,
     to: &str,
-) -> std::fmt::Result {
+) -> core::fmt::Result {
     write!(
         f,
         "'{}' object cannot be converted to '{}'",
-        from.get_type().qualname().map_err(|_| std::fmt::Error)?,
+        from.get_type().qualname().map_err(|_| core::fmt::Error)?,
         to
     )
 }

@@ -6,7 +6,7 @@ use pyo3_build_config::{
 };
 
 fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<()> {
-    if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() && !interpreter_config.shared {
+    if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() && !interpreter_config.shared() {
         bail!(
             "The `auto-initialize` feature is enabled, but your python installation only supports \
             embedding the Python interpreter statically. If you are attempting to run tests, or a \

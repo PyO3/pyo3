@@ -12,6 +12,8 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  NOX_DEFAULT_VENV_BACKEND: uv
+  UV_PYTHON: 3.14
 
 jobs:
   fmt:
@@ -39,6 +41,15 @@ jobs:
     outputs:
       MSRV: ${{ steps.resolve-msrv.outputs.MSRV }}
       verbose: ${{ runner.debug == '1' }}
+      save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      # For PRs, we need to run on the real PR head, not the resultant merge of the PR into the target branch.
+      #
+      # This is necessary for coverage reporting to make sense; we then get exactly the coverage change
+      # between the base branch and the real PR head.
+      #
+      # If it were run on the merge commit the problem is that the coverage potentially does not align
+      # with the commit diff, because the merge may affect line numbers.
+      coverage-sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v6.0.2
       - uses: actions/setup-python@v6
@@ -138,6 +149,7 @@ jobs:
     needs: [fmt, resolve]
     uses: ./.github/workflows/build.yml
     with:
+      sha: ${{ needs.resolve.outputs.coverage-sha }}
       os: ${{ matrix.platform.os }}
       python-version: ${{ matrix.python-version }}
       python-architecture: ${{ matrix.platform.python-architecture }}
@@ -231,6 +243,7 @@ jobs:
     needs: [fmt, resolve]
     uses: ./.github/workflows/build.yml
     with:
+      sha: ${{ needs.resolve.outputs.coverage-sha }}
       os: ${{ matrix.platform.os }}
       python-version: ${{ matrix.python-version }}
       python-architecture: ${{ matrix.platform.python-architecture }}
@@ -617,20 +630,26 @@ jobs:
       - run: python3 -m nox -s test
 
   test-version-limits:
-    needs: [fmt]
+    needs: [fmt, resolve]
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          ref: ${{ needs.resolve.outputs.coverage-sha }}
+      - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@stable
-      - run: python3 -m pip install --upgrade pip && pip install nox[uv]
-      - run: python3 -m nox -s test-version-limits
+          save-if: ${{ needs.resolve.outputs.save-cache }}
+      - uses: ./.github/actions/prepare-coverage
+      - run: uvx nox -s test-version-limits
+      - uses: ./.github/actions/report-coverage
+        with:
+          name: ${{ github.job }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   check-feature-powerset:
     needs: [fmt, resolve]
@@ -662,7 +681,7 @@ jobs:
       - run: python3 -m nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
 
   test-cross-compilation:
-    needs: [fmt]
+    needs: [fmt, resolve]
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ${{ matrix.os }}
     name: test-cross-compilation ${{ matrix.os }} -> ${{ matrix.target }}
@@ -686,45 +705,72 @@ jobs:
             target: "x86_64-pc-windows-gnu"
             # TODO: remove pyo3/generate-import-lib feature when maturin supports cross compiling to Windows without it
             flags: "-i python3.13 --features pyo3/generate-import-lib"
+            apt-packages: mingw-w64 llvm
           # windows x86_64 -> aarch64
           - os: "windows-latest"
             target: "aarch64-pc-windows-msvc"
             flags: "-i python3.13 --features pyo3/generate-import-lib"
     steps:
       - uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ needs.resolve.outputs.coverage-sha }}
+      - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: ${{ env.UV_PYTHON }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: examples/maturin-starter
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
           key: ${{ matrix.target }}
-      - name: Setup cross-compiler
-        if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
-        run: sudo apt-get install -y mingw-w64 llvm
+      - name: Setup cross-compiler packages
+        if: ${{ matrix.apt-packages }}
+        run: sudo apt-get install -y ${{ matrix.apt-packages }}
+      - uses: ./.github/actions/prepare-coverage
+        with:
+         host_only: true
       - name: Compile version-specific library
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
+          args: --profile=dev -m examples/maturin-starter/Cargo.toml ${{ matrix.flags }}
           manylinux: ${{ matrix.manylinux }}
-          args: --release -m examples/maturin-starter/Cargo.toml ${{ matrix.flags }}
+          docker-options: >-
+            -e LLVM_PROFILE_FILE
+            -e __CARGO_LLVM_COV_RUSTC_WRAPPER
+            -e __CARGO_LLVM_COV_RUSTC_WRAPPER_RUSTFLAGS
+            -e __CARGO_LLVM_COV_RUSTC_WRAPPER_CRATE_NAMES
+            -v /home/runner/.cargo/bin/cargo-llvm-cov:/home/runner/.cargo/bin/cargo-llvm-cov
       - name: Compile abi3 library
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
+          args: --profile=dev -m examples/maturin-starter/Cargo.toml --features abi3 ${{ matrix.flags }}
           manylinux: ${{ matrix.manylinux }}
-          args: --release -m examples/maturin-starter/Cargo.toml --features abi3 ${{ matrix.flags }}
+          docker-options: >-
+            -e LLVM_PROFILE_FILE
+            -e __CARGO_LLVM_COV_RUSTC_WRAPPER
+            -e __CARGO_LLVM_COV_RUSTC_WRAPPER_RUSTFLAGS
+            -e __CARGO_LLVM_COV_RUSTC_WRAPPER_CRATE_NAMES
+            -v /home/runner/.cargo/bin/cargo-llvm-cov:/home/runner/.cargo/bin/cargo-llvm-cov
+      - uses: ./.github/actions/report-coverage
+        with:
+          name: ${{ github.job }}/${{ matrix.os }}/${{ matrix.target }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   test-cross-compilation-windows:
-    needs: [fmt]
+    needs: [fmt, resolve]
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          ref: ${{ needs.resolve.outputs.coverage-sha }}
+      - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
@@ -734,12 +780,17 @@ jobs:
         with:
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
+      - name: Setup cross-compiler
+        run: sudo apt-get install -y mingw-w64 llvm
+      - uses: ./.github/actions/prepare-coverage
+        with:
+          host_only: true
       - name: Test cross compile to Windows
-        run: |
-          set -ex
-          sudo apt-get install -y mingw-w64 llvm
-          pip install nox
-          nox -s test-cross-compilation-windows
+        run: uvx nox -s test-cross-compilation-windows
+      - uses: ./.github/actions/report-coverage
+        with:
+          name: ${{ github.job }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   test-introspection:
     needs: [fmt]

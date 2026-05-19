@@ -4,25 +4,15 @@ use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_ssize_t};
 use core::ffi::{c_char, c_int, c_uint, c_void};
 use libc::wchar_t;
 
-// skipped Py_UNICODE_ISSPACE()
-// skipped Py_UNICODE_ISLOWER()
-// skipped Py_UNICODE_ISUPPER()
-// skipped Py_UNICODE_ISTITLE()
-// skipped Py_UNICODE_ISLINEBREAK
-// skipped Py_UNICODE_TOLOWER
-// skipped Py_UNICODE_TOUPPER
-// skipped Py_UNICODE_TOTITLE
-// skipped Py_UNICODE_ISDECIMAL
-// skipped Py_UNICODE_ISDIGIT
-// skipped Py_UNICODE_ISNUMERIC
-// skipped Py_UNICODE_ISPRINTABLE
-// skipped Py_UNICODE_TODECIMAL
-// skipped Py_UNICODE_TODIGIT
-// skipped Py_UNICODE_TONUMERIC
-// skipped Py_UNICODE_ISALPHA
-// skipped Py_UNICODE_ISALNUM
-// skipped Py_UNICODE_COPY
-// skipped Py_UNICODE_FILL
+// skipped PY_UNICODE_TYPE
+
+#[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(
+    Py_3_13,
+    deprecated(note = "Deprecated since Python 3.13. Use `libc::wchar_t` instead.")
+)]
+pub type Py_UNICODE = wchar_t;
+
 // skipped Py_UNICODE_IS_SURROGATE
 // skipped Py_UNICODE_IS_HIGH_SURROGATE
 // skipped Py_UNICODE_IS_LOW_SURROGATE
@@ -458,21 +448,37 @@ pub struct PyUnicodeObject {
     pub data: PyUnicodeObjectData,
 }
 
-extern_libpython! {
-    #[cfg(not(any(PyPy, GraalPy)))]
-    pub fn _PyUnicode_CheckConsistency(op: *mut PyObject, check_content: c_int) -> c_int;
-}
-
-// skipped PyUnicode_GET_SIZE
-// skipped PyUnicode_GET_DATA_SIZE
-// skipped PyUnicode_AS_UNICODE
-// skipped PyUnicode_AS_DATA
+// skipped private _PyASCIIObject_CAST
+// skipped private _PyCompactUnicodeObject_CAST
+// skipped private _PyUnicodeObject_CAST
 
 pub const SSTATE_NOT_INTERNED: c_uint = 0;
 pub const SSTATE_INTERNED_MORTAL: c_uint = 1;
 pub const SSTATE_INTERNED_IMMORTAL: c_uint = 2;
 #[cfg(Py_3_12)]
 pub const SSTATE_INTERNED_IMMORTAL_STATIC: c_uint = 3;
+
+// skipped PyUnicode_CHECK_INTERNED
+
+#[cfg(any(Py_3_12, GraalPy))]
+#[cfg_attr(
+    Py_3_14,
+    deprecated(note = "Deprecated since Python 3.14. This API does nothing since Python 3.12.")
+)]
+#[inline]
+pub unsafe fn PyUnicode_IS_READY(_op: *mut PyObject) -> c_uint {
+    // kept in CPython for backwards compatibility
+    1
+}
+
+#[cfg(not(any(GraalPy, Py_3_12)))]
+#[inline]
+pub unsafe fn PyUnicode_IS_READY(op: *mut PyObject) -> c_uint {
+    (*(op as *mut PyASCIIObject)).ready()
+}
+
+// The following functions depend on the bitfield, which we don't support
+// from 3.14 onwards
 
 #[cfg(not(any(GraalPy, Py_3_14)))]
 #[inline]
@@ -504,24 +510,6 @@ pub const PyUnicode_1BYTE_KIND: c_uint = 1;
 pub const PyUnicode_2BYTE_KIND: c_uint = 2;
 pub const PyUnicode_4BYTE_KIND: c_uint = 4;
 
-#[cfg(not(any(GraalPy, PyPy)))]
-#[inline]
-pub unsafe fn PyUnicode_1BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS1 {
-    PyUnicode_DATA(op) as *mut Py_UCS1
-}
-
-#[cfg(not(any(GraalPy, PyPy)))]
-#[inline]
-pub unsafe fn PyUnicode_2BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS2 {
-    PyUnicode_DATA(op) as *mut Py_UCS2
-}
-
-#[cfg(not(any(GraalPy, PyPy)))]
-#[inline]
-pub unsafe fn PyUnicode_4BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS4 {
-    PyUnicode_DATA(op) as *mut Py_UCS4
-}
-
 #[cfg(all(not(GraalPy), Py_3_14))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_KIND")]
@@ -540,7 +528,7 @@ pub unsafe fn PyUnicode_KIND(op: *mut PyObject) -> c_uint {
 
 #[cfg(not(any(GraalPy, Py_3_14)))]
 #[inline]
-pub unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
+unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
     if PyUnicode_IS_ASCII(op) != 0 {
         (op as *mut PyASCIIObject).offset(1) as *mut c_void
     } else {
@@ -550,7 +538,7 @@ pub unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
 
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
-pub unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
+unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
     debug_assert!(!(*(op as *mut PyUnicodeObject)).data.any.is_null());
 
     (*(op as *mut PyUnicodeObject)).data.any
@@ -575,9 +563,23 @@ extern_libpython! {
     pub fn PyUnicode_DATA(op: *mut PyObject) -> *mut c_void;
 }
 
-// skipped PyUnicode_WRITE
-// skipped PyUnicode_READ
-// skipped PyUnicode_READ_CHAR
+#[cfg(not(any(GraalPy, PyPy)))]
+#[inline]
+pub unsafe fn PyUnicode_1BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS1 {
+    PyUnicode_DATA(op) as *mut Py_UCS1
+}
+
+#[cfg(not(any(GraalPy, PyPy)))]
+#[inline]
+pub unsafe fn PyUnicode_2BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS2 {
+    PyUnicode_DATA(op) as *mut Py_UCS2
+}
+
+#[cfg(not(any(GraalPy, PyPy)))]
+#[inline]
+pub unsafe fn PyUnicode_4BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS4 {
+    PyUnicode_DATA(op) as *mut Py_UCS4
+}
 
 #[cfg(not(GraalPy))]
 #[inline]
@@ -589,17 +591,15 @@ pub unsafe fn PyUnicode_GET_LENGTH(op: *mut PyObject) -> Py_ssize_t {
     (*(op as *mut PyASCIIObject)).length
 }
 
-#[cfg(any(Py_3_12, GraalPy))]
-#[inline]
-pub unsafe fn PyUnicode_IS_READY(_op: *mut PyObject) -> c_uint {
-    // kept in CPython for backwards compatibility
-    1
-}
+// skipped PyUnstable_Unicode_GET_CACHED_HASH
+// skipped PyUnicode_WRITE
+// skipped PyUnicode_READ
+// skipped PyUnicode_READ_CHAR
+// skipped PyUnicode_MAX_CHAR_VALUE
 
-#[cfg(not(any(GraalPy, Py_3_12)))]
-#[inline]
-pub unsafe fn PyUnicode_IS_READY(op: *mut PyObject) -> c_uint {
-    (*(op as *mut PyASCIIObject)).ready()
+extern_libpython! {
+    #[cfg_attr(PyPy, link_name = "PyPyUnicode_New")]
+    pub fn PyUnicode_New(size: Py_ssize_t, maxchar: Py_UCS4) -> *mut PyObject;
 }
 
 #[cfg(any(Py_3_12, GraalPy))]
@@ -620,17 +620,10 @@ pub unsafe fn PyUnicode_READY(op: *mut PyObject) -> c_int {
     }
 }
 
-// skipped PyUnicode_MAX_CHAR_VALUE
-// skipped _PyUnicode_get_wstr_length
-// skipped PyUnicode_WSTR_LENGTH
-
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyUnicode_New")]
-    pub fn PyUnicode_New(size: Py_ssize_t, maxchar: Py_UCS4) -> *mut PyObject;
+    #[cfg(not(any(Py_3_12, GraalPy)))]
     #[cfg_attr(PyPy, link_name = "_PyPyUnicode_Ready")]
-    pub fn _PyUnicode_Ready(unicode: *mut PyObject) -> c_int;
-
-    // skipped _PyUnicode_Copy
+    fn _PyUnicode_Ready(unicode: *mut PyObject) -> c_int;
 
     #[cfg(not(PyPy))]
     pub fn PyUnicode_CopyCharacters(
@@ -641,8 +634,6 @@ extern_libpython! {
         how_many: Py_ssize_t,
     ) -> Py_ssize_t;
 
-    // skipped _PyUnicode_FastCopyCharacters
-
     #[cfg(not(PyPy))]
     pub fn PyUnicode_Fill(
         unicode: *mut PyObject,
@@ -650,8 +641,6 @@ extern_libpython! {
         length: Py_ssize_t,
         fill_char: Py_UCS4,
     ) -> Py_ssize_t;
-
-    // skipped _PyUnicode_FastFill
 
     #[cfg(not(Py_3_12))]
     #[deprecated]
@@ -665,15 +654,10 @@ extern_libpython! {
         size: Py_ssize_t,
     ) -> *mut PyObject;
 
-    // skipped _PyUnicode_FromASCII
-    // skipped _PyUnicode_FindMaxChar
-
     #[cfg(not(Py_3_12))]
     #[deprecated]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsUnicode")]
     pub fn PyUnicode_AsUnicode(unicode: *mut PyObject) -> *mut wchar_t;
-
-    // skipped _PyUnicode_AsUnicode
 
     #[cfg(not(Py_3_12))]
     #[deprecated]
@@ -682,8 +666,6 @@ extern_libpython! {
         unicode: *mut PyObject,
         size: *mut Py_ssize_t,
     ) -> *mut wchar_t;
-
-    // skipped PyUnicode_GetMax
 }
 
 #[cfg(Py_3_14)]
@@ -693,9 +675,10 @@ extern_libpython! {
     #[cfg(Py_3_14)]
     pub fn PyUnicodeWriter_Create(length: Py_ssize_t) -> *mut PyUnicodeWriter;
     #[cfg(Py_3_14)]
-    pub fn PyUnicodeWriter_Finish(writer: *mut PyUnicodeWriter) -> *mut PyObject;
-    #[cfg(Py_3_14)]
     pub fn PyUnicodeWriter_Discard(writer: *mut PyUnicodeWriter);
+    #[cfg(Py_3_14)]
+    pub fn PyUnicodeWriter_Finish(writer: *mut PyUnicodeWriter) -> *mut PyObject;
+
     #[cfg(Py_3_14)]
     pub fn PyUnicodeWriter_WriteChar(writer: *mut PyUnicodeWriter, ch: Py_UCS4) -> c_int;
     #[cfg(Py_3_14)]
@@ -704,31 +687,40 @@ extern_libpython! {
         str: *const c_char,
         size: Py_ssize_t,
     ) -> c_int;
+    // skipped PyUnicodeWriter_WriteASCII
+    // skipped PyUnicodeWriter_WriteWideChar
+    // skipped PyUnicodeWriter_WriteUCS4
+
+    // skipped PyUnicodeWriter_WriteStr
+    // skipped PyUnicodeWriter_WriteRepr
+    // skipped PyUnicodeWriter_WriteSubstring
+    // skipped PyUnicodeWriter_Format
+    // skipped PyUnicodeWriter_DecodeUTF8Stateful
 }
 
-// skipped _PyUnicodeWriter
-// skipped _PyUnicodeWriter_Init
-// skipped _PyUnicodeWriter_Prepare
-// skipped _PyUnicodeWriter_PrepareInternal
-// skipped _PyUnicodeWriter_PrepareKind
-// skipped _PyUnicodeWriter_PrepareKindInternal
-// skipped _PyUnicodeWriter_WriteChar
-// skipped _PyUnicodeWriter_WriteStr
-// skipped _PyUnicodeWriter_WriteSubstring
-// skipped _PyUnicodeWriter_WriteASCIIString
-// skipped _PyUnicodeWriter_WriteLatin1String
-// skipped _PyUnicodeWriter_Finish
-// skipped _PyUnicodeWriter_Dealloc
-// skipped _PyUnicode_FormatAdvancedWriter
+// skipped private _PyUnicodeWriter
+// skipped private _PyUnicodeWriter_Init
+// skipped private _PyUnicodeWriter_Prepare
+// skipped private _PyUnicodeWriter_PrepareInternal
+// skipped private _PyUnicodeWriter_PrepareKind
+// skipped private _PyUnicodeWriter_PrepareKindInternal
+// skipped private _PyUnicodeWriter_WriteChar
+// skipped private _PyUnicodeWriter_WriteStr
+// skipped private _PyUnicodeWriter_WriteSubstring
+// skipped private _PyUnicodeWriter_WriteASCIIString
+// skipped private _PyUnicodeWriter_WriteLatin1String
+// skipped private _PyUnicodeWriter_Finish
+// skipped private _PyUnicodeWriter_Dealloc
 
 extern_libpython! {
-    // skipped _PyUnicode_AsStringAndSize
 
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_AsUTF8")]
     pub fn PyUnicode_AsUTF8(unicode: *mut PyObject) -> *const c_char;
 
     // skipped _PyUnicode_AsString
 
+    #[cfg(not(Py_3_11))]
+    #[deprecated(note = "use `PyUnicode_AsEncodedString` instead")]
     pub fn PyUnicode_Encode(
         s: *const wchar_t,
         size: Py_ssize_t,
@@ -736,6 +728,8 @@ extern_libpython! {
         errors: *const c_char,
     ) -> *mut PyObject;
 
+    #[cfg(not(Py_3_11))]
+    #[deprecated(note = "use `PyUnicode_AsEncodedString` instead")]
     pub fn PyUnicode_EncodeUTF7(
         data: *const wchar_t,
         length: Py_ssize_t,
@@ -744,9 +738,8 @@ extern_libpython! {
         errors: *const c_char,
     ) -> *mut PyObject;
 
-    // skipped _PyUnicode_EncodeUTF7
-    // skipped _PyUnicode_AsUTF8String
-
+    #[cfg(not(Py_3_11))]
+    #[deprecated(note = "use `PyUnicode_AsUTF8String` instead")]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_EncodeUTF8")]
     pub fn PyUnicode_EncodeUTF8(
         data: *const wchar_t,
@@ -754,6 +747,8 @@ extern_libpython! {
         errors: *const c_char,
     ) -> *mut PyObject;
 
+    #[cfg(not(Py_3_11))]
+    #[deprecated(note = "use `PyUnicode_AsUTF32String` instead")]
     pub fn PyUnicode_EncodeUTF32(
         data: *const wchar_t,
         length: Py_ssize_t,
@@ -761,8 +756,8 @@ extern_libpython! {
         byteorder: c_int,
     ) -> *mut PyObject;
 
-    // skipped _PyUnicode_EncodeUTF32
-
+    #[cfg(not(Py_3_11))]
+    #[deprecated(note = "use `PyUnicode_AsUTF16String` instead")]
     pub fn PyUnicode_EncodeUTF16(
         data: *const wchar_t,
         length: Py_ssize_t,
@@ -770,19 +765,20 @@ extern_libpython! {
         byteorder: c_int,
     ) -> *mut PyObject;
 
-    // skipped _PyUnicode_EncodeUTF16
-    // skipped _PyUnicode_DecodeUnicodeEscape
-
+    #[cfg(not(Py_3_11))]
+    #[deprecated(note = "use `PyUnicode_AsUnicodeEscapeString` instead")]
     pub fn PyUnicode_EncodeUnicodeEscape(data: *const wchar_t, length: Py_ssize_t)
         -> *mut PyObject;
 
+    #[cfg(not(Py_3_11))]
+    #[deprecated(note = "use `PyUnicode_AsRawUnicodeEscapeString` instead")]
     pub fn PyUnicode_EncodeRawUnicodeEscape(
         data: *const wchar_t,
         length: Py_ssize_t,
     ) -> *mut PyObject;
 
-    // skipped _PyUnicode_AsLatin1String
-
+    #[cfg(not(Py_3_11))]
+    #[deprecated(note = "use `PyUnicode_AsLatin1String` instead")]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_EncodeLatin1")]
     pub fn PyUnicode_EncodeLatin1(
         data: *const wchar_t,
@@ -790,8 +786,8 @@ extern_libpython! {
         errors: *const c_char,
     ) -> *mut PyObject;
 
-    // skipped _PyUnicode_AsASCIIString
-
+    #[cfg(not(Py_3_11))]
+    #[deprecated(note = "use `PyUnicode_AsASCIIString` instead")]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_EncodeASCII")]
     pub fn PyUnicode_EncodeASCII(
         data: *const wchar_t,
@@ -799,6 +795,8 @@ extern_libpython! {
         errors: *const c_char,
     ) -> *mut PyObject;
 
+    #[cfg(not(Py_3_11))]
+    #[deprecated(note = "use `PyUnicode_AsCharmapString` instead")]
     pub fn PyUnicode_EncodeCharmap(
         data: *const wchar_t,
         length: Py_ssize_t,
@@ -806,8 +804,8 @@ extern_libpython! {
         errors: *const c_char,
     ) -> *mut PyObject;
 
-    // skipped _PyUnicode_EncodeCharmap
-
+    #[cfg(not(Py_3_11))]
+    #[deprecated(note = "use `PyUnicode_Translate` instead")]
     pub fn PyUnicode_TranslateCharmap(
         data: *const wchar_t,
         length: Py_ssize_t,
@@ -815,8 +813,8 @@ extern_libpython! {
         errors: *const c_char,
     ) -> *mut PyObject;
 
-    // skipped PyUnicode_EncodeMBCS
-
+    #[cfg(not(Py_3_11))]
+    #[deprecated(note = "use `Py_UNICODE_TODECIMAL` instead")]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_EncodeDecimal")]
     pub fn PyUnicode_EncodeDecimal(
         s: *mut wchar_t,
@@ -825,54 +823,57 @@ extern_libpython! {
         errors: *const c_char,
     ) -> c_int;
 
+    #[cfg(not(Py_3_11))]
+    #[deprecated(note = "use `Py_UNICODE_TODECIMAL` instead")]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_TransformDecimalToASCII")]
     pub fn PyUnicode_TransformDecimalToASCII(s: *mut wchar_t, length: Py_ssize_t) -> *mut PyObject;
 
-    // skipped _PyUnicode_TransformDecimalAndSpaceToASCII
+    // skipped _PyUnicode_IsLowercase
+    // skipped _PyUnicode_IsUppercase
+    // skipped _PyUnicode_IsTitlecase
+    // skipped _PyUnicode_IsWhitespace
+    // skipped _PyUnicode_IsLinebreak
+    // skipped _PyUnicode_ToLowercase
+    // skipped _PyUnicode_ToUppercase
+    // skipped _PyUnicode_ToTitlecase
+
+    fn _PyUnicode_ToDecimalDigit(ch: Py_UCS4) -> c_int;
+
+    // skipped _PyUnicode_ToDigit
+    // skipped _PyUnicode_ToNumeric
+    // skipped _PyUnicode_IsDecimalDigit
+    // skipped _PyUnicode_IsDigit
+    // skipped _PyUnicode_IsNumeric
+    // skipped _PyUnicode_IsPrintable
+    // skipped _PyUnicode_IsAlpha
+
 }
 
-// skipped _PyUnicode_JoinArray
-// skipped _PyUnicode_EqualToASCIIId
-// skipped _PyUnicode_EqualToASCIIString
-// skipped _PyUnicode_XStrip
-// skipped _PyUnicode_InsertThousandsGrouping
-
 // skipped _Py_ascii_whitespace
+// skipped Py_UNICODE_ISSPACE
 
-// skipped _PyUnicode_IsLowercase
-// skipped _PyUnicode_IsUppercase
-// skipped _PyUnicode_IsTitlecase
-// skipped _PyUnicode_IsXidStart
-// skipped _PyUnicode_IsXidContinue
-// skipped _PyUnicode_IsWhitespace
-// skipped _PyUnicode_IsLinebreak
-// skipped _PyUnicode_ToLowercase
-// skipped _PyUnicode_ToUppercase
-// skipped _PyUnicode_ToTitlecase
-// skipped _PyUnicode_ToLowerFull
-// skipped _PyUnicode_ToTitleFull
-// skipped _PyUnicode_ToUpperFull
-// skipped _PyUnicode_ToFoldedFull
-// skipped _PyUnicode_IsCaseIgnorable
-// skipped _PyUnicode_IsCased
-// skipped _PyUnicode_ToDecimalDigit
-// skipped _PyUnicode_ToDigit
-// skipped _PyUnicode_ToNumeric
-// skipped _PyUnicode_IsDecimalDigit
-// skipped _PyUnicode_IsDigit
-// skipped _PyUnicode_IsNumeric
-// skipped _PyUnicode_IsPrintable
-// skipped _PyUnicode_IsAlpha
-// skipped Py_UNICODE_strlen
-// skipped Py_UNICODE_strcpy
-// skipped Py_UNICODE_strcat
-// skipped Py_UNICODE_strncpy
-// skipped Py_UNICODE_strcmp
-// skipped Py_UNICODE_strncmp
-// skipped Py_UNICODE_strchr
-// skipped Py_UNICODE_strrchr
-// skipped _PyUnicode_FormatLong
-// skipped PyUnicode_AsUnicodeCopy
-// skipped _PyUnicode_FromId
-// skipped _PyUnicode_EQ
-// skipped _PyUnicode_ScanIdentifier
+// skipped Py_UNICODE_ISLOWER
+// skipped Py_UNICODE_ISUPPER
+// skipped Py_UNICODE_ISTITLE
+// skipped Py_UNICODE_ISLINEBREAK
+
+// skipped Py_UNICODE_TOLOWER
+// skipped Py_UNICODE_TOUPPER
+// skipped Py_UNICODE_TOTITLE
+
+// skipped Py_UNICODE_ISDECIMAL
+// skipped Py_UNICODE_ISDIGIT
+// skipped Py_UNICODE_ISNUMERIC
+// skipped Py_UNICODE_ISPRINTABLE
+
+pub unsafe extern "C" fn Py_UNICODE_TODECIMAL(ch: Py_UCS4) -> c_int {
+    _PyUnicode_ToDecimalDigit(ch)
+}
+// skipped Py_UNICODE_TODIGIT
+// skipped Py_UNICODE_TONUMERIC
+
+// skipped Py_UNICODE_ISALPHA
+
+// skipped Py_UNICODE_ISALNUM
+
+// skipped private _PyUnicode_FromId

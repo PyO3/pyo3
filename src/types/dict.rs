@@ -301,13 +301,13 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             key: Borrowed<'_, '_, PyAny>,
         ) -> PyResult<Option<Bound<'py, PyAny>>> {
             let py = dict.py();
-            let mut result: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut result: *mut ffi::PyObject = core::ptr::null_mut();
             match unsafe {
                 ffi::compat::PyDict_GetItemRef(dict.as_ptr(), key.as_ptr(), &mut result)
             } {
-                std::ffi::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
+                core::ffi::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
                 0 => Ok(None),
-                1..=std::ffi::c_int::MAX => {
+                1..=core::ffi::c_int::MAX => {
                     // Safety: PyDict_GetItemRef positive return value means the result is a valid
                     // owned reference
                     Ok(Some(unsafe { result.assume_owned_unchecked(py) }))
@@ -446,7 +446,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
                         dict.as_ptr(),
                         key.as_ptr(),
                         value.as_ptr(),
-                        std::ptr::null_mut(),
+                        core::ptr::null_mut(),
                     )
                 },
             ))
@@ -478,7 +478,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             value: Borrowed<'_, '_, PyAny>,
             py: Python<'py>,
         ) -> PyResult<(bool, Bound<'py, PyAny>)> {
-            let mut result = std::ptr::NonNull::dangling().as_ptr();
+            let mut result = core::ptr::NonNull::dangling().as_ptr();
             let code = setdefault_result_from_nonerror_return_code(
                 err::error_on_minusone_with_result(dict.py(), unsafe {
                     ffi::compat::PyDict_SetDefaultRef(
@@ -506,7 +506,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     }
 }
 
-fn setdefault_result_from_nonerror_return_code(code: PyResult<std::ffi::c_int>) -> PyResult<bool> {
+fn setdefault_result_from_nonerror_return_code(code: PyResult<core::ffi::c_int>) -> PyResult<bool> {
     match code? {
         // inserted
         0 => Ok(true),
@@ -595,8 +595,8 @@ impl DictIterImpl {
                     panic!("dictionary keys changed during iteration");
                 };
 
-                let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-                let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+                let mut key: *mut ffi::PyObject = core::ptr::null_mut();
+                let mut value: *mut ffi::PyObject = core::ptr::null_mut();
 
                 if unsafe { ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) != 0 } {
                     *remaining -= 1;
@@ -683,7 +683,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     where
         Self: Sized,
         F: FnMut(B, Self::Item) -> R,
-        R: std::ops::Try<Output = B>,
+        R: core::ops::Try<Output = B>,
     {
         self.inner.with_critical_section(&self.dict, |inner| {
             let mut accum = init;
@@ -840,8 +840,8 @@ mod borrowed_iter {
 
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
-            let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-            let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut key: *mut ffi::PyObject = core::ptr::null_mut();
+            let mut value: *mut ffi::PyObject = core::ptr::null_mut();
 
             // Safety: self.dict lives sufficiently long that the pointer is not dangling
             if unsafe { ffi::PyDict_Next(self.dict.as_ptr(), &mut self.ppos, &mut key, &mut value) }
@@ -954,7 +954,8 @@ where
 mod tests {
     use super::*;
     use crate::types::{PyAnyMethods as _, PyTuple};
-    use std::collections::{BTreeMap, HashMap};
+    use alloc::collections::BTreeMap;
+    use std::collections::HashMap;
 
     #[test]
     fn test_new() {

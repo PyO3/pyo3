@@ -154,7 +154,8 @@ mod tests {
         exceptions::PyKeyError,
         types::{PyInt, PyTuple},
     };
-    use std::collections::{BTreeMap, HashMap};
+    use alloc::collections::BTreeMap;
+    use std::collections::HashMap;
 
     #[test]
     fn test_new() {
