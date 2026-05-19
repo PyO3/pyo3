@@ -12,6 +12,7 @@
 //! interpreter.
 //!
 //! This module provides synchronization primitives which are able to synchronize under these conditions.
+use crate::platform::sync::Once;
 use crate::{
     internal::state::SuspendAttach,
     sealed::Sealed,
@@ -19,7 +20,6 @@ use crate::{
     Bound, Py, Python,
 };
 use core::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit};
-use std::sync::{Once, OnceState};
 
 pub mod critical_section;
 pub(crate) mod once_lock;
@@ -161,7 +161,7 @@ impl<T> GILOnceCell<T> {
         // NB this can block, but since this is only writing a single value and
         // does not call arbitrary python code, we don't need to worry about
         // deadlocks with the GIL.
-        self.once.call_once_force(|_| {
+        self.once.call_once_force(|| {
             // SAFETY: no other threads can be writing this value, because we are
             // inside the `call_once_force` closure.
             unsafe {
@@ -336,8 +336,9 @@ pub trait RwLockExt<T>: rwlock_ext_sealed::Sealed {
     fn write_py_attached(&self, py: Python<'_>) -> Self::WriteLockResult<'_>;
 }
 
-impl OnceExt for Once {
-    type OnceState = OnceState;
+#[allow(clippy::disallowed_types)]
+impl OnceExt for std::sync::Once {
+    type OnceState = std::sync::OnceState;
 
     fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce()) {
         if self.is_completed() {
@@ -347,7 +348,7 @@ impl OnceExt for Once {
         init_once_py_attached(self, py, f)
     }
 
-    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&OnceState)) {
+    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&std::sync::OnceState)) {
         if self.is_completed() {
             return;
         }
@@ -653,7 +654,8 @@ where
 }
 
 #[cold]
-fn init_once_py_attached<F, T>(once: &Once, _py: Python<'_>, f: F)
+#[allow(clippy::disallowed_types)]
+fn init_once_py_attached<F, T>(once: &std::sync::Once, _py: Python<'_>, f: F)
 where
     F: FnOnce() -> T,
 {
@@ -669,9 +671,10 @@ where
 }
 
 #[cold]
-fn init_once_force_py_attached<F, T>(once: &Once, _py: Python<'_>, f: F)
+#[allow(clippy::disallowed_types)]
+fn init_once_force_py_attached<F, T>(once: &std::sync::Once, _py: Python<'_>, f: F)
 where
-    F: FnOnce(&OnceState) -> T,
+    F: FnOnce(&std::sync::OnceState) -> T,
 {
     // SAFETY: detach from the runtime right before a possibly blocking call
     // then reattach when the blocking call completes and before calling
@@ -736,6 +739,7 @@ mod tests {
     use std::sync::Barrier;
     #[cfg(not(target_arch = "wasm32"))]
     use std::sync::Mutex;
+    use std::sync::{Once, OnceState};
 
     #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
