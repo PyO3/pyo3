@@ -437,7 +437,6 @@ mod tests {
     fn pool_dec_refs_contains(obj: &Py<PyAny>) -> bool {
         POOL.pending_decrefs
             .lock()
-            .unwrap()
             .iter()
             .any(|pending| pending.is(obj))
     }
