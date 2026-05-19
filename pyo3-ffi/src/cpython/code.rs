@@ -140,12 +140,12 @@ extern_libpython! {
         names: *mut PyObject,
         lnotab: *mut PyObject,
     ) -> *mut PyObject;
-    pub(crate) fn _PyCode_GetExtra(
+    pub fn _PyCode_GetExtra(
         code: *mut PyObject,
         index: Py_ssize_t,
         extra: *const *mut c_void,
     ) -> c_int;
-    pub(crate) fn _PyCode_SetExtra(
+    pub fn _PyCode_SetExtra(
         code: *mut PyObject,
         index: Py_ssize_t,
         extra: *mut c_void,
