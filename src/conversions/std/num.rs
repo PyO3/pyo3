@@ -396,7 +396,7 @@ pub(crate) fn pylong_from_digits<'py, I: ExactSizeIterator<Item = u32>>(
     digits: I,
 ) -> Bound<'py, PyInt> {
     let digits_len = digits.len();
-    let mut ptr = std::ptr::null_mut();
+    let mut ptr = core::ptr::null_mut();
     let writer = unsafe {
         ffi::PyLongWriter_Create(negative.into(), digits_len as ffi::Py_ssize_t, &mut ptr)
     };
@@ -435,7 +435,7 @@ pub(crate) fn pylong_visit_digits<R>(
     } else {
         let n_digits = long_export_ref.ndigits as usize;
         let ptr = long_export_ref.digits.cast::<u32>();
-        let digits = unsafe { std::slice::from_raw_parts(ptr, n_digits) };
+        let digits = unsafe { core::slice::from_raw_parts(ptr, n_digits) };
         f(negative, value, Some(digits))
     }
 }
