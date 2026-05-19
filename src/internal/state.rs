@@ -393,7 +393,6 @@ mod tests {
         get_pool()
             .pending_decrefs
             .lock()
-            .unwrap()
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 
