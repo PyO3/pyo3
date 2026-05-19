@@ -20,7 +20,7 @@ pub struct PyObjectFreeList {
     capacity: usize,
 }
 
-// safety: access is guarded by a per-pyclass mutex
+// safety: the pointers are never used internally and they are cleared when they are given out
 unsafe impl Send for PyObjectFreeList {}
 
 impl PyObjectFreeList {
