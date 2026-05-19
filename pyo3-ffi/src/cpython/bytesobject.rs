@@ -23,7 +23,7 @@ opaque_struct!(pub PyBytesObject);
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "_PyPyBytes_Resize")]
-    pub(crate) fn _PyBytes_Resize(bytes: *mut *mut PyObject, newsize: Py_ssize_t) -> c_int;
+    pub fn _PyBytes_Resize(bytes: *mut *mut PyObject, newsize: Py_ssize_t) -> c_int;
 }
 
 #[cfg(not(Py_LIMITED_API))]
