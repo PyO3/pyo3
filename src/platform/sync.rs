@@ -1,9 +1,13 @@
 // TODO compile_error if parking_lot and std are both disabled
 
+use crate::sealed;
+use crate::sync::OnceExt;
+
 #[cfg(feature = "parking_lot")]
 type OnceInner = parking_lot::Once;
 
 #[cfg(not(feature = "parking_lot"))]
+#[allow(clippy::disallowed_types)]
 type OnceInner = std::sync::Once;
 
 pub struct Once(OnceInner);
@@ -42,6 +46,23 @@ impl Once {
     #[inline(always)]
     pub fn is_completed(&self) -> bool {
         self.0.is_completed()
+    }
+}
+
+impl sealed::Sealed for Once {}
+impl OnceExt for Once {
+    type OnceState = ();
+
+    fn call_once_py_attached(&self, py: crate::prelude::Python<'_>, f: impl FnOnce()) {
+        self.0.call_once_force_py_attached(py, move |_| f());
+    }
+
+    fn call_once_force_py_attached(
+        &self,
+        py: crate::prelude::Python<'_>,
+        f: impl FnOnce(&Self::OnceState),
+    ) {
+        self.0.call_once_force_py_attached(py, |_| f(&()));
     }
 }
 
