@@ -8,6 +8,12 @@ type OnceInner = std::sync::Once;
 
 pub struct Once(OnceInner);
 
+impl Default for Once {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // #[cfg(feature = "parking_lot")]
 impl Once {
     /// Creates a new `Once` value.
