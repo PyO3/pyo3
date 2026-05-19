@@ -9,34 +9,24 @@
 //! [1]: https://en.wikipedia.org/wiki/Free_list
 
 use crate::ffi;
-use core::mem;
-
-/// Represents a slot of a [`PyObjectFreeList`].
-enum PyObjectSlot {
-    /// A free slot.
-    Empty,
-    /// An allocated slot.
-    Filled(*mut ffi::PyObject),
-}
-
-// safety: access is guarded by a per-pyclass mutex
-unsafe impl Send for PyObjectSlot {}
+use core::ptr::NonNull;
 
 /// A free allocation list for PyObject ffi pointers.
 ///
 /// See [the parent module](crate::impl_::freelist) for more details.
 pub struct PyObjectFreeList {
-    entries: Box<[PyObjectSlot]>,
+    entries: Box<[Option<NonNull<ffi::PyObject>>]>,
     split: usize,
     capacity: usize,
 }
 
+// safety: access is guarded by a per-pyclass mutex
+unsafe impl Send for PyObjectFreeList {}
+
 impl PyObjectFreeList {
     /// Creates a new `PyObjectFreeList` instance with specified capacity.
     pub fn with_capacity(capacity: usize) -> PyObjectFreeList {
-        let entries = (0..capacity)
-            .map(|_| PyObjectSlot::Empty)
-            .collect::<Box<[_]>>();
+        let entries = vec![None; capacity].into_boxed_slice();
 
         PyObjectFreeList {
             entries,
@@ -46,26 +36,24 @@ impl PyObjectFreeList {
     }
 
     /// Pops the first non empty item.
-    pub fn pop(&mut self) -> Option<*mut ffi::PyObject> {
+    pub fn pop(&mut self) -> Option<NonNull<ffi::PyObject>> {
         let idx = self.split;
         if idx == 0 {
             None
         } else {
-            match mem::replace(&mut self.entries[idx - 1], PyObjectSlot::Empty) {
-                PyObjectSlot::Filled(v) => {
-                    self.split = idx - 1;
-                    Some(v)
-                }
-                _ => panic!("PyObjectFreeList is corrupt"),
-            }
+            let val = self.entries[idx - 1]
+                .take()
+                .expect("PyObjectFreeList is corrupt");
+            self.split = idx - 1;
+            Some(val)
         }
     }
 
     /// Inserts a value into the list. Returns `Some(val)` if the `PyObjectFreeList` is full.
-    pub fn insert(&mut self, val: *mut ffi::PyObject) -> Option<*mut ffi::PyObject> {
+    pub fn insert(&mut self, val: NonNull<ffi::PyObject>) -> Option<NonNull<ffi::PyObject>> {
         let next = self.split + 1;
         if next < self.capacity {
-            self.entries[self.split] = PyObjectSlot::Filled(val);
+            self.entries[self.split] = Some(val);
             self.split = next;
             None
         } else {
