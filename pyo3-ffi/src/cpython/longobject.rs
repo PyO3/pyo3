@@ -18,10 +18,10 @@ extern_libpython! {
     #[cfg(Py_3_14)]
     pub fn PyLong_IsZero(obj: *mut PyObject) -> c_int;
     #[cfg(Py_3_14)]
-    fn PyLong_Sign(v: *mut PyObject) -> c_int;
+    pub fn PyLong_Sign(v: *mut PyObject) -> c_int;
     // deprecated since 3.14
     #[cfg(all(Py_3_13, not(Py_3_14)))]
-    fn _PyLong_Sign(v: *mut PyObject) -> c_int;
+    pub fn _PyLong_Sign(v: *mut PyObject) -> c_int;
 
     #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
     #[cfg(not(Py_3_13))]
