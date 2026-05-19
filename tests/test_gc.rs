@@ -5,7 +5,7 @@
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::ffi;
-use pyo3::platform::sync::non_poison::Mutex;
+use pyo3::platform::sync::{non_poison::Mutex, Once};
 use pyo3::prelude::*;
 #[cfg(not(Py_GIL_DISABLED))]
 use pyo3::py_run;
@@ -13,7 +13,6 @@ use pyo3::py_run;
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::sync::Once;
 
 mod test_utils;
 
