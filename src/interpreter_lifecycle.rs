@@ -129,7 +129,7 @@ pub(crate) fn ensure_initialized() {
             initialize();
         }
 
-        START.call_once_force(|_| unsafe {
+        START.call_once_force(|| unsafe {
             // Use call_once_force because if there is a panic because the interpreter is
             // not initialized, it's fine for the user to initialize the interpreter and
             // retry.
