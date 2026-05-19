@@ -288,7 +288,7 @@ impl PyErrStateNormalized {
             ptype: self.ptype.clone_ref(py),
             pvalue: self.pvalue.clone_ref(py),
             #[cfg(not(Py_3_12))]
-            ptraceback: std::sync::Mutex::new(
+            ptraceback: Mutex::new(
                 self.ptraceback
                     .lock_py_attached(py)
                     .unwrap()
