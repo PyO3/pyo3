@@ -89,6 +89,17 @@ pub mod non_poison {
                 inner: std::sync::Mutex::new(t),
             }
         }
+
+        #[cfg(feature = "parking_lot")]
+        #[inline(always)]
+        pub fn into_inner(self) -> T {
+            self.inner.into_inner()
+        }
+
+        #[cfg(not(feature = "parking_lot"))]
+        pub fn into_inner(self) -> T {
+            self.inner.into_inner().unwrap_or_else(|e| e.into_inner())
+        }
     }
 
     #[cfg(not(feature = "parking_lot"))]
