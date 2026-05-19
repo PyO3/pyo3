@@ -234,9 +234,7 @@ mod inner {
         ) -> PyResult<R> {
             // NB this is best-effort, other tests could always call the warnings API directly.
             #[cfg(not(all(Py_GIL_DISABLED, Py_3_14)))]
-            let _mutex_guard = CATCH_WARNINGS_MUTEX
-                .lock_py_attached(py)
-                .unwrap_or_else(PoisonError::into_inner);
+            let _mutex_guard = CATCH_WARNINGS_MUTEX.lock_py_attached(py);
             let warnings = py.import("warnings")?;
             let kwargs = [("record", true)].into_py_dict(py)?;
             let catch_warnings = warnings
