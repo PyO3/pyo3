@@ -1,5 +1,5 @@
 from _typeshed import Incomplete
-from typing import Final, final
+from typing import Final, final, overload
 
 class AssertingBaseClass:
     """
@@ -43,6 +43,14 @@ class ClassWithDecorators:
 @final
 class ClassWithDict:
     def __new__(cls, /) -> ClassWithDict: ...
+
+@final
+class ClassWithOverloads:
+    def __new__(cls, /) -> ClassWithOverloads: ...
+    @overload
+    def process(self, /, x: "int") -> "int": ...
+    @overload
+    def process(self, /, x: "str") -> "str": ...
 
 @final
 class ClassWithoutConstructor: ...

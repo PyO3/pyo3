@@ -88,6 +88,15 @@ fn with_custom_type_annotations<'py>(
     a
 }
 
+#[cfg(feature = "experimental-inspect")]
+#[pyfunction]
+#[pyo3(overload(x: "int") -> "int")]
+#[pyo3(overload(x: "str") -> "str")]
+#[pyo3(signature = (x))]
+fn with_overloads<'py>(x: Any<'py>) -> Any<'py> {
+    x
+}
+
 #[cfg(feature = "experimental-async")]
 #[pyfunction]
 async fn with_async() {}
@@ -143,12 +152,12 @@ pub mod pyfunctions {
     #[cfg(feature = "experimental-async")]
     #[pymodule_export]
     use super::with_async;
-    #[cfg(feature = "experimental-inspect")]
-    #[pymodule_export]
-    use super::with_custom_type_annotations;
     #[pymodule_export]
     use super::{
         args_kwargs, many_keyword_arguments, none, positional_only, simple, simple_args,
         simple_args_kwargs, simple_kwargs, with_typed_args,
     };
+    #[cfg(feature = "experimental-inspect")]
+    #[pymodule_export]
+    use super::{with_custom_type_annotations, with_overloads};
 }

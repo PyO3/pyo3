@@ -1,6 +1,6 @@
 use crate::model::{
     Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator,
-    VariableLengthArgument,
+    OverloadSignature, VariableLengthArgument,
 };
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use goblin::elf::section_header::SHN_XINDEX;
@@ -177,6 +177,7 @@ fn convert_members<'a>(
                 is_async,
                 returns,
                 doc,
+                overloads,
             } => functions.push(convert_function(
                 name,
                 arguments,
@@ -184,6 +185,7 @@ fn convert_members<'a>(
                 returns,
                 *is_async,
                 doc.as_deref(),
+                overloads,
                 type_hint_for_annotation_id,
             )),
             Chunk::Attribute {
@@ -268,6 +270,7 @@ fn convert_class(
     })
 }
 
+#[expect(clippy::too_many_arguments)]
 fn convert_function(
     name: &str,
     arguments: &ChunkArguments,
@@ -275,6 +278,7 @@ fn convert_function(
     returns: &Option<ChunkExpr>,
     is_async: bool,
     docstring: Option<&str>,
+    overloads: &[ChunkOverload],
     type_hint_for_annotation_id: &HashMap<String, Expr>,
 ) -> Function {
     Function {
@@ -283,36 +287,53 @@ fn convert_function(
             .iter()
             .map(|e| convert_expr(e, type_hint_for_annotation_id))
             .collect(),
-        arguments: Arguments {
-            positional_only_arguments: arguments
-                .posonlyargs
-                .iter()
-                .map(|a| convert_argument(a, type_hint_for_annotation_id))
-                .collect(),
-            arguments: arguments
-                .args
-                .iter()
-                .map(|a| convert_argument(a, type_hint_for_annotation_id))
-                .collect(),
-            vararg: arguments
-                .vararg
-                .as_ref()
-                .map(|a| convert_variable_length_argument(a, type_hint_for_annotation_id)),
-            keyword_only_arguments: arguments
-                .kwonlyargs
-                .iter()
-                .map(|e| convert_argument(e, type_hint_for_annotation_id))
-                .collect(),
-            kwarg: arguments
-                .kwarg
-                .as_ref()
-                .map(|a| convert_variable_length_argument(a, type_hint_for_annotation_id)),
-        },
+        arguments: convert_arguments(arguments, type_hint_for_annotation_id),
         returns: returns
             .as_ref()
             .map(|a| convert_expr(a, type_hint_for_annotation_id)),
         is_async,
         docstring: docstring.map(Into::into),
+        overloads: overloads
+            .iter()
+            .map(|o| OverloadSignature {
+                arguments: convert_arguments(&o.arguments, type_hint_for_annotation_id),
+                returns: o
+                    .returns
+                    .as_ref()
+                    .map(|r| convert_expr(r, type_hint_for_annotation_id)),
+            })
+            .collect(),
+    }
+}
+
+fn convert_arguments(
+    arguments: &ChunkArguments,
+    type_hint_for_annotation_id: &HashMap<String, Expr>,
+) -> Arguments {
+    Arguments {
+        positional_only_arguments: arguments
+            .posonlyargs
+            .iter()
+            .map(|a| convert_argument(a, type_hint_for_annotation_id))
+            .collect(),
+        arguments: arguments
+            .args
+            .iter()
+            .map(|a| convert_argument(a, type_hint_for_annotation_id))
+            .collect(),
+        vararg: arguments
+            .vararg
+            .as_ref()
+            .map(|a| convert_variable_length_argument(a, type_hint_for_annotation_id)),
+        keyword_only_arguments: arguments
+            .kwonlyargs
+            .iter()
+            .map(|e| convert_argument(e, type_hint_for_annotation_id))
+            .collect(),
+        kwarg: arguments
+            .kwarg
+            .as_ref()
+            .map(|a| convert_variable_length_argument(a, type_hint_for_annotation_id)),
     }
 }
 
@@ -714,6 +735,8 @@ enum Chunk {
         is_async: bool,
         #[serde(default)]
         doc: Option<String>,
+        #[serde(default)]
+        overloads: Vec<ChunkOverload>,
     },
     Attribute {
         #[serde(default)]
@@ -751,6 +774,13 @@ struct ChunkArgument {
     default: Option<ChunkExpr>,
     #[serde(default)]
     annotation: Option<ChunkExpr>,
+}
+
+#[derive(Deserialize)]
+struct ChunkOverload {
+    arguments: Box<ChunkArguments>,
+    #[serde(default)]
+    returns: Option<ChunkExpr>,
 }
 
 #[derive(Deserialize)]
