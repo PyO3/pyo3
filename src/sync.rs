@@ -769,6 +769,7 @@ mod tests {
     use std::sync::Barrier;
     #[cfg(not(target_arch = "wasm32"))]
     use std::sync::Mutex;
+    #[cfg(not(target_arch = "wasm32"))]
     use std::sync::{Once, OnceState};
 
     #[cfg(not(target_arch = "wasm32"))]
