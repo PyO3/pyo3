@@ -1477,11 +1477,13 @@ fn generate_method_body(
             let initializer = syn::Ident::new("initializer", Span::call_site());
             let slf = syn::Ident::new("_slf", Span::call_site());
 
+            // Having just this call emitted at the span of the return value helps surface errors
+            // if the user passed an invalid return type.
             let conversion = quote_spanned! { *output_span =>
                 #pyo3_path::impl_::pymethods::tp_new_impl::<_, #cls>(#py, #initializer, #slf)
             };
 
-            let body = quote_spanned! { *output_span =>
+            let body = quote! {
                 #text_signature_impl
                 #warnings
                 #arg_convert
