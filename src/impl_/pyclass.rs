@@ -5,7 +5,6 @@ use crate::{
     impl_::{
         freelist::PyObjectFreeList,
         pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout},
-        pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
     pycell::{impl_::PyClassObjectLayout, PyBorrowError},
@@ -1095,6 +1094,11 @@ pub trait PyClassBaseType: Sized {
     /// The type of object layout to use for ancestors or descendants of this type.
     type Layout<T: PyClassImpl>;
 }
+
+/// Constraint on base types available within PyO3
+#[expect(private_bounds, reason = "internal trait implementation")]
+pub trait PyObjectInit<T>: crate::internal::pyclass_init::PyObjectInit<T> {}
+impl<I, T> PyObjectInit<T> for I where I: crate::internal::pyclass_init::PyObjectInit<T> {}
 
 /// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {

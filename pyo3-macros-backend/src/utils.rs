@@ -380,6 +380,7 @@ pub(crate) fn locate_tokens_at(tokens: TokenStream, span: Span) -> TokenStream {
 ///
 /// This is useful if `Self` is used in `const` context, where explicit
 /// lifetimes are not allowed (yet).
+#[cfg(feature = "experimental-inspect")]
 pub(crate) fn elide_lifetimes(ty: &mut syn::Type) {
     struct ElideLifetimesVisitor;
 

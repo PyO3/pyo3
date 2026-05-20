@@ -84,3 +84,27 @@ fn test_subclass_with_init() {
         assert_eq!(obj.as_super().borrow().num, 43);
     });
 }
+
+#[test]
+fn test_arbitrary_object() {
+    #[pyclass]
+    struct A {}
+
+    #[pyclass]
+    struct B {}
+
+    #[pymethods]
+    impl A {
+        #[new]
+        fn new() -> B {
+            B {}
+        }
+    }
+
+    Python::attach(|py| {
+        let typeobj = py.get_type::<A>();
+        let obj = typeobj.call((), None).unwrap();
+
+        assert!(obj.is_instance_of::<B>());
+    });
+}
