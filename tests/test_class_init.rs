@@ -96,7 +96,7 @@ fn test_arbitrary_object() {
     #[pymethods]
     impl A {
         #[new]
-        fn new() -> B {
+        fn __new__() -> B {
             B {}
         }
     }

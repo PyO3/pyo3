@@ -79,7 +79,7 @@ pub fn tp_new_resolver<ClassT, ValueT>(_: &ValueT) -> TpNewValueTypeResolver<Cla
     TpNewValueTypeResolver(ResolveToArbitraryObject(()), PhantomData)
 }
 
-impl<ClassT, ValueT> std::ops::Deref for TpNewValueTypeResolver<ClassT, ValueT> {
+impl<ClassT, ValueT> core::ops::Deref for TpNewValueTypeResolver<ClassT, ValueT> {
     type Target = ResolveToArbitraryObject;
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -143,10 +143,8 @@ where
         cls: crate::Borrowed<'_, 'py, crate::types::PyType>,
     ) -> PyResult<crate::Bound<'py, crate::PyAny>> {
         // SAFETY: caller has guaranteed that `cls` is correct object
-        unsafe {
-            self.create_class_object_of_type(cls.py(), cls.as_type_ptr())
-                .map(crate::Bound::into_any)
-        }
+        unsafe { self.create_class_object_of_type(cls.py(), cls.as_type_ptr()) }
+            .map(crate::Bound::into_any)
     }
 }
 

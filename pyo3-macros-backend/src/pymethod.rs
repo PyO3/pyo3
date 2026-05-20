@@ -1473,16 +1473,23 @@ fn generate_method_body(
                 }
             });
 
+            let py = syn::Ident::new("py", Span::call_site());
+            let initializer = syn::Ident::new("initializer", Span::call_site());
+            let slf = syn::Ident::new("_slf", Span::call_site());
+
+            let conversion = quote_spanned! { *output_span =>
+                #pyo3_path::impl_::pymethods::tp_new_impl::<_, #cls>(#py, #initializer, #slf)
+            };
+
             let body = quote_spanned! { *output_span =>
                 #text_signature_impl
-
-                use #pyo3_path::impl_::pyclass::Probe as _;
                 #warnings
                 #arg_convert
+
                 let result = #call;
                 let value = #pyo3_path::impl_::wrap::OkWrapper::new(&result).ok_wrap(result)?;
-                let initializer = #pyo3_path::impl_::pymethods::tp_new_resolver::<#cls, _>(&value).resolve(value);
-                #pyo3_path::impl_::pymethods::tp_new_impl::<_, #cls>(py, initializer, _slf)
+                let #initializer = #pyo3_path::impl_::pymethods::tp_new_resolver::<#cls, _>(&value).resolve(value);
+                unsafe { #conversion }
             };
             (arg_idents, arg_types, body)
         }

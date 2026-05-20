@@ -190,16 +190,8 @@ mod tests {
         let Ok(a) = OkWrapper::new(&a).ok_wrap(a);
         assert_eq!(a, 42);
 
-        let b = OkWrap::wrap(Result::<_, String>::Ok(42));
+        let b = Result::<_, String>::Ok(42);
+        let b = OkWrapper::new(&b).ok_wrap(b);
         assert_eq!(b, Ok(42));
-
-        let c = (|| -> PyResult<i32> {
-            let value = OkWrap::wrap(Result::<_, Infallible>::Ok(42))?;
-            let value = OkWrap::wrap(value)?;
-            Ok(value)
-        })()
-        .unwrap();
-
-        assert_eq!(c, 42);
     }
 }
