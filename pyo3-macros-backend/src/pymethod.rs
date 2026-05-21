@@ -1679,8 +1679,8 @@ impl SlotFragmentDef {
         self
     }
 
-    const unsafe fn trusted_self(mut self) -> Self {
-        self.self_conversion = unsafe { SelfConversionPolicy::trusted() };
+    const fn self_conversion_policy(mut self, policy: SelfConversionPolicy) -> Self {
+        self.self_conversion = policy;
         self
     }
 
@@ -1753,28 +1753,26 @@ pub struct MethodBody {
     pub body: TokenStream,
 }
 
-const __GETATTRIBUTE__: SlotFragmentDef = unsafe {
-    SlotFragmentDef::new("__getattribute__", &[Ty::Object])
-        .ret_ty(Ty::Object)
-        .trusted_self()
-};
-const __GETATTR__: SlotFragmentDef = unsafe {
-    SlotFragmentDef::new("__getattr__", &[Ty::Object])
-        .ret_ty(Ty::Object)
-        .trusted_self()
-};
+const __GETATTRIBUTE__: SlotFragmentDef = SlotFragmentDef::new("__getattribute__", &[Ty::Object])
+    .ret_ty(Ty::Object)
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __GETATTR__: SlotFragmentDef = SlotFragmentDef::new("__getattr__", &[Ty::Object])
+    .ret_ty(Ty::Object)
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __SETATTR__: SlotFragmentDef =
-    unsafe { SlotFragmentDef::new("__setattr__", &[Ty::Object, Ty::NonNullObject]).trusted_self() };
-const __DELATTR__: SlotFragmentDef =
-    unsafe { SlotFragmentDef::new("__delattr__", &[Ty::Object]).trusted_self() };
-const __SET__: SlotFragmentDef =
-    unsafe { SlotFragmentDef::new("__set__", &[Ty::Object, Ty::NonNullObject]).trusted_self() };
-const __DELETE__: SlotFragmentDef =
-    unsafe { SlotFragmentDef::new("__delete__", &[Ty::Object]).trusted_self() };
+    SlotFragmentDef::new("__setattr__", &[Ty::Object, Ty::NonNullObject])
+        .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __DELATTR__: SlotFragmentDef = SlotFragmentDef::new("__delattr__", &[Ty::Object])
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __SET__: SlotFragmentDef = SlotFragmentDef::new("__set__", &[Ty::Object, Ty::NonNullObject])
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __DELETE__: SlotFragmentDef = SlotFragmentDef::new("__delete__", &[Ty::Object])
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __SETITEM__: SlotFragmentDef =
-    unsafe { SlotFragmentDef::new("__setitem__", &[Ty::Object, Ty::NonNullObject]).trusted_self() };
-const __DELITEM__: SlotFragmentDef =
-    unsafe { SlotFragmentDef::new("__delitem__", &[Ty::Object]).trusted_self() };
+    SlotFragmentDef::new("__setitem__", &[Ty::Object, Ty::NonNullObject])
+        .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __DELITEM__: SlotFragmentDef = SlotFragmentDef::new("__delitem__", &[Ty::Object])
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 
 const __ADD__: SlotFragmentDef = SlotFragmentDef::binary_operator("__add__");
 const __RADD__: SlotFragmentDef = SlotFragmentDef::binary_operator("__radd__");
@@ -1810,42 +1808,30 @@ const __RPOW__: SlotFragmentDef = SlotFragmentDef::new("__rpow__", &[Ty::Object,
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .ret_ty(Ty::Object);
 
-const __LT__: SlotFragmentDef = unsafe {
-    SlotFragmentDef::new("__lt__", &[Ty::Object])
-        .extract_error_mode(ExtractErrorMode::NotImplemented)
-        .ret_ty(Ty::Object)
-        .trusted_self()
-};
-const __LE__: SlotFragmentDef = unsafe {
-    SlotFragmentDef::new("__le__", &[Ty::Object])
-        .extract_error_mode(ExtractErrorMode::NotImplemented)
-        .ret_ty(Ty::Object)
-        .trusted_self()
-};
-const __EQ__: SlotFragmentDef = unsafe {
-    SlotFragmentDef::new("__eq__", &[Ty::Object])
-        .extract_error_mode(ExtractErrorMode::NotImplemented)
-        .ret_ty(Ty::Object)
-        .trusted_self()
-};
-const __NE__: SlotFragmentDef = unsafe {
-    SlotFragmentDef::new("__ne__", &[Ty::Object])
-        .extract_error_mode(ExtractErrorMode::NotImplemented)
-        .ret_ty(Ty::Object)
-        .trusted_self()
-};
-const __GT__: SlotFragmentDef = unsafe {
-    SlotFragmentDef::new("__gt__", &[Ty::Object])
-        .extract_error_mode(ExtractErrorMode::NotImplemented)
-        .ret_ty(Ty::Object)
-        .trusted_self()
-};
-const __GE__: SlotFragmentDef = unsafe {
-    SlotFragmentDef::new("__ge__", &[Ty::Object])
-        .extract_error_mode(ExtractErrorMode::NotImplemented)
-        .ret_ty(Ty::Object)
-        .trusted_self()
-};
+const __LT__: SlotFragmentDef = SlotFragmentDef::new("__lt__", &[Ty::Object])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .ret_ty(Ty::Object)
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __LE__: SlotFragmentDef = SlotFragmentDef::new("__le__", &[Ty::Object])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .ret_ty(Ty::Object)
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __EQ__: SlotFragmentDef = SlotFragmentDef::new("__eq__", &[Ty::Object])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .ret_ty(Ty::Object)
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __NE__: SlotFragmentDef = SlotFragmentDef::new("__ne__", &[Ty::Object])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .ret_ty(Ty::Object)
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __GT__: SlotFragmentDef = SlotFragmentDef::new("__gt__", &[Ty::Object])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .ret_ty(Ty::Object)
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __GE__: SlotFragmentDef = SlotFragmentDef::new("__ge__", &[Ty::Object])
+    .extract_error_mode(ExtractErrorMode::NotImplemented)
+    .ret_ty(Ty::Object)
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 
 fn extract_proto_arguments(
     spec: &FnSpec<'_>,
