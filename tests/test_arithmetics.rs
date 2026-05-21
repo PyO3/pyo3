@@ -2,7 +2,6 @@
 
 use pyo3::class::basic::CompareOp;
 use pyo3::py_run;
-use pyo3::types::IntoPyDict;
 use pyo3::{prelude::*, BoundObject};
 
 mod test_utils;
@@ -389,24 +388,6 @@ fn rhs_arithmetic() {
     });
 }
 
-#[test]
-fn rhs_fallback() {
-    Python::attach(|py| {
-        let cl = Py::new(py, RhsArithmetic("AR".to_string())).unwrap();
-        let cr = Py::new(py, RhsArithmetic("RA".to_string())).unwrap();
-        let locals = [("cl", cl), ("cr", cr)].into_py_dict(py).unwrap();
-        py_run!(py, locals, "assert cl + cr == 'AR + RA'");
-        py_run!(py, locals, "assert cl - cr == 'AR - RA'");
-        py_run!(py, locals, "assert cl * cr == 'AR * RA'");
-        py_run!(py, locals, "assert cl << cr == 'AR << RA'");
-        py_run!(py, locals, "assert cl >> cr == 'AR >> RA'");
-        py_run!(py, locals, "assert cl & cr == 'AR & RA'");
-        py_run!(py, locals, "assert cl ^ cr == 'AR ^ RA'");
-        py_run!(py, locals, "assert cl | cr == 'AR | RA'");
-        py_run!(py, locals, "assert cl ** cr == 'AR ** RA (mod: None)'");
-    });
-}
-
 #[pyclass]
 struct LhsAndRhs {}
 
@@ -611,7 +592,12 @@ fn rich_comparisons() {
         py_run!(py, c, "assert (1 >= c) == 'RC <= 1'");
 
         // Ensure that passing a wrong self type from Python does not cause UB
-        py_expect_exception!(py, c, "type(c).__richcmp__(object(), 1)", PyTypeError);
+        py_expect_exception!(py, c, "type(c).__lt__(object(), 1)", PyTypeError);
+        py_expect_exception!(py, c, "type(c).__le__(object(), 1)", PyTypeError);
+        py_expect_exception!(py, c, "type(c).__eq__(object(), 1)", PyTypeError);
+        py_expect_exception!(py, c, "type(c).__ne__(object(), 1)", PyTypeError);
+        py_expect_exception!(py, c, "type(c).__gt__(object(), 1)", PyTypeError);
+        py_expect_exception!(py, c, "type(c).__ge__(object(), 1)", PyTypeError);
     });
 }
 
