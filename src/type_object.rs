@@ -5,7 +5,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::{type_hint_identifier, PyStaticExpr};
 use crate::types::{PyAny, PyType};
 use crate::{ffi, Bound, Python};
-use std::ptr;
+use core::ptr;
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
 /// E.g., `PyClassObject` is a concrete representation of all `pyclass`es, and `ffi::PyObject`

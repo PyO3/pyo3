@@ -4,12 +4,19 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::box_into_non_null;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, PyAny};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 use crate::{Bound, Python};
 use crate::{PyErr, PyResult};
-use std::ffi::{c_char, c_int, c_void};
-use std::ffi::{CStr, CString};
-use std::mem::offset_of;
-use std::ptr::{self, NonNull};
+use core::ffi::CStr;
+use core::ffi::{c_char, c_int, c_void};
+use core::mem::offset_of;
+use core::ptr::{self, NonNull};
+use std::ffi::CString;
 
 /// Represents a Python Capsule
 /// as described in [Capsules](https://docs.python.org/3/c-api/capsule.html#capsules):
@@ -24,6 +31,27 @@ use std::ptr::{self, NonNull};
 ///
 /// For APIs available on capsule objects, see the [`PyCapsuleMethods`] trait which is implemented for
 /// [`Bound<'py, PyCapsule>`][Bound].
+///
+/// # Safety
+///
+/// `capsule` objects are designed to share data opaque to Python code between multiple compiled extensions.
+/// This comes with a loss of type safety, and the best defense against invalid casts is to use the
+/// [capsule name][CapsuleName] to hint at the expected type of capsule contents.
+///
+/// Once the capsule name is verified, it is also crucial that the data stored within has a stable layout
+/// guaranteed between the producer and consumer of the capsule. Practically speaking, this means that:
+/// - any structs stored in capsules should be [`#[repr(C)]`][repr-c],
+/// - any enums stored within should either be [`#[repr(C)]`][enum-repr-c] or have a [fixed primitive representation], and
+/// - any function pointers stored within should have a fixed ABI (e.g. `extern "C"`) and only use arguments and return values
+///   which themselves have a stable layout.
+///
+/// In particular, note that Rust's default `#[repr(Rust)]` and `extern "Rust"` functions have no stability
+/// guarantees, so storing and dereferencing a pointer to a Rust function in a capsule which was produced
+/// by a separate compiled extension is UB.
+///
+/// If the data opaque to Python needs to be only accessed within a single extension, it is recommended to
+/// use a `#[pyclass]` with no public getters/setters. PyO3 can guarantee the type safety of the contents
+/// and provide a safe API for accessing it (e.g. via [`Bound::borrow`] and [`Bound::get`]).
 ///
 /// # Example
 /// ```
@@ -47,10 +75,27 @@ use std::ptr::{self, NonNull};
 /// });
 /// assert!(r.is_ok());
 /// ```
+///
+/// [repr-c]: <https://doc.rust-lang.org/reference/type-layout.html#the-c-representation>
+/// [enum-repr-c]: <https://doc.rust-lang.org/reference/type-layout.html#reprc-enums-with-fields>
+/// [fixed primitive representation]: <https://doc.rust-lang.org/reference/type-layout.html#primitive-representation-of-enums-with-fields>
 #[repr(transparent)]
 pub struct PyCapsule(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyCapsule, pyobject_native_static_type_object!(ffi::PyCapsule_Type), "types", "CapsuleType", #checkfunction=ffi::PyCapsule_CheckExact);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyCapsule,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "CapsuleType").unwrap().as_type_ptr()
+    },
+    "types",
+    "CapsuleType",
+    #checkfunction=ffi::PyCapsule_CheckExact
+);
 
 impl PyCapsule {
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
@@ -64,8 +109,8 @@ impl PyCapsule {
     ///
     /// ```
     /// use pyo3::{prelude::*, types::PyCapsule, ffi::c_str};
-    /// use std::ffi::CStr;
-    /// use std::ptr::NonNull;
+    /// use core::ffi::CStr;
+    /// use core::ptr::NonNull;
     ///
     /// // this can be c"foo" on Rust 1.77+
     /// const NAME: &CStr = c"foo";
@@ -151,7 +196,7 @@ impl PyCapsule {
     ) -> PyResult<Bound<'py, Self>>
     where
         T: 'static + Send,
-        F: FnOnce(T, *mut c_void) + Send,
+        F: FnOnce(T, *mut c_void) + Send + 'static,
     {
         // Sanity check for capsule layout
         debug_assert_eq!(offset_of!(CapsuleContents::<T, F>, value), 0);
@@ -184,7 +229,7 @@ impl PyCapsule {
         since = "0.29.0",
         note = "use `PyCapsule::new_with_value_and_destructor` instead"
     )]
-    pub fn new_with_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send>(
+    pub fn new_with_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send + 'static>(
         py: Python<'_>,
         value: T,
         name: Option<CString>,
@@ -193,7 +238,9 @@ impl PyCapsule {
         // Sanity check for capsule layout
         debug_assert_eq!(offset_of!(CapsuleContents::<T, F>, value), 0);
 
-        let name_ptr = name.as_ref().map_or(std::ptr::null(), |name| name.as_ptr());
+        let name_ptr = name
+            .as_ref()
+            .map_or(core::ptr::null(), |name| name.as_ptr());
         let val = Box::into_raw(Box::new(CapsuleContents {
             value,
             destructor,
@@ -234,11 +281,11 @@ impl PyCapsule {
     ///
     /// ```
     /// use pyo3::{prelude::*, types::PyCapsule};
-    /// use std::ffi::c_void;
-    /// use std::ptr::NonNull;
+    /// use core::ffi::c_void;
+    /// use core::ptr::NonNull;
     ///
     /// extern "C" fn my_ffi_handler(_: *mut c_void) -> *mut c_void {
-    ///     std::ptr::null_mut()
+    ///     core::ptr::null_mut()
     /// }
     ///
     /// Python::attach(|py| {
@@ -286,8 +333,8 @@ impl PyCapsule {
     ///
     /// ```
     /// use pyo3::{prelude::*, types::PyCapsule};
-    /// use std::ffi::c_void;
-    /// use std::ptr::NonNull;
+    /// use core::ffi::c_void;
+    /// use core::ptr::NonNull;
     ///
     /// unsafe extern "C" fn free_data(capsule: *mut pyo3::ffi::PyObject) {
     ///     let ptr = pyo3::ffi::PyCapsule_GetPointer(capsule, c"my_module.data".as_ptr());
@@ -383,7 +430,7 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// # Example
     ///
     /// ```
-    /// use std::ffi::c_void;
+    /// use core::ffi::c_void;
     /// use std::sync::mpsc::{channel, Sender};
     /// use pyo3::{prelude::*, types::PyCapsule};
     ///
@@ -605,7 +652,7 @@ impl CapsuleName {
 
 // C layout, as casting the capsule pointer to `T` depends on `T` being first.
 #[repr(C)]
-struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void) + Send> {
+struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void) + Send + 'static> {
     /// Value of the capsule
     value: T,
     /// Destructor to be used by the capsule
@@ -616,7 +663,10 @@ struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void) + Send> {
 }
 
 // Wrapping ffi::PyCapsule_Destructor for a user supplied FnOnce(T) for capsule destructor
-unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send>(
+unsafe extern "C" fn capsule_destructor<
+    T: 'static + Send,
+    F: FnOnce(T, *mut c_void) + Send + 'static,
+>(
     capsule: *mut ffi::PyObject,
 ) {
     /// Gets the pointer and context from the capsule.
@@ -685,8 +735,8 @@ mod tests {
     use crate::types::capsule::PyCapsuleMethods;
     use crate::types::module::PyModuleMethods;
     use crate::{types::PyCapsule, Py, PyResult, Python};
-    use std::ffi::{c_void, CStr};
-    use std::ptr::NonNull;
+    use core::ffi::{c_void, CStr};
+    use core::ptr::NonNull;
     use std::sync::mpsc::{channel, Sender};
 
     const NAME: &CStr = c"foo";
@@ -864,14 +914,14 @@ mod tests {
                 &0usize
             );
             assert!(cap.name().unwrap().is_none());
-            assert_eq!(cap.context().unwrap(), std::ptr::null_mut());
+            assert_eq!(cap.context().unwrap(), core::ptr::null_mut());
         });
     }
 
     #[test]
     fn test_pycapsule_new_with_pointer() {
         extern "C" fn dummy_handler(_: *mut c_void) -> *mut c_void {
-            std::ptr::null_mut()
+            core::ptr::null_mut()
         }
 
         let fn_ptr =
@@ -1008,7 +1058,7 @@ mod tests {
             // Invalidate the capsule
             // SAFETY: intentionally breaking the capsule for testing
             unsafe {
-                crate::ffi::PyCapsule_SetPointer(cap.as_ptr(), std::ptr::null_mut());
+                crate::ffi::PyCapsule_SetPointer(cap.as_ptr(), core::ptr::null_mut());
             }
 
             // context() on invalid capsule should fail

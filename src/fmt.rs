@@ -11,9 +11,9 @@ use {
     crate::py_result_ext::PyResultExt,
     crate::IntoPyObject,
     crate::{ffi, Bound, PyErr, PyResult},
-    std::fmt,
-    std::mem::ManuallyDrop,
-    std::ptr::NonNull,
+    core::fmt,
+    core::mem::ManuallyDrop,
+    core::ptr::NonNull,
 };
 
 /// This macro is analogous to Rust's [`format!`] macro, but returns a [`PyString`] instead of a [`String`].
@@ -182,7 +182,7 @@ mod tests {
     #[allow(clippy::write_literal)]
     #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
     fn unicode_writer_test() {
-        use std::fmt::Write;
+        use core::fmt::Write;
         Python::attach(|py| {
             let mut writer = PyUnicodeWriter::new(py).unwrap();
             write!(writer, "Hello {}!", "world").unwrap();
@@ -196,7 +196,7 @@ mod tests {
     #[allow(clippy::write_literal)]
     #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
     fn unicode_writer_with_capacity() {
-        use std::fmt::Write;
+        use core::fmt::Write;
         Python::attach(|py| {
             let mut writer = PyUnicodeWriter::with_capacity(py, 10).unwrap();
             write!(writer, "Hello {}!", "world").unwrap();

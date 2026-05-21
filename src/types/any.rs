@@ -1,8 +1,8 @@
 use crate::call::PyCallArgs;
 use crate::class::basic::CompareOp;
 use crate::conversion::{FromPyObject, IntoPyObject};
-use crate::err::{PyErr, PyResult};
-use crate::exceptions::{PyAttributeError, PyTypeError};
+use crate::err::{error_on_minusone, PyErr, PyResult};
+use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pycell::PyStaticClassObject;
 use crate::instance::Bound;
@@ -11,13 +11,15 @@ use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
-use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py, Python};
+use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py};
+#[cfg(RustPython)]
+use crate::{sync::PyOnceLock, types::typeobject::PyTypeMethods};
 #[allow(deprecated)]
 use crate::{DowncastError, DowncastIntoError};
-use std::cell::UnsafeCell;
-use std::cmp::Ordering;
-use std::ffi::c_int;
-use std::ptr;
+use core::cell::UnsafeCell;
+use core::cmp::Ordering;
+use core::ffi::c_int;
+use core::ptr;
 
 /// Represents any Python object.
 ///
@@ -41,9 +43,23 @@ fn PyObject_Check(_: *mut ffi::PyObject) -> c_int {
 }
 
 // We follow stub writing guidelines and use "object" instead of "typing.Any": https://typing.python.org/en/latest/guides/writing_stubs.html#using-any
+#[cfg(not(RustPython))]
 pyobject_native_type_info!(
     PyAny,
     pyobject_native_static_type_object!(ffi::PyBaseObject_Type),
+    "typing",
+    "Any",
+    Some("builtins"),
+    #checkfunction=PyObject_Check
+);
+
+#[cfg(RustPython)]
+pyobject_native_type_info!(
+    PyAny,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "object").unwrap().as_type_ptr()
+    },
     "typing",
     "Any",
     Some("builtins"),
@@ -212,7 +228,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyFloat;
-    /// use std::cmp::Ordering;
+    /// use core::cmp::Ordering;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
@@ -451,7 +467,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// def function(*args, **kwargs):
@@ -508,7 +524,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// def function(*args, **kwargs):
@@ -545,7 +561,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// class A:
@@ -591,7 +607,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// class A:
@@ -628,7 +644,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// class A:
@@ -980,17 +996,23 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        // PyObject_HasAttr suppresses all exceptions, which was the behaviour of `hasattr` in Python 2.
-        // Use an implementation which suppresses only AttributeError, which is consistent with `hasattr` in Python 3.
-        fn inner(py: Python<'_>, getattr_result: PyResult<Bound<'_, PyAny>>) -> PyResult<bool> {
-            match getattr_result {
-                Ok(_) => Ok(true),
-                Err(err) if err.is_instance_of::<PyAttributeError>(py) => Ok(false),
-                Err(e) => Err(e),
-            }
+        fn inner<'py>(
+            any: &Bound<'py, PyAny>,
+            attr_name: Borrowed<'_, '_, PyString>,
+        ) -> PyResult<bool> {
+            let result =
+                unsafe { ffi::compat::PyObject_HasAttrWithError(any.as_ptr(), attr_name.as_ptr()) };
+            error_on_minusone(any.py(), result)?;
+            Ok(result > 0)
         }
 
-        inner(self.py(), self.getattr(attr_name))
+        inner(
+            self,
+            attr_name
+                .into_pyobject(self.py())
+                .map_err(Into::into)?
+                .as_borrowed(),
+        )
     }
 
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
@@ -1024,7 +1046,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             any: &Bound<'py, PyAny>,
             attr_name: Borrowed<'_, 'py, PyString>,
         ) -> PyResult<Option<Bound<'py, PyAny>>> {
-            let mut resp_ptr: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut resp_ptr: *mut ffi::PyObject = core::ptr::null_mut();
             match unsafe {
                 ffi::compat::PyObject_GetOptionalAttr(
                     any.as_ptr(),
@@ -1652,8 +1674,8 @@ mod tests {
         types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
         Bound, BoundObject, IntoPyObject, PyTypeInfo, Python,
     };
+    use core::fmt::Debug;
     use pyo3_ffi::c_str;
-    use std::fmt::Debug;
 
     #[test]
     fn test_lookup_special() {
@@ -2071,7 +2093,7 @@ class SimpleClass:
             2.5,
             0.0,
             3.0,
-            std::f64::consts::PI,
+            core::f64::consts::PI,
             10.0,
             10.0 / 3.0,
             -1_000_000.0,

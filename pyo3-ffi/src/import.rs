@@ -1,5 +1,5 @@
 use crate::object::PyObject;
-use std::ffi::{c_char, c_int, c_long};
+use core::ffi::{c_char, c_int, c_long};
 
 extern_libpython! {
     pub fn PyImport_GetMagicNumber() -> c_long;
@@ -36,6 +36,7 @@ extern_libpython! {
     pub fn PyImport_AddModuleRef(name: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyImport_ImportModule")]
     pub fn PyImport_ImportModule(name: *const c_char) -> *mut PyObject;
+    #[cfg(not(Py_3_15))]
     #[deprecated(note = "Python 3.13")]
     #[cfg_attr(PyPy, link_name = "PyPyImport_ImportModuleNoBlock")]
     pub fn PyImport_ImportModuleNoBlock(name: *const c_char) -> *mut PyObject;

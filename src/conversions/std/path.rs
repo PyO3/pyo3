@@ -5,7 +5,7 @@ use crate::inspect::{type_hint_identifier, type_hint_subscript, type_hint_union,
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python};
-use std::borrow::Cow;
+use alloc::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
@@ -138,9 +138,9 @@ mod tests {
         types::{PyAnyMethods, PyString},
         IntoPyObjectExt,
     };
+    use core::fmt::Debug;
     #[cfg(not(target_os = "wasi"))]
     use std::ffi::OsStr;
-    use std::fmt::Debug;
     #[cfg(any(unix, target_os = "emscripten"))]
     use std::os::unix::ffi::OsStringExt;
     #[cfg(windows)]

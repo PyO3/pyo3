@@ -1,11 +1,12 @@
 use crate::vectorcallfunc;
 use crate::{object, PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, Py_ssize_t};
-use std::ffi::{c_char, c_int, c_uint, c_void};
-use std::mem;
+use core::ffi::{c_char, c_int, c_uint, c_void};
+use core::mem;
 
 // skipped private _Py_NewReference
 // skipped private _Py_NewReferenceNoTotal
 // skipped private _Py_ResurrectReference
+// skipped private _Py_ForgetReference
 
 // skipped private _Py_GetGlobalRefTotal
 // skipped private _Py_GetRefTotal
@@ -21,8 +22,8 @@ use std::mem;
 #[cfg(not(Py_3_11))] // moved to src/buffer.rs from Python
 mod bufferinfo {
     use crate::Py_ssize_t;
-    use std::ffi::{c_char, c_int, c_void};
-    use std::ptr;
+    use core::ffi::{c_char, c_int, c_void};
+    use core::ptr;
 
     #[repr(C)]
     #[derive(Copy, Clone)]
@@ -229,7 +230,7 @@ pub struct PyTypeObject {
     pub tp_setattro: Option<object::setattrofunc>,
     pub tp_as_buffer: *mut PyBufferProcs,
     #[cfg(not(Py_GIL_DISABLED))]
-    pub tp_flags: std::ffi::c_ulong,
+    pub tp_flags: core::ffi::c_ulong,
     #[cfg(Py_GIL_DISABLED)]
     pub tp_flags: crate::impl_::AtomicCULong,
     pub tp_doc: *const c_char,
@@ -277,6 +278,8 @@ pub struct PyTypeObject {
     pub tp_next: *mut PyTypeObject,
     #[cfg(Py_3_13)]
     pub tp_versions_used: u16,
+    #[cfg(Py_3_15)]
+    pub _tp_iteritem: Option<object::_Py_iteritemfunc>,
 }
 
 #[cfg(Py_3_11)]
@@ -406,7 +409,7 @@ extern_libpython! {
 
     pub fn PyUnstable_TryIncRef(obj: *mut PyObject) -> c_int;
 
-    pub fn PyUnstable_EnableTryIncRef(obj: *mut PyObject) -> c_void;
+    pub fn PyUnstable_EnableTryIncRef(obj: *mut PyObject);
 
     pub fn PyUnstable_Object_IsUniquelyReferenced(op: *mut PyObject) -> c_int;
 }

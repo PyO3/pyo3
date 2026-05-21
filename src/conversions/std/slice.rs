@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use alloc::borrow::Cow;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
@@ -19,7 +19,7 @@ where
     #[cfg(feature = "experimental-inspect")]
     const OUTPUT_TYPE: PyStaticExpr = <&T>::SEQUENCE_OUTPUT_TYPE;
 
-    /// Turns [`&[u8]`](std::slice) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
+    /// Turns [`&[u8]`](core::slice) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///
     /// [`PyBytes`]: crate::types::PyBytes
     /// [`PyList`]: crate::types::PyList
@@ -84,7 +84,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
+    use alloc::borrow::Cow;
 
     use crate::{
         conversion::IntoPyObject,

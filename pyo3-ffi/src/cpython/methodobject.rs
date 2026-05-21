@@ -1,7 +1,7 @@
 use crate::object::*;
 #[cfg(not(GraalPy))]
 use crate::{PyCFunctionObject, PyMethodDefPointer, METH_METHOD, METH_STATIC};
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 #[cfg(not(GraalPy))]
 pub struct PyCMethodObject {
@@ -39,7 +39,7 @@ pub unsafe fn PyCFunction_GET_SELF(func: *mut PyObject) -> *mut PyObject {
 
     let func = func.cast::<PyCFunctionObject>();
     if (*(*func).m_ml).ml_flags & METH_STATIC != 0 {
-        std::ptr::null_mut()
+        core::ptr::null_mut()
     } else {
         (*func).m_self
     }
@@ -64,6 +64,6 @@ pub unsafe fn PyCFunction_GET_CLASS(func: *mut PyObject) -> *mut PyTypeObject {
         let func = func.cast::<PyCMethodObject>();
         (*func).mm_class
     } else {
-        std::ptr::null_mut()
+        core::ptr::null_mut()
     }
 }

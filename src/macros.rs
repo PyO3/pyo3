@@ -117,15 +117,15 @@ macro_rules! py_run_impl {
         $crate::py_run_impl!($py, *d, $code)
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{
-        use ::std::option::Option::*;
-        if let ::std::result::Result::Err(e) = $py.run(&::std::ffi::CString::new($code).unwrap(), None, Some(&$dict)) {
+        use ::core::option::Option::*;
+        if let ::core::result::Result::Err(e) = $py.run(&::std::ffi::CString::new($code).unwrap(), None, Some(&$dict)) {
             e.print($py);
             // So when this c api function the last line called printed the error to stderr,
             // the output is only written into a buffer which is never flushed because we
             // panic before flushing. This is where this hack comes into place
             $py.run(c"import sys; sys.stderr.flush()", None, None)
                 .unwrap();
-            ::std::panic!("{}", $code)
+            ::core::panic!("{}", $code)
         }
     }};
 }
@@ -135,6 +135,40 @@ macro_rules! py_run_impl {
 /// This can be used with [`PyModule::add_function`](crate::types::PyModuleMethods::add_function) to
 /// add free functions to a [`PyModule`](crate::types::PyModule) - see its documentation for more
 /// information.
+///
+/// # Examples
+/// ```
+/// use pyo3::prelude::*;
+/// #[pyfunction]
+/// fn add(x: i32, y: i32) -> i32 {
+///     x + y
+/// }
+///
+/// # fn main() -> PyResult<()> {
+/// Python::attach(|py| {
+///     let example = PyModule::from_code(
+///         py,
+///         c"from collections.abc import Callable
+/// def add_two_and_three(add: 'Callable[[int, int], int]') -> int:
+///     return add(2, 3)",
+///         c"example.py",
+///         c"",
+///     )?;
+///
+///     // `add_two_and_three` is a Python function defined in the code above
+///     let add_two_and_three = example.getattr("add_two_and_three")?;
+///
+///     // `add` is a Python function defined by the `#[pyfunction]` macro
+///     let add = wrap_pyfunction!(add, py)?;
+///
+///     let result = add_two_and_three.call1((add,))?.extract::<i32>()?;
+///
+///     assert_eq!(result, 5);
+///
+///     # Ok(())
+/// })
+/// # }
+/// ```
 #[macro_export]
 macro_rules! wrap_pyfunction {
     ($function:path) => {
@@ -183,13 +217,13 @@ macro_rules! append_to_inittab {
     ($module:ident) => {
         unsafe {
             if $crate::ffi::Py_IsInitialized() != 0 {
-                ::std::panic!(
+                ::core::panic!(
                     "called `append_to_inittab` but a Python interpreter is already running."
                 );
             }
             $crate::ffi::PyImport_AppendInittab(
                 $module::__PYO3_NAME.as_ptr(),
-                ::std::option::Option::Some($module::__pyo3_init),
+                ::core::option::Option::Some($module::__pyo3_init),
             );
         }
     };

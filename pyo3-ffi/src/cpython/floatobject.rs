@@ -1,7 +1,9 @@
 #[cfg(GraalPy)]
 use crate::PyFloat_AsDouble;
-use crate::{PyFloat_Check, PyObject};
-use std::ffi::c_double;
+#[cfg(not(GraalPy))]
+use crate::PyFloat_Check;
+use crate::PyObject;
+use core::ffi::c_double;
 
 #[repr(C)]
 pub struct PyFloatObject {
@@ -10,7 +12,8 @@ pub struct PyFloatObject {
 }
 
 #[inline]
-pub unsafe fn _PyFloat_CAST(op: *mut PyObject) -> *mut PyFloatObject {
+#[cfg(not(GraalPy))]
+unsafe fn _PyFloat_CAST(op: *mut PyObject) -> *mut PyFloatObject {
     debug_assert_eq!(PyFloat_Check(op), 1);
     op.cast()
 }

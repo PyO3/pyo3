@@ -1,5 +1,5 @@
 use crate::object::*;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]

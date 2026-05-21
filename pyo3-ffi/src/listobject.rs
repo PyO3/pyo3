@@ -1,7 +1,8 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
+#[cfg(not(RustPython))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyList_Type")]
     pub static mut PyList_Type: PyTypeObject;
@@ -9,17 +10,24 @@ extern_libpython! {
     pub static mut PyListRevIter_Type: PyTypeObject;
 }
 
+#[cfg(not(RustPython))]
 #[inline]
 pub unsafe fn PyList_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LIST_SUBCLASS)
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyList_CheckExact(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyList_Type)
 }
 
 extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyList_Check(op: *mut PyObject) -> c_int;
+    #[cfg(RustPython)]
+    pub fn PyList_CheckExact(op: *mut PyObject) -> c_int;
+
     #[cfg_attr(PyPy, link_name = "PyPyList_New")]
     pub fn PyList_New(size: Py_ssize_t) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyList_Size")]

@@ -4,26 +4,14 @@ use crate::pyarena::PyArena;
 use crate::PyCompilerFlags;
 #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
 use crate::{_mod, _node};
+use core::ffi::{c_char, c_int};
 use libc::FILE;
-use std::ffi::{c_char, c_int};
 
 extern_libpython! {
     pub fn PyRun_SimpleStringFlags(arg1: *const c_char, arg2: *mut PyCompilerFlags) -> c_int;
-    pub fn _PyRun_SimpleFileObject(
-        fp: *mut FILE,
-        filename: *mut PyObject,
-        closeit: c_int,
-        flags: *mut PyCompilerFlags,
-    ) -> c_int;
     pub fn PyRun_AnyFileExFlags(
         fp: *mut FILE,
         filename: *const c_char,
-        closeit: c_int,
-        flags: *mut PyCompilerFlags,
-    ) -> c_int;
-    pub fn _PyRun_AnyFileObject(
-        fp: *mut FILE,
-        filename: *mut PyObject,
         closeit: c_int,
         flags: *mut PyCompilerFlags,
     ) -> c_int;
@@ -46,11 +34,6 @@ extern_libpython! {
     pub fn PyRun_InteractiveLoopFlags(
         fp: *mut FILE,
         filename: *const c_char,
-        flags: *mut PyCompilerFlags,
-    ) -> c_int;
-    pub fn _PyRun_InteractiveLoopObject(
-        fp: *mut FILE,
-        filename: *mut PyObject,
         flags: *mut PyCompilerFlags,
     ) -> c_int;
 
@@ -94,9 +77,7 @@ extern_libpython! {
         errcode: *mut c_int,
         arena: *mut PyArena,
     ) -> *mut _mod;
-}
 
-extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyRun_StringFlags")]
     pub fn PyRun_StringFlags(
         arg1: *const c_char,
@@ -137,7 +118,7 @@ extern_libpython! {
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject {
-    Py_CompileStringExFlags(string, p, s, std::ptr::null_mut(), -1)
+    Py_CompileStringExFlags(string, p, s, core::ptr::null_mut(), -1)
 }
 
 #[inline]
@@ -150,8 +131,6 @@ pub unsafe fn Py_CompileStringFlags(
 ) -> *mut PyObject {
     Py_CompileStringExFlags(string, p, s, f, -1)
 }
-
-// skipped _Py_SourceAsString
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyRun_String")]

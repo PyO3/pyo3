@@ -4,8 +4,8 @@ use crate::sealed::Sealed;
 use crate::types::{PyCode, PyDict};
 use crate::PyAny;
 use crate::{ffi, Bound, PyResult, Python};
+use core::ffi::CStr;
 use pyo3_ffi::PyObject;
-use std::ffi::CStr;
 
 /// Represents a Python frame.
 ///
@@ -149,11 +149,17 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
         // - `self` is a `PyFrameObject`
         // - `PyFrame_GetBuiltins` returns an owned reference
         // - the result can not be null
-        // - the result is a dict object
         unsafe {
             ffi::PyFrame_GetBuiltins(self.as_ptr().cast())
                 .assume_owned_unchecked(self.py())
-                .cast_into_unchecked()
+                .cast_into()
+                // The result is expected (and documented) to be a dict object, however it is
+                // possible for Python code to overwrite `__builtins__` with any arbitrary object.
+                // As reasonable code should never do this, we panic here for correctness in case
+                // the type does not match.
+                //
+                // See https://github.com/PyO3/pyo3/issues/6048
+                .expect("`PyFrame_GetBuiltins` returns a `dict`")
         }
     }
 
@@ -302,6 +308,27 @@ def outer():
             );
             assert!(builtins.contains("len").unwrap());
         })
+    }
+
+    #[test]
+    #[cfg(all(Py_3_11, not(Py_LIMITED_API)))]
+    #[should_panic(expected = "`PyFrame_GetBuiltins` returns a `dict`")]
+    fn test_frame_builtins_panics_on_type_error() {
+        use crate::types::PyAnyMethods as _;
+        Python::attach(|py| -> PyResult<()> {
+            let sys = py.import("sys")?;
+            let globals = PyDict::new(py);
+            globals.set_item("getframe", sys.getattr("_getframe")?)?;
+            globals.set_item("__builtins__", py.eval(c"object()", None, None)?)?;
+            py.run(c"frame = getframe()", Some(&globals), None)?;
+            let frame: Bound<'_, PyFrame> = globals.get_item("frame")?.cast_into()?;
+
+            // This should panic, as `__builtins__` is not a dict
+            let _builtins = frame.builtins();
+
+            Ok(())
+        })
+        .unwrap();
     }
 
     #[test]

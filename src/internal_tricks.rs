@@ -1,4 +1,4 @@
-use std::ptr::NonNull;
+use core::ptr::NonNull;
 
 use crate::ffi::{self, Py_ssize_t, PY_SSIZE_T_MAX};
 
@@ -26,7 +26,7 @@ pub(crate) fn clear_eq(f: Option<ffi::inquiry>, g: ffi::inquiry) -> bool {
     #[expect(clippy::incompatible_msrv, reason = "guarded by cfg(fn_ptr_eq)")]
     {
         let Some(f) = f else { return false };
-        std::ptr::fn_addr_eq(f, g)
+        core::ptr::fn_addr_eq(f, g)
     }
 
     #[cfg(not(fn_ptr_eq))]
@@ -41,7 +41,7 @@ pub(crate) fn traverse_eq(f: Option<ffi::traverseproc>, g: ffi::traverseproc) ->
     #[expect(clippy::incompatible_msrv, reason = "guarded by cfg(fn_ptr_eq)")]
     {
         let Some(f) = f else { return false };
-        std::ptr::fn_addr_eq(f, g)
+        core::ptr::fn_addr_eq(f, g)
     }
 
     #[cfg(not(fn_ptr_eq))]

@@ -9,8 +9,10 @@ use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
     types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, Python,
 };
-use std::convert::Infallible;
-use std::ptr;
+#[cfg(RustPython)]
+use crate::{sync::PyOnceLock, types::PyType, Py};
+use core::convert::Infallible;
+use core::ptr;
 
 /// Represents a Python `bool`.
 ///
@@ -22,7 +24,21 @@ use std::ptr;
 #[repr(transparent)]
 pub struct PyBool(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type!(PyBool, ffi::PyObject, pyobject_native_static_type_object!(ffi::PyBool_Type), "builtins", "bool", #checkfunction=ffi::PyBool_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type!(
+    PyBool,
+    ffi::PyObject,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "bool").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "bool",
+    #checkfunction=ffi::PyBool_Check
+);
 
 impl PyBool {
     /// Depending on `val`, returns `true` or `false`.
