@@ -1,5 +1,5 @@
-use core::num::NonZero;
+use core::ffi::c_ulong;
 
 extern_libpython! {
-    pub fn PyThread_get_thread_ident() -> NonZero<u64>;
+    pub fn PyThread_get_thread_ident() -> c_ulong;
 }
