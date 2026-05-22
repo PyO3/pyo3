@@ -1,5 +1,4 @@
-use core::ffi::{c_int, c_void};
-use core::num::NonZero;
+use core::ffi::{c_int, c_ulong, c_void};
 
 // skipped PyThread_type_lock
 // skipped PyLockStatus
@@ -8,7 +7,7 @@ use core::num::NonZero;
 // skipped PyThread_exit_thread
 
 extern_libpython! {
-    pub fn PyThread_get_thread_ident() -> NonZero<u64>;
+    pub fn PyThread_get_thread_ident() -> c_ulong;
 }
 
 // skipped PyThread_get_thread_native_id
