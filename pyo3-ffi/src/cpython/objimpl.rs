@@ -10,6 +10,8 @@ use crate::object::*;
 // skipped _PyObject_SIZE
 // skipped _PyObject_VAR_SIZE
 
+// skipped _Py_GetAllocatedBlocks
+
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -46,6 +48,9 @@ pub unsafe fn PyObject_IS_GC(o: *mut PyObject) -> c_int {
             None => true,
         }) as c_int
 }
+
+// skipped _PyObject_GC_Malloc
+// skipped _PyObject_GC_Calloc
 
 #[inline]
 pub unsafe fn PyType_SUPPORTS_WEAKREFS(t: *mut PyTypeObject) -> c_int {
