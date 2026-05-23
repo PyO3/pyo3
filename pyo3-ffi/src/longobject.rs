@@ -89,6 +89,8 @@ extern_libpython! {
     ) -> *mut PyObject;
 }
 
+// skipped non-limited _PyLong_NumBits
+
 // skipped non-limited _PyLong_Format
 // skipped non-limited _PyLong_FormatWriter
 // skipped non-limited _PyLong_FormatBytesWriter
