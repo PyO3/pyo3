@@ -222,18 +222,22 @@ fn normalize_src_blocks(output: &[u8]) -> Vec<u8> {
 
     // Matches the full block which we want to replace.
     //
-    // The first line with the src path is captured, and then all following lines starting with either a line number and `|` or just `...`
+    // The first line with the src path is captured, and then all following lines starting with either:
+    // - a line number and `|`
+    // - a line number and `=`
+    // - a line number and `+` or `-` (suggested edit to fix the error)
+    // - just `...`
     // are captured as the "listing".
     static SRC_BLOCK: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(
-            r"\n[ \t]*--> (src/\S+?):\d+:\d+((?:\n[ \t]*\d*[ \t]*[|=][^\n]*|\n[ \t]*\.\.\.)+)",
+            r"\n[ \t]*--> (src/\S+?):\d+:\d+((?:\n[ \t]*\d*[ \t]*[|=+-][^\n]*|\n[ \t]*\.\.\.)+)",
         )
         .unwrap()
     });
 
     // Matches a gutter line in the listing (potentially with a line number)
     static GUTTER: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"\n[ \t]*\d*[ \t]*([|=])").unwrap());
+        LazyLock::new(|| Regex::new(r"\n[ \t]*\d*[ \t]*([|=+-])").unwrap());
 
     SRC_BLOCK
         .replace_all(output, |captures: &Captures<'_>| {

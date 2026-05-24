@@ -4,6 +4,8 @@
 
 use pyo3::*;
 
+extern crate alloc;
+
 #[path = "../../src/tests/hygiene/mod.rs"]
 mod hygiene;
 
