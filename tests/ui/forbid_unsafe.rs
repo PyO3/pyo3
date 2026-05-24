@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 #![forbid(unsafe_op_in_unsafe_fn)]
 
+extern crate alloc;
+
 use pyo3::*;
 
 #[expect(unexpected_cfgs)]
