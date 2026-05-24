@@ -5,6 +5,12 @@ use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyList, PyMapping};
 use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 
 /// Represents a Python `dict`.
 ///
@@ -19,6 +25,7 @@ pub struct PyDict(PyAny);
 #[cfg(not(GraalPy))]
 pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
 
+#[cfg(not(RustPython))]
 pyobject_native_type!(
     PyDict,
     ffi::PyDictObject,
@@ -28,12 +35,25 @@ pyobject_native_type!(
     #checkfunction=ffi::PyDict_Check
 );
 
+#[cfg(RustPython)]
+pyobject_native_type!(
+    PyDict,
+    ffi::PyDictObject,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "dict").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "dict",
+    #checkfunction=ffi::PyDict_Check
+);
+
 /// Represents a Python `dict_keys`.
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, RustPython)))]
 #[repr(transparent)]
 pub struct PyDictKeys(PyAny);
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, RustPython)))]
 pyobject_native_type_core!(
     PyDictKeys,
     pyobject_native_static_type_object!(ffi::PyDictKeys_Type),
@@ -43,11 +63,11 @@ pyobject_native_type_core!(
 );
 
 /// Represents a Python `dict_values`.
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, RustPython)))]
 #[repr(transparent)]
 pub struct PyDictValues(PyAny);
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, RustPython)))]
 pyobject_native_type_core!(
     PyDictValues,
     pyobject_native_static_type_object!(ffi::PyDictValues_Type),
@@ -57,11 +77,11 @@ pyobject_native_type_core!(
 );
 
 /// Represents a Python `dict_items`.
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, RustPython)))]
 #[repr(transparent)]
 pub struct PyDictItems(PyAny);
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, RustPython)))]
 pyobject_native_type_core!(
     PyDictItems,
     pyobject_native_static_type_object!(ffi::PyDictItems_Type),
@@ -281,13 +301,13 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             key: Borrowed<'_, '_, PyAny>,
         ) -> PyResult<Option<Bound<'py, PyAny>>> {
             let py = dict.py();
-            let mut result: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut result: *mut ffi::PyObject = core::ptr::null_mut();
             match unsafe {
                 ffi::compat::PyDict_GetItemRef(dict.as_ptr(), key.as_ptr(), &mut result)
             } {
-                std::ffi::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
+                core::ffi::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
                 0 => Ok(None),
-                1..=std::ffi::c_int::MAX => {
+                1..=core::ffi::c_int::MAX => {
                     // Safety: PyDict_GetItemRef positive return value means the result is a valid
                     // owned reference
                     Ok(Some(unsafe { result.assume_owned_unchecked(py) }))
@@ -426,7 +446,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
                         dict.as_ptr(),
                         key.as_ptr(),
                         value.as_ptr(),
-                        std::ptr::null_mut(),
+                        core::ptr::null_mut(),
                     )
                 },
             ))
@@ -458,7 +478,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             value: Borrowed<'_, '_, PyAny>,
             py: Python<'py>,
         ) -> PyResult<(bool, Bound<'py, PyAny>)> {
-            let mut result = std::ptr::NonNull::dangling().as_ptr();
+            let mut result = core::ptr::NonNull::dangling().as_ptr();
             let code = setdefault_result_from_nonerror_return_code(
                 err::error_on_minusone_with_result(dict.py(), unsafe {
                     ffi::compat::PyDict_SetDefaultRef(
@@ -486,7 +506,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     }
 }
 
-fn setdefault_result_from_nonerror_return_code(code: PyResult<std::ffi::c_int>) -> PyResult<bool> {
+fn setdefault_result_from_nonerror_return_code(code: PyResult<core::ffi::c_int>) -> PyResult<bool> {
     match code? {
         // inserted
         0 => Ok(true),
@@ -575,8 +595,8 @@ impl DictIterImpl {
                     panic!("dictionary keys changed during iteration");
                 };
 
-                let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-                let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+                let mut key: *mut ffi::PyObject = core::ptr::null_mut();
+                let mut value: *mut ffi::PyObject = core::ptr::null_mut();
 
                 if unsafe { ffi::PyDict_Next(dict.as_ptr(), ppos, &mut key, &mut value) != 0 } {
                     *remaining -= 1;
@@ -663,7 +683,7 @@ impl<'py> Iterator for BoundDictIterator<'py> {
     where
         Self: Sized,
         F: FnMut(B, Self::Item) -> R,
-        R: std::ops::Try<Output = B>,
+        R: core::ops::Try<Output = B>,
     {
         self.inner.with_critical_section(&self.dict, |inner| {
             let mut accum = init;
@@ -820,8 +840,8 @@ mod borrowed_iter {
 
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
-            let mut key: *mut ffi::PyObject = std::ptr::null_mut();
-            let mut value: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut key: *mut ffi::PyObject = core::ptr::null_mut();
+            let mut value: *mut ffi::PyObject = core::ptr::null_mut();
 
             // Safety: self.dict lives sufficiently long that the pointer is not dangling
             if unsafe { ffi::PyDict_Next(self.dict.as_ptr(), &mut self.ppos, &mut key, &mut value) }
@@ -934,7 +954,8 @@ where
 mod tests {
     use super::*;
     use crate::types::{PyAnyMethods as _, PyTuple};
-    use std::collections::{BTreeMap, HashMap};
+    use alloc::collections::BTreeMap;
+    use std::collections::HashMap;
 
     #[test]
     fn test_new() {
@@ -1487,7 +1508,7 @@ mod tests {
         });
     }
 
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn abc_dict(py: Python<'_>) -> Bound<'_, PyDict> {
         let mut map = HashMap::<&'static str, i32>::new();
         map.insert("a", 1);
@@ -1497,7 +1518,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn dict_keys_view() {
         Python::attach(|py| {
             let dict = abc_dict(py);
@@ -1507,7 +1528,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn dict_values_view() {
         Python::attach(|py| {
             let dict = abc_dict(py);
@@ -1517,7 +1538,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn dict_items_view() {
         Python::attach(|py| {
             let dict = abc_dict(py);

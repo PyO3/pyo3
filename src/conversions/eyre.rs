@@ -58,7 +58,7 @@
 //! # Example: Using `eyre` in general
 //!
 //! Note that you don't need this feature to convert a [`PyErr`] into an [`eyre::Report`], because
-//! it can already convert anything that implements [`Error`](std::error::Error):
+//! it can already convert anything that implements [`Error`](core::error::Error):
 //!
 //! ```rust
 //! use pyo3::prelude::*;

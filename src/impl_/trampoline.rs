@@ -5,11 +5,7 @@
 //! They exist to monomorphise std::panic::catch_unwind once into PyO3, rather than inline in every
 //! function, thus saving a huge amount of compile-time complexity.
 
-use std::{
-    any::Any,
-    os::raw::c_int,
-    panic::{self, UnwindSafe},
-};
+use core::{any::Any, ffi::c_int, panic::UnwindSafe};
 
 use crate::internal::state::AttachGuard;
 use crate::{
@@ -277,7 +273,7 @@ pub(crate) unsafe fn dealloc(
                 f(py, slf);
                 Ok(())
             },
-            std::ptr::null_mut(),
+            core::ptr::null_mut(),
         )
     }
 }
@@ -302,7 +298,7 @@ where
     let py = guard.python();
     let out = panic_result_into_callback_output(
         py,
-        panic::catch_unwind(move || -> PyResult<_> { body(py) }),
+        std::panic::catch_unwind(move || -> PyResult<_> { body(py) }),
     );
     trap.disarm();
     out
@@ -349,7 +345,7 @@ where
     let guard = unsafe { AttachGuard::assume() };
     let py = guard.python();
 
-    if let Err(py_err) = panic::catch_unwind(move || body(py))
+    if let Err(py_err) = std::panic::catch_unwind(move || body(py))
         .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
     {
         // SAFETY: caller upholds requirements

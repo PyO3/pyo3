@@ -5,22 +5,21 @@ use crate::{
     impl_::{
         freelist::PyObjectFreeList,
         pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout},
-        pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
+    internal::pyclass_init::PyObjectInit,
     pycell::{impl_::PyClassObjectLayout, PyBorrowError},
     types::{any::PyAnyMethods, PyBool},
     Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
     PyTypeCheck, PyTypeInfo, Python,
 };
-use std::{
+use core::{
     ffi::CStr,
+    ffi::{c_int, c_void},
     marker::PhantomData,
-    os::raw::{c_int, c_void},
     ptr::{self, NonNull},
-    sync::Mutex,
-    thread,
 };
+use std::{sync::Mutex, thread};
 
 mod assertions;
 pub mod doc;
@@ -94,7 +93,7 @@ impl PyClassWeakRef for PyClassDummySlot {
 pub struct PyClassDictSlot(*mut ffi::PyObject);
 
 impl PyClassDict for PyClassDictSlot {
-    const INIT: Self = Self(std::ptr::null_mut());
+    const INIT: Self = Self(core::ptr::null_mut());
     #[inline]
     fn clear_dict(&mut self, _py: Python<'_>) {
         if !self.0.is_null() {
@@ -110,7 +109,7 @@ impl PyClassDict for PyClassDictSlot {
 pub struct PyClassWeakRefSlot(*mut ffi::PyObject);
 
 impl PyClassWeakRef for PyClassWeakRefSlot {
-    const INIT: Self = Self(std::ptr::null_mut());
+    const INIT: Self = Self(core::ptr::null_mut());
     #[inline]
     unsafe fn clear_weakrefs(&mut self, obj: *mut ffi::PyObject, _py: Python<'_>) {
         if !self.0.is_null() {
@@ -368,7 +367,7 @@ macro_rules! generate_pyclass_getattro_slot {
             _slf: *mut $crate::ffi::PyObject,
             attr: *mut $crate::ffi::PyObject,
         ) -> $crate::PyResult<*mut $crate::ffi::PyObject> {
-            use ::std::result::Result::*;
+            use ::core::result::Result::*;
             use $crate::impl_::pyclass::*;
             let collector = PyClassImplCollector::<$cls>::new();
 
@@ -452,12 +451,12 @@ macro_rules! define_pyclass_setattr_slot {
                     _slf: *mut $crate::ffi::PyObject,
                     attr: *mut $crate::ffi::PyObject,
                     value: *mut $crate::ffi::PyObject,
-                ) -> $crate::PyResult<::std::ffi::c_int> {
-                    use ::std::option::Option::*;
+                ) -> $crate::PyResult<::core::ffi::c_int> {
+                    use ::core::option::Option::*;
                     use $crate::impl_::callback::IntoPyCallbackOutput;
                     use $crate::impl_::pyclass::*;
                     let collector = PyClassImplCollector::<$cls>::new();
-                    if let Some(value) = ::std::ptr::NonNull::new(value) {
+                    if let Some(value) = ::core::ptr::NonNull::new(value) {
                         unsafe { collector.$set(py, _slf, attr, value).convert(py) }
                     } else {
                         unsafe { collector.$del(py, _slf, attr).convert(py) }
@@ -572,7 +571,7 @@ macro_rules! define_pyclass_binary_operator_slot {
                         unsafe { $crate::ffi::Py_DECREF(lhs_result) };
                         unsafe { collector.$rhs(py, _other, _slf) }
                     } else {
-                        ::std::result::Result::Ok(lhs_result)
+                        ::core::result::Result::Ok(lhs_result)
                     }
                 }
 
@@ -754,7 +753,7 @@ macro_rules! generate_pyclass_pow_slot {
                 unsafe { $crate::ffi::Py_DECREF(lhs_result) };
                 unsafe { collector.__rpow__(py, _other, _slf, _mod) }
             } else {
-                ::std::result::Result::Ok(lhs_result)
+                ::core::result::Result::Ok(lhs_result)
             }
         }
 
@@ -871,7 +870,7 @@ macro_rules! generate_pyclass_richcompare_slot {
                 py: $crate::Python<'_>,
                 slf: *mut $crate::ffi::PyObject,
                 other: *mut $crate::ffi::PyObject,
-                op: ::std::ffi::c_int,
+                op: ::core::ffi::c_int,
             ) -> $crate::PyResult<*mut $crate::ffi::PyObject> {
                 use $crate::class::basic::CompareOp;
                 use $crate::impl_::pyclass::*;
@@ -1063,13 +1062,13 @@ impl ThreadCheckerImpl {
 
 impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     fn ensure(&self) {
-        self.ensure(std::any::type_name::<T>());
+        self.ensure(core::any::type_name::<T>());
     }
     fn check(&self) -> bool {
         self.check()
     }
     fn can_drop(&self, py: Python<'_>) -> bool {
-        self.can_drop(py, std::any::type_name::<T>())
+        self.can_drop(py, core::any::type_name::<T>())
     }
     fn new() -> Self {
         ThreadCheckerImpl(thread::current().id())
@@ -1087,6 +1086,10 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     diagnostic::on_unimplemented(
         note = "subclassing native types requires Python >= 3.12 when using the `abi3` feature",
     )
+)]
+#[expect(
+    private_bounds,
+    reason = "`PyObjectInit` is an internal trait implementation"
 )]
 pub trait PyClassBaseType: Sized {
     type LayoutAsBase: PyClassObjectBaseLayout<Self>;
@@ -1117,7 +1120,7 @@ pub(crate) unsafe extern "C" fn get_sequence_item_from_mapping(
 ) -> *mut ffi::PyObject {
     let index = unsafe { ffi::PyLong_FromSsize_t(index) };
     if index.is_null() {
-        return std::ptr::null_mut();
+        return core::ptr::null_mut();
     }
     let result = unsafe { ffi::PyObject_GetItem(obj, index) };
     unsafe { ffi::Py_DECREF(index) };
@@ -1156,7 +1159,7 @@ pub enum PyObjectOffset {
     Relative(ffi::Py_ssize_t),
 }
 
-impl std::ops::Add<usize> for PyObjectOffset {
+impl core::ops::Add<usize> for PyObjectOffset {
     type Output = PyObjectOffset;
 
     fn add(self, rhs: usize) -> Self::Output {
@@ -1446,7 +1449,7 @@ mod tests {
     use crate::pycell::impl_::PyClassObjectContents;
 
     use super::*;
-    use std::mem::offset_of;
+    use core::mem::offset_of;
 
     #[test]
     fn get_py_for_frozen_class() {
@@ -1542,7 +1545,7 @@ mod tests {
         {
             use crate::impl_::pymethods::Getter;
 
-            assert!(std::ptr::fn_addr_eq(
+            assert!(core::ptr::fn_addr_eq(
                 def.meth,
                 pyo3_get_value_into_pyobject_ref::<MyClass, i32, FIELD_OFFSET> as Getter
             ));
@@ -1564,7 +1567,7 @@ mod tests {
         {
             use crate::impl_::pymethods::Getter;
 
-            assert!(std::ptr::fn_addr_eq(
+            assert!(core::ptr::fn_addr_eq(
                 def.meth,
                 pyo3_get_value_into_pyobject::<MyClass, String, FIELD_OFFSET> as Getter
             ));
@@ -1629,7 +1632,7 @@ mod tests {
         {
             use crate::impl_::pymethods::Getter;
 
-            assert!(std::ptr::fn_addr_eq(
+            assert!(core::ptr::fn_addr_eq(
                 def.meth,
                 pyo3_get_value_into_pyobject_ref::<MyClass, Py<PyAny>, FIELD_OFFSET> as Getter
             ));

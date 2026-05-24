@@ -22,6 +22,13 @@ exclude = [
     "/tests/ui",
 ]
 edition = "2021"
+# This allows PyO3 to forward build-config from `pyo3-ffi` to avoid downstream crates
+# needing to depend on `pyo3-ffi` directly to use `pyo3-build-config` functionality.
+#
+# See also https://github.com/rust-lang/cargo/issues/3544 and
+# https://github.com/rust-lang/cargo/pull/16436 which may allow this to be
+# reverted in the future.
+links = "pyo3-python"
 rust-version.workspace = true
 
 [dependencies]
@@ -85,7 +92,7 @@ regex = "1.12.3"
 ctrlc = "3.5.2"
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "=0.28.3", features = ["resolve-config"] }
+pyo3-build-config = { path = "pyo3-build-config", version = "=0.28.3" }
 
 [features]
 default = ["macros"]
@@ -109,16 +116,17 @@ multiple-pymethods = ["inventory", "pyo3-macros/multiple-pymethods"]
 extension-module = ["pyo3-ffi/extension-module"]
 
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
-abi3 = ["pyo3-build-config/abi3", "pyo3-ffi/abi3"]
+abi3 = ["pyo3-ffi/abi3"]
 
 # With abi3, we can manually set the minimum Python version.
-abi3-py38 = ["abi3-py39", "pyo3-build-config/abi3-py38", "pyo3-ffi/abi3-py38"]
-abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39", "pyo3-ffi/abi3-py39"]
-abi3-py310 = ["abi3-py311", "pyo3-build-config/abi3-py310", "pyo3-ffi/abi3-py310"]
-abi3-py311 = ["abi3-py312", "pyo3-build-config/abi3-py311", "pyo3-ffi/abi3-py311"]
-abi3-py312 = ["abi3-py313", "pyo3-build-config/abi3-py312", "pyo3-ffi/abi3-py312"]
-abi3-py313 = ["abi3-py314", "pyo3-build-config/abi3-py313", "pyo3-ffi/abi3-py313"]
-abi3-py314 = ["abi3", "pyo3-build-config/abi3-py314", "pyo3-ffi/abi3-py314"]
+abi3-py38 = ["abi3-py39", "pyo3-ffi/abi3-py38"]
+abi3-py39 = ["abi3-py310", "pyo3-ffi/abi3-py39"]
+abi3-py310 = ["abi3-py311", "pyo3-ffi/abi3-py310"]
+abi3-py311 = ["abi3-py312", "pyo3-ffi/abi3-py311"]
+abi3-py312 = ["abi3-py313", "pyo3-ffi/abi3-py312"]
+abi3-py313 = ["abi3-py314", "pyo3-ffi/abi3-py313"]
+abi3-py314 = ["abi3-py315", "pyo3-ffi/abi3-py314"]
+abi3-py315 = ["abi3", "pyo3-ffi/abi3-py315"]
 
 # deprecated: no longer needed, raw-dylib is used instead
 generate-import-lib = ["pyo3-ffi/generate-import-lib"]
@@ -227,7 +235,179 @@ bare_urls = "warn"
 [lints]
 workspace = true
 
+# Many tests are only relevant on certain feature combinations;
+# CI is marginally more efficient if `required-feature` is specified to avoid
+# building and launching empty test suites.
+
+[[test]]
+name = "test_anyhow"
+required-features = ["anyhow"]
+
+[[test]]
+name = "test_append_to_inittab"
+required-features = ["macros"]
+
+[[test]]
+name = "test_arithmetics"
+required-features = ["macros"]
+
+[[test]]
+name = "test_buffer"
+required-features = ["macros"]
+
+[[test]]
+name = "test_buffer_protocol"
+required-features = ["macros"]
+
+[[test]]
+name = "test_bytes"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_attributes"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_basics"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_comparisons"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_conversion"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_formatting"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_init"
+required-features = ["macros"]
+
+[[test]]
+name = "test_class_new"
+required-features = ["macros"]
+
 [[test]]
 name = "test_compile_error"
-path = "tests/test_compile_error.rs"
+required-features = ["macros"]
 harness = false
+
+[[test]]
+name = "test_coroutine"
+required-features = ["experimental-async"]
+
+[[test]]
+name = "test_declarative_module"
+required-features = ["macros"]
+
+[[test]]
+name = "test_default_impls"
+required-features = ["macros"]
+
+[[test]]
+name = "test_enum"
+required-features = ["macros"]
+
+[[test]]
+name = "test_exceptions"
+required-features = ["macros"]
+
+[[test]]
+name = "test_field_cfg"
+required-features = ["macros"]
+
+[[test]]
+name = "test_frompy_intopy_roundtrip"
+required-features = ["macros"]
+
+[[test]]
+name = "test_frompyobject"
+required-features = ["macros"]
+
+[[test]]
+name = "test_gc"
+required-features = ["macros"]
+
+[[test]]
+name = "test_getter_setter"
+required-features = ["macros"]
+
+[[test]]
+name = "test_inheritance"
+required-features = ["macros"]
+
+[[test]]
+name = "test_intopyobject"
+required-features = ["macros"]
+
+[[test]]
+name = "test_macro_docs"
+required-features = ["macros"]
+
+[[test]]
+name = "test_macros"
+required-features = ["macros"]
+
+[[test]]
+name = "test_mapping"
+required-features = ["macros"]
+
+[[test]]
+name = "test_methods"
+required-features = ["macros"]
+
+[[test]]
+name = "test_module"
+required-features = ["macros"]
+
+[[test]]
+name = "test_multiple_pymethods"
+required-features = ["multiple-pymethods"]
+
+[[test]]
+name = "test_proto_methods"
+required-features = ["macros"]
+
+[[test]]
+name = "test_pyfunction"
+required-features = ["macros"]
+
+[[test]]
+name = "test_pyself"
+required-features = ["macros"]
+
+[[test]]
+name = "test_sequence"
+required-features = ["macros"]
+
+[[test]]
+name = "test_serde"
+required-features = ["serde"]
+
+[[test]]
+name = "test_static_slots"
+required-features = ["macros"]
+
+[[test]]
+name = "test_string"
+required-features = ["macros"]
+
+[[test]]
+name = "test_super"
+required-features = ["macros"]
+
+[[test]]
+name = "test_text_signature"
+required-features = ["macros"]
+
+[[test]]
+name = "test_variable_arguments"
+required-features = ["macros"]
+
+[[test]]
+name = "test_various"
+required-features = ["macros"]

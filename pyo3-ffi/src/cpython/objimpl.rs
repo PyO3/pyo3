@@ -1,19 +1,16 @@
+use core::ffi::c_int;
 #[cfg(not(all(Py_3_11, any(PyPy, GraalPy))))]
 use libc::size_t;
-use std::ffi::c_int;
 
 #[cfg(not(any(PyPy, GraalPy)))]
-use std::ffi::c_void;
+use core::ffi::c_void;
 
 use crate::object::*;
 
 // skipped _PyObject_SIZE
 // skipped _PyObject_VAR_SIZE
 
-#[cfg(not(Py_3_11))]
-extern_libpython! {
-    pub fn _Py_GetAllocatedBlocks() -> crate::Py_ssize_t;
-}
+// skipped _Py_GetAllocatedBlocks
 
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
@@ -28,7 +25,7 @@ pub struct PyObjectArenaAllocator {
 impl Default for PyObjectArenaAllocator {
     #[inline]
     fn default() -> Self {
-        unsafe { std::mem::zeroed() }
+        unsafe { core::mem::zeroed() }
     }
 }
 
@@ -52,11 +49,8 @@ pub unsafe fn PyObject_IS_GC(o: *mut PyObject) -> c_int {
         }) as c_int
 }
 
-#[cfg(not(Py_3_11))]
-extern_libpython! {
-    pub fn _PyObject_GC_Malloc(size: size_t) -> *mut PyObject;
-    pub fn _PyObject_GC_Calloc(size: size_t) -> *mut PyObject;
-}
+// skipped _PyObject_GC_Malloc
+// skipped _PyObject_GC_Calloc
 
 #[inline]
 pub unsafe fn PyType_SUPPORTS_WEAKREFS(t: *mut PyTypeObject) -> c_int {

@@ -4,8 +4,6 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
-#[cfg(RustPython)]
-use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
@@ -17,9 +15,16 @@ use crate::BoundObject;
 use crate::{
     exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
-use std::iter::FusedIterator;
+#[cfg(RustPython)]
+use crate::{
+    py_result_ext::PyResultExt,
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
+use core::iter::FusedIterator;
 #[cfg(feature = "nightly")]
-use std::num::NonZero;
+use core::num::NonZero;
 
 #[cfg(all(
     not(any(PyPy, GraalPy)),
@@ -84,7 +89,20 @@ fn try_new_from_iter<'py>(
 #[repr(transparent)]
 pub struct PyTuple(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyTuple_Type), "builtins", "tuple", #checkfunction=ffi::PyTuple_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyTuple,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "tuple").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "tuple",
+    #checkfunction=ffi::PyTuple_Check
+);
 
 impl PyTuple {
     /// Constructs a new tuple with the given elements.
@@ -293,7 +311,7 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
         // SAFETY: self is known to be a tuple object, and tuples are immutable
         let items = unsafe { &(*self.as_ptr().cast::<ffi::PyTupleObject>()).ob_item };
         // SAFETY: Bound<'py, PyAny> has the same memory layout as *mut ffi::PyObject
-        unsafe { std::slice::from_raw_parts(items.as_ptr().cast(), self.len()) }
+        unsafe { core::slice::from_raw_parts(items.as_ptr().cast(), self.len()) }
     }
 
     #[inline]
@@ -683,7 +701,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             // We need this to drop the arguments correctly.
             let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
+            let mut args = [core::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_VectorcallDict(
                     function.as_ptr(),
@@ -716,13 +734,13 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             }
 
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
+            let mut args = [core::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_Vectorcall(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
                     const { with_vectorcall_arguments_offset($length) },
-                    std::ptr::null_mut(),
+                    core::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
             }
@@ -757,7 +775,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                     args.as_mut_ptr(),
                     // +1 for the receiver.
                     const { with_vectorcall_arguments_offset(1 + $length) },
-                    std::ptr::null_mut(),
+                    core::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
             }
@@ -809,7 +827,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             let py = function.py();
             let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
+            let mut args = [core::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_VectorcallDict(
                     function.as_ptr(),
@@ -842,13 +860,13 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             }
 
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
+            let mut args = [core::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_Vectorcall(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
                     const { with_vectorcall_arguments_offset($length) },
-                    std::ptr::null_mut(),
+                    core::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
             }
@@ -883,7 +901,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                     args.as_mut_ptr(),
                     // +1 for the receiver.
                     const { with_vectorcall_arguments_offset(1 + $length) },
-                    std::ptr::null_mut(),
+                    core::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
             }
@@ -1091,10 +1109,10 @@ tuple_conversion!(
 mod tests {
     use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
     use crate::{IntoPyObject, Python};
-    use std::collections::HashSet;
     #[cfg(feature = "nightly")]
-    use std::num::NonZero;
-    use std::ops::Range;
+    use core::num::NonZero;
+    use core::ops::Range;
+    use std::collections::HashSet;
     #[test]
     fn test_new() {
         Python::attach(|py| {
@@ -1469,8 +1487,8 @@ mod tests {
     #[cfg(panic = "unwind")]
     fn bad_intopyobject_doesnt_cause_leaks() {
         use crate::types::PyInt;
-        use std::convert::Infallible;
-        use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+        use core::convert::Infallible;
+        use core::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -1532,8 +1550,8 @@ mod tests {
     #[cfg(panic = "unwind")]
     fn bad_intopyobject_doesnt_cause_leaks_2() {
         use crate::types::PyInt;
-        use std::convert::Infallible;
-        use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+        use core::convert::Infallible;
+        use core::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
 

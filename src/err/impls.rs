@@ -91,8 +91,8 @@ impl<W: Send + Sync> PyErrArguments for io::IntoInnerError<W> {
     }
 }
 
-impl From<std::convert::Infallible> for PyErr {
-    fn from(_: std::convert::Infallible) -> PyErr {
+impl From<core::convert::Infallible> for PyErr {
+    fn from(_: core::convert::Infallible) -> PyErr {
         unreachable!()
     }
 }
@@ -110,7 +110,7 @@ macro_rules! impl_to_pyerr {
             }
         }
 
-        impl std::convert::From<$err> for PyErr {
+        impl core::convert::From<$err> for PyErr {
             fn from(err: $err) -> PyErr {
                 <$pyexc>::new_err(err)
             }
@@ -119,7 +119,7 @@ macro_rules! impl_to_pyerr {
 }
 
 struct Utf8ErrorWithBytes {
-    err: std::str::Utf8Error,
+    err: core::str::Utf8Error,
     bytes: Vec<u8>,
 }
 
@@ -143,7 +143,7 @@ impl PyErrArguments for Utf8ErrorWithBytes {
     }
 }
 
-impl PyErrArguments for std::string::FromUtf8Error {
+impl PyErrArguments for alloc::string::FromUtf8Error {
     fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         Utf8ErrorWithBytes {
             err: self.utf8_error(),
@@ -153,13 +153,13 @@ impl PyErrArguments for std::string::FromUtf8Error {
     }
 }
 
-impl std::convert::From<std::string::FromUtf8Error> for PyErr {
-    fn from(err: std::string::FromUtf8Error) -> PyErr {
+impl core::convert::From<alloc::string::FromUtf8Error> for PyErr {
+    fn from(err: alloc::string::FromUtf8Error) -> PyErr {
         exceptions::PyUnicodeDecodeError::new_err(err)
     }
 }
 
-impl PyErrArguments for std::ffi::IntoStringError {
+impl PyErrArguments for alloc::ffi::IntoStringError {
     fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         Utf8ErrorWithBytes {
             err: self.utf8_error(),
@@ -169,25 +169,25 @@ impl PyErrArguments for std::ffi::IntoStringError {
     }
 }
 
-impl std::convert::From<std::ffi::IntoStringError> for PyErr {
-    fn from(err: std::ffi::IntoStringError) -> PyErr {
+impl core::convert::From<alloc::ffi::IntoStringError> for PyErr {
+    fn from(err: alloc::ffi::IntoStringError) -> PyErr {
         exceptions::PyUnicodeDecodeError::new_err(err)
     }
 }
 
-impl_to_pyerr!(std::array::TryFromSliceError, exceptions::PyValueError);
-impl_to_pyerr!(std::num::ParseIntError, exceptions::PyValueError);
-impl_to_pyerr!(std::num::ParseFloatError, exceptions::PyValueError);
-impl_to_pyerr!(std::num::TryFromIntError, exceptions::PyValueError);
-impl_to_pyerr!(std::str::ParseBoolError, exceptions::PyValueError);
-impl_to_pyerr!(std::ffi::NulError, exceptions::PyValueError);
-impl_to_pyerr!(std::net::AddrParseError, exceptions::PyValueError);
-impl_to_pyerr!(std::time::TryFromFloatSecsError, exceptions::PyValueError);
+impl_to_pyerr!(core::array::TryFromSliceError, exceptions::PyValueError);
+impl_to_pyerr!(core::num::ParseIntError, exceptions::PyValueError);
+impl_to_pyerr!(core::num::ParseFloatError, exceptions::PyValueError);
+impl_to_pyerr!(core::num::TryFromIntError, exceptions::PyValueError);
+impl_to_pyerr!(core::str::ParseBoolError, exceptions::PyValueError);
+impl_to_pyerr!(alloc::ffi::NulError, exceptions::PyValueError);
+impl_to_pyerr!(core::net::AddrParseError, exceptions::PyValueError);
+impl_to_pyerr!(core::time::TryFromFloatSecsError, exceptions::PyValueError);
 impl_to_pyerr!(std::time::SystemTimeError, exceptions::PyValueError);
 impl_to_pyerr!(std::path::StripPrefixError, exceptions::PyValueError);
 impl_to_pyerr!(std::env::JoinPathsError, exceptions::PyValueError);
-impl_to_pyerr!(std::char::ParseCharError, exceptions::PyValueError);
-impl_to_pyerr!(std::char::CharTryFromError, exceptions::PyValueError);
+impl_to_pyerr!(core::char::ParseCharError, exceptions::PyValueError);
+impl_to_pyerr!(core::char::CharTryFromError, exceptions::PyValueError);
 
 #[cfg(test)]
 mod tests {
@@ -282,7 +282,7 @@ mod tests {
         };
 
         let utf8_err_with_bytes = PyUnicodeDecodeError::new_err(Utf8ErrorWithBytes {
-            err: std::str::from_utf8(&bytes).expect_err("\\xff is invalid utf-8"),
+            err: core::str::from_utf8(&bytes).expect_err("\\xff is invalid utf-8"),
             bytes: bytes.clone(),
         });
         check_err(utf8_err_with_bytes);
@@ -292,7 +292,7 @@ mod tests {
             .into();
         check_err(from_utf8_err);
 
-        let from_utf8_err = std::ffi::CString::new(bytes.clone())
+        let from_utf8_err = alloc::ffi::CString::new(bytes.clone())
             .unwrap()
             .into_string()
             .expect_err("\\xff is invalid utf-8")
@@ -311,13 +311,13 @@ mod tests {
             };
 
             // TryFromFloatSecsError
-            let float_secs_err = std::time::Duration::try_from_secs_f32(-1.0).unwrap_err();
+            let float_secs_err = core::time::Duration::try_from_secs_f32(-1.0).unwrap_err();
             let expected = float_secs_err.to_string();
             check_err(float_secs_err.into(), &expected);
 
             // SystemTimeError
             let sys_time_err = std::time::SystemTime::now()
-                .duration_since(std::time::SystemTime::now() + std::time::Duration::from_secs(1))
+                .duration_since(std::time::SystemTime::now() + core::time::Duration::from_secs(1))
                 .unwrap_err();
             let expected = sys_time_err.to_string();
             check_err(sys_time_err.into(), &expected);

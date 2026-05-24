@@ -24,8 +24,8 @@ impl Dummy {
         crate::types::PyBytes::new(py, &[0])
     }
 
-    fn __format__(&self, format_spec: ::std::string::String) -> ::std::string::String {
-        ::std::unimplemented!()
+    fn __format__(&self, format_spec: ::alloc::string::String) -> ::alloc::string::String {
+        ::core::unimplemented!()
     }
 
     fn __lt__(&self, other: &Self) -> bool {
@@ -60,23 +60,23 @@ impl Dummy {
     // Customizing attribute access
     //////////////////////
 
-    fn __getattr__(&self, name: ::std::string::String) -> &crate::Bound<'_, crate::PyAny> {
-        ::std::unimplemented!()
+    fn __getattr__(&self, name: ::alloc::string::String) -> &crate::Bound<'_, crate::PyAny> {
+        ::core::unimplemented!()
     }
 
-    fn __getattribute__(&self, name: ::std::string::String) -> &crate::Bound<'_, crate::PyAny> {
-        ::std::unimplemented!()
+    fn __getattribute__(&self, name: ::alloc::string::String) -> &crate::Bound<'_, crate::PyAny> {
+        ::core::unimplemented!()
     }
 
-    fn __setattr__(&mut self, name: ::std::string::String, value: ::std::string::String) {}
+    fn __setattr__(&mut self, name: ::alloc::string::String, value: ::alloc::string::String) {}
 
-    fn __delattr__(&mut self, name: ::std::string::String) {}
+    fn __delattr__(&mut self, name: ::alloc::string::String) {}
 
     fn __dir__<'py>(
         &self,
         py: crate::Python<'py>,
     ) -> crate::PyResult<crate::Bound<'py, crate::types::PyList>> {
-        crate::types::PyList::new(py, ::std::vec![0_u8])
+        crate::types::PyList::new(py, ::alloc::vec![0_u8])
     }
 
     //////////////////////
@@ -88,7 +88,7 @@ impl Dummy {
         instance: &crate::Bound<'_, crate::PyAny>,
         owner: &crate::Bound<'_, crate::PyAny>,
     ) -> crate::PyResult<&crate::Bound<'_, crate::PyAny>> {
-        ::std::unimplemented!()
+        ::core::unimplemented!()
     }
 
     fn __set__(
@@ -116,7 +116,7 @@ impl Dummy {
     }
 
     fn __getitem__(&self, key: u32) -> crate::PyResult<u32> {
-        ::std::result::Result::Err(crate::exceptions::PyKeyError::new_err("boo"))
+        ::core::result::Result::Err(crate::exceptions::PyKeyError::new_err("boo"))
     }
 
     fn __setitem__(&self, key: u32, value: u32) {}
@@ -127,8 +127,8 @@ impl Dummy {
         crate::Py::new(py, DummyIter {}).unwrap()
     }
 
-    fn __next__(&mut self) -> ::std::option::Option<()> {
-        ::std::option::Option::None
+    fn __next__(&mut self) -> ::core::option::Option<()> {
+        ::core::option::Option::None
     }
 
     fn __reversed__(
@@ -159,11 +159,11 @@ impl Dummy {
     }
 
     fn __truediv__(&self, _other: &Self) -> crate::PyResult<()> {
-        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
+        ::core::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
     }
 
     fn __floordiv__(&self, _other: &Self) -> crate::PyResult<()> {
-        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
+        ::core::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
     }
 
     fn __mod__(&self, _other: &Self) -> u32 {
@@ -174,7 +174,7 @@ impl Dummy {
         (0, 0)
     }
 
-    fn __pow__(&self, _other: &Self, modulo: ::std::option::Option<i32>) -> Dummy {
+    fn __pow__(&self, _other: &Self, modulo: ::core::option::Option<i32>) -> Dummy {
         Dummy {}
     }
 
@@ -211,11 +211,11 @@ impl Dummy {
     }
 
     fn __rtruediv__(&self, _other: &Self) -> crate::PyResult<()> {
-        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
+        ::core::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
     }
 
     fn __rfloordiv__(&self, _other: &Self) -> crate::PyResult<()> {
-        ::std::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
+        ::core::result::Result::Err(crate::exceptions::PyZeroDivisionError::new_err("boo"))
     }
 
     fn __rmod__(&self, _other: &Self) -> u32 {
@@ -226,7 +226,7 @@ impl Dummy {
         (0, 0)
     }
 
-    fn __rpow__(&self, _other: &Self, modulo: ::std::option::Option<i32>) -> Dummy {
+    fn __rpow__(&self, _other: &Self, modulo: ::core::option::Option<i32>) -> Dummy {
         Dummy {}
     }
 
@@ -262,7 +262,7 @@ impl Dummy {
 
     fn __imod__(&mut self, _other: &Self) {}
 
-    fn __ipow__(&mut self, _other: &Self, modulo: ::std::option::Option<i32>) {}
+    fn __ipow__(&mut self, _other: &Self, modulo: ::core::option::Option<i32>) {}
 
     fn __ilshift__(&mut self, other: &Self) {}
 
@@ -309,8 +309,8 @@ impl Dummy {
         0
     }
 
-    #[pyo3(signature=(ndigits=::std::option::Option::None))]
-    fn __round__(&self, ndigits: ::std::option::Option<u32>) -> u32 {
+    #[pyo3(signature=(ndigits=::core::option::Option::None))]
+    fn __round__(&self, ndigits: ::core::option::Option<u32>) -> u32 {
         0
     }
 
@@ -360,8 +360,8 @@ impl Dummy {
         crate::Py::new(py, DummyIter {}).unwrap()
     }
 
-    fn __anext__(&mut self) -> ::std::option::Option<()> {
-        ::std::option::Option::None
+    fn __anext__(&mut self) -> ::core::option::Option<()> {
+        ::core::option::Option::None
     }
 
     //////////////////////
@@ -390,9 +390,9 @@ impl Dummy {
     fn __call__(
         &self,
         _args: &crate::Bound<'_, crate::types::PyTuple>,
-        _kwds: ::std::option::Option<&crate::Bound<'_, crate::types::PyDict>>,
+        _kwds: ::core::option::Option<&crate::Bound<'_, crate::types::PyDict>>,
     ) -> crate::PyResult<i32> {
-        ::std::unimplemented!()
+        ::core::unimplemented!()
     }
     #[new]
     fn new(a: u8) -> Self {
@@ -425,8 +425,8 @@ impl Clear {
     pub fn __traverse__(
         &self,
         visit: crate::PyVisit<'_>,
-    ) -> ::std::result::Result<(), crate::PyTraverseError> {
-        ::std::result::Result::Ok(())
+    ) -> ::core::result::Result<(), crate::PyTraverseError> {
+        ::core::result::Result::Ok(())
     }
 
     pub fn __clear__(&self) {}
@@ -444,7 +444,7 @@ struct Dummy2;
 impl Dummy2 {
     #[classmethod]
     fn __len__(cls: &crate::Bound<'_, crate::types::PyType>) -> crate::PyResult<usize> {
-        ::std::result::Result::Ok(0)
+        ::core::result::Result::Ok(0)
     }
 
     #[staticmethod]
@@ -469,7 +469,7 @@ impl UserDefinedWarning {
     #[pyo3(signature = (*_args, **_kwargs))]
     fn new(
         _args: crate::Bound<'_, crate::PyAny>,
-        _kwargs: ::std::option::Option<crate::Bound<'_, crate::PyAny>>,
+        _kwargs: ::core::option::Option<crate::Bound<'_, crate::PyAny>>,
     ) -> Self {
         Self {}
     }

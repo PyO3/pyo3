@@ -1,0 +1,32 @@
+error[E0277]: `Invalid` cannot be used as the return value for `#[new]` methods
+  --> tests/ui/invalid_pyclass_new.rs:11:17
+   |
+11 |     fn new() -> Invalid {
+   |                 ^^^^^^^ must be a type which implements `IntoPyObject`, a `PyClassInitializer<Invalid>`, or a `Result<T>` wrapping such types
+   |
+help: the trait `IntoPyObject<'_>` is not implemented for `Invalid`
+  --> tests/ui/invalid_pyclass_new.rs:6:1
+   |
+ 6 | struct Invalid;
+   | ^^^^^^^^^^^^^^
+   = note: all types which implement `IntoPyObject` are suitable return values for `#[new]` methods
+   = note: `PyClassInitializer<T: PyClass>` may also be used and is necessary for `#[pyclass(extends = '...')]` types
+   = help: the following other types implement trait `IntoPyObject<'py>`:
+             &&'a T
+             &&OsStr
+             &&Path
+             &&str
+             &'a (T0, T1)
+             &'a (T0, T1, T2)
+             &'a (T0, T1, T2, T3)
+             &'a (T0, T1, T2, T3, T4)
+           and $N others
+   = note: required for `Invalid` to implement `pyo3::internal::pyclass_init::PyClassInit<'_, InvalidNewReturn>`
+note: required by a bound in `pyo3::impl_::pymethods::tp_new_impl`
+  --> src/impl_/pymethods.rs
+   |
+   | pub unsafe fn tp_new_impl<'py, InitializerT, ClassT>(
+   |               ----------- required by a bound in this function
+...
+   |     InitializerT: PyClassInit<'py, ClassT>,
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `tp_new_impl`

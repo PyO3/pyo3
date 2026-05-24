@@ -12,8 +12,8 @@ use crate::types::PyString;
 #[cfg(any(unix, target_os = "emscripten"))]
 use crate::types::{PyBytes, PyBytesMethods};
 use crate::{Borrowed, FromPyObject, PyAny, PyErr, Python};
-use std::borrow::Cow;
-use std::convert::Infallible;
+use alloc::borrow::Cow;
+use core::convert::Infallible;
 use std::ffi::{OsStr, OsString};
 #[cfg(any(unix, target_os = "emscripten"))]
 use std::os::unix::ffi::OsStrExt;
@@ -128,7 +128,7 @@ impl FromPyObject<'_, '_> for OsString {
             // Get an owned allocated wide char buffer from PyString, which we have to deallocate
             // ourselves
             let size =
-                unsafe { ffi::PyUnicode_AsWideChar(pystring.as_ptr(), std::ptr::null_mut(), 0) };
+                unsafe { ffi::PyUnicode_AsWideChar(pystring.as_ptr(), core::ptr::null_mut(), 0) };
             crate::err::error_on_minusone(ob.py(), size)?;
 
             debug_assert!(
@@ -228,15 +228,13 @@ mod tests {
     use crate::exceptions::PyFileNotFoundError;
     use crate::types::{PyAnyMethods, PyString, PyStringMethods};
     use crate::{Bound, BoundObject, IntoPyObject, Python};
-    use std::fmt::Debug;
+    use alloc::borrow::Cow;
+    use core::fmt::Debug;
+    use std::ffi::{OsStr, OsString};
     #[cfg(any(unix, target_os = "emscripten"))]
     use std::os::unix::ffi::OsStringExt;
     #[cfg(windows)]
     use std::os::windows::ffi::OsStringExt;
-    use std::{
-        borrow::Cow,
-        ffi::{OsStr, OsString},
-    };
 
     #[test]
     #[cfg(any(unix, target_os = "emscripten"))]

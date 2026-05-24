@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use alloc::borrow::Cow;
 
 use crate::{
     exceptions,
@@ -80,7 +80,7 @@ impl PyErrArguments for CastErrorArguments {
 }
 
 /// Convert `CastError` to Python `TypeError`.
-impl std::convert::From<CastError<'_, '_>> for PyErr {
+impl core::convert::From<CastError<'_, '_>> for PyErr {
     fn from(err: CastError<'_, '_>) -> PyErr {
         let args = CastErrorArguments {
             from: err.from.to_owned().unbind(),
@@ -91,10 +91,10 @@ impl std::convert::From<CastError<'_, '_>> for PyErr {
     }
 }
 
-impl std::error::Error for CastError<'_, '_> {}
+impl core::error::Error for CastError<'_, '_> {}
 
-impl std::fmt::Display for CastError<'_, '_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+impl core::fmt::Display for CastError<'_, '_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         DisplayCastError {
             from: &self.from,
             classinfo: &self.classinfo,
@@ -104,7 +104,7 @@ impl std::fmt::Display for CastError<'_, '_> {
 }
 
 /// Convert `CastIntoError` to Python `TypeError`.
-impl std::convert::From<CastIntoError<'_>> for PyErr {
+impl core::convert::From<CastIntoError<'_>> for PyErr {
     fn from(err: CastIntoError<'_>) -> PyErr {
         let args = CastErrorArguments {
             from: err.from.to_owned().unbind(),
@@ -115,10 +115,10 @@ impl std::convert::From<CastIntoError<'_>> for PyErr {
     }
 }
 
-impl std::error::Error for CastIntoError<'_> {}
+impl core::error::Error for CastIntoError<'_> {}
 
-impl std::fmt::Display for CastIntoError<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+impl core::fmt::Display for CastIntoError<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         DisplayCastError {
             from: &self.from.to_owned(),
             classinfo: &self.classinfo,
@@ -132,8 +132,8 @@ struct DisplayCastError<'a, 'py> {
     classinfo: &'a Bound<'py, PyAny>,
 }
 
-impl std::fmt::Display for DisplayCastError<'_, '_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for DisplayCastError<'_, '_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let to = DisplayClassInfo(self.classinfo);
         if self.from.is_none() {
             write!(f, "'None' is not an instance of '{to}'")
@@ -150,14 +150,14 @@ impl std::fmt::Display for DisplayCastError<'_, '_> {
 
 struct DisplayClassInfo<'a, 'py>(&'a Bound<'py, PyAny>);
 
-impl std::fmt::Display for DisplayClassInfo<'_, '_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for DisplayClassInfo<'_, '_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         if let Ok(t) = self.0.cast::<PyType>() {
             if t.is(PyNone::type_object(t.py())) {
                 f.write_str("None")
             } else {
                 t.qualname()
-                    .map_err(|_| std::fmt::Error)?
+                    .map_err(|_| core::fmt::Error)?
                     .to_string_lossy()
                     .fmt(f)
             }

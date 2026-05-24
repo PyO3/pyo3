@@ -11,7 +11,7 @@ It works using:
 
 1. PyO3 macros (`#[pyclass]`) that generate constant JSON strings that are then included in the built binaries by rustc if the `experimental-inspect` feature is enabled.
 2. The `pyo3-introspection` crate that can parse the generated binaries, extract the JSON strings and build stub files from it.
-3. \[Not done yet\] Build tools like `maturin` exposing `pyo3-introspection` features in their CLI API.
+3. Build tools like `maturin` exposing options in their CLI API to generate the stubs file.
 
 For example, the following Rust code
 
@@ -71,6 +71,11 @@ def list_of_int_identity(arg: "list[int]") -> "list[int]": ...
 
 The only piece of new syntax is that the `#[pyo3(signature = ...)]` attribute can contain type annotations like `#[pyo3(signature = (arg: "list[int]") -> "list[int]")]` (note the `""` around type annotations).
 This is useful when PyO3 is not able to derive proper type annotations by itself.
+
+To generate stubs file with `maturin` you can use `maturin generate-stubs --output stubs` that will build the project then generate the stubs in the `stubs` directory.
+You can also directly integrate the stubs in the built wheels by doing `maturin build --generate-stubs` (works also with `maturin develop`).
+
+PyO3 also provides the smaller `pyo3-introspection` binary that allows to generate stubs from an existing built extension using something like `pyo3-introspection my_module_binary.so my_module_name output` to introspect the `my_module_binary.so` dynamic library for the `my_module_name` Python module and generate its stubs in the `output` directory.
 
 ## Constraints and limitations
 
