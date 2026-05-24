@@ -22,13 +22,10 @@ use core::ffi::CStr;
 use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
 
 mod cast_error;
-mod downcast_error;
 mod err_state;
 mod impls;
 
 pub use cast_error::{CastError, CastIntoError};
-#[allow(deprecated)]
-pub use downcast_error::{DowncastError, DowncastIntoError};
 
 /// Represents a Python exception.
 ///
