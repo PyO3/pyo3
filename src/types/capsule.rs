@@ -387,7 +387,7 @@ impl PyCapsule {
     ///
     /// It must be known that the capsule imported by `name` contains an item of type `T`.
     pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr) -> PyResult<&'py T> {
-        Self::import_raw(py, name).map(|ptr| {
+        Self::import_pointer(py, name).map(|ptr| {
             // SAFETY: caller has upheld the safety contract
             unsafe { ptr.cast().as_ref() }
         })
@@ -402,7 +402,7 @@ impl PyCapsule {
     ///
     /// This function is safe to call, but the pointer it returns is not safe to use.
     /// The python interpreter does _NOT_ provide any synchronization guarantees for capsules.
-    pub fn import_raw(py: Python<'_>, name: &CStr) -> PyResult<NonNull<c_void>> {
+    pub fn import_pointer(py: Python<'_>, name: &CStr) -> PyResult<NonNull<c_void>> {
         // SAFETY: `name` is a valid C string, thread is attached to the Python interpreter
         let ptr = unsafe { ffi::PyCapsule_Import(name.as_ptr(), false as c_int) };
         NonNull::new(ptr).ok_or_else(|| PyErr::fetch(py))
