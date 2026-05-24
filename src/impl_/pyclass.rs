@@ -5,9 +5,9 @@ use crate::{
     impl_::{
         freelist::PyObjectFreeList,
         pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout},
-        pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
+    internal::pyclass_init::PyObjectInit,
     pycell::{impl_::PyClassObjectLayout, PyBorrowError},
     types::{any::PyAnyMethods, PyBool},
     Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
@@ -1086,6 +1086,10 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     diagnostic::on_unimplemented(
         note = "subclassing native types requires Python >= 3.12 when using the `abi3` feature",
     )
+)]
+#[expect(
+    private_bounds,
+    reason = "`PyObjectInit` is an internal trait implementation"
 )]
 pub trait PyClassBaseType: Sized {
     type LayoutAsBase: PyClassObjectBaseLayout<Self>;

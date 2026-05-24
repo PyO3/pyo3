@@ -449,6 +449,7 @@ pub struct FnSpec<'a> {
     pub asyncness: Option<syn::Token![async]>,
     pub unsafety: Option<syn::Token![unsafe]>,
     pub warnings: Vec<PyFunctionWarning>,
+    #[cfg_attr(not(feature = "experimental-inspect"), expect(dead_code))]
     pub output: syn::ReturnType,
 }
 

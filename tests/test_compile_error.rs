@@ -16,6 +16,7 @@ fn test_compile_errors() {
     t.compile_fail("tests/ui/invalid_pyclass_enum.rs");
     t.compile_fail("tests/ui/invalid_pyclass_init.rs");
     t.compile_fail("tests/ui/invalid_pyclass_item.rs");
+    t.compile_fail("tests/ui/invalid_pyclass_new.rs");
     #[cfg(Py_3_9)]
     t.compile_fail("tests/ui/invalid_pyclass_generic.rs");
     #[cfg(Py_3_9)]
