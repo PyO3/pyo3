@@ -1,5 +1,6 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
 
+use crate::exceptions::PySystemError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::box_into_non_null;
 use crate::py_result_ext::PyResultExt;
@@ -387,10 +388,18 @@ impl PyCapsule {
     ///
     /// It must be known that the capsule imported by `name` contains an item of type `T`.
     pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr) -> PyResult<&'py T> {
-        Self::import_pointer(py, name).map(|ptr| {
-            // SAFETY: caller has upheld the safety contract
-            unsafe { ptr.cast().as_ref() }
-        })
+        let ptr = Self::import_pointer(py, name)?.cast();
+
+        if !ptr.is_aligned() {
+            return Err(PySystemError::new_err(format!(
+                "The pointer from the `{}` capsule is not aligned to rust type {}",
+                name.to_string_lossy(),
+                core::any::type_name::<T>()
+            )));
+        }
+
+        // SAFETY: caller has upheld the safety contract and we just checked pointer alignment
+        Ok(unsafe { ptr.as_ref() })
     }
 
     /// Imports an existing capsule as a pointer.
