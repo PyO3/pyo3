@@ -411,7 +411,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
         // - `PyTuple_SET_ITEM` steals a reference to `obj`
         unsafe {
             ffi::PyTuple_SET_ITEM(self.as_ptr(), index, obj.into_ptr())
-        };
+        }
 
         // SAFETY:
         // - Caller-provided invariants and smart pointers guarantee correctness
@@ -420,7 +420,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
         //   not checking for errors here.
         #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
         unsafe {
-            ffi::PyTuple_SetItem(tuple.as_ptr(), index, item.into_ptr())
+            ffi::PyTuple_SetItem(self.as_ptr(), index, obj.into_ptr());
         }
     }
 
