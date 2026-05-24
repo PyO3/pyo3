@@ -1,4 +1,5 @@
 use crate::impl_::pyfunction::PyFunctionDef;
+use crate::internal::err::ErrorAlreadySet;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 use crate::types::PyFrame;
 use crate::types::{
@@ -23,6 +24,7 @@ impl Sealed for *mut ffi::PyObject {}
 
 // for PyResultExt
 impl Sealed for PyResult<Bound<'_, PyAny>> {}
+impl<'py> Sealed for Result<Bound<'py, PyAny>, ErrorAlreadySet<'py>> {}
 
 // for Py(...)Methods
 impl Sealed for Bound<'_, PyAny> {}

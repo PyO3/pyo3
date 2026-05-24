@@ -1,3 +1,4 @@
+use crate::internal::err::ErrorAlreadySet;
 use crate::sealed::Sealed;
 use crate::{
     ffi,
@@ -10,6 +11,12 @@ pub(crate) trait FfiPtrExt: Sealed {
     ///
     /// If the pointer is NULL, this function will fetch an error.
     unsafe fn assume_owned_or_err(self, py: Python<'_>) -> PyResult<Bound<'_, PyAny>>;
+
+    /// Similar to the above, but doesn't fetch the error.
+    unsafe fn assume_owned_or_err_set(
+        self,
+        py: Python<'_>,
+    ) -> Result<Bound<'_, PyAny>, ErrorAlreadySet<'_>>;
 
     /// Same as `assume_owned_or_err`, but doesn't fetch an error on NULL.
     unsafe fn assume_owned_or_opt(self, py: Python<'_>) -> Option<Bound<'_, PyAny>>;
@@ -41,6 +48,14 @@ impl FfiPtrExt for *mut ffi::PyObject {
     #[inline]
     unsafe fn assume_owned_or_err(self, py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         unsafe { Bound::from_owned_ptr_or_err(py, self) }
+    }
+
+    #[inline]
+    unsafe fn assume_owned_or_err_set(
+        self,
+        py: Python<'_>,
+    ) -> Result<Bound<'_, PyAny>, ErrorAlreadySet<'_>> {
+        unsafe { Bound::from_owned_ptr_or_opt(py, self).ok_or_else(|| ErrorAlreadySet::new(py)) }
     }
 
     #[inline]
