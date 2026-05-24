@@ -7,6 +7,7 @@ use crate::{
         pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout},
         pymethods::{PyGetterDef, PyMethodDefType},
     },
+    internal::pyclass_init::PyObjectInit,
     pycell::{impl_::PyClassObjectLayout, PyBorrowError},
     types::{any::PyAnyMethods, PyBool},
     Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
@@ -1086,6 +1087,10 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
         note = "subclassing native types requires Python >= 3.12 when using the `abi3` feature",
     )
 )]
+#[expect(
+    private_bounds,
+    reason = "`PyObjectInit` is an internal trait implementation"
+)]
 pub trait PyClassBaseType: Sized {
     type LayoutAsBase: PyClassObjectBaseLayout<Self>;
     type BaseNativeType;
@@ -1094,11 +1099,6 @@ pub trait PyClassBaseType: Sized {
     /// The type of object layout to use for ancestors or descendants of this type.
     type Layout<T: PyClassImpl>;
 }
-
-/// Constraint on base types available within PyO3
-#[expect(private_bounds, reason = "internal trait implementation")]
-pub trait PyObjectInit<T>: crate::internal::pyclass_init::PyObjectInit<T> {}
-impl<I, T> PyObjectInit<T> for I where I: crate::internal::pyclass_init::PyObjectInit<T> {}
 
 /// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {

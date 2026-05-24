@@ -71,10 +71,10 @@ pub struct ResolveToArbitraryObject(());
 ///
 /// Call `.resolve()` on the returned tag to get the final tag type.
 ///
-/// This resolution step is necessary in order to encode the preference for `PyClassInitializer<T>`
-/// to use proper machinery instead of `IntoPyObject`; if we removed the implementation of
-/// `IntoPyObject` for `PyClassInitializer<T>` then this machinery could probably collapse away to
-/// type inference.
+/// This resolution step is necessary in order to encode the preference to go via `PyClassInitializer<T>`
+/// for new instances of `ClassT`. Without this step, the fallback to `IntoPyObject` conflicts for
+/// `ClassT` because that implementation ignores the `cls` parameter for `PyClassInit` (and would
+/// therefore be incorrect when instantiating subclasses).
 pub fn tp_new_resolver<ClassT, ValueT>(_: &ValueT) -> TpNewValueTypeResolver<ClassT, ValueT> {
     TpNewValueTypeResolver(ResolveToArbitraryObject(()), PhantomData)
 }
