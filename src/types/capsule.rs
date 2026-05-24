@@ -864,6 +864,28 @@ mod tests {
     }
 
     #[test]
+    fn test_misaligned_import() {
+        #[repr(align(128))]
+        struct Align128 {
+            _n: usize,
+        }
+
+        Python::attach(|py| {
+            let ptr = NonNull::new(129 as *mut c_void).unwrap();
+            let name = c"builtins.capsule";
+
+            // SAFETY: the pointer will never be dereferenced
+            let capsule = unsafe { PyCapsule::new_with_pointer(py, ptr, name) }.unwrap();
+
+            let module = PyModule::import(py, "builtins").unwrap();
+            module.add("capsule", capsule).unwrap();
+
+            // SAFETY: this should return an error so no reference will be created
+            assert!(unsafe { PyCapsule::import::<Align128>(py, name) }.is_err());
+        });
+    }
+
+    #[test]
     fn test_vec_storage() {
         let cap: Py<PyCapsule> = Python::attach(|py| {
             let stuff: Vec<u8> = vec![1, 2, 3, 4];
