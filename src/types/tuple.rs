@@ -3,7 +3,9 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
 use crate::instance::Borrowed;
+use crate::internal::err::ErrorAlreadySet;
 use crate::internal_tricks::get_ssize_index;
+use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
@@ -40,26 +42,22 @@ fn try_new_from_iter<'py>(
     mut elements: impl ExactSizeIterator<Item = PyResult<Bound<'py, PyAny>>>,
 ) -> PyResult<Bound<'py, PyTuple>> {
     #[cfg(not(RustPython))]
-    unsafe {
+    {
         // PyTuple_New checks for overflow but has a bad error message, so we check ourselves
         let len: Py_ssize_t = elements
             .len()
             .try_into()
             .expect("out of range integral type conversion attempted on `elements.len()`");
 
-        let ptr = ffi::PyTuple_New(len);
-
-        // - Panics if the ptr is null
-        // - Cleans up the tuple if `convert` or the asserts panic
-        let tup = ptr.assume_owned(py).cast_into_unchecked();
+        // SAFETY: this function will fully initialize the tuple, or drop it on error / panic paths
+        let tup = unsafe { PyTuple::new_uninit(py, len)? };
 
         let mut counter: Py_ssize_t = 0;
 
-        for obj in (&mut elements).take(len as usize) {
-            #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-            ffi::PyTuple_SET_ITEM(ptr, counter, obj?.into_ptr());
-            #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
-            ffi::PyTuple_SetItem(ptr, counter, obj?.into_ptr());
+        for result in (&mut elements).take(len as usize) {
+            let obj = result?;
+            // SAFETY: `tup` needs `len` elements initialized
+            unsafe { tup.as_borrowed().set_item_unchecked(counter, obj) };
             counter += 1;
         }
 
@@ -70,12 +68,14 @@ fn try_new_from_iter<'py>(
     }
 
     #[cfg(RustPython)]
-    unsafe {
+    {
         let elements = elements.collect::<PyResult<Vec<_>>>()?;
         // SAFETY: list is layout compatible with *const *mut crate::PyObject
-        ffi::PyTuple_FromArray(elements.as_ptr().cast(), elements.len() as _)
-            .assume_owned_or_err(py)
-            .cast_into_unchecked()
+        unsafe {
+            ffi::PyTuple_FromArray(elements.as_ptr().cast(), elements.len() as _)
+                .assume_owned_or_err(py)
+                .cast_into_unchecked()
+        }
     }
 }
 
@@ -154,7 +154,40 @@ impl PyTuple {
 
     /// Constructs an empty tuple (on the Python side, a singleton object).
     pub fn empty(py: Python<'_>) -> Bound<'_, PyTuple> {
-        unsafe { ffi::PyTuple_New(0).assume_owned(py).cast_into_unchecked() }
+        // SAFETY: can never fail to construct empty tuple, and it's immediately fully init
+        #[cfg(not(Py_3_13))]
+        unsafe {
+            Self::new_uninit(py, 0).unwrap_unchecked()
+        }
+
+        #[cfg(Py_3_13)]
+        // SAFETY:
+        // - thread is attached to the interpreter
+        // - constant is known to be owned and of the correct type
+        unsafe {
+            ffi::Py_GetConstant(ffi::Py_CONSTANT_EMPTY_TUPLE)
+                .assume_owned_unchecked(py)
+                .cast_into_unchecked()
+        }
+    }
+
+    /// # Safety
+    /// - Caller must set all elements with `set_item_unchecked` before exposing the
+    ///   returned tuple to user code.
+    /// - `ErrorAlreadySet` must be handled by caller
+    #[inline]
+    unsafe fn new_uninit<'py>(
+        py: Python<'py>,
+        len: Py_ssize_t,
+    ) -> Result<Bound<'py, PyTuple>, ErrorAlreadySet<'py>> {
+        // SAFETY:
+        // - thread is attached to the interpreter
+        // - success return is guaranteed to be a tuple
+        unsafe {
+            ffi::PyTuple_New(len)
+                .assume_owned_or_err_set(py)
+                .cast_into_unchecked()
+        }
     }
 }
 
@@ -362,6 +395,32 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
         unsafe {
             ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
                 .assume_borrowed_unchecked(self.py())
+        }
+    }
+
+    /// # Safety
+    /// - `self` must be a tuple under initialization with `PyTuple::new_uninit` that is not yet
+    ///   shared with external code.
+    /// - `self` mut not already have a value set at `index`.
+    /// - `index` must be within the bounds of the tuple.
+    #[inline]
+    unsafe fn set_item_unchecked(self, index: Py_ssize_t, obj: Bound<'_, PyAny>) {
+        #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+        // SAFETY:
+        // - Caller-provided invariants and smart pointers guarantee correctness
+        // - `PyTuple_SET_ITEM` steals a reference to `obj`
+        unsafe {
+            ffi::PyTuple_SET_ITEM(self.as_ptr(), index, obj.into_ptr())
+        }
+
+        // SAFETY:
+        // - Caller-provided invariants and smart pointers guarantee correctness
+        // - `PyTuple_SetItem` steals a reference to `obj`
+        // - `PyTuple_SetItem` returns -1 if `index` is out of bounds, but we are
+        //   not checking for errors here.
+        #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
+        unsafe {
+            ffi::PyTuple_SetItem(self.as_ptr(), index, obj.into_ptr());
         }
     }
 
@@ -662,7 +721,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         );
 
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-            Ok(array_into_tuple(py, [$(self.$n.into_bound_py_any(py)?),+]))
+            Ok(array_into_tuple(py, [$(self.$n.into_bound_py_any(py)?),+])?)
         }
     }
 
@@ -681,7 +740,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         );
 
         fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-            Ok(array_into_tuple(py, [$(self.$n.into_bound_py_any(py)?),+]))
+            Ok(array_into_tuple(py, [$(self.$n.into_bound_py_any(py)?),+])?)
         }
     }
 
@@ -965,26 +1024,26 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
 fn array_into_tuple<'py, const N: usize>(
     py: Python<'py>,
     array: [Bound<'py, PyAny>; N],
-) -> Bound<'py, PyTuple> {
+) -> Result<Bound<'py, PyTuple>, ErrorAlreadySet<'py>> {
+    let len: Py_ssize_t = N.try_into().expect("0 < N <= 12");
+
     #[cfg(not(RustPython))]
-    unsafe {
-        let ptr = ffi::PyTuple_New(N.try_into().expect("0 < N <= 12"));
-        let tup = ptr.assume_owned(py).cast_into_unchecked();
+    {
+        // SAFETY: this function will fully initialize the tuple
+        let tup = unsafe { PyTuple::new_uninit(py, len)? };
         for (index, obj) in array.into_iter().enumerate() {
-            #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-            ffi::PyTuple_SET_ITEM(ptr, index as ffi::Py_ssize_t, obj.into_ptr());
-            #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
-            ffi::PyTuple_SetItem(ptr, index as ffi::Py_ssize_t, obj.into_ptr());
+            // SAFETY: index is guaranteed to be < N
+            unsafe { tup.as_borrowed().set_item_unchecked(index as _, obj) };
         }
-        tup
+        Ok(tup)
     }
 
     // SAFETY: array is layout compatible with *const *mut crate::PyObject
     // and does not steal the bound reference.
     #[cfg(RustPython)]
     unsafe {
-        ffi::PyTuple_FromArray(array.as_ptr().cast(), N.try_into().expect("0 < N <= 12"))
-            .assume_owned(py)
+        ffi::PyTuple_FromArray(array.as_ptr().cast(), len)
+            .assume_owned_or_err_set(py)
             .cast_into_unchecked()
     }
 }

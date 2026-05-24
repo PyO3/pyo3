@@ -207,7 +207,7 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
     }
 
     fn pop(&self) -> Option<Bound<'py, PyAny>> {
-        let element = unsafe { ffi::PySet_Pop(self.as_ptr()).assume_owned_or_err(self.py()) };
+        let element = unsafe { ffi::PySet_Pop(self.as_ptr()).assume_owned_or_err_set(self.py()) };
         element.ok()
     }
 
