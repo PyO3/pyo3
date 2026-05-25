@@ -413,6 +413,7 @@ pub mod impl_;
 
 #[macro_use]
 mod internal_tricks;
+#[macro_use]
 mod internal;
 
 pub mod buffer;
