@@ -1079,6 +1079,8 @@ _IGNORE_CHANGELOG_PR_CATEGORIES = (
     "release",
     "docs",
     "ci",
+    "internal",
+    "refactor",
 )
 
 
@@ -1117,7 +1119,7 @@ def check_changelog(session: nox.Session):
     if not fragments:
         session.error(
             "Changelog entry not found, please add one (or more) to the `newsfragments` directory.\n"
-            "Alternatively, start the PR title with `docs:` if this PR is a docs-only PR.\n"
+            "Alternatively, start the PR title with `docs:`, `refactor`, or `internal` if applicable.\n"
             "See https://github.com/PyO3/pyo3/blob/main/Contributing.md#documenting-changes for more information."
         )
 
