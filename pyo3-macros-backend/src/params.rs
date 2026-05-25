@@ -286,7 +286,7 @@ pub(crate) fn impl_regular_arg_param(
             }
         }
     } else if let Some(default) = default {
-        let holder = holders.push_holder(arg.name.span());
+        let holder = holders.push_holder(arg.ty.span());
         quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_argument_with_default(
                 #arg_value,
@@ -299,8 +299,8 @@ pub(crate) fn impl_regular_arg_param(
             )?
         }
     } else {
-        let holder = holders.push_holder(arg.name.span());
-        let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value) }};
+        let holder = holders.push_holder(arg.ty.span());
+        let unwrap = quote! { unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value) } };
         quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_argument(
                 #unwrap,
