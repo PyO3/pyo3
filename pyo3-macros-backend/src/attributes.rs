@@ -11,6 +11,8 @@ use syn::{
 };
 
 use crate::combine_errors::CombineErrors;
+#[cfg(feature = "experimental-inspect")]
+use crate::py_stubs::PyStubs;
 
 pub mod kw {
     syn::custom_keyword!(annotation);
@@ -56,6 +58,8 @@ pub mod kw {
     syn::custom_keyword!(category);
     syn::custom_keyword!(from_py_object);
     syn::custom_keyword!(skip_from_py_object);
+    #[cfg(feature = "experimental-inspect")]
+    syn::custom_keyword!(stubs);
 }
 
 fn take_int(read: &mut &str, tracker: &mut usize) -> String {
@@ -349,6 +353,8 @@ pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, TextSigna
 pub type NewImplTypeAttribute = KeywordAttribute<kw::new, NewImplTypeAttributeValue>;
 pub type SubmoduleAttribute = kw::submodule;
 pub type GILUsedAttribute = KeywordAttribute<kw::gil_used, LitBool>;
+#[cfg(feature = "experimental-inspect")]
+pub type StubsAttribute = KeywordAttribute<kw::stubs, PyStubs>;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
     fn parse(input: ParseStream<'_>) -> Result<Self> {

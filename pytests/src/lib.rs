@@ -1,6 +1,8 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+#[cfg(feature = "experimental-inspect")]
+mod annotations;
 mod awaitable;
 mod buf_and_str;
 mod comparisons;
@@ -31,6 +33,10 @@ mod pyo3_pytests {
     #[cfg(not(Py_LIMITED_API))]
     #[pymodule_export]
     use datetime::datetime;
+
+    #[cfg(feature = "experimental-inspect")]
+    #[pymodule_export]
+    use annotations::annotations;
 
     #[pymodule_export]
     use {

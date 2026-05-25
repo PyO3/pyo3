@@ -6,6 +6,7 @@ pub struct Module {
     pub functions: Vec<Function>,
     pub attributes: Vec<Attribute>,
     pub incomplete: bool,
+    pub stubs: Vec<Statement>,
     pub docstring: Option<String>,
 }
 
@@ -72,6 +73,30 @@ pub struct VariableLengthArgument {
     pub name: String,
     /// Type annotation as a Python expression
     pub annotation: Option<Expr>,
+}
+
+/// A python statement
+///
+/// This is the `stmt` production of the [Python `ast` module grammar](https://docs.python.org/3/library/ast.html#abstract-grammar)
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub enum Statement {
+    /// `from {module} import {names}`
+    ImportFrom {
+        module: String,
+        names: Vec<ImportAlias>,
+        level: usize,
+    },
+    /// `import {names}`
+    Import { names: Vec<ImportAlias> },
+}
+
+/// A python import alias `{name} as {asname}`
+///
+/// This is the `alias` production of the [Python `ast` module grammar](https://docs.python.org/3/library/ast.html#abstract-grammar)
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub struct ImportAlias {
+    pub name: String,
+    pub asname: Option<String>,
 }
 
 /// A python expression

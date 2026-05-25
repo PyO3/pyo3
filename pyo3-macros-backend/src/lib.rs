@@ -15,12 +15,16 @@ mod frompyobject;
 mod intopyobject;
 #[cfg(feature = "experimental-inspect")]
 mod introspection;
+#[cfg(feature = "experimental-inspect")]
+mod json;
 mod konst;
 mod method;
 mod module;
 mod params;
 #[cfg(feature = "experimental-inspect")]
 mod py_expr;
+#[cfg(feature = "experimental-inspect")]
+mod py_stubs;
 mod pyclass;
 mod pyfunction;
 mod pyimpl;
