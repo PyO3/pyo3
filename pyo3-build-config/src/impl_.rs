@@ -389,7 +389,8 @@ impl InterpreterConfig {
 
     fn from_interpreter(
         interpreter: impl AsRef<Path>,
-        stable_abi_version: Option<PythonVersion>,
+        abi3_version: Option<PythonVersion>,
+        abi3t_version: Option<PythonVersion>,
     ) -> Result<Self> {
         const SCRIPT: &str = r#"
 # Allow the script to run on Python 2, so that nicer error can be printed later.
@@ -495,6 +496,17 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             "0" => false,
             "None" => false,
             _ => panic!("Unknown Py_GIL_DISABLED value"),
+        };
+
+        let stable_abi_version = if version >= {
+            PythonVersion {
+                major: 3,
+                minor: 15,
+            }
+        } {
+            abi3t_version.or(abi3_version)
+        } else {
+            abi3_version
         };
 
         let target_abi =
@@ -982,10 +994,11 @@ impl PythonAbi {
             version: sanitize_stable_abi_version(stable_abi_version, version)?,
             kind: None,
         };
-        let builder = if get_abi3_version().is_some() && !gil_disabled {
-            builder.stable_abi(StableAbi::Abi3)
-        } else if get_abi3t_version().is_some() && version >= MINIMUM_SUPPORTED_VERSION_ABI3T {
+        let builder = if get_abi3t_version().is_some() && version >= MINIMUM_SUPPORTED_VERSION_ABI3T
+        {
             builder.stable_abi(StableAbi::Abi3t)
+        } else if get_abi3_version().is_some() && !gil_disabled {
+            builder.stable_abi(StableAbi::Abi3)
         } else if gil_disabled {
             builder.free_threaded()
         } else {
@@ -1294,6 +1307,11 @@ pub struct PythonVersion {
 }
 
 impl PythonVersion {
+    #[cfg(test)]
+    pub(crate) const PY315: Self = PythonVersion {
+        major: 3,
+        minor: 15,
+    };
     #[deprecated(
         since = "0.29.0",
         note = "please construct `PythonVersion` directly rather than use these constants"
@@ -2472,12 +2490,15 @@ pub fn find_interpreter() -> Result<PathBuf> {
 
 /// Locates and extracts the build host Python interpreter configuration.
 ///
-/// Lowers the configured Python version to `abi3_version` if required.
-fn get_host_interpreter(stable_abi_version: Option<PythonVersion>) -> Result<InterpreterConfig> {
+/// Lowers the configured Python version to `abi3_version` or `abi3t_version` if required.
+fn get_host_interpreter(
+    abi3_version: Option<PythonVersion>,
+    abi3t_version: Option<PythonVersion>,
+) -> Result<InterpreterConfig> {
     let interpreter_path = find_interpreter()?;
 
     let interpreter_config =
-        InterpreterConfig::from_interpreter(interpreter_path, stable_abi_version)?;
+        InterpreterConfig::from_interpreter(interpreter_path, abi3_version, abi3t_version)?;
 
     Ok(interpreter_config)
 }
@@ -2509,7 +2530,10 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
         (abi3_version.is_none() && abi3t_version.is_none()) || require_libdir_for_target(&host);
 
     if have_python_interpreter() {
-        match get_host_interpreter(exact_stable_abi_version(abi3_version.or(abi3t_version))) {
+        match get_host_interpreter(
+            exact_stable_abi_version(abi3_version),
+            exact_stable_abi_version(abi3t_version),
+        ) {
             Ok(interpreter_config) => return Ok(interpreter_config),
             // Bail if the interpreter configuration is required to build.
             Err(e) if need_interpreter => return Err(e),
@@ -3486,22 +3510,37 @@ mod tests {
             return;
         }
 
-        let interpreter = get_host_interpreter(Some(PythonVersion {
-            major: 3,
-            minor: 45,
-        }));
+        let interpreter = get_host_interpreter(
+            Some(PythonVersion {
+                major: 3,
+                minor: 45,
+            }),
+            None,
+        );
         assert!(interpreter.unwrap_err().to_string().contains(
             "cannot set a minimum Python version 3.45 higher than the interpreter version"
         ));
 
-        let host_version = get_host_interpreter(None).unwrap().version;
+        let host_version = get_host_interpreter(None, None).unwrap().version;
         if host_version >= PythonVersion::PY313 {
-            let interpreter = get_host_interpreter(Some(PythonVersion::PY313));
+            let interpreter = get_host_interpreter(Some(PythonVersion::PY313), None);
             assert_eq!(
                 interpreter.unwrap().target_abi.version(),
                 PythonVersion::PY313
             );
         }
+
+        // If both features abi3 and abi3t features are active, the feature that "wins" depends on the host Python version
+        let interpreter =
+            get_host_interpreter(Some(PythonVersion::PY39), Some(PythonVersion::PY315)).unwrap();
+        assert_eq!(
+            interpreter.target_abi.version(),
+            if host_version >= PythonVersion::PY315 {
+                PythonVersion::PY315
+            } else {
+                PythonVersion::PY39
+            }
+        );
     }
 
     #[test]
