@@ -1508,10 +1508,11 @@ def check_feature_powerset(session: nox.Session):
 def update_ui_tests(session: nox.Session):
     env = os.environ.copy()
     env["UI_TEST"] = "bless"
-    command = ["test", "--test", "test_compile_error"]
-    _run_cargo(session, *command, env=env)
+    command = ["test", "--test", "test_compile_error", "--no-default-features"]
+    _run_cargo(session, *command, "--features=macros", env=env)
     _run_cargo(session, *command, "--features=full", env=env)
     _run_cargo(session, *command, "--features=abi3,full", env=env)
+    _run_cargo(session, *command, "--features=abi3-py38,full", env=env)
 
 
 @nox.session(name="test-introspection")

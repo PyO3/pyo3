@@ -23,33 +23,19 @@ error: `from_py_with` and `cancel_handle` cannot be specified together
    |            ^^^^^^^^^^^^^
 
 error[E0277]: `CancelHandle` cannot be used as a Python function argument
-   --> tests/ui/invalid_cancel_handle.rs:24:50
-    |
- 24 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
-    |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, false>` is not implemented for `CancelHandle`
-    |
-    = note: implement `FromPyObject` to enable using `CancelHandle` as a function argument
-    = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
-help: the following other types implement trait `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`
- --> src/impl_/extract_argument.rs
-  |
-  | / impl<'a, 'holder, 'py, T: 'a + 'py> PyFunctionArgument<'a, 'holder, 'py, false>
-  | |     for &'holder Bound<'py, T>
-  | | where
-  | |     T: PyTypeCheck,
-  | |___________________^ `&'holder pyo3::Bound<'py, T>` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false>`
-...
-  | / impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for Option<T>
-  | | where
-  | |     T: PyFunctionArgument<'a, 'holder, 'py, false>,
-  | |___________________________________________________^ `Option<T>` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false>`
-...
-  |   impl<'a, 'holder, T: PyClass> PyFunctionArgument<'a, 'holder, '_, false> for &'holder T {
-  |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&'holder T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
-...
-  | / impl<'a, 'holder, T: PyClass<Frozen = False>> PyFunctionArgument<'a, 'holder, '_, false>
-  | |     for &'holder mut T
-  | |______________________^ `&'holder mut T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
+  --> tests/ui/invalid_cancel_handle.rs:24:50
+   |
+24 | async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}
+   |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, false>` is not implemented for `CancelHandle`
+   |
+   = note: implement `FromPyObject` to enable using `CancelHandle` as a function argument
+   = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
+   = help: the following other types implement trait `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
+             `&'holder T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
+             `&'holder mut T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
+             `&'holder pyo3::Bound<'py, T>` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false>`
+             `&'holder str` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false>`
+             `Option<T>` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false>`
 
 error[E0308]: mismatched types
   --> tests/ui/invalid_cancel_handle.rs:19:1
@@ -100,28 +86,14 @@ error[E0277]: `CancelHandle` cannot be used as a Python function argument
     |
     = note: implement `FromPyObject` to enable using `CancelHandle` as a function argument
     = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
-help: the following other types implement trait `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`
- --> src/impl_/extract_argument.rs
-  |
-  | / impl<'a, 'holder, 'py, T: 'a + 'py> PyFunctionArgument<'a, 'holder, 'py, false>
-  | |     for &'holder Bound<'py, T>
-  | | where
-  | |     T: PyTypeCheck,
-  | |___________________^ `&'holder pyo3::Bound<'py, T>` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false>`
-...
-  | / impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for Option<T>
-  | | where
-  | |     T: PyFunctionArgument<'a, 'holder, 'py, false>,
-  | |___________________________________________________^ `Option<T>` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false>`
-...
-  |   impl<'a, 'holder, T: PyClass> PyFunctionArgument<'a, 'holder, '_, false> for &'holder T {
-  |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&'holder T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
-...
-  | / impl<'a, 'holder, T: PyClass<Frozen = False>> PyFunctionArgument<'a, 'holder, '_, false>
-  | |     for &'holder mut T
-  | |______________________^ `&'holder mut T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
-  = note: required for `CancelHandle` to implement `FromPyObject<'_, '_>`
-  = note: required for `CancelHandle` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
+    = help: the following other types implement trait `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`:
+              `&'holder T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
+              `&'holder mut T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
+              `&'holder pyo3::Bound<'py, T>` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false>`
+              `&'holder str` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false>`
+              `Option<T>` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false>`
+    = note: required for `CancelHandle` to implement `FromPyObject<'_, '_>`
+    = note: required for `CancelHandle` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
 note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
  --> src/impl_/extract_argument.rs
   |
