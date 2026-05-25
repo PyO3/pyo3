@@ -20,11 +20,7 @@ extern_libpython! {
 
     // skipped PyLong_GetSign
     // skipped _PyLong_Sign
-
-    #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
-    #[cfg(not(Py_3_13))]
-    #[doc(hidden)]
-    pub fn _PyLong_NumBits(obj: *mut PyObject) -> size_t;
+    // skipped non-limited _PyLong_NumBits
 
     #[cfg_attr(PyPy, link_name = "_PyPyLong_FromByteArray")]
     pub fn _PyLong_FromByteArray(
