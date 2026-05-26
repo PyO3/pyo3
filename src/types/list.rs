@@ -163,7 +163,6 @@ pub trait PyListMethods<'py>: crate::sealed::Sealed {
     ///   typically causes a segfault.)
     /// - On the free-threaded build, caller must verify they have exclusive access to the list
     ///   via a lock or by holding the innermost critical section on the list.
-    #[cfg(not(Py_LIMITED_API))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
 
     /// Takes the slice `self[low:high]` and returns it as a new list.
@@ -292,20 +291,27 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         }
     }
 
-    /// Gets the list item at the specified index. Undefined behavior on bad index. Use with caution.
-    ///
-    /// # Safety
-    ///
-    /// Caller must verify that the index is within the bounds of the list.
-    #[cfg(not(Py_LIMITED_API))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
-        // SAFETY: caller has upheld the safety contract
-        unsafe {
-            ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
-                .assume_borrowed_unchecked(self.py())
+        cfg_select! {
+            // SAFETY:
+            // - thread is attached to the interpreter
+            // - self is a valid list object
+            // - caller has guaranteed index is in bounds
+            // - PyLIST_GET_ITEM is known to always return a borrowed pointer
+            not(Py_LIMITED_API) => unsafe {
+                ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
+                    .assume_borrowed_unchecked(self.py())
+            }.to_owned(),
+            // SAFETY:
+            // - thread is attached to the interpreter
+            // - self is a valid list object
+            // - caller has guaranteed index is in bounds
+            // - PyList_GetItemRef is known to return an owned pointer in these conditions
+            Py_LIMITED_API => unsafe {
+                ffi::compat::PyList_GetItemRef(self.as_ptr(), index as Py_ssize_t)
+                    .assume_owned_unchecked(self.py())
+            }
         }
-        // PyList_GET_ITEM return borrowed ptr; must make owned for safety (see #890).
-        .to_owned()
     }
 
     /// Takes the slice `self[low:high]` and returns it as a new list.
@@ -471,7 +477,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
 }
 
 // New types for type checking when using BoundListIterator associated methods, like
-// BoundListIterator::next_unchecked.
+// BoundListIterator::next_locked.
 struct Index(usize);
 struct Length(usize);
 
@@ -493,13 +499,9 @@ impl<'py> BoundListIterator<'py> {
 
     /// # Safety
     ///
-    /// On the free-threaded build, caller must verify they have exclusive
-    /// access to the list by holding a lock or by holding the innermost
-    /// critical section on the list.
+    /// The caller must hold an active critical section on this list.
     #[inline]
-    #[cfg(not(Py_LIMITED_API))]
-    #[deny(unsafe_op_in_unsafe_fn)]
-    unsafe fn next_unchecked(
+    unsafe fn next_locked(
         index: &mut Index,
         length: &mut Length,
         list: &Bound<'py, PyList>,
@@ -508,6 +510,7 @@ impl<'py> BoundListIterator<'py> {
         let my_index = index.0;
 
         if index.0 < length {
+            // SAFETY: index.0 < list.len() guarantees in bounds
             let item = unsafe { list.get_item_unchecked(my_index) };
             index.0 += 1;
             Some(item)
@@ -516,27 +519,12 @@ impl<'py> BoundListIterator<'py> {
         }
     }
 
-    #[cfg(Py_LIMITED_API)]
-    fn next(
-        index: &mut Index,
-        length: &mut Length,
-        list: &Bound<'py, PyList>,
-    ) -> Option<Bound<'py, PyAny>> {
-        let length = length.0.min(list.len());
-        let my_index = index.0;
-
-        if index.0 < length {
-            let item = list.get_item(my_index).expect("get-item failed");
-            index.0 += 1;
-            Some(item)
-        } else {
-            None
-        }
-    }
-
+    /// # Safety
+    ///
+    /// The caller must hold an active critical section on this list.
     #[inline]
     #[cfg(not(feature = "nightly"))]
-    fn nth(
+    unsafe fn nth_locked(
         index: &mut Index,
         length: &mut Length,
         list: &Bound<'py, PyList>,
@@ -545,17 +533,8 @@ impl<'py> BoundListIterator<'py> {
         let length = length.0.min(list.len());
         let target_index = index.0 + n;
         if target_index < length {
-            let item = {
-                #[cfg(Py_LIMITED_API)]
-                {
-                    list.get_item(target_index).expect("get-item failed")
-                }
-
-                #[cfg(not(Py_LIMITED_API))]
-                {
-                    unsafe { list.get_item_unchecked(target_index) }
-                }
-            };
+            // SAFETY: target_index < list.len() guarantees in bounds
+            let item = unsafe { list.get_item_unchecked(target_index) };
             index.0 = target_index + 1;
             Some(item)
         } else {
@@ -565,13 +544,9 @@ impl<'py> BoundListIterator<'py> {
 
     /// # Safety
     ///
-    /// On the free-threaded build, caller must verify they have exclusive
-    /// access to the list by holding a lock or by holding the innermost
-    /// critical section on the list.
+    /// The caller must hold an active critical section on this list.
     #[inline]
-    #[cfg(not(Py_LIMITED_API))]
-    #[deny(unsafe_op_in_unsafe_fn)]
-    unsafe fn next_back_unchecked(
+    unsafe fn next_back_locked(
         index: &mut Index,
         length: &mut Length,
         list: &Bound<'py, PyList>,
@@ -579,6 +554,7 @@ impl<'py> BoundListIterator<'py> {
         let current_length = length.0.min(list.len());
 
         if index.0 < current_length {
+            // SAFETY: index.0 < list.len() guarantees in bounds
             let item = unsafe { list.get_item_unchecked(current_length - 1) };
             length.0 = current_length - 1;
             Some(item)
@@ -587,27 +563,12 @@ impl<'py> BoundListIterator<'py> {
         }
     }
 
-    #[inline]
-    #[cfg(Py_LIMITED_API)]
-    fn next_back(
-        index: &mut Index,
-        length: &mut Length,
-        list: &Bound<'py, PyList>,
-    ) -> Option<Bound<'py, PyAny>> {
-        let current_length = (length.0).min(list.len());
-
-        if index.0 < current_length {
-            let item = list.get_item(current_length - 1).expect("get-item failed");
-            length.0 = current_length - 1;
-            Some(item)
-        } else {
-            None
-        }
-    }
-
+    /// # Safety
+    ///
+    /// The caller must hold an active critical section on this list.
     #[inline]
     #[cfg(not(feature = "nightly"))]
-    fn nth_back(
+    unsafe fn nth_back_locked(
         index: &mut Index,
         length: &mut Length,
         list: &Bound<'py, PyList>,
@@ -616,17 +577,8 @@ impl<'py> BoundListIterator<'py> {
         let length_size = length.0.min(list.len());
         if index.0 + n < length_size {
             let target_index = length_size - n - 1;
-            let item = {
-                #[cfg(not(Py_LIMITED_API))]
-                {
-                    unsafe { list.get_item_unchecked(target_index) }
-                }
-
-                #[cfg(Py_LIMITED_API)]
-                {
-                    list.get_item(target_index).expect("get-item failed")
-                }
-            };
+            // SAFETY: target_index < list.len() guarantees in bounds
+            let item = unsafe { list.get_item_unchecked(target_index) };
             length.0 = target_index;
             Some(item)
         } else {
@@ -634,7 +586,6 @@ impl<'py> BoundListIterator<'py> {
         }
     }
 
-    #[allow(dead_code)]
     fn with_critical_section<R>(
         &mut self,
         f: impl FnOnce(&mut Index, &mut Length, &Bound<'py, PyList>) -> R,
@@ -653,27 +604,19 @@ impl<'py> Iterator for BoundListIterator<'py> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            self.with_critical_section(|index, length, list| unsafe {
-                Self::next_unchecked(index, length, list)
-            })
-        }
-        #[cfg(Py_LIMITED_API)]
-        {
-            let Self {
-                index,
-                length,
-                list,
-            } = self;
-            Self::next(index, length, list)
-        }
+        // SAFETY: with_critical_section locks the list
+        self.with_critical_section(|index, length, list| unsafe {
+            Self::next_locked(index, length, list)
+        })
     }
 
     #[inline]
     #[cfg(not(feature = "nightly"))]
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        self.with_critical_section(|index, length, list| Self::nth(index, length, list, n))
+        // SAFETY: with_critical_section locks the list
+        self.with_critical_section(|index, length, list| unsafe {
+            Self::nth_locked(index, length, list, n)
+        })
     }
 
     #[inline]
@@ -707,7 +650,8 @@ impl<'py> Iterator for BoundListIterator<'py> {
     {
         self.with_critical_section(|index, length, list| {
             let mut accum = init;
-            while let Some(x) = unsafe { Self::next_unchecked(index, length, list) } {
+            // SAFETY: with_critical_section locks the list
+            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
                 accum = f(accum, x);
             }
             accum
@@ -724,7 +668,8 @@ impl<'py> Iterator for BoundListIterator<'py> {
     {
         self.with_critical_section(|index, length, list| {
             let mut accum = init;
-            while let Some(x) = unsafe { Self::next_unchecked(index, length, list) } {
+            // SAFETY: with_critical_section locks the list
+            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
                 accum = f(accum, x)?
             }
             R::from_output(accum)
@@ -739,7 +684,8 @@ impl<'py> Iterator for BoundListIterator<'py> {
         F: FnMut(Self::Item) -> bool,
     {
         self.with_critical_section(|index, length, list| {
-            while let Some(x) = unsafe { Self::next_unchecked(index, length, list) } {
+            // SAFETY: with_critical_section locks the list
+            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
                 if !f(x) {
                     return false;
                 }
@@ -756,7 +702,8 @@ impl<'py> Iterator for BoundListIterator<'py> {
         F: FnMut(Self::Item) -> bool,
     {
         self.with_critical_section(|index, length, list| {
-            while let Some(x) = unsafe { Self::next_unchecked(index, length, list) } {
+            // SAFETY: with_critical_section locks the list
+            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
                 if f(x) {
                     return true;
                 }
@@ -773,7 +720,8 @@ impl<'py> Iterator for BoundListIterator<'py> {
         P: FnMut(&Self::Item) -> bool,
     {
         self.with_critical_section(|index, length, list| {
-            while let Some(x) = unsafe { Self::next_unchecked(index, length, list) } {
+            // SAFETY: with_critical_section locks the list
+            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
                 if predicate(&x) {
                     return Some(x);
                 }
@@ -790,7 +738,8 @@ impl<'py> Iterator for BoundListIterator<'py> {
         F: FnMut(Self::Item) -> Option<B>,
     {
         self.with_critical_section(|index, length, list| {
-            while let Some(x) = unsafe { Self::next_unchecked(index, length, list) } {
+            // SAFETY: with_critical_section locks the list
+            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
                 if let found @ Some(_) = f(x) {
                     return found;
                 }
@@ -808,7 +757,8 @@ impl<'py> Iterator for BoundListIterator<'py> {
     {
         self.with_critical_section(|index, length, list| {
             let mut acc = 0;
-            while let Some(x) = unsafe { Self::next_unchecked(index, length, list) } {
+            // SAFETY: with_critical_section locks the list
+            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
                 if predicate(x) {
                     return Some(acc);
                 }
@@ -848,27 +798,18 @@ impl<'py> Iterator for BoundListIterator<'py> {
 impl DoubleEndedIterator for BoundListIterator<'_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            self.with_critical_section(|index, length, list| unsafe {
-                Self::next_back_unchecked(index, length, list)
-            })
-        }
-        #[cfg(Py_LIMITED_API)]
-        {
-            let Self {
-                index,
-                length,
-                list,
-            } = self;
-            Self::next_back(index, length, list)
-        }
+        self.with_critical_section(|index, length, list| unsafe {
+            Self::next_back_locked(index, length, list)
+        })
     }
 
     #[inline]
     #[cfg(not(feature = "nightly"))]
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        self.with_critical_section(|index, length, list| Self::nth_back(index, length, list, n))
+        // SAFETY: with_critical_section locks the list
+        self.with_critical_section(|index, length, list| unsafe {
+            Self::nth_back_locked(index, length, list, n)
+        })
     }
 
     #[inline]
@@ -880,7 +821,8 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
     {
         self.with_critical_section(|index, length, list| {
             let mut accum = init;
-            while let Some(x) = unsafe { Self::next_back_unchecked(index, length, list) } {
+            // SAFETY: with_critical_section locks the list
+            while let Some(x) = unsafe { Self::next_back_locked(index, length, list) } {
                 accum = f(accum, x);
             }
             accum
@@ -897,7 +839,8 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
     {
         self.with_critical_section(|index, length, list| {
             let mut accum = init;
-            while let Some(x) = unsafe { Self::next_back_unchecked(index, length, list) } {
+            // SAFETY: with_critical_section locks the list
+            while let Some(x) = unsafe { Self::next_back_locked(index, length, list) } {
                 accum = f(accum, x)?
             }
             R::from_output(accum)
@@ -1420,7 +1363,6 @@ mod tests {
         });
     }
 
-    #[cfg(not(Py_LIMITED_API))]
     #[test]
     fn test_list_get_item_unchecked_sanity() {
         Python::attach(|py| {
