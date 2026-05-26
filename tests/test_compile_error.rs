@@ -135,10 +135,12 @@ fn main() {
         // tests that async functions are rejected without the feature
         #[cfg(feature = "experimental-async")]
         "invalid_async.rs".into(),
-        // requires the async feature
-        #[cfg(not(feature = "experimental-async"))]
-        // the `FromPyObject` argument for `&str` causes the output to differ
-        #[cfg(not(all(Py_LIMITED_API, not(Py_3_10))))]
+        #[cfg(any(
+            // requires the async feature
+            not(feature = "experimental-async"),
+            // the `FromPyObject` argument for `&str` causes the output to differ
+            all(Py_LIMITED_API, not(Py_3_10))
+        ))]
         "invalid_cancel_handle.rs".into(),
     ]);
 
@@ -189,8 +191,12 @@ fn main() {
             );
         });
 
-    let abort_check = config.abort_check.clone();
-    ctrlc::set_handler(move || abort_check.abort()).unwrap();
+    // `ctrlc` doesn't build on wasm
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let abort_check = config.abort_check.clone();
+        ctrlc::set_handler(move || abort_check.abort()).unwrap();
+    }
 
     run_tests(config).unwrap();
 }
@@ -305,7 +311,8 @@ impl ui_test::custom_flags::Flag for SplitBuildOnExperimentalInpsect {
         _comments: &ui_test::Comments,
         _revision: &str,
     ) -> bool {
-        // returning `true` skips the test
-        !(self.requires_inspect == cfg!(feature = "experimental-inspect"))
+        // returning `true` skips the test, so return true when the feature doesn't
+        // match the requirement of the test
+        self.requires_inspect != cfg!(feature = "experimental-inspect")
     }
 }

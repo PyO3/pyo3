@@ -17,8 +17,8 @@ fn cancel_handle_synchronous(#[pyo3(cancel_handle)] _param: String) {}
 //~^ ERROR: `cancel_handle` attribute can only be used with `async fn`
 
 #[pyfunction]
-//~^ ERROR: mismatched types
 async fn cancel_handle_wrong_type(#[pyo3(cancel_handle)] _param: String) {}
+//~^ ERROR: mismatched types
 
 #[pyfunction]
 async fn missing_cancel_handle_attribute(_param: pyo3::coroutine::CancelHandle) {}

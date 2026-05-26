@@ -52,18 +52,20 @@ help: the following other types implement trait `pyo3::impl_::extract_argument::
   | |______________________^ `&'holder mut T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
 
 error[E0308]: mismatched types
-  --> tests/ui/invalid_cancel_handle.rs:19:1
+  --> tests/ui/invalid_cancel_handle.rs:20:66
    |
 19 | #[pyfunction]
-   | ^^^^^^^^^^^^^
+   | -------------
    | |
-   | expected `String`, found `CancelHandle`
    | arguments to this function are incorrect
+   | in this attribute macro expansion
+20 | async fn cancel_handle_wrong_type(#[pyo3(cancel_handle)] _param: String) {}
+   |                                                                  ^^^^^^ expected `String`, found `CancelHandle`
    |
 note: function defined here
-  --> tests/ui/invalid_cancel_handle.rs:21:10
+  --> tests/ui/invalid_cancel_handle.rs:20:10
    |
-21 | async fn cancel_handle_wrong_type(#[pyo3(cancel_handle)] _param: String) {}
+20 | async fn cancel_handle_wrong_type(#[pyo3(cancel_handle)] _param: String) {}
    |          ^^^^^^^^^^^^^^^^^^^^^^^^                        --------------
    = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
 
