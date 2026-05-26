@@ -138,7 +138,7 @@ impl<'a, T: PyClass> PyClassGuard<'a, T> {
     /// # Ok::<_, PyErr>(())
     /// # }).unwrap();
     /// ```
-    pub fn map<F, U: ?Sized>(self, f: F) -> PyClassGuardMap<'a, U, false>
+    pub fn map<F, U: ?Sized>(self, f: F) -> PyClassGuardMap<'a, U>
     where
         F: FnOnce(&T) -> &U,
     {
@@ -388,6 +388,29 @@ impl From<PyClassGuardError<'_, '_>> for PyErr {
         } else {
             PyBorrowError::new().into()
         }
+    }
+}
+
+/// Wraps a borrowed shared reference `U` to a value stored inside of a pyclass `T`
+///
+/// See [`PyClassGuard::map`]
+pub struct PyClassGuardMap<'a, U: ?Sized> {
+    ptr: NonNull<U>,
+    checker: &'a dyn PyClassBorrowChecker,
+}
+
+impl<U: ?Sized> Deref for PyClassGuardMap<'_, U> {
+    type Target = U;
+
+    fn deref(&self) -> &U {
+        // SAFETY: `checker` guards our access to the `T` that `U` points into
+        unsafe { self.ptr.as_ref() }
+    }
+}
+
+impl<U: ?Sized> Drop for PyClassGuardMap<'_, U> {
+    fn drop(&mut self) {
+        self.checker.release_borrow();
     }
 }
 
@@ -650,14 +673,15 @@ impl<'a, T: PyClass<Frozen = False>> PyClassGuardMut<'a, T> {
     /// # Ok::<_, PyErr>(())
     /// # }).unwrap();
     /// ```
-    pub fn map<F, U: ?Sized>(self, f: F) -> PyClassGuardMap<'a, U, true>
+    pub fn map<F, U: ?Sized>(self, f: F) -> PyClassGuardMapMut<'a, U>
     where
         F: FnOnce(&mut T) -> &mut U,
     {
         let mut slf = core::mem::ManuallyDrop::new(self); // the borrow is released when dropping the `PyClassGuardMap`
-        PyClassGuardMap {
+        PyClassGuardMapMut {
             ptr: NonNull::from(f(&mut slf)),
             checker: slf.as_class_object().borrow_checker(),
+            _borrow: PhantomData,
         }
     }
 }
@@ -816,15 +840,17 @@ impl From<PyClassGuardMutError<'_, '_>> for PyErr {
     }
 }
 
-/// Wraps a borrowed reference `U` to a value stored inside of a pyclass `T`
+/// Wraps a borrowed mutable reference `U` to a value stored inside of a pyclass `T`
 ///
-/// See [`PyClassGuard::map`] and [`PyClassGuardMut::map`]
-pub struct PyClassGuardMap<'a, U: ?Sized, const MUT: bool> {
+/// See [`PyClassGuardMut::map`]
+pub struct PyClassGuardMapMut<'a, U: ?Sized> {
     ptr: NonNull<U>,
     checker: &'a dyn PyClassBorrowChecker,
+    // We mutate through `ptr`, so make sure we are invariant in `U`
+    _borrow: PhantomData<&'a mut U>,
 }
 
-impl<U: ?Sized, const MUT: bool> Deref for PyClassGuardMap<'_, U, MUT> {
+impl<U: ?Sized> Deref for PyClassGuardMapMut<'_, U> {
     type Target = U;
 
     fn deref(&self) -> &U {
@@ -833,20 +859,16 @@ impl<U: ?Sized, const MUT: bool> Deref for PyClassGuardMap<'_, U, MUT> {
     }
 }
 
-impl<U: ?Sized> DerefMut for PyClassGuardMap<'_, U, true> {
+impl<U: ?Sized> DerefMut for PyClassGuardMapMut<'_, U> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         // SAFETY: `checker` guards our access to the `T` that `U` points into
         unsafe { self.ptr.as_mut() }
     }
 }
 
-impl<U: ?Sized, const MUT: bool> Drop for PyClassGuardMap<'_, U, MUT> {
+impl<U: ?Sized> Drop for PyClassGuardMapMut<'_, U> {
     fn drop(&mut self) {
-        if MUT {
-            self.checker.release_borrow_mut();
-        } else {
-            self.checker.release_borrow();
-        }
+        self.checker.release_borrow_mut();
     }
 }
 
