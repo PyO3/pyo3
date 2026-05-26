@@ -5,7 +5,6 @@ use crate::{PyObject, PyTypeObject, Py_IS_TYPE};
 use core::ffi::c_char;
 use core::ffi::c_int;
 
-// NB used in `_PyEval_EvalFrameDefault`, maybe we remove this too.
 #[cfg(all(Py_3_11, not(PyPy)))]
 opaque_struct!(pub _PyInterpreterFrame);
 

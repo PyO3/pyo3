@@ -249,15 +249,15 @@ pub trait PyListMethods<'py>: crate::sealed::Sealed {
 impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// Returns the length of the list.
     fn len(&self) -> usize {
-        unsafe {
-            #[cfg(not(Py_LIMITED_API))]
-            let size = ffi::PyList_GET_SIZE(self.as_ptr());
-            #[cfg(Py_LIMITED_API)]
-            let size = ffi::PyList_Size(self.as_ptr());
+        let size = cfg_select! {
+            // SAFETY: self is valid list object
+            not(Py_LIMITED_API) => unsafe { ffi::PyList_GET_SIZE(self.as_ptr()) },
+            // SAFETY: as above
+            Py_LIMITED_API => unsafe { ffi::PyList_Size(self.as_ptr()) },
+        };
 
-            // non-negative Py_ssize_t should always fit into Rust usize
-            size as usize
-        }
+        // non-negative Py_ssize_t should always fit into Rust usize
+        size as usize
     }
 
     /// Checks if the list is empty.
