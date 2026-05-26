@@ -3144,6 +3144,107 @@ mod tests {
         assert_eq!(default_cross_compile(&cross_config).unwrap(), config);
     }
 
+    // 3.14t cross-compile must produce a version-specific free-threaded ABI:
+    // 3.14 is below MINIMUM_SUPPORTED_VERSION_ABI3T (3.15) so abi3t is unavailable,
+    // and the free-threaded build does not support abi3 either.
+    #[test]
+    fn unix_free_threaded_pre_315_cross_compile() {
+        let env_vars = CrossCompileEnvVars {
+            pyo3_cross: None,
+            pyo3_cross_lib_dir: None,
+            pyo3_cross_python_implementation: None,
+            pyo3_cross_python_version: Some("3.14t".into()),
+        };
+
+        let host = triple!("x86_64-unknown-linux-gnu");
+        let target = triple!("aarch64-unknown-linux-gnu");
+        let cross_config =
+            CrossCompileConfig::try_from_env_vars_host_target(env_vars, &host, &target)
+                .unwrap()
+                .unwrap();
+
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY314;
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .free_threaded()
+            .unwrap()
+            .lib_name("python3.14t".to_string())
+            .finalize()
+            .unwrap();
+        let result = default_cross_compile(&cross_config).unwrap();
+        assert_eq!(result, config);
+        assert_eq!(
+            result.target_abi.kind(),
+            PythonAbiKind::VersionSpecific(GilUsed::FreeThreaded)
+        );
+    }
+
+    #[test]
+    fn windows_free_threaded_pre_315_cross_compile() {
+        let env_vars = CrossCompileEnvVars {
+            pyo3_cross: None,
+            pyo3_cross_lib_dir: None,
+            pyo3_cross_python_implementation: None,
+            pyo3_cross_python_version: Some("3.14t".into()),
+        };
+
+        let host = triple!("x86_64-unknown-linux-gnu");
+        let target = triple!("x86_64-pc-windows-msvc");
+        let cross_config =
+            CrossCompileConfig::try_from_env_vars_host_target(env_vars, &host, &target)
+                .unwrap()
+                .unwrap();
+
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY314;
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .free_threaded()
+            .unwrap()
+            .lib_name("python314t".to_string())
+            .finalize()
+            .unwrap();
+        let result = default_cross_compile(&cross_config).unwrap();
+        assert_eq!(result, config);
+        assert_eq!(
+            result.target_abi.kind(),
+            PythonAbiKind::VersionSpecific(GilUsed::FreeThreaded)
+        );
+    }
+
+    // PYO3_CROSS_PYTHON_VERSION=3.15t with no abi3t-py3* feature active still
+    // produces a version-specific free-threaded ABI rather than abi3t.
+    #[test]
+    fn unix_free_threaded_315_cross_compile() {
+        let env_vars = CrossCompileEnvVars {
+            pyo3_cross: None,
+            pyo3_cross_lib_dir: None,
+            pyo3_cross_python_implementation: None,
+            pyo3_cross_python_version: Some("3.15t".into()),
+        };
+
+        let host = triple!("x86_64-unknown-linux-gnu");
+        let target = triple!("aarch64-unknown-linux-gnu");
+        let cross_config =
+            CrossCompileConfig::try_from_env_vars_host_target(env_vars, &host, &target)
+                .unwrap()
+                .unwrap();
+
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY315;
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .free_threaded()
+            .unwrap()
+            .lib_name("python3.15t".to_string())
+            .finalize()
+            .unwrap();
+        let result = default_cross_compile(&cross_config).unwrap();
+        assert_eq!(result, config);
+        assert_eq!(
+            result.target_abi.kind(),
+            PythonAbiKind::VersionSpecific(GilUsed::FreeThreaded)
+        );
+    }
+
     #[test]
     fn default_lib_name_windows() {
         assert_eq!(
