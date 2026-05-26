@@ -6,7 +6,7 @@ use crate::{
     types::{PyType, PyTypeMethods},
     Py,
 };
-use std::convert::Infallible;
+use core::convert::Infallible;
 
 /// Represents a Python `int` object.
 ///

@@ -10,7 +10,7 @@ use crate::{
     types::{PyType, PyTypeMethods},
     Py,
 };
-use std::slice;
+use core::slice;
 
 /// Represents a Python `bytearray`.
 ///
@@ -82,17 +82,17 @@ impl PyByteArray {
         unsafe {
             // Allocate buffer and check for an error
             let pybytearray: Bound<'_, Self> =
-                ffi::PyByteArray_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t)
+                ffi::PyByteArray_FromStringAndSize(core::ptr::null(), len as ffi::Py_ssize_t)
                     .assume_owned_or_err(py)?
                     .cast_into_unchecked();
 
             let buffer: *mut u8 = ffi::PyByteArray_AsString(pybytearray.as_ptr()).cast();
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytearray
-            std::ptr::write_bytes(buffer, 0u8, len);
+            core::ptr::write_bytes(buffer, 0u8, len);
             // (Further) Initialise the bytearray in init
             // If init returns an Err, pypybytearray will automatically deallocate the buffer
-            init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pybytearray)
+            init(core::slice::from_raw_parts_mut(buffer, len)).map(|_| pybytearray)
         }
     }
 
@@ -482,11 +482,11 @@ mod tests {
         use crate::instance::Py;
         use crate::sync::{critical_section::with_critical_section, MutexExt};
 
-        use std::sync::atomic::{AtomicBool, Ordering};
+        use core::sync::atomic::{AtomicBool, Ordering};
+        use core::time::Duration;
         use std::sync::Mutex;
         use std::thread;
         use std::thread::ScopedJoinHandle;
-        use std::time::Duration;
 
         const SIZE: usize = 1_000_000;
         const DATA_VALUE: u8 = 42;

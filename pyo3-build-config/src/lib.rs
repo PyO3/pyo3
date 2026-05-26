@@ -185,6 +185,7 @@ pub fn print_feature_cfgs() {
     print_feature_cfg(84, "const_is_null");
     print_feature_cfg(85, "fn_ptr_eq");
     print_feature_cfg(86, "from_bytes_with_nul_error");
+    print_feature_cfg(95, "cfg_select");
 }
 
 /// Registers `pyo3`s config names as reachable cfg expressions
@@ -270,15 +271,14 @@ pub mod pyo3_build_script_impl {
             clippy::const_is_empty,
             reason = "CONFIG_FILE is generated in build.rs, content can vary"
         )]
-        if let Some(mut interpreter_config) =
-            InterpreterConfig::from_pyo3_config_file_env().transpose()?
+        if let Some(interpreter_config) =
+            InterpreterConfig::from_pyo3_config_file_env(target).transpose()?
         {
-            interpreter_config.apply_default_lib_name_to_config_file(target);
             Ok(BuildConfig {
                 interpreter_config,
                 source: BuildConfigSource::ConfigFile,
             })
-        } else if let Some(interpreter_config) = make_cross_compile_config()? {
+        } else if let Some(interpreter_config) = make_cross_compile_config(target)? {
             Ok(BuildConfig {
                 interpreter_config,
                 source: BuildConfigSource::CrossCompile,

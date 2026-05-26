@@ -8,7 +8,8 @@ use crate::{
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
     Borrowed, FromPyObject, PyAny, PyErr, Python,
 };
-use std::{cmp, collections, hash};
+use core::{cmp, hash};
+use std::collections;
 
 impl<'py, K, V, H> IntoPyObject<'py> for collections::HashMap<K, V, H>
 where
@@ -154,7 +155,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::{BTreeMap, HashMap};
+    use alloc::collections::BTreeMap;
+    use std::collections::HashMap;
 
     #[test]
     fn test_hashmap_to_python() {

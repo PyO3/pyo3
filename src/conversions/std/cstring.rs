@@ -5,12 +5,13 @@ use crate::inspect::PyStaticExpr;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyString;
 use crate::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, Python};
-use std::borrow::Cow;
-use std::ffi::{CStr, CString};
+use alloc::borrow::Cow;
+use core::ffi::CStr;
+use std::ffi::CString;
 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 use {
     crate::{exceptions::PyValueError, ffi},
-    std::slice,
+    core::slice,
 };
 
 impl<'py> IntoPyObject<'py> for &CStr {

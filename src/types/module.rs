@@ -15,11 +15,11 @@ use crate::{
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
 };
-use std::borrow::Cow;
+use alloc::borrow::Cow;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-use std::ffi::c_int;
-use std::ffi::CStr;
-use std::str;
+use core::ffi::c_int;
+use core::ffi::CStr;
+use core::str;
 
 /// Represents a Python [`module`][1] object.
 ///
@@ -136,9 +136,9 @@ impl PyModule {
     /// Returns `PyErr` if:
     /// - `code` is not syntactically correct Python.
     /// - Any Python exceptions are raised while initializing the module.
-    /// - Any of the arguments cannot be converted to [`CString`][std::ffi::CString]s.
+    /// - Any of the arguments cannot be converted to [`CString`][alloc::ffi::CString]s.
     ///
-    /// # Example: bundle in a file at compile time with [`include_str!`][std::include_str]:
+    /// # Example: bundle in a file at compile time with [`include_str!`][core::include_str]:
     ///
     /// ```rust
     /// use pyo3::prelude::*;

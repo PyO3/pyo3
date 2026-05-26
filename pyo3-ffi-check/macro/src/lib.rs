@@ -436,8 +436,12 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("Py_SIZE", "not(Py_3_15)"), // symbol added for stable abi on 3.15
     ("Py_True", ""),
     ("Py_TYPE", "not(Py_3_14)"),
+    ("Py_UNICODE_TODECIMAL", ""),
     ("Py_XDECREF", ""),
     ("Py_XINCREF", ""),
+    ("_PyCode_GetExtra", "Py_3_12"),
+    ("_PyCode_SetExtra", "Py_3_12"),
+    ("_PyEval_RequestCodeExtraIndex", "Py_3_12"),
     // These functions were only added in 3.10, but pyo3-ffi defines them for
     // all versions. Technically not macros but the machinery happens to work
     // the same way.
@@ -449,10 +453,11 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
 
 // TODO: probably need to clean these up
 const EXCLUDED_SYMBOLS: &[&str] = &[
-    // CPython deprecated these but the symbols still exist, pyo3-ffi will probably clean them up anyway
-    "_PyCode_GetExtra",
-    "_PyCode_SetExtra",
-    "_PyEval_RequestCodeExtraIndex",
+    // CPython moved these to the unstable API in 3.12, we exposed these for all versions just
+    // to keep it simpler to migrate
+    "PyUnstable_Code_GetExtra",
+    "PyUnstable_Code_SetExtra",
+    "PyUnstable_Eval_RequestCodeExtraIndex",
     // FIXME: probably outdated definitions that fail to build, need investigation,
     // temporarily here to make the build pass to get CI running
     "PyCode_New",
@@ -465,20 +470,6 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "PySys_AddXOption",
     "PySys_HasWarnOptions",
     "PySys_SetPath",
-    "PyUnicode_ClearFreeList",
-    "PyUnicode_Encode",
-    "PyUnicode_EncodeASCII",
-    "PyUnicode_EncodeCharmap",
-    "PyUnicode_EncodeDecimal",
-    "PyUnicode_EncodeLatin1",
-    "PyUnicode_EncodeRawUnicodeEscape",
-    "PyUnicode_EncodeUTF7",
-    "PyUnicode_EncodeUTF8",
-    "PyUnicode_EncodeUTF16",
-    "PyUnicode_EncodeUTF32",
-    "PyUnicode_EncodeUnicodeEscape",
-    "PyUnicode_TransformDecimalToASCII",
-    "PyUnicode_TranslateCharmap",
     // This symbol was not in headers but still public until Python 3.10,
     // should be able to remove this exclusion once support for 3.9 dropped
     "Py_GetArgcArgv",
@@ -487,10 +478,6 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "PyObject_Vectorcall",
     "PyVectorcall_Function",
     "PyObject_VectorcallDict",
-    // Needs fixing: since 3.9 it takes thread state as first argument
-    "_PyEval_EvalFrameDefault",
-    // Needs fixing: argument count is wrong on 3.13 against headers
-    "_PyLong_AsByteArray",
     // CPython gates these on a HAVE_FORK macro, pyo3-ffi needs to replicate this?
     "PyOS_BeforeFork",
     "PyOS_AfterFork_Parent",
@@ -563,6 +550,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             modifiers,
             arg_count,
             variadic,
+            void_return,
         } = match (function_name, get_function_info(function_name, &entry)) {
             (_, Ok(info)) => info,
             // In some cases symbols and macros differ only by case, which is a problem for case-insensitive filesystems.
@@ -574,27 +562,32 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
                 modifiers: quote!(),
                 arg_count: 1,
                 variadic: false,
+                void_return: true,
             },
             ("Py_IncRef", Err(FunctionNameMismatch(e))) if e == "Py_INCREF" => FunctionInfo {
                 modifiers: quote!(extern "C"),
                 arg_count: 1,
                 variadic: false,
+                void_return: true,
             },
             ("Py_DECREF", Err(FunctionNameMismatch(e))) if e == "Py_DecRef" => FunctionInfo {
                 modifiers: quote!(),
                 arg_count: 1,
                 variadic: false,
+                void_return: true,
             },
             ("Py_DecRef", Err(FunctionNameMismatch(e))) if e == "Py_DECREF" => FunctionInfo {
                 modifiers: quote!(extern "C"),
                 arg_count: 1,
                 variadic: false,
+                void_return: true,
             },
             ("PyThreadState_GET", Err(FunctionNameMismatch(e))) if e == "PyThreadState_Get" => {
                 FunctionInfo {
                     modifiers: quote!(),
                     arg_count: 0,
                     variadic: false,
+                    void_return: false,
                 }
             }
             ("PyThreadState_Get", Err(FunctionNameMismatch(e))) if e == "PyThreadState_GET" => {
@@ -602,6 +595,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
                     modifiers: quote!(extern "C"),
                     arg_count: 0,
                     variadic: false,
+                    void_return: false,
                 }
             }
             (function_name, Err(FunctionNameMismatch(unexpected))) => {
@@ -616,6 +610,8 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
         let function_ident = Ident::new(function_name, Span::call_site());
 
         let arg_types = std::iter::repeat_n(quote!(_), arg_count);
+
+        let retval = if void_return { quote!() } else { quote!(-> _) };
 
         let vararg = if variadic { Some(quote!(, ...)) } else { None };
 
@@ -642,6 +638,23 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
 
         let has_symbol = BINDGEN_FUNCTION_NAMES.contains(function_name);
 
+        if has_symbol {
+            if let Ok(FunctionInfo {
+                void_return: bindgen_void_return,
+                ..
+            }) = get_function_info(
+                function_name,
+                &DOC_DIR.join(format!("bindgen/fn.{}.html", function_name)),
+            ) {
+                if void_return != bindgen_void_return {
+                    let error_message = format!(
+                        "void return mismatch between pyo3-ffi and bindgen for `{function_name}`: pyo3-ffi has void return {void_return}, but bindgen has void return {bindgen_void_return}",
+                    );
+                    output.extend(quote!(compile_error!(#error_message);));
+                }
+            }
+        }
+
         match (macro_exclusion_cfg, has_symbol) {
             (Some(cfg), true) => {
                 // emit an error if checking within the cfgs where a macro is expected
@@ -651,7 +664,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
                 output.extend(quote!(#[cfg(#cfg)] compile_error!(#error_message);));
                 // if not within the macro range, we found a symbol, this should be good
                 output.extend(
-                    quote!(#[cfg(not(#cfg))] #macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg));),
+                    quote!(#[cfg(not(#cfg))] #macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg) #retval);),
                 );
             }
             (Some(cfg), false) => {
@@ -665,7 +678,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             (None, true) => {
                 // emit the comparison macro to check that the argument count matches
                 output.extend(
-                    quote!(#macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg));),
+                    quote!(#macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg) #retval);),
                 );
             }
             (None, false) => {
@@ -685,6 +698,7 @@ struct FunctionInfo {
     modifiers: TokenStream, // e.g. `unsafe extern "C"`, empty for no modifiers
     arg_count: usize,       // not including the "..." for variadic functions
     variadic: bool,
+    void_return: bool, // whether the function returns void (i.e. has no return type in C)
 }
 
 // Error returned when the function definition does not match the expected name of the file
@@ -763,10 +777,17 @@ fn get_function_info(
         arg_count += 1;
     }
 
+    let end_paren = args_begin[end..]
+        .find(')')
+        .expect("function declaration should have closing paren after arguments");
+
+    let after_parens = args_begin[end + end_paren + 1..].trim_start();
+
     Ok(FunctionInfo {
         modifiers,
         arg_count,
         variadic,
+        void_return: !after_parens.contains("->"),
     })
 }
 

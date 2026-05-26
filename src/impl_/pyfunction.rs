@@ -1,4 +1,4 @@
-use std::cell::UnsafeCell;
+use core::cell::UnsafeCell;
 
 use crate::{
     ffi,
@@ -115,12 +115,12 @@ pub unsafe fn create_py_c_function<'py>(
         let mod_ptr = m.as_ptr();
         (mod_ptr, Some(m.name()?))
     } else {
-        (std::ptr::null_mut(), None)
+        (core::ptr::null_mut(), None)
     };
 
     let module_name_ptr = module_name
         .as_ref()
-        .map_or(std::ptr::null_mut(), Bound::as_ptr);
+        .map_or(core::ptr::null_mut(), Bound::as_ptr);
 
     unsafe {
         ffi::PyCFunction_NewEx(method_def, mod_ptr, module_name_ptr)

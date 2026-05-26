@@ -362,7 +362,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
 mod tests {
     use crate::types::{PyAnyMethods, PyList, PySequence, PySequenceMethods, PyTuple};
     use crate::{IntoPyObject, Py, PyAny, PyTypeInfo, Python};
-    use std::ptr;
+    use core::ptr;
 
     fn get_object() -> Py<PyAny> {
         // Convenience function for getting a single unique object

@@ -1,4 +1,4 @@
-use std::{
+use core::{
     ffi::{c_int, c_void},
     marker::PhantomData,
     num::NonZero,
@@ -37,7 +37,7 @@ impl PyVisit<'_> {
     where
         T: Into<Option<&'a Py<U>>>,
     {
-        let ptr = obj.into().map_or_else(std::ptr::null_mut, Py::as_ptr);
+        let ptr = obj.into().map_or_else(core::ptr::null_mut, Py::as_ptr);
         if !ptr.is_null() {
             match NonZero::new(unsafe { (self.visit)(ptr, self.arg) }) {
                 None => Ok(()),

@@ -207,7 +207,7 @@ impl<'py> PyCallArgs<'py> for Borrowed<'_, 'py, PyTuple> {
         _: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
         unsafe {
-            ffi::PyObject_Call(function.as_ptr(), self.as_ptr(), std::ptr::null_mut())
+            ffi::PyObject_Call(function.as_ptr(), self.as_ptr(), core::ptr::null_mut())
                 .assume_owned_or_err(function.py())
         }
     }

@@ -1,4 +1,5 @@
-use std::{cmp, collections, hash};
+use core::{cmp, hash};
+use std::collections;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
@@ -141,7 +142,8 @@ where
 mod tests {
     use crate::types::{any::PyAnyMethods, PyFrozenSet, PySet};
     use crate::{IntoPyObject, Python};
-    use std::collections::{BTreeSet, HashSet};
+    use alloc::collections::BTreeSet;
+    use std::collections::HashSet;
 
     #[test]
     fn test_extract_hashset() {
