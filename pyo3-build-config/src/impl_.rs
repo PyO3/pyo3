@@ -1318,6 +1318,11 @@ impl PythonVersion {
         major: 3,
         minor: 15,
     };
+    #[cfg(test)]
+    pub(crate) const PY314: Self = PythonVersion {
+        major: 3,
+        minor: 14,
+    };
     #[deprecated(
         since = "0.29.0",
         note = "please construct `PythonVersion` directly rather than use these constants"
@@ -3516,19 +3521,23 @@ mod tests {
             return;
         }
 
-        let interpreter = get_host_interpreter(
-            Some(PythonVersion {
-                major: 3,
-                minor: 45,
-            }),
-            None,
-        );
-        assert!(interpreter.unwrap_err().to_string().contains(
-            "cannot set a minimum Python version 3.45 higher than the interpreter version"
-        ));
+        let host_interpreter = get_host_interpreter(None, None).unwrap();
+        let host_version = host_interpreter.version;
+        let host_free_threaded = host_interpreter.target_abi.kind.is_free_threaded();
 
-        let host_version = get_host_interpreter(None, None).unwrap().version;
-        if host_version >= PythonVersion::PY313 {
+        // skip these tests on 3.14t because it doesn't support any stable ABI
+        if !(host_version == PythonVersion::PY314) && host_free_threaded {
+            let interpreter = get_host_interpreter(
+                Some(PythonVersion {
+                    major: 3,
+                    minor: 45,
+                }),
+                None,
+            );
+            assert!(interpreter.unwrap_err().to_string().contains(
+                "cannot set a minimum Python version 3.45 higher than the interpreter version"
+            ));
+
             let interpreter = get_host_interpreter(Some(PythonVersion::PY313), None);
             assert_eq!(
                 interpreter.unwrap().target_abi.version(),
