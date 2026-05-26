@@ -330,8 +330,11 @@ impl InterpreterConfig {
             PythonImplementation::RustPython => out.push("cargo:rustc-cfg=RustPython".to_owned()),
         }
 
-        // If Py_GIL_DISABLED is set, do not build with limited API support
-        if self.abi3 && !self.is_free_threaded() {
+        // RustPython always builds with limited API support.
+        // If Py_GIL_DISABLED is set, do not build with limited API support.
+        if (self.abi3 && !self.is_free_threaded())
+            || self.implementation == PythonImplementation::RustPython
+        {
             out.push("cargo:rustc-cfg=Py_LIMITED_API".to_owned());
         }
 
@@ -3186,6 +3189,22 @@ mod tests {
                 "cargo:rustc-cfg=Py_3_10".to_owned(),
                 "cargo:rustc-cfg=Py_3_11".to_owned(),
                 "cargo:rustc-cfg=PyPy".to_owned(),
+            ]
+        );
+
+        let interpreter_config =
+            InterpreterConfigBuilder::new(PythonImplementation::RustPython, version)
+                .finalize()
+                .unwrap();
+        assert_eq!(
+            interpreter_config.build_script_outputs(),
+            [
+                "cargo:rustc-cfg=Py_3_8".to_owned(),
+                "cargo:rustc-cfg=Py_3_9".to_owned(),
+                "cargo:rustc-cfg=Py_3_10".to_owned(),
+                "cargo:rustc-cfg=Py_3_11".to_owned(),
+                "cargo:rustc-cfg=RustPython".to_owned(),
+                "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
             ]
         );
     }
