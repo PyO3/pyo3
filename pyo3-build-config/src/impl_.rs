@@ -3535,13 +3535,13 @@ mod tests {
 
         // If both features abi3 and abi3t features are active, the feature that "wins" depends on the host Python version
         let interpreter =
-            get_host_interpreter(Some(PythonVersion::PY39), Some(PythonVersion::PY315)).unwrap();
+            get_host_interpreter(Some(PythonVersion::PY313), Some(PythonVersion::PY315)).unwrap();
         assert_eq!(
             interpreter.target_abi.version(),
             if host_version >= PythonVersion::PY315 {
                 PythonVersion::PY315
             } else {
-                PythonVersion::PY39
+                PythonVersion::PY313
             }
         );
     }
