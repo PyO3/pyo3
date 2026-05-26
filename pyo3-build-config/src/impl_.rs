@@ -509,7 +509,10 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 true => abi3t_version,
             }
         } else {
-            abi3_version
+            match gil_disabled {
+                false => abi3_version,
+                true => None,
+            }
         };
 
         let target_abi =
