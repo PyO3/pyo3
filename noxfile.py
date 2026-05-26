@@ -1234,15 +1234,23 @@ def test_version_limits(session: nox.Session):
         config_file.set("CPython", "3.17")
         _run_cargo(session, "check", env=env, expect_error=True)
 
+        # ... but should build with PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
+        env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
+        _run_cargo(session, "check", env=env)
+        del env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"]
+
         # max version + 2 should build if abi3 is explicitly requested
         _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
 
-        # ... and also should build with forward compatibility
+        # max_version + 1 also should build with forward compatibility
         config_file.set("CPython", "3.16")
         env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
         del env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"]
 
+        # or if abi3 is explicitly requested
+        _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
+        
         # we only support 3.11 PyPy
         assert "3.10" not in PYPY_VERSIONS
         config_file.set("PyPy", "3.10")
@@ -1269,6 +1277,11 @@ def test_version_limits(session: nox.Session):
         # 3.17t isn't supported
         config_file.set("CPython", "3.17t")
         _run_cargo(session, "check", env=env, expect_error=True)
+
+        # Setting PYO3_USE_ABI3T_FORWARD_COMPATIBILITY=1 succeeds
+        env["PYO3_USE_ABI3T_FORWARD_COMPATIBILITY"] = "1"
+        _run_cargo(session, "check", env=env)
+        del env["PYO3_USE_ABI3T_FORWARD_COMPATIBILITY"]
 
         # 3.17t CPython should build if abi3t is explicitly requested
         _run_cargo(session, "check", "--features=pyo3/abi3t", env=env)
