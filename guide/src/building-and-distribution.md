@@ -267,7 +267,7 @@ There are three steps involved in targeting `abi3` or `abi3t` when building Pyth
    pyo3 = { {{#PYO3_CRATE_VERSION}}, features = ["abi3", "abi3t"] }
    ```
 
-   Enabling both the `"abi3"` and `"abi3t"` features will produce an abi3 extension if the host interpreter is a GIL-enabled interpreter and an abi3t extension with a host free-threaded interpreter.
+   Enabling both the `"abi3"` and `"abi3t"` features will produce an `abi3` extension if targeting Python 3.14 or older and an `abi3t` extension if targeting 3.15 or newer.
    If you always want to produce `abi3t` wheels, you can enable just the `"abi3t"` feature, which will produce extensions targeting `abi3t` if the host interpreter is Python 3.15 or newer, but will produce version-specific extensions otherwise.
    If you only enable the `"abi3"` feature, you will produce `abi3` extensions if the host interpreter is a GIL-enabled build of CPython and version-specific extensions otherwise.
 
@@ -309,7 +309,7 @@ Also, if the build host Python interpreter is not found or is too old or otherwi
 
 #### Missing features
 
-Due to limitations in the Python API, there are a few `pyo3` features that do not work when compiling for either `abi3` or `abi3t`.
+Due to limitations in the Python API, there are a few `pyo3` features that do not work when compiling for the stable ABI.
 These are:
 
 - `#[pyo3(text_signature = "...")]` does not work on classes until Python 3.10 or greater.

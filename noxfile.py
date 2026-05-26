@@ -245,7 +245,7 @@ def _clippy(
     session: nox.Session,
     *,
     env: Dict[str, str] = None,
-    version: Optional[Tuple[int, int]],
+    version: Optional[Tuple[int, int]] = None,
 ) -> bool:
     success = True
     env = env or os.environ

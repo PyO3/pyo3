@@ -38,6 +38,16 @@ const SUPPORTED_VERSIONS_GRAALPY: SupportedVersions = SupportedVersions {
     max: SUPPORTED_VERSIONS_CPYTHON.max,
 };
 
+const MIN_FREE_THREADED_VERSION: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 14,
+};
+
+const PY_3_15: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 15,
+};
+
 fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
     // This is an undocumented env var which is only really intended to be used in CI / for testing
     // and development.
@@ -68,14 +78,8 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                 );
             } else if interp_version > v_plus_1 {
                 let mut error = MaximumVersionExceeded::new(interpreter_config, versions.max);
-                let major = interp_version.major;
-                let minor = interp_version.minor;
-                let py_3_15 = PythonVersion {
-                    major: 3,
-                    minor: 15,
-                };
                 if interpreter_config.target_abi().kind().is_free_threaded() {
-                    if (PythonVersion { major, minor }) >= py_3_15 {
+                    if interp_version >= PY_3_15 {
                         if env_var("PYO3_USE_ABI3T_FORWARD_COMPATIBILITY")
                             .is_none_or(|os_str| os_str != "1")
                         {
@@ -86,15 +90,15 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
                         }
                     } else {
                         error.add_help(format!(
-                            "the free-threaded build of CPython {major}.{minor} does not support the limited API so this check cannot be suppressed.",
+                            "the free-threaded build of CPython {}.{} does not support the limited API so this check cannot be suppressed.", interp_version.major, interp_version.minor
                         ).as_str());
                         return Err(error.finish().into());
                     }
                 }
 
                 if env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_none_or(|os_str| os_str != "1")
-                    && !env_var("PYO3_USE_ABI3T_FORWARD_COMPATIBILITY")
-                        .is_some_and(|os_str| os_str == "1")
+                    && env_var("PYO3_USE_ABI3T_FORWARD_COMPATIBILITY")
+                        .is_none_or(|os_str| os_str != "1")
                 {
                     error.add_help("set PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the stable ABI");
                     return Err(error.finish().into());
@@ -102,14 +106,10 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
             }
 
             if interpreter_config.target_abi().kind().is_free_threaded() {
-                let min_free_threaded_version = PythonVersion {
-                    major: 3,
-                    minor: 14,
-                };
                 ensure!(
-                    interpreter_config.target_abi().version() >= min_free_threaded_version,
+                    interpreter_config.target_abi().version() >= MIN_FREE_THREADED_VERSION,
                     "PyO3 does not support the free-threaded build of CPython versions below {}, the selected Python version is {}",
-                    min_free_threaded_version,
+                    MIN_FREE_THREADED_VERSION,
                     interpreter_config.target_abi().version(),
                 );
             }
@@ -150,11 +150,7 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
             PythonImplementation::CPython => match abi {
                 StableAbi::Abi3t => {
                     ensure!(
-                        interpreter_config.target_abi().version()
-                            >= PythonVersion {
-                                major: 3,
-                                minor: 15
-                            },
+                        interpreter_config.target_abi().version() >= PY_3_15,
                         "Abi3t builds are not supported on CPython targets before Python 3.15"
                     )
                 }

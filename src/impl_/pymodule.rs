@@ -121,13 +121,9 @@ impl ModuleDef {
         }
     }
 
+    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     pub fn init_multi_phase(&'static self) -> *mut ffi::PyObject {
-        #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
-        unsafe {
-            ffi::PyModuleDef_Init(self.ffi_def.get())
-        }
-        #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
-        panic!("Legacy module initialization cannot work under abi3t. Use the PyModExport slots-based initialization hook instead.");
+        unsafe { ffi::PyModuleDef_Init(self.ffi_def.get()) }
     }
 
     /// Builds a module object directly. Used for [`#[pymodule]`][crate::pymodule] submodules.
@@ -268,6 +264,30 @@ macro_rules! __pyo3_pymodexport {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __pyo3_pymodexport {
+    ($symbol:literal, $def:path) => {};
+}
+
+/// Defines the `PyInit_<name>` entry point used by Python 3.14 and older.
+///
+/// This is wrapped in a `macro_rules!` so the proc-macro backend can emit a single
+/// version-agnostic invocation; the body only expands on Python 3.14 and older
+#[cfg(not(all(Py_3_15, Py_LIMITED_API, Py_GIL_DISABLED)))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __pyo3_pyinit {
+    ($symbol:literal, $def:path) => {
+        #[doc(hidden)]
+        #[export_name = $symbol]
+        pub unsafe extern "C" fn __pyo3_init() -> *mut $crate::ffi::PyObject {
+            $def.init_multi_phase()
+        }
+    };
+}
+
+#[cfg(all(Py_3_15, Py_LIMITED_API, Py_GIL_DISABLED))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __pyo3_pyinit {
     ($symbol:literal, $def:path) => {};
 }
 

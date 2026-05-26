@@ -1,4 +1,11 @@
 use crate::pyport::{Py_hash_t, Py_ssize_t};
+// these re-exports are pub because it would be awkward to
+// thread the different origins for these types on this build
+// everywhere else
+#[cfg(Py_LIMITED_API)]
+pub use crate::pytypedefs::PyTypeObject;
+#[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
+pub use crate::pytypedefs::{PyObject, PyVarObject};
 #[cfg(Py_3_15)]
 use crate::PySlot;
 #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
@@ -7,10 +14,6 @@ use core::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use core::mem;
 #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
 use core::sync::atomic::{AtomicIsize, AtomicU32};
-
-// from pytypedefs.h
-#[cfg(Py_LIMITED_API)]
-opaque_struct!(pub PyTypeObject);
 
 #[cfg(not(Py_LIMITED_API))]
 pub use crate::cpython::object::PyTypeObject;
@@ -152,10 +155,6 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_type: core::ptr::null_mut(),
 };
 
-// from pytypedefs.h
-#[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
-opaque_struct!(pub PyObject);
-
 // skipped _Py_UNOWNED_TID
 
 // skipped _PyObject_CAST
@@ -171,10 +170,6 @@ pub struct PyVarObject {
     #[cfg(GraalPy)]
     pub _ob_size_graalpy: Py_ssize_t,
 }
-
-// from pytypedefs.h
-#[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
-opaque_struct!(pub PyVarObject);
 
 // skipped private _PyVarObject_CAST
 

@@ -2,6 +2,9 @@
 use crate::methodobject::PyMethodDef;
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+// this is pub to avoid unnecessary churn elsewhere
+#[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
+pub use crate::pytypedefs::PyModuleDef;
 #[cfg(Py_3_15)]
 use crate::slots::PySlot;
 use core::ffi::{c_char, c_int, c_void};
@@ -144,7 +147,3 @@ pub struct PyModuleDef {
     pub m_clear: Option<inquiry>,
     pub m_free: Option<freefunc>,
 }
-
-// from pytypedefs.h
-#[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
-opaque_struct!(pub PyModuleDef);
