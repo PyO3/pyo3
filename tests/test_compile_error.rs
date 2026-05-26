@@ -137,6 +137,8 @@ fn main() {
         "invalid_async.rs".into(),
         // requires the async feature
         #[cfg(not(feature = "experimental-async"))]
+        // the `FromPyObject` argument for `&str` causes the output to differ
+        #[cfg(not(all(Py_LIMITED_API, not(Py_3_10))))]
         "invalid_cancel_handle.rs".into(),
     ]);
 
