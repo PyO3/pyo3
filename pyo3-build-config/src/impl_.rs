@@ -504,7 +504,10 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 minor: 15,
             }
         } {
-            abi3t_version.or(abi3_version)
+            match gil_disabled {
+                false => abi3t_version.or(abi3_version),
+                true => abi3t_version,
+            }
         } else {
             abi3_version
         };
