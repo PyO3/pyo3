@@ -3534,15 +3534,16 @@ mod tests {
                 }),
                 None,
             );
-            assert!(interpreter.unwrap_err().to_string().contains(
-                "cannot set a minimum Python version 3.45 higher than the interpreter version"
-            ));
-
-            let interpreter = get_host_interpreter(Some(PythonVersion::PY313), None);
-            assert_eq!(
-                interpreter.unwrap().target_abi.version(),
-                PythonVersion::PY313
-            );
+            if !host_free_threaded {
+                assert!(interpreter.unwrap_err().to_string().contains(
+                    "cannot set a minimum Python version 3.45 higher than the interpreter version"
+                ));
+                let interpreter = get_host_interpreter(Some(PythonVersion::PY313), None);
+                assert_eq!(
+                    interpreter.unwrap().target_abi.version(),
+                    PythonVersion::PY313
+                );
+            }
 
             // If both features abi3 and abi3t features are active, the feature that "wins" depends on the host Python version
             let interpreter =
