@@ -138,6 +138,16 @@ def test_rust(session: nox.Session):
 
         _run_cargo_test(session, features=feature_set, extra_flags=flags)
 
+        if feature_set is not None and "full" in feature_set:
+            # UI tests can have different output depending on features enabled, but
+            # need at least the macros feature, so "downgrade" full to macros to
+            # capture this divergent output
+            _run_cargo_test(
+                session,
+                features=feature_set.replace("full", "macros"),
+                extra_flags=[*extra_flags, "--test", "test_compile_error"],
+            )
+
         if (
             feature_set
             and "abi3" in feature_set
@@ -1512,7 +1522,6 @@ def update_ui_tests(session: nox.Session):
     _run_cargo(session, *command, "--features=macros", env=env)
     _run_cargo(session, *command, "--features=full", env=env)
     _run_cargo(session, *command, "--features=abi3,full", env=env)
-    _run_cargo(session, *command, "--features=abi3-py38,full", env=env)
 
 
 @nox.session(name="test-introspection")

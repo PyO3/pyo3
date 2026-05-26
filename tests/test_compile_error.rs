@@ -1,10 +1,11 @@
-#[cfg(all(
-    // Requires "macros" feature to actually do any meaningful testing
-    feature = "macros",
-    // Not possible to invoke compiler from wasm
-    not(target_arch = "wasm32")
-))]
+#![cfg(feature = "macros")]
+
 fn main() {
+    if cfg!(target_arch = "wasm32") {
+        // Not possible to invoke compiler from wasm
+        return;
+    }
+
     use std::{env::VarError, path::PathBuf};
 
     use regex::bytes::Regex;
@@ -139,18 +140,6 @@ fn main() {
         "invalid_cancel_handle.rs".into(),
     ]);
 
-    // differs on `experimental-inspect` feature
-    #[cfg(feature = "experimental-inspect")]
-    config.skip_files.extend([
-        // extra error messages appear due to additional macro processing
-        // would be nice to somehow make this not a problem
-        "duplicate_pymodule_submodule.rs".into(),
-        "missing_intopy.rs".into(),
-        "invalid_pyclass_args.rs".into(),
-        "invalid_property_args.rs".into(),
-        "invalid_pyfunction_argument.rs".into(),
-    ]);
-
     config.comment_defaults.base().normalize_stderr.extend([
         // Normalize multiple trailing newlines to a single newline
         (Regex::new("\n\n$").unwrap().into(), vec![b'\n']),
@@ -174,6 +163,29 @@ fn main() {
             Vec::new(),
         ),
     ]);
+
+    config
+        .custom_comments
+        .insert("with-experimental-inspect", |parser, _args, span| {
+            parser.set_custom_once(
+                "with-experimental-inspect",
+                SplitBuildOnExperimentalInpsect {
+                    requires_inspect: true,
+                },
+                span,
+            );
+        });
+    config
+        .custom_comments
+        .insert("without-experimental-inspect", |parser, _args, span| {
+            parser.set_custom_once(
+                "without-experimental-inspect",
+                SplitBuildOnExperimentalInpsect {
+                    requires_inspect: false,
+                },
+                span,
+            );
+        });
 
     let abort_check = config.abort_check.clone();
     ctrlc::set_handler(move || abort_check.abort()).unwrap();
@@ -214,7 +226,6 @@ fn main() {
 /// Regex replacement via `ui_test`'s `normalize_stderr` can't express the transformation
 /// we need here, so we write a custom wrapper which modifies the output before passing
 /// to `ui_test`'s normal output handling machinery.
-#[cfg(all(feature = "macros", not(target_arch = "wasm32")))]
 fn normalize_src_blocks(output: &[u8]) -> Vec<u8> {
     use std::sync::LazyLock;
 
@@ -252,7 +263,6 @@ fn normalize_src_blocks(output: &[u8]) -> Vec<u8> {
         .into_owned()
 }
 
-#[cfg(all(feature = "macros", not(target_arch = "wasm32")))]
 fn error_on_output_conflict_normalized(
     path: &std::path::Path,
     output: &[u8],
@@ -262,7 +272,6 @@ fn error_on_output_conflict_normalized(
     ui_test::error_on_output_conflict(path, &normalize_src_blocks(output), errors, config);
 }
 
-#[cfg(all(feature = "macros", not(target_arch = "wasm32")))]
 fn bless_output_files_normalized(
     path: &std::path::Path,
     output: &[u8],
@@ -272,5 +281,29 @@ fn bless_output_files_normalized(
     ui_test::bless_output_files(path, &normalize_src_blocks(output), errors, config);
 }
 
-#[cfg(any(not(feature = "macros"), target_arch = "wasm32"))]
-fn main() {}
+/// Some tests have different error messages when the `experimental-inspect` feature is
+/// enabled.
+#[derive(Clone, Debug)]
+struct SplitBuildOnExperimentalInpsect {
+    requires_inspect: bool,
+}
+
+impl ui_test::custom_flags::Flag for SplitBuildOnExperimentalInpsect {
+    fn clone_inner(&self) -> Box<dyn ui_test::custom_flags::Flag> {
+        Box::new(self.clone())
+    }
+
+    fn must_be_unique(&self) -> bool {
+        true
+    }
+
+    fn test_condition(
+        &self,
+        _config: &ui_test::Config,
+        _comments: &ui_test::Comments,
+        _revision: &str,
+    ) -> bool {
+        // returning `true` skips the test
+        !(self.requires_inspect == cfg!(feature = "experimental-inspect"))
+    }
+}

@@ -1,3 +1,7 @@
+//@revisions: default inspect
+//@[default] without-experimental-inspect
+//@[inspect] with-experimental-inspect
+
 use pyo3::prelude::*;
 use std::fmt::{Display, Formatter};
 
@@ -249,6 +253,7 @@ struct NonPythonField {
     //~^ ERROR: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
     //~| ERROR: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
     //~| ERROR: the trait bound `dyn std::error::Error + Send + Sync: Clone` is not satisfied
+    //~[inspect]| ERROR: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
 }
 
 #[pyclass(new = "from_fields")]

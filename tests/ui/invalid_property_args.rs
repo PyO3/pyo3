@@ -1,3 +1,7 @@
+//@revisions: default inspect
+//@[default] without-experimental-inspect
+//@[inspect] with-experimental-inspect
+
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -7,7 +11,7 @@ struct ClassWithGetter {}
 impl ClassWithGetter {
     #[getter]
     fn getter_with_arg(&self, _py: Python<'_>, _index: u32) {}
-//~^ ERROR: getter function can only have one argument (of type pyo3::Python)
+    //~^ ERROR: getter function can only have one argument (of type pyo3::Python)
 }
 
 #[pyclass]
@@ -17,14 +21,14 @@ struct ClassWithSetter {}
 impl ClassWithSetter {
     #[setter]
     fn setter_with_no_arg(&mut self, _py: Python<'_>) {}
-//~^ ERROR: setter function expected to have one argument
+    //~^ ERROR: setter function expected to have one argument
 }
 
 #[pymethods]
 impl ClassWithSetter {
     #[setter]
     fn setter_with_too_many_args(&mut self, _py: Python<'_>, _foo: u32, _bar: u32) {}
-//~^ ERROR: setter function can have at most two arguments ([pyo3::Python,] and value)
+    //~^ ERROR: setter function can have at most two arguments ([pyo3::Python,] and value)
 }
 
 #[pyclass]
@@ -51,7 +55,8 @@ struct NameWithoutGetSet(#[pyo3(name = "value")] i32);
 struct InvalidGetterType {
     #[pyo3(get)]
     value: ::std::marker::PhantomData<i32>,
-//~^ ERROR: `PhantomData<i32>` cannot be converted to a Python object
+    //~^ ERROR: `PhantomData<i32>` cannot be converted to a Python object
+    //~[inspect]| ERROR: the trait bound `PhantomData<i32>: pyo3::impl_::introspection::return_type::Sealed` is not satisfied
 }
 
 fn main() {}
