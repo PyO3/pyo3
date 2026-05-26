@@ -358,7 +358,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
             not(Py_LIMITED_API) => unsafe {
                 ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
                     .assume_borrowed_unchecked(self.py())
-            }
+            },
             // SAFETY: `PyTuple_GetItem` is known to always succeed under these conditions
             Py_LIMITED_API => unsafe {
                 ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t)
