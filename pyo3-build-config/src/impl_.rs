@@ -1313,7 +1313,6 @@ pub struct PythonVersion {
 }
 
 impl PythonVersion {
-    #[cfg(test)]
     pub(crate) const PY315: Self = PythonVersion {
         major: 3,
         minor: 15,
@@ -2182,14 +2181,20 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
                 env!("CARGO_PKG_VERSION")
             )
         )?;
+    let gil_disabled = cross_compile_config.abiflags.as_deref() == Some("t");
+
+    let stable_abi_version = if gil_disabled && version < PythonVersion::PY315 {
+        None
+    } else {
+        Some(version)
+    };
 
     let implementation = cross_compile_config
         .implementation
         .unwrap_or(PythonImplementation::CPython);
-    let gil_disabled = cross_compile_config.abiflags.as_deref() == Some("t");
 
     let target_abi =
-        PythonAbi::from_build_env(implementation, version, Some(version), gil_disabled)?;
+        PythonAbi::from_build_env(implementation, version, stable_abi_version, gil_disabled)?;
 
     let lib_name = default_lib_name_for_target(target_abi, &cross_compile_config.target);
 
