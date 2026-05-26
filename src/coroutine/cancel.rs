@@ -2,6 +2,7 @@ use crate::platform::sync::non_poison::Mutex;
 use crate::{Py, PyAny};
 use alloc::sync::Arc;
 use core::future::poll_fn;
+use core::panic::AssertUnwindSafe;
 use core::task::{Context, Poll, Waker};
 
 #[derive(Debug, Default)]
@@ -14,7 +15,7 @@ struct Inner {
 ///
 /// Only the last exception thrown can be retrieved.
 #[derive(Debug, Default)]
-pub struct CancelHandle(Arc<Mutex<Inner>>);
+pub struct CancelHandle(Arc<AssertUnwindSafe<Mutex<Inner>>>);
 
 impl CancelHandle {
     /// Create a new `CoroutineCancel`.
@@ -54,7 +55,7 @@ impl CancelHandle {
 }
 
 #[doc(hidden)]
-pub struct ThrowCallback(Arc<Mutex<Inner>>);
+pub struct ThrowCallback(Arc<AssertUnwindSafe<Mutex<Inner>>>);
 
 impl ThrowCallback {
     pub(super) fn throw(&self, exc: Py<PyAny>) {
