@@ -3536,7 +3536,7 @@ mod tests {
         let host_free_threaded = host_interpreter.target_abi.kind.is_free_threaded();
 
         // skip these tests on 3.14t because it doesn't support any stable ABI
-        if !(host_version == PythonVersion::PY314) && host_free_threaded {
+        if !((host_version == PythonVersion::PY314) && host_free_threaded) {
             let interpreter = get_host_interpreter(
                 Some(PythonVersion {
                     major: 3,
