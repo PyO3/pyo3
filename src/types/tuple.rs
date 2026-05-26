@@ -355,12 +355,12 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
     unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
         cfg_select! {
             // SAFETY: caller has upheld the safety contract
-            not(Py_LIMITED_API) => unsafe {
+            not(any(Py_LIMITED_API, PyPy, GraalPy)) => unsafe {
                 ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
                     .assume_borrowed_unchecked(self.py())
             },
             // SAFETY: `PyTuple_GetItem` is known to always succeed under these conditions
-            Py_LIMITED_API => unsafe {
+            any(Py_LIMITED_API, PyPy, GraalPy) => unsafe {
                 ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t)
                     .assume_borrowed_unchecked(self.py())
             }
