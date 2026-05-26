@@ -223,13 +223,13 @@ rust_2018_idioms = { level = "warn", priority = -1 }
 rust_2021_prelude_collisions = "warn"
 unused_lifetimes = "warn"
 unsafe_op_in_unsafe_fn = "warn"
-unexpected_cfgs = {
-    level = "warn",
-    check-cfg = [
-        'cfg(pyo3_disable_reference_pool)',
-        'cfg(pyo3_leak_on_drop_without_reference_pool)'
-    ]
-}
+
+[workspace.lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = [
+    'cfg(pyo3_disable_reference_pool)',
+    'cfg(pyo3_leak_on_drop_without_reference_pool)'
+]
 
 
 [workspace.lints.rustdoc]
