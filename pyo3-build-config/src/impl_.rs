@@ -880,7 +880,11 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     }
 
     fn apply_build_env(mut self) -> Result<InterpreterConfig> {
-        let abi3_version = if self.target_abi.kind.is_free_threaded() {
+        let abi3_version = if self.target_abi.kind.is_free_threaded()
+            || matches!(
+                self.target_abi.implementation,
+                PythonImplementation::PyPy | PythonImplementation::GraalPy
+            ) {
             None
         } else {
             get_abi3_version()
