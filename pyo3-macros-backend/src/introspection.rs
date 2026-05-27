@@ -16,7 +16,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
@@ -33,7 +33,7 @@ pub fn module_introspection_code<'a>(
     doc: Option<&PythonDoc>,
     incomplete: bool,
 ) -> TokenStream {
-    let mut desc = HashMap::from([
+    let mut desc = BTreeMap::from([
         ("type", IntrospectionNode::String("module".into())),
         ("id", IntrospectionNode::IntrospectionId(None)),
         ("name", IntrospectionNode::String(name.into())),
@@ -67,7 +67,7 @@ pub fn class_introspection_code(
     parent: Option<&Type>,
     doc: Option<&PythonDoc>,
 ) -> TokenStream {
-    let mut desc = HashMap::from([
+    let mut desc = BTreeMap::from([
         ("type", IntrospectionNode::String("class".into())),
         (
             "id",
@@ -110,7 +110,7 @@ pub fn function_introspection_code(
     doc: Option<&PythonDoc>,
     parent: Option<&Type>,
 ) -> TokenStream {
-    let mut desc = HashMap::from([
+    let mut desc = BTreeMap::from([
         ("type", IntrospectionNode::String("function".into())),
         ("name", IntrospectionNode::String(name.into())),
         (
@@ -173,7 +173,7 @@ pub fn attribute_introspection_code(
     doc: Option<&PythonDoc>,
     is_final: bool,
 ) -> TokenStream {
-    let mut desc = HashMap::from([
+    let mut desc = BTreeMap::from([
         ("type", IntrospectionNode::String("attribute".into())),
         ("name", IntrospectionNode::String(name.into())),
         (
@@ -272,7 +272,7 @@ fn arguments_introspection_data<'a>(
         let Some(FnArg::VarArgs(arg_desc)) = argument_desc.next() else {
             panic!("Fewer arguments than in python signature");
         };
-        let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
+        let mut params = BTreeMap::from([("name", IntrospectionNode::String(param.into()))]);
         if let Some(annotation) = &arg_desc.annotation {
             params.insert("annotation", annotation.clone().into());
         }
@@ -295,14 +295,14 @@ fn arguments_introspection_data<'a>(
         let Some(FnArg::KwArgs(arg_desc)) = argument_desc.next() else {
             panic!("Less arguments than in python signature");
         };
-        let mut params = HashMap::from([("name", IntrospectionNode::String(param.into()))]);
+        let mut params = BTreeMap::from([("name", IntrospectionNode::String(param.into()))]);
         if let Some(annotation) = &arg_desc.annotation {
             params.insert("annotation", annotation.clone().into());
         }
         kwarg = Some(IntrospectionNode::Map(params));
     }
 
-    let mut map = HashMap::new();
+    let mut map = BTreeMap::new();
     if !posonlyargs.is_empty() {
         map.insert("posonlyargs", IntrospectionNode::List(posonlyargs));
     }
@@ -327,7 +327,7 @@ fn argument_introspection_data<'a>(
     is_returning_not_implemented_on_extraction_error: bool,
     class_type: Option<&Type>,
 ) -> AttributedIntrospectionNode<'a> {
-    let mut params: HashMap<_, _> = [("name", IntrospectionNode::String(name.into()))].into();
+    let mut params: BTreeMap<_, _> = [("name", IntrospectionNode::String(name.into()))].into();
     if let Some(expr) = &desc.default_value {
         params.insert("default", PyExpr::constant_from_expression(expr).into());
     }
@@ -353,7 +353,7 @@ enum IntrospectionNode<'a> {
     IntrospectionId(Option<Cow<'a, Type>>),
     TypeHint(Cow<'a, PyExpr>),
     Doc(&'a PythonDoc),
-    Map(HashMap<&'static str, IntrospectionNode<'a>>),
+    Map(BTreeMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<AttributedIntrospectionNode<'a>>),
 }
 
