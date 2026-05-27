@@ -2,17 +2,12 @@
 use crate::longobject::*;
 use crate::object::*;
 
-#[cfg(Py_3_13)]
-use crate::pyport::Py_ssize_t;
-
 use core::ffi::c_int;
 
 #[cfg(not(Py_3_13))]
 use core::ffi::c_uchar;
 
-#[cfg(Py_3_13)]
-use core::ffi::c_void;
-
+#[cfg(not(Py_3_13))]
 use libc::size_t;
 
 // skipped _PyLong_CAST
