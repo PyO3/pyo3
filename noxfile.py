@@ -1250,7 +1250,7 @@ def test_version_limits(session: nox.Session):
 
         # or if abi3 is explicitly requested
         _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
-        
+
         # we only support 3.11 PyPy
         assert "3.10" not in PYPY_VERSIONS
         config_file.set("PyPy", "3.10")
