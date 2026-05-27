@@ -185,6 +185,7 @@ pub fn print_feature_cfgs() {
     print_feature_cfg(84, "const_is_null");
     print_feature_cfg(85, "fn_ptr_eq");
     print_feature_cfg(86, "from_bytes_with_nul_error");
+    print_feature_cfg(95, "cfg_select");
 }
 
 /// Registers `pyo3`s config names as reachable cfg expressions
@@ -199,8 +200,6 @@ pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(GraalPy)");
     println!("cargo:rustc-check-cfg=cfg(RustPython)");
     println!("cargo:rustc-check-cfg=cfg(py_sys_config, values(\"Py_DEBUG\", \"Py_REF_DEBUG\", \"Py_TRACE_REFS\", \"COUNT_ALLOCS\"))");
-    println!("cargo:rustc-check-cfg=cfg(pyo3_disable_reference_pool)");
-    println!("cargo:rustc-check-cfg=cfg(pyo3_leak_on_drop_without_reference_pool)");
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)

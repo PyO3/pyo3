@@ -224,6 +224,14 @@ rust_2021_prelude_collisions = "warn"
 unused_lifetimes = "warn"
 unsafe_op_in_unsafe_fn = "warn"
 
+[workspace.lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = [
+    'cfg(pyo3_disable_reference_pool)',
+    'cfg(pyo3_leak_on_drop_without_reference_pool)'
+]
+
+
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "warn"
 bare_urls = "warn"
