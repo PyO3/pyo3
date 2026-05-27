@@ -467,24 +467,6 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// Returns an error if this capsule is not valid.
     fn context(&self) -> PyResult<*mut c_void>;
 
-    /// Obtains a reference dereferenced from the pointer of this capsule, without checking its name.
-    ///
-    /// Because this method encourages dereferencing the pointer for longer than necessary, it
-    /// is deprecated. Prefer to use [`pointer_checked()`][PyCapsuleMethods::pointer_checked]
-    /// and dereference the pointer only for as short a time as possible.
-    ///
-    /// # Safety
-    ///
-    /// This performs a dereference of the pointer returned from [`pointer()`][PyCapsuleMethods::pointer].
-    ///
-    /// See the safety notes on [`pointer_checked()`][PyCapsuleMethods::pointer_checked].
-    #[deprecated(since = "0.27.0", note = "to be removed, see `pointer_checked()`")]
-    unsafe fn reference<T>(&self) -> &T;
-
-    /// Gets the raw pointer stored in this capsule, without checking its name.
-    #[deprecated(since = "0.27.0", note = "use `pointer_checked()` instead")]
-    fn pointer(&self) -> *mut c_void;
-
     /// Gets the raw pointer stored in this capsule.
     ///
     /// Returns an error if the capsule is not [valid][`PyCapsuleMethods::is_valid_checked`] with the given `name`.
@@ -503,14 +485,6 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// Users should take care to cast to the correct type and consume the pointer for as little
     /// duration as possible.
     fn pointer_checked(&self, name: Option<&CStr>) -> PyResult<NonNull<c_void>>;
-
-    /// Checks if the capsule pointer is not null.
-    ///
-    /// This does not perform any check on the name of the capsule, which is the only mechanism
-    /// that Python provides to make sure that the pointer has the expected type. Prefer to use
-    /// [`is_valid_checked()`][Self::is_valid_checked()] instead.
-    #[deprecated(since = "0.27.0", note = "use `is_valid_checked()` instead")]
-    fn is_valid(&self) -> bool;
 
     /// Checks that the capsule name matches `name` and that the pointer is not null.
     fn is_valid_checked(&self, name: Option<&CStr>) -> bool;
@@ -549,25 +523,6 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
         Ok(ctx)
     }
 
-    #[allow(deprecated)]
-    unsafe fn reference<T>(&self) -> &T {
-        // SAFETY:
-        // - caller has upheld the safety contract
-        // - thread is attached to the Python interpreter
-        unsafe { &*self.pointer().cast() }
-    }
-
-    fn pointer(&self) -> *mut c_void {
-        // SAFETY: arguments to `PyCapsule_GetPointer` are valid, errors are handled properly
-        unsafe {
-            let ptr = ffi::PyCapsule_GetPointer(self.as_ptr(), name_ptr_ignore_error(self));
-            if ptr.is_null() {
-                ffi::PyErr_Clear();
-            }
-            ptr
-        }
-    }
-
     fn pointer_checked(&self, name: Option<&CStr>) -> PyResult<NonNull<c_void>> {
         // SAFETY:
         // - `self.as_ptr()` is a valid object pointer
@@ -575,14 +530,6 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
         // - thread is attached to the Python interpreter
         let ptr = unsafe { ffi::PyCapsule_GetPointer(self.as_ptr(), name_ptr(name)) };
         NonNull::new(ptr).ok_or_else(|| PyErr::fetch(self.py()))
-    }
-
-    fn is_valid(&self) -> bool {
-        // SAFETY: As well as if the stored pointer is null, PyCapsule_IsValid also returns false if
-        // self.as_ptr() is null or not a ptr to a PyCapsule object. Both of these are guaranteed
-        // to not be the case thanks to invariants of this PyCapsule struct.
-        let r = unsafe { ffi::PyCapsule_IsValid(self.as_ptr(), name_ptr_ignore_error(self)) };
-        r != 0
     }
 
     fn is_valid_checked(&self, name: Option<&CStr>) -> bool {
@@ -708,18 +655,6 @@ fn ensure_no_error(py: Python<'_>) -> PyResult<()> {
     } else {
         Ok(())
     }
-}
-
-fn name_ptr_ignore_error(slf: &Bound<'_, PyCapsule>) -> *const c_char {
-    // SAFETY:
-    // - `slf` is known to be a valid capsule object
-    // - thread is attached to the Python interpreter
-    let ptr = unsafe { ffi::PyCapsule_GetName(slf.as_ptr()) };
-    if ptr.is_null() {
-        // SAFETY: thread is attached to the Python interpreter
-        unsafe { ffi::PyErr_Clear() };
-    }
-    ptr
 }
 
 fn name_ptr(name: Option<&CStr>) -> *const c_char {

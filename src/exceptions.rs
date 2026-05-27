@@ -96,15 +96,6 @@ macro_rules! import_exception {
     };
 }
 
-/// Deprecated name for `import_exception!`.
-#[macro_export]
-#[deprecated(since = "0.27.0", note = "renamed to `import_exception!` instead")]
-macro_rules! import_exception_bound {
-    ($module: expr, $name: ident) => {
-        $crate::import_exception!($module, $name);
-    };
-}
-
 /// Defines a new exception type.
 ///
 /// # Syntax

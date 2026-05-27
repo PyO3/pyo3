@@ -106,13 +106,6 @@ pub unsafe trait PyTypeInfo: Sized {
 /// to a concrete type. The implementor is responsible for ensuring that `type_check` only returns
 /// true for objects which can safely be treated as Python instances of `Self`.
 pub unsafe trait PyTypeCheck {
-    /// Name of self. This is used in error messages, for example.
-    #[deprecated(
-        since = "0.27.0",
-        note = "Use ::classinfo_object() instead and format the type name at runtime. Note that using built-in cast features is often better than manual PyTypeCheck usage."
-    )]
-    const NAME: &'static str;
-
     /// Provides the full python type of the allowed values as a Python type hint.
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr;
@@ -132,9 +125,6 @@ unsafe impl<T> PyTypeCheck for T
 where
     T: PyTypeInfo,
 {
-    #[allow(deprecated)]
-    const NAME: &'static str = T::NAME;
-
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = <T as PyTypeInfo>::TYPE_HINT;
 

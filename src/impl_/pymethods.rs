@@ -3,10 +3,13 @@ use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
 use crate::impl_::pycell::PyClassObjectBaseLayout;
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
+use crate::internal::pyclass_init::PyClassInit;
 use crate::internal::state::ForbidAttaching;
 use crate::pycell::impl_::{PyClassBorrowChecker as _, PyClassObjectLayout};
 use crate::types::PyType;
-use crate::{ffi, Bound, Py, PyAny, PyClass, PyErr, PyResult, PyTraverseError, PyVisit, Python};
+use crate::{
+    ffi, Borrowed, Bound, Py, PyAny, PyClass, PyErr, PyResult, PyTraverseError, PyVisit, Python,
+};
 use core::ffi::CStr;
 use core::ffi::{c_int, c_void};
 use core::fmt;
@@ -688,18 +691,26 @@ pub trait AsyncIterResultOptionKind {
 
 impl<Value, Error> AsyncIterResultOptionKind for Result<Option<Value>, Error> {}
 
-pub unsafe fn tp_new_impl<'py, T, const IS_PYCLASS: bool, const IS_INITIALIZER_TUPLE: bool>(
+/// Re-exported so that `#[new]` generated code can resolve the type tag for `tp_new_impl`
+pub use crate::internal::pyclass_init::tp_new_resolver;
+
+#[expect(
+    private_bounds,
+    reason = "`PyClassInit` is not a public trait, bound exist for diagnostics"
+)]
+/// # SAFETY
+/// - `cls` must be the type object for `ClassT` (or a subclass)
+pub unsafe fn tp_new_impl<'py, InitializerT, ClassT>(
     py: Python<'py>,
-    obj: T,
+    initializer: InitializerT,
     cls: *mut ffi::PyTypeObject,
 ) -> PyResult<*mut ffi::PyObject>
 where
-    T: super::pyclass_init::PyClassInit<'py, IS_PYCLASS, IS_INITIALIZER_TUPLE>,
+    InitializerT: PyClassInit<'py, ClassT>,
 {
-    unsafe {
-        obj.init(crate::Borrowed::from_ptr_unchecked(py, cls.cast()).cast_unchecked())
-            .map(Bound::into_ptr)
-    }
+    // SAFETY: caller has guaranteed `cls` is the correct object
+    unsafe { initializer.init(Borrowed::from_ptr_unchecked(py, cls.cast()).cast_unchecked()) }
+        .map(Bound::into_ptr)
 }
 
 #[cfg(test)]
