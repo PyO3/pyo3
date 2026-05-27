@@ -249,7 +249,7 @@ fn normalize_src_blocks(output: &[u8]) -> Vec<u8> {
     // are captured as the "listing".
     static SRC_BLOCK: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(
-            r"\n[ \t]*--> (src/\S+?):\d+:\d+((?:\n[ \t]*\d*[ \t]*[|=+-][^\n]*|\n[ \t]*\.\.\.)+)",
+            r"\n[ \t]*--> (src(?:/|\\)\S+?):\d+:\d+((?:\n[ \t]*\d*[ \t]*[|=+-][^\n]*|\n[ \t]*\.\.\.)+)",
         )
         .unwrap()
     });
