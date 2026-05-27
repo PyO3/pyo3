@@ -3626,7 +3626,7 @@ mod tests {
 
         // skip these tests on 3.14t, pypy, and graalpy because they don't support any stable ABI
         if !((host_version == PythonVersion::PY314) && host_free_threaded
-            || matches!(
+            || !matches!(
                 host_interpreter.implementation,
                 PythonImplementation::PyPy | PythonImplementation::GraalPy
             ))
