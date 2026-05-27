@@ -498,21 +498,23 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             _ => panic!("Unknown Py_GIL_DISABLED value"),
         };
 
-        let stable_abi_version = if version >= {
-            PythonVersion {
-                major: 3,
-                minor: 15,
-            }
-        } {
-            match gil_disabled {
-                false => abi3t_version.or(abi3_version),
-                true => abi3t_version,
+        let stable_abi_version = if !matches!(
+            implementation,
+            PythonImplementation::PyPy | PythonImplementation::GraalPy
+        ) {
+            if version >= PythonVersion::PY315 {
+                match gil_disabled {
+                    false => abi3t_version.or(abi3_version),
+                    true => abi3t_version,
+                }
+            } else {
+                match gil_disabled {
+                    false => abi3_version,
+                    true => None,
+                }
             }
         } else {
-            match gil_disabled {
-                false => abi3_version,
-                true => None,
-            }
+            None
         };
 
         let target_abi =
@@ -2980,10 +2982,7 @@ mod tests {
     fn windows_hardcoded_abi3t_compile() {
         let host = triple!("x86_64-pc-windows-msvc");
         let implementation = PythonImplementation::CPython;
-        let version = PythonVersion {
-            major: 3,
-            minor: 15,
-        };
+        let version = PythonVersion::PY315;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .stable_abi(StableAbi::Abi3t)
             .lib_name("python3t".to_string())
@@ -3014,10 +3013,7 @@ mod tests {
     fn unix_hardcoded_abi3t_compile() {
         let host = triple!("x86_64-unknown-linux-gnu");
         let implementation = PythonImplementation::CPython;
-        let version = PythonVersion {
-            major: 3,
-            minor: 15,
-        };
+        let version = PythonVersion::PY315;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .stable_abi(StableAbi::Abi3t)
             .finalize()
@@ -3402,16 +3398,10 @@ mod tests {
         );
         assert_eq!(
             super::default_lib_name_windows(
-                PythonAbiBuilder::new(
-                    PythonImplementation::CPython,
-                    PythonVersion {
-                        major: 3,
-                        minor: 15
-                    }
-                )
-                .stable_abi(StableAbi::Abi3t)
-                .finalize()
-                .unwrap(),
+                PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY315)
+                    .stable_abi(StableAbi::Abi3t)
+                    .finalize()
+                    .unwrap(),
                 false,
                 false,
             )
@@ -3420,16 +3410,10 @@ mod tests {
         );
         assert_eq!(
             super::default_lib_name_windows(
-                PythonAbiBuilder::new(
-                    PythonImplementation::CPython,
-                    PythonVersion {
-                        major: 3,
-                        minor: 15
-                    }
-                )
-                .stable_abi(StableAbi::Abi3t)
-                .finalize()
-                .unwrap(),
+                PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY315)
+                    .stable_abi(StableAbi::Abi3t)
+                    .finalize()
+                    .unwrap(),
                 false,
                 true,
             )
@@ -3920,16 +3904,11 @@ mod tests {
             ]
         );
 
-        let interpreter_config = InterpreterConfigBuilder::new(
-            PythonImplementation::CPython,
-            PythonVersion {
-                major: 3,
-                minor: 15,
-            },
-        )
-        .stable_abi(StableAbi::Abi3)
-        .finalize()
-        .unwrap();
+        let interpreter_config =
+            InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY315)
+                .stable_abi(StableAbi::Abi3)
+                .finalize()
+                .unwrap();
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
