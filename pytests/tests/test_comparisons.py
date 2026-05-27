@@ -66,21 +66,21 @@ def test_eq(ty: Type[EqType]):
 
     # Ensure that passing a wrong self type from Python does not cause UB
     with pytest.raises(TypeError):
-        ty.__eq__(object(), 1)  # type: ignore[operator]
+        ty.__eq__(object(), 1)  # type: ignore
     with pytest.raises(TypeError):
-        ty.__ne__(object(), 1)  # type: ignore[operator]
+        ty.__ne__(object(), 1)  # type: ignore
 
     with pytest.raises(TypeError):
-        assert a <= b  # type: ignore[operator]
+        assert a <= b  # type: ignore
 
     with pytest.raises(TypeError):
-        assert a >= b  # type: ignore[operator]
+        assert a >= b  # type: ignore
 
     with pytest.raises(TypeError):
-        assert a < c  # type: ignore[operator]
+        assert a < c  # type: ignore
 
     with pytest.raises(TypeError):
-        assert c > a  # type: ignore[operator]
+        assert c > a  # type: ignore
 
 
 class PyEqDefaultNe:
@@ -111,16 +111,16 @@ def test_eq_default_ne(ty: Type[EqDefaultType]):
     assert not (b == c)
 
     with pytest.raises(TypeError):
-        assert a <= b  # type: ignore[operator]
+        assert a <= b  # type: ignore
 
     with pytest.raises(TypeError):
-        assert a >= b  # type: ignore[operator]
+        assert a >= b  # type: ignore
 
     with pytest.raises(TypeError):
-        assert a < c  # type: ignore[operator]
+        assert a < c  # type: ignore
 
     with pytest.raises(TypeError):
-        assert c > a  # type: ignore[operator]
+        assert c > a  # type: ignore
 
 
 class PyOrdered:
@@ -184,13 +184,13 @@ def test_ordered(ty: Type[OrderedType]):
 
     # Ensure that passing a wrong self type from Python does not cause UB
     with pytest.raises(TypeError):
-        ty.__lt__(object(), 1)  # type: ignore[operator]
+        ty.__lt__(object(), 1)  # type: ignore
     with pytest.raises(TypeError):
-        ty.__le__(object(), 1)  # type: ignore[operator]
+        ty.__le__(object(), 1)  # type: ignore
     with pytest.raises(TypeError):
-        ty.__gt__(object(), 1)  # type: ignore[operator]
+        ty.__gt__(object(), 1)  # type: ignore
     with pytest.raises(TypeError):
-        ty.__ge__(object(), 1)  # type: ignore[operator]
+        ty.__ge__(object(), 1)  # type: ignore
 
 
 class PyOrderedDefaultNe:
