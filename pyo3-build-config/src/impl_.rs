@@ -3625,46 +3625,47 @@ mod tests {
         let host_free_threaded = host_interpreter.target_abi.kind.is_free_threaded();
 
         // skip these tests on 3.14t, pypy, and graalpy because they don't support any stable ABI
-        if !((host_version == PythonVersion::PY314) && host_free_threaded
-            || !matches!(
-                host_interpreter.implementation,
-                PythonImplementation::PyPy | PythonImplementation::GraalPy
-            ))
+        if matches!(
+            host_interpreter.implementation,
+            PythonImplementation::PyPy | PythonImplementation::GraalPy
+        ) || ((host_version == PythonVersion::PY314) && host_free_threaded)
         {
-            let interpreter = get_host_interpreter(
-                Some(PythonVersion {
-                    major: 3,
-                    minor: 45,
-                }),
-                None,
-            );
-            if !host_free_threaded {
-                assert!(interpreter.unwrap_err().to_string().contains(
-                    "cannot set a minimum Python version 3.45 higher than the interpreter version"
-                ));
-                if host_version >= PythonVersion::PY313 {
-                    let interpreter = get_host_interpreter(Some(PythonVersion::PY313), None);
-                    assert_eq!(
-                        interpreter.unwrap().target_abi.version(),
-                        PythonVersion::PY313
-                    );
-                }
-            }
+            return;
+        }
 
-            // If both features abi3 and abi3t features are active, the feature that "wins" depends on the host Python version
+        let interpreter = get_host_interpreter(
+            Some(PythonVersion {
+                major: 3,
+                minor: 45,
+            }),
+            None,
+        );
+        if !host_free_threaded {
+            assert!(interpreter.unwrap_err().to_string().contains(
+                "cannot set a minimum Python version 3.45 higher than the interpreter version"
+            ));
             if host_version >= PythonVersion::PY313 {
-                let interpreter =
-                    get_host_interpreter(Some(PythonVersion::PY313), Some(PythonVersion::PY315))
-                        .unwrap();
+                let interpreter = get_host_interpreter(Some(PythonVersion::PY313), None);
                 assert_eq!(
-                    interpreter.target_abi.version(),
-                    if host_version >= PythonVersion::PY315 {
-                        PythonVersion::PY315
-                    } else {
-                        PythonVersion::PY313
-                    }
+                    interpreter.unwrap().target_abi.version(),
+                    PythonVersion::PY313
                 );
             }
+        }
+
+        // If both features abi3 and abi3t features are active, the feature that "wins" depends on the host Python version
+        if host_version >= PythonVersion::PY313 {
+            let interpreter =
+                get_host_interpreter(Some(PythonVersion::PY313), Some(PythonVersion::PY315))
+                    .unwrap();
+            assert_eq!(
+                interpreter.target_abi.version(),
+                if host_version >= PythonVersion::PY315 {
+                    PythonVersion::PY315
+                } else {
+                    PythonVersion::PY313
+                }
+            );
         }
     }
 
