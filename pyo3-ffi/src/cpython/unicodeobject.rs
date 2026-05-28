@@ -837,6 +837,7 @@ extern_libpython! {
     // skipped _PyUnicode_ToUppercase
     // skipped _PyUnicode_ToTitlecase
 
+    #[cfg(not(PyPy))]
     fn _PyUnicode_ToDecimalDigit(ch: Py_UCS4) -> c_int;
 
     // skipped _PyUnicode_ToDigit
