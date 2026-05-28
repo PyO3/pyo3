@@ -1242,7 +1242,7 @@ def test_version_limits(session: nox.Session):
         # and PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY=1
         env["PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
-        del env["PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY"]        
+        del env["PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY"]
 
         # max version + 2 should build if abi3 is explicitly requested
         _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
