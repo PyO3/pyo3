@@ -35,7 +35,7 @@ note: required because it appears within the type `pyo3::Bound<'_, PyString>`
    |
    | pub struct Bound<'py, T>(Python<'py>, ManuallyDrop<Py<T>>);
    |            ^^^^^
-  = note: required for `&pyo3::Bound<'_, PyString>` to implement `Send`
+   = note: required for `&pyo3::Bound<'_, PyString>` to implement `Send`
 note: required because it's used within this closure
   --> tests/ui/not_send2.rs:8:19
    |
