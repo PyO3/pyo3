@@ -383,6 +383,55 @@ Python::attach(|py| -> PyResult<()> {
 # }
 ```
 
+## `sys.stdout` and `sys.stderr` are not flushed when the Rust program exits
+
+When PyO3 embeds a Python interpreter inside a Rust binary, the interpreter's buffered streams (typically `sys.stdout` and `sys.stderr`) are not automatically flushed when the Rust process exits.
+Output written from Python without a trailing newline, or while the stream is fully buffered, may therefore be lost.
+PyO3 deliberately does not run `Py_Finalize` on shutdown because doing so can break C extensions and `async` code that hold references after the interpreter is gone (see [#1355](https://github.com/PyO3/pyo3/pull/1355) for the rationale).
+
+There are three workarounds, in increasing order of intrusiveness:
+
+1. **Run with `PYTHONUNBUFFERED=1`.**
+   This disables Python's stream buffering for the embedded interpreter, so every write is flushed immediately.
+   It also keeps Python and Rust output ordered consistently when both write to the same stream.
+
+2. **Call `sys.stdout.flush()` and `sys.stderr.flush()` from Python before the Rust caller returns.**
+   This is the lightest-weight in-process fix and only affects the streams you care about:
+
+   ```rust
+   use pyo3::prelude::*;
+
+   # fn main() -> PyResult<()> {
+   Python::attach(|py| {
+       let sys = py.import("sys")?;
+       sys.getattr("stdout")?.call_method0("flush")?;
+       sys.getattr("stderr")?.call_method0("flush")?;
+       Ok(())
+   })
+   # }
+   ```
+
+3. **Call `Py_Finalize` at the end of `main`.**
+   This runs the interpreter's full shutdown sequence, including `atexit` handlers and stream flushing, at the cost of the caveats noted above.
+   Only do this if your program does not keep Python objects alive past the finalize call:
+
+   ```rust,no_run
+   use pyo3::prelude::*;
+
+   fn main() -> PyResult<()> {
+       let result: PyResult<()> = Python::attach(|py| {
+           // ... your embedded Python work ...
+           # let _ = py;
+           Ok(())
+       });
+       // SAFETY: no PyO3 handles or Python references must outlive this call.
+       unsafe { pyo3::ffi::Py_Finalize() };
+       result
+   }
+   ```
+
+The Python C API documents the buffering behaviour and the finalisation contract in [Initialization, Finalization, and Threads](https://docs.python.org/3/c-api/init.html).
+
 [`py_run!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.py_run.html
 [`Python::run`]: {{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.run
 [`PyModule::new`]: {{#PYO3_DOCS_URL}}/pyo3/types/struct.PyModule.html#method.new
