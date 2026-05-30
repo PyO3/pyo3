@@ -1,0 +1,11 @@
+error: #[derive(NativeEnum)] cannot have generic parameters
+ --> tests/ui/native_enum_generic.rs:4:19
+  |
+4 | enum WithTypeParam<T> {
+  |                   ^
+
+error: #[native_enum] cannot have lifetime parameters
+  --> tests/ui/native_enum_generic.rs:11:19
+   |
+11 | enum WithLifetime<'a> {
+   |                   ^^
