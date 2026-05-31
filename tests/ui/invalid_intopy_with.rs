@@ -3,6 +3,8 @@ use pyo3::{IntoPyObject, IntoPyObjectRef};
 #[derive(IntoPyObject, IntoPyObjectRef)]
 struct InvalidIntoPyWithFn {
     #[pyo3(into_py_with = into)]
+//~^ ERROR: mismatched types
+//~| ERROR: mismatched types
     inner: String,
 }
 
