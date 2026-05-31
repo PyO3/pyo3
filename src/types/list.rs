@@ -151,16 +151,12 @@ pub trait PyListMethods<'py>: crate::sealed::Sealed {
     /// ```
     fn get_item(&self, index: usize) -> PyResult<Bound<'py, PyAny>>;
 
-    /// Gets the list item at the specified index. Undefined behavior on bad index, or if the list
-    /// contains a null pointer at the specified index. Use with caution.
+    /// Gets the list item at the specified index without checking bounds or synchronizing access.
+    /// Undefined behavior if index is out of bounds.
     ///
     /// # Safety
     ///
     /// - Caller must verify that the index is within the bounds of the list.
-    /// - A null pointer is only legal in a list which is in the process of being initialized, callers
-    ///   can typically assume the list item is non-null unless they are knowingly filling an
-    ///   uninitialized list. (If a list were to contain a null pointer element, accessing it from Python
-    ///   typically causes a segfault.)
     /// - On the free-threaded build, caller must verify they have exclusive access to the list
     ///   via a lock or by holding the innermost critical section on the list.
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
@@ -477,7 +473,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
 }
 
 // New types for type checking when using BoundListIterator associated methods, like
-// BoundListIterator::next_locked.
+// BoundListIterator::next_unsynchronized.
 struct Index(usize);
 struct Length(usize);
 
@@ -501,7 +497,7 @@ impl<'py> BoundListIterator<'py> {
     ///
     /// The caller must hold an active critical section on this list.
     #[inline]
-    unsafe fn next_locked(
+    unsafe fn next_unsynchronized(
         index: &mut Index,
         length: &mut Length,
         list: &Bound<'py, PyList>,
@@ -546,7 +542,7 @@ impl<'py> BoundListIterator<'py> {
     ///
     /// The caller must hold an active critical section on this list.
     #[inline]
-    unsafe fn next_back_locked(
+    unsafe fn next_back_unsynchronized(
         index: &mut Index,
         length: &mut Length,
         list: &Bound<'py, PyList>,
@@ -606,7 +602,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     fn next(&mut self) -> Option<Self::Item> {
         // SAFETY: with_critical_section locks the list
         self.with_critical_section(|index, length, list| unsafe {
-            Self::next_locked(index, length, list)
+            Self::next_unsynchronized(index, length, list)
         })
     }
 
@@ -651,7 +647,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
         self.with_critical_section(|index, length, list| {
             let mut accum = init;
             // SAFETY: with_critical_section locks the list
-            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
+            while let Some(x) = unsafe { Self::next_unsynchronized(index, length, list) } {
                 accum = f(accum, x);
             }
             accum
@@ -669,7 +665,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
         self.with_critical_section(|index, length, list| {
             let mut accum = init;
             // SAFETY: with_critical_section locks the list
-            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
+            while let Some(x) = unsafe { Self::next_unsynchronized(index, length, list) } {
                 accum = f(accum, x)?
             }
             R::from_output(accum)
@@ -685,7 +681,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     {
         self.with_critical_section(|index, length, list| {
             // SAFETY: with_critical_section locks the list
-            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
+            while let Some(x) = unsafe { Self::next_unsynchronized(index, length, list) } {
                 if !f(x) {
                     return false;
                 }
@@ -703,7 +699,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     {
         self.with_critical_section(|index, length, list| {
             // SAFETY: with_critical_section locks the list
-            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
+            while let Some(x) = unsafe { Self::next_unsynchronized(index, length, list) } {
                 if f(x) {
                     return true;
                 }
@@ -721,7 +717,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     {
         self.with_critical_section(|index, length, list| {
             // SAFETY: with_critical_section locks the list
-            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
+            while let Some(x) = unsafe { Self::next_unsynchronized(index, length, list) } {
                 if predicate(&x) {
                     return Some(x);
                 }
@@ -739,7 +735,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     {
         self.with_critical_section(|index, length, list| {
             // SAFETY: with_critical_section locks the list
-            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
+            while let Some(x) = unsafe { Self::next_unsynchronized(index, length, list) } {
                 if let found @ Some(_) = f(x) {
                     return found;
                 }
@@ -758,7 +754,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
         self.with_critical_section(|index, length, list| {
             let mut acc = 0;
             // SAFETY: with_critical_section locks the list
-            while let Some(x) = unsafe { Self::next_locked(index, length, list) } {
+            while let Some(x) = unsafe { Self::next_unsynchronized(index, length, list) } {
                 if predicate(x) {
                     return Some(acc);
                 }
@@ -799,7 +795,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         self.with_critical_section(|index, length, list| unsafe {
-            Self::next_back_locked(index, length, list)
+            Self::next_back_unsynchronized(index, length, list)
         })
     }
 
@@ -822,7 +818,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
         self.with_critical_section(|index, length, list| {
             let mut accum = init;
             // SAFETY: with_critical_section locks the list
-            while let Some(x) = unsafe { Self::next_back_locked(index, length, list) } {
+            while let Some(x) = unsafe { Self::next_back_unsynchronized(index, length, list) } {
                 accum = f(accum, x);
             }
             accum
@@ -840,7 +836,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
         self.with_critical_section(|index, length, list| {
             let mut accum = init;
             // SAFETY: with_critical_section locks the list
-            while let Some(x) = unsafe { Self::next_back_locked(index, length, list) } {
+            while let Some(x) = unsafe { Self::next_back_unsynchronized(index, length, list) } {
                 accum = f(accum, x)?
             }
             R::from_output(accum)
