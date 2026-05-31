@@ -9,6 +9,7 @@ mod pyo3_scratch {
     impl Foo {
         #[pyfunction]
         fn bug() {}
+//~^ ERROR: functions inside #[pymethods] do not need to be annotated with #[pyfunction]
     }
 }
 

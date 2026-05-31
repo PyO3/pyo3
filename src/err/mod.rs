@@ -692,7 +692,7 @@ impl core::fmt::Display for PyErr {
             let type_name = value.get_type().qualname().map_err(|_| core::fmt::Error)?;
             write!(f, "{type_name}")?;
             if let Ok(s) = value.str() {
-                write!(f, ": {}", &s.to_string_lossy())
+                write!(f, ": {}", s.to_string_lossy())
             } else {
                 write!(f, ": <exception str() failed>")
             }
