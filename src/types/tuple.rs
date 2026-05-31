@@ -203,17 +203,12 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// by avoiding a reference count change.
     fn get_borrowed_item<'a>(&'a self, index: usize) -> PyResult<Borrowed<'a, 'py, PyAny>>;
 
-    /// Gets the tuple item at the specified index. Undefined behavior on bad index, or if the tuple
-    /// contains a null pointer at the specified index. Use with caution.
+    /// Gets the tuple item at the specified index without checking bounds.
+    /// Undefined behavior if index is out of bounds.
     ///
     /// # Safety
     ///
     /// - Caller must verify that the index is within the bounds of the tuple.
-    /// - A null pointer is only legal in a tuple which is in the process of being initialized, callers
-    ///   can typically assume the tuple item is non-null unless they are knowingly filling an
-    ///   uninitialized tuple. (If a tuple were to contain a null pointer element, accessing it from Python
-    ///   typically causes a segfault.)
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
 
     /// Like [`get_item_unchecked`][PyTupleMethods::get_item_unchecked], but returns a borrowed object,
@@ -222,7 +217,6 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// # Safety
     ///
     /// See [`get_item_unchecked`][PyTupleMethods::get_item_unchecked].
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny>;
 
     /// Returns `self` as a slice of objects.
@@ -247,7 +241,7 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     fn iter(&self) -> BoundTupleIterator<'py>;
 
     /// Like [`iter`][PyTupleMethods::iter], but produces an iterator which returns borrowed objects,
-    /// which is a slight performance optimization by avoiding a reference count change.
+    /// which is a slight performance optimization by avoiding a reference count changes.
     fn iter_borrowed<'a>(&'a self) -> BorrowedTupleIterator<'a, 'py>;
 
     /// Return a new list containing the contents of this tuple; equivalent to the Python expression `list(tuple)`.
@@ -296,12 +290,10 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
         self.as_borrowed().get_borrowed_item(index)
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
         unsafe { self.get_borrowed_item_unchecked(index).to_owned() }
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny> {
         unsafe { self.as_borrowed().get_borrowed_item_unchecked(index) }
     }
@@ -356,12 +348,18 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
     /// # Safety
     ///
     /// See `get_item_unchecked` in `PyTupleMethods`.
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
-        // SAFETY: caller has upheld the safety contract
-        unsafe {
-            ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
-                .assume_borrowed_unchecked(self.py())
+        cfg_select! {
+            // SAFETY: caller has upheld the safety contract
+            not(any(Py_LIMITED_API, PyPy, GraalPy)) => unsafe {
+                ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
+                    .assume_borrowed_unchecked(self.py())
+            },
+            // SAFETY: `PyTuple_GetItem` is known to always succeed under these conditions
+            any(Py_LIMITED_API, PyPy, GraalPy) => unsafe {
+                ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t)
+                    .assume_borrowed_unchecked(self.py())
+            }
         }
     }
 
@@ -394,9 +392,8 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
-            let item = unsafe {
-                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), self.index).to_owned()
-            };
+            // SAFETY: self.index < self.length
+            let item = unsafe { self.tuple.get_item_unchecked(self.index) };
             self.index += 1;
             Some(item)
         } else {
@@ -429,12 +426,10 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
     #[inline]
     #[cfg(not(feature = "nightly"))]
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        let length = self.length.min(self.tuple.len());
         let target_index = self.index + n;
-        if target_index < length {
-            let item = unsafe {
-                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), target_index).to_owned()
-            };
+        if target_index < self.length {
+            // SAFETY: target_index < self.length
+            let item = unsafe { self.tuple.get_item_unchecked(target_index) };
             self.index = target_index + 1;
             Some(item)
         } else {
@@ -445,9 +440,7 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
     #[inline]
     #[cfg(feature = "nightly")]
     fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
-        let max_len = self.length.min(self.tuple.len());
-        let currently_at = self.index;
-        if currently_at >= max_len {
+        if self.index >= self.length {
             if n == 0 {
                 return Ok(());
             } else {
@@ -455,12 +448,12 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
             }
         }
 
-        let items_left = max_len - currently_at;
+        let items_left = self.length - self.index;
         if n <= items_left {
             self.index += n;
             Ok(())
         } else {
-            self.index = max_len;
+            self.index = self.length;
             let remainder = n - items_left;
             Err(unsafe { NonZero::new_unchecked(remainder) })
         }
@@ -471,11 +464,10 @@ impl DoubleEndedIterator for BoundTupleIterator<'_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
-            let item = unsafe {
-                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), self.length - 1)
-                    .to_owned()
-            };
-            self.length -= 1;
+            let target_index = self.length - 1;
+            // SAFETY: target_index < self.length
+            let item = unsafe { self.tuple.get_item_unchecked(target_index) };
+            self.length = target_index;
             Some(item)
         } else {
             None
@@ -485,12 +477,10 @@ impl DoubleEndedIterator for BoundTupleIterator<'_> {
     #[inline]
     #[cfg(not(feature = "nightly"))]
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        let length_size = self.length.min(self.tuple.len());
-        if self.index + n < length_size {
-            let target_index = length_size - n - 1;
-            let item = unsafe {
-                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), target_index).to_owned()
-            };
+        if self.index + n < self.length {
+            let target_index = self.length - n - 1;
+            // SAFETY: target_index < self.length
+            let item = unsafe { self.tuple.get_item_unchecked(target_index) };
             self.length = target_index;
             Some(item)
         } else {
@@ -501,9 +491,7 @@ impl DoubleEndedIterator for BoundTupleIterator<'_> {
     #[inline]
     #[cfg(feature = "nightly")]
     fn advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
-        let max_len = self.length.min(self.tuple.len());
-        let currently_at = self.index;
-        if currently_at >= max_len {
+        if self.index >= self.length {
             if n == 0 {
                 return Ok(());
             } else {
@@ -511,12 +499,12 @@ impl DoubleEndedIterator for BoundTupleIterator<'_> {
             }
         }
 
-        let items_left = max_len - currently_at;
+        let items_left = self.length - self.index;
         if n <= items_left {
-            self.length = max_len - n;
+            self.length -= n;
             Ok(())
         } else {
-            self.length = currently_at;
+            self.length = self.index;
             let remainder = n - items_left;
             Err(unsafe { NonZero::new_unchecked(remainder) })
         }
@@ -565,17 +553,6 @@ impl<'a, 'py> BorrowedTupleIterator<'a, 'py> {
             length,
         }
     }
-
-    unsafe fn get_item(
-        tuple: Borrowed<'a, 'py, PyTuple>,
-        index: usize,
-    ) -> Borrowed<'a, 'py, PyAny> {
-        #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
-        let item = tuple.get_borrowed_item(index).expect("tuple.get failed");
-        #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-        let item = unsafe { tuple.get_borrowed_item_unchecked(index) };
-        item
-    }
 }
 
 impl<'a, 'py> Iterator for BorrowedTupleIterator<'a, 'py> {
@@ -584,7 +561,8 @@ impl<'a, 'py> Iterator for BorrowedTupleIterator<'a, 'py> {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
-            let item = unsafe { Self::get_item(self.tuple, self.index) };
+            // SAFETY: self.index < self.length
+            let item = unsafe { self.tuple.get_borrowed_item_unchecked(self.index) };
             self.index += 1;
             Some(item)
         } else {
@@ -619,7 +597,8 @@ impl DoubleEndedIterator for BorrowedTupleIterator<'_, '_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
-            let item = unsafe { Self::get_item(self.tuple, self.length - 1) };
+            // SAFETY: self.index < self.length
+            let item = unsafe { self.tuple.get_borrowed_item_unchecked(self.index) };
             self.length -= 1;
             Some(item)
         } else {
@@ -950,11 +929,12 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         {
             let t = obj.cast::<PyTuple>()?;
             if t.len() == $length {
-                #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
-                return Ok(($(t.get_borrowed_item($n)?.extract::<$T>().map_err(Into::into)?,)+));
-
-                #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-                unsafe {return Ok(($(t.get_borrowed_item_unchecked($n).extract::<$T>().map_err(Into::into)?,)+));}
+                Ok(($(
+                    // SAFETY: index guaranteed in bounds by the length check
+                    unsafe { t.get_borrowed_item_unchecked($n) }
+                        .extract::<$T>()
+                        .map_err(Into::into)?,
+                )+))
             } else {
                 Err(wrong_tuple_length(t, $length))
             }
@@ -1388,7 +1368,6 @@ mod tests {
         });
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     #[test]
     fn test_tuple_get_item_unchecked_sanity() {
         Python::attach(|py| {
@@ -1640,21 +1619,19 @@ mod tests {
                     .unwrap(),
                 2
             );
-            #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-            {
-                assert_eq!(
-                    unsafe { tuple.get_item_unchecked(2) }
-                        .extract::<i32>()
-                        .unwrap(),
-                    3
-                );
-                assert_eq!(
-                    unsafe { tuple.get_borrowed_item_unchecked(3) }
-                        .extract::<i32>()
-                        .unwrap(),
-                    4
-                );
-            }
+
+            assert_eq!(
+                unsafe { tuple.get_item_unchecked(2) }
+                    .extract::<i32>()
+                    .unwrap(),
+                3
+            );
+            assert_eq!(
+                unsafe { tuple.get_borrowed_item_unchecked(3) }
+                    .extract::<i32>()
+                    .unwrap(),
+                4
+            );
         })
     }
 
