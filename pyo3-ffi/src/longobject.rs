@@ -1,22 +1,28 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+use core::ffi::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
 use libc::size_t;
-use std::ffi::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
-use std::ptr::addr_of_mut;
 
 opaque_struct!(pub PyLongObject);
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LONG_SUBCLASS)
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyLong_Type)) as c_int
+    Py_IS_TYPE(op, &raw mut PyLong_Type)
 }
 
-extern "C" {
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyLong_Check(op: *mut PyObject) -> c_int;
+    #[cfg(RustPython)]
+    pub fn PyLong_CheckExact(op: *mut PyObject) -> c_int;
+
     #[cfg_attr(PyPy, link_name = "PyPyLong_FromLong")]
     pub fn PyLong_FromLong(arg1: c_long) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyLong_FromUnsignedLong")]
@@ -83,18 +89,14 @@ extern "C" {
     ) -> *mut PyObject;
 }
 
-#[cfg(not(Py_LIMITED_API))]
-extern "C" {
-    #[cfg_attr(PyPy, link_name = "_PyPyLong_NumBits")]
-    pub fn _PyLong_NumBits(obj: *mut PyObject) -> size_t;
-}
+// skipped non-limited _PyLong_NumBits
 
 // skipped non-limited _PyLong_Format
 // skipped non-limited _PyLong_FormatWriter
 // skipped non-limited _PyLong_FormatBytesWriter
 // skipped non-limited _PyLong_FormatAdvancedWriter
 
-extern "C" {
+extern_libpython! {
     pub fn PyOS_strtoul(arg1: *const c_char, arg2: *mut *mut c_char, arg3: c_int) -> c_ulong;
     pub fn PyOS_strtol(arg1: *const c_char, arg2: *mut *mut c_char, arg3: c_int) -> c_long;
 }

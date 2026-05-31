@@ -1,5 +1,7 @@
 use std::{ffi::CStr, process::exit};
 
+use pyo3_ffi_check_definitions::{bindgen as bindings, pyo3_ffi};
+
 fn main() {
     println!(
         "comparing pyo3-ffi against headers generated for {}",
@@ -69,23 +71,28 @@ fn main() {
 
     pyo3_ffi_check_macro::for_all_structs!(check_struct);
 
+    // This macro attempts to check that both functions exist and have the same number of arguments, it is
+    // difficult to check the argument types match.
+    macro_rules! check_function {
+        ($name:ident, [$($modifiers:tt)*] ($($arg_types:tt)*) $(-> $($retval:tt)*)?) => {{
+            #[allow(deprecated)]
+            { pyo3_ffi::$name as $($modifiers)* fn($($arg_types)*) $(-> $($retval)*)? };
+            bindings::$name as $($modifiers)* fn($($arg_types)*) $(-> $($retval)*)?;
+        }};
+        // case when the function is an inline function in the headers, in which case pyo3-ffi will use the
+        // Rust abi and the extern symbol uses the C abi
+        (@inline $name:ident, ($($arg_types:tt)*) $(-> $($retval:tt)*)?) => {{
+            #[allow(deprecated)]
+            { pyo3_ffi::$name as unsafe fn($($arg_types)*) $(-> $($retval)*)? };
+            bindings::$name as unsafe extern "C" fn($($arg_types)*) $(-> $($retval)*)?;
+        }};
+    }
+
+    pyo3_ffi_check_macro::for_all_functions!(check_function);
+
     if failed {
         exit(1);
     } else {
         exit(0);
     }
-}
-
-#[allow(
-    non_snake_case,
-    non_camel_case_types,
-    non_upper_case_globals,
-    dead_code,
-    improper_ctypes,
-    clippy::all,
-    // clippy fails with lots of errors if this is not set specifically
-    clippy::used_underscore_binding
-)]
-mod bindings {
-    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }

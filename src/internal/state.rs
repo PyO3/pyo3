@@ -4,11 +4,11 @@
 use crate::impl_::panic::PanicTrap;
 use crate::{ffi, Python};
 
-use std::cell::Cell;
-#[cfg(not(pyo3_disable_reference_pool))]
-use std::sync::OnceLock;
+use core::cell::Cell;
 #[cfg_attr(pyo3_disable_reference_pool, allow(unused_imports))]
-use std::{mem, ptr::NonNull, sync};
+use core::{mem, ptr::NonNull};
+#[cfg(not(pyo3_disable_reference_pool))]
+use std::sync::{Mutex, OnceLock};
 
 std::thread_local! {
     /// This is an internal counter in pyo3 monitoring whether this thread is attached to the interpreter.
@@ -99,6 +99,11 @@ impl AttachGuard {
             return Err(AttachError::NotInitialized);
         }
 
+        // Py_IsInitialized() can return 1 while Py_InitializeEx is still
+        // running (e.g. importing site.py). Block until any in-progress PyO3
+        // initialization has fully completed.
+        crate::interpreter_lifecycle::wait_for_initialization();
+
         // Calling `PyGILState_Ensure` while finalizing may crash CPython in unpredictable
         // ways, we'll make a best effort attempt here to avoid that. (There's a time of
         // check to time-of-use issue, but it's better than nothing.)
@@ -181,14 +186,14 @@ type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 #[cfg(not(pyo3_disable_reference_pool))]
 /// Thread-safe storage for objects which were dec_ref while not attached.
 struct ReferencePool {
-    pending_decrefs: sync::Mutex<PyObjVec>,
+    pending_decrefs: Mutex<PyObjVec>,
 }
 
 #[cfg(not(pyo3_disable_reference_pool))]
 impl ReferencePool {
     const fn new() -> Self {
         Self {
-            pending_decrefs: sync::Mutex::new(Vec::new()),
+            pending_decrefs: Mutex::new(Vec::new()),
         }
     }
 
@@ -551,7 +556,7 @@ mod tests {
 
                     Bound::from_owned_ptr(
                         pool.python(),
-                        ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _,
+                        ffi::PyCapsule_GetPointer(capsule, core::ptr::null()) as _,
                     )
                 };
             }
@@ -559,7 +564,7 @@ mod tests {
             let ptr = obj.into_ptr();
 
             let capsule =
-                unsafe { ffi::PyCapsule_New(ptr as _, std::ptr::null(), Some(capsule_drop)) };
+                unsafe { ffi::PyCapsule_New(ptr as _, core::ptr::null(), Some(capsule_drop)) };
 
             get_pool().register_decref(NonNull::new(capsule).unwrap());
 

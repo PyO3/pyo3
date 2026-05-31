@@ -1,4 +1,6 @@
-use std::{convert::Infallible, marker::PhantomData, ops::Deref};
+#![warn(clippy::undocumented_unsafe_blocks)]
+
+use core::{convert::Infallible, marker::PhantomData, ops::Deref};
 
 use crate::{
     ffi, types::PyNone, Bound, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyResult, Python,
@@ -18,6 +20,34 @@ impl<T> SomeWrap<T> for T {
 impl<T> SomeWrap<T> for Option<T> {
     fn wrap(self) -> Self {
         self
+    }
+}
+
+pub struct OkWrapper<T>(OkWrapperInner<T>);
+pub struct OkWrapperInner<T>(PhantomData<T>);
+
+impl<T> OkWrapper<T> {
+    pub fn new(_: &T) -> Self {
+        Self(OkWrapperInner(PhantomData))
+    }
+}
+
+impl<T> Deref for OkWrapper<T> {
+    type Target = OkWrapperInner<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T, E> OkWrapper<Result<T, E>> {
+    pub fn ok_wrap(&self, value: Result<T, E>) -> Result<T, E> {
+        value
+    }
+}
+
+impl<T> OkWrapperInner<T> {
+    pub fn ok_wrap(&self, value: T) -> Result<T, Infallible> {
+        Ok(value)
     }
 }
 
@@ -152,5 +182,16 @@ mod tests {
 
         let b: Option<u8> = SomeWrap::wrap(None);
         assert_eq!(b, None);
+    }
+
+    #[test]
+    fn wrap_result() {
+        let a = 42;
+        let Ok(a) = OkWrapper::new(&a).ok_wrap(a);
+        assert_eq!(a, 42);
+
+        let b = Result::<_, String>::Ok(42);
+        let b = OkWrapper::new(&b).ok_wrap(b);
+        assert_eq!(b, Ok(42));
     }
 }

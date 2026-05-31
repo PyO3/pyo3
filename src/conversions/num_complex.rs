@@ -101,8 +101,8 @@ use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, types::PyComplex, Borrowed, Bound, FromPyObject, PyAny, PyErr,
     Python,
 };
+use core::ffi::c_double;
 use num_complex::Complex;
-use std::ffi::c_double;
 
 impl PyComplex {
     /// Creates a new Python `PyComplex` object from `num_complex`'s [`Complex`].
@@ -124,7 +124,7 @@ macro_rules! complex_conversion {
         impl<'py> crate::conversion::IntoPyObject<'py> for Complex<$float> {
             type Target = PyComplex;
             type Output = Bound<'py, Self::Target>;
-            type Error = std::convert::Infallible;
+            type Error = core::convert::Infallible;
 
             #[cfg(feature = "experimental-inspect")]
             const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("builtins", "complex");
@@ -144,7 +144,7 @@ macro_rules! complex_conversion {
         impl<'py> crate::conversion::IntoPyObject<'py> for &Complex<$float> {
             type Target = PyComplex;
             type Output = Bound<'py, Self::Target>;
-            type Error = std::convert::Infallible;
+            type Error = core::convert::Infallible;
 
             #[cfg(feature = "experimental-inspect")]
             const OUTPUT_TYPE: PyStaticExpr = <Complex<$float>>::OUTPUT_TYPE;
@@ -267,15 +267,11 @@ class C:
                 from_float.extract::<Complex<f64>>().unwrap(),
                 Complex::new(3.0, 0.0)
             );
-            // Before Python 3.8, `__index__` wasn't tried by `float`/`complex`.
-            #[cfg(Py_3_8)]
-            {
-                let from_index = module.getattr("C").unwrap().call0().unwrap();
-                assert_eq!(
-                    from_index.extract::<Complex<f64>>().unwrap(),
-                    Complex::new(3.0, 0.0)
-                );
-            }
+            let from_index = module.getattr("C").unwrap().call0().unwrap();
+            assert_eq!(
+                from_index.extract::<Complex<f64>>().unwrap(),
+                Complex::new(3.0, 0.0)
+            );
         })
     }
     #[test]
@@ -309,14 +305,11 @@ class C(First, IndexMixin): pass
                 from_float.extract::<Complex<f64>>().unwrap(),
                 Complex::new(3.0, 0.0)
             );
-            #[cfg(Py_3_8)]
-            {
-                let from_index = module.getattr("C").unwrap().call0().unwrap();
-                assert_eq!(
-                    from_index.extract::<Complex<f64>>().unwrap(),
-                    Complex::new(3.0, 0.0)
-                );
-            }
+            let from_index = module.getattr("C").unwrap().call0().unwrap();
+            assert_eq!(
+                from_index.extract::<Complex<f64>>().unwrap(),
+                Complex::new(3.0, 0.0)
+            );
         })
     }
     #[test]

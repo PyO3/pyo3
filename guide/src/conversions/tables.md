@@ -78,7 +78,7 @@ As always, if you're not sure it's worth it in your case, benchmark it!
 
 ## Returning Rust values to Python
 
-When returning values from functions callable from Python, [PyO3's smart pointers](../types.md#pyo3s-smart-pointers) (`Py<T>`, `Bound<'py, T>`, and `Borrowed<'a, 'py, T>`) can be used with zero cost.
+When returning values from functions callable from Python, PyO3's smart pointers (`Py<T>`, `Bound<'py, T>`, and `Borrowed<'a, 'py, T>`) can be used with zero cost.
 
 Because `Bound<'py, T>` and `Borrowed<'a, 'py, T>` have lifetime parameters, the Rust compiler may ask for lifetime annotations to be added to your function.
 See the [section of the guide dedicated to this](../types.md#function-argument-lifetimes).

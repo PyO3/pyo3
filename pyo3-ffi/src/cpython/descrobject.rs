@@ -1,5 +1,5 @@
 use crate::{PyGetSetDef, PyMethodDef, PyObject, PyTypeObject};
-use std::ffi::{c_char, c_int, c_void};
+use core::ffi::{c_char, c_int, c_void};
 
 #[cfg(Py_3_11)]
 use crate::PyMemberDef;
@@ -49,7 +49,7 @@ pub struct PyDescrObject {
 pub struct PyMethodDescrObject {
     pub d_common: PyDescrObject,
     pub d_method: *mut PyMethodDef,
-    #[cfg(all(not(PyPy), Py_3_8))]
+    #[cfg(not(PyPy))]
     pub vectorcall: Option<crate::vectorcallfunc>,
 }
 

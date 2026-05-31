@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "plugin_api"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",

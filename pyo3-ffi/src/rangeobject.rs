@@ -1,16 +1,21 @@
 use crate::object::*;
-use std::ffi::c_int;
-use std::ptr::addr_of_mut;
+use core::ffi::c_int;
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+extern_libpython! {
+    #[cfg(not(RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyRange_Type")]
     pub static mut PyRange_Type: PyTypeObject;
+    #[cfg(not(RustPython))]
     pub static mut PyRangeIter_Type: PyTypeObject;
+    #[cfg(not(RustPython))]
     pub static mut PyLongRangeIter_Type: PyTypeObject;
+
+    #[cfg(RustPython)]
+    pub fn PyRange_Check(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyRange_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyRange_Type)) as c_int
+    Py_IS_TYPE(op, &raw mut PyRange_Type)
 }

@@ -1,8 +1,9 @@
 use std::{thread, time};
 
+use pyo3::basic::CompareOp;
 use pyo3::exceptions::{PyAttributeError, PyStopIteration, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::PyType;
+use pyo3::types::{PyComplex, PyType};
 #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 use pyo3::types::{PyDict, PyTuple};
 
@@ -213,6 +214,122 @@ fn map_a_class(cls: AClass) -> AClass {
     cls
 }
 
+#[pyclass]
+struct Number(u64);
+
+// TODO: Implementations are just for the example and often not correct
+#[pymethods]
+impl Number {
+    #[new]
+    fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    fn __str__(&self) -> String {
+        self.0.to_string()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self.0)
+    }
+
+    fn __hash__(&self) -> u64 {
+        self.0
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp) -> bool {
+        op.matches(self.0.cmp(&other.0))
+    }
+
+    fn __add__(&self, other: &Self) -> Self {
+        Self(self.0 + other.0)
+    }
+
+    fn __sub__(&self, other: &Self) -> Self {
+        Self(self.0 - other.0)
+    }
+
+    fn __mul__(&self, other: &Self) -> Self {
+        Self(self.0 * other.0)
+    }
+
+    fn __matmul__(&self, other: &Self) -> Self {
+        Self(self.0 * other.0)
+    }
+
+    fn __truediv__(&self, other: &Self) -> Self {
+        Self(self.0 / other.0)
+    }
+
+    fn __floordiv__(&self, other: &Self) -> Self {
+        Self(self.0 / other.0)
+    }
+
+    fn __mod__(&self, other: &Self) -> Self {
+        Self(self.0 % other.0)
+    }
+
+    fn __divmod__(&self, other: &Self) -> (Self, Self) {
+        (Self(self.0 / other.0), Self(self.0 % other.0))
+    }
+
+    fn __pow__(&self, other: &Self, modulo: Option<&Self>) -> Self {
+        Self(self.0.pow(other.0 as u32) % modulo.map_or(1, |m| m.0))
+    }
+
+    fn __rshift__(&self, other: &Self) -> Self {
+        Self(self.0 >> other.0)
+    }
+
+    fn __lshift__(&self, other: &Self) -> Self {
+        Self(self.0 << other.0)
+    }
+
+    fn __and__(&self, other: &Self) -> Self {
+        Self(self.0 & other.0)
+    }
+
+    fn __or__(&self, other: &Self) -> Self {
+        Self(self.0 | other.0)
+    }
+
+    fn __xor__(&self, other: &Self) -> Self {
+        Self(self.0 ^ other.0)
+    }
+
+    fn __pos__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __neg__(&self) -> PyResult<Self> {
+        if self.0 == 0 {
+            Ok(Self(0))
+        } else {
+            Err(PyValueError::new_err("not zero"))
+        }
+    }
+
+    fn __abs__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __invert__(&self) -> Self {
+        Self(!self.0)
+    }
+
+    fn __int__(&self) -> u64 {
+        self.0
+    }
+
+    fn __float__(&self) -> f64 {
+        self.0 as f64
+    }
+
+    fn __complex__<'py>(&self, py: Python<'py>) -> Bound<'py, PyComplex> {
+        PyComplex::from_doubles(py, self.0 as f64, 0.)
+    }
+}
+
 #[pymodule]
 pub mod pyclasses {
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -224,6 +341,6 @@ pub mod pyclasses {
     #[pymodule_export]
     use super::{
         map_a_class, AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass,
-        PlainObject, PyClassIter, PyClassThreadIter,
+        Number, PlainObject, PyClassIter, PyClassThreadIter,
     };
 }

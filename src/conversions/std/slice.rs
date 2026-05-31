@@ -1,7 +1,5 @@
-use std::borrow::Cow;
+use alloc::borrow::Cow;
 
-#[cfg(feature = "experimental-inspect")]
-use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
@@ -21,21 +19,13 @@ where
     #[cfg(feature = "experimental-inspect")]
     const OUTPUT_TYPE: PyStaticExpr = <&T>::SEQUENCE_OUTPUT_TYPE;
 
-    /// Turns [`&[u8]`](std::slice) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
+    /// Turns [`&[u8]`](core::slice) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///
     /// [`PyBytes`]: crate::types::PyBytes
     /// [`PyList`]: crate::types::PyList
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         <&T>::borrowed_sequence_into_pyobject(self, py, crate::conversion::private::Token)
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::union_of(&[
-            TypeInfo::builtin("bytes"),
-            TypeInfo::list_of(<&T>::type_output()),
-        ])
     }
 }
 
@@ -47,11 +37,6 @@ impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for &'a [u8] {
 
     fn extract(obj: crate::Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         Ok(obj.cast::<PyBytes>()?.as_bytes())
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        TypeInfo::builtin("bytes")
     }
 }
 
@@ -72,11 +57,6 @@ impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for Cow<'a, [u8]> {
         } else {
             Cow::Owned(Vec::extract(ob)?) // Not possible to take a slice, we have to build a Vec<u8>
         })
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        Self::type_output()
     }
 }
 
@@ -104,7 +84,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
+    use alloc::borrow::Cow;
 
     use crate::{
         conversion::IntoPyObject,

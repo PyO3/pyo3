@@ -3,7 +3,13 @@ use crate::py_result_ext::PyResultExt;
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, Bound, PyAny, Python};
-use std::ffi::c_double;
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
+use core::ffi::c_double;
 
 /// Represents a Python [`complex`](https://docs.python.org/3/library/functions.html#complex) object.
 ///
@@ -23,10 +29,24 @@ pub struct PyComplex(PyAny);
 
 pyobject_subclassable_native_type!(PyComplex, ffi::PyComplexObject);
 
+#[cfg(not(RustPython))]
 pyobject_native_type!(
     PyComplex,
     ffi::PyComplexObject,
     pyobject_native_static_type_object!(ffi::PyComplex_Type),
+    "builtins",
+    "complex",
+    #checkfunction=ffi::PyComplex_Check
+);
+
+#[cfg(RustPython)]
+pyobject_native_type!(
+    PyComplex,
+    ffi::PyComplexObject,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "complex").unwrap().as_type_ptr()
+    },
     "builtins",
     "complex",
     #checkfunction=ffi::PyComplex_Check
@@ -49,7 +69,7 @@ mod not_limited_impls {
     use crate::Borrowed;
 
     use super::*;
-    use std::ops::{Add, Div, Mul, Neg, Sub};
+    use core::ops::{Add, Div, Mul, Neg, Sub};
 
     macro_rules! bin_ops {
         ($trait:ident, $fn:ident, $op:tt) => {

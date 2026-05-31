@@ -18,8 +18,6 @@
 use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::types::TypeInfo;
-#[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_subscript;
@@ -50,11 +48,6 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         <A::Item>::owned_sequence_into_pyobject(self, py, crate::conversion::private::Token)
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::list_of(A::Item::type_output())
-    }
 }
 
 impl<'a, 'py, A> IntoPyObject<'py> for &'a SmallVec<A>
@@ -72,11 +65,6 @@ where
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         self.as_slice().into_pyobject(py)
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::list_of(<&A::Item>::type_output())
     }
 }
 
@@ -96,11 +84,6 @@ where
             return Err(PyTypeError::new_err("Can't extract `str` to `SmallVec`"));
         }
         extract_sequence(obj)
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        TypeInfo::sequence_of(A::Item::type_input())
     }
 }
 

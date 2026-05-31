@@ -11,18 +11,16 @@ use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString};
-#[allow(deprecated)]
-use crate::DowncastError;
 use crate::{
     ffi, CastError, CastIntoError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
     PyRefMut, PyTypeInfo, Python,
 };
 use crate::{internal::state, PyTypeCheck};
-use std::marker::PhantomData;
-use std::mem::ManuallyDrop;
-use std::ops::Deref;
-use std::ptr;
-use std::ptr::NonNull;
+use core::marker::PhantomData;
+use core::mem::ManuallyDrop;
+use core::ops::Deref;
+use core::ptr;
+use core::ptr::NonNull;
 
 /// Owned or borrowed Python smart pointer with a lifetime `'py` signalling
 /// attachment to the Python interpreter.
@@ -328,7 +326,7 @@ impl<'py, T> Bound<'py, T> {
     #[inline]
     pub unsafe fn cast_into_unchecked<U>(self) -> Bound<'py, U> {
         // SAFETY: caller has upheld the safety contract, all `Bound` have the same layout
-        unsafe { std::mem::transmute(self) }
+        unsafe { core::mem::transmute(self) }
     }
 }
 
@@ -466,10 +464,8 @@ impl<'py> Bound<'py, PyAny> {
     ///   be either a borrowed reference or an owned reference, it does not matter, as this is
     ///   just `&Bound` there will never be any ownership transfer.
     #[inline]
-    pub(crate) unsafe fn ref_from_ptr<'a>(
-        _py: Python<'py>,
-        ptr: &'a *mut ffi::PyObject,
-    ) -> &'a Self {
+    #[doc(hidden)]
+    pub unsafe fn ref_from_ptr<'a>(_py: Python<'py>, ptr: &'a *mut ffi::PyObject) -> &'a Self {
         let ptr = NonNull::from(ptr).cast();
         // SAFETY: caller has upheld the safety contract,
         // and `Bound<PyAny>` is layout-compatible with `*mut ffi::PyObject`.
@@ -501,7 +497,8 @@ impl<'py> Bound<'py, PyAny> {
     /// - `ptr` must be a valid pointer to a Python object for the lifetime `'a`. The `ptr` can be
     ///   either a borrowed reference or an owned reference, it does not matter, as this is just
     ///   `&Bound` there will never be any ownership transfer.
-    pub(crate) unsafe fn ref_from_non_null<'a>(
+    #[doc(hidden)]
+    pub unsafe fn ref_from_non_null<'a>(
         _py: Python<'py>,
         ptr: &'a NonNull<ffi::PyObject>,
     ) -> &'a Self {
@@ -625,7 +622,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    /// use core::sync::atomic::{AtomicUsize, Ordering};
     /// # use pyo3::prelude::*;
     ///
     /// #[pyclass(frozen)]
@@ -759,15 +756,15 @@ where
     }
 }
 
-impl<T> std::fmt::Debug for Bound<'_, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+impl<T> core::fmt::Debug for Bound<'_, T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         let any = self.as_any();
         python_format(any, any.repr(), f)
     }
 }
 
-impl<T> std::fmt::Display for Bound<'_, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+impl<T> core::fmt::Display for Bound<'_, T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         let any = self.as_any();
         python_format(any, any.str(), f)
     }
@@ -776,15 +773,15 @@ impl<T> std::fmt::Display for Bound<'_, T> {
 fn python_format(
     any: &Bound<'_, PyAny>,
     format_result: PyResult<Bound<'_, PyString>>,
-    f: &mut std::fmt::Formatter<'_>,
-) -> Result<(), std::fmt::Error> {
+    f: &mut core::fmt::Formatter<'_>,
+) -> Result<(), core::fmt::Error> {
     match format_result {
         Result::Ok(s) => return f.write_str(&s.to_string_lossy()),
         Result::Err(err) => err.write_unraisable(any.py(), Some(any)),
     }
 
     match any.get_type().name() {
-        Result::Ok(name) => std::write!(f, "<unprintable {name} object>"),
+        Result::Ok(name) => core::write!(f, "<unprintable {name} object>"),
         Result::Err(_err) => f.write_str("<unprintable object>"),
     }
 }
@@ -1083,7 +1080,7 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    /// use core::sync::atomic::{AtomicUsize, Ordering};
     /// # use pyo3::prelude::*;
     ///
     /// #[pyclass(frozen)]
@@ -1131,7 +1128,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object (or null, which will cause a panic)
-    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// - similar to `core::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     ///
@@ -1154,7 +1151,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object, or null
-    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// - similar to `core::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     #[inline]
@@ -1173,7 +1170,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object, or null
-    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// - similar to `core::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     #[inline]
@@ -1192,7 +1189,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object. It must not be null.
-    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// - similar to `core::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     #[inline]
@@ -1204,7 +1201,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     /// # Safety
     ///
     /// - `ptr` must be a valid pointer to a Python object.
-    /// - similar to `std::slice::from_raw_parts`, the lifetime `'a` is completely defined by
+    /// - similar to `core::slice::from_raw_parts`, the lifetime `'a` is completely defined by
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     #[inline]
@@ -1228,8 +1225,8 @@ impl<T> AsRef<Py<PyAny>> for Borrowed<'_, '_, T> {
     }
 }
 
-impl<T> std::fmt::Debug for Borrowed<'_, '_, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T> core::fmt::Debug for Borrowed<'_, '_, T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         Bound::fmt(self, f)
     }
 }
@@ -1298,7 +1295,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 ///
 /// # Example: Storing Python objects in `#[pyclass]` structs
 ///
-/// Usually `Bound<'py, T>` is recommended for interacting with Python objects as its lifetime `'py`
+/// Usually [`Bound<'py, T>`] is recommended for interacting with Python objects as its lifetime `'py`
 /// proves the thread is attached to the Python interpreter and that enables many operations to be
 /// done as efficiently as possible.
 ///
@@ -1336,7 +1333,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// }
 /// ```
 ///
-/// [`Py`]`<T>` can be used to get around this by removing the lifetime from `dict` and with it the proof of attachment.
+/// `Py<T>` can be used to get around this by removing the lifetime from `dict` and with it the proof of attachment.
 ///
 /// ```rust
 /// use pyo3::prelude::*;
@@ -1411,9 +1408,9 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 ///
 /// # Example: Shared ownership of Python objects
 ///
-/// `Py<T>` can be used to share ownership of a Python object, similar to std's [`Rc`]`<T>`.
-/// As with [`Rc`]`<T>`, cloning it increases its reference count rather than duplicating
-/// the underlying object.
+/// `Py<T>` can be used to share ownership of a Python object.
+/// As with [`Rc<T>`] and [`Arc<T>`], cloning it increases its reference count rather than
+/// duplicating the underlying object.
 ///
 /// This can be done using either [`Py::clone_ref`] or [`Py<T>`]'s [`Clone`] trait implementation.
 /// [`Py::clone_ref`] is recommended; the [`Clone`] implementation will panic if the thread
@@ -1450,20 +1447,20 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 ///
 /// # Preventing reference cycles
 ///
-/// It is easy to accidentally create reference cycles using [`Py`]`<T>`.
+/// It is easy to accidentally create reference cycles using `Py<T>`.
 /// The Python interpreter can break these reference cycles within pyclasses if they
 /// [integrate with the garbage collector][gc]. If your pyclass contains other Python
 /// objects you should implement it to avoid leaking memory.
 ///
 /// # A note on Python reference counts
 ///
-/// Dropping a [`Py`]`<T>` will eventually decrease Python's reference count
+/// Dropping a `Py<T>` will eventually decrease Python's reference count
 /// of the pointed-to variable, allowing Python's garbage collector to free
 /// the associated memory, but this may not happen immediately.  This is
-/// because a [`Py`]`<T>` can be dropped at any time, but the Python reference
+/// because a `Py<T>` can be dropped at any time, but the Python reference
 /// count can only be modified when the thread is attached to the Python interpreter.
 ///
-/// If a [`Py`]`<T>` is dropped while its thread is attached to the Python interpreter
+/// If a `Py<T>` is dropped while its thread is attached to the Python interpreter
 /// then the Python reference count will be decreased immediately.
 /// Otherwise, the reference count will be decreased the next time the thread is
 /// attached to the interpreter.
@@ -1474,12 +1471,22 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 ///
 /// # A note on `Send` and `Sync`
 ///
-/// [`Py<T>`] implements [`Send`] and [`Sync`], as Python allows objects to be freely
+/// `Py<T>` implements [`Send`] and [`Sync`], as Python allows objects to be freely
 /// shared between threads.
 ///
-/// [`Rc`]: std::rc::Rc
-/// [`RefCell`]: std::cell::RefCell
-/// [gc]: https://pyo3.rs/main/class/protocols.html#garbage-collector-integration
+/// # FFI safety
+///
+/// `Py<T>` is guaranteed to have the same memory layout as a non-null pointer to a Python object ([`NonNull<ffi::PyObject>`]).
+/// This also means that `Option<Py<T>>` also has the same memory layout and can be used when the pointer might be null.
+///
+/// `Py<T>` represents an owned reference to a Python object, so it should only be used as an FFI function argument or return
+/// value when there is ownership transfer. Without ownership transfer, `*mut ffi::PyObject` or `NonNull<ffi::PyObject>`
+/// are more appropriate.
+///
+/// [`Rc<T>`]: alloc::rc::Rc
+/// [`Arc<T>`]: alloc::sync::Arc
+/// [`RefCell`]: core::cell::RefCell
+#[doc = concat!("[gc]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class/protocols.html#garbage-collector-integration")]
 #[repr(transparent)]
 pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
 
@@ -1690,7 +1697,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    /// use core::sync::atomic::{AtomicUsize, Ordering};
     /// # use pyo3::prelude::*;
     ///
     /// #[pyclass(frozen)]
@@ -2161,7 +2168,7 @@ impl<T> AsRef<Py<PyAny>> for Py<T> {
     }
 }
 
-impl<T> std::convert::From<Py<T>> for Py<PyAny>
+impl<T> core::convert::From<Py<T>> for Py<PyAny>
 where
     T: DerefToPyAny,
 {
@@ -2171,7 +2178,7 @@ where
     }
 }
 
-impl<T> std::convert::From<Bound<'_, T>> for Py<PyAny>
+impl<T> core::convert::From<Bound<'_, T>> for Py<PyAny>
 where
     T: DerefToPyAny,
 {
@@ -2181,20 +2188,32 @@ where
     }
 }
 
-impl<T> std::convert::From<Bound<'_, T>> for Py<T> {
+impl<T> core::convert::From<Bound<'_, T>> for Py<T> {
     #[inline]
     fn from(other: Bound<'_, T>) -> Self {
         other.unbind()
     }
 }
 
-impl<T> std::convert::From<Borrowed<'_, '_, T>> for Py<T> {
+impl<'py, T> From<&Bound<'py, T>> for Bound<'py, T> {
+    fn from(value: &Bound<'py, T>) -> Self {
+        value.clone()
+    }
+}
+
+impl<T> From<&Bound<'_, T>> for Py<T> {
+    fn from(value: &Bound<'_, T>) -> Self {
+        value.clone().unbind()
+    }
+}
+
+impl<T> core::convert::From<Borrowed<'_, '_, T>> for Py<T> {
     fn from(value: Borrowed<'_, '_, T>) -> Self {
         value.unbind()
     }
 }
 
-impl<'py, T> std::convert::From<PyRef<'py, T>> for Py<T>
+impl<'py, T> core::convert::From<PyRef<'py, T>> for Py<T>
 where
     T: PyClass,
 {
@@ -2205,7 +2224,7 @@ where
     }
 }
 
-impl<'py, T> std::convert::From<PyRefMut<'py, T>> for Py<T>
+impl<'py, T> core::convert::From<PyRefMut<'py, T>> for Py<T>
 where
     T: PyClass<Frozen = False>,
 {
@@ -2316,96 +2335,18 @@ where
     }
 }
 
-impl<T> std::fmt::Display for Py<T>
+impl<T> core::fmt::Display for Py<T>
 where
     T: PyTypeInfo,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Python::attach(|py| std::fmt::Display::fmt(self.bind(py), f))
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        Python::attach(|py| core::fmt::Display::fmt(self.bind(py), f))
     }
 }
 
-impl<T> std::fmt::Debug for Py<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T> core::fmt::Debug for Py<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_tuple("Py").field(&self.0.as_ptr()).finish()
-    }
-}
-
-impl Py<PyAny> {
-    /// Downcast this `Py<PyAny>` to a concrete Python type or pyclass.
-    ///
-    /// Note that you can often avoid casting yourself by just specifying the desired type in
-    /// function or method signatures. However, manual casting is sometimes necessary.
-    ///
-    /// For extracting a Rust-only type, see [`Py::extract`].
-    ///
-    ///  # Example: Downcasting to a specific Python object
-    ///
-    /// ```rust
-    /// # #![allow(deprecated)]
-    /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyDict, PyList};
-    ///
-    /// Python::attach(|py| {
-    ///     let any = PyDict::new(py).into_any().unbind();
-    ///
-    ///     assert!(any.downcast_bound::<PyDict>(py).is_ok());
-    ///     assert!(any.downcast_bound::<PyList>(py).is_err());
-    /// });
-    /// ```
-    ///
-    /// # Example: Getting a reference to a pyclass
-    ///
-    /// This is useful if you want to mutate a `Py<PyAny>` that might actually be a pyclass.
-    ///
-    /// ```rust
-    /// # #![allow(deprecated)]
-    /// # fn main() -> Result<(), pyo3::PyErr> {
-    /// use pyo3::prelude::*;
-    ///
-    /// #[pyclass]
-    /// struct Class {
-    ///     i: i32,
-    /// }
-    ///
-    /// Python::attach(|py| {
-    ///     let class = Py::new(py, Class { i: 0 })?.into_any();
-    ///
-    ///     let class_bound = class.downcast_bound::<Class>(py)?;
-    ///
-    ///     class_bound.borrow_mut().i += 1;
-    ///
-    ///     // Alternatively you can get a `PyRefMut` directly
-    ///     let class_ref: PyRefMut<'_, Class> = class.extract(py)?;
-    ///     assert_eq!(class_ref.i, 1);
-    ///     Ok(())
-    /// })
-    /// # }
-    /// ```
-    #[deprecated(since = "0.27.0", note = "use `Py::cast_bound` instead")]
-    #[inline]
-    #[allow(deprecated)]
-    pub fn downcast_bound<'py, T>(
-        &self,
-        py: Python<'py>,
-    ) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
-    where
-        T: PyTypeCheck,
-    {
-        #[allow(deprecated)]
-        self.bind(py).downcast()
-    }
-
-    /// Casts the `Py<PyAny>` to a concrete Python object type without checking validity.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that the type is valid or risk type confusion.
-    #[deprecated(since = "0.27.0", note = "use `Py::cast_bound_unchecked` instead")]
-    #[inline]
-    pub unsafe fn downcast_bound_unchecked<'py, T>(&self, py: Python<'py>) -> &Bound<'py, T> {
-        // SAFETY: caller has upheld the safety contract
-        unsafe { self.cast_bound_unchecked(py) }
     }
 }
 
@@ -2489,14 +2430,14 @@ fn panic_on_null(py: Python<'_>) -> ! {
 #[cfg(test)]
 mod tests {
     use super::{Bound, IntoPyObject, Py};
-    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
+    #[cfg(all(feature = "macros", panic = "unwind"))]
     use crate::exceptions::PyValueError;
     use crate::test_utils::generate_unique_module_name;
-    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
+    #[cfg(all(feature = "macros", panic = "unwind"))]
     use crate::test_utils::UnraisableCapture;
     use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
     use crate::{ffi, Borrowed, IntoPyObjectExt, PyAny, PyResult, Python};
-    use std::ffi::CStr;
+    use core::ffi::CStr;
 
     #[test]
     fn test_call() {
@@ -2753,11 +2694,11 @@ a = A()
                 method: impl FnOnce(*mut ffi::PyObject) -> Bound<'py, PyAny>,
             ) {
                 let mut dropped = false;
-                let capsule = PyCapsule::new_with_destructor(
+                let capsule = PyCapsule::new_with_value_and_destructor(
                     py,
                     (&mut dropped) as *mut _ as usize,
-                    None,
-                    |ptr, _| unsafe { std::ptr::write(ptr as *mut bool, true) },
+                    c"bound_from_borrowed_ptr_constructors",
+                    |ptr, _| unsafe { core::ptr::write(ptr as *mut bool, true) },
                 )
                 .unwrap();
 
@@ -2795,11 +2736,11 @@ a = A()
                 method: impl FnOnce(&*mut ffi::PyObject) -> Borrowed<'_, 'py, PyAny>,
             ) {
                 let mut dropped = false;
-                let capsule = PyCapsule::new_with_destructor(
+                let capsule = PyCapsule::new_with_value_and_destructor(
                     py,
                     (&mut dropped) as *mut _ as usize,
-                    None,
-                    |ptr, _| unsafe { std::ptr::write(ptr as *mut bool, true) },
+                    c"borrowed_ptr_constructors",
+                    |ptr, _| unsafe { core::ptr::write(ptr as *mut bool, true) },
                 )
                 .unwrap();
 
@@ -2850,11 +2791,11 @@ a = A()
         });
     }
 
-    #[cfg(all(feature = "macros", Py_3_8, panic = "unwind"))]
+    #[cfg(all(feature = "macros", panic = "unwind"))]
     #[test]
     fn test_constructors_panic_on_null() {
         Python::attach(|py| {
-            const NULL: *mut ffi::PyObject = std::ptr::null_mut();
+            const NULL: *mut ffi::PyObject = core::ptr::null_mut();
 
             #[expect(deprecated, reason = "Py<T> constructors")]
             // SAFETY: calling all constructors with null pointer to test panic behavior

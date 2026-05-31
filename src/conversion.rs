@@ -2,8 +2,6 @@
 use crate::err::PyResult;
 use crate::impl_::pyclass::ExtractPyClassWithClone;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::types::TypeInfo;
-#[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_identifier, type_hint_subscript, PyStaticExpr};
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
@@ -13,8 +11,8 @@ use crate::{
     Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyClassGuard, PyErr, PyRef, PyRefMut,
     PyTypeCheck, Python,
 };
-use std::convert::Infallible;
-use std::marker::PhantomData;
+use core::convert::Infallible;
+use core::marker::PhantomData;
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
 ///
@@ -64,18 +62,6 @@ pub trait IntoPyObject<'py>: Sized {
 
     /// Performs the conversion.
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error>;
-
-    /// Extracts the type hint information for this type when it appears as a return value.
-    ///
-    /// For example, `Vec<u32>` would return `List[int]`.
-    /// The default implementation returns `Any`, which is correct for any type.
-    ///
-    /// For most types, the return value for this method will be identical to that of [`FromPyObject::type_input`].
-    /// It may be different for some types, such as `Dict`, to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::Any
-    }
 
     /// Converts sequence of Self into a Python object. Used to specialize `Vec<u8>`, `[u8; N]`
     /// and `SmallVec<[u8; N]>` as a sequence of bytes into a `bytes` object.
@@ -389,9 +375,9 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// The output type may also depend on the Python lifetime `'py`. This allows the output type to
 /// keep interacting with the Python interpreter. See also [`Bound<'py, T>`].
 ///
-/// [`Cow<'a, str>`]: std::borrow::Cow
-/// [`Cow::Borrowed`]: std::borrow::Cow::Borrowed
-/// [`Cow::Owned`]: std::borrow::Cow::Owned
+/// [`Cow<'a, str>`]: alloc::borrow::Cow
+/// [`Cow::Borrowed`]: alloc::borrow::Cow::Borrowed
+/// [`Cow::Owned`]: alloc::borrow::Cow::Owned
 /// [guide]: https://pyo3.rs/latest/conversions/traits.html#deriving-frompyobject
 pub trait FromPyObject<'a, 'py>: Sized {
     /// The type returned in the event of a conversion error.
@@ -418,19 +404,6 @@ pub trait FromPyObject<'a, 'py>: Sized {
     /// Users are advised against calling this method directly: instead, use this via
     /// [`Bound<'_, PyAny>::extract`](crate::types::any::PyAnyMethods::extract) or [`Py::extract`].
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error>;
-
-    /// Extracts the type hint information for this type when it appears as an argument.
-    ///
-    /// For example, `Vec<u32>` would return `Sequence[int]`.
-    /// The default implementation returns `Any`, which is correct for any type.
-    ///
-    /// For most types, the return value for this method will be identical to that of
-    /// [`IntoPyObject::type_output`]. It may be different for some types, such as `Dict`,
-    /// to allow duck-typing: functions return `Dict` but take `Mapping` as argument.
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        TypeInfo::Any
-    }
 
     /// Specialization hook for extracting sequences for types like `Vec<u8>` and `[u8; N]`,
     /// where the bytes can be directly copied from some python objects without going through
@@ -533,7 +506,7 @@ pub(crate) use from_py_object_sequence::FromPyObjectSequence;
 /// ```
 ///
 /// [`PyList`]: crate::types::PyList
-/// [`Arc<T>`]: std::sync::Arc
+/// [`Arc<T>`]: alloc::sync::Arc
 pub trait FromPyObjectOwned<'py>: for<'a> FromPyObject<'a, 'py> {}
 impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py> {}
 

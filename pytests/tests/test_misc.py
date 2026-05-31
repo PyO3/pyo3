@@ -1,4 +1,4 @@
-import importlib
+import importlib.util
 import platform
 import sys
 
@@ -22,6 +22,8 @@ def test_issue_219():
 )
 def test_multiple_imports_same_interpreter_ok():
     spec = importlib.util.find_spec("pyo3_pytests.pyo3_pytests")
+    assert spec is not None
+    assert spec.loader is not None
 
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

@@ -1,4 +1,6 @@
 use crate::impl_::pyfunction::PyFunctionDef;
+#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+use crate::types::PyFrame;
 use crate::types::{
     PyBool, PyByteArray, PyBytes, PyCapsule, PyComplex, PyDict, PyFloat, PyFrozenSet, PyList,
     PyMapping, PyMappingProxy, PyModule, PyRange, PySequence, PySet, PySlice, PyString,
@@ -42,6 +44,8 @@ impl Sealed for Bound<'_, PySet> {}
 impl Sealed for Bound<'_, PySlice> {}
 impl Sealed for Bound<'_, PyString> {}
 impl Sealed for Bound<'_, PyTraceback> {}
+#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+impl Sealed for Bound<'_, PyFrame> {}
 impl Sealed for Bound<'_, PyTuple> {}
 impl Sealed for Bound<'_, PyType> {}
 impl Sealed for Bound<'_, PyWeakref> {}
@@ -64,8 +68,8 @@ impl<R, T> Sealed for lock_api::Mutex<R, T> {}
 #[cfg(feature = "parking_lot")]
 impl Sealed for parking_lot::Once {}
 #[cfg(feature = "arc_lock")]
-impl<R, T> Sealed for std::sync::Arc<lock_api::Mutex<R, T>> {}
+impl<R, T> Sealed for alloc::sync::Arc<lock_api::Mutex<R, T>> {}
 #[cfg(feature = "lock_api")]
 impl<R, G, T> Sealed for lock_api::ReentrantMutex<R, G, T> {}
 #[cfg(feature = "arc_lock")]
-impl<R, G, T> Sealed for std::sync::Arc<lock_api::ReentrantMutex<R, G, T>> {}
+impl<R, G, T> Sealed for alloc::sync::Arc<lock_api::ReentrantMutex<R, G, T>> {}

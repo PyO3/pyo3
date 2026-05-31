@@ -28,7 +28,7 @@ use crate::{
 };
 #[cfg(feature = "experimental-inspect")]
 use crate::{type_hint_subscript, type_hint_union, PyTypeInfo};
-use std::hash;
+use core::hash;
 
 impl<'py, K, V, H> IntoPyObject<'py> for hashbrown::HashMap<K, V, H>
 where

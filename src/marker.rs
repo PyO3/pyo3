@@ -41,7 +41,7 @@
 //! # #[cfg(feature = "nightly")]
 //! # compile_error!("this actually works on nightly")
 //! use pyo3::prelude::*;
-//! use std::rc::Rc;
+//! use alloc::rc::Rc;
 //!
 //! fn main() {
 //!     Python::attach(|py| {
@@ -114,7 +114,7 @@
 //! With this feature enabled, the above two examples will start working and not working, respectively.
 //!
 //! [`SendWrapper`]: https://docs.rs/send_wrapper/latest/send_wrapper/struct.SendWrapper.html
-//! [`Rc`]: std::rc::Rc
+//! [`Rc`]: alloc::rc::Rc
 //! [`Py`]: crate::Py
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyResult};
@@ -126,8 +126,9 @@ use crate::types::{
 };
 use crate::version::PythonVersionInfo;
 use crate::{ffi, Bound, Py, PyTypeInfo};
-use std::ffi::CStr;
-use std::marker::PhantomData;
+use core::ffi::CStr;
+use core::marker::PhantomData;
+use std::sync::LazyLock;
 
 /// Types that are safe to access while the GIL is not held.
 ///
@@ -145,7 +146,7 @@ use std::marker::PhantomData;
 ///
 /// ```compile_fail
 /// # use pyo3::prelude::*;
-/// use std::rc::Rc;
+/// use alloc::rc::Rc;
 ///
 /// Python::attach(|py| {
 ///     let rc = Rc::new(42);
@@ -267,29 +268,29 @@ mod nightly {
         /// });
         /// ```
         pub unsafe auto trait Ungil {}
+
+        impl !Ungil for crate::Python<'_> {}
+
+        // This means that PyString, PyList, etc all inherit !Ungil from  this.
+        impl !Ungil for crate::PyAny {}
+
+        impl<T> !Ungil for crate::PyRef<'_, T> {}
+        impl<T> !Ungil for crate::PyRefMut<'_, T> {}
+
+        // FFI pointees
+        impl !Ungil for crate::ffi::PyObject {}
+        impl !Ungil for crate::ffi::PyLongObject {}
+
+        impl !Ungil for crate::ffi::PyThreadState {}
+        impl !Ungil for crate::ffi::PyInterpreterState {}
+        impl !Ungil for crate::ffi::PyWeakReference {}
+        impl !Ungil for crate::ffi::PyFrameObject {}
+        impl !Ungil for crate::ffi::PyCodeObject {}
+        #[cfg(not(Py_LIMITED_API))]
+        impl !Ungil for crate::ffi::PyDictKeysObject {}
+        #[cfg(not(any(Py_LIMITED_API, Py_3_10)))]
+        impl !Ungil for crate::ffi::PyArena {}
     }
-
-    impl !Ungil for crate::Python<'_> {}
-
-    // This means that PyString, PyList, etc all inherit !Ungil from  this.
-    impl !Ungil for crate::PyAny {}
-
-    impl<T> !Ungil for crate::PyRef<'_, T> {}
-    impl<T> !Ungil for crate::PyRefMut<'_, T> {}
-
-    // FFI pointees
-    impl !Ungil for crate::ffi::PyObject {}
-    impl !Ungil for crate::ffi::PyLongObject {}
-
-    impl !Ungil for crate::ffi::PyThreadState {}
-    impl !Ungil for crate::ffi::PyInterpreterState {}
-    impl !Ungil for crate::ffi::PyWeakReference {}
-    impl !Ungil for crate::ffi::PyFrameObject {}
-    impl !Ungil for crate::ffi::PyCodeObject {}
-    #[cfg(not(Py_LIMITED_API))]
-    impl !Ungil for crate::ffi::PyDictKeysObject {}
-    #[cfg(not(any(Py_LIMITED_API, Py_3_10)))]
-    impl !Ungil for crate::ffi::PyArena {}
 }
 
 #[cfg(feature = "nightly")]
@@ -392,7 +393,6 @@ impl Python<'_> {
     ///
     /// ```
     /// use pyo3::prelude::*;
-    /// use pyo3::ffi::c_str;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
@@ -580,7 +580,6 @@ impl<'py> Python<'py> {
     ///
     /// ```
     /// # use pyo3::prelude::*;
-    /// # use pyo3::ffi::c_str;
     /// # Python::attach(|py| {
     /// let result = py.eval(c"[i * 10 for i in range(5)]", None, None).unwrap();
     /// let res: Vec<i64> = result.extract().unwrap();
@@ -610,7 +609,6 @@ impl<'py> Python<'py> {
     /// use pyo3::{
     ///     prelude::*,
     ///     types::{PyBytes, PyDict},
-    ///     ffi::c_str,
     /// };
     /// Python::attach(|py| {
     ///     let locals = PyDict::new(py);
@@ -681,23 +679,27 @@ impl<'py> Python<'py> {
         PyNotImplemented::get(self).to_owned().into_any().unbind()
     }
 
+    /// Deprecated version of [Python::version_str].
+    #[deprecated(since = "0.29.0", note = "use Python::version_str instead")]
+    pub fn version(self) -> &'static str {
+        Python::version_str()
+    }
+
     /// Gets the running Python interpreter version as a string.
     ///
     /// # Examples
     /// ```rust
     /// # use pyo3::Python;
-    /// Python::attach(|py| {
-    ///     // The full string could be, for example:
-    ///     // "3.10.0 (tags/v3.10.0:b494f59, Oct  4 2021, 19:00:18) [MSC v.1929 64 bit (AMD64)]"
-    ///     assert!(py.version().starts_with("3."));
-    /// });
+    /// assert!(Python::version_str().starts_with("3."));
     /// ```
-    pub fn version(self) -> &'py str {
-        unsafe {
+    pub fn version_str() -> &'static str {
+        static VERSION: LazyLock<&'static str> = LazyLock::new(|| unsafe {
             CStr::from_ptr(ffi::Py_GetVersion())
                 .to_str()
                 .expect("Python version string not UTF-8")
-        }
+        });
+
+        &VERSION
     }
 
     /// Gets the running Python interpreter version as a struct similar to
@@ -707,13 +709,13 @@ impl<'py> Python<'py> {
     /// ```rust
     /// # use pyo3::Python;
     /// Python::attach(|py| {
-    ///     // PyO3 supports Python 3.7 and up.
-    ///     assert!(py.version_info() >= (3, 7));
-    ///     assert!(py.version_info() >= (3, 7, 0));
+    ///     // PyO3 supports Python 3.8 and up.
+    ///     assert!(py.version_info() >= (3, 8));
+    ///     assert!(py.version_info() >= (3, 8, 0));
     /// });
     /// ```
-    pub fn version_info(self) -> PythonVersionInfo<'py> {
-        let version_str = self.version();
+    pub fn version_info(self) -> PythonVersionInfo {
+        let version_str = Python::version_str();
 
         // Portion of the version string returned by Py_GetVersion up to the first space is the
         // version number.
@@ -844,7 +846,7 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_detach_releases_and_acquires_gil() {
         Python::attach(|py| {
-            let b = std::sync::Arc::new(std::sync::Barrier::new(2));
+            let b = alloc::sync::Arc::new(std::sync::Barrier::new(2));
 
             let b2 = b.clone();
             std::thread::spawn(move || Python::attach(|_| b2.wait()));
@@ -890,7 +892,7 @@ mod tests {
     fn test_detach_pass_stuff_in() {
         let list = Python::attach(|py| PyList::new(py, vec!["foo", "bar"]).unwrap().unbind());
         let mut v = vec![1, 2, 3];
-        let a = std::sync::Arc::new(String::from("foo"));
+        let a = alloc::sync::Arc::new(String::from("foo"));
 
         Python::attach(|py| {
             py.detach(|| {
@@ -902,7 +904,7 @@ mod tests {
     #[test]
     #[cfg(not(Py_LIMITED_API))]
     fn test_acquire_gil() {
-        use std::ffi::c_int;
+        use core::ffi::c_int;
 
         const GIL_NOT_HELD: c_int = 0;
         const GIL_HELD: c_int = 1;
@@ -961,7 +963,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[test]
     fn test_py_run_inserts_globals_2() {
-        use std::ffi::CString;
+        use alloc::ffi::CString;
 
         #[crate::pyclass(crate = "crate", skip_from_py_object)]
         #[derive(Clone)]
@@ -1004,7 +1006,7 @@ cls.func()
 
     #[test]
     fn python_is_zst() {
-        assert_eq!(std::mem::size_of::<Python<'_>>(), 0);
+        assert_eq!(core::mem::size_of::<Python<'_>>(), 0);
     }
 
     #[test]

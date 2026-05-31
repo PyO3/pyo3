@@ -1,7 +1,6 @@
-use std::{cmp, collections, hash};
+use core::{cmp, hash};
+use std::collections;
 
-#[cfg(feature = "experimental-inspect")]
-use crate::inspect::types::TypeInfo;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
 #[cfg(feature = "experimental-inspect")]
@@ -29,11 +28,6 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PySet::new(py, self)
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::set_of(K::type_output())
-    }
 }
 
 impl<'a, 'py, K, H> IntoPyObject<'py> for &'a collections::HashSet<K, H>
@@ -49,11 +43,6 @@ where
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PySet::new(py, self)
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::set_of(<&K>::type_output())
     }
 }
 
@@ -85,11 +74,6 @@ where
             }
         }
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        TypeInfo::set_of(K::type_input())
-    }
 }
 
 impl<'py, K> IntoPyObject<'py> for collections::BTreeSet<K>
@@ -105,11 +89,6 @@ where
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PySet::new(py, self)
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::set_of(K::type_output())
     }
 }
 
@@ -127,11 +106,6 @@ where
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PySet::new(py, self)
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::set_of(<&K>::type_output())
     }
 }
 
@@ -162,18 +136,14 @@ where
             }
         }
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        TypeInfo::set_of(K::type_input())
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::types::{any::PyAnyMethods, PyFrozenSet, PySet};
     use crate::{IntoPyObject, Python};
-    use std::collections::{BTreeSet, HashSet};
+    use alloc::collections::BTreeSet;
+    use std::collections::HashSet;
 
     #[test]
     fn test_extract_hashset() {

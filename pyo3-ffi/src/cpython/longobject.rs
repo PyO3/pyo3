@@ -1,14 +1,17 @@
+#[cfg(not(Py_3_13))]
 use crate::longobject::*;
 use crate::object::*;
 #[cfg(Py_3_13)]
 use crate::pyport::Py_ssize_t;
-use libc::size_t;
+use core::ffi::c_int;
+#[cfg(not(Py_3_13))]
+use core::ffi::c_uchar;
 #[cfg(Py_3_13)]
-use std::ffi::c_void;
-use std::ffi::{c_int, c_uchar};
+use core::ffi::c_void;
+use libc::size_t;
 
 #[cfg(Py_3_13)]
-extern "C" {
+extern_libpython! {
     pub fn PyLong_FromUnicodeObject(u: *mut PyObject, base: c_int) -> *mut PyObject;
 }
 
@@ -25,7 +28,7 @@ pub const Py_ASNATIVEBYTES_UNSIGNED_BUFFER: c_int = 4;
 #[cfg(Py_3_13)]
 pub const Py_ASNATIVEBYTES_REJECT_NEGATIVE: c_int = 8;
 
-extern "C" {
+extern_libpython! {
     // skipped _PyLong_Sign
 
     #[cfg(Py_3_13)]
@@ -53,7 +56,9 @@ extern "C" {
     // skipped PyUnstable_Long_IsCompact
     // skipped PyUnstable_Long_CompactValue
 
+    #[cfg(not(Py_3_13))]
     #[cfg_attr(PyPy, link_name = "_PyPyLong_FromByteArray")]
+    #[doc(hidden)] // used in PyO3's older bytes conversions, but not otherwise public API
     pub fn _PyLong_FromByteArray(
         bytes: *const c_uchar,
         n: size_t,
@@ -61,6 +66,8 @@ extern "C" {
         is_signed: c_int,
     ) -> *mut PyObject;
 
+    #[cfg(not(Py_3_13))]
+    #[doc(hidden)] // used in PyO3's older bytes conversions, but not otherwise public API
     #[cfg_attr(PyPy, link_name = "_PyPyLong_AsByteArrayO")]
     pub fn _PyLong_AsByteArray(
         v: *mut PyLongObject,

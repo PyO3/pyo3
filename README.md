@@ -19,7 +19,7 @@
 Requires Rust 1.83 or greater.
 
 PyO3 supports the following Python distributions:
-  - CPython 3.7 or greater
+  - CPython 3.8 or greater
   - PyPy 7.3 (Python 3.11+)
   - GraalPy 25.0 or greater (Python 3.12+)
 
@@ -71,7 +71,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.28.2"
+pyo3 = "0.28.3"
 ```
 
 **`src/lib.rs`**
@@ -137,7 +137,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.28.2"
+version = "0.28.3"
 # Enabling this cargo feature will cause PyO3 to start a Python interpreter on first call to `Python::attach`
 features = ["auto-initialize"]
 ```
@@ -282,4 +282,4 @@ Python is licensed under the [Python License](https://docs.python.org/3/license.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in PyO3 by you, as defined in the Apache License, shall be dual-licensed as above, without any additional terms or conditions.
 
-<a href="https://www.netlify.com"> <img src="https://www.netlify.com/v3/img/components/netlify-color-accent.svg" alt="Deploys by Netlify" /> </a>
+[![Deploys by Netlify](https://www.netlify.com/assets/badges/netlify-badge-color-accent.svg)](https://www.netlify.com)

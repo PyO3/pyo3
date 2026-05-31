@@ -17,10 +17,10 @@ codspeed-criterion-compat = "4.0"
 criterion = "0.8.0"
 num-bigint = "0.4.3"
 rust_decimal = { version = "1.0.0", default-features = false }
-hashbrown = "0.16"
+hashbrown = "0.17"
 
 [features]
-abi3 = ["pyo3-build-config/abi3"]
+abi3 = ["pyo3/abi3"]
 
 [[bench]]
 name = "bench_any"
@@ -96,6 +96,10 @@ harness = false
 
 [[bench]]
 name = "bench_pystring_from_fmt"
+harness = false
+
+[[bench]]
+name = "bench_int128"
 harness = false
 
 [workspace]

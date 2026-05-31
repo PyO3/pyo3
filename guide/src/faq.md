@@ -12,7 +12,7 @@ Because the Python interpreter can introduce additional locks (the Python GIL an
 2. The initialization code calls some Python API which temporarily detaches from the interpreter e.g. `Python::import`.
 3. Another thread (thread B) attaches to the Python interpreter and attempts to access the same `OnceLock` value.
 4. Thread B is blocked, because it waits for `OnceLock`'s initialization to lock to release.
-5. On non-free-threaded Python, thread A is now also blocked, because it waits to re-attach to the interpreter (by taking the GIL which thread B still holds).
+5. On GIL-enabled Python, thread A is now also blocked, because it waits to re-attach to the interpreter (by taking the GIL which thread B still holds).
 6. Deadlock.
 
 PyO3 provides a struct [`PyOnceLock`] which implements a single-initialization API based on these types that avoids deadlocks.

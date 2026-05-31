@@ -1,8 +1,14 @@
+#![warn(
+    clippy::alloc_instead_of_core,
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core
+)]
 #![warn(missing_docs)]
 #![cfg_attr(
     feature = "nightly",
-    feature(auto_traits, negative_impls, try_trait_v2, iter_advance_by)
+    feature(auto_traits, negative_impls, iter_advance_by)
 )]
+#![cfg_attr(all(feature = "nightly", Py_GIL_DISABLED), feature(try_trait_v2))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(unsafe_op_in_unsafe_fn)]
 // Deny some lints in doctests.
@@ -123,7 +129,7 @@
 //! - `nightly`: Uses  `#![feature(auto_traits, negative_impls)]` to define [`Ungil`] as an auto trait.
 //
 //! ## `rustc` environment flags
-//! - `Py_3_7`, `Py_3_8`, `Py_3_9`, `Py_3_10`, `Py_3_11`, `Py_3_12`, `Py_3_13`: Marks code that is
+//! - `Py_3_8`, `Py_3_9`, `Py_3_10`, `Py_3_11`, `Py_3_12`, `Py_3_13`, `Py_3_14`: Marks code that is
 //!    only enabled when compiling for a given minimum Python version.
 //! - `Py_LIMITED_API`: Marks code enabled when the `abi3` feature flag is enabled.
 //! - `Py_GIL_DISABLED`: Marks code that runs only in the free-threaded build of CPython.
@@ -148,7 +154,7 @@
 //! Requires Rust 1.63 or greater.
 //!
 //! PyO3 supports the following Python distributions:
-//!   - CPython 3.7 or greater
+//!   - CPython 3.8 or greater
 //!   - PyPy 7.3 (Python 3.11+)
 //!   - GraalPy 24.0 or greater (Python 3.10+)
 //!
@@ -248,7 +254,6 @@
 //! ```rust
 //! use pyo3::prelude::*;
 //! use pyo3::types::IntoPyDict;
-//! use pyo3::ffi::c_str;
 //!
 //! fn main() -> PyResult<()> {
 //!     Python::attach(|py| {
@@ -336,11 +341,12 @@
 //! [Rust from Python]: https://github.com/PyO3/pyo3#using-rust-from-python
 #![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 //! [`Ungil`]: crate::marker::Ungil
+
+extern crate alloc;
+
 pub use crate::class::*;
 pub use crate::conversion::{FromPyObject, IntoPyObject, IntoPyObjectExt};
 pub use crate::err::{CastError, CastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
-#[allow(deprecated)]
-pub use crate::err::{DowncastError, DowncastIntoError};
 pub use crate::instance::{Borrowed, Bound, BoundObject, Py};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::interpreter_lifecycle::with_embedded_python_interpreter;
@@ -407,6 +413,7 @@ pub mod impl_;
 
 #[macro_use]
 mod internal_tricks;
+#[macro_use]
 mod internal;
 
 pub mod buffer;

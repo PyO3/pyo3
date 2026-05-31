@@ -21,8 +21,6 @@ pyobject_native_type_named!(PyWeakref);
 // pyobject_native_type_sized!(PyWeakref, ffi::PyWeakReference);
 
 unsafe impl PyTypeCheck for PyWeakref {
-    const NAME: &'static str = "weakref";
-
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_union!(
         PyWeakrefProxy::TYPE_HINT,
@@ -64,7 +62,7 @@ unsafe impl PyTypeCheck for PyWeakref {
 pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// Upgrade the weakref to a direct Bound object reference.
     ///
-    /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
+    /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](alloc::rc::Weak::upgrade).
     /// In Python it would be equivalent to [`PyWeakref_GetRef`].
     ///
     /// # Example
@@ -140,7 +138,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
 
     /// Upgrade the weakref to a direct Bound object reference unchecked. The type of the recovered object is not checked before casting, this could lead to unexpected behavior. Use only when absolutely certain the type can be guaranteed. The `weakref` may still return `None`.
     ///
-    /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
+    /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](alloc::rc::Weak::upgrade).
     /// In Python it would be equivalent to [`PyWeakref_GetRef`].
     ///
     /// # Safety
@@ -214,7 +212,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
 
     /// Upgrade the weakref to a exact direct Bound object reference.
     ///
-    /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
+    /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](alloc::rc::Weak::upgrade).
     /// In Python it would be equivalent to [`PyWeakref_GetRef`].
     ///
     /// # Example
@@ -290,7 +288,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
 
     /// Upgrade the weakref to a Bound [`PyAny`] reference to the target object if possible.
     ///
-    /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](std::rc::Weak::upgrade).
+    /// It is named `upgrade` to be inline with [rust's `Weak::upgrade`](alloc::rc::Weak::upgrade).
     /// This function returns `Some(Bound<'py, PyAny>)` if the reference still exists, otherwise `None` will be returned.
     ///
     /// This function gets the optional target of this [`weakref.ReferenceType`] (result of calling [`weakref.ref`]).
@@ -353,11 +351,11 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
 
 impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakref> {
     fn upgrade(&self) -> Option<Bound<'py, PyAny>> {
-        let mut obj: *mut ffi::PyObject = std::ptr::null_mut();
+        let mut obj: *mut ffi::PyObject = core::ptr::null_mut();
         match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
-            std::ffi::c_int::MIN..=-1 => panic!("The 'weakref' weak reference instance should be valid (non-null and actually a weakref reference)"),
+            core::ffi::c_int::MIN..=-1 => panic!("The 'weakref' weak reference instance should be valid (non-null and actually a weakref reference)"),
             0 => None,
-            1..=std::ffi::c_int::MAX => Some(unsafe { obj.assume_owned_unchecked(self.py()) }),
+            1..=core::ffi::c_int::MAX => Some(unsafe { obj.assume_owned_unchecked(self.py()) }),
         }
     }
 }
@@ -384,7 +382,7 @@ mod tests {
         use crate::types::PyInt;
         use crate::PyTypeCheck;
         use crate::{py_result_ext::PyResultExt, types::PyType};
-        use std::ptr;
+        use core::ptr;
 
         fn get_type(py: Python<'_>) -> PyResult<Bound<'_, PyType>> {
             py.run(c"class A:\n    pass\n", None, None)?;
@@ -546,12 +544,12 @@ mod tests {
         }
     }
 
-    // under 'abi3-py37' and 'abi3-py38' PyClass cannot be weakreferencable.
+    // under 'abi3-py38' PyClass cannot be weakreferencable.
     #[cfg(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))))]
     mod pyo3_pyclass {
         use super::*;
         use crate::{pyclass, Py};
-        use std::ptr;
+        use core::ptr;
 
         #[pyclass(weakref, crate = "crate")]
         struct WeakrefablePyClass {}

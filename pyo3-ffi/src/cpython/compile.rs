@@ -8,8 +8,8 @@ use crate::pythonrun::*;
 use crate::PyCodeObject;
 use crate::INT_MAX;
 #[cfg(not(any(PyPy, Py_3_10)))]
-use std::ffi::c_char;
-use std::ffi::c_int;
+use core::ffi::c_char;
+use core::ffi::c_int;
 
 // skipped PyCF_MASK
 // skipped PyCF_MASK_OBSOLETE
@@ -26,7 +26,6 @@ use std::ffi::c_int;
 #[derive(Copy, Clone)]
 pub struct PyCompilerFlags {
     pub cf_flags: c_int,
-    #[cfg(Py_3_8)]
     pub cf_feature_version: c_int,
 }
 
@@ -59,7 +58,7 @@ pub const FUTURE_GENERATOR_STOP: &str = "generator_stop";
 pub const FUTURE_ANNOTATIONS: &str = "annotations";
 
 #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
-extern "C" {
+extern_libpython! {
     pub fn PyNode_Compile(arg1: *mut _node, arg2: *const c_char) -> *mut PyCodeObject;
 
     pub fn PyAST_CompileEx(
@@ -88,10 +87,9 @@ extern "C" {
 
 pub const PY_INVALID_STACK_EFFECT: c_int = INT_MAX;
 
-extern "C" {
+extern_libpython! {
 
     pub fn PyCompile_OpcodeStackEffect(opcode: c_int, oparg: c_int) -> c_int;
 
-    #[cfg(Py_3_8)]
     pub fn PyCompile_OpcodeStackEffectWithJump(opcode: c_int, oparg: c_int, jump: c_int) -> c_int;
 }

@@ -98,7 +98,6 @@ fn test_exception_nosegfault() {
 }
 
 #[test]
-#[cfg(Py_3_8)]
 fn test_write_unraisable() {
     use pyo3::{exceptions::PyRuntimeError, types::PyNotImplemented};
     use test_utils::UnraisableCapture;

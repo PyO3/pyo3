@@ -1,8 +1,8 @@
 /* --- PyStatus ----------------------------------------------- */
 
 use crate::Py_ssize_t;
+use core::ffi::{c_char, c_int, c_ulong};
 use libc::wchar_t;
-use std::ffi::{c_char, c_int, c_ulong};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -21,7 +21,7 @@ pub struct PyStatus {
     pub exitcode: c_int,
 }
 
-extern "C" {
+extern_libpython! {
     pub fn PyStatus_Ok() -> PyStatus;
     pub fn PyStatus_Error(err_msg: *const c_char) -> PyStatus;
     pub fn PyStatus_NoMemory() -> PyStatus;
@@ -40,7 +40,7 @@ pub struct PyWideStringList {
     pub items: *mut *mut wchar_t,
 }
 
-extern "C" {
+extern_libpython! {
     pub fn PyWideStringList_Append(list: *mut PyWideStringList, item: *const wchar_t) -> PyStatus;
     pub fn PyWideStringList_Insert(
         list: *mut PyWideStringList,
@@ -70,7 +70,7 @@ pub struct PyPreConfig {
     pub allocator: c_int,
 }
 
-extern "C" {
+extern_libpython! {
     pub fn PyPreConfig_InitPythonConfig(config: *mut PyPreConfig);
     pub fn PyPreConfig_InitIsolatedConfig(config: *mut PyPreConfig);
 }
@@ -105,6 +105,8 @@ pub struct PyConfig {
     #[cfg(Py_3_11)]
     pub dump_refs_file: *mut wchar_t,
     pub malloc_stats: c_int,
+    #[cfg(Py_3_15)]
+    pub pymalloc_hugepages: c_int,
     pub filesystem_encoding: *mut wchar_t,
     pub filesystem_errors: *mut wchar_t,
     pub pycache_prefix: *mut wchar_t,
@@ -155,6 +157,8 @@ pub struct PyConfig {
     pub enable_gil: c_int,
     #[cfg(all(Py_3_14, Py_GIL_DISABLED))]
     pub tlbc_enabled: c_int,
+    #[cfg(Py_3_15)]
+    pub lazy_imports: c_int,
     pub pathconfig_warnings: c_int,
     #[cfg(Py_3_10)]
     pub program_name: *mut wchar_t,
@@ -193,7 +197,7 @@ pub struct PyConfig {
     pub run_presite: *mut wchar_t,
 }
 
-extern "C" {
+extern_libpython! {
     pub fn PyConfig_InitPythonConfig(config: *mut PyConfig);
     pub fn PyConfig_InitIsolatedConfig(config: *mut PyConfig);
     pub fn PyConfig_Clear(config: *mut PyConfig);
@@ -228,6 +232,6 @@ extern "C" {
 
 /* --- Helper functions --------------------------------------- */
 
-extern "C" {
+extern_libpython! {
     pub fn Py_GetArgcArgv(argc: *mut c_int, argv: *mut *mut *mut wchar_t);
 }

@@ -1,8 +1,8 @@
 use crate::call::PyCallArgs;
 use crate::class::basic::CompareOp;
 use crate::conversion::{FromPyObject, IntoPyObject};
-use crate::err::{PyErr, PyResult};
-use crate::exceptions::{PyAttributeError, PyTypeError};
+use crate::err::{error_on_minusone, PyErr, PyResult};
+use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pycell::PyStaticClassObject;
 use crate::instance::Bound;
@@ -11,13 +11,13 @@ use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
-use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py, Python};
-#[allow(deprecated)]
-use crate::{DowncastError, DowncastIntoError};
-use std::cell::UnsafeCell;
-use std::cmp::Ordering;
-use std::ffi::c_int;
-use std::ptr;
+use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py};
+#[cfg(RustPython)]
+use crate::{sync::PyOnceLock, types::typeobject::PyTypeMethods};
+use core::cell::UnsafeCell;
+use core::cmp::Ordering;
+use core::ffi::c_int;
+use core::ptr;
 
 /// Represents any Python object.
 ///
@@ -41,9 +41,23 @@ fn PyObject_Check(_: *mut ffi::PyObject) -> c_int {
 }
 
 // We follow stub writing guidelines and use "object" instead of "typing.Any": https://typing.python.org/en/latest/guides/writing_stubs.html#using-any
+#[cfg(not(RustPython))]
 pyobject_native_type_info!(
     PyAny,
     pyobject_native_static_type_object!(ffi::PyBaseObject_Type),
+    "typing",
+    "Any",
+    Some("builtins"),
+    #checkfunction=PyObject_Check
+);
+
+#[cfg(RustPython)]
+pyobject_native_type_info!(
+    PyAny,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "object").unwrap().as_type_ptr()
+    },
     "typing",
     "Any",
     Some("builtins"),
@@ -212,7 +226,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyFloat;
-    /// use std::cmp::Ordering;
+    /// use core::cmp::Ordering;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
@@ -451,7 +465,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// def function(*args, **kwargs):
@@ -508,7 +522,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// def function(*args, **kwargs):
@@ -545,7 +559,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// class A:
@@ -591,7 +605,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// class A:
@@ -628,7 +642,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3_ffi::c_str;
-    /// use std::ffi::CStr;
+    /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
     /// class A:
@@ -723,155 +737,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
 
     /// Returns the Python type pointer for this object.
     fn get_type_ptr(&self) -> *mut ffi::PyTypeObject;
-
-    /// Downcast this `PyAny` to a concrete Python type or pyclass.
-    ///
-    /// Note that you can often avoid downcasting yourself by just specifying
-    /// the desired type in function or method signatures.
-    /// However, manual downcasting is sometimes necessary.
-    ///
-    /// For extracting a Rust-only type, see [`PyAny::extract`](struct.PyAny.html#method.extract).
-    ///
-    /// # Example: Downcasting to a specific Python object
-    ///
-    /// ```rust
-    /// # #![allow(deprecated)]
-    /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyDict, PyList};
-    ///
-    /// Python::attach(|py| {
-    ///     let dict = PyDict::new(py);
-    ///     assert!(dict.is_instance_of::<PyAny>());
-    ///     let any = dict.as_any();
-    ///
-    ///     assert!(any.downcast::<PyDict>().is_ok());
-    ///     assert!(any.downcast::<PyList>().is_err());
-    /// });
-    /// ```
-    ///
-    /// # Example: Getting a reference to a pyclass
-    ///
-    /// This is useful if you want to mutate a `PyObject` that
-    /// might actually be a pyclass.
-    ///
-    /// ```rust
-    /// # #![allow(deprecated)]
-    /// # fn main() -> Result<(), pyo3::PyErr> {
-    /// use pyo3::prelude::*;
-    ///
-    /// #[pyclass]
-    /// struct Class {
-    ///     i: i32,
-    /// }
-    ///
-    /// Python::attach(|py| {
-    ///     let class = Py::new(py, Class { i: 0 }).unwrap().into_bound(py).into_any();
-    ///
-    ///     let class_bound: &Bound<'_, Class> = class.downcast()?;
-    ///
-    ///     class_bound.borrow_mut().i += 1;
-    ///
-    ///     // Alternatively you can get a `PyRefMut` directly
-    ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
-    ///     assert_eq!(class_ref.i, 1);
-    ///     Ok(())
-    /// })
-    /// # }
-    /// ```
-    #[deprecated(since = "0.27.0", note = "use `Bound::cast` instead")]
-    #[allow(deprecated)]
-    fn downcast<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
-    where
-        T: PyTypeCheck;
-
-    /// Like `downcast` but takes ownership of `self`.
-    ///
-    /// In case of an error, it is possible to retrieve `self` again via [`DowncastIntoError::into_inner`].
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # #![allow(deprecated)]
-    /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyDict, PyList};
-    ///
-    /// Python::attach(|py| {
-    ///     let obj: Bound<'_, PyAny> = PyDict::new(py).into_any();
-    ///
-    ///     let obj: Bound<'_, PyAny> = match obj.downcast_into::<PyList>() {
-    ///         Ok(_) => panic!("obj should not be a list"),
-    ///         Err(err) => err.into_inner(),
-    ///     };
-    ///
-    ///     // obj is a dictionary
-    ///     assert!(obj.downcast_into::<PyDict>().is_ok());
-    /// })
-    /// ```
-    #[deprecated(since = "0.27.0", note = "use `Bound::cast_into` instead")]
-    #[allow(deprecated)]
-    fn downcast_into<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
-    where
-        T: PyTypeCheck;
-
-    /// Downcast this `PyAny` to a concrete Python type or pyclass (but not a subclass of it).
-    ///
-    /// It is almost always better to use [`PyAnyMethods::downcast`] because it accounts for Python
-    /// subtyping. Use this method only when you do not want to allow subtypes.
-    ///
-    /// The advantage of this method over [`PyAnyMethods::downcast`] is that it is faster. The implementation
-    /// of `downcast_exact` uses the equivalent of the Python expression `type(self) is T`, whereas
-    /// `downcast` uses `isinstance(self, T)`.
-    ///
-    /// For extracting a Rust-only type, see [`PyAny::extract`](struct.PyAny.html#method.extract).
-    ///
-    /// # Example: Downcasting to a specific Python object but not a subtype
-    ///
-    /// ```rust
-    /// # #![allow(deprecated)]
-    /// use pyo3::prelude::*;
-    /// use pyo3::types::{PyBool, PyInt};
-    ///
-    /// Python::attach(|py| {
-    ///     let b = PyBool::new(py, true);
-    ///     assert!(b.is_instance_of::<PyBool>());
-    ///     let any: &Bound<'_, PyAny> = b.as_any();
-    ///
-    ///     // `bool` is a subtype of `int`, so `downcast` will accept a `bool` as an `int`
-    ///     // but `downcast_exact` will not.
-    ///     assert!(any.downcast::<PyInt>().is_ok());
-    ///     assert!(any.downcast_exact::<PyInt>().is_err());
-    ///
-    ///     assert!(any.downcast_exact::<PyBool>().is_ok());
-    /// });
-    /// ```
-    #[deprecated(since = "0.27.0", note = "use `Bound::cast_exact` instead")]
-    #[allow(deprecated)]
-    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
-    where
-        T: PyTypeInfo;
-
-    /// Like `downcast_exact` but takes ownership of `self`.
-    #[deprecated(since = "0.27.0", note = "use `Bound::cast_into_exact` instead")]
-    #[allow(deprecated)]
-    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
-    where
-        T: PyTypeInfo;
-
-    /// Converts this `PyAny` to a concrete Python type without checking validity.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that the type is valid or risk type confusion.
-    #[deprecated(since = "0.27.0", note = "use `Bound::cast_unchecked` instead")]
-    unsafe fn downcast_unchecked<T>(&self) -> &Bound<'py, T>;
-
-    /// Like `downcast_unchecked` but takes ownership of `self`.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that the type is valid or risk type confusion.
-    #[deprecated(since = "0.27.0", note = "use `Bound::cast_into_unchecked` instead")]
-    unsafe fn downcast_into_unchecked<T>(self) -> Bound<'py, T>;
 
     /// Extracts some type from the Python object.
     ///
@@ -980,17 +845,23 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        // PyObject_HasAttr suppresses all exceptions, which was the behaviour of `hasattr` in Python 2.
-        // Use an implementation which suppresses only AttributeError, which is consistent with `hasattr` in Python 3.
-        fn inner(py: Python<'_>, getattr_result: PyResult<Bound<'_, PyAny>>) -> PyResult<bool> {
-            match getattr_result {
-                Ok(_) => Ok(true),
-                Err(err) if err.is_instance_of::<PyAttributeError>(py) => Ok(false),
-                Err(e) => Err(e),
-            }
+        fn inner<'py>(
+            any: &Bound<'py, PyAny>,
+            attr_name: Borrowed<'_, '_, PyString>,
+        ) -> PyResult<bool> {
+            let result =
+                unsafe { ffi::compat::PyObject_HasAttrWithError(any.as_ptr(), attr_name.as_ptr()) };
+            error_on_minusone(any.py(), result)?;
+            Ok(result > 0)
         }
 
-        inner(self.py(), self.getattr(attr_name))
+        inner(
+            self,
+            attr_name
+                .into_pyobject(self.py())
+                .map_err(Into::into)?
+                .as_borrowed(),
+        )
     }
 
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
@@ -1024,39 +895,20 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
             any: &Bound<'py, PyAny>,
             attr_name: Borrowed<'_, 'py, PyString>,
         ) -> PyResult<Option<Bound<'py, PyAny>>> {
-            #[cfg(Py_3_13)]
-            {
-                let mut resp_ptr: *mut ffi::PyObject = std::ptr::null_mut();
-                match unsafe {
-                    ffi::PyObject_GetOptionalAttr(any.as_ptr(), attr_name.as_ptr(), &mut resp_ptr)
-                } {
-                    // Attribute found, result is a new strong reference
-                    1 => {
-                        let bound = unsafe { Bound::from_owned_ptr(any.py(), resp_ptr) };
-                        Ok(Some(bound))
-                    }
-                    // Attribute not found, result is NULL
-                    0 => Ok(None),
-
-                    // An error occurred (other than AttributeError)
-                    _ => Err(PyErr::fetch(any.py())),
-                }
-            }
-
-            #[cfg(not(Py_3_13))]
-            {
-                match any.getattr(attr_name) {
-                    Ok(bound) => Ok(Some(bound)),
-                    Err(err) => {
-                        let err_type = err
-                            .get_type(any.py())
-                            .is(PyType::new::<PyAttributeError>(any.py()));
-                        match err_type {
-                            true => Ok(None),
-                            false => Err(err),
-                        }
-                    }
-                }
+            let mut resp_ptr: *mut ffi::PyObject = core::ptr::null_mut();
+            match unsafe {
+                ffi::compat::PyObject_GetOptionalAttr(
+                    any.as_ptr(),
+                    attr_name.as_ptr(),
+                    &mut resp_ptr,
+                )
+            } {
+                // Attribute found, result is a new strong reference
+                1 => Ok(Some(unsafe { Bound::from_owned_ptr(any.py(), resp_ptr) })),
+                // Attribute not found
+                0 => Ok(None),
+                // An error occurred (other than AttributeError)
+                _ => Err(PyErr::fetch(any.py())),
             }
         }
 
@@ -1457,76 +1309,6 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe { ffi::Py_TYPE(self.as_ptr()) }
     }
 
-    #[inline]
-    #[allow(deprecated)]
-    fn downcast<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
-    where
-        T: PyTypeCheck,
-    {
-        if T::type_check(self) {
-            // Safety: type_check is responsible for ensuring that the type is correct
-            Ok(unsafe { self.cast_unchecked() })
-        } else {
-            #[allow(deprecated)]
-            Err(DowncastError::new(self, T::NAME))
-        }
-    }
-
-    #[inline]
-    #[allow(deprecated)]
-    fn downcast_into<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
-    where
-        T: PyTypeCheck,
-    {
-        if T::type_check(&self) {
-            // Safety: type_check is responsible for ensuring that the type is correct
-            Ok(unsafe { self.cast_into_unchecked() })
-        } else {
-            #[allow(deprecated)]
-            Err(DowncastIntoError::new(self, T::NAME))
-        }
-    }
-
-    #[inline]
-    #[allow(deprecated)]
-    fn downcast_exact<T>(&self) -> Result<&Bound<'py, T>, DowncastError<'_, 'py>>
-    where
-        T: PyTypeInfo,
-    {
-        if T::is_exact_type_of(self) {
-            // Safety: is_exact_type_of is responsible for ensuring that the type is correct
-            Ok(unsafe { self.cast_unchecked() })
-        } else {
-            #[allow(deprecated)]
-            Err(DowncastError::new(self, T::NAME))
-        }
-    }
-
-    #[inline]
-    #[allow(deprecated)]
-    fn downcast_into_exact<T>(self) -> Result<Bound<'py, T>, DowncastIntoError<'py>>
-    where
-        T: PyTypeInfo,
-    {
-        if T::is_exact_type_of(&self) {
-            // Safety: is_exact_type_of is responsible for ensuring that the type is correct
-            Ok(unsafe { self.cast_into_unchecked() })
-        } else {
-            #[allow(deprecated)]
-            Err(DowncastIntoError::new(self, T::NAME))
-        }
-    }
-
-    #[inline]
-    unsafe fn downcast_unchecked<T>(&self) -> &Bound<'py, T> {
-        unsafe { self.cast_unchecked() }
-    }
-
-    #[inline]
-    unsafe fn downcast_into_unchecked<T>(self) -> Bound<'py, T> {
-        unsafe { self.cast_into_unchecked() }
-    }
-
     fn extract<'a, T>(&'a self) -> Result<T, T::Error>
     where
         T: FromPyObject<'a, 'py>,
@@ -1671,8 +1453,8 @@ mod tests {
         types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
         Bound, BoundObject, IntoPyObject, PyTypeInfo, Python,
     };
+    use core::fmt::Debug;
     use pyo3_ffi::c_str;
-    use std::fmt::Debug;
 
     #[test]
     fn test_lookup_special() {
@@ -1786,6 +1568,33 @@ class Test:
                 .unwrap_err()
                 .to_string()
                 .contains("This is an intentional error"));
+        });
+    }
+
+    #[test]
+    fn test_getattr_opt_attribute_error_subclass() {
+        Python::attach(|py| {
+            let module = PyModule::from_code(
+                py,
+                cr#"
+class CustomAttrError(AttributeError):
+    pass
+
+class Obj:
+    @property
+    def missing(self):
+        raise CustomAttrError("not here")
+                "#,
+                c"test.py",
+                &generate_unique_module_name("test"),
+            )
+            .unwrap();
+
+            let obj = module.getattr("Obj").unwrap().call0().unwrap();
+
+            // An AttributeError subclass should be treated as "attribute not found"
+            let result = obj.getattr_opt("missing").unwrap();
+            assert!(result.is_none());
         });
     }
 
@@ -2063,7 +1872,7 @@ class SimpleClass:
             2.5,
             0.0,
             3.0,
-            std::f64::consts::PI,
+            core::f64::consts::PI,
             10.0,
             10.0 / 3.0,
             -1_000_000.0,

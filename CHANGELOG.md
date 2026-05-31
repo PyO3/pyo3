@@ -10,6 +10,16 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.28.3] - 2026-04-02
+
+### Fixed
+
+- Fix compile error with `#[pyclass(get_all)]` on a type named `Probe`. [#5837](https://github.com/PyO3/pyo3/pull/5837)
+- Fix compile error in debug builds related to `_Py_NegativeRefcount` with Python < 3.12. [#5847](https://github.com/PyO3/pyo3/pull/5847)
+- Fix a race condition where `Python::attach` or `try_attach` could return before `site.py` had finished running. [#5903](https://github.com/PyO3/pyo3/pull/5903)
+- Fix unsoundness in `PyBytesWriter::write_vectored` with Python 3.15 prerelease versions. [#5907](https://github.com/PyO3/pyo3/pull/5907)
+- Fix deadlock in `.into_pyobject()` implementation for C-like `#[pyclass]` enums. [#5928](https://github.com/PyO3/pyo3/pull/5928)
+
 ## [0.28.2] - 2026-02-18
 
 ### Fixed
@@ -1535,11 +1545,11 @@ Prerelease of PyO3 0.21. See [the GitHub diff](https://github.com/pyo3/pyo3/comp
 
 ### Changed
 
-- `#[classattr]` constants with a known magic method name (which is lowercase) no longer trigger lint warnings expecting constants to be uppercase. [#1969](https://github.com/PyO3/pyo3/pull/1969)
+- `#[classattr]` constants with a known magic method name (which is lowercase) no longer trigger lint warnings expecting constants to be uppercase. [#1971](https://github.com/PyO3/pyo3/pull/1971)
 
 ### Fixed
 
-- Fix creating `#[classattr]` by functions with the name of a known magic method. [#1969](https://github.com/PyO3/pyo3/pull/1969)
+- Fix creating `#[classattr]` by functions with the name of a known magic method. [#1971](https://github.com/PyO3/pyo3/pull/1971)
 - Fix use of `catch_unwind` in `allow_threads` which can cause fatal crashes. [#1989](https://github.com/PyO3/pyo3/pull/1989)
 - Fix build failure on PyPy when abi3 features are activated. [#1991](https://github.com/PyO3/pyo3/pull/1991)
 - Fix mingw platform detection. [#1993](https://github.com/PyO3/pyo3/pull/1993)
@@ -2507,7 +2517,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.28.2...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.28.3...HEAD
+[0.28.3]: https://github.com/pyo3/pyo3/compare/v0.28.2...v0.28.3
 [0.28.2]: https://github.com/pyo3/pyo3/compare/v0.28.1...v0.28.2
 [0.28.1]: https://github.com/pyo3/pyo3/compare/v0.28.0...v0.28.1
 [0.28.0]: https://github.com/pyo3/pyo3/compare/v0.27.2...v0.28.0
@@ -2607,4 +2618,4 @@ Yanked
 [0.2.2]: https://github.com/pyo3/pyo3/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/pyo3/pyo3/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/pyo3/pyo3/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/PyO3/pyo3/tree/0.1.0
+[0.1.0]: https://github.com/PyO3/pyo3/tree/v0.1.0

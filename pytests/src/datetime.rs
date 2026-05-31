@@ -18,7 +18,7 @@ fn get_date_tuple<'py>(d: &Bound<'py, PyDate>) -> PyResult<Bound<'py, PyTuple>> 
 }
 
 #[pyfunction]
-fn date_from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<Bound<'_, PyDate>> {
+fn date_from_timestamp(py: Python<'_>, timestamp: f64) -> PyResult<Bound<'_, PyDate>> {
     PyDate::from_timestamp(py, timestamp)
 }
 

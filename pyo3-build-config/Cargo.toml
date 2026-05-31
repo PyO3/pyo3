@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-build-config"
-version = "0.28.2"
+version = "0.28.3"
 description = "Build configuration for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -12,36 +12,19 @@ edition = "2021"
 rust-version.workspace = true
 
 [dependencies]
-python3-dll-a = { version = "0.2.12", optional = true }
 target-lexicon = "0.13.3"
 
 [build-dependencies]
-python3-dll-a = { version = "0.2.12", optional = true }
 target-lexicon = "0.13.3"
 
 [features]
 default = []
 
-# Attempt to resolve a Python interpreter config for building in the build
-# script. If this feature isn't enabled, the build script no-ops.
+# deprecated
 resolve-config = []
 
 # deprecated
 extension-module = []
 
-# Automatically generates `python3.dll` import libraries for Windows targets.
-generate-import-lib = ["dep:python3-dll-a"]
-
-# These features are enabled by pyo3 when building Stable ABI extension modules.
-abi3 = []
-abi3-py37 = ["abi3-py38"]
-abi3-py38 = ["abi3-py39"]
-abi3-py39 = ["abi3-py310"]
-abi3-py310 = ["abi3-py311"]
-abi3-py311 = ["abi3-py312"]
-abi3-py312 = ["abi3-py313"]
-abi3-py313 = ["abi3-py314"]
-abi3-py314 = ["abi3"]
-
-[package.metadata.docs.rs]
-features = ["resolve-config"]
+# deprecated: no longer needed, raw-dylib is used instead
+generate-import-lib = []

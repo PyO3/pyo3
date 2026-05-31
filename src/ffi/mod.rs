@@ -25,7 +25,3 @@ mod tests;
 
 //  reexport raw bindings exposed in pyo3_ffi
 pub use pyo3_ffi::*;
-
-/// Helper to enable #\[pymethods\] to see the workaround for __ipow__ on Python 3.7
-#[doc(hidden)]
-pub use crate::impl_::pymethods::ipowfunc;

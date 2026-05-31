@@ -43,7 +43,7 @@ unsafe extern "C" fn id_new(
     } else {
         let id = Id::new();
         let slf = slf.cast::<PyId>();
-        ptr::addr_of_mut!((*slf).id).write(id);
+        (&raw mut (*slf).id).write(id);
     }
 
     slf
@@ -131,5 +131,5 @@ pub static mut ID_SPEC: PyType_Spec = PyType_Spec {
     basicsize: mem::size_of::<PyId>() as c_int,
     itemsize: 0,
     flags: (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_IMMUTABLETYPE) as c_uint,
-    slots: ptr::addr_of_mut!(SLOTS).cast(),
+    slots: (&raw mut SLOTS).cast(),
 };

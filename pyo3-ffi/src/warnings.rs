@@ -1,8 +1,8 @@
 use crate::object::PyObject;
 use crate::pyport::Py_ssize_t;
-use std::ffi::{c_char, c_int};
+use core::ffi::{c_char, c_int};
 
-extern "C" {
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyErr_WarnEx")]
     pub fn PyErr_WarnEx(
         category: *mut PyObject,

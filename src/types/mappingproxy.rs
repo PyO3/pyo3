@@ -7,24 +7,36 @@ use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyIterator, PyList};
 use crate::{ffi, Python};
-
-use std::ffi::c_int;
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 
 /// Represents a Python `mappingproxy`.
 #[repr(transparent)]
 pub struct PyMappingProxy(PyAny);
 
-#[inline]
-unsafe fn dict_proxy_check(op: *mut ffi::PyObject) -> c_int {
-    unsafe { ffi::Py_IS_TYPE(op, std::ptr::addr_of_mut!(ffi::PyDictProxy_Type)) }
-}
-
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(
     PyMappingProxy,
     pyobject_native_static_type_object!(ffi::PyDictProxy_Type),
     "types",
-    "MappingProxyType",
-    #checkfunction=dict_proxy_check
+    "MappingProxyType"
+);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyMappingProxy,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "MappingProxyType")
+            .unwrap()
+            .as_type_ptr()
+    },
+    "types",
+    "MappingProxyType"
 );
 
 impl PyMappingProxy {
@@ -142,7 +154,8 @@ mod tests {
         exceptions::PyKeyError,
         types::{PyInt, PyTuple},
     };
-    use std::collections::{BTreeMap, HashMap};
+    use alloc::collections::BTreeMap;
+    use std::collections::HashMap;
 
     #[test]
     fn test_new() {
@@ -422,7 +435,7 @@ mod tests {
         });
     }
 
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn abc_mappingproxy(py: Python<'_>) -> Bound<'_, PyMappingProxy> {
         let mut map = HashMap::<&'static str, i32>::new();
         map.insert("a", 1);
@@ -433,7 +446,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn mappingproxy_keys_view() {
         Python::attach(|py| {
             let mappingproxy = abc_mappingproxy(py);
@@ -443,7 +456,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn mappingproxy_values_view() {
         Python::attach(|py| {
             let mappingproxy = abc_mappingproxy(py);
@@ -453,7 +466,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     fn mappingproxy_items_view() {
         Python::attach(|py| {
             let mappingproxy = abc_mappingproxy(py);

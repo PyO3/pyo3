@@ -1,7 +1,7 @@
 use crate::object::PyObject;
-use std::ffi::{c_char, c_int, c_long};
+use core::ffi::{c_char, c_int, c_long};
 
-extern "C" {
+extern_libpython! {
     pub fn PyImport_GetMagicNumber() -> c_long;
     pub fn PyImport_GetMagicTag() -> *const c_char;
     #[cfg_attr(PyPy, link_name = "PyPyImport_ExecCodeModule")]
@@ -36,6 +36,7 @@ extern "C" {
     pub fn PyImport_AddModuleRef(name: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyImport_ImportModule")]
     pub fn PyImport_ImportModule(name: *const c_char) -> *mut PyObject;
+    #[cfg(not(Py_3_15))]
     #[deprecated(note = "Python 3.13")]
     #[cfg_attr(PyPy, link_name = "PyPyImport_ImportModuleNoBlock")]
     pub fn PyImport_ImportModuleNoBlock(name: *const c_char) -> *mut PyObject;
@@ -67,7 +68,7 @@ pub unsafe fn PyImport_ImportModuleEx(
     PyImport_ImportModuleLevel(name, globals, locals, fromlist, 0)
 }
 
-extern "C" {
+extern_libpython! {
     pub fn PyImport_GetImporter(path: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyImport_Import")]
     pub fn PyImport_Import(name: *mut PyObject) -> *mut PyObject;

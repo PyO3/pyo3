@@ -31,7 +31,7 @@ def test_take_invalid_pathlike():
 
 def test_take_invalid():
     with pytest.raises(TypeError):
-        assert rpath.take_pathbuf(3)
+        assert rpath.take_pathbuf(3)  # type: ignore[bad-argument-type]
 
 
 class PathLike:

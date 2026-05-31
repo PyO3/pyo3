@@ -1,7 +1,11 @@
 error[E0080]: evaluation panicked: `weakref` requires Python >= 3.9 when using the `abi3` feature
- --> tests/ui/abi3_weakref.rs:4:11
+ --> tests/ui/abi3_weakref.rs:3:11
   |
-4 | #[pyclass(weakref)]
+3 | #[pyclass(weakref)]
   |           ^^^^^^^ evaluation of `_::ASSERT_WEAKREF_SUPPORTED` failed here
   |
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0080`.

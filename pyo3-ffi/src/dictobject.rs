@@ -1,25 +1,31 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::ffi::{c_char, c_int};
-use std::ptr::addr_of_mut;
+use core::ffi::{c_char, c_int};
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+#[cfg(not(RustPython))]
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyDict_Type")]
     pub static mut PyDict_Type: PyTypeObject;
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyDict_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_DICT_SUBCLASS)
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyDict_Type)) as c_int
+    Py_IS_TYPE(op, &raw mut PyDict_Type)
 }
 
-extern "C" {
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyDict_Check(op: *mut PyObject) -> c_int;
+    #[cfg(RustPython)]
+    pub fn PyDict_CheckExact(op: *mut PyObject) -> c_int;
+
     #[cfg_attr(PyPy, link_name = "PyPyDict_New")]
     pub fn PyDict_New() -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDict_GetItem")]
@@ -80,29 +86,48 @@ extern "C" {
         key: *const c_char,
         result: *mut *mut PyObject,
     ) -> c_int;
+    #[cfg(all(Py_3_13, any(not(Py_LIMITED_API), Py_3_15)))]
+    pub fn PyDict_SetDefaultRef(
+        mp: *mut PyObject,
+        key: *mut PyObject,
+        default_value: *mut PyObject,
+        result: *mut *mut PyObject,
+    ) -> c_int;
     // skipped 3.10 / ex-non-limited PyObject_GenericGetDict
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+#[cfg(not(RustPython))]
+extern_libpython! {
     pub static mut PyDictKeys_Type: PyTypeObject;
     pub static mut PyDictValues_Type: PyTypeObject;
     pub static mut PyDictItems_Type: PyTypeObject;
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyDictKeys_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyDictKeys_Type))
+    PyObject_TypeCheck(op, &raw mut PyDictKeys_Type)
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyDictValues_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyDictValues_Type))
+    PyObject_TypeCheck(op, &raw mut PyDictValues_Type)
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyDictItems_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, addr_of_mut!(PyDictItems_Type))
+    PyObject_TypeCheck(op, &raw mut PyDictItems_Type)
+}
+
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyDictKeys_Check(op: *mut PyObject) -> c_int;
+    #[cfg(RustPython)]
+    pub fn PyDictValues_Check(op: *mut PyObject) -> c_int;
+    #[cfg(RustPython)]
+    pub fn PyDictItems_Check(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
@@ -110,16 +135,13 @@ pub unsafe fn PyDictViewSet_Check(op: *mut PyObject) -> c_int {
     (PyDictKeys_Check(op) != 0 || PyDictItems_Check(op) != 0) as c_int
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+#[cfg(not(RustPython))]
+extern_libpython! {
     pub static mut PyDictIterKey_Type: PyTypeObject;
     pub static mut PyDictIterValue_Type: PyTypeObject;
     pub static mut PyDictIterItem_Type: PyTypeObject;
-    #[cfg(Py_3_8)]
     pub static mut PyDictRevIterKey_Type: PyTypeObject;
-    #[cfg(Py_3_8)]
     pub static mut PyDictRevIterValue_Type: PyTypeObject;
-    #[cfg(Py_3_8)]
     pub static mut PyDictRevIterItem_Type: PyTypeObject;
 }
 

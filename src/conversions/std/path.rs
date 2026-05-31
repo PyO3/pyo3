@@ -1,11 +1,11 @@
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, type_hint_union, PyStaticExpr};
+use crate::inspect::{type_hint_identifier, type_hint_subscript, type_hint_union, PyStaticExpr};
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
 use crate::{ffi, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python};
-use std::borrow::Cow;
+use alloc::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
@@ -15,7 +15,10 @@ impl FromPyObject<'_, '_> for PathBuf {
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = type_hint_union!(
         OsString::INPUT_TYPE,
-        type_hint_identifier!("os", "PathLike")
+        type_hint_subscript!(
+            type_hint_identifier!("os", "PathLike"),
+            OsString::INPUT_TYPE
+        )
     );
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
@@ -135,9 +138,9 @@ mod tests {
         types::{PyAnyMethods, PyString},
         IntoPyObjectExt,
     };
+    use core::fmt::Debug;
     #[cfg(not(target_os = "wasi"))]
     use std::ffi::OsStr;
-    use std::fmt::Debug;
     #[cfg(any(unix, target_os = "emscripten"))]
     use std::os::unix::ffi::OsStringExt;
     #[cfg(windows)]

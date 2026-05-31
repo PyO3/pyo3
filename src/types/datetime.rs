@@ -32,7 +32,7 @@ use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, 
 use crate::{sync::PyOnceLock, Py};
 use crate::{Borrowed, Bound, IntoPyObject, PyAny, Python};
 #[cfg(not(Py_LIMITED_API))]
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 #[cfg(not(Py_LIMITED_API))]
 fn ensure_datetime_api(py: Python<'_>) -> PyResult<&'static PyDateTime_CAPI> {
@@ -242,7 +242,7 @@ impl PyDate {
     /// Construct a `datetime.date` from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.date.fromtimestamp`
-    pub fn from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<Bound<'_, PyDate>> {
+    pub fn from_timestamp(py: Python<'_>, timestamp: f64) -> PyResult<Bound<'_, PyDate>> {
         #[cfg(not(Py_LIMITED_API))]
         {
             let time_tuple = PyTuple::new(py, [timestamp])?;
@@ -782,7 +782,7 @@ impl PyTzInfo {
             let api = ensure_datetime_api(py)?;
             let delta = offset.into_pyobject(py).map_err(Into::into)?;
             unsafe {
-                (api.TimeZone_FromTimeZone)(delta.as_ptr(), std::ptr::null_mut())
+                (api.TimeZone_FromTimeZone)(delta.as_ptr(), core::ptr::null_mut())
                     .assume_owned_or_err(py)
                     .cast_into_unchecked()
             }
@@ -925,7 +925,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_date_fromtimestamp() {
         Python::attach(|py| {
-            let dt = PyDate::from_timestamp(py, 100).unwrap();
+            let dt = PyDate::from_timestamp(py, 100.).unwrap();
             py_run!(
                 py,
                 dt,

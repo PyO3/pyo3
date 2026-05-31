@@ -1,6 +1,6 @@
 use crate::PyThreadState;
 use crate::{PyFrameObject, PyInterpreterState, PyObject};
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 // skipped private _PyInterpreterState_RequiresIDRef
 // skipped private _PyInterpreterState_RequireIDRef
@@ -45,7 +45,7 @@ pub(crate) struct _PyErr_StackItem {
 // skipped private _PY_DATA_STACK_CHUNK_SIZE
 // skipped private _ts (aka PyThreadState)
 
-extern "C" {
+extern_libpython! {
     #[cfg(Py_3_13)]
     pub fn PyThreadState_GetUnchecked() -> *mut PyThreadState;
 

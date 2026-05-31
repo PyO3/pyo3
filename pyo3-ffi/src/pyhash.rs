@@ -1,17 +1,17 @@
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, Py_3_14)))]
 use crate::pyport::{Py_hash_t, Py_ssize_t};
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
-use std::ffi::c_void;
+#[cfg(not(any(Py_LIMITED_API, PyPy, Py_3_14)))]
+use core::ffi::c_void;
 
-use std::ffi::{c_int, c_ulong};
+use core::ffi::{c_int, c_ulong};
 
-extern "C" {
+extern_libpython! {
     // skipped non-limited _Py_HashDouble
     // skipped non-limited _Py_HashPointer
     // skipped non-limited _Py_HashPointerRaw
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
-    pub fn _Py_HashBytes(src: *const c_void, len: Py_ssize_t) -> Py_hash_t;
+    #[cfg(not(any(Py_LIMITED_API, PyPy, Py_3_14)))]
+    pub(crate) fn _Py_HashBytes(src: *const c_void, len: Py_ssize_t) -> Py_hash_t;
 }
 
 pub const _PyHASH_MULTIPLIER: c_ulong = 1000003;
@@ -25,5 +25,7 @@ pub const _PyHASH_MULTIPLIER: c_ulong = 1000003;
 pub const Py_HASH_EXTERNAL: c_int = 0;
 pub const Py_HASH_SIPHASH24: c_int = 1;
 pub const Py_HASH_FNV: c_int = 2;
+#[cfg(Py_3_11)]
+pub const Py_HASH_SIPHASH13: c_int = 3;
 
 // skipped Py_HASH_ALGORITHM

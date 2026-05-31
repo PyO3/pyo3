@@ -15,7 +15,7 @@
 //!   use the [`Python<'py>`](crate::Python) token to guarantee thread-safe access to them, it cannot
 //!   statically guarantee uniqueness of `&mut` references. As such those references have to be tracked
 //!   dynamically at runtime, using `PyCell` and the other types defined in this module. This works
-//!   similar to std's [`RefCell`](std::cell::RefCell) type.
+//!   similar to std's [`RefCell`](core::cell::RefCell) type.
 //!
 //! # When *not* to use PyCell
 //!
@@ -125,7 +125,7 @@
 //! # }
 //! #[pyfunction]
 //! fn swap_numbers(a: &mut Number, b: &mut Number) {
-//!     std::mem::swap(&mut a.inner, &mut b.inner);
+//!     core::mem::swap(&mut a.inner, &mut b.inner);
 //! }
 //! # fn main() {
 //! #     Python::attach(|py| {
@@ -159,7 +159,7 @@
 //! fn swap_numbers(a: &PyCell<Number>, b: &PyCell<Number>) {
 //!     // Check that the pointers are unequal
 //!     if !a.is(b) {
-//!         std::mem::swap(&mut a.borrow_mut().inner, &mut b.borrow_mut().inner);
+//!         core::mem::swap(&mut a.borrow_mut().inner, &mut b.borrow_mut().inner);
 //!     } else {
 //!         // Do nothing - they are the same object, so don't need swapping.
 //!     }
@@ -198,11 +198,11 @@ use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::pyclass::{boolean_struct::False, PyClass};
 use crate::{ffi, Borrowed, Bound, PyErr, Python};
-use std::convert::Infallible;
-use std::fmt;
-use std::mem::ManuallyDrop;
-use std::ops::{Deref, DerefMut};
-use std::ptr::NonNull;
+use core::convert::Infallible;
+use core::fmt;
+use core::mem::ManuallyDrop;
+use core::ops::{Deref, DerefMut};
+use core::ptr::NonNull;
 
 pub(crate) mod impl_;
 #[cfg(feature = "experimental-inspect")]
@@ -506,6 +506,14 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, T> {
     }
 }
 
+impl<'py, T: PyClass> TryFrom<&Bound<'py, T>> for PyRef<'py, T> {
+    type Error = PyBorrowError;
+    #[inline]
+    fn try_from(value: &Bound<'py, T>) -> Result<Self, Self::Error> {
+        PyRef::try_borrow(value)
+    }
+}
+
 /// A wrapper type for a mutably borrowed value from a [`Bound<'py, T>`].
 ///
 /// See the [module-level documentation](self) for more information.
@@ -682,6 +690,14 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &'a PyRefMut<'py
 impl<T: PyClass<Frozen = False> + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.deref(), f)
+    }
+}
+
+impl<'py, T: PyClass<Frozen = False>> TryFrom<&Bound<'py, T>> for PyRefMut<'py, T> {
+    type Error = PyBorrowMutError;
+    #[inline]
+    fn try_from(value: &Bound<'py, T>) -> Result<Self, Self::Error> {
+        PyRefMut::try_borrow(value)
     }
 }
 

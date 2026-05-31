@@ -20,6 +20,7 @@ impl fmt::Display for MyError {
 
 #[pyfunction]
 fn should_not_work() -> Result<(), MyError> {
+//~^ ERROR: the trait bound `PyErr: From<MyError>` is not satisfied
     Err(MyError {
         descr: "something went wrong",
     })

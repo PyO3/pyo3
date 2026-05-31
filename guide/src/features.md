@@ -23,7 +23,7 @@ See the [building and distribution](building-and-distribution.md#py_limited_apia
 
 ### The `abi3-pyXY` features
 
-(`abi3-py37`, `abi3-py38`, `abi3-py39`, `abi3-py310`, `abi3-py311`, `abi3-py312`, `abi3-py313` and `abi3-py314`)
+(`abi3-py38`, `abi3-py39`, `abi3-py310`, `abi3-py311`, `abi3-py312`, `abi3-py313` and `abi3-py314`)
 
 These features are extensions of the `abi3` feature to specify the exact minimum Python version which the multiple-version-wheel will support.
 
@@ -31,11 +31,9 @@ See the [building and distribution](building-and-distribution.md#minimum-python-
 
 ### `generate-import-lib`
 
-This experimental feature is used to generate import libraries for Python DLL for MinGW-w64 and MSVC (cross-)compile targets.
-
-Enabling it allows to (cross-)compile extension modules to any Windows targets without having to install the Windows Python distribution files for the target.
-
-See the [building and distribution](building-and-distribution.md#building-abi3-extensions-without-a-python-interpreter) section for further detail.
+This feature is deprecated and has no effect.
+PyO3 now uses Rust's `raw-dylib` linking feature to link against the Python DLL on Windows, eliminating the need for import library (`.lib`) files entirely.
+Cross-compiling for Windows targets works without any additional setup.
 
 ## Features for embedding Python in Rust
 
@@ -106,12 +104,6 @@ See [the `#[pyclass]` implementation details](class.md#implementation-details) f
 
 The `nightly` feature needs the nightly Rust compiler.
 This allows PyO3 to use the `auto_traits` and `negative_impls` features to fix the `Python::detach` function.
-
-### `resolve-config`
-
-The `resolve-config` feature of the `pyo3-build-config` crate controls whether that crate's build script automatically resolves a Python interpreter / build configuration.
-This feature is primarily useful when building PyO3 itself.
-By default this feature is not enabled, meaning you can freely use `pyo3-build-config` as a standalone library to read or write PyO3 build configuration files or resolve metadata about a Python interpreter.
 
 ## Optional Dependencies
 

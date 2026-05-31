@@ -1,11 +1,3 @@
-//! Main implementation module included in both the `pyo3-build-config` library crate
-//! and its build script.
-
-// Optional python3.dll import library generator for Windows
-#[cfg(feature = "generate-import-lib")]
-#[path = "import_lib.rs"]
-mod import_lib;
-
 #[cfg(test)]
 use std::cell::RefCell;
 use std::{
@@ -31,7 +23,16 @@ use crate::{
 };
 
 /// Minimum Python version PyO3 supports.
-pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 7 };
+pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 8 };
+
+pub(crate) const MINIMUM_SUPPORTED_VERSION_PYPY: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 11,
+};
+pub(crate) const MAXIMUM_SUPPORTED_VERSION_PYPY: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 11,
+};
 
 /// GraalPy may implement the same CPython version over multiple releases.
 const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
@@ -40,7 +41,7 @@ const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
 };
 
 /// Maximum Python version that can be used as minimum required Python version with abi3.
-pub(crate) const ABI3_MAX_MINOR: u8 = 14;
+pub(crate) const ABI3_MAX_MINOR: u8 = 15;
 
 #[cfg(test)]
 thread_local! {
@@ -57,9 +58,7 @@ pub fn cargo_env_var(var: &str) -> Option<String> {
 /// Gets an external environment variable, and registers the build script to rerun if
 /// the variable changes.
 pub fn env_var(var: &str) -> Option<OsString> {
-    if cfg!(feature = "resolve-config") {
-        println!("cargo:rerun-if-env-changed={var}");
-    }
+    println!("cargo:rerun-if-env-changed={var}");
     #[cfg(test)]
     {
         READ_ENV_VARS.with(|env_vars| {
@@ -91,21 +90,37 @@ pub struct InterpreterConfig {
     /// The Python implementation flavor.
     ///
     /// Serialized to `implementation`.
+    #[deprecated(
+        since = "0.29.0",
+        note = "please use `.implementation()` getter or `InterpreterConfigBuilder` instead"
+    )]
     pub implementation: PythonImplementation,
 
     /// Python `X.Y` version. e.g. `3.9`.
     ///
     /// Serialized to `version`.
+    #[deprecated(
+        since = "0.29.0",
+        note = "please use `.version()` getter or `InterpreterConfigBuilder` instead"
+    )]
     pub version: PythonVersion,
 
     /// Whether link library is shared.
     ///
     /// Serialized to `shared`.
+    #[deprecated(
+        since = "0.29.0",
+        note = "please use `.shared()` getter or `InterpreterConfigBuilder` instead"
+    )]
     pub shared: bool,
 
     /// Whether linking against the stable/limited Python 3 API.
     ///
     /// Serialized to `abi3`.
+    #[deprecated(
+        since = "0.29.0",
+        note = "please use `.abi3()` getter or `InterpreterConfigBuilder` instead"
+    )]
     pub abi3: bool,
 
     /// The name of the link library defining Python.
@@ -115,6 +130,10 @@ pub struct InterpreterConfig {
     /// prefix.
     ///
     /// Serialized to `lib_name`.
+    #[deprecated(
+        since = "0.29.0",
+        note = "please use `.lib_name()` getter or `InterpreterConfigBuilder` instead"
+    )]
     pub lib_name: Option<String>,
 
     /// The directory containing the Python library to link against.
@@ -123,6 +142,10 @@ pub struct InterpreterConfig {
     /// to add an additional library search path for the linker.
     ///
     /// Serialized to `lib_dir`.
+    #[deprecated(
+        since = "0.29.0",
+        note = "please use `.lib_dir()` getter or `InterpreterConfigBuilder` instead"
+    )]
     pub lib_dir: Option<String>,
 
     /// Path of host `python` executable.
@@ -132,16 +155,28 @@ pub struct InterpreterConfig {
     /// executable invoked.
     ///
     /// Serialized to `executable`.
+    #[deprecated(
+        since = "0.29.0",
+        note = "please use `.executable()` getter or `InterpreterConfigBuilder` instead"
+    )]
     pub executable: Option<String>,
 
     /// Width in bits of pointers on the target machine.
     ///
     /// Serialized to `pointer_width`.
+    #[deprecated(
+        since = "0.29.0",
+        note = "please use `.pointer_width()` getter or `InterpreterConfigBuilder` instead"
+    )]
     pub pointer_width: Option<u32>,
 
     /// Additional relevant Python build flags / configuration settings.
     ///
     /// Serialized to `build_flags`.
+    #[deprecated(
+        since = "0.29.0",
+        note = "please use `.build_flags()` getter or `InterpreterConfigBuilder` instead"
+    )]
     pub build_flags: BuildFlags,
 
     /// Whether to suppress emitting of `cargo:rustc-link-*` lines from the build script.
@@ -154,6 +189,10 @@ pub struct InterpreterConfig {
     ///
     /// If suppression is enabled, `extra_build_script_lines` should contain equivalent
     /// functionality or else a build failure is likely.
+    #[deprecated(
+        since = "0.29.0",
+        note = "please use `.suppress_build_script_link_lines()` getter or `InterpreterConfigBuilder` instead"
+    )]
     pub suppress_build_script_link_lines: bool,
 
     /// Additional lines to `println!()` from Cargo build scripts.
@@ -166,12 +205,113 @@ pub struct InterpreterConfig {
     /// is build/configured.
     ///
     /// Serialized to multiple `extra_build_script_line` values.
+    #[deprecated(
+        since = "0.29.0",
+        note = "please use `.extra_build_script_lines()` getter or `InterpreterConfigBuilder` instead"
+    )]
     pub extra_build_script_lines: Vec<String>,
     /// macOS Python3.framework requires special rpath handling
+    #[deprecated(
+        since = "0.29.0",
+        note = "please use `.python_framework_prefix()` getter or `InterpreterConfigBuilder` instead"
+    )]
     pub python_framework_prefix: Option<String>,
 }
 
+// Should no longer be deprecated once the internal fields are private
+#[expect(deprecated, reason = "this impl block touches the internal fields")]
 impl InterpreterConfig {
+    /// The Python implementation flavor.
+    ///
+    /// Serialized to `implementation`.
+    pub fn implementation(&self) -> PythonImplementation {
+        self.implementation
+    }
+
+    /// Python `X.Y` version. e.g. `3.9`.
+    ///
+    /// Serialized to `version`.
+    pub fn version(&self) -> PythonVersion {
+        self.version
+    }
+
+    /// Whether link library is shared.
+    ///
+    /// Serialized to `shared`.
+    pub fn shared(&self) -> bool {
+        self.shared
+    }
+
+    /// Whether linking against the stable/limited Python 3 API.
+    ///
+    /// Serialized to `abi3`.
+    pub fn abi3(&self) -> bool {
+        self.abi3
+    }
+
+    /// The name of the link library defining Python.
+    ///
+    /// This effectively controls the `cargo:rustc-link-lib=<name>` value to
+    /// control how libpython is linked. Values should not contain the `lib`
+    /// prefix.
+    ///
+    /// Serialized to `lib_name`.
+    pub fn lib_name(&self) -> Option<&str> {
+        self.lib_name.as_deref()
+    }
+
+    /// The directory containing the Python library to link against.
+    ///
+    /// The effectively controls the `cargo:rustc-link-search=native=<path>` value
+    /// to add an additional library search path for the linker.
+    ///
+    /// Serialized to `lib_dir`.
+    pub fn lib_dir(&self) -> Option<&str> {
+        self.lib_dir.as_deref()
+    }
+
+    /// Path of host `python` executable.
+    ///
+    /// This is a valid executable capable of running on the host/building machine.
+    /// For configurations derived by invoking a Python interpreter, it was the
+    /// executable invoked.
+    ///
+    /// Serialized to `executable`.
+    pub fn executable(&self) -> Option<&str> {
+        self.executable.as_deref()
+    }
+
+    /// Width in bits of pointers on the target machine.
+    ///
+    /// Serialized to `pointer_width`.
+    pub fn pointer_width(&self) -> Option<u32> {
+        self.pointer_width
+    }
+
+    /// Additional relevant Python build flags / configuration settings.
+    ///
+    /// Serialized to `build_flags`.
+    pub fn build_flags(&self) -> &BuildFlags {
+        &self.build_flags
+    }
+
+    /// Whether to suppress emitting of `cargo:rustc-link-*` lines from the build script.
+    pub fn suppress_build_script_link_lines(&self) -> bool {
+        self.suppress_build_script_link_lines
+    }
+
+    /// Additional lines to `println!()` from Cargo build scripts.
+    ///
+    /// Serialized to multiple `extra_build_script_line` values.
+    pub fn extra_build_script_lines(&self) -> &[String] {
+        &self.extra_build_script_lines
+    }
+
+    /// macOS Python3.framework prefix used for special rpath handling.
+    pub fn python_framework_prefix(&self) -> Option<&str> {
+        self.python_framework_prefix.as_deref()
+    }
+
     #[doc(hidden)]
     pub fn build_script_outputs(&self) -> Vec<String> {
         // This should have been checked during pyo3-build-config build time.
@@ -179,7 +319,7 @@ impl InterpreterConfig {
 
         let mut out = vec![];
 
-        for i in MINIMUM_SUPPORTED_VERSION.minor..=self.version.minor {
+        for i in MINIMUM_SUPPORTED_VERSION.minor..=self.version().minor {
             out.push(format!("cargo:rustc-cfg=Py_3_{i}"));
         }
 
@@ -187,6 +327,7 @@ impl InterpreterConfig {
             PythonImplementation::CPython => {}
             PythonImplementation::PyPy => out.push("cargo:rustc-cfg=PyPy".to_owned()),
             PythonImplementation::GraalPy => out.push("cargo:rustc-cfg=GraalPy".to_owned()),
+            PythonImplementation::RustPython => out.push("cargo:rustc-cfg=RustPython".to_owned()),
         }
 
         // If Py_GIL_DISABLED is set, do not build with limited API support
@@ -206,8 +347,7 @@ impl InterpreterConfig {
         out
     }
 
-    #[doc(hidden)]
-    pub fn from_interpreter(interpreter: impl AsRef<Path>) -> Result<Self> {
+    fn from_interpreter(interpreter: impl AsRef<Path>) -> Result<Self> {
         const SCRIPT: &str = r#"
 # Allow the script to run on Python 2, so that nicer error can be printed later.
 from __future__ import print_function
@@ -357,20 +497,17 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             .parse()
             .context("failed to parse calcsize_pointer")?;
 
-        Ok(InterpreterConfig {
-            version,
-            implementation,
-            shared,
-            abi3,
-            lib_name: Some(lib_name),
-            lib_dir,
-            executable: map.get("executable").cloned(),
-            pointer_width: Some(calcsize_pointer * 8),
-            build_flags: BuildFlags::from_interpreter(interpreter)?,
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix,
-        })
+        let builder = InterpreterConfigBuilder::new(implementation, version)
+            .abi3(abi3)
+            .shared(shared)
+            .lib_name(lib_name)
+            .lib_dir(lib_dir)
+            .executable(map["executable"].clone())
+            .pointer_width(calcsize_pointer * 8)
+            .build_flags(BuildFlags::from_interpreter(interpreter)?)
+            .python_framework_prefix(python_framework_prefix);
+
+        builder.finalize()
     }
 
     /// Generate from parsed sysconfigdata file
@@ -430,27 +567,22 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             .ok();
         let build_flags = BuildFlags::from_sysconfigdata(sysconfigdata);
 
-        Ok(InterpreterConfig {
-            implementation,
-            version,
-            shared: shared || framework,
-            abi3,
-            lib_dir,
-            lib_name,
-            executable: None,
-            pointer_width,
-            build_flags,
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix,
-        })
+        let builder = InterpreterConfigBuilder::new(implementation, version)
+            .abi3(abi3)
+            .shared(shared || framework)
+            .pointer_width(pointer_width)
+            .lib_name(lib_name)
+            .lib_dir(lib_dir)
+            .python_framework_prefix(python_framework_prefix)
+            .build_flags(build_flags);
+
+        builder.finalize()
     }
 
     /// Import an externally-provided config file.
     ///
     /// The `abi3` features, if set, may apply an `abi3` constraint to the Python version.
-    #[allow(dead_code)] // only used in build.rs
-    pub(super) fn from_pyo3_config_file_env() -> Option<Result<Self>> {
+    pub(super) fn from_pyo3_config_file_env(target: &Triple) -> Option<Result<Self>> {
         env_var("PYO3_CONFIG_FILE").map(|path| {
             let path = Path::new(&path);
             println!("cargo:rerun-if-changed={}", path.display());
@@ -471,12 +603,23 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             config.abi3 |= is_abi3();
             config.fixup_for_abi3_version(get_abi3_version())?;
 
+            // For config files which don't apply a lib name, apply a default which we can use
+            // for linking.
+            if config.lib_name.is_none() {
+                config.lib_name = Some(default_lib_name_for_target(
+                    config.version,
+                    config.implementation,
+                    config.abi3,
+                    config.is_free_threaded(),
+                    target,
+                ));
+            }
+
             Ok(config)
         })
     }
 
-    #[doc(hidden)]
-    pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
+    fn from_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         let config_file = std::fs::File::open(path)
             .with_context(|| format!("failed to open PyO3 config file at {}", path.display()))?;
@@ -484,14 +627,18 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         InterpreterConfig::from_reader(reader)
     }
 
-    #[doc(hidden)]
-    pub fn from_cargo_dep_env() -> Option<Result<Self>> {
-        cargo_env_var("DEP_PYTHON_PYO3_CONFIG")
+    /// Environment variable populated via pyo3-ffi's build script
+    pub(crate) const PYO3_FFI_CONFIG_ENV_VAR: &str = "DEP_PYTHON_PYO3_CONFIG";
+    /// Environment variable populated via pyo3's build script by forwarding the value from pyo3-ffi
+    pub(crate) const PYO3_CONFIG_ENV_VAR: &str = "DEP_PYO3_PYTHON_PYO3_CONFIG";
+
+    pub(crate) fn from_cargo_dep_env() -> Option<Result<Self>> {
+        cargo_env_var(Self::PYO3_FFI_CONFIG_ENV_VAR)
+            .or_else(|| cargo_env_var(Self::PYO3_CONFIG_ENV_VAR))
             .map(|buf| InterpreterConfig::from_reader(&*unescape(&buf)))
     }
 
-    #[doc(hidden)]
-    pub fn from_reader(reader: impl Read) -> Result<Self> {
+    fn from_reader(reader: impl Read) -> Result<Self> {
         let reader = BufReader::new(reader);
         let lines = reader.lines();
 
@@ -558,73 +705,19 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let abi3 = abi3.unwrap_or(false);
         let build_flags = build_flags.unwrap_or_default();
 
-        Ok(InterpreterConfig {
-            implementation,
-            version,
-            shared: shared.unwrap_or(true),
-            abi3,
-            lib_name,
-            lib_dir,
-            executable,
-            pointer_width,
-            build_flags,
-            suppress_build_script_link_lines: suppress_build_script_link_lines.unwrap_or(false),
-            extra_build_script_lines,
-            python_framework_prefix,
-        })
-    }
+        let builder = InterpreterConfigBuilder::new(implementation, version)
+            .abi3(abi3)
+            .shared(shared.unwrap_or(true))
+            .lib_name(lib_name)
+            .lib_dir(lib_dir)
+            .executable(executable)
+            .pointer_width(pointer_width)
+            .build_flags(build_flags)
+            .suppress_build_script_link_lines(suppress_build_script_link_lines.unwrap_or(false))
+            .extra_build_script_lines(extra_build_script_lines)
+            .python_framework_prefix(python_framework_prefix);
 
-    /// Helper function to apply a default lib_name if none is set in `PYO3_CONFIG_FILE`.
-    ///
-    /// This requires knowledge of the final target, so cannot be done when the config file is
-    /// inlined into `pyo3-build-config` at build time and instead needs to be done when
-    /// resolving the build config for linking.
-    #[cfg(any(test, feature = "resolve-config"))]
-    pub(crate) fn apply_default_lib_name_to_config_file(&mut self, target: &Triple) {
-        if self.lib_name.is_none() {
-            self.lib_name = Some(default_lib_name_for_target(
-                self.version,
-                self.implementation,
-                self.abi3,
-                self.is_free_threaded(),
-                target,
-            ));
-        }
-    }
-
-    #[cfg(feature = "generate-import-lib")]
-    #[allow(clippy::unnecessary_wraps)]
-    pub fn generate_import_libs(&mut self) -> Result<()> {
-        // Auto generate python3.dll import libraries for Windows targets.
-        if self.lib_dir.is_none() {
-            let target = target_triple_from_env();
-            let py_version = if self.implementation == PythonImplementation::CPython
-                && self.abi3
-                && !self.is_free_threaded()
-            {
-                None
-            } else {
-                Some(self.version)
-            };
-            let abiflags = if self.is_free_threaded() {
-                Some("t")
-            } else {
-                None
-            };
-            self.lib_dir = import_lib::generate_import_lib(
-                &target,
-                self.implementation,
-                py_version,
-                abiflags,
-            )?;
-        }
-        Ok(())
-    }
-
-    #[cfg(not(feature = "generate-import-lib"))]
-    #[allow(clippy::unnecessary_wraps)]
-    pub fn generate_import_libs(&mut self) -> Result<()> {
-        Ok(())
+        builder.finalize()
     }
 
     #[doc(hidden)]
@@ -757,6 +850,127 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     }
 }
 
+#[cfg_attr(test, derive(Debug))]
+pub struct InterpreterConfigBuilder {
+    implementation: PythonImplementation,
+    version: PythonVersion,
+    shared: bool,
+    abi3: bool,
+    lib_name: Option<String>,
+    lib_dir: Option<String>,
+    executable: Option<String>,
+    pointer_width: Option<u32>,
+    build_flags: BuildFlags,
+    suppress_build_script_link_lines: bool,
+    extra_build_script_lines: Vec<String>,
+    python_framework_prefix: Option<String>,
+}
+
+impl InterpreterConfigBuilder {
+    pub fn new(
+        implementation: PythonImplementation,
+        version: PythonVersion,
+    ) -> InterpreterConfigBuilder {
+        InterpreterConfigBuilder {
+            implementation,
+            version,
+            shared: true,
+            abi3: false,
+            lib_name: None,
+            lib_dir: None,
+            executable: None,
+            pointer_width: None,
+            build_flags: BuildFlags::default(),
+            suppress_build_script_link_lines: false,
+            extra_build_script_lines: vec![],
+            python_framework_prefix: None,
+        }
+    }
+
+    pub fn abi3(mut self, abi3: bool) -> InterpreterConfigBuilder {
+        self.abi3 = abi3;
+        self
+    }
+
+    pub fn lib_name(mut self, lib_name: impl Into<Option<String>>) -> InterpreterConfigBuilder {
+        self.lib_name = lib_name.into();
+        self
+    }
+
+    pub fn pointer_width(
+        mut self,
+        pointer_width: impl Into<Option<u32>>,
+    ) -> InterpreterConfigBuilder {
+        self.pointer_width = pointer_width.into();
+        self
+    }
+
+    pub fn executable(mut self, executable: impl Into<Option<String>>) -> InterpreterConfigBuilder {
+        self.executable = executable.into();
+        self
+    }
+
+    pub fn suppress_build_script_link_lines(
+        mut self,
+        suppress_build_script_link_lines: bool,
+    ) -> InterpreterConfigBuilder {
+        self.suppress_build_script_link_lines = suppress_build_script_link_lines;
+        self
+    }
+
+    pub fn extra_build_script_lines(
+        mut self,
+        extra_build_script_lines: Vec<String>,
+    ) -> InterpreterConfigBuilder {
+        self.extra_build_script_lines = extra_build_script_lines;
+        self
+    }
+
+    pub fn lib_dir(mut self, lib_dir: impl Into<Option<String>>) -> InterpreterConfigBuilder {
+        self.lib_dir = lib_dir.into();
+        self
+    }
+
+    pub fn shared(mut self, shared: bool) -> InterpreterConfigBuilder {
+        self.shared = shared;
+        self
+    }
+
+    pub fn build_flags(mut self, build_flags: BuildFlags) -> InterpreterConfigBuilder {
+        self.build_flags = build_flags;
+        self
+    }
+
+    pub fn python_framework_prefix(
+        mut self,
+        python_framework_prefix: impl Into<Option<String>>,
+    ) -> InterpreterConfigBuilder {
+        self.python_framework_prefix = python_framework_prefix.into();
+        self
+    }
+
+    pub fn finalize(self) -> Result<InterpreterConfig> {
+        #[expect(
+            deprecated,
+            reason = "constructing an InterpreterConfig directly, need to write to fields"
+        )]
+        Ok(InterpreterConfig {
+            implementation: self.implementation,
+            version: self.version,
+            shared: self.shared,
+            abi3: self.abi3,
+            lib_name: self.lib_name,
+            lib_dir: self.lib_dir,
+            executable: self.executable,
+            pointer_width: self.pointer_width,
+            build_flags: self.build_flags,
+            suppress_build_script_link_lines: self.suppress_build_script_link_lines,
+            extra_build_script_lines: self.extra_build_script_lines,
+            python_framework_prefix: self.python_framework_prefix,
+        })
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PythonVersion {
     pub major: u8,
@@ -764,23 +978,35 @@ pub struct PythonVersion {
 }
 
 impl PythonVersion {
-    pub const PY315: Self = PythonVersion {
-        major: 3,
-        minor: 15,
-    };
+    #[deprecated(
+        since = "0.29.0",
+        note = "please construct `PythonVersion` directly rather than use these constants"
+    )]
     pub const PY313: Self = PythonVersion {
         major: 3,
         minor: 13,
     };
+    #[deprecated(
+        since = "0.29.0",
+        note = "please construct `PythonVersion` directly rather than use these constants"
+    )]
     pub const PY312: Self = PythonVersion {
         major: 3,
         minor: 12,
+    };
+    #[cfg(test)]
+    const PY311: Self = PythonVersion {
+        major: 3,
+        minor: 11,
     };
     const PY310: Self = PythonVersion {
         major: 3,
         minor: 10,
     };
-    const PY37: Self = PythonVersion { major: 3, minor: 7 };
+    #[cfg(test)]
+    const PY39: Self = PythonVersion { major: 3, minor: 9 };
+    #[cfg(test)]
+    const PY38: Self = PythonVersion { major: 3, minor: 8 };
 }
 
 impl Display for PythonVersion {
@@ -812,21 +1038,19 @@ pub enum PythonImplementation {
     CPython,
     PyPy,
     GraalPy,
+    RustPython,
 }
 
 impl PythonImplementation {
-    #[doc(hidden)]
-    pub fn is_pypy(self) -> bool {
+    fn is_pypy(self) -> bool {
         self == PythonImplementation::PyPy
     }
 
-    #[doc(hidden)]
-    pub fn is_graalpy(self) -> bool {
+    fn is_graalpy(self) -> bool {
         self == PythonImplementation::GraalPy
     }
 
-    #[doc(hidden)]
-    pub fn from_soabi(soabi: &str) -> Result<Self> {
+    fn from_soabi(soabi: &str) -> Result<Self> {
         if soabi.starts_with("pypy") {
             Ok(PythonImplementation::PyPy)
         } else if soabi.starts_with("cpython") {
@@ -845,6 +1069,7 @@ impl Display for PythonImplementation {
             PythonImplementation::CPython => write!(f, "CPython"),
             PythonImplementation::PyPy => write!(f, "PyPy"),
             PythonImplementation::GraalPy => write!(f, "GraalVM"),
+            PythonImplementation::RustPython => write!(f, "RustPython"),
         }
     }
 }
@@ -856,6 +1081,7 @@ impl FromStr for PythonImplementation {
             "CPython" => Ok(PythonImplementation::CPython),
             "PyPy" => Ok(PythonImplementation::PyPy),
             "GraalVM" => Ok(PythonImplementation::GraalPy),
+            "RustPython" => Ok(PythonImplementation::RustPython),
             _ => bail!("unknown interpreter: {}", s),
         }
     }
@@ -917,11 +1143,13 @@ pub fn is_linking_libpython_for_target(target: &Triple) -> bool {
 ///
 /// Must be called from a PyO3 crate build script.
 fn require_libdir_for_target(target: &Triple) -> bool {
-    let is_generating_libpython = cfg!(feature = "generate-import-lib")
-        && target.operating_system == OperatingSystem::Windows
-        && is_abi3();
+    // With raw-dylib, Windows targets never need a lib dir — the compiler generates
+    // import entries directly from `#[link(kind = "raw-dylib")]` attributes.
+    if target.operating_system == OperatingSystem::Windows {
+        return false;
+    }
 
-    is_linking_libpython_for_target(target) && !is_generating_libpython
+    is_linking_libpython_for_target(target)
 }
 
 /// Configuration needed by PyO3 to cross-compile for a target platform.
@@ -1006,7 +1234,6 @@ impl CrossCompileConfig {
     ///
     /// The conversion can not fail because `PYO3_CROSS_LIB_DIR` variable
     /// is ensured contain a valid UTF-8 string.
-    #[allow(dead_code)]
     fn lib_dir_string(&self) -> Option<String> {
         self.lib_dir
             .as_ref()
@@ -1126,20 +1353,6 @@ pub fn cross_compiling_from_to(
 ) -> Result<Option<CrossCompileConfig>> {
     let env_vars = CrossCompileEnvVars::from_env();
     CrossCompileConfig::try_from_env_vars_host_target(env_vars, host, target)
-}
-
-/// Detect whether we are cross compiling from Cargo and `PYO3_CROSS_*` environment
-/// variables and return an assembled `CrossCompileConfig` if so.
-///
-/// This must be called from PyO3's build script, because it relies on environment
-/// variables such as `CARGO_CFG_TARGET_OS` which aren't available at any other time.
-#[allow(dead_code)]
-pub fn cross_compiling_from_cargo_env() -> Result<Option<CrossCompileConfig>> {
-    let env_vars = CrossCompileEnvVars::from_env();
-    let host = Triple::host();
-    let target = target_triple_from_env();
-
-    CrossCompileConfig::try_from_env_vars_host_target(env_vars, &host, &target)
 }
 
 #[allow(non_camel_case_types)]
@@ -1312,12 +1525,12 @@ impl Sysconfigdata {
         self.0.get(k.as_ref()).map(String::as_str)
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn new() -> Self {
         Sysconfigdata(HashMap::new())
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn insert<S: Into<String>>(&mut self, k: S, v: S) {
         self.0.insert(k.into(), v.into());
     }
@@ -1365,7 +1578,6 @@ fn ends_with(entry: &DirEntry, pat: &str) -> bool {
 ///
 /// Returns `None` if the library directory is not available, and a runtime error
 /// when no or multiple sysconfigdata files are found.
-#[allow(dead_code)]
 fn find_sysconfigdata(cross: &CrossCompileConfig) -> Result<Option<PathBuf>> {
     let mut sysconfig_paths = find_all_sysconfigdata(cross)?;
     if sysconfig_paths.is_empty() {
@@ -1557,13 +1769,13 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Result<
 /// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
 ///
 /// Returns `None` when the target Python library directory is not set.
-#[allow(dead_code)]
 fn cross_compile_from_sysconfigdata(
     cross_compile_config: &CrossCompileConfig,
 ) -> Result<Option<InterpreterConfig>> {
     if let Some(path) = find_sysconfigdata(cross_compile_config)? {
         let data = parse_sysconfigdata(path)?;
         let mut config = InterpreterConfig::from_sysconfigdata(&data)?;
+        #[expect(deprecated, reason = "modifying config inline")]
         if let Some(cross_lib_dir) = cross_compile_config.lib_dir_string() {
             config.lib_dir = Some(cross_lib_dir)
         }
@@ -1580,7 +1792,6 @@ fn cross_compile_from_sysconfigdata(
 /// Windows, macOS and Linux.
 ///
 /// Must be called from a PyO3 crate build script.
-#[allow(unused_mut, dead_code)]
 fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<InterpreterConfig> {
     let version = cross_compile_config
         .version
@@ -1608,41 +1819,12 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         &cross_compile_config.target,
     );
 
-    let mut lib_dir = cross_compile_config.lib_dir_string();
+    let builder = InterpreterConfigBuilder::new(implementation, version)
+        .abi3(abi3)
+        .lib_name(lib_name)
+        .lib_dir(cross_compile_config.lib_dir_string());
 
-    // Auto generate python3.dll import libraries for Windows targets.
-    #[cfg(feature = "generate-import-lib")]
-    if lib_dir.is_none() {
-        let py_version = if implementation == PythonImplementation::CPython && abi3 && !gil_disabled
-        {
-            None
-        } else {
-            Some(version)
-        };
-        lib_dir = self::import_lib::generate_import_lib(
-            &cross_compile_config.target,
-            cross_compile_config
-                .implementation
-                .unwrap_or(PythonImplementation::CPython),
-            py_version,
-            None,
-        )?;
-    }
-
-    Ok(InterpreterConfig {
-        implementation,
-        version,
-        shared: true,
-        abi3,
-        lib_name: Some(lib_name),
-        lib_dir,
-        executable: None,
-        pointer_width: None,
-        build_flags: BuildFlags::default(),
-        suppress_build_script_link_lines: false,
-        extra_build_script_lines: vec![],
-        python_framework_prefix: None,
-    })
+    builder.finalize()
 }
 
 /// Generates "default" interpreter configuration when compiling "abi3" extensions
@@ -1672,20 +1854,11 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> Result<Interpre
         None
     };
 
-    Ok(InterpreterConfig {
-        implementation,
-        version,
-        shared: true,
-        abi3,
-        lib_name,
-        lib_dir: None,
-        executable: None,
-        pointer_width: None,
-        build_flags: BuildFlags::default(),
-        suppress_build_script_link_lines: false,
-        extra_build_script_lines: vec![],
-        python_framework_prefix: None,
-    })
+    let builder = InterpreterConfigBuilder::new(implementation, version)
+        .abi3(abi3)
+        .lib_name(lib_name);
+
+    builder.finalize()
 }
 
 /// Detects the cross compilation target interpreter configuration from all
@@ -1695,7 +1868,6 @@ fn default_abi3_config(host: &Triple, version: PythonVersion) -> Result<Interpre
 /// when no target Python interpreter is found.
 ///
 /// Must be called from a PyO3 crate build script.
-#[allow(dead_code)]
 fn load_cross_compile_config(
     cross_compile_config: CrossCompileConfig,
 ) -> Result<InterpreterConfig> {
@@ -1722,7 +1894,6 @@ const WINDOWS_ABI3_LIB_NAME: &str = "python3";
 const WINDOWS_ABI3_DEBUG_LIB_NAME: &str = "python3_d";
 
 /// Generates the default library name for the target platform.
-#[allow(dead_code)]
 fn default_lib_name_for_target(
     version: PythonVersion,
     implementation: PythonImplementation,
@@ -1753,7 +1924,12 @@ fn default_lib_name_windows(
     debug: bool,
     gil_disabled: bool,
 ) -> Result<String> {
-    if debug && version < PythonVersion::PY310 {
+    if implementation.is_pypy() {
+        // PyPy on Windows ships `libpypy3.X-c.dll` (e.g. `libpypy3.11-c.dll`),
+        // not CPython's `pythonXY.dll`. With raw-dylib linking we need the real
+        // DLL name rather than the import-library alias.
+        Ok(format!("libpypy{}.{}-c", version.major, version.minor))
+    } else if debug && version < PythonVersion::PY310 {
         // CPython bug: linking against python3_d.dll raises error
         // https://github.com/python/cpython/issues/101614
         Ok(format!("python{}{}_d", version.major, version.minor))
@@ -1771,7 +1947,10 @@ fn default_lib_name_windows(
         // https://packages.msys2.org/base/mingw-w64-python
         Ok(format!("python{}.{}", version.major, version.minor))
     } else if gil_disabled {
-        ensure!(version >= PythonVersion::PY313, "Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
+        #[expect(deprecated, reason = "using constant internally")]
+        {
+            ensure!(version >= PythonVersion::PY313, "Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
+        }
         if debug {
             Ok(format!("python{}{}t_d", version.major, version.minor))
         } else {
@@ -1798,17 +1977,14 @@ fn default_lib_name_unix(
             None => {
                 if cygwin && abi3 {
                     Ok("python3".to_string())
-                } else if version > PythonVersion::PY37 {
-                    // PEP 3149 ABI version tags are finally gone
-                    if gil_disabled {
+                } else if gil_disabled {
+                    #[expect(deprecated, reason = "using constant internally")]
+                    {
                         ensure!(version >= PythonVersion::PY313, "Cannot compile C extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", version.major, version.minor);
-                        Ok(format!("python{}.{}t", version.major, version.minor))
-                    } else {
-                        Ok(format!("python{}.{}", version.major, version.minor))
                     }
+                    Ok(format!("python{}.{}t", version.major, version.minor))
                 } else {
-                    // Work around https://bugs.python.org/issue36707
-                    Ok(format!("python{}.{}m", version.major, version.minor))
+                    Ok(format!("python{}.{}", version.major, version.minor))
                 }
             }
         },
@@ -1818,6 +1994,7 @@ fn default_lib_name_unix(
         },
 
         PythonImplementation::GraalPy => Ok("python-native".to_string()),
+        PythonImplementation::RustPython => Ok("rustpython_capi".to_string()),
     }
 }
 
@@ -1863,10 +2040,16 @@ where
 }
 
 fn venv_interpreter(virtual_env: &OsStr, windows: bool) -> PathBuf {
+    let venv = Path::new(virtual_env);
+    // Rebuild if the virtual environment configuration changes
+    println!(
+        "cargo:rerun-if-changed={}",
+        venv.join("pyvenv.cfg").display()
+    );
     if windows {
-        Path::new(virtual_env).join("Scripts").join("python.exe")
+        venv.join("Scripts").join("python.exe")
     } else {
-        Path::new(virtual_env).join("bin").join("python")
+        venv.join("bin").join("python")
     }
 }
 
@@ -1946,22 +2129,20 @@ fn get_host_interpreter(abi3_version: Option<PythonVersion>) -> Result<Interpret
 ///
 /// This must be called from PyO3's build script, because it relies on environment variables such as
 /// CARGO_CFG_TARGET_OS which aren't available at any other time.
-#[allow(dead_code)]
-pub fn make_cross_compile_config() -> Result<Option<InterpreterConfig>> {
-    let interpreter_config = if let Some(cross_config) = cross_compiling_from_cargo_env()? {
-        let mut interpreter_config = load_cross_compile_config(cross_config)?;
-        interpreter_config.fixup_for_abi3_version(get_abi3_version())?;
-        Some(interpreter_config)
-    } else {
-        None
-    };
+pub fn make_cross_compile_config(target: &Triple) -> Result<Option<InterpreterConfig>> {
+    let interpreter_config =
+        if let Some(cross_config) = cross_compiling_from_to(&Triple::host(), target)? {
+            let mut interpreter_config = load_cross_compile_config(cross_config)?;
+            interpreter_config.fixup_for_abi3_version(get_abi3_version())?;
+            Some(interpreter_config)
+        } else {
+            None
+        };
 
     Ok(interpreter_config)
 }
 
-/// Generates an interpreter config which will be hard-coded into the pyo3-build-config crate.
-/// Only used by `pyo3-build-config` build script.
-#[allow(dead_code, unused_mut)]
+/// Generates an interpreter config suitable for the build host.
 pub fn make_interpreter_config() -> Result<InterpreterConfig> {
     let host = Triple::host();
     let abi3_version = get_abi3_version();
@@ -1988,35 +2169,12 @@ pub fn make_interpreter_config() -> Result<InterpreterConfig> {
         );
     };
 
-    let mut interpreter_config = default_abi3_config(&host, abi3_version.unwrap())?;
-
-    // Auto generate python3.dll import libraries for Windows targets.
-    #[cfg(feature = "generate-import-lib")]
-    {
-        let gil_disabled = interpreter_config
-            .build_flags
-            .0
-            .contains(&BuildFlag::Py_GIL_DISABLED);
-        let py_version = if interpreter_config.implementation == PythonImplementation::CPython
-            && interpreter_config.abi3
-            && !gil_disabled
-        {
-            None
-        } else {
-            Some(interpreter_config.version)
-        };
-        interpreter_config.lib_dir = self::import_lib::generate_import_lib(
-            &host,
-            interpreter_config.implementation,
-            py_version,
-            None,
-        )?;
-    }
+    let interpreter_config = default_abi3_config(&host, abi3_version.unwrap())?;
 
     Ok(interpreter_config)
 }
 
-fn escape(bytes: &[u8]) -> String {
+pub(crate) fn escape(bytes: &[u8]) -> String {
     let mut escaped = String::with_capacity(2 * bytes.len());
 
     for byte in bytes {
@@ -2050,6 +2208,8 @@ fn unescape(escaped: &str) -> Vec<u8> {
 }
 
 #[cfg(test)]
+// can remove this expect when fields are private
+#[expect(deprecated, reason = "accessing config fields directly for testing")]
 mod tests {
     use target_lexicon::triple;
 
@@ -2057,49 +2217,36 @@ mod tests {
 
     #[test]
     fn test_config_file_roundtrip() {
-        let config = InterpreterConfig {
-            abi3: true,
-            build_flags: BuildFlags::default(),
-            pointer_width: Some(32),
-            executable: Some("executable".into()),
-            implementation: PythonImplementation::CPython,
-            lib_name: Some("lib_name".into()),
-            lib_dir: Some("lib_dir".into()),
-            shared: true,
-            version: MINIMUM_SUPPORTED_VERSION,
-            suppress_build_script_link_lines: true,
-            extra_build_script_lines: vec!["cargo:test1".to_string(), "cargo:test2".to_string()],
-            python_framework_prefix: None,
-        };
+        let implementation = PythonImplementation::CPython;
+        let version = MINIMUM_SUPPORTED_VERSION;
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .abi3(true)
+            .pointer_width(32)
+            .executable("executable".to_string())
+            .lib_dir("lib_name".to_string())
+            .lib_name("lib_name".to_string())
+            .extra_build_script_lines(vec!["cargo:test1".to_string(), "cargo:test2".to_string()])
+            .finalize()
+            .unwrap();
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
 
         assert_eq!(config, InterpreterConfig::from_reader(&*buf).unwrap());
 
         // And some different options, for variety
-
-        let config = InterpreterConfig {
-            abi3: false,
-            build_flags: {
-                let mut flags = HashSet::new();
-                flags.insert(BuildFlag::Py_DEBUG);
-                flags.insert(BuildFlag::Other(String::from("Py_SOME_FLAG")));
-                BuildFlags(flags)
-            },
-            pointer_width: None,
-            executable: None,
-            implementation: PythonImplementation::PyPy,
-            lib_dir: None,
-            lib_name: None,
-            shared: true,
-            version: PythonVersion {
-                major: 3,
-                minor: 10,
-            },
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix: None,
+        let version = PythonVersion::PY310;
+        let implementation = PythonImplementation::PyPy;
+        let build_flags = {
+            let mut flags = HashSet::new();
+            flags.insert(BuildFlag::Py_DEBUG);
+            flags.insert(BuildFlag::Other(String::from("Py_SOME_FLAG")));
+            BuildFlags(flags)
         };
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .build_flags(build_flags)
+            .finalize()
+            .unwrap();
+
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
 
@@ -2108,20 +2255,17 @@ mod tests {
 
     #[test]
     fn test_config_file_roundtrip_with_escaping() {
-        let config = InterpreterConfig {
-            abi3: true,
-            build_flags: BuildFlags::default(),
-            pointer_width: Some(32),
-            executable: Some("executable".into()),
-            implementation: PythonImplementation::CPython,
-            lib_name: Some("lib_name".into()),
-            lib_dir: Some("lib_dir\\n".into()),
-            shared: true,
-            version: MINIMUM_SUPPORTED_VERSION,
-            suppress_build_script_link_lines: true,
-            extra_build_script_lines: vec!["cargo:test1".to_string(), "cargo:test2".to_string()],
-            python_framework_prefix: None,
-        };
+        let implementation = PythonImplementation::CPython;
+        let version = MINIMUM_SUPPORTED_VERSION;
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .abi3(true)
+            .pointer_width(32)
+            .executable("executable".to_string())
+            .lib_name("lib_name".to_string())
+            .lib_dir("lib_dir\\n".to_string())
+            .extra_build_script_lines(vec!["cargo:test1".to_string(), "cargo:test2".to_string()])
+            .finalize()
+            .unwrap();
         let mut buf: Vec<u8> = Vec::new();
         config.to_writer(&mut buf).unwrap();
 
@@ -2133,45 +2277,27 @@ mod tests {
     #[test]
     fn test_config_file_defaults() {
         // Only version is required
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY38;
         assert_eq!(
-            InterpreterConfig::from_reader("version=3.7".as_bytes()).unwrap(),
-            InterpreterConfig {
-                version: PythonVersion { major: 3, minor: 7 },
-                implementation: PythonImplementation::CPython,
-                shared: true,
-                abi3: false,
-                lib_name: None,
-                lib_dir: None,
-                executable: None,
-                pointer_width: None,
-                build_flags: BuildFlags::default(),
-                suppress_build_script_link_lines: false,
-                extra_build_script_lines: vec![],
-                python_framework_prefix: None,
-            }
+            InterpreterConfig::from_reader("version=3.8".as_bytes()).unwrap(),
+            InterpreterConfigBuilder::new(implementation, version,)
+                .finalize()
+                .unwrap()
         )
     }
 
     #[test]
     fn test_config_file_unknown_keys() {
         // ext_suffix is unknown to pyo3-build-config, but it shouldn't error
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY38;
         assert_eq!(
-            InterpreterConfig::from_reader("version=3.7\next_suffix=.python37.so".as_bytes())
+            InterpreterConfig::from_reader("version=3.8\next_suffix=.python38.so".as_bytes())
                 .unwrap(),
-            InterpreterConfig {
-                version: PythonVersion { major: 3, minor: 7 },
-                implementation: PythonImplementation::CPython,
-                shared: true,
-                abi3: false,
-                lib_name: None,
-                lib_dir: None,
-                executable: None,
-                pointer_width: None,
-                build_flags: BuildFlags::default(),
-                suppress_build_script_link_lines: false,
-                extra_build_script_lines: vec![],
-                python_framework_prefix: None,
-            }
+            InterpreterConfigBuilder::new(implementation, version,)
+                .finalize()
+                .unwrap()
         )
     }
 
@@ -2253,134 +2379,100 @@ mod tests {
         let mut sysconfigdata = Sysconfigdata::new();
         // these are the minimal values required such that InterpreterConfig::from_sysconfigdata
         // does not error
-        sysconfigdata.insert("SOABI", "cpython-37m-x86_64-linux-gnu");
-        sysconfigdata.insert("VERSION", "3.7");
+        sysconfigdata.insert("SOABI", "cpython-38-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.8");
         sysconfigdata.insert("Py_ENABLE_SHARED", "1");
         sysconfigdata.insert("LIBDIR", "/usr/lib");
-        sysconfigdata.insert("LDVERSION", "3.7m");
+        sysconfigdata.insert("LDVERSION", "3.8");
         sysconfigdata.insert("SIZEOF_VOID_P", "8");
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY38;
         assert_eq!(
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
-            InterpreterConfig {
-                abi3: false,
-                build_flags: BuildFlags::from_sysconfigdata(&sysconfigdata),
-                pointer_width: Some(64),
-                executable: None,
-                implementation: PythonImplementation::CPython,
-                lib_dir: Some("/usr/lib".into()),
-                lib_name: Some("python3.7m".into()),
-                shared: true,
-                version: PythonVersion::PY37,
-                suppress_build_script_link_lines: false,
-                extra_build_script_lines: vec![],
-                python_framework_prefix: None,
-            }
+            InterpreterConfigBuilder::new(implementation, version,)
+                .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
+                .lib_dir("/usr/lib".to_string())
+                .lib_name("python3.8".to_string())
+                .pointer_width(64)
+                .finalize()
+                .unwrap()
         );
     }
 
     #[test]
     fn config_from_sysconfigdata_framework() {
         let mut sysconfigdata = Sysconfigdata::new();
-        sysconfigdata.insert("SOABI", "cpython-37m-x86_64-linux-gnu");
-        sysconfigdata.insert("VERSION", "3.7");
+        sysconfigdata.insert("SOABI", "cpython-38-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.8");
         // PYTHONFRAMEWORK should override Py_ENABLE_SHARED
         sysconfigdata.insert("Py_ENABLE_SHARED", "0");
         sysconfigdata.insert("PYTHONFRAMEWORK", "Python");
         sysconfigdata.insert("LIBDIR", "/usr/lib");
-        sysconfigdata.insert("LDVERSION", "3.7m");
+        sysconfigdata.insert("LDVERSION", "3.8");
         sysconfigdata.insert("SIZEOF_VOID_P", "8");
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY38;
         assert_eq!(
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
-            InterpreterConfig {
-                abi3: false,
-                build_flags: BuildFlags::from_sysconfigdata(&sysconfigdata),
-                pointer_width: Some(64),
-                executable: None,
-                implementation: PythonImplementation::CPython,
-                lib_dir: Some("/usr/lib".into()),
-                lib_name: Some("python3.7m".into()),
-                shared: true,
-                version: PythonVersion::PY37,
-                suppress_build_script_link_lines: false,
-                extra_build_script_lines: vec![],
-                python_framework_prefix: None,
-            }
+            InterpreterConfigBuilder::new(implementation, version,)
+                .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
+                .lib_dir("/usr/lib".to_string())
+                .lib_name("python3.8".to_string())
+                .pointer_width(64)
+                .finalize()
+                .unwrap()
         );
 
         sysconfigdata = Sysconfigdata::new();
-        sysconfigdata.insert("SOABI", "cpython-37m-x86_64-linux-gnu");
-        sysconfigdata.insert("VERSION", "3.7");
+        sysconfigdata.insert("SOABI", "cpython-38-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.8");
         // An empty PYTHONFRAMEWORK means it is not a framework
         sysconfigdata.insert("Py_ENABLE_SHARED", "0");
         sysconfigdata.insert("PYTHONFRAMEWORK", "");
         sysconfigdata.insert("LIBDIR", "/usr/lib");
-        sysconfigdata.insert("LDVERSION", "3.7m");
+        sysconfigdata.insert("LDVERSION", "3.8");
         sysconfigdata.insert("SIZEOF_VOID_P", "8");
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY38;
         assert_eq!(
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
-            InterpreterConfig {
-                abi3: false,
-                build_flags: BuildFlags::from_sysconfigdata(&sysconfigdata),
-                pointer_width: Some(64),
-                executable: None,
-                implementation: PythonImplementation::CPython,
-                lib_dir: Some("/usr/lib".into()),
-                lib_name: Some("python3.7m".into()),
-                shared: false,
-                version: PythonVersion::PY37,
-                suppress_build_script_link_lines: false,
-                extra_build_script_lines: vec![],
-                python_framework_prefix: None,
-            }
+            InterpreterConfigBuilder::new(implementation, version,)
+                .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
+                .lib_dir("/usr/lib".to_string())
+                .lib_name("python3.8".to_string())
+                .pointer_width(64)
+                .shared(false)
+                .finalize()
+                .unwrap()
         );
     }
 
     #[test]
     fn windows_hardcoded_abi3_compile() {
         let host = triple!("x86_64-pc-windows-msvc");
-        let min_version = "3.7".parse().unwrap();
+        let min_version = "3.8".parse().unwrap();
 
-        assert_eq!(
-            default_abi3_config(&host, min_version).unwrap(),
-            InterpreterConfig {
-                implementation: PythonImplementation::CPython,
-                version: PythonVersion { major: 3, minor: 7 },
-                shared: true,
-                abi3: true,
-                lib_name: Some("python3".into()),
-                lib_dir: None,
-                executable: None,
-                pointer_width: None,
-                build_flags: BuildFlags::default(),
-                suppress_build_script_link_lines: false,
-                extra_build_script_lines: vec![],
-                python_framework_prefix: None,
-            }
-        );
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY38;
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .abi3(true)
+            .lib_name("python3".to_string())
+            .finalize()
+            .unwrap();
+        assert_eq!(default_abi3_config(&host, min_version).unwrap(), config);
     }
 
     #[test]
     fn unix_hardcoded_abi3_compile() {
         let host = triple!("x86_64-unknown-linux-gnu");
         let min_version = "3.9".parse().unwrap();
-
-        assert_eq!(
-            default_abi3_config(&host, min_version).unwrap(),
-            InterpreterConfig {
-                implementation: PythonImplementation::CPython,
-                version: PythonVersion { major: 3, minor: 9 },
-                shared: true,
-                abi3: true,
-                lib_name: None,
-                lib_dir: None,
-                executable: None,
-                pointer_width: None,
-                build_flags: BuildFlags::default(),
-                suppress_build_script_link_lines: false,
-                extra_build_script_lines: vec![],
-                python_framework_prefix: None,
-            }
-        );
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY39;
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .abi3(true)
+            .finalize()
+            .unwrap();
+        assert_eq!(default_abi3_config(&host, min_version).unwrap(), config);
     }
 
     #[test]
@@ -2389,7 +2481,7 @@ mod tests {
             pyo3_cross: None,
             pyo3_cross_lib_dir: Some("C:\\some\\path".into()),
             pyo3_cross_python_implementation: None,
-            pyo3_cross_python_version: Some("3.7".into()),
+            pyo3_cross_python_version: Some("3.8".into()),
         };
 
         let host = triple!("x86_64-unknown-linux-gnu");
@@ -2399,23 +2491,14 @@ mod tests {
                 .unwrap()
                 .unwrap();
 
-        assert_eq!(
-            default_cross_compile(&cross_config).unwrap(),
-            InterpreterConfig {
-                implementation: PythonImplementation::CPython,
-                version: PythonVersion { major: 3, minor: 7 },
-                shared: true,
-                abi3: false,
-                lib_name: Some("python37".into()),
-                lib_dir: Some("C:\\some\\path".into()),
-                executable: None,
-                pointer_width: None,
-                build_flags: BuildFlags::default(),
-                suppress_build_script_link_lines: false,
-                extra_build_script_lines: vec![],
-                python_framework_prefix: None,
-            }
-        );
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY38;
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .lib_name("python38".to_string())
+            .lib_dir("C:\\some\\path".to_string())
+            .finalize()
+            .unwrap();
+        assert_eq!(default_cross_compile(&cross_config).unwrap(), config);
     }
 
     #[test]
@@ -2434,23 +2517,14 @@ mod tests {
                 .unwrap()
                 .unwrap();
 
-        assert_eq!(
-            default_cross_compile(&cross_config).unwrap(),
-            InterpreterConfig {
-                implementation: PythonImplementation::CPython,
-                version: PythonVersion { major: 3, minor: 8 },
-                shared: true,
-                abi3: false,
-                lib_name: Some("python38".into()),
-                lib_dir: Some("/usr/lib/mingw".into()),
-                executable: None,
-                pointer_width: None,
-                build_flags: BuildFlags::default(),
-                suppress_build_script_link_lines: false,
-                extra_build_script_lines: vec![],
-                python_framework_prefix: None,
-            }
-        );
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY38;
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .lib_name("python38".to_string())
+            .lib_dir("/usr/lib/mingw".to_string())
+            .finalize()
+            .unwrap();
+        assert_eq!(default_cross_compile(&cross_config).unwrap(), config);
     }
 
     #[test]
@@ -2469,23 +2543,14 @@ mod tests {
                 .unwrap()
                 .unwrap();
 
-        assert_eq!(
-            default_cross_compile(&cross_config).unwrap(),
-            InterpreterConfig {
-                implementation: PythonImplementation::CPython,
-                version: PythonVersion { major: 3, minor: 9 },
-                shared: true,
-                abi3: false,
-                lib_name: Some("python3.9".into()),
-                lib_dir: Some("/usr/arm64/lib".into()),
-                executable: None,
-                pointer_width: None,
-                build_flags: BuildFlags::default(),
-                suppress_build_script_link_lines: false,
-                extra_build_script_lines: vec![],
-                python_framework_prefix: None,
-            }
-        );
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY39;
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .lib_name("python3.9".to_string())
+            .lib_dir("/usr/arm64/lib".to_string())
+            .finalize()
+            .unwrap();
+        assert_eq!(default_cross_compile(&cross_config).unwrap(), config);
     }
 
     #[test]
@@ -2503,26 +2568,13 @@ mod tests {
                 .unwrap()
                 .unwrap();
 
-        assert_eq!(
-            default_cross_compile(&cross_config).unwrap(),
-            InterpreterConfig {
-                implementation: PythonImplementation::PyPy,
-                version: PythonVersion {
-                    major: 3,
-                    minor: 11
-                },
-                shared: true,
-                abi3: false,
-                lib_name: Some("pypy3.11-c".into()),
-                lib_dir: None,
-                executable: None,
-                pointer_width: None,
-                build_flags: BuildFlags::default(),
-                suppress_build_script_link_lines: false,
-                extra_build_script_lines: vec![],
-                python_framework_prefix: None,
-            }
-        );
+        let implementation = PythonImplementation::PyPy;
+        let version = PythonVersion::PY311;
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .lib_name("pypy3.11-c".to_string())
+            .finalize()
+            .unwrap();
+        assert_eq!(default_cross_compile(&cross_config).unwrap(), config);
     }
 
     #[test]
@@ -2595,7 +2647,22 @@ mod tests {
                 false,
             )
             .unwrap(),
-            "python39",
+            "libpypy3.9-c",
+        );
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonVersion {
+                    major: 3,
+                    minor: 11
+                },
+                PyPy,
+                false,
+                false,
+                false,
+                false,
+            )
+            .unwrap(),
+            "libpypy3.11-c",
         );
         assert_eq!(
             super::default_lib_name_windows(
@@ -2714,19 +2781,6 @@ mod tests {
     #[test]
     fn default_lib_name_unix() {
         use PythonImplementation::*;
-        // Defaults to python3.7m for CPython 3.7
-        assert_eq!(
-            super::default_lib_name_unix(
-                PythonVersion { major: 3, minor: 7 },
-                CPython,
-                false,
-                false,
-                None,
-                false
-            )
-            .unwrap(),
-            "python3.7m",
-        );
         // Defaults to pythonX.Y for CPython 3.8+
         assert_eq!(
             super::default_lib_name_unix(
@@ -2759,11 +2813,11 @@ mod tests {
                 CPython,
                 false,
                 false,
-                Some("3.7md"),
+                Some("3.8d"),
                 false
             )
             .unwrap(),
-            "python3.7md",
+            "python3.8d",
         );
 
         // PyPy 3.11 includes ldversion
@@ -2896,65 +2950,50 @@ mod tests {
 
     #[test]
     fn interpreter_version_reduced_to_abi3() {
-        let mut config = InterpreterConfig {
-            abi3: true,
-            build_flags: BuildFlags::default(),
-            pointer_width: None,
-            executable: None,
-            implementation: PythonImplementation::CPython,
-            lib_dir: None,
-            lib_name: None,
-            shared: true,
-            version: PythonVersion { major: 3, minor: 7 },
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix: None,
-        };
+        let builder = InterpreterConfigBuilder::new(
+            PythonImplementation::CPython,
+            // Make this greater than the target abi3 version to reduce to below
+            PythonVersion::PY39,
+        )
+        .abi3(true);
+
+        let mut config = builder.finalize().unwrap();
 
         config
-            .fixup_for_abi3_version(Some(PythonVersion { major: 3, minor: 7 }))
+            .fixup_for_abi3_version(Some(PythonVersion::PY38))
             .unwrap();
-        assert_eq!(config.version, PythonVersion { major: 3, minor: 7 });
+        assert_eq!(config.version(), PythonVersion::PY38);
     }
 
     #[test]
     fn abi3_version_cannot_be_higher_than_interpreter() {
-        let mut config = InterpreterConfig {
-            abi3: true,
-            build_flags: BuildFlags::new(),
-            pointer_width: None,
-            executable: None,
-            implementation: PythonImplementation::CPython,
-            lib_dir: None,
-            lib_name: None,
-            shared: true,
-            version: PythonVersion { major: 3, minor: 7 },
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix: None,
-        };
+        let builder =
+            InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY38)
+                .abi3(true);
+
+        let mut config = builder.finalize().unwrap();
 
         assert!(config
-            .fixup_for_abi3_version(Some(PythonVersion { major: 3, minor: 8 }))
+            .fixup_for_abi3_version(Some(PythonVersion::PY39))
             .unwrap_err()
             .to_string()
             .contains(
-                "cannot set a minimum Python version 3.8 higher than the interpreter version 3.7"
+                "cannot set a minimum Python version 3.9 higher than the interpreter version 3.8"
             ));
     }
 
     #[test]
-    #[cfg(all(
-        target_os = "linux",
-        target_arch = "x86_64",
-        feature = "resolve-config"
-    ))]
+    #[cfg(all(target_os = "linux", target_arch = "x86_64",))]
     fn parse_sysconfigdata() {
         // A best effort attempt to get test coverage for the sysconfigdata parsing.
         // Might not complete successfully depending on host installation; that's ok as long as
         // CI demonstrates this path is covered!
 
-        let interpreter_config = crate::get();
+        let Ok(interpreter_config) = make_interpreter_config() else {
+            // Couldn't get an interpreter config, won't be able to test a matching sysconfigdata,
+            // never mind. (This is intended for coverage, don't mind if it fails if it doesn't run.)
+            return;
+        };
 
         let lib_dir = match &interpreter_config.lib_dir {
             Some(lib_dir) => Path::new(lib_dir),
@@ -2980,24 +3019,29 @@ mod tests {
             _ => return,
         };
         let sysconfigdata = super::parse_sysconfigdata(sysconfigdata_path).unwrap();
-        let parsed_config = InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap();
+        let mut parsed_config = InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap();
+
+        // Workaround case where empty `PYTHONFRAMEWORKPREFIX` is returned as empty string instead of None,
+        // which causes the assert_eq! below to fail.
+        //
+        // TODO: probably should deprecate using this variable at all, seemingly only used in `add_python_framework_link_args`
+        // which is probably a strictly worse version of `add_libpython_rpath_link_args`.
+        if parsed_config.python_framework_prefix.as_deref() == Some("") {
+            parsed_config.python_framework_prefix = None;
+        }
 
         assert_eq!(
             parsed_config,
-            InterpreterConfig {
-                abi3: false,
-                build_flags: BuildFlags(interpreter_config.build_flags.0.clone()),
-                pointer_width: Some(64),
-                executable: None,
-                implementation: PythonImplementation::CPython,
-                lib_dir: interpreter_config.lib_dir.to_owned(),
-                lib_name: interpreter_config.lib_name.to_owned(),
-                shared: true,
-                version: interpreter_config.version,
-                suppress_build_script_link_lines: false,
-                extra_build_script_lines: vec![],
-                python_framework_prefix: None,
-            }
+            InterpreterConfigBuilder::new(
+                interpreter_config.implementation,
+                interpreter_config.version,
+            )
+            .build_flags(interpreter_config.build_flags().clone())
+            .pointer_width(64)
+            .lib_dir(interpreter_config.lib_dir().map(str::to_owned))
+            .lib_name(interpreter_config.lib_name().map(str::to_owned))
+            .finalize()
+            .unwrap()
         )
     }
 
@@ -3116,27 +3160,14 @@ mod tests {
 
     #[test]
     fn test_build_script_outputs_base() {
-        let interpreter_config = InterpreterConfig {
-            implementation: PythonImplementation::CPython,
-            version: PythonVersion {
-                major: 3,
-                minor: 11,
-            },
-            shared: true,
-            abi3: false,
-            lib_name: Some("python3".into()),
-            lib_dir: None,
-            executable: None,
-            pointer_width: None,
-            build_flags: BuildFlags::default(),
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix: None,
-        };
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY311;
+        let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
+            .finalize()
+            .unwrap();
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_3_10".to_owned(),
@@ -3144,14 +3175,12 @@ mod tests {
             ]
         );
 
-        let interpreter_config = InterpreterConfig {
-            implementation: PythonImplementation::PyPy,
-            ..interpreter_config
-        };
+        let interpreter_config = InterpreterConfigBuilder::new(PythonImplementation::PyPy, version)
+            .finalize()
+            .unwrap();
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_3_10".to_owned(),
@@ -3163,39 +3192,29 @@ mod tests {
 
     #[test]
     fn test_build_script_outputs_abi3() {
-        let interpreter_config = InterpreterConfig {
-            implementation: PythonImplementation::CPython,
-            version: PythonVersion { major: 3, minor: 9 },
-            shared: true,
-            abi3: true,
-            lib_name: Some("python3".into()),
-            lib_dir: None,
-            executable: None,
-            pointer_width: None,
-            build_flags: BuildFlags::default(),
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix: None,
-        };
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY39;
+        let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
+            .abi3(true)
+            .finalize()
+            .unwrap();
 
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
             ]
         );
 
-        let interpreter_config = InterpreterConfig {
-            implementation: PythonImplementation::PyPy,
-            ..interpreter_config
-        };
+        let interpreter_config = InterpreterConfigBuilder::new(PythonImplementation::PyPy, version)
+            .abi3(true)
+            .finalize()
+            .unwrap();
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=PyPy".to_owned(),
@@ -3208,28 +3227,15 @@ mod tests {
     fn test_build_script_outputs_gil_disabled() {
         let mut build_flags = BuildFlags::default();
         build_flags.0.insert(BuildFlag::Py_GIL_DISABLED);
-        let interpreter_config = InterpreterConfig {
-            implementation: PythonImplementation::CPython,
-            version: PythonVersion {
-                major: 3,
-                minor: 13,
-            },
-            shared: true,
-            abi3: false,
-            lib_name: Some("python3".into()),
-            lib_dir: None,
-            executable: None,
-            pointer_width: None,
-            build_flags,
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix: None,
-        };
-
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY313;
+        let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
+            .build_flags(build_flags)
+            .finalize()
+            .unwrap();
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_7".to_owned(),
                 "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_3_10".to_owned(),
@@ -3245,25 +3251,16 @@ mod tests {
     fn test_build_script_outputs_debug() {
         let mut build_flags = BuildFlags::default();
         build_flags.0.insert(BuildFlag::Py_DEBUG);
-        let interpreter_config = InterpreterConfig {
-            implementation: PythonImplementation::CPython,
-            version: PythonVersion { major: 3, minor: 7 },
-            shared: true,
-            abi3: false,
-            lib_name: Some("python3".into()),
-            lib_dir: None,
-            executable: None,
-            pointer_width: None,
-            build_flags,
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix: None,
-        };
-
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY38;
+        let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
+            .build_flags(build_flags)
+            .finalize()
+            .unwrap();
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_7".to_owned(),
+                "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=py_sys_config=\"Py_DEBUG\"".to_owned(),
             ]
         );
@@ -3293,87 +3290,63 @@ mod tests {
     #[test]
     fn test_from_pyo3_config_file_env_rebuild() {
         READ_ENV_VARS.with(|vars| vars.borrow_mut().clear());
-        let _ = InterpreterConfig::from_pyo3_config_file_env();
+        let _ = InterpreterConfig::from_pyo3_config_file_env(&Triple::host());
         // it's possible that other env vars were also read, hence just checking for contains
         READ_ENV_VARS.with(|vars| assert!(vars.borrow().contains(&"PYO3_CONFIG_FILE".to_string())));
     }
 
     #[test]
-    fn test_apply_default_lib_name_to_config_file() {
-        let mut config = InterpreterConfig {
-            implementation: PythonImplementation::CPython,
-            version: PythonVersion { major: 3, minor: 9 },
-            shared: true,
-            abi3: false,
-            lib_name: None,
-            lib_dir: None,
-            executable: None,
-            pointer_width: None,
-            build_flags: BuildFlags::default(),
-            suppress_build_script_link_lines: false,
-            extra_build_script_lines: vec![],
-            python_framework_prefix: None,
+    fn test_default_lib_name_for_target() {
+        let cpython = PythonImplementation::CPython;
+        let pypy = PythonImplementation::PyPy;
+        let py39 = PythonVersion::PY39;
+        let py311 = PythonVersion {
+            major: 3,
+            minor: 11,
+        };
+        let py313 = PythonVersion {
+            major: 3,
+            minor: 13,
         };
 
         let unix = Triple::from_str("x86_64-unknown-linux-gnu").unwrap();
         let win_x64 = Triple::from_str("x86_64-pc-windows-msvc").unwrap();
         let win_arm64 = Triple::from_str("aarch64-pc-windows-msvc").unwrap();
 
-        config.apply_default_lib_name_to_config_file(&unix);
-        assert_eq!(config.lib_name, Some("python3.9".into()));
+        let lib_name = default_lib_name_for_target(py39, cpython, false, false, &unix);
+        assert_eq!(lib_name, "python3.9");
 
-        config.lib_name = None;
-        config.apply_default_lib_name_to_config_file(&win_x64);
-        assert_eq!(config.lib_name, Some("python39".into()));
+        let lib_name = default_lib_name_for_target(py39, cpython, false, false, &win_x64);
+        assert_eq!(lib_name, "python39");
 
-        config.lib_name = None;
-        config.apply_default_lib_name_to_config_file(&win_arm64);
-        assert_eq!(config.lib_name, Some("python39".into()));
+        let lib_name = default_lib_name_for_target(py39, cpython, false, false, &win_arm64);
+        assert_eq!(lib_name, "python39");
 
         // PyPy
-        config.implementation = PythonImplementation::PyPy;
-        config.version = PythonVersion {
-            major: 3,
-            minor: 11,
-        };
-        config.lib_name = None;
-        config.apply_default_lib_name_to_config_file(&unix);
-        assert_eq!(config.lib_name, Some("pypy3.11-c".into()));
+        let lib_name = default_lib_name_for_target(py311, pypy, false, false, &unix);
+        assert_eq!(lib_name, "pypy3.11-c");
 
-        config.implementation = PythonImplementation::CPython;
+        let lib_name = default_lib_name_for_target(py311, pypy, false, false, &win_x64);
+        assert_eq!(lib_name, "libpypy3.11-c");
 
         // Free-threaded
-        config.build_flags.0.insert(BuildFlag::Py_GIL_DISABLED);
-        config.version = PythonVersion {
-            major: 3,
-            minor: 13,
-        };
-        config.lib_name = None;
-        config.apply_default_lib_name_to_config_file(&unix);
-        assert_eq!(config.lib_name, Some("python3.13t".into()));
+        let lib_name = default_lib_name_for_target(py313, cpython, false, true, &unix);
+        assert_eq!(lib_name, "python3.13t");
 
-        config.lib_name = None;
-        config.apply_default_lib_name_to_config_file(&win_x64);
-        assert_eq!(config.lib_name, Some("python313t".into()));
+        let lib_name = default_lib_name_for_target(py313, cpython, false, true, &win_x64);
+        assert_eq!(lib_name, "python313t");
 
-        config.lib_name = None;
-        config.apply_default_lib_name_to_config_file(&win_arm64);
-        assert_eq!(config.lib_name, Some("python313t".into()));
-
-        config.build_flags.0.remove(&BuildFlag::Py_GIL_DISABLED);
+        let lib_name = default_lib_name_for_target(py313, cpython, false, true, &win_arm64);
+        assert_eq!(lib_name, "python313t");
 
         // abi3
-        config.abi3 = true;
-        config.lib_name = None;
-        config.apply_default_lib_name_to_config_file(&unix);
-        assert_eq!(config.lib_name, Some("python3.13".into()));
+        let lib_name = default_lib_name_for_target(py313, cpython, true, false, &unix);
+        assert_eq!(lib_name, "python3.13");
 
-        config.lib_name = None;
-        config.apply_default_lib_name_to_config_file(&win_x64);
-        assert_eq!(config.lib_name, Some("python3".into()));
+        let lib_name = default_lib_name_for_target(py313, cpython, true, false, &win_x64);
+        assert_eq!(lib_name, "python3");
 
-        config.lib_name = None;
-        config.apply_default_lib_name_to_config_file(&win_arm64);
-        assert_eq!(config.lib_name, Some("python3".into()));
+        let lib_name = default_lib_name_for_target(py313, cpython, true, false, &win_arm64);
+        assert_eq!(lib_name, "python3");
     }
 }

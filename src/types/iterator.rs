@@ -15,7 +15,6 @@ use crate::{ffi, Bound, Py, PyAny, PyErr, PyResult};
 ///
 /// ```rust
 /// use pyo3::prelude::*;
-/// use pyo3::ffi::c_str;
 ///
 /// # fn main() -> PyResult<()> {
 /// Python::attach(|py| -> PyResult<()> {
@@ -82,7 +81,7 @@ impl<'py> Bound<'py, PyIterator> {
     #[inline]
     pub fn send(&self, value: &Bound<'py, PyAny>) -> PyResult<PySendResult<'py>> {
         let py = self.py();
-        let mut result = std::ptr::null_mut();
+        let mut result = core::ptr::null_mut();
         match unsafe { ffi::PyIter_Send(self.as_ptr(), value.as_ptr(), &mut result) } {
             ffi::PySendResult::PYGEN_ERROR => Err(PyErr::fetch(py)),
             ffi::PySendResult::PYGEN_RETURN => Ok(PySendResult::Return(unsafe {
@@ -106,14 +105,14 @@ impl<'py> Iterator for Bound<'py, PyIterator> {
     /// to repeatedly result in the same exception.
     fn next(&mut self) -> Option<Self::Item> {
         let py = self.py();
-        let mut item = std::ptr::null_mut();
+        let mut item = core::ptr::null_mut();
 
         // SAFETY: `self` is a valid iterator object, `item` is a valid pointer to receive the next item
         match unsafe { ffi::compat::PyIter_NextItem(self.as_ptr(), &mut item) } {
-            std::ffi::c_int::MIN..=-1 => Some(Err(PyErr::fetch(py))),
+            core::ffi::c_int::MIN..=-1 => Some(Err(PyErr::fetch(py))),
             0 => None,
             // SAFETY: `item` is guaranteed to be a non-null strong reference
-            1..=std::ffi::c_int::MAX => Some(Ok(unsafe { item.assume_owned_unchecked(py) })),
+            1..=core::ffi::c_int::MAX => Some(Ok(unsafe { item.assume_owned_unchecked(py) })),
         }
     }
 
@@ -166,7 +165,7 @@ mod tests {
     #[cfg(all(not(PyPy), Py_3_10))]
     use crate::types::PyNone;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(feature = "macros")]
     use crate::PyErr;
     use crate::{IntoPyObject, PyTypeInfo, Python};
 
@@ -416,7 +415,7 @@ def fibonacci(target):
     }
 
     #[test]
-    #[cfg(all(feature = "macros", Py_3_8))]
+    #[cfg(feature = "macros")]
     fn length_hint_error() {
         #[crate::pyfunction(crate = "crate")]
         fn test_size_hint(obj: &crate::Bound<'_, crate::PyAny>, should_error: bool) {

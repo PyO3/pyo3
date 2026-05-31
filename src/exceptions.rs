@@ -10,8 +10,8 @@
 //! `BaseException`.
 
 use crate::{ffi, Bound, PyResult, Python};
-use std::ffi::CStr;
-use std::ops;
+use core::ffi::CStr;
+use core::ops;
 
 /// The boilerplate to convert between a Rust type and a Python exception.
 #[doc(hidden)]
@@ -26,7 +26,7 @@ macro_rules! impl_exception_boilerplate {
             #[allow(dead_code, reason = "user may not call this function")]
             pub fn new_err<A>(args: A) -> $crate::PyErr
             where
-                A: $crate::PyErrArguments + ::std::marker::Send + ::std::marker::Sync + 'static,
+                A: $crate::PyErrArguments + ::core::marker::Send + ::core::marker::Sync + 'static,
             {
                 $crate::PyErr::new::<$name, A>(args)
             }
@@ -82,7 +82,7 @@ macro_rules! import_exception {
             $name::type_object_raw,
             stringify!($name),
             stringify!($module),
-            #module=::std::option::Option::Some(stringify!($module))
+            #module=::core::option::Option::Some(stringify!($module))
         );
 
         impl $name {
@@ -93,15 +93,6 @@ macro_rules! import_exception {
                 TYPE_OBJECT.get(py).as_type_ptr()
             }
         }
-    };
-}
-
-/// Deprecated name for `import_exception!`.
-#[macro_export]
-#[deprecated(since = "0.27.0", note = "renamed to `import_exception!` instead")]
-macro_rules! import_exception_bound {
-    ($module: expr, $name: ident) => {
-        $crate::import_exception!($module, $name);
     };
 }
 
@@ -198,14 +189,14 @@ macro_rules! create_exception {
 #[macro_export]
 macro_rules! create_exception_type_object {
     ($module: expr, $name: ident, $base: ty, None) => {
-        $crate::create_exception_type_object!($module, $name, $base, ::std::option::Option::None);
+        $crate::create_exception_type_object!($module, $name, $base, ::core::option::Option::None);
     };
     ($module: expr, $name: ident, $base: ty, Some($doc: expr)) => {
         $crate::create_exception_type_object!(
             $module,
             $name,
             $base,
-            ::std::option::Option::Some($crate::ffi::c_str!($doc))
+            ::core::option::Option::Some($crate::ffi::c_str!($doc))
         );
     };
     ($module: expr, $name: ident, $base: ty, $doc: expr) => {
@@ -214,8 +205,8 @@ macro_rules! create_exception_type_object {
         // SAFETY: macro caller has upheld the safety contracts
         unsafe impl $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
-            const MODULE: ::std::option::Option<&'static str> =
-                ::std::option::Option::Some(stringify!($module));
+            const MODULE: ::core::option::Option<&'static str> =
+                ::core::option::Option::Some(stringify!($module));
             $crate::create_exception_type_hint!($module, $name);
 
             #[inline]
@@ -235,8 +226,8 @@ macro_rules! create_exception_type_object {
                                 stringify!($name)
                             )),
                             $doc,
-                            ::std::option::Option::Some(&py.get_type::<$base>()),
-                            ::std::option::Option::None,
+                            ::core::option::Option::Some(&py.get_type::<$base>()),
+                            ::core::option::Option::None,
                         )
                         .expect("Failed to initialize new exception type.")
                     })
@@ -762,7 +753,7 @@ impl PyUnicodeDecodeError {
     /// Python::attach(|py| {
     ///     let invalid_utf8 = b"fo\xd8o";
     /// #   #[expect(invalid_from_utf8)]
-    ///     let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
+    ///     let err = core::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
     ///     let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err)?;
     ///     assert_eq!(
     ///         decode_err.to_string(),
@@ -774,10 +765,40 @@ impl PyUnicodeDecodeError {
     pub fn new_utf8<'py>(
         py: Python<'py>,
         input: &[u8],
-        err: std::str::Utf8Error,
+        err: core::str::Utf8Error,
     ) -> PyResult<Bound<'py, PyUnicodeDecodeError>> {
-        let pos = err.valid_up_to();
-        PyUnicodeDecodeError::new(py, c"utf-8", input, pos..(pos + 1), c"invalid utf-8")
+        let start = err.valid_up_to();
+        let end = err.error_len().map_or(input.len(), |l| start + l);
+        PyUnicodeDecodeError::new(py, c"utf-8", input, start..end, c"invalid utf-8")
+    }
+
+    /// Create a new [`PyErr`](crate::PyErr) of this type from a Rust UTF-8 decoding error.
+    ///
+    /// This is equivalent to [`PyUnicodeDecodeError::new_utf8`], but returning a
+    /// [`PyErr`](crate::PyErr) instead of an exception object.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use pyo3::prelude::*;
+    /// use pyo3::exceptions::PyUnicodeDecodeError;
+    ///
+    /// Python::attach(|py| {
+    ///     let invalid_utf8 = b"fo\xd8o";
+    ///     # #[expect(invalid_from_utf8)]
+    ///     let err = core::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
+    ///     let py_err = PyUnicodeDecodeError::new_err_from_utf8(py, invalid_utf8, err);
+    /// })
+    /// ```
+    pub fn new_err_from_utf8(
+        py: Python<'_>,
+        bytes: &[u8],
+        err: core::str::Utf8Error,
+    ) -> crate::PyErr {
+        match Self::new_utf8(py, bytes, err) {
+            Ok(e) => crate::PyErr::from_value(e.into_any()),
+            Err(e) => e,
+        }
     }
 }
 
@@ -925,7 +946,7 @@ mod tests {
     use super::*;
     use crate::types::any::PyAnyMethods;
     use crate::types::{IntoPyDict, PyDict};
-    use crate::PyErr;
+    use crate::{IntoPyObjectExt as _, PyErr};
 
     import_exception!(socket, gaierror);
     import_exception!(email.errors, MessageError);
@@ -1118,7 +1139,7 @@ mod tests {
     fn unicode_decode_error() {
         let invalid_utf8 = b"fo\xd8o";
         #[expect(invalid_from_utf8)]
-        let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
+        let err = core::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
         Python::attach(|py| {
             let decode_err = PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err).unwrap();
             assert_eq!(
@@ -1175,7 +1196,7 @@ mod tests {
     test_exception!(PyUnicodeDecodeError, |py| {
         let invalid_utf8 = b"fo\xd8o";
         #[expect(invalid_from_utf8)]
-        let err = std::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
+        let err = core::str::from_utf8(invalid_utf8).expect_err("should be invalid utf8");
         PyErr::from_value(
             PyUnicodeDecodeError::new_utf8(py, invalid_utf8, err)
                 .unwrap()
@@ -1222,4 +1243,57 @@ mod tests {
     test_exception!(PyBytesWarning);
     #[cfg(Py_3_10)]
     test_exception!(PyEncodingWarning);
+
+    #[test]
+    #[allow(invalid_from_utf8)]
+    fn unicode_decode_error_from_utf8() {
+        Python::attach(|py| {
+            let bytes = b"abc\xffdef".to_vec();
+
+            let check_err = |py_err: PyErr| {
+                let py_err = py_err.into_bound_py_any(py).unwrap();
+
+                assert!(py_err.is_instance_of::<PyUnicodeDecodeError>());
+                assert_eq!(
+                    py_err
+                        .getattr("encoding")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    "utf-8"
+                );
+                assert_eq!(
+                    py_err
+                        .getattr("object")
+                        .unwrap()
+                        .extract::<Vec<u8>>()
+                        .unwrap(),
+                    &*bytes
+                );
+                assert_eq!(
+                    py_err.getattr("start").unwrap().extract::<usize>().unwrap(),
+                    3
+                );
+                assert_eq!(
+                    py_err.getattr("end").unwrap().extract::<usize>().unwrap(),
+                    4
+                );
+                assert_eq!(
+                    py_err
+                        .getattr("reason")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    "invalid utf-8"
+                );
+            };
+
+            let utf8_err_with_bytes = PyUnicodeDecodeError::new_err_from_utf8(
+                py,
+                &bytes,
+                core::str::from_utf8(&bytes).expect_err("\\xff is invalid utf-8"),
+            );
+            check_err(utf8_err_with_bytes);
+        })
+    }
 }

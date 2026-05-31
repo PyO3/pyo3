@@ -38,8 +38,8 @@ Just like in Python, the following constructs can be part of the signature::
 - `**kwargs`: "kwargs" receives keyword arguments.
   The type of the `kwargs` parameter has to be `Option<&Bound<'_, PyDict>>`.
 - `arg=Value`: arguments with default value.
-   If the `arg` argument is defined after var arguments, it is treated as a keyword-only argument.
-   Note that `Value` has to be valid rust code, PyO3 just inserts it into the generated code unmodified.
+  If the `arg` argument is defined after var arguments, it is treated as a keyword-only argument.
+  Note that `Value` has to be valid rust code, PyO3 just inserts it into the generated code unmodified.
 
 Example:
 
@@ -162,7 +162,6 @@ fn add(a: u64, b: u64) -> u64 {
 #             .call_method0("__str__")?
 #             .extract()?;
 #
-#         #[cfg(Py_3_8)]  // on 3.7 the signature doesn't render b, upstream bug?
 #         assert_eq!(sig, "(a, b=0, /)");
 #
 #         Ok(())
@@ -266,10 +265,9 @@ Type:      builtin_function_or_method
 
 ### Type annotations in the signature
 
-When the `experimental-inspect` Cargo feature is enabled, the `signature` attribute can also contain type hints:
+The `signature` attribute can also contain type hints:
 
 ```rust
-# #[cfg(feature = "experimental-inspect")] {
 use pyo3::prelude::*;
 
 #[pymodule]
@@ -282,21 +280,21 @@ pub mod example {
       arg
    }
 }
-# }
 ```
 
 It enables the [work-in-progress capacity of PyO3 to autogenerate type stubs](../type-stub.md) to generate a file with the correct type hints:
 
 ```python
-def list_of_int_identity(arg: list[int]) -> list[int]: ...
+def list_of_int_identity(arg: "list[int]") -> "list[int]": ...
 ```
 
 instead of the generic:
 
 ```python
-import typing
+from typing import Any
 
-def list_of_int_identity(arg: typing.Any) -> typing.Any: ...
+def list_of_int_identity(arg: Any) -> Any: ...
 ```
 
-Note that currently type annotations must be written as Rust strings.
+Note that currently type annotations must be written as strings.
+Future enhancements of PyO3's typing support may include the ability to parse a limited subset of Python's type expression syntax.

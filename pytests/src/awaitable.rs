@@ -44,6 +44,22 @@ pub mod awaitable {
                 _ => Ok(py.None()),
             }
         }
+
+        fn send(&mut self, value: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+            self.__next__(value.py())
+        }
+
+        #[pyo3(signature = (value, _a = None, _b = None))]
+        fn throw(
+            &mut self,
+            value: Bound<'_, PyAny>,
+            _a: Option<Bound<'_, PyAny>>,
+            _b: Option<Bound<'_, PyAny>>,
+        ) -> PyResult<Py<PyAny>> {
+            self.__next__(value.py())
+        }
+
+        fn close(&self) {}
     }
 
     #[pyclass]
@@ -80,5 +96,24 @@ pub mod awaitable {
                 _ => Ok(pyself),
             }
         }
+
+        fn send<'py>(
+            pyself: PyRefMut<'py, Self>,
+            _value: Bound<'py, PyAny>,
+        ) -> PyResult<PyRefMut<'py, Self>> {
+            Self::__next__(pyself)
+        }
+
+        #[pyo3(signature = (_value, _a = None, _b = None))]
+        fn throw<'py>(
+            pyself: PyRefMut<'py, Self>,
+            _value: Bound<'py, PyAny>,
+            _a: Option<Bound<'py, PyAny>>,
+            _b: Option<Bound<'py, PyAny>>,
+        ) -> PyResult<PyRefMut<'py, Self>> {
+            Self::__next__(pyself)
+        }
+
+        fn close(&self) {}
     }
 }

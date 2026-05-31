@@ -14,12 +14,12 @@ use syn::{parse_macro_input, Item};
 
 /// A proc macro used to implement Python modules.
 ///
-/// The name of the module will be taken from the function name, unless `#[pyo3(name = "my_name")]`
-/// is also annotated on the function to override the name. **Important**: the module name should
+/// The name of the module will be taken from the module name, unless `#[pyo3(name = "my_name")]`
+/// is also annotated on the module to override the name. **Important**: the module name should
 /// match the `lib.name` setting in `Cargo.toml`, so that Python is able to import the module
 /// without needing a custom import loader.
 ///
-/// Functions annotated with `#[pymodule]` can also be annotated with the following:
+/// Modules annotated with `#[pymodule]` can also be annotated with the following:
 ///
 /// |  Annotation  |  Description |
 /// | :-  | :- |
@@ -31,7 +31,8 @@ use syn::{parse_macro_input, Item};
 ///
 /// For more on creating Python modules see the [module section of the guide][1].
 ///
-/// Due to technical limitations on how `#[pymodule]` is implemented, a function marked
+/// It is also possible to use this macro on functions but this is a deprecated usage. In this case,
+/// due to technical limitations on how `#[pymodule]` is implemented, a function marked
 /// `#[pymodule]` cannot have a module with the same name in the same scope. (The
 /// `#[pymodule]` implementation generates a hidden module with the same name containing
 /// metadata about the module, which is used by `wrap_pymodule!`).

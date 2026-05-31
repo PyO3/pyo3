@@ -3,7 +3,7 @@ use crate::{
     types::{PyType, PyTypeMethods},
     Borrowed, Bound,
 };
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 impl Bound<'_, PyType> {
     #[inline]
@@ -104,7 +104,7 @@ macro_rules! impl_slots {
                         {
                             // Calling PyType_GetSlot on static types is not valid before Python 3.10
                             // ... so the workaround is to first do a runtime check for these versions
-                            // (3.7, 3.8, 3.9) and then look in the type object anyway. This is only ok
+                            // (3.8, 3.9) and then look in the type object anyway. This is only ok
                             // because we know that the interpreter is not going to change the size
                             // of the type objects for these historical versions.
                             if !is_runtime_3_10 && unsafe {ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE)} == 0
@@ -114,7 +114,7 @@ macro_rules! impl_slots {
                         }
 
                         // SAFETY: slot type is set carefully to be valid
-                        unsafe {std::mem::transmute(ffi::PyType_GetSlot(ty, ffi::$slot))}
+                        unsafe {core::mem::transmute(ffi::PyType_GetSlot(ty, ffi::$slot))}
                     }
                 }
             }
@@ -161,7 +161,7 @@ pub struct PyNumberMethods39Snapshot {
     pub nb_xor: Option<ffi::binaryfunc>,
     pub nb_or: Option<ffi::binaryfunc>,
     pub nb_int: Option<ffi::unaryfunc>,
-    pub nb_reserved: *mut std::ffi::c_void,
+    pub nb_reserved: *mut core::ffi::c_void,
     pub nb_float: Option<ffi::unaryfunc>,
     pub nb_inplace_add: Option<ffi::binaryfunc>,
     pub nb_inplace_subtract: Option<ffi::binaryfunc>,
@@ -189,9 +189,9 @@ pub struct PySequenceMethods39Snapshot {
     pub sq_concat: Option<ffi::binaryfunc>,
     pub sq_repeat: Option<ffi::ssizeargfunc>,
     pub sq_item: Option<ffi::ssizeargfunc>,
-    pub was_sq_slice: *mut std::ffi::c_void,
+    pub was_sq_slice: *mut core::ffi::c_void,
     pub sq_ass_item: Option<ffi::ssizeobjargproc>,
-    pub was_sq_ass_slice: *mut std::ffi::c_void,
+    pub was_sq_ass_slice: *mut core::ffi::c_void,
     pub sq_contains: Option<ffi::objobjproc>,
     pub sq_inplace_concat: Option<ffi::binaryfunc>,
     pub sq_inplace_repeat: Option<ffi::ssizeargfunc>,
@@ -217,11 +217,11 @@ pub struct PyAsyncMethods39Snapshot {
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
 pub struct PyBufferProcs39Snapshot {
     // not available in limited api, but structure needs to have the right size
-    pub bf_getbuffer: *mut std::ffi::c_void,
-    pub bf_releasebuffer: *mut std::ffi::c_void,
+    pub bf_getbuffer: *mut core::ffi::c_void,
+    pub bf_releasebuffer: *mut core::ffi::c_void,
 }
 
-/// Snapshot of the structure of PyTypeObject for Python 3.7 through 3.9.
+/// Snapshot of the structure of PyTypeObject for Python 3.8 through 3.9.
 ///
 /// This is used as a fallback for static types in abi3 when the Python version is less than 3.10;
 /// this is a bit of a hack but there's no better option and the structure of the type object is
@@ -230,13 +230,10 @@ pub struct PyBufferProcs39Snapshot {
 #[cfg(all(Py_LIMITED_API, not(Py_3_10)))]
 struct PyTypeObject39Snapshot {
     pub ob_base: ffi::PyVarObject,
-    pub tp_name: *const std::ffi::c_char,
+    pub tp_name: *const core::ffi::c_char,
     pub tp_basicsize: ffi::Py_ssize_t,
     pub tp_itemsize: ffi::Py_ssize_t,
     pub tp_dealloc: Option<ffi::destructor>,
-    #[cfg(not(Py_3_8))]
-    pub tp_print: *mut std::ffi::c_void, // stubbed out, not available in limited API
-    #[cfg(Py_3_8)]
     pub tp_vectorcall_offset: ffi::Py_ssize_t,
     pub tp_getattr: Option<ffi::getattrfunc>,
     pub tp_setattr: Option<ffi::setattrfunc>,
@@ -251,8 +248,8 @@ struct PyTypeObject39Snapshot {
     pub tp_getattro: Option<ffi::getattrofunc>,
     pub tp_setattro: Option<ffi::setattrofunc>,
     pub tp_as_buffer: *mut PyBufferProcs39Snapshot,
-    pub tp_flags: std::ffi::c_ulong,
-    pub tp_doc: *const std::ffi::c_char,
+    pub tp_flags: core::ffi::c_ulong,
+    pub tp_doc: *const core::ffi::c_char,
     pub tp_traverse: Option<ffi::traverseproc>,
     pub tp_clear: Option<ffi::inquiry>,
     pub tp_richcompare: Option<ffi::richcmpfunc>,
@@ -278,8 +275,7 @@ struct PyTypeObject39Snapshot {
     pub tp_subclasses: *mut ffi::PyObject,
     pub tp_weaklist: *mut ffi::PyObject,
     pub tp_del: Option<ffi::destructor>,
-    pub tp_version_tag: std::ffi::c_uint,
+    pub tp_version_tag: core::ffi::c_uint,
     pub tp_finalize: Option<ffi::destructor>,
-    #[cfg(Py_3_8)]
     pub tp_vectorcall: Option<ffi::vectorcallfunc>,
 }

@@ -1,3 +1,5 @@
+#![warn(clippy::undocumented_unsafe_blocks)]
+
 use crate::impl_::concat::slice_copy_from_slice;
 
 /// This is a reimplementation of the `indoc` crate's unindent functionality:
@@ -236,7 +238,7 @@ no indent
         const INDENTED: &str = SAMPLE_1_WITH_FIRST_LINE;
         const LEN: usize = INDENTED.len();
         let (unindented, unindented_size) = unindent_sized::<LEN>(INDENTED.as_bytes());
-        let unindented = std::str::from_utf8(&unindented[..unindented_size]).unwrap();
+        let unindented = core::str::from_utf8(&unindented[..unindented_size]).unwrap();
         assert_eq!(unindented, UNINDENTED_1);
     }
 

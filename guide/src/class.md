@@ -242,9 +242,10 @@ impl MyDict {
         // call the super types __init__
         PySuper::new(&PyDict::type_object(slf.py()), slf)?
             .call_method("__init__", args.to_owned(), kwargs)?;
-        // Note: if `MyDict` allows further subclassing, and this is called from such a subclass,
-        // then this will not that any overrides into account that such a subclass may have defined.
-        // In such a case it may be preferred to just call `slf.set_item` and let Python figure it out.
+        // Note: if `MyDict` allows further subclassing (i.e. uses the `#[pyclass(subclass)]` option), and
+        // this is called from such a subclass, then this will not respect any overrides that subclass may
+        // have defined. Accordingly if `MyDict` allows subclassing it may be preferred to just call
+        // `slf.set_item` and let Python resolve the correct subclass method.
         slf.as_super().set_item("my_key", "always insert this key")?;
         Ok(())
     }
@@ -886,7 +887,28 @@ impl MyClass {
 
 ## Class attributes
 
-To create a class attribute (also called [class variable][classattr]), a method without any arguments can be annotated with the `#[classattr]` attribute.
+To create a class attribute (also called [class variable][classattr]), an associated constant can be annotated with the `#[classattr]` attribute.
+
+```rust,no_run
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {}
+#[pymethods]
+impl MyClass {
+    #[classattr]
+    const MY_ATTRIBUTE: &'static str = "foobar";
+}
+#
+# Python::attach(|py| {
+#    let my_class = py.get_type::<MyClass>();
+#    pyo3::py_run!(py, my_class, "assert my_class.MY_ATTRIBUTE == 'foobar'")
+# });
+```
+
+If `const` code is too limiting, a method without any arguments can be annotated with the `#[classattr]` attribute.
+
+> [!NOTE]
+> Here too, the class attribute value is computed once during the class creation and not each time the attribute is accessed.
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -899,11 +921,11 @@ impl MyClass {
         "hello".to_string()
     }
 }
-
-Python::attach(|py| {
-    let my_class = py.get_type::<MyClass>();
-    pyo3::py_run!(py, my_class, "assert my_class.my_attribute == 'hello'")
-});
+#
+# Python::attach(|py| {
+#    let my_class = py.get_type::<MyClass>();
+#    pyo3::py_run!(py, my_class, "assert my_class.my_attribute == 'hello'")
+# });
 ```
 
 > [!NOTE]
@@ -912,19 +934,6 @@ class creation.
 
 > [!NOTE]
 > `#[classattr]` does not work with [`#[pyo3(warn(...))]`](./function.md#warn) attribute.
-
-If the class attribute is defined with `const` code only, one can also annotate associated constants:
-
-```rust,no_run
-# use pyo3::prelude::*;
-# #[pyclass]
-# struct MyClass {}
-#[pymethods]
-impl MyClass {
-    #[classattr]
-    const MY_CONST_ATTRIBUTE: &'static str = "foobar";
-}
-```
 
 ## Classes as function arguments
 

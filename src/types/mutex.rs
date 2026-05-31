@@ -1,13 +1,13 @@
-use std::cell::UnsafeCell;
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
+use core::cell::UnsafeCell;
+use core::marker::PhantomData;
+use core::ops::{Deref, DerefMut};
 #[cfg(panic = "unwind")]
-use std::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{LockResult, PoisonError};
 #[cfg(panic = "unwind")]
 use std::thread;
 
-// See std::sync::poison in the rust standard library.
+// See core::sync::poison in the rust standard library.
 // This is more-or-less copied from there since it is not public.
 // this type detects a panic and poisons the wrapping mutex
 struct Flag {
@@ -158,7 +158,7 @@ unsafe impl<T: ?Sized + Send> Send for PyMutex<T> {}
 /// Also note that it is not necessary for `T` to be `Sync` as `&T` is only made available
 /// to one thread at a time if `T` is not `Sync`.
 ///
-/// [`Rc`]: std::rc::Rc
+/// [`Rc`]: alloc::rc::Rc
 unsafe impl<T: ?Sized + Send> Sync for PyMutex<T> {}
 
 impl<T> PyMutex<T> {
@@ -271,10 +271,11 @@ impl<'a, T> DerefMut for PyMutexGuard<'a, T> {
 #[cfg(test)]
 mod tests {
     #[cfg(not(target_arch = "wasm32"))]
-    use std::sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Barrier,
-    };
+    use alloc::sync::Arc;
+    #[cfg(not(target_arch = "wasm32"))]
+    use core::sync::atomic::{AtomicBool, Ordering};
+    #[cfg(not(target_arch = "wasm32"))]
+    use std::sync::Barrier;
 
     use super::*;
     #[cfg(not(target_arch = "wasm32"))]
@@ -352,7 +353,7 @@ mod tests {
                         // the other thread isn't blocked on acquiring the mutex yet.
                         // If PyMutex had a try_lock implementation this would be
                         // unnecessary
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        std::thread::sleep(core::time::Duration::from_millis(10));
                         // block (and hold the mutex) until the receiver actually receives something
                         barrier.wait();
                         finished.store(true, Ordering::SeqCst);
@@ -363,7 +364,7 @@ mod tests {
 
             s.spawn(|| {
                 while !first_thread_locked_once.load(Ordering::SeqCst) {
-                    std::hint::spin_loop();
+                    core::hint::spin_loop();
                 }
                 second_thread_locked_once.store(true, Ordering::SeqCst);
                 let guard = mutex.lock();

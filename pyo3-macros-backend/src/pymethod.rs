@@ -16,8 +16,8 @@ use crate::{
 use crate::{quotes, utils};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
+use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, Field, Ident, Result};
-use syn::{parse_quote, LitCStr};
 
 /// Generated code for a single pymethod item.
 pub struct MethodAndMethodDef {
@@ -207,6 +207,24 @@ impl<'a> PyMethod<'a> {
             method_name,
             spec,
         })
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    pub fn is_returning_not_implemented_on_extraction_error(&self) -> bool {
+        match &self.kind {
+            PyMethodKind::Fn => false,
+            PyMethodKind::Proto(proto) => match proto {
+                PyMethodProtoKind::Slot(slot) => {
+                    matches!(slot.extract_error_mode, ExtractErrorMode::NotImplemented)
+                }
+                PyMethodProtoKind::SlotFragment(slot) => {
+                    matches!(slot.extract_error_mode, ExtractErrorMode::NotImplemented)
+                }
+                PyMethodProtoKind::Call
+                | PyMethodProtoKind::Traverse
+                | PyMethodProtoKind::Clear => false,
+            },
+        }
     }
 }
 
@@ -404,10 +422,11 @@ fn impl_traverse_slot(
     }
 
     // check that the receiver does not try to smuggle an (implicit) `Python` token into here
-    if let FnType::Fn(SelfType::TryFromBoundRef(span))
+    if let FnType::Fn(SelfType::TryFromBoundRef { span, .. })
     | FnType::Fn(SelfType::Receiver {
         mutable: true,
         span,
+        ..
     }) = spec.tp
     {
         bail_spanned! { span =>
@@ -590,6 +609,7 @@ pub fn impl_py_setter_def(
             let slf = SelfType::Receiver {
                 mutable: true,
                 span: Span::call_site(),
+                non_null: true,
             }
             .receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
             if let Some(ident) = &field.ident {
@@ -698,11 +718,11 @@ pub fn impl_py_setter_def(
         #cfg_attrs
         unsafe fn #wrapper_ident(
             py: #pyo3_path::Python<'_>,
-            _slf: *mut #pyo3_path::ffi::PyObject,
-            _value: *mut #pyo3_path::ffi::PyObject,
+            _slf: ::std::ptr::NonNull<#pyo3_path::ffi::PyObject>,
+            _value: ::std::ptr::NonNull<#pyo3_path::ffi::PyObject>,
         ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
             use ::std::convert::Into;
-            let _value = #pyo3_path::impl_::extract_argument::cast_function_argument(py, _value);
+            let _value = #pyo3_path::impl_::extract_argument::cast_non_null_function_argument(py, _value);
             #init_holders
             #extract
             #warnings
@@ -832,7 +852,7 @@ pub fn impl_py_getter_def(
                 #cfg_attrs
                 unsafe fn #wrapper_ident(
                     py: #pyo3_path::Python<'_>,
-                    _slf: *mut #pyo3_path::ffi::PyObject
+                    _slf: ::std::ptr::NonNull<#pyo3_path::ffi::PyObject>
                 ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                     #init_holders
                     #warnings
@@ -879,7 +899,7 @@ pub fn impl_py_deleter_def(
     let associated_method = quote! {
         unsafe fn #wrapper_ident(
             py: #pyo3_path::Python<'_>,
-            _slf: *mut #pyo3_path::ffi::PyObject,
+            _slf: ::std::ptr::NonNull<#pyo3_path::ffi::PyObject>,
         ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
             #init_holders
             #warnings
@@ -1034,7 +1054,7 @@ const __IAND__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_and");
 const __IXOR__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_xor");
 const __IOR__: SlotDef = SlotDef::binary_inplace_operator("Py_nb_inplace_or");
 
-const __IPOW__: SlotDef = SlotDef::new("Py_nb_inplace_power", "ipowfunc")
+const __IPOW__: SlotDef = SlotDef::new("Py_nb_inplace_power", "ternaryfunc")
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .return_self();
 
@@ -1048,7 +1068,6 @@ enum Ty {
     Object,
     MaybeNullObject,
     NonNullObject,
-    IPowModulo,
     CompareOp,
     Int,
     PyHashT,
@@ -1067,7 +1086,6 @@ impl Ty {
         match self {
             Ty::Object | Ty::MaybeNullObject => quote! { *mut #pyo3_path::ffi::PyObject },
             Ty::NonNullObject => quote! { ::std::ptr::NonNull<#pyo3_path::ffi::PyObject> },
-            Ty::IPowModulo => quote! { #pyo3_path::impl_::pymethods::IPowModulo },
             Ty::Int | Ty::CompareOp => quote! { ::std::ffi::c_int },
             Ty::PyHashT => quote! { #pyo3_path::ffi::Py_hash_t },
             Ty::PySsizeT => quote! { #pyo3_path::ffi::Py_ssize_t },
@@ -1117,15 +1135,6 @@ impl Ty {
                 REF_FROM_NON_NULL,
                 CAST_NON_NULL_FUNCTION_ARGUMENT,
                 quote! { #ident },
-                ctx
-            ),
-            Ty::IPowModulo => extract_object(
-                extract_error_mode,
-                holders,
-                arg,
-                REF_FROM_PTR,
-                CAST_FUNCTION_ARGUMENT,
-                quote! { #ident.as_ptr() },
                 ctx
             ),
             Ty::CompareOp => extract_error_mode.handle_error(
@@ -1180,7 +1189,7 @@ fn extract_object(
 
         quote! {
             #pyo3_path::impl_::extract_argument::from_py_with(
-                unsafe { #pyo3_path::impl_::pymethods::BoundRef::#ref_from_method(py, &#source_ptr).0 },
+                unsafe { #pyo3_path::Bound::#ref_from_method(py, &#source_ptr) },
                 #name,
                 #extractor,
             )
@@ -1297,8 +1306,8 @@ impl SlotDef {
                 SlotCallingConvention::FixedArguments(&[Ty::PyBuffer]),
                 Ty::Void,
             ),
-            b"ipowfunc" => (
-                SlotCallingConvention::FixedArguments(&[Ty::Object, Ty::IPowModulo]),
+            b"ternaryfunc" => (
+                SlotCallingConvention::FixedArguments(&[Ty::Object, Ty::Object]),
                 Ty::Object,
             ),
             _ => panic!("don't know calling convention for func_ty"),
@@ -1464,23 +1473,25 @@ fn generate_method_body(
                 }
             });
 
-            let output = if let syn::ReturnType::Type(_, ty) = &spec.output {
-                ty
-            } else {
-                &parse_quote!(())
+            let py = syn::Ident::new("py", Span::call_site());
+            let initializer = syn::Ident::new("initializer", Span::call_site());
+            let slf = syn::Ident::new("_slf", Span::call_site());
+
+            // Having just this call emitted at the span of the return value helps surface errors
+            // if the user passed an invalid return type.
+            let conversion = quote_spanned! { *output_span =>
+                #pyo3_path::impl_::pymethods::tp_new_impl::<_, #cls>(#py, #initializer, #slf)
             };
+
             let body = quote! {
                 #text_signature_impl
-
-                use #pyo3_path::impl_::pyclass::Probe as _;
                 #warnings
                 #arg_convert
+
                 let result = #call;
-                #pyo3_path::impl_::pymethods::tp_new_impl::<
-                    _,
-                    { #pyo3_path::impl_::pyclass::IsPyClass::<#output>::VALUE },
-                    { #pyo3_path::impl_::pyclass::IsInitializerTuple::<#output>::VALUE }
-                >(py, result, _slf)
+                let value = #pyo3_path::impl_::wrap::OkWrapper::new(&result).ok_wrap(result)?;
+                let #initializer = #pyo3_path::impl_::pymethods::tp_new_resolver::<#cls, _>(&value).resolve(value);
+                unsafe { #conversion }
             };
             (arg_idents, arg_types, body)
         }

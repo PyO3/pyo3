@@ -1,26 +1,32 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::ffi::{c_char, c_int};
-use std::ptr::addr_of_mut;
+use core::ffi::{c_char, c_int};
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+#[cfg(not(RustPython))]
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyBytes_Type")]
     pub static mut PyBytes_Type: PyTypeObject;
     pub static mut PyBytesIter_Type: PyTypeObject;
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyBytes_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_BYTES_SUBCLASS)
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyBytes_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == addr_of_mut!(PyBytes_Type)) as c_int
+    Py_IS_TYPE(op, &raw mut PyBytes_Type)
 }
 
-extern "C" {
+extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyBytes_Check(op: *mut PyObject) -> c_int;
+    #[cfg(RustPython)]
+    pub fn PyBytes_CheckExact(op: *mut PyObject) -> c_int;
+
     #[cfg_attr(PyPy, link_name = "PyPyBytes_FromStringAndSize")]
     pub fn PyBytes_FromStringAndSize(arg1: *const c_char, arg2: Py_ssize_t) -> *mut PyObject;
     pub fn PyBytes_FromString(arg1: *const c_char) -> *mut PyObject;

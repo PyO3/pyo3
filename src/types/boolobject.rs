@@ -1,8 +1,6 @@
 use super::any::PyAnyMethods;
 use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::types::TypeInfo;
-#[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
@@ -11,8 +9,10 @@ use crate::{
     exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
     types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, Python,
 };
-use std::convert::Infallible;
-use std::ptr;
+#[cfg(RustPython)]
+use crate::{sync::PyOnceLock, types::PyType, Py};
+use core::convert::Infallible;
+use core::ptr;
 
 /// Represents a Python `bool`.
 ///
@@ -24,7 +24,21 @@ use std::ptr;
 #[repr(transparent)]
 pub struct PyBool(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type!(PyBool, ffi::PyObject, pyobject_native_static_type_object!(ffi::PyBool_Type), "builtins", "bool", #checkfunction=ffi::PyBool_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type!(
+    PyBool,
+    ffi::PyObject,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "bool").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "bool",
+    #checkfunction=ffi::PyBool_Check
+);
 
 impl PyBool {
     /// Depending on `val`, returns `true` or `false`.
@@ -153,11 +167,6 @@ impl<'py> IntoPyObject<'py> for bool {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyBool::new(py, self))
     }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("bool")
-    }
 }
 
 impl<'py> IntoPyObject<'py> for &bool {
@@ -171,11 +180,6 @@ impl<'py> IntoPyObject<'py> for &bool {
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         (*self).into_pyobject(py)
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_output() -> TypeInfo {
-        TypeInfo::builtin("bool")
     }
 }
 
@@ -239,11 +243,6 @@ impl FromPyObject<'_, '_> for bool {
         }
 
         Err(err.into())
-    }
-
-    #[cfg(feature = "experimental-inspect")]
-    fn type_input() -> TypeInfo {
-        Self::type_output()
     }
 }
 

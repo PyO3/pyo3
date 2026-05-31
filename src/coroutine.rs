@@ -1,10 +1,10 @@
 //! Python coroutine implementation, used notably when wrapping `async fn`
 //! with `#[pyfunction]`/`#[pymethods]`.
-use std::{
+use alloc::sync::Arc;
+use core::{
     future::Future,
     panic,
     pin::Pin,
-    sync::Arc,
     task::{Context, Poll, Waker},
 };
 
@@ -90,7 +90,7 @@ impl Coroutine {
         // poll the Rust future and forward its results if ready
         // polling is UnwindSafe because the future is dropped in case of panic
         let poll = || future_rs.as_mut().poll(&mut Context::from_waker(&waker));
-        match panic::catch_unwind(panic::AssertUnwindSafe(poll)) {
+        match std::panic::catch_unwind(panic::AssertUnwindSafe(poll)) {
             Ok(Poll::Ready(res)) => {
                 self.close();
                 return Err(PyStopIteration::new_err((res?,)));
