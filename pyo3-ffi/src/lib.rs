@@ -377,7 +377,13 @@
 // original CPython headers
 #![allow(unsafe_op_in_unsafe_fn)]
 
-#[cfg(all(Py_3_12, py_sys_config = "Py_REF_DEBUG"))]
+#[cfg(all(
+    Py_3_12,
+    py_sys_config = "Py_REF_DEBUG",
+    not(Py_GIL_DISABLED),
+    not(Py_LIMITED_API),
+    not(GraalPy),
+))]
 extern crate alloc;
 #[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
 extern crate std;
