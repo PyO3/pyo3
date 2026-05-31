@@ -7,10 +7,10 @@ use std::sync::atomic::AtomicPtr;
 
 #[pyfunction]
 fn invalid_pyfunction_argument(arg: AtomicPtr<()>) {
-    //~^ ERROR: `AtomicPtr<()>` cannot be used as a Python function argument
-    //~| ERROR: `AtomicPtr<()>` cannot be used as a Python function argument
-    //~| ERROR: `AtomicPtr<()>` cannot be used as a Python function argument
-    //~[inspect]| ERROR: `AtomicPtr<()>` cannot be used as a Python function argument
+    //~^ ERROR: `Atomic<*mut ()>` cannot be used as a Python function argument
+    //~| ERROR: `Atomic<*mut ()>` cannot be used as a Python function argument
+    //~| ERROR: `Atomic<*mut ()>` cannot be used as a Python function argument
+    //~[inspect]| ERROR: `Atomic<*mut ()>` cannot be used as a Python function argument
     let _ = arg;
 }
 

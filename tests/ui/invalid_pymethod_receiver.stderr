@@ -4,12 +4,13 @@ error[E0277]: the trait bound `i32: TryFrom<&pyo3::Bound<'_, MyClass>>` is not s
 8 |     fn method_with_invalid_self_type(_slf: i32, _py: Python<'_>, _index: u32) {}
   |                                            ^^^ the trait `From<&pyo3::Bound<'_, MyClass>>` is not implemented for `i32`
   |
-  = help: the following other types implement trait `From<T>`:
-            `i32` implements `From<bool>`
-            `i32` implements `From<i16>`
-            `i32` implements `From<i8>`
-            `i32` implements `From<u16>`
-            `i32` implements `From<u8>`
+  = help: `i32` implements trait `From<T>`:
+            From<bool>
+            From<deranged::RangedI32<MIN, MAX>>
+            From<i16>
+            From<i8>
+            From<u16>
+            From<u8>
   = note: required for `&pyo3::Bound<'_, MyClass>` to implement `Into<i32>`
   = note: required for `i32` to implement `TryFrom<&pyo3::Bound<'_, MyClass>>`
 

@@ -174,7 +174,6 @@ error[E0277]: the trait bound `StructFromPyObjectNoClone: Clone` is not satisfie
 236 | #[pyclass(from_py_object)]
     |           ^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `StructFromPyObjectNoClone`
     |
-    = help: see issue #48214
 help: consider annotating `StructFromPyObjectNoClone` with `#[derive(Clone)]`
     |
 238 + #[derive(Clone)]

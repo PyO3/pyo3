@@ -46,13 +46,14 @@ error[E0277]: the trait bound `&str: From<&pyo3::Bound<'_, pyo3::types::PyModule
 40 |     _string: &str,
    |              ^ the trait `From<&pyo3::Bound<'_, pyo3::types::PyModule>>` is not implemented for `&str`
    |
-   = help: the following other types implement trait `From<T>`:
-             `String` implements `From<&String>`
-             `String` implements `From<&mut str>`
-             `String` implements `From<&str>`
-             `String` implements `From<Box<str>>`
-             `String` implements `From<Cow<'_, str>>`
-             `String` implements `From<char>`
+   = help: `String` implements trait `From<T>`:
+             From<&String>
+             From<&mut str>
+             From<&str>
+             From<Box<str>>
+             From<Cow<'_, str>>
+             From<char>
+             From<uuid::Uuid>
    = note: required for `&pyo3::Bound<'_, pyo3::types::PyModule>` to implement `Into<&str>`
 
 error: aborting due to 8 previous errors
