@@ -6,7 +6,6 @@ error[E0277]: the trait bound `i32: TryFrom<&pyo3::Bound<'_, MyClass>>` is not s
   |
   = help: `i32` implements trait `From<T>`:
             From<bool>
-            From<deranged::RangedI32<MIN, MAX>>
             From<i16>
             From<i8>
             From<u16>

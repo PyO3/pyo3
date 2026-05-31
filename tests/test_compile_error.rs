@@ -155,15 +155,13 @@ fn main() {
         // Some trait implementations which are only emitted with certain
         // features enabled
         (
-            Regex::new(r"\n[ \t]*`i32` implements `From<deranged::RangedI32<MIN, MAX>>`")
+            Regex::new(r"\n[ \t]*From<deranged::RangedI32<MIN, MAX>>")
                 .unwrap()
                 .into(),
             Vec::new(),
         ),
         (
-            Regex::new(r"\n[ \t]*`String` implements `From<uuid::Uuid>`")
-                .unwrap()
-                .into(),
+            Regex::new(r"\n[ \t]*From<uuid::Uuid>").unwrap().into(),
             Vec::new(),
         ),
     ]);
