@@ -31,31 +31,36 @@ fn hammer_attaching_in_thread() -> LockHolder {
     LockHolder { sender }
 }
 
-// This exercises the py.detach() → reattach path during interpreter shutdown.
-// The spawned thread attaches, releases the GIL via detach(), then blocks until the
-// LockHolder is dropped during finalization. When the block returns, SuspendAttach::drop()
-// calls PyEval_RestoreThread() on a finalizing interpreter.
+// Returns true once the interpreter has begun finalizing.
+// _Py_IsFinalizing() is the private exported function on Python < 3.13.
+// Py_IsFinalizing() is public and exported on Python 3.13+ (where _Py_IsFinalizing was removed).
+// Both are safe to call without the GIL — they read an atomic variable.
+// PyO3 correctly only exports it on 3.13+ but for this unit test we can access the
+// older private version directly.
+fn is_finalizing() -> bool {
+    #[cfg(not(Py_3_13))]
+    {
+        extern "C" {
+            fn _Py_IsFinalizing() -> std::ffi::c_int;
+        }
+        unsafe { _Py_IsFinalizing() != 0 }
+    }
+    #[cfg(Py_3_13)]
+    {
+        unsafe { pyo3::ffi::Py_IsFinalizing() != 0 }
+    }
+}
+
+// Called from a Python daemon thread. Releases the GIL and polls Py_IsFinalizing().
+// When finalization begins, exits the closure, triggering SuspendAttach::drop()
+// → PyEval_RestoreThread() on a finalizing interpreter.
 #[pyfunction]
-fn detach_then_reattach_in_thread(py: Python<'_>) -> LockHolder {
-    let (sender, receiver) = std::sync::mpsc::channel::<()>();
-    let (ready_tx, ready_rx) = std::sync::mpsc::channel::<()>();
-    std::thread::spawn(move || {
-        Python::attach(move |py| {
-            py.detach(move || {
-                // Signal that we're inside detach (GIL released) and blocked.
-                ready_tx.send(()).ok();
-                // Block until sender is dropped (during interpreter finalization).
-                // When this returns, SuspendAttach::drop() calls PyEval_RestoreThread().
-                receiver.recv().ok();
-            });
-        });
+fn block_in_detach_until_finalizing(py: Python<'_>) {
+    py.detach(|| {
+        while !is_finalizing() {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
     });
-    // Release the GIL while waiting to avoid deadlocking the spawned thread's
-    // Python::attach() call, which needs the GIL to proceed.
-    py.detach(move || {
-        ready_rx.recv().ok();
-    });
-    LockHolder { sender }
 }
 
 #[pyfunction]
@@ -85,7 +90,7 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
 pub mod misc {
     #[pymodule_export]
     use super::{
-        accepts_bool, detach_then_reattach_in_thread, get_item_and_run_callback,
+        accepts_bool, block_in_detach_until_finalizing, get_item_and_run_callback,
         get_type_fully_qualified_name, hammer_attaching_in_thread, issue_219,
     };
 }
