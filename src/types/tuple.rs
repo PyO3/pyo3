@@ -426,37 +426,35 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
     #[inline]
     #[cfg(not(feature = "nightly"))]
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        let target_index = self.index + n;
-        if target_index < self.length {
-            // SAFETY: target_index < self.length
-            let item = unsafe { self.tuple.get_item_unchecked(target_index) };
-            self.index = target_index + 1;
-            Some(item)
-        } else {
-            None
+        if let Some(target_index) = self.index.checked_add(n) {
+            if target_index < self.length {
+                // SAFETY: target_index < self.length
+                let item = unsafe { self.tuple.get_item_unchecked(target_index) };
+                // +1 cannot overflow as target_index < self.length
+                self.index = target_index + 1;
+                return Some(item);
+            }
         }
+
+        // n overflows the remaining length of the tuple;
+        // nth must exhaust all remaining items
+        self.index = self.length;
+        None
     }
 
     #[inline]
     #[cfg(feature = "nightly")]
     fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
-        if self.index >= self.length {
-            if n == 0 {
-                return Ok(());
-            } else {
-                return Err(unsafe { NonZero::new_unchecked(n) });
-            }
+        let items_left = self.length.saturating_sub(self.index);
+        if let Some(overflow) = NonZero::new(n.saturating_sub(items_left)) {
+            // n overflows the remaining length of the tuple; advance_by must exhaust all remaining items
+            self.index = self.length;
+            return Err(overflow);
         }
 
-        let items_left = self.length - self.index;
-        if n <= items_left {
-            self.index += n;
-            Ok(())
-        } else {
-            self.index = self.length;
-            let remainder = n - items_left;
-            Err(unsafe { NonZero::new_unchecked(remainder) })
-        }
+        // cannot overflow as self.length - self.index >= n
+        self.index += n;
+        Ok(())
     }
 }
 
@@ -477,37 +475,36 @@ impl DoubleEndedIterator for BoundTupleIterator<'_> {
     #[inline]
     #[cfg(not(feature = "nightly"))]
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        if self.index + n < self.length {
-            let target_index = self.length - n - 1;
-            // SAFETY: target_index < self.length
-            let item = unsafe { self.tuple.get_item_unchecked(target_index) };
-            self.length = target_index;
-            Some(item)
-        } else {
-            None
+        if let Some(index_after_item) = self.length.checked_sub(n) {
+            if self.index < index_after_item {
+                // -1 cannot underflow as index_after_item > self.index
+                let target_index = index_after_item - 1;
+                // SAFETY: target_index < self.length
+                let item = unsafe { self.tuple.get_item_unchecked(target_index) };
+                self.length = target_index;
+                return Some(item.to_owned());
+            }
         }
+
+        // n overflows the remaining length of the tuple;
+        // nth must exhaust all remaining items
+        self.length = self.index;
+        None
     }
 
     #[inline]
     #[cfg(feature = "nightly")]
     fn advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
-        if self.index >= self.length {
-            if n == 0 {
-                return Ok(());
-            } else {
-                return Err(unsafe { NonZero::new_unchecked(n) });
-            }
+        let items_left = self.length.saturating_sub(self.index);
+        if let Some(overflow) = NonZero::new(n.saturating_sub(items_left)) {
+            // n overflows the remaining length of the tuple; advance_back_by must exhaust all remaining items
+            self.length = self.index;
+            return Err(overflow);
         }
 
-        let items_left = self.length - self.index;
-        if n <= items_left {
-            self.length -= n;
-            Ok(())
-        } else {
-            self.length = self.index;
-            let remainder = n - items_left;
-            Err(unsafe { NonZero::new_unchecked(remainder) })
-        }
+        // cannot overflow as self.length - self.index >= n
+        self.length -= n;
+        Ok(())
     }
 }
 
@@ -1663,6 +1660,19 @@ mod tests {
             assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 9);
             assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 8);
             assert!(iter.next().is_none());
+
+            // nth consumes all elements in the tuple, even on `None` return
+            let mut iter = tuple.iter();
+            assert!(iter.nth(100).is_none());
+            assert!(iter.next().is_none());
+            assert!(iter.next_back().is_none());
+
+            // nth should not overflow the iterator
+            // a naive implementation of nth will overflow if number of advanced
+            // elements plus N overflows usize::MAX
+            let mut iter = tuple.iter();
+            assert!(iter.next().is_some());
+            assert!(iter.nth(usize::MAX).is_none());
         });
     }
 
@@ -1705,6 +1715,17 @@ mod tests {
             iter3.nth(1);
             assert_eq!(iter3.nth_back(2).unwrap().extract::<i32>().unwrap(), 3);
             assert!(iter3.nth_back(0).is_none());
+
+            // nth_back consumes all elements in the tuple, even on `None` return
+            let mut iter4 = tuple.iter();
+            assert!(iter4.nth_back(100).is_none());
+            assert!(iter4.next_back().is_none());
+            assert!(iter4.next().is_none());
+
+            // nth_back should not overflow with usize::MAX
+            let mut iter5 = tuple.iter();
+            iter5.nth(1); //
+            assert!(iter5.nth_back(usize::MAX).is_none());
         });
     }
 
@@ -1730,6 +1751,19 @@ mod tests {
             let mut iter4 = tuple.iter();
             assert_eq!(iter4.advance_by(0), Ok(()));
             assert_eq!(iter4.next().unwrap().extract::<i32>().unwrap(), 1);
+
+            // advance_by should not overflow with usize::MAX
+            // - first advance will overflow by MAX - len, and will exhaust the iterator
+            // - second advance will overflow by MAX
+            let mut iter5 = tuple.iter();
+            assert_eq!(
+                iter5.advance_by(usize::MAX),
+                Err(NonZero::new(usize::MAX - tuple.len()).unwrap())
+            );
+            assert_eq!(
+                iter5.advance_by(usize::MAX),
+                Err(NonZero::new(usize::MAX).unwrap())
+            );
         })
     }
 
@@ -1755,6 +1789,19 @@ mod tests {
             let mut iter4 = tuple.iter();
             assert_eq!(iter4.advance_back_by(0), Ok(()));
             assert_eq!(iter4.next_back().unwrap().extract::<i32>().unwrap(), 5);
+
+            // advance_back_by should not overflow with usize::MAX
+            // - first advance will overflow by MAX - len, and will exhaust the iterator
+            // - second advance will overflow by MAX
+            let mut iter5 = tuple.iter();
+            assert_eq!(
+                iter5.advance_back_by(usize::MAX),
+                Err(NonZero::new(usize::MAX - tuple.len()).unwrap())
+            );
+            assert_eq!(
+                iter5.advance_back_by(usize::MAX),
+                Err(NonZero::new(usize::MAX).unwrap())
+            );
         })
     }
 
