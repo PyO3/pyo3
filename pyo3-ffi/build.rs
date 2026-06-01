@@ -252,7 +252,7 @@ fn configure_pyo3_ffi() -> Result<()> {
     print_feature_cfgs();
 
     // Make `cargo test` etc work with non-system Python installations
-    print_libpython_rpath_link_args(&target, &interpreter_config);
+    print_libpython_rpath_link_args(&target, interpreter_config);
 
     Ok(())
 }
