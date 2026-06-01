@@ -31,6 +31,33 @@ fn hammer_attaching_in_thread() -> LockHolder {
     LockHolder { sender }
 }
 
+// This exercises the py.detach() → reattach path during interpreter shutdown.
+// The spawned thread attaches, releases the GIL via detach(), then blocks until the
+// LockHolder is dropped during finalization. When the block returns, SuspendAttach::drop()
+// calls PyEval_RestoreThread() on a finalizing interpreter.
+#[pyfunction]
+fn detach_then_reattach_in_thread(py: Python<'_>) -> LockHolder {
+    let (sender, receiver) = std::sync::mpsc::channel::<()>();
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel::<()>();
+    std::thread::spawn(move || {
+        Python::attach(move |py| {
+            py.detach(move || {
+                // Signal that we're inside detach (GIL released) and blocked.
+                ready_tx.send(()).ok();
+                // Block until sender is dropped (during interpreter finalization).
+                // When this returns, SuspendAttach::drop() calls PyEval_RestoreThread().
+                receiver.recv().ok();
+            });
+        });
+    });
+    // Release the GIL while waiting to avoid deadlocking the spawned thread's
+    // Python::attach() call, which needs the GIL to proceed.
+    py.detach(move || {
+        ready_rx.recv().ok();
+    });
+    LockHolder { sender }
+}
+
 #[pyfunction]
 fn get_type_fully_qualified_name<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyString>> {
     obj.get_type().fully_qualified_name()
@@ -58,7 +85,7 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
 pub mod misc {
     #[pymodule_export]
     use super::{
-        accepts_bool, get_item_and_run_callback, get_type_fully_qualified_name,
-        hammer_attaching_in_thread, issue_219,
+        accepts_bool, detach_then_reattach_in_thread, get_item_and_run_callback,
+        get_type_fully_qualified_name, hammer_attaching_in_thread, issue_219,
     };
 }

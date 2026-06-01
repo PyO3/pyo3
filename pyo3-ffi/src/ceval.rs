@@ -107,8 +107,6 @@ extern_libpython! {
 
     #[cfg_attr(PyPy, link_name = "PyPyEval_SaveThread")]
     pub fn PyEval_SaveThread() -> *mut PyThreadState;
-    #[cfg_attr(PyPy, link_name = "PyPyEval_RestoreThread")]
-    pub fn PyEval_RestoreThread(arg1: *mut PyThreadState);
 
     #[cfg(not(Py_3_13))]
     #[cfg_attr(PyPy, link_name = "PyPyEval_ThreadsInitialized")]
@@ -137,6 +135,45 @@ extern_libpython! {
     pub fn PyEval_AcquireThread(tstate: *mut PyThreadState);
     #[cfg_attr(PyPy, link_name = "PyPyEval_ReleaseThread")]
     pub fn PyEval_ReleaseThread(tstate: *mut PyThreadState);
+}
+
+// PyEval_RestoreThread calls take_gil, which calls pthread_exit on non-main threads
+// during interpreter finalization on Python < 3.14. Wrap it the same way as
+// PyGILState_Ensure in pystate.rs: use "C-unwind" ABI so the forced unwind propagates
+// to our destructor, then hang the thread instead of letting the unwind cross Rust frames.
+// See https://github.com/rust-lang/rust/issues/135929
+#[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
+mod raw {
+    use crate::pytypedefs::PyThreadState;
+    extern_libpython! { "C-unwind" {
+        #[cfg_attr(PyPy, link_name = "PyPyEval_RestoreThread")]
+        pub fn PyEval_RestoreThread(tstate: *mut PyThreadState);
+    }}
+}
+
+#[cfg(any(Py_3_14, target_arch = "wasm32"))]
+extern_libpython! {
+    #[cfg_attr(PyPy, link_name = "PyPyEval_RestoreThread")]
+    pub fn PyEval_RestoreThread(tstate: *mut PyThreadState);
+}
+
+#[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
+struct HangThread;
+
+#[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
+impl Drop for HangThread {
+    fn drop(&mut self) {
+        loop {
+            std::thread::park();
+        }
+    }
+}
+
+#[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
+pub unsafe extern "C" fn PyEval_RestoreThread(tstate: *mut PyThreadState) {
+    let guard = HangThread;
+    raw::PyEval_RestoreThread(tstate);
+    core::mem::forget(guard);
 }
 
 // skipped Py_BEGIN_ALLOW_THREADS
