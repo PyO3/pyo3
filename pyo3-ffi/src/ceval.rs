@@ -138,10 +138,11 @@ extern_libpython! {
 }
 
 // PyEval_RestoreThread calls take_gil, which calls pthread_exit on non-main threads
-// during interpreter finalization on Python < 3.14. Wrap it the same way as
-// PyGILState_Ensure in pystate.rs: use "C-unwind" ABI so the forced unwind propagates
-// to our destructor, then hang the thread instead of letting the unwind cross Rust frames.
+// during interpreter finalization on Python < 3.14. Redirect to the "safe" version that hangs instead,
+// as Python 3.14 does.
 // See https://github.com/rust-lang/rust/issues/135929
+// C-unwind only supported (and necessary) since 1.71. Python 3.14+ does not do
+// pthread_exit from PyEval_RestoreThread (https://github.com/python/cpython/issues/87135).
 #[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
 mod raw {
     use crate::pytypedefs::PyThreadState;
@@ -171,6 +172,7 @@ impl Drop for HangThread {
 
 #[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
 pub unsafe extern "C" fn PyEval_RestoreThread(tstate: *mut PyThreadState) {
+    // Same note as in PyGILState_Ensure
     let guard = HangThread;
     raw::PyEval_RestoreThread(tstate);
     core::mem::forget(guard);
