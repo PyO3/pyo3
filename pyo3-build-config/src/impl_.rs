@@ -940,9 +940,14 @@ impl PythonAbiBuilder {
 
     pub fn finalize(self) -> Result<PythonAbi> {
         // default to GIL-enabled version-specific ABI
-        let kind = self
-            .kind
-            .unwrap_or(PythonAbiKind::VersionSpecific(GilUsed::GilEnabled));
+        let kind = self.kind.unwrap_or_else(|| match self.implementation {
+            PythonImplementation::RustPython => PythonAbiKind::Stable(StableAbi::Abi3),
+            _ => PythonAbiKind::VersionSpecific(GilUsed::GilEnabled),
+        });
+        if matches!(self.implementation, PythonImplementation::RustPython) {
+            ensure!(matches!(kind, PythonAbiKind::Stable(StableAbi::Abi3)),
+                    "RustPython only supports targeting abi3, it does not allow targeting other Python ABIs. Currently targeting '{kind}'")
+        }
         if matches!(kind, PythonAbiKind::VersionSpecific(GilUsed::FreeThreaded))
             && self.version
                 < (PythonVersion {
@@ -3543,6 +3548,16 @@ mod tests {
         assert!("CPython-free_threaded-invalid"
             .parse::<PythonAbi>()
             .is_err());
+
+        let builder = PythonAbiBuilder::new(PythonImplementation::RustPython, PythonVersion::PY315)
+            .free_threaded();
+        let res = builder.finalize();
+
+        assert!(res.is_err());
+        assert!(res
+            .unwrap_err()
+            .to_string()
+            .contains("RustPython only supports targeting abi3"));
     }
 
     #[test]
