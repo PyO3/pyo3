@@ -511,6 +511,7 @@ impl PyTypeBuilder {
             let mut slots = [
                 ffi::PySlot_DATA(ffi::Py_tp_name, class_name.as_ptr() as *mut c_void),
                 ffi::PySlot_SIZE(ffi::Py_tp_basicsize, basicsize),
+                ffi::PySlot_SIZE(ffi::Py_tp_itemsize, 0),
                 ffi::PySlot_UINT64(ffi::Py_tp_flags, flags.into()),
                 ffi::PySlot_DATA(ffi::Py_tp_slots, self.slots.as_mut_ptr().cast::<c_void>()),
                 ffi::PySlot_END(),
