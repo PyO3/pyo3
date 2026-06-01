@@ -86,8 +86,8 @@ fn main() {
 
         fn check_compatible<U: Any>(
             symbol: &str,
-            pyo3_ffi_type: &ReturnTypeSniffer<T>,
-            bindgen_type: &ReturnTypeSniffer<U>,
+            _pyo3_ffi_type: &ReturnTypeSniffer<T>,
+            _bindgen_type: &ReturnTypeSniffer<U>,
         ) -> bool {
             let mut compatible = true;
             if std::mem::size_of::<T>() != std::mem::size_of::<U>() {
