@@ -136,6 +136,17 @@ def test_rust(session: nox.Session):
         # so that it can be used in the test code
         # (e.g. for `#[cfg(feature = "abi3-py38")]`)
         _run_cargo_test(session, features=feature_set, extra_flags=flags)
+
+        if feature_set is not None and "full" in feature_set:
+            # UI tests can have different output depending on features enabled, but
+            # need at least the macros feature, so "downgrade" full to macros to
+            # capture this divergent output
+            _run_cargo_test(
+                session,
+                features=feature_set.replace("full", "macros"),
+                extra_flags=[*extra_flags, "--test", "test_compile_error"],
+            )
+
         if (
             feature_set
             and "abi3" in feature_set
@@ -1053,11 +1064,15 @@ def check_test_features(session: nox.Session) -> None:
     all_test_names = sorted(expected_tests.keys() | declared_tests.keys())
 
     for test in all_test_names:
+        declared = declared_tests.get(test, {})
+
         if (expected := expected_tests.get(test)) is None:
-            errors.append(f"Remove [[test]] entry for {test!r} from Cargo.toml")
+            if declared.get("harness", True):
+                # `test_compile_error` (e.g.) has a custom `main`, this lint can't currently
+                # handle that.
+                errors.append(f"Remove [[test]] entry for {test!r} from Cargo.toml")
             continue
 
-        declared = declared_tests.get(test, {})
         declared_features = declared.get("required-features", [])
 
         if set(declared_features) != set(expected):
@@ -1100,6 +1115,8 @@ _IGNORE_CHANGELOG_PR_CATEGORIES = (
     "release",
     "docs",
     "ci",
+    "internal",
+    "refactor",
 )
 
 
@@ -1138,7 +1155,7 @@ def check_changelog(session: nox.Session):
     if not fragments:
         session.error(
             "Changelog entry not found, please add one (or more) to the `newsfragments` directory.\n"
-            "Alternatively, start the PR title with `docs:` if this PR is a docs-only PR.\n"
+            "Alternatively, start the PR title with `docs:`, `refactor`, or `internal` if applicable.\n"
             "See https://github.com/PyO3/pyo3/blob/main/Contributing.md#documenting-changes for more information."
         )
 
@@ -1208,7 +1225,13 @@ def set_msrv_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    _run_cargo(session, "run", _FFI_CHECK, "--message-format=short")
+    extra_args = []
+    # This flag can be useful for debugging ffi-check errors, but overall the
+    # short message format is easier to read
+    if "--long-message-format" not in session.posargs:
+        extra_args.append("--message-format=short")
+
+    _run_cargo(session, "run", _FFI_CHECK, *extra_args)
     _check_raw_dylib_macro(session)
 
 
@@ -1598,9 +1621,9 @@ def check_feature_powerset(session: nox.Session):
 @nox.session(name="update-ui-tests", venv_backend="none")
 def update_ui_tests(session: nox.Session):
     env = os.environ.copy()
-    env["TRYBUILD"] = "overwrite"
-    command = ["test", "--test", "test_compile_error"]
-    _run_cargo(session, *command, env=env)
+    env["UI_TEST"] = "bless"
+    command = ["test", "--test", "test_compile_error", "--no-default-features"]
+    _run_cargo(session, *command, "--features=macros", env=env)
     _run_cargo(session, *command, "--features=full", env=env)
     _run_cargo(session, *command, "--features=abi3,full", env=env)
 

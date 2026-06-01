@@ -377,7 +377,7 @@
 // original CPython headers
 #![allow(unsafe_op_in_unsafe_fn)]
 
-#[cfg(all(Py_3_12, py_sys_config = "Py_REF_DEBUG"))]
+#[cfg(not(PyPy))]
 extern crate alloc;
 #[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
 extern crate std;
@@ -389,7 +389,10 @@ macro_rules! opaque_struct {
     ($(#[$attrs:meta])* $pub:vis $name:ident) => {
         $(#[$attrs])*
         #[repr(C)]
-        $pub struct $name([u8; 0]);
+        $pub struct $name {
+            _data: (),
+            _marker: core::marker::PhantomData<(*mut u8, core::marker::PhantomPinned)>,
+        }
     };
 }
 
@@ -600,8 +603,8 @@ mod weakrefobject;
 pub mod structmember;
 
 // "Limited API" definitions matching Python's `include/cpython` directory.
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, RustPython)))]
 mod cpython;
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, RustPython)))]
 pub use self::cpython::*;

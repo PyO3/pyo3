@@ -1,0 +1,10 @@
+[package]
+name = "pyo3_ui_tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pyo3 = { version = "0.28.2", default-features = false, path = "../../../" }
+
+[features]
+macros = ["pyo3/macros"]

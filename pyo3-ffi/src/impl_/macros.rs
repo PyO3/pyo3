@@ -57,30 +57,6 @@ macro_rules! extern_libpython_maybe_private_fn {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
     };
     (
-        [_PyEval_EvalFrameDefault]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyEval_RequestCodeExtraIndex]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyCode_GetExtra]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyCode_SetExtra]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
         [_PyLong_AsByteArray]
         $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
@@ -93,24 +69,6 @@ macro_rules! extern_libpython_maybe_private_fn {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
     };
     (
-        [_PyObject_GC_Calloc]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyObject_GC_Malloc]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_Py_GetAllocatedBlocks]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
         [_PyUnicode_Ready]
         $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
@@ -118,12 +76,6 @@ macro_rules! extern_libpython_maybe_private_fn {
     };
     (
         [_PyUnicode_ToDecimalDigit]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyLong_NumBits]
         $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
@@ -160,12 +112,6 @@ macro_rules! extern_libpython_maybe_private_fn {
     };
     (
         [_PyObject_NewVar]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyErr_BadInternalCall]
         $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
@@ -208,6 +154,12 @@ macro_rules! extern_libpython_maybe_private_fn {
     };
     (
         [_Py_NegativeRefcount]
+        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
+    ) => {
+        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
+    };
+    (
+        [_PyErr_BadInternalCall]
         $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }

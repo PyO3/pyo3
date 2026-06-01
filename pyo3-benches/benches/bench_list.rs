@@ -3,6 +3,7 @@ use std::hint::black_box;
 use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
 
 use pyo3::prelude::*;
+use pyo3::sync::critical_section::with_critical_section;
 use pyo3::types::{PyList, PySequence};
 
 fn iter_list(b: &mut Bencher<'_>) {
@@ -65,18 +66,20 @@ fn list_nth_back(b: &mut Bencher<'_>) {
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
 fn list_get_item_unchecked(b: &mut Bencher<'_>) {
     Python::attach(|py| {
         const LEN: usize = 50_000;
         let list = PyList::new(py, 0..LEN).unwrap();
         let mut sum = 0;
-        b.iter(|| {
-            for i in 0..LEN {
-                unsafe {
-                    sum += list.get_item_unchecked(i).extract::<usize>().unwrap();
+        with_critical_section(&list, || {
+            b.iter(|| {
+                for i in 0..LEN {
+                    // SAFETY: `i` is always in bounds and a critical section is held
+                    sum += unsafe { list.get_item_unchecked(i) }
+                        .extract::<usize>()
+                        .unwrap();
                 }
-            }
+            });
         });
     });
 }
@@ -95,7 +98,6 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("list_nth", list_nth);
     c.bench_function("list_nth_back", list_nth_back);
     c.bench_function("list_get_item", list_get_item);
-    #[cfg(not(Py_LIMITED_API))]
     c.bench_function("list_get_item_unchecked", list_get_item_unchecked);
     c.bench_function("sequence_from_list", sequence_from_list);
 }
