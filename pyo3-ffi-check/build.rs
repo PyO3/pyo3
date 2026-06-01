@@ -10,7 +10,13 @@ fn main() {
     // write docs into the build script output directory, they will be read
     // by the proc macro to resolve what definitions exist
     let status = std::process::Command::new("cargo")
-        .args(["doc", "-p", "pyo3-ffi-check-definitions", "--no-deps"])
+        .args([
+            "doc",
+            "-p",
+            "pyo3-ffi-check-definitions",
+            "--no-deps",
+            "--document-private-items",
+        ])
         .env("CARGO_TARGET_DIR", out_dir)
         // forward target to the doc buid to ensure `--target` is honored
         .env("CARGO_BUILD_TARGET", target)
