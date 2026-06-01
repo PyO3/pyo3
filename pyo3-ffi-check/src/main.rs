@@ -1,4 +1,4 @@
-use std::{ffi::CStr, process::exit};
+use std::{any::Any, ffi::CStr, process::exit};
 
 use pyo3_ffi_check_definitions::{bindgen as bindings, pyo3_ffi};
 
@@ -71,20 +71,107 @@ fn main() {
 
     pyo3_ffi_check_macro::for_all_structs!(check_struct);
 
-    // This macro attempts to check that both functions exist and have the same number of arguments, it is
-    // difficult to check the argument types match.
+    struct ReturnTypeSniffer<T> {
+        _marker: std::marker::PhantomData<T>,
+    }
+
+    impl<T: Any> ReturnTypeSniffer<T> {
+        /// Uses type inference of return value from a closure to sniff return type `T` without needing
+        /// to ever call the function.
+        fn new(_: impl FnOnce() -> T) -> Self {
+            Self {
+                _marker: std::marker::PhantomData,
+            }
+        }
+
+        fn check_compatible<U: Any>(
+            symbol: &str,
+            pyo3_ffi_type: &ReturnTypeSniffer<T>,
+            bindgen_type: &ReturnTypeSniffer<U>,
+        ) -> bool {
+            let mut compatible = true;
+            if std::mem::size_of::<T>() != std::mem::size_of::<U>() {
+                compatible = false;
+                println!(
+                    "error: {symbol} return type size differs (pyo3-ffi type is {}, bindgen type is {})",
+                    std::any::type_name::<T>(),
+                    std::any::type_name::<U>(),
+                );
+            }
+
+            if std::mem::align_of::<T>() != std::mem::align_of::<U>() {
+                compatible = false;
+                println!(
+                    "error: {symbol} return type alignment differs (pyo3-ffi type is is {}, bindgen type is {})",
+                    std::any::type_name::<T>(),
+                    std::any::type_name::<U>(),
+                );
+            }
+            compatible
+        }
+    }
+
+    /// tt muncher macro replacing arg types with `todo!()` to
+    /// allow to sniff return type
+    macro_rules! todo_args {
+        // entry point
+        (($f:expr)($($args:tt)*)) => {
+            todo_args!(@[($f)()] $($args)*)
+        };
+        // terminate when no more args
+        (@[($f:expr)($($inferred:tt)*)]) => {
+            // allow not expect because args might be empty
+            #[allow(unreachable_code, reason = "args are todo!()")]
+            ($f)($($inferred)*)
+        };
+        // consume comma
+        (@[($f:expr)($($inferred:tt)*)] , $($args:tt)*) => {
+            todo_args!(@[($f)($($inferred)* ,)] $($args)*)
+        };
+        // consume `_`
+        (@[($f:expr)($($inferred:tt)*)] _ $($args:tt)*) => {
+            todo_args!(@[($f)($($inferred)* todo!())] $($args)*)
+        };
+        // consume trailing `...`
+        (@[($f:expr)($($inferred:tt)*)] ...) => {
+            todo_args!(@[($f)($($inferred)*)])
+        };
+    }
+
     macro_rules! check_function {
-        ($name:ident, [$($modifiers:tt)*] ($($arg_types:tt)*) $(-> $($retval:tt)*)?) => {{
+        ($name:ident, [$($modifiers:tt)*] ($($arg_types:tt)*)) => {{
+            // Check functions have the same number of arguments
             #[allow(deprecated)]
-            { pyo3_ffi::$name as $($modifiers)* fn($($arg_types)*) $(-> $($retval)*)? };
-            bindings::$name as $($modifiers)* fn($($arg_types)*) $(-> $($retval)*)?;
+            { pyo3_ffi::$name as $($modifiers)* fn($($arg_types)*) -> _ };
+            bindings::$name as $($modifiers)* fn($($arg_types)*) -> _;
+
+            // TODO: can probably sniff arg types by binding sniffers for each argument position and then passing
+            // those inside `todo_args!` to use type inference for each argument.
+
+            // Check return types are compatible
+            #[allow(deprecated)]
+            let pyo3_ffi_return_type = ReturnTypeSniffer::new(|| unsafe { todo_args!((pyo3_ffi::$name)($($arg_types)*)) });
+            let bindgen_return_type = ReturnTypeSniffer::new(|| unsafe { todo_args!((bindings::$name)($($arg_types)*)) });
+
+            failed |= !ReturnTypeSniffer::check_compatible(stringify!($name), &pyo3_ffi_return_type, &bindgen_return_type);
         }};
         // case when the function is an inline function in the headers, in which case pyo3-ffi will use the
         // Rust abi and the extern symbol uses the C abi
-        (@inline $name:ident, ($($arg_types:tt)*) $(-> $($retval:tt)*)?) => {{
+        (@inline $name:ident, ($($arg_types:tt)*)) => {{
+            // Check functions have the same number of arguments
             #[allow(deprecated)]
-            { pyo3_ffi::$name as unsafe fn($($arg_types)*) $(-> $($retval)*)? };
-            bindings::$name as unsafe extern "C" fn($($arg_types)*) $(-> $($retval)*)?;
+            { pyo3_ffi::$name as unsafe fn($($arg_types)*) -> _ };
+            bindings::$name as unsafe extern "C" fn($($arg_types)*) -> _;
+
+            // TODO: can probably sniff arg types by binding sniffers for each argument position and then passing
+            // those inside `todo_args!` to use type inference for each argument.
+
+            // Check return types are compatible
+            #[allow(deprecated)]
+            let pyo3_ffi_return_type = ReturnTypeSniffer::new(|| unsafe { todo_args!((pyo3_ffi::$name)($($arg_types)*)) });
+            let bindgen_return_type = ReturnTypeSniffer::new(|| unsafe { todo_args!((bindings::$name)($($arg_types)*)) });
+
+            failed |= !ReturnTypeSniffer::check_compatible(stringify!($name), &pyo3_ffi_return_type, &bindgen_return_type);
         }};
     }
 
