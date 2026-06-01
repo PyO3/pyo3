@@ -58,7 +58,7 @@ fn is_finalizing() -> bool {
 fn block_in_detach_until_finalizing(py: Python<'_>) {
     py.detach(|| {
         while !is_finalizing() {
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            std::thread::sleep(std::time::Duration::from_millis(1));
         }
     });
 }
