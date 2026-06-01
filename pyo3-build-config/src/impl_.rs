@@ -940,7 +940,7 @@ impl PythonAbiBuilder {
 
     pub fn finalize(self) -> Result<PythonAbi> {
         // default to GIL-enabled version-specific ABI
-        let kind = self.kind.unwrap_or_else(|| match self.implementation {
+        let kind = self.kind.unwrap_or(match self.implementation {
             PythonImplementation::RustPython => PythonAbiKind::Stable(StableAbi::Abi3),
             _ => PythonAbiKind::VersionSpecific(GilUsed::GilEnabled),
         });
