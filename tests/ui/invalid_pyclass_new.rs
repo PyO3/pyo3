@@ -9,6 +9,7 @@ struct Invalid;
 impl InvalidNewReturn {
     #[new]
     fn new() -> Invalid {
+        //~^ ERROR: `Invalid` cannot be used as the return value for `#[new]` methods
         Invalid
     }
 }
