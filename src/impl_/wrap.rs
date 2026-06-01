@@ -23,6 +23,34 @@ impl<T> SomeWrap<T> for Option<T> {
     }
 }
 
+pub struct OkWrapper<T>(OkWrapperInner<T>);
+pub struct OkWrapperInner<T>(PhantomData<T>);
+
+impl<T> OkWrapper<T> {
+    pub fn new(_: &T) -> Self {
+        Self(OkWrapperInner(PhantomData))
+    }
+}
+
+impl<T> Deref for OkWrapper<T> {
+    type Target = OkWrapperInner<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T, E> OkWrapper<Result<T, E>> {
+    pub fn ok_wrap(&self, value: Result<T, E>) -> Result<T, E> {
+        value
+    }
+}
+
+impl<T> OkWrapperInner<T> {
+    pub fn ok_wrap(&self, value: T) -> Result<T, Infallible> {
+        Ok(value)
+    }
+}
+
 // Hierarchy of conversions used in the function return type machinery
 pub struct Converter<T>(EmptyTupleConverter<T>);
 pub struct EmptyTupleConverter<T>(IntoPyObjectConverter<T>);
@@ -154,5 +182,16 @@ mod tests {
 
         let b: Option<u8> = SomeWrap::wrap(None);
         assert_eq!(b, None);
+    }
+
+    #[test]
+    fn wrap_result() {
+        let a = 42;
+        let Ok(a) = OkWrapper::new(&a).ok_wrap(a);
+        assert_eq!(a, 42);
+
+        let b = Result::<_, String>::Ok(42);
+        let b = OkWrapper::new(&b).ok_wrap(b);
+        assert_eq!(b, Ok(42));
     }
 }

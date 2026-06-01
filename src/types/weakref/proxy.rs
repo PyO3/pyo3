@@ -23,8 +23,6 @@ pyobject_native_type_named!(PyWeakrefProxy);
 // pyobject_native_type_sized!(PyWeakrefProxy, ffi::PyWeakReference);
 
 unsafe impl PyTypeCheck for PyWeakrefProxy {
-    const NAME: &'static str = "weakref.ProxyTypes";
-
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_union!(
         type_hint_identifier!("weakref", "ProxyType"),

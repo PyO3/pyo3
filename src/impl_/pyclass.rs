@@ -5,9 +5,9 @@ use crate::{
     impl_::{
         freelist::PyObjectFreeList,
         pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout},
-        pyclass_init::PyObjectInit,
         pymethods::{PyGetterDef, PyMethodDefType},
     },
+    internal::pyclass_init::PyObjectInit,
     pycell::{impl_::PyClassObjectLayout, PyBorrowError},
     types::{any::PyAnyMethods, PyBool},
     Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
@@ -925,8 +925,8 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
         let mut free_list = T::get_free_list(py).lock().unwrap();
         if let Some(obj) = free_list.pop() {
             drop(free_list);
-            unsafe { ffi::PyObject_Init(obj, subtype) };
-            return obj as _;
+            unsafe { ffi::PyObject_Init(obj.as_ptr(), subtype) };
+            return obj.as_ptr() as _;
         }
     }
 
@@ -939,16 +939,18 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
 /// - `obj` must be a valid pointer to an instance of T (not a subclass).
 /// - The calling thread must be attached to the interpreter
 pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_void) {
-    let obj = obj as *mut ffi::PyObject;
+    let Some(obj) = NonNull::new(obj.cast()) else {
+        return;
+    };
     unsafe {
         debug_assert_eq!(
             T::type_object_raw(Python::assume_attached()),
-            ffi::Py_TYPE(obj)
+            ffi::Py_TYPE(obj.as_ptr())
         );
         let mut free_list = T::get_free_list(Python::assume_attached()).lock().unwrap();
         if let Some(obj) = free_list.insert(obj) {
             drop(free_list);
-            let ty = ffi::Py_TYPE(obj);
+            let ty = ffi::Py_TYPE(obj.as_ptr());
 
             // Deduce appropriate inverse of PyType_GenericAlloc
             let free = if ffi::PyType_IS_GC(ty) != 0 {
@@ -956,7 +958,7 @@ pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_
             } else {
                 ffi::PyObject_Free
             };
-            free(obj as *mut c_void);
+            free(obj.as_ptr().cast());
 
             if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
                 ffi::Py_DECREF(ty as *mut ffi::PyObject);
@@ -1086,6 +1088,10 @@ impl<T> PyClassThreadChecker<T> for ThreadCheckerImpl {
     diagnostic::on_unimplemented(
         note = "subclassing native types requires Python >= 3.12 when using the `abi3` feature",
     )
+)]
+#[expect(
+    private_bounds,
+    reason = "`PyObjectInit` is an internal trait implementation"
 )]
 pub trait PyClassBaseType: Sized {
     type LayoutAsBase: PyClassObjectBaseLayout<Self>;
