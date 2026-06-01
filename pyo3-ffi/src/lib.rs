@@ -603,8 +603,8 @@ mod weakrefobject;
 pub mod structmember;
 
 // "Limited API" definitions matching Python's `include/cpython` directory.
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, RustPython)))]
 mod cpython;
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(not(any(Py_LIMITED_API, RustPython)))]
 pub use self::cpython::*;

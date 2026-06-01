@@ -36,9 +36,8 @@ pyobject_native_type!(
 );
 
 #[cfg(RustPython)]
-pyobject_native_type!(
+pyobject_native_type_core!(
     PyDict,
-    ffi::PyDictObject,
     |py| {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "builtins", "dict").unwrap().as_type_ptr()
