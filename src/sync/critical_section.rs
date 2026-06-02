@@ -215,6 +215,14 @@ where
 /// [`pyo3::sync::critical_section`][crate::sync::critical_section] module documentation for more
 /// details.
 ///
+/// Rather than receiving the wrapped data directly, access is gated via the
+/// [`pyo3::sync::critical_section::EnteredCriticalSection`](crate::sync::critical_section::EnteredCriticalSection)
+/// struct. Note that `f` receives an `EnteredCriticalSection<'s, T1>` for the
+/// data protected by `m1` but an `Option<EnteredCriticalSectio<'s, T2>>` for
+/// the data protected by `m2`. If `m1` and `m2` are the same object, then the
+/// Option will contain `None`, otherwise it contains a wrapper for the data
+/// protected by `m2`.
+///
 /// This is structurally equivalent to the use of the paired
 /// Py_BEGIN_CRITICAL_SECTION2_MUTEX and Py_END_CRITICAL_SECTION2 C-API macros.
 ///
@@ -236,28 +244,20 @@ pub fn with_critical_section_mutex2<F, R, T1, T2>(
     f: F,
 ) -> R
 where
-    F: for<'s> FnOnce(EnteredCriticalSection<'s, T1>, EnteredCriticalSection<'s, T2>) -> R,
+    F: for<'s> FnOnce(EnteredCriticalSection<'s, T1>, Option<EnteredCriticalSection<'s, T2>>) -> R,
 {
     #[cfg(Py_GIL_DISABLED)]
-    {
-        let mut guard = CS2Guard(unsafe { core::mem::zeroed() });
-        unsafe {
-            crate::ffi::PyCriticalSection2_BeginMutex(
-                &raw mut guard.0,
-                m1.mutex.get(),
-                m2.mutex.get(),
-            )
-        };
+    let mut guard = CS2Guard(unsafe { core::mem::zeroed() });
+    #[cfg(Py_GIL_DISABLED)]
+    unsafe {
+        crate::ffi::PyCriticalSection2_BeginMutex(&raw mut guard.0, m1.mutex.get(), m2.mutex.get())
+    };
+    if std::ptr::eq(m1.mutex.get(), m2.mutex.get()) {
+        f(EnteredCriticalSection(&m1.data), None)
+    } else {
         f(
             EnteredCriticalSection(&m1.data),
-            EnteredCriticalSection(&m2.data),
-        )
-    }
-    #[cfg(not(Py_GIL_DISABLED))]
-    {
-        f(
-            EnteredCriticalSection(&m1.data),
-            EnteredCriticalSection(&m2.data),
+            Some(EnteredCriticalSection(&m2.data)),
         )
     }
 }
@@ -418,8 +418,10 @@ mod tests {
                         barrier.wait();
                         std::thread::sleep(core::time::Duration::from_millis(10));
                         // SAFETY: we never call back into the python interpreter inside this critical section
-                        unsafe { (*b1.get_mut()) = true };
-                        unsafe { (*b2.get_mut()) = true };
+                        unsafe { *b1.get_mut() = true };
+                        if let Some(ref mut inner) = b2 {
+                            unsafe { *inner.get_mut() = true };
+                        }
                     });
                 });
             });
@@ -430,7 +432,9 @@ mod tests {
                     with_critical_section_mutex2(py, &m1, &m2, |b1, b2| {
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         assert!(unsafe { *b1.get() });
-                        assert!(unsafe { *b2.get() });
+                        if let Some(ref inner) = b2 {
+                            assert!(unsafe { *inner.get() });
+                        }
                     });
                 });
             });
@@ -485,7 +489,7 @@ mod tests {
                         std::thread::sleep(core::time::Duration::from_millis(10));
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         unsafe { (*b1.get_mut()) = true };
-                        assert!(unsafe { *b2.get() });
+                        assert!(b2.is_none());
                     });
                 });
             });
@@ -570,18 +574,20 @@ mod tests {
                         // v1.extend(v1)
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         let vec1 = unsafe { v1.get_mut() };
-                        let vec2 = unsafe { v2.get() };
+                        let opt_vec2 = v2.unwrap();
+                        let vec2 = unsafe { opt_vec2.get() };
                         vec1.extend(vec2.iter());
                     })
                 });
             });
             s.spawn(|| {
                 Python::attach(|py| {
-                    with_critical_section_mutex2(py, &m1, &m2, |v1, mut v2| {
+                    with_critical_section_mutex2(py, &m1, &m2, |v1, v2| {
                         // v2.extend(v1)
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         let vec1 = unsafe { v1.get() };
-                        let vec2 = unsafe { v2.get_mut() };
+                        let mut op_vec2 = v2.unwrap();
+                        let vec2 = unsafe { op_vec2.get_mut() };
                         vec2.extend(vec1.iter());
                     })
                 });
