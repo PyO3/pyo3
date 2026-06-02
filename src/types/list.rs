@@ -520,22 +520,27 @@ impl<'py> BoundListIterator<'py> {
     /// The caller must hold an active critical section on this list.
     #[inline]
     #[cfg(not(feature = "nightly"))]
-    unsafe fn nth_locked(
+    unsafe fn nth_unsynchronized(
         index: &mut Index,
         length: &mut Length,
         list: &Bound<'py, PyList>,
         n: usize,
     ) -> Option<Bound<'py, PyAny>> {
-        let length = length.0.min(list.len());
-        let target_index = index.0 + n;
-        if target_index < length {
-            // SAFETY: target_index < list.len() guarantees in bounds
-            let item = unsafe { list.get_item_unchecked(target_index) };
-            index.0 = target_index + 1;
-            Some(item)
-        } else {
-            None
+        let current_length = length.0.min(list.len());
+        if let Some(target_index) = index.0.checked_add(n) {
+            if target_index < current_length {
+                // SAFETY: target_index < current_length guarantees in bounds
+                let item = unsafe { list.get_item_unchecked(target_index) };
+                // +1 cannot overflow as target_index < current_length
+                index.0 = target_index + 1;
+                return Some(item);
+            }
         }
+
+        // n overflows the remaining length of the list;
+        // nth must exhaust all remaining items
+        index.0 = current_length;
+        None
     }
 
     /// # Safety
@@ -564,22 +569,28 @@ impl<'py> BoundListIterator<'py> {
     /// The caller must hold an active critical section on this list.
     #[inline]
     #[cfg(not(feature = "nightly"))]
-    unsafe fn nth_back_locked(
+    unsafe fn nth_back_unsynchronized(
         index: &mut Index,
         length: &mut Length,
         list: &Bound<'py, PyList>,
         n: usize,
     ) -> Option<Bound<'py, PyAny>> {
-        let length_size = length.0.min(list.len());
-        if index.0 + n < length_size {
-            let target_index = length_size - n - 1;
-            // SAFETY: target_index < list.len() guarantees in bounds
-            let item = unsafe { list.get_item_unchecked(target_index) };
-            length.0 = target_index;
-            Some(item)
-        } else {
-            None
+        let current_length = length.0.min(list.len());
+        if let Some(index_after_item) = current_length.checked_sub(n) {
+            if index.0 < index_after_item {
+                // -1 cannot underflow as index_after_item > index
+                let target_index = index_after_item - 1;
+                // SAFETY: target_index is < current_length
+                let item = unsafe { list.get_item_unchecked(target_index) };
+                length.0 = target_index;
+                return Some(item);
+            }
         }
+
+        // n overflows the remaining length of the tuple;
+        // nth must exhaust all remaining items
+        length.0 = index.0;
+        None
     }
 
     fn with_critical_section<R>(
@@ -611,7 +622,7 @@ impl<'py> Iterator for BoundListIterator<'py> {
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
         // SAFETY: with_critical_section locks the list
         self.with_critical_section(|index, length, list| unsafe {
-            Self::nth_locked(index, length, list, n)
+            Self::nth_unsynchronized(index, length, list, n)
         })
     }
 
@@ -768,25 +779,17 @@ impl<'py> Iterator for BoundListIterator<'py> {
     #[cfg(feature = "nightly")]
     fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
         self.with_critical_section(|index, length, list| {
-            let max_len = length.0.min(list.len());
-            let currently_at = index.0;
-            if currently_at >= max_len {
-                if n == 0 {
-                    return Ok(());
-                } else {
-                    return Err(unsafe { NonZero::new_unchecked(n) });
-                }
+            let current_length = length.0.min(list.len());
+            let items_left = current_length.saturating_sub(index.0);
+            if let Some(overflow) = NonZero::new(n.saturating_sub(items_left)) {
+                // n overflows the remaining length of the list; advance_by must exhaust all remaining items
+                index.0 = current_length;
+                return Err(overflow);
             }
 
-            let items_left = max_len - currently_at;
-            if n <= items_left {
-                index.0 += n;
-                Ok(())
-            } else {
-                index.0 = max_len;
-                let remainder = n - items_left;
-                Err(unsafe { NonZero::new_unchecked(remainder) })
-            }
+            // cannot overflow as length - index >= n
+            index.0 += n;
+            Ok(())
         })
     }
 }
@@ -804,7 +807,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
         // SAFETY: with_critical_section locks the list
         self.with_critical_section(|index, length, list| unsafe {
-            Self::nth_back_locked(index, length, list, n)
+            Self::nth_back_unsynchronized(index, length, list, n)
         })
     }
 
@@ -847,25 +850,17 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
     #[cfg(feature = "nightly")]
     fn advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
         self.with_critical_section(|index, length, list| {
-            let max_len = length.0.min(list.len());
-            let currently_at = index.0;
-            if currently_at >= max_len {
-                if n == 0 {
-                    return Ok(());
-                } else {
-                    return Err(unsafe { NonZero::new_unchecked(n) });
-                }
+            let current_length = length.0.min(list.len());
+            let items_left = current_length.saturating_sub(index.0);
+            if let Some(overflow) = NonZero::new(n.saturating_sub(items_left)) {
+                // n overflows the remaining length of the list; advance_back_by must exhaust all remaining items
+                length.0 = index.0;
+                return Err(overflow);
             }
 
-            let items_left = max_len - currently_at;
-            if n <= items_left {
-                length.0 = max_len - n;
-                Ok(())
-            } else {
-                length.0 = currently_at;
-                let remainder = n - items_left;
-                Err(unsafe { NonZero::new_unchecked(remainder) })
-            }
+            // cannot overflow as current_length - index >= n
+            length.0 = current_length - n;
+            Ok(())
         })
     }
 }
@@ -1594,6 +1589,19 @@ mod tests {
             assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 9);
             assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 8);
             assert!(iter.next().is_none());
+
+            // nth consumes all elements in the list, even on `None` return
+            let mut iter = list.iter();
+            assert!(iter.nth(100).is_none());
+            assert!(iter.next().is_none());
+            assert!(iter.next_back().is_none());
+
+            // nth should not overflow the iterator
+            // a naive implementation of nth will overflow if number of advanced
+            // elements plus N overflows usize::MAX
+            let mut iter = list.iter();
+            assert!(iter.next().is_some());
+            assert!(iter.nth(usize::MAX).is_none());
         });
     }
 
@@ -1651,6 +1659,17 @@ mod tests {
             iter3.nth(1);
             assert_eq!(iter3.nth_back(2).unwrap().extract::<i32>().unwrap(), 3);
             assert!(iter3.nth_back(0).is_none());
+
+            // nth_back consumes all elements in the list, even on `None` return
+            let mut iter4 = list.iter();
+            assert!(iter4.nth_back(100).is_none());
+            assert!(iter4.next_back().is_none());
+            assert!(iter4.next().is_none());
+
+            // nth_back should not overflow with usize::MAX
+            let mut iter5 = list.iter();
+            iter5.nth(1); //
+            assert!(iter5.nth_back(usize::MAX).is_none());
         });
     }
 
@@ -1677,6 +1696,19 @@ mod tests {
             let mut iter4 = list.iter();
             assert_eq!(iter4.advance_by(0), Ok(()));
             assert_eq!(iter4.next().unwrap().extract::<i32>().unwrap(), 1);
+
+            // advance_by should not overflow with usize::MAX
+            // - first advanc will overflow by MAX - len, and will exhaust the iterator
+            // - second advance will overflow by MAX
+            let mut iter5 = list.iter();
+            assert_eq!(
+                iter5.advance_by(usize::MAX),
+                Err(NonZero::new(usize::MAX - list.len()).unwrap())
+            );
+            assert_eq!(
+                iter5.advance_by(usize::MAX),
+                Err(NonZero::new(usize::MAX).unwrap())
+            );
         })
     }
 
@@ -1703,6 +1735,19 @@ mod tests {
             let mut iter4 = list.iter();
             assert_eq!(iter4.advance_back_by(0), Ok(()));
             assert_eq!(iter4.next_back().unwrap().extract::<i32>().unwrap(), 5);
+
+            // advance_back_by should not overflow with usize::MAX
+            // - first advance will overflow by MAX - len, and will exhaust the iterator
+            // - second advance will overflow by MAX
+            let mut iter5 = list.iter();
+            assert_eq!(
+                iter5.advance_back_by(usize::MAX),
+                Err(NonZero::new(usize::MAX - list.len()).unwrap())
+            );
+            assert_eq!(
+                iter5.advance_back_by(usize::MAX),
+                Err(NonZero::new(usize::MAX).unwrap())
+            );
         })
     }
 
