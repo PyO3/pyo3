@@ -252,7 +252,7 @@ where
     unsafe {
         crate::ffi::PyCriticalSection2_BeginMutex(&raw mut guard.0, m1.mutex.get(), m2.mutex.get())
     };
-    if std::ptr::eq(m1.mutex.get(), m2.mutex.get()) {
+    if core::ptr::eq(m1.mutex.get(), m2.mutex.get()) {
         f(EnteredCriticalSection(&m1.data), None)
     } else {
         f(
