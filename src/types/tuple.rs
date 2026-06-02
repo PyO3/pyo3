@@ -1087,7 +1087,7 @@ tuple_conversion!(
 #[cfg(test)]
 mod tests {
     use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
-    use crate::{IntoPyObject, Python};
+    use crate::{Bound, IntoPyObject, PyAny, Python};
     #[cfg(feature = "nightly")]
     use core::num::NonZero;
     use core::ops::Range;
@@ -1634,193 +1634,233 @@ mod tests {
         })
     }
 
+    /// Runs `f` for each of `BoundTupleIterator` and `BorrowedTupleIterator`.
+    fn test_iterators(
+        tuple: &Bound<'_, PyTuple>,
+        f: impl Fn(&mut dyn DoubleEndedIterator<Item = Bound<'_, PyAny>>),
+    ) {
+        let mut iter = tuple.iter();
+        f(&mut iter);
+
+        let mut borrowed_iter = tuple.iter_borrowed().map(|item| item.to_owned());
+        f(&mut borrowed_iter);
+    }
+
     #[test]
-    fn test_bound_tuple_nth() {
+    fn test_tuple_iter_nth() {
         Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4]).unwrap();
-            let mut iter = tuple.iter();
-            assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 2);
-            assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 4);
-            assert!(iter.nth(1).is_none());
+
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 2);
+                assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 4);
+                assert!(iter.nth(1).is_none());
+            });
 
             let tuple = PyTuple::new(py, Vec::<i32>::new()).unwrap();
-            let mut iter = tuple.iter();
-            iter.next();
-            assert!(iter.nth(1).is_none());
+            test_iterators(&tuple, |iter| {
+                iter.next();
+                assert!(iter.nth(1).is_none());
+            });
 
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
-            let mut iter = tuple.iter();
-            assert!(iter.nth(10).is_none());
+            test_iterators(&tuple, |iter| {
+                assert!(iter.nth(10).is_none());
+            });
 
             let tuple = PyTuple::new(py, vec![6, 7, 8, 9, 10]).unwrap();
-            let mut iter = tuple.iter();
-            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 6);
-            assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 9);
-            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 10);
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 6);
+                assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 9);
+                assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 10);
+            });
 
-            let mut iter = tuple.iter();
-            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 9);
-            assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 8);
-            assert!(iter.next().is_none());
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 9);
+                assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 8);
+                assert!(iter.next().is_none());
+            });
 
             // nth consumes all elements in the tuple, even on `None` return
-            let mut iter = tuple.iter();
-            assert!(iter.nth(100).is_none());
-            assert!(iter.next().is_none());
-            assert!(iter.next_back().is_none());
+            test_iterators(&tuple, |iter| {
+                assert!(iter.nth(100).is_none());
+                assert!(iter.next().is_none());
+                assert!(iter.next_back().is_none());
+            });
 
             // nth should not overflow the iterator
             // a naive implementation of nth will overflow if number of advanced
             // elements plus N overflows usize::MAX
-            let mut iter = tuple.iter();
-            assert!(iter.next().is_some());
-            assert!(iter.nth(usize::MAX).is_none());
+            test_iterators(&tuple, |iter| {
+                assert!(iter.next().is_some());
+                assert!(iter.nth(usize::MAX).is_none());
+            });
         });
     }
 
     #[test]
-    fn test_bound_tuple_nth_back() {
+    fn test_tuple_iter_nth_back() {
         Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
-            let mut iter = tuple.iter();
-            assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 5);
-            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
-            assert!(iter.nth_back(2).is_none());
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 5);
+                assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
+                assert!(iter.nth_back(2).is_none());
+            });
 
             let tuple = PyTuple::new(py, Vec::<i32>::new()).unwrap();
-            let mut iter = tuple.iter();
-            assert!(iter.nth_back(0).is_none());
-            assert!(iter.nth_back(1).is_none());
+            test_iterators(&tuple, |iter| {
+                assert!(iter.nth_back(0).is_none());
+                assert!(iter.nth_back(1).is_none());
+            });
 
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
-            let mut iter = tuple.iter();
-            assert!(iter.nth_back(5).is_none());
+            test_iterators(&tuple, |iter| {
+                assert!(iter.nth_back(5).is_none());
+            });
 
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
-            let mut iter = tuple.iter();
-            iter.next_back(); // Consume the last element
-            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
-            assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 2);
-            assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 1);
+            test_iterators(&tuple, |iter| {
+                iter.next_back(); // Consume the last element
+                assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
+                assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 2);
+                assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 1);
+            });
 
-            let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
-            let mut iter = tuple.iter();
-            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 4);
-            assert_eq!(iter.nth_back(2).unwrap().extract::<i32>().unwrap(), 1);
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 4);
+                assert_eq!(iter.nth_back(2).unwrap().extract::<i32>().unwrap(), 1);
+            });
 
-            let mut iter2 = tuple.iter();
-            iter2.next_back();
-            assert_eq!(iter2.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
-            assert_eq!(iter2.next_back().unwrap().extract::<i32>().unwrap(), 2);
+            test_iterators(&tuple, |iter| {
+                iter.next_back();
+                assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
+                assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 2);
+            });
 
-            let mut iter3 = tuple.iter();
-            iter3.nth(1);
-            assert_eq!(iter3.nth_back(2).unwrap().extract::<i32>().unwrap(), 3);
-            assert!(iter3.nth_back(0).is_none());
+            test_iterators(&tuple, |iter| {
+                iter.nth(1);
+                assert_eq!(iter.nth_back(2).unwrap().extract::<i32>().unwrap(), 3);
+                assert!(iter.nth_back(0).is_none());
+            });
 
             // nth_back consumes all elements in the tuple, even on `None` return
-            let mut iter4 = tuple.iter();
-            assert!(iter4.nth_back(100).is_none());
-            assert!(iter4.next_back().is_none());
-            assert!(iter4.next().is_none());
+            test_iterators(&tuple, |iter| {
+                assert!(iter.nth_back(100).is_none());
+                assert!(iter.next_back().is_none());
+                assert!(iter.next().is_none());
+            });
 
             // nth_back should not overflow with usize::MAX
-            let mut iter5 = tuple.iter();
-            iter5.nth(1); //
-            assert!(iter5.nth_back(usize::MAX).is_none());
+            test_iterators(&tuple, |iter| {
+                iter.nth(1);
+                assert!(iter.nth_back(usize::MAX).is_none());
+            });
         });
     }
 
     #[cfg(feature = "nightly")]
     #[test]
-    fn test_bound_tuple_advance_by() {
+    fn test_tuple_iter_advance_by() {
         Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
-            let mut iter = tuple.iter();
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_by(2), Ok(()));
+                assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 3);
+                assert_eq!(iter.advance_by(0), Ok(()));
+                assert_eq!(iter.advance_by(100), Err(NonZero::new(98).unwrap()));
+                assert!(iter.next().is_none());
+            });
 
-            assert_eq!(iter.advance_by(2), Ok(()));
-            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 3);
-            assert_eq!(iter.advance_by(0), Ok(()));
-            assert_eq!(iter.advance_by(100), Err(NonZero::new(98).unwrap()));
-            assert!(iter.next().is_none());
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_by(6), Err(NonZero::new(1).unwrap()));
+            });
 
-            let mut iter2 = tuple.iter();
-            assert_eq!(iter2.advance_by(6), Err(NonZero::new(1).unwrap()));
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_by(5), Ok(()));
+            });
 
-            let mut iter3 = tuple.iter();
-            assert_eq!(iter3.advance_by(5), Ok(()));
-
-            let mut iter4 = tuple.iter();
-            assert_eq!(iter4.advance_by(0), Ok(()));
-            assert_eq!(iter4.next().unwrap().extract::<i32>().unwrap(), 1);
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_by(0), Ok(()));
+                assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 1);
+            });
 
             // advance_by should not overflow with usize::MAX
             // - first advance will overflow by MAX - len, and will exhaust the iterator
             // - second advance will overflow by MAX
-            let mut iter5 = tuple.iter();
-            assert_eq!(
-                iter5.advance_by(usize::MAX),
-                Err(NonZero::new(usize::MAX - tuple.len()).unwrap())
-            );
-            assert_eq!(
-                iter5.advance_by(usize::MAX),
-                Err(NonZero::new(usize::MAX).unwrap())
-            );
+            test_iterators(&tuple, |iter| {
+                assert_eq!(
+                    iter.advance_by(usize::MAX),
+                    Err(NonZero::new(usize::MAX - 5).unwrap())
+                );
+                assert_eq!(
+                    iter.advance_by(usize::MAX),
+                    Err(NonZero::new(usize::MAX).unwrap())
+                );
+            });
         })
     }
 
     #[cfg(feature = "nightly")]
     #[test]
-    fn test_bound_tuple_advance_back_by() {
+    fn test_tuple_iter_advance_back_by() {
         Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
-            let mut iter = tuple.iter();
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_back_by(2), Ok(()));
+                assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 3);
+                assert_eq!(iter.advance_back_by(0), Ok(()));
+                assert_eq!(iter.advance_back_by(100), Err(NonZero::new(98).unwrap()));
+                assert!(iter.next_back().is_none());
+            });
 
-            assert_eq!(iter.advance_back_by(2), Ok(()));
-            assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 3);
-            assert_eq!(iter.advance_back_by(0), Ok(()));
-            assert_eq!(iter.advance_back_by(100), Err(NonZero::new(98).unwrap()));
-            assert!(iter.next_back().is_none());
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_back_by(6), Err(NonZero::new(1).unwrap()));
+            });
 
-            let mut iter2 = tuple.iter();
-            assert_eq!(iter2.advance_back_by(6), Err(NonZero::new(1).unwrap()));
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_back_by(5), Ok(()));
+            });
 
-            let mut iter3 = tuple.iter();
-            assert_eq!(iter3.advance_back_by(5), Ok(()));
-
-            let mut iter4 = tuple.iter();
-            assert_eq!(iter4.advance_back_by(0), Ok(()));
-            assert_eq!(iter4.next_back().unwrap().extract::<i32>().unwrap(), 5);
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_back_by(0), Ok(()));
+                assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 5);
+            });
 
             // advance_back_by should not overflow with usize::MAX
             // - first advance will overflow by MAX - len, and will exhaust the iterator
             // - second advance will overflow by MAX
-            let mut iter5 = tuple.iter();
-            assert_eq!(
-                iter5.advance_back_by(usize::MAX),
-                Err(NonZero::new(usize::MAX - tuple.len()).unwrap())
-            );
-            assert_eq!(
-                iter5.advance_back_by(usize::MAX),
-                Err(NonZero::new(usize::MAX).unwrap())
-            );
+            test_iterators(&tuple, |iter| {
+                assert_eq!(
+                    iter.advance_back_by(usize::MAX),
+                    Err(NonZero::new(usize::MAX - 5).unwrap())
+                );
+                assert_eq!(
+                    iter.advance_back_by(usize::MAX),
+                    Err(NonZero::new(usize::MAX).unwrap())
+                );
+            });
         })
     }
 
     #[test]
-    fn test_iter_last() {
+    fn test_tuple_iter_last() {
         Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
-            let last = tuple.iter().last();
-            assert_eq!(last.unwrap().extract::<i32>().unwrap(), 3);
+            test_iterators(&tuple, |iter| {
+                let last = iter.last();
+                assert_eq!(last.unwrap().extract::<i32>().unwrap(), 3);
+            });
         })
     }
 
     #[test]
-    fn test_iter_count() {
+    fn test_tuple_iter_count() {
         Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
-            assert_eq!(tuple.iter().count(), 3);
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.count(), 3);
+            });
         })
     }
 }
