@@ -1,9 +1,9 @@
 use pyo3_build_config::{
-    bail, ensure, print_feature_cfgs,
+    bail, ensure,
     pyo3_build_script_impl::{
         cargo_env_var, env_var, errors::Result, is_linking_libpython_for_target,
-        resolve_build_config, target_triple_from_env, BuildConfig, BuildConfigSource,
-        MaximumVersionExceeded,
+        print_feature_cfgs, print_libpython_rpath_link_args, resolve_build_config,
+        target_triple_from_env, BuildConfig, BuildConfigSource, MaximumVersionExceeded,
     },
     warn, InterpreterConfig, PythonAbiKind, PythonImplementation, PythonVersion, StableAbi,
 };
@@ -235,12 +235,12 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
 
 /// Prepares the PyO3 crate for compilation.
 ///
-/// This loads the config from pyo3-build-config and then makes some additional checks to improve UX
-/// for users.
+/// This uses pyo3-build-config implementation to detect the target Python interpreter and validate
+/// it's suitable for building with.
 ///
 /// Emits the cargo configuration based on this config as well as a few checks of the Rust compiler
 /// version to enable features which aren't supported on MSRV.
-fn configure_pyo3() -> Result<()> {
+fn configure_pyo3_ffi() -> Result<()> {
     let target = target_triple_from_env();
     let build_config = resolve_build_config(&target)?;
     let interpreter_config = &build_config.interpreter_config;
@@ -272,6 +272,9 @@ fn configure_pyo3() -> Result<()> {
 
     print_feature_cfgs();
 
+    // Make `cargo test` etc work with non-system Python installations
+    print_libpython_rpath_link_args(&target, interpreter_config);
+
     Ok(())
 }
 
@@ -286,7 +289,7 @@ fn print_config_and_exit(config: &InterpreterConfig) {
 
 fn main() {
     pyo3_build_config::print_expected_cfgs();
-    if let Err(e) = configure_pyo3() {
+    if let Err(e) = configure_pyo3_ffi() {
         eprintln!("error: {}", e.report());
         std::process::exit(1)
     }

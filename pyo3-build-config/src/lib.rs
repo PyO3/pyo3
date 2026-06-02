@@ -18,7 +18,7 @@ pub use impl_::{
     PythonAbiBuilder, PythonAbiKind, PythonImplementation, PythonVersion, StableAbi, Triple,
 };
 
-use target_lexicon::OperatingSystem;
+use target_lexicon::{Architecture, OperatingSystem};
 
 /// Adds all the [`#[cfg]` flags](index.html) to the current compilation.
 ///
@@ -95,23 +95,7 @@ fn _add_extension_module_link_args(
 /// for more details.
 pub fn add_libpython_rpath_link_args() {
     let target = impl_::target_triple_from_env();
-    _add_libpython_rpath_link_args(
-        get(),
-        impl_::is_linking_libpython_for_target(&target),
-        std::io::stdout(),
-    )
-}
-
-fn _add_libpython_rpath_link_args(
-    interpreter_config: &InterpreterConfig,
-    is_linking_libpython: bool,
-    mut writer: impl std::io::Write,
-) {
-    if is_linking_libpython {
-        if let Some(lib_dir) = interpreter_config.lib_dir() {
-            writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}").unwrap();
-        }
-    }
+    pyo3_build_script_impl::print_libpython_rpath_link_args(&target, get());
 }
 
 /// Adds linker arguments suitable for linking against the Python framework on macOS.
@@ -160,32 +144,6 @@ fn get_inner() -> InterpreterConfig {
         panic!("`pyo3_build_config::get()` requires a direct dependency on `pyo3` or `pyo3-ffi`")
     };
     interpreter_config.expect("failed to parse PyO3 config")
-}
-
-/// Helper to print a feature cfg with a minimum rust version required.
-fn print_feature_cfg(minor_version_required: u32, cfg: &str) {
-    let minor_version = rustc_minor_version().unwrap_or(0);
-
-    if minor_version >= minor_version_required {
-        println!("cargo:rustc-cfg={cfg}");
-    }
-
-    // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
-    if minor_version >= 80 {
-        println!("cargo:rustc-check-cfg=cfg({cfg})");
-    }
-}
-
-/// Use certain features if we detect the compiler being used supports them.
-///
-/// Features may be removed or added as MSRV gets bumped or new features become available,
-/// so this function is unstable.
-#[doc(hidden)]
-pub fn print_feature_cfgs() {
-    print_feature_cfg(84, "const_is_null");
-    print_feature_cfg(85, "fn_ptr_eq");
-    print_feature_cfg(86, "from_bytes_with_nul_error");
-    print_feature_cfg(95, "cfg_select");
 }
 
 /// Registers `pyo3`s config names as reachable cfg expressions
@@ -332,6 +290,47 @@ pub mod pyo3_build_script_impl {
 
         pub fn finish(self) -> String {
             self.message
+        }
+    }
+
+    /// Detects features which `pyo3` and `pyo3-ffi` depend upon internally, and prints the appropriate
+    /// `cargo:rustc-cfg` and `cargo:rustc-check-cfg` directives to enable them.
+    pub fn print_feature_cfgs() {
+        print_feature_cfg(84, "const_is_null");
+        print_feature_cfg(85, "fn_ptr_eq");
+        print_feature_cfg(86, "from_bytes_with_nul_error");
+        print_feature_cfg(95, "cfg_select");
+    }
+
+    /// Helper to print a feature cfg with a minimum rust version required.
+    fn print_feature_cfg(minor_version_required: u32, cfg: &str) {
+        println!("cargo:rustc-check-cfg=cfg({cfg})");
+
+        let minor_version = rustc_minor_version().unwrap_or(0);
+        if minor_version >= minor_version_required {
+            println!("cargo:rustc-cfg={cfg}");
+        }
+    }
+
+    /// Emit libpython rpath link args if appropriate for the target and interpreter config.
+    ///
+    /// This form exists for pyo3-ffi where `get()` cannot be called.
+    pub fn print_libpython_rpath_link_args(
+        target: &Triple,
+        interpreter_config: &InterpreterConfig,
+    ) {
+        let is_linking_libpython = is_linking_libpython_for_target(target);
+        let is_wasm = matches!(
+            target.architecture,
+            Architecture::Wasm32 | Architecture::Wasm64
+        );
+        let is_emscripten = target.operating_system == target_lexicon::OperatingSystem::Emscripten;
+        // webassembly targets generally don't support rpath, emscripten is the only exception currently aware of:
+        // https://github.com/emscripten-core/emscripten/issues/22126
+        if is_linking_libpython && (!is_wasm || is_emscripten) {
+            if let Some(lib_dir) = interpreter_config.lib_dir() {
+                println!("cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}");
+            }
         }
     }
 }
