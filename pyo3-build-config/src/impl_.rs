@@ -277,7 +277,7 @@ impl InterpreterConfig {
 
     /// Whether linking against the stable/limited Python 3 API.
     ///
-    /// Not serialized, see the target_abi instead.
+    #[deprecated(since = "0.29.0", note = "please use `target_abi()` instead")]
     pub fn abi3(&self) -> bool {
         matches!(self.target_abi.kind, PythonAbiKind::Stable(StableAbi::Abi3))
     }
@@ -614,7 +614,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let lib_name =
             default_lib_name_unix(target_abi, cygwin, sysconfigdata.get_value("LDVERSION"))?;
         let pointer_width =
-            parse_key!(sysconfigdata, "SIZEOF_VOID_P").map(|bytes_width: u32| bytes_width * 8)?;
+            parse_key!(sysconfigdata, "SIZEOF_VOID_P").map(|bytes_width: u32| bytes_width * 8).ok().flatten();
         let build_flags = BuildFlags::from_sysconfigdata(sysconfigdata);
 
         InterpreterConfigBuilder::new(implementation, version)
@@ -759,7 +759,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 .free_threaded()
                 .finalize()?
         } else if abi3 == Some(true) {
-            warn!("abi3 configuration file option is deprecated, set target_abi instead");
+            warn!("abi3 configuration file option is deprecated since pyo3 0.29, set target_abi instead");
             PythonAbiBuilder::new(implementation, version)
                 .stable_abi(StableAbi::Abi3)
                 .finalize()?

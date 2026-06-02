@@ -250,7 +250,7 @@ For example, an extension module built for Python 3.5 can't be imported in Pytho
 The ABI defined by PEP 384 is called `abi3`, since it's stable for all Python 3.X releases.
 In 2026, the steering council approved [PEP 803](https://www.python.org/dev/peps/pep-0803/)) which defines a new stable ABI, `abi3t`, that can be used on the free-threaded build of CPython.
 Extensions built using the `abit3` ABI are importable on both the GIL-enabled and free-threaded builds of any CPython version newer than the target version.
-So, `abi3t` extensions built for the Python 3.15 limited API will be importable on Python 3.16, 3.17, and all future Python 3.X versions.
+So, `abi3t` extensions built for the Python 3.15 limited API will be importable on Python 3.15, 3.16, 3.17, and all future Python 3.X versions.
 
 The advantage of building extension modules using the limited Python API is that package vendors only need to build and distribute a single copy (for each OS / architecture), and users can install it on all Python versions from the [minimum version](#minimum-python-version-for-abi3-and-abi3t-builds) and up.
 The downside of this is that PyO3 can't use optimizations which rely on being compiled against a known exact Python version.
