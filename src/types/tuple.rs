@@ -482,7 +482,7 @@ impl DoubleEndedIterator for BoundTupleIterator<'_> {
                 // SAFETY: target_index < self.length
                 let item = unsafe { self.tuple.get_item_unchecked(target_index) };
                 self.length = target_index;
-                return Some(item.to_owned());
+                return Some(item);
             }
         }
 

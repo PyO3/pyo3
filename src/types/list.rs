@@ -858,7 +858,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
                 return Err(overflow);
             }
 
-            // cannot overflow as length - index >= n
+            // cannot overflow as current_length - index >= n
             length.0 = current_length - n;
             Ok(())
         })
