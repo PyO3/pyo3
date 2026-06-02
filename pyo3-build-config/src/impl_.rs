@@ -613,8 +613,9 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         let target_abi = PythonAbi::from_build_env(implementation, version, None, gil_disabled)?;
         let lib_name =
             default_lib_name_unix(target_abi, cygwin, sysconfigdata.get_value("LDVERSION"))?;
-        let pointer_width =
-            parse_key!(sysconfigdata, "SIZEOF_VOID_P").map(|bytes_width: u32| bytes_width * 8).ok().flatten();
+        let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
+            .map(|bytes_width: u32| bytes_width * 8)
+            .ok();
         let build_flags = BuildFlags::from_sysconfigdata(sysconfigdata);
 
         InterpreterConfigBuilder::new(implementation, version)
