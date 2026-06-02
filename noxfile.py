@@ -1203,7 +1203,13 @@ def set_msrv_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    _run_cargo(session, "run", _FFI_CHECK, "--message-format=short")
+    extra_args = []
+    # This flag can be useful for debugging ffi-check errors, but overall the
+    # short message format is easier to read
+    if "--long-message-format" not in session.posargs:
+        extra_args.append("--message-format=short")
+
+    _run_cargo(session, "run", _FFI_CHECK, *extra_args)
     _check_raw_dylib_macro(session)
 
 

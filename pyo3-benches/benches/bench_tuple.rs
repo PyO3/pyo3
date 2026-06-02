@@ -39,7 +39,6 @@ fn tuple_get_item(b: &mut Bencher<'_>) {
     });
 }
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 fn tuple_get_item_unchecked(b: &mut Bencher<'_>) {
     Python::attach(|py| {
         const LEN: usize = 50_000;
@@ -72,7 +71,6 @@ fn tuple_get_borrowed_item(b: &mut Bencher<'_>) {
     });
 }
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
 fn tuple_get_borrowed_item_unchecked(b: &mut Bencher<'_>) {
     Python::attach(|py| {
         const LEN: usize = 50_000;
@@ -157,10 +155,8 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("tuple_get_item", tuple_get_item);
     c.bench_function("tuple_nth", tuple_nth);
     c.bench_function("tuple_nth_back", tuple_nth_back);
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     c.bench_function("tuple_get_item_unchecked", tuple_get_item_unchecked);
     c.bench_function("tuple_get_borrowed_item", tuple_get_borrowed_item);
-    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     c.bench_function(
         "tuple_get_borrowed_item_unchecked",
         tuple_get_borrowed_item_unchecked,
