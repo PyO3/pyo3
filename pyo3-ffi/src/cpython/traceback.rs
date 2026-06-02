@@ -4,9 +4,9 @@ use core::ffi::c_int;
 
 #[repr(C)]
 pub struct PyTracebackObject {
-    ob_base: PyObject,
-    tb_next: *mut PyTracebackObject,
-    tb_frame: *mut PyFrameObject,
-    tb_lasti: c_int,
-    tb_lineno: c_int,
+    pub ob_base: PyObject,
+    pub tb_next: *mut PyTracebackObject,
+    pub tb_frame: *mut PyFrameObject,
+    pub tb_lasti: c_int,
+    pub tb_lineno: c_int,
 }
