@@ -103,7 +103,7 @@ impl PyCFunction {
         closure: F,
     ) -> PyResult<Bound<'py, Self>>
     where
-        F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
+        F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + Sync + 'static,
         for<'p> R: crate::impl_::callback::IntoPyCallbackOutput<'p, *mut ffi::PyObject>,
     {
         let name = name.unwrap_or(c"pyo3-closure");
