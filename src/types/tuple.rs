@@ -594,9 +594,11 @@ impl DoubleEndedIterator for BorrowedTupleIterator<'_, '_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
-            // SAFETY: self.index < self.length
-            let item = unsafe { self.tuple.get_borrowed_item_unchecked(self.index) };
-            self.length -= 1;
+            // Cannot underflow as self.index < self.length implies self.length > 0
+            let target_index = self.length - 1;
+            // SAFETY: target_index < self.length
+            let item = unsafe { self.tuple.get_borrowed_item_unchecked(target_index) };
+            self.length = target_index;
             Some(item)
         } else {
             None
