@@ -592,7 +592,7 @@ pub struct PyDateTime_CAPI {
     ) -> *mut PyObject,
 }
 
-// Python already shares this object between threads, so it's no more evil for us to do it too!
+// SAFETY: Python already shares this object between threads, so it's no more evil for us to do it too!
 unsafe impl Sync for PyDateTime_CAPI {}
 
 pub const PyDateTime_CAPSULE_NAME: &CStr = c"datetime.datetime_CAPI";

@@ -186,6 +186,7 @@ pub union PyMethodDefPointer {
 
 impl PyMethodDefPointer {
     pub fn as_ptr(&self) -> *mut c_void {
+        // SAFETY: self is pointer sized
         unsafe { self.Void }
     }
 
@@ -202,13 +203,13 @@ impl PyMethodDefPointer {
 
 impl PartialEq for PyMethodDefPointer {
     fn eq(&self, other: &Self) -> bool {
-        unsafe { self.Void == other.Void }
+        self.as_ptr() == other.as_ptr()
     }
 }
 
 impl core::fmt::Pointer for PyMethodDefPointer {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let ptr = unsafe { self.Void };
+        let ptr = self.as_ptr();
         core::fmt::Pointer::fmt(&ptr, f)
     }
 }

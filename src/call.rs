@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 //! Defines how Python calls are dispatched, see [`PyCallArgs`].for more information.
 
 use crate::ffi_ptr_ext::FfiPtrExt as _;

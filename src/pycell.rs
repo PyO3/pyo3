@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 //! PyO3's interior mutability primitive.
 //!
 //! Rust has strict aliasing rules - you can either have any number of immutable (shared) references or one mutable

@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 #[cfg(any(doc, all(Py_3_14, not(Py_LIMITED_API))))]
 use crate::{types::PyString, Python};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]

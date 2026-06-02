@@ -312,6 +312,7 @@ pub struct PyType_Slot {
 
 impl Default for PyType_Slot {
     fn default() -> PyType_Slot {
+        // SAFETY: CPython treats a zeroed slot as a sentinel value to mean the end of the slots array.
         unsafe { mem::zeroed() }
     }
 }
@@ -324,12 +325,6 @@ pub struct PyType_Spec {
     pub itemsize: c_int,
     pub flags: c_uint,
     pub slots: *mut PyType_Slot,
-}
-
-impl Default for PyType_Spec {
-    fn default() -> PyType_Spec {
-        unsafe { mem::zeroed() }
-    }
 }
 
 extern_libpython! {

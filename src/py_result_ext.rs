@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 use crate::{Bound, PyAny, PyResult, PyTypeCheck};
 
 pub(crate) trait PyResultExt<'py>: crate::sealed::Sealed {
