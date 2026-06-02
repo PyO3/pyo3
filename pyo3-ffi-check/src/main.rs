@@ -1,4 +1,4 @@
-use std::{any::Any, ffi::CStr, process::exit};
+use std::{ffi::CStr, process::exit};
 
 use pyo3_ffi_check_definitions::{bindgen as bindings, pyo3_ffi};
 
@@ -75,7 +75,7 @@ fn main() {
         _marker: std::marker::PhantomData<T>,
     }
 
-    impl<T: Any> ReturnTypeSniffer<T> {
+    impl<T> ReturnTypeSniffer<T> {
         /// Uses type inference of return value from a closure to sniff return type `T` without needing
         /// to ever call the function.
         fn new(_: impl FnOnce() -> T) -> Self {
@@ -84,7 +84,7 @@ fn main() {
             }
         }
 
-        fn check_compatible<U: Any>(
+        fn check_compatible<U>(
             symbol: &str,
             _pyo3_ffi_type: &ReturnTypeSniffer<T>,
             _bindgen_type: &ReturnTypeSniffer<U>,
