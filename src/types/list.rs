@@ -583,7 +583,7 @@ impl<'py> BoundListIterator<'py> {
                 // SAFETY: target_index is < current_length
                 let item = unsafe { list.get_item_unchecked(target_index) };
                 length.0 = target_index;
-                return Some(item.to_owned());
+                return Some(item);
             }
         }
 
@@ -859,7 +859,7 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
             }
 
             // cannot overflow as length - index >= n
-            length.0 -= n;
+            length.0 = current_length - n;
             Ok(())
         })
     }
@@ -1590,7 +1590,7 @@ mod tests {
             assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 8);
             assert!(iter.next().is_none());
 
-            // nth consumes all elements in the tuple, even on `None` return
+            // nth consumes all elements in the list, even on `None` return
             let mut iter = list.iter();
             assert!(iter.nth(100).is_none());
             assert!(iter.next().is_none());
