@@ -9,7 +9,7 @@ use pyo3::types::{PyDict, PyTuple};
 
 #[pyclass(from_py_object)]
 #[derive(Clone, Default)]
-struct EmptyClass {}
+pub struct EmptyClass {}
 
 #[pymethods]
 impl EmptyClass {
