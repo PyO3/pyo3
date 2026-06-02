@@ -1087,12 +1087,13 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::HashSet;
     use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
     use crate::{IntoPyObject, Python};
     #[cfg(feature = "nightly")]
     use core::num::NonZero;
     use core::ops::Range;
-    use std::collections::HashSet;
+
     #[test]
     fn test_new() {
         Python::attach(|py| {
