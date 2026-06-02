@@ -102,7 +102,7 @@ fn main() {
             if std::mem::align_of::<T>() != std::mem::align_of::<U>() {
                 compatible = false;
                 println!(
-                    "error: {symbol} return type alignment differs (pyo3-ffi type is is {}, bindgen type is {})",
+                    "error: {symbol} return type alignment differs (pyo3-ffi type is {}, bindgen type is {})",
                     std::any::type_name::<T>(),
                     std::any::type_name::<U>(),
                 );
