@@ -32,7 +32,7 @@ $ PYO3_PRINT_CONFIG=1 cargo build
 error: failed to run custom build command for `pyo3-ffi v0.28.3 (/Users/goldbaum/Documents/pyo3/pyo3-ffi)`
 
 Caused by:
-  process didn't exit successfully: `/Users/goldbaum/Documents/pyo3/target/debug/build/pyo3-ffi-120b26b17564bf98/build-script-build` (exit status: 101)
+  process didn't exit successfully: `/Users/goldbaum/Documents/pyo3/target/debug/build/pyo3-ffi-71f0882ba738a1f0/build-script-build` (exit status: 101)
   --- stdout
   cargo:rustc-check-cfg=cfg(Py_LIMITED_API)
   cargo:rustc-check-cfg=cfg(Py_GIL_DISABLED)
@@ -40,8 +40,6 @@ Caused by:
   cargo:rustc-check-cfg=cfg(GraalPy)
   cargo:rustc-check-cfg=cfg(RustPython)
   cargo:rustc-check-cfg=cfg(py_sys_config, values("Py_DEBUG", "Py_REF_DEBUG", "Py_TRACE_REFS", "COUNT_ALLOCS"))
-  cargo:rustc-check-cfg=cfg(pyo3_disable_reference_pool)
-  cargo:rustc-check-cfg=cfg(pyo3_leak_on_drop_without_reference_pool)
   cargo:rustc-check-cfg=cfg(Py_3_8)
   cargo:rustc-check-cfg=cfg(Py_3_9)
   cargo:rustc-check-cfg=cfg(Py_3_10)
@@ -71,8 +69,8 @@ Caused by:
   shared=true
   target_abi=CPython-free_threaded-3.14
   lib_name=python3.14t
-  lib_dir=/Users/goldbaum/.pyenv/versions/3.14.4t/lib
-  executable=/Users/goldbaum/.pyenv/versions/3.14.4t/bin/python
+  lib_dir=/Users/goldbaum/.pyenv/versions/3.14.5t/lib
+  executable=/Users/goldbaum/.pyenv/versions/3.14.5t/bin/python
   pointer_width=64
   build_flags=Py_GIL_DISABLED
   python_framework_prefix=
