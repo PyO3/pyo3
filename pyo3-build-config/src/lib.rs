@@ -18,8 +18,6 @@ pub use impl_::{
     PythonVersion, Triple,
 };
 
-#[cfg(feature = "resolve-config")]
-use target_lexicon::Architecture;
 use target_lexicon::{Architecture, OperatingSystem};
 
 /// Adds all the [`#[cfg]` flags](index.html) to the current compilation.
