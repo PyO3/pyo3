@@ -277,8 +277,6 @@ There are three steps involved in targeting `abi3` or `abi3t` when building Pyth
    This is accomplished by telling your build system that you're using the limited API.
    [`maturin`] >= 0.9.0 and [`setuptools-rust`] >= 0.11.4 support `abi3` wheels and [`maturin`] >= 1.14 supports `abi3t` wheels.
 
-   See the [corresponding](https://github.com/PyO3/maturin/pull/353) [PRs](https://github.com/PyO3/setuptools-rust/pull/82) [for](https://github.com/PyO3/maturin/pull/3113) more.
-
 3. Ensure that the `.whl` is correctly marked as `abi3` or `abi3t`.
    For projects using `setuptools`, this is accomplished by passing `--py-limited-api=cp3x` (where `x` is the minimum Python version supported by the wheel, e.g. `--py-limited-api=cp35` for Python 3.5) to `setup.py bdist_wheel`.
 
