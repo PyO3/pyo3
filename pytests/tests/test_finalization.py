@@ -27,5 +27,6 @@ loopy = [make_loop()]
 def test_hammer_attaching_in_thread():
     loopy.append(misc.hammer_attaching_in_thread())
 
+
 def test_hammer_detach_in_thread():
     misc.hammer_detach_in_thread()
