@@ -2,6 +2,7 @@ use crate::model::{
     Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator,
     VariableLengthArgument,
 };
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 use std::iter::once;
@@ -308,6 +309,7 @@ impl Imports {
     /// So, we first list all builtins and local elements, then iterate on imports
     /// and create the aliases when needed.
     fn create(module: &Module, module_parents: &[&str]) -> Self {
+        let module_is_package = !module.modules.is_empty();
         let mut elements_used_in_annotations = ElementsUsedInAnnotations::new();
         elements_used_in_annotations.walk_module(module);
 
@@ -392,7 +394,8 @@ impl Imports {
             }
             if !import_for_module.is_empty() {
                 imports.push(format!(
-                    "from {module} import {}",
+                    "from {} import {}",
+                    make_module_path_relative(module, &current_module_name, module_is_package),
                     import_for_module.join(", ")
                 ));
             }
@@ -625,6 +628,58 @@ impl ElementsUsedInAnnotations {
     }
 }
 
+/// Returns the path of {module_path} relative to {current_module_path}
+///
+/// {module_path} must be different from {current_module_path}
+///
+/// Doc: <https://peps.python.org/pep-0328/#guido-s-decision>
+fn make_module_path_relative<'a>(
+    target_module_path: &'a str,
+    current_module_path: &str,
+    current_module_is_a_package: bool,
+) -> Cow<'a, str> {
+    assert_ne!(
+        target_module_path, current_module_path,
+        "Internal error: it is not possible to import elements declared locally"
+    );
+
+    // We split by component
+    let mut target_module_path_components = target_module_path.split('.').peekable();
+    let mut current_module_path_components = current_module_path.split('.').peekable();
+
+    // We check if we can do a relative import, if not we do an absolute one
+    if current_module_path_components.peek() != target_module_path_components.peek() {
+        return Cow::Borrowed(target_module_path);
+    }
+
+    // We discard the equal ones
+    while current_module_path_components.peek() == target_module_path_components.peek() {
+        current_module_path_components.next();
+        target_module_path_components.next();
+    }
+
+    let mut output = String::new();
+
+    // We move "up" the remaining components in the current module
+    for _ in current_module_path_components {
+        output.push('.');
+    }
+    if current_module_is_a_package {
+        // The current module is a package, we need to add an extra '.'
+        output.push('.');
+    }
+
+    // We move "down" the remaining component in the target module
+    for (i, component) in target_module_path_components.enumerate() {
+        if i > 0 {
+            output.push('.');
+        }
+        output.push_str(component);
+    }
+
+    Cow::Owned(output)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -838,15 +893,53 @@ mod tests {
         assert_eq!(
             &imports.imports,
             &[
+                "from . import A as A3, B",
                 "from _typeshed import Incomplete",
                 "from bat import A as A2",
                 "from builtins import int as int2",
-                "from foo import A as A3, B",
                 "from typing import final"
             ]
         );
         let mut output = String::new();
         imports.serialize_expr(&big_type, &mut output);
         assert_eq!(output, "dict[A, (A3.C, A3.D, B, A2, int, int2, float)]");
+    }
+
+    #[test]
+    fn test_make_module_path_relative() {
+        assert_eq!(
+            make_module_path_relative("foo.bar", "foo.bar.baz", false),
+            "."
+        );
+        assert_eq!(make_module_path_relative("foo", "foo.bar.baz", false), "..");
+        assert_eq!(
+            make_module_path_relative("foo.lat", "foo.bar.baz", false),
+            "..lat"
+        );
+        assert_eq!(
+            make_module_path_relative("foo.bar.baz", "foo.bar", true),
+            ".baz"
+        );
+        assert_eq!(make_module_path_relative("foo", "foo.bar", true), "..");
+        assert_eq!(
+            make_module_path_relative("foo.lat", "foo.bar", true),
+            "..lat"
+        );
+        assert_eq!(
+            make_module_path_relative("foo.bar.baz", "foo", true),
+            ".bar.baz"
+        );
+        assert_eq!(make_module_path_relative("foo.bar", "foo", true), ".bar");
+        assert_eq!(make_module_path_relative("foo.lat", "foo", true), ".lat");
+        assert_eq!(
+            make_module_path_relative("foo.bar.baz", "foo.lat", false),
+            ".bar.baz"
+        );
+        assert_eq!(
+            make_module_path_relative("foo.bar", "foo.la", false),
+            ".bar"
+        );
+        assert_eq!(make_module_path_relative("foo", "foo.la", false), ".");
+        assert_eq!(make_module_path_relative("foo", "bar", true), "foo");
     }
 }
