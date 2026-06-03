@@ -378,9 +378,10 @@ pub fn impl_py_method_def(
         &wrapper_ident,
         Some(cls),
         calling_convention,
-        // Methods in `tp_methods` are dispatched through CPython's method-wrapper
-        // descriptor, which enforces that the receiver is an instance of the owning
-        // type before reaching the C function. The trusted path is therefore valid.
+        // SAFETY: Methods in `tp_methods` are dispatched through CPython's
+        // method-wrapper descriptor, which enforces that the receiver is an
+        // instance of the owning type before reaching the C function. The
+        // trusted path is therefore valid.
         unsafe { SelfConversionPolicy::trusted() },
         ctx,
     )?;
@@ -1483,10 +1484,7 @@ impl SlotDef {
     }
 }
 
-#[allow(
-    clippy::too_many_arguments,
-    reason = "slot wrapper generation needs the self-conversion policy flag"
-)]
+#[allow(clippy::too_many_arguments)]
 fn generate_method_body(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
@@ -1655,16 +1653,16 @@ impl SlotFragmentDef {
         }
     }
 
-    /// Specialized constructor for binary operators.
-    ///
-    /// Binary operator fragments (`__add__`, `__radd__`, etc.) are combined
-    /// into a shared slot (e.g. `nb_add`) that may call the forward fragment
-    /// with a non-class receiver (e.g. `1 + MyClass()` → `nb_add(1, c)`).
-    /// The runtime helper then tries the reflected fragment with the operands
-    /// swapped, which can also produce a non-class `_slf`.  Both cases require
-    /// a checked type conversion so that a mismatch gracefully returns
-    /// `NotImplemented` rather than causing undefined behaviour.
     const fn binary_operator(fragment: &'static str) -> Self {
+        // Binary operator fragments (`__add__`, `__radd__`, etc.) are combined
+        // into a shared slot (e.g. `nb_add`) that may call the forward fragment
+        // with a non-class receiver (e.g. `1 + MyClass()` → `nb_add(1, c)`).
+        // The runtime helper then tries the reflected fragment with the operands
+        // swapped, which can also produce a non-class `_slf`.  Both cases require
+        // a checked type conversion so that a mismatch gracefully returns
+        // `NotImplemented` rather than causing undefined behaviour.
+        // TODO: addressing #6024 could allow to simplify this by using type
+        // checks to directly dispatch to the right fragment.
         SlotFragmentDef {
             fragment,
             arguments: &[Ty::Object],
