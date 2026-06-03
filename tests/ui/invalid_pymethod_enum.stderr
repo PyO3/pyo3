@@ -1,4 +1,4 @@
-error[E0271]: type mismatch resolving `<ComplexEnum as PyClass>::Frozen == False`
+error: type mismatch resolving `<ComplexEnum as PyClass>::Frozen == False`
    --> tests/ui/invalid_pymethod_enum.rs:9:1
     |
   9 | #[pymethods]
