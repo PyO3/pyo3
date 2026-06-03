@@ -942,12 +942,12 @@ impl PythonAbiBuilder {
     pub fn finalize(self) -> Result<PythonAbi> {
         // default to GIL-enabled version-specific ABI
         let kind = self.kind.unwrap_or(match self.implementation {
-            PythonImplementation::RustPython => PythonAbiKind::Stable(StableAbi::Abi3),
+            PythonImplementation::RustPython => PythonAbiKind::Stable(StableAbi::Abi3t),
             _ => PythonAbiKind::VersionSpecific(GilUsed::GilEnabled),
         });
         if matches!(self.implementation, PythonImplementation::RustPython) {
-            ensure!(matches!(kind, PythonAbiKind::Stable(StableAbi::Abi3)),
-                    "RustPython only supports targeting abi3, it does not allow targeting other Python ABIs. Currently targeting '{kind}'")
+            ensure!(matches!(kind, PythonAbiKind::Stable(StableAbi::Abi3t)),
+                    "RustPython only supports targeting abi3t, it does not allow targeting other Python ABIs. Currently targeting '{kind}'")
         }
         if matches!(kind, PythonAbiKind::VersionSpecific(GilUsed::FreeThreaded))
             && self.version
@@ -3558,7 +3558,7 @@ mod tests {
         assert!(res
             .unwrap_err()
             .to_string()
-            .contains("RustPython only supports targeting abi3"));
+            .contains("RustPython only supports targeting abi3t"));
     }
 
     #[test]
@@ -3906,6 +3906,7 @@ mod tests {
                 "cargo:rustc-cfg=Py_3_11".to_owned(),
                 "cargo:rustc-cfg=RustPython".to_owned(),
                 "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
+                "cargo:rustc-cfg=Py_GIL_DISABLED".to_owned(),
             ]
         );
     }

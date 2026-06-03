@@ -505,23 +505,47 @@ impl PyTypeBuilder {
         unsafe { self.push_slot(0, ptr::null_mut::<c_void>()) }
 
         let class_name = py_class_qualified_name(module_name, name)?;
-        let mut spec = ffi::PyType_Spec {
-            name: class_name.as_ptr() as _,
-            basicsize: basicsize as c_int,
-            itemsize: 0,
+        let flags = ffi::Py_TPFLAGS_DEFAULT | self.class_flags;
 
-            flags: (ffi::Py_TPFLAGS_DEFAULT | self.class_flags)
-                .try_into()
-                .unwrap(),
-            slots: self.slots.as_mut_ptr(),
+        #[cfg(Py_3_15)]
+        let type_object = {
+            let mut slots = [
+                ffi::PySlot_DATA(ffi::Py_tp_name, class_name.as_ptr() as *mut c_void),
+                ffi::PySlot_UINT64(ffi::Py_tp_flags, flags.into()),
+                ffi::PySlot_DATA(ffi::Py_tp_slots, self.slots.as_mut_ptr().cast::<c_void>()),
+                match basicsize {
+                    0.. => ffi::PySlot_SIZE(ffi::Py_tp_basicsize, basicsize),
+                    ..0 => ffi::PySlot_SIZE(ffi::Py_tp_extra_basicsize, -basicsize),
+                },
+                ffi::PySlot_END(),
+            ];
+
+            // SAFETY: We've correctly setup the slots array at this point.
+            // The FFI call is known to return a new type object or null on error.
+            unsafe {
+                ffi::PyType_FromSlots(slots.as_mut_ptr())
+                    .assume_owned_or_err(py)?
+                    .cast_into_unchecked::<PyType>()
+            }
         };
 
-        // SAFETY: We've correctly setup the PyType_Spec at this point
-        // The FFI call is known to return a new type object or null on error
-        let type_object = unsafe {
-            ffi::PyType_FromSpec(&mut spec)
-                .assume_owned_or_err(py)?
-                .cast_into_unchecked::<PyType>()
+        #[cfg(not(Py_3_15))]
+        let type_object = {
+            let mut spec = ffi::PyType_Spec {
+                name: class_name.as_ptr() as _,
+                basicsize: basicsize as c_int,
+                itemsize: 0,
+                flags: flags.try_into().unwrap(),
+                slots: self.slots.as_mut_ptr(),
+            };
+
+            // SAFETY: We've correctly setup the PyType_Spec at this point.
+            // The FFI call is known to return a new type object or null on error.
+            unsafe {
+                ffi::PyType_FromSpec(&mut spec)
+                    .assume_owned_or_err(py)?
+                    .cast_into_unchecked::<PyType>()
+            }
         };
 
         #[cfg(not(Py_3_11))]

@@ -1,6 +1,8 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+#[cfg(feature = "experimental-inspect")]
+mod annotations;
 mod awaitable;
 mod buf_and_str;
 mod comparisons;
@@ -39,6 +41,10 @@ mod pyo3_pytests {
         path::path, pyclasses::pyclasses, pyfunctions::pyfunctions, sequence::sequence,
         subclassing::subclassing,
     };
+
+    #[cfg(feature = "experimental-inspect")]
+    #[pymodule_export]
+    use annotations::annotations;
 
     // Inserting to sys.modules allows importing submodules nicely from Python
     // e.g. import pyo3_pytests.buf_and_str as bas

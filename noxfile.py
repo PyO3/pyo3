@@ -9,6 +9,7 @@ import sysconfig
 import tarfile
 import tempfile
 from contextlib import ExitStack, contextmanager
+from difflib import unified_diff
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
@@ -1676,9 +1677,17 @@ def _ensure_directory_equals(expected_dir: Path, actual_dir: Path):
         file_path = expected_file_path.relative_to(expected_dir)
         actual_file_path = actual_dir / file_path
         assert actual_file_path.exists(), f"File {file_path} does not exist"
-        assert expected_file_path.read_text() == actual_file_path.read_text(), (
-            f"Content is different in {file_path}"
+        expected_file_content = expected_file_path.read_text()
+        actual_file_content = actual_file_path.read_text()
+        diff = "\n".join(
+            unified_diff(
+                expected_file_content.split("\n"),
+                actual_file_content.split("\n"),
+                fromfile="expected",
+                tofile="actual",
+            )
         )
+        assert not diff, f"Content is different in {file_path}:\n{diff}"
     # Assert all actual files are expected
     for actual_file_path in actual_dir.rglob("*"):
         file_path = actual_file_path.relative_to(actual_dir)
