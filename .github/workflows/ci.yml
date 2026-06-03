@@ -597,7 +597,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.13+debug"
       - run: uvx python -m sysconfig
