@@ -29,4 +29,4 @@ def test_hammer_attaching_in_thread():
 
 
 def test_hammer_detach_in_thread():
-    misc.hammer_detach_in_thread()
+    loopy.append(misc.detach_during_finalization())

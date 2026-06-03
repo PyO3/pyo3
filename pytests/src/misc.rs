@@ -45,17 +45,15 @@ impl<T> std::ops::Deref for SyncReceiver<T> {
 unsafe impl<T> Sync for SyncReceiver<T> {}
 
 #[pyfunction]
-fn hammer_detach_in_thread() -> LockHolder {
+fn detach_during_finalization() -> LockHolder {
     let (sender, receiver) = std::sync::mpsc::channel();
     let receiver = SyncReceiver(receiver);
     std::thread::spawn(move || {
         Python::attach(|py| {
-            py.detach(|| receiver.recv().ok());
-            // now the interpreter has shut down, so hammer the detach API. In buggy
-            // versions of PyO3 this will cause a crash.
-            loop {
-                py.detach(|| {});
-            }
+            py.detach(|| {
+                receiver.recv().ok();
+                // Interpreter is finalizing while we try to reattach after returning
+            });
         });
     });
     LockHolder { sender }
@@ -88,7 +86,7 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
 pub mod misc {
     #[pymodule_export]
     use super::{
-        accepts_bool, get_item_and_run_callback, get_type_fully_qualified_name,
-        hammer_attaching_in_thread, hammer_detach_in_thread, issue_219,
+        accepts_bool, detach_during_finalization, get_item_and_run_callback,
+        get_type_fully_qualified_name, hammer_attaching_in_thread, issue_219,
     };
 }
