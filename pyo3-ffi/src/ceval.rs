@@ -158,7 +158,6 @@ extern_libpython! {
     pub fn PyEval_RestoreThread(tstate: *mut PyThreadState);
 }
 
-
 #[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
 pub unsafe extern "C" fn PyEval_RestoreThread(tstate: *mut PyThreadState) {
     // Same note as in PyGILState_Ensure

@@ -78,7 +78,7 @@ pub enum PyGILState_STATE {
     PyGILState_LOCKED,
     PyGILState_UNLOCKED,
 }
-    
+
 // The PyGILState_Ensure function will call pthread_exit during interpreter shutdown,
 // which causes undefined behavior. Redirect to the "safe" version that hangs instead,
 // as Python 3.14 does.
