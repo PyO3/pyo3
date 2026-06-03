@@ -4,7 +4,7 @@ error: cannot use `#[pyo3(set)]` on a `frozen` class
 44 |     #[pyo3(set)]
    |            ^^^
 
-error: type mismatch resolving `<Foo as PyClass>::Frozen == False`
+error[E0271]: type mismatch resolving `<Foo as PyClass>::Frozen == False`
    --> tests/ui/invalid_frozen_pyclass_borrow.rs:9:1
     |
   9 | #[pymethods]
