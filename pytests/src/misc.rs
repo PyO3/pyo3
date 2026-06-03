@@ -32,11 +32,6 @@ fn hammer_attaching_in_thread() -> LockHolder {
 }
 
 // Returns true once the interpreter has begun finalizing.
-// _Py_IsFinalizing() is the private exported function on Python < 3.13.
-// Py_IsFinalizing() is public and exported on Python 3.13+ (where _Py_IsFinalizing was removed).
-// Both are safe to call without the GIL — they read an atomic variable.
-// PyO3 correctly only exports it on 3.13+ but for this unit test we can access the
-// older private version directly.
 fn is_finalizing() -> bool {
     #[cfg(not(Py_3_13))]
     {
@@ -51,9 +46,6 @@ fn is_finalizing() -> bool {
     }
 }
 
-// Called from a Python daemon thread. Releases the GIL and polls Py_IsFinalizing().
-// When finalization begins, exits the closure, triggering SuspendAttach::drop()
-// → PyEval_RestoreThread() on a finalizing interpreter.
 #[pyfunction]
 fn block_in_detach_until_finalizing(py: Python<'_>) {
     py.detach(|| {

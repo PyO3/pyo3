@@ -20,3 +20,16 @@ mod atomic_c_ulong {
 #[cfg(Py_GIL_DISABLED)]
 #[doc(hidden)]
 pub type AtomicCULong = atomic_c_ulong::TYPE;
+
+/// Guard to hang the current thread indefinitely when dropped.
+#[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
+pub struct HangThread;
+
+#[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
+impl Drop for HangThread {
+    fn drop(&mut self) {
+        loop {
+            std::thread::park(); // Block forever.
+        }
+    }
+}
