@@ -122,5 +122,5 @@ You must ensure that your Rust code is in a consistent state before doing any of
 <!-- rumdl-disable MD057 -->
 <!-- TODO: investigate why this lint is being triggered -->
 [previous implementation]: <https://github.com/PyO3/pyo3/discussions/2598> "Thread Safe Decorator <Help Wanted> · Discussion #2598 · PyO3/pyo3"
-[`AtomicU64`]: <https://doc.rust-lang.org/std/sync/atomic/struct.AtomicU64.html> "AtomicU64 in std::sync::atomic - Rust"
+[`AtomicU64`]: <https://doc.rust-lang.org/std/sync/atomic/type.AtomicU64.html> "AtomicU64 in std::sync::atomic - Rust"
 <!-- rumdl-enable MD057 -->

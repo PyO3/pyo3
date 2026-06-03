@@ -5,6 +5,7 @@ fn main() {
     let fun: Py<PyCFunction> = Python::attach(|py| {
         let local_data = vec![0, 1, 2, 3, 4];
         let ref_: &[u8] = &local_data;
+//~^ ERROR: `local_data` does not live long enough
 
         let closure_fn =
             |_args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, PyDict>>| -> PyResult<()> {

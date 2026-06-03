@@ -683,7 +683,8 @@ where
     /// struct SubClass;
     ///
     /// Python::attach(|py| {
-    ///     let obj = Bound::new(py, (SubClass, BaseClass)).unwrap();
+    ///     let initializer = PyClassInitializer::from(BaseClass).add_subclass(SubClass);
+    ///     let obj = Bound::new(py, initializer).unwrap();
     ///     assert!(obj.as_super().pyrepr().is_ok());
     /// })
     /// # }
@@ -735,7 +736,8 @@ where
     /// struct SubClass;
     ///
     /// Python::attach(|py| {
-    ///     let obj = Bound::new(py, (SubClass, BaseClass)).unwrap();
+    ///     let initializer = PyClassInitializer::from(BaseClass).add_subclass(SubClass);
+    ///     let obj = Bound::new(py, initializer).unwrap();
     ///     assert!(obj.into_super().pyrepr().is_ok());
     /// })
     /// # }
@@ -2849,6 +2851,7 @@ a = A()
     #[cfg(feature = "macros")]
     mod using_macros {
         use super::*;
+        use crate::PyClassInitializer;
 
         #[crate::pyclass(crate = "crate")]
         struct SomeClass(i32);
@@ -2929,7 +2932,8 @@ a = A()
         #[test]
         fn test_as_super() {
             Python::attach(|py| {
-                let obj = Bound::new(py, (SubClass, BaseClass)).unwrap();
+                let initializer = PyClassInitializer::from(BaseClass).add_subclass(SubClass);
+                let obj = Bound::new(py, initializer).unwrap();
                 let _: &Bound<'_, BaseClass> = obj.as_super();
                 let _: &Bound<'_, PyAny> = obj.as_super().as_super();
                 assert!(obj.as_super().pyrepr_by_ref().is_ok());
@@ -2939,7 +2943,8 @@ a = A()
         #[test]
         fn test_into_super() {
             Python::attach(|py| {
-                let obj = Bound::new(py, (SubClass, BaseClass)).unwrap();
+                let initializer = PyClassInitializer::from(BaseClass).add_subclass(SubClass);
+                let obj = Bound::new(py, initializer).unwrap();
                 let _: Bound<'_, BaseClass> = obj.clone().into_super();
                 let _: Bound<'_, PyAny> = obj.clone().into_super().into_super();
                 assert!(obj.into_super().pyrepr_by_val().is_ok());

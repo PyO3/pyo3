@@ -148,6 +148,7 @@ impl<'py> Iterator for BoundMappingProxyIterator<'py, '_> {
 mod tests {
 
     use super::*;
+    use crate::platform::HashMap;
     use crate::types::dict::*;
     use crate::Python;
     use crate::{
@@ -155,7 +156,6 @@ mod tests {
         types::{PyInt, PyTuple},
     };
     use alloc::collections::BTreeMap;
-    use std::collections::HashMap;
 
     #[test]
     fn test_new() {

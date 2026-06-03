@@ -1546,14 +1546,19 @@ fn generate_method_body(
                 #pyo3_path::impl_::pymethods::tp_new_impl::<_, #cls>(#py, #initializer, #slf)
             };
 
+            let value = syn::Ident::new("value", Span::call_site());
+            let resolver = quote_spanned! { *output_span =>
+                #pyo3_path::impl_::pymethods::tp_new_resolver::<#cls, _>(&#value).resolve(#value);
+            };
+
             let body = quote! {
                 #text_signature_impl
                 #warnings
                 #arg_convert
 
                 let result = #call;
-                let value = #pyo3_path::impl_::wrap::OkWrapper::new(&result).ok_wrap(result)?;
-                let #initializer = #pyo3_path::impl_::pymethods::tp_new_resolver::<#cls, _>(&value).resolve(value);
+                let #value = #pyo3_path::impl_::wrap::OkWrapper::new(&result).ok_wrap(result)?;
+                let #initializer = #resolver;
                 unsafe { #conversion }
             };
             (arg_idents, arg_types, body)

@@ -52,7 +52,9 @@ chrono = { version = "0.4.25", default-features = false, optional = true }
 chrono-tz = { version = ">= 0.10, < 0.11", default-features = false, optional = true }
 either = { version = "1.9", optional = true }
 eyre = { version = ">= 0.6.8, < 0.7", optional = true }
-hashbrown = { version = ">= 0.15.0, < 0.18", optional = true, default-features = false }
+hashbrown = { version = ">= 0.15.0, < 0.18", optional = true, default-features = false, features = [
+    "default-hasher",
+] }
 indexmap = { version = ">= 2.5.0, < 3", optional = true }
 jiff-02 = { package = "jiff", version = "0.2", optional = true }
 num-bigint = { version = "0.4.4", optional = true }
@@ -76,7 +78,6 @@ portable-atomic = "1.0"
 assert_approx_eq = "1.1.0"
 chrono = "0.4.25"
 chrono-tz = ">= 0.10, < 0.11"
-trybuild = ">=1.0.115"
 proptest = { version = "1.0", default-features = false, features = ["std"] }
 send_wrapper = "0.6"
 serde = { version = "1.0", features = ["derive"] }
@@ -87,6 +88,10 @@ tempfile = "3.12.0"
 static_assertions = "1.1.0"
 uuid = { version = "1.10.0", features = ["v4"] }
 parking_lot = { version = "0.12.3", features = ["arc_lock"] }
+ui_test = "0.30.4"
+regex = "1.12.3"
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+ctrlc = "3.5.2"
 
 [build-dependencies]
 pyo3-build-config = { path = "pyo3-build-config", version = "=0.28.3" }
@@ -124,6 +129,11 @@ abi3-py312 = ["abi3-py313", "pyo3-ffi/abi3-py312"]
 abi3-py313 = ["abi3-py314", "pyo3-ffi/abi3-py313"]
 abi3-py314 = ["abi3-py315", "pyo3-ffi/abi3-py314"]
 abi3-py315 = ["abi3", "pyo3-ffi/abi3-py315"]
+
+abi3t = ["pyo3-ffi/abi3t"]
+
+# With abi3t, we can manually set the minimum Python version.
+abi3t-py315 = ["abi3t", "pyo3-ffi/abi3t-py315"]
 
 # deprecated: no longer needed, raw-dylib is used instead
 generate-import-lib = ["pyo3-ffi/generate-import-lib"]
@@ -188,6 +198,7 @@ members = [
     "pyo3-macros",
     "pyo3-macros-backend",
     "pyo3-introspection",
+    "tests/ui/base",
     "pytests",
     "examples",
 ]
@@ -298,6 +309,7 @@ required-features = ["macros"]
 [[test]]
 name = "test_compile_error"
 required-features = ["macros"]
+harness = false
 
 [[test]]
 name = "test_coroutine"

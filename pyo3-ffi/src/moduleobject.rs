@@ -1,6 +1,10 @@
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 use crate::methodobject::PyMethodDef;
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+// this is pub to avoid unnecessary churn elsewhere
+#[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
+pub use crate::pytypedefs::PyModuleDef;
 #[cfg(Py_3_15)]
 use crate::slots::PySlot;
 use core::ffi::{c_char, c_int, c_void};
@@ -58,6 +62,7 @@ extern_libpython! {
     pub static mut PyModuleDef_Type: PyTypeObject;
 }
 
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 #[repr(C)]
 pub struct PyModuleDef_Base {
     pub ob_base: PyObject,
@@ -67,6 +72,7 @@ pub struct PyModuleDef_Base {
     pub m_copy: *mut PyObject,
 }
 
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 #[allow(
     clippy::declare_interior_mutable_const,
     reason = "contains atomic refcount on free-threaded builds"
@@ -127,6 +133,7 @@ extern_libpython! {
     pub fn PyModule_GetToken(module: *mut PyObject, result: *mut *mut c_void) -> c_int;
 }
 
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 #[repr(C)]
 pub struct PyModuleDef {
     pub m_base: PyModuleDef_Base,
