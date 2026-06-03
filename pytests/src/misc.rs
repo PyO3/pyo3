@@ -31,28 +31,34 @@ fn hammer_attaching_in_thread() -> LockHolder {
     LockHolder { sender }
 }
 
-// Returns true once the interpreter has begun finalizing.
-fn is_finalizing() -> bool {
-    #[cfg(not(Py_3_13))]
-    {
-        extern "C" {
-            fn _Py_IsFinalizing() -> std::ffi::c_int;
-        }
-        unsafe { _Py_IsFinalizing() != 0 }
-    }
-    #[cfg(Py_3_13)]
-    {
-        unsafe { pyo3::ffi::Py_IsFinalizing() != 0 }
+/// Wrapper to mark Receiver as Sync.
+struct SyncReceiver<T>(std::sync::mpsc::Receiver<T>);
+
+impl<T> std::ops::Deref for SyncReceiver<T> {
+    type Target = std::sync::mpsc::Receiver<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
+unsafe impl<T> Sync for SyncReceiver<T> {}
+
 #[pyfunction]
-fn block_in_detach_until_finalizing(py: Python<'_>) {
-    py.detach(|| {
-        while !is_finalizing() {
-            std::thread::sleep(std::time::Duration::from_millis(1));
-        }
+fn hammer_detach_in_thread() -> LockHolder {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let receiver = SyncReceiver(receiver);
+    std::thread::spawn(move || {
+        Python::attach(|py| {
+            py.detach(|| receiver.recv().ok());
+            // now the interpreter has shut down, so hammer the detach API. In buggy
+            // versions of PyO3 this will cause a crash.
+            loop {
+                py.detach(|| {});
+            }
+        });
     });
+    LockHolder { sender }
 }
 
 #[pyfunction]
@@ -82,7 +88,7 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
 pub mod misc {
     #[pymodule_export]
     use super::{
-        accepts_bool, block_in_detach_until_finalizing, get_item_and_run_callback,
-        get_type_fully_qualified_name, hammer_attaching_in_thread, issue_219,
+        accepts_bool, get_item_and_run_callback, get_type_fully_qualified_name,
+        hammer_attaching_in_thread, hammer_detach_in_thread, issue_219,
     };
 }

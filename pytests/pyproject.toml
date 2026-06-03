@@ -17,6 +17,10 @@ classifiers = [
     "Operating System :: POSIX",
     "Operating System :: MacOS :: MacOS X",
 ]
+dependencies = [
+    "pytest>=9.0.3",
+    "pytest-benchmark>=5.2.3",
+]
 
 [project.optional-dependencies]
 dev = [
