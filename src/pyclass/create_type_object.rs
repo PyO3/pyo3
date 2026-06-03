@@ -513,9 +513,8 @@ impl PyTypeBuilder {
                 ffi::PySlot_UINT64(ffi::Py_tp_flags, flags.into()),
                 ffi::PySlot_DATA(ffi::Py_tp_slots, self.slots.as_mut_ptr().cast::<c_void>()),
                 match basicsize {
-                    1.. => ffi::PySlot_SIZE(ffi::Py_tp_basicsize, basicsize),
+                    0.. => ffi::PySlot_SIZE(ffi::Py_tp_basicsize, basicsize),
                     ..0 => ffi::PySlot_SIZE(ffi::Py_tp_extra_basicsize, -basicsize),
-                    0 => ffi::PySlot_END(),
                 },
                 ffi::PySlot_END(),
             ];
