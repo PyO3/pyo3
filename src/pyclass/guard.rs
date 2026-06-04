@@ -704,7 +704,7 @@ where
     ///
     /// # Note
     ///
-    /// The mutable reference to the is not exposed directly, but through [PyClassGuardMutSuper].
+    /// The mutable reference to the base type is not exposed directly, but through [`PyClassGuardMutSuper`].
     pub fn as_super(&mut self) -> PyClassGuardMutSuper<'_, 'a, T::BaseType> {
         PyClassGuardMutSuper {
             // SAFETY: `PyClassGuardMut<T>` and `PyClassGuardMut<U>` have the same layout
