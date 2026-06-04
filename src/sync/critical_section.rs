@@ -218,7 +218,7 @@ where
 /// Rather than receiving the wrapped data directly, access is gated via the
 /// [`pyo3::sync::critical_section::EnteredCriticalSection`](crate::sync::critical_section::EnteredCriticalSection)
 /// struct. Note that `f` receives an `EnteredCriticalSection<'s, T1>` for the
-/// data protected by `m1` but an `Option<EnteredCriticalSectio<'s, T2>>` for
+/// data protected by `m1` but an `Option<EnteredCriticalSection<'s, T2>>` for
 /// the data protected by `m2`. If `m1` and `m2` are the same object, then the
 /// Option will contain `None`, otherwise it contains a wrapper for the data
 /// protected by `m2`.
@@ -246,20 +246,19 @@ pub fn with_critical_section_mutex2<F, R, T1, T2>(
 where
     F: for<'s> FnOnce(EnteredCriticalSection<'s, T1>, Option<EnteredCriticalSection<'s, T2>>) -> R,
 {
+    if core::ptr::addr_eq(m1, m2) {
+        return with_critical_section_mutex(_py, m1, |cs| f(cs, None));
+    }
     #[cfg(Py_GIL_DISABLED)]
     let mut guard = CS2Guard(unsafe { core::mem::zeroed() });
     #[cfg(Py_GIL_DISABLED)]
     unsafe {
         crate::ffi::PyCriticalSection2_BeginMutex(&raw mut guard.0, m1.mutex.get(), m2.mutex.get())
     };
-    if core::ptr::eq(m1.mutex.get(), m2.mutex.get()) {
-        f(EnteredCriticalSection(&m1.data), None)
-    } else {
-        f(
-            EnteredCriticalSection(&m1.data),
-            Some(EnteredCriticalSection(&m2.data)),
-        )
-    }
+    f(
+        EnteredCriticalSection(&m1.data),
+        Some(EnteredCriticalSection(&m2.data)),
+    )
 }
 
 // We are building wasm Python with pthreads disabled and all these
@@ -419,9 +418,7 @@ mod tests {
                         std::thread::sleep(core::time::Duration::from_millis(10));
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         unsafe { *b1.get_mut() = true };
-                        if let Some(ref mut inner) = b2 {
-                            unsafe { *inner.get_mut() = true };
-                        }
+                        unsafe { *b2.as_mut().unwrap().get_mut() = true };
                     });
                 });
             });
@@ -432,9 +429,7 @@ mod tests {
                     with_critical_section_mutex2(py, &m1, &m2, |b1, b2| {
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         assert!(unsafe { *b1.get() });
-                        if let Some(ref inner) = b2 {
-                            assert!(unsafe { *inner.get() });
-                        }
+                        assert!(unsafe { *b2.unwrap().get() });
                     });
                 });
             });
@@ -443,7 +438,7 @@ mod tests {
 
     #[cfg(feature = "macros")]
     #[test]
-    fn test_critical_section2_same_object_no_deadlock() {
+    fn test_critical_section2_same_object() {
         let barrier = Barrier::new(2);
 
         let bool_wrapper = Python::attach(|py| -> Py<BoolWrapper> {
