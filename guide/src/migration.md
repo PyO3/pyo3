@@ -119,6 +119,7 @@ The changes were:
 - `PyCFunction::new_closure` now requires the closure to be `Sync` to prevent possible thread unsafety. ⚠️ A security advisory will be issued for this, as the thread unsafety could easily go undetected in testing and lead to exploitable issues downstream in production. ⚠️
 - `PyClassGuardMap` has been split into `PyClassGuardMap` and `PyClassGuardMapMut` to prevent possible lifetime variance issues.
 - `PyClassGuardMut::as_super` now returns `PyClassGuardMutSuper` instead of `&mut PyClassGuardMut<SuperType>` to prevent possible type confusion issues.
+- `with_critical_section_mutex2` now passes an `Option<EnteredCriticalSection>` as the second argument to the closure to avoid possible mutable reference aliasing when both mutexes participating in the critical section are the same address.
 
 </details>
 

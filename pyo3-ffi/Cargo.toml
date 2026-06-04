@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-ffi"
-version = "0.28.3"
+version = "0.29.0"
 description = "Python-API bindings for the PyO3 ecosystem"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -47,7 +47,7 @@ generate-import-lib = ["pyo3-build-config/generate-import-lib"]
 paste = "1"
 
 [build-dependencies]
-pyo3-build-config = { path = "../pyo3-build-config", version = "=0.28.3" }
+pyo3-build-config = { path = "../pyo3-build-config", version = "=0.29.0" }
 
 [lints]
 workspace = true

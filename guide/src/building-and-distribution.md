@@ -28,8 +28,8 @@ An example output of doing this is shown below:
 
 ```console
 $ PYO3_PRINT_CONFIG=1 cargo build
-   Compiling pyo3-ffi v0.28.3 (/Users/goldbaum/Documents/pyo3/pyo3-ffi)
-error: failed to run custom build command for `pyo3-ffi v0.28.3 (/Users/goldbaum/Documents/pyo3/pyo3-ffi)`
+   Compiling pyo3-ffi v0.29.0 (/Users/goldbaum/Documents/pyo3/pyo3-ffi)
+error: failed to run custom build command for `pyo3-ffi v0.29.0 (/Users/goldbaum/Documents/pyo3/pyo3-ffi)`
 
 Caused by:
   process didn't exit successfully: `/Users/goldbaum/Documents/pyo3/target/debug/build/pyo3-ffi-71f0882ba738a1f0/build-script-build` (exit status: 101)
