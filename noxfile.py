@@ -1752,9 +1752,7 @@ def _get_feature_sets(
             return (None, features)
 
     # do fewer abi3t builds?
-    # TODO re-enable Windows abi3t builds once 3.15.0b2 is released.
-    # See https://github.com/python/cpython/issues/149887
-    if version >= (3, 15) and sys.platform != "win32":
+    if version >= (3, 15):
         return (
             None,
             "abi3",
