@@ -47,6 +47,52 @@ In PyO3 0.29, `pyo3-build-config` no longer inlines any configuration into itsel
 This has upside of faster compilation - `pyo3-build-config` no longer has a build script and never recompiles when changing Python version.
 It also guarantees that all builds are based on the single fully-configured build configuration resolved by `pyo3-ffi`.
 
+### Deprecation of super class initialization from tuples
+
+Performing superclass initialitation from a subclass via a tuple is deprecated and will be removed in a future PyO3 version.
+This also includes the `From<(S, B)> for PyClassInitializer<S>` impl which we can't warn against.
+To migrate use `PyClassInitializer` directly:
+
+Before:
+
+```rust
+# #![allow(deprecated)]
+# use pyo3::prelude::*;
+#[pyclass(subclass)]
+struct Base;
+
+#[pyclass(extends=Base)]
+struct Sub;
+
+#[pymethods]
+impl Sub {
+    #[new]
+    fn new() -> (Self, Base) {
+        (Self, Base)
+    }
+}
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass(subclass)]
+struct Base;
+
+#[pyclass(extends=Base)]
+struct Sub;
+
+#[pymethods]
+impl Sub {
+    #[new]
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from(Base)
+            .add_subclass(Self)
+    }
+}
+```
+
 ## from 0.27.* to 0.28
 
 ### Default to supporting free-threaded Python

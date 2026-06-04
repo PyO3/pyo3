@@ -37,15 +37,20 @@ use crate::prelude::PyTypeMethods;
 use crate::{
     ffi,
     impl_::pyfunction::PyFunctionDef,
-    sync::PyOnceLock,
-    types::{any::PyAnyMethods, dict::PyDictMethods, PyDict, PyModule, PyModuleMethods},
-    Bound, Py, PyAny, PyClass, PyResult, PyTypeInfo, Python,
+    types::{PyModule, PyModuleMethods},
+    Bound, PyClass, PyResult, PyTypeInfo,
 };
 use crate::{ffi_ptr_ext::FfiPtrExt, PyErr};
+use crate::{
+    sync::PyOnceLock,
+    types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
+    Py, PyAny, Python,
+};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
+    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
     #[cfg(Py_3_15)]
     name: &'static CStr,
@@ -75,7 +80,7 @@ impl ModuleDef {
     ) -> Self {
         // This is only used in PyO3 for append_to_inittab on Python 3.15 and newer.
         // There could also be other tools that need the legacy init hook.
-        // Opaque PyObject builds won't be able to use this.
+        #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
         #[allow(clippy::declare_interior_mutable_const)]
         const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
             m_base: ffi::PyModuleDef_HEAD_INIT,
@@ -89,6 +94,7 @@ impl ModuleDef {
             m_free: None,
         };
 
+        #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
             m_name: name.as_ptr(),
             m_doc: doc.as_ptr(),
@@ -99,6 +105,7 @@ impl ModuleDef {
         });
 
         ModuleDef {
+            #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
             ffi_def,
             #[cfg(Py_3_15)]
             name,
@@ -117,6 +124,7 @@ impl ModuleDef {
         }
     }
 
+    #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     pub fn init_multi_phase(&'static self) -> *mut ffi::PyObject {
         unsafe { ffi::PyModuleDef_Init(self.ffi_def.get()) }
     }
@@ -259,6 +267,30 @@ macro_rules! __pyo3_pymodexport {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __pyo3_pymodexport {
+    ($symbol:literal, $def:path) => {};
+}
+
+/// Defines the `PyInit_<name>` entry point used by Python 3.14 and older.
+///
+/// This is wrapped in a `macro_rules!` so the proc-macro backend can emit a single
+/// version-agnostic invocation; the body only expands on Python 3.14 and older
+#[cfg(not(all(Py_3_15, Py_LIMITED_API, Py_GIL_DISABLED)))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __pyo3_pyinit {
+    ($symbol:literal, $def:path) => {
+        #[doc(hidden)]
+        #[export_name = $symbol]
+        pub unsafe extern "C" fn __pyo3_init() -> *mut $crate::ffi::PyObject {
+            $def.init_multi_phase()
+        }
+    };
+}
+
+#[cfg(all(Py_3_15, Py_LIMITED_API, Py_GIL_DISABLED))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __pyo3_pyinit {
     ($symbol:literal, $def:path) => {};
 }
 
@@ -578,6 +610,7 @@ mod tests {
 
         let module_def: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS);
 
+        #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
         unsafe {
             assert_eq!((*module_def.ffi_def.get()).m_slots, SLOTS.0.get().cast());
         }

@@ -1,4 +1,4 @@
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
 mod atomic_c_ulong {
     pub struct GetAtomicCULong<const WIDTH: usize>();
 
@@ -17,6 +17,6 @@ mod atomic_c_ulong {
 }
 
 /// Typedef for an atomic integer to match the platform-dependent c_ulong type.
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
 #[doc(hidden)]
 pub type AtomicCULong = atomic_c_ulong::TYPE;

@@ -11,7 +11,7 @@ use core::ffi::c_uint;
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
 use core::ffi::c_ulong;
 use core::ptr;
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
 use core::sync::atomic::Ordering::Relaxed;
 
 #[cfg(all(Py_3_14, not(Py_3_15)))]
@@ -116,6 +116,7 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     }
 }
 
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 #[cfg(Py_3_12)]
 #[inline(always)]
 unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {

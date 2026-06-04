@@ -63,7 +63,8 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
     }
 }
 
-pub struct TpNewValueTypeResolver<ClassT, ValueT>(
+pub struct TpNewValueTypeResolver<ClassT, ValueT>(TpNewTupleResolver<ClassT, ValueT>);
+pub struct TpNewTupleResolver<ClassT, ValueT>(
     ResolveToArbitraryObject,
     PhantomData<(ClassT, ValueT)>,
 );
@@ -79,10 +80,20 @@ pub struct ResolveToArbitraryObject(());
 /// `ClassT` because that implementation ignores the `cls` parameter for `PyClassInit` (and would
 /// therefore be incorrect when instantiating subclasses).
 pub fn tp_new_resolver<ClassT, ValueT>(_: &ValueT) -> TpNewValueTypeResolver<ClassT, ValueT> {
-    TpNewValueTypeResolver(ResolveToArbitraryObject(()), PhantomData)
+    TpNewValueTypeResolver(TpNewTupleResolver(
+        ResolveToArbitraryObject(()),
+        PhantomData,
+    ))
 }
 
 impl<ClassT, ValueT> core::ops::Deref for TpNewValueTypeResolver<ClassT, ValueT> {
+    type Target = TpNewTupleResolver<ClassT, ValueT>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<ClassT, ValueT> core::ops::Deref for TpNewTupleResolver<ClassT, ValueT> {
     type Target = ResolveToArbitraryObject;
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -100,6 +111,21 @@ where
 {
     pub fn resolve(&self, value: ValueT) -> PyClassInitializer<ClassT> {
         value.into_pyclass_initializer()
+    }
+}
+
+impl<S, B> TpNewTupleResolver<S, (S, B)>
+where
+    S: PyClass<BaseType = B>,
+    B: PyClass + PyClassBaseType<Initializer = PyClassInitializer<B>>,
+    B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
+{
+    #[deprecated(
+        since = "0.29.0",
+        note = "Tuple syntax for super class initialization is phased out. Use `PyClassInitializer` instead."
+    )]
+    pub fn resolve(&self, value: (S, B)) -> PyClassInitializer<S> {
+        value.into()
     }
 }
 
@@ -169,17 +195,6 @@ where
     T::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<T::BaseType>>,
 {
     fn into_pyclass_initializer(self) -> PyClassInitializer<T> {
-        self.into()
-    }
-}
-
-impl<S, B> IntoPyClassInitializer<S> for (S, B)
-where
-    S: PyClass<BaseType = B>,
-    B: PyClass + PyClassBaseType<Initializer = PyClassInitializer<B>>,
-    B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
-{
-    fn into_pyclass_initializer(self) -> PyClassInitializer<S> {
         self.into()
     }
 }

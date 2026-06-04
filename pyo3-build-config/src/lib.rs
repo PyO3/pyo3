@@ -14,11 +14,11 @@ use std::{env, process::Command, str::FromStr, sync::LazyLock};
 
 pub use impl_::{
     cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
-    CrossCompileConfig, InterpreterConfig, InterpreterConfigBuilder, PythonImplementation,
-    PythonVersion, Triple,
+    CrossCompileConfig, GilUsed, InterpreterConfig, InterpreterConfigBuilder, PythonAbi,
+    PythonAbiBuilder, PythonAbiKind, PythonImplementation, PythonVersion, StableAbi, Triple,
 };
 
-use target_lexicon::OperatingSystem;
+use target_lexicon::{Architecture, OperatingSystem};
 
 /// Adds all the [`#[cfg]` flags](index.html) to the current compilation.
 ///
@@ -29,7 +29,7 @@ use target_lexicon::OperatingSystem;
 /// | Flag | Description |
 /// | ---- | ----------- |
 /// | `#[cfg(Py_3_8)]`, `#[cfg(Py_3_9)]`, `#[cfg(Py_3_10)]`, `#[cfg(Py_3_11)]`, ... | These attributes mark code only for a given Python version and up. For example, `#[cfg(Py_3_8)]` marks code which can run on Python 3.8 **and newer**. There is one attribute for each Python version currently supported by PyO3. |
-/// | `#[cfg(Py_LIMITED_API)]` | This marks code which is run when compiling with PyO3's `abi3` feature enabled. |
+/// | `#[cfg(Py_LIMITED_API)]` | This marks code which is run when compiling with PyO3's `abi3` or abi3t feature enabled. |
 /// | `#[cfg(Py_GIL_DISABLED)]` | This marks code which is run on the free-threaded interpreter. |
 /// | `#[cfg(PyPy)]` | This marks code which is run when compiling for PyPy. |
 /// | `#[cfg(GraalPy)]` | This marks code which is run when compiling for GraalPy. |
@@ -95,23 +95,7 @@ fn _add_extension_module_link_args(
 /// for more details.
 pub fn add_libpython_rpath_link_args() {
     let target = impl_::target_triple_from_env();
-    _add_libpython_rpath_link_args(
-        get(),
-        impl_::is_linking_libpython_for_target(&target),
-        std::io::stdout(),
-    )
-}
-
-fn _add_libpython_rpath_link_args(
-    interpreter_config: &InterpreterConfig,
-    is_linking_libpython: bool,
-    mut writer: impl std::io::Write,
-) {
-    if is_linking_libpython {
-        if let Some(lib_dir) = interpreter_config.lib_dir() {
-            writeln!(writer, "cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}").unwrap();
-        }
-    }
+    pyo3_build_script_impl::print_libpython_rpath_link_args(&target, get());
 }
 
 /// Adds linker arguments suitable for linking against the Python framework on macOS.
@@ -162,32 +146,6 @@ fn get_inner() -> InterpreterConfig {
     interpreter_config.expect("failed to parse PyO3 config")
 }
 
-/// Helper to print a feature cfg with a minimum rust version required.
-fn print_feature_cfg(minor_version_required: u32, cfg: &str) {
-    let minor_version = rustc_minor_version().unwrap_or(0);
-
-    if minor_version >= minor_version_required {
-        println!("cargo:rustc-cfg={cfg}");
-    }
-
-    // rustc 1.80.0 stabilized `rustc-check-cfg` feature, don't emit before
-    if minor_version >= 80 {
-        println!("cargo:rustc-check-cfg=cfg({cfg})");
-    }
-}
-
-/// Use certain features if we detect the compiler being used supports them.
-///
-/// Features may be removed or added as MSRV gets bumped or new features become available,
-/// so this function is unstable.
-#[doc(hidden)]
-pub fn print_feature_cfgs() {
-    print_feature_cfg(84, "const_is_null");
-    print_feature_cfg(85, "fn_ptr_eq");
-    print_feature_cfg(86, "from_bytes_with_nul_error");
-    print_feature_cfg(95, "cfg_select");
-}
-
 /// Registers `pyo3`s config names as reachable cfg expressions
 ///
 /// - <https://github.com/rust-lang/cargo/pull/13571>
@@ -203,13 +161,18 @@ pub fn print_expected_cfgs() {
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)
-    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::ABI3_MAX_MINOR + 1 {
+    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
         println!("cargo:rustc-check-cfg=cfg(Py_3_{i})");
     }
 
     // pyo3_dll cfg for raw-dylib linking on Windows
-    let mut dll_names = vec!["python3".to_string(), "python3_d".to_string()];
-    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::ABI3_MAX_MINOR + 1 {
+    let mut dll_names = vec![
+        "python3".to_string(),
+        "python3_d".to_string(),
+        "python3t".to_string(),
+        "python3t_d".to_string(),
+    ];
+    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
         dll_names.push(format!("python3{i}"));
         dll_names.push(format!("python3{i}_d"));
         if i >= 13 {
@@ -248,6 +211,7 @@ pub mod pyo3_build_script_impl {
     }
     pub use crate::impl_::{
         cargo_env_var, env_var, is_linking_libpython_for_target, target_triple_from_env,
+        InterpreterConfig, PythonAbi, PythonAbiKind, PythonVersion, StableAbi,
     };
     pub enum BuildConfigSource {
         /// Config was provided by `PYO3_CONFIG_FILE`.
@@ -302,13 +266,13 @@ pub mod pyo3_build_script_impl {
             interpreter_config: &InterpreterConfig,
             supported_version: PythonVersion,
         ) -> Self {
-            let implementation = match interpreter_config.implementation() {
+            let implementation = match interpreter_config.target_abi().implementation() {
                 PythonImplementation::CPython => "Python",
                 PythonImplementation::PyPy => "PyPy",
                 PythonImplementation::GraalPy => "GraalPy",
                 PythonImplementation::RustPython => "RustPython",
             };
-            let version = interpreter_config.version();
+            let version = &interpreter_config.target_abi().version();
             let message = format!(
                 "the configured {implementation} version ({version}) is newer than PyO3's maximum supported version ({supported_version})\n\
                 = help: this package is being built with PyO3 version {current_version}\n\
@@ -326,6 +290,47 @@ pub mod pyo3_build_script_impl {
 
         pub fn finish(self) -> String {
             self.message
+        }
+    }
+
+    /// Detects features which `pyo3` and `pyo3-ffi` depend upon internally, and prints the appropriate
+    /// `cargo:rustc-cfg` and `cargo:rustc-check-cfg` directives to enable them.
+    pub fn print_feature_cfgs() {
+        print_feature_cfg(84, "const_is_null");
+        print_feature_cfg(85, "fn_ptr_eq");
+        print_feature_cfg(86, "from_bytes_with_nul_error");
+        print_feature_cfg(95, "cfg_select");
+    }
+
+    /// Helper to print a feature cfg with a minimum rust version required.
+    fn print_feature_cfg(minor_version_required: u32, cfg: &str) {
+        println!("cargo:rustc-check-cfg=cfg({cfg})");
+
+        let minor_version = rustc_minor_version().unwrap_or(0);
+        if minor_version >= minor_version_required {
+            println!("cargo:rustc-cfg={cfg}");
+        }
+    }
+
+    /// Emit libpython rpath link args if appropriate for the target and interpreter config.
+    ///
+    /// This form exists for pyo3-ffi where `get()` cannot be called.
+    pub fn print_libpython_rpath_link_args(
+        target: &Triple,
+        interpreter_config: &InterpreterConfig,
+    ) {
+        let is_linking_libpython = is_linking_libpython_for_target(target);
+        let is_wasm = matches!(
+            target.architecture,
+            Architecture::Wasm32 | Architecture::Wasm64
+        );
+        let is_emscripten = target.operating_system == target_lexicon::OperatingSystem::Emscripten;
+        // webassembly targets generally don't support rpath, emscripten is the only exception currently aware of:
+        // https://github.com/emscripten-core/emscripten/issues/22126
+        if is_linking_libpython && (!is_wasm || is_emscripten) {
+            if let Some(lib_dir) = interpreter_config.lib_dir() {
+                println!("cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}");
+            }
         }
     }
 }

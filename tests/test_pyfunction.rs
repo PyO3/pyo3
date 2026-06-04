@@ -3,6 +3,7 @@
 #![cfg(feature = "macros")]
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicI32, Ordering};
 
 #[cfg(not(Py_LIMITED_API))]
 use pyo3::buffer::PyBuffer;
@@ -566,13 +567,12 @@ fn test_closure() {
 #[test]
 fn test_closure_counter() {
     Python::attach(|py| {
-        let counter = std::cell::RefCell::new(0);
+        let counter = AtomicI32::new(0);
         let counter_fn = move |_args: &Bound<'_, types::PyTuple>,
                                _kwargs: Option<&Bound<'_, types::PyDict>>|
               -> PyResult<i32> {
-            let mut counter = counter.borrow_mut();
-            *counter += 1;
-            Ok(*counter)
+            let prev_count = counter.fetch_add(1, Ordering::SeqCst);
+            Ok(prev_count + 1)
         };
         let counter_py = PyCFunction::new_closure(py, None, None, counter_fn).unwrap();
 
