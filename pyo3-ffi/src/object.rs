@@ -79,6 +79,7 @@ pub union PyObjectObRefcnt {
 #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
 impl core::fmt::Debug for PyObjectObRefcnt {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        // SAFETY: always valid to print `ob_refcnt` as a number
         write!(f, "{}", unsafe { self.ob_refcnt })
     }
 }

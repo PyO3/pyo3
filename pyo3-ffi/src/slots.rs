@@ -78,6 +78,7 @@ pub const unsafe fn PySlot_FUNC(NAME: c_int, VALUE: *mut c_void) -> PySlot {
         sl_flags: 0,
         anon1: _anon_union_32b { sl_reserved: 0 },
         anon2: _anon_union_64b {
+            // SAFETY: caller should have provided a valid pointer to function
             sl_func: Some(unsafe { core::mem::transmute::<*mut c_void, _Py_funcptr_t>(VALUE) }),
         },
     }
@@ -145,5 +146,6 @@ pub const fn PySlot_PTR_STATIC(NAME: c_int, VALUE: *mut c_void) -> PySlot {
 
 #[cfg(Py_3_15)]
 pub const fn PySlot_END() -> PySlot {
+    // SAFETY: the interpreter expects a zeroed slot to mark the end of the slot array
     unsafe { core::mem::zeroed() }
 }
