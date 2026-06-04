@@ -520,7 +520,7 @@ impl PyTypeBuilder {
                     // This can *ONLY* be hit on the variable-sized case with a rust ZST,
                     // as a fully-sized case will always have size at least equal to `PyObject`
                     0 => ffi::PySlot_END(),
-                    ..=0 => ffi::PySlot_SIZE(ffi::Py_tp_extra_basicsize, -basicsize),
+                    ..0 => ffi::PySlot_SIZE(ffi::Py_tp_extra_basicsize, -basicsize),
                 },
                 // NB: insert additional slots BEFORE `basicsize` slot as it might be null
                 ffi::PySlot_END(),
