@@ -514,9 +514,15 @@ impl PyTypeBuilder {
                 ffi::PySlot_UINT64(ffi::Py_tp_flags, flags.into()),
                 ffi::PySlot_DATA(ffi::Py_tp_slots, self.slots.as_mut_ptr().cast::<c_void>()),
                 match basicsize {
-                    0.. => ffi::PySlot_SIZE(ffi::Py_tp_basicsize, basicsize),
-                    ..0 => ffi::PySlot_SIZE(ffi::Py_tp_extra_basicsize, -basicsize),
+                    1.. => ffi::PySlot_SIZE(ffi::Py_tp_basicsize, basicsize),
+                    // zero size; don't set the slot at all, the VM will use the parent size
+                    //
+                    // This can *ONLY* be hit on the variable-sized case with a rust ZST,
+                    // as a fully-sized case will always have size at least equal to `PyObject`
+                    0 => ffi::PySlot_END(),
+                    ..=0 => ffi::PySlot_SIZE(ffi::Py_tp_extra_basicsize, -basicsize),
                 },
+                // NB: insert additional slots BEFORE `basicsize` slot as it might be null
                 ffi::PySlot_END(),
             ];
 
