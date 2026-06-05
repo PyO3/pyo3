@@ -983,30 +983,9 @@ const fn with_vectorcall_arguments_offset(n: size_t) -> size_t {
 tuple_conversion!(1, (0, T0));
 tuple_conversion!(2, (0, T0), (1, T1));
 tuple_conversion!(3, (0, T0), (1, T1), (2, T2));
-tuple_conversion!(
-    4,
-    (0, T0),
-    (1, T1),
-    (2, T2),
-    (3, T3)
-);
-tuple_conversion!(
-    5,
-    (0, T0),
-    (1, T1),
-    (2, T2),
-    (3, T3),
-    (4, T4)
-);
-tuple_conversion!(
-    6,
-    (0, T0),
-    (1, T1),
-    (2, T2),
-    (3, T3),
-    (4, T4),
-    (5, T5)
-);
+tuple_conversion!(4, (0, T0), (1, T1), (2, T2), (3, T3));
+tuple_conversion!(5, (0, T0), (1, T1), (2, T2), (3, T3), (4, T4));
+tuple_conversion!(6, (0, T0), (1, T1), (2, T2), (3, T3), (4, T4), (5, T5));
 tuple_conversion!(
     7,
     (0, T0),
