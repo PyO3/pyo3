@@ -290,6 +290,12 @@ impl<T: PyClass> Deref for PyClassGuard<'_, T> {
     }
 }
 
+impl<T: PyClass + fmt::Debug> fmt::Debug for PyClassGuard<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.deref(), f)
+    }
+}
+
 impl<'a, 'py, T: PyClass> FromPyObject<'a, 'py> for PyClassGuard<'a, T> {
     type Error = PyClassGuardError<'a, 'py>;
 
@@ -741,6 +747,12 @@ impl<T: PyClass<Frozen = False>> DerefMut for PyClassGuardMut<'_, T> {
         // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
         // alias is enforced
         unsafe { &mut *self.as_class_object().get_ptr() }
+    }
+}
+
+impl<T: PyClass<Frozen = False> + fmt::Debug> fmt::Debug for PyClassGuardMut<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.deref(), f)
     }
 }
 
