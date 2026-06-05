@@ -147,7 +147,7 @@ To include your changes in the release notes, you should create one (or more) ne
 - `removed` - for features which have been removed
 - `fixed` - for "changed" features which were classed as a bugfix
 
-Docs-only PRs do not need news items; start your PR title with `docs:` to skip the check.
+If your PR is a documentation, refactor, or internal change, prefix your PR title with `docs:`, `refactor`, or `internal` to skip this check.
 
 ### Style guide
 
