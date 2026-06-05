@@ -10,7 +10,6 @@ pub struct Foo {
 //~^ ERROR: type mismatch resolving `<Foo as PyClass>::Frozen == False`
 impl Foo {
     fn mut_method(&mut self) {}
-//~^ ERROR: type mismatch resolving `<Foo as PyClass>::Frozen == False`
 }
 
 fn borrow_mut_fails(foo: Py<Foo>, py: Python) {
