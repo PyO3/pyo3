@@ -135,7 +135,7 @@ impl Number {
 #
 #[pymethods]
 impl Number {
-    fn __pos__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __pos__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
