@@ -624,7 +624,7 @@ fn wrong_tuple_length(t: Borrowed<'_, '_, PyTuple>, expected_length: usize) -> P
     exceptions::PyValueError::new_err(msg)
 }
 
-macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
+macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
     impl <'py, $($T),+> IntoPyObject<'py> for ($($T,)+)
     where
         $($T: IntoPyObject<'py>,)+
@@ -980,108 +980,86 @@ const fn with_vectorcall_arguments_offset(n: size_t) -> size_t {
         .expect("overflow adding PY_VECTORCALL_ARGUMENTS_OFFSET")
 }
 
-tuple_conversion!(1, (ref0, 0, T0));
-tuple_conversion!(2, (ref0, 0, T0), (ref1, 1, T1));
-tuple_conversion!(3, (ref0, 0, T0), (ref1, 1, T1), (ref2, 2, T2));
-tuple_conversion!(
-    4,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3)
-);
-tuple_conversion!(
-    5,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4)
-);
-tuple_conversion!(
-    6,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5)
-);
+tuple_conversion!(1, (0, T0));
+tuple_conversion!(2, (0, T0), (1, T1));
+tuple_conversion!(3, (0, T0), (1, T1), (2, T2));
+tuple_conversion!(4, (0, T0), (1, T1), (2, T2), (3, T3));
+tuple_conversion!(5, (0, T0), (1, T1), (2, T2), (3, T3), (4, T4));
+tuple_conversion!(6, (0, T0), (1, T1), (2, T2), (3, T3), (4, T4), (5, T5));
 tuple_conversion!(
     7,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5),
-    (ref6, 6, T6)
+    (0, T0),
+    (1, T1),
+    (2, T2),
+    (3, T3),
+    (4, T4),
+    (5, T5),
+    (6, T6)
 );
 tuple_conversion!(
     8,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5),
-    (ref6, 6, T6),
-    (ref7, 7, T7)
+    (0, T0),
+    (1, T1),
+    (2, T2),
+    (3, T3),
+    (4, T4),
+    (5, T5),
+    (6, T6),
+    (7, T7)
 );
 tuple_conversion!(
     9,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5),
-    (ref6, 6, T6),
-    (ref7, 7, T7),
-    (ref8, 8, T8)
+    (0, T0),
+    (1, T1),
+    (2, T2),
+    (3, T3),
+    (4, T4),
+    (5, T5),
+    (6, T6),
+    (7, T7),
+    (8, T8)
 );
 tuple_conversion!(
     10,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5),
-    (ref6, 6, T6),
-    (ref7, 7, T7),
-    (ref8, 8, T8),
-    (ref9, 9, T9)
+    (0, T0),
+    (1, T1),
+    (2, T2),
+    (3, T3),
+    (4, T4),
+    (5, T5),
+    (6, T6),
+    (7, T7),
+    (8, T8),
+    (9, T9)
 );
 tuple_conversion!(
     11,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5),
-    (ref6, 6, T6),
-    (ref7, 7, T7),
-    (ref8, 8, T8),
-    (ref9, 9, T9),
-    (ref10, 10, T10)
+    (0, T0),
+    (1, T1),
+    (2, T2),
+    (3, T3),
+    (4, T4),
+    (5, T5),
+    (6, T6),
+    (7, T7),
+    (8, T8),
+    (9, T9),
+    (10, T10)
 );
-
 tuple_conversion!(
     12,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5),
-    (ref6, 6, T6),
-    (ref7, 7, T7),
-    (ref8, 8, T8),
-    (ref9, 9, T9),
-    (ref10, 10, T10),
-    (ref11, 11, T11)
+    (0, T0),
+    (1, T1),
+    (2, T2),
+    (3, T3),
+    (4, T4),
+    (5, T5),
+    (6, T6),
+    (7, T7),
+    (8, T8),
+    (9, T9),
+    (10, T10),
+    (11, T11)
 );
 
 #[cfg(test)]
