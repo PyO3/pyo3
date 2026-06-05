@@ -1,5 +1,5 @@
 error: cannot use `#[pyo3(set)]` on a `frozen` class
-   --> tests/ui/invalid_frozen_pyclass_borrow.rs:43:12
+  --> tests/ui/invalid_frozen_pyclass_borrow.rs:43:12
    |
 43 |     #[pyo3(set)]
    |            ^^^
@@ -65,15 +65,15 @@ note: required by a bound in `pyo3::Bound::<'py, T>::borrow_mut`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0271]: type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
-      --> tests/ui/invalid_frozen_pyclass_borrow.rs:32:11
+    --> tests/ui/invalid_frozen_pyclass_borrow.rs:32:11
      |
-   32 |     class.get();
+  32 |     class.get();
      |           ^^^ type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
      |
 note: expected this to be `pyo3::pyclass::boolean_struct::True`
-      --> tests/ui/invalid_frozen_pyclass_borrow.rs:20:1
+    --> tests/ui/invalid_frozen_pyclass_borrow.rs:20:1
      |
-   20 | #[pyclass(subclass)]
+  20 | #[pyclass(subclass)]
      | ^^^^^^^^^^^^^^^^^^^^
 note: required by a bound in `pyo3::Py::<T>::get`
  --> src/instance.rs
