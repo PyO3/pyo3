@@ -624,7 +624,7 @@ fn wrong_tuple_length(t: Borrowed<'_, '_, PyTuple>, expected_length: usize) -> P
     exceptions::PyValueError::new_err(msg)
 }
 
-macro_rules! tuple_conversion ({$length:expr,$(($n:tt, $T:ident)),+} => {
+macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
     impl <'py, $($T),+> IntoPyObject<'py> for ($($T,)+)
     where
         $($T: IntoPyObject<'py>,)+
