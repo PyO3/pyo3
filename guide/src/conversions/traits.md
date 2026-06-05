@@ -537,7 +537,7 @@ impl<'py> FromPyObject<'_, 'py> for Number {
 
     fn extract(obj: pyo3::Borrowed<'_, 'py, pyo3::PyAny>) -> Result<Self, Self::Error> {
         if let Ok(obj) = obj.cast::<Self>() { // first try extraction via class object
-            Ok(obj.borrow().clone())
+            Ok(obj.try_borrow_guard()?.clone())
         } else {
             obj.extract::<i32>().map(Self) // otherwise try integer directly
         }

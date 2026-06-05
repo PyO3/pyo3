@@ -127,7 +127,7 @@ fn test_pyref_as_base() {
         let cell = Bound::new(py, initializer).unwrap();
 
         // First try PyRefMut
-        let sub = cell.borrow_mut();
+        let sub = cell.try_borrow_guard_mut().unwrap();
         let mut base = sub.into_super();
         assert_eq!(120, base.value);
         base.value = 999;
@@ -135,7 +135,7 @@ fn test_pyref_as_base() {
         drop(base);
 
         // Repeat for PyRef
-        let sub = cell.borrow();
+        let sub = cell.try_borrow_guard().unwrap();
         let base = sub.into_super();
         assert_eq!(999, base.value);
     });

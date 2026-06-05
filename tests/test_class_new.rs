@@ -74,7 +74,7 @@ fn tuple_class_with_new() {
         let typeobj = py.get_type::<TupleClassWithNew>();
         let wrp = typeobj.call((42,), None).unwrap();
         let obj = wrp.cast::<TupleClassWithNew>().unwrap();
-        let obj_ref = obj.borrow();
+        let obj_ref = obj.try_borrow_guard().unwrap();
         assert_eq!(obj_ref.0, 42);
     });
 }
@@ -99,7 +99,7 @@ fn new_with_one_arg() {
         let typeobj = py.get_type::<NewWithOneArg>();
         let wrp = typeobj.call((42,), None).unwrap();
         let obj = wrp.cast::<NewWithOneArg>().unwrap();
-        let obj_ref = obj.borrow();
+        let obj_ref = obj.try_borrow_guard().unwrap();
         assert_eq!(obj_ref.data, 42);
     });
 }
@@ -130,7 +130,7 @@ fn new_with_two_args() {
             .map_err(|e| e.display(py))
             .unwrap();
         let obj = wrp.cast::<NewWithTwoArgs>().unwrap();
-        let obj_ref = obj.borrow();
+        let obj_ref = obj.try_borrow_guard().unwrap();
         assert_eq!(obj_ref.data1, 10);
         assert_eq!(obj_ref.data2, 20);
     });

@@ -36,7 +36,7 @@ impl InstanceMethod {
 fn instance_method() {
     Python::attach(|py| {
         let obj = Bound::new(py, InstanceMethod { member: 42 }).unwrap();
-        let obj_ref = obj.borrow();
+        let obj_ref = obj.try_borrow_guard().unwrap();
         assert_eq!(obj_ref.method(), 42);
         py_assert!(py, obj, "obj.method() == 42");
         py_assert!(py, obj, "obj.add_other(obj) == 84");
@@ -76,7 +76,7 @@ impl InstanceMethodWithArgs {
 fn instance_method_with_args() {
     Python::attach(|py| {
         let obj = Bound::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
-        let obj_ref = obj.borrow();
+        let obj_ref = obj.try_borrow_guard().unwrap();
         assert_eq!(obj_ref.method(6), 42);
         py_assert!(py, obj, "obj.method(3) == 21");
         py_assert!(py, obj, "obj.method(multiplier=6) == 42");
