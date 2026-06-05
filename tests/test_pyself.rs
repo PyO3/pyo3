@@ -69,7 +69,7 @@ impl Iter {
             Some(&b) => {
                 slf.idx += 1;
                 let reader = slf.reader.bind(py);
-                let reader_ref = reader.try_borrow()?;
+                let reader_ref = reader.try_borrow_guard()?;
                 let res = reader_ref
                     .inner
                     .get(&b)
@@ -118,7 +118,7 @@ fn test_nested_iter_reset() {
             reader,
             "list(reader.get_iter_and_reset(bytes([3, 5, 2]))) == ['c', 'e', 'b']"
         );
-        let reader_ref = reader.borrow();
+        let reader_ref = reader.try_borrow_guard().unwrap();
         assert!(reader_ref.inner.is_empty());
     });
 }

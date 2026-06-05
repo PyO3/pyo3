@@ -81,6 +81,7 @@
 //!
 //! However, we *do* need `PyCell` if we want to call its methods from Rust:
 //! ```rust
+//! # #![allow(deprecated)]
 //! # use pyo3::prelude::*;
 //! #
 //! # #[pyclass]
@@ -800,6 +801,8 @@ impl From<PyBorrowMutError> for PyErr {
 #[cfg(feature = "macros")]
 mod tests {
 
+    use crate::{PyClassGuard, PyClassGuardMut};
+
     use super::*;
 
     #[crate::pyclass(skip_from_py_object)]
@@ -808,6 +811,7 @@ mod tests {
     struct SomeClass(i32);
 
     #[test]
+    #[expect(deprecated)]
     fn test_as_ptr() {
         Python::attach(|py| {
             let cell = Bound::new(py, SomeClass(0)).unwrap();
@@ -819,6 +823,7 @@ mod tests {
     }
 
     #[test]
+    #[expect(deprecated)]
     fn test_into_ptr() {
         Python::attach(|py| {
             let cell = Bound::new(py, SomeClass(0)).unwrap();
@@ -861,15 +866,13 @@ mod tests {
             crate::Py::new(py, init).expect("allocation error")
         }
 
-        #[expect(deprecated)]
-        fn get_values(self_: PyRef<'_, Self>) -> (usize, usize, usize) {
+        fn get_values(self_: PyClassGuard<'_, Self>) -> (usize, usize, usize) {
             let val1 = self_.as_super().as_super().val1;
             let val2 = self_.as_super().val2;
             (val1, val2, self_.val3)
         }
 
-        #[expect(deprecated)]
-        fn double_values(mut self_: PyRefMut<'_, Self>) {
+        fn double_values(mut self_: PyClassGuardMut<'_, Self>) {
             self_.as_super().as_super().val1 *= 2;
             self_.as_super().val2 *= 2;
             self_.val3 *= 2;
@@ -880,12 +883,11 @@ mod tests {
     fn test_pyref_as_super() {
         Python::attach(|py| {
             let obj = SubSubClass::new(py).into_bound(py);
-            let pyref = obj.borrow();
-            assert_eq!(pyref.as_super().as_super().val1, 10);
-            assert_eq!(pyref.as_super().val2, 15);
-            assert_eq!(pyref.as_ref().val2, 15); // `as_ref` also works
-            assert_eq!(pyref.val3, 20);
-            assert_eq!(SubSubClass::get_values(pyref), (10, 15, 20));
+            let guard = obj.try_borrow_guard().unwrap();
+            assert_eq!(guard.as_super().as_super().val1, 10);
+            assert_eq!(guard.as_super().val2, 15);
+            assert_eq!(guard.val3, 20);
+            assert_eq!(SubSubClass::get_values(guard), (10, 15, 20));
         });
     }
 
@@ -893,18 +895,25 @@ mod tests {
     fn test_pyrefmut_as_super() {
         Python::attach(|py| {
             let obj = SubSubClass::new(py).into_bound(py);
-            assert_eq!(SubSubClass::get_values(obj.borrow()), (10, 15, 20));
+            assert_eq!(
+                SubSubClass::get_values(obj.try_borrow_guard().unwrap()),
+                (10, 15, 20)
+            );
             {
-                let mut pyrefmut = obj.borrow_mut();
-                assert_eq!(pyrefmut.as_super().as_ref().val1, 10);
-                pyrefmut.as_super().as_super().val1 -= 5;
-                pyrefmut.as_super().val2 -= 3;
-                pyrefmut.as_mut().val2 -= 2; // `as_mut` also works
-                pyrefmut.val3 -= 5;
+                let mut guard = obj.try_borrow_guard_mut().unwrap();
+                guard.as_super().as_super().val1 -= 5;
+                guard.as_super().val2 -= 5;
+                guard.val3 -= 5;
             }
-            assert_eq!(SubSubClass::get_values(obj.borrow()), (5, 10, 15));
-            SubSubClass::double_values(obj.borrow_mut());
-            assert_eq!(SubSubClass::get_values(obj.borrow()), (10, 20, 30));
+            assert_eq!(
+                SubSubClass::get_values(obj.try_borrow_guard().unwrap()),
+                (5, 10, 15)
+            );
+            SubSubClass::double_values(obj.try_borrow_guard_mut().unwrap());
+            assert_eq!(
+                SubSubClass::get_values(obj.try_borrow_guard().unwrap()),
+                (10, 20, 30)
+            );
         });
     }
 
@@ -940,8 +949,8 @@ mod tests {
 
         Python::attach(|py| {
             let obj = SubClass::new(py);
-            drop(obj.borrow().into_super());
-            assert!(obj.try_borrow_mut().is_ok());
+            drop(obj.try_borrow_guard().unwrap().into_super());
+            assert!(obj.try_borrow_guard_mut().is_ok());
         })
     }
 
@@ -973,10 +982,10 @@ mod tests {
 
         Python::attach(|py| {
             let obj = SubSubClass::new(py);
-            let _super_borrow = obj.borrow().into_super();
+            let _super_borrow = obj.try_borrow_guard().unwrap().into_super();
             // the whole object still has an immutable borrow, so we cannot
             // borrow any part mutably (the borrowflag is shared)
-            assert!(obj.try_borrow_mut().is_err());
+            assert!(obj.try_borrow_guard_mut().is_err());
         })
     }
 }

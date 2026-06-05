@@ -291,7 +291,8 @@ fn test_any_object_list_set() {
 
         py_run!(py, list, "list.items = [1, 2, 3]");
         assert!(list
-            .borrow()
+            .try_borrow_guard()
+            .unwrap()
             .items
             .iter()
             .zip(&[1u32, 2, 3])

@@ -608,7 +608,7 @@ mod tests {
 
             fn extract(obj: crate::Borrowed<'_, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
                 if let Ok(obj) = obj.cast::<Self>() {
-                    Ok(obj.borrow().clone())
+                    Ok(obj.try_borrow_guard()?.clone())
                 } else {
                     obj.extract::<i32>().map(Self)
                 }

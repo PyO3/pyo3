@@ -162,9 +162,7 @@ let allowed_ids: Vec<bool> = Python::attach(|outer_py| {
     let instances: Vec<Py<UserID>> = (0..10).map(|x| Py::new(outer_py, UserID { id: x }).unwrap()).collect();
     outer_py.detach(|| {
         instances.par_iter().map(|instance| {
-            Python::attach(|inner_py| {
-                instance.borrow(inner_py).id > 5
-            })
+            instance.try_borrow_guard().unwrap().id > 5
         }).collect()
     })
 });

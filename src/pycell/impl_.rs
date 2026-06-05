@@ -732,7 +732,7 @@ mod tests {
 
             let mmm_bound: &Bound<'_, MutableChildOfMutableChildOfMutableBase> = mmm.bind(py);
 
-            let mmm_refmut = mmm_bound.borrow_mut();
+            let mmm_refmut = mmm_bound.try_borrow_guard_mut().unwrap();
 
             // Cannot take any other mutable or immutable borrows whilst the object is borrowed mutably
             assert!(mmm_bound
@@ -789,7 +789,7 @@ mod tests {
 
             let mmm_bound: &Bound<'_, MutableChildOfMutableChildOfMutableBase> = mmm.bind(py);
 
-            let mmm_refmut = mmm_bound.borrow();
+            let mmm_refmut = mmm_bound.try_borrow_guard().unwrap();
 
             // Further immutable borrows are ok
             assert!(mmm_bound
@@ -844,17 +844,15 @@ mod tests {
                     let threads = (0..10)
                         .map(|_| {
                             s.spawn(|| {
-                                Python::attach(|py| {
-                                    // Each thread records its own view of how many writes it made
-                                    let mut local_modifications = 0;
-                                    for _ in 0..100 {
-                                        if let Ok(mut i) = inst.try_borrow_mut(py) {
-                                            i.x += 1;
-                                            local_modifications += 1;
-                                        }
+                                // Each thread records its own view of how many writes it made
+                                let mut local_modifications = 0;
+                                for _ in 0..100 {
+                                    if let Ok(mut i) = inst.try_borrow_guard_mut() {
+                                        i.x += 1;
+                                        local_modifications += 1;
                                     }
-                                    local_modifications
-                                })
+                                }
+                                local_modifications
                             })
                         })
                         .collect::<Vec<_>>();
@@ -866,7 +864,7 @@ mod tests {
 
             // If the implementation is free of data races, the total number of writes
             // should match the final value of `x`.
-            assert_eq!(total_modifications, inst.borrow(py).x);
+            assert_eq!(total_modifications, inst.try_borrow_guard().unwrap().x);
         });
     }
 

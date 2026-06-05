@@ -314,17 +314,17 @@ struct MyClass {
 Python::attach(|py| {
     let obj = Bound::new(py, MyClass { num: 3 }).unwrap();
     {
-        let obj_ref = obj.borrow(); // Get PyRef
+        let obj_ref = obj.try_borrow_guard().unwrap(); // Get PyClassGuard
         assert_eq!(obj_ref.num, 3);
-        // You cannot get PyRefMut unless all PyRefs are dropped
-        assert!(obj.try_borrow_mut().is_err());
+        // You cannot get PyClassGuardMut unless all PyClassGuards are dropped
+        assert!(obj.try_borrow_guard_mut().is_err());
     }
     {
-        let mut obj_mut = obj.borrow_mut(); // Get PyRefMut
+        let mut obj_mut = obj.try_borrow_guard_mut().unwrap(); // Get PyClassGuardMut
         obj_mut.num = 5;
         // You cannot get any other refs until the PyRefMut is dropped
-        assert!(obj.try_borrow().is_err());
-        assert!(obj.try_borrow_mut().is_err());
+        assert!(obj.try_borrow_guard().is_err());
+        assert!(obj.try_borrow_guard_mut().is_err());
     }
 
     // You can convert `Bound` to a Python object
@@ -334,7 +334,6 @@ Python::attach(|py| {
 
 A `Bound<'py, T>` is restricted to the Python lifetime `'py`.
 To make the object longer lived (for example, to store it in a struct on the Rust side), use `Py<T>`.
-`Py<T>` needs a `Python<'_>` token to allow access:
 
 ```rust
 # use pyo3::prelude::*;
@@ -349,11 +348,8 @@ fn return_myclass() -> Py<MyClass> {
 
 let obj = return_myclass();
 
-Python::attach(move |py| {
-    let bound = obj.bind(py); // Py<MyClass>::bind returns &Bound<'py, MyClass>
-    let obj_ref = bound.borrow(); // Get PyRef<T>
-    assert_eq!(obj_ref.num, 1);
-});
+let obj_ref = obj.try_borrow_guard().unwrap(); // Get PyClassGuard<T>
+assert_eq!(obj_ref.num, 1);
 ```
 
 ### frozen classes: Opting out of interior mutability
@@ -525,7 +521,7 @@ You can inherit native types such as `PyDict`, if they implement [`PySizedLayout
 This is not supported when building for the Python limited API (aka the `abi3` feature of PyO3).
 
 To convert between the Rust type and its native base class, you can take `slf` as a Python object.
-To access the Rust fields use `slf.borrow()` or `slf.borrow_mut()`, and to access the base class use `slf.cast::<BaseClass>()`.
+To access the Rust fields use `slf.try_borrow_guard()` or `slf.try_borrow_guard_mut()`, and to access the base class use `slf.cast::<BaseClass>()`.
 
 ```rust
 # #[cfg(any(not(Py_LIMITED_API), Py_3_12))] {
@@ -547,7 +543,7 @@ impl DictWithCounter {
     }
 
     fn set(slf: &Bound<'_, Self>, key: String, value: Bound<'_, PyAny>) -> PyResult<()> {
-        slf.borrow_mut().counter.entry(key.clone()).or_insert(0);
+        slf.try_borrow_guard_mut()?.counter.entry(key.clone()).or_insert(0);
         let dict = slf.cast::<PyDict>()?;
         dict.set_item(key, value)
     }
@@ -967,10 +963,11 @@ fn print_field_and_return_me(my_class: PyClassGuard<'_, MyClass>) -> PyClassGuar
 
 // Take (a reference to) a Python object smart pointer when borrowing needs to be managed manually.
 #[pyfunction]
-fn increment_then_print_field(my_class: &Bound<'_, MyClass>) {
-    my_class.borrow_mut().my_field += 1;
+fn increment_then_print_field(my_class: &Bound<'_, MyClass>) -> PyResult<()> {
+    my_class.try_borrow_guard_mut()?.my_field += 1;
 
-    println!("{}", my_class.borrow().my_field);
+    println!("{}", my_class.try_borrow_guard()?.my_field);
+    Ok(())
 }
 
 // When the Python object smart pointer needs to be stored elsewhere prefer `Py<T>` over `Bound<'py, T>`
