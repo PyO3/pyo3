@@ -1,18 +1,18 @@
-error[E0277]: `AtomicPtr<()>` cannot be used as a Python function argument
+error[E0277]: `Atomic<*mut ()>` cannot be used as a Python function argument
    --> tests/ui/invalid_pyfunction_argument.rs:9:37
     |
   9 | fn invalid_pyfunction_argument(arg: AtomicPtr<()>) {
-    |                                     ^^^^^^^^^ the trait `PyClass` is not implemented for `AtomicPtr<()>`
+    |                                     ^^^^^^^^^ the trait `PyClass` is not implemented for `Atomic<*mut ()>`
     |
-    = note: implement `FromPyObject` to enable using `AtomicPtr<()>` as a function argument
+    = note: implement `FromPyObject` to enable using `Atomic<*mut ()>` as a function argument
     = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
 help: the trait `PyClass` is implemented for `Foo`
    --> tests/ui/invalid_pyfunction_argument.rs:17:1
     |
  17 | #[pyclass(skip_from_py_object)]
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    = note: required for `AtomicPtr<()>` to implement `FromPyObject<'_, '_>`
-    = note: required for `AtomicPtr<()>` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
+    = note: required for `Atomic<*mut ()>` to implement `FromPyObject<'_, '_>`
+    = note: required for `Atomic<*mut ()>` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
 note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
  --> src/impl_/extract_argument.rs
   |
@@ -23,13 +23,13 @@ note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0277]: `AtomicPtr<()>` cannot be used as a Python function argument
+error[E0277]: `Atomic<*mut ()>` cannot be used as a Python function argument
    --> tests/ui/invalid_pyfunction_argument.rs:9:37
     |
   9 | fn invalid_pyfunction_argument(arg: AtomicPtr<()>) {
-    |                                     ^^^^^^^^^ the trait `Clone` is not implemented for `AtomicPtr<()>`
+    |                                     ^^^^^^^^^ the trait `Clone` is not implemented for `Atomic<*mut ()>`
     |
-    = note: implement `FromPyObject` to enable using `AtomicPtr<()>` as a function argument
+    = note: implement `FromPyObject` to enable using `Atomic<*mut ()>` as a function argument
     = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
 help: the following other types implement trait `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`
  --> src/impl_/extract_argument.rs
@@ -51,8 +51,8 @@ help: the following other types implement trait `pyo3::impl_::extract_argument::
   | / impl<'a, 'holder, T: PyClass<Frozen = False>> PyFunctionArgument<'a, 'holder, '_, false>
   | |     for &'holder mut T
   | |______________________^ `&'holder mut T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
-  = note: required for `AtomicPtr<()>` to implement `FromPyObject<'_, '_>`
-  = note: required for `AtomicPtr<()>` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
+  = note: required for `Atomic<*mut ()>` to implement `FromPyObject<'_, '_>`
+  = note: required for `Atomic<*mut ()>` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
 note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
  --> src/impl_/extract_argument.rs
   |
@@ -62,13 +62,13 @@ note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
   |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
 
-error[E0277]: `AtomicPtr<()>` cannot be used as a Python function argument
+error[E0277]: `Atomic<*mut ()>` cannot be used as a Python function argument
    --> tests/ui/invalid_pyfunction_argument.rs:9:37
     |
   9 | fn invalid_pyfunction_argument(arg: AtomicPtr<()>) {
-    |                                     ^^^^^^^^^ the trait `pyo3::impl_::pyclass::ExtractPyClassWithClone` is not implemented for `AtomicPtr<()>`
+    |                                     ^^^^^^^^^ the trait `pyo3::impl_::pyclass::ExtractPyClassWithClone` is not implemented for `Atomic<*mut ()>`
     |
-    = note: implement `FromPyObject` to enable using `AtomicPtr<()>` as a function argument
+    = note: implement `FromPyObject` to enable using `Atomic<*mut ()>` as a function argument
     = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
 help: the following other types implement trait `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`
  --> src/impl_/extract_argument.rs
@@ -90,8 +90,8 @@ help: the following other types implement trait `pyo3::impl_::extract_argument::
   | / impl<'a, 'holder, T: PyClass<Frozen = False>> PyFunctionArgument<'a, 'holder, '_, false>
   | |     for &'holder mut T
   | |______________________^ `&'holder mut T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
-  = note: required for `AtomicPtr<()>` to implement `FromPyObject<'_, '_>`
-  = note: required for `AtomicPtr<()>` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
+  = note: required for `Atomic<*mut ()>` to implement `FromPyObject<'_, '_>`
+  = note: required for `Atomic<*mut ()>` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
 note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
  --> src/impl_/extract_argument.rs
   |
