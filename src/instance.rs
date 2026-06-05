@@ -13,10 +13,12 @@ use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString};
 use crate::{
-    ffi, CastError, CastIntoError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
-    PyRefMut, PyTypeInfo, Python,
+    ffi, CastError, CastIntoError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyTypeInfo,
+    Python,
 };
 use crate::{internal::state, PyTypeCheck};
+#[expect(deprecated)]
+use crate::{PyRef, PyRefMut};
 use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ops::Deref;
@@ -151,8 +153,8 @@ impl<'py, T> Bound<'py, T> {
     ///
     ///     class_bound.borrow_mut().i += 1;
     ///
-    ///     // Alternatively you can get a `PyRefMut` directly
-    ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
+    ///     // Alternatively you can get a `PyClassGuardMut` directly
+    ///     let class_ref: PyClassGuardMut<'_, Class> = class.extract()?;
     ///     assert_eq!(class_ref.i, 1);
     ///     Ok(())
     /// })
@@ -547,6 +549,7 @@ where
     ///
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
+    #[expect(deprecated)]
     #[inline]
     #[track_caller]
     pub fn borrow(&self) -> PyRef<'py, T> {
@@ -582,6 +585,7 @@ where
     /// # Panics
     /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
+    #[expect(deprecated)]
     #[inline]
     #[track_caller]
     pub fn borrow_mut(&self) -> PyRefMut<'py, T>
@@ -598,6 +602,7 @@ where
     /// This is the non-panicking variant of [`borrow`](#method.borrow).
     ///
     /// For frozen classes, the simpler [`get`][Self::get] is available.
+    #[expect(deprecated)]
     #[inline]
     pub fn try_borrow(&self) -> Result<PyRef<'py, T>, PyBorrowError> {
         PyRef::try_borrow(self)
@@ -608,6 +613,7 @@ where
     /// The borrow lasts while the returned [`PyRefMut`] exists.
     ///
     /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
+    #[expect(deprecated)]
     #[inline]
     pub fn try_borrow_mut(&self) -> Result<PyRefMut<'py, T>, PyBorrowMutError>
     where
@@ -1614,6 +1620,7 @@ where
     ///
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
+    #[expect(deprecated)]
     #[inline]
     #[track_caller]
     pub fn borrow<'py>(&'py self, py: Python<'py>) -> PyRef<'py, T> {
@@ -1651,6 +1658,7 @@ where
     /// # Panics
     /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
+    #[expect(deprecated)]
     #[inline]
     #[track_caller]
     pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T>
@@ -1669,6 +1677,7 @@ where
     /// For frozen classes, the simpler [`get`][Self::get] is available.
     ///
     /// Equivalent to `self.bind(py).try_borrow()` - see [`Bound::try_borrow`].
+    #[expect(deprecated)]
     #[inline]
     pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
         self.bind(py).try_borrow()
@@ -1681,6 +1690,7 @@ where
     /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
     ///
     /// Equivalent to `self.bind(py).try_borrow_mut()` - see [`Bound::try_borrow_mut`].
+    #[expect(deprecated)]
     #[inline]
     pub fn try_borrow_mut<'py>(
         &'py self,
@@ -2216,6 +2226,7 @@ impl<T> core::convert::From<Borrowed<'_, '_, T>> for Py<T> {
     }
 }
 
+#[expect(deprecated)]
 impl<'py, T> core::convert::From<PyRef<'py, T>> for Py<T>
 where
     T: PyClass,
@@ -2227,6 +2238,7 @@ where
     }
 }
 
+#[expect(deprecated)]
 impl<'py, T> core::convert::From<PyRefMut<'py, T>> for Py<T>
 where
     T: PyClass<Frozen = False>,
@@ -2395,8 +2407,8 @@ impl<T> Py<T> {
     ///
     ///     class_bound.borrow_mut().i += 1;
     ///
-    ///     // Alternatively you can get a `PyRefMut` directly
-    ///     let class_ref: PyRefMut<'_, Class> = class.extract(py)?;
+    ///     // Alternatively you can get a `PyClassGuardMut` directly
+    ///     let class_ref: PyClassGuardMut<'_, Class> = class.extract(py)?;
     ///     assert_eq!(class_ref.i, 1);
     ///     Ok(())
     /// })
