@@ -603,6 +603,24 @@ jobs:
       - run: uvx python -m sysconfig
       - run: uvx nox -s test
 
+  test-debug-min-version:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-src
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.10+debug"
+      - run: uvx python -m sysconfig
+      - run: uvx nox -s test
+
   test-version-limits:
     needs: [fmt, resolve]
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
