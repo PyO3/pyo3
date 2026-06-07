@@ -62,8 +62,9 @@ use core::ptr::NonNull;
 /// #[pymethods]
 /// impl Child {
 ///     #[new]
-///     fn new() -> (Self, Parent) {
-///         (Child { name: "Caterpillar" }, Parent { basename: "Butterfly" })
+///     fn new() -> PyClassInitializer<Self> {
+///         PyClassInitializer::from(Parent { basename: "Butterfly" })
+///             .add_subclass(Child { name: "Caterpillar" })
 ///     }
 ///
 ///     fn format(slf: PyClassGuard<'_, Self>) -> String {
@@ -184,8 +185,9 @@ where
     /// #[pymethods]
     /// impl Sub {
     ///     #[new]
-    ///     fn new() -> (Self, Base) {
-    ///         (Self { sub_name: "sub_name" }, Base { base_name: "base_name" })
+    ///     fn new() -> PyClassInitializer<Self> {
+    ///         PyClassInitializer::from(Base { base_name: "base_name" })
+    ///             .add_subclass(Self { sub_name: "sub_name" })
     ///     }
     ///     fn sub_name_len(&self) -> usize {
     ///         self.sub_name.len()
@@ -699,9 +701,15 @@ where
     /// super-superclass (and so on).
     ///
     /// See [`PyClassGuard::as_super`] for more.
-    pub fn as_super(&mut self) -> &mut PyClassGuardMut<'a, T::BaseType> {
-        // SAFETY: `PyClassGuardMut<T>` and `PyClassGuardMut<U>` have the same layout
-        unsafe { NonNull::from(self).cast().as_mut() }
+    ///
+    /// # Note
+    ///
+    /// The mutable reference to the base type is not exposed directly, but through [`PyClassGuardMutSuper`].
+    pub fn as_super(&mut self) -> PyClassGuardMutSuper<'_, 'a, T::BaseType> {
+        PyClassGuardMutSuper {
+            // SAFETY: `PyClassGuardMut<T>` and `PyClassGuardMut<U>` have the same layout
+            guard: unsafe { NonNull::from(self).cast().as_mut() },
+        }
     }
 
     /// Gets a `PyClassGuardMut<T::BaseType>`.
@@ -837,6 +845,59 @@ impl From<PyClassGuardMutError<'_, '_>> for PyErr {
         } else {
             PyBorrowMutError::new().into()
         }
+    }
+}
+
+/// Wraps a borrowed mutable reference to the base class `T::BaseType` of a PyClass `T`
+///
+/// See [`PyClassGuardMut::as_super`]
+#[repr(transparent)]
+pub struct PyClassGuardMutSuper<'a, 'g, T: PyClass<Frozen = False>> {
+    // NOTE: Exposing this directly from `PyClassGuardMut::as_super` would allow swapping this
+    // `guard` with another guard of the same basetype but different subtype. That is unsound as the
+    // original `PyClassGuardMut` allows access to the `T` stored inside. By wrapping the guard in a
+    // new type which does not expose a mutable reference to the guard directly we ensure that this
+    // swap is impossible.
+    guard: &'a mut PyClassGuardMut<'g, T>,
+}
+
+impl<'a, 'g, T> PyClassGuardMutSuper<'a, 'g, T>
+where
+    T: PyClass<Frozen = False>,
+    T::BaseType: PyClass<Frozen = False>,
+{
+    /// Borrows a mutable reference to `PyClassGuardMut<T::BaseType>`.
+    ///
+    /// See [`PyClassGuardMut::as_super`] for more.
+    pub fn as_super(&mut self) -> PyClassGuardMutSuper<'a, 'g, T::BaseType> {
+        PyClassGuardMutSuper {
+            // SAFETY: `PyClassGuardMut<T>` and `PyClassGuardMut<U>` have the same layout
+            guard: unsafe { NonNull::from(&mut *self.guard).cast().as_mut() },
+        }
+    }
+}
+
+impl<T> Deref for PyClassGuardMutSuper<'_, '_, T>
+where
+    T: PyClass<Frozen = False>,
+{
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
+        // alias is enforced
+        unsafe { &*self.guard.as_class_object().get_ptr().cast_const() }
+    }
+}
+
+impl<T> DerefMut for PyClassGuardMutSuper<'_, '_, T>
+where
+    T: PyClass<Frozen = False>,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
+        // alias is enforced
+        unsafe { &mut *self.guard.as_class_object().get_ptr() }
     }
 }
 

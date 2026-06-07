@@ -44,7 +44,9 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
             .strip_suffix(".html")
             .unwrap();
 
-        if pyo3_build_config::get().version() < PY_3_15 && struct_name == "PyBytesWriter" {
+        if pyo3_build_config::get().target_abi().version() < PY_3_15
+            && struct_name == "PyBytesWriter"
+        {
             // PyBytesWriter was added in Python 3.15
             continue;
         }
@@ -155,19 +157,25 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
     }
 
     let pyo3_ffi_fields = get_fields_from_file(&pyo3_ffi_struct_file);
-    let bindgen_fields = get_fields_from_file(&bindgen_struct_file);
 
-    if pyo3_ffi_fields.is_empty() {
-        // probably an opaque type on PyO3 side, skip
+    if pyo3_ffi_fields.len() == 2
+        && pyo3_ffi_fields.contains(&"_data".to_string())
+        && pyo3_ffi_fields.contains(&"_marker".to_string())
+    {
+        // looks like an opaque type on the PyO3 side, skip
         return TokenStream::new().into();
     }
+
+    let bindgen_fields = get_fields_from_file(&bindgen_struct_file);
 
     let mut all_fields: HashSet<_> = pyo3_ffi_fields.into_iter().chain(bindgen_fields).collect();
 
     if struct_name == "PyMemberDef" {
         // bindgen picked `type_` as the field name to avoid the `type` keyword, but PyO3 uses `type_code`
         all_fields.remove("type_");
-    } else if struct_name == "PyObject" && pyo3_build_config::get().version() >= PY_3_12 {
+    } else if struct_name == "PyObject"
+        && pyo3_build_config::get().target_abi().version() >= PY_3_12
+    {
         // bindgen picked `__bindgen_anon_1` as the field name for the anonymous union containing ob_refcnt,
         // PyO3 uses ob_refcnt directly
         all_fields.remove("__bindgen_anon_1");
@@ -184,7 +192,7 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
 
         let field_ident = Ident::new(&field_name, Span::call_site());
 
-        let bindgen_field_ident = if (pyo3_build_config::get().version() >= PY_3_12)
+        let bindgen_field_ident = if (pyo3_build_config::get().target_abi().version() >= PY_3_12)
             && struct_name == "PyObject"
             && field_name == "ob_refcnt"
         {
@@ -425,9 +433,11 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("Py_False", ""),
     ("Py_GETENV", "not(Py_3_11)"),
     ("Py_INCREF", ""),
+    ("Py_IS_TYPE", "not(Py_3_15)"), // symbol added for stable abi on 3.15
     ("Py_None", ""),
     ("Py_NotImplemented", ""),
     ("Py_REFCNT", "not(Py_3_14)"),
+    ("Py_SIZE", "not(Py_3_15)"), // symbol added for stable abi on 3.15
     ("Py_True", ""),
     ("Py_TYPE", "not(Py_3_14)"),
     ("Py_UNICODE_TODECIMAL", ""),
@@ -476,9 +486,6 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "PyOS_BeforeFork",
     "PyOS_AfterFork_Parent",
     "PyOS_AfterFork_Child",
-    // See https://github.com/python/cpython/pull/139166/changes#r3214904694
-    "Py_IS_TYPE",
-    "Py_SIZE",
 ];
 
 // Assert at compile time that `MACRO_EXCLUSIONS` and `EXCLUDED_SYMBOLS` are disjoint
@@ -547,7 +554,6 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             modifiers,
             arg_count,
             variadic,
-            void_return,
         } = match (function_name, get_function_info(function_name, &entry)) {
             (_, Ok(info)) => info,
             // In some cases symbols and macros differ only by case, which is a problem for case-insensitive filesystems.
@@ -559,32 +565,27 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
                 modifiers: quote!(),
                 arg_count: 1,
                 variadic: false,
-                void_return: true,
             },
             ("Py_IncRef", Err(FunctionNameMismatch(e))) if e == "Py_INCREF" => FunctionInfo {
                 modifiers: quote!(extern "C"),
                 arg_count: 1,
                 variadic: false,
-                void_return: true,
             },
             ("Py_DECREF", Err(FunctionNameMismatch(e))) if e == "Py_DecRef" => FunctionInfo {
                 modifiers: quote!(),
                 arg_count: 1,
                 variadic: false,
-                void_return: true,
             },
             ("Py_DecRef", Err(FunctionNameMismatch(e))) if e == "Py_DECREF" => FunctionInfo {
                 modifiers: quote!(extern "C"),
                 arg_count: 1,
                 variadic: false,
-                void_return: true,
             },
             ("PyThreadState_GET", Err(FunctionNameMismatch(e))) if e == "PyThreadState_Get" => {
                 FunctionInfo {
                     modifiers: quote!(),
                     arg_count: 0,
                     variadic: false,
-                    void_return: false,
                 }
             }
             ("PyThreadState_Get", Err(FunctionNameMismatch(e))) if e == "PyThreadState_GET" => {
@@ -592,7 +593,6 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
                     modifiers: quote!(extern "C"),
                     arg_count: 0,
                     variadic: false,
-                    void_return: false,
                 }
             }
             (function_name, Err(FunctionNameMismatch(unexpected))) => {
@@ -607,8 +607,6 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
         let function_ident = Ident::new(function_name, Span::call_site());
 
         let arg_types = std::iter::repeat_n(quote!(_), arg_count);
-
-        let retval = if void_return { quote!() } else { quote!(-> _) };
 
         let vararg = if variadic { Some(quote!(, ...)) } else { None };
 
@@ -634,24 +632,6 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             .map(|cfg| cfg.parse().expect("failed to parse macro exclusion cfg"));
 
         let has_symbol = BINDGEN_FUNCTION_NAMES.contains(function_name);
-
-        if has_symbol {
-            if let Ok(FunctionInfo {
-                void_return: bindgen_void_return,
-                ..
-            }) = get_function_info(
-                function_name,
-                &DOC_DIR.join(format!("bindgen/fn.{}.html", function_name)),
-            ) {
-                if void_return != bindgen_void_return {
-                    let error_message = format!(
-                        "void return mismatch between pyo3-ffi and bindgen for `{function_name}`: pyo3-ffi has void return {void_return}, but bindgen has void return {bindgen_void_return}",
-                    );
-                    output.extend(quote!(compile_error!(#error_message);));
-                }
-            }
-        }
-
         match (macro_exclusion_cfg, has_symbol) {
             (Some(cfg), true) => {
                 // emit an error if checking within the cfgs where a macro is expected
@@ -661,7 +641,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
                 output.extend(quote!(#[cfg(#cfg)] compile_error!(#error_message);));
                 // if not within the macro range, we found a symbol, this should be good
                 output.extend(
-                    quote!(#[cfg(not(#cfg))] #macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg) #retval);),
+                    quote!(#[cfg(not(#cfg))] #macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg));),
                 );
             }
             (Some(cfg), false) => {
@@ -675,7 +655,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             (None, true) => {
                 // emit the comparison macro to check that the argument count matches
                 output.extend(
-                    quote!(#macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg) #retval);),
+                    quote!(#macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg));),
                 );
             }
             (None, false) => {
@@ -694,8 +674,8 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
 struct FunctionInfo {
     modifiers: TokenStream, // e.g. `unsafe extern "C"`, empty for no modifiers
     arg_count: usize,       // not including the "..." for variadic functions
+    /// Whether the function is variadic (i.e. trailing `...` in argument list)
     variadic: bool,
-    void_return: bool, // whether the function returns void (i.e. has no return type in C)
 }
 
 // Error returned when the function definition does not match the expected name of the file
@@ -718,9 +698,11 @@ fn get_function_info(
     static FUNCTION_DECL_REGEX: LazyLock<regex::Regex> =
         LazyLock::new(|| regex::Regex::new(r"^pub\s+(.*?)\sfn\s+([^(<]*)").unwrap());
 
-    let captures = FUNCTION_DECL_REGEX
-        .captures(&text)
-        .expect("failed to parse function declaration with regex");
+    let Some(captures) = FUNCTION_DECL_REGEX.captures(&text) else {
+        panic!(
+            "failed to parse function declaration for `{function_name}` with regex, got: {text}"
+        );
+    };
 
     // find modifiers, e.g. `unsafe extern "C"`
     let modifiers = captures.get(1).unwrap().as_str().parse().unwrap();
@@ -772,17 +754,10 @@ fn get_function_info(
         arg_count += 1;
     }
 
-    let end_paren = args_begin[end..]
-        .find(')')
-        .expect("function declaration should have closing paren after arguments");
-
-    let after_parens = args_begin[end + end_paren + 1..].trim_start();
-
     Ok(FunctionInfo {
         modifiers,
         arg_count,
         variadic,
-        void_return: !after_parens.contains("->"),
     })
 }
 

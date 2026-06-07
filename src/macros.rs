@@ -211,7 +211,7 @@ macro_rules! wrap_pymodule {
 ///
 /// Use it before [`Python::initialize`](crate::marker::Python::initialize) and
 /// leave feature `auto-initialize` off
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(not(any(PyPy, GraalPy, all(Py_LIMITED_API, Py_GIL_DISABLED))))]
 #[macro_export]
 macro_rules! append_to_inittab {
     ($module:ident) => {

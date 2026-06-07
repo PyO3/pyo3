@@ -43,7 +43,7 @@ impl PyFrame {
         unsafe {
             Ok(ffi::PyFrame_New(
                 state,
-                code.into_ptr().cast(),
+                code.as_ptr().cast(),
                 globals.as_ptr(),
                 locals.as_ptr(),
             )

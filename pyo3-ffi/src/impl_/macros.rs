@@ -159,6 +159,12 @@ macro_rules! extern_libpython_maybe_private_fn {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
     };
     (
+        [_PyErr_BadInternalCall]
+        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
+    ) => {
+        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
+    };
+    (
         [$name:ident]
         $(#[$attrs:meta])* $vis:vis fn $fn_name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
@@ -252,6 +258,8 @@ macro_rules! extern_libpython {
         extern_libpython!(@impl $abi { $($body)* }
             // abi3
             "python3", "python3_d",
+            // abi3t
+            "python3t", "python3t_d",
             // Python 3.8 - 3.15
             "python38", "python38_d",
             "python39", "python39_d",

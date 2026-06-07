@@ -837,6 +837,7 @@ extern_libpython! {
     // skipped _PyUnicode_ToUppercase
     // skipped _PyUnicode_ToTitlecase
 
+    #[cfg(not(PyPy))]
     fn _PyUnicode_ToDecimalDigit(ch: Py_UCS4) -> c_int;
 
     // skipped _PyUnicode_ToDigit
@@ -866,9 +867,17 @@ extern_libpython! {
 // skipped Py_UNICODE_ISNUMERIC
 // skipped Py_UNICODE_ISPRINTABLE
 
+#[cfg(not(PyPy))]
 pub unsafe extern "C" fn Py_UNICODE_TODECIMAL(ch: Py_UCS4) -> c_int {
     _PyUnicode_ToDecimalDigit(ch)
 }
+
+#[cfg(PyPy)]
+extern_libpython! {
+    #[cfg_attr(PyPy, link_name = "PyPy_UNICODE_TODECIMAL")]
+    pub fn Py_UNICODE_TODECIMAL(ch: Py_UCS4) -> c_int;
+}
+
 // skipped Py_UNICODE_TODIGIT
 // skipped Py_UNICODE_TONUMERIC
 

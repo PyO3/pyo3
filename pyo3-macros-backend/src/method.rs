@@ -862,8 +862,14 @@ impl<'a> FnSpec<'a> {
                     .arguments
                     .iter()
                     .map(|arg| match arg {
-                        FnArg::Py(..) => quote!(py),
-                        FnArg::CancelHandle(..) => quote!(__cancel_handle),
+                        FnArg::Py(arg) => {
+                            let span = Span::call_site().located_at(arg.ty.span());
+                            quote_spanned!( span => py)
+                        }
+                        FnArg::CancelHandle(arg) => {
+                            let span = Span::call_site().located_at(arg.ty.span());
+                            quote_spanned!(span => __cancel_handle)
+                        }
                         _ => unreachable!("`CallingConvention::Noargs` should not contain any arguments (reaching Python) except for `self`, which is handled below."),
                     })
                     .collect();
