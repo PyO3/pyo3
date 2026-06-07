@@ -21,7 +21,9 @@ By default it will attempt to use the following in order:
 
 You can override the Python interpreter by setting the `PYO3_PYTHON` environment variable, e.g. `PYO3_PYTHON=python3.8`, `PYO3_PYTHON=/usr/bin/python3.9`, or even a PyPy interpreter `PYO3_PYTHON=pypy3`.
 
-Build tools may additionally set the `PYO3_BASE_PYTHON` environment variable, which takes precedence over `PYO3_PYTHON`. This is intended to point at a stable interpreter path (e.g. `sys._base_executable`) when `PYO3_PYTHON` points inside an ephemeral virtual environment (as created by PEP 517 build frontends with build isolation). When `PYO3_BASE_PYTHON` is set, changes to `PYO3_PYTHON` do not trigger rebuilds, which keeps compilation caches warm across builds in freshly-created (and randomly-named) temporary environments.
+Build tools may additionally set the `PYO3_BASE_PYTHON` environment variable, which takes precedence over `PYO3_PYTHON`.
+This is intended to point at a stable interpreter path (e.g. `sys._base_executable`) when `PYO3_PYTHON` points inside an ephemeral virtual environment (as created by PEP 517 build frontends with build isolation).
+When `PYO3_BASE_PYTHON` is set, changes to `PYO3_PYTHON` do not trigger rebuilds, which keeps compilation caches warm across builds in freshly-created (and randomly-named) temporary environments.
 
 Once the Python interpreter is located, `pyo3-build-config` executes it to query the information in the `sysconfig` module which is needed to configure the rest of the compilation.
 
