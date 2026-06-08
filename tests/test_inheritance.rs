@@ -313,6 +313,50 @@ mod inheriting_native_type {
         })
     }
 
+    #[cfg(Py_3_12)]
+    #[test]
+    fn inherit_tzinfo() {
+        #[pyclass(extends=pyo3::types::PyTzInfo)]
+        struct TzInfoWithName {
+            #[pyo3(get)]
+            name: &'static str,
+        }
+
+        #[pymethods]
+        impl TzInfoWithName {
+            #[new]
+            fn new() -> Self {
+                Self { name: "Hello :)" }
+            }
+
+            #[pyo3(signature = (_dt, /))]
+            fn utcoffset<'py>(
+                &self,
+                _dt: Option<&Bound<'_, pyo3::types::PyDateTime>>,
+                py: Python<'py>,
+            ) -> PyResult<Bound<'py, pyo3::types::PyDelta>> {
+                pyo3::types::PyDelta::new(py, 0, 3600, 0, true)
+            }
+        }
+
+        Python::attach(|py| {
+            let tz = pyo3::Py::new(py, TzInfoWithName::new()).unwrap();
+            py_run!(
+                py,
+                tz,
+                r#"
+                    import datetime
+
+                    assert isinstance(tz, datetime.tzinfo)
+                    assert tz.name == "Hello :)"
+
+                    dt = datetime.datetime(2024, 1, 1, tzinfo=tz)
+                    assert dt.utcoffset() == datetime.timedelta(hours=1)
+                "#
+            );
+        });
+    }
+
     #[test]
     #[cfg(Py_3_12)]
     fn inherit_list() {
