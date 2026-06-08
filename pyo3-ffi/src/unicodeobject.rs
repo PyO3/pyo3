@@ -297,6 +297,15 @@ extern_libpython! {
     ) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Join")]
     pub fn PyUnicode_Join(separator: *mut PyObject, seq: *mut PyObject) -> *mut PyObject;
+}
+
+#[cfg(PyPy)]
+type TailmatchResult = c_int;
+
+#[cfg(not(PyPy))]
+type TailmatchResult = Py_ssize_t;
+
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Tailmatch")]
     pub fn PyUnicode_Tailmatch(
         str: *mut PyObject,
@@ -304,7 +313,7 @@ extern_libpython! {
         start: Py_ssize_t,
         end: Py_ssize_t,
         direction: c_int,
-    ) -> Py_ssize_t;
+    ) -> TailmatchResult;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Find")]
     pub fn PyUnicode_Find(
         str: *mut PyObject,

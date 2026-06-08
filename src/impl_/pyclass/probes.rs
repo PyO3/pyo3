@@ -1,9 +1,7 @@
 use core::marker::PhantomData;
 
 use crate::conversion::IntoPyObject;
-use crate::impl_::pyclass::PyClassBaseType;
-use crate::impl_::pyclass_init::PyNativeTypeInitializer;
-use crate::{FromPyObject, Py, PyClass, PyClassInitializer};
+use crate::{FromPyObject, Py};
 
 /// Trait used to combine with zero-sized types to calculate at compile time
 /// some property of a type.
@@ -95,41 +93,6 @@ impl IsReturningEmptyTuple<()> {
 }
 
 impl<E> IsReturningEmptyTuple<Result<(), E>> {
-    pub const VALUE: bool = true;
-}
-
-probe!(IsPyClass);
-
-impl<T> IsPyClass<T>
-where
-    T: PyClass,
-{
-    pub const VALUE: bool = true;
-}
-
-impl<T, E> IsPyClass<Result<T, E>>
-where
-    T: PyClass,
-{
-    pub const VALUE: bool = true;
-}
-
-probe!(IsInitializerTuple);
-
-impl<S, B> IsInitializerTuple<(S, B)>
-where
-    S: PyClass<BaseType = B>,
-    B: PyClass + PyClassBaseType<Initializer = PyClassInitializer<B>>,
-    B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
-{
-    pub const VALUE: bool = true;
-}
-impl<S, B, E> IsInitializerTuple<Result<(S, B), E>>
-where
-    S: PyClass<BaseType = B>,
-    B: PyClass + PyClassBaseType<Initializer = PyClassInitializer<B>>,
-    B::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<B::BaseType>>,
-{
     pub const VALUE: bool = true;
 }
 

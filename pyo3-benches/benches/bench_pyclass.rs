@@ -26,6 +26,12 @@ impl MyClass {
     fn __str__(&self) -> &'static str {
         "MyClass"
     }
+
+    /// Method with low overhead to benchmark method call performance.
+    fn fast<'py>(self_: PyRef<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
+        let py = self_.py();
+        Ok(py.None().bind(py).clone())
+    }
 }
 
 pub fn first_time_init(b: &mut Bencher<'_>) {
@@ -72,6 +78,12 @@ pub fn bench_pyclass(c: &mut Criterion) {
             let inst = MyClass::new(vec![1, 2, 3]).into_py_any(py).unwrap();
             let bound = inst.bind(py);
             b.iter(|| bound.str());
+        });
+    });
+    c.bench_function("bench_fast", |b| {
+        Python::attach(|py| {
+            let bound = Bound::new(py, MyClass::new(vec![1, 2, 3])).unwrap();
+            b.iter(|| bound.call_method0("fast"));
         });
     });
 }
