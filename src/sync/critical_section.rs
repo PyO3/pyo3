@@ -238,7 +238,7 @@ where
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
 pub fn with_critical_section_mutex2<F, R, T1, T2>(
-    _py: Python<'_>,
+    py: Python<'_>,
     m1: &PyMutex<T1>,
     m2: &PyMutex<T2>,
     f: F,
@@ -247,7 +247,7 @@ where
     F: for<'s> FnOnce(EnteredCriticalSection<'s, T1>, Option<EnteredCriticalSection<'s, T2>>) -> R,
 {
     if core::ptr::addr_eq(m1, m2) {
-        return with_critical_section_mutex(_py, m1, |cs| f(cs, None));
+        return with_critical_section_mutex(py, m1, |cs| f(cs, None));
     }
     #[cfg(Py_GIL_DISABLED)]
     let mut guard = CS2Guard(unsafe { core::mem::zeroed() });
