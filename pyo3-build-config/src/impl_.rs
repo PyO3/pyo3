@@ -2502,9 +2502,14 @@ pub fn find_interpreter() -> Result<PathBuf> {
     // See https://github.com/PyO3/pyo3/issues/2724
     println!("cargo:rerun-if-env-changed=PYO3_ENVIRONMENT_SIGNATURE");
 
-    if let Some(exe) = explicit_interpreter(env_var("PYO3_BASE_PYTHON"), || env_var("PYO3_PYTHON"))
-    {
-        Ok(exe)
+    // Note that `PYO3_PYTHON` is deliberately not read (and so no rebuild is triggered when it
+    // changes) when `PYO3_BASE_PYTHON` is set; allowing builds to stay cached when only the
+    // (ephemeral) `PYO3_PYTHON` path changes is the purpose of `PYO3_BASE_PYTHON`.
+    // See https://github.com/PyO3/pyo3/issues/6113
+    if let Some(exe) = env_var("PYO3_BASE_PYTHON") {
+        Ok(exe.into())
+    } else if let Some(exe) = env_var("PYO3_PYTHON") {
+        Ok(exe.into())
     } else if let Some(env_interpreter) = get_env_interpreter() {
         Ok(env_interpreter)
     } else {
@@ -2523,25 +2528,6 @@ pub fn find_interpreter() -> Result<PathBuf> {
             })
             .map(PathBuf::from)
             .ok_or_else(|| "no Python 3.x interpreter found".into())
-    }
-}
-
-/// Selects the interpreter explicitly requested via the `PYO3_BASE_PYTHON` and `PYO3_PYTHON`
-/// environment variables (whose values are passed as `base_python` and `python` respectively),
-/// returning `None` if neither is set.
-///
-/// `PYO3_BASE_PYTHON` takes precedence. Crucially, `python` is only evaluated when `base_python`
-/// is `None`: this ensures `PYO3_PYTHON` is not read (and so does not register a
-/// `rerun-if-env-changed`) when `PYO3_BASE_PYTHON` is set, which is what allows builds to stay
-/// cached when only the (ephemeral) `PYO3_PYTHON` path changes.
-/// See https://github.com/PyO3/pyo3/issues/6113
-fn explicit_interpreter(
-    base_python: Option<OsString>,
-    python: impl FnOnce() -> Option<OsString>,
-) -> Option<PathBuf> {
-    match base_python {
-        Some(exe) => Some(exe.into()),
-        None => python().map(PathBuf::from),
     }
 }
 
@@ -4131,27 +4117,6 @@ mod tests {
         let _ = InterpreterConfig::from_pyo3_config_file_env(&Triple::host());
         // it's possible that other env vars were also read, hence just checking for contains
         READ_ENV_VARS.with(|vars| assert!(vars.borrow().contains(&"PYO3_CONFIG_FILE".to_string())));
-    }
-
-    #[test]
-    fn test_explicit_interpreter() {
-        // `PYO3_BASE_PYTHON` is used when set, and `PYO3_PYTHON` is not consulted at all (the
-        // closure must not run) so that changes to it do not trigger rebuilds.
-        assert_eq!(
-            explicit_interpreter(Some(OsString::from("/base/python")), || panic!(
-                "PYO3_PYTHON must not be read when PYO3_BASE_PYTHON is set"
-            )),
-            Some(PathBuf::from("/base/python")),
-        );
-
-        // Falls back to `PYO3_PYTHON` when `PYO3_BASE_PYTHON` is absent.
-        assert_eq!(
-            explicit_interpreter(None, || Some(OsString::from("/venv/python"))),
-            Some(PathBuf::from("/venv/python")),
-        );
-
-        // Neither set: no explicit interpreter, so detection falls through to virtualenv / PATH.
-        assert_eq!(explicit_interpreter(None, || None), None);
     }
 
     #[test]
