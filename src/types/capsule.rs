@@ -386,7 +386,9 @@ impl PyCapsule {
     ///
     /// # Safety
     ///
-    /// It must be known that the capsule imported by `name` contains an item of type `T`.
+    /// - It must be known that the capsule imported by `name` contains an item of type `T`.
+    /// - The contents of the capsule must not be mutated by any third-party code while the reference is alive.
+    ///   The python interpreter does _NOT_ provide any synchronization guarantees for capsules.
     pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr) -> PyResult<&'py T> {
         let ptr = Self::import_pointer(py, name)?.cast();
 
