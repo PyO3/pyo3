@@ -1,5 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "macros")]
-#![warn(unsafe_op_in_unsafe_fn)]
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicI32, Ordering};

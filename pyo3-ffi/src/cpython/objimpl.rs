@@ -21,14 +21,6 @@ pub struct PyObjectArenaAllocator {
     pub free: Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, size: size_t)>,
 }
 
-#[cfg(not(any(PyPy, GraalPy)))]
-impl Default for PyObjectArenaAllocator {
-    #[inline]
-    fn default() -> Self {
-        unsafe { core::mem::zeroed() }
-    }
-}
-
 extern_libpython! {
     #[cfg(not(any(PyPy, GraalPy)))]
     pub fn PyObject_GetArenaAllocator(allocator: *mut PyObjectArenaAllocator);

@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 use core::{
     cell::UnsafeCell,

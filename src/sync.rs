@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 //! Synchronization mechanisms which are aware of the existence of the Python interpreter.
 //!
 //! The Python interpreter has multiple "stop the world" situations which may block threads, such as
