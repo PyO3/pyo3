@@ -7,6 +7,12 @@ use crate::{
     impl_::pymethods::{self, PyMethodDef},
     types::{PyCapsule, PyDict, PyModule, PyTuple},
 };
+#[cfg(Py_LIMITED_API)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+    Py,
+};
 #[cfg(RustPython)]
 use crate::{
     sync::PyOnceLock,
@@ -184,8 +190,20 @@ unsafe impl<F: Send> Send for ClosureDestructor<F> {}
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyFunction>`][crate::Py] or [`Bound<'py, PyFunction>`][Bound].
 #[repr(transparent)]
-#[cfg(not(Py_LIMITED_API))]
 pub struct PyFunction(PyAny);
 
 #[cfg(not(Py_LIMITED_API))]
 pyobject_native_type_core!(PyFunction, pyobject_native_static_type_object!(ffi::PyFunction_Type), "builtins", "function", #checkfunction=ffi::PyFunction_Check);
+
+#[cfg(Py_LIMITED_API)]
+pyobject_native_type_core!(
+    PyFunction,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "FunctionType")
+            .unwrap()
+            .as_type_ptr()
+    },
+    "builtins",
+    "function"
+);
