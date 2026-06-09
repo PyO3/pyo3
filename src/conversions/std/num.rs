@@ -428,11 +428,12 @@ pub(crate) fn pylong_visit_digits<R>(
     }
     let export_guard = ExportGuard(unsafe { long_export.assume_init() });
     let long_export_ref = &export_guard.0;
-    let negative = long_export_ref.negative != 0;
     let value = long_export_ref.value;
     if long_export_ref.digits.is_null() {
+        let negative = long_export_ref.value < 0;
         f(negative, value, None)
     } else {
+        let negative = long_export_ref.negative != 0;
         let n_digits = long_export_ref.ndigits as usize;
         let ptr = long_export_ref.digits.cast::<u32>();
         let digits = unsafe { core::slice::from_raw_parts(ptr, n_digits) };
@@ -521,7 +522,7 @@ mod fast_128bit_int_conversion {
                                 num.as_any().as_borrowed(),
                                 |negative, compact, digits| {
                                     if !$is_signed && negative {
-                                        return Err(exceptions::PyOverflowError::new_err(
+                                        return Err(exceptions::PyValueError::new_err(
                                             "can't convert negative int to unsigned",
                                         ));
                                     }
@@ -925,11 +926,12 @@ mod test_128bit_integers {
     }
 
     #[test]
+    #[cfg(Py_3_13)] // FIXME https://github.com/PyO3/pyo3/issues/6116
     fn test_u128_negative() {
         Python::attach(|py| {
             let obj = py.eval(c"-1", None, None).unwrap();
             let err = obj.extract::<u128>().unwrap_err();
-            assert!(err.is_instance_of::<exceptions::PyOverflowError>(py));
+            assert!(err.is_instance_of::<exceptions::PyValueError>(py));
         })
     }
 
