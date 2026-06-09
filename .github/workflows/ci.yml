@@ -617,7 +617,7 @@ jobs:
           components: rust-src
       - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.10+debug"
+          python-version: "3.11+debug"
       - run: uvx python -m sysconfig
       - run: uvx nox -s test
 
