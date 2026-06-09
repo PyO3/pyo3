@@ -926,7 +926,8 @@ mod test_128bit_integers {
     }
 
     #[test]
-    #[cfg(Py_3_13)] // FIXME https://github.com/PyO3/pyo3/issues/6116
+    // FIXME https://github.com/PyO3/pyo3/issues/6116
+    #[cfg(all(Py_3_13, not(Py_3_14)))]
     fn test_u128_negative() {
         Python::attach(|py| {
             let obj = py.eval(c"-1", None, None).unwrap();
