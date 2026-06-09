@@ -75,9 +75,9 @@ help: the following other types implement trait `pyo3::PyClass`
  17 | #[pyclass(skip_from_py_object)]
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Foo`
     |
-   ::: src/coroutine.rs:29:1
+   ::: src/coroutine.rs:30:1
     |
- 29 | #[pyclass(crate = "crate")]
+ 30 | #[pyclass(crate = "crate")]
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `pyo3::coroutine::Coroutine`
     = note: required for `Atomic<*mut ()>` to implement `FromPyObject<'_, '_>`
     = note: required for `Atomic<*mut ()>` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`

@@ -6,6 +6,7 @@ use crate::instance::Bound;
 #[cfg(Py_3_11)]
 use crate::intern;
 use crate::panic::PanicException;
+use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
@@ -795,6 +796,7 @@ mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
     use crate::impl_::pyclass::{value_of, IsSend, IsSync};
+    use crate::platform::prelude::*;
     use crate::test_utils::assert_warnings;
     use crate::{PyErr, PyTypeInfo, Python};
 

@@ -2,6 +2,7 @@
 
 #[cfg(pyo3_disable_reference_pool)]
 use crate::impl_::panic::PanicTrap;
+use crate::platform::prelude::*;
 use crate::{ffi, Python};
 
 use core::cell::Cell;

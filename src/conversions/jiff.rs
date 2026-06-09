@@ -48,6 +48,7 @@
 use crate::exceptions::{PyTypeError, PyValueError};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+use crate::platform::prelude::*;
 use crate::types::{PyAnyMethods, PyNone};
 use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]

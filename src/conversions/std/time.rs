@@ -164,6 +164,7 @@ fn unix_epoch_py(py: Python<'_>) -> PyResult<Borrowed<'_, '_, PyDateTime>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
     use crate::types::PyDict;
 
     #[test]
