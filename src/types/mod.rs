@@ -22,7 +22,6 @@ pub use self::float::{PyFloat, PyFloatMethods};
 pub use self::frame::{PyFrame, PyFrameMethods};
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
-#[cfg(not(Py_LIMITED_API))]
 pub use self::function::PyFunction;
 #[cfg(Py_3_9)]
 pub use self::genericalias::PyGenericAlias;
