@@ -488,7 +488,7 @@ pub fn method_introspection_code(
     }
     let return_type = if spec.python_name == "__new__" {
         // Hack to return Self while implementing IntoPyObject
-        parse_quote!(-> #pyo3_path::PyRef<Self>)
+        parse_quote!(-> #pyo3_path::PyClassGuard<Self>)
     } else {
         spec.output.clone()
     };

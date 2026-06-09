@@ -69,8 +69,8 @@ extern_libpython! {
     pub fn PyUnstable_InterpreterFrame_GetCode(frame: *mut _PyInterpreterFrame) -> *mut PyObject;
 
     #[cfg(Py_3_12)]
-    pub fn PyUnstable_InterpreterFrame_GetLasti(frame: *mut _PyInterpreterFrame) -> *mut PyObject;
+    pub fn PyUnstable_InterpreterFrame_GetLasti(frame: *mut _PyInterpreterFrame) -> c_int;
 
     #[cfg(Py_3_12)]
-    pub fn PyUnstable_InterpreterFrame_GetLine(frame: *mut _PyInterpreterFrame) -> *mut PyObject;
+    pub fn PyUnstable_InterpreterFrame_GetLine(frame: *mut _PyInterpreterFrame) -> c_int;
 }

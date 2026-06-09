@@ -206,7 +206,6 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDate_Check
 );
-#[cfg(not(Py_LIMITED_API))]
 pyobject_subclassable_native_type!(PyDate, crate::ffi::PyDateTime_Date);
 
 #[cfg(Py_LIMITED_API)]
@@ -296,7 +295,6 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDateTime_Check
 );
-#[cfg(not(Py_LIMITED_API))]
 pyobject_subclassable_native_type!(PyDateTime, crate::ffi::PyDateTime_DateTime);
 
 #[cfg(Py_LIMITED_API)]
@@ -534,7 +532,6 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyTime_Check
 );
-#[cfg(not(Py_LIMITED_API))]
 pyobject_subclassable_native_type!(PyTime, crate::ffi::PyDateTime_Time);
 
 #[cfg(Py_LIMITED_API)]
@@ -711,7 +708,6 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyTZInfo_Check
 );
-#[cfg(not(Py_LIMITED_API))]
 pyobject_subclassable_native_type!(PyTzInfo, crate::ffi::PyObject);
 
 #[cfg(Py_LIMITED_API)]
@@ -816,7 +812,6 @@ pyobject_native_type!(
     #module=Some("datetime"),
     #checkfunction=PyDelta_Check
 );
-#[cfg(not(Py_LIMITED_API))]
 pyobject_subclassable_native_type!(PyDelta, crate::ffi::PyDateTime_Delta);
 
 #[cfg(Py_LIMITED_API)]
