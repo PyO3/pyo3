@@ -407,8 +407,8 @@ fn impl_call_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> Result<Metho
         &wrapper_ident,
         Some(cls),
         CallingConvention::Varargs,
-        // The `tp_call` slot is dispatched by CPython, which guarantees the receiver
-        // is of the correct type.
+        // SAFETY: The `tp_call` slot is dispatched by CPython, which guarantees
+        // the receiver is of the correct type.
         unsafe { SelfConversionPolicy::trusted() },
         ctx,
     )?;
@@ -492,7 +492,7 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
     let slf = self_type.receiver(
         cls,
         ExtractErrorMode::Raise,
-        // The `tp_clear` slot is dispatched by CPython, which guarantees the
+        // SAFETY: The `tp_clear` slot is dispatched by CPython, which guarantees the
         // receiver is of the correct type.
         unsafe { SelfConversionPolicy::trusted() },
         &mut holders,
@@ -598,7 +598,7 @@ fn impl_call_setter(
     let slf = self_type.receiver(
         cls,
         ExtractErrorMode::Raise,
-        // The setter function is dispatched by CPython's method-wrapper
+        // SAFETY: The setter function is dispatched by CPython's method-wrapper
         // descriptor, which enforces the receiver is of the correct type.
         unsafe { SelfConversionPolicy::trusted() },
         holders,
@@ -646,7 +646,7 @@ pub fn impl_py_setter_def(
             .receiver(
                 cls,
                 ExtractErrorMode::Raise,
-                // The setter function is dispatched by CPython, which
+                // SAFETY: The setter function is dispatched by CPython, which
                 // guarantees the receiver is of the correct type.
                 unsafe { SelfConversionPolicy::trusted() },
                 &mut holders,
@@ -800,8 +800,8 @@ fn impl_call_getter(
     let slf = self_type.receiver(
         cls,
         ExtractErrorMode::Raise,
-        // The getter function is dispatched by CPython's method-wrapper
-        //descriptor, which enforces the receiver is of the correct type.
+        // SAFETY: The getter function is dispatched by CPython's method-wrapper
+        // descriptor, which enforces the receiver is of the correct type.
         unsafe { SelfConversionPolicy::trusted() },
         holders,
         ctx,
@@ -983,7 +983,7 @@ fn impl_call_deleter(
     let slf = self_type.receiver(
         cls,
         ExtractErrorMode::Raise,
-        // The deleter function is dispatched by CPython's method-wrapper
+        // SAFETY: The deleter function is dispatched by CPython's method-wrapper
         // descriptor, which enforces the receiver is of the correct type.
         unsafe { SelfConversionPolicy::trusted() },
         holders,
@@ -1451,7 +1451,7 @@ impl SlotDef {
             spec,
             calling_convention,
             *extract_error_mode,
-            // All extension-type slots use trusted self: CPython's slot dispatch
+            // SAFETY: All extension-type slots use trusted self: CPython's slot dispatch
             // contract guarantees the receiver is of the correct type.
             unsafe { SelfConversionPolicy::trusted() },
             &mut holders,
@@ -1758,23 +1758,31 @@ pub struct MethodBody {
 
 const __GETATTRIBUTE__: SlotFragmentDef = SlotFragmentDef::new("__getattribute__", &[Ty::Object])
     .ret_ty(Ty::Object)
+    // SAFETY: `tp_getattro` is wrapped by CPython to guarantee correct receiver type
     .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __GETATTR__: SlotFragmentDef = SlotFragmentDef::new("__getattr__", &[Ty::Object])
     .ret_ty(Ty::Object)
+    // SAFETY: `tp_getattro` is wrapped by CPython to guarantee correct receiver type
     .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __SETATTR__: SlotFragmentDef =
     SlotFragmentDef::new("__setattr__", &[Ty::Object, Ty::NonNullObject])
+        // SAFETY: `tp_setattro` is wrapped by CPython to guarantee correct receiver type
         .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __DELATTR__: SlotFragmentDef = SlotFragmentDef::new("__delattr__", &[Ty::Object])
+    // SAFETY: `tp_setattro` is wrapped by CPython to guarantee correct receiver type
     .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __SET__: SlotFragmentDef = SlotFragmentDef::new("__set__", &[Ty::Object, Ty::NonNullObject])
+    // SAFETY: `tp_descr_set` is wrapped by CPython to guarantee correct receiver type
     .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __DELETE__: SlotFragmentDef = SlotFragmentDef::new("__delete__", &[Ty::Object])
+    // SAFETY: `tp_descr_set` is wrapped by CPython to guarantee correct receiver type
     .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __SETITEM__: SlotFragmentDef =
     SlotFragmentDef::new("__setitem__", &[Ty::Object, Ty::NonNullObject])
+        // SAFETY: `mp_ass_subscript` is wrapped by CPython to guarantee correct receiver type
         .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __DELITEM__: SlotFragmentDef = SlotFragmentDef::new("__delitem__", &[Ty::Object])
+    // SAFETY: `mp_ass_subscript` is wrapped by CPython to guarantee correct receiver type
     .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 
 const __ADD__: SlotFragmentDef = SlotFragmentDef::binary_operator("__add__");
@@ -1814,26 +1822,32 @@ const __RPOW__: SlotFragmentDef = SlotFragmentDef::new("__rpow__", &[Ty::Object,
 const __LT__: SlotFragmentDef = SlotFragmentDef::new("__lt__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .ret_ty(Ty::Object)
+    // SAFETY: `tp_richcompare` is wrapped by CPython to guarantee correct receiver type
     .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __LE__: SlotFragmentDef = SlotFragmentDef::new("__le__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .ret_ty(Ty::Object)
+    // SAFETY: `tp_richcompare` is wrapped by CPython to guarantee correct receiver type
     .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __EQ__: SlotFragmentDef = SlotFragmentDef::new("__eq__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .ret_ty(Ty::Object)
+    // SAFETY: `tp_richcompare` is wrapped by CPython to guarantee correct receiver type
     .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __NE__: SlotFragmentDef = SlotFragmentDef::new("__ne__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .ret_ty(Ty::Object)
+    // SAFETY: `tp_richcompare` is wrapped by CPython to guarantee correct receiver type
     .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __GT__: SlotFragmentDef = SlotFragmentDef::new("__gt__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .ret_ty(Ty::Object)
+    // SAFETY: `tp_richcompare` is wrapped by CPython to guarantee correct receiver type
     .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __GE__: SlotFragmentDef = SlotFragmentDef::new("__ge__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
     .ret_ty(Ty::Object)
+    // SAFETY: `tp_richcompare` is wrapped by CPython to guarantee correct receiver type
     .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 
 fn extract_proto_arguments(
