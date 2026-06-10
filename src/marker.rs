@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 //! Fundamental properties of objects tied to the Python interpreter.
 //!
 //! The Python interpreter is not thread-safe. To protect the Python interpreter in multithreaded

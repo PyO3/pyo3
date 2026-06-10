@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::{ffi, internal::state::AttachGuard, Python};
 

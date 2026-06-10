@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 //! Contains initialization utilities for `#[pyclass]`.
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pyclass::{PyClassBaseType, PyClassImpl};

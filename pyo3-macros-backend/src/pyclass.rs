@@ -2394,8 +2394,8 @@ fn pyclass_richcmp_simple_enum(
     let eq = options.eq.map(|eq| {
         quote_spanned! { eq.span() =>
             let self_val = self;
-            if let ::std::result::Result::Ok(other) = other.cast::<Self>() {
-                let other = &*other.borrow();
+            if let ::std::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::extract::<#pyo3_path::PyClassGuard<'_, Self>>(other) {
+                let other = &*other;
                 return match op {
                     #arms
                 }
@@ -2407,7 +2407,7 @@ fn pyclass_richcmp_simple_enum(
         quote_spanned! { eq_int.span() =>
             let self_val = self.__pyo3__int__();
             if let ::std::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::extract::<#repr_type>(other).or_else(|_| {
-                other.cast::<Self>().map(|o| o.borrow().__pyo3__int__())
+                #pyo3_path::types::PyAnyMethods::extract::<#pyo3_path::PyClassGuard<'_, Self>>(other).map(|o| o.__pyo3__int__())
             }) {
                 return match op {
                     #arms
@@ -2489,8 +2489,8 @@ fn pyclass_richcmp(
                 op: #pyo3_path::pyclass::CompareOp
             ) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
                 let self_val = self;
-                if let ::std::result::Result::Ok(other) = other.cast::<Self>() {
-                    let other = &*other.borrow();
+                if let ::std::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::extract::<#pyo3_path::PyClassGuard<'_, Self>>(other) {
+                    let other = &*other;
                     match op {
                         #arms
                     }

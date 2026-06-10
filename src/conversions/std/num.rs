@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 use crate::conversion::private::Reference;
 use crate::conversion::{FromPyObjectSequence, IntoPyObject};
 use crate::ffi_ptr_ext::FfiPtrExt;

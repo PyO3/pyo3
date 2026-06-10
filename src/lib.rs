@@ -10,7 +10,6 @@
 )]
 #![cfg_attr(all(feature = "nightly", Py_GIL_DISABLED), feature(try_trait_v2))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![warn(unsafe_op_in_unsafe_fn)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(

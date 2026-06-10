@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 //! Various types defined by the Python interpreter such as `int`, `str` and `tuple`.
 
 pub use self::any::{PyAny, PyAnyMethods};
@@ -19,7 +22,6 @@ pub use self::float::{PyFloat, PyFloatMethods};
 pub use self::frame::{PyFrame, PyFrameMethods};
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
-#[cfg(not(Py_LIMITED_API))]
 pub use self::function::PyFunction;
 #[cfg(Py_3_9)]
 pub use self::genericalias::PyGenericAlias;

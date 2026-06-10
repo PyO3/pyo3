@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 //! Interaction with attachment of the current thread to the Python interpreter.
 
 #[cfg(pyo3_disable_reference_pool)]

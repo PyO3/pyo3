@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 use crate::impl_::pycell::PyClassObjectBaseLayout as _;
 use crate::impl_::pyclass::PyClassImpl;
 #[cfg(feature = "experimental-inspect")]
@@ -287,6 +290,12 @@ impl<T: PyClass> Deref for PyClassGuard<'_, T> {
         // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
         // mutable alias is enforced
         unsafe { &*self.as_class_object().get_ptr().cast_const() }
+    }
+}
+
+impl<T: PyClass + fmt::Debug> fmt::Debug for PyClassGuard<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.deref(), f)
     }
 }
 
@@ -741,6 +750,12 @@ impl<T: PyClass<Frozen = False>> DerefMut for PyClassGuardMut<'_, T> {
         // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
         // alias is enforced
         unsafe { &mut *self.as_class_object().get_ptr() }
+    }
+}
+
+impl<T: PyClass<Frozen = False> + fmt::Debug> fmt::Debug for PyClassGuardMut<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.deref(), f)
     }
 }
 

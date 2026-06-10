@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 use crate::exceptions::PyAttributeError;
 use crate::impl_::pymethods::{Deleter, PyDeleterDef};
 use crate::platform::HashMap;
