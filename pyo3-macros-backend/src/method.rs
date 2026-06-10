@@ -429,20 +429,18 @@ impl SelfType {
                         } else {
                             syn::Ident::new("extract_pyclass_ref_trusted", *span)
                         };
-                        // Use `quote!` (not `quote_spanned!`) for the `unsafe` block so that
-                        // the `unsafe` keyword has `Span::call_site()` and does not inherit the
-                        // user's code span.  This prevents triggering `#![forbid(unsafe_code)]`
-                        // in user crates (see the analogous comment in `impl_py_getter_def`).
                         // Safety: slot wrappers are only installed on the extension type itself.
                         // CPython's slot dispatch contract ensures the receiver is an instance
                         // of the correct type before invoking the slot.
-                        let trusted_call = quote! {
+                        //
+                        // The trailing `?` exists because if the extraction fails here it represents
+                        // a genuine type error, should not fall back to e.g. `ExtractErrorMode::NotImplemented`.
+                        quote! {
                             unsafe { #pyo3_path::impl_::extract_argument::#method::<#cls>(
                                 #arg,
                                 &mut #holder,
-                            ) }
-                        };
-                        error_mode.handle_error(trusted_call, ctx)
+                            ) }?
+                        }
                     }
                     SelfConversionPolicyInner::Checked => {
                         let method = if *mutable {
@@ -471,18 +469,20 @@ impl SelfType {
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let receiver = match self_conversion.0 {
                     SelfConversionPolicyInner::Trusted => {
-                        // Use `quote!` (not `quote_spanned!`) for the inner `unsafe` block so
-                        // that it has `Span::call_site()` and does not trigger
-                        // `#![forbid(unsafe_code)]` in user crates.
                         // Safety: slot wrappers are only installed on the extension type
                         // itself. CPython's slot dispatch contract ensures the receiver is
                         // an instance of the correct type (or a compatible subtype) before
                         // invoking the slot.
-                        let cast = quote! {
-                            unsafe { #bound_ref.cast_unchecked::<#cls>() }
-                        };
-                        quote_spanned! { *span =>
-                            ::std::result::Result::<_, #pyo3_path::PyErr>::Ok(#cast)
+                        //
+                        // The wrapping `Ok(...?)` here is because an error here should not
+                        // be treated by e.g. `ExtractErrorMode::NotImplemented` as falling
+                        // back to the default, but instead a genuine type error.
+                        quote! {
+                            unsafe {
+                                #pyo3_path::PyResult::Ok(
+                                    #pyo3_path::impl_::extract_argument::cast_bound_ref_trusted::<#cls>(#bound_ref)?
+                                )
+                            }
                         }
                     }
                     SelfConversionPolicyInner::Checked => {

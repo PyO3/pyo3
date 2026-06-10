@@ -234,12 +234,18 @@ pub unsafe fn extract_pyclass_ref_trusted<'a, 'holder, T: PyClass>(
     obj: Borrowed<'a, '_, PyAny>,
     holder: &'holder mut Option<PyClassGuard<'a, T>>,
 ) -> PyResult<&'holder T> {
-    // Safety: caller guarantees obj is of type T via CPython slot receiver contract
-    Ok(
-        &*holder.insert(PyClassGuard::try_borrow_from_borrowed(unsafe {
-            obj.cast_unchecked::<T>()
-        })?),
-    )
+    cfg_select! {
+        // PyPy does not appear to perform the same type checking as CPython
+        PyPy => extract_pyclass_ref(obj, holder),
+        not(PyPy) => {
+            Ok(
+                holder.insert(PyClassGuard::try_borrow_from_borrowed(
+                    // Safety: caller guarantees obj is of type T via CPython slot receiver contract
+                    unsafe { obj.cast_unchecked::<T>() }
+                )?),
+            )
+        }
+    }
 }
 
 /// Trusted variant of [`extract_pyclass_ref_mut`]: performs an unchecked cast for
@@ -252,12 +258,37 @@ pub unsafe fn extract_pyclass_ref_mut_trusted<'a, 'holder, T: PyClass<Frozen = F
     obj: Borrowed<'a, '_, PyAny>,
     holder: &'holder mut Option<PyClassGuardMut<'a, T>>,
 ) -> PyResult<&'holder mut T> {
-    // Safety: caller guarantees obj is of type T via CPython slot receiver contract
-    Ok(
-        &mut *holder.insert(PyClassGuardMut::try_borrow_mut_from_borrowed(unsafe {
-            obj.cast_unchecked::<T>()
-        })?),
-    )
+    cfg_select! {
+        // PyPy does not appear to perform the same type checking as CPython
+        PyPy => extract_pyclass_ref_mut(obj, holder),
+        not(PyPy) => {
+            Ok(
+                holder.insert(PyClassGuardMut::try_borrow_mut_from_borrowed(
+                    // Safety: caller guarantees obj is of type T via CPython slot receiver contract
+                    unsafe { obj.cast_unchecked::<T>() }
+                )?),
+            )
+        }
+    }
+}
+
+/// Indirection around `Bound::cast_unchecked` which performs checks on PyPy, to be used
+/// in contexts where CPython has already performed the check.
+///
+/// # Safety
+///
+/// `bound_ref` must be of type `T`
+#[inline]
+pub unsafe fn cast_bound_ref_trusted<'a, 'py, T: PyTypeCheck>(
+    bound_ref: &'a Bound<'py, PyAny>,
+) -> PyResult<&'a Bound<'py, T>> {
+    cfg_select! {
+        // PyPy does not appear to perform the same type checking as CPython
+        PyPy => bound_ref.cast().map_err(Into::into),
+        // SAFETY: caller guarantees correct type
+        not(PyPy) => Ok(unsafe { bound_ref.cast_unchecked() }),
+
+    }
 }
 
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
