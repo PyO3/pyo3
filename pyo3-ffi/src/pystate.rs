@@ -79,18 +79,6 @@ pub enum PyGILState_STATE {
     PyGILState_UNLOCKED,
 }
 
-#[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
-struct HangThread;
-
-#[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
-impl Drop for HangThread {
-    fn drop(&mut self) {
-        loop {
-            std::thread::park(); // Block forever.
-        }
-    }
-}
-
 // The PyGILState_Ensure function will call pthread_exit during interpreter shutdown,
 // which causes undefined behavior. Redirect to the "safe" version that hangs instead,
 // as Python 3.14 does.
@@ -115,7 +103,7 @@ mod raw {
 
 #[cfg(not(any(Py_3_14, target_arch = "wasm32")))]
 pub unsafe extern "C" fn PyGILState_Ensure() -> PyGILState_STATE {
-    let guard = HangThread;
+    let guard = crate::impl_::HangThread;
     // If `PyGILState_Ensure` calls `pthread_exit`, which it does on Python < 3.14
     // when the interpreter is shutting down, this will cause a forced unwind.
     // doing a forced unwind through a function with a Rust destructor is unspecified
