@@ -114,6 +114,7 @@ The PyO3 maintainers took the decision to make small breaking changes to elimina
 Users should not be affected by these changes unless they were inadvertently relying on unsound behavior.
 
 The changes were:
+
 - `PyCapsule::new_with_destructor` now requires the destructor to be `'static` to prevent possible use-after-free issues.
 - `PyCFunction::new_closure` now requires the closure to be `Sync` to prevent possible thread unsafety. ⚠️ A security advisory will be issued for this, as the thread unsafety could easily go undetected in testing and lead to exploitable issues downstream in production. ⚠️
 - `PyClassGuardMap` has been split into `PyClassGuardMap` and `PyClassGuardMapMut` to prevent possible lifetime variance issues.
