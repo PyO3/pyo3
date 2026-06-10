@@ -42,6 +42,7 @@ impl<T> std::ops::Deref for SyncReceiver<T> {
     }
 }
 
+// SAFETY: only used to allow the receiver to be used after detaching
 unsafe impl<T> Sync for SyncReceiver<T> {}
 
 #[pyfunction]
