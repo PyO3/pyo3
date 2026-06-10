@@ -417,6 +417,7 @@ mod internal_tricks;
 #[macro_use]
 mod internal;
 
+mod atomic;
 pub mod buffer;
 pub mod call;
 pub mod conversion;
@@ -449,6 +450,7 @@ mod version;
     reason = "with no features enabled this module has no public exports"
 )]
 pub use crate::conversions::*;
+pub use atomic::{AtomicOptionPy, AtomicPy};
 
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{
