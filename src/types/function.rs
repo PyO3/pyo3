@@ -13,12 +13,6 @@ use crate::{
     types::{PyType, PyTypeMethods},
     Py,
 };
-#[cfg(RustPython)]
-use crate::{
-    sync::PyOnceLock,
-    types::{PyType, PyTypeMethods},
-    Py,
-};
 use crate::{Bound, PyAny, PyResult, Python};
 use core::cell::UnsafeCell;
 use core::ffi::CStr;
