@@ -539,7 +539,6 @@ mod import;
 mod intrcheck;
 mod iterobject;
 mod listobject;
-// skipped longintrepr.h
 mod longobject;
 mod memoryobject;
 mod methodobject;

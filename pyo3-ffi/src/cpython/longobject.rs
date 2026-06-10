@@ -1,60 +1,34 @@
 #[cfg(not(Py_3_13))]
 use crate::longobject::*;
 use crate::object::*;
-#[cfg(Py_3_13)]
-use crate::pyport::Py_ssize_t;
+
 use core::ffi::c_int;
+
 #[cfg(not(Py_3_13))]
 use core::ffi::c_uchar;
-#[cfg(Py_3_13)]
-use core::ffi::c_void;
+
+#[cfg(not(Py_3_13))]
 use libc::size_t;
 
-#[cfg(Py_3_13)]
+// skipped _PyLong_CAST
+
 extern_libpython! {
+    #[cfg(Py_3_13)]
     pub fn PyLong_FromUnicodeObject(u: *mut PyObject, base: c_int) -> *mut PyObject;
-}
-
-#[cfg(Py_3_13)]
-pub const Py_ASNATIVEBYTES_DEFAULTS: c_int = -1;
-#[cfg(Py_3_13)]
-pub const Py_ASNATIVEBYTES_BIG_ENDIAN: c_int = 0;
-#[cfg(Py_3_13)]
-pub const Py_ASNATIVEBYTES_LITTLE_ENDIAN: c_int = 1;
-#[cfg(Py_3_13)]
-pub const Py_ASNATIVEBYTES_NATIVE_ENDIAN: c_int = 3;
-#[cfg(Py_3_13)]
-pub const Py_ASNATIVEBYTES_UNSIGNED_BUFFER: c_int = 4;
-#[cfg(Py_3_13)]
-pub const Py_ASNATIVEBYTES_REJECT_NEGATIVE: c_int = 8;
-
-extern_libpython! {
-    // skipped _PyLong_Sign
-
-    #[cfg(Py_3_13)]
-    pub fn PyLong_AsNativeBytes(
-        v: *mut PyObject,
-        buffer: *mut c_void,
-        n_bytes: Py_ssize_t,
-        flags: c_int,
-    ) -> Py_ssize_t;
-
-    #[cfg(Py_3_13)]
-    pub fn PyLong_FromNativeBytes(
-        buffer: *const c_void,
-        n_bytes: size_t,
-        flags: c_int,
-    ) -> *mut PyObject;
-
-    #[cfg(Py_3_13)]
-    pub fn PyLong_FromUnsignedNativeBytes(
-        buffer: *const c_void,
-        n_bytes: size_t,
-        flags: c_int,
-    ) -> *mut PyObject;
 
     // skipped PyUnstable_Long_IsCompact
     // skipped PyUnstable_Long_CompactValue
+
+    #[cfg(Py_3_14)]
+    pub fn PyLong_IsPositive(obj: *mut PyObject) -> c_int;
+    #[cfg(Py_3_14)]
+    pub fn PyLong_IsNegative(obj: *mut PyObject) -> c_int;
+    #[cfg(Py_3_14)]
+    pub fn PyLong_IsZero(obj: *mut PyObject) -> c_int;
+
+    // skipped PyLong_GetSign
+    // skipped _PyLong_Sign
+    // skipped non-limited _PyLong_NumBits
 
     #[cfg(not(Py_3_13))]
     #[cfg_attr(PyPy, link_name = "_PyPyLong_FromByteArray")]
