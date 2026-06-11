@@ -187,7 +187,7 @@ Some ways to achieve this are:
 - Put the Python DLL in the same folder as your build artifacts
 - Add the directory containing the Python DLL to your `PATH` environment variable, for example `C:\Users\<You>\AppData\Local\Programs\Python\Python310`
 - If this happens when you are *distributing* your program, consider using [PyOxidizer](https://github.com/indygreg/PyOxidizer) to package it with your binary.
-- The legacy MSI Python installer for Python 3.15 installs `python3t.dll` into an `abi3t_compat` subfolder of the main Python installation. 
+- The legacy MSI Python installer for Python 3.15 installs `python3t.dll` into an `abi3t_compat` subfolder of the main Python installation.
   Add that folder to your PATH as well if you are using `abi3t` features on Python 3.15.
 
 If the wrong DLL is linked it is possible that this happened because another program added itself and its own Python DLLs to `PATH`.
