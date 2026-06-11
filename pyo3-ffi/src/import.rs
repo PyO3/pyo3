@@ -74,9 +74,6 @@ extern_libpython! {
     pub fn PyImport_Import(name: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyImport_ReloadModule")]
     pub fn PyImport_ReloadModule(m: *mut PyObject) -> *mut PyObject;
-    #[cfg(not(Py_3_9))]
-    #[deprecated(note = "Removed in Python 3.9 as it was \"For internal use only\".")]
-    pub fn PyImport_Cleanup();
     pub fn PyImport_ImportFrozenModuleObject(name: *mut PyObject) -> c_int;
     pub fn PyImport_ImportFrozenModule(name: *const c_char) -> c_int;
 

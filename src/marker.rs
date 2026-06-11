@@ -712,9 +712,9 @@ impl<'py> Python<'py> {
     /// ```rust
     /// # use pyo3::Python;
     /// Python::attach(|py| {
-    ///     // PyO3 supports Python 3.8 and up.
-    ///     assert!(py.version_info() >= (3, 8));
-    ///     assert!(py.version_info() >= (3, 8, 0));
+    ///     // PyO3 supports Python 3.9 and up.
+    ///     assert!(py.version_info() >= (3, 9));
+    ///     assert!(py.version_info() >= (3, 9, 0));
     /// });
     /// ```
     pub fn version_info(self) -> PythonVersionInfo {

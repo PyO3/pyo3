@@ -520,11 +520,8 @@ impl<'py> IntoPyObject<'py> for Local {
     type Output = Borrowed<'static, 'py, Self::Target>;
     type Error = PyErr;
 
-    #[cfg(all(feature = "experimental-inspect", Py_3_9))]
+    #[cfg(feature = "experimental-inspect")]
     const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("zoneinfo", "ZoneInfo");
-
-    #[cfg(all(feature = "experimental-inspect", not(Py_3_9)))]
-    const OUTPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static LOCAL_TZ: PyOnceLock<Py<PyTzInfo>> = PyOnceLock::new();
@@ -722,7 +719,7 @@ mod tests {
     // Only Python>=3.9 has the zoneinfo package
     // We skip the test on windows too since we'd need to install
     // tzdata there to make this work.
-    #[cfg(all(Py_3_9, not(target_os = "windows")))]
+    #[cfg(not(target_os = "windows"))]
     fn test_zoneinfo_is_not_fixed_offset() {
         use crate::types::any::PyAnyMethods;
         use crate::types::dict::PyDictMethods;
@@ -1047,7 +1044,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(Py_3_9, feature = "chrono-tz", not(windows)))]
+    #[cfg(all(feature = "chrono-tz", not(windows)))]
     fn test_pyo3_datetime_into_pyobject_tz() {
         Python::attach(|py| {
             let datetime = NaiveDate::from_ymd_opt(2024, 12, 11)
@@ -1298,7 +1295,7 @@ mod tests {
             .unwrap()
     }
 
-    #[cfg(all(Py_3_9, feature = "chrono-tz", not(windows)))]
+    #[cfg(all(feature = "chrono-tz", not(windows)))]
     fn python_zoneinfo<'py>(py: Python<'py>, timezone: &str) -> Bound<'py, PyAny> {
         py.import("zoneinfo")
             .unwrap()

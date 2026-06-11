@@ -25,7 +25,7 @@ extern_libpython! {
     ) -> *mut PyObject;
 
     #[cfg(not(Py_3_13))]
-    #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
+    #[deprecated(note = "Python 3.9")]
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallObjectWithKeywords")]
     pub fn PyEval_CallObjectWithKeywords(
         func: *mut PyObject,
@@ -35,7 +35,7 @@ extern_libpython! {
 }
 
 #[cfg(not(Py_3_13))]
-#[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
+#[deprecated(note = "Python 3.9")]
 #[inline]
 pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
     #[allow(deprecated)]
@@ -44,11 +44,11 @@ pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut
 
 extern_libpython! {
     #[cfg(not(Py_3_13))]
-    #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
+    #[deprecated(note = "Python 3.9")]
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallFunction")]
     pub fn PyEval_CallFunction(obj: *mut PyObject, format: *const c_char, ...) -> *mut PyObject;
     #[cfg(not(Py_3_13))]
-    #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
+    #[deprecated(note = "Python 3.9")]
     #[cfg_attr(PyPy, link_name = "PyPyEval_CallMethod")]
     pub fn PyEval_CallMethod(
         obj: *mut PyObject,
@@ -88,10 +88,8 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPy_GetRecursionLimit")]
     pub fn Py_GetRecursionLimit() -> c_int;
 
-    #[cfg(Py_3_9)]
     #[cfg_attr(PyPy, link_name = "PyPy_EnterRecursiveCall")]
     pub fn Py_EnterRecursiveCall(arg1: *const c_char) -> c_int;
-    #[cfg(Py_3_9)]
     #[cfg_attr(PyPy, link_name = "PyPy_LeaveRecursiveCall")]
     pub fn Py_LeaveRecursiveCall();
 
@@ -110,19 +108,13 @@ extern_libpython! {
 
     #[cfg(not(Py_3_13))]
     #[cfg_attr(PyPy, link_name = "PyPyEval_ThreadsInitialized")]
-    #[cfg_attr(
-        Py_3_9,
-        deprecated(
-            note = "Deprecated in Python 3.9, this function always returns true in Python 3.7 or newer."
-        )
+    #[deprecated(
+        note = "Deprecated in Python 3.9, this function always returns true in Python 3.7 or newer."
     )]
     pub fn PyEval_ThreadsInitialized() -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyEval_InitThreads")]
-    #[cfg_attr(
-        Py_3_9,
-        deprecated(
-            note = "Deprecated in Python 3.9, this function does nothing in Python 3.7 or newer."
-        )
+    #[deprecated(
+        note = "Deprecated in Python 3.9, this function does nothing in Python 3.7 or newer."
     )]
     pub fn PyEval_InitThreads();
     #[cfg(not(Py_3_13))]

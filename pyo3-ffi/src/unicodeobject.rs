@@ -103,8 +103,6 @@ extern_libpython! {
     ) -> *mut wchar_t;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromOrdinal")]
     pub fn PyUnicode_FromOrdinal(ordinal: c_int) -> *mut PyObject;
-    #[cfg(not(Py_3_9))]
-    pub fn PyUnicode_ClearFreeList() -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_GetDefaultEncoding")]
     pub fn PyUnicode_GetDefaultEncoding() -> *const c_char;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Decode")]

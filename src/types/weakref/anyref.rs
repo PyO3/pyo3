@@ -66,14 +66,8 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// In Python it would be equivalent to [`PyWeakref_GetRef`].
     ///
     /// # Example
-    #[cfg_attr(
-        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
-        doc = "```rust,ignore"
-    )]
-    #[cfg_attr(
-        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
-        doc = "```rust"
-    )]
+    #[cfg_attr(not(feature = "macros"), doc = "```rust,ignore")]
+    #[cfg_attr(feature = "macros", doc = "```rust")]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;
     ///
@@ -146,14 +140,8 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// The `weakref` is still allowed to be `None`, if the referenced object has been cleaned up.
     ///
     /// # Example
-    #[cfg_attr(
-        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
-        doc = "```rust,ignore"
-    )]
-    #[cfg_attr(
-        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
-        doc = "```rust"
-    )]
+    #[cfg_attr(not(feature = "macros"), doc = "```rust,ignore")]
+    #[cfg_attr(feature = "macros", doc = "```rust")]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;
     ///
@@ -216,14 +204,8 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// In Python it would be equivalent to [`PyWeakref_GetRef`].
     ///
     /// # Example
-    #[cfg_attr(
-        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
-        doc = "```rust,ignore"
-    )]
-    #[cfg_attr(
-        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
-        doc = "```rust"
-    )]
+    #[cfg_attr(not(feature = "macros"), doc = "```rust,ignore")]
+    #[cfg_attr(feature = "macros", doc = "```rust")]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;
     ///
@@ -295,14 +277,8 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     /// It produces similar results to using [`PyWeakref_GetRef`] in the C api.
     ///
     /// # Example
-    #[cfg_attr(
-        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
-        doc = "```rust,ignore"
-    )]
-    #[cfg_attr(
-        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
-        doc = "```rust"
-    )]
+    #[cfg_attr(not(feature = "macros"), doc = "```rust,ignore")]
+    #[cfg_attr(feature = "macros", doc = "```rust")]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;
     ///
@@ -544,8 +520,7 @@ mod tests {
         }
     }
 
-    // under 'abi3-py38' PyClass cannot be weakreferencable.
-    #[cfg(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))))]
+    #[cfg(feature = "macros")]
     mod pyo3_pyclass {
         use super::*;
         use crate::{pyclass, Py};

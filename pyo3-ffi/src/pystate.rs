@@ -3,7 +3,7 @@ use crate::object::PyObject;
 use crate::pytypedefs::{PyInterpreterState, PyThreadState};
 use core::ffi::c_int;
 
-#[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_10))]
 #[cfg(not(PyPy))]
 use crate::PyFrameObject;
 
@@ -20,7 +20,7 @@ extern_libpython! {
     #[cfg(not(PyPy))]
     pub fn PyInterpreterState_Delete(arg1: *mut PyInterpreterState);
 
-    #[cfg(all(Py_3_9, not(PyPy)))]
+    #[cfg(not(PyPy))]
     pub fn PyInterpreterState_Get() -> *mut PyInterpreterState;
 
     #[cfg(not(PyPy))]
@@ -61,13 +61,13 @@ extern_libpython! {
     #[cfg(not(PyPy))]
     pub fn PyThreadState_SetAsyncExc(arg1: c_long, arg2: *mut PyObject) -> c_int;
 
-    #[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
     #[cfg(not(PyPy))]
     pub fn PyThreadState_GetInterpreter(arg1: *mut PyThreadState) -> *mut PyInterpreterState;
-    #[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
     #[cfg(not(PyPy))]
     pub fn PyThreadState_GetFrame(arg1: *mut PyThreadState) -> *mut PyFrameObject;
-    #[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
     #[cfg(not(PyPy))]
     pub fn PyThreadState_GetID(arg1: *mut PyThreadState) -> i64;
 }

@@ -23,7 +23,6 @@ pub use self::frame::{PyFrame, PyFrameMethods};
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
 pub use self::function::PyFunction;
-#[cfg(Py_3_9)]
 pub use self::genericalias::PyGenericAlias;
 pub use self::iterator::PyIterator;
 #[cfg(all(not(PyPy), Py_3_10))]
@@ -275,7 +274,6 @@ pub(crate) mod float;
 mod frame;
 pub(crate) mod frozenset;
 mod function;
-#[cfg(Py_3_9)]
 pub(crate) mod genericalias;
 pub(crate) mod iterator;
 pub(crate) mod list;

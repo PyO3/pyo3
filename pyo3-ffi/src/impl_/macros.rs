@@ -260,8 +260,7 @@ macro_rules! extern_libpython {
             "python3", "python3_d",
             // abi3t
             "python3t", "python3t_d",
-            // Python 3.8 - 3.15
-            "python38", "python38_d",
+            // Python 3.9 - 3.15
             "python39", "python39_d",
             "python310", "python310_d",
             "python311", "python311_d",

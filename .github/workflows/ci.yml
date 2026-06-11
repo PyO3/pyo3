@@ -259,7 +259,6 @@ jobs:
         rust: [stable]
         python-version:
           [
-            "3.8",
             "3.9",
             "3.10",
             "3.11",
@@ -341,14 +340,6 @@ jobs:
 
           # arm64 macOS Python not available on GitHub Actions until 3.10, test older versions on x64
           - rust: stable
-            python-version: "3.8"
-            platform:
-              {
-                os: "macos-15-intel",
-                python-architecture: "x64",
-                rust-target: "x86_64-apple-darwin",
-              }
-          - rust: stable
             python-version: "3.9"
             platform:
               {
@@ -391,14 +382,6 @@ jobs:
               }
         exclude:
           # arm64 macOS Python not available on GitHub Actions until 3.10
-          - rust: stable
-            python-version: "3.8"
-            platform:
-              {
-                os: "macos-latest",
-                python-architecture: "arm64",
-                rust-target: "aarch64-apple-darwin",
-              }
           - rust: stable
             python-version: "3.9"
             platform:
