@@ -263,6 +263,7 @@ impl FnType {
         &self,
         cls: Option<&syn::Type>,
         error_mode: ExtractErrorMode,
+        self_conversion: SelfConversionPolicy,
         holders: &mut Holders,
         ctx: &Ctx,
     ) -> Option<TokenStream> {
@@ -272,6 +273,7 @@ impl FnType {
                 Some(st.receiver(
                     cls.expect("no class given for Fn with a \"self\" receiver"),
                     error_mode,
+                    self_conversion,
                     holders,
                     ctx,
                 ))
@@ -320,6 +322,56 @@ pub enum SelfType {
     },
 }
 
+#[derive(Clone, Copy, Debug)]
+enum SelfConversionPolicyInner {
+    /// The receiver's type is guaranteed by CPython's slot/method dispatch contract.
+    /// Used for all extension-type method and slot entrypoints.
+    Trusted,
+    /// The receiver's type is verified at runtime. Used for number-protocol
+    /// binary operator fragments where the CPython dispatch contract does not
+    /// guarantee the receiver type.
+    Checked,
+}
+
+/// Receiver conversion policy for extension-type method wrappers.
+///
+/// Controls whether the `self` receiver is validated with a runtime type check
+/// (`Checked`) or treated as trusted and cast directly without checking
+/// (`Trusted`).
+///
+/// # Invariant
+///
+/// The `Trusted` path is valid due to CPython's slot/method receiver contract:
+/// when CPython dispatches a method call on an extension type — whether through
+/// a type slot or through `tp_methods` — the receiver is guaranteed to be an
+/// instance of the owning type (or a compatible subtype).  For `tp_methods`
+/// entries, CPython's method-wrapper descriptor enforces this before the C
+/// function is reached.
+///
+/// `Checked` should be used in cases where that guarantee does not hold:
+/// - Number-protocol binary operator fragments (`__add__`, `__radd__`, …,
+///   `__pow__`, `__rpow__`): CPython combines the forward and reflected
+///   fragments into a single `nb_add`/`nb_power` slot, and the runtime helper
+///   may call the reflected fragment with the operands swapped, meaning `_slf`
+///   can arrive with a non-class type.  The existing
+///   `ExtractErrorMode::NotImplemented` behavior on type mismatch is preserved
+///   by using `Checked` for those fragments.
+#[derive(Clone, Copy, Debug)]
+pub struct SelfConversionPolicy(SelfConversionPolicyInner);
+
+impl SelfConversionPolicy {
+    pub const fn checked() -> Self {
+        Self(SelfConversionPolicyInner::Checked)
+    }
+
+    // Using the trusted conversion incorrectly can lead to incorrect runtime
+    // behavior and memory safety issues, so this is marked `unsafe` and usage
+    // should be justified by the caller.
+    pub const unsafe fn trusted() -> Self {
+        Self(SelfConversionPolicyInner::Trusted)
+    }
+}
+
 #[derive(Clone, Copy)]
 pub enum ExtractErrorMode {
     NotImplemented,
@@ -346,6 +398,7 @@ impl SelfType {
         &self,
         cls: &syn::Type,
         error_mode: ExtractErrorMode,
+        self_conversion: SelfConversionPolicy,
         holders: &mut Holders,
         ctx: &Ctx,
     ) -> TokenStream {
@@ -367,22 +420,45 @@ impl SelfType {
                 };
                 let arg =
                     quote! { unsafe { #pyo3_path::impl_::extract_argument::#cast_fn(#py, #slf) } };
-                let method = if *mutable {
-                    syn::Ident::new("extract_pyclass_ref_mut", *span)
-                } else {
-                    syn::Ident::new("extract_pyclass_ref", *span)
-                };
                 let holder = holders.push_holder(*span);
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
-                error_mode.handle_error(
-                    quote_spanned! { *span =>
-                        #pyo3_path::impl_::extract_argument::#method::<#cls>(
-                            #arg,
-                            &mut #holder,
+                match self_conversion.0 {
+                    SelfConversionPolicyInner::Trusted => {
+                        let method = if *mutable {
+                            syn::Ident::new("extract_pyclass_ref_mut_trusted", *span)
+                        } else {
+                            syn::Ident::new("extract_pyclass_ref_trusted", *span)
+                        };
+                        // Safety: slot wrappers are only installed on the extension type itself.
+                        // CPython's slot dispatch contract ensures the receiver is an instance
+                        // of the correct type before invoking the slot.
+                        //
+                        // The trailing `?` exists because if the extraction fails here it represents
+                        // a genuine type error, should not fall back to e.g. `ExtractErrorMode::NotImplemented`.
+                        quote! {
+                            unsafe { #pyo3_path::impl_::extract_argument::#method::<#cls>(
+                                #arg,
+                                &mut #holder,
+                            ) }?
+                        }
+                    }
+                    SelfConversionPolicyInner::Checked => {
+                        let method = if *mutable {
+                            syn::Ident::new("extract_pyclass_ref_mut", *span)
+                        } else {
+                            syn::Ident::new("extract_pyclass_ref", *span)
+                        };
+                        error_mode.handle_error(
+                            quote_spanned! { *span =>
+                                #pyo3_path::impl_::extract_argument::#method::<#cls>(
+                                    #arg,
+                                    &mut #holder,
+                                )
+                            },
+                            ctx,
                         )
-                    },
-                    ctx,
-                )
+                    }
+                }
             }
             SelfType::TryFromBoundRef { span, non_null } => {
                 let bound_ref = if *non_null {
@@ -391,10 +467,34 @@ impl SelfType {
                     quote! { unsafe { #pyo3_path::Bound::ref_from_ptr(#py, &#slf) } }
                 };
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
+                let receiver = match self_conversion.0 {
+                    SelfConversionPolicyInner::Trusted => {
+                        // Safety: slot wrappers are only installed on the extension type
+                        // itself. CPython's slot dispatch contract ensures the receiver is
+                        // an instance of the correct type (or a compatible subtype) before
+                        // invoking the slot.
+                        //
+                        // The wrapping `Ok(...?)` here is because an error here should not
+                        // be treated by e.g. `ExtractErrorMode::NotImplemented` as falling
+                        // back to the default, but instead a genuine type error.
+                        quote! {
+                            unsafe {
+                                #pyo3_path::PyResult::Ok(
+                                    #pyo3_path::impl_::extract_argument::cast_bound_ref_trusted::<#cls>(#bound_ref)?
+                                )
+                            }
+                        }
+                    }
+                    SelfConversionPolicyInner::Checked => {
+                        quote_spanned! { *span =>
+                            #bound_ref.cast::<#cls>()
+                                .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
+                        }
+                    }
+                };
                 error_mode.handle_error(
                     quote_spanned! { *span =>
-                        #bound_ref.cast::<#cls>()
-                            .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
+                        #receiver
                             .and_then(
                                 #[allow(
                                     clippy::unnecessary_fallible_conversions,
@@ -678,6 +778,7 @@ impl<'a> FnSpec<'a> {
         ident: &proc_macro2::Ident,
         cls: Option<&syn::Type>,
         convention: CallingConvention,
+        self_conversion: SelfConversionPolicy,
         ctx: &Ctx,
     ) -> Result<TokenStream> {
         let Ctx {
@@ -700,9 +801,13 @@ impl<'a> FnSpec<'a> {
         }
 
         let rust_call = |args: Vec<TokenStream>, mut holders: Holders| {
-            let self_arg = self
-                .tp
-                .self_arg(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+            let self_arg = self.tp.self_arg(
+                cls,
+                ExtractErrorMode::Raise,
+                self_conversion,
+                &mut holders,
+                ctx,
+            );
             let init_holders = holders.init_holders(ctx);
 
             // We must assign the output_span to the return value of the call,

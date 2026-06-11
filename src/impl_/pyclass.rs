@@ -862,6 +862,26 @@ slot_fragment_trait! {
     }
 }
 
+/// Helper which defends `richcmp` implementations against invalid argument types. PyPy
+/// does not check the input argument type if e.g. `Foo.__eq__(object(), 1)`, so we
+/// add this check here to allow downstream code to assume the correct argument type.
+///
+/// (CPython checks the argument as part of the slot wrapper.)
+#[inline(always)]
+#[cfg_attr(not(PyPy), expect(unused_variables))]
+pub unsafe fn check_richcmp_arg_type<T: PyTypeCheck>(
+    py: Python<'_>,
+    obj: *mut ffi::PyObject,
+) -> PyResult<()> {
+    #[cfg(PyPy)]
+    {
+        // SAFETY: `generate_pyclass_richcompare_slot` is guaranteed to receive a valid pointer
+        // to a Python object.
+        let _ = unsafe { obj.assume_borrowed(py) }.cast::<T>()?;
+    }
+    Ok(())
+}
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! generate_pyclass_richcompare_slot {
@@ -878,6 +898,10 @@ macro_rules! generate_pyclass_richcompare_slot {
                 use $crate::class::basic::CompareOp;
                 use $crate::impl_::pyclass::*;
                 let collector = PyClassImplCollector::<$cls>::new();
+                // SAFETY: `slf` is a valid pointer to a Python object
+                unsafe {
+                    $crate::impl_::pyclass::check_richcmp_arg_type::<$cls>(py, slf)?;
+                }
                 match CompareOp::from_raw(op).expect("invalid compareop") {
                     CompareOp::Lt => unsafe { collector.__lt__(py, slf, other) },
                     CompareOp::Le => unsafe { collector.__le__(py, slf, other) },

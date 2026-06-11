@@ -4,7 +4,7 @@ use std::ffi::CString;
 use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::unique_element_id;
-use crate::method::{CallingConvention, ExtractErrorMode, PyArg};
+use crate::method::{CallingConvention, ExtractErrorMode, PyArg, SelfConversionPolicy};
 use crate::params::{impl_arg_params, impl_regular_arg_param, Holders};
 use crate::pyfunction::WarningFactory;
 use crate::utils::PythonDoc;
@@ -374,8 +374,17 @@ pub fn impl_py_method_def(
     let Ctx { pyo3_path, .. } = ctx;
     let wrapper_ident = format_ident!("__pymethod_{}__", spec.python_name);
     let calling_convention = CallingConvention::from_signature(&spec.signature);
-    let associated_method =
-        spec.get_wrapper_function(&wrapper_ident, Some(cls), calling_convention, ctx)?;
+    let associated_method = spec.get_wrapper_function(
+        &wrapper_ident,
+        Some(cls),
+        calling_convention,
+        // SAFETY: Methods in `tp_methods` are dispatched through CPython's
+        // method-wrapper descriptor, which enforces that the receiver is an
+        // instance of the owning type before reaching the C function. The
+        // trusted path is therefore valid.
+        unsafe { SelfConversionPolicy::trusted() },
+        ctx,
+    )?;
     let methoddef = spec.get_methoddef(
         quote! { #cls::#wrapper_ident },
         doc,
@@ -394,8 +403,15 @@ pub fn impl_py_method_def(
 fn impl_call_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> Result<MethodAndSlotDef> {
     let Ctx { pyo3_path, .. } = ctx;
     let wrapper_ident = syn::Ident::new("__pymethod___call____", Span::call_site());
-    let associated_method =
-        spec.get_wrapper_function(&wrapper_ident, Some(cls), CallingConvention::Varargs, ctx)?;
+    let associated_method = spec.get_wrapper_function(
+        &wrapper_ident,
+        Some(cls),
+        CallingConvention::Varargs,
+        // SAFETY: The `tp_call` slot is dispatched by CPython, which guarantees
+        // the receiver is of the correct type.
+        unsafe { SelfConversionPolicy::trusted() },
+        ctx,
+    )?;
     let slot_def = quote! {
         #pyo3_path::ffi::PyType_Slot {
             slot: #pyo3_path::ffi::Py_tp_call,
@@ -473,7 +489,15 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
         _ => bail_spanned!(spec.name.span() => "expected instance method for `__clear__` function"),
     };
     let mut holders = Holders::new();
-    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+    let slf = self_type.receiver(
+        cls,
+        ExtractErrorMode::Raise,
+        // SAFETY: The `tp_clear` slot is dispatched by CPython, which guarantees the
+        // receiver is of the correct type.
+        unsafe { SelfConversionPolicy::trusted() },
+        &mut holders,
+        ctx,
+    );
 
     if let [arg, ..] = args {
         bail_spanned!(arg.ty().span() => "`__clear__` function expected to have no arguments");
@@ -571,7 +595,15 @@ fn impl_call_setter(
     ctx: &Ctx,
 ) -> syn::Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
-    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders, ctx);
+    let slf = self_type.receiver(
+        cls,
+        ExtractErrorMode::Raise,
+        // SAFETY: The setter function is dispatched by CPython's method-wrapper
+        // descriptor, which enforces the receiver is of the correct type.
+        unsafe { SelfConversionPolicy::trusted() },
+        holders,
+        ctx,
+    );
 
     if args.is_empty() {
         bail_spanned!(spec.name.span() => "setter function expected to have one argument");
@@ -611,7 +643,15 @@ pub fn impl_py_setter_def(
                 span: Span::call_site(),
                 non_null: true,
             }
-            .receiver(cls, ExtractErrorMode::Raise, &mut holders, ctx);
+            .receiver(
+                cls,
+                ExtractErrorMode::Raise,
+                // SAFETY: The setter function is dispatched by CPython, which
+                // guarantees the receiver is of the correct type.
+                unsafe { SelfConversionPolicy::trusted() },
+                &mut holders,
+                ctx,
+            );
             if let Some(ident) = &field.ident {
                 // named struct field
                 quote!({ #slf.#ident = _val; })
@@ -757,7 +797,15 @@ fn impl_call_getter(
     ctx: &Ctx,
 ) -> syn::Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
-    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders, ctx);
+    let slf = self_type.receiver(
+        cls,
+        ExtractErrorMode::Raise,
+        // SAFETY: The getter function is dispatched by CPython's method-wrapper
+        // descriptor, which enforces the receiver is of the correct type.
+        unsafe { SelfConversionPolicy::trusted() },
+        holders,
+        ctx,
+    );
     ensure_spanned!(
         args.is_empty(),
         args[0].ty().span() => "getter function can only have one argument (of type pyo3::Python)"
@@ -932,7 +980,15 @@ fn impl_call_deleter(
     ctx: &Ctx,
 ) -> Result<TokenStream> {
     let (py_arg, args) = split_off_python_arg(&spec.signature.arguments);
-    let slf = self_type.receiver(cls, ExtractErrorMode::Raise, holders, ctx);
+    let slf = self_type.receiver(
+        cls,
+        ExtractErrorMode::Raise,
+        // SAFETY: The deleter function is dispatched by CPython's method-wrapper
+        // descriptor, which enforces the receiver is of the correct type.
+        unsafe { SelfConversionPolicy::trusted() },
+        holders,
+        ctx,
+    );
 
     if !args.is_empty() {
         bail_spanned!(spec.name.span() =>
@@ -1395,6 +1451,9 @@ impl SlotDef {
             spec,
             calling_convention,
             *extract_error_mode,
+            // SAFETY: All extension-type slots use trusted self: CPython's slot dispatch
+            // contract guarantees the receiver is of the correct type.
+            unsafe { SelfConversionPolicy::trusted() },
             &mut holders,
             return_mode.as_ref(),
             ctx,
@@ -1425,11 +1484,13 @@ impl SlotDef {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn generate_method_body(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
     calling_convention: &SlotCallingConvention,
     extract_error_mode: ExtractErrorMode,
+    self_conversion: SelfConversionPolicy,
     holders: &mut Holders,
     // NB ignored if calling_convention is SlotCallingConvention::TpNew, possibly should merge into that enum
     return_mode: Option<&ReturnMode>,
@@ -1441,7 +1502,7 @@ fn generate_method_body(
     } = ctx;
     let self_arg = spec
         .tp
-        .self_arg(Some(cls), extract_error_mode, holders, ctx);
+        .self_arg(Some(cls), extract_error_mode, self_conversion, holders, ctx);
     let rust_name = spec.name;
     let warnings = spec.warnings.build_py_warning(ctx);
 
@@ -1569,6 +1630,16 @@ struct SlotFragmentDef {
     arguments: &'static [Ty],
     extract_error_mode: ExtractErrorMode,
     ret_ty: Ty,
+    /// Self-conversion policy for this slot fragment.
+    ///
+    /// Most slot fragments are called by CPython with a receiver that is
+    /// guaranteed to be of the correct type (`Trusted`). However, binary
+    /// operator fragments are combined into a single slot (e.g. `nb_add`)
+    /// where the runtime helper may swap operands and call the reflected
+    /// fragment with a receiver of an unknown (potentially wrong) type.
+    /// Those fragments must use `Checked` so that a type mismatch returns
+    /// `NotImplemented` instead of causing undefined behaviour.
+    self_conversion: SelfConversionPolicy,
 }
 
 impl SlotFragmentDef {
@@ -1578,16 +1649,26 @@ impl SlotFragmentDef {
             arguments,
             extract_error_mode: ExtractErrorMode::Raise,
             ret_ty: Ty::Void,
+            self_conversion: SelfConversionPolicy::checked(),
         }
     }
 
-    /// Specialized constructor for binary operators (which are a common pattern)
     const fn binary_operator(fragment: &'static str) -> Self {
+        // Binary operator fragments (`__add__`, `__radd__`, etc.) are combined
+        // into a shared slot (e.g. `nb_add`) that may call the forward fragment
+        // with a non-class receiver (e.g. `1 + MyClass()` → `nb_add(1, c)`).
+        // The runtime helper then tries the reflected fragment with the operands
+        // swapped, which can also produce a non-class `_slf`.  Both cases require
+        // a checked type conversion so that a mismatch gracefully returns
+        // `NotImplemented` rather than causing undefined behaviour.
+        // TODO: addressing #6024 could allow to simplify this by using type
+        // checks to directly dispatch to the right fragment.
         SlotFragmentDef {
             fragment,
             arguments: &[Ty::Object],
             extract_error_mode: ExtractErrorMode::NotImplemented,
             ret_ty: Ty::Object,
+            self_conversion: SelfConversionPolicy::checked(),
         }
     }
 
@@ -1598,6 +1679,11 @@ impl SlotFragmentDef {
 
     const fn ret_ty(mut self, ret_ty: Ty) -> Self {
         self.ret_ty = ret_ty;
+        self
+    }
+
+    const fn self_conversion_policy(mut self, policy: SelfConversionPolicy) -> Self {
+        self.self_conversion = policy;
         self
     }
 
@@ -1613,6 +1699,7 @@ impl SlotFragmentDef {
             arguments,
             extract_error_mode,
             ret_ty,
+            self_conversion,
         } = self;
         let fragment_trait = format_ident!("PyClass{}SlotFragment", fragment);
         let method = syn::Ident::new(fragment, Span::call_site());
@@ -1628,6 +1715,7 @@ impl SlotFragmentDef {
             spec,
             &SlotCallingConvention::FixedArguments(arguments),
             *extract_error_mode,
+            *self_conversion,
             &mut holders,
             None,
             ctx,
@@ -1668,18 +1756,34 @@ pub struct MethodBody {
     pub body: TokenStream,
 }
 
-const __GETATTRIBUTE__: SlotFragmentDef =
-    SlotFragmentDef::new("__getattribute__", &[Ty::Object]).ret_ty(Ty::Object);
-const __GETATTR__: SlotFragmentDef =
-    SlotFragmentDef::new("__getattr__", &[Ty::Object]).ret_ty(Ty::Object);
+const __GETATTRIBUTE__: SlotFragmentDef = SlotFragmentDef::new("__getattribute__", &[Ty::Object])
+    .ret_ty(Ty::Object)
+    // SAFETY: `tp_getattro` is wrapped by CPython to guarantee correct receiver type
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __GETATTR__: SlotFragmentDef = SlotFragmentDef::new("__getattr__", &[Ty::Object])
+    .ret_ty(Ty::Object)
+    // SAFETY: `tp_getattro` is wrapped by CPython to guarantee correct receiver type
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __SETATTR__: SlotFragmentDef =
-    SlotFragmentDef::new("__setattr__", &[Ty::Object, Ty::NonNullObject]);
-const __DELATTR__: SlotFragmentDef = SlotFragmentDef::new("__delattr__", &[Ty::Object]);
-const __SET__: SlotFragmentDef = SlotFragmentDef::new("__set__", &[Ty::Object, Ty::NonNullObject]);
-const __DELETE__: SlotFragmentDef = SlotFragmentDef::new("__delete__", &[Ty::Object]);
+    SlotFragmentDef::new("__setattr__", &[Ty::Object, Ty::NonNullObject])
+        // SAFETY: `tp_setattro` is wrapped by CPython to guarantee correct receiver type
+        .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __DELATTR__: SlotFragmentDef = SlotFragmentDef::new("__delattr__", &[Ty::Object])
+    // SAFETY: `tp_setattro` is wrapped by CPython to guarantee correct receiver type
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __SET__: SlotFragmentDef = SlotFragmentDef::new("__set__", &[Ty::Object, Ty::NonNullObject])
+    // SAFETY: `tp_descr_set` is wrapped by CPython to guarantee correct receiver type
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __DELETE__: SlotFragmentDef = SlotFragmentDef::new("__delete__", &[Ty::Object])
+    // SAFETY: `tp_descr_set` is wrapped by CPython to guarantee correct receiver type
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __SETITEM__: SlotFragmentDef =
-    SlotFragmentDef::new("__setitem__", &[Ty::Object, Ty::NonNullObject]);
-const __DELITEM__: SlotFragmentDef = SlotFragmentDef::new("__delitem__", &[Ty::Object]);
+    SlotFragmentDef::new("__setitem__", &[Ty::Object, Ty::NonNullObject])
+        // SAFETY: `mp_ass_subscript` is wrapped by CPython to guarantee correct receiver type
+        .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
+const __DELITEM__: SlotFragmentDef = SlotFragmentDef::new("__delitem__", &[Ty::Object])
+    // SAFETY: `mp_ass_subscript` is wrapped by CPython to guarantee correct receiver type
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 
 const __ADD__: SlotFragmentDef = SlotFragmentDef::binary_operator("__add__");
 const __RADD__: SlotFragmentDef = SlotFragmentDef::binary_operator("__radd__");
@@ -1717,22 +1821,34 @@ const __RPOW__: SlotFragmentDef = SlotFragmentDef::new("__rpow__", &[Ty::Object,
 
 const __LT__: SlotFragmentDef = SlotFragmentDef::new("__lt__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .ret_ty(Ty::Object);
+    .ret_ty(Ty::Object)
+    // SAFETY: `tp_richcompare` is wrapped by CPython to guarantee correct receiver type
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __LE__: SlotFragmentDef = SlotFragmentDef::new("__le__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .ret_ty(Ty::Object);
+    .ret_ty(Ty::Object)
+    // SAFETY: `tp_richcompare` is wrapped by CPython to guarantee correct receiver type
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __EQ__: SlotFragmentDef = SlotFragmentDef::new("__eq__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .ret_ty(Ty::Object);
+    .ret_ty(Ty::Object)
+    // SAFETY: `tp_richcompare` is wrapped by CPython to guarantee correct receiver type
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __NE__: SlotFragmentDef = SlotFragmentDef::new("__ne__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .ret_ty(Ty::Object);
+    .ret_ty(Ty::Object)
+    // SAFETY: `tp_richcompare` is wrapped by CPython to guarantee correct receiver type
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __GT__: SlotFragmentDef = SlotFragmentDef::new("__gt__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .ret_ty(Ty::Object);
+    .ret_ty(Ty::Object)
+    // SAFETY: `tp_richcompare` is wrapped by CPython to guarantee correct receiver type
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 const __GE__: SlotFragmentDef = SlotFragmentDef::new("__ge__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .ret_ty(Ty::Object);
+    .ret_ty(Ty::Object)
+    // SAFETY: `tp_richcompare` is wrapped by CPython to guarantee correct receiver type
+    .self_conversion_policy(unsafe { SelfConversionPolicy::trusted() });
 
 fn extract_proto_arguments(
     spec: &FnSpec<'_>,
