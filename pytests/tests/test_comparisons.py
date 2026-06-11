@@ -64,17 +64,24 @@ def test_eq(ty: Type[EqType]):
     assert not c == 1
     assert c != 1
 
-    with pytest.raises(TypeError):
-        assert a <= b  # type: ignore[operator]
+    # Ensure that passing a wrong self type from Python does not cause UB
+    if ty is not PyEq:
+        with pytest.raises(TypeError):
+            ty.__eq__(object(), 1)  # type: ignore
+        with pytest.raises(TypeError):
+            ty.__ne__(object(), 1)  # type: ignore
 
     with pytest.raises(TypeError):
-        assert a >= b  # type: ignore[operator]
+        assert a <= b  # type: ignore
 
     with pytest.raises(TypeError):
-        assert a < c  # type: ignore[operator]
+        assert a >= b  # type: ignore
 
     with pytest.raises(TypeError):
-        assert c > a  # type: ignore[operator]
+        assert a < c  # type: ignore
+
+    with pytest.raises(TypeError):
+        assert c > a  # type: ignore
 
 
 class PyEqDefaultNe:
@@ -104,17 +111,24 @@ def test_eq_default_ne(ty: Type[EqDefaultType]):
     assert b != c
     assert not (b == c)
 
-    with pytest.raises(TypeError):
-        assert a <= b  # type: ignore[operator]
+    # Ensure that passing a wrong self type from Python does not cause UB
+    if ty is not PyEqDefaultNe:
+        with pytest.raises(TypeError):
+            ty.__eq__(object(), 1)  # type: ignore
+        with pytest.raises(TypeError):
+            ty.__ne__(object(), 1)  # type: ignore
 
     with pytest.raises(TypeError):
-        assert a >= b  # type: ignore[operator]
+        assert a <= b  # type: ignore
 
     with pytest.raises(TypeError):
-        assert a < c  # type: ignore[operator]
+        assert a >= b  # type: ignore
 
     with pytest.raises(TypeError):
-        assert c > a  # type: ignore[operator]
+        assert a < c  # type: ignore
+
+    with pytest.raises(TypeError):
+        assert c > a  # type: ignore
 
 
 class PyOrdered:
@@ -175,6 +189,17 @@ def test_ordered(ty: Type[OrderedType]):
     assert c >= a
     assert c > b
     assert c >= b
+
+    # Ensure that passing a wrong self type from Python does not cause UB
+    if ty is not PyOrdered:
+        with pytest.raises(TypeError):
+            ty.__lt__(object(), 1)  # type: ignore
+        with pytest.raises(TypeError):
+            ty.__le__(object(), 1)  # type: ignore
+        with pytest.raises(TypeError):
+            ty.__gt__(object(), 1)  # type: ignore
+        with pytest.raises(TypeError):
+            ty.__ge__(object(), 1)  # type: ignore
 
 
 class PyOrderedDefaultNe:

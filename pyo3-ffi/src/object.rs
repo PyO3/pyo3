@@ -79,6 +79,7 @@ pub union PyObjectObRefcnt {
 #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
 impl core::fmt::Debug for PyObjectObRefcnt {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        // SAFETY: always valid to print `ob_refcnt` as a number
         write!(f, "{}", unsafe { self.ob_refcnt })
     }
 }
@@ -319,6 +320,7 @@ pub struct PyType_Slot {
 
 impl Default for PyType_Slot {
     fn default() -> PyType_Slot {
+        // SAFETY: CPython treats a zeroed slot as a sentinel value to mean the end of the slots array.
         unsafe { mem::zeroed() }
     }
 }
@@ -331,12 +333,6 @@ pub struct PyType_Spec {
     pub itemsize: c_int,
     pub flags: c_uint,
     pub slots: *mut PyType_Slot,
-}
-
-impl Default for PyType_Spec {
-    fn default() -> PyType_Spec {
-        unsafe { mem::zeroed() }
-    }
 }
 
 extern_libpython! {

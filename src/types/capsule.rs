@@ -1,5 +1,6 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
 
+use crate::exceptions::PySystemError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::box_into_non_null;
 use crate::py_result_ext::PyResultExt;
@@ -385,16 +386,37 @@ impl PyCapsule {
     ///
     /// # Safety
     ///
-    /// It must be known that the capsule imported by `name` contains an item of type `T`.
+    /// - It must be known that the capsule imported by `name` contains an item of type `T`.
+    /// - The contents of the capsule must not be mutated by any third-party code while the reference is alive.
+    ///   The python interpreter does _NOT_ provide any synchronization guarantees for capsules.
     pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr) -> PyResult<&'py T> {
+        let ptr = Self::import_pointer(py, name)?.cast();
+
+        if !ptr.is_aligned() {
+            return Err(PySystemError::new_err(format!(
+                "The pointer from the `{}` capsule is not aligned to rust type {}",
+                name.to_string_lossy(),
+                core::any::type_name::<T>()
+            )));
+        }
+
+        // SAFETY: caller has upheld the safety contract and we just checked pointer alignment
+        Ok(unsafe { ptr.as_ref() })
+    }
+
+    /// Imports an existing capsule as a pointer.
+    ///
+    /// The `name` should match the path to the module attribute exactly in the form
+    /// of `"module.attribute"`, which should be the same as the name within the capsule.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe to call, but the pointer it returns is not safe to use.
+    /// The python interpreter does _NOT_ provide any synchronization guarantees for capsules.
+    pub fn import_pointer(py: Python<'_>, name: &CStr) -> PyResult<NonNull<c_void>> {
         // SAFETY: `name` is a valid C string, thread is attached to the Python interpreter
         let ptr = unsafe { ffi::PyCapsule_Import(name.as_ptr(), false as c_int) };
-        if ptr.is_null() {
-            Err(PyErr::fetch(py))
-        } else {
-            // SAFETY: caller has upheld the safety contract
-            Ok(unsafe { &*ptr.cast::<T>() })
-        }
+        NonNull::new(ptr).ok_or_else(|| PyErr::fetch(py))
     }
 }
 
@@ -776,6 +798,28 @@ mod tests {
             let cap: &Foo = unsafe { PyCapsule::import(py, name) }.unwrap();
             assert_eq!(cap.val, 123);
         })
+    }
+
+    #[test]
+    fn test_misaligned_import() {
+        #[repr(align(128))]
+        struct Align128 {
+            _n: usize,
+        }
+
+        Python::attach(|py| {
+            let ptr = NonNull::new(129 as *mut c_void).unwrap();
+            let name = c"builtins.capsule";
+
+            // SAFETY: the pointer will never be dereferenced
+            let capsule = unsafe { PyCapsule::new_with_pointer(py, ptr, name) }.unwrap();
+
+            let module = PyModule::import(py, "builtins").unwrap();
+            module.add("capsule", capsule).unwrap();
+
+            // SAFETY: this should return an error so no reference will be created
+            assert!(unsafe { PyCapsule::import::<Align128>(py, name) }.is_err());
+        });
     }
 
     #[test]

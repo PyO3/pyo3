@@ -1156,7 +1156,7 @@ def check_changelog(session: nox.Session):
     if not fragments:
         session.error(
             "Changelog entry not found, please add one (or more) to the `newsfragments` directory.\n"
-            "Alternatively, start the PR title with `docs:`, `refactor`, or `internal` if applicable.\n"
+            "Alternatively, start the PR title with `docs:`, `refactor:`, or `internal:` if applicable.\n"
             "See https://github.com/PyO3/pyo3/blob/main/Contributing.md#documenting-changes for more information."
         )
 
@@ -1752,9 +1752,7 @@ def _get_feature_sets(
             return (None, features)
 
     # do fewer abi3t builds?
-    # TODO re-enable Windows abi3t builds once 3.15.0b2 is released.
-    # See https://github.com/python/cpython/issues/149887
-    if version >= (3, 15) and sys.platform != "win32":
+    if version >= (3, 15):
         return (
             None,
             "abi3",
@@ -1852,7 +1850,18 @@ def _run_cargo_test(
     if extra_flags:
         command.extend(extra_flags)
 
-    _run(session, *command, external=True, env=env or {})
+    test_env = dict(env or {})
+    if features and "abi3t" in features and sys.platform == "win32":
+        # On the GIL-enabled CPython MSI installation, python3t.dll (the abi3t forwarder) lives
+        # in <base_prefix>\abi3t-compat\, not next to python.exe. The interpreter
+        # finds it there when importing a .pyd, but our test binaries link it
+        # directly and the loader only searches PATH.
+        abi3t_compat = Path(sys.base_prefix) / "abi3t-compat"
+        if abi3t_compat.is_dir():
+            path = test_env.get("PATH", os.environ.get("PATH", ""))
+            test_env["PATH"] = os.pathsep.join((str(abi3t_compat), path))
+
+    _run(session, *command, external=True, env=test_env)
 
 
 def _run_cargo_publish(session: nox.Session, *, package: str) -> None:

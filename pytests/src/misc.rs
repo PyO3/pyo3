@@ -31,6 +31,35 @@ fn hammer_attaching_in_thread() -> LockHolder {
     LockHolder { sender }
 }
 
+/// Wrapper to mark Receiver as Sync.
+struct SyncReceiver<T>(std::sync::mpsc::Receiver<T>);
+
+impl<T> std::ops::Deref for SyncReceiver<T> {
+    type Target = std::sync::mpsc::Receiver<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+// SAFETY: only used to allow the receiver to be used after detaching
+unsafe impl<T> Sync for SyncReceiver<T> {}
+
+#[pyfunction]
+fn detach_during_finalization() -> LockHolder {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let receiver = SyncReceiver(receiver);
+    std::thread::spawn(move || {
+        Python::attach(|py| {
+            py.detach(|| {
+                receiver.recv().ok();
+                // Interpreter is finalizing while we try to reattach after returning
+            });
+        });
+    });
+    LockHolder { sender }
+}
+
 #[pyfunction]
 fn get_type_fully_qualified_name<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyString>> {
     obj.get_type().fully_qualified_name()
@@ -58,7 +87,7 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
 pub mod misc {
     #[pymodule_export]
     use super::{
-        accepts_bool, get_item_and_run_callback, get_type_fully_qualified_name,
-        hammer_attaching_in_thread, issue_219,
+        accepts_bool, detach_during_finalization, get_item_and_run_callback,
+        get_type_fully_qualified_name, hammer_attaching_in_thread, issue_219,
     };
 }

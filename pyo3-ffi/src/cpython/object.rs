@@ -1,7 +1,6 @@
 use crate::vectorcallfunc;
 use crate::{object, PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, Py_ssize_t};
 use core::ffi::{c_char, c_int, c_uint, c_void};
-use core::mem;
 
 // skipped private _Py_NewReference
 // skipped private _Py_NewReferenceNoTotal
@@ -316,13 +315,6 @@ pub struct PyHeapTypeObject {
     _spec_cache: _specialization_cache,
     #[cfg(all(Py_GIL_DISABLED, Py_3_14))]
     pub unique_id: Py_ssize_t,
-}
-
-impl Default for PyHeapTypeObject {
-    #[inline]
-    fn default() -> Self {
-        unsafe { mem::zeroed() }
-    }
 }
 
 #[inline]

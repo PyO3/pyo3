@@ -324,7 +324,13 @@ extern_libpython! {
 pub unsafe fn PyErr_BadInternalCall() {
     let location = core::panic::Location::caller();
     let filename = alloc::ffi::CString::new(location.file()).unwrap();
-    unsafe { _PyErr_BadInternalCall(filename.as_ptr(), location.line() as c_int) }
+    // SAFETY: `filename` is null terminated, `location.line()` saturates if exceeds c_int
+    unsafe {
+        _PyErr_BadInternalCall(
+            filename.as_ptr(),
+            location.line().try_into().unwrap_or(c_int::MAX),
+        )
+    }
 }
 
 extern_libpython! {

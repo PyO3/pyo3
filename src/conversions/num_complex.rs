@@ -1,3 +1,5 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "num-complex")]
 
 //!  Conversions to and from [num-complex](https://docs.rs/num-complex)’

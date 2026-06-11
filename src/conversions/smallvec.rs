@@ -1,3 +1,5 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "smallvec")]
 
 //!  Conversions to and from [smallvec](https://docs.rs/smallvec/).

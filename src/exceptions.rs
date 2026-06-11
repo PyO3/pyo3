@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 //! Exception and warning types defined by Python.
 //!
 //! The structs in this module represent Python's built-in exceptions and

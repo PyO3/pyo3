@@ -1,7 +1,7 @@
 import sysconfig
+from sys import implementation
 
 import pytest
-
 from pyo3_pytests import misc
 
 
@@ -26,3 +26,11 @@ loopy = [make_loop()]
 )
 def test_hammer_attaching_in_thread():
     loopy.append(misc.hammer_attaching_in_thread())
+
+
+@pytest.mark.skipif(
+    implementation.name == "graalpy",
+    reason="graalpy aborts instead of unwinding the thread",
+)
+def test_detach_during_finalization():
+    loopy.append(misc.detach_during_finalization())

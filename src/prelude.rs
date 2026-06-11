@@ -15,6 +15,7 @@ pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::types::{PyAny, PyModule};
+pub use crate::{PyClassGuard, PyClassGuardMut};
 
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{

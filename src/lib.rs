@@ -10,7 +10,6 @@
 )]
 #![cfg_attr(all(feature = "nightly", Py_GIL_DISABLED), feature(try_trait_v2))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![warn(unsafe_op_in_unsafe_fn)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(
@@ -408,15 +407,15 @@ mod test_utils;
 #[cfg(test)]
 mod tests;
 
+#[macro_use]
+mod internal;
+#[macro_use]
+mod internal_tricks;
+
 // Macro dependencies, also contains macros exported for use across the codebase and
 // in expanded macros.
 #[doc(hidden)]
 pub mod impl_;
-
-#[macro_use]
-mod internal_tricks;
-#[macro_use]
-mod internal;
 
 pub mod buffer;
 pub mod call;

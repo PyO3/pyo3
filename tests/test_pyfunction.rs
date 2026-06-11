@@ -1,17 +1,18 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "macros")]
-#![warn(unsafe_op_in_unsafe_fn)]
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicI32, Ordering};
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
 use pyo3::buffer::PyBuffer;
 #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 use pyo3::exceptions::PyWarning;
 use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::prelude::*;
-#[cfg(not(Py_LIMITED_API))]
 use pyo3::types::PyDateTime;
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(PyPy))]
 use pyo3::types::PyFunction;
 use pyo3::types::{self, PyCFunction};
 use pyo3_macros::pyclass;
@@ -113,7 +114,7 @@ fn test_required_optional_class() {
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
 #[pyfunction]
 fn buffer_inplace_add(py: Python<'_>, x: PyBuffer<i32>, y: PyBuffer<i32>) {
     let x = x.as_mut_slice(py).unwrap();
@@ -124,7 +125,7 @@ fn buffer_inplace_add(py: Python<'_>, x: PyBuffer<i32>, y: PyBuffer<i32>) {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
 #[test]
 fn test_buffer_add() {
     Python::attach(|py| {
@@ -156,7 +157,7 @@ assert a, array.array("i", [2, 4, 6, 8])
     });
 }
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(PyPy))]
 #[pyfunction]
 fn function_with_pyfunction_arg<'py>(fun: &Bound<'py, PyFunction>) -> PyResult<Bound<'py, PyAny>> {
     fun.call((), None)
@@ -184,7 +185,7 @@ fn test_functions_with_function_args() {
         "#
         );
 
-        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        #[cfg(not(PyPy))]
         {
             let py_func_arg = wrap_pyfunction!(function_with_pyfunction_arg)(py).unwrap();
 
@@ -200,7 +201,6 @@ fn test_functions_with_function_args() {
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
 fn datetime_to_timestamp(dt: &Bound<'_, PyAny>) -> PyResult<i64> {
     let dt = dt.cast::<PyDateTime>()?;
     let ts: f64 = dt.call_method0("timestamp")?.extract()?;
@@ -208,7 +208,6 @@ fn datetime_to_timestamp(dt: &Bound<'_, PyAny>) -> PyResult<i64> {
     Ok(ts as i64)
 }
 
-#[cfg(not(Py_LIMITED_API))]
 #[pyfunction]
 fn function_with_custom_conversion(
     #[pyo3(from_py_with = datetime_to_timestamp)] timestamp: i64,
@@ -216,7 +215,6 @@ fn function_with_custom_conversion(
     timestamp
 }
 
-#[cfg(not(Py_LIMITED_API))]
 #[test]
 fn test_function_with_custom_conversion() {
     Python::attach(|py| {
@@ -235,7 +233,6 @@ fn test_function_with_custom_conversion() {
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
 #[test]
 fn test_function_with_custom_conversion_error() {
     Python::attach(|py| {
@@ -565,13 +562,12 @@ fn test_closure() {
 #[test]
 fn test_closure_counter() {
     Python::attach(|py| {
-        let counter = std::cell::RefCell::new(0);
+        let counter = AtomicI32::new(0);
         let counter_fn = move |_args: &Bound<'_, types::PyTuple>,
                                _kwargs: Option<&Bound<'_, types::PyDict>>|
               -> PyResult<i32> {
-            let mut counter = counter.borrow_mut();
-            *counter += 1;
-            Ok(*counter)
+            let prev_count = counter.fetch_add(1, Ordering::SeqCst);
+            Ok(prev_count + 1)
         };
         let counter_py = PyCFunction::new_closure(py, None, None, counter_fn).unwrap();
 

@@ -18,14 +18,6 @@ pub struct PyHash_FuncDef {
     pub seed_bits: c_int,
 }
 
-#[cfg(not(PyPy))]
-impl Default for PyHash_FuncDef {
-    #[inline]
-    fn default() -> Self {
-        unsafe { core::mem::zeroed() }
-    }
-}
-
 extern_libpython! {
     #[cfg(not(PyPy))]
     pub fn PyHash_GetFuncDef() -> *mut PyHash_FuncDef;

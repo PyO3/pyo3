@@ -202,6 +202,10 @@ extern_libpython! {
         indices: *mut Py_ssize_t,
     ) -> *mut core::ffi::c_void;
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_SizeFromFormat")]
+    #[cfg(not(Py_3_9))] // return value changed from c_int to Py_ssize_t in 3.9
+    pub fn PyBuffer_SizeFromFormat(format: *const c_char) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyBuffer_SizeFromFormat")]
+    #[cfg(Py_3_9)]
     pub fn PyBuffer_SizeFromFormat(format: *const c_char) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_ToContiguous")]
     pub fn PyBuffer_ToContiguous(

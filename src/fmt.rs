@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 #[cfg(any(doc, all(Py_3_14, not(Py_LIMITED_API))))]
 use crate::{types::PyString, Python};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
@@ -7,7 +10,6 @@ use {
         PyUnicodeWriter_WriteChar, PyUnicodeWriter_WriteUTF8,
     },
     crate::ffi_ptr_ext::FfiPtrExt,
-    crate::impl_::callback::WrappingCastTo,
     crate::py_result_ext::PyResultExt,
     crate::IntoPyObject,
     crate::{ffi, Bound, PyErr, PyResult},
@@ -70,7 +72,7 @@ impl<'py> PyUnicodeWriter<'py> {
     /// Creates a new `PyUnicodeWriter` with the specified initial capacity.
     #[inline]
     pub fn with_capacity(py: Python<'py>, capacity: usize) -> PyResult<Self> {
-        match NonNull::new(unsafe { PyUnicodeWriter_Create(capacity.wrapping_cast()) }) {
+        match NonNull::new(unsafe { PyUnicodeWriter_Create(capacity.try_into()?) }) {
             Some(ptr) => Ok(PyUnicodeWriter {
                 python: py,
                 writer: ptr,

@@ -7,7 +7,7 @@ use crate::{
     impl_::pymethods::{self, PyMethodDef},
     types::{PyCapsule, PyDict, PyModule, PyTuple},
 };
-#[cfg(RustPython)]
+#[cfg(Py_LIMITED_API)]
 use crate::{
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
@@ -103,7 +103,7 @@ impl PyCFunction {
         closure: F,
     ) -> PyResult<Bound<'py, Self>>
     where
-        F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
+        F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + Sync + 'static,
         for<'p> R: crate::impl_::callback::IntoPyCallbackOutput<'p, *mut ffi::PyObject>,
     {
         let name = name.unwrap_or(c"pyo3-closure");
@@ -184,8 +184,20 @@ unsafe impl<F: Send> Send for ClosureDestructor<F> {}
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyFunction>`][crate::Py] or [`Bound<'py, PyFunction>`][Bound].
 #[repr(transparent)]
-#[cfg(not(Py_LIMITED_API))]
 pub struct PyFunction(PyAny);
 
 #[cfg(not(Py_LIMITED_API))]
 pyobject_native_type_core!(PyFunction, pyobject_native_static_type_object!(ffi::PyFunction_Type), "builtins", "function", #checkfunction=ffi::PyFunction_Check);
+
+#[cfg(Py_LIMITED_API)]
+pyobject_native_type_core!(
+    PyFunction,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "FunctionType")
+            .unwrap()
+            .as_type_ptr()
+    },
+    "builtins",
+    "function"
+);

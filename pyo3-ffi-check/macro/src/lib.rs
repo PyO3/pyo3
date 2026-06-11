@@ -554,7 +554,6 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             modifiers,
             arg_count,
             variadic,
-            void_return,
         } = match (function_name, get_function_info(function_name, &entry)) {
             (_, Ok(info)) => info,
             // In some cases symbols and macros differ only by case, which is a problem for case-insensitive filesystems.
@@ -566,32 +565,27 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
                 modifiers: quote!(),
                 arg_count: 1,
                 variadic: false,
-                void_return: true,
             },
             ("Py_IncRef", Err(FunctionNameMismatch(e))) if e == "Py_INCREF" => FunctionInfo {
                 modifiers: quote!(extern "C"),
                 arg_count: 1,
                 variadic: false,
-                void_return: true,
             },
             ("Py_DECREF", Err(FunctionNameMismatch(e))) if e == "Py_DecRef" => FunctionInfo {
                 modifiers: quote!(),
                 arg_count: 1,
                 variadic: false,
-                void_return: true,
             },
             ("Py_DecRef", Err(FunctionNameMismatch(e))) if e == "Py_DECREF" => FunctionInfo {
                 modifiers: quote!(extern "C"),
                 arg_count: 1,
                 variadic: false,
-                void_return: true,
             },
             ("PyThreadState_GET", Err(FunctionNameMismatch(e))) if e == "PyThreadState_Get" => {
                 FunctionInfo {
                     modifiers: quote!(),
                     arg_count: 0,
                     variadic: false,
-                    void_return: false,
                 }
             }
             ("PyThreadState_Get", Err(FunctionNameMismatch(e))) if e == "PyThreadState_GET" => {
@@ -599,7 +593,6 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
                     modifiers: quote!(extern "C"),
                     arg_count: 0,
                     variadic: false,
-                    void_return: false,
                 }
             }
             (function_name, Err(FunctionNameMismatch(unexpected))) => {
@@ -614,8 +607,6 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
         let function_ident = Ident::new(function_name, Span::call_site());
 
         let arg_types = std::iter::repeat_n(quote!(_), arg_count);
-
-        let retval = if void_return { quote!() } else { quote!(-> _) };
 
         let vararg = if variadic { Some(quote!(, ...)) } else { None };
 
@@ -641,24 +632,6 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             .map(|cfg| cfg.parse().expect("failed to parse macro exclusion cfg"));
 
         let has_symbol = BINDGEN_FUNCTION_NAMES.contains(function_name);
-
-        if has_symbol {
-            if let Ok(FunctionInfo {
-                void_return: bindgen_void_return,
-                ..
-            }) = get_function_info(
-                function_name,
-                &DOC_DIR.join(format!("bindgen/fn.{}.html", function_name)),
-            ) {
-                if void_return != bindgen_void_return {
-                    let error_message = format!(
-                        "void return mismatch between pyo3-ffi and bindgen for `{function_name}`: pyo3-ffi has void return {void_return}, but bindgen has void return {bindgen_void_return}",
-                    );
-                    output.extend(quote!(compile_error!(#error_message);));
-                }
-            }
-        }
-
         match (macro_exclusion_cfg, has_symbol) {
             (Some(cfg), true) => {
                 // emit an error if checking within the cfgs where a macro is expected
@@ -668,7 +641,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
                 output.extend(quote!(#[cfg(#cfg)] compile_error!(#error_message);));
                 // if not within the macro range, we found a symbol, this should be good
                 output.extend(
-                    quote!(#[cfg(not(#cfg))] #macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg) #retval);),
+                    quote!(#[cfg(not(#cfg))] #macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg));),
                 );
             }
             (Some(cfg), false) => {
@@ -682,7 +655,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             (None, true) => {
                 // emit the comparison macro to check that the argument count matches
                 output.extend(
-                    quote!(#macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg) #retval);),
+                    quote!(#macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg));),
                 );
             }
             (None, false) => {
@@ -701,8 +674,8 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
 struct FunctionInfo {
     modifiers: TokenStream, // e.g. `unsafe extern "C"`, empty for no modifiers
     arg_count: usize,       // not including the "..." for variadic functions
+    /// Whether the function is variadic (i.e. trailing `...` in argument list)
     variadic: bool,
-    void_return: bool, // whether the function returns void (i.e. has no return type in C)
 }
 
 // Error returned when the function definition does not match the expected name of the file
@@ -781,17 +754,10 @@ fn get_function_info(
         arg_count += 1;
     }
 
-    let end_paren = args_begin[end..]
-        .find(')')
-        .expect("function declaration should have closing paren after arguments");
-
-    let after_parens = args_begin[end + end_paren + 1..].trim_start();
-
     Ok(FunctionInfo {
         modifiers,
         arg_count,
         variadic,
-        void_return: !after_parens.contains("->"),
     })
 }
 

@@ -11,7 +11,7 @@ pub struct PyCellObject {
 extern_libpython! {
     pub fn PyCell_New(o: *mut PyObject) -> *mut PyObject;
     pub fn PyCell_Get(o: *mut PyObject) -> *mut PyObject;
-    pub fn PyCell_Set(o: *mut PyObject, val: *mut PyObject) -> *mut PyObject;
+    pub fn PyCell_Set(o: *mut PyObject, val: *mut PyObject) -> c_int;
     pub static mut PyCell_Type: PyTypeObject;
 }
 

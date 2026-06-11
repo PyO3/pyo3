@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 use core::ptr::NonNull;
 
 #[cfg(feature = "experimental-inspect")]
@@ -214,6 +217,78 @@ pub fn extract_pyclass_ref_mut<'a, 'holder, T: PyClass<Frozen = False>>(
     holder: &'holder mut Option<PyClassGuardMut<'a, T>>,
 ) -> PyResult<&'holder mut T> {
     Ok(&mut *holder.insert(PyClassGuardMut::try_borrow_mut_from_borrowed(obj.cast()?)?))
+}
+
+/// Trusted variant of [`extract_pyclass_ref`]: performs an unchecked cast for
+/// extension-type slot receivers where CPython guarantees the receiver type.
+///
+/// This is valid when called from generated slot wrappers installed on a specific
+/// extension type, because CPython's slot dispatch contract ensures the receiver
+/// is an instance of that type (or a compatible subtype) before invoking the slot.
+///
+/// # Safety
+/// The caller must ensure that `obj` is an instance of `T`. This invariant is
+/// upheld by CPython when dispatching through type slots.
+#[inline]
+pub unsafe fn extract_pyclass_ref_trusted<'a, 'holder, T: PyClass>(
+    obj: Borrowed<'a, '_, PyAny>,
+    holder: &'holder mut Option<PyClassGuard<'a, T>>,
+) -> PyResult<&'holder T> {
+    cfg_select! {
+        // PyPy does not appear to perform the same type checking as CPython
+        PyPy => extract_pyclass_ref(obj, holder),
+        not(PyPy) => {
+            Ok(
+                holder.insert(PyClassGuard::try_borrow_from_borrowed(
+                    // Safety: caller guarantees obj is of type T via CPython slot receiver contract
+                    unsafe { obj.cast_unchecked::<T>() }
+                )?),
+            )
+        }
+    }
+}
+
+/// Trusted variant of [`extract_pyclass_ref_mut`]: performs an unchecked cast for
+/// extension-type slot receivers where CPython guarantees the receiver type.
+///
+/// # Safety
+/// Same as [`extract_pyclass_ref_trusted`].
+#[inline]
+pub unsafe fn extract_pyclass_ref_mut_trusted<'a, 'holder, T: PyClass<Frozen = False>>(
+    obj: Borrowed<'a, '_, PyAny>,
+    holder: &'holder mut Option<PyClassGuardMut<'a, T>>,
+) -> PyResult<&'holder mut T> {
+    cfg_select! {
+        // PyPy does not appear to perform the same type checking as CPython
+        PyPy => extract_pyclass_ref_mut(obj, holder),
+        not(PyPy) => {
+            Ok(
+                holder.insert(PyClassGuardMut::try_borrow_mut_from_borrowed(
+                    // Safety: caller guarantees obj is of type T via CPython slot receiver contract
+                    unsafe { obj.cast_unchecked::<T>() }
+                )?),
+            )
+        }
+    }
+}
+
+/// Indirection around `Bound::cast_unchecked` which performs checks on PyPy, to be used
+/// in contexts where CPython has already performed the check.
+///
+/// # Safety
+///
+/// `bound_ref` must be of type `T`
+#[inline]
+pub unsafe fn cast_bound_ref_trusted<'a, 'py, T: PyTypeCheck>(
+    bound_ref: &'a Bound<'py, PyAny>,
+) -> PyResult<&'a Bound<'py, T>> {
+    cfg_select! {
+        // PyPy does not appear to perform the same type checking as CPython
+        PyPy => bound_ref.cast().map_err(Into::into),
+        // SAFETY: caller guarantees correct type
+        not(PyPy) => Ok(unsafe { bound_ref.cast_unchecked() }),
+
+    }
 }
 
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
