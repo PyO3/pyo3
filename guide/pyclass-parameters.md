@@ -28,6 +28,8 @@
 | `subclass` | Allows other Python classes and `#[pyclass]` to inherit from this class. Enums cannot be subclassed. |
 | `unsendable` | Required if your struct is not [`Send`][params-3]. Rather than using `unsendable`, consider implementing your struct in a thread-safe way by e.g. substituting [`Rc`][params-4] with [`Arc`][params-5]. By using `unsendable`, your class will panic when accessed by another thread. Also note the Python's GC is multi-threaded and while unsendable classes will not be traversed on foreign threads to avoid UB, this can lead to memory leaks. |
 | `weakref` | Allows this class to be [weakly referenceable][params-6]. |
+| `get(foo, bar, ...)` | Applies `pyo3(get)` on given methods (i.e., on `foo` and `bar`). |
+| `set(foo, bar, ...)` | Applies `pyo3(set)` on given methods. |
 
 All of these parameters can either be passed directly on the `#[pyclass(...)]` annotation, or as one or more accompanying `#[pyo3(...)]` annotations, e.g.:
 
