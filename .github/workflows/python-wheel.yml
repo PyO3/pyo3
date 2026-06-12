@@ -26,6 +26,7 @@ jobs:
           args: --release --out dist --compatibility pypi
           manylinux: auto
           working-directory: pyo3-introspection
+      - run: uvx twine check pyo3-introspection/dist/*
       - uses: actions/upload-artifact@v7
         with:
           name: wheels-linux-${{ matrix.target }}
@@ -50,6 +51,7 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --compatibility pypi
           working-directory: pyo3-introspection
+      - run: uvx twine check pyo3-introspection/dist/*
       - uses: actions/upload-artifact@v7
         with:
           name: wheels-windows-${{ matrix.platform.target }}
@@ -71,6 +73,7 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --compatibility pypi
           working-directory: pyo3-introspection
+      - run: uvx twine check pyo3-introspection/dist/*
       - uses: actions/upload-artifact@v7
         with:
           name: wheels-macos-${{ matrix.platform.target }}
@@ -85,6 +88,7 @@ jobs:
           command: sdist
           args: --out dist
           working-directory: pyo3-introspection
+      - run: uvx twine check pyo3-introspection/dist/*
       - uses: actions/upload-artifact@v7
         with:
           name: wheels-sdist
@@ -105,3 +109,5 @@ jobs:
           path: pyo3-introspection/dist
           merge-multiple: true
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: pyo3-introspection/dist
