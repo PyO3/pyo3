@@ -103,6 +103,9 @@ $ python
 '25'
 ```
 
+By default, `maturin develop` builds your Rust code with Cargo's default [`dev` profile](https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles), which includes debug information and limited optimizations.
+When checking runtime performance, run `maturin develop --release` to build with Cargo's `release` profile and enable optimizations.
+
 To make changes to the package, just edit the Rust source code and then re-run `maturin develop` to recompile.
 
 To run this all as a single copy-and-paste, use the bash script below (replace `string_sum` in the first command with the desired package name):
