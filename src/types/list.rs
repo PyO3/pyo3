@@ -867,6 +867,9 @@ impl DoubleEndedIterator for BoundListIterator<'_> {
 
 impl ExactSizeIterator for BoundListIterator<'_> {
     fn len(&self) -> usize {
+        // SAFETY: `index.0 <= length.0` is maintained by all iterator methods:
+        // `new()`, `next_back_unchecked()`
+        unsafe { core::hint::assert_unchecked(self.index.0 <= self.length.0) };
         self.length.0.saturating_sub(self.index.0)
     }
 }
