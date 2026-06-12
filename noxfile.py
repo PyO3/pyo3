@@ -1693,6 +1693,37 @@ def _ensure_directory_equals(expected_dir: Path, actual_dir: Path):
         )
 
 
+@nox.session(name="test-introspection-backward-compatibility")
+def test_introspection_backward_compatibility(session: nox.Session):
+    session.install("maturin")
+    session.install("ruff")
+    for crate in Path("pytests/backward-compatibility").iterdir():
+        if not crate.is_dir():
+            continue
+        with tempfile.TemporaryDirectory() as stub_dir:
+            cargo_toml_file = crate / "Cargo.toml"
+            _run(session, "maturin", "develop", "-m", str(cargo_toml_file))
+            package_name = toml.loads(cargo_toml_file.read_text())["lib"]["name"]
+            lib_file = session.run(
+                "python",
+                "-c",
+                f"import {package_name}; print({package_name}.{package_name}.__file__)",
+                silent=True,
+            ).strip()
+            _run_cargo(
+                session,
+                "run",
+                "-p",
+                "pyo3-introspection",
+                "--",
+                lib_file,
+                package_name,
+                stub_dir,
+            )
+            _run(session, "ruff", "format", stub_dir)
+            _ensure_directory_equals(Path(stub_dir), crate / "stubs")
+
+
 @lru_cache()
 def _get_rust_info() -> Tuple[str, ...]:
     output = _get_output("rustc", "-vV")
