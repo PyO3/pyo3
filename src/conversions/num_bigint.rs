@@ -280,9 +280,9 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     unsafe {
         // SAFETY: `n_bytes_unsigned <= isize::MAX` (try_into above) and
         // `n_digits * 4 <= n_bytes_unsigned + 3`
-        #[expect(clippy::checked_conversions)]  
-        unsafe { 
-            std::hint::assert_unchecked(n_digits * 4 <= isize::MAX as usize) 
+        #[expect(clippy::checked_conversions)]
+        unsafe {
+            std::hint::assert_unchecked(n_digits * 4 <= isize::MAX as usize)
         };
         ffi::PyLong_AsNativeBytes(
             long.as_ptr().cast(),
