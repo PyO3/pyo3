@@ -511,7 +511,7 @@ impl DoubleEndedIterator for BoundTupleIterator<'_> {
 impl ExactSizeIterator for BoundTupleIterator<'_> {
     fn len(&self) -> usize {
         // SAFETY: `index <= length` is maintained by all iterator methods: `new()`, `next_back()`
-        unsafe { std::hint::assert_unchecked(self.index <= self.length) };
+        unsafe { core::hint::assert_unchecked(self.index <= self.length) };
         self.length.saturating_sub(self.index)
     }
 }
@@ -611,7 +611,7 @@ impl DoubleEndedIterator for BorrowedTupleIterator<'_, '_> {
 impl ExactSizeIterator for BorrowedTupleIterator<'_, '_> {
     fn len(&self) -> usize {
         // SAFETY: same invariant as BoundTupleIterator
-        unsafe { std::hint::assert_unchecked(self.index <= self.length) };
+        unsafe { core::hint::assert_unchecked(self.index <= self.length) };
         self.length.saturating_sub(self.index)
     }
 }
