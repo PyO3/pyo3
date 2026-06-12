@@ -135,7 +135,7 @@ impl Number {
 #
 #[pymethods]
 impl Number {
-    fn __pos__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __pos__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
@@ -234,7 +234,7 @@ impl Number {
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
        // Get the class name dynamically in case `Number` is subclassed
        let class_name: Bound<'_, PyString> = slf.get_type().qualname()?;
-        Ok(format!("{}({})", class_name, slf.borrow().0))
+        Ok(format!("{}({})", class_name, slf.try_borrow_guard()?.0))
     }
 
     fn __str__(&self) -> String {

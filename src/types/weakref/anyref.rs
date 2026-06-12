@@ -89,7 +89,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     /// fn parse_data(reference: Borrowed<'_, '_, PyWeakrefReference>) -> PyResult<String> {
     ///     if let Some(data_src) = reference.upgrade_as::<Foo>()? {
-    ///         let data = data_src.borrow();
+    ///         let data = data_src.try_borrow_guard()?;
     ///         let (name, score) = data.get_data();
     ///         Ok(format!("Processing '{}': score = {}", name, score))
     ///     } else {
@@ -167,13 +167,13 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///     }
     /// }
     ///
-    /// fn parse_data(reference: Borrowed<'_, '_, PyWeakrefReference>) -> String {
+    /// fn parse_data(reference: Borrowed<'_, '_, PyWeakrefReference>) -> PyResult<String> {
     ///     if let Some(data_src) = unsafe { reference.upgrade_as_unchecked::<Foo>() } {
-    ///         let data = data_src.borrow();
+    ///         let data = data_src.try_borrow_guard()?;
     ///         let (name, score) = data.get_data();
-    ///         format!("Processing '{}': score = {}", name, score)
+    ///         Ok(format!("Processing '{}': score = {}", name, score))
     ///     } else {
-    ///         "The supplied data reference is no longer relevant.".to_owned()
+    ///         Ok("The supplied data reference is no longer relevant.".to_owned())
     ///     }
     /// }
     ///
@@ -183,14 +183,14 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///     let reference = PyWeakrefReference::new(&data)?;
     ///
     ///     assert_eq!(
-    ///         parse_data(reference.as_borrowed()),
+    ///         parse_data(reference.as_borrowed())?,
     ///         "Processing 'Dave': score = 10"
     ///     );
     ///
     ///     drop(data);
     ///
     ///     assert_eq!(
-    ///         parse_data(reference.as_borrowed()),
+    ///         parse_data(reference.as_borrowed())?,
     ///         "The supplied data reference is no longer relevant."
     ///     );
     ///
@@ -239,7 +239,7 @@ pub trait PyWeakrefMethods<'py>: crate::sealed::Sealed {
     ///
     /// fn parse_data(reference: Borrowed<'_, '_, PyWeakrefReference>) -> PyResult<String> {
     ///     if let Some(data_src) = reference.upgrade_as_exact::<Foo>()? {
-    ///         let data = data_src.borrow();
+    ///         let data = data_src.try_borrow_guard()?;
     ///         let (name, score) = data.get_data();
     ///         Ok(format!("Processing '{}': score = {}", name, score))
     ///     } else {
