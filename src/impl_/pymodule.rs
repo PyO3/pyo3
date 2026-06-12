@@ -11,21 +11,18 @@ use core::{
 
 #[cfg(all(
     not(any(PyPy, GraalPy)),
-    Py_3_9,
     not(all(windows, Py_LIMITED_API, not(Py_3_10))),
 ))]
 use core::sync::atomic::Ordering;
 
 #[cfg(all(
     not(any(PyPy, GraalPy)),
-    Py_3_9,
     not(all(windows, Py_LIMITED_API, not(Py_3_10))),
     target_has_atomic = "64",
 ))]
 use core::sync::atomic::AtomicI64;
 #[cfg(all(
     not(any(PyPy, GraalPy)),
-    Py_3_9,
     not(all(windows, Py_LIMITED_API, not(Py_3_10))),
     not(target_has_atomic = "64"),
 ))]
@@ -61,7 +58,6 @@ pub struct ModuleDef {
     /// Interpreter ID where module was initialized (not applicable on PyPy).
     #[cfg(all(
         not(any(PyPy, GraalPy)),
-        Py_3_9,
         not(all(windows, Py_LIMITED_API, not(Py_3_10)))
     ))]
     interpreter: AtomicI64,
@@ -116,7 +112,6 @@ impl ModuleDef {
             // -1 is never expected to be a valid interpreter ID
             #[cfg(all(
                 not(any(PyPy, GraalPy)),
-                Py_3_9,
                 not(all(windows, Py_LIMITED_API, not(Py_3_10)))
             ))]
             interpreter: AtomicI64::new(-1),
@@ -140,9 +135,9 @@ impl ModuleDef {
         // new Python versions to remove the need for this custom logic
         #[cfg(not(any(PyPy, GraalPy)))]
         {
-            // PyInterpreterState_Get is only available on 3.9 and later, but is missing
-            // from python3.dll for Windows stable API on 3.9
-            #[cfg(all(Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+            // PyInterpreterState_Get is missing from python3.dll for Windows
+            // stable API on 3.9
+            #[cfg(not(all(windows, Py_LIMITED_API, not(Py_3_10))))]
             {
                 let current_interpreter =
                     unsafe { ffi::PyInterpreterState_GetID(ffi::PyInterpreterState_Get()) };
@@ -160,13 +155,14 @@ impl ModuleDef {
                     }
                 }
             }
-            #[cfg(not(all(Py_3_9, not(all(windows, Py_LIMITED_API, not(Py_3_10))))))]
+            #[cfg(all(windows, Py_LIMITED_API, not(Py_3_10)))]
             {
-                // CPython before 3.9 does not have APIs to check the interpreter ID, so best that can be
-                // done to guard against subinterpreters is fail if the module is initialized twice
+                // The Windows stable API before 3.10 cannot check the interpreter ID, so best that
+                // can be done to guard against subinterpreters is fail if the module is initialized
+                // twice
                 if self.module.get(py).is_some() {
                     return Err(PyImportError::new_err(
-                        "PyO3 modules compiled for CPython 3.8 or older may only be initialized once per interpreter process"
+                        "PyO3 modules compiled for the stable API on Windows targeting Python 3.9 may only be initialized once per interpreter process"
                     ));
                 }
             }

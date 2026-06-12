@@ -25,7 +25,7 @@ pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_
 extern_libpython! {
     #[cfg(all(
         not(PyPy),
-        any(Py_3_10, all(not(Py_LIMITED_API), Py_3_9)) // Added to python in 3.9 but to limited API in 3.10
+        any(Py_3_10, not(Py_LIMITED_API)) // Added to python in 3.9 but to limited API in 3.10
     ))]
     #[cfg_attr(PyPy, link_name = "PyPyObject_CallNoArgs")]
     pub fn PyObject_CallNoArgs(func: *mut PyObject) -> *mut PyObject;
@@ -99,7 +99,7 @@ extern_libpython! {
         kwnames: *mut PyObject,
     ) -> *mut PyObject;
 
-    #[cfg(any(Py_3_12, all(Py_3_9, not(any(Py_LIMITED_API, PyPy)))))]
+    #[cfg(any(Py_3_12, not(any(Py_LIMITED_API, PyPy))))]
     pub fn PyObject_VectorcallMethod(
         name: *mut PyObject,
         args: *const *mut PyObject,

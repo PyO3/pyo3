@@ -240,7 +240,7 @@ fn get_fields_from_file(path: &Path) -> Vec<String> {
 // C Macros are re-exported in pyo3-ffi as functions with the same name to get roughly equivalent semantics,
 // bindgen doesn't generate symbols for C macros, we note their exclusions here.
 //
-// Each entry is `(name, cfg)` where `cfg` is a Rust `cfg` predicate (e.g. `"Py_3_8"`,
+// Each entry is `(name, cfg)` where `cfg` is a Rust `cfg` predicate (e.g. `"Py_3_9"`,
 // `"not(Py_3_11)"`, `"all(PyPy, not(Py_3_10))"`) describing the configurations in which the
 // symbol exists as a macro in C. An empty string means "all known configurations".
 const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
@@ -347,7 +347,6 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyModule_FromDefAndSpec", "not(PyPy)"),
     ("PyObject_CallMethodNoArgs", ""),
     ("PyObject_CallMethodOneArg", ""),
-    ("PyObject_CheckBuffer", "not(Py_3_9)"),
     (
         "PyObject_DelAttr",
         "any(all(not(PyPy), not(Py_3_13)), all(PyPy, Py_3_11))",
@@ -359,7 +358,6 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyObject_GC_New", ""),
     ("PyObject_GC_NewVar", ""),
     ("PyObject_GC_Resize", ""),
-    ("PyObject_IS_GC", "not(Py_3_9)"),
     ("PyObject_New", ""),
     ("PyObject_NewVar", ""),
     ("PyObject_TypeCheck", ""),
@@ -477,7 +475,7 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     // This symbol was not in headers but still public until Python 3.10,
     // should be able to remove this exclusion once support for 3.9 dropped
     "Py_GetArgcArgv",
-    // pyo3-ffi defined these functions for 3.8 but they only exist for 3.9+
+    // pyo3-ffi defines these as inline functions on some Python versions
     "PyObject_CallOneArg",
     "PyObject_Vectorcall",
     "PyVectorcall_Function",

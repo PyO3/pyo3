@@ -28,7 +28,7 @@ You first need to install a debug build of Python, otherwise Valgrind won't prod
 In Ubuntu there's e.g. a `python3-dbg` package.
 
 Activate an environment with the debug interpreter and recompile.
-If you're on Linux, use `ldd` with the name of your binary and check that you're linking e.g. `libpython3.8d.so.1.0` instead of `libpython3.8.so.1.0`.
+If you're on Linux, use `ldd` with the name of your binary and check that you're linking e.g. `libpython3.9d.so.1.0` instead of `libpython3.9.so.1.0`.
 
 [Download the suppressions file for CPython](https://raw.githubusercontent.com/python/cpython/master/Misc/valgrind-python.supp).
 

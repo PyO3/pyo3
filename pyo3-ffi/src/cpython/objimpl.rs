@@ -27,18 +27,7 @@ extern_libpython! {
     #[cfg(not(any(PyPy, GraalPy)))]
     pub fn PyObject_SetArenaAllocator(allocator: *mut PyObjectArenaAllocator);
 
-    #[cfg(Py_3_9)]
     pub fn PyObject_IS_GC(o: *mut PyObject) -> c_int;
-}
-
-#[inline]
-#[cfg(not(Py_3_9))]
-pub unsafe fn PyObject_IS_GC(o: *mut PyObject) -> c_int {
-    (crate::PyType_IS_GC(Py_TYPE(o)) != 0
-        && match (*Py_TYPE(o)).tp_is_gc {
-            Some(tp_is_gc) => tp_is_gc(o) != 0,
-            None => true,
-        }) as c_int
 }
 
 // skipped _PyObject_GC_Malloc

@@ -70,8 +70,8 @@ macro_rules! extract_int {
     };
 
     ($obj:ident, $error_val:expr, $pylong_as:expr, $force_index_call: literal) => {
-        // In python 3.8+ `PyLong_AsLong` and friends takes care of calling `PyNumber_Index`,
-        // however 3.8 & 3.9 do lossy conversion of floats, hence we only use the
+        // `PyLong_AsLong` and friends take care of calling `PyNumber_Index`,
+        // however 3.9 does lossy conversion of floats, hence we only use the
         // simplest logic for 3.10+ where that was fixed - python/cpython#82180.
         // `PyLong_AsUnsignedLongLong` does not call `PyNumber_Index`, hence the `force_index_call` argument
         // See https://github.com/PyO3/pyo3/pull/3742 for details

@@ -195,14 +195,14 @@ extern_libpython! {
 
 extern_libpython! {
     #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
-    #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
+    #[deprecated(note = "Python 3.9")]
     pub fn PyParser_SimpleParseStringFlags(
         arg1: *const c_char,
         arg2: c_int,
         arg3: c_int,
     ) -> *mut _node;
     #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
-    #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
+    #[deprecated(note = "Python 3.9")]
     pub fn PyParser_SimpleParseStringFlagsFilename(
         arg1: *const c_char,
         arg2: *const c_char,
@@ -210,7 +210,7 @@ extern_libpython! {
         arg4: c_int,
     ) -> *mut _node;
     #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
-    #[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
+    #[deprecated(note = "Python 3.9")]
     pub fn PyParser_SimpleParseFileFlags(
         arg1: *mut FILE,
         arg2: *const c_char,

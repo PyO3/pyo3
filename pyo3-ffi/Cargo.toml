@@ -29,7 +29,6 @@ abi3 = []
 abi3t = []
 
 # With abi3, we can manually set the minimum Python version.
-abi3-py38 = ["abi3-py39"]
 abi3-py39 = ["abi3-py310"]
 abi3-py310 = ["abi3-py311"]
 abi3-py311 = ["abi3-py312"]
@@ -53,7 +52,7 @@ pyo3-build-config = { path = "../pyo3-build-config", version = "=0.29.0" }
 workspace = true
 
 [package.metadata.cpython]
-min-version = "3.8"
+min-version = "3.9"
 max-version = "3.15" # inclusive
 
 [package.metadata.pypy]

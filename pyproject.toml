@@ -1,11 +1,11 @@
 [project]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 name = "pyo3"
 dynamic = ["version"]
 
 [tool.ruff.per-file-target-version]
 # experimental-inspect generates .pyi files that use positional-only `/` marker
-"*.pyi" = "py38"
+"*.pyi" = "py39"
 # uses `match` statement
 "pytests/tests/test_enums_match.py" = "py310"
 
