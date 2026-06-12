@@ -1,6 +1,8 @@
 //! This module is to support platform compatiblity with `no_std` environments.
 #![allow(unused_imports)]
 
+pub mod sync;
+
 #[cfg(feature = "hashbrown")]
 pub use hashbrown::{HashMap, HashSet};
 

@@ -7,11 +7,13 @@
 use crate::impl_::panic::PanicTrap;
 use crate::{ffi, Python};
 
+#[cfg(not(pyo3_disable_reference_pool))]
+use crate::platform::sync::non_poison::Mutex;
 use core::cell::Cell;
 #[cfg_attr(pyo3_disable_reference_pool, allow(unused_imports))]
 use core::{mem, ptr::NonNull};
 #[cfg(not(pyo3_disable_reference_pool))]
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 
 std::thread_local! {
     /// This is an internal counter in pyo3 monitoring whether this thread is attached to the interpreter.
@@ -201,11 +203,11 @@ impl ReferencePool {
     }
 
     fn register_decref(&self, obj: NonNull<ffi::PyObject>) {
-        self.pending_decrefs.lock().unwrap().push(obj);
+        self.pending_decrefs.lock().push(obj);
     }
 
     fn drop_deferred_references(&self, _py: Python<'_>) {
-        let mut pending_decrefs = self.pending_decrefs.lock().unwrap();
+        let mut pending_decrefs = self.pending_decrefs.lock();
         if pending_decrefs.is_empty() {
             return;
         }
@@ -381,7 +383,6 @@ mod tests {
         !get_pool()
             .pending_decrefs
             .lock()
-            .unwrap()
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 
@@ -392,7 +393,6 @@ mod tests {
         get_pool()
             .pending_decrefs
             .lock()
-            .unwrap()
             .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
     }
 

@@ -1,6 +1,7 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+use crate::platform::sync::non_poison::Mutex;
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
@@ -22,7 +23,7 @@ use core::{
     marker::PhantomData,
     ptr::{self, NonNull},
 };
-use std::{sync::Mutex, thread};
+use std::thread;
 
 mod assertions;
 pub mod doc;
@@ -949,7 +950,7 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
     // If this type is a variable type or the subtype is not equal to this type, we cannot use the
     // freelist
     if nitems == 0 && ptr::eq(subtype, self_type) {
-        let mut free_list = T::get_free_list(py).lock().unwrap();
+        let mut free_list = T::get_free_list(py).lock();
         if let Some(obj) = free_list.pop() {
             drop(free_list);
             unsafe { ffi::PyObject_Init(obj.as_ptr(), subtype) };
@@ -974,7 +975,7 @@ pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_
             T::type_object_raw(Python::assume_attached()),
             ffi::Py_TYPE(obj.as_ptr())
         );
-        let mut free_list = T::get_free_list(Python::assume_attached()).lock().unwrap();
+        let mut free_list = T::get_free_list(Python::assume_attached()).lock();
         if let Some(obj) = free_list.insert(obj) {
             drop(free_list);
             let ty = ffi::Py_TYPE(obj.as_ptr());

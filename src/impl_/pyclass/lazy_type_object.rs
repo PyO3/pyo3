@@ -6,6 +6,7 @@ use std::thread::{self, ThreadId};
 
 #[cfg(Py_3_14)]
 use crate::err::error_on_minusone;
+use crate::platform::sync::non_poison::Mutex;
 #[allow(deprecated)]
 use crate::sync::GILOnceCell;
 #[cfg(Py_3_14)]
@@ -18,8 +19,6 @@ use crate::{
     types::PyType,
     Bound, Py, PyAny, PyClass, PyErr, PyResult, Python,
 };
-
-use std::sync::Mutex;
 
 use super::PyClassItemsIter;
 
@@ -135,7 +134,7 @@ impl LazyTypeObjectInner {
 
         let thread_id = thread::current().id();
         {
-            let mut threads = self.initializing_threads.lock().unwrap();
+            let mut threads = self.initializing_threads.lock();
             if threads.contains(&thread_id) {
                 // Reentrant call: just return the type object, even if the
                 // `tp_dict` is not filled yet.
@@ -150,7 +149,7 @@ impl LazyTypeObjectInner {
         }
         impl Drop for InitializationGuard<'_> {
             fn drop(&mut self) {
-                let mut threads = self.initializing_threads.lock().unwrap();
+                let mut threads = self.initializing_threads.lock();
                 threads.retain(|id| *id != self.thread_id);
             }
         }
@@ -217,7 +216,7 @@ impl LazyTypeObjectInner {
             // (No further calls to get_or_init() will try to init, on any thread.)
             let mut threads = {
                 drop(guard);
-                self.initializing_threads.lock().unwrap()
+                self.initializing_threads.lock()
             };
             threads.clear();
             Ok(type_object.clone().unbind())
