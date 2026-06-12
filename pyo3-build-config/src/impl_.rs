@@ -2489,16 +2489,26 @@ fn get_env_interpreter() -> Option<PathBuf> {
 /// Attempts to locate a python interpreter.
 ///
 /// Locations are checked in the order listed:
-///   1. If `PYO3_PYTHON` is set, this interpreter is used.
-///   2. If in a virtualenv, that environment's interpreter is used.
-///   3. `python`, if this is functional a Python 3.x interpreter
-///   4. `python3`, as above
+///   1. If `PYO3_BASE_PYTHON` is set, this interpreter is used. Build tools (such as maturin) may
+///      set this to a stable interpreter path outside of any temporary virtual environment (e.g.
+///      `sys._base_executable`), so that rebuilds are not triggered by ephemeral virtualenv paths
+///      changing between otherwise identical builds.
+///   2. If `PYO3_PYTHON` is set, this interpreter is used.
+///   3. If in a virtualenv, that environment's interpreter is used.
+///   4. `python`, if this is functional a Python 3.x interpreter
+///   5. `python3`, as above
 pub fn find_interpreter() -> Result<PathBuf> {
     // Trigger rebuilds when `PYO3_ENVIRONMENT_SIGNATURE` env var value changes
     // See https://github.com/PyO3/pyo3/issues/2724
     println!("cargo:rerun-if-env-changed=PYO3_ENVIRONMENT_SIGNATURE");
 
-    if let Some(exe) = env_var("PYO3_PYTHON") {
+    // Note that `PYO3_PYTHON` is deliberately not read (and so no rebuild is triggered when it
+    // changes) when `PYO3_BASE_PYTHON` is set; allowing builds to stay cached when only the
+    // (ephemeral) `PYO3_PYTHON` path changes is the purpose of `PYO3_BASE_PYTHON`.
+    // See https://github.com/PyO3/pyo3/issues/6113
+    if let Some(exe) = env_var("PYO3_BASE_PYTHON") {
+        Ok(exe.into())
+    } else if let Some(exe) = env_var("PYO3_PYTHON") {
         Ok(exe.into())
     } else if let Some(env_interpreter) = get_env_interpreter() {
         Ok(env_interpreter)

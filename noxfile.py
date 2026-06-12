@@ -1232,6 +1232,54 @@ def ffi_check(session: nox.Session):
     _check_raw_dylib_macro(session)
 
 
+@nox.session(name="test-interpreter-discovery")
+def test_interpreter_discovery(session: nox.Session):
+    """Check that PYO3_BASE_PYTHON and PYO3_PYTHON select the interpreter as expected.
+
+    These build-script code paths are otherwise not exercised by the normal test
+    suite (which discovers the interpreter via the active virtualenv).
+    """
+
+    def print_config(**interpreter_env: str) -> str:
+        env = os.environ.copy()
+        # Take full control of interpreter discovery by clearing anything in the
+        # ambient environment that would otherwise select an interpreter.
+        for var in ("PYO3_BASE_PYTHON", "PYO3_PYTHON", "VIRTUAL_ENV", "CONDA_PREFIX"):
+            env.pop(var, None)
+        env.update(interpreter_env)
+        # Halt the build once the interpreter has been located and queried, and
+        # print the resulting configuration to stderr.
+        env["PYO3_PRINT_CONFIG"] = "1"
+        with tempfile.TemporaryFile() as stderr:
+            _run_cargo(
+                session,
+                "check",
+                "--package=pyo3-ffi",
+                env=env,
+                stderr=stderr,
+                expect_error=True,  # PYO3_PRINT_CONFIG always halts the build
+            )
+            stderr.seek(0)
+            return stderr.read().decode()
+
+    interpreter = sys.executable
+    bogus = os.path.join(os.path.sep, "pyo3", "does", "not", "exist")
+
+    # `PYO3_BASE_PYTHON` is used to locate the interpreter when set.
+    config = print_config(PYO3_BASE_PYTHON=interpreter)
+    assert "version=" in config, config
+
+    # `PYO3_BASE_PYTHON` takes precedence over `PYO3_PYTHON`; the latter is not even
+    # read, so a bogus (non-runnable) value for it must not break the build.
+    config = print_config(PYO3_BASE_PYTHON=interpreter, PYO3_PYTHON=bogus)
+    assert "version=" in config, config
+    assert "does/not/exist" not in config, config
+
+    # `PYO3_PYTHON` is used to locate the interpreter when `PYO3_BASE_PYTHON` is unset.
+    config = print_config(PYO3_PYTHON=interpreter)
+    assert "version=" in config, config
+
+
 @nox.session(name="test-version-limits")
 def test_version_limits(session: nox.Session):
     env = os.environ.copy()
