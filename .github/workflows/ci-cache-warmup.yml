@@ -17,7 +17,7 @@ jobs:
         with:
           targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
           components: rust-src
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache@v5
         with:
           # https://github.com/PyO3/maturin/discussions/1953
           path: ~/.cache/cargo-xwin
@@ -28,7 +28,79 @@ jobs:
           sudo apt-get install -y mingw-w64 llvm
           pip install nox
           nox -s test-cross-compilation-windows
-      - uses: actions/cache/save@v5
+
+  emscripten:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-python@v6
         with:
-          path: ~/.cache/cargo-xwin
-          key: cargo-xwin-cache
+          python-version: 3.14
+        id: setup-python
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-emscripten
+          components: rust-src
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: python -m pip install --upgrade pip && pip install nox[uv]
+      - uses: actions/cache@v5
+        with:
+          path: |
+            .nox/emscripten
+          key: emscripten-${{ hashFiles('emscripten/*') }}-${{ hashFiles('noxfile.py') }}-${{ steps.setup-python.outputs.python-path }}
+      - name: Build
+        run: nox -s build-emscripten
+
+  wasm32-wasip1:
+    runs-on: ubuntu-latest
+    env:
+      WASI_SDK_PATH: "/opt/wasi-sdk"
+      CPYTHON_PATH: "${{ github.workspace }}/wasi/cpython"
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-python@v6
+        with:
+          python-version: 3.14
+        id: setup-python
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+          components: rust-src
+      - name: "Install wasmtime"
+        uses: bytecodealliance/actions/wasmtime/setup@v1
+      - name: "Install WASI SDK"
+        run: |
+          mkdir ${{ env.WASI_SDK_PATH }} && \
+          curl -s -S --location https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz | \
+          tar --strip-components 1 --directory ${{ env.WASI_SDK_PATH }} --extract --gunzip
+          $WASI_SDK_PATH/bin/clang --version
+      - uses: actions/cache@v5
+        id: cache-wasip1-python
+        with:
+          path: ${{ env.CPYTHON_PATH }}/cross-build/
+          key: wasm32-wasip1-python
+      - uses: actions/checkout@v6.0.2
+        with:
+          repository: python/cpython
+          ref: 3.14
+          path: ${{ env.CPYTHON_PATH }}
+          fetch-depth: 1
+      - name: Build
+        run: |
+          cd ${{ env.CPYTHON_PATH }}
+          cat >> Tools/wasm/wasi/config.site-wasm32-wasi <<'EOF'
+
+          # Force-disable POSIX dynamic loading for WASI
+          ac_cv_func_dlopen=no
+          ac_cv_lib_dl_dlopen=no
+          EOF
+          python Tools/wasm/wasi build --quiet -- --config-cache
+          cp cross-build/wasm32-wasip1/libpython3.14.a \
+             cross-build/wasm32-wasip1/Modules/_hacl/libHacl_HMAC.a \
+             cross-build/wasm32-wasip1/Modules/_decimal/libmpdec/libmpdec.a \
+             cross-build/wasm32-wasip1/Modules/expat/libexpat.a \
+             cross-build/wasm32-wasip1/build/lib.wasi-wasm32-3.14/
