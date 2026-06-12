@@ -1,6 +1,7 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+use crate::platform::thread;
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
@@ -22,7 +23,7 @@ use core::{
     marker::PhantomData,
     ptr::{self, NonNull},
 };
-use std::{sync::Mutex, thread};
+use std::sync::Mutex;
 
 mod assertions;
 pub mod doc;

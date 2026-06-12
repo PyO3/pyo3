@@ -2,10 +2,10 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 
 use core::{ffi::CStr, marker::PhantomData};
-use std::thread::{self, ThreadId};
 
 #[cfg(Py_3_14)]
 use crate::err::error_on_minusone;
+use crate::platform::thread::{self, ThreadId};
 #[allow(deprecated)]
 use crate::sync::GILOnceCell;
 #[cfg(Py_3_14)]
