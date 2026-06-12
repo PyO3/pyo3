@@ -23,7 +23,7 @@ let v: Vec<i32> = list.extract()?;
 This method is available for many Python object types, and can produce a wide variety of Rust types, which you can check out in the implementor list of [`FromPyObject`].
 
 [`FromPyObject`] is also implemented for your own Rust types wrapped as Python objects (see [the chapter about classes](../class.md)).
-There, in order to both be able to operate on mutable references *and* satisfy Rust's rules of non-aliasing mutable references, you have to extract the PyO3 reference wrappers [`PyRef`] and [`PyRefMut`].
+There, in order to both be able to operate on mutable references *and* satisfy Rust's rules of non-aliasing mutable references, you have to extract the PyO3 reference wrappers [`PyClassGuard`] and [`PyClassGuardMut`].
 They work like the reference wrappers of `std::cell::RefCell` and ensure (at runtime) that Rust borrows are allowed.
 
 ### Deriving [`FromPyObject`]
@@ -756,8 +756,8 @@ In the example above we used `BoundObject::into_any` and `BoundObject::unbind` t
 [`IntoPyObject`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.IntoPyObject.html
 [`IntoPyObjectExt`]: {{#PYO3_DOCS_URL}}/pyo3/conversion/trait.IntoPyObjectExt.html
 
-[`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
-[`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html
+[`PyClassGuard`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/struct.PyClassGuard.html
+[`PyClassGuardMut`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/struct.PyClassGuardMut.html
 [`BoundObject`]: {{#PYO3_DOCS_URL}}/pyo3/instance/trait.BoundObject.html
 
 [`Result`]: https://doc.rust-lang.org/stable/std/result/enum.Result.html

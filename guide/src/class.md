@@ -415,9 +415,8 @@ Currently, only classes defined in Rust and builtins provided by PyO3 can be inh
 
 To initialize a class, which inherits from another class, use the `PyClassInitializer` API.
 
-To get a parent class from a child, use [`PyRef`] instead of `&self` for methods, or [`PyRefMut`] instead of `&mut self`.
-Then you can access a parent class by `self_.as_super()` as `&PyRef<Self::BaseClass>`, or by `self_.into_super()` as `PyRef<Self::BaseClass>` (and similar for the `PyRefMut` case).
-For convenience, `self_.as_ref()` can also be used to get `&Self::BaseClass` directly; however, this approach does not let you access base classes higher in the inheritance hierarchy, for which you would need to chain multiple `as_super` or `into_super` calls.
+To get a parent class from a child, use [`PyClassGuard`] instead of `&self` for methods, or [`PyClassGuardMut`] instead of `&mut self`.
+Then you can access a parent class by `self_.as_super()` as `&PyClassGuard<Self::BaseClass>`, or by `self_.into_super()` as `PyClassGuard<Self::BaseClass>` (and similar for the `PyRefMut` case).
 
 ```rust
 # use pyo3::prelude::*;
@@ -452,8 +451,8 @@ impl SubClass {
             .add_subclass(SubClass { val2: 15 })
     }
 
-    fn method2(self_: PyRef<'_, Self>) -> PyResult<usize> {
-        let super_ = self_.as_super(); // Get &PyRef<BaseClass>
+    fn method2(self_: PyClassGuard<'_, Self>) -> PyResult<usize> {
+        let super_ = self_.as_super(); // Get &PyClassGuard<BaseClass>
         super_.method1().map(|x| x * self_.val2)
     }
 }
@@ -470,24 +469,24 @@ impl SubSubClass {
         PyClassInitializer::from(SubClass::new()).add_subclass(SubSubClass { val3: 20 })
     }
 
-    fn method3(self_: PyRef<'_, Self>) -> PyResult<usize> {
-        let base = self_.as_super().as_super(); // Get &PyRef<'_, BaseClass>
+    fn method3(self_: PyClassGuard<'_, Self>) -> PyResult<usize> {
+        let base = self_.as_super().as_super(); // Get &PyClassGuard<'_, BaseClass>
         base.method1().map(|x| x * self_.val3)
     }
 
-    fn method4(self_: PyRef<'_, Self>) -> PyResult<usize> {
+    fn method4(self_: PyClassGuard<'_, Self>) -> PyResult<usize> {
         let v = self_.val3;
-        let super_ = self_.into_super(); // Get PyRef<'_, SubClass>
+        let super_ = self_.into_super(); // Get PyClassGuard<'_, SubClass>
         SubClass::method2(super_).map(|x| x * v)
     }
 
-      fn get_values(self_: PyRef<'_, Self>) -> (usize, usize, usize) {
+      fn get_values(self_: PyClassGuard<'_, Self>) -> (usize, usize, usize) {
           let val1 = self_.as_super().as_super().val1;
           let val2 = self_.as_super().val2;
           (val1, val2, self_.val3)
       }
 
-    fn double_values(mut self_: PyRefMut<'_, Self>) {
+    fn double_values(mut self_: PyClassGuardMut<'_, Self>) {
         self_.as_super().as_super().val1 *= 2;
         self_.as_super().val2 *= 2;
         self_.val3 *= 2;
@@ -940,7 +939,7 @@ Class objects can be used as arguments to `#[pyfunction]`s and `#[pymethods]` in
 
 - `Py<T>` or `Bound<'py, T>` smart pointers to the class Python object,
 - `&T` or `&mut T` references to the Rust data contained in the Python object, or
-- `PyRef<T>` and `PyRefMut<T>` reference wrappers.
+- `PyClassGuard<T>` and `PyClassGuardMut<T>` reference wrappers.
 
 Examples of each of these below:
 
@@ -961,7 +960,7 @@ fn increment_field(my_class: &mut MyClass) {
 // Take a reference wrapper when borrowing should be automatic,
 // but access to the Python object is still needed
 #[pyfunction]
-fn print_field_and_return_me(my_class: PyRef<'_, MyClass>) -> PyRef<'_, MyClass> {
+fn print_field_and_return_me(my_class: PyClassGuard<'_, MyClass>) -> PyClassGuard<'_, MyClass> {
     println!("{}", my_class.my_field);
     my_class
 }
@@ -1575,8 +1574,8 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 [`Py<T>`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html
 [`Bound<'py, T>`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html
 [`PyClass`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/trait.PyClass.html
-[`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
-[`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html
+[`PyClassGuard`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/struct.PyClassGuard.html
+[`PyClassGuardMut`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/struct.PyClassGuardMut.html
 [`PyClassInitializer<T>`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass_init/struct.PyClassInitializer.html
 
 [`Arc`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
