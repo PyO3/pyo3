@@ -7,7 +7,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_derive_into_pyobject, build_py_class, build_py_enum,
     build_py_function, build_py_methods, pymodule_function_impl, pymodule_module_impl, PyClassArgs,
-    PyClassMethodsType, PyFunctionOptions, PyModuleOptions,
+    PyClassKind, PyClassMethodsType, PyClassPyO3Options, PyFunctionOptions, PyModuleOptions,
 };
 use quote::quote;
 use syn::{parse_macro_input, Item};
@@ -68,10 +68,12 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
+    let options = parse_macro_input!(attr as PyClassPyO3Options);
+
     let item = parse_macro_input!(input as Item);
     match item {
-        Item::Struct(struct_) => pyclass_impl(attr, struct_, methods_type()),
-        Item::Enum(enum_) => pyclass_enum_impl(attr, enum_, methods_type()),
+        Item::Struct(struct_) => pyclass_struct_impl(options, struct_, methods_type()),
+        Item::Enum(enum_) => pyclass_enum_impl(options, enum_, methods_type()),
         unsupported => {
             syn::Error::new_spanned(unsupported, "#[pyclass] only supports structs and enums.")
                 .into_compile_error()
@@ -188,13 +190,16 @@ pub fn derive_from_py_object(item: TokenStream) -> TokenStream {
     .into()
 }
 
-fn pyclass_impl(
-    attrs: TokenStream,
+fn pyclass_struct_impl(
+    options: PyClassPyO3Options,
     mut ast: syn::ItemStruct,
     methods_type: PyClassMethodsType,
 ) -> TokenStream {
-    let args = parse_macro_input!(attrs with PyClassArgs::parse_struct_args);
-    let expanded = build_py_class(&mut ast, args, methods_type).unwrap_or_compile_error();
+    let options = PyClassArgs {
+        class_kind: PyClassKind::Struct,
+        options,
+    };
+    let expanded = build_py_class(&mut ast, options, methods_type).unwrap_or_compile_error();
 
     quote!(
         #ast
@@ -204,12 +209,15 @@ fn pyclass_impl(
 }
 
 fn pyclass_enum_impl(
-    attrs: TokenStream,
+    options: PyClassPyO3Options,
     mut ast: syn::ItemEnum,
     methods_type: PyClassMethodsType,
 ) -> TokenStream {
-    let args = parse_macro_input!(attrs with PyClassArgs::parse_enum_args);
-    let expanded = build_py_enum(&mut ast, args, methods_type).unwrap_or_compile_error();
+    let options = PyClassArgs {
+        class_kind: PyClassKind::Enum,
+        options,
+    };
+    let expanded = build_py_enum(&mut ast, options, methods_type).unwrap_or_compile_error();
 
     quote!(
         #ast
