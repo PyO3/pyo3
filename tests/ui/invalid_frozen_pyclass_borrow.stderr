@@ -1,26 +1,8 @@
 error: cannot use `#[pyo3(set)]` on a `frozen` class
-  --> tests/ui/invalid_frozen_pyclass_borrow.rs:44:12
+  --> tests/ui/invalid_frozen_pyclass_borrow.rs:43:12
    |
-44 |     #[pyo3(set)]
+43 |     #[pyo3(set)]
    |            ^^^
-
-error[E0271]: type mismatch resolving `<Foo as PyClass>::Frozen == False`
-   --> tests/ui/invalid_frozen_pyclass_borrow.rs:12:19
-    |
- 12 |     fn mut_method(&mut self) {}
-    |                   ^ type mismatch resolving `<Foo as PyClass>::Frozen == False`
-    |
-note: expected this to be `pyo3::pyclass::boolean_struct::False`
-   --> tests/ui/invalid_frozen_pyclass_borrow.rs:3:1
-    |
-  3 | #[pyclass(frozen)]
-    | ^^^^^^^^^^^^^^^^^^
-note: required by a bound in `pyo3::impl_::extract_argument::extract_pyclass_ref_mut`
- --> src/impl_/extract_argument.rs
-  |
-  | pub fn extract_pyclass_ref_mut<'a, 'holder, T: PyClass<Frozen = False>>(
-  |                                                        ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut`
-  = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0271]: type mismatch resolving `<Foo as PyClass>::Frozen == False`
    --> tests/ui/invalid_frozen_pyclass_borrow.rs:9:1
@@ -33,17 +15,17 @@ note: expected this to be `pyo3::pyclass::boolean_struct::False`
     |
   3 | #[pyclass(frozen)]
     | ^^^^^^^^^^^^^^^^^^
-note: required by a bound in `PyClassGuardMut`
- --> src/pyclass/guard.rs
+note: required by a bound in `pyo3::impl_::extract_argument::extract_pyclass_ref_mut_trusted`
+ --> src/impl_/extract_argument.rs
   |
-  | pub struct PyClassGuardMut<'a, T: PyClass<Frozen = False>> {
-  |                                           ^^^^^^^^^^^^^^ required by this bound in `PyClassGuardMut`
+  | pub unsafe fn extract_pyclass_ref_mut_trusted<'a, 'holder, T: PyClass<Frozen = False>>(
+  |                                                                       ^^^^^^^^^^^^^^ required by this bound in `extract_pyclass_ref_mut_trusted`
   = note: this error originates in the attribute macro `pymethods` which comes from the expansion of the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0271]: type mismatch resolving `<Foo as PyClass>::Frozen == False`
-   --> tests/ui/invalid_frozen_pyclass_borrow.rs:17:31
+   --> tests/ui/invalid_frozen_pyclass_borrow.rs:16:31
     |
- 17 |     let borrow = foo.bind(py).borrow_mut();
+ 16 |     let borrow = foo.bind(py).borrow_mut();
     |                               ^^^^^^^^^^ type mismatch resolving `<Foo as PyClass>::Frozen == False`
     |
 note: expected this to be `pyo3::pyclass::boolean_struct::False`
@@ -62,15 +44,15 @@ note: required by a bound in `pyo3::Bound::<'py, T>::borrow_mut`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0271]: type mismatch resolving `<ImmutableChild as PyClass>::Frozen == False`
-   --> tests/ui/invalid_frozen_pyclass_borrow.rs:28:33
+   --> tests/ui/invalid_frozen_pyclass_borrow.rs:27:33
     |
- 28 |     let borrow = child.bind(py).borrow_mut();
+ 27 |     let borrow = child.bind(py).borrow_mut();
     |                                 ^^^^^^^^^^ type mismatch resolving `<ImmutableChild as PyClass>::Frozen == False`
     |
 note: expected this to be `pyo3::pyclass::boolean_struct::False`
-   --> tests/ui/invalid_frozen_pyclass_borrow.rs:24:1
+   --> tests/ui/invalid_frozen_pyclass_borrow.rs:23:1
     |
- 24 | #[pyclass(frozen, extends = MutableBase)]
+ 23 | #[pyclass(frozen, extends = MutableBase)]
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: required by a bound in `pyo3::Bound::<'py, T>::borrow_mut`
  --> src/instance.rs
@@ -83,15 +65,15 @@ note: required by a bound in `pyo3::Bound::<'py, T>::borrow_mut`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0271]: type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
-    --> tests/ui/invalid_frozen_pyclass_borrow.rs:33:11
+    --> tests/ui/invalid_frozen_pyclass_borrow.rs:32:11
      |
-  33 |     class.get();
+  32 |     class.get();
      |           ^^^ type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
      |
 note: expected this to be `pyo3::pyclass::boolean_struct::True`
-    --> tests/ui/invalid_frozen_pyclass_borrow.rs:21:1
+    --> tests/ui/invalid_frozen_pyclass_borrow.rs:20:1
      |
-  21 | #[pyclass(subclass)]
+  20 | #[pyclass(subclass)]
      | ^^^^^^^^^^^^^^^^^^^^
 note: required by a bound in `pyo3::Py::<T>::get`
  --> src/instance.rs
@@ -104,15 +86,15 @@ note: required by a bound in `pyo3::Py::<T>::get`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0271]: type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
-   --> tests/ui/invalid_frozen_pyclass_borrow.rs:38:11
+   --> tests/ui/invalid_frozen_pyclass_borrow.rs:37:11
     |
- 38 |     class.get();
+ 37 |     class.get();
     |           ^^^ type mismatch resolving `<MutableBase as PyClass>::Frozen == True`
     |
 note: expected this to be `pyo3::pyclass::boolean_struct::True`
-   --> tests/ui/invalid_frozen_pyclass_borrow.rs:21:1
+   --> tests/ui/invalid_frozen_pyclass_borrow.rs:20:1
     |
- 21 | #[pyclass(subclass)]
+ 20 | #[pyclass(subclass)]
     | ^^^^^^^^^^^^^^^^^^^^
 note: required by a bound in `pyo3::Bound::<'py, T>::get`
  --> src/instance.rs
@@ -124,6 +106,6 @@ note: required by a bound in `pyo3::Bound::<'py, T>::get`
   |                    ^^^^^^^^^^^^^ required by this bound in `Bound::<'py, T>::get`
   = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error: aborting due to 7 previous errors
+error: aborting due to 6 previous errors
 
 For more information about this error, try `rustc --explain E0271`.

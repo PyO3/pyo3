@@ -179,6 +179,7 @@ The Python DLL on Windows will usually be called something like:
 
 - `python3X.dll` for Python 3.X, e.g. `python310.dll` for Python 3.10
 - `python3.dll` when using PyO3's `abi3` feature
+- `python3t.dll` when using PyO3's `abi3t` feature
 
 The DLL needs to be locatable using the [Windows DLL search order](https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order#standard-search-order-for-unpackaged-apps).
 Some ways to achieve this are:
@@ -186,6 +187,8 @@ Some ways to achieve this are:
 - Put the Python DLL in the same folder as your build artifacts
 - Add the directory containing the Python DLL to your `PATH` environment variable, for example `C:\Users\<You>\AppData\Local\Programs\Python\Python310`
 - If this happens when you are *distributing* your program, consider using [PyOxidizer](https://github.com/indygreg/PyOxidizer) to package it with your binary.
+- The legacy MSI Python installer for Python 3.15 installs `python3t.dll` into an `abi3t_compat` subfolder of the main Python installation.
+  Add that folder to your PATH as well if you are using `abi3t` features on Python 3.15.
 
 If the wrong DLL is linked it is possible that this happened because another program added itself and its own Python DLLs to `PATH`.
 Rearrange your `PATH` variables to give the correct DLL priority.
