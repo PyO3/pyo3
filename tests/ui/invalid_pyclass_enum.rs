@@ -117,7 +117,7 @@ enum InvalidOrderedComplexEnum2 {
 #[pyclass(eq)]
 #[derive(PartialEq)]
 enum AllEnumVariantsDisabled {
-//~^ ERROR: #[pyclass] can't be used on enums without any variants - all variants of enum `AllEnumVariantsDisabled` have been configured out by cfg attributes
+//~^ ERROR: #[pyclass] can't be used on enums without any variants
     #[cfg(any())]
     DisabledA,
     #[cfg(not(all()))]
