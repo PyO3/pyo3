@@ -745,10 +745,12 @@ def _build_netlify_robots_and_sitemap() -> None:
     netlify_build = Path("netlify_build")
 
     (netlify_build / "robots.txt").write_text(
-        "User-agent: *\n"
-        "Disallow: /internal/\n"
-        "\n"
-        "Sitemap: https://pyo3.rs/sitemap.xml\n"
+        """\
+User-agent: *
+Disallow: /internal/
+
+Sitemap: https://pyo3.rs/sitemap.xml
+"""
     )
 
     urls = set(_sitemap_urls_for_path("main"))
