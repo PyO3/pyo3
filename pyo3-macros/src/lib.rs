@@ -2,15 +2,18 @@
 //! must not contain any other public items.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+use cfg_eval::CfgEvalResult;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
     build_derive_from_pyobject, build_derive_into_pyobject, build_py_class, build_py_enum,
-    build_py_function, build_py_methods, pymodule_function_impl, pymodule_module_impl, PyClassArgs,
-    PyClassKind, PyClassMethodsType, PyClassPyO3Options, PyFunctionOptions, PyModuleOptions,
+    build_py_function, build_py_methods, pymodule_function_impl, pymodule_module_impl,
+    utils::PyO3CratePath, PyClassArgs, PyClassKind, PyClassMethodsType, PyClassPyO3Options,
+    PyFunctionOptions, PyModuleOptions,
 };
 use quote::quote;
-use syn::{parse_macro_input, Item};
+use syn::{parse_macro_input, Item, ItemEnum, ItemStruct};
+mod cfg_eval;
 
 /// A proc macro used to implement Python modules.
 ///
@@ -68,9 +71,33 @@ pub fn pymodule(args: TokenStream, input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let options = parse_macro_input!(attr as PyClassPyO3Options);
+    let mut item = parse_macro_input!(input as Item);
+    let attrs: proc_macro2::TokenStream = attr.clone().into();
+    let mut options = parse_macro_input!(attr as PyClassPyO3Options);
 
-    let item = parse_macro_input!(input as Item);
+    let mut pyo3_attrs = Vec::new();
+    if let Item::Enum(ItemEnum { attrs, .. }) | Item::Struct(ItemStruct { attrs, .. }) = &mut item {
+        for attr in &*attrs {
+            if attr.path().is_ident("pyo3") {
+                pyo3_attrs.push(attr.clone());
+            }
+        }
+        if let Err(e) = options.take_pyo3_options(attrs) {
+            return e.into_compile_error().into();
+        }
+    }
+
+    let pyo3_path = PyO3CratePath::from_crate_path(&options.krate);
+    let this = quote! {
+        #[#pyo3_path::pyclass(#attrs)]
+        #(#pyo3_attrs)*
+    };
+
+    let item = match cfg_eval::cfg_eval_impl(this, item) {
+        CfgEvalResult::Ready(item) => item,
+        CfgEvalResult::Retry(ts) => return ts.into(),
+    };
+
     match item {
         Item::Struct(struct_) => pyclass_struct_impl(options, struct_, methods_type()),
         Item::Enum(enum_) => pyclass_enum_impl(options, enum_, methods_type()),

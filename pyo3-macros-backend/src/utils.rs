@@ -201,10 +201,7 @@ pub struct Ctx {
 
 impl Ctx {
     pub(crate) fn new(attr: &Option<CrateAttribute>, signature: Option<&syn::Signature>) -> Self {
-        let pyo3_path = match attr {
-            Some(attr) => PyO3CratePath::Given(attr.value.0.clone()),
-            None => PyO3CratePath::Default,
-        };
+        let pyo3_path = PyO3CratePath::from_crate_path(attr);
 
         let output_span = if let Some(syn::Signature {
             output: syn::ReturnType::Type(_, output_type),
@@ -230,6 +227,12 @@ pub enum PyO3CratePath {
 }
 
 impl PyO3CratePath {
+    pub fn from_crate_path(path: &Option<CrateAttribute>) -> Self {
+        match path {
+            Some(attr) => PyO3CratePath::Given(attr.value.0.clone()),
+            None => PyO3CratePath::Default,
+        }
+    }
     pub fn to_tokens_spanned(&self, span: Span) -> TokenStream {
         match self {
             Self::Given(path) => quote::quote_spanned! { span => #path },
