@@ -26,6 +26,7 @@ from typing import (
     Set,
     Tuple,
 )
+from xml.sax.saxutils import escape
 
 import nox.command
 
@@ -665,6 +666,7 @@ def build_netlify_site(session: nox.Session):
     PYO3_DOCS_TARGET.rename("netlify_build/internal/doc")
 
     _build_netlify_redirects(preview)
+    _build_netlify_robots_and_sitemap()
 
 
 def _build_netlify_redirects(preview: bool) -> None:
@@ -732,6 +734,39 @@ def _build_netlify_redirects(preview: bool) -> None:
 
         # Add main doc redirect
         redirects_file.write("/main/doc /main/doc/pyo3")
+
+
+def _build_netlify_robots_and_sitemap() -> None:
+    current_version = os.environ.get("PYO3_VERSION")
+    netlify_build = Path("netlify_build")
+
+    (netlify_build / "robots.txt").write_text(
+        """\
+User-agent: *
+Disallow: /internal/
+
+Sitemap: https://pyo3.rs/sitemap.xml
+"""
+    )
+
+    urls = set(_sitemap_urls_for_path("main"))
+    if current_version is not None:
+        urls.update(_sitemap_urls_for_path(f"v{current_version}"))
+
+    sitemap = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        *(f"  <url><loc>{escape(url)}</loc></url>" for url in sorted(urls)),
+        "</urlset>",
+    ]
+    (netlify_build / "sitemap.xml").write_text("\n".join(sitemap) + "\n")
+
+
+def _sitemap_urls_for_path(path: str) -> Iterable[str]:
+    for file in glob(f"netlify_build/{path}/**/*.html", recursive=True):
+        file_path = file.removeprefix("netlify_build")
+        url_path = _url_path_from_file_path(file_path)
+        yield f"https://pyo3.rs{url_path}"
 
 
 def _url_path_from_file_path(file_path: str) -> str:
