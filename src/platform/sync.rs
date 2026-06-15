@@ -3,12 +3,18 @@
 use crate::sealed;
 use crate::sync::OnceExt;
 
-#[cfg(feature = "parking_lot")]
-type OnceInner = parking_lot::Once;
-
-#[cfg(not(feature = "parking_lot"))]
-#[allow(clippy::disallowed_types)]
-type OnceInner = std::sync::Once;
+cfg_select! {
+    wip_feature_std => {
+        #[allow(clippy::disallowed_types)]
+        type OnceInner = std::sync::Once;
+    },
+    feature = "parking_lot" => {
+        type OnceInner = parking_lot::Once;
+    },
+    _ => {
+        compile_error!("Please enable at least one of the following features: std, parking_lot");
+    },
+}
 
 pub struct Once(OnceInner);
 
@@ -37,15 +43,19 @@ impl Once {
         self.0.call_once_force(move |_| f());
     }
 
-    #[cfg(feature = "parking_lot")]
-    pub fn is_completed(&self) -> bool {
-        matches!(self.0.state(), parking_lot::OnceState::Done)
-    }
-
-    #[cfg(not(feature = "parking_lot"))]
     #[inline(always)]
     pub fn is_completed(&self) -> bool {
-        self.0.is_completed()
+        cfg_select! {
+            wip_feature_std => {
+                self.0.is_completed()
+            },
+            feature = "parking_lot" => {
+                matches!(self.0.state(), parking_lot::OnceState::Done)
+            },
+            _ => {
+                compile_error!("Please enable at least one of the following features: std, parking_lot")
+            }
+        }
     }
 }
 
@@ -67,20 +77,26 @@ impl OnceExt for Once {
 }
 
 pub mod non_poison {
-    #[cfg(feature = "parking_lot")]
-    pub use parking_lot::{Mutex, MutexGuard};
+    cfg_select! {
+        wip_feature_std => {
+            pub use std::sync::MutexGuard;
+        },
+        feature = "parking_lot" => {
+            pub use parking_lot::{Mutex, MutexGuard};
+        },
+        _ => {
+            compile_error!("Please enable at least one of the following features: std, parking_lot");
+        },
+    }
 
-    #[cfg(not(feature = "parking_lot"))]
-    pub use std::sync::MutexGuard;
-
-    #[cfg(not(feature = "parking_lot"))]
+    #[cfg(wip_feature_std)]
     #[derive(Default, Debug)]
     pub struct Mutex<T: ?Sized> {
         #[allow(clippy::disallowed_types)]
         inner: std::sync::Mutex<T>,
     }
 
-    #[cfg(not(feature = "parking_lot"))]
+    #[cfg(wip_feature_std)]
     impl<T> Mutex<T> {
         #[inline(always)]
         pub const fn new(t: T) -> Mutex<T> {
@@ -90,19 +106,12 @@ pub mod non_poison {
             }
         }
 
-        #[cfg(feature = "parking_lot")]
-        #[inline(always)]
-        pub fn into_inner(self) -> T {
-            self.inner.into_inner()
-        }
-
-        #[cfg(not(feature = "parking_lot"))]
         pub fn into_inner(self) -> T {
             self.inner.into_inner().unwrap_or_else(|e| e.into_inner())
         }
     }
 
-    #[cfg(not(feature = "parking_lot"))]
+    #[cfg(wip_feature_std)]
     impl<T: ?Sized> Mutex<T> {
         #[inline(always)]
         pub fn lock(&self) -> MutexGuard<'_, T> {
@@ -112,7 +121,7 @@ pub mod non_poison {
         // TODO try_lock
     }
 
-    #[cfg(not(feature = "parking_lot"))]
+    #[cfg(wip_feature_std)]
     impl<T> From<T> for Mutex<T> {
         #[inline(always)]
         fn from(t: T) -> Self {
@@ -123,10 +132,10 @@ pub mod non_poison {
         }
     }
 
-    #[cfg(not(feature = "parking_lot"))]
+    #[cfg(wip_feature_std)]
     impl<T> crate::sealed::Sealed for Mutex<T> {}
 
-    #[cfg(not(feature = "parking_lot"))]
+    #[cfg(wip_feature_std)]
     impl<T> crate::sync::MutexExt<T> for Mutex<T> {
         type LockResult<'a>
             = MutexGuard<'a, T>
