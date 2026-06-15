@@ -1,20 +1,17 @@
-#[cfg(not(cfg_select))]
-use crate::internal::macros::cfg_select;
 use crate::sealed;
 use crate::sync::OnceExt;
 
-cfg_select! {
-    wip_feature_std => {
-        #[allow(clippy::disallowed_types)]
-        type OnceInner = std::sync::Once;
-    },
-    feature = "parking_lot" => {
-        type OnceInner = parking_lot::Once;
-    },
-    _ => {
-        compile_error!("Please enable at least one of the following features: std, parking_lot");
-    },
-}
+// TODO replace with cfg_select when MSRV >= 1.95.0
+
+#[cfg(wip_feature_std)]
+#[allow(clippy::disallowed_types)]
+type OnceInner = std::sync::Once;
+
+#[cfg(all(not(wip_feature_std), feature = "parking_lot"))]
+type OnceInner = parking_lot::Once;
+
+#[cfg(all(not(wip_feature_std), not(feature = "parking_lot")))]
+compile_error!("Please enable at least one of the following features: std, parking_lot");
 
 pub struct Once(OnceInner);
 
@@ -24,7 +21,6 @@ impl Default for Once {
     }
 }
 
-// #[cfg(feature = "parking_lot")]
 impl Once {
     /// Creates a new `Once` value.
     #[inline(always)]
@@ -77,17 +73,15 @@ impl OnceExt for Once {
 }
 
 pub mod non_poison {
-    cfg_select! {
-        wip_feature_std => {
-            pub use std::sync::MutexGuard;
-        },
-        feature = "parking_lot" => {
-            pub use parking_lot::{Mutex, MutexGuard};
-        },
-        _ => {
-            compile_error!("Please enable at least one of the following features: std, parking_lot");
-        },
-    }
+    // TODO replace with cfg_select when MSRV >= 1.95.0
+    #[cfg(wip_feature_std)]
+    pub use std::sync::MutexGuard;
+
+    #[cfg(all(not(wip_feature_std), feature = "parking_lot"))]
+    pub use parking_lot::{Mutex, MutexGuard};
+
+    #[cfg(all(not(wip_feature_std), not(feature = "parking_lot")))]
+    compile_error!("Please enable at least one of the following features: std, parking_lot");
 
     #[cfg(wip_feature_std)]
     #[derive(Default, Debug)]
@@ -114,7 +108,7 @@ pub mod non_poison {
     #[cfg(wip_feature_std)]
     impl<T: ?Sized> Mutex<T> {
         #[inline(always)]
-        pub fn lock(&self) -> MutexGuard<'_, T> {
+        pub fn lock(&self) -> std::sync::MutexGuard<'_, T> {
             self.inner.lock().unwrap_or_else(|e| e.into_inner())
         }
 
