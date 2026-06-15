@@ -489,8 +489,6 @@ impl<'py> FromPyObject<'_, 'py> for Offset {
             "Offset must be between -24 hours and 24 hours but was {}h",
             total_seconds / 3600
         );
-        // SAFETY: Python `utcoffset()` is documented to return timedelta in [-24h, 24h]
-        unsafe { core::hint::assert_unchecked((total_seconds / 3600).abs() <= 24) };
         // This cast is safe since the timedelta is limited to -24 hours and 24 hours.
         Ok(Offset::from_seconds(total_seconds as i32)?)
     }
