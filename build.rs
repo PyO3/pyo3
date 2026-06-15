@@ -53,7 +53,19 @@ fn configure_pyo3() -> Result<()> {
     Ok(())
 }
 
+/// Enables a faux `std` feature by default.
+///
+/// Set env var `PYO3_WIP_NO_STD` to `1` to disable it.
+fn configure_wip_no_std() {
+    println!("cargo:rustc-check-cfg=cfg(wip_feature_std)");
+    match cargo_env_var("PYO3_WIP_NO_STD") {
+        Some(no_std) if no_std.trim() == "1" || no_std.trim().eq_ignore_ascii_case("true") => (),
+        _ => println!("cargo:rustc-cfg=wip_feature_std"),
+    }
+}
+
 fn main() {
+    configure_wip_no_std();
     pyo3_build_config::print_expected_cfgs();
     if let Err(e) = configure_pyo3() {
         eprintln!("error: {}", e.report());
