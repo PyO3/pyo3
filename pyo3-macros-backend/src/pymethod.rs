@@ -372,9 +372,6 @@ pub fn impl_py_method_def(
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
-    // The `method_` infix keeps the generated identifier from colliding with
-    // the wrappers for `#[getter]`/`#[setter]`/`#[deleter]`, which use the
-    // `get_`/`set_`/`delete_` prefixes (see #5974).
     let wrapper_ident = format_ident!("__pymethod_method_{}__", spec.python_name);
     let calling_convention = CallingConvention::from_signature(&spec.signature);
     let associated_method = spec.get_wrapper_function(
