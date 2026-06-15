@@ -1,5 +1,7 @@
 // TODO compile_error if parking_lot and std are both disabled
 
+#[cfg(not(cfg_select))]
+use crate::internal::macros::cfg_select;
 use crate::sealed;
 use crate::sync::OnceExt;
 
