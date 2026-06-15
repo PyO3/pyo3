@@ -2,6 +2,8 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 
 use crate::platform::prelude::*;
+#[cfg(not(Py_3_12))]
+use crate::platform::sync::non_poison::Mutex;
 use crate::platform::sync::Once;
 use core::cell::{Cell, UnsafeCell};
 use std::thread::ThreadId;
