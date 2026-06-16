@@ -1,11 +1,11 @@
-error[E0592]: duplicate definitions with name `__pymethod___class_getitem____`
+error[E0592]: duplicate definitions with name `__pymethod_method___class_getitem____`
   --> tests/ui/invalid_pyclass_generic.rs:4:1
    |
  4 | #[pyclass(generic)]
-   | ^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___class_getitem____`
+   | ^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__pymethod_method___class_getitem____`
 ...
 12 | #[pymethods]
-   | ------------ other definition for `__pymethod___class_getitem____`
+   | ------------ other definition for `__pymethod_method___class_getitem____`
    |
    = note: this error originates in the macro `::pyo3::impl_::pymethods::maybe_define_fastcall_function_with_keywords` which comes from the expansion of the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
@@ -29,7 +29,7 @@ error[E0034]: multiple applicable items in scope
   --> tests/ui/invalid_pyclass_generic.rs:4:1
    |
  4 | #[pyclass(generic)]
-   | ^^^^^^^^^^^^^^^^^^^ multiple `__pymethod___class_getitem____` found
+   | ^^^^^^^^^^^^^^^^^^^ multiple `__pymethod_method___class_getitem____` found
    |
 note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetItem`
   --> tests/ui/invalid_pyclass_generic.rs:4:1
@@ -92,7 +92,7 @@ error[E0034]: multiple applicable items in scope
   --> tests/ui/invalid_pyclass_generic.rs:20:12
    |
 20 |     pub fn __class_getitem__(
-   |            ^^^^^^^^^^^^^^^^^ multiple `__pymethod___class_getitem____` found
+   |            ^^^^^^^^^^^^^^^^^ multiple `__pymethod_method___class_getitem____` found
    |
 note: candidate #1 is defined in an impl for the type `ClassRedefinesClassGetItem`
   --> tests/ui/invalid_pyclass_generic.rs:4:1
