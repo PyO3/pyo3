@@ -23,7 +23,7 @@ use crate::{
 };
 
 /// Minimum Python version PyO3 supports.
-pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 8 };
+pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 9 };
 
 pub(crate) const MINIMUM_SUPPORTED_VERSION_PYPY: PythonVersion = PythonVersion {
     major: 3,
@@ -1366,8 +1366,6 @@ impl PythonVersion {
     };
     #[cfg(test)]
     const PY39: Self = PythonVersion { major: 3, minor: 9 };
-    #[cfg(test)]
-    const PY38: Self = PythonVersion { major: 3, minor: 8 };
 }
 
 impl Display for PythonVersion {
@@ -2128,9 +2126,9 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Result<
     // For ubuntu 20.04 with host architecture x86_64 and a foreign architecture of armhf
     // this reduces the number of candidates to 1:
     //
-    // $ find /usr/lib/python3.8/ -name '_sysconfigdata*.py' -not -lname '*'
-    //  /usr/lib/python3.8/_sysconfigdata__x86_64-linux-gnu.py
-    //  /usr/lib/python3.8/_sysconfigdata__arm-linux-gnueabihf.py
+    // $ find /usr/lib/python3.9/ -name '_sysconfigdata*.py' -not -lname '*'
+    //  /usr/lib/python3.9/_sysconfigdata__x86_64-linux-gnu.py
+    //  /usr/lib/python3.9/_sysconfigdata__arm-linux-gnueabihf.py
     if sysconfig_paths.len() > 1 {
         let temp = sysconfig_paths
             .iter()
@@ -2152,7 +2150,7 @@ fn search_lib_dir(path: impl AsRef<Path>, cross: &CrossCompileConfig) -> Result<
 ///
 /// first find sysconfigdata file which follows the pattern [`_sysconfigdata_{abi}_{platform}_{multiarch}`][1]
 ///
-/// [1]: https://github.com/python/cpython/blob/3.8/Lib/sysconfig.py#L348
+/// [1]: https://github.com/python/cpython/blob/3.9/Lib/sysconfig.py#L356
 ///
 /// Returns `None` when the target Python library directory is not set.
 fn cross_compile_from_sysconfigdata(
@@ -2691,9 +2689,9 @@ mod tests {
     fn test_config_file_defaults() {
         // Only version is required
         let implementation = PythonImplementation::CPython;
-        let version = PythonVersion::PY38;
+        let version = PythonVersion::PY39;
         assert_eq!(
-            InterpreterConfig::from_reader("version=3.8".as_bytes()).unwrap(),
+            InterpreterConfig::from_reader("version=3.9".as_bytes()).unwrap(),
             InterpreterConfigBuilder::new(implementation, version,)
                 .finalize()
                 .unwrap()
@@ -2704,9 +2702,9 @@ mod tests {
     fn test_config_file_unknown_keys() {
         // ext_suffix is unknown to pyo3-build-config, but it shouldn't error
         let implementation = PythonImplementation::CPython;
-        let version = PythonVersion::PY38;
+        let version = PythonVersion::PY39;
         assert_eq!(
-            InterpreterConfig::from_reader("version=3.8\next_suffix=.python38.so".as_bytes())
+            InterpreterConfig::from_reader("version=3.9\next_suffix=.python39.so".as_bytes())
                 .unwrap(),
             InterpreterConfigBuilder::new(implementation, version,)
                 .finalize()
@@ -2793,7 +2791,7 @@ mod tests {
         );
 
         assert!(
-            InterpreterConfigBuilder::new(implementation, PythonVersion::PY38)
+            InterpreterConfigBuilder::new(implementation, PythonVersion::PY39)
                 .free_threaded()
                 .is_err()
         );
@@ -2900,20 +2898,20 @@ mod tests {
         let mut sysconfigdata = Sysconfigdata::new();
         // these are the minimal values required such that InterpreterConfig::from_sysconfigdata
         // does not error
-        sysconfigdata.insert("SOABI", "cpython-38-x86_64-linux-gnu");
-        sysconfigdata.insert("VERSION", "3.8");
+        sysconfigdata.insert("SOABI", "cpython-39-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.9");
         sysconfigdata.insert("Py_ENABLE_SHARED", "1");
         sysconfigdata.insert("LIBDIR", "/usr/lib");
-        sysconfigdata.insert("LDVERSION", "3.8");
+        sysconfigdata.insert("LDVERSION", "3.9");
         sysconfigdata.insert("SIZEOF_VOID_P", "8");
         let implementation = PythonImplementation::CPython;
-        let version = PythonVersion::PY38;
+        let version = PythonVersion::PY39;
         assert_eq!(
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
             InterpreterConfigBuilder::new(implementation, version,)
                 .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
                 .lib_dir("/usr/lib".to_string())
-                .lib_name("python3.8".to_string())
+                .lib_name("python3.9".to_string())
                 .pointer_width(64)
                 .finalize()
                 .unwrap()
@@ -2923,44 +2921,44 @@ mod tests {
     #[test]
     fn config_from_sysconfigdata_framework() {
         let mut sysconfigdata = Sysconfigdata::new();
-        sysconfigdata.insert("SOABI", "cpython-38-x86_64-linux-gnu");
-        sysconfigdata.insert("VERSION", "3.8");
+        sysconfigdata.insert("SOABI", "cpython-39-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.9");
         // PYTHONFRAMEWORK should override Py_ENABLE_SHARED
         sysconfigdata.insert("Py_ENABLE_SHARED", "0");
         sysconfigdata.insert("PYTHONFRAMEWORK", "Python");
         sysconfigdata.insert("LIBDIR", "/usr/lib");
-        sysconfigdata.insert("LDVERSION", "3.8");
+        sysconfigdata.insert("LDVERSION", "3.9");
         sysconfigdata.insert("SIZEOF_VOID_P", "8");
         let implementation = PythonImplementation::CPython;
-        let version = PythonVersion::PY38;
+        let version = PythonVersion::PY39;
         assert_eq!(
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
             InterpreterConfigBuilder::new(implementation, version,)
                 .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
                 .lib_dir("/usr/lib".to_string())
-                .lib_name("python3.8".to_string())
+                .lib_name("python3.9".to_string())
                 .pointer_width(64)
                 .finalize()
                 .unwrap()
         );
 
         sysconfigdata = Sysconfigdata::new();
-        sysconfigdata.insert("SOABI", "cpython-38-x86_64-linux-gnu");
-        sysconfigdata.insert("VERSION", "3.8");
+        sysconfigdata.insert("SOABI", "cpython-39-x86_64-linux-gnu");
+        sysconfigdata.insert("VERSION", "3.9");
         // An empty PYTHONFRAMEWORK means it is not a framework
         sysconfigdata.insert("Py_ENABLE_SHARED", "0");
         sysconfigdata.insert("PYTHONFRAMEWORK", "");
         sysconfigdata.insert("LIBDIR", "/usr/lib");
-        sysconfigdata.insert("LDVERSION", "3.8");
+        sysconfigdata.insert("LDVERSION", "3.9");
         sysconfigdata.insert("SIZEOF_VOID_P", "8");
         let implementation = PythonImplementation::CPython;
-        let version = PythonVersion::PY38;
+        let version = PythonVersion::PY39;
         assert_eq!(
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
             InterpreterConfigBuilder::new(implementation, version,)
                 .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
                 .lib_dir("/usr/lib".to_string())
-                .lib_name("python3.8".to_string())
+                .lib_name("python3.9".to_string())
                 .pointer_width(64)
                 .shared(false)
                 .finalize()
@@ -2972,7 +2970,7 @@ mod tests {
     fn windows_hardcoded_abi3_compile() {
         let host = triple!("x86_64-pc-windows-msvc");
         let implementation = PythonImplementation::CPython;
-        let version = PythonVersion::PY38;
+        let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .stable_abi(StableAbi::Abi3)
             .lib_name("python3".to_string())
@@ -3054,7 +3052,7 @@ mod tests {
             pyo3_cross: None,
             pyo3_cross_lib_dir: Some("C:\\some\\path".into()),
             pyo3_cross_python_implementation: None,
-            pyo3_cross_python_version: Some("3.8".into()),
+            pyo3_cross_python_version: Some("3.9".into()),
         };
 
         let host = triple!("x86_64-unknown-linux-gnu");
@@ -3065,9 +3063,9 @@ mod tests {
                 .unwrap();
 
         let implementation = PythonImplementation::CPython;
-        let version = PythonVersion::PY38;
+        let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
-            .lib_name("python38".to_string())
+            .lib_name("python39".to_string())
             .lib_dir("C:\\some\\path".to_string())
             .finalize()
             .unwrap();
@@ -3080,7 +3078,7 @@ mod tests {
             pyo3_cross: None,
             pyo3_cross_lib_dir: Some("/usr/lib/mingw".into()),
             pyo3_cross_python_implementation: None,
-            pyo3_cross_python_version: Some("3.8".into()),
+            pyo3_cross_python_version: Some("3.9".into()),
         };
 
         let host = triple!("x86_64-unknown-linux-gnu");
@@ -3091,9 +3089,9 @@ mod tests {
                 .unwrap();
 
         let implementation = PythonImplementation::CPython;
-        let version = PythonVersion::PY38;
+        let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
-            .lib_name("python38".to_string())
+            .lib_name("python39".to_string())
             .lib_dir("/usr/lib/mingw".to_string())
             .finalize()
             .unwrap();
@@ -3430,18 +3428,7 @@ mod tests {
 
     #[test]
     fn default_lib_name_unix() {
-        // Defaults to pythonX.Y for CPython 3.8+
-        assert_eq!(
-            super::default_lib_name_unix(
-                PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY38)
-                    .finalize()
-                    .unwrap(),
-                false,
-                None,
-            )
-            .unwrap(),
-            "python3.8",
-        );
+        // Defaults to pythonX.Y for CPython
         assert_eq!(
             super::default_lib_name_unix(
                 PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY39)
@@ -3460,10 +3447,10 @@ mod tests {
                     .finalize()
                     .unwrap(),
                 false,
-                Some("3.8d"),
+                Some("3.9d"),
             )
             .unwrap(),
-            "python3.8d",
+            "python3.9d",
         );
 
         // PyPy 3.11 includes ldversion
@@ -3615,8 +3602,8 @@ mod tests {
     #[test]
     fn target_abi3_version_different_from_host() {
         let implementation = PythonImplementation::CPython;
-        let host_version = PythonVersion::PY39;
-        let target_version = PythonVersion::PY38;
+        let host_version = PythonVersion::PY310;
+        let target_version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, host_version)
             .target_abi(
                 PythonAbiBuilder::new(implementation, target_version)
@@ -3872,7 +3859,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_3_10".to_owned(),
                 "cargo:rustc-cfg=Py_3_11".to_owned(),
@@ -3885,7 +3871,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_3_10".to_owned(),
                 "cargo:rustc-cfg=Py_3_11".to_owned(),
@@ -3900,7 +3885,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_3_10".to_owned(),
                 "cargo:rustc-cfg=Py_3_11".to_owned(),
@@ -3923,7 +3907,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
             ]
@@ -3936,7 +3919,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=PyPy".to_owned(),
                 "cargo:rustc-cfg=Py_LIMITED_API".to_owned(),
@@ -3951,7 +3933,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_3_10".to_owned(),
                 "cargo:rustc-cfg=Py_3_11".to_owned(),
@@ -3975,7 +3956,6 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_8".to_owned(),
                 "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=Py_3_10".to_owned(),
                 "cargo:rustc-cfg=Py_3_11".to_owned(),
@@ -4066,7 +4046,7 @@ mod tests {
         let mut build_flags = BuildFlags::default();
         build_flags.0.insert(BuildFlag::Py_DEBUG);
         let implementation = PythonImplementation::CPython;
-        let version = PythonVersion::PY38;
+        let version = PythonVersion::PY39;
         let interpreter_config = InterpreterConfigBuilder::new(implementation, version)
             .build_flags(build_flags)
             .finalize()
@@ -4074,7 +4054,7 @@ mod tests {
         assert_eq!(
             interpreter_config.build_script_outputs(),
             [
-                "cargo:rustc-cfg=Py_3_8".to_owned(),
+                "cargo:rustc-cfg=Py_3_9".to_owned(),
                 "cargo:rustc-cfg=py_sys_config=\"Py_DEBUG\"".to_owned(),
             ]
         );

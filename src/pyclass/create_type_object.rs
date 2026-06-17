@@ -84,8 +84,6 @@ where
                 has_clear: false,
                 dict_offset: None,
                 class_flags: 0,
-                #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-                buffer_procs: Default::default(),
             }
             .type_doc(doc)
             .offsets(dict_offset, weaklist_offset)
@@ -143,9 +141,6 @@ struct PyTypeBuilder {
     has_clear: bool,
     dict_offset: Option<PyObjectOffset>,
     class_flags: c_ulong,
-    // Before Python 3.9, need to patch in buffer methods manually (they don't work in slots)
-    #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-    buffer_procs: ffi::PyBufferProcs,
 }
 
 impl PyTypeBuilder {
@@ -162,18 +157,6 @@ impl PyTypeBuilder {
                 self.class_flags |= ffi::Py_TPFLAGS_HAVE_GC;
             }
             ffi::Py_tp_clear => self.has_clear = true,
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-            ffi::Py_bf_getbuffer => {
-                // Safety: slot.pfunc is a valid function pointer
-                self.buffer_procs.bf_getbuffer =
-                    Some(unsafe { core::mem::transmute::<*mut T, ffi::getbufferproc>(pfunc) });
-            }
-            #[cfg(all(not(Py_3_9), not(Py_LIMITED_API)))]
-            ffi::Py_bf_releasebuffer => {
-                // Safety: slot.pfunc is a valid function pointer
-                self.buffer_procs.bf_releasebuffer =
-                    Some(unsafe { core::mem::transmute::<*mut T, ffi::releasebufferproc>(pfunc) });
-            }
             _ => {}
         }
 
@@ -244,7 +227,6 @@ impl PyTypeBuilder {
         // PyPy automatically adds __dict__ getter / setter.
         #[cfg(not(PyPy))]
         // Supported on unlimited API for all versions, and on 3.9+ for limited API
-        #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
         if let Some(dict_offset) = self.dict_offset {
             let get_dict;
             let closure;
@@ -377,7 +359,6 @@ impl PyTypeBuilder {
     ) -> Self {
         self.dict_offset = dict_offset;
 
-        #[cfg(Py_3_9)]
         {
             #[inline(always)]
             fn offset_def(name: &'static CStr, offset: PyObjectOffset) -> ffi::PyMemberDef {
@@ -410,30 +391,6 @@ impl PyTypeBuilder {
             }
         }
 
-        // Setting buffer protocols, tp_dictoffset and tp_weaklistoffset via slots doesn't work until
-        // Python 3.9, so on older versions we must manually fixup the type object.
-        #[cfg(all(not(Py_LIMITED_API), not(Py_3_9)))]
-        {
-            self.cleanup
-                .push(Box::new(move |builder, type_object| unsafe {
-                    (*(*type_object).tp_as_buffer).bf_getbuffer = builder.buffer_procs.bf_getbuffer;
-                    (*(*type_object).tp_as_buffer).bf_releasebuffer =
-                        builder.buffer_procs.bf_releasebuffer;
-
-                    match dict_offset {
-                        Some(PyObjectOffset::Absolute(offset)) => {
-                            (*type_object).tp_dictoffset = offset;
-                        }
-                        None => {}
-                    }
-                    match weaklist_offset {
-                        Some(PyObjectOffset::Absolute(offset)) => {
-                            (*type_object).tp_weaklistoffset = offset;
-                        }
-                        None => {}
-                    }
-                }));
-        }
         self
     }
 

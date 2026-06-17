@@ -43,12 +43,12 @@ We aim to provide straight-forward Rust wrappers resembling the file structure o
 We are continuously updating the module to match the latest CPython version which PyO3 supports (i.e. as of time of writing Python 3.13). The tracking issue is [#1289](https://github.com/PyO3/pyo3/issues/1289), and contribution is welcome.
 
 In the [`pyo3-ffi`] crate, there is lots of conditional compilation such as `#[cfg(Py_LIMITED_API)]`,
-`#[cfg(Py_3_8)]`, and `#[cfg(PyPy)]`.
+`#[cfg(Py_3_9)]`, and `#[cfg(PyPy)]`.
 `Py_LIMITED_API` corresponds to `#define Py_LIMITED_API` macro in Python/C API.
 With `Py_LIMITED_API`, we can build a Python-version-agnostic binary called an
 [abi3 wheel](https://pyo3.rs/latest/building-and-distribution.html#py_limited_apiabi3abi3t).
-`Py_3_8` means that the API is available from Python >= 3.8.
-There are also `Py_3_9`, `Py_3_10`, and so on.
+`Py_3_9` means that the API is available from Python >= 3.9.
+There are also `Py_3_10`, `Py_3_11`, and so on.
 `PyPy` means that the API definition is for PyPy.
 Those flags are set in [`build.rs`](#6-buildrs-and-pyo3-build-config).
 
@@ -145,7 +145,7 @@ actually supported.
 Some of the functionality of `pyo3-build-config`:
 
 - Find the interpreter for build and detect the Python version.
-  - We have to set some version flags like `#[cfg(Py_3_8)]`.
+  - We have to set some version flags like `#[cfg(Py_3_9)]`.
   - If the interpreter is PyPy, we set `#[cfg(PyPy)`.
   - If the `PYO3_CONFIG_FILE` environment variable is set then that file's contents will be used
     instead of any detected configuration.

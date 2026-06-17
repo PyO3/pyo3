@@ -56,8 +56,6 @@ fn main() {
         "pyo3/macros".to_string(),
         #[cfg(feature = "abi3")]
         "pyo3/abi3".to_string(),
-        #[cfg(feature = "abi3-py38")]
-        "pyo3/abi3-py38".to_string(),
         #[cfg(feature = "abi3-py39")]
         "pyo3/abi3-py39".to_string(),
         #[cfg(feature = "abi3-py310")]
@@ -104,11 +102,6 @@ fn main() {
         "base/src/lib.rs".into(),
         // similarly, just a component of `invalid_pymodule_in_root.rs`
         "empty.rs".into(),
-        // abi3-only tests only need to check when the feature is unsupported
-        #[cfg(any(not(Py_LIMITED_API), Py_3_9))]
-        "abi3_dict".into(),
-        #[cfg(any(not(Py_LIMITED_API), Py_3_9))]
-        "abi3_weakref".into(),
         #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
         "abi3_nativetype_inheritance".into(),
         #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
@@ -122,9 +115,6 @@ fn main() {
         // only needs to run on versions where `#[pyclass(immutable_type)]` is unsupported
         #[cfg(any(Py_3_14, all(Py_3_10, not(Py_LIMITED_API))))]
         "immutable_type.rs".into(),
-        // generic pyclasses only supported on 3.9+, doesn't fail gracefully on older versions
-        #[cfg(not(Py_3_9))]
-        "invalid_pyclass_generic.rs".into(),
         // an extra "note" is emitted on abi3
         #[cfg(any(not(Py_LIMITED_API), not(Py_3_12)))]
         "invalid_base_class.rs".into(),

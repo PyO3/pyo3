@@ -135,7 +135,7 @@ def test_rust(session: nox.Session):
 
         # We need to pass the feature set to the test command
         # so that it can be used in the test code
-        # (e.g. for `#[cfg(feature = "abi3-py38")]`)
+        # (e.g. for `#[cfg(feature = "abi3-py39")]`)
         _run_cargo_test(session, features=feature_set, extra_flags=flags)
 
         if feature_set is not None and "full" in feature_set:
@@ -153,13 +153,13 @@ def test_rust(session: nox.Session):
             and "abi3" in feature_set
             and "abi3t" not in feature_set
             and "full" in feature_set
-            and sys.version_info >= (3, 9)
+            and sys.version_info >= (3, 10)
             and sys.implementation.name != "pypy"
         ):
-            # run abi3-py38 tests to check abi3 forward compatibility
+            # run abi3-py39 tests to check abi3 forward compatibility
             _run_cargo_test(
                 session,
-                features=feature_set.replace("abi3", "abi3-py38"),
+                features=feature_set.replace("abi3", "abi3-py39"),
                 extra_flags=flags,
             )
 

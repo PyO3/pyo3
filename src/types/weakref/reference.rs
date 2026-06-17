@@ -57,14 +57,8 @@ impl PyWeakrefReference {
     /// Returns a `TypeError` if `object` is not weak referenceable (Most native types and PyClasses without `weakref` flag).
     ///
     /// # Examples
-    #[cfg_attr(
-        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
-        doc = "```rust,ignore"
-    )]
-    #[cfg_attr(
-        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
-        doc = "```rust"
-    )]
+    #[cfg_attr(not(feature = "macros"), doc = "```rust,ignore")]
+    #[cfg_attr(feature = "macros", doc = "```rust")]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;
     ///
@@ -105,14 +99,8 @@ impl PyWeakrefReference {
     /// Returns a `TypeError` if `object` is not weak referenceable (Most native types and PyClasses without `weakref` flag) or if the `callback` is not callable or None.
     ///
     /// # Examples
-    #[cfg_attr(
-        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
-        doc = "```rust,ignore"
-    )]
-    #[cfg_attr(
-        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
-        doc = "```rust"
-    )]
+    #[cfg_attr(not(feature = "macros"), doc = "```rust,ignore")]
+    #[cfg_attr(feature = "macros", doc = "```rust")]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefReference;
     ///
@@ -393,8 +381,7 @@ mod tests {
         }
     }
 
-    // under 'abi3-py38' PyClass cannot be weakreferencable.
-    #[cfg(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))))]
+    #[cfg(feature = "macros")]
     mod pyo3_pyclass {
         use super::*;
         use crate::{pyclass, Py};

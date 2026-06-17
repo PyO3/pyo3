@@ -7,10 +7,7 @@ use crate::internal_tricks::get_ssize_index;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
-#[cfg(all(
-    not(any(PyPy, GraalPy)),
-    any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)
-))]
+#[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
 use crate::BoundObject;
 use crate::{
     exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
@@ -26,10 +23,7 @@ use core::iter::FusedIterator;
 #[cfg(feature = "nightly")]
 use core::num::NonZero;
 
-#[cfg(all(
-    not(any(PyPy, GraalPy)),
-    any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)
-))]
+#[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
 use libc::size_t;
 
 #[inline]
@@ -668,7 +662,7 @@ macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
     where
         $($T: IntoPyObject<'py>,)+
     {
-        #[cfg(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API))))]
+        #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
         fn call(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -691,7 +685,7 @@ macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
             }
         }
 
-        #[cfg(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)))]
+        #[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
         fn call_positional(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -724,7 +718,7 @@ macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
             }
         }
 
-        #[cfg(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)))]
+        #[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
         fn call_method_positional(
             self,
             object: Borrowed<'_, 'py, PyAny>,
@@ -760,7 +754,7 @@ macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
 
         }
 
-        #[cfg(not(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API)))))]
+        #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
         fn call(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -770,7 +764,7 @@ macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
             self.into_pyobject_or_pyerr(function.py())?.call(function, kwargs, token)
         }
 
-        #[cfg(not(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12))))]
+        #[cfg(not(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12))))]
         fn call_positional(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -779,7 +773,7 @@ macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
             self.into_pyobject_or_pyerr(function.py())?.call_positional(function, token)
         }
 
-        #[cfg(not(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12))))]
+        #[cfg(not(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12))))]
         fn call_method_positional(
             self,
             object: Borrowed<'_, 'py, PyAny>,
@@ -795,7 +789,7 @@ macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
     where
         $(&'a $T: IntoPyObject<'py>,)+
     {
-        #[cfg(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API))))]
+        #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
         fn call(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -817,7 +811,7 @@ macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
             }
         }
 
-        #[cfg(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)))]
+        #[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
         fn call_positional(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -850,7 +844,7 @@ macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
             }
         }
 
-        #[cfg(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)))]
+        #[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
         fn call_method_positional(
             self,
             object: Borrowed<'_, 'py, PyAny>,
@@ -885,7 +879,7 @@ macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
             }
         }
 
-        #[cfg(not(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API)))))]
+        #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
         fn call(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -895,7 +889,7 @@ macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
             self.into_pyobject_or_pyerr(function.py())?.call(function, kwargs, token)
         }
 
-        #[cfg(not(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12))))]
+        #[cfg(not(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12))))]
         fn call_positional(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -904,7 +898,7 @@ macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
             self.into_pyobject_or_pyerr(function.py())?.call_positional(function, token)
         }
 
-        #[cfg(not(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12))))]
+        #[cfg(not(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12))))]
         fn call_method_positional(
             self,
             object: Borrowed<'_, 'py, PyAny>,
@@ -971,10 +965,7 @@ fn array_into_tuple<'py, const N: usize>(
 /// Add `PY_VECTORCALL_ARGUMENTS_OFFSET` to the given number, checking for overflow at compile time.
 ///
 /// Guarantees that we don't accidentally overflow a `size_t` should this get changed in the future.
-#[cfg(all(
-    not(any(PyPy, GraalPy)),
-    any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)
-))]
+#[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
 const fn with_vectorcall_arguments_offset(n: size_t) -> size_t {
     n.checked_add(ffi::PY_VECTORCALL_ARGUMENTS_OFFSET)
         .expect("overflow adding PY_VECTORCALL_ARGUMENTS_OFFSET")

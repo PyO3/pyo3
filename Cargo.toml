@@ -121,7 +121,6 @@ extension-module = ["pyo3-ffi/extension-module"]
 abi3 = ["pyo3-ffi/abi3"]
 
 # With abi3, we can manually set the minimum Python version.
-abi3-py38 = ["abi3-py39", "pyo3-ffi/abi3-py38"]
 abi3-py39 = ["abi3-py310", "pyo3-ffi/abi3-py39"]
 abi3-py310 = ["abi3-py311", "pyo3-ffi/abi3-py310"]
 abi3-py311 = ["abi3-py312", "pyo3-ffi/abi3-py311"]

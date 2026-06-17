@@ -65,11 +65,11 @@ pub trait PyFrameMethods<'py>: Sealed {
     fn line_number(&self) -> i32;
 
     /// Gets this frame's next outer frame if there is one
-    #[cfg(all(Py_3_9, not(Py_LIMITED_API)))]
+    #[cfg(not(Py_LIMITED_API))]
     fn outer(&self) -> Option<Bound<'py, PyFrame>>;
 
     /// Gets the frame code
-    #[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
     fn code(&self) -> Bound<'py, PyCode>;
 
     /// Gets the variable `name` of this frame.
@@ -97,7 +97,7 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
         unsafe { ffi::PyFrame_GetLineNumber(self.as_ptr().cast()) }
     }
 
-    #[cfg(all(Py_3_9, not(Py_LIMITED_API)))]
+    #[cfg(not(Py_LIMITED_API))]
     fn outer(&self) -> Option<Bound<'py, PyFrame>> {
         // SAFETY:
         // - we're attached to the interpreter
@@ -113,7 +113,7 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
         }
     }
 
-    #[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
     fn code(&self) -> Bound<'py, PyCode> {
         // SAFETY:
         // - we're attached to the interpreter
@@ -193,7 +193,6 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
 mod tests {
     use super::*;
 
-    #[cfg(Py_3_9)]
     fn get_frame(py: Python<'_>) -> Bound<'_, PyFrame> {
         use crate::types::PyAnyMethods as _;
 
@@ -228,7 +227,7 @@ def get_frame():
     }
 
     #[test]
-    #[cfg(all(Py_3_9, not(Py_LIMITED_API)))]
+    #[cfg(not(Py_LIMITED_API))]
     fn test_frame_outer() {
         Python::attach(|py| {
             use crate::types::PyAnyMethods as _;
@@ -264,7 +263,7 @@ def outer():
     }
 
     #[test]
-    #[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
     fn test_frame_get_code() {
         Python::attach(|py| {
             use crate::types::PyAnyMethods as _;

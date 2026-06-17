@@ -2935,24 +2935,6 @@ impl<'a> PyClassImplsBuilder<'a> {
             assertions.extend(quote_spanned! { cls.span() => #pyo3_path::impl_::pyclass::assert_pyclass_send_sync::<#cls>(); });
         };
 
-        if let Some(kw) = &attr.options.dict {
-            let pyo3_path = locate_tokens_at(pyo3_path.to_token_stream(), kw.span());
-            assertions.extend(quote_spanned! {
-                kw.span() =>
-                    const ASSERT_DICT_SUPPORTED: () = #pyo3_path::impl_::pyclass::assert_dict_supported();
-
-            });
-        }
-
-        if let Some(kw) = &attr.options.weakref {
-            let pyo3_path = locate_tokens_at(pyo3_path.to_token_stream(), kw.span());
-            assertions.extend(quote_spanned! {
-                kw.span() => {
-                    const ASSERT_WEAKREF_SUPPORTED: () = #pyo3_path::impl_::pyclass::assert_weakref_supported();
-                };
-            });
-        }
-
         if let Some(kw) = &attr.options.immutable_type {
             let pyo3_path = locate_tokens_at(pyo3_path.to_token_stream(), kw.span());
             assertions.extend(quote_spanned! {

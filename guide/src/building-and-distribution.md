@@ -19,7 +19,7 @@ By default it will attempt to use the following in order:
 - The `python` executable (if it's a Python 3 interpreter).
 - The `python3` executable.
 
-You can override the Python interpreter by setting the `PYO3_PYTHON` environment variable, e.g. `PYO3_PYTHON=python3.8`, `PYO3_PYTHON=/usr/bin/python3.9`, or even a PyPy interpreter `PYO3_PYTHON=pypy3`.
+You can override the Python interpreter by setting the `PYO3_PYTHON` environment variable, e.g. `PYO3_PYTHON=python3.9`, `PYO3_PYTHON=/usr/bin/python3.10`, or even a PyPy interpreter `PYO3_PYTHON=pypy3`.
 
 Once the Python interpreter is located, `pyo3-build-config` executes it to query the information in the `sysconfig` module which is needed to configure the rest of the compilation.
 
@@ -40,7 +40,6 @@ Caused by:
   cargo:rustc-check-cfg=cfg(GraalPy)
   cargo:rustc-check-cfg=cfg(RustPython)
   cargo:rustc-check-cfg=cfg(py_sys_config, values("Py_DEBUG", "Py_REF_DEBUG", "Py_TRACE_REFS", "COUNT_ALLOCS"))
-  cargo:rustc-check-cfg=cfg(Py_3_8)
   cargo:rustc-check-cfg=cfg(Py_3_9)
   cargo:rustc-check-cfg=cfg(Py_3_10)
   cargo:rustc-check-cfg=cfg(Py_3_11)
@@ -282,9 +281,9 @@ There are three steps involved in targeting `abi3` or `abi3t` when building Pyth
 
 #### Minimum Python version for `abi3` and `abi3t` builds
 
-Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py38`, `abi3-py39`, `abi3-py310` etc. to set the minimum required Python version for your `abi3` wheel.
-For example, if you set the `abi3-py38` feature, your wheel can be used on all Python 3 versions from Python 3.8 and up.
-`maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp38-abi3-manylinux2020_x86_64.whl`.
+Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py39`, `abi3-py310`, `abi3-py311` etc. to set the minimum required Python version for your `abi3` wheel.
+For example, if you set the `abi3-py39` feature, your wheel can be used on all Python 3 versions from Python 3.9 and up.
+`maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp39-abi3-manylinux2020_x86_64.whl`.
 
 Similarly, there is an `abi3t-py315` feature and future PyO3 versions will offer `abi3t-py316` and so on.
 
@@ -292,11 +291,11 @@ As your extension module may be run with multiple different Python versions you 
 See [the relevant section of this guide](./building-and-distribution/multiple-python-versions.md#checking-the-python-version-at-runtime) on supporting multiple Python versions at runtime.
 
 PyO3 is only able to link your extension module to abi3 version up to and including your host Python version.
-E.g., if you set `abi3-py39` and try to compile the crate with a host of Python 3.8, the build will fail.
+E.g., if you set `abi3-py310` and try to compile the crate with a host of Python 3.9, the build will fail.
 
 > [!NOTE]
 > If you set more that one of these `abi3` version feature flags the lowest version always wins.
-> For example, with both `abi3-py38` and `abi3-py39` set, PyO3 would build a wheel which supports Python 3.8 and up.
+> For example, with both `abi3-py39` and `abi3-py310` set, PyO3 would build a wheel which supports Python 3.9 and up.
 
 #### Building stable ABI extension modules without a Python interpreter
 
@@ -417,7 +416,7 @@ cargo build --target armv7-unknown-linux-gnueabihf
 If there are multiple python versions at the cross lib directory and you cannot set a more precise location to include both the `libpython` DSO and `_sysconfigdata*.py` files, you can set the required version:
 
 ```sh
-export PYO3_CROSS_PYTHON_VERSION=3.8
+export PYO3_CROSS_PYTHON_VERSION=3.9
 export PYO3_CROSS_LIB_DIR="/home/pyo3/cross/sysroot/usr/lib"
 
 cargo build --target armv7-unknown-linux-gnueabihf

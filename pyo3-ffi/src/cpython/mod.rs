@@ -28,7 +28,7 @@ pub(crate) mod lock;
 pub(crate) mod longintrepr;
 pub(crate) mod longobject;
 pub(crate) mod marshal;
-#[cfg(all(Py_3_9, not(PyPy)))]
+#[cfg(not(PyPy))]
 pub(crate) mod methodobject;
 pub(crate) mod object;
 pub(crate) mod objimpl;
@@ -77,7 +77,7 @@ pub use self::lock::*;
 pub use self::longintrepr::*;
 pub use self::longobject::*;
 pub use self::marshal::*;
-#[cfg(all(Py_3_9, not(PyPy)))]
+#[cfg(not(PyPy))]
 pub use self::methodobject::*;
 pub use self::object::*;
 pub use self::objimpl::*;

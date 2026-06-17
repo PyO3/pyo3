@@ -2,8 +2,6 @@ use crate::object::*;
 use crate::pyport::Py_ssize_t;
 #[cfg(not(any(PyPy, GraalPy)))]
 use core::ffi::c_char;
-#[cfg(not(Py_3_9))]
-use core::ffi::c_int;
 
 #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
 #[repr(C)]
@@ -12,10 +10,7 @@ pub struct PyByteArrayObject {
     pub ob_alloc: Py_ssize_t,
     pub ob_bytes: *mut c_char,
     pub ob_start: *mut c_char,
-    #[cfg(Py_3_9)]
     pub ob_exports: Py_ssize_t,
-    #[cfg(not(Py_3_9))]
-    pub ob_exports: c_int,
     #[cfg(Py_3_15)]
     pub ob_bytes_object: *mut PyObject,
 }

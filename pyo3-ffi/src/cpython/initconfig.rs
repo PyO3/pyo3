@@ -88,7 +88,7 @@ pub struct PyConfig {
     pub use_hash_seed: c_int,
     pub hash_seed: c_ulong,
     pub faulthandler: c_int,
-    #[cfg(all(Py_3_9, not(Py_3_10)))]
+    #[cfg(not(Py_3_10))]
     pub _use_peg_parser: c_int,
     pub tracemalloc: c_int,
     #[cfg(Py_3_12)]
@@ -99,8 +99,6 @@ pub struct PyConfig {
     #[cfg(Py_3_11)]
     pub code_debug_ranges: c_int,
     pub show_ref_count: c_int,
-    #[cfg(not(Py_3_9))]
-    pub show_alloc_count: c_int,
     pub dump_refs: c_int,
     #[cfg(Py_3_11)]
     pub dump_refs_file: *mut wchar_t,
@@ -177,7 +175,7 @@ pub struct PyConfig {
     pub base_prefix: *mut wchar_t,
     pub exec_prefix: *mut wchar_t,
     pub base_exec_prefix: *mut wchar_t,
-    #[cfg(all(Py_3_9, not(Py_3_10)))]
+    #[cfg(not(Py_3_10))]
     pub platlibdir: *mut wchar_t,
     pub skip_source_first_line: c_int,
     pub run_command: *mut wchar_t,
@@ -187,11 +185,11 @@ pub struct PyConfig {
     pub sys_path_0: *mut wchar_t,
     pub _install_importlib: c_int,
     pub _init_main: c_int,
-    #[cfg(all(Py_3_9, not(Py_3_12)))]
+    #[cfg(not(Py_3_12))]
     pub _isolated_interpreter: c_int,
     #[cfg(Py_3_11)]
     pub _is_python_build: c_int,
-    #[cfg(all(Py_3_9, not(Py_3_10)))]
+    #[cfg(not(Py_3_10))]
     pub _orig_argv: PyWideStringList,
     #[cfg(all(Py_3_13, py_sys_config = "Py_DEBUG"))]
     pub run_presite: *mut wchar_t,
