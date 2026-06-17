@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 //! Wrappers for the Python critical section API
 //!
 //! [Critical Sections](https://docs.python.org/3/c-api/init.html#python-critical-section-api) allow
