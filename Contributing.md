@@ -17,7 +17,7 @@ The following sections also contain specific ideas on where to start contributin
 
 ## AI Contributions
 
-We expect contributors using AI tools to respect the human effort required to handle contributions.
+We expect contributors using AI to respect the human effort required to handle contributions.
 This is includes pull requests, issues, comments, discussions, and any other interaction with the PyO3 community.
 See other projects such as FastAPI which describes "Human Effort Denial of Service" and LLVM's discussion of "Extractive Contributions".
 
