@@ -616,26 +616,23 @@ class C:
             }
 
             let small = 42_i32.into_pyobject(py).unwrap();
-            let (negative, compact, digits) = pylong_visit_digits(
-                small.as_any().as_borrowed(),
-                |negative, compact, digits| Ok((negative, compact, digits.map(<[u32]>::to_vec))),
-            )
-            .unwrap();
+            let (negative, compact, digits) =
+                pylong_visit_digits(small.as_any().as_borrowed(), |negative, compact, digits| {
+                    Ok((negative, compact, digits.map(<[u32]>::to_vec)))
+                })
+                .unwrap();
             assert!(!negative);
             assert_eq!(compact, 42);
             assert_eq!(digits, None);
 
-            let big = BigInt::new(
-                Sign::Minus,
-                vec![u32::MAX, 0x8000_0001, 0x1234_5678, 1],
-            )
-            .into_pyobject(py)
-            .unwrap();
-            let (negative, digits) = pylong_visit_digits(
-                big.as_any().as_borrowed(),
-                |negative, _, digits| Ok((negative, digits.map(<[u32]>::to_vec))),
-            )
-            .unwrap();
+            let big = BigInt::new(Sign::Minus, vec![u32::MAX, 0x8000_0001, 0x1234_5678, 1])
+                .into_pyobject(py)
+                .unwrap();
+            let (negative, digits) =
+                pylong_visit_digits(big.as_any().as_borrowed(), |negative, _, digits| {
+                    Ok((negative, digits.map(<[u32]>::to_vec)))
+                })
+                .unwrap();
             assert!(negative);
             let digits = digits.unwrap();
             assert_eq!(
