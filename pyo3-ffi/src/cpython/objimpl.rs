@@ -41,7 +41,7 @@ pub unsafe fn PyType_SUPPORTS_WEAKREFS(t: *mut PyTypeObject) -> c_int {
 #[inline]
 pub unsafe fn PyObject_GET_WEAKREFS_LISTPTR(o: *mut PyObject) -> *mut *mut PyObject {
     let weaklistoffset = (*Py_TYPE(o)).tp_weaklistoffset;
-    o.offset(weaklistoffset) as *mut *mut PyObject
+    (o as *mut u8).offset(weaklistoffset) as *mut *mut PyObject
 }
 
 // skipped PyUnstable_Object_GC_NewWithExtraData
