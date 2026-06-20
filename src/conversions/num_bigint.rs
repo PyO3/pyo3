@@ -122,9 +122,9 @@ macro_rules! bigint_conversion {
                         } else {
                             // SAFETY: `bits != 0` means the integer has at least one digit
                             let last = unsafe { digits.next_back().unwrap_unchecked() };
-                            let mut acc = 0_u64;
-                            let mut acc_bits = 0usize;
-                            let mut written = 0usize;
+                            let mut acc: u64 = 0_u64;
+                            let mut acc_bits: usize = 0;
+                            let mut written: usize = 0;
 
                             for digit in digits {
                                 acc |= u64::from(digit) << acc_bits;
@@ -356,8 +356,8 @@ fn int_from_pylong_digits(digits: &[u32]) -> Vec<u32> {
         })
         .unwrap_or(0);
 
-    let mut out = Vec::with_capacity(n_digits);
-    let ptr: *mut u32 = out.as_mut_ptr();
+    let mut py_digits = Vec::with_capacity(n_digits);
+    let ptr: *mut u32 = py_digits.as_mut_ptr();
 
     if let Some((&last, init)) = digits.split_last() {
         let mut acc = 0;
@@ -393,11 +393,11 @@ fn int_from_pylong_digits(digits: &[u32]) -> Vec<u32> {
 
         unsafe {
             // SAFETY: exactly `written` elements were initialized above
-            out.set_len(written);
+            py_digits.set_len(written);
         }
     }
 
-    out
+    py_digits
 }
 
 #[cfg(not(any(Py_LIMITED_API, Py_3_13)))]
