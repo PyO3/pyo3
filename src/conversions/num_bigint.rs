@@ -49,6 +49,10 @@
 //! assert n + 1 == value
 //! ```
 
+#[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+use crate::conversions::std::num::{
+    is_30bit_layout, pylong_from_digits, pylong_visit_digits, PYLONG_BITS_IN_DIGIT,
+};
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
@@ -67,7 +71,7 @@ use num_bigint::Sign;
 
 // for identical functionality between BigInt and BigUint
 macro_rules! bigint_conversion {
-    ($rust_ty: ty, $is_signed: literal) => {
+    ($rust_ty: ty, $is_signed: literal, $bits:path, $iter_u32_digits:path, $negative:expr) => {
         #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
         impl<'py> IntoPyObject<'py> for $rust_ty {
             type Target = PyInt;
@@ -94,6 +98,81 @@ macro_rules! bigint_conversion {
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 use num_traits::ToBytes;
+
+                #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+                {
+                    if is_30bit_layout() {
+                        const MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
+
+                        let bits: usize = $bits(self)
+                            .try_into()
+                            .expect(concat!(stringify!($rust_ty), " bit length fits in usize"));
+
+                        let py_digits_len = bits.div_ceil(PYLONG_BITS_IN_DIGIT).max(1);
+                        let mut py_digits = Vec::with_capacity(py_digits_len);
+                        let mut digits = $iter_u32_digits(self);
+                        let ptr: *mut u32 = py_digits.as_mut_ptr();
+
+                        if bits == 0 {
+                            unsafe {
+                                // SAFETY: `py_digits_len.max(1)` guarantees capacity for one elemetn
+                                ptr.write(0);
+                                py_digits.set_len(1);
+                            }
+                        } else {
+                            // SAFETY: `bits != 0` means the integer has at least one digit
+                            let last = unsafe { digits.next_back().unwrap_unchecked() };
+                            let mut acc = 0_u64;
+                            let mut acc_bits = 0usize;
+                            let mut written = 0usize;
+
+                            for digit in digits {
+                                acc |= u64::from(digit) << acc_bits;
+                                let new_bits = acc_bits + u32::BITS as usize;
+
+                                unsafe {
+                                    // SAFETY: the total number of writes is bounded by `py_digits_len`
+                                    ptr.add(written).write(acc as u32 & MASK);
+                                    written += 1;
+                                }
+                                acc >>= PYLONG_BITS_IN_DIGIT;
+
+                                if new_bits >= PYLONG_BITS_IN_DIGIT * 2 {
+                                    unsafe {
+                                        // SAFETY: same bound as above for the optional second digit
+                                        ptr.add(written).write(acc as u32 & (MASK));
+                                        written += 1;
+                                    }
+                                    acc >>= PYLONG_BITS_IN_DIGIT;
+                                    acc_bits = new_bits - PYLONG_BITS_IN_DIGIT * 2;
+                                } else {
+                                    acc_bits = new_bits - PYLONG_BITS_IN_DIGIT;
+                                }
+                            }
+
+                            acc |= u64::from(last) << acc_bits;
+                            while written < py_digits_len {
+                                unsafe {
+                                    // SAFETY: `written < py_digits_len <= capacity` by construction
+                                    ptr.add(written).write(acc as u32 & (MASK));
+                                    written += 1;
+                                }
+                                acc >>= PYLONG_BITS_IN_DIGIT;
+                            }
+
+                            unsafe {
+                                // SAFETY: exactly `written` elements were initialized above
+                                py_digits.set_len(written);
+                            }
+                        }
+
+                        return Ok(pylong_from_digits(
+                            py,
+                            $negative(self),
+                            py_digits.into_iter(),
+                        ));
+                    }
+                }
 
                 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
                 {
@@ -133,8 +212,20 @@ macro_rules! bigint_conversion {
     };
 }
 
-bigint_conversion!(BigUint, false);
-bigint_conversion!(BigInt, true);
+bigint_conversion!(
+    BigUint,
+    false,
+    BigUint::bits,
+    BigUint::iter_u32_digits,
+    |_| false
+);
+bigint_conversion!(
+    BigInt,
+    true,
+    BigInt::bits,
+    BigInt::iter_u32_digits,
+    |value: &BigInt| BigInt::sign(value) == Sign::Minus
+);
 
 #[cfg_attr(docsrs, doc(cfg(feature = "num-bigint")))]
 impl<'py> FromPyObject<'_, 'py> for BigInt {
@@ -154,6 +245,20 @@ impl<'py> FromPyObject<'_, 'py> for BigInt {
         };
         #[cfg(not(Py_LIMITED_API))]
         {
+            #[cfg(Py_3_14)]
+            if is_30bit_layout() {
+                return pylong_visit_digits(
+                    num.as_any().as_borrowed(),
+                    |negative, compact, digits| {
+                        let Some(digits) = digits else {
+                            return Ok(BigInt::from(compact));
+                        };
+                        let sign = if negative { Sign::Minus } else { Sign::Plus };
+                        Ok(BigInt::new(sign, int_from_pylong_digits(digits)))
+                    },
+                );
+            }
+
             let mut buffer = int_to_u32_vec::<true>(&num)?;
             let sign = if buffer.last().copied().is_some_and(|last| last >> 31 != 0) {
                 // BigInt::new takes an unsigned array, so need to convert from two's complement
@@ -206,6 +311,24 @@ impl<'py> FromPyObject<'_, 'py> for BigUint {
         };
         #[cfg(not(Py_LIMITED_API))]
         {
+            #[cfg(Py_3_14)]
+            if is_30bit_layout() {
+                return pylong_visit_digits(
+                    num.as_any().as_borrowed(),
+                    |negative, compact, digits| {
+                        if negative {
+                            return Err(crate::exceptions::PyValueError::new_err(
+                                "can't convert negative int to unsigned",
+                            ));
+                        }
+                        let Some(digits) = digits else {
+                            return Ok(BigUint::from(compact as u64));
+                        };
+                        Ok(BigUint::new(int_from_pylong_digits(digits)))
+                    },
+                );
+            }
+
             let buffer = int_to_u32_vec::<false>(&num)?;
             Ok(BigUint::new(buffer))
         }
@@ -219,6 +342,62 @@ impl<'py> FromPyObject<'_, 'py> for BigUint {
             Ok(BigUint::from_bytes_le(bytes.as_bytes()))
         }
     }
+}
+
+#[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+#[inline]
+fn int_from_pylong_digits(digits: &[u32]) -> Vec<u32> {
+    let n_digits = digits
+        .last()
+        .map(|last| {
+            ((digits.len() - 1) * PYLONG_BITS_IN_DIGIT
+                + (u32::BITS as usize - last.leading_zeros() as usize))
+                .div_ceil(u32::BITS as usize)
+        })
+        .unwrap_or(0);
+
+    let mut out = Vec::with_capacity(n_digits);
+    let ptr: *mut u32 = out.as_mut_ptr();
+
+    if let Some((&last, init)) = digits.split_last() {
+        let mut acc = 0;
+        let mut acc_bits = 0;
+        let mut written = 0;
+
+        for &digit in init {
+            acc |= u64::from(digit) << acc_bits;
+            let new_bits = acc_bits + PYLONG_BITS_IN_DIGIT;
+
+            if new_bits >= u32::BITS as usize {
+                unsafe {
+                    // SAFETY: the total number of writes is bounded by `n_digits`
+                    ptr.add(written).write(acc as u32);
+                    written += 1;
+                }
+                acc >>= u32::BITS;
+                acc_bits = new_bits - u32::BITS as usize;
+            } else {
+                acc_bits = new_bits;
+            }
+        }
+
+        acc |= u64::from(last) << acc_bits;
+        while written < n_digits {
+            unsafe {
+                // SAFETY: `written < n_digits <= capacity` by construction
+                ptr.add(written).write(acc as u32);
+                written += 1;
+            }
+            acc >>= u32::BITS;
+        }
+
+        unsafe {
+            // SAFETY: exactly `written` elements were initialized above
+            out.set_len(written);
+        }
+    }
+
+    out
 }
 
 #[cfg(not(any(Py_LIMITED_API, Py_3_13)))]
@@ -269,9 +448,7 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     }
     let n_bytes =
         unsafe { ffi::PyLong_AsNativeBytes(long.as_ptr().cast(), core::ptr::null_mut(), 0, flags) };
-    let n_bytes_unsigned: usize = n_bytes
-        .try_into()
-        .map_err(|_| crate::PyErr::fetch(long.py()))?;
+    let n_bytes_unsigned: usize = n_bytes.try_into().map_err(|_| PyErr::fetch(long.py()))?;
     if n_bytes == 0 {
         return Ok(buffer);
     }
@@ -465,7 +642,7 @@ class C:
     #[test]
     fn from_py_float_type_error() {
         Python::attach(|py| {
-            let obj = (12.3f64).into_pyobject(py).unwrap();
+            let obj = 12.3f64.into_pyobject(py).unwrap();
             let err = obj.extract::<BigInt>().unwrap_err();
             assert!(err.is_instance_of::<PyTypeError>(py));
 
