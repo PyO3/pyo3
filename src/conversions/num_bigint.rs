@@ -122,7 +122,7 @@ macro_rules! bigint_conversion {
                         } else {
                             // SAFETY: `bits != 0` means the integer has at least one digit
                             let last = unsafe { digits.next_back().unwrap_unchecked() };
-                            let mut acc: u64 = 0_u64;
+                            let mut acc: u64 = 0;
                             let mut acc_bits: usize = 0;
                             let mut written: usize = 0;
 
