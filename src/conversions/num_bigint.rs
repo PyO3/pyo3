@@ -505,7 +505,7 @@ fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::exceptions::{PyTypeError, PyValueError};
+    use crate::exceptions::PyTypeError;
     use crate::test_utils::generate_unique_module_name;
     use crate::types::{PyAnyMethods as _, PyDict, PyModule};
     use pyo3_ffi::c_str;
@@ -684,10 +684,10 @@ class C:
 
             let value = py.eval(c"-(1 << 130)", None, None).unwrap();
             let err = value.extract::<BigUint>().unwrap_err();
-            assert!(err.is_instance_of::<PyValueError>(py));
+            assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
             assert_eq!(
                 err.value(py).to_string(),
-                "ValueError: can't convert negative int to unsigned"
+                "can't convert negative int to unsigned"
             );
         });
     }
