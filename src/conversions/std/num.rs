@@ -393,11 +393,11 @@ impl Drop for ExportGuard {
 // Builds an int from an iterator of 30-bit digits
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[inline]
-pub(crate) fn pylong_from_digits<'py, I: ExactSizeIterator<Item = u32>>(
-    py: Python<'py>,
+pub(crate) fn pylong_from_digits<I: ExactSizeIterator<Item=u32>>(
+    py: Python<'_>,
     negative: bool,
     digits: I,
-) -> Bound<'py, PyInt> {
+) -> Bound<'_, PyInt> {
     let digits_len = digits.len();
     let mut ptr = core::ptr::null_mut();
     let writer = unsafe {
