@@ -505,7 +505,7 @@ fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::exceptions::PyTypeError;
+    use crate::exceptions::{PyTypeError, PyValueError};
     use crate::test_utils::generate_unique_module_name;
     use crate::types::{PyAnyMethods as _, PyDict, PyModule};
     use pyo3_ffi::c_str;
@@ -607,6 +607,44 @@ class C:
         })
     }
 
+    #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+    #[test]
+    fn pylong_export() {
+        Python::attach(|py| {
+            if !is_30bit_layout() {
+                return;
+            }
+
+            let small = 42_i32.into_pyobject(py).unwrap();
+            let (negative, compact, digits) = pylong_visit_digits(
+                small.as_any().as_borrowed(),
+                |negative, compact, digits| Ok((negative, compact, digits.map(<[u32]>::to_vec))),
+            )
+            .unwrap();
+            assert!(!negative);
+            assert_eq!(compact, 42);
+            assert_eq!(digits, None);
+
+            let big = BigInt::new(
+                Sign::Minus,
+                vec![u32::MAX, 0x8000_0001, 0x1234_5678, 1],
+            )
+            .into_pyobject(py)
+            .unwrap();
+            let (negative, digits) = pylong_visit_digits(
+                big.as_any().as_borrowed(),
+                |negative, _, digits| Ok((negative, digits.map(<[u32]>::to_vec))),
+            )
+            .unwrap();
+            assert!(negative);
+            let digits = digits.unwrap();
+            assert_eq!(
+                int_from_pylong_digits(&digits),
+                vec![u32::MAX, 0x8000_0001, 0x1234_5678, 1]
+            );
+        });
+    }
+
     /// `OverflowError` on converting Python int to BigInt, see issue #629
     #[test]
     fn check_overflow() {
@@ -636,6 +674,24 @@ class C:
                 test!(BigUint, (BigUint::from(1u32) << i) - 1u32, py);
                 test!(BigInt, (-BigInt::from(1) << i) - 1u32, py);
             }
+        });
+    }
+
+    #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+    #[test]
+    fn biguint_negative() {
+        Python::attach(|py| {
+            if !is_30bit_layout() {
+                return;
+            }
+
+            let value = py.eval(c"-(1 << 130)", None, None).unwrap();
+            let err = value.extract::<BigUint>().unwrap_err();
+            assert!(err.is_instance_of::<PyValueError>(py));
+            assert_eq!(
+                err.value(py).to_string(),
+                "ValueError: can't convert negative int to unsigned"
+            );
         });
     }
 
