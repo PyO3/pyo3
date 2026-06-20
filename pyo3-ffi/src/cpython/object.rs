@@ -318,7 +318,7 @@ pub struct PyHeapTypeObject {
 #[cfg(not(Py_3_11))]
 pub unsafe fn PyHeapType_GET_MEMBERS(etype: *mut PyHeapTypeObject) -> *mut PyMemberDef {
     let py_type = object::Py_TYPE(etype as *mut object::PyObject);
-    let ptr = (etype as *mut u8).offset((*py_type).tp_basicsize);
+    let ptr = etype.byte_offset((*py_type).tp_basicsize);
     ptr as *mut PyMemberDef
 }
 
