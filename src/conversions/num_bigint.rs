@@ -111,7 +111,7 @@ macro_rules! bigint_conversion {
                         let py_digits_len = bits.div_ceil(PYLONG_BITS_IN_DIGIT).max(1);
                         let mut py_digits = Vec::with_capacity(py_digits_len);
                         let mut digits = $iter_u32_digits(self);
-                        let ptr = py_digits.as_mut_ptr();
+                        let ptr: *mut u32 = py_digits.as_mut_ptr();
 
                         if bits == 0 {
                             unsafe {
@@ -357,7 +357,7 @@ fn int_from_pylong_digits(digits: &[u32]) -> Vec<u32> {
         .unwrap_or(0);
 
     let mut py_digits = Vec::with_capacity(n_digits);
-    let ptr = py_digits.as_mut_ptr();
+    let ptr: *mut u32 = py_digits.as_mut_ptr();
 
     if let Some((&last, init)) = digits.split_last() {
         let mut acc = 0;
