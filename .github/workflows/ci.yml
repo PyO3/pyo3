@@ -145,6 +145,29 @@ jobs:
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
 
+  check-nightly:
+    needs: [fmt]
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
+      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+      matrix:
+        target: ["x86_64-unknown-linux-gnu"]
+    name: check-nightly/${{ matrix.target }}/${{ matrix.rust }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+          components: clippy,rust-src
+      - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      - run: uvx nox -s check-all
+    env:
+      CARGO_BUILD_TARGET: ${{ matrix.target }}
+
   build-pr:
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && github.event_name == 'pull_request' }}
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
@@ -869,6 +892,7 @@ jobs:
       - fmt
       - check-msrv
       - clippy
+      - check-nightly
       - build-pr
       - build-full
       - valgrind
