@@ -467,7 +467,6 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "PyCode_New",
     "PyCode_NewWithPosOnlyArgs",
     "PyCFunction_New",
-    "PyObject_GET_WEAKREFS_LISTPTR",
     "PyFrame_BlockSetup",
     "PySys_AddWarnOption",
     "PySys_AddWarnOptionUnicode",
