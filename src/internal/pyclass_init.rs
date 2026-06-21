@@ -177,7 +177,7 @@ where
     }
 }
 
-/// Analagous to `Into<PyClassInitializer<T>>`, but just an internal equivalent
+/// Analogous to `Into<PyClassInitializer<T>>`, but just an internal equivalent
 /// to avoid allowing user code to define custom return types from `#[new]`.
 trait IntoPyClassInitializer<T: PyClass>: Sized {
     fn into_pyclass_initializer(self) -> PyClassInitializer<T>;

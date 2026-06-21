@@ -17,7 +17,7 @@
 //! until exiting the critical section unless the critical section is suspended. Any call into the
 //! CPython C API may cause the critical section to be suspended. Creating an inner critical
 //! section, for example by accessing an item in a Python list or dict, will cause the outer
-//! critical section to be relased while the inner critical section is active.
+//! critical section to be released while the inner critical section is active.
 //!
 //! As a consequence, it is only possible to lock one or two objects at a time. If you need two lock
 //! two objects, you should use the variants that accept two arguments. The outer critical section

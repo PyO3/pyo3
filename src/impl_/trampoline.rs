@@ -146,7 +146,7 @@ trampolines!(
     ) -> *mut ffi::PyObject;
 );
 
-/// "fastcall" method calls only avaible on abi3 in Python 3.10 and up, otherwise fall back to the older call convention.
+/// "fastcall" method calls only available on abi3 in Python 3.10 and up, otherwise fall back to the older call convention.
 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 pub use self::fastcall_cfunction_with_keywords as maybe_fastcall_cfunction_with_keywords;
 
@@ -230,7 +230,7 @@ pub unsafe extern "C" fn releasebufferproc<Meth: MethodDef<releasebufferproc::Fu
     slf: *mut ffi::PyObject,
     buf: *mut ffi::Py_buffer,
 ) {
-    // SAFETY: caller upholds rquirements
+    // SAFETY: caller upholds requirements
     unsafe { releasebufferproc::inner(slf, buf, Meth::METH) }
 }
 

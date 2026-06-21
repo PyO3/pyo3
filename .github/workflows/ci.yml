@@ -35,6 +35,8 @@ jobs:
         run: nox -s rumdl
       - name: Check `required-features` in Cargo.toml
         run: nox -s check-test-features
+      - name: Spell check
+        run: nox -s typos
 
   resolve:
     runs-on: ubuntu-latest

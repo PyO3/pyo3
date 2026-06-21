@@ -95,11 +95,11 @@ pub const fn escape_json_string(input: &str, output: &mut [u8]) -> usize {
                 output_i += 1;
                 output[output_i] = b'0' + (c / 16);
                 output_i += 1;
-                let remainer = c % 16;
-                output[output_i] = if remainer >= 10 {
-                    b'a' + remainer - 10
+                let remainder = c % 16;
+                output[output_i] = if remainder >= 10 {
+                    b'a' + remainder - 10
                 } else {
-                    b'0' + remainer
+                    b'0' + remainder
                 };
                 output_i += 1;
             }

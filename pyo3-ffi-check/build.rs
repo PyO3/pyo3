@@ -18,7 +18,7 @@ fn main() {
             "--document-private-items",
         ])
         .env("CARGO_TARGET_DIR", out_dir)
-        // forward target to the doc buid to ensure `--target` is honored
+        // forward target to the doc build to ensure `--target` is honored
         .env("CARGO_BUILD_TARGET", target)
         .status()
         .expect("failed to build definitions");

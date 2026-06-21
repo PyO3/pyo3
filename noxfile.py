@@ -42,7 +42,7 @@ try:
 except ImportError:
     requests = None
 
-nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "rumdl", "docs"]
+nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "rumdl", "docs", "typos"]
 
 PYO3_DIR = Path(__file__).parent
 PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).absolute()
@@ -245,6 +245,11 @@ def rumdl(session: nox.Session):
     _run(
         session, "uv", "run", "rumdl", "check", "guide", *session.posargs, external=True
     )
+
+
+@nox.session(name="typos", venv_backend="none")
+def typos(session: nox.Session):
+    _run(session, "uv", "run", "typos", *session.posargs, external=True)
 
 
 @nox.session(name="clippy", venv_backend="none")

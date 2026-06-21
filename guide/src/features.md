@@ -15,7 +15,7 @@ Extensions targeting the stable ABI defined by Python 3.X can be imported by any
 There are two "flavors" of stable ABI: `abi3`, supported on Python 3.2 and newer but *not* the free-threaded builds and `abi3t`, supported on Python 3.15 and newer for both the GIL-enabled and free-threaded builds of Python.
 PyO3 supports building extensions targeting both flavors of stable ABI.
 
-When PyO3 finds a "host" python interpreter and no `abi3` or `abi3t` feature is active, it will generate extensions targetting the version-specific ABI for the host Python version.
+When PyO3 finds a "host" python interpreter and no `abi3` or `abi3t` feature is active, it will generate extensions targeting the version-specific ABI for the host Python version.
 For example, when ``pip`` or ``uv`` installs a Python package that includes Rust dependencies that depend on PyO3, the host interpreter is the interpreter running ``pip`` or the interpreter from the activated ``uv`` environment.
 
 To build for the stable ABIs, you must activate an `abi3` and/or an `abi3t` feature.

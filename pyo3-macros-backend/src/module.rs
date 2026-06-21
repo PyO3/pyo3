@@ -544,7 +544,7 @@ fn module_initialization(
                 #pyo3_path::impl_::trampoline::module_exec(module, #module_exec)
             }
 
-            // The full slots, used for the PyModExport initializaiton
+            // The full slots, used for the PyModExport initialization
             static SLOTS: impl_::PyModuleSlots = impl_::PyModuleSlotsBuilder::new()
                 .with_mod_exec(__pyo3_module_exec)
                 .with_abi_info()
@@ -555,7 +555,7 @@ fn module_initialization(
 
             // Since the macros need to be written agnostic to the Python version
             // we need to explicitly pass the name and docstring for PyModuleDef
-            // initializaiton.
+            // initialization.
             impl_::ModuleDef::new(__PYO3_NAME, #doc, &SLOTS)
         };
     };
