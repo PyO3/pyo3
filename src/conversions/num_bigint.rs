@@ -69,6 +69,68 @@ use crate::PyTypeInfo;
 #[cfg(not(Py_LIMITED_API))]
 use num_bigint::Sign;
 
+#[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+struct PyLongDigitIter<I> {
+    digits: I,
+    acc: u64,
+    acc_bits: usize,
+    remaining: usize,
+}
+
+#[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+impl<I> Iterator for PyLongDigitIter<I>
+where
+    I: ExactSizeIterator<Item = u32>,
+{
+    type Item = u32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        const MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
+
+        if self.remaining == 0 {
+            return None;
+        }
+
+        while self.acc_bits < PYLONG_BITS_IN_DIGIT {
+            let Some(digit) = self.digits.next() else {
+                break;
+            };
+
+            self.acc |= u64::from(digit) << self.acc_bits;
+            self.acc_bits += u32::BITS as usize;
+        }
+
+        let digit = self.acc as u32 & MASK;
+        self.acc >>= PYLONG_BITS_IN_DIGIT;
+        self.acc_bits = self.acc_bits.saturating_sub(PYLONG_BITS_IN_DIGIT);
+        self.remaining -= 1;
+        Some(digit)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+#[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+impl<I> ExactSizeIterator for PyLongDigitIter<I> where I: ExactSizeIterator<Item = u32> {}
+
+#[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+#[inline]
+fn pylong_from_u32_digits<I>(py: Python, negative: bool, bits: usize, digits: I) -> Bound<PyInt>
+where
+    I: ExactSizeIterator<Item = u32>,
+{
+    let py_digits_len = bits.div_ceil(PYLONG_BITS_IN_DIGIT).max(1);
+    let digits = PyLongDigitIter {
+        digits,
+        acc: 0,
+        acc_bits: 0,
+        remaining: py_digits_len,
+    };
+    pylong_from_digits(py, negative, digits)
+}
+
 // for identical functionality between BigInt and BigUint
 macro_rules! bigint_conversion {
     ($rust_ty: ty, $is_signed: literal, $bits:path, $iter_u32_digits:path, $negative:expr) => {
@@ -102,74 +164,15 @@ macro_rules! bigint_conversion {
                 #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
                 {
                     if is_30bit_layout() {
-                        const MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
-
                         let bits: usize = $bits(self)
                             .try_into()
                             .expect(concat!(stringify!($rust_ty), " bit length fits in usize"));
 
-                        let py_digits_len = bits.div_ceil(PYLONG_BITS_IN_DIGIT).max(1);
-                        let mut py_digits = Vec::with_capacity(py_digits_len);
-                        let mut digits = $iter_u32_digits(self);
-                        let ptr: *mut u32 = py_digits.as_mut_ptr();
-
-                        if bits == 0 {
-                            unsafe {
-                                // SAFETY: `py_digits_len.max(1)` guarantees capacity for one elemetn
-                                ptr.write(0);
-                                py_digits.set_len(1);
-                            }
-                        } else {
-                            // SAFETY: `bits != 0` means the integer has at least one digit
-                            let last = unsafe { digits.next_back().unwrap_unchecked() };
-                            let mut acc: u64 = 0;
-                            let mut acc_bits: usize = 0;
-                            let mut written: usize = 0;
-
-                            for digit in digits {
-                                acc |= u64::from(digit) << acc_bits;
-                                let new_bits = acc_bits + u32::BITS as usize;
-
-                                unsafe {
-                                    // SAFETY: the total number of writes is bounded by `py_digits_len`
-                                    ptr.add(written).write(acc as u32 & MASK);
-                                    written += 1;
-                                }
-                                acc >>= PYLONG_BITS_IN_DIGIT;
-
-                                if new_bits >= PYLONG_BITS_IN_DIGIT * 2 {
-                                    unsafe {
-                                        // SAFETY: same bound as above for the optional second digit
-                                        ptr.add(written).write(acc as u32 & (MASK));
-                                        written += 1;
-                                    }
-                                    acc >>= PYLONG_BITS_IN_DIGIT;
-                                    acc_bits = new_bits - PYLONG_BITS_IN_DIGIT * 2;
-                                } else {
-                                    acc_bits = new_bits - PYLONG_BITS_IN_DIGIT;
-                                }
-                            }
-
-                            acc |= u64::from(last) << acc_bits;
-                            while written < py_digits_len {
-                                unsafe {
-                                    // SAFETY: `written < py_digits_len <= capacity` by construction
-                                    ptr.add(written).write(acc as u32 & (MASK));
-                                    written += 1;
-                                }
-                                acc >>= PYLONG_BITS_IN_DIGIT;
-                            }
-
-                            unsafe {
-                                // SAFETY: exactly `written` elements were initialized above
-                                py_digits.set_len(written);
-                            }
-                        }
-
-                        return Ok(pylong_from_digits(
+                        return Ok(pylong_from_u32_digits(
                             py,
                             $negative(self),
-                            py_digits.into_iter(),
+                            bits,
+                            $iter_u32_digits(self),
                         ));
                     }
                 }
