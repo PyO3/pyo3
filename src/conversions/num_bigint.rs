@@ -113,7 +113,14 @@ where
 }
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
-impl<I> ExactSizeIterator for PyLongDigitIter<I> where I: ExactSizeIterator<Item = u32> {}
+impl<I> ExactSizeIterator for PyLongDigitIter<I>
+where
+    I: ExactSizeIterator<Item = u32>,
+{
+    fn len(&self) -> usize {
+        self.remaining
+    }
+}
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
 #[inline]
