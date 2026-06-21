@@ -28,6 +28,9 @@ extern_libpython! {
     pub fn PyObject_SetArenaAllocator(allocator: *mut PyObjectArenaAllocator);
 
     pub fn PyObject_IS_GC(o: *mut PyObject) -> c_int;
+
+    #[cfg(not(any(PyPy, GraalPy)))]
+    pub fn PyObject_GET_WEAKREFS_LISTPTR(o: *mut PyObject) -> *mut *mut PyObject;
 }
 
 // skipped _PyObject_GC_Malloc
@@ -36,12 +39,6 @@ extern_libpython! {
 #[inline]
 pub unsafe fn PyType_SUPPORTS_WEAKREFS(t: *mut PyTypeObject) -> c_int {
     ((*t).tp_weaklistoffset > 0) as c_int
-}
-
-#[inline]
-pub unsafe fn PyObject_GET_WEAKREFS_LISTPTR(o: *mut PyObject) -> *mut *mut PyObject {
-    let weaklistoffset = (*Py_TYPE(o)).tp_weaklistoffset;
-    o.byte_offset(weaklistoffset) as *mut *mut PyObject
 }
 
 // skipped PyUnstable_Object_GC_NewWithExtraData
