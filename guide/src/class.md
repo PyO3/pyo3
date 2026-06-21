@@ -197,7 +197,7 @@ For arguments, see the [`Method arguments`](#method-arguments) section below.
 
 An initializer implements Python's `__init__` method.
 
-It may be required when it's needed to control an object initalization flow on the Rust code.
+It may be required when it's needed to control an object initialization flow on the Rust code.
 If possible handling this in `__new__` should be preferred, but in some cases, like subclassing native types, overwriting `__init__` might be necessary.
 For example, you define a class that extends `PyDict` and don't want that the original `__init__` method of `PyDict` been called.
 In this case by defining an own `__init__` method it's possible to stop initialization flow.
