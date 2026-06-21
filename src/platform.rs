@@ -1,4 +1,4 @@
-//! This module is to support platform compatiblity with `no_std` environments.
+//! This module is to support platform compatibility with `no_std` environments.
 #![allow(unused_imports)]
 
 #[cfg(feature = "hashbrown")]
