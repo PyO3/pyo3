@@ -1,4 +1,7 @@
 /// Polyfill of `cfg_select` for MSRV < 1.95
+///
+/// Note that this polyfill does not work in type position, so it is not as powerful as the
+/// real `cfg_select` macro. That is a limitation that PyO3 can live with for now.
 #[doc(hidden)]
 #[cfg(not(cfg_select))]
 macro_rules! cfg_select {
@@ -19,7 +22,7 @@ macro_rules! cfg_select {
         @parsed($($clauses:meta),*)
         $cfg:meta => $final_arm:expr $(,)?
     ) => {
-        #[cfg($cfg)]
+        #[cfg(all($cfg, not(any($($clauses),*))))]
         {
             $final_arm
         }
@@ -30,15 +33,15 @@ macro_rules! cfg_select {
         );
     };
 
+    // Non-terminating expression arm requires trailing comma
     (
         @parsed($($clauses:meta),*)
         $cfg:meta => $arm:expr, $($rest:tt)*
     ) => {
-        #[cfg($cfg)]
+        #[cfg(all($cfg, not(any($($clauses),*))))]
         {
             $arm
         }
-
 
         cfg_select! {
             @parsed($($clauses,)* $cfg)
@@ -46,13 +49,13 @@ macro_rules! cfg_select {
         }
     };
 
+    // Non-terminating block doesn't require trailing comma
     (
         @parsed($($clauses:meta),*)
         $cfg:meta => $arm:block $($rest:tt)*
     ) => {
-        #[cfg($cfg)]
+        #[cfg(all($cfg, not(any($($clauses),*))))]
         $arm
-
 
         cfg_select! {
             @parsed($($clauses,)* $cfg)
@@ -70,4 +73,18 @@ macro_rules! cfg_select {
             }
         }
     };
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[cfg(not(cfg_select))]
+    fn test_cfg_select_polyfill_short_circuit() {
+        cfg_select! {
+            all() => {},
+            all() => {
+                unreachable!("the first arm should be selected, so this arm should not be evaluated");
+            }
+        }
+    }
 }

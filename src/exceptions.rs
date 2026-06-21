@@ -1,6 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
-
 //! Exception and warning types defined by Python.
 //!
 //! The structs in this module represent Python's built-in exceptions and
@@ -280,7 +277,11 @@ macro_rules! impl_native_exception (
         pub struct $name($crate::PyAny);
 
         $crate::impl_exception_boilerplate!($name);
-        $crate::pyobject_native_type!($name, $layout, |_py| unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject }, "builtins", $python_name $(, #checkfunction=$checkfunction)?);
+        $crate::pyobject_native_type!($name, $layout, |_py| {
+            // SAFETY: cpython docs state that all exception types are available as global variables and are class objects
+            //         https://docs.python.org/3/c-api/exceptions.html#exception-and-warning-types
+            unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject }
+        }, "builtins", $python_name $(, #checkfunction=$checkfunction)?);
         $crate::pyobject_subclassable_native_type!($name, $layout);
     );
     ($name:ident, $exc_name:ident, $python_name:expr, $doc:expr) => (
@@ -730,6 +731,7 @@ impl PyUnicodeDecodeError {
     ) -> PyResult<Bound<'py, PyUnicodeDecodeError>> {
         use crate::ffi_ptr_ext::FfiPtrExt;
         use crate::py_result_ext::PyResultExt;
+        // SAFETY: calling python API with correct pointers
         unsafe {
             ffi::PyUnicodeDecodeError_Create(
                 encoding.as_ptr(),

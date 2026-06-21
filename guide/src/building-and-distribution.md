@@ -230,7 +230,7 @@ This makes binaries, tests, and examples "just work".
 However, Python extension modules on Unix must not link to libpython for [manylinux](https://www.python.org/dev/peps/pep-0513/) compliance.
 
 The downside of not linking to `libpython` is that binaries, tests, and examples (which usually embed Python) will fail to build.
-As a result, PyO3 uses an envionment variable `PYO3_BUILD_EXTENSION_MODULE` to disable linking to `libpython`.
+As a result, PyO3 uses an environment variable `PYO3_BUILD_EXTENSION_MODULE` to disable linking to `libpython`.
 This should only be set when building a library for distribution.
 `maturin >= 1.9.4` and `setuptools-rust >= 1.12` will set this for you automatically.
 
