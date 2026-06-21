@@ -124,7 +124,12 @@ where
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
 #[inline]
-fn pylong_from_u32_digits<I>(py: Python, negative: bool, bits: usize, digits: I) -> Bound<PyInt>
+fn pylong_from_u32_digits<I>(
+    py: Python<'_>,
+    negative: bool,
+    bits: usize,
+    digits: I,
+) -> Bound<'_, PyInt>
 where
     I: ExactSizeIterator<Item = u32>,
 {
