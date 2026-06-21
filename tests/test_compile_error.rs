@@ -161,7 +161,7 @@ fn main() {
         .insert("with-experimental-inspect", |parser, _args, span| {
             parser.set_custom_once(
                 "with-experimental-inspect",
-                SplitBuildOnExperimentalInpsect {
+                SplitBuildOnExperimentalInspect {
                     requires_inspect: true,
                 },
                 span,
@@ -172,7 +172,7 @@ fn main() {
         .insert("without-experimental-inspect", |parser, _args, span| {
             parser.set_custom_once(
                 "without-experimental-inspect",
-                SplitBuildOnExperimentalInpsect {
+                SplitBuildOnExperimentalInspect {
                     requires_inspect: false,
                 },
                 span,
@@ -280,11 +280,11 @@ fn bless_output_files_normalized(
 /// Some tests have different error messages when the `experimental-inspect` feature is
 /// enabled.
 #[derive(Clone, Debug)]
-struct SplitBuildOnExperimentalInpsect {
+struct SplitBuildOnExperimentalInspect {
     requires_inspect: bool,
 }
 
-impl ui_test::custom_flags::Flag for SplitBuildOnExperimentalInpsect {
+impl ui_test::custom_flags::Flag for SplitBuildOnExperimentalInspect {
     fn clone_inner(&self) -> Box<dyn ui_test::custom_flags::Flag> {
         Box::new(self.clone())
     }
