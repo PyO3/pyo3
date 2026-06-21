@@ -152,7 +152,7 @@ jobs:
       matrix:
         target: ["x86_64-unknown-linux-gnu"]
     name: check-nightly/${{ matrix.target }}/${{ matrix.rust }}
-    continue-on-error: ${{ matrix.rust != 'stable' }}
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v6.0.3
       - uses: dtolnay/rust-toolchain@nightly
