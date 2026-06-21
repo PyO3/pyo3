@@ -678,10 +678,6 @@ class C:
     #[test]
     fn biguint_negative() {
         Python::attach(|py| {
-            if !is_30bit_layout() {
-                return;
-            }
-
             let value = py.eval(c"-(1 << 130)", None, None).unwrap();
             let err = value.extract::<BigUint>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
