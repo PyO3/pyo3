@@ -249,9 +249,7 @@ def rumdl(session: nox.Session):
 
 @nox.session(name="typos", venv_backend="none")
 def typos(session: nox.Session):
-    _run(
-        session, "uv", "run", "typos", *session.posargs, external=True
-    )
+    _run(session, "uv", "run", "typos", *session.posargs, external=True)
 
 
 @nox.session(name="clippy", venv_backend="none")
