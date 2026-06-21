@@ -211,7 +211,7 @@ macro_rules! wrap_pymodule {
 ///
 /// Use it before [`Python::initialize`](crate::marker::Python::initialize) and
 /// leave feature `auto-initialize` off
-#[cfg(not(any(PyPy, GraalPy, all(Py_LIMITED_API, Py_GIL_DISABLED))))]
+#[cfg(not(any(PyPy, GraalPy)))]
 #[macro_export]
 macro_rules! append_to_inittab {
     ($module:ident) => {
@@ -221,9 +221,14 @@ macro_rules! append_to_inittab {
                     "called `append_to_inittab` but a Python interpreter is already running."
                 );
             }
+
+            unsafe extern "C" fn initfunc() -> *mut $crate::ffi::PyObject {
+                $module::_PYO3_DEF.initfunc()
+            }
+
             $crate::ffi::PyImport_AppendInittab(
                 $module::__PYO3_NAME.as_ptr(),
-                ::core::option::Option::Some($module::__pyo3_init),
+                ::core::option::Option::Some(initfunc),
             );
         }
     };
