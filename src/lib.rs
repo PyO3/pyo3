@@ -437,6 +437,8 @@ pub mod marshal;
 #[macro_use]
 pub mod sync;
 pub(crate) mod byteswriter;
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
+pub mod init_config;
 pub mod panic;
 pub mod pybacked;
 pub mod pycell;
