@@ -1,6 +1,7 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+use crate::platform::prelude::*;
 use core::{ffi::CStr, marker::PhantomData};
 use std::thread::{self, ThreadId};
 

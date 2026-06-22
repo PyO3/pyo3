@@ -8,6 +8,7 @@
 use core::{any::Any, ffi::c_int, panic::UnwindSafe};
 
 use crate::internal::state::AttachGuard;
+use crate::platform::prelude::*;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput, impl_::panic::PanicTrap,
     panic::PanicException, types::PyModule, Bound, PyResult, Python,

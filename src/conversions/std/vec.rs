@@ -3,6 +3,7 @@
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
+use crate::platform::prelude::*;
 use crate::{
     conversion::{FromPyObject, FromPyObjectOwned, FromPyObjectSequence, IntoPyObject},
     exceptions::PyTypeError,
@@ -95,6 +96,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::conversion::IntoPyObject;
+    use crate::platform::prelude::*;
     use crate::types::{PyAnyMethods, PyBytes, PyBytesMethods, PyList};
     use crate::Python;
 

@@ -1,6 +1,7 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+use crate::platform::prelude::*;
 use core::ptr::NonNull;
 
 #[cfg(feature = "experimental-inspect")]
@@ -1021,6 +1022,7 @@ fn push_parameter_list(msg: &mut String, parameter_names: &[&str]) {
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::prelude::*;
     use crate::types::{IntoPyDict, PyTuple};
     use crate::Python;
 

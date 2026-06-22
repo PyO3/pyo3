@@ -1,6 +1,8 @@
 use crate::exceptions::PyUnicodeDecodeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+#[allow(unused_imports, reason = "conditionally used")]
+use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::PyString;

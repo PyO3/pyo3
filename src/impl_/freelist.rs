@@ -9,6 +9,7 @@
 //! [1]: https://en.wikipedia.org/wiki/Free_list
 
 use crate::ffi;
+use crate::platform::prelude::*;
 use core::ptr::NonNull;
 
 /// A free allocation list for PyObject ffi pointers.

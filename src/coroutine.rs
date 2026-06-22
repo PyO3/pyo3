@@ -10,6 +10,7 @@ use core::{
 
 use pyo3_macros::{pyclass, pymethods};
 
+use crate::platform::prelude::*;
 use crate::{
     coroutine::{cancel::ThrowCallback, waker::AsyncioWaker},
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
