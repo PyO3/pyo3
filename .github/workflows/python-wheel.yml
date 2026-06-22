@@ -26,6 +26,7 @@ jobs:
           args: --release --out dist --compatibility pypi
           manylinux: auto
           working-directory: pyo3-introspection
+      - uses: astral-sh/setup-uv@v8.1.0
       - run: uvx twine check pyo3-introspection/dist/*
       - uses: actions/upload-artifact@v7
         with:
@@ -51,6 +52,7 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --compatibility pypi
           working-directory: pyo3-introspection
+      - uses: astral-sh/setup-uv@v8.1.0
       - run: uvx twine check pyo3-introspection/dist/*
       - uses: actions/upload-artifact@v7
         with:
@@ -73,6 +75,7 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --compatibility pypi
           working-directory: pyo3-introspection
+      - uses: astral-sh/setup-uv@v8.1.0
       - run: uvx twine check pyo3-introspection/dist/*
       - uses: actions/upload-artifact@v7
         with:
@@ -88,6 +91,7 @@ jobs:
           command: sdist
           args: --out dist
           working-directory: pyo3-introspection
+      - uses: astral-sh/setup-uv@v8.1.0
       - run: uvx twine check pyo3-introspection/dist/*
       - uses: actions/upload-artifact@v7
         with:
