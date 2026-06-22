@@ -278,7 +278,7 @@ macro_rules! impl_native_exception (
 
         $crate::impl_exception_boilerplate!($name);
         $crate::pyobject_native_type!($name, $layout, |_py| {
-            // SAFETY: cpython docs state that all exception types are available as global variales and are class objects
+            // SAFETY: cpython docs state that all exception types are available as global variables and are class objects
             //         https://docs.python.org/3/c-api/exceptions.html#exception-and-warning-types
             unsafe { $crate::ffi::$exc_name as *mut $crate::ffi::PyTypeObject }
         }, "builtins", $python_name $(, #checkfunction=$checkfunction)?);
@@ -949,6 +949,7 @@ pub mod socket {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
     use crate::types::any::PyAnyMethods;
     use crate::types::{IntoPyDict, PyDict};
     use crate::{IntoPyObjectExt as _, PyErr};

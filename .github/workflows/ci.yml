@@ -35,6 +35,8 @@ jobs:
         run: nox -s rumdl
       - name: Check `required-features` in Cargo.toml
         run: nox -s check-test-features
+      - name: Spell check
+        run: nox -s typos
 
   resolve:
     runs-on: ubuntu-latest
@@ -140,6 +142,29 @@ jobs:
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s clippy-all
+    env:
+      CARGO_BUILD_TARGET: ${{ matrix.target }}
+
+  check-nightly:
+    needs: [fmt]
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
+      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+      matrix:
+        target: ["x86_64-unknown-linux-gnu"]
+    name: check-nightly/${{ matrix.target }}/${{ matrix.rust }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+          components: clippy,rust-src
+      - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      - run: uvx nox -s check-all
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
 
@@ -850,6 +875,7 @@ jobs:
       - fmt
       - check-msrv
       - clippy
+      - check-nightly
       - build-pr
       - build-full
       - valgrind

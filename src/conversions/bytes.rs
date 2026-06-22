@@ -70,6 +70,8 @@ use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 use crate::instance::Bound;
+#[allow(unused_imports, reason = "used to build docs")]
+use crate::platform::prelude::*;
 use crate::pybacked::PyBackedBytes;
 use crate::types::PyBytes;
 #[cfg(feature = "experimental-inspect")]

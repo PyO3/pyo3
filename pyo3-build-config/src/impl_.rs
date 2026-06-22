@@ -3982,7 +3982,7 @@ mod tests {
             .build_flags(flags)
             .finalize()
             .unwrap();
-        // build flags win due to backward compatbility (abi3 feature is a no-op on ft builds)
+        // build flags win due to backward compatibility (abi3 feature is a no-op on ft builds)
         assert!(config.target_abi.kind() == PythonAbiKind::VersionSpecific(GilUsed::FreeThreaded));
 
         // The reconciliation is order-independent: build_flags first, then stable_abi(Abi3)

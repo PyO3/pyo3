@@ -174,6 +174,7 @@ impl<T> UnknownReturnType<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
 
     #[test]
     fn wrap_option() {

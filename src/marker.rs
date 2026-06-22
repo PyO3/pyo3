@@ -118,7 +118,7 @@
 //!
 //! [`SendWrapper`]: https://docs.rs/send_wrapper/latest/send_wrapper/struct.SendWrapper.html
 //! [`Rc`]: alloc::rc::Rc
-//! [`Py`]: crate::Py
+//! [`Py`]: Py
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyResult};
 use crate::internal::state::{AttachGuard, SuspendAttach};
@@ -286,10 +286,11 @@ mod nightly {
 
         impl !Ungil for crate::ffi::PyThreadState {}
         impl !Ungil for crate::ffi::PyInterpreterState {}
+        #[cfg(not(any(PyPy, GraalPy)))]
         impl !Ungil for crate::ffi::PyWeakReference {}
         impl !Ungil for crate::ffi::PyFrameObject {}
         impl !Ungil for crate::ffi::PyCodeObject {}
-        #[cfg(not(Py_LIMITED_API))]
+        #[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
         impl !Ungil for crate::ffi::PyDictKeysObject {}
         #[cfg(not(any(Py_LIMITED_API, Py_3_10)))]
         impl !Ungil for crate::ffi::PyArena {}
@@ -800,6 +801,7 @@ impl<'unbound> Python<'unbound> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
     use crate::{
         internal::state::ForbidAttaching,
         types::{IntoPyDict, PyList},

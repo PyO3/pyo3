@@ -185,6 +185,7 @@ impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefReference> {
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::prelude::*;
     use crate::types::any::{PyAny, PyAnyMethods};
     use crate::types::weakref::{PyWeakrefMethods, PyWeakrefReference};
     use crate::{Bound, PyResult, Python};
