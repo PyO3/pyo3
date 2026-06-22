@@ -246,33 +246,49 @@ extern_libpython! {
     pub fn PyInitConfig_Create() -> *mut PyInitConfig;
     pub fn PyInitConfig_Free(config: *mut PyInitConfig);
 
-    pub fn PyInitConfig_GetError(config: *mut PyInitConfig, err_message: *mut *const c_char) -> c_int;
+    pub fn PyInitConfig_GetError(
+        config: *mut PyInitConfig,
+        err_message: *mut *const c_char,
+    ) -> c_int;
     pub fn PyInitConfig_GetExitCode(config: *mut PyInitConfig, exitcode: *mut c_int) -> c_int;
 
     pub fn PyInitConfig_HasOption(config: *mut PyInitConfig, name: *const c_char) -> c_int;
-    pub fn PyInitConfig_GetInt(config: *mut PyInitConfig, name: *const c_char, value: *mut u64) -> c_int;
-    pub fn PyInitConfig_GetStr(config: *mut PyInitConfig, name: *const c_char, value: *mut *mut c_char) -> c_int;
+    pub fn PyInitConfig_GetInt(
+        config: *mut PyInitConfig,
+        name: *const c_char,
+        value: *mut u64,
+    ) -> c_int;
+    pub fn PyInitConfig_GetStr(
+        config: *mut PyInitConfig,
+        name: *const c_char,
+        value: *mut *mut c_char,
+    ) -> c_int;
     pub fn PyInitConfig_GetStrList(
         config: *mut PyInitConfig,
         name: *const c_char,
         length: *mut usize,
-        items: *mut *mut *mut c_char
+        items: *mut *mut *mut c_char,
     ) -> c_int;
     pub fn PyInitConfig_FreeStrList(length: usize, items: *mut *mut c_char);
 
-    pub fn PyInitConfig_SetInt(config: *mut PyInitConfig, name: *const c_char, value: u64) -> c_int;
-    pub fn PyInitConfig_SetStr(config: *mut PyInitConfig, name: *const c_char, value: *const c_char) -> c_int;
+    pub fn PyInitConfig_SetInt(config: *mut PyInitConfig, name: *const c_char, value: u64)
+        -> c_int;
+    pub fn PyInitConfig_SetStr(
+        config: *mut PyInitConfig,
+        name: *const c_char,
+        value: *const c_char,
+    ) -> c_int;
     pub fn PyInitConfig_SetStrList(
         config: *mut PyInitConfig,
         name: *const c_char,
         length: usize,
-        items: *mut *const c_char
+        items: *mut *const c_char,
     ) -> c_int;
 
     pub fn PyInitConfig_AddModule(
         config: *mut PyInitConfig,
         name: *const c_char,
-        initfunc: extern "C" fn() -> *mut PyObject
+        initfunc: extern "C" fn() -> *mut PyObject,
     ) -> c_int;
 
     pub fn Py_InitializeFromInitConfig(config: *mut PyInitConfig) -> c_int;
