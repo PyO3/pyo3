@@ -1,3 +1,5 @@
+//! This module holds the [`InitConfig`] struct, see struct level docs for more detail.
+
 use core::ffi::{c_char, c_int, CStr};
 use core::fmt::Display;
 use core::iter::FusedIterator;
@@ -13,6 +15,11 @@ use pyo3_ffi::{
     PyInitConfig_SetStrList, PyObject,
 };
 
+/// Holds configuration that can be used to initialized the python interpreter.
+///
+/// [Here][1] is a list of configuration options.
+///
+/// [1]: https://docs.python.org/3/c-api/init_config.html#configuration-options
 pub struct InitConfig(*mut crate::ffi::PyInitConfig);
 
 impl Default for InitConfig {
@@ -33,13 +40,20 @@ impl Drop for InitConfig {
 }
 
 impl InitConfig {
+    /// Initializes the python interpreter from the configuration. On success it returns the exit code
+    /// requested by the interpreter, if present.
+    ///
+    /// # Panic
+    /// Panics if the interpreter is already initialized.
     pub fn initialize(self) -> Result<Option<c_int>, InitConfigError> {
+        // SAFETY: points to a valid config object
         let result = unsafe { crate::interpreter_lifecycle::initialize_from_config(self.0) }
             .expect("python interpreter is already initialized");
         match result {
             0 => Ok(None),
             -1 => {
                 let mut exitcode = 0;
+                // SAFETY: pointers are valid
                 let result = unsafe { PyInitConfig_GetExitCode(self.0, &raw mut exitcode) };
                 match result {
                     0 => Err(self.get_err()),
@@ -51,46 +65,72 @@ impl InitConfig {
         }
     }
 
+    /// Check if the configuation has an option called `name`.
     pub fn has_option(&self, name: &CStr) -> bool {
+        // SAFETY: pointers are valid
         (unsafe { PyInitConfig_HasOption(self.0, name.as_ptr()) }) == 1
     }
 
+    /// Get an integer configuration option.
     pub fn get_int(&self, name: &CStr) -> Result<u64, InitConfigError> {
         let mut value = 1;
-        self.check_error(unsafe { PyInitConfig_GetInt(self.0, name.as_ptr(), &raw mut value) })?;
+        self.check_error(
+            // SAFETY: pointers are valid
+            unsafe { PyInitConfig_GetInt(self.0, name.as_ptr(), &raw mut value) },
+        )?;
         Ok(value)
     }
 
+    /// Get a string configuration option.
     pub fn get_str(&self, name: &CStr) -> Result<Option<StringOption>, InitConfigError> {
         let mut value = ptr::null_mut();
-        self.check_error(unsafe { PyInitConfig_GetStr(self.0, name.as_ptr(), &raw mut value) })?;
+        self.check_error(
+            // SAFETY: pointers are valid
+            unsafe { PyInitConfig_GetStr(self.0, name.as_ptr(), &raw mut value) },
+        )?;
         Ok(NonNull::new(value).map(StringOption))
     }
 
+    /// Get a string list configuration option.
     pub fn get_str_list(&self, name: &CStr) -> Result<StringListOption, InitConfigError> {
         let mut length = 0;
         let mut items = ptr::null_mut();
-        self.check_error(unsafe {
-            PyInitConfig_GetStrList(self.0, name.as_ptr(), &raw mut length, &raw mut items)
-        })?;
+        self.check_error(
+            // SAFETY: pointers are valid
+            unsafe {
+                PyInitConfig_GetStrList(self.0, name.as_ptr(), &raw mut length, &raw mut items)
+            },
+        )?;
         Ok(StringListOption {
             length,
             items: NonNull::new(items).unwrap(),
         })
     }
 
+    /// Set an integer configuration option.
     pub fn set_int(&self, name: &CStr, value: u64) -> Result<(), InitConfigError> {
-        self.check_error(unsafe { PyInitConfig_SetInt(self.0, name.as_ptr(), value) })
+        self.check_error(
+            // SAFETY: pointers are valid
+            unsafe { PyInitConfig_SetInt(self.0, name.as_ptr(), value) },
+        )
     }
 
+    /// Set a string configuration option.
     pub fn set_str(&self, name: &CStr, value: &CStr) -> Result<(), InitConfigError> {
-        self.check_error(unsafe { PyInitConfig_SetStr(self.0, name.as_ptr(), value.as_ptr()) })
+        self.check_error(
+            // SAFETY: pointers are valid
+            unsafe { PyInitConfig_SetStr(self.0, name.as_ptr(), value.as_ptr()) },
+        )
     }
 
+    /// Set a string list configuration option.
     pub fn set_str_list(&self, name: &CStr, items: &[&CStr]) -> Result<(), InitConfigError> {
-        self.check_error(unsafe {
-            PyInitConfig_SetStrList(self.0, name.as_ptr(), items.len(), items.as_ptr() as _)
-        })
+        self.check_error(
+            // SAFETY: pointers are valid
+            unsafe {
+                PyInitConfig_SetStrList(self.0, name.as_ptr(), items.len(), items.as_ptr() as _)
+            },
+        )
     }
 
     #[doc(hidden)]
@@ -99,7 +139,10 @@ impl InitConfig {
         name: &CStr,
         initfunc: extern "C" fn() -> *mut PyObject,
     ) -> Result<(), InitConfigError> {
-        self.check_error(unsafe { PyInitConfig_AddModule(self.0, name.as_ptr(), initfunc) })
+        self.check_error(
+            // SAFETY: pointers are valid
+            unsafe { PyInitConfig_AddModule(self.0, name.as_ptr(), initfunc) },
+        )
     }
 
     #[track_caller]
@@ -115,15 +158,18 @@ impl InitConfig {
     fn get_err(&self) -> InitConfigError {
         let mut err_message: *const c_char = ptr::null();
         assert_eq!(
+            // SAFETY: pointers are valid
             (unsafe { PyInitConfig_GetError(self.0, &raw mut err_message) }),
             1,
             "PyInitConfig error message not set"
         );
+        // SAFETY: error message is a null terminated UTF-8 string
         let err_message = unsafe { CStr::from_ptr(err_message).to_str().unwrap_unchecked() };
         InitConfigError(err_message.into())
     }
 }
 
+/// Error type when [`InitConfig`] methods fail
 #[derive(Debug)]
 pub struct InitConfigError(Box<str>);
 
@@ -136,6 +182,8 @@ impl Display for InitConfigError {
 
 impl core::error::Error for InitConfigError {}
 
+/// A string option for python configuration, returned by [`InitConfig::get_str`].
+// NOTE: this cannot use a string because the memory needs to be freed with [`libc::free`]
 pub struct StringOption(NonNull<c_char>);
 
 impl Deref for StringOption {
@@ -155,6 +203,7 @@ impl Drop for StringOption {
     }
 }
 
+/// A list of strings for a python configuration option, returned by [`InitConfig::get_str_list`].
 pub struct StringListOption {
     length: usize,
     items: NonNull<*mut c_char>,
@@ -189,12 +238,15 @@ impl<'a> IntoIterator for &'a StringListOption {
 }
 
 impl StringListOption {
+    /// Get a string from the list. Returns [`None`] if index is out of bounds.
     #[inline]
     pub fn get(&self, index: usize) -> Option<&str> {
         if index >= self.length {
             None
         } else {
             let array_ptr = self.items.as_ptr();
+            // SAFETY: PyInitConfig_GetStrList returns an array of null terminated UTF-8 strings
+            //         and we just checked if the index is out of bounds.
             Some(unsafe {
                 let item_ptr = *array_ptr.add(index);
                 CStr::from_ptr(item_ptr).to_str().unwrap_unchecked()
@@ -202,6 +254,7 @@ impl StringListOption {
         }
     }
 
+    /// Iterate over the list of strings
     #[inline]
     pub fn iter(&self) -> StringListOptionIterator {
         StringListOptionIterator {
@@ -211,6 +264,7 @@ impl StringListOption {
     }
 }
 
+/// Iterator for [`StringListOption`]
 pub struct StringListOptionIterator<'a> {
     list: &'a StringListOption,
     current: usize,

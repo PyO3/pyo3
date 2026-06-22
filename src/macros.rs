@@ -229,6 +229,11 @@ macro_rules! append_to_inittab {
     };
 }
 
+/// Add the module to the configuration so that the embedded intepreter intialized from this config
+/// can use it. First argument is the config, second is the module name.
+///
+/// Call [`InitConfig::initialize`](crate::init_config::InitConfig::initialize) instead of
+/// [`Python::initialize`](crate::marker::Python::initialize) and leave feature `auto-initialize` off.
 #[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
 #[macro_export]
 macro_rules! add_module_to_init_config {
