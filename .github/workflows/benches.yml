@@ -17,7 +17,7 @@ jobs:
   benchmarks:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: astral-sh/setup-uv@v7
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
