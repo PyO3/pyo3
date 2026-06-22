@@ -256,7 +256,7 @@ impl StringListOption {
 
     /// Iterate over the list of strings
     #[inline]
-    pub fn iter(&self) -> StringListOptionIterator {
+    pub fn iter(&self) -> StringListOptionIterator<'_> {
         StringListOptionIterator {
             list: self,
             current: 0,
