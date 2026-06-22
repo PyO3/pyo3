@@ -228,3 +228,11 @@ macro_rules! append_to_inittab {
         }
     };
 }
+
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
+#[macro_export]
+macro_rules! add_module_to_init_config {
+    ($config:expr, $module:ident) => {
+        ($config).add_module($module::__PYO3_NAME, $module::__pyo3_init)
+    };
+}
