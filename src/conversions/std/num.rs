@@ -357,10 +357,10 @@ int_convert_u64_or_i64!(
     true
 );
 
-#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 pub(crate) const PYLONG_BITS_IN_DIGIT: usize = 30;
 
-#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 pub(crate) fn is_30bit_layout() -> bool {
     static DIGITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
 
@@ -381,10 +381,10 @@ pub(crate) fn is_30bit_layout() -> bool {
     })
 }
 
-#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 struct ExportGuard(ffi::PyLongExport);
 
-#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 impl Drop for ExportGuard {
     fn drop(&mut self) {
         unsafe { ffi::PyLong_FreeExport(&mut self.0) };
@@ -392,7 +392,7 @@ impl Drop for ExportGuard {
 }
 
 // Builds an int from an iterator of 30-bit digits
-#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 #[inline]
 pub(crate) fn pylong_from_digits<'py, I: ExactSizeIterator<Item = u32>>(
     py: Python<'py>,
@@ -417,7 +417,7 @@ pub(crate) fn pylong_from_digits<'py, I: ExactSizeIterator<Item = u32>>(
 }
 
 // Visits 30-bit digits LSB-first and deals with freeing the export
-#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 #[inline]
 pub(crate) fn pylong_visit_digits<R>(
     obj: Borrowed<'_, '_, PyAny>,
@@ -445,7 +445,7 @@ pub(crate) fn pylong_visit_digits<R>(
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_15))]
 mod fast_128bit_int_conversion {
     use super::*;
 
@@ -628,7 +628,7 @@ pub(crate) fn int_from_le_bytes<'py, const IS_SIGNED: bool>(
     }
 }
 
-#[cfg(all(Py_3_13, not(Py_LIMITED_API)))]
+#[cfg(any(all(Py_3_13, not(Py_LIMITED_API)), Py_3_15))]
 pub(crate) fn int_from_ne_bytes<'py, const IS_SIGNED: bool>(
     py: Python<'py>,
     bytes: &[u8],
@@ -651,7 +651,7 @@ pub(crate) fn nb_index<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyIn
 }
 
 // For ABI3 we implement the conversion manually.
-#[cfg(Py_LIMITED_API)]
+#[cfg(all(Py_LIMITED_API, not(Py_3_15)))]
 mod slow_128bit_int_conversion {
     use super::*;
     use crate::types::any::PyAnyMethods as _;
