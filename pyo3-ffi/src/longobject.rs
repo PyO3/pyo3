@@ -1,5 +1,7 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
+use crate::Py_uintptr_t;
 use core::ffi::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
 use libc::size_t;
 
@@ -142,4 +144,51 @@ extern_libpython! {
 extern_libpython! {
     pub fn PyOS_strtoul(arg1: *const c_char, arg2: *mut *mut c_char, arg3: c_int) -> c_ulong;
     pub fn PyOS_strtol(arg1: *const c_char, arg2: *mut *mut c_char, arg3: c_int) -> c_long;
+}
+
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct PyLongLayout {
+    pub bits_per_digit: u8,
+    pub digit_size: u8,
+    pub digits_order: i8,
+    pub digit_endianness: i8,
+}
+
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
+extern_libpython! {
+    pub fn PyLong_GetNativeLayout() -> *const PyLongLayout;
+}
+
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
+#[repr(C)]
+pub struct PyLongExport {
+    pub value: i64,
+    pub negative: u8,
+    pub ndigits: Py_ssize_t,
+    pub digits: *const c_void,
+    _reserved: Py_uintptr_t,
+}
+
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
+extern_libpython! {
+    pub fn PyLong_Export(obj: *mut PyObject, export_long: *mut PyLongExport) -> c_int;
+    pub fn PyLong_FreeExport(export_long: *mut PyLongExport);
+}
+
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
+opaque_struct!(pub PyLongWriter);
+
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
+extern_libpython! {
+    pub fn PyLongWriter_Create(
+        negative: c_int,
+        ndigits: Py_ssize_t,
+        digits: *mut *mut c_void,
+    ) -> *mut PyLongWriter;
+
+    pub fn PyLongWriter_Finish(writer: *mut PyLongWriter) -> *mut PyObject;
+
+    pub fn PyLongWriter_Discard(writer: *mut PyLongWriter);
 }
