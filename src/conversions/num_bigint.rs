@@ -62,7 +62,10 @@ use crate::{
     FromPyObject, PyAny, PyErr, PyResult, Python,
 };
 
-use num_bigint::{BigInt, BigUint, Sign};
+use num_bigint::{BigInt, BigUint};
+
+#[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+use num_bigint::Sign;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
