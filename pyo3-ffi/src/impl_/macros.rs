@@ -257,21 +257,21 @@ macro_rules! extern_libpython {
     ($abi:literal { $($body:tt)* }) => {
         extern_libpython!(@impl $abi { $($body)* }
             // abi3
-            "python3", "python3_d",
+            "python3", "python3_d", "libpython3", "libpython3_d",
             // abi3t
-            "python3t", "python3t_d",
+            "python3t", "python3t_d", "libpython3t", "libpython3t_d",
             // Python 3.9 - 3.15
-            "python39", "python39_d",
-            "python310", "python310_d",
-            "python311", "python311_d",
-            "python312", "python312_d",
-            "python313", "python313_d",
-            "python314", "python314_d",
-            "python315", "python315_d",
+            "python39", "python39_d", "libpython3.9", "libpython3.9_d",
+            "python310", "python310_d", "libpython3.10", "libpython3.10_d",
+            "python311", "python311_d", "libpython3.11", "libpython3.11_d",
+            "python312", "python312_d", "libpython3.12", "libpython3.12_d",
+            "python313", "python313_d", "libpython3.13", "libpython3.13_d",
+            "python314", "python314_d", "libpython3.14", "libpython3.14_d",
+            "python315", "python315_d", "libpython3.15", "libpython3.15_d",
             // free-threaded builds (3.13+)
-            "python313t", "python313t_d",
-            "python314t", "python314t_d",
-            "python315t", "python315t_d",
+            "python313t", "python313t_d", "libpython3.13t", "libpython3.13t_d",
+            "python314t", "python314t_d", "libpython3.14t", "libpython3.14t_d",
+            "python315t", "python315t_d", "libpython3.15t", "libpython3.15t_d",
             // PyPy (DLL is libpypy3.X-c.dll, not pythonXY.dll)
             "libpypy3.11-c",
         );

@@ -171,13 +171,21 @@ pub fn print_expected_cfgs() {
         "python3_d".to_string(),
         "python3t".to_string(),
         "python3t_d".to_string(),
+        "libpython3".to_string(),
+        "libpython3_d".to_string(),
+        "libpython3t".to_string(),
+        "libpython3t_d".to_string(),
     ];
     for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
         dll_names.push(format!("python3{i}"));
         dll_names.push(format!("python3{i}_d"));
+        dll_names.push(format!("libpython3.{i}"));
+        dll_names.push(format!("libpython3.{i}_d"));
         if i >= 13 {
             dll_names.push(format!("python3{i}t"));
             dll_names.push(format!("python3{i}t_d"));
+            dll_names.push(format!("libpython3.{i}t"));
+            dll_names.push(format!("libpython3.{i}t_d"));
         }
     }
     // PyPy DLL names (libpypy3.X-c.dll)
