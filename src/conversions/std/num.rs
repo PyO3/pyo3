@@ -430,19 +430,17 @@ pub(crate) fn pylong_visit_digits<R>(
             ffi::PyLong_Export(obj.as_ptr(), long_export.as_mut_ptr()),
         )?;
     }
-    let export_guard = ExportGuard(unsafe { long_export.assume_init() });
-    let long_export_ref = &export_guard.0;
-    let value = long_export_ref.value;
-    if long_export_ref.digits.is_null() {
-        let negative = long_export_ref.value < 0;
-        f(negative, value, None)
-    } else {
-        let negative = long_export_ref.negative != 0;
-        let n_digits = long_export_ref.ndigits as usize;
-        let ptr = long_export_ref.digits.cast::<u32>();
-        let digits = unsafe { core::slice::from_raw_parts(ptr, n_digits) };
-        f(negative, value, Some(digits))
+    let long_export = unsafe { long_export.assume_init() };
+    let ptr = long_export.digits.cast::<u32>();
+
+    if ptr.is_null() {
+        return f(long_export.value < 0, long_export.value, None);
     }
+
+    // `PyLong_FreeExport` is a no-op when digits is NULL (no reference held)
+    let export_guard = ExportGuard(long_export);
+    let digits = unsafe { core::slice::from_raw_parts(ptr, export_guard.0.ndigits as usize) };
+    f(export_guard.0.negative != 0, 0, Some(digits))
 }
 
 #[cfg(any(not(Py_LIMITED_API), Py_3_15))]
