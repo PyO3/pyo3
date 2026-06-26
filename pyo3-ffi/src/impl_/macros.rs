@@ -257,23 +257,23 @@ macro_rules! extern_libpython {
     ($abi:literal { $($body:tt)* }) => {
         extern_libpython!(@impl $abi { $($body)* }
             // abi3
-            "python3", "python3_d",
+            "python3.dll", "python3_d.dll", "libpython3.dll", "libpython3_d.dll",
             // abi3t
-            "python3t", "python3t_d",
+            "python3t.dll", "python3t_d.dll", "libpython3t.dll", "libpython3t_d.dll",
             // Python 3.9 - 3.15
-            "python39", "python39_d",
-            "python310", "python310_d",
-            "python311", "python311_d",
-            "python312", "python312_d",
-            "python313", "python313_d",
-            "python314", "python314_d",
-            "python315", "python315_d",
+            "python39.dll", "python39_d.dll", "libpython39.dll", "libpython39_d.dll",
+            "python310.dll", "python310_d.dll", "libpython310.dll", "libpython310_d.dll",
+            "python311.dll", "python311_d.dll", "libpython311.dll", "libpython311_d.dll",
+            "python312.dll", "python312_d.dll", "libpython312.dll", "libpython312_d.dll",
+            "python313.dll", "python313_d.dll", "libpython313.dll", "libpython313_d.dll",
+            "python314.dll", "python314_d.dll", "libpython314.dll", "libpython314_d.dll",
+            "python315.dll", "python315_d.dll", "libpython315.dll", "libpython315_d.dll",
             // free-threaded builds (3.13+)
-            "python313t", "python313t_d",
-            "python314t", "python314t_d",
-            "python315t", "python315t_d",
+            "python313t.dll", "python313t_d.dll", "libpython313t.dll", "libpython313t_d.dll",
+            "python314t.dll", "python314t_d.dll", "libpython314t.dll", "libpython314t_d.dll",
+            "python315t.dll", "python315t_d.dll", "libpython315t.dll", "libpython315t_d.dll",
             // PyPy (DLL is libpypy3.X-c.dll, not pythonXY.dll)
-            "libpypy3.11-c",
+            "libpypy3.11-c.dll",
         );
     };
     // Internal: generate cfg_attr for each DLL name. One of these will be selected
@@ -287,9 +287,9 @@ macro_rules! extern_libpython {
     (@impl $abi:literal { $($body:tt)* } $($dll:literal),* $(,)?) => {
         $(
             #[cfg_attr(all(windows, target_arch = "x86", pyo3_dll = $dll),
-                link(name = $dll, kind = "raw-dylib", import_name_type = "undecorated"))]
+                link(name = $dll, kind = "raw-dylib", modifiers = "+verbatim", import_name_type = "undecorated"))]
             #[cfg_attr(all(windows, not(target_arch = "x86"), pyo3_dll = $dll),
-                link(name = $dll, kind = "raw-dylib"))]
+                link(name = $dll, kind = "raw-dylib", modifiers = "+verbatim"))]
         )*
         extern $abi {
             extern_libpython_items! { $($body)* }

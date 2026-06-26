@@ -2314,6 +2314,9 @@ fn default_lib_name_for_target(abi: PythonAbi, target: &Triple) -> String {
 }
 
 fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<String> {
+    // set `lib` prefix for mingw, as its python abi library is shipped prefixed
+    let lib_prefix = if mingw { "lib" } else { "" };
+
     if abi.implementation.is_pypy() {
         // PyPy on Windows ships `libpypy3.X-c.dll` (e.g. `libpypy3.11-c.dll`),
         // not CPython's `pythonXY.dll`. With raw-dylib linking we need the real
@@ -2326,8 +2329,8 @@ fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<
         // CPython bug: linking against python3_d.dll raises error
         // https://github.com/python/cpython/issues/101614
         Ok(format!(
-            "python{}{}_d",
-            abi.version.major, abi.version.minor
+            "{}python{}{}_d",
+            lib_prefix, abi.version.major, abi.version.minor
         ))
     } else if abi.kind == PythonAbiKind::Stable(StableAbi::Abi3)
         || abi.kind == PythonAbiKind::Stable(StableAbi::Abi3t)
@@ -2340,14 +2343,17 @@ fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<
         if abi.kind == PythonAbiKind::Stable(StableAbi::Abi3t) {
             lib_name = lib_name.replace("python3", "python3t");
         }
-        Ok(lib_name)
+        Ok(format!("{}{}", lib_prefix, lib_name))
     } else if mingw {
         ensure!(
             !abi.kind.is_free_threaded(),
             "MinGW free-threaded builds are not currently tested or supported"
         );
         // https://packages.msys2.org/base/mingw-w64-python
-        Ok(format!("python{}.{}", abi.version.major, abi.version.minor))
+        Ok(format!(
+            "{}python{}.{}",
+            lib_prefix, abi.version.major, abi.version.minor
+        ))
     } else if abi.kind().is_free_threaded() {
         #[expect(deprecated, reason = "using constant internally")]
         {
@@ -2355,19 +2361,25 @@ fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<
         }
         if debug {
             Ok(format!(
-                "python{}{}t_d",
-                abi.version.major, abi.version.minor
+                "{}python{}{}t_d",
+                lib_prefix, abi.version.major, abi.version.minor
             ))
         } else {
-            Ok(format!("python{}{}t", abi.version.major, abi.version.minor))
+            Ok(format!(
+                "{}python{}{}t",
+                lib_prefix, abi.version.major, abi.version.minor
+            ))
         }
     } else if debug {
         Ok(format!(
-            "python{}{}_d",
-            abi.version.major, abi.version.minor
+            "{}python{}{}_d",
+            lib_prefix, abi.version.major, abi.version.minor
         ))
     } else {
-        Ok(format!("python{}{}", abi.version.major, abi.version.minor))
+        Ok(format!(
+            "{}python{}{}",
+            lib_prefix, abi.version.major, abi.version.minor
+        ))
     }
 }
 
@@ -3290,7 +3302,7 @@ mod tests {
                 false,
             )
             .unwrap(),
-            "python3.9",
+            "libpython3.9",
         );
         assert_eq!(
             super::default_lib_name_windows(
@@ -3302,7 +3314,7 @@ mod tests {
                 false,
             )
             .unwrap(),
-            "python3",
+            "libpython3",
         );
         assert_eq!(
             super::default_lib_name_windows(
