@@ -1366,12 +1366,8 @@ def _check_raw_dylib_macro(session: nox.Session):
     expected_dlls = {
         "python3",
         "python3_d",
-        "python3t",
-        "python3t_d",
         "libpython3",
         "libpython3_d",
-        "libpython3t",
-        "libpython3t_d",
     }
     for minor in range(min_minor, max_minor + 1):
         expected_dlls.add(f"python3{minor}")
