@@ -30,7 +30,7 @@ use portable_atomic::AtomicI64;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
-#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+#[cfg(any(not(all(Py_LIMITED_API, Py_GIL_DISABLED)), Py_3_15))]
 use crate::internal_tricks::array_ptr_as_mut;
 use crate::prelude::PyTypeMethods;
 use crate::{
