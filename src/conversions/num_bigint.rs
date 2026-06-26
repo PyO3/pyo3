@@ -49,7 +49,7 @@
 //! assert n + 1 == value
 //! ```
 
-#[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 use crate::conversions::std::num::{
     is_30bit_layout, pylong_from_digits, pylong_visit_digits, PYLONG_BITS_IN_DIGIT,
 };
@@ -71,7 +71,7 @@ use crate::PyTypeInfo;
 #[cfg(not(Py_LIMITED_API))]
 use num_bigint::Sign;
 
-#[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 struct PyLongDigitIter<I> {
     digits: I,
     acc: u64,
@@ -79,7 +79,7 @@ struct PyLongDigitIter<I> {
     remaining: usize,
 }
 
-#[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 impl<I> Iterator for PyLongDigitIter<I>
 where
     I: ExactSizeIterator<Item = u32>,
@@ -114,7 +114,7 @@ where
     }
 }
 
-#[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 impl<I> ExactSizeIterator for PyLongDigitIter<I>
 where
     I: ExactSizeIterator<Item = u32>,
@@ -124,7 +124,7 @@ where
     }
 }
 
-#[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 #[inline]
 fn pylong_from_u32_digits<I>(
     py: Python<'_>,
@@ -361,7 +361,7 @@ impl<'py> FromPyObject<'_, 'py> for BigUint {
     }
 }
 
-#[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+#[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 #[inline]
 fn int_from_pylong_digits(digits: &[u32]) -> Vec<u32> {
     let n_digits = digits
