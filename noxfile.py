@@ -1392,7 +1392,7 @@ def _check_raw_dylib_macro(session: nox.Session):
 
     # Parse the DLL name list in the extern_libpython!(@impl ...) invocation
     lib_rs = (PYO3_DIR / "pyo3-ffi" / "src" / "impl_" / "macros.rs").read_text()
-    found_dlls = set(re.findall(r'"((?:python|libpypy)[^"]+)"', lib_rs))
+    found_dlls = set(re.findall(r'"((?:python|libpython|libpypy)[^"]+)"', lib_rs))
 
     missing = expected_dlls - found_dlls
     extra = found_dlls - expected_dlls
