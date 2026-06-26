@@ -231,7 +231,8 @@ macro_rules! extern_libpython_items {
 /// Helper macro to declare `extern` blocks that link against libpython on Windows
 /// using `raw-dylib`, eliminating the need for import libraries.
 ///
-/// The build script sets a `pyo3_dll` cfg value to the target DLL name (e.g. `python312`),
+/// The build script sets a `pyo3_dll` cfg value to the raw-dylib link name
+/// (e.g. `python312` or `libpython3.12`),
 /// and this macro expands to the appropriate `#[link(name = "...", kind = "raw-dylib")]`
 /// attribute for that DLL.
 ///
@@ -257,23 +258,23 @@ macro_rules! extern_libpython {
     ($abi:literal { $($body:tt)* }) => {
         extern_libpython!(@impl $abi { $($body)* }
             // abi3
-            "python3.dll", "python3_d.dll", "libpython3.dll", "libpython3_d.dll",
+            "python3", "python3_d", "libpython3", "libpython3_d",
             // abi3t
-            "python3t.dll", "python3t_d.dll", "libpython3t.dll", "libpython3t_d.dll",
+            "python3t", "python3t_d", "libpython3t", "libpython3t_d",
             // Python 3.9 - 3.15
-            "python39.dll", "python39_d.dll", "libpython39.dll", "libpython39_d.dll",
-            "python310.dll", "python310_d.dll", "libpython310.dll", "libpython310_d.dll",
-            "python311.dll", "python311_d.dll", "libpython311.dll", "libpython311_d.dll",
-            "python312.dll", "python312_d.dll", "libpython312.dll", "libpython312_d.dll",
-            "python313.dll", "python313_d.dll", "libpython313.dll", "libpython313_d.dll",
-            "python314.dll", "python314_d.dll", "libpython314.dll", "libpython314_d.dll",
-            "python315.dll", "python315_d.dll", "libpython315.dll", "libpython315_d.dll",
+            "python39", "python39_d", "libpython3.9", "libpython39_d",
+            "python310", "python310_d", "libpython3.10",
+            "python311", "python311_d", "libpython3.11",
+            "python312", "python312_d", "libpython3.12",
+            "python313", "python313_d", "libpython3.13",
+            "python314", "python314_d", "libpython3.14",
+            "python315", "python315_d", "libpython3.15",
             // free-threaded builds (3.13+)
-            "python313t.dll", "python313t_d.dll", "libpython313t.dll", "libpython313t_d.dll",
-            "python314t.dll", "python314t_d.dll", "libpython314t.dll", "libpython314t_d.dll",
-            "python315t.dll", "python315t_d.dll", "libpython315t.dll", "libpython315t_d.dll",
+            "python313t", "python313t_d",
+            "python314t", "python314t_d",
+            "python315t", "python315t_d",
             // PyPy (DLL is libpypy3.X-c.dll, not pythonXY.dll)
-            "libpypy3.11-c.dll",
+            "libpypy3.11-c",
         );
     };
     // Internal: generate cfg_attr for each DLL name. One of these will be selected
@@ -287,9 +288,9 @@ macro_rules! extern_libpython {
     (@impl $abi:literal { $($body:tt)* } $($dll:literal),* $(,)?) => {
         $(
             #[cfg_attr(all(windows, target_arch = "x86", pyo3_dll = $dll),
-                link(name = $dll, kind = "raw-dylib", modifiers = "+verbatim", import_name_type = "undecorated"))]
+                link(name = $dll, kind = "raw-dylib", import_name_type = "undecorated"))]
             #[cfg_attr(all(windows, not(target_arch = "x86"), pyo3_dll = $dll),
-                link(name = $dll, kind = "raw-dylib", modifiers = "+verbatim"))]
+                link(name = $dll, kind = "raw-dylib"))]
         )*
         extern $abi {
             extern_libpython_items! { $($body)* }

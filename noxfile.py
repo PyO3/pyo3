@@ -1362,28 +1362,26 @@ def _check_raw_dylib_macro(session: nox.Session):
     min_minor = int(min_version.split(".")[1])
     max_minor = int(max_version.split(".")[1])
 
-    # Build the set of DLL names that default_lib_name_windows can produce
+    # Build the set of raw-dylib link names that default_lib_name_windows can produce
     expected_dlls = {
-        "python3.dll",
-        "python3_d.dll",
-        "libpython3.dll",
-        "libpython3_d.dll",
+        "python3",
+        "python3_d",
+        "python3t",
+        "python3t_d",
+        "libpython3",
+        "libpython3_d",
+        "libpython3t",
+        "libpython3t_d",
     }
     for minor in range(min_minor, max_minor + 1):
-        expected_dlls.add(f"python3{minor}.dll")
-        expected_dlls.add(f"python3{minor}_d.dll")
-        expected_dlls.add(f"libpython3{minor}.dll")
-        expected_dlls.add(f"libpython3{minor}_d.dll")
+        expected_dlls.add(f"python3{minor}")
+        expected_dlls.add(f"python3{minor}_d")
+        expected_dlls.add(f"libpython3.{minor}")
+        if minor == 9:
+            expected_dlls.add("libpython39_d")
         if minor >= 13:
-            expected_dlls.add(f"python3{minor}t.dll")
-            expected_dlls.add(f"python3{minor}t_d.dll")
-            expected_dlls.add(f"libpython3{minor}t.dll")
-            expected_dlls.add(f"libpython3{minor}t_d.dll")
-        if minor >= 15:
-            expected_dlls.add("python3t.dll")
-            expected_dlls.add("python3t_d.dll")
-            expected_dlls.add("libpython3t.dll")
-            expected_dlls.add("libpython3t_d.dll")
+            expected_dlls.add(f"python3{minor}t")
+            expected_dlls.add(f"python3{minor}t_d")
 
     # PyPy DLL names (libpypy3.X-c.dll)
     pypy_min, pypy_max = _parse_supported_interpreter_version("pypy")

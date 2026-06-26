@@ -167,32 +167,32 @@ pub fn print_expected_cfgs() {
 
     // pyo3_dll cfg for raw-dylib linking on Windows
     let mut dll_names = vec![
-        "python3.dll".to_string(),
-        "python3_d.dll".to_string(),
-        "python3t.dll".to_string(),
-        "python3t_d.dll".to_string(),
-        "libpython3.dll".to_string(),
-        "libpython3_d.dll".to_string(),
-        "libpython3t.dll".to_string(),
-        "libpython3t_d.dll".to_string(),
+        "python3".to_string(),
+        "python3_d".to_string(),
+        "python3t".to_string(),
+        "python3t_d".to_string(),
+        "libpython3".to_string(),
+        "libpython3_d".to_string(),
+        "libpython3t".to_string(),
+        "libpython3t_d".to_string(),
     ];
     for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
-        dll_names.push(format!("python3{i}.dll"));
-        dll_names.push(format!("python3{i}_d.dll"));
-        dll_names.push(format!("libpython3{i}.dll"));
-        dll_names.push(format!("libpython3{i}_d.dll"));
+        dll_names.push(format!("python3{i}"));
+        dll_names.push(format!("python3{i}_d"));
+        dll_names.push(format!("libpython3.{i}"));
+        if i == 9 {
+            dll_names.push("libpython39_d".to_string());
+        }
         if i >= 13 {
-            dll_names.push(format!("python3{i}t.dll"));
-            dll_names.push(format!("python3{i}t_d.dll"));
-            dll_names.push(format!("libpython3{i}t.dll"));
-            dll_names.push(format!("libpython3{i}t_d.dll"));
+            dll_names.push(format!("python3{i}t"));
+            dll_names.push(format!("python3{i}t_d"));
         }
     }
     // PyPy DLL names (libpypy3.X-c.dll)
     for i in
         impl_::MINIMUM_SUPPORTED_VERSION_PYPY.minor..=impl_::MAXIMUM_SUPPORTED_VERSION_PYPY.minor
     {
-        dll_names.push(format!("libpypy3.{i}-c.dll"));
+        dll_names.push(format!("libpypy3.{i}-c"));
     }
     let values = dll_names
         .iter()

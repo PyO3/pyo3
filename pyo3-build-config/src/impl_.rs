@@ -2302,7 +2302,12 @@ const WINDOWS_STABLE_ABI_DEBUG_LIB_NAME: &str = "python3_d";
 #[allow(dead_code)]
 fn default_lib_name_for_target(abi: PythonAbi, target: &Triple) -> String {
     if target.operating_system == OperatingSystem::Windows {
-        default_lib_name_windows(abi, false, false).unwrap()
+        default_lib_name_windows(
+            abi,
+            matches!(target.environment, Environment::Gnu | Environment::GnuLlvm),
+            false,
+        )
+        .unwrap()
     } else {
         default_lib_name_unix(
             abi,
@@ -2314,7 +2319,7 @@ fn default_lib_name_for_target(abi: PythonAbi, target: &Triple) -> String {
 }
 
 fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<String> {
-    // set `lib` prefix for mingw, as its python abi library is shipped prefixed
+    // MSYS2 MinGW-style Windows targets ship libpython with a `lib` prefix.
     let lib_prefix = if mingw { "lib" } else { "" };
 
     if abi.implementation.is_pypy() {
@@ -3103,7 +3108,7 @@ mod tests {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
-            .lib_name("python39".to_string())
+            .lib_name("libpython3.9".to_string())
             .lib_dir("/usr/lib/mingw".to_string())
             .finalize()
             .unwrap();
@@ -4126,8 +4131,20 @@ mod tests {
             .unwrap();
 
         let unix = Triple::from_str("x86_64-unknown-linux-gnu").unwrap();
+        let win_gnu = Triple::from_str("x86_64-pc-windows-gnu").unwrap();
+        let win_gnu_x86 = Triple::from_str("i686-pc-windows-gnu").unwrap();
+        let win_gnullvm = Triple::from_str("x86_64-pc-windows-gnullvm").unwrap();
+        let win_gnullvm_x86 = Triple::from_str("i686-pc-windows-gnullvm").unwrap();
+        let win_gnullvm_arm64 = Triple::from_str("aarch64-pc-windows-gnullvm").unwrap();
         let win_x64 = Triple::from_str("x86_64-pc-windows-msvc").unwrap();
         let win_arm64 = Triple::from_str("aarch64-pc-windows-msvc").unwrap();
+        let windows_gnu_like = [
+            &win_gnu,
+            &win_gnu_x86,
+            &win_gnullvm,
+            &win_gnullvm_x86,
+            &win_gnullvm_arm64,
+        ];
 
         let lib_name = default_lib_name_for_target(cpy39, &unix);
         assert_eq!(lib_name, "python3.9");
@@ -4138,12 +4155,22 @@ mod tests {
         let lib_name = default_lib_name_for_target(cpy39, &win_arm64);
         assert_eq!(lib_name, "python39");
 
+        for target in windows_gnu_like {
+            let lib_name = default_lib_name_for_target(cpy39, target);
+            assert_eq!(lib_name, "libpython3.9");
+        }
+
         // PyPy
         let lib_name = default_lib_name_for_target(pypy311, &unix);
         assert_eq!(lib_name, "pypy3.11-c");
 
         let lib_name = default_lib_name_for_target(pypy311, &win_x64);
         assert_eq!(lib_name, "libpypy3.11-c");
+
+        for target in windows_gnu_like {
+            let lib_name = default_lib_name_for_target(pypy311, target);
+            assert_eq!(lib_name, "libpypy3.11-c");
+        }
 
         // Free-threaded
         let lib_name = default_lib_name_for_target(cpy313t, &unix);
@@ -4161,6 +4188,11 @@ mod tests {
 
         let lib_name = default_lib_name_for_target(cpy313_abi3, &win_x64);
         assert_eq!(lib_name, "python3");
+
+        for target in windows_gnu_like {
+            let lib_name = default_lib_name_for_target(cpy313_abi3, target);
+            assert_eq!(lib_name, "libpython3");
+        }
 
         let lib_name = default_lib_name_for_target(cpy313_abi3, &win_arm64);
         assert_eq!(lib_name, "python3");
