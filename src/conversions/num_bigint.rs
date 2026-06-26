@@ -175,7 +175,7 @@ macro_rules! bigint_conversion {
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 use num_traits::ToBytes;
 
-                #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+                #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
                 {
                     if is_30bit_layout() {
                         let bits: usize = $bits(self)
@@ -625,7 +625,7 @@ class C:
         })
     }
 
-    #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+    #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
     #[test]
     fn pylong_export() {
         Python::attach(|py| {
@@ -692,7 +692,7 @@ class C:
         });
     }
 
-    #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
+    #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
     #[test]
     fn biguint_negative() {
         Python::attach(|py| {
