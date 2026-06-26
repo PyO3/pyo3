@@ -261,22 +261,18 @@ impl<'py> FromPyObject<'_, 'py> for BigInt {
             num_owned = nb_index(&ob)?;
             num_owned.as_borrowed()
         };
-        #[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+        #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
+        if is_30bit_layout() {
+            return pylong_visit_digits(num.as_any().as_borrowed(), |negative, compact, digits| {
+                let Some(digits) = digits else {
+                    return Ok(BigInt::from(compact));
+                };
+                let sign = if negative { Sign::Minus } else { Sign::Plus };
+                Ok(BigInt::new(sign, int_from_pylong_digits(digits)))
+            });
+        }
+        #[cfg(not(Py_LIMITED_API))]
         {
-            #[cfg(Py_3_14)]
-            if is_30bit_layout() {
-                return pylong_visit_digits(
-                    num.as_any().as_borrowed(),
-                    |negative, compact, digits| {
-                        let Some(digits) = digits else {
-                            return Ok(BigInt::from(compact));
-                        };
-                        let sign = if negative { Sign::Minus } else { Sign::Plus };
-                        Ok(BigInt::new(sign, int_from_pylong_digits(digits)))
-                    },
-                );
-            }
-
             let mut buffer = int_to_u32_vec::<true>(&num)?;
             let sign = if buffer.last().copied().is_some_and(|last| last >> 31 != 0) {
                 // BigInt::new takes an unsigned array, so need to convert from two's complement
@@ -297,7 +293,7 @@ impl<'py> FromPyObject<'_, 'py> for BigInt {
             } else {
                 Sign::Plus
             };
-            Ok(BigInt::new(sign, buffer))
+            return Ok(BigInt::new(sign, buffer));
         }
         #[cfg(Py_LIMITED_API)]
         {
@@ -327,28 +323,24 @@ impl<'py> FromPyObject<'_, 'py> for BigUint {
             num_owned = nb_index(&ob)?;
             num_owned.as_borrowed()
         };
-        #[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+        #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
+        if is_30bit_layout() {
+            return pylong_visit_digits(num.as_any().as_borrowed(), |negative, compact, digits| {
+                if negative {
+                    return Err(crate::exceptions::PyValueError::new_err(
+                        "can't convert negative int to unsigned",
+                    ));
+                }
+                let Some(digits) = digits else {
+                    return Ok(BigUint::from(compact as u64));
+                };
+                Ok(BigUint::new(int_from_pylong_digits(digits)))
+            });
+        }
+        #[cfg(not(Py_LIMITED_API))]
         {
-            #[cfg(Py_3_14)]
-            if is_30bit_layout() {
-                return pylong_visit_digits(
-                    num.as_any().as_borrowed(),
-                    |negative, compact, digits| {
-                        if negative {
-                            return Err(crate::exceptions::PyValueError::new_err(
-                                "can't convert negative int to unsigned",
-                            ));
-                        }
-                        let Some(digits) = digits else {
-                            return Ok(BigUint::from(compact as u64));
-                        };
-                        Ok(BigUint::new(int_from_pylong_digits(digits)))
-                    },
-                );
-            }
-
             let buffer = int_to_u32_vec::<false>(&num)?;
-            Ok(BigUint::new(buffer))
+            return Ok(BigUint::new(buffer));
         }
         #[cfg(Py_LIMITED_API)]
         {
