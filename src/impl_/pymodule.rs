@@ -627,7 +627,10 @@ mod tests {
 
         #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
         unsafe {
-            assert_eq!((*module_def.ffi_def.get()).m_slots, SLOTS.0.get().cast());
+            assert_eq!(
+                (*module_def.ffi_def.get()).m_slots,
+                SLOTS.pep_489_slots.get().cast()
+            );
         }
         #[cfg(Py_3_15)]
         {
@@ -639,17 +642,17 @@ mod tests {
     #[test]
     #[cfg(panic = "unwind")]
     fn test_build_maximal_slots() {
-        let builder = PyModuleSlotsBuilder::new()
+        let mut builder = PyModuleSlotsBuilder::new()
             .with_mod_exec(module_exec)
             .with_name(c"test_module")
             .with_doc(c"some doc")
             .with_gil_used(false)
             .with_abi_info();
-        let second_last = builder.values[builder.len - 1];
-        let last = builder.values[builder.len];
 
         #[cfg(Py_3_15)]
         {
+            let second_last = builder.slots.pep_820_slots.get_mut()[builder.len - 1];
+            let last = builder.slots.pep_820_slots.get_mut()[builder.len];
             let zeroed = unsafe { core::mem::zeroed() };
             fn raw_bytes(inst: &ffi::PySlot) -> &[u8] {
                 unsafe {
@@ -665,6 +668,8 @@ mod tests {
         }
         #[cfg(not(Py_3_15))]
         {
+            let second_last = builder.slots.pep_489_slots.get_mut()[builder.len - 1];
+            let last = builder.slots.pep_489_slots.get_mut()[builder.len];
             let zeroed = ffi::PyModuleDef_Slot::default();
             assert!(last == zeroed);
             assert!(second_last != zeroed);
