@@ -62,14 +62,12 @@ use crate::{
     FromPyObject, PyAny, PyErr, PyResult, Python,
 };
 
-use num_bigint::{BigInt, BigUint};
+use num_bigint::{BigInt, BigUint, Sign};
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::PyTypeInfo;
-#[cfg(not(Py_LIMITED_API))]
-use num_bigint::Sign;
 
 #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 struct PyLongDigitIter<I> {
@@ -260,7 +258,7 @@ impl<'py> FromPyObject<'_, 'py> for BigInt {
             num_owned = nb_index(&ob)?;
             num_owned.as_borrowed()
         };
-        #[cfg(not(Py_LIMITED_API))]
+        #[cfg(any(not(Py_LIMITED_API), Py_3_15))]
         {
             #[cfg(Py_3_14)]
             if is_30bit_layout() {
@@ -326,7 +324,7 @@ impl<'py> FromPyObject<'_, 'py> for BigUint {
             num_owned = nb_index(&ob)?;
             num_owned.as_borrowed()
         };
-        #[cfg(not(Py_LIMITED_API))]
+        #[cfg(any(not(Py_LIMITED_API), Py_3_15))]
         {
             #[cfg(Py_3_14)]
             if is_30bit_layout() {
