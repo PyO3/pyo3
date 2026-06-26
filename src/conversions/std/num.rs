@@ -434,13 +434,20 @@ pub(crate) fn pylong_visit_digits<R>(
     let ptr = long_export.digits.cast::<u32>();
 
     if ptr.is_null() {
+        // `value` is only valid when `digits` is NULL, and `PyLong_FreeExport()`
+        // is optional in that case
+        //
+        // See: https://docs.python.org/3/c-api/long.html#c.PyLong_FreeExport
         return f(long_export.value < 0, long_export.value, None);
     }
-
-    // `PyLong_FreeExport` is a no-op when digits is NULL (no reference held)
+    // Keep the export alive while `digits` borrows the exported buffer
     let export_guard = ExportGuard(long_export);
-    let digits = unsafe { core::slice::from_raw_parts(ptr, export_guard.0.ndigits as usize) };
-    f(export_guard.0.negative != 0, 0, Some(digits))
+
+    let negative = export_guard.0.negative != 0;
+    let n_digits = export_guard.0.ndigits as usize;
+    let digits = unsafe { core::slice::from_raw_parts(ptr, n_digits) };
+
+    f(negative, 0, Some(digits))
 }
 
 #[cfg(any(not(Py_LIMITED_API), Py_3_15))]
