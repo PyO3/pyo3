@@ -191,9 +191,15 @@ fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result
     Ok(())
 }
 
+fn windows_import_lib_name<'a>(target_env: Option<&str>, lib_name: &'a str) -> Option<&'a str> {
+    matches!(target_env, Some("gnu" | "gnullvm"))
+        .then(|| lib_name.strip_prefix("lib").unwrap_or(lib_name))
+}
+
 fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
     let interpreter_config = &build_config.interpreter_config;
     let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
+    let target_env = cargo_env_var("CARGO_CFG_TARGET_ENV");
 
     let lib_name = interpreter_config
         .lib_name()
@@ -208,6 +214,23 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
         // Python interpreter on Windows is not supported by this path (and is not
         // officially supported by CPython on Windows).
         println!("cargo:rustc-cfg=pyo3_dll=\"{lib_name}\"");
+
+        if let Some(import_lib_name) = windows_import_lib_name(target_env.as_deref(), lib_name) {
+            // GNU-family Windows targets still need an import library for any non-Rust
+            // objects participating in the final link, such as CFFI-generated C code.
+            println!("cargo:rustc-link-lib={import_lib_name}");
+
+            if let Some(lib_dir) = interpreter_config.lib_dir() {
+                println!("cargo:rustc-link-search=native={lib_dir}");
+            } else if matches!(build_config.source, BuildConfigSource::CrossCompile) {
+                warn!(
+                    "The output binary will link to libpython, \
+                    but PYO3_CROSS_LIB_DIR environment variable is not set. \
+                    Ensure that the target Python library directory is \
+                    in the rustc native library search path."
+                );
+            }
+        }
     } else {
         println!(
             "cargo:rustc-link-lib={link_model}{lib_name}",
@@ -292,5 +315,32 @@ fn main() {
     if let Err(e) = configure_pyo3_ffi() {
         eprintln!("error: {}", e.report());
         std::process::exit(1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::windows_import_lib_name;
+
+    #[test]
+    fn windows_import_lib_name_for_gnu_like_targets() {
+        assert_eq!(
+            windows_import_lib_name(Some("gnu"), "libpython3.14"),
+            Some("python3.14")
+        );
+        assert_eq!(
+            windows_import_lib_name(Some("gnullvm"), "libpython3"),
+            Some("python3")
+        );
+        assert_eq!(
+            windows_import_lib_name(Some("gnu"), "libpypy3.11-c"),
+            Some("pypy3.11-c")
+        );
+    }
+
+    #[test]
+    fn windows_import_lib_name_not_needed_elsewhere() {
+        assert_eq!(windows_import_lib_name(Some("msvc"), "python314"), None);
+        assert_eq!(windows_import_lib_name(None, "python314"), None);
     }
 }
