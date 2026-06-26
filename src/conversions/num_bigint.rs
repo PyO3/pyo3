@@ -293,7 +293,7 @@ impl<'py> FromPyObject<'_, 'py> for BigInt {
             } else {
                 Sign::Plus
             };
-            return Ok(BigInt::new(sign, buffer));
+            Ok(BigInt::new(sign, buffer))
         }
         #[cfg(Py_LIMITED_API)]
         {
@@ -340,7 +340,7 @@ impl<'py> FromPyObject<'_, 'py> for BigUint {
         #[cfg(not(Py_LIMITED_API))]
         {
             let buffer = int_to_u32_vec::<false>(&num)?;
-            return Ok(BigUint::new(buffer));
+            Ok(BigUint::new(buffer))
         }
         #[cfg(Py_LIMITED_API)]
         {
@@ -711,3 +711,4 @@ class C:
         });
     }
 }
+
