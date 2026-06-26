@@ -216,7 +216,10 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
     if target_os == "windows" {
         // Use raw-dylib linking: emit a cfg so that `extern_libpython!` picks the
         // right `#[link(name = "...", kind = "raw-dylib")]` attribute at compile time.
-        // This eliminates the need for import libraries (.lib files) entirely.
+        //
+        // This lets Rust code link directly to libpython without an import library.
+        // GNU-family Windows targets may still need an import library for non-Rust
+        // objects participating in the final link.
         //
         // Note: raw-dylib is inherently dynamic linking. Static embedding of the
         // Python interpreter on Windows is not supported by this path (and is not
