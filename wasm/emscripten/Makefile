@@ -36,8 +36,8 @@ $(NODE_DIR)/.exists: $(BUILDROOT)/.exists
 
 $(CROSS_PYTHON): $(PYTHONBUILD)/.exists $(NODE_DEP)
 	cd $(PYTHONBUILD) && \
-	$(PYTHON) Platforms/emscripten install-emscripten --quiet --emsdk-cache=$(EMSDKDIR) && \
-	$(PYTHON) Platforms/emscripten build --quiet --emsdk-cache=$(EMSDKDIR) --host-runner=$(NODE_BIN)
+	$(PYTHON) Platforms/emscripten install-emscripten --emsdk-cache=$(EMSDKDIR) && \
+	$(PYTHON) Platforms/emscripten build --emsdk-cache=$(EMSDKDIR) --host-runner=$(NODE_BIN)
 
 $(PYTHONLIBDIR)/libpython$(PYMAJORMINOR).a: $(CROSS_PYTHON)
 	# Generate sysconfigdata

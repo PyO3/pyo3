@@ -58,7 +58,7 @@ $(LIBDIR)/libpython$(PYMAJORMINOR).a: $(PYTHONBUILD)/.patched $(WASI_SDK_DEP) $(
 	cd $(PYTHONBUILD) && \
 		WASI_SDK_PATH=$(WASI_SDK_DIR) \
 		PATH=$(WASMTIME_PATH)$(PATH) \
-		$(PYTHON) Tools/wasm/wasi build --quiet -- --config-cache
+		$(PYTHON) Tools/wasm/wasi build -- --config-cache
 	# Collect the static libraries the test build links against
 	cp $(CROSSBUILD)/libpython$(PYMAJORMINOR).a \
 	   $(CROSSBUILD)/Modules/_hacl/libHacl_HMAC.a \
