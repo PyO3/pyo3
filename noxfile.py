@@ -426,7 +426,7 @@ def contributors(session: nox.Session) -> None:
 
 class EmscriptenInfo:
     def __init__(self):
-        self.emscripten_dir = PYO3_DIR / "emscripten"
+        self.emscripten_dir = PYO3_DIR / "wasm" / "emscripten"
         self.builddir = PYO3_DIR / ".nox/emscripten"
         self.builddir.mkdir(exist_ok=True, parents=True)
 
@@ -501,6 +501,75 @@ def test_emscripten(session: nox.Session):
         "-c",
         f"source {emsdk_env} && cargo test {' '.join(quote(arg) for arg in session.posargs)}",
     )
+
+
+class WasiInfo:
+    def __init__(self):
+        self.wasi_dir = PYO3_DIR / "wasm" / "wasi"
+        self.builddir = PYO3_DIR / ".nox/wasi"
+        self.builddir.mkdir(exist_ok=True, parents=True)
+
+        self.pyversion = sys.version.split()[0]
+        self.pymajor, self.pyminor = self.pyversion.split(".")[:2]
+        self.pymajorminor = f"{self.pymajor}.{self.pyminor}"
+
+        # In CI the WASI SDK is installed by setup-wasi-sdk-action (sets WASI_SDK_PATH);
+        # otherwise the Makefile downloads it into the build dir.
+        wasi_sdk_env = os.environ.get("WASI_SDK_PATH")
+        self.wasi_sdk = (
+            Path(wasi_sdk_env) if wasi_sdk_env else self.builddir / "wasi-sdk"
+        )
+        self.cpython_dir = self.builddir / "build" / f"Python-{self.pyversion}"
+        crossbuild_dir = self.cpython_dir / "cross-build" / "wasm32-wasip1"
+        self.libdir = crossbuild_dir / "build" / f"lib.wasi-wasm32-{self.pymajorminor}"
+
+
+@nox.session(name="build-wasm", venv_backend="none")
+def build_wasm(session: nox.Session):
+    info = WasiInfo()
+    _run(
+        session,
+        "make",
+        "-C",
+        str(info.wasi_dir),
+        f"PYTHON={sys.executable}",
+        f"BUILDROOT={info.builddir}",
+        f"PYMAJORMINORMICRO={info.pyversion}",
+        external=True,
+    )
+
+
+@nox.session(name="test-wasm", venv_backend="none")
+def test_wasm(session: nox.Session):
+    info = WasiInfo()
+
+    target = "wasm32-wasip1"
+
+    # if wasmtime was installed by build-wasm, this is where it would be;
+    # in CI it installed by wasmtime/setup action
+    session.env["PATH"] = (
+        str(info.builddir / "wasmtime") + os.pathsep + session.env.get("PATH", "")
+    )
+    session.env["PYO3_CROSS_LIB_DIR"] = str(info.libdir)
+    session.env["CARGO_BUILD_TARGET"] = target
+    session.env["CARGO_TARGET_WASM32_WASIP1_RUNNER"] = (
+        f"wasmtime run --dir {info.cpython_dir}::/ --env PYTHONPATH=/lib"
+    )
+    session.env["RUSTFLAGS"] = " ".join(
+        [
+            f"-C link-arg=-L{info.wasi_sdk}/share/wasi-sysroot/lib/wasm32-wasi",
+            "-C link-arg=-lwasi-emulated-signal",
+            "-C link-arg=-lwasi-emulated-process-clocks",
+            "-C link-arg=-lwasi-emulated-getpid",
+            "-C link-arg=-lmpdec",
+            "-C link-arg=-lHacl_HMAC",
+            "-C link-arg=-lexpat",
+        ]
+    )
+    session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
+    _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
+
+    _run(session, "cargo", "test", *session.posargs, external=True)
 
 
 @nox.session(name="test-cross-compilation-windows")
