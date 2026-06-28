@@ -546,9 +546,9 @@ def test_wasm(session: nox.Session):
     target = "wasm32-wasip1"
 
     # if wasmtime was installed by build-wasm, this is where it would be;
-    # in CI it installed by wasmtime/setup action
+    # in CI it is installed by the wasmtime/setup action
     session.env["PATH"] = (
-        f"{(info.builddir / 'wasmtime')}{os.pathsep}{session.env.get('PATH', '')}"
+        f"{info.builddir / 'wasmtime'}{os.pathsep}{os.environ['PATH']}"
     )
     session.env["PYO3_CROSS_LIB_DIR"] = str(info.libdir)
     session.env["CARGO_BUILD_TARGET"] = target
