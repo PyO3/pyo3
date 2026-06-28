@@ -552,7 +552,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: uvx nox -s build-wasm
       - name: Test
-        run: uvx nox -s test-wasm
+        run: uvx nox -s test-wasm -- --verbose
       - uses: actions/cache/save@v5
         if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
         with:
