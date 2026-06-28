@@ -483,10 +483,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: 3.14
-        id: setup-python
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -495,27 +494,26 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - run: python -m pip install --upgrade pip && pip install nox[uv]
       - uses: actions/cache/restore@v5
         id: cache
         with:
           path: |
             .nox/emscripten
-          key: emscripten-${{ hashFiles('wasm/emscripten/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.setup-python.outputs.python-path }}
+          key: emscripten-${{ hashFiles('wasm/emscripten/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - name: Build
         if: steps.cache.outputs.cache-hit != 'true'
-        run: nox -s build-emscripten
+        run: uvx nox -s build-emscripten
       - name: Test
-        run: nox -s test-emscripten
+        run: uvx nox -s test-emscripten
       - uses: actions/cache/save@v5
         if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
         with:
           path: |
             .nox/emscripten
-          key: emscripten-${{ hashFiles('wasm/emscripten/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.setup-python.outputs.python-path }}
+          key: emscripten-${{ hashFiles('wasm/emscripten/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
 
   wasm32-wasip1:
     name: wasm32-wasip1
@@ -524,10 +522,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: 3.14
-        id: setup-python
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -542,27 +539,26 @@ jobs:
           # wasi sdk sets CC variables which break Python's configure script
           # (it also sets WASI_SDK_PATH even without `add-to-path`, which is sufficient)
           add-to-path: false
-      - run: python -m pip install --upgrade pip && pip install nox[uv]
       - uses: actions/cache/restore@v5
         id: cache
         with:
           path: |
             .nox/wasi
-          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.setup-python.outputs.python-path }}
+          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - name: Build
         if: steps.cache.outputs.cache-hit != 'true'
-        run: nox -s build-wasm
+        run: uvx nox -s build-wasm
       - name: Test
-        run: nox -s test-wasm
+        run: uvx nox -s test-wasm
       - uses: actions/cache/save@v5
         if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
         with:
           path: |
             .nox/wasi
-          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.setup-python.outputs.python-path }}
+          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
 
   test-debug:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
