@@ -45,9 +45,9 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
             .unwrap();
 
         if pyo3_build_config::get().target_abi().version() < PY_3_15
-            && struct_name == "PyBytesWriter"
+            && (struct_name == "PyBytesWriter" || struct_name == "PyFrozenDictObject")
         {
-            // PyBytesWriter was added in Python 3.15
+            // PyBytesWriter and PyFrozenDictObject were added in Python 3.15
             continue;
         }
 
@@ -247,6 +247,8 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     // FIXME: for many of these `not(PyPy)` cases,
     // it seems that PyPy might actually offer symbols which PyO3
     // should be using rather than implementing inline functions
+    ("PyAnyDict_Check", "not(PyPy)"),
+    ("PyAnyDict_CheckExact", "not(PyPy)"),
     ("PyAnySet_Check", "not(PyPy)"),
     ("PyAnySet_CheckExact", "not(PyPy)"),
     ("PyAsyncGen_CheckExact", ""),
@@ -324,6 +326,8 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyFloat_CheckExact", "not(PyPy)"),
     ("PyFrame_Check", ""),
     ("PyFrameLocalsProxy_Check", ""),
+    ("PyFrozenDict_Check", "not(PyPy)"),
+    ("PyFrozenDict_CheckExact", "not(PyPy)"),
     ("PyFrozenSet_Check", "not(PyPy)"),
     ("PyFrozenSet_CheckExact", "not(PyPy)"),
     ("PyFunction_Check", "not(PyPy)"),

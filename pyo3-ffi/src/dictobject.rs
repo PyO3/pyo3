@@ -20,6 +20,41 @@ pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyDict_Type)
 }
 
+#[cfg(Py_3_15)]
+#[cfg(not(RustPython))]
+extern_libpython! {
+    pub static mut PyFrozenDict_Type: PyTypeObject;
+}
+
+#[inline]
+#[cfg(Py_3_15)]
+#[cfg(not(RustPython))]
+pub unsafe fn PyFrozenDict_CheckExact(op: *mut PyObject) -> c_int {
+    (Py_TYPE(op) == &raw mut PyFrozenDict_Type) as c_int
+}
+
+#[inline]
+#[cfg(Py_3_15)]
+#[cfg(not(RustPython))]
+pub unsafe fn PyFrozenDict_Check(op: *mut PyObject) -> c_int {
+    (Py_TYPE(op) == &raw mut PyFrozenDict_Type
+        || PyType_IsSubtype(Py_TYPE(op), &raw mut PyFrozenDict_Type) != 0) as c_int
+}
+
+#[inline]
+#[cfg(Py_3_15)]
+#[cfg(not(RustPython))]
+pub unsafe fn PyAnyDict_Check(op: *mut PyObject) -> c_int {
+    (PyDict_Check(op) != 0 || PyFrozenDict_Check(op) != 0) as c_int
+}
+
+#[inline]
+#[cfg(Py_3_15)]
+#[cfg(not(RustPython))]
+pub unsafe fn PyAnyDict_CheckExact(op: *mut PyObject) -> c_int {
+    (Py_TYPE(op) == &raw mut PyDict_Type || Py_TYPE(op) == &raw mut PyFrozenDict_Type) as c_int
+}
+
 extern_libpython! {
     #[cfg(RustPython)]
     pub fn PyDict_Check(op: *mut PyObject) -> c_int;
@@ -28,6 +63,8 @@ extern_libpython! {
 
     #[cfg_attr(PyPy, link_name = "PyPyDict_New")]
     pub fn PyDict_New() -> *mut PyObject;
+    #[cfg(Py_3_15)]
+    pub fn PyFrozenDict_New(iterable: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDict_GetItem")]
     pub fn PyDict_GetItem(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDict_GetItemWithError")]

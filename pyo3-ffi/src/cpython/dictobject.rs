@@ -44,10 +44,11 @@ pub struct PyDictObject {
     _tmpkeys: *mut PyObject,
 }
 
-extern_libpython! {
-    #[cfg(Py_3_15)]
-    pub fn PyFrozenDict_New(iterable: *mut PyObject) -> *mut PyObject;
-}
+#[cfg(Py_3_15)]
+#[cfg(not(GraalPy))]
+opaque_struct!(pub PyFrozenDictObject);
+
+// PyFrozenDict_Type and PyFrozenDict_New are defined in the public dictobject.rs module
 
 // skipped private _PyDict_GetItem_KnownHash
 // skipped private _PyDict_GetItemStringWithError

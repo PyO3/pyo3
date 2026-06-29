@@ -1,5 +1,6 @@
 #include "Python.h"
 #include "datetime.h"
+#include "dictobject.h"
 #include "frameobject.h"
 #include "structmember.h"
 #include "marshal.h"
