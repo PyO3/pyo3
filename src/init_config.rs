@@ -65,7 +65,7 @@ impl InitConfig {
         }
     }
 
-    /// Check if the configuation has an option called `name`.
+    /// Check if the configuration has an option called `name`.
     pub fn has_option(&self, name: &CStr) -> bool {
         // SAFETY: pointers are valid
         (unsafe { PyInitConfig_HasOption(self.0, name.as_ptr()) }) == 1
