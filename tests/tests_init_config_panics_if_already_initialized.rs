@@ -1,3 +1,5 @@
+#![cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
+
 use pyo3::init_config::InitConfig;
 use pyo3::prelude::Python;
 

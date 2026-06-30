@@ -1,7 +1,7 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
 use core::ffi::c_int;
 
 #[cfg(not(any(PyPy, GraalPy)))]
@@ -32,7 +32,7 @@ pub(crate) fn initialize() {
 ///
 /// # Safety
 /// `config` must point to a valid [`PyInitConfig`](crate::ffi::PyInitConfig) object.
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
 pub(crate) unsafe fn initialize_from_config(config: *mut ffi::PyInitConfig) -> Option<c_int> {
     let mut result = None;
     START.call_once_force(|_| unsafe {
