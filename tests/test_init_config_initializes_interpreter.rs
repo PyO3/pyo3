@@ -1,3 +1,4 @@
+#![cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
 #![allow(clippy::undocumented_unsafe_blocks, reason = "tests")]
 
 use pyo3::init_config::InitConfig;
