@@ -42,7 +42,9 @@ try:
 except ImportError:
     requests = None
 
-nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "rumdl", "docs", "typos"]
+nox.options.sessions = [
+    "test", "clippy", "rustfmt", "ruff", "rumdl", "zizmor", "docs", "typos",
+]
 
 PYO3_DIR = Path(__file__).parent
 PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).absolute()
@@ -244,6 +246,13 @@ def rumdl(session: nox.Session):
     """
     _run(
         session, "uv", "run", "rumdl", "check", "guide", *session.posargs, external=True
+    )
+
+
+@nox.session(name="zizmor", venv_backend="none")
+def zizmor(session: nox.Session):
+    _run(
+        session, "uv", "run", "zizmor", ".github", *session.posargs, external=True
     )
 
 
