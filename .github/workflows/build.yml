@@ -26,6 +26,10 @@ on:
         type: boolean
         default: false
 
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
 env:
   NOX_DEFAULT_VENV_BACKEND: uv
 
