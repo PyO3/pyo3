@@ -15,6 +15,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   NOX_DEFAULT_VENV_BACKEND: uv
+  UV_PYTHON: "3.14"
 
 permissions: {}
 
@@ -25,10 +26,6 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        with:
-          python-version: "3.14"
 
       - uses: dtolnay/rust-toolchain@nightly # zizmor: ignore[unpinned-uses]
 
@@ -56,9 +53,12 @@ jobs:
         with:
           enable-cache: false
 
+      - run: uv venv .venv --python ${{ env.UV_PYTHON }} --seed
+
       # This builds the book in target/guide/.
       - name: Build the guide
         run: |
+          source .venv/bin/activate
           uv pip install nox
           nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
         env:
@@ -91,7 +91,8 @@ jobs:
 
       - name: Build the site
         run: |
-          uv pip install nox towncrier requests
+          source .venv/bin/activate
+          uv pip install towncrier requests
           nox -s build-netlify-site -- ${{ (github.ref != 'refs/heads/main' && '--preview') || '' }}
 
       # Upload the built site as an artifact for deploy workflow to consume
