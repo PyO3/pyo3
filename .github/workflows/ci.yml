@@ -16,7 +16,7 @@ env:
   CARGO_TERM_COLOR: always
   NOX_DEFAULT_VENV_BACKEND: uv
   UV_PYTHON: 3.14
-  
+
   # A small hack to use anchors as GitHub doesn't allow it to be top level
   \_○_○_/: &enable-cache-save >-
     ${{ github.ref == 'refs/heads/main' || 
