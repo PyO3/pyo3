@@ -53,8 +53,6 @@ jobs:
         with:
           enable-cache: false
 
-      - run: uv venv .venv --python ${{ env.UV_PYTHON }} --seed
-
       # This builds the book in target/guide/.
       - name: Build the guide
         run: |
@@ -89,7 +87,9 @@ jobs:
 
       - name: Build the site
         run: |
-          uvx nox -s build-netlify-site -- ${{ (github.ref != 'refs/heads/main' && '--preview') || '' }}
+          uvx \
+          --with requests \
+          nox -s build-netlify-site -- ${{ (github.ref != 'refs/heads/main' && '--preview') || '' }}
 
       # Upload the built site as an artifact for deploy workflow to consume
       - name: Upload Build Artifact
