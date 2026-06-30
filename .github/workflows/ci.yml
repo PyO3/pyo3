@@ -511,7 +511,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache/restore@v6
         id: cache
         with:
           path: |
@@ -525,7 +525,7 @@ jobs:
         run: uvx nox -s build-emscripten
       - name: Test
         run: uvx nox -s test-emscripten
-      - uses: actions/cache/save@v5
+      - uses: actions/cache/save@v6
         if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
         with:
           path: |
@@ -556,7 +556,7 @@ jobs:
           # wasi sdk sets CC variables which break Python's configure script
           # (it also sets WASI_SDK_PATH even without `add-to-path`, which is sufficient)
           add-to-path: false
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache/restore@v6
         id: cache
         with:
           path: |
@@ -570,7 +570,7 @@ jobs:
         run: uvx nox -s build-wasm
       - name: Test
         run: uvx nox -s test-wasm
-      - uses: actions/cache/save@v5
+      - uses: actions/cache/save@v6
         if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
         with:
           path: |
@@ -759,7 +759,7 @@ jobs:
           targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
           components: rust-src
       # load cache (prepared in ci-cache-warmup.yml)
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache/restore@v6
         with:
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
