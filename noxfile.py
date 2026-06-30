@@ -251,9 +251,7 @@ def rumdl(session: nox.Session):
 
 @nox.session(name="zizmor", venv_backend="none")
 def zizmor(session: nox.Session):
-    _run(
-        session, "uv", "run", "zizmor", ".github", *session.posargs, external=True
-    )
+    _run(session, "uv", "run", "zizmor", ".github", *session.posargs, external=True)
 
 
 @nox.session(name="typos", venv_backend="none")
