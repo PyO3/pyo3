@@ -17,7 +17,8 @@ env:
 
   # A small hack to use anchors as GitHub doesn't allow it to be top level
   \_○_○_/: &enable-cache-save >-
-    ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+    ${{ github.ref == 'refs/heads/main' || 
+        contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
 jobs:
   benchmarks:
