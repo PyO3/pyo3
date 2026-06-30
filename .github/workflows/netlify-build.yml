@@ -58,9 +58,7 @@ jobs:
       # This builds the book in target/guide/.
       - name: Build the guide
         run: |
-          source .venv/bin/activate
-          uv pip install nox
-          nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
+          uvx nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
         env:
           PYO3_VERSION_TAG: ${{ github.event_name == 'release' && steps.prepare_tag.outputs.tag_name || 'main' }}
           # allows lychee to get better rate limits from github
@@ -91,9 +89,7 @@ jobs:
 
       - name: Build the site
         run: |
-          source .venv/bin/activate
-          uv pip install towncrier requests
-          nox -s build-netlify-site -- ${{ (github.ref != 'refs/heads/main' && '--preview') || '' }}
+          uvx nox -s build-netlify-site -- ${{ (github.ref != 'refs/heads/main' && '--preview') || '' }}
 
       # Upload the built site as an artifact for deploy workflow to consume
       - name: Upload Build Artifact

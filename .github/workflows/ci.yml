@@ -45,28 +45,26 @@ jobs:
       - name: "Install uv"
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ github.event_name == 'pull_request' }}
-
-      - run: uv pip install nox
+          enable-cache: *enable-cache-save
 
       - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
           components: rustfmt
 
       - name: Check python formatting and lints (ruff)
-        run: nox -s ruff
+        run: uvx nox -s ruff
 
       - name: Check rust formatting (rustfmt)
-        run: nox -s rustfmt
+        run: uvx nox -s rustfmt
 
       - name: Check markdown formatting (rumdl)
-        run: nox -s rumdl
+        run: uvx nox -s rumdl
 
       - name: Check `required-features` in Cargo.toml
-        run: nox -s check-test-features
+        run: uvx nox -s check-test-features
 
       - name: Spell check
-        run: nox -s typos
+        run: uvx nox -s typos
 
   resolve:
     runs-on: ubuntu-latest
@@ -493,7 +491,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ github.event_name == 'pull_request' }}
+          enable-cache: *enable-cache-save
 
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
@@ -531,7 +529,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ github.event_name == 'pull_request' }}
+          enable-cache: *enable-cache-save
 
       - uses: taiki-e/install-action@cargo-careful # zizmor: ignore[unpinned-uses]
       - run: uvx nox -s test-rust -- careful skip-full
@@ -779,11 +777,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ github.event_name == 'pull_request' }}
+          enable-cache: *enable-cache-save
 
       - run: |
-          uv pip install nox
-          nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
+          uvx nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
 
   test-cross-compilation:
     needs: [fmt, resolve]
@@ -962,11 +959,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ github.event_name == 'pull_request' }}
+          enable-cache: *enable-cache-save
 
       - run: |
-          uv pip install nox
-          nox -s test-introspection
+          uvx nox -s test-introspection
     env:
       CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
 
@@ -987,11 +983,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ github.event_name == 'pull_request' }}
+          enable-cache: *enable-cache-save
 
       - run: |
-          uv pip install nox
-          nox -s test-introspection
+          uvx nox -s test-introspection
 
   pytests-type-checking:
     needs: [fmt]
@@ -1017,11 +1012,9 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ github.event_name == 'pull_request' }}
+          enable-cache: *enable-cache-save
 
-      - run: uv pip install nox
-
-      - run: nox -s ${{matrix.checker}}
+      - run: uvx nox -s ${{matrix.checker}}
         working-directory: pytests
 
   conclusion:

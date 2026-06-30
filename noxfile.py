@@ -702,6 +702,7 @@ def build_netlify_site(session: nox.Session):
         shutil.rmtree(netlify_build)
 
     url = "https://github.com/PyO3/pyo3/archive/gh-pages.tar.gz"
+    session.install("requests")
     response = requests.get(url, stream=True)
     response.raise_for_status()
     with tarfile.open(fileobj=io.BytesIO(response.content), mode="r:gz") as tar:

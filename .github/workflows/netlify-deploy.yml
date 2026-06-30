@@ -1,9 +1,5 @@
 # This runs as a separate job because it needs to run on the `workflow_run` event
-# in order to access the Netlify secrets.
-#
-# SAFETY: this workflow does not check out or execute code from the PR.
-# It only downloads the artifact produced by the trusted `netlify-build`
-# workflow and deploys it. PR code is never executed in this context.
+# to access the Netlify secrets.
 
 name: netlify-deploy
 
@@ -11,6 +7,10 @@ on:
   workflow_run:
     workflows: ["netlify-build"]
     # zizmor: ignore[dangerous-triggers]
+    #
+    # SAFETY: this workflow does not check out or execute code from the PR.
+    # It only downloads the artifact produced by the trusted `netlify-build`
+    # workflow and deploys it. PR code is never executed in this context.
     types:
       - completed
 
