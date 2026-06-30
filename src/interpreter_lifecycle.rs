@@ -25,7 +25,7 @@ pub(crate) fn initialize() {
     });
 }
 
-/// Calls [`Py_InitializeFromInitConfig`](pyo3_ffi::Py_InitializeFromInitConfig) to initialzied the
+/// Calls [`Py_InitializeFromInitConfig`](pyo3_ffi::Py_InitializeFromInitConfig) to initialize the
 /// interpreter if it's not already initialized and returns its result.
 ///
 /// Returns [`None`] if the interpreter is already initialized
