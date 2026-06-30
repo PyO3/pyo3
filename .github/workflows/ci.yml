@@ -687,7 +687,7 @@ jobs:
           python-version: "3.13+debug"
 
       - run: |
-          uvx python -m sysconfig
+          python -m sysconfig
           uvx nox -s test
 
   test-debug-min-version:
@@ -711,7 +711,7 @@ jobs:
         with:
           python-version: "3.11+debug"
       - run: |
-          uvx python -m sysconfig
+          python -m sysconfig
           uvx nox -s test
 
   test-version-limits:

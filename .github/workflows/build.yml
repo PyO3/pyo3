@@ -62,9 +62,6 @@ jobs:
           python-version: cpython-${{ inputs.python-version }}-macos-x86-64
           save-cache: *enable-cache-save
 
-      - name: Install nox
-        run: uv pip install nox
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master # zizmor: ignore[unpinned-uses]
         with:
@@ -92,7 +89,7 @@ jobs:
 
       - if: inputs.rust == inputs.MSRV
         name: Prepare MSRV package versions
-        run: nox -s set-msrv-package-versions
+        run: uvx nox -s set-msrv-package-versions
 
       - if: inputs.rust != 'stable'
         name: Ignore changed error messages for ui tests (still run for coverage)
@@ -114,21 +111,21 @@ jobs:
       - name: Run pyo3-ffi-check
         # TODO: investigate graalpy failures
         if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy')) }}
-        run: nox -s ffi-check
+        run: uvx nox -s ffi-check
 
       - uses: ./.github/actions/prepare-coverage
         # https://github.com/rust-lang/rust/issues/150123
         if: inputs.os != 'windows-11-arm'
 
       - name: Build docs
-        run: nox -s docs
+        run: uvx nox -s docs
 
       - name: Run Rust tests
-        run: nox -s test-rust
+        run: uvx nox -s test-rust
 
       - name: Test python examples and tests
         shell: bash
-        run: nox -s test-py
+        run: uvx nox -s test-py
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 

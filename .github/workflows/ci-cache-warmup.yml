@@ -43,8 +43,7 @@ jobs:
         run: |
           set -ex
           sudo apt-get install -y mingw-w64 llvm
-          uv pip install nox
-          nox -s test-cross-compilation-windows
+          uvx nox -s test-cross-compilation-windows
 
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
