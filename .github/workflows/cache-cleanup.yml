@@ -2,6 +2,11 @@ name: CI Cache Cleanup
 on:
   pull_request_target:
     types:
+      # zizmor: ignore[dangerous-triggers]
+      #
+      # SAFETY: this workflow is triggered only after the PR is closed,
+      # does not check out or execute code from the pull request,
+      # and only deletes GitHub Actions caches for that PR using `GITHUB_TOKEN`.
       - closed
 
 jobs:

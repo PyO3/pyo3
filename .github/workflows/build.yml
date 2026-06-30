@@ -29,20 +29,25 @@ on:
 env:
   NOX_DEFAULT_VENV_BACKEND: uv
 
+  # A small hack to use anchors as GitHub doesn't allow it to be top level
+  \_○_○_/: &enable-cache-save >-
+    ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+
 jobs:
   build:
     continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["beta", "nightly"]'), inputs.rust) }}
     runs-on: ${{ inputs.os }}
     if: ${{ !(startsWith(inputs.python-version, 'graalpy') && startsWith(inputs.os, 'windows')) }}
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ inputs.sha }}
+          persist-credentials: false
 
       # installs using setup-python do not work for arm macOS 3.9 and below
       - if: ${{ !(inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64') }}
         name: Set up Python ${{ inputs.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
@@ -52,16 +57,16 @@ jobs:
       # workaround for the above, only available for 3.9
       - if: ${{ inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64' }}
         name: Set up Python ${{ inputs.python-version }}
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           python-version: cpython-${{ inputs.python-version }}-macos-x86-64
-          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-cache: *enable-cache-save
 
       - name: Install nox
-        run: python -m pip install --upgrade pip && pip install nox[uv]
+        run: uv pip install nox
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@master # zizmor: ignore[unpinned-uses]
         with:
           toolchain: ${{ inputs.rust }}
           targets: ${{ inputs.rust-target }}
@@ -77,9 +82,9 @@ jobs:
         run: |
           echo "CARGO_BUILD_TARGET=i686-pc-windows-msvc" >> $GITHUB_ENV
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
 
       - if: inputs.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)
@@ -93,7 +98,7 @@ jobs:
         name: Ignore changed error messages for ui tests (still run for coverage)
         run: echo "UI_TEST=ignore" >> "$GITHUB_ENV"
 
-      - uses: dorny/paths-filter@v4
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         if: ${{ inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') }}
         id: ffi-changes
         with:
@@ -112,7 +117,8 @@ jobs:
         run: nox -s ffi-check
 
       - uses: ./.github/actions/prepare-coverage
-        if: ${{ inputs.os != 'windows-11-arm' }} # https://github.com/rust-lang/rust/issues/150123
+        # https://github.com/rust-lang/rust/issues/150123
+        if: inputs.os != 'windows-11-arm'
 
       - name: Build docs
         run: nox -s docs
@@ -127,7 +133,8 @@ jobs:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
       - uses: ./.github/actions/report-coverage
-        if: ${{ inputs.os != 'windows-11-arm' }} # https://github.com/rust-lang/rust/issues/150123
+        # https://github.com/rust-lang/rust/issues/150123
+        if: inputs.os != 'windows-11-arm'
         with:
           name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}
           token: ${{ secrets.CODECOV_TOKEN }}
