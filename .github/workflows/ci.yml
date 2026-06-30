@@ -19,16 +19,19 @@ env:
   
   # A small hack to use anchors as GitHub doesn't allow it to be top level
   \_○_○_/: &enable-cache-save >-
-    ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+    ${{ github.ref == 'refs/heads/main' || 
+        contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
   (^_^): &enable-fail-fast >-
     ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
 
   (´• ω •`): &is-default-pr-build >-
-    ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && github.event_name == 'pull_request' }}
+    ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && 
+        github.event_name == 'pull_request' }}
 
   ʕ•ᴥ•ʔ: &enable-full-build >-
-    ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || 
+        github.event_name != 'pull_request' }}
 
 jobs:
   fmt:

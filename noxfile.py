@@ -43,7 +43,14 @@ except ImportError:
     requests = None
 
 nox.options.sessions = [
-    "test", "clippy", "rustfmt", "ruff", "rumdl", "zizmor", "docs", "typos",
+    "test",
+    "clippy",
+    "rustfmt",
+    "ruff",
+    "rumdl",
+    "zizmor",
+    "docs",
+    "typos",
 ]
 
 PYO3_DIR = Path(__file__).parent
