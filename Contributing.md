@@ -234,7 +234,7 @@ cargo llvm-cov
 ```
 - Then, generate an `lcov.info` file with
 ```shell
-nox -s coverage -- lcov
+nox -s coverage -- --lcov
 ```
 You can install an IDE plugin to view the coverage. For example, if you use VSCode:
 - Add the [coverage-gutters](https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters) plugin.
