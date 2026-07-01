@@ -353,6 +353,10 @@ name = "test_inheritance"
 required-features = ["macros"]
 
 [[test]]
+name = "test_init_config_add_module"
+required-features = ["macros"]
+
+[[test]]
 name = "test_intopyobject"
 required-features = ["macros"]
 
