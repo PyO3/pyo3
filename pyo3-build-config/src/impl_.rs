@@ -2483,7 +2483,7 @@ fn get_env_interpreter() -> Option<PathBuf> {
                 );
                 None
             }
-        },
+        }
         (None, Some(dir)) => {
             let path = conda_env_interpreter(&dir, cfg!(windows));
             if path.exists() {
