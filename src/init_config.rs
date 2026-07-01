@@ -317,6 +317,7 @@ mod tests {
         let mut config = InitConfig::default();
 
         config.set_int(c"non-existing", 0).unwrap_err();
+        assert!(config.get_int(c"non-existing").is_err());
 
         config.set_int(c"optimization_level", 100).unwrap();
         assert_eq!(100, config.get_int(c"optimization_level").unwrap());
@@ -330,6 +331,7 @@ mod tests {
         let mut config = InitConfig::default();
 
         config.set_str(c"non-existing", c"hello").unwrap_err();
+        assert!(config.get_str(c"non-existing").is_err());
 
         config.set_str(c"base_exec_prefix", c"/some/path").unwrap();
         assert_eq!(
@@ -348,12 +350,18 @@ mod tests {
         config
             .set_str_list(c"non-existing", &[c"hello"])
             .unwrap_err();
+        assert!(config.get_str_list(c"non-existing").is_err());
 
         config.set_str_list(c"argv", &[c"hello", c"world"]).unwrap();
         let list = config.get_str_list(c"argv").unwrap();
         assert_eq!("hello", list.get(0).unwrap());
         assert_eq!("world", list.get(1).unwrap());
         assert!(list.get(2).is_none());
+
+        let v = Vec::from_iter(&list);
+        assert_eq!("hello", v[0]);
+        assert_eq!("world", v[1]);
+        assert_eq!(2, v.len());
 
         // `optimization_level` is not a str list option
         config
