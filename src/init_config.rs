@@ -299,3 +299,64 @@ impl ExactSizeIterator for StringListOptionIterator<'_> {
 }
 
 impl FusedIterator for StringListOptionIterator<'_> {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn has_option() {
+        let config = InitConfig::default();
+        assert!(config.has_option(c"allocator"));
+        assert!(!config.has_option(c"non-existing"));
+    }
+
+    #[test]
+    fn int_option() {
+        let mut config = InitConfig::default();
+
+        config.set_int(c"non-existing", 0).unwrap_err();
+
+        config.set_int(c"optimization_level", 100).unwrap();
+        assert_eq!(100, config.get_int(c"optimization_level").unwrap());
+
+        // `base_exec_prefix` is not an int option
+        config.set_int(c"base_exec_prefix", 1).unwrap_err();
+    }
+
+    #[test]
+    fn str_option() {
+        let mut config = InitConfig::default();
+
+        config.set_str(c"non-existing", c"hello").unwrap_err();
+
+        config.set_str(c"base_exec_prefix", c"/some/path").unwrap();
+        assert_eq!(
+            "/some/path",
+            &*config.get_str(c"base_exec_prefix").unwrap().unwrap()
+        );
+
+        // `optimization_level` is not a str option
+        config.set_str(c"optimization_level", c"hello").unwrap_err();
+    }
+
+    #[test]
+    fn str_list_option() {
+        let mut config = InitConfig::default();
+
+        config
+            .set_str_list(c"non-existing", &[c"hello"])
+            .unwrap_err();
+
+        config.set_str_list(c"argv", &[c"hello", c"world"]).unwrap();
+        let list = config.get_str_list(c"argv").unwrap();
+        assert_eq!("hello", list.get(0).unwrap());
+        assert_eq!("world", list.get(1).unwrap());
+        assert!(list.get(2).is_none());
+
+        // `optimization_level` is not a str list option
+        config
+            .set_str_list(c"optimization_level", &[c"hello"])
+            .unwrap_err();
+    }
+}
