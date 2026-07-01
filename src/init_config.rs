@@ -125,10 +125,11 @@ impl InitConfig {
 
     /// Set a string list configuration option.
     pub fn set_str_list(&mut self, name: &CStr, items: &[&CStr]) -> Result<(), InitConfigError> {
+        let mut raw_cstrs: Vec<_> = items.iter().map(|cs| cs.as_ptr()).collect();
         self.check_error(
             // SAFETY: pointers are valid
             unsafe {
-                PyInitConfig_SetStrList(self.0, name.as_ptr(), items.len(), items.as_ptr() as _)
+                PyInitConfig_SetStrList(self.0, name.as_ptr(), items.len(), raw_cstrs.as_mut_ptr())
             },
         )
     }
