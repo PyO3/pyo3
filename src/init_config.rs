@@ -138,7 +138,7 @@ impl InitConfig {
     pub fn add_module(
         &mut self,
         name: &CStr,
-        initfunc: extern "C" fn() -> *mut PyObject,
+        initfunc: unsafe extern "C" fn() -> *mut PyObject,
     ) -> Result<(), InitConfigError> {
         self.check_error(
             // SAFETY: pointers are valid
