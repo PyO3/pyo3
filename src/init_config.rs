@@ -108,7 +108,7 @@ impl InitConfig {
     }
 
     /// Set an integer configuration option.
-    pub fn set_int(&self, name: &CStr, value: u64) -> Result<(), InitConfigError> {
+    pub fn set_int(&mut self, name: &CStr, value: u64) -> Result<(), InitConfigError> {
         self.check_error(
             // SAFETY: pointers are valid
             unsafe { PyInitConfig_SetInt(self.0, name.as_ptr(), value) },
@@ -116,7 +116,7 @@ impl InitConfig {
     }
 
     /// Set a string configuration option.
-    pub fn set_str(&self, name: &CStr, value: &CStr) -> Result<(), InitConfigError> {
+    pub fn set_str(&mut self, name: &CStr, value: &CStr) -> Result<(), InitConfigError> {
         self.check_error(
             // SAFETY: pointers are valid
             unsafe { PyInitConfig_SetStr(self.0, name.as_ptr(), value.as_ptr()) },
@@ -124,7 +124,7 @@ impl InitConfig {
     }
 
     /// Set a string list configuration option.
-    pub fn set_str_list(&self, name: &CStr, items: &[&CStr]) -> Result<(), InitConfigError> {
+    pub fn set_str_list(&mut self, name: &CStr, items: &[&CStr]) -> Result<(), InitConfigError> {
         self.check_error(
             // SAFETY: pointers are valid
             unsafe {
@@ -135,7 +135,7 @@ impl InitConfig {
 
     #[doc(hidden)]
     pub fn add_module(
-        &self,
+        &mut self,
         name: &CStr,
         initfunc: extern "C" fn() -> *mut PyObject,
     ) -> Result<(), InitConfigError> {
