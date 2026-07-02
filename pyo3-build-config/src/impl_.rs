@@ -102,6 +102,31 @@ fn sanitize_stable_abi_version(
     }
 }
 
+fn stable_abi_version_for_target(
+    implementation: PythonImplementation,
+    version: PythonVersion,
+    abi3_version: Option<PythonVersion>,
+    abi3t_version: Option<PythonVersion>,
+    gil_disabled: bool,
+) -> Option<PythonVersion> {
+    if matches!(
+        implementation,
+        PythonImplementation::PyPy | PythonImplementation::GraalPy
+    ) {
+        None
+    } else if version >= PythonVersion::PY315 {
+        match gil_disabled {
+            false => abi3t_version.or(abi3_version),
+            true => abi3t_version,
+        }
+    } else {
+        match gil_disabled {
+            false => abi3_version,
+            true => None,
+        }
+    }
+}
+
 /// Configuration needed by PyO3 to build for the correct Python implementation.
 ///
 /// The version and implementation fields correspond to the interpreter
@@ -498,24 +523,13 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             _ => panic!("Unknown Py_GIL_DISABLED value"),
         };
 
-        let stable_abi_version = if !matches!(
+        let stable_abi_version = stable_abi_version_for_target(
             implementation,
-            PythonImplementation::PyPy | PythonImplementation::GraalPy
-        ) {
-            if version >= PythonVersion::PY315 {
-                match gil_disabled {
-                    false => abi3t_version.or(abi3_version),
-                    true => abi3t_version,
-                }
-            } else {
-                match gil_disabled {
-                    false => abi3_version,
-                    true => None,
-                }
-            }
-        } else {
-            None
-        };
+            version,
+            abi3_version,
+            abi3t_version,
+            gil_disabled,
+        );
 
         let target_abi =
             PythonAbi::from_build_env(implementation, version, stable_abi_version, gil_disabled)?;
@@ -883,20 +897,19 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     }
 
     fn apply_build_env(mut self) -> Result<InterpreterConfig> {
-        let abi3_version = if self.target_abi.kind.is_free_threaded()
-            || matches!(
-                self.target_abi.implementation,
-                PythonImplementation::PyPy | PythonImplementation::GraalPy
-            ) {
-            None
-        } else {
-            get_abi3_version()
-        };
+        let gil_disabled = self.target_abi.kind().is_free_threaded();
+        let stable_abi_version = stable_abi_version_for_target(
+            self.implementation,
+            self.version,
+            exact_stable_abi_version(get_abi3_version()),
+            exact_stable_abi_version(get_abi3t_version()),
+            gil_disabled,
+        );
         self.target_abi = PythonAbi::from_build_env(
             self.implementation,
             self.version,
-            exact_stable_abi_version(abi3_version.or(get_abi3t_version())),
-            self.target_abi.kind().is_free_threaded(),
+            stable_abi_version,
+            gil_disabled,
         )?;
         Ok(self)
     }
@@ -2794,6 +2807,56 @@ mod tests {
             InterpreterConfigBuilder::new(implementation, PythonVersion::PY39)
                 .free_threaded()
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn stable_abi_version_for_target_matches_abi_support() {
+        let abi3_version = Some(PythonVersion::PY310);
+        let abi3t_version = Some(PythonVersion::PY315);
+
+        // A free-threaded 3.14 config from PYO3_CONFIG_FILE must remain
+        // version-specific, even when an abi3t-py315 feature is enabled.
+        assert_eq!(
+            stable_abi_version_for_target(
+                PythonImplementation::CPython,
+                PythonVersion::PY314,
+                abi3_version,
+                abi3t_version,
+                true,
+            ),
+            None
+        );
+
+        assert_eq!(
+            stable_abi_version_for_target(
+                PythonImplementation::CPython,
+                PythonVersion::PY314,
+                abi3_version,
+                abi3t_version,
+                false,
+            ),
+            abi3_version
+        );
+        assert_eq!(
+            stable_abi_version_for_target(
+                PythonImplementation::CPython,
+                PythonVersion::PY315,
+                abi3_version,
+                abi3t_version,
+                true,
+            ),
+            abi3t_version
+        );
+        assert_eq!(
+            stable_abi_version_for_target(
+                PythonImplementation::CPython,
+                PythonVersion::PY315,
+                abi3_version,
+                abi3t_version,
+                false,
+            ),
+            abi3t_version
         );
     }
 
