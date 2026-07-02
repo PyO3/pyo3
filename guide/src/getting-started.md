@@ -192,6 +192,9 @@ $ python
 '25'
 ```
 
+By default, `maturin develop` builds your Rust code with Cargo's default [`dev` profile](https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles), which includes debug information and limited optimizations.
+When checking runtime performance, run `maturin develop --release` to build with Cargo's `release` profile and enable optimizations.
+
 For more instructions on how to use Python code from Rust, see the [Python from Rust](python-from-rust.md) page.
 
 ## Maturin Import Hook
