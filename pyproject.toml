@@ -73,4 +73,5 @@ package = false
 dev = [
   "rumdl",
   "typos",
+  "zizmor",
 ]

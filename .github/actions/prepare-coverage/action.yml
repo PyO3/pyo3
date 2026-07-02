@@ -9,7 +9,7 @@ runs:
   using: "composite"
   steps:
   - name: Install cargo-llvm-cov
-    uses: taiki-e/install-action@cargo-llvm-cov
+    uses: taiki-e/install-action@cargo-llvm-cov # zizmor: ignore[unpinned-uses]
 
   - name: Prepare coverage environment
     shell: bash

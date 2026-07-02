@@ -14,20 +14,23 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  NOX_DEFAULT_VENV_BACKEND: uv
+  UV_PYTHON: "3.14"
+
+permissions: {}
 
 jobs:
   guide-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          python-version: "3.14"
+          persist-credentials: false
 
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@nightly # zizmor: ignore[unpinned-uses]
 
       - name: Setup mdBook
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@9bcaee1dcae34154180f412e2fa69355a7cda9f6 # v2.82.6
         with:
           tool: mdbook@0.5, mdbook-tabs@0.3, lychee
 
@@ -39,24 +42,28 @@ jobs:
 
       - name: Restore lychee cache
         id: restore-cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .lycheecache
           key: lychee-${{ github.run_id }}
           restore-keys: lychee-
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: false
+
       # This builds the book in target/guide/.
       - name: Build the guide
         run: |
-          python -m pip install --upgrade pip && pip install nox[uv]
-          nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
+          uvx nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
         env:
           PYO3_VERSION_TAG: ${{ github.event_name == 'release' && steps.prepare_tag.outputs.tag_name || 'main' }}
           # allows lychee to get better rate limits from github
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Save lychee cache
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
         with:
           path: .lycheecache
@@ -66,7 +73,7 @@ jobs:
       # (the full gh-pages branch is pulled in the build-netlify-site step)
       - name: Deploy the guide
         if: ${{ github.event_name == 'release' }}
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./target/guide/
@@ -80,12 +87,13 @@ jobs:
 
       - name: Build the site
         run: |
-          python -m pip install --upgrade pip && pip install nox[uv] towncrier requests
+          uvx \
+          --with requests \
           nox -s build-netlify-site -- ${{ (github.ref != 'refs/heads/main' && '--preview') || '' }}
 
       # Upload the built site as an artifact for deploy workflow to consume
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: site
           path: ./netlify_build

@@ -10,40 +10,71 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
+permissions: {}
+
 env:
   CARGO_TERM_COLOR: always
   NOX_DEFAULT_VENV_BACKEND: uv
   UV_PYTHON: 3.14
 
+  # A small hack to use anchors as GitHub doesn't allow it to be top level
+  \_○_○_/: &enable-cache-save >-
+    ${{ github.ref == 'refs/heads/main' || 
+        contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+
+  (^_^): &enable-fail-fast >-
+    ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+
+  (´• ω •`): &is-default-pr-build >-
+    ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && 
+        github.event_name == 'pull_request' }}
+
+  ʕ•ᴥ•ʔ: &enable-full-build >-
+    ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || 
+        github.event_name != 'pull_request' }}
+
 jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
-      - run: python -m pip install --upgrade pip && pip install nox[uv]
-      - uses: dtolnay/rust-toolchain@stable
+
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: *enable-cache-save
+
+      - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
           components: rustfmt
+
       - name: Check python formatting and lints (ruff)
-        run: nox -s ruff
+        run: uvx nox -s ruff
+
       - name: Check rust formatting (rustfmt)
-        run: nox -s rustfmt
+        run: uvx nox -s rustfmt
+
       - name: Check markdown formatting (rumdl)
-        run: nox -s rumdl
+        run: uvx nox -s rumdl
+
       - name: Check `required-features` in Cargo.toml
-        run: nox -s check-test-features
+        run: uvx nox -s check-test-features
+
       - name: Spell check
-        run: nox -s typos
+        run: uvx nox -s typos
 
   resolve:
     runs-on: ubuntu-latest
     outputs:
       MSRV: ${{ steps.resolve-msrv.outputs.MSRV }}
       verbose: ${{ runner.debug == '1' }}
-      save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      save-cache: *enable-cache-save
       # For PRs, we need to run on the real PR head, not the resultant merge of the PR into the target branch.
       #
       # This is necessary for coverage reporting to make sense; we then get exactly the coverage change
@@ -53,10 +84,14 @@ jobs:
       # with the commit diff, because the merge may affect line numbers.
       coverage-sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
+
       - name: resolve MSRV
         id: resolve-msrv
         run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])'` >> $GITHUB_OUTPUT
@@ -66,17 +101,22 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
+
       - name: Fetch merge base
         id: fetch_merge_base
         uses: ./.github/actions/fetch-merge-base
         with:
           base_ref: "refs/heads/${{ github.event.pull_request.base.ref }}"
           head_ref: "refs/pull/${{ github.event.pull_request.number }}/merge"
-      - uses: obi1kenobi/cargo-semver-checks-action@v2
+
+      - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2.9
         with:
           baseline-rev: ${{ steps.fetch_merge_base.outputs.merge_base }}
 
@@ -84,23 +124,32 @@ jobs:
     needs: [fmt, resolve]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@master # zizmor: ignore[unpinned-uses]
         with:
           toolchain: ${{ needs.resolve.outputs.MSRV }}
           components: rust-src
-      - uses: actions/setup-python@v6
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
-      - uses: Swatinem/rust-cache@v2
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - run: python -m pip install --upgrade pip && pip install nox[uv]
+          save-cache: *enable-cache-save
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          save-if: *enable-cache-save
+
       # This is a smoke test to confirm that CI will run on MSRV (including dev dependencies)
       - name: Check with MSRV package versions
         run: |
-          nox -s set-msrv-package-versions
-          nox -s check-all
+         uvx nox -s set-msrv-package-versions
+         uvx nox -s check-all
 
     env:
       CARGO_BUILD_TARGET: x86_64-unknown-linux-gnu
@@ -110,7 +159,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
-      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+      fail-fast: *enable-fail-fast
       matrix:
         rust: [stable]
         target:
@@ -129,18 +178,24 @@ jobs:
           # Run beta clippy as a way to detect any incoming lints which may affect downstream users
           - rust: beta
             target: "x86_64-unknown-linux-gnu"
+
     name: clippy/${{ matrix.target }}/${{ matrix.rust }}
     continue-on-error: ${{ matrix.rust != 'stable' }}
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@master # zizmor: ignore[unpinned-uses]
         with:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.target }}
           components: clippy,rust-src
-      - uses: astral-sh/setup-uv@v7
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-cache: *enable-cache-save
+
       - run: uvx nox -s clippy-all
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
@@ -150,26 +205,31 @@ jobs:
     runs-on: ubuntu-24.04-arm
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
-      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+      fail-fast: *enable-fail-fast
       matrix:
         target: ["x86_64-unknown-linux-gnu"]
     name: check-nightly/${{ matrix.target }}/${{ matrix.rust }}
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@nightly # zizmor: ignore[unpinned-uses]
         with:
           targets: ${{ matrix.target }}
           components: clippy,rust-src
-      - uses: astral-sh/setup-uv@v7
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-cache: *enable-cache-save
       - run: uvx nox -s check-all
+
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
 
   build-pr:
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && github.event_name == 'pull_request' }}
+    if: *is-default-pr-build
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
     needs: [fmt, resolve]
     uses: ./.github/workflows/build.yml
@@ -182,10 +242,11 @@ jobs:
       rust-target: ${{ matrix.platform.rust-target }}
       MSRV: ${{ needs.resolve.outputs.MSRV }}
       verbose: ${{ needs.resolve.outputs.verbose == 'true' }}
-    secrets: inherit
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
-      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+      fail-fast: *enable-fail-fast
       matrix:
         rust: [stable]
         python-version: ["3.14"]
@@ -263,7 +324,7 @@ jobs:
               }
 
   build-full:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    if: *enable-full-build
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
     needs: [fmt, resolve]
     uses: ./.github/workflows/build.yml
@@ -276,10 +337,11 @@ jobs:
       rust-target: ${{ matrix.platform.rust-target }}
       MSRV: ${{ needs.resolve.outputs.MSRV }}
       verbose: ${{ needs.resolve.outputs.verbose == 'true' }}
-    secrets: inherit
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
-      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+      fail-fast: *enable-fail-fast
       matrix:
         rust: [stable]
         python-version:
@@ -417,99 +479,134 @@ jobs:
               }
 
   valgrind:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
-      - uses: Swatinem/rust-cache@v2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: taiki-e/install-action@valgrind
-      - run: python -m pip install --upgrade pip && pip install nox[uv]
-      - run: nox -s test-rust -- release skip-full
+          enable-cache: *enable-cache-save
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          save-if: *enable-cache-save
+
+      - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
+      - uses: taiki-e/install-action@valgrind # zizmor: ignore[unpinned-uses]
+      - run: uvx -s test-rust -- release skip-full
     env:
       CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind --leak-check=no --error-exitcode=1
       RUST_BACKTRACE: 1
       UI_TEST: skip
 
   careful:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
-      - uses: Swatinem/rust-cache@v2
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@nightly
+          save-if: *enable-cache-save
+
+      - uses: dtolnay/rust-toolchain@nightly # zizmor: ignore[unpinned-uses]
         with:
           components: rust-src
-      - uses: taiki-e/install-action@cargo-careful
-      - run: python -m pip install --upgrade pip && pip install nox[uv]
-      - run: nox -s test-rust -- careful skip-full
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: *enable-cache-save
+
+      - uses: taiki-e/install-action@cargo-careful # zizmor: ignore[unpinned-uses]
+      - run: uvx nox -s test-rust -- careful skip-full
     env:
       RUST_BACKTRACE: 1
       UI_TEST: skip
 
   docsrs:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
-      - uses: Swatinem/rust-cache@v2
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@nightly
+          save-if: *enable-cache-save
+
+      - uses: dtolnay/rust-toolchain@nightly # zizmor: ignore[unpinned-uses]
         with:
           components: rust-src
+
       - run: cargo rustdoc --lib --no-default-features --features full,jiff-02 -Zunstable-options --config "build.rustdocflags=[\"--cfg\", \"docsrs\"]"
 
   emscripten:
     name: emscripten
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
+
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
           targets: wasm32-unknown-emscripten
           components: rust-src
-      - uses: actions/setup-node@v6
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 24
-      - uses: actions/cache/restore@v6
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: cache
         with:
           path: |
             .nox/emscripten
           key: emscripten-${{ hashFiles('wasm/emscripten/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
-      - uses: Swatinem/rust-cache@v2
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
+
       - name: Build
         if: steps.cache.outputs.cache-hit != 'true'
         run: uvx nox -s build-emscripten
+
       - name: Test
         run: uvx nox -s test-emscripten
-      - uses: actions/cache/save@v6
-        if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: *enable-cache-save
         with:
           path: |
             .nox/emscripten
@@ -517,102 +614,131 @@ jobs:
 
   wasm32-wasip1:
     name: wasm32-wasip1
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
+
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
           targets: wasm32-wasip1
           components: rust-src
+
       - name: "Install wasmtime"
-        uses: bytecodealliance/actions/wasmtime/setup@v1
+        uses: bytecodealliance/actions/wasmtime/setup@9152e710e9f7182e4c29ad218e4f335a7b203613 # v1.1.3
+
       - name: "Install WASI SDK"
-        uses: bytecodealliance/setup-wasi-sdk-action@main
+        uses: bytecodealliance/setup-wasi-sdk-action@main # zizmor: ignore[unpinned-uses]
         with:
           version: "24"
           # wasi sdk sets CC variables which break Python's configure script
           # (it also sets WASI_SDK_PATH even without `add-to-path`, which is sufficient)
           add-to-path: false
-      - uses: actions/cache/restore@v6
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: cache
         with:
           path: |
             .nox/wasi
           key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
-      - uses: Swatinem/rust-cache@v2
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
+
       - name: Build
         if: steps.cache.outputs.cache-hit != 'true'
         run: uvx nox -s build-wasm
+
       - name: Test
         run: uvx nox -s test-wasm
-      - uses: actions/cache/save@v6
-        if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: *enable-cache-save
         with:
           path: |
             .nox/wasi
           key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
 
   test-debug:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@stable
+          persist-credentials: false
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          save-if: *enable-cache-save
+
+      - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
           components: rust-src
-      - uses: astral-sh/setup-uv@v7
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           python-version: "3.13+debug"
-      - run: uvx python -m sysconfig
-      - run: uvx nox -s test
+
+      - run: |
+          python -m sysconfig
+          uvx nox -s test
 
   test-debug-min-version:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@stable
+          persist-credentials: false
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          save-if: *enable-cache-save
+
+      - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
           components: rust-src
-      - uses: astral-sh/setup-uv@v7
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           python-version: "3.11+debug"
-      - run: uvx python -m sysconfig
-      - run: uvx nox -s test
+      - run: |
+          python -m sysconfig
+          uvx nox -s test
 
   test-version-limits:
     needs: [fmt, resolve]
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    if: *enable-full-build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          persist-credentials: false
           ref: ${{ needs.resolve.outputs.coverage-sha }}
-      - uses: astral-sh/setup-uv@v7
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+
+      - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           save-if: ${{ needs.resolve.outputs.save-cache }}
+
       - uses: ./.github/actions/prepare-coverage
       - run: uvx nox -s test-version-limits
+
       - uses: ./.github/actions/report-coverage
         with:
           name: ${{ github.job }}
@@ -620,7 +746,7 @@ jobs:
 
   check-feature-powerset:
     needs: [fmt, resolve]
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    if: *enable-full-build
     runs-on: ubuntu-latest
     name: check-feature-powerset ${{ matrix.rust }}
     strategy:
@@ -631,30 +757,42 @@ jobs:
         include:
           - rust: ${{ needs.resolve.outputs.MSRV }}
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.15-dev"
-      - uses: Swatinem/rust-cache@v2
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@master
+          save-if: *enable-cache-save
+
+      - uses: dtolnay/rust-toolchain@master # zizmor: ignore[unpinned-uses]
         with:
           toolchain: stable
-      - uses: taiki-e/install-action@v2
+
+      - uses: taiki-e/install-action@9bcaee1dcae34154180f412e2fa69355a7cda9f6 # v2.82.6
         with:
           tool: cargo-hack,cargo-minimal-versions
-      - run: python3 -m pip install --upgrade pip && pip install nox[uv]
-      - run: python3 -m nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: *enable-cache-save
+
+      - run: |
+          uvx nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
 
   test-cross-compilation:
     needs: [fmt, resolve]
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    if: *enable-full-build
     runs-on: ${{ matrix.os }}
     name: test-cross-compilation ${{ matrix.os }} -> ${{ matrix.target }}
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
-      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+      fail-fast: *enable-fail-fast
       matrix:
         include:
           # ubuntu "cross compile" to itself
@@ -677,28 +815,35 @@ jobs:
             target: "aarch64-pc-windows-msvc"
             flags: "-i python3.13"
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          persist-credentials: false
           ref: ${{ needs.resolve.outputs.coverage-sha }}
-      - uses: astral-sh/setup-uv@v7
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
-      - uses: actions/setup-python@v6
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: ${{ env.UV_PYTHON }}
-      - uses: Swatinem/rust-cache@v2
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           workspaces: examples/maturin-starter
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
           key: ${{ matrix.target }}
+
       - name: Setup cross-compiler packages
         if: ${{ matrix.apt-packages }}
         run: sudo apt-get install -y ${{ matrix.apt-packages }}
+
       - uses: ./.github/actions/prepare-coverage
         with:
          host_only: true
+
       - name: Compile version-specific library
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           target: ${{ matrix.target }}
           args: --profile=dev -m examples/maturin-starter/Cargo.toml ${{ matrix.flags }}
@@ -709,8 +854,9 @@ jobs:
             -e __CARGO_LLVM_COV_RUSTC_WRAPPER_RUSTFLAGS
             -e __CARGO_LLVM_COV_RUSTC_WRAPPER_CRATE_NAMES
             -v /home/runner/.cargo/bin/cargo-llvm-cov:/home/runner/.cargo/bin/cargo-llvm-cov
+
       - name: Compile abi3 library
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           target: ${{ matrix.target }}
           args: --profile=dev -m examples/maturin-starter/Cargo.toml --features abi3 ${{ matrix.flags }}
@@ -721,6 +867,7 @@ jobs:
             -e __CARGO_LLVM_COV_RUSTC_WRAPPER_RUSTFLAGS
             -e __CARGO_LLVM_COV_RUSTC_WRAPPER_CRATE_NAMES
             -v /home/runner/.cargo/bin/cargo-llvm-cov:/home/runner/.cargo/bin/cargo-llvm-cov
+
       - uses: ./.github/actions/report-coverage
         with:
           name: ${{ github.job }}/${{ matrix.os }}/${{ matrix.target }}
@@ -728,31 +875,38 @@ jobs:
 
   test-cross-compilation-windows:
     needs: [fmt, resolve]
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    if: *enable-full-build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          persist-credentials: false
           ref: ${{ needs.resolve.outputs.coverage-sha }}
-      - uses: astral-sh/setup-uv@v7
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
-      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
           targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
           components: rust-src
       # load cache (prepared in ci-cache-warmup.yml)
-      - uses: actions/cache/restore@v6
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
+
       - name: Setup cross-compiler
         run: sudo apt-get install -y mingw-w64 llvm
+
       - uses: ./.github/actions/prepare-coverage
         with:
           host_only: true
+
       - name: Test cross compile to Windows
         run: uvx nox -s test-cross-compilation-windows
+
       - uses: ./.github/actions/report-coverage
         with:
           name: ${{ github.job }}
@@ -788,53 +942,82 @@ jobs:
           ]
     runs-on: ${{ matrix.platform.os }}
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
           targets: ${{ matrix.platform.rust-target }}
-      - uses: actions/setup-python@v6
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
           architecture: ${{ matrix.platform.python-architecture }}
-      - uses: Swatinem/rust-cache@v2
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - run: python -m pip install --upgrade pip && pip install nox[uv]
-      - run: nox -s test-introspection
+          save-if: *enable-cache-save
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: *enable-cache-save
+
+      - run: |
+          uvx nox -s test-introspection
     env:
       CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
 
   test-introspection-pr:
     needs: [fmt]
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && github.event_name == 'pull_request' }}
+    if: *is-default-pr-build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
-      - run: python -m pip install --upgrade pip && pip install nox[uv]
-      - run: nox -s test-introspection
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: *enable-cache-save
+
+      - run: |
+          uvx nox -s test-introspection
 
   pytests-type-checking:
     needs: [fmt]
     runs-on: ubuntu-latest
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
-      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+      fail-fast: *enable-fail-fast
       matrix:
         checker: [mypy, pyrefly]
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
           components: rust-src
-      - uses: actions/setup-python@v6
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
-      - run: python -m pip install --upgrade pip && pip install nox[uv]
-      - run: nox -s ${{matrix.checker}}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: *enable-cache-save
+
+      - run: uvx nox -s ${{matrix.checker}}
         working-directory: pytests
 
   conclusion:
@@ -855,13 +1038,14 @@ jobs:
       - test-cross-compilation
       - test-cross-compilation-windows
       - test-introspection
-    if: always()
+
+    if: >-
+      always() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      !contains(needs.*.result, 'neutral')
+
     runs-on: ubuntu-latest
+
     steps:
-      - name: Result
-        run: |
-          jq -C <<< "${needs}"
-          # Check if all needs were successful or skipped.
-          "$(jq -r 'all(.result as $result | (["success", "skipped"] | contains([$result])))' <<< "${needs}")"
-        env:
-          needs: ${{ toJson(needs) }}
+      - run: echo "All required jobs succeeded or skipped"
