@@ -36,7 +36,7 @@ impl InstanceMethod {
 fn instance_method() {
     Python::attach(|py| {
         let obj = Bound::new(py, InstanceMethod { member: 42 }).unwrap();
-        let obj_ref = obj.borrow();
+        let obj_ref = obj.try_borrow_guard().unwrap();
         assert_eq!(obj_ref.method(), 42);
         py_assert!(py, obj, "obj.method() == 42");
         py_assert!(py, obj, "obj.add_other(obj) == 84");
@@ -76,7 +76,7 @@ impl InstanceMethodWithArgs {
 fn instance_method_with_args() {
     Python::attach(|py| {
         let obj = Bound::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
-        let obj_ref = obj.borrow();
+        let obj_ref = obj.try_borrow_guard().unwrap();
         assert_eq!(obj_ref.method(6), 42);
         py_assert!(py, obj, "obj.method(3) == 21");
         py_assert!(py, obj, "obj.method(multiplier=6) == 42");
@@ -796,7 +796,7 @@ impl MethodWithPyClassArg {
             value: self.value + other.value,
         }
     }
-    fn add_pyref(&self, other: PyRef<'_, MethodWithPyClassArg>) -> MethodWithPyClassArg {
+    fn add_pyref(&self, other: PyClassGuard<'_, MethodWithPyClassArg>) -> MethodWithPyClassArg {
         MethodWithPyClassArg {
             value: self.value + other.value,
         }
@@ -804,7 +804,7 @@ impl MethodWithPyClassArg {
     fn inplace_add(&self, other: &mut MethodWithPyClassArg) {
         other.value += self.value;
     }
-    fn inplace_add_pyref(&self, mut other: PyRefMut<'_, MethodWithPyClassArg>) {
+    fn inplace_add_pyref(&self, mut other: PyClassGuardMut<'_, MethodWithPyClassArg>) {
         other.value += self.value;
     }
     #[pyo3(signature=(other = None))]
@@ -1269,10 +1269,10 @@ fn test_pymethods_warn() {
         }
 
         #[pyo3(warn(message = "this method raises warning"))]
-        fn method_with_warning(_slf: PyRef<'_, Self>) {}
+        fn method_with_warning(_slf: PyClassGuard<'_, Self>) {}
 
         #[pyo3(warn(message = "this method raises warning", category = PyFutureWarning))]
-        fn method_with_warning_and_custom_category(_slf: PyRef<'_, Self>) {}
+        fn method_with_warning_and_custom_category(_slf: PyClassGuard<'_, Self>) {}
 
         #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
         #[pyo3(warn(message = "this method raises user-defined warning", category = UserDefinedWarning))]
@@ -1308,7 +1308,7 @@ fn test_pymethods_warn() {
         }
 
         #[pyo3(warn(message = "the + op method raises warning"))]
-        fn __add__(&self, other: PyRef<'_, Self>) -> Self {
+        fn __add__(&self, other: PyClassGuard<'_, Self>) -> Self {
             Self {
                 value: self.value + other.value,
             }

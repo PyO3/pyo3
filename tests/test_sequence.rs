@@ -75,9 +75,12 @@ impl ByteSequence {
         Self { elements }
     }
 
-    fn __inplace_concat__(mut slf: PyRefMut<'_, Self>, other: &Self) -> Py<Self> {
+    fn __inplace_concat__<'a>(
+        mut slf: PyClassGuardMut<'a, Self>,
+        other: &Self,
+    ) -> PyClassGuardMut<'a, Self> {
         slf.elements.extend_from_slice(&other.elements);
-        slf.into()
+        slf
     }
 
     fn __repeat__(&self, count: isize) -> PyResult<Self> {
@@ -92,14 +95,18 @@ impl ByteSequence {
         }
     }
 
-    fn __inplace_repeat__(mut slf: PyRefMut<'_, Self>, count: isize) -> PyResult<Py<Self>> {
+    fn __inplace_repeat__(
+        mut slf: PyClassGuardMut<'_, Self>,
+        py: Python<'_>,
+        count: isize,
+    ) -> PyResult<Py<Self>> {
         if count >= 0 {
             let mut elements = Vec::with_capacity(slf.elements.len() * count as usize);
             for _ in 0..count {
                 elements.extend(&slf.elements);
             }
             slf.elements = elements;
-            Ok(slf.into())
+            Ok(slf.into_pyobject(py)?.to_owned().unbind())
         } else {
             Err(PyValueError::new_err("invalid repeat count"))
         }
@@ -284,7 +291,8 @@ fn test_any_object_list_set() {
 
         py_run!(py, list, "list.items = [1, 2, 3]");
         assert!(list
-            .borrow()
+            .try_borrow_guard()
+            .unwrap()
             .items
             .iter()
             .zip(&[1u32, 2, 3])

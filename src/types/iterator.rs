@@ -375,7 +375,13 @@ def fibonacci(target):
             );
 
             assert_eq!(
-                downcaster.borrow_mut(py).failed.take().unwrap().to_string(),
+                downcaster
+                    .try_borrow_guard_mut()
+                    .unwrap()
+                    .failed
+                    .take()
+                    .unwrap()
+                    .to_string(),
                 "TypeError: 'MySequence' object is not an instance of 'Iterator'"
             );
         });

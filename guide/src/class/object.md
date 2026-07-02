@@ -134,7 +134,7 @@ impl Number {
         // This is the equivalent of `self.__class__.__name__` in Python.
         let class_name: Bound<'_, PyString> = slf.get_type().qualname()?;
         // To access fields of the Rust struct, we need to borrow from the Bound object.
-        Ok(format!("{}({})", class_name, slf.borrow().0))
+        Ok(format!("{}({})", class_name, slf.try_borrow_guard()?.0))
     }
 }
 ```
@@ -351,7 +351,7 @@ impl Number {
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         let class_name: Bound<'_, PyString> = slf.get_type().qualname()?;
-        Ok(format!("{}({})", class_name, slf.borrow().0))
+        Ok(format!("{}({})", class_name, slf.try_borrow_guard()?.0))
     }
 
     fn __str__(&self) -> String {
