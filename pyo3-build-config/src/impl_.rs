@@ -2858,6 +2858,46 @@ mod tests {
             ),
             abi3t_version
         );
+        assert_eq!(
+            stable_abi_version_for_target(
+                PythonImplementation::CPython,
+                PythonVersion::PY315,
+                abi3_version,
+                None,
+                true,
+            ),
+            None
+        );
+        assert_eq!(
+            stable_abi_version_for_target(
+                PythonImplementation::CPython,
+                PythonVersion::PY315,
+                abi3_version,
+                None,
+                false,
+            ),
+            abi3_version
+        );
+        assert_eq!(
+            stable_abi_version_for_target(
+                PythonImplementation::PyPy,
+                PythonVersion::PY315,
+                abi3_version,
+                abi3t_version,
+                false,
+            ),
+            None
+        );
+        assert_eq!(
+            stable_abi_version_for_target(
+                PythonImplementation::GraalPy,
+                PythonVersion::PY315,
+                abi3_version,
+                abi3t_version,
+                false,
+            ),
+            None
+        );
     }
 
     #[test]
