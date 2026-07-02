@@ -317,3 +317,82 @@ fn test_optional_setter() {
         );
     })
 }
+
+// Regression test for #5974: previously, the wrapper generated for a regular
+// method called `get_x` collided with the wrapper generated for a `#[getter]`
+// of `x`, because both produced an associated function named
+// `__pymethod_get_x__`. The same problem applied to setters/deleters and to
+// `#[pyo3(name = ...)]` renames that happened to start with `get_`/`set_`/
+// `delete_`. The fix is to use a distinct infix for regular methods.
+#[test]
+fn property_and_regular_method_can_share_name_prefix() {
+    #[pyclass]
+    struct Object {
+        x: u32,
+        y: u32,
+        z: u32,
+    }
+
+    #[pymethods]
+    impl Object {
+        #[getter]
+        fn x(&self) -> u32 {
+            self.x
+        }
+
+        // Was previously a compile error: wrapper collided with the `x` getter.
+        fn get_x(&self) -> u32 {
+            self.x + 1
+        }
+
+        #[getter]
+        fn y(&self) -> u32 {
+            self.y
+        }
+
+        // Was previously a compile error too: `#[pyo3(name = ...)]` is also
+        // routed through `python_name`.
+        #[pyo3(name = "get_y")]
+        fn y_get(&self) -> u32 {
+            self.y + 2
+        }
+
+        #[setter]
+        fn z(&mut self, value: u32) {
+            self.z = value;
+        }
+
+        // Same collision pattern as above, but for setters.
+        fn set_z(&mut self, value: u32) {
+            self.z = value + 1;
+        }
+    }
+
+    Python::attach(|py| {
+        let instance = Py::new(
+            py,
+            Object {
+                x: 10,
+                y: 20,
+                z: 30,
+            },
+        )
+        .unwrap();
+        py_run!(
+            py,
+            instance,
+            "assert instance.x == 10 and instance.get_x() == 11"
+        );
+        py_run!(
+            py,
+            instance,
+            "assert instance.y == 20 and instance.get_y() == 22"
+        );
+        // `z` has only a setter; we exercise both the setter and the regular
+        // method by routing reads through the borrowed Rust value.
+        py_run!(py, instance, "instance.z = 5");
+        assert_eq!(instance.borrow(py).z, 5);
+        py_run!(py, instance, "instance.set_z(5)");
+        assert_eq!(instance.borrow(py).z, 6);
+    })
+}

@@ -372,7 +372,7 @@ pub fn impl_py_method_def(
     ctx: &Ctx,
 ) -> Result<MethodAndMethodDef> {
     let Ctx { pyo3_path, .. } = ctx;
-    let wrapper_ident = format_ident!("__pymethod_{}__", spec.python_name);
+    let wrapper_ident = format_ident!("__pymethod_method_{}__", spec.python_name);
     let calling_convention = CallingConvention::from_signature(&spec.signature);
     let associated_method = spec.get_wrapper_function(
         &wrapper_ident,

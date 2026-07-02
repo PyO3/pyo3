@@ -25,7 +25,7 @@ impl TwoNew {
 struct DuplicateMethod {}
 
 #[pymethods]
-//~^ ERROR: duplicate definitions with name `__pymethod_func__`
+//~^ ERROR: duplicate definitions with name `__pymethod_method_func__`
 impl DuplicateMethod {
     #[pyo3(name = "func")]
     fn func_a(&self) {}

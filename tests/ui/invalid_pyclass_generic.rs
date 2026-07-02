@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 
 #[pyclass(generic)]
-//~^ ERROR: duplicate definitions with name `__pymethod___class_getitem____`
+//~^ ERROR: duplicate definitions with name `__pymethod_method___class_getitem____`
 //~| ERROR: duplicate definitions with name `__class_getitem__`
 //~| ERROR: multiple applicable items in scope
 //~| ERROR: multiple applicable items in scope
