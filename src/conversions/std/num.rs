@@ -394,11 +394,11 @@ impl Drop for ExportGuard {
 // Builds an int from an iterator of 30-bit digits
 #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 #[inline]
-pub(crate) fn pylong_from_digits<'py, I: ExactSizeIterator<Item = u32>>(
-    py: Python<'py>,
+pub(crate) fn pylong_from_digits<I: ExactSizeIterator<Item = u32>>(
+    py: Python<'_>,
     negative: bool,
     digits: I,
-) -> Bound<'py, PyInt> {
+) -> Bound<'_, PyInt> {
     let digits_len = digits.len();
     let mut ptr = core::ptr::null_mut();
     let writer = unsafe {
@@ -430,19 +430,24 @@ pub(crate) fn pylong_visit_digits<R>(
             ffi::PyLong_Export(obj.as_ptr(), long_export.as_mut_ptr()),
         )?;
     }
-    let export_guard = ExportGuard(unsafe { long_export.assume_init() });
-    let long_export_ref = &export_guard.0;
-    let value = long_export_ref.value;
-    if long_export_ref.digits.is_null() {
-        let negative = long_export_ref.value < 0;
-        f(negative, value, None)
-    } else {
-        let negative = long_export_ref.negative != 0;
-        let n_digits = long_export_ref.ndigits as usize;
-        let ptr = long_export_ref.digits.cast::<u32>();
-        let digits = unsafe { core::slice::from_raw_parts(ptr, n_digits) };
-        f(negative, value, Some(digits))
+    let long_export = unsafe { long_export.assume_init() };
+    let ptr = long_export.digits.cast::<u32>();
+
+    if ptr.is_null() {
+        // `value` is only valid when `digits` is NULL, and `PyLong_FreeExport()`
+        // is optional in that case
+        //
+        // See: https://docs.python.org/3/c-api/long.html#c.PyLong_FreeExport
+        return f(long_export.value < 0, long_export.value, None);
     }
+    // Keep the export alive while `digits` borrows the exported buffer
+    let export_guard = ExportGuard(long_export);
+
+    let negative = export_guard.0.negative != 0;
+    let n_digits = export_guard.0.ndigits as usize;
+    let digits = unsafe { core::slice::from_raw_parts(ptr, n_digits) };
+
+    f(negative, 0, Some(digits))
 }
 
 #[cfg(any(not(Py_LIMITED_API), Py_3_15))]
