@@ -6,7 +6,7 @@
 
 // Listed first so that macros in this module are available in the rest of the crate.
 #[macro_use]
-mod utils;
+pub mod utils;
 
 mod attributes;
 mod combine_errors;
@@ -30,7 +30,7 @@ mod quotes;
 pub use frompyobject::build_derive_from_pyobject;
 pub use intopyobject::build_derive_into_pyobject;
 pub use module::{pymodule_function_impl, pymodule_module_impl, PyModuleOptions};
-pub use pyclass::{build_py_class, build_py_enum, PyClassArgs};
+pub use pyclass::{build_py_class, build_py_enum, PyClassArgs, PyClassKind, PyClassPyO3Options};
 pub use pyfunction::{build_py_function, PyFunctionOptions};
 pub use pyimpl::{build_py_methods, PyClassMethodsType};
 pub use utils::get_doc;

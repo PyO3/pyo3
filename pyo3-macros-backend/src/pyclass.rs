@@ -3193,6 +3193,7 @@ fn generate_cfg_check(variants: &[PyClassEnumUnitVariant<'_>], cls: &syn::Ident)
         }
     }
 
+    // Should be unreachable; we eagerly expand cfgs now.
     quote_spanned! {
         cls.span() =>
         #[cfg(all(#(#conditions),*))]
