@@ -613,6 +613,7 @@ jobs:
           save-if: ${{ needs.resolve.outputs.save-cache }}
       - uses: ./.github/actions/prepare-coverage
       - run: uvx nox -s test-version-limits
+      - run: uvx nox -s test-interpreter-discovery
       - uses: ./.github/actions/report-coverage
         with:
           name: ${{ github.job }}
