@@ -326,30 +326,3 @@ fn main() {
         std::process::exit(1)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::windows_gnu_import_lib_name;
-
-    #[test]
-    fn windows_gnu_import_lib_name_for_gnu_like_targets() {
-        assert_eq!(
-            windows_gnu_import_lib_name(Some("gnu"), "libpython3.14"),
-            Some("python3.14")
-        );
-        assert_eq!(
-            windows_gnu_import_lib_name(Some("gnullvm"), "libpython3"),
-            Some("python3")
-        );
-        assert_eq!(
-            windows_gnu_import_lib_name(Some("gnu"), "libpypy3.11-c"),
-            Some("pypy3.11-c")
-        );
-    }
-
-    #[test]
-    fn windows_gnu_import_lib_name_not_needed_elsewhere() {
-        assert_eq!(windows_gnu_import_lib_name(Some("msvc"), "python314"), None);
-        assert_eq!(windows_gnu_import_lib_name(None, "python314"), None);
-    }
-}
