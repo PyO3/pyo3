@@ -32,6 +32,8 @@ use portable_atomic::AtomicI64;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
+#[cfg(any(not(all(Py_LIMITED_API, Py_GIL_DISABLED)), Py_3_15))]
+use crate::internal_tricks::array_ptr_as_mut;
 use crate::prelude::PyTypeMethods;
 use crate::{
     ffi,
@@ -96,9 +98,7 @@ impl ModuleDef {
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
             m_name: name.as_ptr(),
             m_doc: doc.as_ptr(),
-            // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
-            // but that requires mut ptr deref on MSRV.
-            m_slots: slots.0.get() as _,
+            m_slots: array_ptr_as_mut(slots.pep_489_slots.get()),
             ..INIT
         });
 
@@ -237,9 +237,10 @@ impl ModuleDef {
                 .map(|py_module| py_module.clone_ref(py))
         }
     }
+
     #[cfg(Py_3_15)]
     pub fn get_slots(&'static self) -> *mut ffi::PySlot {
-        self.slots.0.get() as *mut ffi::PySlot
+        array_ptr_as_mut(self.slots.pep_820_slots.get())
     }
 }
 
@@ -309,10 +310,7 @@ const MAX_SLOTS_WITH_TRAILING_NULL: usize = MAX_SLOTS + 1;
 /// actual slots pushed due to the need to have a zeroed element on the end.
 pub struct PyModuleSlotsBuilder {
     // values (initially all zeroed)
-    #[cfg(not(Py_3_15))]
-    values: [ffi::PyModuleDef_Slot; MAX_SLOTS_WITH_TRAILING_NULL],
-    #[cfg(Py_3_15)]
-    values: [ffi::PySlot; MAX_SLOTS_WITH_TRAILING_NULL],
+    slots: PyModuleSlots,
     // current length
     len: usize,
 }
@@ -327,7 +325,15 @@ impl PyModuleSlotsBuilder {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
-            values: [unsafe { core::mem::zeroed() }; MAX_SLOTS_WITH_TRAILING_NULL],
+            slots: PyModuleSlots {
+                #[cfg(Py_3_15)]
+                pep_820_slots: UnsafeCell::new(
+                    [unsafe { core::mem::zeroed() }; MAX_SLOTS_WITH_TRAILING_NULL],
+                ),
+                pep_489_slots: UnsafeCell::new(
+                    [unsafe { core::mem::zeroed() }; MAX_SLOTS_WITH_TRAILING_NULL],
+                ),
+            },
             len: 0,
         }
     }
@@ -428,7 +434,7 @@ impl PyModuleSlotsBuilder {
     }
 
     pub const fn build(self) -> PyModuleSlots {
-        PyModuleSlots(UnsafeCell::new(self.values))
+        self.slots
     }
 
     #[cfg(not(Py_3_15))]
@@ -439,7 +445,7 @@ impl PyModuleSlotsBuilder {
             self.len < MAX_SLOTS,
             "Cannot add more than MAX_SLOTS slots to a PyModuleSlots",
         );
-        self.values[self.len] = ffi::PyModuleDef_Slot { slot, value };
+        self.slots.pep_489_slots.get_mut()[self.len] = ffi::PyModuleDef_Slot { slot, value };
         self.len += 1;
         self
     }
@@ -450,17 +456,30 @@ impl PyModuleSlotsBuilder {
             self.len < MAX_SLOTS,
             "Cannot add more than MAX_SLOTS slots to a PyModuleSlots",
         );
-        self.values[self.len] = value;
+        self.slots.pep_820_slots.get_mut()[self.len] = value;
+        self.slots.pep_489_slots.get_mut()[self.len] = ffi::PyModuleDef_Slot {
+            slot: value.sl_id as c_int,
+            // SAFETY: interpreting the `PySlot` value as a void* for the slot
+            //
+            // This will need removing if any future `PySlot` values can't be
+            // represented in legacy slots.
+            value: unsafe { value.anon2.sl_ptr },
+        };
         self.len += 1;
         self
     }
 }
 
 /// Wrapper to safely store module slots, to be used in a `ModuleDef`.
-#[cfg(not(Py_3_15))]
-pub struct PyModuleSlots(UnsafeCell<[ffi::PyModuleDef_Slot; MAX_SLOTS_WITH_TRAILING_NULL]>);
-#[cfg(Py_3_15)]
-pub struct PyModuleSlots(UnsafeCell<[ffi::PySlot; MAX_SLOTS_WITH_TRAILING_NULL]>);
+pub struct PyModuleSlots {
+    #[cfg(Py_3_15)]
+    pep_820_slots: UnsafeCell<[ffi::PySlot; MAX_SLOTS_WITH_TRAILING_NULL]>,
+    /// PEP 489 slots
+    ///
+    /// These are still needed on 3.15+ for `append_to_inittab` and for as long as
+    /// we continue to emit `PyInit_<name>` entry points on 3.15+.
+    pep_489_slots: UnsafeCell<[ffi::PyModuleDef_Slot; MAX_SLOTS_WITH_TRAILING_NULL]>,
+}
 
 // It might be possible to avoid this with SyncUnsafeCell in the future
 //
@@ -610,7 +629,10 @@ mod tests {
 
         #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
         unsafe {
-            assert_eq!((*module_def.ffi_def.get()).m_slots, SLOTS.0.get().cast());
+            assert_eq!(
+                (*module_def.ffi_def.get()).m_slots,
+                SLOTS.pep_489_slots.get().cast()
+            );
         }
         #[cfg(Py_3_15)]
         {
@@ -622,17 +644,17 @@ mod tests {
     #[test]
     #[cfg(panic = "unwind")]
     fn test_build_maximal_slots() {
-        let builder = PyModuleSlotsBuilder::new()
+        let mut builder = PyModuleSlotsBuilder::new()
             .with_mod_exec(module_exec)
             .with_name(c"test_module")
             .with_doc(c"some doc")
             .with_gil_used(false)
             .with_abi_info();
-        let second_last = builder.values[builder.len - 1];
-        let last = builder.values[builder.len];
 
         #[cfg(Py_3_15)]
         {
+            let second_last = builder.slots.pep_820_slots.get_mut()[builder.len - 1];
+            let last = builder.slots.pep_820_slots.get_mut()[builder.len];
             let zeroed = unsafe { core::mem::zeroed() };
             fn raw_bytes(inst: &ffi::PySlot) -> &[u8] {
                 unsafe {
@@ -648,6 +670,8 @@ mod tests {
         }
         #[cfg(not(Py_3_15))]
         {
+            let second_last = builder.slots.pep_489_slots.get_mut()[builder.len - 1];
+            let last = builder.slots.pep_489_slots.get_mut()[builder.len];
             let zeroed = ffi::PyModuleDef_Slot::default();
             assert!(last == zeroed);
             assert!(second_last != zeroed);
