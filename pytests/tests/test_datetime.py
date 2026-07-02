@@ -328,3 +328,12 @@ def test_tz_class_introspection():
     assert tzi.__class__ == rdt.TzClass
     # PyPy generates <importlib.bootstrap.TzClass ...> for some reason.
     assert re.match(r"^<[\w\.]*TzClass object at", repr(tzi))
+
+
+def test_tz_class_finalization():
+    # Regression test for https://github.com/PyO3/pyo3/issues/6110
+
+    global TzClassHolder
+
+    class TzClassHolder:
+        instance = rdt.TzClass()
