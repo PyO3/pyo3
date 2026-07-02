@@ -29,6 +29,7 @@ use core::sync::atomic::AtomicI64;
     not(target_has_atomic = "64"),
 ))]
 use portable_atomic::AtomicI64;
+use std::panic::AssertUnwindSafe;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
@@ -237,6 +238,19 @@ impl ModuleDef {
                 .map(|py_module| py_module.clone_ref(py))
         }
     }
+
+    /// Implementation of `initfunc` for `append_to_inittab`.
+    ///
+    /// # Safety
+    ///
+    /// The caller must have an attached thread state.
+    pub unsafe fn initfunc(&'static self) -> *mut ffi::PyObject {
+        let slf = AssertUnwindSafe(self);
+        let make_module = |py: Python<'_>| slf.make_module(py).map(Py::into_ptr);
+        // SAFETY: caller has an attached thread state
+        unsafe { crate::impl_::trampoline::trampoline(make_module) }
+    }
+
     #[cfg(Py_3_15)]
     pub fn get_slots(&'static self) -> *mut ffi::PySlot {
         self.slots.0.get() as *mut ffi::PySlot
