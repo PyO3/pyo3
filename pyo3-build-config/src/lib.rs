@@ -171,13 +171,21 @@ pub fn print_expected_cfgs() {
         "python3_d".to_string(),
         "python3t".to_string(),
         "python3t_d".to_string(),
+        "libpython3".to_string(),
+        "libpython3_d".to_string(),
+        "libpython3t".to_string(),
+        "libpython3t_d".to_string(),
     ];
     for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
         dll_names.push(format!("python3{i}"));
         dll_names.push(format!("python3{i}_d"));
+        dll_names.push(format!("libpython3.{i}"));
+        dll_names.push(format!("libpython3.{i}_d"));
         if i >= 13 {
             dll_names.push(format!("python3{i}t"));
             dll_names.push(format!("python3{i}t_d"));
+            dll_names.push(format!("libpython3.{i}t"));
+            dll_names.push(format!("libpython3.{i}t_d"));
         }
     }
     // PyPy DLL names (libpypy3.X-c.dll)
@@ -324,7 +332,7 @@ pub mod pyo3_build_script_impl {
             target.architecture,
             Architecture::Wasm32 | Architecture::Wasm64
         );
-        let is_emscripten = target.operating_system == target_lexicon::OperatingSystem::Emscripten;
+        let is_emscripten = target.operating_system == OperatingSystem::Emscripten;
         // webassembly targets generally don't support rpath, emscripten is the only exception currently aware of:
         // https://github.com/emscripten-core/emscripten/issues/22126
         if is_linking_libpython && (!is_wasm || is_emscripten) {
@@ -468,15 +476,15 @@ mod tests {
         interpreter_config.to_writer(&mut buf).unwrap();
         let config_string = escape(&buf);
         // SAFETY: no other tests use `crate::get()`
-        unsafe { std::env::set_var(InterpreterConfig::PYO3_FFI_CONFIG_ENV_VAR, &config_string) };
+        unsafe { env::set_var(InterpreterConfig::PYO3_FFI_CONFIG_ENV_VAR, &config_string) };
 
         assert_eq!(get_inner(), interpreter_config);
 
         // Repeat with PyO3 env var
         // SAFETY: no other tests use `crate::get()`
         unsafe {
-            std::env::remove_var(InterpreterConfig::PYO3_FFI_CONFIG_ENV_VAR);
-            std::env::set_var(InterpreterConfig::PYO3_CONFIG_ENV_VAR, &config_string)
+            env::remove_var(InterpreterConfig::PYO3_FFI_CONFIG_ENV_VAR);
+            env::set_var(InterpreterConfig::PYO3_CONFIG_ENV_VAR, &config_string)
         }
 
         assert_eq!(get_inner(), interpreter_config);
