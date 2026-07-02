@@ -18,7 +18,7 @@ impl MutRefArg {
     fn get(&self) -> i32 {
         self.n
     }
-    fn set_other(&self, mut other: PyRefMut<'_, MutRefArg>) {
+    fn set_other(&self, mut other: PyClassGuardMut<'_, MutRefArg>) {
         other.n = 100;
     }
 }
