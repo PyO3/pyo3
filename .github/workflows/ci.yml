@@ -898,4 +898,3 @@ jobs:
           "$(jq -r 'all(.result as $result | (["success", "skipped"] | contains([$result])))' <<< "${needs}")"
         env:
           needs: ${{ toJson(needs) }}
-
