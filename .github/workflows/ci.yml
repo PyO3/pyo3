@@ -791,6 +791,41 @@ jobs:
           name: ${{ github.job }}
           token: ${{ secrets.CODECOV_TOKEN }}
 
+  test-msys2-ucrt64:
+    needs: [fmt, resolve]
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      PYO3_PYTHON: python
+      CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: gcc
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ needs.resolve.outputs.coverage-sha }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-uv
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      - name: Build and run mixed Rust/C libpython test
+        run: |
+          python -c "import sys; print(sys.executable)"
+          python -c "import sys; print(sys.version)"
+          cargo run --manifest-path tests/msys2/Cargo.toml --target x86_64-pc-windows-gnu
+
   test-introspection:
     needs: [fmt]
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-test-introspection') || contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
