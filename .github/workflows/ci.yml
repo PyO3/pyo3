@@ -816,7 +816,6 @@ jobs:
           install: >-
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-python
-            mingw-w64-ucrt-x86_64-uv
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
