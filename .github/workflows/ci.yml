@@ -793,7 +793,7 @@ jobs:
 
   test-msys2-ucrt64:
     needs: [fmt, resolve]
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    # if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: windows-latest
     defaults:
       run:
