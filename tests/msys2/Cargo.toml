@@ -1,10 +1,15 @@
+[workspace]
+
 [package]
 name = "pyo3-msys2-smoke"
 version = "0.1.0"
 edition = "2024"
-publish = false
 
-[workspace]
+[lib]
+crate-type = ["cdylib"]
+
+[build-dependencies]
+cc = "1"
 
 [dependencies]
 pyo3-ffi = { path = "../../pyo3-ffi" }

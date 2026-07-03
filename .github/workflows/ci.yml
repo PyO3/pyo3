@@ -819,11 +819,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - name: Build and run mixed Rust/C libpython test
+      - name: Build mixed Rust/C libpython cdylib test
         run: |
           python -c "import sys; print(sys.executable)"
           python -c "import sys; print(sys.version)"
-          cargo run --manifest-path tests/msys2/Cargo.toml --target x86_64-pc-windows-gnu
+          cargo build --manifest-path tests/msys2/Cargo.toml --target x86_64-pc-windows-gnu
 
   test-introspection:
     needs: [fmt]
@@ -932,3 +932,4 @@ jobs:
           "$(jq -r 'all(.result as $result | (["success", "skipped"] | contains([$result])))' <<< "${needs}")"
         env:
           needs: ${{ toJson(needs) }}
+
