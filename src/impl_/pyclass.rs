@@ -1131,13 +1131,70 @@ pub trait PyClassBaseType: Sized {
     type Layout<T: PyClassImpl>;
 }
 
+/// Calls the type's `tp_finalize` slot (`__del__`), if any, from `tp_dealloc`,
+/// mirroring CPython's `subtype_dealloc`.
+///
+/// `PyObject_CallFinalizerFromDealloc` performs the temporary-resurrection
+/// refcount dance and ensures the finalizer runs at most once (via the GC
+/// "finalized" bit), so it is safe to call this even when the finalizer has
+/// already run (e.g. when reached via `subtype_dealloc` of a Python subclass,
+/// which calls `tp_finalize` itself before delegating to this base dealloc).
+///
+/// Returns `true` if the finalizer resurrected the object, in which case
+/// deallocation must be aborted.
+///
+/// On abi3 before Python 3.15, `PyObject_CallFinalizerFromDealloc` is not part
+/// of the limited API, so finalizers are not supported (`__del__` fails to
+/// compile there because the `finalizefunc` trampoline is likewise gated out).
+///
+/// On PyPy, `PyObject_CallFinalizerFromDealloc` is exported by cpyext but is
+/// not implemented with CPython-compatible deallocation/resurrection semantics,
+/// so PyO3 does not call it here. PyPy can still call `tp_finalize` from its
+/// own finalization path, usually delayed until a GC run. On GraalPy the
+/// function exists but has been observed to crash during deallocation (GraalPy's
+/// own extension patches also avoid this exact call pattern), so it is skipped
+/// there too; `__del__` may still run when invoked explicitly or by the
+/// runtime's own finalization.
+///
+/// # Safety
+/// - `obj` must be a valid pointer to an object whose reference count is zero.
+/// - The calling thread must be attached to the interpreter.
+#[inline]
+unsafe fn call_finalizer_from_dealloc(obj: *mut ffi::PyObject) -> bool {
+    #[cfg(all(any(not(Py_LIMITED_API), Py_3_15), not(any(PyPy, GraalPy))))]
+    {
+        use crate::internal::get_slot::{get_slot, TP_FINALIZE};
+        // Mirrors the `if (type->tp_finalize)` check in `subtype_dealloc`;
+        // pyclasses without `__del__` (or a finalizing ancestor) skip the call.
+        let has_finalize = unsafe { get_slot(ffi::Py_TYPE(obj), TP_FINALIZE) }.is_some();
+        has_finalize && unsafe { ffi::PyObject_CallFinalizerFromDealloc(obj) } < 0
+    }
+    #[cfg(not(all(any(not(Py_LIMITED_API), Py_3_15), not(any(PyPy, GraalPy)))))]
+    {
+        let _ = obj;
+        false
+    }
+}
+
 /// Implementation of tp_dealloc for pyclasses without gc
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
+    // Call `__del__` (tp_finalize) before any teardown, as CPython's
+    // `subtype_dealloc` does. The finalizer may resurrect the object.
+    if unsafe { call_finalizer_from_dealloc(obj) } {
+        return;
+    }
     unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
 }
 
 /// Implementation of tp_dealloc for pyclasses with gc
 pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::PyObject) {
+    // The finalizer can run arbitrary Python code (including code that
+    // triggers a GC pass or resurrects the object), so it must be called
+    // while the object is still GC-tracked; c.f. CPython's `subtype_dealloc`.
+    if unsafe { call_finalizer_from_dealloc(obj) } {
+        // Resurrected: the object stays alive (and stays tracked).
+        return;
+    }
     #[cfg(not(PyPy))]
     unsafe {
         ffi::PyObject_GC_UnTrack(obj.cast());

@@ -112,6 +112,15 @@ fn main() {
         // buffer protocol only supported on 3.11+ with abi3
         #[cfg(all(Py_LIMITED_API, not(Py_3_11)))]
         "buffer".into(),
+        // `__del__` is only supported on abi3 from 3.15, extra errors are
+        // emitted on older abi3 versions
+        #[cfg(all(Py_LIMITED_API, not(Py_3_15)))]
+        "invalid_del.rs".into(),
+        // `del_abi3_unsupported` is the inverse case: a *valid* `__del__` which
+        // only errors (with a clear diagnostic) on abi3 before 3.15. It compiles
+        // cleanly everywhere else, so skip it there.
+        #[cfg(not(all(Py_LIMITED_API, not(Py_3_15))))]
+        "del_abi3_unsupported.rs".into(),
         // only needs to run on versions where `#[pyclass(immutable_type)]` is unsupported
         #[cfg(any(Py_3_14, all(Py_3_10, not(Py_LIMITED_API))))]
         "immutable_type.rs".into(),

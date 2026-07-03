@@ -7,7 +7,6 @@ Because of the double-underscores surrounding their name, these are also known a
 PyO3 makes it possible for every magic method to be implemented in `#[pymethods]` just as they would be done in a regular Python class, with a few notable differences:
 
 - `__new__` is replaced by the [`#[new]` attribute](../class.md#constructor).
-- `__del__` is not yet supported, but may be in the future.
 - `__buffer__` and `__release_buffer__` are currently not supported and instead PyO3 supports [`__getbuffer__` and `__releasebuffer__`](#buffer-objects) methods (these predate [PEP 688](https://peps.python.org/pep-0688/#python-level-buffer-protocol)), again this may change in the future.
 - PyO3 adds [`__traverse__` and `__clear__`](#garbage-collector-integration) methods for controlling garbage collection.
 - The Python C-API which PyO3 is implemented upon requires many magic methods to have a specific function signature in C and be placed into special "slots" on the class type object.
@@ -172,6 +171,46 @@ The given signatures should be interpreted as follows:
 
 - `__call__(<self>, ...) -> object` - here, any argument list can be defined
     as for normal `pymethods`
+
+<!-- rumdl-disable MD013 -->
+<!-- TODO: report false positive -->
+
+- `__del__(<self>) -> ()`
+
+    Called when the instance is about to be destroyed (the Python finalizer,
+    `tp_finalize`). Like in Python, `__del__` may "resurrect" the object by
+    creating a new reference to it, in which case destruction is aborted.
+    Exceptions raised in `__del__` are not propagated; they are written to
+    `sys.unraisablehook`.
+
+    For classes which participate in garbage collection (i.e. implement
+    [`__traverse__`](#garbage-collector-integration)), `__del__` runs at most
+    once per instance, as in Python. Classes without `__traverse__` do not
+    support cyclic garbage collection, and CPython only deduplicates finalizer
+    calls for GC types, so if `__del__` resurrects such an instance it will run
+    again when the instance is next destroyed.
+
+    Note that `__del__` is called when the object is finalized, which is not
+    the point at which the Rust struct is dropped (finalization happens
+    earlier, and may not lead to destruction at all if the object is
+    resurrected). To run Rust code on destruction, implement
+    [`Drop`](https://doc.rust-lang.org/std/ops/trait.Drop.html) instead;
+    implement `__del__` only when finalization needs to run Python code or
+    observe the Python object.
+
+    > `__del__` requires Python 3.15 or later when building with the `abi3`
+    > feature, because `PyObject_CallFinalizerFromDealloc` was only added to
+    > the limited API in Python 3.15.
+    >
+    > On PyPy, PyO3 does not call `PyObject_CallFinalizerFromDealloc` from
+    > `tp_dealloc` because PyPy's cpyext implementation is not
+    > CPython-compatible, but PyPy may still invoke `tp_finalize` from its own
+    > GC/finalization path. On GraalPy, PyO3 also skips dealloc-time finalization
+    > because the API has been observed to crash there. On these runtimes,
+    > finalization timing may differ from CPython, and `__del__` will still run
+    > when called explicitly.
+
+<!-- rumdl-enable MD013 -->
 
 ### Iterable objects
 

@@ -456,3 +456,90 @@ fn test_subclass_ref_counts() {
         );
     })
 }
+
+// `__del__` requires `PyObject_CallFinalizerFromDealloc`, which is only part
+// of the limited API from Python 3.15.
+#[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+mod inheritance_with_del {
+    use super::*;
+
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    #[pyclass(subclass)]
+    struct BaseWithDel {
+        flag: Arc<AtomicBool>,
+    }
+
+    #[pymethods]
+    impl BaseWithDel {
+        #[new]
+        fn new() -> Self {
+            Self {
+                flag: Arc::new(AtomicBool::new(false)),
+            }
+        }
+
+        fn __del__(&mut self) {
+            self.flag.store(true, Ordering::SeqCst);
+        }
+    }
+
+    #[pyclass(extends=BaseWithDel)]
+    struct SubWithDel;
+
+    #[pymethods]
+    impl SubWithDel {
+        #[new]
+        fn new() -> PyClassInitializer<Self> {
+            PyClassInitializer::from(BaseWithDel {
+                flag: Arc::new(AtomicBool::new(false)),
+            })
+            .add_subclass(Self)
+        }
+    }
+
+    /// Test that __del__ defined on a base class is called when a Rust subclass is deallocated.
+    #[cfg(not(any(PyPy, GraalPy)))]
+    #[test]
+    fn test_del_in_subclass() {
+        Python::attach(|py| {
+            let flag = Arc::new(AtomicBool::new(false));
+            let obj = Bound::new(
+                py,
+                PyClassInitializer::from(BaseWithDel { flag: flag.clone() })
+                    .add_subclass(SubWithDel),
+            )
+            .unwrap();
+            assert!(!flag.load(Ordering::SeqCst));
+            drop(obj);
+            assert!(
+                flag.load(Ordering::SeqCst),
+                "__del__ on base class should have been called"
+            );
+        })
+    }
+
+    /// Test that a Python subclass of a #[pyclass] with __del__ calls __del__ on deallocation.
+    #[cfg(not(any(PyPy, GraalPy)))]
+    #[test]
+    fn test_del_in_python_subclass() {
+        Python::attach(|py| {
+            let base_cls = py.get_type::<BaseWithDel>();
+            py_run!(
+                py,
+                base_cls,
+                r#"
+                import gc
+
+                class PySub(base_cls):
+                    pass
+
+                obj = PySub()
+                del obj
+                gc.collect()
+                "#
+            );
+        })
+    }
+}

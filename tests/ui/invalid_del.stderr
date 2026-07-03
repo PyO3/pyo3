@@ -1,0 +1,13 @@
+error: Expected at most 0 non-python arguments
+  --> tests/ui/invalid_del.rs:14:52
+   |
+14 |     fn del_expects_no_arguments(&mut self, _extra: i32) {}
+   |                                                    ^^^
+
+error: expected instance method for `__del__` function
+  --> tests/ui/invalid_del.rs:22:8
+   |
+22 |     fn del_must_be_instance_method() {}
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: aborting due to 2 previous errors
