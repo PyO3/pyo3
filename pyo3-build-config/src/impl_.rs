@@ -25,15 +25,6 @@ use crate::{
 /// Minimum Python version PyO3 supports.
 pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 9 };
 
-pub(crate) const MINIMUM_SUPPORTED_VERSION_PYPY: PythonVersion = PythonVersion {
-    major: 3,
-    minor: 11,
-};
-pub(crate) const MAXIMUM_SUPPORTED_VERSION_PYPY: PythonVersion = PythonVersion {
-    major: 3,
-    minor: 11,
-};
-
 pub(crate) const MINIMUM_SUPPORTED_VERSION_ABI3T: PythonVersion = PythonVersion {
     major: 3,
     minor: 15,
