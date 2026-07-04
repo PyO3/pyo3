@@ -44,21 +44,21 @@ impl InitConfig {
     ///
     /// # Panic
     /// Panics if the interpreter is already initialized.
-    pub fn initialize(self) -> Result<Option<c_int>, InitConfigError> {
+    pub fn initialize(self) -> Result<(), InitializeFromConfigError> {
         // SAFETY: points to a valid config object
         let result =
             unsafe { crate::interpreter_lifecycle::initialize_from_config(self.0.as_ptr()) }
                 .expect("python interpreter is already initialized");
         match result {
-            0 => Ok(None),
+            0 => Ok(()),
             -1 => {
                 let mut exitcode = 0;
                 // SAFETY: pointers are valid
                 let result =
                     unsafe { PyInitConfig_GetExitCode(self.0.as_ptr(), &raw mut exitcode) };
                 match result {
-                    0 => Err(self.get_err()),
-                    1 => Ok(Some(exitcode)),
+                    0 => Err(InitializeFromConfigError::Message(self.get_err())),
+                    1 => Err(InitializeFromConfigError::Exit(exitcode)),
                     _ => unreachable!(),
                 }
             }
@@ -178,6 +178,33 @@ impl InitConfig {
         // SAFETY: error message is a null terminated UTF-8 string
         let err_message = unsafe { CStr::from_ptr(err_message).to_str().unwrap_unchecked() };
         InitConfigError(err_message.into())
+    }
+}
+
+/// Error returned by [`InitConfig::initialize`]
+#[derive(Debug)]
+pub enum InitializeFromConfigError {
+    /// The interpreter requested exiting with
+    Exit(c_int),
+
+    /// The error message from the interpreter
+    Message(InitConfigError),
+}
+
+impl From<InitConfigError> for InitializeFromConfigError {
+    fn from(value: InitConfigError) -> Self {
+        Self::Message(value)
+    }
+}
+
+impl core::error::Error for InitializeFromConfigError {}
+
+impl Display for InitializeFromConfigError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Exit(n) => write!(f, "interpreter requested exit with code {n}"),
+            Self::Message(init_config_error) => Display::fmt(init_config_error, f),
+        }
     }
 }
 
