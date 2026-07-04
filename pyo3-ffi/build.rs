@@ -255,6 +255,7 @@ fn should_use_raw_dylib_linking(lib_name: &str) -> bool {
 }
 
 fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
+    let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
     let interpreter_config = &build_config.interpreter_config;
 
     let lib_name = interpreter_config
@@ -275,12 +276,19 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
     }
 
     println!(
-        "cargo:rustc-link-lib={link_model}pythonXY:{lib_name}",
+        "cargo:rustc-link-lib={link_model}{alias}{lib_name}",
         link_model = if interpreter_config.shared() {
             ""
         } else {
             "static="
         },
+        // on windows we emit `#[link(name = "pythonXY")]` attributes
+        // and need this alias here to get the right name for the final link
+        alias = if target_os == "windows" {
+            "pythonXY:"
+        } else {
+            ""
+        }
     );
 
     if let Some(lib_dir) = interpreter_config.lib_dir() {
