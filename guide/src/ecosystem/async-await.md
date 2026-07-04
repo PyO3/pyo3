@@ -4,7 +4,7 @@
 *See the [dedicated documentation](../async-await.md)*
 
 If you are working with a Python library that makes use of async functions or wish to provide Python bindings for an async Rust library, [`pyo3-async-runtimes`](https://github.com/PyO3/pyo3-async-runtimes) likely has the tools you need.
-It provides conversions between async functions in both Python and Rust and was designed with first-class support for popular Rust runtimes such as [`tokio`](https://tokio.rs/) and [`async-std`](https://async.rs/).
+It provides conversions between async functions in both Python and Rust and was designed with first-class support for popular Rust runtimes such as [`tokio`](https://tokio.rs/) and [`async-std`](https://docs.rs/async-std/latest/async_std/).
 In addition, all async Python code runs on the default `asyncio` event loop, so `pyo3-async-runtimes` should work just fine with existing Python libraries.
 
 ## Additional Information
