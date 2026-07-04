@@ -292,6 +292,39 @@ pub unsafe fn cast_bound_ref_trusted<'a, 'py, T: PyTypeCheck>(
     }
 }
 
+/// Fused extraction for receivers which implement `TryFrom<&Bound<T>>` (e.g. `Py<T>`,
+/// `Bound<T>`, `PyRef<T>`), used to keep the generated code small. Trusted variant: performs an
+/// unchecked cast for extension-type slot receivers where CPython guarantees the receiver type.
+///
+/// # Safety
+/// The caller must ensure that `bound_ref` is an instance of `T`. This invariant is upheld by
+/// CPython when dispatching through type slots.
+#[inline]
+pub unsafe fn extract_receiver_trusted<'a, 'py, T, R>(
+    bound_ref: &'a Bound<'py, PyAny>,
+) -> PyResult<R>
+where
+    T: PyTypeCheck + 'a,
+    R: TryFrom<&'a Bound<'py, T>>,
+    R::Error: Into<PyErr>,
+{
+    // SAFETY: caller guarantees `bound_ref` is an instance of `T`
+    let bound = unsafe { cast_bound_ref_trusted::<T>(bound_ref) }?;
+    R::try_from(bound).map_err(Into::into)
+}
+
+/// As [`extract_receiver_trusted`], but performs a checked cast.
+#[inline]
+pub fn extract_receiver<'a, 'py, T, R>(bound_ref: &'a Bound<'py, PyAny>) -> PyResult<R>
+where
+    T: PyTypeCheck + 'a,
+    R: TryFrom<&'a Bound<'py, T>>,
+    R::Error: Into<PyErr>,
+{
+    let bound = bound_ref.cast::<T>().map_err(PyErr::from)?;
+    R::try_from(bound).map_err(Into::into)
+}
+
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
 pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
     obj: Borrowed<'a, 'py, PyAny>,
@@ -305,6 +338,24 @@ where
         Ok(value) => Ok(value),
         Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e.into())),
     }
+}
+
+/// Fused version of [`unwrap_required_argument`] + [`extract_argument`], used for required
+/// arguments to keep the generated code small.
+///
+/// # Safety
+/// `obj` must not be `None`
+#[inline]
+pub unsafe fn extract_required_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+    obj: Option<Borrowed<'a, 'py, PyAny>>,
+    holder: &'holder mut T::Holder,
+    arg_name: &str,
+) -> PyResult<T>
+where
+    T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
+{
+    // SAFETY: caller guarantees `obj` is not `None`
+    extract_argument(unsafe { unwrap_required_argument(obj) }, holder, arg_name)
 }
 
 /// Alternative to [`extract_argument`] used when the argument has a default value provided by an annotation.
@@ -333,6 +384,25 @@ pub fn from_py_with<'a, 'py, T>(
         Ok(value) => Ok(value),
         Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e)),
     }
+}
+
+/// Fused version of [`unwrap_required_argument_bound`] + [`from_py_with`], used for required
+/// arguments with a `#[pyo3(from_py_with)]` annotation to keep the generated code small.
+///
+/// # Safety
+/// `obj` must not be `None`
+#[inline]
+pub unsafe fn from_py_with_required<'a, 'py, T>(
+    obj: Option<&'a Bound<'py, PyAny>>,
+    arg_name: &str,
+    extractor: fn(&'a Bound<'py, PyAny>) -> PyResult<T>,
+) -> PyResult<T> {
+    // SAFETY: caller guarantees `obj` is not `None`
+    from_py_with(
+        unsafe { unwrap_required_argument_bound(obj) },
+        arg_name,
+        extractor,
+    )
 }
 
 /// Alternative to [`extract_argument`] used when the argument has a `#[pyo3(from_py_with)]` annotation and also a default value.
@@ -449,6 +519,13 @@ pub struct KeywordOnlyParameterDescription {
     pub required: bool,
 }
 
+impl KeywordOnlyParameterDescription {
+    /// Compact constructor used by the macros to keep the generated code small.
+    pub const fn new(name: &'static str, required: bool) -> Self {
+        Self { name, required }
+    }
+}
+
 /// Function argument specification for a `#[pyfunction]` or `#[pymethod]`.
 pub struct FunctionDescription {
     pub cls_name: Option<&'static str>,
@@ -460,6 +537,25 @@ pub struct FunctionDescription {
 }
 
 impl FunctionDescription {
+    /// Compact constructor used by the macros to keep the generated code small.
+    pub const fn new(
+        cls_name: Option<&'static str>,
+        func_name: &'static str,
+        positional_parameter_names: &'static [&'static str],
+        positional_only_parameters: usize,
+        required_positional_parameters: usize,
+        keyword_only_parameters: &'static [KeywordOnlyParameterDescription],
+    ) -> Self {
+        Self {
+            cls_name,
+            func_name,
+            positional_parameter_names,
+            positional_only_parameters,
+            required_positional_parameters,
+            keyword_only_parameters,
+        }
+    }
+
     fn full_name(&self) -> String {
         if let Some(cls_name) = self.cls_name {
             format!("{}.{}()", cls_name, self.func_name)

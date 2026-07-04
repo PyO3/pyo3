@@ -54,7 +54,7 @@ where
         is_mapping: bool,
         is_sequence: bool,
         is_immutable_type: bool,
-        doc: &'static CStr,
+        doc_pieces: &'static [&'static [u8]],
         dict_offset: Option<PyObjectOffset>,
         weaklist_offset: Option<PyObjectOffset>,
         is_basetype: bool,
@@ -66,6 +66,7 @@ where
         unsafe {
             PyTypeBuilder {
                 slots: Vec::new(),
+                type_doc_storage: None,
                 method_defs: Vec::new(),
                 member_defs: Vec::new(),
                 getset_builders: HashMap::new(),
@@ -86,7 +87,7 @@ where
                 dict_offset: None,
                 class_flags: 0,
             }
-            .type_doc(doc)
+            .type_doc(doc_pieces)
             .offsets(dict_offset, weaklist_offset)
             .set_is_basetype(is_basetype)
             .class_items(items_iter)
@@ -103,7 +104,7 @@ where
             T::IS_MAPPING,
             T::IS_SEQUENCE,
             T::IS_IMMUTABLE_TYPE,
-            T::DOC,
+            T::DOC_PIECES,
             T::dict_offset(),
             T::weaklist_offset(),
             T::IS_BASETYPE,
@@ -120,6 +121,9 @@ type PyTypeBuilderCleanup = Box<dyn Fn(&PyTypeBuilder, *mut ffi::PyTypeObject)>;
 
 struct PyTypeBuilder {
     slots: Vec<ffi::PyType_Slot>,
+    /// Assembled type doc; kept alive here because `slots` borrows its buffer until
+    /// `PyType_FromSpec` (which copies the doc) has been called in `build`.
+    type_doc_storage: Option<CString>,
     method_defs: Vec<ffi::PyMethodDef>,
     member_defs: Vec<ffi::PyMemberDef>,
     getset_builders: HashMap<&'static CStr, GetSetDefBuilder>,
@@ -330,9 +334,14 @@ impl PyTypeBuilder {
         self
     }
 
-    fn type_doc(mut self, type_doc: &'static CStr) -> Self {
-        let slice = type_doc.to_bytes();
-        if !slice.is_empty() {
+    fn type_doc(mut self, doc_pieces: &'static [&'static [u8]]) -> Self {
+        // The doc pieces are concatenated here, once per class at type-object creation time,
+        // rather than at compile time, to keep the amount of macro-generated code small. The
+        // final piece is nul terminated, so the concatenation is a valid C string.
+        let bytes = doc_pieces.concat();
+        if bytes.len() > 1 {
+            let type_doc =
+                CString::from_vec_with_nul(bytes).expect("pyclass doc contains nul bytes");
             unsafe { self.push_slot(ffi::Py_tp_doc, type_doc.as_ptr() as *mut c_char) }
 
             #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
@@ -341,6 +350,7 @@ impl PyTypeBuilder {
                 // heap-types, and it removed the text_signature value from it.
                 // We go in after the fact and replace tp_doc with something
                 // that _does_ include the text_signature value!
+                let slice = type_doc.as_bytes().to_vec();
                 self.cleanup
                     .push(Box::new(move |_self, type_object| unsafe {
                         ffi::PyObject_Free((*type_object).tp_doc as _);
@@ -349,6 +359,8 @@ impl PyTypeBuilder {
                         (*type_object).tp_doc = data as _;
                     }))
             }
+
+            self.type_doc_storage = Some(type_doc);
         }
         self
     }

@@ -154,6 +154,10 @@ pub use self::fastcall_cfunction_with_keywords as maybe_fastcall_cfunction_with_
 #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
 pub use self::cfunction_with_keywords as maybe_fastcall_cfunction_with_keywords;
 
+/// Short aliases for the trampolines above, used by the macros to keep the generated code small.
+pub use self::cfunction_with_keywords as cfunc_kw;
+pub use self::maybe_fastcall_cfunction_with_keywords as fastcall_kw;
+
 // Trampolines used by slot methods
 trampolines!(
     pub fn getattrofunc(slf: *mut ffi::PyObject, attr: *mut ffi::PyObject) -> *mut ffi::PyObject;

@@ -3,7 +3,7 @@
 use core::{convert::Infallible, marker::PhantomData, ops::Deref};
 
 use crate::{
-    ffi, types::PyNone, Bound, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyResult, Python,
+    ffi, types::PyNone, Bound, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
 
 /// Used to wrap values in `Option<T>` for default arguments.
@@ -104,10 +104,53 @@ impl EmptyTupleConverter<PyResult<()>> {
     }
 }
 
+impl EmptyTupleConverter<()> {
+    #[inline]
+    pub fn wrap_into_ptr(&self, py: Python<'_>, _obj: ()) -> PyResult<*mut ffi::PyObject> {
+        Ok(PyNone::get(py).to_owned().into_ptr())
+    }
+
+    #[inline]
+    pub fn wrap_into_pyobject(&self, py: Python<'_>, _obj: ()) -> PyResult<Py<PyAny>> {
+        Ok(PyNone::get(py).to_owned().into_any().unbind())
+    }
+}
+
+impl<E> EmptyTupleConverter<Result<(), E>>
+where
+    PyErr: From<E>,
+{
+    #[inline]
+    pub fn wrap_into_ptr(
+        &self,
+        py: Python<'_>,
+        obj: Result<(), E>,
+    ) -> PyResult<*mut ffi::PyObject> {
+        obj.map(|_| PyNone::get(py).to_owned().into_ptr())
+            .map_err(PyErr::from)
+    }
+
+    #[inline]
+    pub fn wrap_into_pyobject(&self, py: Python<'_>, obj: Result<(), E>) -> PyResult<Py<PyAny>> {
+        obj.map(|_| PyNone::get(py).to_owned().into_any().unbind())
+            .map_err(PyErr::from)
+    }
+}
+
 impl<'py, T: IntoPyObject<'py>> IntoPyObjectConverter<T> {
     #[inline]
     pub fn wrap(&self, obj: T) -> Result<T, Infallible> {
         Ok(obj)
+    }
+
+    #[inline]
+    pub fn wrap_into_ptr(&self, py: Python<'py>, obj: T) -> PyResult<*mut ffi::PyObject> {
+        obj.into_bound_py_any(py).map(Bound::into_ptr)
+    }
+
+    #[inline]
+    pub fn wrap_into_pyobject(&self, py: Python<'py>, obj: T) -> PyResult<Py<PyAny>> {
+        obj.into_py_any(py)
     }
 }
 
@@ -133,11 +176,49 @@ impl<'py, T: IntoPyObject<'py>, E> IntoPyObjectConverter<Result<T, E>> {
         obj.and_then(|obj| obj.into_bound_py_any(py))
             .map(Bound::into_ptr)
     }
+
+    #[inline]
+    pub fn wrap_into_ptr(&self, py: Python<'py>, obj: Result<T, E>) -> PyResult<*mut ffi::PyObject>
+    where
+        PyErr: From<E>,
+    {
+        obj.map_err(PyErr::from)
+            .and_then(|obj| obj.into_bound_py_any(py))
+            .map(Bound::into_ptr)
+    }
+
+    #[inline]
+    pub fn wrap_into_pyobject(&self, py: Python<'py>, obj: Result<T, E>) -> PyResult<Py<PyAny>>
+    where
+        PyErr: From<E>,
+    {
+        obj.map_err(PyErr::from).and_then(|obj| obj.into_py_any(py))
+    }
 }
 
 impl<T, E> UnknownReturnResultType<Result<T, E>> {
     #[inline]
     pub fn wrap<'py>(&self, _: Result<T, E>) -> Result<T, E>
+    where
+        T: IntoPyObject<'py>,
+    {
+        unreachable!("should be handled by IntoPyObjectConverter")
+    }
+
+    #[inline]
+    pub fn wrap_into_ptr<'py>(
+        &self,
+        _: Python<'py>,
+        _: Result<T, E>,
+    ) -> PyResult<*mut ffi::PyObject>
+    where
+        T: IntoPyObject<'py>,
+    {
+        unreachable!("should be handled by IntoPyObjectConverter")
+    }
+
+    #[inline]
+    pub fn wrap_into_pyobject<'py>(&self, _: Python<'py>, _: Result<T, E>) -> PyResult<Py<PyAny>>
     where
         T: IntoPyObject<'py>,
     {
@@ -164,6 +245,22 @@ impl<T> UnknownReturnType<T> {
 
     #[inline]
     pub fn map_into_ptr<'py>(&self, _: Python<'py>, _: PyResult<T>) -> PyResult<*mut ffi::PyObject>
+    where
+        T: IntoPyObject<'py>,
+    {
+        unreachable!("should be handled by IntoPyObjectConverter")
+    }
+
+    #[inline]
+    pub fn wrap_into_ptr<'py>(&self, _: Python<'py>, _: T) -> PyResult<*mut ffi::PyObject>
+    where
+        T: IntoPyObject<'py>,
+    {
+        unreachable!("should be handled by IntoPyObjectConverter")
+    }
+
+    #[inline]
+    pub fn wrap_into_pyobject<'py>(&self, _: Python<'py>, _: T) -> PyResult<Py<PyAny>>
     where
         T: IntoPyObject<'py>,
     {

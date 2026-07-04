@@ -1136,14 +1136,11 @@ fn impl_simple_enum(
         quote! {
             impl<'py> #pyo3_path::conversion::IntoPyObject<'py> for #cls {
                 type Target = Self;
-                type Output = #pyo3_path::Bound<'py, <Self as #pyo3_path::conversion::IntoPyObject<'py>>::Target>;
+                type Output = #pyo3_path::Bound<'py, Self>;
                 type Error = #pyo3_path::PyErr;
                 #output_type
 
-                fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> ::std::result::Result<
-                    <Self as #pyo3_path::conversion::IntoPyObject<'py>>::Output,
-                    <Self as #pyo3_path::conversion::IntoPyObject<'py>>::Error,
-                > {
+                fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<Self::Output> {
                     // TODO(icxolu): switch this to lookup the variants on the type object, once that is immutable
                     static SINGLETON: [#pyo3_path::sync::PyOnceLock<#pyo3_path::Py<#cls>>; #num] =
                         [const { #pyo3_path::sync::PyOnceLock::<#pyo3_path::Py<#cls>>::new() }; #num];
@@ -1268,14 +1265,11 @@ fn impl_complex_enum(
         quote! {
             impl<'py> #pyo3_path::conversion::IntoPyObject<'py> for #cls {
                 type Target = Self;
-                type Output = #pyo3_path::Bound<'py, <Self as #pyo3_path::conversion::IntoPyObject<'py>>::Target>;
+                type Output = #pyo3_path::Bound<'py, Self>;
                 type Error = #pyo3_path::PyErr;
                 #output_type
 
-                fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> ::std::result::Result<
-                    <Self as #pyo3_path::conversion::IntoPyObject>::Output,
-                    <Self as #pyo3_path::conversion::IntoPyObject>::Error,
-                > {
+                fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<Self::Output> {
                     match self {
                         #(#match_arms)*
                     }
@@ -2308,15 +2302,7 @@ fn impl_pytypeinfo(cls: &Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStream {
 
             #[inline]
             fn type_object_raw(py: #pyo3_path::Python<'_>) -> *mut #pyo3_path::ffi::PyTypeObject {
-                use #pyo3_path::prelude::PyTypeMethods;
-                <#cls as #pyo3_path::impl_::pyclass::PyClassImpl>::lazy_type_object()
-                    .get_or_try_init(py)
-                    .unwrap_or_else(|e| #pyo3_path::impl_::pyclass::type_object_init_failed(
-                        py,
-                        e,
-                        <Self as #pyo3_path::PyClass>::NAME
-                    ))
-                    .as_type_ptr()
+                #pyo3_path::impl_::pyclass::pyclass_type_object_raw::<Self>(py)
             }
         }
     }
@@ -2772,14 +2758,11 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {
                 impl<'py> #pyo3_path::conversion::IntoPyObject<'py> for #cls {
                     type Target = Self;
-                    type Output = #pyo3_path::Bound<'py, <Self as #pyo3_path::conversion::IntoPyObject<'py>>::Target>;
+                    type Output = #pyo3_path::Bound<'py, Self>;
                     type Error = #pyo3_path::PyErr;
                     #output_type
 
-                    fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> ::std::result::Result<
-                        <Self as #pyo3_path::conversion::IntoPyObject>::Output,
-                        <Self as #pyo3_path::conversion::IntoPyObject>::Error,
-                    > {
+                    fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<Self::Output> {
                         #pyo3_path::Bound::new(py, self)
                     }
                 }
@@ -2791,17 +2774,26 @@ impl<'a> PyClassImplsBuilder<'a> {
     fn impl_pyclassimpl(&self, ctx: &Ctx) -> Result<TokenStream> {
         let Ctx { pyo3_path, .. } = ctx;
         let cls = self.cls_ident;
-        let doc = if let Some(doc) = &self.doc {
-            doc.to_cstr_stream(ctx)?
-        } else {
-            c"".to_token_stream()
+        // `RAW_DOC` defaults to `c""` in the trait definition; only emit it when there is a
+        // docstring.
+        let raw_doc = match &self.doc {
+            Some(doc) => {
+                let doc = doc.to_cstr_stream(ctx)?;
+                Some(quote! { const RAW_DOC: &'static ::std::ffi::CStr = #doc; })
+            }
+            None => None,
         };
 
-        let module = if let Some(ModuleAttribute { value, .. }) = &self.attr.options.module {
-            quote! { ::core::option::Option::Some(#value) }
-        } else {
-            quote! { ::core::option::Option::None }
-        };
+        // All of these consts have defaults in the `PyClassImpl` trait definition; only emit
+        // them when they differ from the default, to keep the generated code small.
+        let module = self
+            .attr
+            .options
+            .module
+            .as_ref()
+            .map(|ModuleAttribute { value, .. }| {
+                quote! { const MODULE: ::std::option::Option<&str> = ::core::option::Option::Some(#value); }
+            });
 
         let is_basetype = self.attr.options.subclass.is_some();
         let base = match &self.attr.options.extends {
@@ -2817,6 +2809,13 @@ impl<'a> PyClassImplsBuilder<'a> {
             !(is_mapping && is_sequence),
             cls.span() => "a `#[pyclass]` cannot be both a `mapping` and a `sequence`"
         );
+
+        let is_basetype = is_basetype.then(|| quote! { const IS_BASETYPE: bool = true; });
+        let is_subclass_const = is_subclass.then(|| quote! { const IS_SUBCLASS: bool = true; });
+        let is_mapping = is_mapping.then(|| quote! { const IS_MAPPING: bool = true; });
+        let is_sequence = is_sequence.then(|| quote! { const IS_SEQUENCE: bool = true; });
+        let is_immutable_type =
+            is_immutable_type.then(|| quote! { const IS_IMMUTABLE_TYPE: bool = true; });
 
         let dict_offset = if self.attr.options.dict.is_some() {
             quote! {
@@ -2846,7 +2845,10 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         let (pymethods_items, inventory, inventory_class) = match self.methods_type {
             PyClassMethodsType::Specialization => (
-                quote! {{ use #pyo3_path::impl_::pyclass::PyMethods as _; collector.py_methods() }},
+                quote! {{
+                    use #pyo3_path::impl_::pyclass::PyMethods as _;
+                    #pyo3_path::impl_::pyclass::PyClassImplCollector::<Self>::new().py_methods()
+                }},
                 None,
                 None,
             ),
@@ -2879,11 +2881,56 @@ impl<'a> PyClassImplsBuilder<'a> {
                 self.default_slots
                     .iter()
                     .map(|meth| &meth.associated_method),
-            );
+            )
+            .collect::<Vec<_>>();
+        // Skip emitting the associated-methods impl block entirely when it would be empty.
+        let default_methods_impl = (!default_methods.is_empty()).then(|| {
+            quote! {
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                impl #cls {
+                    #(#default_methods)*
+                }
+            }
+        });
 
-        let default_method_defs = self.default_methods.iter().map(|meth| &meth.method_def);
-        let default_slot_defs = self.default_slots.iter().map(|slot| &slot.slot_def);
+        let default_method_defs = self
+            .default_methods
+            .iter()
+            .map(|meth| &meth.method_def)
+            .collect::<Vec<_>>();
+        let default_slot_defs = self
+            .default_slots
+            .iter()
+            .map(|slot| &slot.slot_def)
+            .collect::<Vec<_>>();
         let freelist_slots = self.freelist_slots(ctx);
+
+        // When there are no intrinsic items, point at a shared empty `PyClassItems` to keep the
+        // generated code small.
+        let items_iter = if default_method_defs.is_empty()
+            && default_slot_defs.is_empty()
+            && freelist_slots.is_empty()
+        {
+            quote! {
+                fn items_iter() -> #pyo3_path::impl_::pyclass::PyClassItemsIter {
+                    #pyo3_path::impl_::pyclass::PyClassItemsIter::new(
+                        &#pyo3_path::impl_::pyclass::NO_PY_CLASS_ITEMS,
+                        #pymethods_items,
+                    )
+                }
+            }
+        } else {
+            quote! {
+                fn items_iter() -> #pyo3_path::impl_::pyclass::PyClassItemsIter {
+                    static INTRINSIC_ITEMS: #pyo3_path::impl_::pyclass::PyClassItems = #pyo3_path::impl_::pyclass::PyClassItems {
+                        methods: &[#(#default_method_defs),*],
+                        slots: &[#(#default_slot_defs),* #(#freelist_slots),*],
+                    };
+                    #pyo3_path::impl_::pyclass::PyClassItemsIter::new(&INTRINSIC_ITEMS, #pymethods_items)
+                }
+            }
+        };
 
         let class_mutability = if self.attr.options.frozen.is_some() {
             quote! {
@@ -2974,25 +3021,31 @@ impl<'a> PyClassImplsBuilder<'a> {
             TokenStream::new()
         };
 
+        let assertions = (!assertions.is_empty()).then(|| {
+            quote! {
+                #[allow(dead_code)]
+                const _: () = {
+                    #assertions
+                };
+            }
+        });
+
         Ok(quote! {
             #deprecation
 
             #extract_pyclass_with_clone
 
-            #[allow(dead_code)]
-            const _: () ={
-                #assertions
-            };
+            #assertions
 
             #pyclass_base_type_impl
 
             impl #pyo3_path::impl_::pyclass::PyClassImpl for #cls {
-                const MODULE: ::std::option::Option<&str> = #module;
-                const IS_BASETYPE: bool = #is_basetype;
-                const IS_SUBCLASS: bool = #is_subclass;
-                const IS_MAPPING: bool = #is_mapping;
-                const IS_SEQUENCE: bool = #is_sequence;
-                const IS_IMMUTABLE_TYPE: bool = #is_immutable_type;
+                #module
+                #is_basetype
+                #is_subclass_const
+                #is_mapping
+                #is_sequence
+                #is_immutable_type
 
                 type Layout = <Self::BaseNativeType as #pyo3_path::impl_::pyclass::PyClassBaseType>::Layout<Self>;
                 type BaseType = #base;
@@ -3003,27 +3056,16 @@ impl<'a> PyClassImplsBuilder<'a> {
                 type WeakRef = #weakref;
                 type BaseNativeType = #base_nativetype;
 
-                fn items_iter() -> #pyo3_path::impl_::pyclass::PyClassItemsIter {
-                    let collector = #pyo3_path::impl_::pyclass::PyClassImplCollector::<Self>::new();
-                    static INTRINSIC_ITEMS: #pyo3_path::impl_::pyclass::PyClassItems = #pyo3_path::impl_::pyclass::PyClassItems {
-                        methods: &[#(#default_method_defs),*],
-                        slots: &[#(#default_slot_defs),* #(#freelist_slots),*],
-                    };
-                    #pyo3_path::impl_::pyclass::PyClassItemsIter::new(&INTRINSIC_ITEMS, #pymethods_items)
-                }
+                #items_iter
 
-                const RAW_DOC: &'static ::std::ffi::CStr = #doc;
+                #raw_doc
 
-                const DOC: &'static ::std::ffi::CStr = {
-                    use #pyo3_path::impl_ as impl_;
-                    use impl_::pyclass::Probe as _;
-                    const DOC_PIECES: &'static [&'static [u8]] = impl_::pyclass::doc::PyClassDocGenerator::<
+                const DOC_PIECES: &'static [&'static [u8]] = {
+                    use #pyo3_path::impl_::pyclass::Probe as _;
+                    #pyo3_path::impl_::pyclass::doc::PyClassDocGenerator::<
                         #cls,
-                        { impl_::pyclass::HasNewTextSignature::<#cls>::VALUE }
-                    >::DOC_PIECES;
-                    const LEN: usize = impl_::concat::combined_len(DOC_PIECES);
-                    const DOC: &'static [u8] = &impl_::concat::combine_to_array::<LEN>(DOC_PIECES);
-                    impl_::pyclass::doc::doc_bytes_as_cstr(DOC)
+                        { #pyo3_path::impl_::pyclass::HasNewTextSignature::<#cls>::VALUE }
+                    >::DOC_PIECES
                 };
 
                 #dict_offset
@@ -3037,11 +3079,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 }
             }
 
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            impl #cls {
-                #(#default_methods)*
-            }
+            #default_methods_impl
 
             #inventory_class
         })
