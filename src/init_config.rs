@@ -20,22 +20,21 @@ use pyo3_ffi::{
 /// [Here][1] is a list of configuration options.
 ///
 /// [1]: https://docs.python.org/3/c-api/init_config.html#configuration-options
-pub struct InitConfig(*mut crate::ffi::PyInitConfig);
+pub struct InitConfig(NonNull<crate::ffi::PyInitConfig>);
 
 impl Default for InitConfig {
     /// Creates a new initialization configuration using isolated configuration default values.
     fn default() -> Self {
         // SAFETY: no requirements
         let inner = unsafe { PyInitConfig_Create() };
-        assert!(!inner.is_null());
-        Self(inner)
+        Self(NonNull::new(inner).unwrap())
     }
 }
 
 impl Drop for InitConfig {
     fn drop(&mut self) {
         // SAFETY: pointer was returned by PyInitConfig_Create
-        unsafe { PyInitConfig_Free(self.0) };
+        unsafe { PyInitConfig_Free(self.0.as_ptr()) };
     }
 }
 
@@ -47,14 +46,16 @@ impl InitConfig {
     /// Panics if the interpreter is already initialized.
     pub fn initialize(self) -> Result<Option<c_int>, InitConfigError> {
         // SAFETY: points to a valid config object
-        let result = unsafe { crate::interpreter_lifecycle::initialize_from_config(self.0) }
-            .expect("python interpreter is already initialized");
+        let result =
+            unsafe { crate::interpreter_lifecycle::initialize_from_config(self.0.as_ptr()) }
+                .expect("python interpreter is already initialized");
         match result {
             0 => Ok(None),
             -1 => {
                 let mut exitcode = 0;
                 // SAFETY: pointers are valid
-                let result = unsafe { PyInitConfig_GetExitCode(self.0, &raw mut exitcode) };
+                let result =
+                    unsafe { PyInitConfig_GetExitCode(self.0.as_ptr(), &raw mut exitcode) };
                 match result {
                     0 => Err(self.get_err()),
                     1 => Ok(Some(exitcode)),
@@ -68,7 +69,7 @@ impl InitConfig {
     /// Check if the configuration has an option called `name`.
     pub fn has_option(&self, name: &CStr) -> bool {
         // SAFETY: pointers are valid
-        (unsafe { PyInitConfig_HasOption(self.0, name.as_ptr()) }) == 1
+        (unsafe { PyInitConfig_HasOption(self.0.as_ptr(), name.as_ptr()) }) == 1
     }
 
     /// Get an integer configuration option.
@@ -76,7 +77,7 @@ impl InitConfig {
         let mut value = 1;
         self.check_error(
             // SAFETY: pointers are valid
-            unsafe { PyInitConfig_GetInt(self.0, name.as_ptr(), &raw mut value) },
+            unsafe { PyInitConfig_GetInt(self.0.as_ptr(), name.as_ptr(), &raw mut value) },
         )?;
         Ok(value)
     }
@@ -86,7 +87,7 @@ impl InitConfig {
         let mut value = ptr::null_mut();
         self.check_error(
             // SAFETY: pointers are valid
-            unsafe { PyInitConfig_GetStr(self.0, name.as_ptr(), &raw mut value) },
+            unsafe { PyInitConfig_GetStr(self.0.as_ptr(), name.as_ptr(), &raw mut value) },
         )?;
         Ok(NonNull::new(value).map(StringOption))
     }
@@ -98,7 +99,12 @@ impl InitConfig {
         self.check_error(
             // SAFETY: pointers are valid
             unsafe {
-                PyInitConfig_GetStrList(self.0, name.as_ptr(), &raw mut length, &raw mut items)
+                PyInitConfig_GetStrList(
+                    self.0.as_ptr(),
+                    name.as_ptr(),
+                    &raw mut length,
+                    &raw mut items,
+                )
             },
         )?;
         Ok(StringListOption {
@@ -111,7 +117,7 @@ impl InitConfig {
     pub fn set_int(&mut self, name: &CStr, value: u64) -> Result<(), InitConfigError> {
         self.check_error(
             // SAFETY: pointers are valid
-            unsafe { PyInitConfig_SetInt(self.0, name.as_ptr(), value) },
+            unsafe { PyInitConfig_SetInt(self.0.as_ptr(), name.as_ptr(), value) },
         )
     }
 
@@ -119,7 +125,7 @@ impl InitConfig {
     pub fn set_str(&mut self, name: &CStr, value: &CStr) -> Result<(), InitConfigError> {
         self.check_error(
             // SAFETY: pointers are valid
-            unsafe { PyInitConfig_SetStr(self.0, name.as_ptr(), value.as_ptr()) },
+            unsafe { PyInitConfig_SetStr(self.0.as_ptr(), name.as_ptr(), value.as_ptr()) },
         )
     }
 
@@ -129,7 +135,12 @@ impl InitConfig {
         self.check_error(
             // SAFETY: pointers are valid
             unsafe {
-                PyInitConfig_SetStrList(self.0, name.as_ptr(), items.len(), raw_cstrs.as_mut_ptr())
+                PyInitConfig_SetStrList(
+                    self.0.as_ptr(),
+                    name.as_ptr(),
+                    items.len(),
+                    raw_cstrs.as_mut_ptr(),
+                )
             },
         )
     }
@@ -142,7 +153,7 @@ impl InitConfig {
     ) -> Result<(), InitConfigError> {
         self.check_error(
             // SAFETY: pointers are valid
-            unsafe { PyInitConfig_AddModule(self.0, name.as_ptr(), initfunc) },
+            unsafe { PyInitConfig_AddModule(self.0.as_ptr(), name.as_ptr(), initfunc) },
         )
     }
 
@@ -160,7 +171,7 @@ impl InitConfig {
         let mut err_message: *const c_char = ptr::null();
         assert_eq!(
             // SAFETY: pointers are valid
-            (unsafe { PyInitConfig_GetError(self.0, &raw mut err_message) }),
+            (unsafe { PyInitConfig_GetError(self.0.as_ptr(), &raw mut err_message) }),
             1,
             "PyInitConfig error message not set"
         );
