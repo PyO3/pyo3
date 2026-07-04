@@ -3,7 +3,8 @@ use pyo3_build_config::{
     pyo3_build_script_impl::{
         cargo_env_var, env_var, errors::Result, is_linking_libpython_for_target,
         print_feature_cfgs, print_libpython_rpath_link_args, resolve_build_config,
-        target_triple_from_env, BuildConfig, BuildConfigSource, MaximumVersionExceeded,
+        supported_pyo3_dll_names, target_triple_from_env, BuildConfig, BuildConfigSource,
+        MaximumVersionExceeded,
     },
     warn, InterpreterConfig, PythonAbiKind, PythonImplementation, PythonVersion, StableAbi,
 };
@@ -208,6 +209,65 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
         // Python interpreter on Windows is not supported by this path (and is not
         // officially supported by CPython on Windows).
         println!("cargo:rustc-cfg=pyo3_dll=\"{lib_name}\"");
+
+        // For MinGW-built CPython (e.g. MSYS2), which ships `lib`-prefixed DLLs
+        // (`libpython3.12.dll`) together with GNU import libraries
+        // (`libpython3.12.dll.a`), additionally emit a conventional link line on
+        // `*-windows-gnu(llvm)` targets. This is needed because:
+        //
+        // 1. rustc's generated raw-dylib import library only contains the symbols
+        //    declared in pyo3-ffi's extern blocks for the current configuration.
+        //    Non-Rust objects taking part in the same final link (e.g.
+        //    CFFI-generated C code in a mixed Rust/C extension module) may
+        //    reference other Python symbols - for example `__imp__Py_NoneStruct`
+        //    under abi3, where pyo3-ffi does not declare `_Py_NoneStruct` - which
+        //    can only be resolved from the distribution's complete import library.
+        //    See https://github.com/PyO3/pyo3/issues/6157.
+        // 2. rustc generates incorrectly decorated raw-dylib import symbols on
+        //    i686-pc-windows-gnu (https://github.com/rust-lang/rust/issues/138963);
+        //    the import library resolves those symbols correctly.
+        let target_env = cargo_env_var("CARGO_CFG_TARGET_ENV").unwrap();
+        let mingw_import_lib = if matches!(target_env.as_str(), "gnu" | "gnullvm") {
+            // e.g. `libpython3.12` -> `-lpython3.12`, which GNU ld resolves to
+            // `libpython3.12.dll.a`.
+            lib_name
+                .strip_prefix("libpython")
+                .map(|version| format!("python{version}"))
+        } else {
+            None
+        };
+
+        if let Some(import_lib_name) = &mingw_import_lib {
+            println!("cargo:rustc-link-lib={import_lib_name}");
+            if let Some(lib_dir) = interpreter_config.lib_dir() {
+                println!("cargo:rustc-link-search=native={lib_dir}");
+            }
+        }
+
+        // Fail fast if the config's lib_name is not covered by `extern_libpython!`.
+        // Otherwise the extern blocks would silently get no `#[link]` attribute at
+        // all, and the build would fail much later with hundreds of confusing
+        // undefined-symbol errors (see https://github.com/PyO3/pyo3/issues/6157).
+        if !supported_pyo3_dll_names()
+            .iter()
+            .any(|name| name == lib_name)
+        {
+            let message = format!(
+                "The Python library name `{lib_name}` is not supported by PyO3's \
+                 raw-dylib linking on Windows.\n\
+                 \n\
+                 If this Python distribution is a standard environment, please file \
+                 a bug against PyO3: https://github.com/PyO3/pyo3/issues"
+            );
+            if mingw_import_lib.is_some() {
+                // The conventional import-library link emitted above can still
+                // resolve the Python symbols at the final link, as it did before
+                // PyO3 0.28.
+                warn!("{message}");
+            } else {
+                bail!("{message}");
+            }
+        }
     } else {
         println!(
             "cargo:rustc-link-lib={link_model}{lib_name}",

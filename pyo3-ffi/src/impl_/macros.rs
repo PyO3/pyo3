@@ -11,11 +11,21 @@
 //
 // Variables are intentionally excluded here: `import_name_type` does not affect
 // variable imports, so `_Py_*` statics continue to work without any rewriting.
+//
+// This is gated to `target_env = "msvc"`. MSVC-built `python3X.dll` retains the
+// cdecl leading underscore on `_Py_*` exports, and MSVC's undecoration pass
+// strips the extra `_` added here back to CPython's export name. MinGW-built
+// `libpython3.X.dll` is produced with `--kill-at`, so it exports the bare C
+// names (e.g. `_Py_Dealloc`), and on `*-windows-gnu` rustc emits the
+// `link_name` verbatim — adding the extra `_` would yield a double-underscored
+// import (`__Py_Dealloc`) that the DLL does not export, failing at load time
+// with "The specified procedure could not be found". Skipping the workaround
+// there leaves the bare symbol name, which matches MinGW's exports.
 #[allow(unused_macros, reason = "used indirectly by extern_libpython_item!")]
 macro_rules! extern_libpython_cpython_private_fn {
     ($(#[$attrs:meta])* $vis:vis $name:ident($($args:tt)*) $(-> $ret:ty)?) => {
         #[cfg_attr(
-            all(windows, target_arch = "x86", not(any(PyPy, GraalPy))),
+            all(windows, target_arch = "x86", target_env = "msvc", not(any(PyPy, GraalPy))),
             link_name = concat!("_", stringify!($name))
         )]
         $(#[$attrs])*

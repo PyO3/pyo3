@@ -544,10 +544,13 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             )?
         };
 
-        let lib_dir = if cfg!(windows) {
+        let lib_dir = if cfg!(windows) && !mingw {
             map.get("base_prefix")
                 .map(|base_prefix| format!("{base_prefix}\\libs"))
         } else {
+            // On MinGW-built Python the import libraries live in the
+            // Unix-style `LIBDIR` (e.g. `C:/msys64/ucrt64/lib`), not in
+            // `base_prefix\libs`.
             map.get("libdir").cloned()
         };
 
