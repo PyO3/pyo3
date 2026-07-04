@@ -29,9 +29,18 @@ impl Holders {
     pub fn init_holders(&self, ctx: &Ctx) -> TokenStream {
         let Ctx { pyo3_path, .. } = ctx;
         let holders = &self.holders;
+        if holders.is_empty() {
+            return TokenStream::new();
+        }
+        // The holders are declared with a single tuple pattern to keep the generated code
+        // small (this also avoids triggering `clippy::let_unit_value` for the holders which
+        // are just `()`).
+        let holders_init = holders
+            .iter()
+            .map(|_| quote!(#pyo3_path::impl_::extract_argument::FunctionArgumentHolder::INIT))
+            .collect::<Vec<_>>();
         quote! {
-            #[allow(clippy::let_unit_value, reason = "many holders are just `()`")]
-            #(let mut #holders = #pyo3_path::impl_::extract_argument::FunctionArgumentHolder::INIT;)*
+            let (#(mut #holders,)*) = (#(#holders_init,)*);
         }
     }
 }
@@ -102,10 +111,7 @@ pub fn impl_arg_params(
         .map(|(name, default_value)| {
             let required = default_value.is_none();
             quote! {
-                #pyo3_path::impl_::extract_argument::KeywordOnlyParameterDescription {
-                    name: #name,
-                    required: #required,
-                }
+                #pyo3_path::impl_::extract_argument::KeywordOnlyParameterDescription::new(#name, #required)
             }
         });
 
@@ -165,14 +171,15 @@ pub fn impl_arg_params(
     // create array of arguments, and then parse
     (
         quote! {
-                const DESCRIPTION: #pyo3_path::impl_::extract_argument::FunctionDescription = #pyo3_path::impl_::extract_argument::FunctionDescription {
-                    cls_name: #cls_name,
-                    func_name: stringify!(#python_name),
-                    positional_parameter_names: &[#(#positional_parameter_names),*],
-                    positional_only_parameters: #positional_only_parameters,
-                    required_positional_parameters: #required_positional_parameters,
-                    keyword_only_parameters: &[#(#keyword_only_parameters),*],
-                };
+                const DESCRIPTION: #pyo3_path::impl_::extract_argument::FunctionDescription =
+                    #pyo3_path::impl_::extract_argument::FunctionDescription::new(
+                        #cls_name,
+                        stringify!(#python_name),
+                        &[#(#positional_parameter_names),*],
+                        #positional_only_parameters,
+                        #required_positional_parameters,
+                        &[#(#keyword_only_parameters),*],
+                    );
                 let mut #args_array = [::std::option::Option::None; #num_params];
                 let (_args, _kwargs) = #extract_expression;
                 #from_py_with
@@ -247,13 +254,10 @@ pub(crate) fn impl_regular_arg_param(
     let pyo3_path = pyo3_path.to_tokens_spanned(arg.ty.span());
 
     // Use this macro inside this function, to ensure that all code generated here is associated
-    // with the function argument
-    let use_probe = quote! {
-        #[allow(unused_imports, reason = "`Probe` trait used on negative case only")]
-        use #pyo3_path::impl_::pyclass::Probe as _;
-    };
+    // with the function argument. The `Probe` trait used by some of the extraction machinery is
+    // imported once per wrapper function (see `Holders::init_holders`).
     macro_rules! quote_arg_span {
-        ($($tokens:tt)*) => { quote_spanned!(arg.ty.span() => { #use_probe $($tokens)* }) }
+        ($($tokens:tt)*) => { quote_spanned!(arg.ty.span() => $($tokens)*) }
     }
 
     let name_str = arg.name.to_string();
@@ -282,13 +286,14 @@ pub(crate) fn impl_regular_arg_param(
                 )?
             }
         } else {
-            let unwrap = quote! {unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument_bound(#arg_value.as_deref()) }};
             quote_arg_span! {
-                #pyo3_path::impl_::extract_argument::from_py_with(
-                    #unwrap,
-                    #name_str,
-                    #extractor,
-                )?
+                unsafe {
+                    #pyo3_path::impl_::extract_argument::from_py_with_required(
+                        #arg_value.as_deref(),
+                        #name_str,
+                        #extractor,
+                    )
+                }?
             }
         }
     } else if let Some(default) = default {
@@ -306,13 +311,14 @@ pub(crate) fn impl_regular_arg_param(
         }
     } else {
         let holder = holders.push_holder(arg.ty.span());
-        let unwrap = quote! { unsafe { #pyo3_path::impl_::extract_argument::unwrap_required_argument(#arg_value) } };
         quote_arg_span! {
-            #pyo3_path::impl_::extract_argument::extract_argument(
-                #unwrap,
-                &mut #holder,
-                #name_str
-            )?
+            unsafe {
+                #pyo3_path::impl_::extract_argument::extract_required_argument(
+                    #arg_value,
+                    &mut #holder,
+                    #name_str
+                )
+            }?
         }
     }
 }
