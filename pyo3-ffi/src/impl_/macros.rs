@@ -231,9 +231,9 @@ macro_rules! extern_libpython_items {
 /// Helper macro to declare `extern` blocks that link against libpython on Windows
 /// using `raw-dylib`, eliminating the need for import libraries.
 ///
-/// The build script sets a `pyo3_dll` cfg value to the target DLL name (e.g. `python312`),
-/// and this macro expands to the appropriate `#[link(name = "...", kind = "raw-dylib")]`
-/// attribute for that DLL.
+/// The build script sets a `pyo3_dll` cfg value to the target DLL name (e.g. `python312`,
+/// or `libpython3.12` for MinGW-built Python), and this macro expands to the appropriate
+/// `#[link(name = "...", kind = "raw-dylib")]` attribute for that DLL.
 ///
 /// # Usage
 ///
@@ -260,7 +260,10 @@ macro_rules! extern_libpython {
             "python3", "python3_d",
             // abi3t
             "python3t", "python3t_d",
-            // Python 3.9 - 3.15
+            // abi3 for MinGW-built CPython, e.g. MSYS2 (libpython3.dll)
+            "libpython3",
+            // Python 3.9 - 3.15, plus the next in-development version, which
+            // pyo3-ffi allows building against with a warning
             "python39", "python39_d",
             "python310", "python310_d",
             "python311", "python311_d",
@@ -268,10 +271,15 @@ macro_rules! extern_libpython {
             "python313", "python313_d",
             "python314", "python314_d",
             "python315", "python315_d",
+            "python316", "python316_d",
             // free-threaded builds (3.13+)
             "python313t", "python313t_d",
             "python314t", "python314t_d",
             "python315t", "python315t_d",
+            "python316t", "python316t_d",
+            // MinGW-built CPython (DLL is libpython3.X.dll, not python3X.dll)
+            "libpython3.9", "libpython3.10", "libpython3.11", "libpython3.12",
+            "libpython3.13", "libpython3.14", "libpython3.15", "libpython3.16",
             // PyPy (DLL is libpypy3.X-c.dll, not pythonXY.dll)
             "libpypy3.11-c",
         );

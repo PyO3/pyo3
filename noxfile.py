@@ -1431,11 +1431,16 @@ def _check_raw_dylib_macro(session: nox.Session):
     min_minor = int(min_version.split(".")[1])
     max_minor = int(max_version.split(".")[1])
 
-    # Build the set of DLL names that default_lib_name_windows can produce
-    expected_dlls = {"python3", "python3_d"}
-    for minor in range(min_minor, max_minor + 1):
+    # Build the set of DLL names that default_lib_name_windows can produce.
+    # The range includes one minor version past the maximum supported version
+    # because pyo3-ffi allows building against the next in-development CPython
+    # version with a warning.
+    # MinGW-built CPython (e.g. MSYS2) ships `lib`-prefixed DLL names.
+    expected_dlls = {"python3", "python3_d", "libpython3"}
+    for minor in range(min_minor, max_minor + 2):
         expected_dlls.add(f"python3{minor}")
         expected_dlls.add(f"python3{minor}_d")
+        expected_dlls.add(f"libpython3.{minor}")
         if minor >= 13:
             expected_dlls.add(f"python3{minor}t")
             expected_dlls.add(f"python3{minor}t_d")
@@ -1452,7 +1457,7 @@ def _check_raw_dylib_macro(session: nox.Session):
 
     # Parse the DLL name list in the extern_libpython!(@impl ...) invocation
     lib_rs = (PYO3_DIR / "pyo3-ffi" / "src" / "impl_" / "macros.rs").read_text()
-    found_dlls = set(re.findall(r'"((?:python|libpypy)[^"]+)"', lib_rs))
+    found_dlls = set(re.findall(r'"((?:python|libpython|libpypy)[^"]+)"', lib_rs))
 
     missing = expected_dlls - found_dlls
     extra = found_dlls - expected_dlls

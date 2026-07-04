@@ -166,27 +166,7 @@ pub fn print_expected_cfgs() {
     }
 
     // pyo3_dll cfg for raw-dylib linking on Windows
-    let mut dll_names = vec![
-        "python3".to_string(),
-        "python3_d".to_string(),
-        "python3t".to_string(),
-        "python3t_d".to_string(),
-    ];
-    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
-        dll_names.push(format!("python3{i}"));
-        dll_names.push(format!("python3{i}_d"));
-        if i >= 13 {
-            dll_names.push(format!("python3{i}t"));
-            dll_names.push(format!("python3{i}t_d"));
-        }
-    }
-    // PyPy DLL names (libpypy3.X-c.dll)
-    for i in
-        impl_::MINIMUM_SUPPORTED_VERSION_PYPY.minor..=impl_::MAXIMUM_SUPPORTED_VERSION_PYPY.minor
-    {
-        dll_names.push(format!("libpypy3.{i}-c"));
-    }
-    let values = dll_names
+    let values = impl_::supported_pyo3_dll_names()
         .iter()
         .map(|n| format!("\"{n}\""))
         .collect::<Vec<_>>()
@@ -210,8 +190,9 @@ pub mod pyo3_build_script_impl {
         pub use crate::errors::*;
     }
     pub use crate::impl_::{
-        cargo_env_var, env_var, is_linking_libpython_for_target, target_triple_from_env,
-        InterpreterConfig, PythonAbi, PythonAbiKind, PythonVersion, StableAbi,
+        cargo_env_var, env_var, is_linking_libpython_for_target, supported_pyo3_dll_names,
+        target_triple_from_env, InterpreterConfig, PythonAbi, PythonAbiKind, PythonVersion,
+        StableAbi,
     };
     pub enum BuildConfigSource {
         /// Config was provided by `PYO3_CONFIG_FILE`.

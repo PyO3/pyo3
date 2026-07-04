@@ -150,9 +150,11 @@ pub struct InterpreterConfig {
 
     /// The name of the link library defining Python.
     ///
-    /// This effectively controls the `cargo:rustc-link-lib=<name>` value to
-    /// control how libpython is linked. Values should not contain the `lib`
-    /// prefix.
+    /// On Windows this is the name of the Python DLL without the `.dll`
+    /// suffix (e.g. `python312`, or `libpython3.12` for MinGW-built Python),
+    /// which is linked using `raw-dylib`. On other platforms this effectively
+    /// controls the `cargo:rustc-link-lib=<name>` value and should not
+    /// contain the `lib` prefix.
     ///
     /// Serialized to `lib_name`.
     #[deprecated(
@@ -284,9 +286,11 @@ impl InterpreterConfig {
 
     /// The name of the link library defining Python.
     ///
-    /// This effectively controls the `cargo:rustc-link-lib=<name>` value to
-    /// control how libpython is linked. Values should not contain the `lib`
-    /// prefix.
+    /// On Windows this is the name of the Python DLL without the `.dll`
+    /// suffix (e.g. `python312`, or `libpython3.12` for MinGW-built Python),
+    /// which is linked using `raw-dylib`. On other platforms this effectively
+    /// controls the `cargo:rustc-link-lib=<name>` value and should not
+    /// contain the `lib` prefix.
     ///
     /// Serialized to `lib_name`.
     pub fn lib_name(&self) -> Option<&str> {
@@ -521,11 +525,12 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             PythonAbi::from_build_env(implementation, version, stable_abi_version, gil_disabled)?;
 
         let cygwin = map["cygwin"].as_str() == "True";
+        let mingw = map["mingw"].as_str() == "True";
 
         let lib_name = if cfg!(windows) {
             default_lib_name_windows(
                 target_abi,
-                map["mingw"].as_str() == "True",
+                mingw,
                 // This is the best heuristic currently available to detect debug build
                 // on Windows from sysconfig - e.g. ext_suffix may be
                 // `_d.cp312-win_amd64.pyd` for 3.12 debug build
@@ -2298,10 +2303,53 @@ fn load_cross_compile_config(
 const WINDOWS_STABLE_ABI_LIB_NAME: &str = "python3";
 const WINDOWS_STABLE_ABI_DEBUG_LIB_NAME: &str = "python3_d";
 
+/// All Python DLL names (without the `.dll` suffix) supported by raw-dylib
+/// linking on Windows.
+///
+/// This should include one minor version past `STABLE_ABI_MAX_MINOR` because
+/// pyo3-ffi allows building against the next in-development CPython version
+/// with a warning.
+///
+/// Keep this in sync with the `extern_libpython!` macro in
+/// `pyo3-ffi/src/impl_/macros.rs` (checked by `nox -s ffi-check`).
+pub fn supported_pyo3_dll_names() -> Vec<String> {
+    let mut dll_names = vec![
+        // abi3
+        "python3".to_string(),
+        "python3_d".to_string(),
+        // abi3t
+        "python3t".to_string(),
+        "python3t_d".to_string(),
+        // abi3 for MinGW-built CPython (e.g. MSYS2)
+        "libpython3".to_string(),
+    ];
+    for i in MINIMUM_SUPPORTED_VERSION.minor..=STABLE_ABI_MAX_MINOR + 1 {
+        dll_names.push(format!("python3{i}"));
+        dll_names.push(format!("python3{i}_d"));
+        // free-threaded builds (3.13+)
+        if i >= 13 {
+            dll_names.push(format!("python3{i}t"));
+            dll_names.push(format!("python3{i}t_d"));
+        }
+        // MinGW-built CPython (libpython3.X.dll)
+        dll_names.push(format!("libpython3.{i}"));
+    }
+    // PyPy DLL names (libpypy3.X-c.dll)
+    for i in MINIMUM_SUPPORTED_VERSION_PYPY.minor..=MAXIMUM_SUPPORTED_VERSION_PYPY.minor {
+        dll_names.push(format!("libpypy3.{i}-c"));
+    }
+    dll_names
+}
+
 /// Generates the default library name for the target platform.
 #[allow(dead_code)]
 fn default_lib_name_for_target(abi: PythonAbi, target: &Triple) -> String {
     if target.operating_system == OperatingSystem::Windows {
+        // `mingw: false` even for `*-windows-gnu` targets: cross-compiling
+        // with a GNU toolchain usually targets the python.org distribution
+        // (`python3X.dll`), not a MinGW-built Python (`libpython3.X.dll`).
+        // Cross-compiling for e.g. MSYS2 Python requires setting `lib_name`
+        // explicitly via `PYO3_CONFIG_FILE`.
         default_lib_name_windows(abi, false, false).unwrap()
     } else {
         default_lib_name_unix(
@@ -2322,6 +2370,26 @@ fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<
             "libpypy{}.{}-c",
             abi.version.major, abi.version.minor
         ))
+    } else if mingw {
+        ensure!(
+            !abi.kind.is_free_threaded(),
+            "MinGW free-threaded builds are not currently tested or supported"
+        );
+        // MinGW-built CPython (e.g. MSYS2) ships Unix-style `lib`-prefixed DLLs:
+        // `libpython3.X.dll`, and `libpython3.dll` for the stable ABI. With
+        // raw-dylib linking we need the real DLL name rather than the
+        // import-library alias. Debug builds are not shipped for MinGW, so
+        // `debug` is ignored here.
+        // https://packages.msys2.org/base/mingw-w64-python
+        if matches!(abi.kind, PythonAbiKind::Stable(_)) {
+            // `is_free_threaded()` above rejects Abi3t, so this is always Abi3.
+            Ok("libpython3".to_string())
+        } else {
+            Ok(format!(
+                "libpython{}.{}",
+                abi.version.major, abi.version.minor
+            ))
+        }
     } else if debug && abi.version < PythonVersion::PY310 {
         // CPython bug: linking against python3_d.dll raises error
         // https://github.com/python/cpython/issues/101614
@@ -2341,13 +2409,6 @@ fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<
             lib_name = lib_name.replace("python3", "python3t");
         }
         Ok(lib_name)
-    } else if mingw {
-        ensure!(
-            !abi.kind.is_free_threaded(),
-            "MinGW free-threaded builds are not currently tested or supported"
-        );
-        // https://packages.msys2.org/base/mingw-w64-python
-        Ok(format!("python{}.{}", abi.version.major, abi.version.minor))
     } else if abi.kind().is_free_threaded() {
         #[expect(deprecated, reason = "using constant internally")]
         {
@@ -3281,6 +3342,7 @@ mod tests {
             .unwrap(),
             "python3",
         );
+        // MinGW-built CPython (e.g. MSYS2) uses `lib`-prefixed DLL names
         assert_eq!(
             super::default_lib_name_windows(
                 PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY39)
@@ -3290,7 +3352,7 @@ mod tests {
                 false,
             )
             .unwrap(),
-            "python3.9",
+            "libpython3.9",
         );
         assert_eq!(
             super::default_lib_name_windows(
@@ -3302,7 +3364,19 @@ mod tests {
                 false,
             )
             .unwrap(),
-            "python3",
+            "libpython3",
+        );
+        // MinGW does not ship debug builds; the debug flag is ignored
+        assert_eq!(
+            super::default_lib_name_windows(
+                PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY39)
+                    .finalize()
+                    .unwrap(),
+                true,
+                true,
+            )
+            .unwrap(),
+            "libpython3.9",
         );
         assert_eq!(
             super::default_lib_name_windows(
@@ -3376,6 +3450,16 @@ mod tests {
             false,
         )
         .is_err());
+        // ... including the free-threaded stable ABI
+        assert!(super::default_lib_name_windows(
+            PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY315)
+                .stable_abi(StableAbi::Abi3t)
+                .finalize()
+                .unwrap(),
+            true,
+            false,
+        )
+        .is_err());
         assert_eq!(
             super::default_lib_name_windows(
                 PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY313)
@@ -3424,6 +3508,60 @@ mod tests {
             .unwrap(),
             "python3t_d",
         );
+    }
+
+    #[test]
+    fn default_windows_lib_names_are_supported_dll_names() {
+        // Every name `default_lib_name_windows` can produce must be covered
+        // by `supported_pyo3_dll_names` (and hence by the `extern_libpython!`
+        // macro in pyo3-ffi), otherwise Windows builds fail to link.
+        let supported = supported_pyo3_dll_names();
+        let check = |abi: PythonAbi, mingw: bool, debug: bool| {
+            if let Ok(name) = super::default_lib_name_windows(abi, mingw, debug) {
+                assert!(
+                    supported.contains(&name),
+                    "`{name}` is missing from supported_pyo3_dll_names()"
+                );
+            }
+        };
+        for minor in MINIMUM_SUPPORTED_VERSION.minor..=STABLE_ABI_MAX_MINOR + 1 {
+            let version = PythonVersion { major: 3, minor };
+            for mingw in [false, true] {
+                for debug in [false, true] {
+                    let builder = || PythonAbiBuilder::new(PythonImplementation::CPython, version);
+                    // version-specific, GIL-enabled
+                    check(builder().finalize().unwrap(), mingw, debug);
+                    // abi3
+                    check(
+                        builder().stable_abi(StableAbi::Abi3).finalize().unwrap(),
+                        mingw,
+                        debug,
+                    );
+                    // free-threaded (3.13+)
+                    if minor >= 13 {
+                        check(builder().free_threaded().finalize().unwrap(), mingw, debug);
+                    }
+                    // abi3t (3.15+)
+                    if minor >= 15 {
+                        check(
+                            builder().stable_abi(StableAbi::Abi3t).finalize().unwrap(),
+                            mingw,
+                            debug,
+                        );
+                    }
+                }
+            }
+        }
+        for minor in MINIMUM_SUPPORTED_VERSION_PYPY.minor..=MAXIMUM_SUPPORTED_VERSION_PYPY.minor {
+            let version = PythonVersion { major: 3, minor };
+            check(
+                PythonAbiBuilder::new(PythonImplementation::PyPy, version)
+                    .finalize()
+                    .unwrap(),
+                false,
+                false,
+            );
+        }
     }
 
     #[test]
