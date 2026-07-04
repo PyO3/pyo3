@@ -1432,6 +1432,9 @@ def _check_raw_dylib_macro(session: nox.Session):
     max_minor = int(max_version.split(".")[1])
 
     # Build the set of DLL names that default_lib_name_windows can produce.
+    # Keep this in sync with `supported_pyo3_dll_names()` in
+    # `pyo3-build-config/src/impl_.rs` (the canonical list) and the
+    # `extern_libpython!` macro in `pyo3-ffi/src/impl_/macros.rs`.
     # The range includes one minor version past the maximum supported version
     # because pyo3-ffi allows building against the next in-development CPython
     # version with a warning.

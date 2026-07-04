@@ -658,7 +658,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             // For config files which don't apply a lib name, apply a default which we can use
             // for linking.
             if config.lib_name.is_none() {
-                config.lib_name = Some(default_lib_name_for_target(config.target_abi, target));
+                config.lib_name = Some(default_lib_name_for_target(config.target_abi, target)?);
             }
 
             Ok(config)
@@ -2219,7 +2219,7 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
     let target_abi =
         PythonAbi::from_build_env(implementation, version, stable_abi_version, gil_disabled)?;
 
-    let lib_name = default_lib_name_for_target(target_abi, &cross_compile_config.target);
+    let lib_name = default_lib_name_for_target(target_abi, &cross_compile_config.target)?;
 
     let lib_dir = cross_compile_config.lib_dir_string();
 
@@ -2267,7 +2267,11 @@ fn default_stable_abi_config(
     let builder = InterpreterConfigBuilder::new(PythonImplementation::CPython, version)
         .target_abi(target_abi);
     if host.operating_system == OperatingSystem::Windows {
-        builder.lib_name(default_lib_name_windows(target_abi, false, false)?)
+        builder.lib_name(default_lib_name_windows(
+            target_abi,
+            is_mingw_windows_target(host),
+            false,
+        )?)
     } else {
         builder
     }
@@ -2344,23 +2348,26 @@ pub fn supported_pyo3_dll_names() -> Vec<String> {
     dll_names
 }
 
+/// Returns true when the Cargo target triple is a MinGW Windows environment.
+fn is_mingw_windows_target(target: &Triple) -> bool {
+    target.operating_system == OperatingSystem::Windows
+        && matches!(target.environment, Environment::Gnu | Environment::GnuLlvm)
+}
+
 /// Generates the default library name for the target platform.
 #[allow(dead_code)]
-fn default_lib_name_for_target(abi: PythonAbi, target: &Triple) -> String {
+fn default_lib_name_for_target(abi: PythonAbi, target: &Triple) -> Result<String> {
     if target.operating_system == OperatingSystem::Windows {
-        // `mingw: false` even for `*-windows-gnu` targets: cross-compiling
-        // with a GNU toolchain usually targets the python.org distribution
-        // (`python3X.dll`), not a MinGW-built Python (`libpython3.X.dll`).
-        // Cross-compiling for e.g. MSYS2 Python requires setting `lib_name`
-        // explicitly via `PYO3_CONFIG_FILE`.
-        default_lib_name_windows(abi, false, false).unwrap()
+        // `*-windows-gnu(llvm)` targets use the MinGW toolchain and are assumed
+        // to link against MinGW-built Python (`libpython3.X.dll`). The python.org
+        // MSVC distribution requires `*-windows-msvc` instead.
+        default_lib_name_windows(abi, is_mingw_windows_target(target), false)
     } else {
         default_lib_name_unix(
             abi,
             target.operating_system == OperatingSystem::Cygwin,
             None,
         )
-        .unwrap()
     }
 }
 
@@ -3047,6 +3054,22 @@ mod tests {
     }
 
     #[test]
+    fn windows_gnu_hardcoded_abi3_compile() {
+        let host = triple!("x86_64-pc-windows-gnu");
+        let implementation = PythonImplementation::CPython;
+        let version = PythonVersion::PY39;
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .stable_abi(StableAbi::Abi3)
+            .lib_name("libpython3".to_string())
+            .finalize()
+            .unwrap();
+        assert_eq!(
+            default_stable_abi_config(&host, Some(version), None).unwrap(),
+            config
+        );
+    }
+
+    #[test]
     fn windows_hardcoded_abi3t_compile() {
         let host = triple!("x86_64-pc-windows-msvc");
         let implementation = PythonImplementation::CPython;
@@ -3155,7 +3178,7 @@ mod tests {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
-            .lib_name("python39".to_string())
+            .lib_name("libpython3.9".to_string())
             .lib_dir("/usr/lib/mingw".to_string())
             .finalize()
             .unwrap();
@@ -3515,9 +3538,9 @@ mod tests {
 
     #[test]
     fn default_windows_lib_names_are_supported_dll_names() {
-        // Every name `default_lib_name_windows` can produce must be covered
-        // by `supported_pyo3_dll_names` (and hence by the `extern_libpython!`
-        // macro in pyo3-ffi), otherwise Windows builds fail to link.
+        // Every name `default_lib_name_windows` can produce must be covered by
+        // `supported_pyo3_dll_names`. Macro parity with `extern_libpython!` is
+        // checked separately by `nox -s ffi-check` (`_check_raw_dylib_macro`).
         let supported = supported_pyo3_dll_names();
         let check = |abi: PythonAbi, mingw: bool, debug: bool| {
             if let Ok(name) = super::default_lib_name_windows(abi, mingw, debug) {
@@ -4257,41 +4280,52 @@ mod tests {
         let unix = Triple::from_str("x86_64-unknown-linux-gnu").unwrap();
         let win_x64 = Triple::from_str("x86_64-pc-windows-msvc").unwrap();
         let win_arm64 = Triple::from_str("aarch64-pc-windows-msvc").unwrap();
+        let win_gnu = Triple::from_str("x86_64-pc-windows-gnu").unwrap();
 
-        let lib_name = default_lib_name_for_target(cpy39, &unix);
+        let lib_name = default_lib_name_for_target(cpy39, &unix).unwrap();
         assert_eq!(lib_name, "python3.9");
 
-        let lib_name = default_lib_name_for_target(cpy39, &win_x64);
+        let lib_name = default_lib_name_for_target(cpy39, &win_x64).unwrap();
         assert_eq!(lib_name, "python39");
 
-        let lib_name = default_lib_name_for_target(cpy39, &win_arm64);
+        let lib_name = default_lib_name_for_target(cpy39, &win_arm64).unwrap();
         assert_eq!(lib_name, "python39");
+
+        let lib_name = default_lib_name_for_target(cpy39, &win_gnu).unwrap();
+        assert_eq!(lib_name, "libpython3.9");
 
         // PyPy
-        let lib_name = default_lib_name_for_target(pypy311, &unix);
+        let lib_name = default_lib_name_for_target(pypy311, &unix).unwrap();
         assert_eq!(lib_name, "pypy3.11-c");
 
-        let lib_name = default_lib_name_for_target(pypy311, &win_x64);
+        let lib_name = default_lib_name_for_target(pypy311, &win_x64).unwrap();
         assert_eq!(lib_name, "libpypy3.11-c");
 
         // Free-threaded
-        let lib_name = default_lib_name_for_target(cpy313t, &unix);
+        let lib_name = default_lib_name_for_target(cpy313t, &unix).unwrap();
         assert_eq!(lib_name, "python3.13t");
 
-        let lib_name = default_lib_name_for_target(cpy313t, &win_x64);
+        let lib_name = default_lib_name_for_target(cpy313t, &win_x64).unwrap();
         assert_eq!(lib_name, "python313t");
 
-        let lib_name = default_lib_name_for_target(cpy313t, &win_arm64);
+        let lib_name = default_lib_name_for_target(cpy313t, &win_arm64).unwrap();
         assert_eq!(lib_name, "python313t");
+
+        // MinGW-built Python has no free-threaded distribution, so this must
+        // error rather than invent a lib name.
+        assert!(default_lib_name_for_target(cpy313t, &win_gnu).is_err());
 
         // abi3
-        let lib_name = default_lib_name_for_target(cpy313_abi3, &unix);
+        let lib_name = default_lib_name_for_target(cpy313_abi3, &unix).unwrap();
         assert_eq!(lib_name, "python3.13");
 
-        let lib_name = default_lib_name_for_target(cpy313_abi3, &win_x64);
+        let lib_name = default_lib_name_for_target(cpy313_abi3, &win_x64).unwrap();
         assert_eq!(lib_name, "python3");
 
-        let lib_name = default_lib_name_for_target(cpy313_abi3, &win_arm64);
+        let lib_name = default_lib_name_for_target(cpy313_abi3, &win_arm64).unwrap();
         assert_eq!(lib_name, "python3");
+
+        let lib_name = default_lib_name_for_target(cpy313_abi3, &win_gnu).unwrap();
+        assert_eq!(lib_name, "libpython3");
     }
 }

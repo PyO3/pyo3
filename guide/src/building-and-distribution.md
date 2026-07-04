@@ -397,9 +397,10 @@ PyO3's build script will detect that you are attempting a cross-compile based on
 When cross-compiling, PyO3's build script cannot execute the target Python interpreter to query the configuration, so there are a few additional environment variables you may need to set:
 
 - `PYO3_CROSS`: If present this variable forces PyO3 to configure as a cross-compilation.
-- `PYO3_CROSS_LIB_DIR`: This variable can be set to the directory containing the target's libpython DSO and the associated `_sysconfigdata*.py` file for Unix-like targets.
-  This variable is only needed when the output binary must link to libpython explicitly (e.g. when targeting Android or embedding a Python interpreter), or when it is absolutely required to get the interpreter configuration from `_sysconfigdata*.py`.
-  On Windows, this variable is not needed because PyO3 uses `raw-dylib` linking.
+- `PYO3_CROSS_LIB_DIR`: Directory with the target's libpython DSO and `_sysconfigdata*.py` on Unix-like targets, or with GNU import libraries (`libpython3.X.dll.a`) on `*-windows-gnu(llvm)` when PyO3 must link them.
+  On Unix-like targets, set this when the binary must link libpython explicitly (e.g. Android, embedding) or when configuration must come from `_sysconfigdata*.py`.
+  On `*-windows-msvc`, extension modules usually omit it: PyO3 uses `raw-dylib` linking.
+  On `*-windows-gnu(llvm)`, pure-Rust extension modules often omit it as well; set it for mixed Rust/C modules or for `i686-pc-windows-gnu` (see the MinGW example below).
 - `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python installation.
   This variable is only needed if PyO3 cannot determine the version to target from `abi3-py3*` features, or if `PYO3_CROSS_LIB_DIR` is not set, or if there are multiple versions of Python present in `PYO3_CROSS_LIB_DIR`.
 - `PYO3_CROSS_PYTHON_IMPLEMENTATION`: Python implementation name ("CPython" or "PyPy") of the target Python installation.
@@ -422,7 +423,7 @@ export PYO3_CROSS_LIB_DIR="/home/pyo3/cross/sysroot/usr/lib"
 cargo build --target armv7-unknown-linux-gnueabihf
 ```
 
-Or another example building for Windows (no `PYO3_CROSS_LIB_DIR` needed thanks to `raw-dylib`):
+Or another example cross-compiling for MinGW Windows (e.g. MSYS2):
 
 ```sh
 export PYO3_CROSS_PYTHON_VERSION=3.9
@@ -430,9 +431,16 @@ export PYO3_CROSS_PYTHON_VERSION=3.9
 cargo build --target x86_64-pc-windows-gnu
 ```
 
+`x86_64-pc-windows-gnu` and other `*-windows-gnu(llvm)` targets use the MinGW
+toolchain and must be paired with MinGW-built Python (`libpython3.X.dll`, e.g.
+MSYS2), not the python.org MSVC distribution (`x86_64-pc-windows-msvc`).
+PyO3 links the GNU import library alongside `raw-dylib` when needed so mixed
+Rust/C extension modules can resolve Python symbols PyO3 does not declare in its
+`extern` blocks.
+
 Any of the `abi3-py3*` features can be enabled instead of setting `PYO3_CROSS_PYTHON_VERSION` in the above examples.
 
-`PYO3_CROSS_LIB_DIR` can often be omitted when cross compiling extension modules for Unix, macOS, and Windows targets.
+`PYO3_CROSS_LIB_DIR` can often be omitted when cross compiling extension modules for Unix and macOS targets, and for `*-windows-msvc` targets.
 
 The following resources may also be useful for cross-compiling:
 

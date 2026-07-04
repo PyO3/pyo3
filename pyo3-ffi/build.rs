@@ -228,8 +228,11 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
         //    the import library resolves those symbols correctly.
         let target_env = cargo_env_var("CARGO_CFG_TARGET_ENV").unwrap();
         let mingw_import_lib = if matches!(target_env.as_str(), "gnu" | "gnullvm") {
-            // e.g. `libpython3.12` -> `-lpython3.12`, which GNU ld resolves to
-            // `libpython3.12.dll.a`.
+            // GNU import libraries use a `lib` prefix on the filename but not on
+            // the `-l` flag: e.g. `libpython3.12` -> `-lpython3.12` resolves to
+            // `libpython3.12.dll.a`. Only CPython names are mapped here: PyPy on
+            // Windows is MSVC-built (`libpypy3.X-c.dll`) and ships no GNU import
+            // library.
             lib_name
                 .strip_prefix("libpython")
                 .map(|version| format!("python{version}"))
@@ -237,10 +240,43 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
             None
         };
 
+        // Emit the import-library link line only when GNU ld has a realistic
+        // chance of finding it: `lib_dir` puts it on the search path explicitly,
+        // and native builds (e.g. inside an MSYS2 environment) have it on the
+        // default search path. When cross-compiling without a lib dir, skip it
+        // and rely on raw-dylib alone rather than failing the link for pure-Rust
+        // modules — except on i686, where raw-dylib is broken (see above) and an
+        // early "cannot find" link error beats a subtly broken artifact.
+        let mut emitted_import_lib = false;
         if let Some(import_lib_name) = &mingw_import_lib {
-            println!("cargo:rustc-link-lib={import_lib_name}");
+            let is_cross = matches!(build_config.source, BuildConfigSource::CrossCompile);
+            let i686 = cargo_env_var("CARGO_CFG_TARGET_ARCH").unwrap() == "x86";
             if let Some(lib_dir) = interpreter_config.lib_dir() {
                 println!("cargo:rustc-link-search=native={lib_dir}");
+                println!("cargo:rustc-link-lib={import_lib_name}");
+                emitted_import_lib = true;
+            } else if !is_cross || i686 {
+                println!("cargo:rustc-link-lib={import_lib_name}");
+                emitted_import_lib = true;
+                if is_cross {
+                    warn!(
+                        "raw-dylib linking is not functional on i686-pc-windows-gnu \
+                         (https://github.com/rust-lang/rust/issues/138963), so the \
+                         GNU import library `lib{import_lib_name}.dll.a` is required. \
+                         Set PYO3_CROSS_LIB_DIR to the directory containing it if \
+                         the linker cannot find it."
+                    );
+                }
+            } else {
+                warn!(
+                    "Not linking the GNU import library `lib{import_lib_name}.dll.a` \
+                     because PYO3_CROSS_LIB_DIR is not set; relying on raw-dylib \
+                     linking only. Mixed Rust/C extension modules may fail to \
+                     resolve Python symbols not declared by PyO3 \
+                     (https://github.com/PyO3/pyo3/issues/6157) - set \
+                     PYO3_CROSS_LIB_DIR to the directory containing the import \
+                     library if needed."
+                );
             }
         }
 
@@ -259,11 +295,14 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
                  If this Python distribution is a standard environment, please file \
                  a bug against PyO3: https://github.com/PyO3/pyo3/issues"
             );
-            if mingw_import_lib.is_some() {
-                // The conventional import-library link emitted above can still
-                // resolve the Python symbols at the final link, as it did before
-                // PyO3 0.28.
-                warn!("{message}");
+            if emitted_import_lib {
+                warn!(
+                    "{message}\n\
+                     \n\
+                     `extern_libpython!` will not apply a `#[link]` attribute for \
+                     this name; only the conventional import-library link line \
+                     emitted above can resolve Python symbols."
+                );
             } else {
                 bail!("{message}");
             }
