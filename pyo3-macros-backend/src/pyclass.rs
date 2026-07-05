@@ -1140,7 +1140,7 @@ fn impl_simple_enum(
                 type Error = #pyo3_path::PyErr;
                 #output_type
 
-                fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<Self::Output> {
+                fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, Self>> {
                     // TODO(icxolu): switch this to lookup the variants on the type object, once that is immutable
                     static SINGLETON: [#pyo3_path::sync::PyOnceLock<#pyo3_path::Py<#cls>>; #num] =
                         [const { #pyo3_path::sync::PyOnceLock::<#pyo3_path::Py<#cls>>::new() }; #num];
@@ -1269,7 +1269,7 @@ fn impl_complex_enum(
                 type Error = #pyo3_path::PyErr;
                 #output_type
 
-                fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<Self::Output> {
+                fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, Self>> {
                     match self {
                         #(#match_arms)*
                     }
@@ -2762,7 +2762,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                     type Error = #pyo3_path::PyErr;
                     #output_type
 
-                    fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<Self::Output> {
+                    fn into_pyobject(self, py: #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, Self>> {
                         #pyo3_path::Bound::new(py, self)
                     }
                 }
