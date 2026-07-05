@@ -27,11 +27,11 @@ pub mod awaitable {
             }
         }
 
-        fn __await__(pyself: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        fn __await__(pyself: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
             pyself
         }
 
-        fn __iter__(pyself: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        fn __iter__(pyself: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
             pyself
         }
 
@@ -79,15 +79,15 @@ pub mod awaitable {
             }
         }
 
-        fn __await__(pyself: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        fn __await__(pyself: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
             pyself
         }
 
-        fn __iter__(pyself: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        fn __iter__(pyself: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
             pyself
         }
 
-        fn __next__(mut pyself: PyRefMut<'_, Self>) -> PyResult<PyRefMut<'_, Self>> {
+        fn __next__(mut pyself: PyClassGuardMut<'_, Self>) -> PyResult<PyClassGuardMut<'_, Self>> {
             match pyself.result {
                 Some(_) => match pyself.result.take().unwrap() {
                     Ok(v) => Err(PyStopIteration::new_err(v)),
@@ -97,20 +97,20 @@ pub mod awaitable {
             }
         }
 
-        fn send<'py>(
-            pyself: PyRefMut<'py, Self>,
-            _value: Bound<'py, PyAny>,
-        ) -> PyResult<PyRefMut<'py, Self>> {
+        fn send<'a>(
+            pyself: PyClassGuardMut<'a, Self>,
+            _value: Bound<'_, PyAny>,
+        ) -> PyResult<PyClassGuardMut<'a, Self>> {
             Self::__next__(pyself)
         }
 
         #[pyo3(signature = (_value, _a = None, _b = None))]
-        fn throw<'py>(
-            pyself: PyRefMut<'py, Self>,
-            _value: Bound<'py, PyAny>,
-            _a: Option<Bound<'py, PyAny>>,
-            _b: Option<Bound<'py, PyAny>>,
-        ) -> PyResult<PyRefMut<'py, Self>> {
+        fn throw<'a>(
+            pyself: PyClassGuardMut<'a, Self>,
+            _value: Bound<'_, PyAny>,
+            _a: Option<Bound<'_, PyAny>>,
+            _b: Option<Bound<'_, PyAny>>,
+        ) -> PyResult<PyClassGuardMut<'a, Self>> {
             Self::__next__(pyself)
         }
 
