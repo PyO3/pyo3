@@ -92,18 +92,6 @@ impl<T> Deref for UnknownReturnResultType<T> {
     }
 }
 
-impl EmptyTupleConverter<PyResult<()>> {
-    #[inline]
-    pub fn map_into_ptr(&self, py: Python<'_>, obj: PyResult<()>) -> PyResult<*mut ffi::PyObject> {
-        obj.map(|_| PyNone::get(py).to_owned().into_ptr())
-    }
-
-    #[inline]
-    pub fn map_into_pyobject(&self, py: Python<'_>, obj: PyResult<()>) -> PyResult<Py<PyAny>> {
-        obj.map(|_| PyNone::get(py).to_owned().into_any().unbind())
-    }
-}
-
 impl EmptyTupleConverter<()> {
     #[inline]
     pub fn wrap_into_ptr(&self, py: Python<'_>, _obj: ()) -> PyResult<*mut ffi::PyObject> {
@@ -161,23 +149,6 @@ impl<'py, T: IntoPyObject<'py>, E> IntoPyObjectConverter<Result<T, E>> {
     }
 
     #[inline]
-    pub fn map_into_pyobject(&self, py: Python<'py>, obj: PyResult<T>) -> PyResult<Py<PyAny>>
-    where
-        T: IntoPyObject<'py>,
-    {
-        obj.and_then(|obj| obj.into_py_any(py))
-    }
-
-    #[inline]
-    pub fn map_into_ptr(&self, py: Python<'py>, obj: PyResult<T>) -> PyResult<*mut ffi::PyObject>
-    where
-        T: IntoPyObject<'py>,
-    {
-        obj.and_then(|obj| obj.into_bound_py_any(py))
-            .map(Bound::into_ptr)
-    }
-
-    #[inline]
     pub fn wrap_into_ptr(&self, py: Python<'py>, obj: Result<T, E>) -> PyResult<*mut ffi::PyObject>
     where
         PyErr: From<E>,
@@ -229,22 +200,6 @@ impl<T, E> UnknownReturnResultType<Result<T, E>> {
 impl<T> UnknownReturnType<T> {
     #[inline]
     pub fn wrap<'py>(&self, _: T) -> T
-    where
-        T: IntoPyObject<'py>,
-    {
-        unreachable!("should be handled by IntoPyObjectConverter")
-    }
-
-    #[inline]
-    pub fn map_into_pyobject<'py>(&self, _: Python<'py>, _: PyResult<T>) -> PyResult<Py<PyAny>>
-    where
-        T: IntoPyObject<'py>,
-    {
-        unreachable!("should be handled by IntoPyObjectConverter")
-    }
-
-    #[inline]
-    pub fn map_into_ptr<'py>(&self, _: Python<'py>, _: PyResult<T>) -> PyResult<*mut ffi::PyObject>
     where
         T: IntoPyObject<'py>,
     {
