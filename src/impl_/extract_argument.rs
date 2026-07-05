@@ -340,13 +340,15 @@ where
     }
 }
 
-/// Fused version of [`unwrap_required_argument`] + [`extract_argument`], used for required
-/// arguments to keep the generated code small.
+/// Fused unwrap + [`extract_argument`], used for required arguments to keep the generated
+/// code small.
 ///
-/// # Safety
-/// `obj` must not be `None`
+/// The macro-generated caller guarantees `obj` is `Some` (the `FunctionDescription`
+/// `extract_arguments_` methods check that all required arguments are provided); the `None`
+/// arm is unreachable but kept as a branch so that this function is safe to call (avoiding
+/// an `unsafe` block in the generated code).
 #[inline]
-pub unsafe fn extract_required_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+pub fn extract_required_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
     obj: Option<Borrowed<'a, 'py, PyAny>>,
     holder: &'holder mut T::Holder,
     arg_name: &str,
@@ -354,8 +356,10 @@ pub unsafe fn extract_required_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FR
 where
     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
 {
-    // SAFETY: caller guarantees `obj` is not `None`
-    extract_argument(unsafe { unwrap_required_argument(obj) }, holder, arg_name)
+    match obj {
+        Some(obj) => extract_argument(obj, holder, arg_name),
+        None => unreachable!("required argument was not extracted"),
+    }
 }
 
 /// Alternative to [`extract_argument`] used when the argument has a default value provided by an annotation.
@@ -386,23 +390,21 @@ pub fn from_py_with<'a, 'py, T>(
     }
 }
 
-/// Fused version of [`unwrap_required_argument_bound`] + [`from_py_with`], used for required
-/// arguments with a `#[pyo3(from_py_with)]` annotation to keep the generated code small.
+/// Fused unwrap + [`from_py_with`], used for required arguments with a
+/// `#[pyo3(from_py_with)]` annotation to keep the generated code small.
 ///
-/// # Safety
-/// `obj` must not be `None`
+/// As [`extract_required_argument`], the `None` arm is unreachable but kept as a branch so
+/// that this function is safe to call.
 #[inline]
-pub unsafe fn from_py_with_required<'a, 'py, T>(
+pub fn from_py_with_required<'a, 'py, T>(
     obj: Option<&'a Bound<'py, PyAny>>,
     arg_name: &str,
     extractor: fn(&'a Bound<'py, PyAny>) -> PyResult<T>,
 ) -> PyResult<T> {
-    // SAFETY: caller guarantees `obj` is not `None`
-    from_py_with(
-        unsafe { unwrap_required_argument_bound(obj) },
-        arg_name,
-        extractor,
-    )
+    match obj {
+        Some(obj) => from_py_with(obj, arg_name, extractor),
+        None => unreachable!("required argument was not extracted"),
+    }
 }
 
 /// Alternative to [`extract_argument`] used when the argument has a `#[pyo3(from_py_with)]` annotation and also a default value.
@@ -430,40 +432,6 @@ pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -
             .call_method1(crate::intern!(py, "add_note"), (msg,));
     };
     error
-}
-
-/// Unwraps the Option<&PyAny> produced by the FunctionDescription `extract_arguments_` methods.
-/// They check if required methods are all provided.
-///
-/// # Safety
-/// `argument` must not be `None`
-#[inline]
-pub unsafe fn unwrap_required_argument<'a, 'py>(
-    argument: Option<Borrowed<'a, 'py, PyAny>>,
-) -> Borrowed<'a, 'py, PyAny> {
-    match argument {
-        Some(value) => value,
-        #[cfg(debug_assertions)]
-        None => unreachable!("required method argument was not extracted"),
-        // SAFETY: invariant of calling this function. Enforced by the macros.
-        #[cfg(not(debug_assertions))]
-        None => unsafe { core::hint::unreachable_unchecked() },
-    }
-}
-
-/// Variant of above used with `from_py_with` extractors on required arguments.
-#[inline]
-pub unsafe fn unwrap_required_argument_bound<'a, 'py>(
-    argument: Option<&'a Bound<'py, PyAny>>,
-) -> &'a Bound<'py, PyAny> {
-    match argument {
-        Some(value) => value,
-        #[cfg(debug_assertions)]
-        None => unreachable!("required method argument was not extracted"),
-        // SAFETY: invariant of calling this function. Enforced by the macros.
-        #[cfg(not(debug_assertions))]
-        None => unsafe { core::hint::unreachable_unchecked() },
-    }
 }
 
 /// Cast a raw `*mut ffi::PyObject` to a `PyArg`. This is used to access safer PyO3
