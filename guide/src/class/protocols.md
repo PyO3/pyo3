@@ -33,7 +33,7 @@ The following sections list all magic methods for which PyO3 implements the nece
 The given signatures should be interpreted as follows:
 
 - All methods take a receiver as first argument, shown as `<self>`.
-   It can be `&self`, `&mut self` or a `Bound` reference like `self_: PyRef<'_, Self>` and `self_: PyRefMut<'_, Self>`, as described [in the parent section](../class.md#inheritance).
+   It can be `&self`, `&mut self` or a `Bound` reference like `self_: PyClassGuard<'_, Self>` and `self_: PyClassGuardMut<'_, Self>`, as described [in the parent section](../class.md#inheritance).
 - An optional `Python<'py>` argument is always allowed as the first argument.
 - Return values can be optionally wrapped in `PyResult`.
 - `object` means that any type is allowed that can be extracted from a Python
@@ -196,10 +196,10 @@ struct MyIterator {
 
 #[pymethods]
 impl MyIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
-    fn __next__(slf: PyRefMut<'_, Self>) -> Option<Py<PyAny>> {
+    fn __next__(slf: PyClassGuardMut<'_, Self>) -> Option<Py<PyAny>> {
         slf.iter.lock().unwrap().next()
     }
 }
@@ -219,11 +219,11 @@ struct Iter {
 
 #[pymethods]
 impl Iter {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<usize> {
+    fn __next__(mut slf: PyClassGuardMut<'_, Self>) -> Option<usize> {
         slf.inner.next()
     }
 }
@@ -235,11 +235,11 @@ struct Container {
 
 #[pymethods]
 impl Container {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<Iter>> {
+    fn __iter__(slf: PyClassGuard<'_, Self>, py: Python<'_>) -> PyResult<Py<Iter>> {
         let iter = Iter {
             inner: slf.iter.clone().into_iter(),
         };
-        Py::new(slf.py(), iter)
+        Py::new(py, iter)
     }
 }
 

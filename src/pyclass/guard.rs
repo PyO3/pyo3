@@ -1169,9 +1169,9 @@ mod tests {
             let obj = Bound::new(py, MyClass { data: [0; 100] })?;
             let data = PyClassGuard::try_borrow(obj.as_unbound())?.map(|c| &c.data);
             assert_eq!(data[0], 0);
-            assert!(obj.try_borrow_mut().is_err()); // obj is still protected
+            assert!(obj.try_borrow_guard_mut().is_err()); // obj is still protected
             drop(data);
-            assert!(obj.try_borrow_mut().is_ok()); // drop released shared borrow
+            assert!(obj.try_borrow_guard_mut().is_ok()); // drop released shared borrow
             Ok::<_, PyErr>(())
         })
         .unwrap()
@@ -1186,9 +1186,9 @@ mod tests {
             assert_eq!(data[0], 0);
             data[0] = 5;
             assert_eq!(data[0], 5);
-            assert!(obj.try_borrow_mut().is_err()); // obj is still protected
+            assert!(obj.try_borrow_guard_mut().is_err()); // obj is still protected
             drop(data);
-            assert!(obj.try_borrow_mut().is_ok()); // drop released mutable borrow
+            assert!(obj.try_borrow_guard_mut().is_ok()); // drop released mutable borrow
             Ok::<_, PyErr>(())
         })
         .unwrap()

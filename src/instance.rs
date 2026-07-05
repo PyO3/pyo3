@@ -13,10 +13,12 @@ use crate::pyclass::boolean_struct::{False, True};
 use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString};
 use crate::{
-    ffi, CastError, CastIntoError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
-    PyRefMut, PyTypeInfo, Python,
+    ffi, CastError, CastIntoError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut,
+    PyClassInitializer, PyTypeInfo, Python,
 };
 use crate::{internal::state, PyTypeCheck};
+#[expect(deprecated)]
+use crate::{PyRef, PyRefMut};
 use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ops::Deref;
@@ -149,10 +151,10 @@ impl<'py, T> Bound<'py, T> {
     ///
     ///     let class_bound: &Bound<'_, Class> = class.cast()?;
     ///
-    ///     class_bound.borrow_mut().i += 1;
+    ///     class_bound.try_borrow_guard_mut()?.i += 1;
     ///
-    ///     // Alternatively you can get a `PyRefMut` directly
-    ///     let class_ref: PyRefMut<'_, Class> = class.extract()?;
+    ///     // Alternatively you can get a `PyClassGuardMut` directly
+    ///     let class_ref: PyClassGuardMut<'_, Class> = class.extract()?;
     ///     assert_eq!(class_ref.i, 1);
     ///     Ok(())
     /// })
@@ -534,7 +536,7 @@ where
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
     ///     let foo: Bound<'_, Foo> = Bound::new(py, Foo { inner: 73 })?;
-    ///     let inner: &u8 = &foo.borrow().inner;
+    ///     let inner: &u8 = &foo.try_borrow_guard()?.inner;
     ///
     ///     assert_eq!(*inner, 73);
     ///     Ok(())
@@ -547,6 +549,8 @@ where
     ///
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
+    #[deprecated(since = "0.30.0", note = "use `try_borrow_guard` instead")]
+    #[expect(deprecated)]
     #[inline]
     #[track_caller]
     pub fn borrow(&self) -> PyRef<'py, T> {
@@ -570,9 +574,9 @@ where
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
     ///     let foo: Bound<'_, Foo> = Bound::new(py, Foo { inner: 73 })?;
-    ///     foo.borrow_mut().inner = 35;
+    ///     foo.try_borrow_guard_mut()?.inner = 35;
     ///
-    ///     assert_eq!(foo.borrow().inner, 35);
+    ///     assert_eq!(foo.try_borrow_guard()?.inner, 35);
     ///     Ok(())
     /// })?;
     /// # Ok(())
@@ -582,6 +586,8 @@ where
     /// # Panics
     /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
+    #[deprecated(since = "0.30.0", note = "use `try_borrow_guard_mut` instead")]
+    #[expect(deprecated)]
     #[inline]
     #[track_caller]
     pub fn borrow_mut(&self) -> PyRefMut<'py, T>
@@ -598,9 +604,20 @@ where
     /// This is the non-panicking variant of [`borrow`](#method.borrow).
     ///
     /// For frozen classes, the simpler [`get`][Self::get] is available.
+    #[expect(deprecated)]
+    #[deprecated(since = "0.30.0", note = "use `try_borrow_guard` instead")]
     #[inline]
     pub fn try_borrow(&self) -> Result<PyRef<'py, T>, PyBorrowError> {
         PyRef::try_borrow(self)
+    }
+
+    /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
+    ///
+    /// The borrow lasts while the returned [`PyClassGuard`] exists.
+    ///
+    /// For frozen classes, the simpler [`get`][Self::get] is available.
+    pub fn try_borrow_guard(&self) -> Result<PyClassGuard<'_, T>, PyBorrowError> {
+        PyClassGuard::try_borrow(self.as_unbound())
     }
 
     /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
@@ -608,12 +625,24 @@ where
     /// The borrow lasts while the returned [`PyRefMut`] exists.
     ///
     /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
+    #[expect(deprecated)]
+    #[deprecated(since = "0.30.0", note = "use `try_borrow_guard_mut` instead")]
     #[inline]
     pub fn try_borrow_mut(&self) -> Result<PyRefMut<'py, T>, PyBorrowMutError>
     where
         T: PyClass<Frozen = False>,
     {
         PyRefMut::try_borrow(self)
+    }
+
+    /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
+    ///
+    /// The borrow lasts while the returned [`PyClassGuardMut`] exists.
+    pub fn try_borrow_guard_mut(&self) -> Result<PyClassGuardMut<'_, T>, PyBorrowMutError>
+    where
+        T: PyClass<Frozen = False>,
+    {
+        PyClassGuardMut::try_borrow_mut(self.as_unbound())
     }
 
     /// Provide an immutable borrow of the value `T`.
@@ -1364,7 +1393,7 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// #         m.add_class::<Foo>()?;
 /// #
 /// #         let foo: Bound<'_, Foo> = m.getattr("Foo")?.call0()?.cast_into()?;
-/// #         let dict = &foo.borrow().inner;
+/// #         let dict = &foo.try_borrow_guard()?.inner;
 /// #         let dict: &Bound<'_, PyDict> = dict.bind(py);
 /// #
 /// #         Ok(())
@@ -1401,8 +1430,8 @@ impl<'a, 'py, T> BoundObject<'py, T> for Borrowed<'a, 'py, T> {
 /// #         m.add_class::<Foo>()?;
 /// #
 /// #         let foo: Bound<'_, Foo> = m.getattr("Foo")?.call0()?.cast_into()?;
-/// #         let bar = &foo.borrow().inner;
-/// #         let bar: &Bar = &*bar.borrow(py);
+/// #         let bar = &foo.try_borrow_guard()?.inner;
+/// #         let bar: &Bar = &*bar.try_borrow_guard()?;
 /// #
 /// #         Ok(())
 /// #     })
@@ -1601,7 +1630,7 @@ where
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
     ///     let foo: Py<Foo> = Py::new(py, Foo { inner: 73 })?;
-    ///     let inner: &u8 = &foo.borrow(py).inner;
+    ///     let inner: &u8 = &foo.try_borrow_guard()?.inner;
     ///
     ///     assert_eq!(*inner, 73);
     ///     Ok(())
@@ -1614,6 +1643,8 @@ where
     ///
     /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
+    #[deprecated(since = "0.30.0", note = "use `try_borrow_guard` instead")]
+    #[expect(deprecated)]
     #[inline]
     #[track_caller]
     pub fn borrow<'py>(&'py self, py: Python<'py>) -> PyRef<'py, T> {
@@ -1639,9 +1670,9 @@ where
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
     ///     let foo: Py<Foo> = Py::new(py, Foo { inner: 73 })?;
-    ///     foo.borrow_mut(py).inner = 35;
+    ///     foo.try_borrow_guard_mut()?.inner = 35;
     ///
-    ///     assert_eq!(foo.borrow(py).inner, 35);
+    ///     assert_eq!(foo.try_borrow_guard()?.inner, 35);
     ///     Ok(())
     /// })?;
     /// # Ok(())
@@ -1651,6 +1682,8 @@ where
     /// # Panics
     /// Panics if the value is currently borrowed. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
+    #[expect(deprecated)]
+    #[deprecated(since = "0.30.0", note = "use `try_borrow_guard_mut` instead")]
     #[inline]
     #[track_caller]
     pub fn borrow_mut<'py>(&'py self, py: Python<'py>) -> PyRefMut<'py, T>
@@ -1669,9 +1702,23 @@ where
     /// For frozen classes, the simpler [`get`][Self::get] is available.
     ///
     /// Equivalent to `self.bind(py).try_borrow()` - see [`Bound::try_borrow`].
+    #[expect(deprecated)]
+    #[deprecated(since = "0.30.0", note = "use `try_borrow_guard` instead")]
     #[inline]
     pub fn try_borrow<'py>(&'py self, py: Python<'py>) -> Result<PyRef<'py, T>, PyBorrowError> {
         self.bind(py).try_borrow()
+    }
+
+    /// Attempts to immutably borrow the value `T`, returning an error if the value is currently mutably borrowed.
+    ///
+    /// The borrow lasts while the returned [`PyClassGuard`] exists.
+    ///
+    /// For frozen classes, the simpler [`get`][Self::get] is available.
+    ///
+    /// Equivalent to [`Bound::try_borrow`].
+    #[inline]
+    pub fn try_borrow_guard<'a>(&'a self) -> Result<PyClassGuard<'a, T>, PyBorrowError> {
+        PyClassGuard::try_borrow(self)
     }
 
     /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
@@ -1681,6 +1728,8 @@ where
     /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
     ///
     /// Equivalent to `self.bind(py).try_borrow_mut()` - see [`Bound::try_borrow_mut`].
+    #[expect(deprecated)]
+    #[deprecated(since = "0.30.0", note = "use `try_borrow_guard_mut` instead")]
     #[inline]
     pub fn try_borrow_mut<'py>(
         &'py self,
@@ -1690,6 +1739,19 @@ where
         T: PyClass<Frozen = False>,
     {
         self.bind(py).try_borrow_mut()
+    }
+
+    /// Attempts to mutably borrow the value `T`, returning an error if the value is currently borrowed.
+    ///
+    /// The borrow lasts while the returned [`PyClassGuardMut`] exists.
+    ///
+    /// Equivalent to [`Bound::try_borrow_mut`].
+    #[inline]
+    pub fn try_borrow_guard_mut<'a>(&'a self) -> Result<PyClassGuardMut<'a, T>, PyBorrowMutError>
+    where
+        T: PyClass<Frozen = False>,
+    {
+        PyClassGuardMut::try_borrow_mut(self)
     }
 
     /// Provide an immutable borrow of the value `T`.
@@ -2216,6 +2278,7 @@ impl<T> core::convert::From<Borrowed<'_, '_, T>> for Py<T> {
     }
 }
 
+#[expect(deprecated)]
 impl<'py, T> core::convert::From<PyRef<'py, T>> for Py<T>
 where
     T: PyClass,
@@ -2227,6 +2290,7 @@ where
     }
 }
 
+#[expect(deprecated)]
 impl<'py, T> core::convert::From<PyRefMut<'py, T>> for Py<T>
 where
     T: PyClass<Frozen = False>,
@@ -2393,10 +2457,10 @@ impl<T> Py<T> {
     ///
     ///     let class_bound = class.cast_bound::<Class>(py)?;
     ///
-    ///     class_bound.borrow_mut().i += 1;
+    ///     class_bound.try_borrow_guard_mut()?.i += 1;
     ///
-    ///     // Alternatively you can get a `PyRefMut` directly
-    ///     let class_ref: PyRefMut<'_, Class> = class.extract(py)?;
+    ///     // Alternatively you can get a `PyClassGuardMut` directly
+    ///     let class_ref: PyClassGuardMut<'_, Class> = class.extract(py)?;
     ///     assert_eq!(class_ref.i, 1);
     ///     Ok(())
     /// })
@@ -2860,40 +2924,50 @@ a = A()
         struct SomeClass(i32);
 
         #[test]
+        #[expect(deprecated)]
         fn py_borrow_methods() {
             // More detailed tests of the underlying semantics in pycell.rs
             Python::attach(|py| {
                 let instance = Py::new(py, SomeClass(0)).unwrap();
                 assert_eq!(instance.borrow(py).0, 0);
                 assert_eq!(instance.try_borrow(py).unwrap().0, 0);
+                assert_eq!(instance.try_borrow_guard().unwrap().0, 0);
                 assert_eq!(instance.borrow_mut(py).0, 0);
                 assert_eq!(instance.try_borrow_mut(py).unwrap().0, 0);
+                assert_eq!(instance.try_borrow_guard_mut().unwrap().0, 0);
 
-                instance.borrow_mut(py).0 = 123;
+                instance.try_borrow_guard_mut().unwrap().0 = 123;
 
                 assert_eq!(instance.borrow(py).0, 123);
                 assert_eq!(instance.try_borrow(py).unwrap().0, 123);
+                assert_eq!(instance.try_borrow_guard().unwrap().0, 123);
                 assert_eq!(instance.borrow_mut(py).0, 123);
                 assert_eq!(instance.try_borrow_mut(py).unwrap().0, 123);
+                assert_eq!(instance.try_borrow_guard_mut().unwrap().0, 123);
             })
         }
 
         #[test]
+        #[expect(deprecated)]
         fn bound_borrow_methods() {
             // More detailed tests of the underlying semantics in pycell.rs
             Python::attach(|py| {
                 let instance = Bound::new(py, SomeClass(0)).unwrap();
                 assert_eq!(instance.borrow().0, 0);
                 assert_eq!(instance.try_borrow().unwrap().0, 0);
+                assert_eq!(instance.try_borrow_guard().unwrap().0, 0);
                 assert_eq!(instance.borrow_mut().0, 0);
                 assert_eq!(instance.try_borrow_mut().unwrap().0, 0);
+                assert_eq!(instance.try_borrow_guard_mut().unwrap().0, 0);
 
-                instance.borrow_mut().0 = 123;
+                instance.try_borrow_guard_mut().unwrap().0 = 123;
 
                 assert_eq!(instance.borrow().0, 123);
                 assert_eq!(instance.try_borrow().unwrap().0, 123);
+                assert_eq!(instance.try_borrow_guard().unwrap().0, 123);
                 assert_eq!(instance.borrow_mut().0, 123);
                 assert_eq!(instance.try_borrow_mut().unwrap().0, 123);
+                assert_eq!(instance.try_borrow_guard_mut().unwrap().0, 123);
             })
         }
 

@@ -206,7 +206,7 @@ fn test_bool() {
     Python::attach(|py| {
         let example_py = make_example(py);
         assert!(example_py.is_truthy().unwrap());
-        example_py.borrow_mut().value = 0;
+        example_py.try_borrow_guard_mut().unwrap().value = 0;
         assert!(!example_py.is_truthy().unwrap());
 
         // Ensure that passing a wrong self type from Python does not cause UB
@@ -424,11 +424,11 @@ struct Iterator {
 
 #[pymethods]
 impl Iterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
-    fn __next__(slf: PyRefMut<'_, Self>) -> Option<i32> {
+    fn __next__(slf: PyClassGuardMut<'_, Self>) -> Option<i32> {
         slf.iter.lock().unwrap().next()
     }
 }
@@ -501,7 +501,7 @@ fn setitem() {
         let c = Bound::new(py, SetItem { key: 0, val: 0 }).unwrap();
         py_run!(py, c, "c[1] = 2");
         {
-            let c = c.borrow();
+            let c = c.try_borrow_guard().unwrap();
             assert_eq!(c.key, 1);
             assert_eq!(c.val, 2);
         }
@@ -530,7 +530,7 @@ fn delitem() {
         let c = Bound::new(py, DelItem { key: 0 }).unwrap();
         py_run!(py, c, "del c[1]");
         {
-            let c = c.borrow();
+            let c = c.try_borrow_guard().unwrap();
             assert_eq!(c.key, 1);
         }
         py_expect_exception!(py, c, "c[1] = 2", PyNotImplementedError);
@@ -562,11 +562,11 @@ fn setdelitem() {
         let c = Bound::new(py, SetDelItem { val: None }).unwrap();
         py_run!(py, c, "c[1] = 2");
         {
-            let c = c.borrow();
+            let c = c.try_borrow_guard().unwrap();
             assert_eq!(c.val, Some(2));
         }
         py_run!(py, c, "del c[1]");
-        let c = c.borrow();
+        let c = c.try_borrow_guard().unwrap();
         assert_eq!(c.val, None);
     });
 }
@@ -748,11 +748,11 @@ impl OnceFuture {
         }
     }
 
-    fn __await__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __await__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
     fn __next__<'py>(&mut self, py: Python<'py>) -> Option<&Bound<'py, PyAny>> {
@@ -809,7 +809,7 @@ impl AsyncIterator {
         }
     }
 
-    fn __aiter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __aiter__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
@@ -872,10 +872,10 @@ impl DescrCounter {
     }
     /// Each access will increase the count
     fn __get__<'a>(
-        mut slf: PyRefMut<'a, Self>,
+        mut slf: PyClassGuardMut<'a, Self>,
         _instance: &Bound<'_, PyAny>,
         _owner: Option<&Bound<'_, PyType>>,
-    ) -> PyRefMut<'a, Self> {
+    ) -> PyClassGuardMut<'a, Self> {
         slf.count += 1;
         slf
     }

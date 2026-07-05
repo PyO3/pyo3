@@ -314,17 +314,17 @@ struct MyClass {
 Python::attach(|py| {
     let obj = Bound::new(py, MyClass { num: 3 }).unwrap();
     {
-        let obj_ref = obj.borrow(); // Get PyRef
+        let obj_ref = obj.try_borrow_guard().unwrap(); // Get PyClassGuard
         assert_eq!(obj_ref.num, 3);
-        // You cannot get PyRefMut unless all PyRefs are dropped
-        assert!(obj.try_borrow_mut().is_err());
+        // You cannot get PyClassGuardMut unless all PyClassGuards are dropped
+        assert!(obj.try_borrow_guard_mut().is_err());
     }
     {
-        let mut obj_mut = obj.borrow_mut(); // Get PyRefMut
+        let mut obj_mut = obj.try_borrow_guard_mut().unwrap(); // Get PyClassGuardMut
         obj_mut.num = 5;
         // You cannot get any other refs until the PyRefMut is dropped
-        assert!(obj.try_borrow().is_err());
-        assert!(obj.try_borrow_mut().is_err());
+        assert!(obj.try_borrow_guard().is_err());
+        assert!(obj.try_borrow_guard_mut().is_err());
     }
 
     // You can convert `Bound` to a Python object
@@ -334,7 +334,6 @@ Python::attach(|py| {
 
 A `Bound<'py, T>` is restricted to the Python lifetime `'py`.
 To make the object longer lived (for example, to store it in a struct on the Rust side), use `Py<T>`.
-`Py<T>` needs a `Python<'_>` token to allow access:
 
 ```rust
 # use pyo3::prelude::*;
@@ -349,11 +348,8 @@ fn return_myclass() -> Py<MyClass> {
 
 let obj = return_myclass();
 
-Python::attach(move |py| {
-    let bound = obj.bind(py); // Py<MyClass>::bind returns &Bound<'py, MyClass>
-    let obj_ref = bound.borrow(); // Get PyRef<T>
-    assert_eq!(obj_ref.num, 1);
-});
+let obj_ref = obj.try_borrow_guard().unwrap(); // Get PyClassGuard<T>
+assert_eq!(obj_ref.num, 1);
 ```
 
 ### frozen classes: Opting out of interior mutability
@@ -415,9 +411,8 @@ Currently, only classes defined in Rust and builtins provided by PyO3 can be inh
 
 To initialize a class, which inherits from another class, use the `PyClassInitializer` API.
 
-To get a parent class from a child, use [`PyRef`] instead of `&self` for methods, or [`PyRefMut`] instead of `&mut self`.
-Then you can access a parent class by `self_.as_super()` as `&PyRef<Self::BaseClass>`, or by `self_.into_super()` as `PyRef<Self::BaseClass>` (and similar for the `PyRefMut` case).
-For convenience, `self_.as_ref()` can also be used to get `&Self::BaseClass` directly; however, this approach does not let you access base classes higher in the inheritance hierarchy, for which you would need to chain multiple `as_super` or `into_super` calls.
+To get a parent class from a child, use [`PyClassGuard`] instead of `&self` for methods, or [`PyClassGuardMut`] instead of `&mut self`.
+Then you can access a parent class by `self_.as_super()` as `&PyClassGuard<Self::BaseClass>`, or by `self_.into_super()` as `PyClassGuard<Self::BaseClass>` (and similar for the `PyRefMut` case).
 
 ```rust
 # use pyo3::prelude::*;
@@ -452,8 +447,8 @@ impl SubClass {
             .add_subclass(SubClass { val2: 15 })
     }
 
-    fn method2(self_: PyRef<'_, Self>) -> PyResult<usize> {
-        let super_ = self_.as_super(); // Get &PyRef<BaseClass>
+    fn method2(self_: PyClassGuard<'_, Self>) -> PyResult<usize> {
+        let super_ = self_.as_super(); // Get &PyClassGuard<BaseClass>
         super_.method1().map(|x| x * self_.val2)
     }
 }
@@ -470,24 +465,24 @@ impl SubSubClass {
         PyClassInitializer::from(SubClass::new()).add_subclass(SubSubClass { val3: 20 })
     }
 
-    fn method3(self_: PyRef<'_, Self>) -> PyResult<usize> {
-        let base = self_.as_super().as_super(); // Get &PyRef<'_, BaseClass>
+    fn method3(self_: PyClassGuard<'_, Self>) -> PyResult<usize> {
+        let base = self_.as_super().as_super(); // Get &PyClassGuard<'_, BaseClass>
         base.method1().map(|x| x * self_.val3)
     }
 
-    fn method4(self_: PyRef<'_, Self>) -> PyResult<usize> {
+    fn method4(self_: PyClassGuard<'_, Self>) -> PyResult<usize> {
         let v = self_.val3;
-        let super_ = self_.into_super(); // Get PyRef<'_, SubClass>
+        let super_ = self_.into_super(); // Get PyClassGuard<'_, SubClass>
         SubClass::method2(super_).map(|x| x * v)
     }
 
-      fn get_values(self_: PyRef<'_, Self>) -> (usize, usize, usize) {
+      fn get_values(self_: PyClassGuard<'_, Self>) -> (usize, usize, usize) {
           let val1 = self_.as_super().as_super().val1;
           let val2 = self_.as_super().val2;
           (val1, val2, self_.val3)
       }
 
-    fn double_values(mut self_: PyRefMut<'_, Self>) {
+    fn double_values(mut self_: PyClassGuardMut<'_, Self>) {
         self_.as_super().as_super().val1 *= 2;
         self_.as_super().val2 *= 2;
         self_.val3 *= 2;
@@ -526,7 +521,7 @@ You can inherit native types such as `PyDict`, if they implement [`PySizedLayout
 This is not supported when building for the Python limited API (aka the `abi3` feature of PyO3).
 
 To convert between the Rust type and its native base class, you can take `slf` as a Python object.
-To access the Rust fields use `slf.borrow()` or `slf.borrow_mut()`, and to access the base class use `slf.cast::<BaseClass>()`.
+To access the Rust fields use `slf.try_borrow_guard()` or `slf.try_borrow_guard_mut()`, and to access the base class use `slf.cast::<BaseClass>()`.
 
 ```rust
 # #[cfg(any(not(Py_LIMITED_API), Py_3_12))] {
@@ -548,7 +543,7 @@ impl DictWithCounter {
     }
 
     fn set(slf: &Bound<'_, Self>, key: String, value: Bound<'_, PyAny>) -> PyResult<()> {
-        slf.borrow_mut().counter.entry(key.clone()).or_insert(0);
+        slf.try_borrow_guard_mut()?.counter.entry(key.clone()).or_insert(0);
         let dict = slf.cast::<PyDict>()?;
         dict.set_item(key, value)
     }
@@ -940,7 +935,7 @@ Class objects can be used as arguments to `#[pyfunction]`s and `#[pymethods]` in
 
 - `Py<T>` or `Bound<'py, T>` smart pointers to the class Python object,
 - `&T` or `&mut T` references to the Rust data contained in the Python object, or
-- `PyRef<T>` and `PyRefMut<T>` reference wrappers.
+- `PyClassGuard<T>` and `PyClassGuardMut<T>` reference wrappers.
 
 Examples of each of these below:
 
@@ -961,17 +956,18 @@ fn increment_field(my_class: &mut MyClass) {
 // Take a reference wrapper when borrowing should be automatic,
 // but access to the Python object is still needed
 #[pyfunction]
-fn print_field_and_return_me(my_class: PyRef<'_, MyClass>) -> PyRef<'_, MyClass> {
+fn print_field_and_return_me(my_class: PyClassGuard<'_, MyClass>) -> PyClassGuard<'_, MyClass> {
     println!("{}", my_class.my_field);
     my_class
 }
 
 // Take (a reference to) a Python object smart pointer when borrowing needs to be managed manually.
 #[pyfunction]
-fn increment_then_print_field(my_class: &Bound<'_, MyClass>) {
-    my_class.borrow_mut().my_field += 1;
+fn increment_then_print_field(my_class: &Bound<'_, MyClass>) -> PyResult<()> {
+    my_class.try_borrow_guard_mut()?.my_field += 1;
 
-    println!("{}", my_class.borrow().my_field);
+    println!("{}", my_class.try_borrow_guard()?.my_field);
+    Ok(())
 }
 
 // When the Python object smart pointer needs to be stored elsewhere prefer `Py<T>` over `Bound<'py, T>`
@@ -1575,8 +1571,8 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
 [`Py<T>`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Py.html
 [`Bound<'py, T>`]: {{#PYO3_DOCS_URL}}/pyo3/struct.Bound.html
 [`PyClass`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/trait.PyClass.html
-[`PyRef`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRef.html
-[`PyRefMut`]: {{#PYO3_DOCS_URL}}/pyo3/pycell/struct.PyRefMut.html
+[`PyClassGuard`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/struct.PyClassGuard.html
+[`PyClassGuardMut`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass/struct.PyClassGuardMut.html
 [`PyClassInitializer<T>`]: {{#PYO3_DOCS_URL}}/pyo3/pyclass_init/struct.PyClassInitializer.html
 
 [`Arc`]: https://doc.rust-lang.org/std/sync/struct.Arc.html

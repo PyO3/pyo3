@@ -69,11 +69,17 @@ fn test_deserialize() {
     assert_eq!(user.friends.len(), 1usize);
     let friend = user.friends.first().unwrap();
 
-    Python::attach(|py| {
-        assert_eq!(friend.borrow(py).username, "friend");
-        assert_eq!(
-            friend.borrow(py).group.as_ref().unwrap().borrow(py).name,
-            "danya's friends"
-        )
-    });
+    assert_eq!(friend.try_borrow_guard().unwrap().username, "friend");
+    assert_eq!(
+        friend
+            .try_borrow_guard()
+            .unwrap()
+            .group
+            .as_ref()
+            .unwrap()
+            .try_borrow_guard()
+            .unwrap()
+            .name,
+        "danya's friends"
+    );
 }
