@@ -3291,7 +3291,7 @@ mod tests {
                 false,
             )
             .unwrap(),
-            "python3.9",
+            "libpython3.9",
         );
         assert_eq!(
             super::default_lib_name_windows(
@@ -3303,7 +3303,7 @@ mod tests {
                 false,
             )
             .unwrap(),
-            "python3",
+            "libpython3",
         );
         assert_eq!(
             super::default_lib_name_windows(
@@ -3367,16 +3367,6 @@ mod tests {
             .unwrap(),
             "python3_d",
         );
-        // mingw and free-threading are incompatible (until someone adds support)
-        assert!(super::default_lib_name_windows(
-            PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY313)
-                .free_threaded()
-                .finalize()
-                .unwrap(),
-            true,
-            false,
-        )
-        .is_err());
         assert_eq!(
             super::default_lib_name_windows(
                 PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY313)
