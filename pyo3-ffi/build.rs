@@ -203,6 +203,7 @@ fn lib_name_is_known_for_raw_dylib(lib_name: &str) -> bool {
         return true;
     }
 
+    // support raw-dylib linking for all CPython versions supported, plus the next prerelease
     for i in SUPPORTED_VERSIONS_CPYTHON.min.minor..=SUPPORTED_VERSIONS_CPYTHON.max.minor + 1 {
         if lib_name == format!("python3{i}") || lib_name == format!("python3{i}_d") {
             return true;

@@ -1433,7 +1433,7 @@ def _check_raw_dylib_macro(session: nox.Session):
 
     # Build the set of DLL names that default_lib_name_windows can produce
     expected_dlls = {"python3", "python3_d"}
-    for minor in range(min_minor, max_minor + 1):
+    for minor in range(min_minor, max_minor + 2):  # allow prerelease of next version
         expected_dlls.add(f"python3{minor}")
         expected_dlls.add(f"python3{minor}_d")
         if minor >= 13:
@@ -1452,7 +1452,7 @@ def _check_raw_dylib_macro(session: nox.Session):
 
     # Parse the DLL name list in the extern_libpython!(@impl ...) invocation
     lib_rs = (PYO3_DIR / "pyo3-ffi" / "src" / "impl_" / "macros.rs").read_text()
-    found_dlls = set(re.findall(r'"((?:python|libpypy)[^"]+)"', lib_rs))
+    found_dlls = set(re.findall(r'"((?:python(?!XY)|libpypy)[^"]+)"', lib_rs))
 
     missing = expected_dlls - found_dlls
     extra = found_dlls - expected_dlls
