@@ -224,13 +224,11 @@ pub trait PyClassImpl: Sized + 'static {
     /// This is exposed for `PyClassDocGenerator` to use as a docstring piece.
     const RAW_DOC: &'static CStr = c"";
 
-    /// Pieces of the fully rendered class doc, including the `text_signature` if a constructor
-    /// is defined.
+    /// Fully rendered class doc, including the `text_signature` if a constructor is defined.
     ///
-    /// This is constructed with const specialization via the proc macros with help from the
-    /// `PyClassDocGenerator` type. The pieces are concatenated once at type-object creation
-    /// time; the final piece is `RAW_DOC` and is nul terminated.
-    const DOC_PIECES: &'static [&'static [u8]] = &[Self::RAW_DOC.to_bytes_with_nul()];
+    /// This is constructed at compile-time with const specialization via the proc macros with help
+    /// from the `PyClassDocGenerator` type.
+    const DOC: &'static CStr;
 
     fn items_iter() -> PyClassItemsIter;
 

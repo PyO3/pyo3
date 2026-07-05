@@ -3060,12 +3060,16 @@ impl<'a> PyClassImplsBuilder<'a> {
 
                 #raw_doc
 
-                const DOC_PIECES: &'static [&'static [u8]] = {
-                    use #pyo3_path::impl_::pyclass::Probe as _;
-                    #pyo3_path::impl_::pyclass::doc::PyClassDocGenerator::<
+                const DOC: &'static ::std::ffi::CStr = {
+                    use #pyo3_path::impl_ as impl_;
+                    use impl_::pyclass::Probe as _;
+                    const DOC_PIECES: &'static [&'static [u8]] = impl_::pyclass::doc::PyClassDocGenerator::<
                         #cls,
-                        { #pyo3_path::impl_::pyclass::HasNewTextSignature::<#cls>::VALUE }
-                    >::DOC_PIECES
+                        { impl_::pyclass::HasNewTextSignature::<#cls>::VALUE }
+                    >::DOC_PIECES;
+                    const LEN: usize = impl_::concat::combined_len(DOC_PIECES);
+                    const DOC: &'static [u8] = &impl_::concat::combine_to_array::<LEN>(DOC_PIECES);
+                    impl_::pyclass::doc::doc_bytes_as_cstr(DOC)
                 };
 
                 #dict_offset
