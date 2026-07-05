@@ -482,18 +482,19 @@ impl SelfType {
                         // type); on PyPy under `ExtractErrorMode::NotImplemented` they now
                         // fall back to the default like `TryFrom` failures always have,
                         // instead of raising directly.
-                        quote_spanned! { *span =>
-                            unsafe {
-                                #pyo3_path::impl_::extract_argument::extract_receiver_trusted::<#cls, _>(#bound_ref)
-                            }
-                        }
+                        // The `unsafe` token is deliberately spanned at the macro call site
+                        // (plain `quote!`) so that `#![forbid(unsafe_code)]` in user code
+                        // doesn't reject the generated unsafe block.
+                        let call = quote_spanned! { *span =>
+                            #pyo3_path::impl_::extract_argument::extract_receiver_trusted::<#cls, _>(#bound_ref)
+                        };
+                        quote! { unsafe { #call } }
                     }
                     SelfConversionPolicyInner::Checked => {
-                        quote_spanned! { *span =>
-                            unsafe {
-                                #pyo3_path::impl_::extract_argument::extract_receiver::<#cls, _>(#bound_ref)
-                            }
-                        }
+                        let call = quote_spanned! { *span =>
+                            #pyo3_path::impl_::extract_argument::extract_receiver::<#cls, _>(#bound_ref)
+                        };
+                        quote! { unsafe { #call } }
                     }
                 };
                 error_mode.handle_error(receiver, ctx)
