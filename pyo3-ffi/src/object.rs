@@ -784,4 +784,3 @@ extern_libpython! {
     pub fn PyType_GetModuleByToken(_type: *mut PyTypeObject, token: *const c_void)
         -> *mut PyObject;
 }
-
