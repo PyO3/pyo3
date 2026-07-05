@@ -286,18 +286,13 @@ pub(crate) fn impl_regular_arg_param(
                 )?
             }
         } else {
-            // The `unsafe` token is deliberately spanned at the macro call site (plain
-            // `quote!`) so that `#![forbid(unsafe_code)]` in user code doesn't reject the
-            // generated unsafe block.
-            let call = quote_arg_span! {
+            quote_arg_span! {
                 #pyo3_path::impl_::extract_argument::from_py_with_required(
                     #arg_value.as_deref(),
                     #name_str,
                     #extractor,
-                )
-            };
-            let unsafe_call = quote! { unsafe { #call } };
-            quote_arg_span! { #unsafe_call? }
+                )?
+            }
         }
     } else if let Some(default) = default {
         let holder = holders.push_holder(arg.ty.span());
@@ -314,16 +309,12 @@ pub(crate) fn impl_regular_arg_param(
         }
     } else {
         let holder = holders.push_holder(arg.ty.span());
-        // As above, the `unsafe` token is spanned at the macro call site to be compatible
-        // with `#![forbid(unsafe_code)]` in user code.
-        let call = quote_arg_span! {
+        quote_arg_span! {
             #pyo3_path::impl_::extract_argument::extract_required_argument(
                 #arg_value,
                 &mut #holder,
                 #name_str
-            )
-        };
-        let unsafe_call = quote! { unsafe { #call } };
-        quote_arg_span! { #unsafe_call? }
+            )?
+        }
     }
 }

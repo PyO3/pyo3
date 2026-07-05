@@ -7,7 +7,6 @@ use pyo3::types::PyType;
 //~| ERROR: multiple applicable items in scope
 //~| ERROR: multiple applicable items in scope
 //~| ERROR: multiple applicable items in scope
-//~| ERROR: never type fallback affects this call to an `unsafe` function
 struct ClassRedefinesClassGetItem {}
 
 #[pymethods]
@@ -23,7 +22,6 @@ impl ClassRedefinesClassGetItem {
         //~| ERROR: multiple applicable items in scope
         cls: &Bound<'_, PyType>,
         key: &Bound<'_, PyAny>,
-        //~^ ERROR: never type fallback affects this call to an `unsafe` function
     ) -> PyResult<Py<PyAny>> {
         //~^ ERROR: multiple applicable items in scope
         pyo3::types::PyGenericAlias::new(cls.py(), cls.as_any(), key)
