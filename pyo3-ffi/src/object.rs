@@ -204,7 +204,7 @@ extern_libpython! {
 }
 
 #[inline]
-#[cfg(not(all(Py_LIMITED_API, Py_3_14)))]
+#[cfg(not(Py_3_14))]
 pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
     #[cfg(not(GraalPy))]
     return (*ob).ob_type;
@@ -212,7 +212,7 @@ pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
     return _Py_TYPE(ob);
 }
 
-#[cfg(all(Py_LIMITED_API, Py_3_14))]
+#[cfg(Py_3_14)]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPy_TYPE")]
     pub fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject;
@@ -646,6 +646,21 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPy_GetConstantBorrowed")]
     pub fn Py_GetConstantBorrowed(constant_id: c_uint) -> *mut PyObject;
 
+    // `_Py_NoneStruct` is excluded only when the abi3 build floor is 3.13+
+    // AND the limited API is enabled (i.e. `abi3-py313` or higher), because
+    // in that case `Py_GetConstantBorrowed` is guaranteed to exist and
+    // CPython intentionally does not export `_Py_NoneStruct` to the dynamic
+    // symbol table.
+    //
+    // For builds with a *lower* floor (e.g. `abi3-py312`), `Py_3_13` is NOT
+    // set even when running on a 3.13+ interpreter -- it tracks the build
+    // floor, not the runtime version. We keep `_Py_NoneStruct` declared here
+    // for those builds, matching the PyO3 0.28 behaviour, so that the symbol
+    // is resolved at dlopen() time against the interpreter that is actually
+    // running (which does export it if it is genuinely pre-3.13, and on
+    // platforms where it is absent -- e.g. Android/Bionic builds of CPython
+    // under Termux -- the correct fix is to use `abi3-py313` or higher so
+    // that the `Py_GetConstantBorrowed` path below is taken instead).
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
     #[cfg_attr(PyPy, link_name = "_PyPy_NoneStruct")]
     static mut _Py_NoneStruct: PyObject;
@@ -769,3 +784,4 @@ extern_libpython! {
     pub fn PyType_GetModuleByToken(_type: *mut PyTypeObject, token: *const c_void)
         -> *mut PyObject;
 }
+
