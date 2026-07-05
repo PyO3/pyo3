@@ -970,7 +970,7 @@ mod tests {
     fn test_py_run_inserts_globals_2() {
         use alloc::ffi::CString;
 
-        #[crate::pyclass(crate = "crate", skip_from_py_object)]
+        #[crate::pyclass(crate = "crate")]
         #[derive(Clone)]
         struct CodeRunner {
             code: CString,
