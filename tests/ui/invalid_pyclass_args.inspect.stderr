@@ -1,109 +1,109 @@
 error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `immutable_type`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `new`, `str`, `subclass`, `unsendable`, `weakref`, `generic`, `from_py_object`, `skip_from_py_object`
- --> tests/ui/invalid_pyclass_args.rs:8:11
+ --> tests/ui/invalid_pyclass_args.rs:9:11
   |
-8 | #[pyclass(extend=pyo3::types::PyDict)]
+9 | #[pyclass(extend=pyo3::types::PyDict)]
   |           ^^^^^^
 
 error: expected identifier
-  --> tests/ui/invalid_pyclass_args.rs:12:21
+  --> tests/ui/invalid_pyclass_args.rs:13:21
    |
-12 | #[pyclass(extends = "PyDict")]
+13 | #[pyclass(extends = "PyDict")]
    |                     ^^^^^^^^
 
 error: expected string literal
-  --> tests/ui/invalid_pyclass_args.rs:16:18
+  --> tests/ui/invalid_pyclass_args.rs:17:18
    |
-16 | #[pyclass(name = m::MyClass)]
+17 | #[pyclass(name = m::MyClass)]
    |                  ^
 
 error: expected a single identifier in double quotes
-  --> tests/ui/invalid_pyclass_args.rs:20:18
+  --> tests/ui/invalid_pyclass_args.rs:21:18
    |
-20 | #[pyclass(name = "Custom Name")]
+21 | #[pyclass(name = "Custom Name")]
    |                  ^^^^^^^^^^^^^
 
 error: expected string literal
-  --> tests/ui/invalid_pyclass_args.rs:24:18
+  --> tests/ui/invalid_pyclass_args.rs:25:18
    |
-24 | #[pyclass(name = CustomName)]
+25 | #[pyclass(name = CustomName)]
    |                  ^^^^^^^^^^
 
 error: expected string literal
-  --> tests/ui/invalid_pyclass_args.rs:28:24
+  --> tests/ui/invalid_pyclass_args.rs:29:24
    |
-28 | #[pyclass(rename_all = camelCase)]
+29 | #[pyclass(rename_all = camelCase)]
    |                        ^^^^^^^^^
 
 error: expected a valid renaming rule, possible values are: "camelCase", "kebab-case", "lowercase", "PascalCase", "SCREAMING-KEBAB-CASE", "SCREAMING_SNAKE_CASE", "snake_case", "UPPERCASE"
-  --> tests/ui/invalid_pyclass_args.rs:32:24
+  --> tests/ui/invalid_pyclass_args.rs:33:24
    |
-32 | #[pyclass(rename_all = "Camel-Case")]
+33 | #[pyclass(rename_all = "Camel-Case")]
    |                        ^^^^^^^^^^^^
 
 error: expected string literal
-  --> tests/ui/invalid_pyclass_args.rs:36:20
+  --> tests/ui/invalid_pyclass_args.rs:37:20
    |
-36 | #[pyclass(module = my_module)]
+37 | #[pyclass(module = my_module)]
    |                    ^^^^^^^^^
 
 error: expected one of: `crate`, `dict`, `eq`, `eq_int`, `extends`, `freelist`, `frozen`, `get_all`, `hash`, `immutable_type`, `mapping`, `module`, `name`, `ord`, `rename_all`, `sequence`, `set_all`, `new`, `str`, `subclass`, `unsendable`, `weakref`, `generic`, `from_py_object`, `skip_from_py_object`
-  --> tests/ui/invalid_pyclass_args.rs:40:11
+  --> tests/ui/invalid_pyclass_args.rs:41:11
    |
-40 | #[pyclass(weakrev)]
+41 | #[pyclass(weakrev)]
    |           ^^^^^^^
 
 error: a `#[pyclass]` cannot be both a `mapping` and a `sequence`
-  --> tests/ui/invalid_pyclass_args.rs:45:8
+  --> tests/ui/invalid_pyclass_args.rs:46:8
    |
-45 | struct CannotBeMappingAndSequence {}
+46 | struct CannotBeMappingAndSequence {}
    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: `eq_int` can only be used on simple enums.
-  --> tests/ui/invalid_pyclass_args.rs:72:11
+  --> tests/ui/invalid_pyclass_args.rs:73:11
    |
-72 | #[pyclass(eq_int)]
+73 | #[pyclass(eq_int)]
    |           ^^^^^^
 
 error: The `hash` option requires the `frozen` option.
-  --> tests/ui/invalid_pyclass_args.rs:81:11
+  --> tests/ui/invalid_pyclass_args.rs:82:11
    |
-81 | #[pyclass(hash)]
+82 | #[pyclass(hash)]
    |           ^^^^
 
 error: The `hash` option requires the `eq` option.
-  --> tests/ui/invalid_pyclass_args.rs:81:11
+  --> tests/ui/invalid_pyclass_args.rs:82:11
    |
-81 | #[pyclass(hash)]
+82 | #[pyclass(hash)]
    |           ^^^^
 
 error: The `ord` option requires the `eq` option.
-   --> tests/ui/invalid_pyclass_args.rs:101:11
+   --> tests/ui/invalid_pyclass_args.rs:102:11
     |
-101 | #[pyclass(ord)]
+102 | #[pyclass(ord)]
     |           ^^^
 
 error: expected one of: `get`, `set`, `name`
-   --> tests/ui/invalid_pyclass_args.rs:109:12
+   --> tests/ui/invalid_pyclass_args.rs:110:12
     |
-109 |     #[pyo3(foo)]
+110 |     #[pyo3(foo)]
     |            ^^^
 
 error: expected one of: `get`, `set`, `name`
-   --> tests/ui/invalid_pyclass_args.rs:111:12
+   --> tests/ui/invalid_pyclass_args.rs:112:12
     |
-111 |     #[pyo3(blah)]
+112 |     #[pyo3(blah)]
     |            ^^^^
 
 error: expected one of: `get`, `set`, `name`
-   --> tests/ui/invalid_pyclass_args.rs:114:12
+   --> tests/ui/invalid_pyclass_args.rs:115:12
     |
-114 |     #[pyo3(pop)]
+115 |     #[pyo3(pop)]
     |            ^^^
 
 error: invalid format string: expected `}` but string was terminated
-   --> tests/ui/invalid_pyclass_args.rs:138:19
+   --> tests/ui/invalid_pyclass_args.rs:139:19
     |
-138 | #[pyclass(str = "{")]
+139 | #[pyclass(str = "{")]
     |                  -^ expected `}` in format string
     |                  |
     |                  because of this opening brace
@@ -111,9 +111,9 @@ error: invalid format string: expected `}` but string was terminated
     = note: if you intended to print `{`, you can escape it using `{{`
 
 error: invalid format string: expected `}`, found `$`
-   --> tests/ui/invalid_pyclass_args.rs:143:19
+   --> tests/ui/invalid_pyclass_args.rs:144:19
     |
-143 | #[pyclass(str = "{$}")]
+144 | #[pyclass(str = "{$}")]
     |                  -^ expected `}` in format string
     |                  |
     |                  because of this opening brace
@@ -121,80 +121,92 @@ error: invalid format string: expected `}`, found `$`
     = note: if you intended to print `{`, you can escape it using `{{`
 
 error: The format string syntax is incompatible with any renaming via `name` or `rename_all`
-   --> tests/ui/invalid_pyclass_args.rs:171:31
+   --> tests/ui/invalid_pyclass_args.rs:172:31
     |
-171 | #[pyclass(name = "aaa", str = "unsafe: {unsafe_variable}")]
+172 | #[pyclass(name = "aaa", str = "unsafe: {unsafe_variable}")]
     |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: The format string syntax is incompatible with any renaming via `name` or `rename_all`
-   --> tests/ui/invalid_pyclass_args.rs:178:31
+   --> tests/ui/invalid_pyclass_args.rs:179:31
     |
-178 | #[pyclass(name = "aaa", str = "unsafe: {unsafe_variable}")]
+179 | #[pyclass(name = "aaa", str = "unsafe: {unsafe_variable}")]
     |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: The format string syntax is incompatible with any renaming via `name` or `rename_all`
-   --> tests/ui/invalid_pyclass_args.rs:184:17
+   --> tests/ui/invalid_pyclass_args.rs:185:17
     |
-184 | #[pyclass(str = "unsafe: {unsafe_variable}")]
+185 | #[pyclass(str = "unsafe: {unsafe_variable}")]
     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: The format string syntax is incompatible with any renaming via `name` or `rename_all`
-   --> tests/ui/invalid_pyclass_args.rs:191:54
+   --> tests/ui/invalid_pyclass_args.rs:192:54
     |
-191 | #[pyclass(rename_all = "SCREAMING_SNAKE_CASE", str = "{a_a}, {b_b}, {c_d_e}")]
+192 | #[pyclass(rename_all = "SCREAMING_SNAKE_CASE", str = "{a_a}, {b_b}, {c_d_e}")]
     |                                                      ^^^^^^^^^^^^^^^^^^^^^^^
 
 error: No member found, you must provide a named or positionally specified member.
-   --> tests/ui/invalid_pyclass_args.rs:199:17
+   --> tests/ui/invalid_pyclass_args.rs:200:17
     |
-199 | #[pyclass(str = "{:?}")]
+200 | #[pyclass(str = "{:?}")]
     |                 ^^^^^^
 
 error: No member found, you must provide a named or positionally specified member.
-   --> tests/ui/invalid_pyclass_args.rs:207:17
+   --> tests/ui/invalid_pyclass_args.rs:208:17
     |
-207 | #[pyclass(str = "{}")]
+208 | #[pyclass(str = "{}")]
     |                 ^^^^
 
 error: The format string syntax cannot be used with enums
-   --> tests/ui/invalid_pyclass_args.rs:215:21
+   --> tests/ui/invalid_pyclass_args.rs:216:21
     |
-215 | #[pyclass(eq, str = "Stuff...")]
+216 | #[pyclass(eq, str = "Stuff...")]
     |                     ^^^^^^^^^^
 
 error: `skip_from_py_object` and `from_py_object` are mutually exclusive
-   --> tests/ui/invalid_pyclass_args.rs:229:27
+   --> tests/ui/invalid_pyclass_args.rs:230:27
     |
-229 | #[pyclass(from_py_object, skip_from_py_object)]
+230 | #[pyclass(from_py_object, skip_from_py_object)]
     |                           ^^^^^^^^^^^^^^^^^^^
 
-error[E0277]: the trait bound `StructFromPyObjectNoClone: Clone` is not satisfied
-   --> tests/ui/invalid_pyclass_args.rs:236:11
+error: use of deprecated constant `pyo3::impl_::deprecated::SKIP_FROM_PY_OBJECT_DEPRECATED`: `skip_from_py_object` enabled by default. The option will be removed in the future
+   --> tests/ui/invalid_pyclass_args.rs:244:11
     |
-236 | #[pyclass(from_py_object)]
+244 | #[pyclass(skip_from_py_object)]
+    |           ^^^^^^^^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> tests/ui/invalid_pyclass_args.rs:4:9
+    |
+  4 | #![deny(deprecated)]
+    |         ^^^^^^^^^^
+
+error[E0277]: the trait bound `StructFromPyObjectNoClone: Clone` is not satisfied
+   --> tests/ui/invalid_pyclass_args.rs:237:11
+    |
+237 | #[pyclass(from_py_object)]
     |           ^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `StructFromPyObjectNoClone`
     |
 help: consider annotating `StructFromPyObjectNoClone` with `#[derive(Clone)]`
     |
-238 + #[derive(Clone)]
-239 | struct StructFromPyObjectNoClone {
+239 + #[derive(Clone)]
+240 | struct StructFromPyObjectNoClone {
     |
 
 error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::doc::PyClassNewTextSignature` for type `NewFromFieldsWithManualNew`
-   --> tests/ui/invalid_pyclass_args.rs:267:1
+   --> tests/ui/invalid_pyclass_args.rs:266:1
     |
-259 | #[pyclass(new = "from_fields")]
+258 | #[pyclass(new = "from_fields")]
     | ------------------------------- first implementation here
 ...
-267 | #[pymethods]
+266 | #[pymethods]
     | ^^^^^^^^^^^^ conflicting implementation for `NewFromFieldsWithManualNew`
     |
     = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
-   --> tests/ui/invalid_pyclass_args.rs:252:12
+   --> tests/ui/invalid_pyclass_args.rs:253:12
     |
-252 |     field: Box<dyn std::error::Error + Send + Sync>,
+253 |     field: Box<dyn std::error::Error + Send + Sync>,
     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
     |
     = help: the trait `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, false>` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
@@ -222,323 +234,246 @@ help: the following other types implement trait `pyo3::impl_::extract_argument::
   | |______________________^ `&'holder mut T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
 
 error[E0592]: duplicate definitions with name `__pymethod___richcmp____`
-  --> tests/ui/invalid_pyclass_args.rs:53:1
+  --> tests/ui/invalid_pyclass_args.rs:54:1
    |
-53 | #[pyclass(eq)]
+54 | #[pyclass(eq)]
    | ^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___richcmp____`
 ...
-59 | #[pymethods]
+60 | #[pymethods]
    | ------------ other definition for `__pymethod___richcmp____`
    |
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0592]: duplicate definitions with name `__pymethod___hash____`
-  --> tests/ui/invalid_pyclass_args.rs:87:1
+  --> tests/ui/invalid_pyclass_args.rs:88:1
    |
-87 | #[pyclass(frozen, eq, hash)]
+88 | #[pyclass(frozen, eq, hash)]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___hash____`
 ...
-93 | #[pymethods]
+94 | #[pymethods]
    | ------------ other definition for `__pymethod___hash____`
    |
    = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0592]: duplicate definitions with name `__pymethod___str____`
-   --> tests/ui/invalid_pyclass_args.rs:119:1
+   --> tests/ui/invalid_pyclass_args.rs:120:1
     |
-119 | #[pyclass(str)]
+120 | #[pyclass(str)]
     | ^^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___str____`
 ...
-130 | #[pymethods]
+131 | #[pymethods]
     | ------------ other definition for `__pymethod___str____`
     |
     = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0592]: duplicate definitions with name `__pymethod___new____`
-   --> tests/ui/invalid_pyclass_args.rs:259:1
+   --> tests/ui/invalid_pyclass_args.rs:258:1
     |
-259 | #[pyclass(new = "from_fields")]
+258 | #[pyclass(new = "from_fields")]
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `__pymethod___new____`
 ...
-267 | #[pymethods]
+266 | #[pymethods]
     | ------------ other definition for `__pymethod___new____`
     |
     = note: this error originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0369]: binary operation `==` cannot be applied to type `&EqOptRequiresEq`
-  --> tests/ui/invalid_pyclass_args.rs:48:11
+  --> tests/ui/invalid_pyclass_args.rs:49:11
    |
-48 | #[pyclass(eq)]
+49 | #[pyclass(eq)]
    |           ^^
    |
 note: an implementation of `PartialEq` might be missing for `EqOptRequiresEq`
-  --> tests/ui/invalid_pyclass_args.rs:51:1
+  --> tests/ui/invalid_pyclass_args.rs:52:1
    |
-51 | struct EqOptRequiresEq {}
+52 | struct EqOptRequiresEq {}
    | ^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
 help: consider annotating `EqOptRequiresEq` with `#[derive(PartialEq)]`
    |
-51 + #[derive(PartialEq)]
-52 | struct EqOptRequiresEq {}
+52 + #[derive(PartialEq)]
+53 | struct EqOptRequiresEq {}
    |
 
 error[E0369]: binary operation `!=` cannot be applied to type `&EqOptRequiresEq`
-  --> tests/ui/invalid_pyclass_args.rs:48:11
+  --> tests/ui/invalid_pyclass_args.rs:49:11
    |
-48 | #[pyclass(eq)]
+49 | #[pyclass(eq)]
    |           ^^
    |
 note: an implementation of `PartialEq` might be missing for `EqOptRequiresEq`
-  --> tests/ui/invalid_pyclass_args.rs:51:1
+  --> tests/ui/invalid_pyclass_args.rs:52:1
    |
-51 | struct EqOptRequiresEq {}
+52 | struct EqOptRequiresEq {}
    | ^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
 help: consider annotating `EqOptRequiresEq` with `#[derive(PartialEq)]`
    |
-51 + #[derive(PartialEq)]
-52 | struct EqOptRequiresEq {}
+52 + #[derive(PartialEq)]
+53 | struct EqOptRequiresEq {}
    |
 
 error[E0034]: multiple applicable items in scope
-  --> tests/ui/invalid_pyclass_args.rs:53:1
+  --> tests/ui/invalid_pyclass_args.rs:54:1
    |
-53 | #[pyclass(eq)]
+54 | #[pyclass(eq)]
    | ^^^^^^^^^^^^^^ multiple `__pymethod___richcmp____` found
    |
 note: candidate #1 is defined in an impl for the type `EqOptAndManualRichCmp`
-  --> tests/ui/invalid_pyclass_args.rs:53:1
+  --> tests/ui/invalid_pyclass_args.rs:54:1
    |
-53 | #[pyclass(eq)]
+54 | #[pyclass(eq)]
    | ^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `EqOptAndManualRichCmp`
-  --> tests/ui/invalid_pyclass_args.rs:59:1
+  --> tests/ui/invalid_pyclass_args.rs:60:1
    |
-59 | #[pymethods]
+60 | #[pymethods]
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
-  --> tests/ui/invalid_pyclass_args.rs:59:1
+  --> tests/ui/invalid_pyclass_args.rs:60:1
    |
-59 | #[pymethods]
+60 | #[pymethods]
    | ^^^^^^^^^^^^ multiple `__pymethod___richcmp____` found
    |
 note: candidate #1 is defined in an impl for the type `EqOptAndManualRichCmp`
-  --> tests/ui/invalid_pyclass_args.rs:53:1
+  --> tests/ui/invalid_pyclass_args.rs:54:1
    |
-53 | #[pyclass(eq)]
+54 | #[pyclass(eq)]
    | ^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `EqOptAndManualRichCmp`
-  --> tests/ui/invalid_pyclass_args.rs:59:1
+  --> tests/ui/invalid_pyclass_args.rs:60:1
    |
-59 | #[pymethods]
+60 | #[pymethods]
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `HashOptRequiresHash: Hash` is not satisfied
-  --> tests/ui/invalid_pyclass_args.rs:76:23
+  --> tests/ui/invalid_pyclass_args.rs:77:23
    |
-76 | #[pyclass(frozen, eq, hash)]
+77 | #[pyclass(frozen, eq, hash)]
    |                       ^^^^ the trait `Hash` is not implemented for `HashOptRequiresHash`
    |
 help: consider annotating `HashOptRequiresHash` with `#[derive(Hash)]`
    |
-79 + #[derive(Hash)]
-80 | struct HashOptRequiresHash;
+80 + #[derive(Hash)]
+81 | struct HashOptRequiresHash;
    |
 
 error[E0034]: multiple applicable items in scope
-  --> tests/ui/invalid_pyclass_args.rs:87:1
+  --> tests/ui/invalid_pyclass_args.rs:88:1
    |
-87 | #[pyclass(frozen, eq, hash)]
+88 | #[pyclass(frozen, eq, hash)]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `__pymethod___hash____` found
    |
 note: candidate #1 is defined in an impl for the type `HashOptAndManualHash`
-  --> tests/ui/invalid_pyclass_args.rs:87:1
+  --> tests/ui/invalid_pyclass_args.rs:88:1
    |
-87 | #[pyclass(frozen, eq, hash)]
+88 | #[pyclass(frozen, eq, hash)]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `HashOptAndManualHash`
-  --> tests/ui/invalid_pyclass_args.rs:93:1
+  --> tests/ui/invalid_pyclass_args.rs:94:1
    |
-93 | #[pymethods]
+94 | #[pymethods]
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
-  --> tests/ui/invalid_pyclass_args.rs:93:1
+  --> tests/ui/invalid_pyclass_args.rs:94:1
    |
-93 | #[pymethods]
+94 | #[pymethods]
    | ^^^^^^^^^^^^ multiple `__pymethod___hash____` found
    |
 note: candidate #1 is defined in an impl for the type `HashOptAndManualHash`
-  --> tests/ui/invalid_pyclass_args.rs:87:1
+  --> tests/ui/invalid_pyclass_args.rs:88:1
    |
-87 | #[pyclass(frozen, eq, hash)]
+88 | #[pyclass(frozen, eq, hash)]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `HashOptAndManualHash`
-  --> tests/ui/invalid_pyclass_args.rs:93:1
+  --> tests/ui/invalid_pyclass_args.rs:94:1
    |
-93 | #[pymethods]
+94 | #[pymethods]
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
-   --> tests/ui/invalid_pyclass_args.rs:119:1
+   --> tests/ui/invalid_pyclass_args.rs:120:1
     |
-119 | #[pyclass(str)]
+120 | #[pyclass(str)]
     | ^^^^^^^^^^^^^^^ multiple `__pymethod___str____` found
     |
 note: candidate #1 is defined in an impl for the type `StrOptAndManualStr`
-   --> tests/ui/invalid_pyclass_args.rs:119:1
+   --> tests/ui/invalid_pyclass_args.rs:120:1
     |
-119 | #[pyclass(str)]
+120 | #[pyclass(str)]
     | ^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `StrOptAndManualStr`
-   --> tests/ui/invalid_pyclass_args.rs:130:1
+   --> tests/ui/invalid_pyclass_args.rs:131:1
     |
-130 | #[pymethods]
+131 | #[pymethods]
     | ^^^^^^^^^^^^
     = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
-   --> tests/ui/invalid_pyclass_args.rs:130:1
+   --> tests/ui/invalid_pyclass_args.rs:131:1
     |
-130 | #[pymethods]
+131 | #[pymethods]
     | ^^^^^^^^^^^^ multiple `__pymethod___str____` found
     |
 note: candidate #1 is defined in an impl for the type `StrOptAndManualStr`
-   --> tests/ui/invalid_pyclass_args.rs:119:1
+   --> tests/ui/invalid_pyclass_args.rs:120:1
     |
-119 | #[pyclass(str)]
+120 | #[pyclass(str)]
     | ^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `StrOptAndManualStr`
-   --> tests/ui/invalid_pyclass_args.rs:130:1
+   --> tests/ui/invalid_pyclass_args.rs:131:1
     |
-130 | #[pymethods]
+131 | #[pymethods]
     | ^^^^^^^^^^^^
     = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0609]: no field `aaaa` on type `&Point`
-   --> tests/ui/invalid_pyclass_args.rs:148:17
+   --> tests/ui/invalid_pyclass_args.rs:149:17
     |
-148 | #[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}", skip_from_py_object)]
+149 | #[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}")]
     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^ unknown field
     |
     = note: available fields are: `x`, `y`, `z`
 
 error[E0609]: no field `zzz` on type `&Point2`
-   --> tests/ui/invalid_pyclass_args.rs:157:17
+   --> tests/ui/invalid_pyclass_args.rs:158:17
     |
-157 | #[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}", skip_from_py_object)]
+158 | #[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}")]
     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unknown field
     |
     = note: available fields are: `x`, `y`, `z`
 
 error[E0609]: no field `162543` on type `&Coord3`
-   --> tests/ui/invalid_pyclass_args.rs:166:17
+   --> tests/ui/invalid_pyclass_args.rs:167:17
     |
-166 | #[pyclass(str = "{0}, {162543}, {2}")]
+167 | #[pyclass(str = "{0}, {162543}, {2}")]
     |                 ^^^^^^^^^^^^^^^^^^^^ unknown field
     |
     = note: available fields are: `0`, `1`, `2`
 
-warning: use of deprecated associated constant `pyo3::impl_::deprecated::HasAutomaticFromPyObject::<true>::MSG`: The `FromPyObject` implementation for `#[pyclass]` types which implement `Clone` is changing to an opt-in option. Use `#[pyclass(from_py_object)]` to opt-in to the `FromPyObject` derive now, or `#[pyclass(skip_from_py_object)]` to skip the `FromPyObject` implementation.
-   --> tests/ui/invalid_pyclass_args.rs:243:1
-    |
-243 | #[pyclass]
-    | ^^^^^^^^^^
-    |
-    = note: `#[warn(deprecated)]` on by default
-    = note: this warning originates in the attribute macro `pyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
-
 error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
-   --> tests/ui/invalid_pyclass_args.rs:252:12
+   --> tests/ui/invalid_pyclass_args.rs:253:12
     |
-252 |     field: Box<dyn std::error::Error + Send + Sync>,
-    |            ^^^ the trait `pyo3::PyClass` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
+253 |     field: Box<dyn std::error::Error + Send + Sync>,
+    |            ^^^ the trait `pyo3::FromPyObject<'_, '_>` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
     |
     = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
     = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
-    = help: the following other types implement trait `pyo3::PyClass`:
-              Coord
-              Coord2
-              Coord3
-              EqOptAndManualRichCmp
-              EqOptRequiresEq
-              HashOptAndManualHash
-              HashOptRequiresHash
-              NewFromFieldsWithManualNew
+    = help: the following other types implement trait `pyo3::FromPyObject<'a, 'py>`:
+              `&'a CStr` implements `pyo3::FromPyObject<'a, '_>`
+              `&'a [u8]` implements `pyo3::FromPyObject<'a, 'py>`
+              `&'a str` implements `pyo3::FromPyObject<'a, '_>`
+              `(T0, T1)` implements `pyo3::FromPyObject<'a, 'py>`
+              `(T0, T1, T2)` implements `pyo3::FromPyObject<'a, 'py>`
+              `(T0, T1, T2, T3)` implements `pyo3::FromPyObject<'a, 'py>`
+              `(T0, T1, T2, T3, T4)` implements `pyo3::FromPyObject<'a, 'py>`
+              `(T0, T1, T2, T3, T4, T5)` implements `pyo3::FromPyObject<'a, 'py>`
             and $N others
-    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
     = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
-note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
- --> src/impl_/extract_argument.rs
-  |
-  | pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
-  |        ---------------- required by a bound in this function
-...
-  |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
-  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
-
-error[E0277]: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
-   --> tests/ui/invalid_pyclass_args.rs:252:12
-    |
-252 |     field: Box<dyn std::error::Error + Send + Sync>,
-    |            ^^^ the trait `pyo3::impl_::pyclass::ExtractPyClassWithClone` is not implemented for `Box<dyn std::error::Error + Send + Sync>`
-    |
-    = note: implement `FromPyObject` to enable using `Box<dyn std::error::Error + Send + Sync>` as a function argument
-    = note: `Python<'py>` is also a valid argument type to pass the Python token into `#[pyfunction]`s and `#[pymethods]`
-    = help: the following other types implement trait `pyo3::impl_::pyclass::ExtractPyClassWithClone`:
-              Coord
-              Coord2
-              Coord3
-              EqOptAndManualRichCmp
-              EqOptRequiresEq
-              HashOptAndManualHash
-              HashOptRequiresHash
-              NewFromFieldsWithManualNew
-            and $N others
-    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
-    = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
-note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
- --> src/impl_/extract_argument.rs
-  |
-  | pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
-  |        ---------------- required by a bound in this function
-...
-  |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
-  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
-
-error[E0277]: the trait bound `dyn std::error::Error + Send + Sync: Clone` is not satisfied
-   --> tests/ui/invalid_pyclass_args.rs:252:12
-    |
-252 |     field: Box<dyn std::error::Error + Send + Sync>,
-    |            ^^^ the trait `Clone` is not implemented for `dyn std::error::Error + Send + Sync`
-    |
-help: the following other types implement trait `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>`
- --> src/impl_/extract_argument.rs
-  |
-  | / impl<'a, 'holder, 'py, T: 'a + 'py> PyFunctionArgument<'a, 'holder, 'py, false>
-  | |     for &'holder Bound<'py, T>
-  | | where
-  | |     T: PyTypeCheck,
-  | |___________________^ `&'holder pyo3::Bound<'py, T>` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false>`
-...
-  | / impl<'a, 'holder, 'py, T> PyFunctionArgument<'a, 'holder, 'py, false> for Option<T>
-  | | where
-  | |     T: PyFunctionArgument<'a, 'holder, 'py, false>,
-  | |___________________________________________________^ `Option<T>` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, 'py, false>`
-...
-  |   impl<'a, 'holder, T: PyClass> PyFunctionArgument<'a, 'holder, '_, false> for &'holder T {
-  |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&'holder T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
-...
-  | / impl<'a, 'holder, T: PyClass<Frozen = False>> PyFunctionArgument<'a, 'holder, '_, false>
-  | |     for &'holder mut T
-  | |______________________^ `&'holder mut T` implements `pyo3::impl_::extract_argument::PyFunctionArgument<'a, 'holder, '_, false>`
-  = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `Clone`
-  = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::FromPyObject<'_, '_>`
-  = note: required for `Box<dyn std::error::Error + Send + Sync>` to implement `pyo3::impl_::extract_argument::PyFunctionArgument<'_, '_, '_, true>`
 note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
  --> src/impl_/extract_argument.rs
   |
@@ -549,42 +484,42 @@ note: required by a bound in `pyo3::impl_::extract_argument::extract_argument`
   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_argument`
 
 error[E0034]: multiple applicable items in scope
-   --> tests/ui/invalid_pyclass_args.rs:259:1
+   --> tests/ui/invalid_pyclass_args.rs:258:1
     |
-259 | #[pyclass(new = "from_fields")]
+258 | #[pyclass(new = "from_fields")]
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `__pymethod___new____` found
     |
 note: candidate #1 is defined in an impl for the type `NewFromFieldsWithManualNew`
-   --> tests/ui/invalid_pyclass_args.rs:259:1
+   --> tests/ui/invalid_pyclass_args.rs:258:1
     |
-259 | #[pyclass(new = "from_fields")]
+258 | #[pyclass(new = "from_fields")]
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `NewFromFieldsWithManualNew`
-   --> tests/ui/invalid_pyclass_args.rs:267:1
+   --> tests/ui/invalid_pyclass_args.rs:266:1
     |
-267 | #[pymethods]
+266 | #[pymethods]
     | ^^^^^^^^^^^^
     = note: this error originates in the attribute macro `pyclass` which comes from the expansion of the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0034]: multiple applicable items in scope
-   --> tests/ui/invalid_pyclass_args.rs:267:1
+   --> tests/ui/invalid_pyclass_args.rs:266:1
     |
-267 | #[pymethods]
+266 | #[pymethods]
     | ^^^^^^^^^^^^ multiple `__pymethod___new____` found
     |
 note: candidate #1 is defined in an impl for the type `NewFromFieldsWithManualNew`
-   --> tests/ui/invalid_pyclass_args.rs:259:1
+   --> tests/ui/invalid_pyclass_args.rs:258:1
     |
-259 | #[pyclass(new = "from_fields")]
+258 | #[pyclass(new = "from_fields")]
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: candidate #2 is defined in an impl for the type `NewFromFieldsWithManualNew`
-   --> tests/ui/invalid_pyclass_args.rs:267:1
+   --> tests/ui/invalid_pyclass_args.rs:266:1
     |
-267 | #[pymethods]
+266 | #[pymethods]
     | ^^^^^^^^^^^^
     = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error: aborting due to 51 previous errors; 1 warning emitted
+error: aborting due to 50 previous errors
 
 Some errors have detailed explanations: E0034, E0119, E0277, E0369, E0592, E0609.
 For more information about an error, try `rustc --explain E0034`.
