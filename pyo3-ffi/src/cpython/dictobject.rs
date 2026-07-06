@@ -3,6 +3,7 @@ use crate::object::*;
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::pyport::Py_ssize_t;
 
+#[cfg(Py_3_15)]
 use crate::dictobject::{PyDict_Check, PyDict_Type};
 
 #[cfg(all(not(PyPy), Py_3_13))]
