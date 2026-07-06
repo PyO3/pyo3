@@ -136,7 +136,12 @@ fn pylong_from_u32_digits<I>(
 where
     I: ExactSizeIterator<Item = u32>,
 {
-    let py_digits_len = bits.div_ceil(PYLONG_BITS_IN_DIGIT).max(1);
+    let py_digits_len = if bits == 0 {
+        1
+    } else {
+        (bits - 1) / PYLONG_BITS_IN_DIGIT + 1
+    };
+
     let digits = PyLongDigitIter {
         digits,
         acc: 0,
