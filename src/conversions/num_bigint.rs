@@ -1,5 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "num-bigint")]
 //!  Conversions to and from [num-bigint](https://docs.rs/num-bigint)’s [`BigInt`] and [`BigUint`] types.
 //!
@@ -224,6 +222,7 @@ macro_rules! bigint_conversion {
                     } else {
                         None
                     };
+                    // SAFETY: `PyInt.from_bytes` returns an int object (PyInt).
                     unsafe {
                         py.get_type::<PyInt>()
                             .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
@@ -385,8 +384,8 @@ fn int_from_pylong_digits(digits: &[u32]) -> Vec<u32> {
             let new_bits = acc_bits + PYLONG_BITS_IN_DIGIT;
 
             if new_bits >= u32::BITS as usize {
+                // SAFETY: the total number of writes is bounded by `n_digits`.
                 unsafe {
-                    // SAFETY: the total number of writes is bounded by `n_digits`
                     ptr.add(written).write(acc as u32);
                     written += 1;
                 }
@@ -399,18 +398,16 @@ fn int_from_pylong_digits(digits: &[u32]) -> Vec<u32> {
 
         acc |= u64::from(last) << acc_bits;
         while written < n_digits {
+            // SAFETY: `written < n_digits <= capacity` by construction.
             unsafe {
-                // SAFETY: `written < n_digits <= capacity` by construction
                 ptr.add(written).write(acc as u32);
                 written += 1;
             }
             acc >>= u32::BITS;
         }
 
-        unsafe {
-            // SAFETY: exactly `written` elements were initialized above
-            py_digits.set_len(written);
-        }
+        // SAFETY: exactly `written` elements were initialized above.
+        unsafe { py_digits.set_len(written) };
     }
 
     py_digits
@@ -432,6 +429,8 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
         n_bits.div_ceil(32)
     };
     buffer.reserve_exact(n_digits);
+    // SAFETY: `buffer` has capacity for `n_digits * 4` bytes, and
+    // `_PyLong_AsByteArray` initializes that buffer on success.
     unsafe {
         crate::err::error_on_minusone(
             long.py(),
@@ -462,6 +461,7 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     if !SIGNED {
         flags |= ffi::Py_ASNATIVEBYTES_UNSIGNED_BUFFER | ffi::Py_ASNATIVEBYTES_REJECT_NEGATIVE;
     }
+    // SAFETY: passing a null buffer with size 0 requests the required byte length.
     let n_bytes =
         unsafe { ffi::PyLong_AsNativeBytes(long.as_ptr().cast(), core::ptr::null_mut(), 0, flags) };
     let n_bytes_unsigned: usize = n_bytes.try_into().map_err(|_| PyErr::fetch(long.py()))?;
@@ -470,6 +470,8 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     }
     let n_digits = n_bytes_unsigned.div_ceil(4);
     buffer.reserve_exact(n_digits);
+    // SAFETY: `buffer` has capacity for `n_digits * 4` bytes, and
+    // `PyLong_AsNativeBytes` writes into the full requested buffer.
     unsafe {
         ffi::PyLong_AsNativeBytes(
             long.as_ptr().cast(),
