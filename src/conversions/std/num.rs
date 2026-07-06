@@ -477,10 +477,22 @@ mod fast_128bit_int_conversion {
                             } else {
                                 self as u128
                             };
-                            let bits = 128 - abs.leading_zeros() as usize;
-                            let n_digits = bits.div_ceil(PYLONG_BITS_IN_DIGIT).max(1);
-                            let digits = (0..n_digits)
+
+                            let digits_len = if abs >> 30 == 0 {
+                                1
+                            } else if abs >> 60 == 0 {
+                                2
+                            } else if abs >> 90 == 0 {
+                                3
+                            } else if abs >> 120 == 0 {
+                                4
+                            } else {
+                                5
+                            };
+
+                            let digits = (0..digits_len)
                                 .map(|i| (abs >> (i * PYLONG_BITS_IN_DIGIT)) as u32 & DIGIT_MASK);
+
                             return Ok(pylong_from_digits(py, negative, digits));
                         }
                     }
