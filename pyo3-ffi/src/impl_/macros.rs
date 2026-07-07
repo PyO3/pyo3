@@ -87,6 +87,18 @@ macro_rules! extern_libpython_maybe_private_fn {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
     };
     (
+        [_PyInterpreterState_GetEvalFrameFunc]
+        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
+    ) => {
+        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
+    };
+    (
+        [_PyInterpreterState_SetEvalFrameFunc]
+        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
+    ) => {
+        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
+    };
+    (
         [_PyObject_GC_New]
         $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
