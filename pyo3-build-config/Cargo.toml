@@ -22,9 +22,5 @@ default = []
 
 # deprecated
 resolve-config = []
-
-# deprecated
 extension-module = []
-
-# deprecated: no longer needed, raw-dylib is used instead
 generate-import-lib = []

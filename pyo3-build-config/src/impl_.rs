@@ -25,15 +25,6 @@ use crate::{
 /// Minimum Python version PyO3 supports.
 pub(crate) const MINIMUM_SUPPORTED_VERSION: PythonVersion = PythonVersion { major: 3, minor: 9 };
 
-pub(crate) const MINIMUM_SUPPORTED_VERSION_PYPY: PythonVersion = PythonVersion {
-    major: 3,
-    minor: 11,
-};
-pub(crate) const MAXIMUM_SUPPORTED_VERSION_PYPY: PythonVersion = PythonVersion {
-    major: 3,
-    minor: 11,
-};
-
 pub(crate) const MINIMUM_SUPPORTED_VERSION_ABI3T: PythonVersion = PythonVersion {
     major: 3,
     minor: 15,
@@ -2314,6 +2305,15 @@ fn default_lib_name_for_target(abi: PythonAbi, target: &Triple) -> String {
 }
 
 fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<String> {
+    // mingw formats lib names like unix, and uses a "lib" prefix. We could let the linker
+    // handle "lib" prefix, but that means the `raw-dylib` name is incorrect (where the
+    // "lib" prefix is not automatically added).
+    if mingw {
+        let mut lib_name = default_lib_name_unix(abi, true, None)?;
+        lib_name.insert_str(0, "lib");
+        return Ok(lib_name);
+    }
+
     if abi.implementation.is_pypy() {
         // PyPy on Windows ships `libpypy3.X-c.dll` (e.g. `libpypy3.11-c.dll`),
         // not CPython's `pythonXY.dll`. With raw-dylib linking we need the real
@@ -2341,13 +2341,6 @@ fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<
             lib_name = lib_name.replace("python3", "python3t");
         }
         Ok(lib_name)
-    } else if mingw {
-        ensure!(
-            !abi.kind.is_free_threaded(),
-            "MinGW free-threaded builds are not currently tested or supported"
-        );
-        // https://packages.msys2.org/base/mingw-w64-python
-        Ok(format!("python{}.{}", abi.version.major, abi.version.minor))
     } else if abi.kind().is_free_threaded() {
         #[expect(deprecated, reason = "using constant internally")]
         {
@@ -2371,28 +2364,36 @@ fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<
     }
 }
 
-fn default_lib_name_unix(abi: PythonAbi, cygwin: bool, ld_version: Option<&str>) -> Result<String> {
+fn default_lib_name_unix(
+    abi: PythonAbi,
+    use_stable_abi_lib: bool,
+    ld_version: Option<&str>,
+) -> Result<String> {
     match abi.implementation {
         PythonImplementation::CPython => match ld_version {
             Some(ld_version) => Ok(format!("python{ld_version}")),
-            None => {
-                if cygwin && matches!(abi.kind, PythonAbiKind::Stable(StableAbi::Abi3)) {
+            None => match abi.kind {
+                PythonAbiKind::Stable(StableAbi::Abi3) if use_stable_abi_lib => {
                     Ok("python3".to_string())
-                } else if cygwin && matches!(abi.kind, PythonAbiKind::Stable(StableAbi::Abi3t)) {
-                    Ok("python3t".to_string())
-                } else if abi.kind.is_free_threaded() {
-                    #[expect(deprecated, reason = "using constant internally")]
-                    {
-                        ensure!(abi.version >= PythonVersion::PY313, "Cannot compile extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", abi.version.major, abi.version.minor);
-                    }
-                    Ok(format!(
-                        "python{}.{}t",
-                        abi.version.major, abi.version.minor
-                    ))
-                } else {
-                    Ok(format!("python{}.{}", abi.version.major, abi.version.minor))
                 }
-            }
+                PythonAbiKind::Stable(StableAbi::Abi3t) if use_stable_abi_lib => {
+                    Ok("python3t".to_string())
+                }
+                _ => {
+                    if abi.kind.is_free_threaded() {
+                        #[expect(deprecated, reason = "using constant internally")]
+                        {
+                            ensure!(abi.version >= PythonVersion::PY313, "Cannot compile extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", abi.version.major, abi.version.minor);
+                        }
+                        Ok(format!(
+                            "python{}.{}t",
+                            abi.version.major, abi.version.minor
+                        ))
+                    } else {
+                        Ok(format!("python{}.{}", abi.version.major, abi.version.minor))
+                    }
+                }
+            },
         },
         PythonImplementation::PyPy => match ld_version {
             Some(ld_version) => Ok(format!("pypy{ld_version}-c")),
@@ -3290,7 +3291,7 @@ mod tests {
                 false,
             )
             .unwrap(),
-            "python3.9",
+            "libpython3.9",
         );
         assert_eq!(
             super::default_lib_name_windows(
@@ -3302,7 +3303,7 @@ mod tests {
                 false,
             )
             .unwrap(),
-            "python3",
+            "libpython3",
         );
         assert_eq!(
             super::default_lib_name_windows(
@@ -3366,16 +3367,6 @@ mod tests {
             .unwrap(),
             "python3_d",
         );
-        // mingw and free-threading are incompatible (until someone adds support)
-        assert!(super::default_lib_name_windows(
-            PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY313)
-                .free_threaded()
-                .finalize()
-                .unwrap(),
-            true,
-            false,
-        )
-        .is_err());
         assert_eq!(
             super::default_lib_name_windows(
                 PythonAbiBuilder::new(PythonImplementation::CPython, PythonVersion::PY313)
