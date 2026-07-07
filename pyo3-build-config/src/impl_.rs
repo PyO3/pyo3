@@ -140,25 +140,6 @@ fn applicable_stable_abi(
     }
 }
 
-/// Like [`applicable_stable_abi`], but reads the `abi3-py3*`/`abi3t-py3*`
-/// cargo features and keeps the interpreter version rather than the feature
-/// minimum, so that `lib_name` matches the real libpython;
-/// `apply_build_env` lowers the ABI to the feature minimum afterwards.
-fn applicable_stable_abi_at_interpreter_version(
-    implementation: PythonImplementation,
-    version: PythonVersion,
-    gil_disabled: bool,
-) -> Option<(StableAbi, PythonVersion)> {
-    applicable_stable_abi(
-        implementation,
-        version,
-        gil_disabled,
-        get_abi3_version(),
-        get_abi3t_version(),
-    )
-    .map(|(kind, _)| (kind, version))
-}
-
 /// Configuration needed by PyO3 to build for the correct Python implementation.
 ///
 /// The version and implementation fields correspond to the interpreter
@@ -616,7 +597,8 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     /// Generate from parsed sysconfigdata file
     ///
     /// Use [`parse_sysconfigdata`] to generate a hash map of configuration values which may be
-    /// used to build an [`InterpreterConfig`].
+    /// used to build an [`InterpreterConfig`]. The target ABI is determined by the python
+    /// interpreter metadata in sysconfigdata and does not depend on cargo features.
     pub fn from_sysconfigdata(sysconfigdata: &Sysconfigdata) -> Result<Self> {
         macro_rules! get_key {
             ($sysconfigdata:expr, $key:literal) => {
@@ -656,10 +638,15 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
             None => false,
         };
         let cygwin = soabi.ends_with("cygwin");
-        let stable_abi =
-            applicable_stable_abi_at_interpreter_version(implementation, version, gil_disabled);
-        let target_abi =
-            PythonAbi::from_stable_abi(implementation, version, stable_abi, gil_disabled)?;
+        // purely descriptive of the interpreter in the sysconfigdata: PyO3's own
+        // build pipeline applies any abi3/abi3t cargo features to this config
+        // afterwards, in apply_build_env
+        let target_abi = if gil_disabled {
+            PythonAbiBuilder::new(implementation, version).free_threaded()
+        } else {
+            PythonAbiBuilder::new(implementation, version)
+        }
+        .finalize()?;
         let lib_name =
             default_lib_name_unix(target_abi, cygwin, sysconfigdata.get_value("LDVERSION"))?;
         let pointer_width = parse_key!(sysconfigdata, "SIZEOF_VOID_P")
@@ -2302,8 +2289,16 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
         .implementation
         .unwrap_or(PythonImplementation::CPython);
 
-    let stable_abi =
-        applicable_stable_abi_at_interpreter_version(implementation, version, gil_disabled);
+    let stable_abi = applicable_stable_abi(
+        implementation,
+        version,
+        gil_disabled,
+        get_abi3_version(),
+        get_abi3t_version(),
+    )
+    // keep the target version rather than the feature minimum so lib_name
+    // matches the real libpython; apply_build_env lowers the ABI afterwards
+    .map(|(kind, _)| (kind, version));
 
     let target_abi = PythonAbi::from_stable_abi(implementation, version, stable_abi, gil_disabled)?;
 
