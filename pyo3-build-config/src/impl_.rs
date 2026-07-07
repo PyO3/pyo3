@@ -2307,7 +2307,7 @@ fn default_lib_name_for_target(abi: PythonAbi, target: &Triple) -> String {
 fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<String> {
     // mingw formats lib names like unix, and uses a "lib" prefix. We could let the linker
     // handle "lib" prefix, but that means the `raw-dylib` name is incorrect (where the
-    // "lib" prefix is not automatically added).)
+    // "lib" prefix is not automatically added).
     if mingw {
         let mut lib_name = default_lib_name_unix(abi, true, None)?;
         lib_name.insert_str(0, "lib");
