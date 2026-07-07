@@ -934,17 +934,11 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     fn apply_build_env(mut self) -> Result<InterpreterConfig> {
         // the host `implementation` may differ from the `target_abi`
         // implementation; the recomputed ABI must stay on the target
-        let implementation = self.target_abi.implementation;
-        let gil_disabled = self.target_abi.kind().is_free_threaded();
-        let stable_abi = applicable_stable_abi(
-            implementation,
+        self.target_abi = PythonAbi::from_cargo_features(
+            self.target_abi.implementation,
             self.version,
-            gil_disabled,
-            get_abi3_version(),
-            get_abi3t_version(),
-        );
-        self.target_abi =
-            PythonAbi::from_stable_abi(implementation, self.version, stable_abi, gil_disabled)?;
+            self.target_abi.kind().is_free_threaded(),
+        )?;
         Ok(self)
     }
 }
@@ -1060,7 +1054,7 @@ impl PythonAbi {
     /// does not consult the `abi3`/`abi3t` cargo features. The minimum version
     /// must not exceed the interpreter version. Without a stable ABI the
     /// result is version-specific, free-threaded when `gil_disabled` is set.
-    fn from_stable_abi(
+    pub fn from_stable_abi(
         implementation: PythonImplementation,
         version: PythonVersion,
         stable_abi: Option<(StableAbi, PythonVersion)>,
@@ -1085,6 +1079,32 @@ impl PythonAbi {
         builder.finalize()
     }
 
+    /// Constructs the ABI to target for an interpreter of `version` from the
+    /// enabled cargo features.
+    ///
+    /// The stable ABI and its minimum version are selected from the
+    /// `abi3-py3*`/`abi3t-py3*` cargo features, ignoring them (in favor of a
+    /// version-specific build) when the interpreter cannot target the
+    /// requested stable ABI. Must be called from a PyO3 crate build script.
+    fn from_cargo_features(
+        implementation: PythonImplementation,
+        version: PythonVersion,
+        gil_disabled: bool,
+    ) -> Result<PythonAbi> {
+        let stable_abi = applicable_stable_abi(
+            implementation,
+            version,
+            gil_disabled,
+            get_abi3_version(),
+            get_abi3t_version(),
+        );
+        Self::from_stable_abi(implementation, version, stable_abi, gil_disabled)
+    }
+
+    #[deprecated(
+        since = "0.30.0",
+        note = "use `PythonAbi::from_stable_abi` and pass the stable ABI to target explicitly; selecting it from the `abi3`/`abi3t` cargo features is handled internally by PyO3's build scripts"
+    )]
     pub fn from_build_env(
         implementation: PythonImplementation,
         version: PythonVersion,
@@ -3830,6 +3850,34 @@ mod tests {
             "cannot set a minimum Python version 3.15 higher than the interpreter version 3.14 \
              (the minimum Python version is implied by the abi3t-py315 feature)"
         ));
+    }
+
+    #[test]
+    fn python_abi_from_cargo_features() {
+        // no abi3/abi3t cargo features are set when running tests, so the
+        // result is version-specific
+        let abi = PythonAbi::from_cargo_features(
+            PythonImplementation::CPython,
+            PythonVersion::PY314,
+            true,
+        )
+        .unwrap();
+        assert_eq!(
+            abi.kind(),
+            PythonAbiKind::VersionSpecific(GilUsed::FreeThreaded)
+        );
+        assert_eq!(abi.version(), PythonVersion::PY314);
+
+        let abi = PythonAbi::from_cargo_features(
+            PythonImplementation::CPython,
+            PythonVersion::PY314,
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            abi.kind(),
+            PythonAbiKind::VersionSpecific(GilUsed::GilEnabled)
+        );
     }
 
     #[test]
