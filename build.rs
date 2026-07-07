@@ -1,7 +1,7 @@
 use std::env;
 
 use pyo3_build_config::pyo3_build_script_impl::{
-    cargo_env_var, errors::Result, print_feature_cfgs,
+    cargo_env_var, env_var, errors::Result, print_feature_cfgs,
 };
 use pyo3_build_config::{add_libpython_rpath_link_args, bail, InterpreterConfig};
 
@@ -58,7 +58,7 @@ fn configure_pyo3() -> Result<()> {
 /// Set env var `PYO3_WIP_NO_STD` to `1` to disable it.
 fn configure_wip_no_std() {
     println!("cargo:rustc-check-cfg=cfg(wip_feature_std)");
-    match cargo_env_var("PYO3_WIP_NO_STD") {
+    match env_var("PYO3_WIP_NO_STD").map(|s| s.into_string().unwrap()) {
         Some(no_std) if no_std.trim() == "1" || no_std.trim().eq_ignore_ascii_case("true") => (),
         _ => println!("cargo:rustc-cfg=wip_feature_std"),
     }
