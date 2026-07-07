@@ -164,34 +164,6 @@ pub fn print_expected_cfgs() {
     for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
         println!("cargo:rustc-check-cfg=cfg(Py_3_{i})");
     }
-
-    // pyo3_dll cfg for raw-dylib linking on Windows
-    let mut dll_names = vec![
-        "python3".to_string(),
-        "python3_d".to_string(),
-        "python3t".to_string(),
-        "python3t_d".to_string(),
-    ];
-    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
-        dll_names.push(format!("python3{i}"));
-        dll_names.push(format!("python3{i}_d"));
-        if i >= 13 {
-            dll_names.push(format!("python3{i}t"));
-            dll_names.push(format!("python3{i}t_d"));
-        }
-    }
-    // PyPy DLL names (libpypy3.X-c.dll)
-    for i in
-        impl_::MINIMUM_SUPPORTED_VERSION_PYPY.minor..=impl_::MAXIMUM_SUPPORTED_VERSION_PYPY.minor
-    {
-        dll_names.push(format!("libpypy3.{i}-c"));
-    }
-    let values = dll_names
-        .iter()
-        .map(|n| format!("\"{n}\""))
-        .collect::<Vec<_>>()
-        .join(", ");
-    println!("cargo:rustc-check-cfg=cfg(pyo3_dll, values({values}))");
 }
 
 /// Private exports used in PyO3's build.rs
