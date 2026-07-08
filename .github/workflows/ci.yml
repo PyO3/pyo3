@@ -1038,14 +1038,13 @@ jobs:
       - test-cross-compilation
       - test-cross-compilation-windows
       - test-introspection
-
-    if: >-
-      always() &&
-      !contains(needs.*.result, 'failure') &&
-      !contains(needs.*.result, 'cancelled') &&
-      !contains(needs.*.result, 'neutral')
-
+    if: always()
     runs-on: ubuntu-latest
-
     steps:
-      - run: echo "All required jobs succeeded or skipped"
+      - name: Result
+        run: |
+          jq -C <<< "${needs}"
+          # Check if all needs were successful or skipped.
+          "$(jq -r 'all(.result as $result | (["success", "skipped"] | contains([$result])))' <<< "${needs}")"
+        env:
+          needs: ${{ toJson(needs) }}
