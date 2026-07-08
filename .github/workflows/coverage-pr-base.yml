@@ -47,7 +47,7 @@ jobs:
           MERGE_BASE: ${{ steps.fetch_merge_base.outputs.merge_base }}
           PR_NUMBER: ${{ github.event.number }}
         run: |
-          uvx codecovcli pr-base-picking \
+          uvx --from codecov-cli codecovcli pr-base-picking \
             --base-sha "$MERGE_BASE" \
             --pr "$PR_NUMBER" \
             --slug PyO3/pyo3 \
