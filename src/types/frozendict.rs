@@ -5,13 +5,15 @@ use crate::instance::Bound;
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyList, PyMapping};
 use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
-#[cfg(RustPython)]
+#[cfg(any(RustPython, Py_LIMITED_API))]
 use crate::{
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
     Py,
 };
 use core::ptr;
+#[cfg(Py_LIMITED_API)]
+use std::ffi::c_int;
 
 /// Represents a Python `frozendict`.
 ///
@@ -22,11 +24,10 @@ use core::ptr;
 /// [`Bound<'py, PyFrozenDict>`][Bound].
 ///
 /// This type is only available on Python 3.15+.
-#[cfg(Py_3_15)]
 #[repr(transparent)]
 pub struct PyFrozenDict(PyAny);
 
-#[cfg(all(Py_3_15, not(any(GraalPy, PyPy, RustPython))))]
+#[cfg(all(Py_3_15, not(any(GraalPy, PyPy, RustPython, Py_LIMITED_API))))]
 pyobject_native_type_core!(
     PyFrozenDict,
     pyobject_native_static_type_object!(ffi::PyFrozenDict_Type),
@@ -35,7 +36,12 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PyFrozenDict_Check
 );
 
-#[cfg(all(Py_3_15, RustPython))]
+#[cfg(all(Py_3_15, Py_LIMITED_API))]
+fn PyFrozenDict_Check(ptr: *mut ffi::PyObject) -> c_int {
+    unsafe { ffi::PyObject_TypeCheck(ptr, PyFrozenDict::as_type_ptr()) }
+}
+
+#[cfg(all(Py_3_15, Py_LIMITED_API))]
 pyobject_native_type_core!(
     PyFrozenDict,
     |py| {
@@ -44,19 +50,9 @@ pyobject_native_type_core!(
     },
     "builtins",
     "frozendict",
-    #checkfunction=ffi::PyFrozenDict_Check
+    #checkfunction=PyFrozenDict_Check
 );
 
-#[cfg(all(Py_3_15, any(GraalPy, PyPy)))]
-pyobject_native_type_core!(
-    PyFrozenDict,
-    |_py| unsafe { &raw mut ffi::PyFrozenDict_Type },
-    "builtins",
-    "frozendict",
-    #checkfunction=ffi::PyFrozenDict_Check
-);
-
-#[cfg(Py_3_15)]
 impl PyFrozenDict {
     /// Creates a new frozendict from an iterable of key-value pairs.
     ///
@@ -83,10 +79,19 @@ impl PyFrozenDict {
         err::PyErr: core::convert::From<<T as conversion::IntoPyObject<'py>>::Error>,
     {
         let obj = iterable.into_pyobject(py)?;
-        unsafe {
-            ffi::PyFrozenDict_New(obj.as_ptr())
-                .assume_owned_or_err(py)
-                .cast_into_unchecked()
+        #[cfg(Py_LIMITED_API)]
+        {
+            PyFrozenDict::type_object(py)
+                .call1((obj,))
+                .map(|obj| unsafe { obj.cast_into_unchecked() })
+        }
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            unsafe {
+                ffi::PyFrozenDict_New(obj.as_ptr())
+                    .assume_owned_or_err(py)
+                    .cast_into_unchecked()
+            }
         }
     }
 
@@ -107,6 +112,13 @@ impl PyFrozenDict {
     /// # }
     /// ```
     pub fn empty(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenDict>> {
+        #[cfg(Py_LIMITED_API)]
+        {
+            PyFrozenDict::type_object_raw(py)
+                .call0()
+                .map(|obj| unsafe { obj.cast_into_unchecked() })
+        }
+        #[cfg(not(Py_LIMITED_API))]
         unsafe {
             ffi::PyFrozenDict_New(ptr::null_mut())
                 .assume_owned_or_err(py)
@@ -120,7 +132,6 @@ impl PyFrozenDict {
 /// These methods are defined for the `Bound<'py, PyFrozenDict>` smart pointer, so to use method call
 /// syntax these methods are separated into a trait, because stable Rust does not yet support
 /// `arbitrary_self_types`.
-#[cfg(Py_3_15)]
 #[doc(alias = "PyFrozenDict")]
 pub trait PyFrozenDictMethods<'py>: crate::sealed::Sealed {
     /// Return the number of items in the frozendict.
@@ -179,16 +190,8 @@ pub trait PyFrozenDictMethods<'py>: crate::sealed::Sealed {
     /// This is a zero-cost conversion that allows using the frozendict
     /// with methods that accept a mapping protocol object.
     fn into_mapping(self) -> Bound<'py, PyMapping>;
-
-    /// Returns the hash value of this frozendict.
-    ///
-    /// Frozendicts are hashable and can be used as dictionary keys.
-    ///
-    /// This is equivalent to calling `hash(self)` in Python.
-    fn hash(&self) -> PyResult<isize>;
 }
 
-#[cfg(Py_3_15)]
 impl<'py> PyFrozenDictMethods<'py> for Bound<'py, PyFrozenDict> {
     #[inline]
     fn len(&self) -> usize {
@@ -283,14 +286,6 @@ impl<'py> PyFrozenDictMethods<'py> for Bound<'py, PyFrozenDict> {
     fn into_mapping(self) -> Bound<'py, PyMapping> {
         unsafe { self.cast_into_unchecked() }
     }
-
-    fn hash(&self) -> PyResult<isize> {
-        unsafe {
-            let hash_val = ffi::PyObject_Hash(self.as_ptr());
-            err::error_on_minusone(self.py(), hash_val)?;
-            Ok(hash_val)
-        }
-    }
 }
 
 /// An iterator over the items in a frozendict.
@@ -299,14 +294,12 @@ impl<'py> PyFrozenDictMethods<'py> for Bound<'py, PyFrozenDict> {
 ///
 /// Because the underlying mapping cannot be mutated, this iterator simply
 /// walks the current contents as a stable snapshot.
-#[cfg(Py_3_15)]
 pub struct BoundFrozenDictIterator<'py> {
     fd: Bound<'py, PyFrozenDict>,
     ppos: isize,
     remaining: usize,
 }
 
-#[cfg(Py_3_15)]
 impl<'py> BoundFrozenDictIterator<'py> {
     fn new(fd: Bound<'py, PyFrozenDict>) -> Self {
         let remaining = fd.len();
@@ -318,7 +311,6 @@ impl<'py> BoundFrozenDictIterator<'py> {
     }
 }
 
-#[cfg(Py_3_15)]
 impl<'py> Iterator for BoundFrozenDictIterator<'py> {
     type Item = (Bound<'py, PyAny>, Bound<'py, PyAny>);
 
@@ -362,7 +354,6 @@ impl ExactSizeIterator for BoundFrozenDictIterator<'_> {
     }
 }
 
-#[cfg(Py_3_15)]
 impl<'py> IntoIterator for Bound<'py, PyFrozenDict> {
     type Item = (Bound<'py, PyAny>, Bound<'py, PyAny>);
     type IntoIter = BoundFrozenDictIterator<'py>;
@@ -385,8 +376,8 @@ impl<'py> IntoIterator for &Bound<'py, PyFrozenDict> {
 #[cfg(all(Py_3_15, test))]
 mod tests {
     use super::*;
-    use crate::types::list::PyListMethods;
-    use crate::types::PyAnyMethods;
+    use crate::types::{list::PyListMethods, mapping::PyMappingMethods, PyAnyMethods};
+
     use std::string::{String, ToString};
     use std::vec::Vec;
 
@@ -421,7 +412,7 @@ mod tests {
         Python::attach(|py| {
             let fd = PyFrozenDict::new(py, vec![("a", 1), ("b", 2)]).unwrap();
             let val = fd.get_item("a").unwrap();
-            assert!(val.is_some());
+            assert!(val.is_some_and(|v| v.extract::<i32>().unwrap() == 1));
         })
     }
 
@@ -431,6 +422,8 @@ mod tests {
             let fd = PyFrozenDict::new(py, vec![("a", 1), ("b", 2)]).unwrap();
             let keys = fd.keys();
             assert_eq!(keys.len(), 2);
+            assert!(keys.contains("a").unwrap());
+            assert!(keys.contains("b").unwrap());
         })
     }
 
@@ -440,6 +433,8 @@ mod tests {
             let fd = PyFrozenDict::new(py, vec![("a", 1), ("b", 2)]).unwrap();
             let values = fd.values();
             assert_eq!(values.len(), 2);
+            assert!(values.contains(1).unwrap());
+            assert!(values.contains(2).unwrap());
         })
     }
 
@@ -449,6 +444,8 @@ mod tests {
             let fd = PyFrozenDict::new(py, vec![("a", 1), ("b", 2)]).unwrap();
             let items = fd.items();
             assert_eq!(items.len(), 2);
+            assert!(items.contains(&("a", 1)).unwrap());
+            assert!(items.contains(&("b", 2)).unwrap());
         })
     }
 
@@ -457,8 +454,12 @@ mod tests {
         Python::attach(|py| {
             let fd = PyFrozenDict::new(py, vec![("a", 1), ("b", 2)]).unwrap();
             let mut count = 0;
-            for (_k, _v) in &fd {
+            for ((k, v), (expected_k, expected_v)) in fd.iter().zip([("a", 1), ("b", 2)].iter()) {
                 count += 1;
+                assert_eq!(
+                    (k.extract::<String>().unwrap(), v.extract::<i32>().unwrap()),
+                    (expected_k.to_string(), *expected_v)
+                );
             }
             assert_eq!(count, 2);
         })
@@ -503,7 +504,8 @@ mod tests {
     fn test_frozendict_as_mapping() {
         Python::attach(|py| {
             let fd = PyFrozenDict::new(py, vec![("a", 1)]).unwrap();
-            let _mapping = fd.as_mapping();
+            let mapping = fd.as_mapping();
+            assert!(PyMappingMethods::len(mapping).unwrap() == 1);
         })
     }
 
@@ -512,7 +514,7 @@ mod tests {
         Python::attach(|py| {
             let fd = PyFrozenDict::new(py, vec![("a", 1)]).unwrap();
             let h = fd.hash().unwrap();
-            assert!(h != 0 || fd.is_empty());
+            assert!(h != 0);
         })
     }
 }
