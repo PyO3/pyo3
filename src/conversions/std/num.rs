@@ -128,7 +128,20 @@ macro_rules! int_convert_u64_or_i64 {
             const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
 
             fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
-                extract_int!(obj, !0, $pylong_as_ll_or_ull, $force_index_call)
+                match extract_int!(obj, !0, $pylong_as_ll_or_ull, $force_index_call) {
+                    // CPython raises `OverflowError` for a negative value here;
+                    // unsigned targets remap that to `ValueError` for consistency
+                    // with the other widths and newer CPython APIs, while genuine
+                    // magnitude overflow stays `OverflowError`.
+                    Err(err)
+                        if <$rust_type>::MIN == 0
+                            && err.is_instance_of::<exceptions::PyOverflowError>(obj.py())
+                            && int_is_negative(obj) =>
+                    {
+                        Err(negative_to_unsigned_error())
+                    }
+                    result => result,
+                }
             }
         }
     };
@@ -175,8 +188,16 @@ macro_rules! int_fits_c_long {
 
             fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
-                <$rust_type>::try_from(val)
-                    .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
+                <$rust_type>::try_from(val).map_err(|e| {
+                    // Unsigned targets report a negative value as `ValueError`
+                    // (matching newer CPython APIs such as `PyLong_AsUInt64`),
+                    // while any other out-of-range value stays `OverflowError`.
+                    if val < 0 && <$rust_type>::MIN == 0 {
+                        negative_to_unsigned_error()
+                    } else {
+                        exceptions::PyOverflowError::new_err(e.to_string())
+                    }
+                })
             }
         }
     };
@@ -251,7 +272,13 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
-        u8::try_from(val).map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
+        u8::try_from(val).map_err(|e| {
+            if val < 0 {
+                negative_to_unsigned_error()
+            } else {
+                exceptions::PyOverflowError::new_err(e.to_string())
+            }
+        })
     }
 
     #[inline]
@@ -569,7 +596,7 @@ mod fast_128bit_int_conversion {
                     let mut buffer = [0u8; core::mem::size_of::<$rust_type>()];
                     #[cfg(not(Py_3_13))]
                     {
-                        crate::err::error_on_minusone(ob.py(), unsafe {
+                        let ret = unsafe {
                             ffi::_PyLong_AsByteArray(
                                 num.as_ptr() as *mut ffi::PyLongObject,
                                 buffer.as_mut_ptr(),
@@ -577,6 +604,16 @@ mod fast_128bit_int_conversion {
                                 1,
                                 $is_signed.into(),
                             )
+                        };
+                        crate::err::error_on_minusone(ob.py(), ret).map_err(|err| {
+                            // A negative value converted to unsigned is reported
+                            // as `ValueError` (matching newer CPython APIs), while
+                            // a too-large value stays `OverflowError`.
+                            if !$is_signed && int_is_negative(num.as_any().as_borrowed()) {
+                                negative_to_unsigned_error()
+                            } else {
+                                err
+                            }
                         })?;
                         Ok(<$rust_type>::from_le_bytes(buffer))
                     }
@@ -740,6 +777,22 @@ fn err_if_invalid_value<T: PartialEq>(
     }
 
     Ok(actual_value)
+}
+
+/// The error raised when a negative Python integer is converted into an unsigned
+/// Rust integer. Newer CPython APIs (such as `PyLong_AsUInt64`) report this as a
+/// `ValueError`, so PyO3 does the same for every unsigned width, while a value
+/// that is merely too large keeps the historical `OverflowError`.
+fn negative_to_unsigned_error() -> PyErr {
+    exceptions::PyValueError::new_err("can't convert negative int to unsigned")
+}
+
+/// Whether the integer-like `obj` is strictly negative. Only used in extraction
+/// error paths (where the Python error indicator has already been cleared) to
+/// tell a negative value apart from one that is simply too large.
+fn int_is_negative(obj: Borrowed<'_, '_, PyAny>) -> bool {
+    use crate::types::PyAnyMethods;
+    obj.lt(0i32).unwrap_or(false)
 }
 
 macro_rules! nonzero_int_impl {
@@ -1104,6 +1157,17 @@ mod tests {
                     let val = 123 as $t;
                     let obj = val.into_pyobject(py).unwrap();
                     assert_eq!(obj.extract::<$t>().unwrap(), val as $t);});
+                }
+
+                #[test]
+                fn test_negative() {
+                    Python::attach(|py| {
+                        let obj = py.eval(c"-1", None, None).unwrap();
+                        match obj.extract::<$t>() {
+                            Ok(val) => assert_eq!(val, <$t>::try_from(-1i8).unwrap()),
+                            Err(err) => assert!(err.is_instance_of::<exceptions::PyValueError>(py)),
+                        };
+                    });
                 }
             }
         )
