@@ -17,21 +17,21 @@ env:
   NOX_DEFAULT_VENV_BACKEND: uv
   UV_PYTHON: 3.14
 
-  _PYO3_CI_ENABLE_CACHE_SAVE: >-
-    ${{ github.ref == 'refs/heads/main' ||
+  # A small hack to use anchors as GitHub doesn't allow it to be top level
+  \_○_○_/: &enable-cache-save >-
+    ${{ github.ref == 'refs/heads/main' || 
         contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
-  _PYO3_CI_ENABLE_FAIL_FAST: >-
+  (^_^): &enable-fail-fast >-
     ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
 
-  _PYO3_CI_IS_DEFAULT_PR_BUILD: >-
-    ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') &&
+  (´• ω •`): &is-default-pr-build >-
+    ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && 
         github.event_name == 'pull_request' }}
 
-  _PYO3_CI_ENABLE_FULL_BUILD: >-
-    ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') ||
+  ʕ•ᴥ•ʔ: &enable-full-build >-
+    ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || 
         github.event_name != 'pull_request' }}
-
 
 jobs:
   fmt:
@@ -48,7 +48,7 @@ jobs:
       - name: "Install uv"
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          enable-cache: *enable-cache-save
 
       - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
@@ -74,7 +74,7 @@ jobs:
     outputs:
       MSRV: ${{ steps.resolve-msrv.outputs.MSRV }}
       verbose: ${{ runner.debug == '1' }}
-      save-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+      save-cache: *enable-cache-save
       # For PRs, we need to run on the real PR head, not the resultant merge of the PR into the target branch.
       #
       # This is necessary for coverage reporting to make sense; we then get exactly the coverage change
@@ -139,11 +139,11 @@ jobs:
 
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          save-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-cache: *enable-cache-save
 
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-if: *enable-cache-save
 
       # This is a smoke test to confirm that CI will run on MSRV (including dev dependencies)
       - name: Check with MSRV package versions
@@ -159,7 +159,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
-      fail-fast: ${{ env._PYO3_CI_ENABLE_FAIL_FAST }}
+      fail-fast: *enable-fail-fast
       matrix:
         rust: [stable]
         target:
@@ -194,7 +194,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          save-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-cache: *enable-cache-save
 
       - run: uvx nox -s clippy-all
     env:
@@ -205,7 +205,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
-      fail-fast: ${{ env._PYO3_CI_ENABLE_FAIL_FAST }}
+      fail-fast: *enable-fail-fast
       matrix:
         target: ["x86_64-unknown-linux-gnu"]
     name: check-nightly/${{ matrix.target }}/${{ matrix.rust }}
@@ -222,14 +222,14 @@ jobs:
 
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          save-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-cache: *enable-cache-save
       - run: uvx nox -s check-all
 
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
 
   build-pr:
-    if: ${{ env._PYO3_CI_IS_DEFAULT_PR_BUILD }}
+    if: *is-default-pr-build
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
     needs: [fmt, resolve]
     uses: ./.github/workflows/build.yml
@@ -246,7 +246,7 @@ jobs:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
-      fail-fast: ${{ env._PYO3_CI_ENABLE_FAIL_FAST }}
+      fail-fast: *enable-fail-fast
       matrix:
         rust: [stable]
         python-version: ["3.14"]
@@ -324,7 +324,7 @@ jobs:
               }
 
   build-full:
-    if: ${{ env._PYO3_CI_ENABLE_FULL_BUILD }}
+    if: *enable-full-build
     name: python${{ matrix.python-version }}-${{ matrix.platform.python-architecture }} ${{ matrix.platform.os }} rust-${{ matrix.rust }}
     needs: [fmt, resolve]
     uses: ./.github/workflows/build.yml
@@ -341,7 +341,7 @@ jobs:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
-      fail-fast: ${{ env._PYO3_CI_ENABLE_FAIL_FAST }}
+      fail-fast: *enable-fail-fast
       matrix:
         rust: [stable]
         python-version:
@@ -479,7 +479,7 @@ jobs:
               }
 
   valgrind:
-    if: ${{ env._PYO3_CI_ENABLE_FULL_BUILD }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
@@ -494,11 +494,11 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          enable-cache: *enable-cache-save
 
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-if: *enable-cache-save
 
       - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
       - uses: taiki-e/install-action@valgrind # zizmor: ignore[unpinned-uses]
@@ -509,7 +509,7 @@ jobs:
       UI_TEST: skip
 
   careful:
-    if: ${{ env._PYO3_CI_ENABLE_FULL_BUILD }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
@@ -523,7 +523,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-if: *enable-cache-save
 
       - uses: dtolnay/rust-toolchain@nightly # zizmor: ignore[unpinned-uses]
         with:
@@ -532,7 +532,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          enable-cache: *enable-cache-save
 
       - uses: taiki-e/install-action@cargo-careful # zizmor: ignore[unpinned-uses]
       - run: uvx nox -s test-rust -- careful skip-full
@@ -541,7 +541,7 @@ jobs:
       UI_TEST: skip
 
   docsrs:
-    if: ${{ env._PYO3_CI_ENABLE_FULL_BUILD }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
@@ -555,7 +555,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-if: *enable-cache-save
 
       - uses: dtolnay/rust-toolchain@nightly # zizmor: ignore[unpinned-uses]
         with:
@@ -565,7 +565,7 @@ jobs:
 
   emscripten:
     name: emscripten
-    if: ${{ env._PYO3_CI_ENABLE_FULL_BUILD }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
@@ -596,7 +596,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-if: *enable-cache-save
 
       - name: Build
         if: steps.cache.outputs.cache-hit != 'true'
@@ -606,7 +606,7 @@ jobs:
         run: uvx nox -s test-emscripten
 
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+        if: *enable-cache-save
         with:
           path: |
             .nox/emscripten
@@ -614,7 +614,7 @@ jobs:
 
   wasm32-wasip1:
     name: wasm32-wasip1
-    if: ${{ env._PYO3_CI_ENABLE_FULL_BUILD }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
@@ -652,7 +652,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-if: *enable-cache-save
 
       - name: Build
         if: steps.cache.outputs.cache-hit != 'true'
@@ -662,14 +662,14 @@ jobs:
         run: uvx nox -s test-wasm
 
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+        if: *enable-cache-save
         with:
           path: |
             .nox/wasi
           key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
 
   test-debug:
-    if: ${{ env._PYO3_CI_ENABLE_FULL_BUILD }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
@@ -679,7 +679,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-if: *enable-cache-save
 
       - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
@@ -694,7 +694,7 @@ jobs:
           uvx nox -s test
 
   test-debug-min-version:
-    if: ${{ env._PYO3_CI_ENABLE_FULL_BUILD }}
+    if: *enable-full-build
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
@@ -704,7 +704,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-if: *enable-cache-save
 
       - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
@@ -719,7 +719,7 @@ jobs:
 
   test-version-limits:
     needs: [fmt, resolve]
-    if: ${{ env._PYO3_CI_ENABLE_FULL_BUILD }}
+    if: *enable-full-build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -746,7 +746,7 @@ jobs:
 
   check-feature-powerset:
     needs: [fmt, resolve]
-    if: ${{ env._PYO3_CI_ENABLE_FULL_BUILD }}
+    if: *enable-full-build
     runs-on: ubuntu-latest
     name: check-feature-powerset ${{ matrix.rust }}
     strategy:
@@ -767,7 +767,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-if: *enable-cache-save
 
       - uses: dtolnay/rust-toolchain@master # zizmor: ignore[unpinned-uses]
         with:
@@ -780,19 +780,19 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          enable-cache: *enable-cache-save
 
       - run: |
           uvx nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
 
   test-cross-compilation:
     needs: [fmt, resolve]
-    if: ${{ env._PYO3_CI_ENABLE_FULL_BUILD }}
+    if: *enable-full-build
     runs-on: ${{ matrix.os }}
     name: test-cross-compilation ${{ matrix.os }} -> ${{ matrix.target }}
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
-      fail-fast: ${{ env._PYO3_CI_ENABLE_FAIL_FAST }}
+      fail-fast: *enable-fail-fast
       matrix:
         include:
           # ubuntu "cross compile" to itself
@@ -831,7 +831,7 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           workspaces: examples/maturin-starter
-          save-if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-if: *enable-cache-save
           key: ${{ matrix.target }}
 
       - name: Setup cross-compiler packages
@@ -875,7 +875,7 @@ jobs:
 
   test-cross-compilation-windows:
     needs: [fmt, resolve]
-    if: ${{ env._PYO3_CI_ENABLE_FULL_BUILD }}
+    if: *enable-full-build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -957,12 +957,12 @@ jobs:
 
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-if: *enable-cache-save
 
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          enable-cache: *enable-cache-save
 
       - run: |
           uvx nox -s test-introspection
@@ -971,7 +971,7 @@ jobs:
 
   test-introspection-pr:
     needs: [fmt]
-    if: ${{ env._PYO3_CI_IS_DEFAULT_PR_BUILD }}
+    if: *is-default-pr-build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -986,7 +986,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          enable-cache: *enable-cache-save
 
       - run: |
           uvx nox -s test-introspection
@@ -996,7 +996,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
-      fail-fast: ${{ env._PYO3_CI_ENABLE_FAIL_FAST }}
+      fail-fast: *enable-fail-fast
       matrix:
         checker: [mypy, pyrefly]
     steps:
@@ -1015,7 +1015,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          enable-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          enable-cache: *enable-cache-save
 
       - run: uvx nox -s ${{matrix.checker}}
         working-directory: pytests

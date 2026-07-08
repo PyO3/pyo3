@@ -32,11 +32,12 @@ on:
 
 env:
   NOX_DEFAULT_VENV_BACKEND: uv
-  _PYO3_IS_MACOS_PY39_X64: >-
+  IS_MACOS_PY39_X64: >-
     ${{ inputs.os == 'macos-latest' &&
         inputs.python-version == '3.9' &&
         inputs.python-architecture == 'x64' }}
-  _PYO3_CI_ENABLE_CACHE_SAVE: >-
+  # A small hack to use anchors as GitHub doesn't allow it to be top level
+  \_○_○_/: &enable-cache-save >-
     ${{ github.ref == 'refs/heads/main' || 
         contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
@@ -52,7 +53,7 @@ jobs:
           persist-credentials: false
 
       # installs using setup-python do not work for arm macOS 3.9 and below
-      - if: ${{ env._PYO3_IS_MACOS_PY39_X64 == 'false' }}
+      - if: ${{ env.IS_MACOS_PY39_X64 == 'false' }}
         name: Set up Python ${{ inputs.python-version }}
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
@@ -67,13 +68,13 @@ jobs:
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           python-version: cpython-${{ inputs.python-version }}-macos-x86-64
-          save-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-cache: *enable-cache-save
 
       - if: ${{ env.IS_MACOS_PY39_X64 == 'false' }}
         name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          save-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-cache: *enable-cache-save
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master # zizmor: ignore[unpinned-uses]
@@ -94,7 +95,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          save-if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-if: *enable-cache-save
 
       - if: inputs.os == 'ubuntu-latest'
         name: Prepare LD_LIBRARY_PATH (Ubuntu only)

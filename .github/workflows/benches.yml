@@ -14,8 +14,10 @@ permissions: {}
 
 env:
   UV_PYTHON: "3.14t"
-  _PYO3_CI_ENABLE_CACHE_SAVE: >-
-    ${{ github.ref == 'refs/heads/main' ||
+
+  # A small hack to use anchors as GitHub doesn't allow it to be top level
+  \_○_○_/: &enable-cache-save >-
+    ${{ github.ref == 'refs/heads/main' || 
         contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
 jobs:
@@ -28,7 +30,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          save-cache: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-cache: *enable-cache-save
 
       # Using this action is still necessary for CodSpeed to build flamegraphs correctly,
       # see note about setup-python in https://codspeed.io/docs/benchmarks/python#recipes
@@ -45,7 +47,7 @@ jobs:
           workspaces: |
             .
             pyo3-benches
-          save-if: ${{ env._PYO3_CI_ENABLE_CACHE_SAVE }}
+          save-if: *enable-cache-save
           cache-all-crates: "true"
           cache-workspace-crates: "true"
 
