@@ -884,11 +884,8 @@ where
     /// Borrows a mutable reference to `PyClassGuardMut<T::BaseType>`.
     ///
     /// See [`PyClassGuardMut::as_super`] for more.
-    pub fn as_super(&mut self) -> PyClassGuardMutSuper<'a, 'g, T::BaseType> {
-        PyClassGuardMutSuper {
-            // SAFETY: `PyClassGuardMut<T>` and `PyClassGuardMut<U>` have the same layout
-            guard: unsafe { NonNull::from(&mut *self.guard).cast().as_mut() },
-        }
+    pub fn as_super(&mut self) -> PyClassGuardMutSuper<'_, 'g, T::BaseType> {
+        self.guard.as_super()
     }
 }
 

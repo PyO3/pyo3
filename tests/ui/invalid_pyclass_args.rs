@@ -1,6 +1,7 @@
 //@revisions: default inspect
 //@[default] without-experimental-inspect
 //@[inspect] with-experimental-inspect
+#![deny(deprecated)]
 
 use pyo3::prelude::*;
 use std::fmt::{Display, Formatter};
@@ -145,7 +146,7 @@ struct Coord(u32, u32, u32);
 #[derive(PartialEq)]
 struct Coord2(u32, u32, u32);
 
-#[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}", skip_from_py_object)]
+#[pyclass(str = "X: {aaaa}, Y: {y}, Z: {z}")]
 //~^ ERROR: no field `aaaa` on type `&Point`
 #[derive(PartialEq, Eq, Clone, PartialOrd)]
 pub struct Point {
@@ -154,7 +155,7 @@ pub struct Point {
     z: i32,
 }
 
-#[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}", skip_from_py_object)]
+#[pyclass(str = "X: {x}, Y: {y}}}, Z: {zzz}")]
 //~^ ERROR: no field `zzz` on type `&Point2`
 #[derive(PartialEq, Eq, Clone, PartialOrd)]
 pub struct Point2 {
@@ -240,9 +241,9 @@ struct StructFromPyObjectNoClone {
     b: String,
 }
 
-#[pyclass]
-#[derive(Clone)]
-struct StructImplicitFromPyObjectDeprecated {
+#[pyclass(skip_from_py_object)]
+//~^ ERROR: use of deprecated constant `pyo3::impl_::deprecated::SKIP_FROM_PY_OBJECT_DEPRECATED`: `skip_from_py_object` enabled by default. The option will be removed in the future
+struct StructSkipFromPyObjectDeprecated {
     a: String,
     b: String,
 }
@@ -251,8 +252,6 @@ struct StructImplicitFromPyObjectDeprecated {
 struct NonPythonField {
     field: Box<dyn std::error::Error + Send + Sync>,
     //~^ ERROR: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
-    //~| ERROR: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
-    //~| ERROR: the trait bound `dyn std::error::Error + Send + Sync: Clone` is not satisfied
     //~[inspect]| ERROR: `Box<dyn std::error::Error + Send + Sync>` cannot be used as a Python function argument
 }
 
