@@ -5,15 +5,13 @@ use crate::instance::Bound;
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyList, PyMapping};
 use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
-#[cfg(any(RustPython, Py_LIMITED_API))]
+#[cfg(Py_LIMITED_API)]
 use crate::{
     sync::PyOnceLock,
+    type_object::PyTypeInfo,
     types::{PyType, PyTypeMethods},
     Py,
 };
-use core::ptr;
-#[cfg(Py_LIMITED_API)]
-use std::ffi::c_int;
 
 /// Represents a Python `frozendict`.
 ///
@@ -172,7 +170,7 @@ pub trait PyFrozenDictMethods<'py>: crate::sealed::Sealed {
     /// Returns an iterator of `(key, value)` tuples in this frozendict.
     ///
     /// Since `frozendict` objects are immutable, iteration does not need the
-    /// mutation guards that are required for [`PyDict`].
+    /// mutation guards that are required for a standard dict.
     fn iter(&self) -> BoundFrozenDictIterator<'py>;
 
     /// Returns `self` cast as a `PyMapping`.
