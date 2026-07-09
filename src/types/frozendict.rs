@@ -46,7 +46,7 @@ pyobject_native_type_core!(
             .as_type_ptr()
     },
     "builtins",
-    "frozendict",
+    "frozendict"
 );
 
 impl PyFrozenDict {
@@ -374,8 +374,8 @@ mod tests {
     use super::*;
     use crate::types::{list::PyListMethods, mapping::PyMappingMethods, PyAnyMethods};
 
-    use std::string::{String, ToString};
-    use std::vec::Vec;
+    use alloc::string::{String, ToString};
+    use alloc::vec::Vec;
 
     #[test]
     fn test_frozendict_new() {
@@ -440,8 +440,8 @@ mod tests {
             let fd = PyFrozenDict::new(py, vec![("a", 1), ("b", 2)]).unwrap();
             let items = fd.items();
             assert_eq!(items.len(), 2);
-            assert!(items.contains(&("a", 1)).unwrap());
-            assert!(items.contains(&("b", 2)).unwrap());
+            assert!(items.contains(("a", 1)).unwrap());
+            assert!(items.contains(("b", 2)).unwrap());
         })
     }
 
