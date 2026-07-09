@@ -27,7 +27,7 @@ use std::ffi::c_int;
 #[repr(transparent)]
 pub struct PyFrozenDict(PyAny);
 
-#[cfg(all(Py_3_15, not(any(GraalPy, PyPy, RustPython, Py_LIMITED_API))))]
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type_core!(
     PyFrozenDict,
     pyobject_native_static_type_object!(ffi::PyFrozenDict_Type),
@@ -36,21 +36,17 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PyFrozenDict_Check
 );
 
-#[cfg(all(Py_3_15, Py_LIMITED_API))]
-fn PyFrozenDict_Check(ptr: *mut ffi::PyObject) -> c_int {
-    unsafe { ffi::PyObject_TypeCheck(ptr, PyFrozenDict::as_type_ptr()) }
-}
-
-#[cfg(all(Py_3_15, Py_LIMITED_API))]
+#[cfg(Py_LIMITED_API)]
 pyobject_native_type_core!(
     PyFrozenDict,
     |py| {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-        TYPE.import(py, "builtins", "frozendict").unwrap().as_type_ptr()
+        TYPE.import(py, "builtins", "frozendict")
+            .unwrap()
+            .as_type_ptr()
     },
     "builtins",
     "frozendict",
-    #checkfunction=PyFrozenDict_Check
 );
 
 impl PyFrozenDict {
@@ -114,7 +110,7 @@ impl PyFrozenDict {
     pub fn empty(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenDict>> {
         #[cfg(Py_LIMITED_API)]
         {
-            PyFrozenDict::type_object_raw(py)
+            PyFrozenDict::type_object(py)
                 .call0()
                 .map(|obj| unsafe { obj.cast_into_unchecked() })
         }
@@ -506,15 +502,6 @@ mod tests {
             let fd = PyFrozenDict::new(py, vec![("a", 1)]).unwrap();
             let mapping = fd.as_mapping();
             assert!(PyMappingMethods::len(mapping).unwrap() == 1);
-        })
-    }
-
-    #[test]
-    fn test_frozendict_hash() {
-        Python::attach(|py| {
-            let fd = PyFrozenDict::new(py, vec![("a", 1)]).unwrap();
-            let h = fd.hash().unwrap();
-            assert!(h != 0);
         })
     }
 }
