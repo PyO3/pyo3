@@ -2,6 +2,7 @@ use crate::conversion;
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
+#[cfg(Py_LIMITED_API)]
 use crate::py_result_ext::PyResultExt;
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyAnyMethods;
@@ -76,19 +77,19 @@ impl PyFrozenDict {
         T: IntoPyObject<'py>,
         err::PyErr: core::convert::From<<T as conversion::IntoPyObject<'py>>::Error>,
     {
-        let obj = iterable.into_pyobject(py)?;
         #[cfg(Py_LIMITED_API)]
         {
             PyFrozenDict::type_object(py)
-                .call1((obj,))
+                .call1((iterable,))
                 .map(|obj| unsafe { obj.cast_into_unchecked() })
         }
         #[cfg(not(Py_LIMITED_API))]
         {
+            let obj = iterable.into_pyobject(py)?;
             unsafe {
                 ffi::PyFrozenDict_New(obj.as_ptr())
                     .assume_owned_or_err(py)
-                    .cast_into_unchecked()
+                    .map(|obj| obj.cast_into_unchecked())
             }
         }
     }
@@ -120,7 +121,7 @@ impl PyFrozenDict {
         unsafe {
             ffi::PyFrozenDict_New(ptr::null_mut())
                 .assume_owned_or_err(py)
-                .cast_into_unchecked()
+                .map(|obj| obj.cast_into_unchecked())
         }
     }
 }
