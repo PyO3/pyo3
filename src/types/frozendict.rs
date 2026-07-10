@@ -3,7 +3,9 @@ use crate::err::{self, PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::py_result_ext::PyResultExt;
-use crate::types::{PyAny, PyAnyMethods, PyList, PyMapping};
+#[cfg(Py_LIMITED_API)]
+use crate::types::PyAnyMethods;
+use crate::types::{PyAny, PyList, PyMapping};
 use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
 #[cfg(Py_LIMITED_API)]
 use crate::{
