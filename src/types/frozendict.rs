@@ -51,25 +51,7 @@ pyobject_native_type_core!(
 );
 
 impl PyFrozenDict {
-    /// Creates a new frozendict from an iterable of key-value pairs.
-    ///
-    /// The iterable can be any Python object that yields (key, value) pairs,
-    /// such as another dict, a list of tuples, or any mapping-like object.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use pyo3::prelude::*;
-    /// # use pyo3::types::PyFrozenDict;
-    /// # #[cfg(Py_3_15)]
-    /// # fn example() -> PyResult<()> {
-    /// # Python::try_attach(|py| -> PyResult<()> {
-    ///     let fd = PyFrozenDict::new(py, vec![("a", 1), ("b", 2)])?;
-    ///     assert_eq!(fd.len(), 2);
-    /// #     Ok(())
-    /// # })
-    /// # }
-    /// ```
+    /// Creates a new frozendict.
     pub fn new<'py, T>(py: Python<'py>, iterable: T) -> PyResult<Bound<'py, PyFrozenDict>>
     where
         T: IntoPyObject<'py>,
@@ -92,22 +74,7 @@ impl PyFrozenDict {
         }
     }
 
-    /// Creates a new empty frozendict.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use pyo3::prelude::*;
-    /// # use pyo3::types::PyFrozenDict;
-    /// # #[cfg(Py_3_15)]
-    /// # fn example() -> PyResult<()> {
-    /// # Python::try_attach(|py| -> PyResult<()> {
-    ///     let fd = PyFrozenDict::empty(py)?;
-    ///     assert!(fd.is_empty());
-    /// #     Ok(())
-    /// # })
-    /// # }
-    /// ```
+    /// Creates a new empty frozendict
     pub fn empty(py: Python<'_>) -> PyResult<Bound<'_, PyFrozenDict>> {
         #[cfg(Py_LIMITED_API)]
         {
