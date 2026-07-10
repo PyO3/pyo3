@@ -12,6 +12,8 @@ use crate::{
     types::{PyType, PyTypeMethods},
     Py,
 };
+#[cfg(not(Py_LIMITED_API))]
+use core::ptr;
 
 /// Represents a Python `frozendict`.
 ///
@@ -123,9 +125,9 @@ impl PyFrozenDict {
 
 /// Implementation of functionality for [`PyFrozenDict`].
 ///
-/// These methods are defined for the `Bound<'py, PyFrozenDict>` smart pointer, so to use method call
-/// syntax these methods are separated into a trait, because stable Rust does not yet support
-/// `arbitrary_self_types`.
+/// These methods are defined for the `Bound<'py, PyFrozenDict>` smart pointer,
+/// so to use method call syntax these methods are separated into a trait,
+/// because stable Rust does not yet support`arbitrary_self_types`.
 #[doc(alias = "PyFrozenDict")]
 pub trait PyFrozenDictMethods<'py>: crate::sealed::Sealed {
     /// Return the number of items in the frozendict.
