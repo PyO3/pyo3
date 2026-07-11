@@ -489,11 +489,15 @@ fn dunder_dict_is_released() {
         inst.setattr(py, "a", 1).unwrap();
 
         let dict = inst.bind(py).getattr("__dict__").unwrap();
-        let refcnt = unsafe { pyo3::ffi::Py_REFCNT(dict.as_ptr()) };
+        let get_refcnt = || {
+            // SAFETY: `dict` holds a valid reference while its reference count is read.
+            unsafe { pyo3::ffi::Py_REFCNT(dict.as_ptr()) }
+        };
+        let refcnt = get_refcnt();
 
         drop(inst);
 
-        assert_eq!(unsafe { pyo3::ffi::Py_REFCNT(dict.as_ptr()) }, refcnt - 1);
+        assert_eq!(get_refcnt(), refcnt - 1);
     });
 }
 
