@@ -101,9 +101,7 @@ impl PyClassDict for PyClassDictSlot {
     const INIT: Self = Self(core::ptr::null_mut());
     #[inline]
     fn clear_dict(&mut self, _py: Python<'_>) {
-        if !self.0.is_null() {
-            unsafe { ffi::PyDict_Clear(self.0) }
-        }
+        unsafe { ffi::Py_CLEAR(&raw mut self.0) }
     }
 }
 
