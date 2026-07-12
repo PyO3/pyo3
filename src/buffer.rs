@@ -1128,67 +1128,60 @@ impl<
     type WithAnyContiguous = RequestFlags<FORMAT, true, true, false, WRITABLE, CONTIGUITY_ANY>;
 }
 
-impl<Flags> PyBufferRequest<Flags>
-where
-    Flags: PyBufferRequestType + py_buffer_flags::CanRequestFormat,
-{
+impl<Flags: PyBufferRequestType> PyBufferRequest<Flags> {
     /// Request format information.
-    pub const fn format(self) -> PyBufferRequest<Flags::WithFormat> {
+    pub const fn format(self) -> PyBufferRequest<Flags::WithFormat>
+    where
+        Flags: py_buffer_flags::CanRequestFormat,
+    {
         PyBufferRequest(self.0 | ffi::PyBUF_FORMAT, PhantomData)
     }
-}
 
-impl<Flags> PyBufferRequest<Flags>
-where
-    Flags: PyBufferRequestType + py_buffer_flags::CanRequestShape,
-{
     /// Request shape information.
-    pub const fn nd(self) -> PyBufferRequest<Flags::WithShape> {
+    pub const fn nd(self) -> PyBufferRequest<Flags::WithShape>
+    where
+        Flags: py_buffer_flags::CanRequestShape,
+    {
         PyBufferRequest(self.0 | ffi::PyBUF_ND, PhantomData)
     }
-}
 
-impl<Flags> PyBufferRequest<Flags>
-where
-    Flags: PyBufferRequestType + py_buffer_flags::CanRequestStrides,
-{
     /// Request strides information. Implies shape.
-    pub const fn strides(self) -> PyBufferRequest<Flags::WithStrides> {
+    pub const fn strides(self) -> PyBufferRequest<Flags::WithStrides>
+    where
+        Flags: py_buffer_flags::CanRequestStrides,
+    {
         PyBufferRequest(self.0 | ffi::PyBUF_STRIDES, PhantomData)
     }
-}
 
-impl<Flags> PyBufferRequest<Flags>
-where
-    Flags: PyBufferRequestType + py_buffer_flags::CanRequestIndirect,
-{
     /// Request suboffsets (indirect). Implies shape and strides.
-    pub const fn indirect(self) -> PyBufferRequest<Flags::WithIndirect> {
+    pub const fn indirect(self) -> PyBufferRequest<Flags::WithIndirect>
+    where
+        Flags: py_buffer_flags::CanRequestIndirect,
+    {
         PyBufferRequest(self.0 | ffi::PyBUF_INDIRECT, PhantomData)
     }
-}
 
-impl<Flags> PyBufferRequest<Flags>
-where
-    Flags: PyBufferRequestType + py_buffer_flags::CanRequestWritable,
-{
     /// Request a writable buffer.
-    pub const fn writable(self) -> PyBufferRequest<Flags::WithWritable> {
+    pub const fn writable(self) -> PyBufferRequest<Flags::WithWritable>
+    where
+        Flags: py_buffer_flags::CanRequestWritable,
+    {
         PyBufferRequest(self.0 | ffi::PyBUF_WRITABLE, PhantomData)
     }
-}
 
-impl<Flags> PyBufferRequest<Flags>
-where
-    Flags: PyBufferRequestType + py_buffer_flags::CanRequestContiguity,
-{
     /// Require C-contiguous layout. Implies shape and strides.
-    pub const fn c_contiguous(self) -> PyBufferRequest<Flags::WithCContiguous> {
+    pub const fn c_contiguous(self) -> PyBufferRequest<Flags::WithCContiguous>
+    where
+        Flags: py_buffer_flags::CanRequestContiguity,
+    {
         PyBufferRequest(self.0 | ffi::PyBUF_C_CONTIGUOUS, PhantomData)
     }
 
     /// Require Fortran-contiguous layout. Implies shape and strides.
-    pub const fn f_contiguous(self) -> PyBufferRequest<Flags::WithFContiguous> {
+    pub const fn f_contiguous(self) -> PyBufferRequest<Flags::WithFContiguous>
+    where
+        Flags: py_buffer_flags::CanRequestContiguity,
+    {
         PyBufferRequest(self.0 | ffi::PyBUF_F_CONTIGUOUS, PhantomData)
     }
 
@@ -1196,7 +1189,10 @@ where
     ///
     /// The specific contiguity order is not known at compile time,
     /// so this does not unlock non-Option slice accessors.
-    pub const fn any_contiguous(self) -> PyBufferRequest<Flags::WithAnyContiguous> {
+    pub const fn any_contiguous(self) -> PyBufferRequest<Flags::WithAnyContiguous>
+    where
+        Flags: py_buffer_flags::CanRequestContiguity,
+    {
         PyBufferRequest(self.0 | ffi::PyBUF_ANY_CONTIGUOUS, PhantomData)
     }
 }
@@ -1555,54 +1551,38 @@ impl<T: Element, Flags: PyBufferRequestType> PyBufferView<T, Flags> {
 
         Some(unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) })
     }
-}
 
-// C-contiguous guaranteed — no contiguity check needed.
-impl<T: Element, Flags> PyBufferView<T, Flags>
-where
-    Flags: PyBufferRequestType + py_buffer_flags::GuaranteesCContiguous,
-{
     /// Gets the buffer memory as a slice. The buffer is guaranteed C-contiguous.
-    pub fn as_contiguous_slice<'a>(&'a self, _py: Python<'a>) -> &'a [ReadOnlyCell<T>] {
+    pub fn as_contiguous_slice<'a>(&'a self, _py: Python<'a>) -> &'a [ReadOnlyCell<T>]
+    where
+        Flags: py_buffer_flags::GuaranteesCContiguous,
+    {
         unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) }
     }
-}
 
-// C-contiguous + writable guaranteed — no checks needed.
-impl<T: Element, Flags> PyBufferView<T, Flags>
-where
-    Flags: PyBufferRequestType
-        + py_buffer_flags::GuaranteesCContiguous
-        + py_buffer_flags::GuaranteesWritable,
-{
     /// Gets the buffer memory as a mutable slice.
     /// The buffer is guaranteed C-contiguous and writable.
-    pub fn as_contiguous_mut_slice<'a>(&'a self, _py: Python<'a>) -> &'a [cell::Cell<T>] {
+    pub fn as_contiguous_mut_slice<'a>(&'a self, _py: Python<'a>) -> &'a [cell::Cell<T>]
+    where
+        Flags: py_buffer_flags::GuaranteesCContiguous + py_buffer_flags::GuaranteesWritable,
+    {
         unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) }
     }
-}
 
-// Fortran-contiguous guaranteed.
-impl<T: Element, Flags> PyBufferView<T, Flags>
-where
-    Flags: PyBufferRequestType + py_buffer_flags::GuaranteesFContiguous,
-{
     /// Gets the buffer memory as a slice. The buffer is guaranteed Fortran-contiguous.
-    pub fn as_fortran_contiguous_slice<'a>(&'a self, _py: Python<'a>) -> &'a [ReadOnlyCell<T>] {
+    pub fn as_fortran_contiguous_slice<'a>(&'a self, _py: Python<'a>) -> &'a [ReadOnlyCell<T>]
+    where
+        Flags: py_buffer_flags::GuaranteesFContiguous,
+    {
         unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) }
     }
-}
 
-// Fortran-contiguous + writable guaranteed.
-impl<T: Element, Flags> PyBufferView<T, Flags>
-where
-    Flags: PyBufferRequestType
-        + py_buffer_flags::GuaranteesFContiguous
-        + py_buffer_flags::GuaranteesWritable,
-{
     /// Gets the buffer memory as a mutable slice.
     /// The buffer is guaranteed Fortran-contiguous and writable.
-    pub fn as_fortran_contiguous_mut_slice<'a>(&'a self, _py: Python<'a>) -> &'a [cell::Cell<T>] {
+    pub fn as_fortran_contiguous_mut_slice<'a>(&'a self, _py: Python<'a>) -> &'a [cell::Cell<T>]
+    where
+        Flags: py_buffer_flags::GuaranteesFContiguous + py_buffer_flags::GuaranteesWritable,
+    {
         unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) }
     }
 }

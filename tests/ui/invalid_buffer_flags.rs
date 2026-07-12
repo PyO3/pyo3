@@ -4,11 +4,11 @@ use pyo3::types::PyBytes;
 
 fn main() {
     let _ = PyBufferRequest::simple().c_contiguous().f_contiguous();
-    //~^ ERROR: the method `f_contiguous` exists
+    //~^ ERROR: contiguity has already been constrained for this buffer request
     let _ = PyBufferRequest::strided().format().format();
-    //~^ ERROR: the method `format` exists
+    //~^ ERROR: format information has already been requested for this buffer request
     let _ = PyBufferRequest::simple().indirect().indirect();
-    //~^ ERROR: the method `indirect` exists
+    //~^ ERROR: suboffsets can only be requested on a direct unconstrained buffer request
 
     Python::attach(|py| {
         let bytes = PyBytes::new(py, &[1, 2, 3]);
