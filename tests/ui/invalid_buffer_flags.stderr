@@ -1,12 +1,72 @@
+error[E0599]: the method `f_contiguous` exists for struct `PyBufferRequest<buffer::py_buffer_flags::PyBufferFlags<false, true, true, false, false, 1>>`, but its trait bounds were not satisfied
+ --> tests/ui/invalid_buffer_flags.rs:6:54
+  |
+6 |       let _ = PyBufferRequest::simple().c_contiguous().f_contiguous();
+  |                                                        ^^^^^^^^^^^^ method cannot be called due to unsatisfied trait bounds
+  |
+ ::: src/buffer.rs
+  |
+  | /     pub struct PyBufferFlags<
+  | |         const FORMAT: bool,
+  | |         const SHAPE: bool,
+  | |         const STRIDE: bool,
+... |
+  | |         const CONTIGUITY: u8,
+  | |     >;
+  | |_____- doesn't satisfy `_: CanRequestContiguity`
+  |
+  = note: the following trait bounds were not satisfied:
+          `buffer::py_buffer_flags::PyBufferFlags<false, true, true, false, false, 1>: buffer::py_buffer_flags::CanRequestContiguity`
+
+error[E0599]: the method `format` exists for struct `PyBufferRequest<buffer::py_buffer_flags::PyBufferFlags<true, true, true, false, true, 0>>`, but its trait bounds were not satisfied
+ --> tests/ui/invalid_buffer_flags.rs:8:49
+  |
+8 |       let _ = PyBufferRequest::strided().format().format();
+  |                                                   ^^^^^^ method cannot be called due to unsatisfied trait bounds
+  |
+ ::: src/buffer.rs
+  |
+  | /     pub struct PyBufferFlags<
+  | |         const FORMAT: bool,
+  | |         const SHAPE: bool,
+  | |         const STRIDE: bool,
+... |
+  | |         const CONTIGUITY: u8,
+  | |     >;
+  | |_____- doesn't satisfy `_: CanRequestFormat`
+  |
+  = note: the following trait bounds were not satisfied:
+          `buffer::py_buffer_flags::PyBufferFlags<true, true, true, false, true, 0>: buffer::py_buffer_flags::CanRequestFormat`
+
+error[E0599]: the method `indirect` exists for struct `PyBufferRequest<buffer::py_buffer_flags::PyBufferFlags<false, true, true, true, false, 0>>`, but its trait bounds were not satisfied
+  --> tests/ui/invalid_buffer_flags.rs:10:50
+   |
+10 |       let _ = PyBufferRequest::simple().indirect().indirect();
+   |                                                    ^^^^^^^^ method cannot be called due to unsatisfied trait bounds
+   |
+  ::: src/buffer.rs
+   |
+   | /     pub struct PyBufferFlags<
+   | |         const FORMAT: bool,
+   | |         const SHAPE: bool,
+   | |         const STRIDE: bool,
+...  |
+   | |         const CONTIGUITY: u8,
+   | |     >;
+   | |_____- doesn't satisfy `_: CanRequestIndirect`
+   |
+   = note: the following trait bounds were not satisfied:
+           `buffer::py_buffer_flags::PyBufferFlags<false, true, true, true, false, 0>: buffer::py_buffer_flags::CanRequestIndirect`
+
 error[E0277]: format information is not available with the requested buffer flags
- --> tests/ui/invalid_buffer_flags.rs:9:18
-  |
-9 |             view.format();
-  |                  ^^^^^^ unsatisfied trait bound
-  |
-  = help: the trait `buffer::py_buffer_flags::IncludesFormat` is not implemented for `buffer::py_buffer_flags::PyBufferFlags<false, true, true, false, true, 0>`
-  = note: use `.format()` when building a buffer request to request format information
-  = note: `PyBufferRequest::simple()` and `PyBufferRequest::simple().writable()` also imply u8 format
+  --> tests/ui/invalid_buffer_flags.rs:16:18
+   |
+16 |             view.format();
+   |                  ^^^^^^ unsatisfied trait bound
+   |
+   = help: the trait `buffer::py_buffer_flags::IncludesFormat` is not implemented for `buffer::py_buffer_flags::PyBufferFlags<false, true, true, false, true, 0>`
+   = note: use `.format()` when building a buffer request to request format information
+   = note: `PyBufferRequest::simple()` and `PyBufferRequest::simple().writable()` also imply u8 format
 note: required by a bound in `PyUntypedBufferView::<Flags>::format`
  --> src/buffer.rs
   |
@@ -15,3 +75,8 @@ note: required by a bound in `PyUntypedBufferView::<Flags>::format`
   |     where
   |         Flags: py_buffer_flags::IncludesFormat,
   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyUntypedBufferView::<Flags>::format`
+
+error: aborting due to 4 previous errors
+
+Some errors have detailed explanations: E0277, E0599.
+For more information about an error, try `rustc --explain E0277`.

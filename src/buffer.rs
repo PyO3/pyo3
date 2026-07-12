@@ -1488,7 +1488,7 @@ impl<Flags: PyBufferRequestType> Drop for PyUntypedBufferView<Flags> {
 }
 
 impl<Flags: PyBufferRequestType> Debug for PyUntypedBufferView<Flags> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         debug_buffer("PyUntypedBufferView", &self.raw, f)
     }
 }
@@ -1607,7 +1607,7 @@ where
     }
 }
 
-impl<T, Flags: PyBufferRequestType> std::ops::Deref for PyBufferView<T, Flags> {
+impl<T, Flags: PyBufferRequestType> core::ops::Deref for PyBufferView<T, Flags> {
     type Target = PyUntypedBufferView<Flags>;
 
     fn deref(&self) -> &Self::Target {
@@ -1616,7 +1616,7 @@ impl<T, Flags: PyBufferRequestType> std::ops::Deref for PyBufferView<T, Flags> {
 }
 
 impl<T, Flags: PyBufferRequestType> Debug for PyBufferView<T, Flags> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         debug_buffer("PyBufferView", &self.0.raw, f)
     }
 }
