@@ -795,11 +795,17 @@ impl_element!(isize, SignedInteger);
 impl_element!(f32, Float);
 impl_element!(f64, Float);
 
+/// Contiguity constraint encoded by a [`PyBufferRequest`].
 #[repr(u8)]
-enum PyBufferContiguity {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PyBufferContiguity {
+    /// No contiguity constraint was requested.
     Undefined = 0,
+    /// C-contiguous layout was requested.
     C = 1,
+    /// Fortran-contiguous layout was requested.
     F = 2,
+    /// Either C- or Fortran-contiguous layout was requested.
     Any = 3,
 }
 
@@ -1070,7 +1076,7 @@ use self::py_buffer_flags::PyBufferFlags as RequestFlags;
 /// Trait implemented by all hidden [`PyBufferRequest`] states.
 pub trait PyBufferRequestType: py_buffer_flags::Sealed {
     /// The contiguity requirement encoded by these flags.
-    const CONTIGUITY: u8;
+    const CONTIGUITY: PyBufferContiguity;
 
     /// Whether these flags require a writable buffer.
     const WRITABLE: bool;
@@ -1115,7 +1121,13 @@ impl<
     > PyBufferRequestType
     for RequestFlags<FORMAT, SHAPE, STRIDE, INDIRECT, WRITABLE, CONTIGUITY_REQ>
 {
-    const CONTIGUITY: u8 = CONTIGUITY_REQ;
+    const CONTIGUITY: PyBufferContiguity = match CONTIGUITY_REQ {
+        CONTIGUITY_UNDEFINED => PyBufferContiguity::Undefined,
+        CONTIGUITY_C => PyBufferContiguity::C,
+        CONTIGUITY_F => PyBufferContiguity::F,
+        CONTIGUITY_ANY => PyBufferContiguity::Any,
+        _ => panic!("invalid buffer contiguity"),
+    };
     const WRITABLE: bool = WRITABLE;
 
     type WithFormat = RequestFlags<true, SHAPE, STRIDE, INDIRECT, WRITABLE, CONTIGUITY_REQ>;
@@ -1332,14 +1344,14 @@ impl<Flags: PyBufferRequestType> PyUntypedBufferView<Flags> {
     /// Gets whether the buffer is contiguous in C-style order.
     #[inline]
     pub fn is_c_contiguous(&self) -> bool {
-        Flags::CONTIGUITY == CONTIGUITY_C
+        Flags::CONTIGUITY == PyBufferContiguity::C
             || unsafe { ffi::PyBuffer_IsContiguous(&self.raw, b'C' as std::ffi::c_char) != 0 }
     }
 
     /// Gets whether the buffer is contiguous in Fortran-style order.
     #[inline]
     pub fn is_fortran_contiguous(&self) -> bool {
-        Flags::CONTIGUITY == CONTIGUITY_F
+        Flags::CONTIGUITY == PyBufferContiguity::F
             || unsafe { ffi::PyBuffer_IsContiguous(&self.raw, b'F' as std::ffi::c_char) != 0 }
     }
 }
@@ -2174,6 +2186,13 @@ mod tests {
 
     #[test]
     fn test_flag_builders() {
+        fn assert_contiguity<Flags: PyBufferRequestType>(
+            _: PyBufferRequest<Flags>,
+            expected: PyBufferContiguity,
+        ) {
+            assert_eq!(Flags::CONTIGUITY, expected);
+        }
+
         fn assert_direct<
             const FORMAT: bool,
             const SHAPE: bool,
@@ -2205,6 +2224,20 @@ mod tests {
         assert_indirect(PyBufferRequest::full());
         assert_direct(PyBufferRequest::full_ro().c_contiguous());
         assert_direct(PyBufferRequest::full().c_contiguous());
+
+        assert_contiguity(PyBufferRequest::simple(), PyBufferContiguity::Undefined);
+        assert_contiguity(
+            PyBufferRequest::simple().c_contiguous(),
+            PyBufferContiguity::C,
+        );
+        assert_contiguity(
+            PyBufferRequest::simple().f_contiguous(),
+            PyBufferContiguity::F,
+        );
+        assert_contiguity(
+            PyBufferRequest::simple().any_contiguous(),
+            PyBufferContiguity::Any,
+        );
 
         Python::attach(|py| {
             let bytes = PyBytes::new(py, b"abcde");
