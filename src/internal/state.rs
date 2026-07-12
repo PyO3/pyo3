@@ -9,6 +9,8 @@ use crate::platform::prelude::*;
 use crate::{ffi, Python};
 
 use core::cell::Cell;
+#[cfg(not(pyo3_disable_reference_pool))]
+use core::sync::atomic::{AtomicBool, Ordering};
 #[cfg_attr(pyo3_disable_reference_pool, allow(unused_imports))]
 use core::{mem, ptr::NonNull};
 #[cfg(not(pyo3_disable_reference_pool))]
@@ -190,6 +192,8 @@ type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 #[cfg(not(pyo3_disable_reference_pool))]
 /// Thread-safe storage for objects which were dec_ref while not attached.
 struct ReferencePool {
+    // Whether any decrefs are (or may be) pending
+    dirty: AtomicBool,
     pending_decrefs: Mutex<PyObjVec>,
 }
 
@@ -197,20 +201,23 @@ struct ReferencePool {
 impl ReferencePool {
     const fn new() -> Self {
         Self {
+            dirty: AtomicBool::new(false),
             pending_decrefs: Mutex::new(Vec::new()),
         }
     }
 
     fn register_decref(&self, obj: NonNull<ffi::PyObject>) {
         self.pending_decrefs.lock().unwrap().push(obj);
+        self.dirty.store(true, Ordering::Release);
     }
 
     fn drop_deferred_references(&self, _py: Python<'_>) {
-        let mut pending_decrefs = self.pending_decrefs.lock().unwrap();
-        if pending_decrefs.is_empty() {
+        if !self.dirty.load(Ordering::Acquire) {
             return;
         }
+        self.dirty.store(false, Ordering::Relaxed);
 
+        let mut pending_decrefs = self.pending_decrefs.lock().unwrap();
         let decrefs = mem::take(&mut *pending_decrefs);
         drop(pending_decrefs);
 
@@ -536,6 +543,21 @@ mod tests {
             let c = obj.clone();
             assert_eq!(count + 1, c._get_refcnt(py));
         })
+    }
+
+    #[test]
+    #[cfg(not(pyo3_disable_reference_pool))]
+    fn test_detached_drop_is_collected_on_next_attach() {
+        let obj = Python::attach(get_object);
+        let (count, ptr) = Python::attach(|py| (obj._get_refcnt(py), obj.clone_ref(py).into_ptr()));
+
+        // A decref registered while detached applies once an attach drains the pool.
+        get_pool().register_decref(NonNull::new(ptr).unwrap());
+
+        Python::attach(|py| {
+            assert_eq!(count, obj._get_refcnt(py));
+            drop(obj);
+        });
     }
 
     #[test]
