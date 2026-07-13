@@ -105,7 +105,7 @@ impl PartialEq<Foo> for FooBound<'_> {
 
 CPython support multiple calling protocols: [`tp_call`] and [`vectorcall`].
 [`vectorcall`] is a more efficient protocol unlocking faster calls.
-PyO3 will try to dispatch Python `call`s using the [`vectorcall`] calling convention to archive maximum performance if possible and falling back to [`tp_call`] otherwise.
+PyO3 will try to dispatch Python `call`s using the [`vectorcall`] calling convention to achieve maximum performance if possible and falling back to [`tp_call`] otherwise.
 This is implemented using the (internal) `PyCallArgs` trait.
 It defines how Rust types can be used as Python `call` arguments.
 This trait is currently implemented for
