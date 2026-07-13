@@ -1345,14 +1345,14 @@ impl<Flags: PyBufferRequestType> PyUntypedBufferView<Flags> {
     #[inline]
     pub fn is_c_contiguous(&self) -> bool {
         Flags::CONTIGUITY == PyBufferContiguity::C
-            || unsafe { ffi::PyBuffer_IsContiguous(&self.raw, b'C' as std::ffi::c_char) != 0 }
+            || unsafe { ffi::PyBuffer_IsContiguous(&self.raw, b'C' as core::ffi::c_char) != 0 }
     }
 
     /// Gets whether the buffer is contiguous in Fortran-style order.
     #[inline]
     pub fn is_fortran_contiguous(&self) -> bool {
         Flags::CONTIGUITY == PyBufferContiguity::F
-            || unsafe { ffi::PyBuffer_IsContiguous(&self.raw, b'F' as std::ffi::c_char) != 0 }
+            || unsafe { ffi::PyBuffer_IsContiguous(&self.raw, b'F' as core::ffi::c_char) != 0 }
     }
 }
 
@@ -1443,7 +1443,7 @@ fn check_buffer_compatibility<T: Element>(
     itemsize: usize,
     format: &CStr,
 ) -> PyResult<()> {
-    let name = std::any::type_name::<T>();
+    let name = core::any::type_name::<T>();
 
     if mem::size_of::<T>() != itemsize || !T::is_compatible_format(format) {
         return Err(PyBufferError::new_err(format!(

@@ -1,11 +1,11 @@
 error[E0277]: contiguity has already been constrained for this buffer request
- --> tests/ui/invalid_buffer_flags.rs:6:54
-  |
-6 |     let _ = PyBufferRequest::simple().c_contiguous().f_contiguous();
-  |                                                      ^^^^^^^^^^^^ unsatisfied trait bound
-  |
-  = help: the trait `buffer::py_buffer_flags::CanRequestContiguity` is not implemented for `buffer::py_buffer_flags::PyBufferFlags<false, true, true, false, false, 1>`
-  = note: only one of `.c_contiguous()`, `.f_contiguous()`, or `.any_contiguous()` may be used
+    --> tests/ui/invalid_buffer_flags.rs:6:54
+     |
+   6 |     let _ = PyBufferRequest::simple().c_contiguous().f_contiguous();
+     |                                                      ^^^^^^^^^^^^ unsatisfied trait bound
+     |
+     = help: the trait `buffer::py_buffer_flags::CanRequestContiguity` is not implemented for `buffer::py_buffer_flags::PyBufferFlags<false, true, true, false, false, 1>`
+     = note: only one of `.c_contiguous()`, `.f_contiguous()`, or `.any_contiguous()` may be used
 note: required by a bound in `PyBufferRequest::<Flags>::f_contiguous`
  --> src/buffer.rs
   |
@@ -16,13 +16,13 @@ note: required by a bound in `PyBufferRequest::<Flags>::f_contiguous`
   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyBufferRequest::<Flags>::f_contiguous`
 
 error[E0277]: format information has already been requested for this buffer request
- --> tests/ui/invalid_buffer_flags.rs:8:49
-  |
-8 |     let _ = PyBufferRequest::strided().format().format();
-  |                                                 ^^^^^^ unsatisfied trait bound
-  |
-  = help: the trait `buffer::py_buffer_flags::CanRequestFormat` is not implemented for `buffer::py_buffer_flags::PyBufferFlags<true, true, true, false, true, 0>`
-  = note: remove the extra `.format()` call
+    --> tests/ui/invalid_buffer_flags.rs:8:49
+     |
+   8 |     let _ = PyBufferRequest::strided().format().format();
+     |                                                 ^^^^^^ unsatisfied trait bound
+     |
+     = help: the trait `buffer::py_buffer_flags::CanRequestFormat` is not implemented for `buffer::py_buffer_flags::PyBufferFlags<true, true, true, false, true, 0>`
+     = note: remove the extra `.format()` call
 note: required by a bound in `PyBufferRequest::<Flags>::format`
  --> src/buffer.rs
   |
@@ -33,13 +33,13 @@ note: required by a bound in `PyBufferRequest::<Flags>::format`
   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyBufferRequest::<Flags>::format`
 
 error[E0277]: suboffsets can only be requested on a direct unconstrained buffer request
-  --> tests/ui/invalid_buffer_flags.rs:10:50
-   |
-10 |     let _ = PyBufferRequest::simple().indirect().indirect();
-   |                                                  ^^^^^^^^ unsatisfied trait bound
-   |
-   = help: the trait `buffer::py_buffer_flags::CanRequestIndirect` is not implemented for `buffer::py_buffer_flags::PyBufferFlags<false, true, true, true, false, 0>`
-   = note: call `.indirect()` before any contiguity builder, and only once
+    --> tests/ui/invalid_buffer_flags.rs:10:50
+     |
+  10 |     let _ = PyBufferRequest::simple().indirect().indirect();
+     |                                                  ^^^^^^^^ unsatisfied trait bound
+     |
+     = help: the trait `buffer::py_buffer_flags::CanRequestIndirect` is not implemented for `buffer::py_buffer_flags::PyBufferFlags<false, true, true, true, false, 0>`
+     = note: call `.indirect()` before any contiguity builder, and only once
 note: required by a bound in `PyBufferRequest::<Flags>::indirect`
  --> src/buffer.rs
   |
@@ -50,14 +50,14 @@ note: required by a bound in `PyBufferRequest::<Flags>::indirect`
   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyBufferRequest::<Flags>::indirect`
 
 error[E0277]: format information is not available with the requested buffer flags
-  --> tests/ui/invalid_buffer_flags.rs:16:18
-   |
-16 |             view.format();
-   |                  ^^^^^^ unsatisfied trait bound
-   |
-   = help: the trait `buffer::py_buffer_flags::IncludesFormat` is not implemented for `buffer::py_buffer_flags::PyBufferFlags<false, true, true, false, true, 0>`
-   = note: use `.format()` when building a buffer request to request format information
-   = note: `PyBufferRequest::simple()` and `PyBufferRequest::simple().writable()` also imply u8 format
+    --> tests/ui/invalid_buffer_flags.rs:16:18
+     |
+  16 |             view.format();
+     |                  ^^^^^^ unsatisfied trait bound
+     |
+     = help: the trait `buffer::py_buffer_flags::IncludesFormat` is not implemented for `buffer::py_buffer_flags::PyBufferFlags<false, true, true, false, true, 0>`
+     = note: use `.format()` when building a buffer request to request format information
+     = note: `PyBufferRequest::simple()` and `PyBufferRequest::simple().writable()` also imply u8 format
 note: required by a bound in `PyUntypedBufferView::<Flags>::format`
  --> src/buffer.rs
   |
