@@ -20,3 +20,5 @@ pub use hashbrown::{HashMap, HashSet};
 // TODO conditionally import these based on "std" feature
 #[cfg(not(feature = "hashbrown"))]
 pub use std::collections::{HashMap, HashSet};
+
+pub mod thread;
