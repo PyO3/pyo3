@@ -135,5 +135,4 @@ jobs:
     env:
       CARGO_TERM_VERBOSE: ${{ inputs.verbose }}
       RUST_BACKTRACE: 1
-      RUSTFLAGS: "-D warnings"
-      RUSTDOCFLAGS: "-D warnings"
+      CARGO_BUILD_WARNINGS: deny
