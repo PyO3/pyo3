@@ -16,7 +16,10 @@ use crate::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
             tp_dealloc_with_gc, PyClassImpl, PyClassItemsIter, PyObjectOffset,
         },
-        pymethods::{_call_clear, Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter},
+        pymethods::{
+            synthesized_clear, synthesized_traverse, Getter, PyGetterDef, PyMethodDefType,
+            PySetterDef, Setter,
+        },
         trampoline::trampoline,
     },
     pycell::impl_::PyClassObjectLayout,
@@ -51,6 +54,8 @@ where
         base: *mut ffi::PyTypeObject,
         dealloc: unsafe extern "C" fn(*mut ffi::PyObject),
         dealloc_with_gc: unsafe extern "C" fn(*mut ffi::PyObject),
+        synthesized_traverse: ffi::traverseproc,
+        synthesized_clear: ffi::inquiry,
         is_mapping: bool,
         is_sequence: bool,
         is_immutable_type: bool,
@@ -74,6 +79,8 @@ where
                 tp_base: base,
                 tp_dealloc: dealloc,
                 tp_dealloc_with_gc: dealloc_with_gc,
+                synthesized_traverse,
+                synthesized_clear,
                 is_mapping,
                 is_sequence,
                 is_immutable_type,
@@ -100,6 +107,8 @@ where
             T::BaseType::type_object_raw(py),
             tp_dealloc::<T>,
             tp_dealloc_with_gc::<T>,
+            synthesized_traverse::<T>,
+            synthesized_clear::<T>,
             T::IS_MAPPING,
             T::IS_SEQUENCE,
             T::IS_IMMUTABLE_TYPE,
@@ -131,6 +140,10 @@ struct PyTypeBuilder {
     tp_base: *mut ffi::PyTypeObject,
     tp_dealloc: ffi::destructor,
     tp_dealloc_with_gc: ffi::destructor,
+    /// `tp_traverse` / `tp_clear` to install when the class needs the slot but defines no
+    /// `__traverse__` / `__clear__` of its own.
+    synthesized_traverse: ffi::traverseproc,
+    synthesized_clear: ffi::inquiry,
     is_mapping: bool,
     is_sequence: bool,
     is_immutable_type: bool,
@@ -422,6 +435,25 @@ impl PyTypeBuilder {
             }
         }
 
+        // A reference cycle can run through the instance `__dict__` (`obj.x = obj`), so a class
+        // with a `__dict__` must be a GC type. `_call_traverse` / `_call_clear` service the
+        // `__dict__` when the user defines `__traverse__` / `__clear__`; synthesize whichever
+        // slot they did not.
+        //
+        // Must run before the `tp_dealloc` selection below, which keys off `has_traverse`.
+        if self.dict_offset.is_some() {
+            if !self.has_traverse {
+                let synthesized_traverse = self.synthesized_traverse;
+                // Safety: This is the correct slot type for Py_tp_traverse
+                unsafe { self.push_slot(ffi::Py_tp_traverse, synthesized_traverse as *mut c_void) }
+            }
+            if !self.has_clear {
+                let synthesized_clear = self.synthesized_clear;
+                // Safety: This is the correct slot type for Py_tp_clear
+                unsafe { self.push_slot(ffi::Py_tp_clear, synthesized_clear as *mut c_void) }
+            }
+        }
+
         let base_is_gc = unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 };
         let tp_dealloc = if self.has_traverse || base_is_gc {
             self.tp_dealloc_with_gc
@@ -447,8 +479,9 @@ impl PyTypeBuilder {
             assert!(self.has_traverse); // Py_TPFLAGS_HAVE_GC is set when a `__traverse__` method is found
 
             if !self.has_clear {
+                let synthesized_clear = self.synthesized_clear;
                 // Safety: This is the correct slot type for Py_tp_clear
-                unsafe { self.push_slot(ffi::Py_tp_clear, call_super_clear as *mut c_void) }
+                unsafe { self.push_slot(ffi::Py_tp_clear, synthesized_clear as *mut c_void) }
             }
         }
 
@@ -585,10 +618,6 @@ unsafe extern "C" fn no_constructor_defined(
             )))
         })
     }
-}
-
-unsafe extern "C" fn call_super_clear(slf: *mut ffi::PyObject) -> c_int {
-    unsafe { _call_clear(slf, |_, _| Ok(()), call_super_clear) }
 }
 
 #[derive(Default)]
