@@ -21,7 +21,8 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
     "hypothesis>=3.55",
-    "mypy~=1.0",
+    # mypy doesn't build on GraalPy when installed via uv
+    "mypy~=1.0; platform_python_implementation != 'GraalVM'",
     "pyrefly~=0.57.0",
     "pytest-asyncio>=0.21,<2",
     "pytest-benchmark>=3.4",
