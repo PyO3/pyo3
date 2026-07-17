@@ -2,6 +2,8 @@
 use crate::object::*;
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::pyport::Py_ssize_t;
+#[cfg(all(GraalPy, Py_3_13))]
+use crate::PyObject;
 
 #[cfg(all(not(PyPy), Py_3_13))]
 use core::ffi::c_char;
