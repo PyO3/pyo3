@@ -22,7 +22,7 @@ experimental-inspect = ["pyo3-macros-backend/experimental-inspect"]
 [dependencies]
 proc-macro2 = { version = "1.0.60", default-features = false }
 quote = "1"
-syn = { version = "2", features = ["full", "extra-traits"] }
+syn = { version = "2", features = ["full", "extra-traits", "visit", "visit-mut"] }
 pyo3-macros-backend = { path = "../pyo3-macros-backend", version = "=0.29.0" }
 
 [lints]
