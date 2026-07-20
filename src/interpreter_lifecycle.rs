@@ -16,8 +16,10 @@ pub(crate) fn initialize() {
         if ffi::Py_IsInitialized() == 0 {
             ffi::Py_InitializeEx(0);
 
-            // Release the GIL.
-            ffi::PyEval_SaveThread();
+            // Discard the bootstrap thread state created by `Py_InitializeEx`.
+            // Future attachments use `PyGILState_Ensure` to create/attach state as needed.
+            ffi::PyThreadState_Clear(ffi::PyThreadState_Get());
+            ffi::PyThreadState_Delete(ffi::PyEval_SaveThread());
         }
     });
 }
