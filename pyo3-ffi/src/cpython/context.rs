@@ -5,17 +5,6 @@ use crate::Py_IS_TYPE;
 use core::ffi::c_uint;
 use core::ffi::{c_char, c_int};
 
-// Use the C enum's integer representation to permit future event values.
-#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
-pub type PyContextEvent = c_uint;
-
-#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
-pub const Py_CONTEXT_SWITCHED: PyContextEvent = 1;
-
-#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
-pub type PyContext_WatchCallback =
-    unsafe extern "C" fn(event: PyContextEvent, obj: *mut PyObject) -> c_int;
-
 extern_libpython! {
     pub static mut PyContext_Type: PyTypeObject;
     // skipped non-limited opaque PyContext
@@ -47,7 +36,20 @@ extern_libpython! {
 
     pub fn PyContext_Enter(ctx: *mut PyObject) -> c_int;
     pub fn PyContext_Exit(ctx: *mut PyObject) -> c_int;
+}
 
+// Use the C enum's integer representation to permit future event values.
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
+pub type PyContextEvent = c_uint;
+
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
+pub const Py_CONTEXT_SWITCHED: PyContextEvent = 1;
+
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
+pub type PyContext_WatchCallback =
+    unsafe extern "C" fn(event: PyContextEvent, obj: *mut PyObject) -> c_int;
+
+extern_libpython! {
     #[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
     pub fn PyContext_AddWatcher(callback: PyContext_WatchCallback) -> c_int;
     #[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
