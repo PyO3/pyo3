@@ -135,5 +135,8 @@ jobs:
     env:
       CARGO_TERM_VERBOSE: ${{ inputs.verbose }}
       RUST_BACKTRACE: 1
-      RUSTFLAGS: "-D warnings"
+      # `build.warnings` avoids the cache-busting from `RUSTFLAGS`; respected on
+      # Cargo 1.97+ only (MSRV jobs fall back to warn). rustdoc isn't covered by
+      # it, so RUSTDOCFLAGS stays.
+      CARGO_BUILD_WARNINGS: deny
       RUSTDOCFLAGS: "-D warnings"

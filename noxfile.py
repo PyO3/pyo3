@@ -1665,10 +1665,10 @@ def check_feature_powerset(session: nox.Session):
         *abi3t_version_features,
     ]
 
-    # deny warnings
+    # deny warnings; `build.warnings` avoids the cache-busting from `RUSTFLAGS`
+    # and is respected on Cargo 1.97+ only (MSRV falls back to warn).
     env = os.environ.copy()
-    rust_flags = env.get("RUSTFLAGS", "")
-    env["RUSTFLAGS"] = f"{rust_flags} -Dwarnings"
+    env["CARGO_BUILD_WARNINGS"] = "deny"
 
     subcommand = "hack"
     if "minimal-versions" in session.posargs:
