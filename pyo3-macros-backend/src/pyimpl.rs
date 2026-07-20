@@ -83,7 +83,7 @@ pub fn build_py_methods(
     ast: &mut syn::ItemImpl,
     methods_type: PyClassMethodsType,
 ) -> syn::Result<TokenStream> {
-    if let Some((_, path, _)) = &ast.trait_ {
+    if let Some((path, _)) = &ast.trait_ {
         bail_spanned!(path.span() => "#[pymethods] cannot be used on trait impl blocks");
     } else if ast.generics != Default::default() {
         bail_spanned!(

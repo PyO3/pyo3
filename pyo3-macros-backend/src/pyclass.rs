@@ -1433,6 +1433,7 @@ fn impl_complex_enum_variant_match_args(
                 .map(|name| PyExpr::str_constant(name.unraw().to_string())),
         ),
         syn::Type::Tuple(syn::TypeTuple {
+            attrs: Vec::new(),
             paren_token: syn::token::Paren::default(),
             elems: field_names
                 .iter()
@@ -2262,11 +2263,11 @@ fn descriptors_to_items(
                     vec![PyExpr::attribute(
                         PyExpr::attribute(
                             PyExpr::from_type(
-                                syn::TypePath {
+                                syn::Type::Path(syn::TypePath {
+                                    attrs: Vec::new(),
                                     qself: None,
                                     path: cls.clone().into(),
-                                }
-                                .into(),
+                                }),
                                 None,
                             ),
                             name.clone(),
@@ -3111,11 +3112,11 @@ impl<'a> PyClassImplsBuilder<'a> {
             &name,
             self.attr.options.extends.as_ref().map(|attr| {
                 PyExpr::from_type(
-                    syn::TypePath {
+                    syn::Type::Path(syn::TypePath {
+                        attrs: Vec::new(),
                         qself: None,
                         path: attr.value.clone(),
-                    }
-                    .into(),
+                    }),
                     None,
                 )
             }),
