@@ -425,7 +425,7 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyVectorcall_NARGS", "not(Py_3_12)"),
     ("Py_CLEAR", ""),
     ("Py_CompileString", "not(Py_3_10)"),
-    ("Py_CompileStringFlags", "not(PyPy)"),
+    ("Py_CompileStringFlags", "all(not(PyPy), not(Py_3_15))"),
     ("Py_DECREF", ""),
     ("Py_Ellipsis", ""),
     ("Py_False", ""),
