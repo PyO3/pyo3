@@ -10,43 +10,53 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name }}-${{ github.event.pull_request.number || github.sha }}-benches
   cancel-in-progress: true
 
+permissions: {}
+
 env:
   UV_PYTHON: "3.14t"
+
+  # A small hack to use anchors as GitHub doesn't allow it to be top level
+  \_○_○_/: &enable-cache-save >-
+    ${{ github.ref == 'refs/heads/main' || 
+        contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
 jobs:
   benchmarks:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          save-cache: *enable-cache-save
 
       # Using this action is still necessary for CodSpeed to build flamegraphs correctly,
       # see note about setup-python in https://codspeed.io/docs/benchmarks/python#recipes
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: ${{ env.UV_PYTHON }}
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
           components: rust-src
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           workspaces: |
             .
             pyo3-benches
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
           cache-all-crates: "true"
           cache-workspace-crates: "true"
 
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@9bcaee1dcae34154180f412e2fa69355a7cda9f6 # v2.82.6
         with:
           tool: cargo-codspeed
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@a4a36bb07c0638b0b4ca52bf1f3dad1b4289e52f # v4.18.1
         with:
           run: uvx nox -s codspeed
           token: ${{ secrets.CODSPEED_TOKEN }}

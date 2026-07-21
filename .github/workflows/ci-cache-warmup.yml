@@ -5,30 +5,47 @@ on:
     branches:
       - main
 
+permissions: {}
+
+env:
+  UV_PYTHON: "3.14"
+  NOX_DEFAULT_VENV_BACKEND: uv
+
 jobs:
   cross-compilation-windows:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
-      - uses: dtolnay/rust-toolchain@stable
+
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: ${{ github.event_name == 'pull_request' }}
+
+      - uses: dtolnay/rust-toolchain@stable # zizmor: ignore[unpinned-uses]
         with:
           targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
           components: rust-src
-      - uses: actions/cache/restore@v6
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           # https://github.com/PyO3/maturin/discussions/1953
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
+
       - name: Test cross compile to Windows
         run: |
           set -ex
           sudo apt-get install -y mingw-w64 llvm
-          pip install nox
-          nox -s test-cross-compilation-windows
-      - uses: actions/cache/save@v6
+          uvx nox -s test-cross-compilation-windows
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache

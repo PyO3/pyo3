@@ -1,33 +1,55 @@
 # This runs as a separate job because it needs to run on the `pull_request_target` event
 # in order to access the CODECOV_TOKEN secret.
 #
-# This is safe because this doesn't run arbitrary code from PRs.
+# SAFETY: this workflow does not execute untrusted PR code.
+# It only checks out the base repository workflow files and uses the PR metadata
+# to calculate the merge base. No PR branch code is executed.
 
 name: Set Codecov PR base
+
 on:
-  # See safety note / doc at the top of this file.
+  # zizmor: ignore[dangerous-triggers]
   pull_request_target:
+
+permissions:
+  contents: read
 
 jobs:
   coverage-pr-base:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          python-version: '3.14'
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: ${{ github.event_name == 'pull_request' }}
+
       - name: Fetch merge base
         id: fetch_merge_base
         uses: ./.github/actions/fetch-merge-base
         with:
           base_ref: "refs/heads/${{ github.event.pull_request.base.ref }}"
           head_ref: "refs/pull/${{ github.event.pull_request.number }}/head"
+
       - name: Set PR base on codecov
+        env:
+          MERGE_BASE: ${{ steps.fetch_merge_base.outputs.merge_base }}
+          PR_NUMBER: ${{ github.event.number }}
         run: |
-          pip install codecov-cli
-          codecovcli pr-base-picking \
-            --base-sha ${{ steps.fetch_merge_base.outputs.merge_base }} \
-            --pr ${{ github.event.number }} \
+          uvx --from codecov-cli codecovcli pr-base-picking \
+            --base-sha "$MERGE_BASE" \
+            --pr "$PR_NUMBER" \
             --slug PyO3/pyo3 \
-            --token ${{ secrets.CODECOV_TOKEN }} \
+            --token "${{ secrets.CODECOV_TOKEN }}" \
             --service github
