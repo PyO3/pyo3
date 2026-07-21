@@ -491,7 +491,7 @@ jobs:
         with:
           targets: wasm32-unknown-emscripten
           components: rust-src
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - uses: actions/cache/restore@v6
