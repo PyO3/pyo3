@@ -24,7 +24,7 @@ jobs:
 
       # Using this action is still necessary for CodSpeed to build flamegraphs correctly,
       # see note about setup-python in https://codspeed.io/docs/benchmarks/python#recipes
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.UV_PYTHON }}
 
