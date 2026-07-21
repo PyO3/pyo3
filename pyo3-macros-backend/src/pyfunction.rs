@@ -393,7 +393,10 @@ pub fn impl_wrap_pyfunction(
         signature,
         text_signature,
         asyncness: func.sig.asyncness,
-        unsafety: func.sig.unsafety,
+        unsafety: match func.sig.safety {
+            syn::Safety::Unsafe(token) => Some(token),
+            syn::Safety::Safe(_) | syn::Safety::Default => None,
+        },
         warnings,
         output: func.sig.output.clone(),
     };

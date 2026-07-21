@@ -4,8 +4,8 @@ use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
-use syn::LitCStr;
 use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
+use syn::{LitCStr, ReceiverKind};
 
 use crate::params::is_forwarded_args;
 #[cfg(feature = "experimental-inspect")]
@@ -557,16 +557,17 @@ pub fn parse_method_receiver(arg: &syn::FnArg, non_null: bool) -> Result<SelfTyp
     match arg {
         syn::FnArg::Receiver(
             recv @ syn::Receiver {
-                reference: None, ..
+                kind: ReceiverKind::Reference(_, _, mutability),
+                ..
             },
-        ) => {
-            bail_spanned!(recv.span() => RECEIVER_BY_VALUE_ERR);
-        }
-        syn::FnArg::Receiver(recv @ syn::Receiver { mutability, .. }) => Ok(SelfType::Receiver {
+        ) => Ok(SelfType::Receiver {
             mutable: mutability.is_some(),
             span: recv.span(),
             non_null,
         }),
+        syn::FnArg::Receiver(recv @ syn::Receiver { .. }) => {
+            bail_spanned!(recv.span() => RECEIVER_BY_VALUE_ERR);
+        }
         syn::FnArg::Typed(syn::PatType { ty, .. }) => {
             if let syn::Type::ImplTrait(_) = &**ty {
                 bail_spanned!(ty.span() => IMPL_TRAIT_ERR);
@@ -627,7 +628,10 @@ impl<'a> FnSpec<'a> {
             signature,
             text_signature,
             asyncness: sig.asyncness,
-            unsafety: sig.unsafety,
+            unsafety: match sig.safety {
+                syn::Safety::Unsafe(token) => Some(token),
+                syn::Safety::Safe(_) | syn::Safety::Default => None,
+            },
             warnings,
             output: sig.output.clone(),
         })
