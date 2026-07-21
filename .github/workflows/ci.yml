@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@v7
@@ -55,7 +55,7 @@ jobs:
       coverage-sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
       - name: resolve MSRV
@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
       - name: Fetch merge base
@@ -90,7 +90,7 @@ jobs:
         with:
           toolchain: ${{ needs.resolve.outputs.MSRV }}
           components: rust-src
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
       - uses: Swatinem/rust-cache@v2
@@ -440,7 +440,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
       - uses: Swatinem/rust-cache@v2
@@ -461,7 +461,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
       - uses: Swatinem/rust-cache@v2
@@ -483,7 +483,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
       - uses: Swatinem/rust-cache@v2
@@ -650,7 +650,7 @@ jobs:
           - rust: ${{ needs.resolve.outputs.MSRV }}
     steps:
       - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.15-dev"
       - uses: Swatinem/rust-cache@v2
@@ -701,7 +701,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.UV_PYTHON }}
       - uses: Swatinem/rust-cache@v2
@@ -810,7 +810,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform.rust-target }}
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
           architecture: ${{ matrix.platform.python-architecture }}
@@ -829,7 +829,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.0
       - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@v7
@@ -848,7 +848,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@v7
