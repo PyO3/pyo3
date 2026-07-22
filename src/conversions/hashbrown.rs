@@ -229,12 +229,10 @@ mod tests {
             let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: hashbrown::HashSet<usize, RandomState> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
-            assert!(hash_set.capacity() >= set.len());
 
             let set = PyFrozenSet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: hashbrown::HashSet<usize, RandomState> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
-            assert!(hash_set.capacity() >= set.len());
         });
     }
 

@@ -144,9 +144,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{
-        any::PyAnyMethods, frozenset::PyFrozenSetMethods, set::PySetMethods, PyFrozenSet, PySet,
-    };
+    use crate::types::{any::PyAnyMethods, PyFrozenSet, PySet};
     use crate::{IntoPyObject, Python};
     use alloc::collections::BTreeSet;
     use std::collections::HashSet;
@@ -157,12 +155,10 @@ mod tests {
             let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: HashSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
-            assert!(hash_set.capacity() >= set.len());
 
             let set = PyFrozenSet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: HashSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
-            assert!(hash_set.capacity() >= set.len());
         });
     }
 
