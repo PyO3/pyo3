@@ -1,5 +1,5 @@
 use core::{cmp, hash};
-use std::collections;
+use std::{collections, vec::Vec};
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
@@ -124,16 +124,20 @@ where
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         match ob.cast::<PySet>() {
-            Ok(set) => set
-                .iter()
-                .map(|any| any.extract().map_err(Into::into))
-                .collect(),
+            Ok(set) => {
+                let mut values = Vec::with_capacity(set.len());
+                for item in set.iter() {
+                    values.push(item.extract().map_err(Into::into)?);
+                }
+                Ok(values.into_iter().collect())
+            }
             Err(err) => {
                 if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
-                    frozen_set
-                        .iter()
-                        .map(|any| any.extract().map_err(Into::into))
-                        .collect()
+                    let mut values = Vec::with_capacity(frozen_set.len());
+                    for item in frozen_set.iter() {
+                        values.push(item.extract().map_err(Into::into)?);
+                    }
+                    Ok(values.into_iter().collect())
                 } else {
                     Err(PyErr::from(err))
                 }
