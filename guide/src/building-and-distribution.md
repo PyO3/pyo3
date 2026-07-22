@@ -48,7 +48,6 @@ Caused by:
   cargo:rustc-check-cfg=cfg(Py_3_14)
   cargo:rustc-check-cfg=cfg(Py_3_15)
   cargo:rustc-check-cfg=cfg(Py_3_16)
-  cargo:rustc-check-cfg=cfg(pyo3_dll, values("python3", "python3_d", "python3t", "python3t_d", "python38", "python38_d", "python39", "python39_d", "python310", "python310_d", "python311", "python311_d", "python312", "python312_d", "python313", "python313_d", "python313t", "python313t_d", "python314", "python314_d", "python314t", "python314t_d", "python315", "python315_d", "python315t", "python315t_d", "python316", "python316_d", "python316t", "python316t_d", "libpypy3.11-c"))
   cargo:rerun-if-env-changed=PYO3_CONFIG_FILE
   cargo:rerun-if-env-changed=PYO3_CROSS
   cargo:rerun-if-env-changed=PYO3_CROSS_LIB_DIR
@@ -239,6 +238,16 @@ This should only be set when building a library for distribution.
 >
 > Projects are encouraged to migrate off the feature, as it caused [major development pain](faq.md#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror) due to the lack of linking.
 
+### The `PYO3_USE_RAW_DYLIB` environment variable
+
+When targeting Windows, PyO3 will attempt to use [`raw-dylib` linking](https://doc.rust-lang.org/reference/items/external-blocks.html#dylib-versus-raw-dylib) to avoid the need for users to provide an actual import library to link against.
+
+On occasion the full Python import library may be needed (e.g. mixed C/Rust projects where the C code uses symbols not defined by `pyo3-ffi`).
+In these cases, setting `PYO3_USE_RAW_DYLIB=0` can be used to disable `raw-dylib` linking.
+
+> [!NOTE]
+> Historically PyO3 used a `generate-import-lib` feature which needed external machinery to achieve the same result of `raw-dylib` linking.
+
 ### `Py_LIMITED_API`/`abi3`/`abi3t`
 
 By default, Python extension modules can only be used with the same Python version they were compiled against.
@@ -398,8 +407,7 @@ When cross-compiling, PyO3's build script cannot execute the target Python inter
 
 - `PYO3_CROSS`: If present this variable forces PyO3 to configure as a cross-compilation.
 - `PYO3_CROSS_LIB_DIR`: This variable can be set to the directory containing the target's libpython DSO and the associated `_sysconfigdata*.py` file for Unix-like targets.
-  This variable is only needed when the output binary must link to libpython explicitly (e.g. when targeting Android or embedding a Python interpreter), or when it is absolutely required to get the interpreter configuration from `_sysconfigdata*.py`.
-  On Windows, this variable is not needed because PyO3 uses `raw-dylib` linking.
+  This variable is only needed when the output binary must link to libpython explicitly (e.g. when targeting Android, Windows when `raw-dylib` linking is unavailable, or embedding a Python interpreter), or when it is absolutely required to get the interpreter configuration from `_sysconfigdata*.py`.
 - `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python installation.
   This variable is only needed if PyO3 cannot determine the version to target from `abi3-py3*` features, or if `PYO3_CROSS_LIB_DIR` is not set, or if there are multiple versions of Python present in `PYO3_CROSS_LIB_DIR`.
 - `PYO3_CROSS_PYTHON_IMPLEMENTATION`: Python implementation name ("CPython" or "PyPy") of the target Python installation.
@@ -420,14 +428,6 @@ export PYO3_CROSS_PYTHON_VERSION=3.9
 export PYO3_CROSS_LIB_DIR="/home/pyo3/cross/sysroot/usr/lib"
 
 cargo build --target armv7-unknown-linux-gnueabihf
-```
-
-Or another example building for Windows (no `PYO3_CROSS_LIB_DIR` needed thanks to `raw-dylib`):
-
-```sh
-export PYO3_CROSS_PYTHON_VERSION=3.9
-
-cargo build --target x86_64-pc-windows-gnu
 ```
 
 Any of the `abi3-py3*` features can be enabled instead of setting `PYO3_CROSS_PYTHON_VERSION` in the above examples.

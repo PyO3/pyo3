@@ -1433,6 +1433,7 @@ fn impl_complex_enum_variant_match_args(
                 .map(|name| PyExpr::str_constant(name.unraw().to_string())),
         ),
         syn::Type::Tuple(syn::TypeTuple {
+            attrs: Vec::new(),
             paren_token: syn::token::Paren::default(),
             elems: field_names
                 .iter()
@@ -2262,11 +2263,11 @@ fn descriptors_to_items(
                     vec![PyExpr::attribute(
                         PyExpr::attribute(
                             PyExpr::from_type(
-                                syn::TypePath {
+                                syn::Type::Path(syn::TypePath {
+                                    attrs: Vec::new(),
                                     qself: None,
                                     path: cls.clone().into(),
-                                }
-                                .into(),
+                                }),
                                 None,
                             ),
                             name.clone(),
@@ -2944,15 +2945,9 @@ impl<'a> PyClassImplsBuilder<'a> {
             });
         }
 
-        let deprecation = if self.attr.options.skip_from_py_object.is_none()
-            && self.attr.options.from_py_object.is_none()
-        {
-            quote! {
-                const _: () = {
-                    #[allow(unused_import)]
-                    use #pyo3_path::impl_::pyclass::Probe as _;
-                    #pyo3_path::impl_::deprecated::HasAutomaticFromPyObject::<{ #pyo3_path::impl_::pyclass::IsClone::<#cls>::VALUE }>::MSG
-                };
+        let deprecation = if self.attr.options.skip_from_py_object.is_some() {
+            quote_spanned! { self.attr.options.skip_from_py_object.span() =>
+                const _: () = #pyo3_path::impl_::deprecated::SKIP_FROM_PY_OBJECT_DEPRECATED;
             }
         } else {
             TokenStream::new()
@@ -2976,8 +2971,6 @@ impl<'a> PyClassImplsBuilder<'a> {
                     }
                 }
             }
-        } else if self.attr.options.skip_from_py_object.is_none() {
-            quote!( impl #pyo3_path::impl_::pyclass::ExtractPyClassWithClone for #cls {} )
         } else {
             TokenStream::new()
         };
@@ -3119,11 +3112,11 @@ impl<'a> PyClassImplsBuilder<'a> {
             &name,
             self.attr.options.extends.as_ref().map(|attr| {
                 PyExpr::from_type(
-                    syn::TypePath {
+                    syn::Type::Path(syn::TypePath {
+                        attrs: Vec::new(),
                         qself: None,
                         path: attr.value.clone(),
-                    }
-                    .into(),
+                    }),
                     None,
                 )
             }),

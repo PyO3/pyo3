@@ -323,5 +323,3 @@ See the [building and distribution](building-and-distribution.md#the-extension-m
 ### `generate-import-lib`
 
 This feature is deprecated and has no effect.
-PyO3 now uses Rust's `raw-dylib` linking feature to link against the Python DLL on Windows, eliminating the need for import library (`.lib`) files entirely.
-Cross-compiling for Windows targets works without any additional setup.

@@ -199,6 +199,7 @@
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyRuntimeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::platform::prelude::*;
 use crate::pyclass::{boolean_struct::False, PyClass};
 use crate::{ffi, Borrowed, Bound, PyErr, Python};
 use core::convert::Infallible;
@@ -774,7 +775,7 @@ mod tests {
 
     use super::*;
 
-    #[crate::pyclass(skip_from_py_object)]
+    #[crate::pyclass]
     #[pyo3(crate = "crate")]
     #[derive(Copy, Clone, PartialEq, Eq, Debug)]
     struct SomeClass(i32);

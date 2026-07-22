@@ -204,7 +204,7 @@ extern_libpython! {
 }
 
 #[inline]
-#[cfg(not(Py_3_14))]
+#[cfg(not(all(Py_LIMITED_API, Py_3_14)))]
 pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
     #[cfg(not(GraalPy))]
     return (*ob).ob_type;
@@ -212,7 +212,7 @@ pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
     return _Py_TYPE(ob);
 }
 
-#[cfg(Py_3_14)]
+#[cfg(all(Py_LIMITED_API, Py_3_14))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPy_TYPE")]
     pub fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject;

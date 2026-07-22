@@ -270,7 +270,8 @@ macro_rules! create_exception_type_hint(
 );
 
 macro_rules! impl_native_exception (
-    ($name:ident, $exc_name:ident, $python_name:expr, $doc:expr, $layout:path $(, #checkfunction=$checkfunction:path)?) => (
+    ($name:ident, $exc_name:ident, $python_name:literal, $doc:expr, $layout:path $(, #checkfunction=$checkfunction:path)?) => (
+        #[doc = concat!("Represents Python's [`", $python_name, "`](https://docs.python.org/3/library/exceptions.html#", $python_name, ") exception.")]
         #[doc = $doc]
         #[repr(transparent)]
         #[allow(clippy::upper_case_acronyms, reason = "Python exception names")]
@@ -284,24 +285,17 @@ macro_rules! impl_native_exception (
         }, "builtins", $python_name $(, #checkfunction=$checkfunction)?);
         $crate::pyobject_subclassable_native_type!($name, $layout);
     );
-    ($name:ident, $exc_name:ident, $python_name:expr, $doc:expr) => (
+    ($name:ident, $exc_name:ident, $python_name:literal, $doc:expr) => (
         impl_native_exception!($name, $exc_name, $python_name, $doc, $crate::ffi::PyBaseExceptionObject);
     )
 );
 
+/// Create doc examples for the native exceptions
 macro_rules! native_doc(
-    ($name: literal, $alt: literal) => (
-        concat!(
-"Represents Python's [`", $name, "`](https://docs.python.org/3/library/exceptions.html#", $name, ") exception.
-
-", $alt
-        )
-    );
+    (skip_example) => ("");
     ($name: literal) => (
         concat!(
 "
-Represents Python's [`", $name, "`](https://docs.python.org/3/library/exceptions.html#", $name, ") exception.
-
 # Example: Raising ", $name, " from Rust
 
 This exception can be sent to Python code by converting it into a
@@ -338,10 +332,9 @@ except ", $name, " as e:
 ```
 use pyo3::prelude::*;
 use pyo3::exceptions::Py", $name, ";
-use pyo3::ffi::c_str;
 
 Python::attach(|py| {
-    let result: PyResult<()> = py.run(c_str!(\"raise ", $name, "\"), None, None);
+    let result: PyResult<()> = py.run(c\"raise ", $name, "\", None, None);
 
     let error_type = match result {
         Ok(_) => \"Not an error\",
@@ -585,26 +578,26 @@ impl_native_exception!(
     PyUnicodeDecodeError,
     PyExc_UnicodeDecodeError,
     "UnicodeDecodeError",
-    native_doc!("UnicodeDecodeError", "")
+    native_doc!(skip_example)
 );
 impl_native_exception!(
     PyUnicodeEncodeError,
     PyExc_UnicodeEncodeError,
     "UnicodeEncodeError",
-    native_doc!("UnicodeEncodeError", "")
+    native_doc!(skip_example)
 );
 impl_native_exception!(
     PyUnicodeTranslateError,
     PyExc_UnicodeTranslateError,
     "UnicodeTranslateError",
-    native_doc!("UnicodeTranslateError", "")
+    native_doc!(skip_example)
 );
 #[cfg(Py_3_11)]
 impl_native_exception!(
     PyBaseExceptionGroup,
     PyExc_BaseExceptionGroup,
     "BaseExceptionGroup",
-    native_doc!("BaseExceptionGroup", "")
+    native_doc!(skip_example)
 );
 impl_native_exception!(
     PyValueError,
@@ -949,6 +942,7 @@ pub mod socket {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
     use crate::types::any::PyAnyMethods;
     use crate::types::{IntoPyDict, PyDict};
     use crate::{IntoPyObjectExt as _, PyErr};

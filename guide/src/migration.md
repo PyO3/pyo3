@@ -173,7 +173,7 @@ struct PyClass {}
 
 After:
 
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 // If the automatic implementation of `FromPyObject` is desired, opt in:
 #[pyclass(from_py_object)]

@@ -525,7 +525,7 @@ Over the next few releases the blanket implementation is gradually phased out, a
 As a first step of this migration a new `skip_from_py_object` option for `#[pyclass]` was introduced, to opt-out of the blanket implementation and allow downstream users to provide their own implementation:
 
 ```rust
-# #![allow(dead_code)]
+# #![allow(dead_code, deprecated)]
 # use pyo3::prelude::*;
 
 #[pyclass(skip_from_py_object)] // opt-out of the PyO3 FromPyObject blanket
@@ -547,6 +547,10 @@ impl<'py> FromPyObject<'_, 'py> for Number {
 
 As a second step the `from_py_object` option was introduced.
 This option also opts-out of the blanket implementation and instead generates a custom `FromPyObject` implementation for the pyclass which is functionally equivalent to the blanket.
+
+As of PyO3 0.30.0 `skip_from_py_object` is the new default behavior.
+Setting the option is now deprecated and can be safely removed without changes in behavior.
+PyO3 will remove this option entirely in a future release.
 
 ## `IntoPyObject`
 

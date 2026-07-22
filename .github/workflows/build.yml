@@ -35,14 +35,14 @@ jobs:
     runs-on: ${{ inputs.os }}
     if: ${{ !(startsWith(inputs.python-version, 'graalpy') && startsWith(inputs.os, 'windows')) }}
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ inputs.sha }}
 
       # installs using setup-python do not work for arm macOS 3.9 and below
       - if: ${{ !(inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64') }}
         name: Set up Python ${{ inputs.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}

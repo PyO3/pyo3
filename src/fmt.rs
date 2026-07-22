@@ -1,6 +1,8 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+#[allow(unused_imports, reason = "used to build docs")]
+use crate::platform::prelude::*;
 #[cfg(any(doc, all(Py_3_14, not(Py_LIMITED_API))))]
 use crate::{types::PyString, Python};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
@@ -42,12 +44,11 @@ macro_rules! py_format {
     ($py: expr, $($arg:tt)*) => {{
         if let Some(static_string) = format_args!($($arg)*).as_str() {
             static INTERNED: $crate::sync::PyOnceLock<$crate::Py<$crate::types::PyString>> = $crate::sync::PyOnceLock::new();
-            Ok(
+            Ok($crate::Bound::clone(
                 INTERNED
                 .get_or_init($py, || $crate::types::PyString::intern($py, static_string).unbind())
                 .bind($py)
-                .to_owned()
-            )
+            ))
         } else {
             $crate::types::PyString::from_fmt($py, format_args!($($arg)*))
         }

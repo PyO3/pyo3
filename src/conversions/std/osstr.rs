@@ -6,6 +6,8 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 use crate::instance::Bound;
+#[allow(unused_imports, reason = "conditionally used")]
+use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::PyString;
@@ -230,6 +232,8 @@ impl<'py> IntoPyObject<'py> for &OsString {
 mod tests {
     #[cfg(target_os = "wasi")]
     use crate::exceptions::PyFileNotFoundError;
+    #[allow(unused_imports, reason = "conditionally used")]
+    use crate::platform::prelude::*;
     use crate::types::{PyAnyMethods, PyString, PyStringMethods};
     use crate::{Bound, BoundObject, IntoPyObject, Python};
     use alloc::borrow::Cow;

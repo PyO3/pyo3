@@ -1,6 +1,7 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+use crate::platform::prelude::*;
 use core::cell::UnsafeCell;
 use std::{
     sync::{Mutex, Once},
@@ -408,7 +409,8 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
 
 #[cfg(test)]
 mod tests {
-
+    #[allow(unused_imports, reason = "conditionally used")]
+    use crate::platform::prelude::*;
     use crate::{
         exceptions::PyValueError, sync::PyOnceLock, Py, PyAny, PyErr, PyErrArguments, Python,
     };

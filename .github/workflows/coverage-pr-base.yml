@@ -12,8 +12,8 @@ jobs:
   coverage-pr-base:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.14'
       - name: Fetch merge base

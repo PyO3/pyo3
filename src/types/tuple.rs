@@ -4,6 +4,8 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
+#[allow(unused_imports, reason = "used to build docs")]
+use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
@@ -33,14 +35,14 @@ fn try_new_from_iter<'py>(
     py: Python<'py>,
     mut elements: impl ExactSizeIterator<Item = PyResult<Bound<'py, PyAny>>>,
 ) -> PyResult<Bound<'py, PyTuple>> {
-    #[cfg(not(RustPython))]
-    unsafe {
-        // PyTuple_New checks for overflow but has a bad error message, so we check ourselves
-        let len: Py_ssize_t = elements
-            .len()
-            .try_into()
-            .expect("out of range integral type conversion attempted on `elements.len()`");
+    // PyTuple_New checks for overflow but has a bad error message, so we check ourselves
+    let len: Py_ssize_t = elements
+        .len()
+        .try_into()
+        .expect("out of range integral type conversion attempted on `elements.len()`");
 
+    #[cfg(not(RustPython))]
+    let (tup, counter) = unsafe {
         let ptr = ffi::PyTuple_New(len);
 
         // - Panics if the ptr is null
@@ -57,20 +59,26 @@ fn try_new_from_iter<'py>(
             counter += 1;
         }
 
-        assert!(elements.next().is_none(), "Attempted to create PyTuple but `elements` was larger than reported by its `ExactSizeIterator` implementation.");
-        assert_eq!(len, counter, "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
-
-        Ok(tup)
-    }
+        (tup, counter)
+    };
 
     #[cfg(RustPython)]
-    unsafe {
-        let elements = elements.collect::<PyResult<Vec<_>>>()?;
+    let (tup, counter) = unsafe {
+        let elements = (&mut elements)
+            .take(len as _)
+            .collect::<PyResult<Vec<_>>>()?;
         // SAFETY: list is layout compatible with *const *mut crate::PyObject
-        ffi::PyTuple_FromArray(elements.as_ptr().cast(), elements.len() as _)
+        let tup = ffi::PyTuple_FromArray(elements.as_ptr().cast(), elements.len() as _)
             .assume_owned_or_err(py)
-            .cast_into_unchecked()
-    }
+            .cast_into_unchecked()?;
+
+        (tup, elements.len() as Py_ssize_t)
+    };
+
+    assert!(elements.next().is_none(), "Attempted to create PyTuple but `elements` was larger than reported by its `ExactSizeIterator` implementation.");
+    assert_eq!(len, counter, "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
+
+    Ok(tup)
 }
 
 /// Represents a Python `tuple` object.
@@ -1055,6 +1063,7 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::prelude::*;
     use crate::platform::HashSet;
     use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
     use crate::{Bound, IntoPyObject, PyAny, Python};

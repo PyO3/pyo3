@@ -17,14 +17,14 @@ jobs:
   benchmarks:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v7
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
       # Using this action is still necessary for CodSpeed to build flamegraphs correctly,
       # see note about setup-python in https://codspeed.io/docs/benchmarks/python#recipes
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.UV_PYTHON }}
 

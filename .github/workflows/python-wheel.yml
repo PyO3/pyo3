@@ -19,7 +19,7 @@ jobs:
       matrix:
         target: [x86_64, x86, aarch64, armv7, s390x, ppc64le]
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.1
       - uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
@@ -43,7 +43,7 @@ jobs:
           - runner: windows-11-arm
             target: aarch64
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.1
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -65,7 +65,7 @@ jobs:
           - runner: macos-latest
             target: aarch64
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.1
       - uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
@@ -79,7 +79,7 @@ jobs:
   pypi_sdist:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.1
       - uses: PyO3/maturin-action@v1
         with:
           command: sdist

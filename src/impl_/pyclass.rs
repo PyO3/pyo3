@@ -1,6 +1,8 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+#[allow(unused_imports, reason = "conditionally used")]
+use crate::platform::prelude::*;
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
@@ -1469,8 +1471,6 @@ impl<const IMPLEMENTS_INTOPYOBJECT: bool> ConvertField<false, IMPLEMENTS_INTOPYO
         obj.clone().into_py_any(py)
     }
 }
-
-pub trait ExtractPyClassWithClone: generic_pyclass::Sealed {}
 
 #[cfg(test)]
 #[cfg(feature = "macros")]

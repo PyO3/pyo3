@@ -166,6 +166,7 @@ Some of the functionality of `pyo3-build-config`:
     cfg with the target DLL name, and the `extern_libpython!` macro expands to the appropriate
     `#[link(name = "...", kind = "raw-dylib")]` attribute. This enables cross compiling Python
     extensions for Windows without having to install any Windows Python libraries.
+    This can be opted out by setting `PYO3_USE_RAW_DYLIB` to anything other than "1".
 
 <!-- External Links -->
 
