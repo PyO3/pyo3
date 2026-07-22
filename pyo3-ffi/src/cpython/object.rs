@@ -340,8 +340,6 @@ extern_libpython! {
 
     // skipped private _PyObject_GetDictPtr
     pub fn PyObject_CallFinalizer(arg1: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPyObject_CallFinalizerFromDealloc")]
-    pub fn PyObject_CallFinalizerFromDealloc(arg1: *mut PyObject) -> c_int;
 
     // skipped private _PyObject_GenericGetAttrWithDict
     // skipped private _PyObject_GenericSetAttrWithDict

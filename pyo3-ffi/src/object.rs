@@ -535,6 +535,12 @@ extern_libpython! {
     pub fn PyCallable_Check(arg1: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyObject_ClearWeakRefs")]
     pub fn PyObject_ClearWeakRefs(arg1: *mut PyObject);
+    // Added to the limited API in 3.15. PyO3 avoids calling this on PyPy
+    // because its cpyext implementation is not compatible with CPython
+    // deallocation semantics.
+    #[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+    #[cfg_attr(PyPy, link_name = "PyPyObject_CallFinalizerFromDealloc")]
+    pub fn PyObject_CallFinalizerFromDealloc(arg1: *mut PyObject) -> c_int;
 
     #[cfg_attr(PyPy, link_name = "PyPyObject_Dir")]
     pub fn PyObject_Dir(arg1: *mut PyObject) -> *mut PyObject;

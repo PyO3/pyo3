@@ -252,6 +252,82 @@ pub mod releasebufferproc {
     pub type Func = unsafe fn(Python<'_>, *mut ffi::PyObject, *mut ffi::Py_buffer) -> PyResult<()>;
 }
 
+/// RAII guard which saves the current Python exception (if any) on
+/// construction and restores it on drop.
+///
+/// Equivalent to CPython's save/restore of the error indicator in
+/// `slot_tp_finalize`.
+struct ExceptionGuard<'py> {
+    py: Python<'py>,
+    err: Option<crate::PyErr>,
+}
+
+impl<'py> ExceptionGuard<'py> {
+    fn new(py: Python<'py>) -> Self {
+        Self {
+            py,
+            err: crate::PyErr::take(py),
+        }
+    }
+}
+
+impl Drop for ExceptionGuard<'_> {
+    fn drop(&mut self) {
+        if let Some(err) = self.err.take() {
+            err.restore(self.py);
+        }
+    }
+}
+
+/// Destructor trampoline for tp_finalize (__del__).
+///
+/// tp_finalize is a `destructor` (returns void) but can produce Python
+/// exceptions, which must be reported as unraisable. Matching CPython's
+/// `slot_tp_finalize`, any exception already set when the finalizer runs is
+/// saved first and restored afterwards — after any error from `__del__`
+/// (including a panic) has been written as unraisable.
+///
+/// This trampoline is always defined, but on abi3 before Python 3.15 it is
+/// never instantiated: the `#[pymethods]` codegen emits `assert_del_supported`
+/// next to every `__del__`, which fails to compile there because
+/// `PyObject_CallFinalizerFromDealloc` is missing from the limited API and so
+/// `tp_dealloc` cannot invoke finalizers.
+///
+/// # Safety
+/// - `slf` must be a valid pointer to a Python object.
+/// - The thread must be attached to the interpreter when this is called.
+pub unsafe extern "C" fn finalizefunc<Meth: MethodDef<finalizefunc::Func>>(
+    slf: *mut ffi::PyObject,
+) {
+    // SAFETY: caller upholds requirements
+    unsafe { finalizefunc::inner(slf, Meth::METH) }
+}
+
+pub mod finalizefunc {
+    use super::*;
+
+    /// # Safety
+    ///
+    /// - `slf` must be a valid pointer to a Python object.
+    /// - It must be sound to call `f` with `slf`.
+    /// - The thread must be attached to the interpreter when this is called.
+    #[inline]
+    pub(crate) unsafe fn inner(slf: *mut ffi::PyObject, f: Func) {
+        // SAFETY: thread is known to be attached (tp_finalize is called from
+        // tp_dealloc / subtype_dealloc or the cyclic GC).
+        let guard = unsafe { AttachGuard::assume() };
+        // Save any currently set exception; restored on drop, which happens
+        // *after* `trampoline_unraisable` has reported any error from __del__.
+        let _exception_guard = ExceptionGuard::new(guard.python());
+        // SAFETY: caller upholds requirements; panics are caught inside
+        // `trampoline_unraisable` and reported as unraisable, so
+        // `_exception_guard` always restores the saved exception.
+        unsafe { trampoline_unraisable(|py| f(py, slf), slf) }
+    }
+
+    pub type Func = unsafe fn(Python<'_>, *mut ffi::PyObject) -> PyResult<()>;
+}
+
 /// # Safety
 ///
 /// - slf must be either a valid ffi::PyObject or NULL

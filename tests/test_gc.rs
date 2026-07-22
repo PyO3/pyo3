@@ -8,6 +8,7 @@ use pyo3::ffi;
 use pyo3::prelude::*;
 #[cfg(not(Py_GIL_DISABLED))]
 use pyo3::py_run;
+use pyo3::types::IntoPyDict;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -786,4 +787,298 @@ fn test_drop_buffer_during_traversal_without_gil() {
 
         check.assert_drops_with_gc(ptr);
     });
+}
+
+// ===== Dealloc behavior tests =====
+// These tests verify that PyO3's tp_dealloc correctly handles Rust payload
+// teardown and dict/weakref clearing — for direct instances and for
+// instances of Python subclasses (which reach PyO3's tp_dealloc through
+// CPython's subtype_dealloc).
+
+/// Pure-Python subclass — Rust Drop must run for instances of Python
+/// subclasses of a pyclass. Their dealloc goes through CPython's
+/// subtype_dealloc, which reaches PyO3's tp_dealloc via the basedealloc
+/// walk (a Python subclass never inherits a custom tp_free, so teardown
+/// must live in tp_dealloc).
+#[test]
+fn python_subclass_dealloc_drops_rust_value() {
+    use pyo3::types::PyDict;
+
+    #[pyclass(subclass)]
+    struct SubclassableBase {
+        guard: Option<DropGuard>,
+    }
+
+    #[pymethods]
+    impl SubclassableBase {
+        #[new]
+        fn new() -> Self {
+            Self { guard: None }
+        }
+    }
+
+    let (guard, check) = drop_check();
+    Python::attach(|py| {
+        let locals = PyDict::new(py);
+        locals
+            .set_item("Base", py.get_type::<SubclassableBase>())
+            .unwrap();
+        py.run(
+            c"
+class Sub(Base):
+    pass
+",
+            None,
+            Some(&locals),
+        )
+        .unwrap();
+        let sub = locals.get_item("Sub").unwrap().unwrap();
+        let inst = sub.call0().unwrap();
+        // Move the Rust guard into the instance
+        inst.cast::<SubclassableBase>().unwrap().borrow_mut().guard = Some(guard);
+
+        check.assert_not_dropped();
+        drop(inst);
+        check.assert_dropped();
+    });
+}
+
+/// Class with weakref — verifies weakrefs are cleared on dealloc.
+#[test]
+fn dealloc_clears_weakrefs() {
+    use pyo3::types::PyWeakrefReference;
+
+    #[pyclass(weakref)]
+    struct WeakRefable {
+        _guard: DropGuard,
+    }
+
+    let (guard, check) = drop_check();
+    Python::attach(|py| {
+        let inst = Bound::new(py, WeakRefable { _guard: guard }).unwrap();
+        let weakref = PyWeakrefReference::new(&inst).unwrap();
+
+        // weakref is alive
+        assert!(weakref.upgrade().is_some());
+
+        drop(inst);
+
+        // After dealloc, weakref should be dead and Rust value dropped
+        assert!(weakref.upgrade().is_none());
+        check.assert_dropped();
+    });
+}
+
+/// Class with dict — verifies dict is cleared on dealloc.
+#[test]
+fn dealloc_clears_dict() {
+    #[pyclass(dict)]
+    struct DictClass {
+        _guard: DropGuard,
+    }
+
+    let (guard, check) = drop_check();
+    Python::attach(|py| {
+        let inst = Py::new(py, DictClass { _guard: guard }).unwrap();
+        // Set a dict attribute
+        py.run(
+            c"inst.my_attr = 42",
+            None,
+            Some(&[("inst", inst.bind(py))].into_py_dict(py).unwrap()),
+        )
+        .unwrap();
+        drop(inst);
+        check.assert_dropped();
+    });
+}
+
+/// pyclass extending another pyclass — verifies both layers' Rust values
+/// are dropped via the recursive drop_rust_values chain.
+#[test]
+fn dealloc_drops_extended_pyclass() {
+    #[pyclass(subclass)]
+    struct Base {
+        _guard: DropGuard,
+    }
+
+    #[pyclass(extends = Base)]
+    struct Derived {
+        _guard: DropGuard,
+    }
+
+    let (guard_base, check_base) = drop_check();
+    let (guard_derived, check_derived) = drop_check();
+
+    Python::attach(|py| {
+        let inst = Py::new(
+            py,
+            PyClassInitializer::from(Base { _guard: guard_base }).add_subclass(Derived {
+                _guard: guard_derived,
+            }),
+        )
+        .unwrap();
+
+        check_base.assert_not_dropped();
+        check_derived.assert_not_dropped();
+
+        drop(inst);
+    });
+
+    check_base.assert_dropped();
+    check_derived.assert_dropped();
+}
+
+/// GC-tracked class — verifies dealloc works correctly for types
+/// that participate in cyclic GC.
+#[test]
+fn dealloc_gc_tracked_type() {
+    #[pyclass]
+    struct GcTrackedDrop {
+        cycle: Option<Py<PyAny>>,
+        _guard: DropGuard,
+    }
+
+    #[pymethods]
+    impl GcTrackedDrop {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            visit.call(&self.cycle)
+        }
+
+        fn __clear__(&mut self) {
+            self.cycle = None;
+        }
+    }
+
+    let (guard, check) = drop_check();
+
+    Python::attach(|py| {
+        let inst = Bound::new(
+            py,
+            GcTrackedDrop {
+                cycle: None,
+                _guard: guard,
+            },
+        )
+        .unwrap();
+
+        // Create a cycle
+        inst.borrow_mut().cycle = Some(inst.clone().into_any().unbind());
+
+        check.assert_not_dropped();
+        let ptr = inst.as_ptr();
+        drop(inst);
+
+        // Cycle should be collected by GC
+        check.assert_drops_with_gc(ptr);
+    });
+}
+
+/// Three-level pyclass inheritance — verifies recursive drop through
+/// base → middle → derived.
+#[test]
+fn dealloc_drops_three_level_inheritance() {
+    #[pyclass(subclass)]
+    struct GrandBase {
+        _guard: DropGuard,
+    }
+
+    #[pyclass(extends = GrandBase, subclass)]
+    struct Middle {
+        _guard: DropGuard,
+    }
+
+    #[pyclass(extends = Middle)]
+    struct Leaf {
+        _guard: DropGuard,
+    }
+
+    let (g1, c1) = drop_check();
+    let (g2, c2) = drop_check();
+    let (g3, c3) = drop_check();
+
+    Python::attach(|py| {
+        let inst = Py::new(
+            py,
+            PyClassInitializer::from(GrandBase { _guard: g1 })
+                .add_subclass(Middle { _guard: g2 })
+                .add_subclass(Leaf { _guard: g3 }),
+        )
+        .unwrap();
+
+        c1.assert_not_dropped();
+        c2.assert_not_dropped();
+        c3.assert_not_dropped();
+
+        drop(inst);
+    });
+
+    c1.assert_dropped();
+    c2.assert_dropped();
+    c3.assert_dropped();
+}
+
+/// Freelist class — verifies that freelist types drop the Rust value on
+/// dealloc regardless of which teardown path they use.
+#[test]
+fn freelist_drops_rust_value() {
+    #[pyclass(freelist = 2)]
+    struct FreelistDrop {
+        _guard: DropGuard,
+    }
+
+    let (guard, check) = drop_check();
+    Python::attach(|py| {
+        let inst = Py::new(py, FreelistDrop { _guard: guard }).unwrap();
+        check.assert_not_dropped();
+        drop(inst);
+    });
+    check.assert_dropped();
+}
+
+/// Class with dict + weakref — verifies both are properly handled.
+#[test]
+fn dealloc_clears_dict_and_weakref() {
+    use pyo3::types::PyWeakrefReference;
+
+    #[pyclass(dict, weakref)]
+    struct DictWeakRefClass {
+        _guard: DropGuard,
+    }
+
+    let (guard, check) = drop_check();
+    Python::attach(|py| {
+        let inst = Bound::new(py, DictWeakRefClass { _guard: guard }).unwrap();
+
+        // Set dict attribute and create weakref
+        py.run(
+            c"inst.my_attr = 'hello'",
+            None,
+            Some(&[("inst", &inst)].into_py_dict(py).unwrap()),
+        )
+        .unwrap();
+        let weakref = PyWeakrefReference::new(&inst).unwrap();
+        assert!(weakref.upgrade().is_some());
+
+        drop(inst);
+
+        assert!(weakref.upgrade().is_none());
+        check.assert_dropped();
+    });
+}
+
+/// unsendable class — verifies drop behavior is correct.
+#[test]
+fn dealloc_unsendable_class() {
+    #[pyclass(unsendable)]
+    struct UnsendableDrop {
+        _guard: DropGuard,
+    }
+
+    let (guard, check) = drop_check();
+    Python::attach(|py| {
+        let inst = Py::new(py, UnsendableDrop { _guard: guard }).unwrap();
+        check.assert_not_dropped();
+        drop(inst);
+    });
+    check.assert_dropped();
 }

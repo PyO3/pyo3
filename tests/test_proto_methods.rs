@@ -1008,3 +1008,327 @@ fn test_contains_opt_out() {
         py_expect_exception!(py, no_contains, "'a' in no_contains", PyTypeError);
     })
 }
+
+// __del__ (tp_finalize) tests. PyO3's tp_dealloc invokes finalizers via
+// `PyObject_CallFinalizerFromDealloc`, which is only part of the limited API
+// from Python 3.15, so `__del__` is not supported on older abi3 builds.
+#[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+mod del {
+    use super::*;
+
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    #[pyclass(subclass)]
+    struct ClassWithDel {
+        flag: Arc<AtomicBool>,
+    }
+
+    #[pymethods]
+    impl ClassWithDel {
+        #[new]
+        fn new() -> Self {
+            Self {
+                flag: Arc::new(AtomicBool::new(false)),
+            }
+        }
+
+        fn __del__(&mut self) {
+            self.flag.store(true, Ordering::SeqCst);
+        }
+    }
+
+    #[pyclass]
+    struct ClassWithDelPy {
+        flag: Arc<AtomicBool>,
+    }
+
+    #[pymethods]
+    impl ClassWithDelPy {
+        fn __del__(&self, _py: Python<'_>) {
+            self.flag.store(true, Ordering::SeqCst);
+        }
+    }
+
+    /// __del__ can be called explicitly via Python, and can optionally accept a
+    /// Python<'_> argument (with either receiver form).
+    #[test]
+    fn test_del_called_explicitly() {
+        Python::attach(|py| {
+            let flag = Arc::new(AtomicBool::new(false));
+            let obj = Bound::new(py, ClassWithDel { flag: flag.clone() }).unwrap();
+            assert!(!flag.load(Ordering::SeqCst));
+            obj.call_method0("__del__").unwrap();
+            assert!(flag.load(Ordering::SeqCst));
+
+            // `&self` receiver with a `Python<'_>` argument
+            let flag = Arc::new(AtomicBool::new(false));
+            let obj = Bound::new(py, ClassWithDelPy { flag: flag.clone() }).unwrap();
+            assert!(!flag.load(Ordering::SeqCst));
+            obj.call_method0("__del__").unwrap();
+            assert!(flag.load(Ordering::SeqCst));
+        })
+    }
+
+    /// __del__ is called when the last reference is dropped (refcount-to-zero
+    /// dealloc): PyO3's tp_dealloc calls `PyObject_CallFinalizerFromDealloc`
+    /// before tearing the object down, mirroring CPython's subtype_dealloc.
+    #[cfg(not(any(PyPy, GraalPy)))]
+    #[test]
+    fn test_del_called_on_dealloc() {
+        Python::attach(|py| {
+            let flag = Arc::new(AtomicBool::new(false));
+            let obj = Bound::new(py, ClassWithDel { flag: flag.clone() }).unwrap();
+            assert!(!flag.load(Ordering::SeqCst));
+            drop(obj);
+            assert!(flag.load(Ordering::SeqCst));
+        })
+    }
+
+    /// Errors raised in __del__ become unraisable.
+    #[pyclass]
+    struct ClassWithDelError;
+
+    #[pymethods]
+    impl ClassWithDelError {
+        fn __del__(&mut self) -> PyResult<()> {
+            Err(pyo3::exceptions::PyRuntimeError::new_err(
+                "error in __del__",
+            ))
+        }
+    }
+
+    #[cfg(not(any(PyPy, GraalPy)))]
+    #[test]
+    fn test_del_error_is_unraisable() {
+        Python::attach(|py| {
+            test_utils::UnraisableCapture::enter(py, |capture| {
+                let obj = Bound::new(py, ClassWithDelError).unwrap();
+                drop(obj);
+                let (err, _context) = capture
+                    .take_capture()
+                    .expect("unraisable error should have been captured");
+                assert!(err.is_instance_of::<pyo3::exceptions::PyRuntimeError>(py));
+            });
+        })
+    }
+
+    /// __del__ with __traverse__/__clear__ (GC-tracked type).
+    /// __del__ is called on dealloc even when the object participates in GC.
+    #[pyclass]
+    struct ClassWithDelAndTraverse {
+        cycle: Option<Py<PyAny>>,
+        flag: Arc<AtomicBool>,
+    }
+
+    #[pymethods]
+    impl ClassWithDelAndTraverse {
+        fn __traverse__(
+            &self,
+            visit: pyo3::class::gc::PyVisit<'_>,
+        ) -> Result<(), pyo3::class::gc::PyTraverseError> {
+            if let Some(ref obj) = self.cycle {
+                visit.call(obj)?;
+            }
+            Ok(())
+        }
+
+        fn __clear__(&mut self) {
+            self.cycle = None;
+        }
+
+        fn __del__(&mut self) {
+            self.flag.store(true, Ordering::SeqCst);
+        }
+    }
+
+    /// __del__ runs on simple dealloc for GC-tracked types.
+    #[cfg(not(any(PyPy, GraalPy)))]
+    #[test]
+    fn test_del_with_gc() {
+        Python::attach(|py| {
+            let flag = Arc::new(AtomicBool::new(false));
+            let obj = Bound::new(
+                py,
+                ClassWithDelAndTraverse {
+                    cycle: None,
+                    flag: flag.clone(),
+                },
+            )
+            .unwrap();
+            assert!(!flag.load(Ordering::SeqCst));
+            drop(obj);
+            assert!(flag.load(Ordering::SeqCst));
+        })
+    }
+
+    /// __del__ is called by the cyclic GC when an actual reference cycle exists.
+    /// This exercises the GC's own tp_finalize invocation (not our tp_dealloc path).
+    #[cfg(not(any(PyPy, GraalPy)))]
+    #[test]
+    fn test_del_via_cyclic_gc() {
+        let flag = Arc::new(AtomicBool::new(false));
+
+        Python::attach(|py| {
+            let obj = Bound::new(
+                py,
+                ClassWithDelAndTraverse {
+                    cycle: None,
+                    flag: flag.clone(),
+                },
+            )
+            .unwrap();
+
+            // Create a reference cycle: obj.cycle points back to obj
+            obj.borrow_mut().cycle = Some(obj.clone().unbind().into_any());
+
+            assert!(!flag.load(Ordering::SeqCst));
+
+            // Drop the Rust reference; the cycle keeps the object alive
+            drop(obj);
+        });
+
+        // Force the cyclic GC to collect; on GIL builds a single collection
+        // finds the cycle and calls tp_finalize synchronously.
+        let collect = || {
+            Python::attach(|py| {
+                py.import("gc").unwrap().call_method0("collect").unwrap();
+            })
+        };
+        collect();
+
+        // On the free-threaded build the GC may run asynchronously, so allow
+        // some time for it to finish.
+        #[cfg(Py_GIL_DISABLED)]
+        for _ in 0..100 {
+            if flag.load(Ordering::SeqCst) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+            collect();
+        }
+
+        assert!(
+            flag.load(Ordering::SeqCst),
+            "__del__ should have been called by the cyclic GC"
+        );
+    }
+
+    /// Test that a panic inside __del__ does not swallow a pre-existing Python exception.
+    #[pyclass]
+    struct PanickingDel;
+
+    #[pymethods]
+    impl PanickingDel {
+        fn __del__(&self) {
+            panic!("panic in __del__");
+        }
+    }
+
+    #[cfg(all(not(any(PyPy, GraalPy)), not(target_arch = "wasm32")))]
+    #[test]
+    fn test_del_panic_preserves_active_exception() {
+        Python::attach(|py| {
+            test_utils::UnraisableCapture::enter(py, |capture| {
+                let obj = Bound::new(py, PanickingDel).unwrap();
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("original error").restore(py);
+                assert!(PyErr::occurred(py));
+
+                drop(obj);
+
+                // The panic should have been written as unraisable
+                let (err, _ctx) = capture
+                    .take_capture()
+                    .expect("panic in __del__ should produce an unraisable");
+                assert!(err.is_instance_of::<pyo3::panic::PanicException>(py));
+
+                // The original exception must still be set (not swallowed)
+                let original = PyErr::take(py).expect("original exception should still be active");
+                assert!(original.is_instance_of::<pyo3::exceptions::PyValueError>(py));
+            });
+        })
+    }
+
+    /// Test object resurrection: a Python subclass __del__ saves `self` to a global,
+    /// preventing deallocation. subtype_dealloc detects the resurrected refcount
+    /// and aborts deallocation — Rust Drop must NOT run.
+    #[cfg(not(any(PyPy, GraalPy)))]
+    #[test]
+    fn test_del_resurrection() {
+        Python::attach(|py| {
+            let cls = py.get_type::<ClassWithDel>();
+            py_run!(
+                py,
+                cls,
+                r#"
+            resurrected = None
+
+            class Resurrector(cls):
+                def __del__(self):
+                    super().__del__()
+                    global resurrected
+                    resurrected = self
+
+            obj = Resurrector()
+            oid = id(obj)
+            # `del` drops the refcount to zero; subtype_dealloc calls
+            # tp_finalize synchronously, which resurrects the object.
+            del obj
+
+            assert resurrected is not None, "object should have been resurrected"
+            assert id(resurrected) == oid, "should be the same instance"
+
+            # Clean up: __del__ only runs once (the object is already marked
+            # finalized), so this dealloc destroys the object for real.
+            resurrected = None
+            "#
+            );
+        })
+    }
+
+    /// Test __del__ on a class that extends another pyclass.
+    #[pyclass(subclass)]
+    struct BaseForDel {
+        #[allow(dead_code)]
+        base_flag: Arc<AtomicBool>,
+    }
+
+    #[pyclass(extends = BaseForDel)]
+    struct DerivedWithDel {
+        derived_flag: Arc<AtomicBool>,
+    }
+
+    #[pymethods]
+    impl DerivedWithDel {
+        fn __del__(&self) {
+            self.derived_flag.store(true, Ordering::SeqCst);
+        }
+    }
+
+    #[cfg(not(any(PyPy, GraalPy)))]
+    #[test]
+    fn test_del_on_extended_pyclass() {
+        let base_flag = Arc::new(AtomicBool::new(false));
+        let derived_flag = Arc::new(AtomicBool::new(false));
+
+        Python::attach(|py| {
+            let inst = Py::new(
+                py,
+                PyClassInitializer::from(BaseForDel {
+                    base_flag: base_flag.clone(),
+                })
+                .add_subclass(DerivedWithDel {
+                    derived_flag: derived_flag.clone(),
+                }),
+            )
+            .unwrap();
+
+            assert!(!derived_flag.load(Ordering::SeqCst));
+            drop(inst);
+            assert!(
+                derived_flag.load(Ordering::SeqCst),
+                "__del__ should run on dealloc"
+            );
+        });
+    }
+}

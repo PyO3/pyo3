@@ -83,10 +83,12 @@ pub(crate) trait GetSlotImpl {
 pub(crate) struct Slot<const S: c_int>;
 
 macro_rules! impl_slots {
-    ($($name:ident: ($slot:ident, $field:ident) -> $tp:ty),+ $(,)?) => {
+    ($($(#[$attr:meta])* $name:ident: ($slot:ident, $field:ident) -> $tp:ty),+ $(,)?) => {
         $(
+            $(#[$attr])*
             pub (crate) const $name: Slot<{ ffi::$slot }> = Slot;
 
+            $(#[$attr])*
             impl GetSlotImpl for Slot<{ ffi::$slot }> {
                 type Type = $tp;
 
@@ -129,6 +131,10 @@ macro_rules! impl_slots {
 impl_slots! {
     TP_NEW: (Py_tp_new, tp_new) -> Option<ffi::newfunc>,
     TP_DEALLOC: (Py_tp_dealloc, tp_dealloc) -> Option<ffi::destructor>,
+    // only used by `call_finalizer_from_dealloc`, which is unavailable on
+    // abi3 before 3.15 and skipped on PyPy / GraalPy
+    #[cfg(all(any(not(Py_LIMITED_API), Py_3_15), not(any(PyPy, GraalPy))))]
+    TP_FINALIZE: (Py_tp_finalize, tp_finalize) -> Option<ffi::destructor>,
     TP_BASE: (Py_tp_base, tp_base) -> *mut ffi::PyTypeObject,
     TP_CLEAR: (Py_tp_clear, tp_clear) -> Option<ffi::inquiry>,
     TP_DESCR_GET: (Py_tp_descr_get, tp_descr_get) -> Option<ffi::descrgetfunc>,
