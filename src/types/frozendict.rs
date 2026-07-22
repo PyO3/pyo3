@@ -1,4 +1,3 @@
-use crate::conversion;
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
@@ -51,23 +50,25 @@ pyobject_native_type_core!(
 );
 
 impl PyFrozenDict {
-    /// Creates a new frozendict.
-    pub fn new<'py, T>(py: Python<'py>, iterable: T) -> PyResult<Bound<'py, PyFrozenDict>>
+    /// Creates a new frozendict from an iterator of key/value pairs.
+    pub fn new<'py, K, V, I>(py: Python<'py>, iterable: I) -> PyResult<Bound<'py, PyFrozenDict>>
     where
-        T: IntoPyObject<'py>,
-        err::PyErr: core::convert::From<<T as conversion::IntoPyObject<'py>>::Error>,
+        I: IntoIterator<Item = (K, V)>,
+        K: IntoPyObject<'py>,
+        V: IntoPyObject<'py>,
     {
+        let items = PyList::new(py, iterable.into_iter().map(|(key, value)| (key, value)))?;
+
         #[cfg(Py_LIMITED_API)]
         {
             PyFrozenDict::type_object(py)
-                .call1((iterable,))
+                .call1((items,))
                 .map(|obj| unsafe { obj.cast_into_unchecked() })
         }
         #[cfg(not(Py_LIMITED_API))]
         {
-            let obj = iterable.into_pyobject(py)?;
             unsafe {
-                ffi::PyFrozenDict_New(obj.as_ptr())
+                ffi::PyFrozenDict_New(items.as_ptr())
                     .assume_owned_or_err(py)
                     .map(|obj| obj.cast_into_unchecked())
             }
@@ -337,11 +338,12 @@ impl<'py> IntoIterator for &Bound<'py, PyFrozenDict> {
     }
 }
 
-#[cfg(all(Py_3_15, test))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::types::{list::PyListMethods, mapping::PyMappingMethods, PyAnyMethods};
 
+    use alloc::collections::BTreeMap;
     use alloc::string::{String, ToString};
     use alloc::vec::Vec;
 
@@ -350,6 +352,19 @@ mod tests {
         Python::attach(|py| {
             let fd = PyFrozenDict::new(py, vec![("a", 1), ("b", 2)]).unwrap();
             assert_eq!(fd.len(), 2);
+        })
+    }
+
+    #[test]
+    fn test_frozendict_new_from_iterator() {
+        Python::attach(|py| {
+            let mut items = BTreeMap::new();
+            items.insert("a", 1);
+            items.insert("b", 2);
+            let fd = PyFrozenDict::new(py, items.into_iter()).unwrap();
+            assert_eq!(fd.len(), 2);
+            assert!(fd.contains("a").unwrap());
+            assert!(fd.contains("b").unwrap());
         })
     }
 

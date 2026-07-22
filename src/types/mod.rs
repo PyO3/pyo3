@@ -84,7 +84,7 @@ pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefRe
 /// In these cases the iterators are implemented by forwarding to [`PyIterator`].
 pub mod iter {
     pub use super::dict::BoundDictIterator;
-    #[cfg(all(Py_3_15, not(any(GraalPy, PyPy, RustPython, Py_LIMITED_API))))]
+    #[cfg(Py_3_15)]
     pub use super::frozendict::BoundFrozenDictIterator;
     pub use super::frozenset::BoundFrozenSetIterator;
     pub use super::list::BoundListIterator;
@@ -277,7 +277,7 @@ mod ellipsis;
 pub(crate) mod float;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod frame;
-#[cfg(all(Py_3_15, not(any(GraalPy, PyPy, RustPython))))]
+#[cfg(Py_3_15)]
 pub(crate) mod frozendict;
 pub(crate) mod frozenset;
 mod function;
