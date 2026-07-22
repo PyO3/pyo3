@@ -6,6 +6,8 @@ use core::marker::PhantomData;
 use core::mem::{offset_of, ManuallyDrop, MaybeUninit};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
+use pyo3_ffi::Py_DECREF;
+
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
@@ -267,26 +269,22 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
 
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
         #[cfg(not(RustPython))]
-        if core::ptr::eq(type_ptr, &raw const ffi::PyBaseObject_Type) {
-            let tp_free = actual_type
-                .get_slot(TP_FREE)
-                .expect("PyBaseObject_Type should have tp_free");
-            return tp_free(slf.cast());
-        }
+        let base_object_type_ptr = &raw const ffi::PyBaseObject_Type;
         #[cfg(RustPython)]
-        if core::ptr::eq(type_ptr, {
+        let base_object_type_ptr = {
             static TYPE: PyOnceLock<crate::Py<PyType>> = PyOnceLock::new();
             TYPE.import(py, "builtins", "object").unwrap().as_type_ptr()
-        }) {
+        };
+
+        if core::ptr::eq(type_ptr, base_object_type_ptr) {
             let tp_free = actual_type
                 .get_slot(TP_FREE)
                 .expect("PyBaseObject_Type should have tp_free");
-            return tp_free(slf.cast());
+            tp_free(slf.cast());
         }
-
         // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
         // FIXME: should this be using actual_type.tp_dealloc?
-        if let Some(dealloc) = type_obj.get_slot(TP_DEALLOC) {
+        else if let Some(dealloc) = type_obj.get_slot(TP_DEALLOC) {
             // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
             // assumes the exception is currently GC tracked, so we have to re-track
             // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
@@ -298,6 +296,7 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         } else {
             type_obj.get_slot(TP_FREE).expect("type missing tp_free")(slf.cast());
         }
+        Py_DECREF(type_ptr as *mut ffi::PyObject);
     }
 }
 
