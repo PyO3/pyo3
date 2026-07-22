@@ -19,7 +19,7 @@ jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
@@ -35,6 +35,8 @@ jobs:
         run: nox -s rumdl
       - name: Check `required-features` in Cargo.toml
         run: nox -s check-test-features
+      - name: Spell check
+        run: nox -s typos
 
   resolve:
     runs-on: ubuntu-latest
@@ -51,7 +53,7 @@ jobs:
       # with the commit diff, because the merge may affect line numbers.
       coverage-sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
@@ -64,7 +66,7 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
@@ -82,7 +84,7 @@ jobs:
     needs: [fmt, resolve]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ needs.resolve.outputs.MSRV }}
@@ -130,7 +132,7 @@ jobs:
     name: clippy/${{ matrix.target }}/${{ matrix.rust }}
     continue-on-error: ${{ matrix.rust != 'stable' }}
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
@@ -140,6 +142,29 @@ jobs:
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s clippy-all
+    env:
+      CARGO_BUILD_TARGET: ${{ matrix.target }}
+
+  check-nightly:
+    needs: [fmt]
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      # If one platform fails, allow the rest to keep testing if `CI-no-fail-fast` label is present
+      fail-fast: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+      matrix:
+        target: ["x86_64-unknown-linux-gnu"]
+    name: check-nightly/${{ matrix.target }}/${{ matrix.rust }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7.0.0
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+          components: clippy,rust-src
+      - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      - run: uvx nox -s check-all
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
 
@@ -413,7 +438,7 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
@@ -434,7 +459,7 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
@@ -456,7 +481,7 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
@@ -474,11 +499,10 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7.0.0
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: 3.14
-        id: setup-python
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -487,42 +511,37 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - run: python -m pip install --upgrade pip && pip install nox[uv]
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache/restore@v6
         id: cache
         with:
           path: |
             .nox/emscripten
-          key: emscripten-${{ hashFiles('emscripten/*') }}-${{ hashFiles('noxfile.py') }}-${{ steps.setup-python.outputs.python-path }}
+          key: emscripten-${{ hashFiles('wasm/emscripten/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - name: Build
         if: steps.cache.outputs.cache-hit != 'true'
-        run: nox -s build-emscripten
+        run: uvx nox -s build-emscripten
       - name: Test
-        run: nox -s test-emscripten
-      - uses: actions/cache/save@v5
+        run: uvx nox -s test-emscripten
+      - uses: actions/cache/save@v6
         if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
         with:
           path: |
             .nox/emscripten
-          key: emscripten-${{ hashFiles('emscripten/*') }}-${{ hashFiles('noxfile.py') }}-${{ steps.setup-python.outputs.python-path }}
+          key: emscripten-${{ hashFiles('wasm/emscripten/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
 
   wasm32-wasip1:
     name: wasm32-wasip1
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
     runs-on: ubuntu-latest
-    env:
-      WASI_SDK_PATH: "/opt/wasi-sdk"
-      CPYTHON_PATH: "${{ github.workspace }}/wasi/cpython"
     steps:
-      - uses: actions/checkout@v6.0.3
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7.0.0
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: 3.14
-        id: setup-python
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -531,66 +550,39 @@ jobs:
       - name: "Install wasmtime"
         uses: bytecodealliance/actions/wasmtime/setup@v1
       - name: "Install WASI SDK"
-        run: |
-          mkdir ${{ env.WASI_SDK_PATH }} && \
-          curl -s -S --location https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz | \
-          tar --strip-components 1 --directory ${{ env.WASI_SDK_PATH }} --extract --gunzip
-          $WASI_SDK_PATH/bin/clang --version
-      - uses: actions/cache/restore@v5
-        id: cache-wasip1-python
+        uses: bytecodealliance/setup-wasi-sdk-action@main
         with:
-          path: ${{ env.CPYTHON_PATH }}/cross-build/
-          key: wasm32-wasip1-python
-      - uses: actions/checkout@v6.0.3
+          version: "24"
+          # wasi sdk sets CC variables which break Python's configure script
+          # (it also sets WASI_SDK_PATH even without `add-to-path`, which is sufficient)
+          add-to-path: false
+      - uses: actions/cache/restore@v6
+        id: cache
         with:
-          repository: python/cpython
-          ref: 3.14
-          path: ${{ env.CPYTHON_PATH }}
-          fetch-depth: 1
-      - name: Build
-        run: |
-          cd ${{ env.CPYTHON_PATH }}
-          cat >> Tools/wasm/wasi/config.site-wasm32-wasi <<'EOF'
-
-          # Force-disable POSIX dynamic loading for WASI
-          ac_cv_func_dlopen=no
-          ac_cv_lib_dl_dlopen=no
-          EOF
-          python Tools/wasm/wasi build --quiet -- --config-cache
-          cp cross-build/wasm32-wasip1/libpython3.14.a \
-             cross-build/wasm32-wasip1/Modules/_hacl/libHacl_HMAC.a \
-             cross-build/wasm32-wasip1/Modules/_decimal/libmpdec/libmpdec.a \
-             cross-build/wasm32-wasip1/Modules/expat/libexpat.a \
-             cross-build/wasm32-wasip1/build/lib.wasi-wasm32-3.14/
+          path: |
+            .nox/wasi
+          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      - name: Build
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: uvx nox -s build-wasm
       - name: Test
-        env:
-          PYO3_CROSS_LIB_DIR: ${{ env.CPYTHON_PATH }}/cross-build/wasm32-wasip1/build/lib.wasi-wasm32-3.14/
-          CARGO_BUILD_TARGET: wasm32-wasip1
-          CARGO_TARGET_WASM32_WASIP1_RUNNER: wasmtime run --dir ${{ env.CPYTHON_PATH }}::/ --env PYTHONPATH=/lib
-          RUSTFLAGS: >
-            -C link-arg=-L${{ env.WASI_SDK_PATH }}/share/wasi-sysroot/lib/wasm32-wasi
-            -C link-arg=-lwasi-emulated-signal
-            -C link-arg=-lwasi-emulated-process-clocks
-            -C link-arg=-lwasi-emulated-getpid
-            -C link-arg=-lmpdec
-            -C link-arg=-lHacl_HMAC
-            -C link-arg=-lexpat
-        run: RUSTDOCFLAGS=$RUSTFLAGS cargo test
-      - uses: actions/cache/save@v5
+        run: uvx nox -s test-wasm
+      - uses: actions/cache/save@v6
         if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
         with:
-          path: ${{ env.CPYTHON_PATH }}/cross-build/
-          key: ${{ steps.cache-wasip1-python.outputs.cache-primary-key }}
+          path: |
+            .nox/wasi
+          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
 
   test-debug:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -608,7 +600,7 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -626,7 +618,7 @@ jobs:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
         with:
           ref: ${{ needs.resolve.outputs.coverage-sha }}
       - uses: astral-sh/setup-uv@v7
@@ -656,7 +648,7 @@ jobs:
         include:
           - rust: ${{ needs.resolve.outputs.MSRV }}
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: actions/setup-python@v6
         with:
           python-version: "3.15-dev"
@@ -695,15 +687,14 @@ jobs:
           # ubuntu x86_64 -> windows x86_64
           - os: "ubuntu-latest"
             target: "x86_64-pc-windows-gnu"
-            # TODO: remove pyo3/generate-import-lib feature when maturin supports cross compiling to Windows without it
-            flags: "-i python3.13 --features pyo3/generate-import-lib"
+            flags: "-i python3.13"
             apt-packages: mingw-w64 llvm
           # windows x86_64 -> aarch64
           - os: "windows-latest"
             target: "aarch64-pc-windows-msvc"
-            flags: "-i python3.13 --features pyo3/generate-import-lib"
+            flags: "-i python3.13"
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
         with:
           ref: ${{ needs.resolve.outputs.coverage-sha }}
       - uses: astral-sh/setup-uv@v7
@@ -757,7 +748,7 @@ jobs:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
         with:
           ref: ${{ needs.resolve.outputs.coverage-sha }}
       - uses: astral-sh/setup-uv@v7
@@ -768,7 +759,7 @@ jobs:
           targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
           components: rust-src
       # load cache (prepared in ci-cache-warmup.yml)
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache/restore@v6
         with:
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
@@ -814,7 +805,7 @@ jobs:
           ]
     runs-on: ${{ matrix.platform.os }}
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform.rust-target }}
@@ -835,7 +826,7 @@ jobs:
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-python@v6
         with:
@@ -852,7 +843,7 @@ jobs:
       matrix:
         checker: [mypy, pyrefly]
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
@@ -868,6 +859,7 @@ jobs:
       - fmt
       - check-msrv
       - clippy
+      - check-nightly
       - build-pr
       - build-full
       - valgrind

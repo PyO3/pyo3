@@ -242,6 +242,7 @@ macro_rules! pyobject_subclassable_native_type {
 #[macro_export]
 macro_rules! pyobject_native_type_sized {
     ($name:ty, $layout:path $(;$generics:ident)*) => {
+        // SAFETY: native objects are valid
         unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
         impl $crate::type_object::PySizedLayout<$name> for $layout {}
     };

@@ -219,10 +219,12 @@ about this topic.
 - [opendal](https://github.com/apache/opendal/tree/main/bindings/python) _A data access layer that allows users to easily and efficiently retrieve data from various storage services in a unified way._
 - [orjson](https://github.com/ijl/orjson) _Fast Python JSON library._
 - [ormsgpack](https://github.com/aviramha/ormsgpack) _Fast Python msgpack library._
+- [pdfcrate](https://github.com/ratazzi/pdfcrate) _An ergonomic, high-level PDF generation library for Rust and Python — a Prawn-style layout API for composing documents, not low-level PDF plumbing._
 - [polars](https://github.com/pola-rs/polars) _Fast multi-threaded DataFrame library in Rust | Python | Node.js._
 - [pycrdt](https://github.com/jupyter-server/pycrdt) _Python bindings for the Rust CRDT implementation [Yrs](https://github.com/y-crdt/y-crdt)._
 - [pydantic-core](https://github.com/pydantic/pydantic-core) _Core validation logic for pydantic written in Rust._
 - [primp](https://github.com/deedy5/primp) _The fastest python HTTP client that can impersonate web browsers by mimicking their headers and TLS/JA3/JA4/HTTP2 fingerprints._
+- [quebec](https://github.com/ratazzi/quebec) _A database-backed background job queue for Python, inspired by Rails' Solid Queue._
 - [radiate](https://github.com/pkalivas/radiate): _A high-performance evolution engine for genetic programming and evolutionary algorithms._
 - [rateslib](https://github.com/attack68/rateslib) _A fixed income library for Python using Rust extensions._
 - [river](https://github.com/online-ml/river) _Online machine learning in python, the computationally heavy statistics algorithms are implemented in Rust._
@@ -230,6 +232,7 @@ about this topic.
 - [rust-python-coverage](https://github.com/cjermain/rust-python-coverage) _Example PyO3 project with automated test coverage for Rust and Python._
 - [rnet](https://github.com/0x676e67/rnet) Asynchronous Python HTTP Client with Black Magic
 - [sail](https://github.com/lakehq/sail) _Unifying stream, batch, and AI workloads with Apache Spark compatibility._
+- [tibs](https://github.com/scott-griffiths/tibs) _A sleek Python library for binary data._
 - [tiktoken](https://github.com/openai/tiktoken) _A fast BPE tokeniser for use with OpenAI's models._
 - [tokenizers](https://github.com/huggingface/tokenizers/tree/main/bindings/python) _Python bindings to the Hugging Face tokenizers (NLP) written in Rust._
 - [tzfpy](http://github.com/ringsaturn/tzfpy) _A fast package to convert longitude/latitude to timezone name._
