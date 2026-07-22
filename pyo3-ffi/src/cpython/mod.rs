@@ -7,6 +7,7 @@ pub(crate) mod ceval;
 pub(crate) mod code;
 pub(crate) mod compile;
 pub(crate) mod complexobject;
+pub(crate) mod context;
 #[cfg(all(Py_3_14, Py_GIL_DISABLED))]
 pub(crate) mod critical_section;
 pub(crate) mod descrobject;
@@ -56,6 +57,7 @@ pub use self::ceval::*;
 pub use self::code::*;
 pub use self::compile::*;
 pub use self::complexobject::*;
+pub use self::context::*;
 #[cfg(all(Py_3_14, Py_GIL_DISABLED))]
 pub use self::critical_section::{PyCriticalSection2_BeginMutex, PyCriticalSection_BeginMutex};
 pub use self::descrobject::*;
