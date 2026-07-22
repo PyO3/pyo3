@@ -57,7 +57,10 @@ impl PyFrozenDict {
         K: IntoPyObject<'py>,
         V: IntoPyObject<'py>,
     {
-        let items = PyList::new(py, iterable.into_iter().map(|(key, value)| (key, value)))?;
+        // Python does not expose any way to build a frozen  dict from an
+        // iterator, so we have to build a list of items and then call the
+        // constructor.
+        let items = PyList::new(py, iterable)?;
 
         #[cfg(Py_LIMITED_API)]
         {
