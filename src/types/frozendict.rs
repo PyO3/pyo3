@@ -1,4 +1,4 @@
-use crate::err::{self, PyErr, PyResult};
+use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 #[cfg(Py_LIMITED_API)]
@@ -364,7 +364,7 @@ mod tests {
             let mut items = BTreeMap::new();
             items.insert("a", 1);
             items.insert("b", 2);
-            let fd = PyFrozenDict::new(py, items.into_iter()).unwrap();
+            let fd = PyFrozenDict::new(py, items).unwrap();
             assert_eq!(fd.len(), 2);
             assert!(fd.contains("a").unwrap());
             assert!(fd.contains("b").unwrap());
