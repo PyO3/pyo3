@@ -17,6 +17,8 @@ pub use self::capsule::{PyCapsule, PyCapsuleMethods};
 pub use self::code::{PyCode, PyCodeMethods};
 #[doc(inline)]
 pub use self::complex::{PyComplex, PyComplexMethods};
+#[cfg(all(Py_3_14, not(Py_LIMITED_API), not(any(PyPy, GraalPy, RustPython))))]
+pub use self::context::PyContext;
 #[doc(inline)]
 pub use self::datetime::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
@@ -355,6 +357,8 @@ pub mod bytes;
 pub mod capsule;
 pub mod code;
 pub(crate) mod complex;
+#[cfg(all(Py_3_14, not(Py_LIMITED_API), not(any(PyPy, GraalPy, RustPython))))]
+mod context;
 pub mod datetime;
 pub mod dict;
 mod ellipsis;
