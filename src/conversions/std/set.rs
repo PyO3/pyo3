@@ -1,5 +1,6 @@
+use alloc::vec::Vec;
 use core::{cmp, hash};
-use std::{collections, vec::Vec};
+use std::collections;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
