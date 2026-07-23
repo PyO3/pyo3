@@ -18,6 +18,7 @@ use core::ffi::c_int;
 ///
 /// This enum is non-exhaustive because CPython may add context watcher events in future versions.
 #[doc(alias = "PyContextEvent")]
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum ContextEvent<'a, 'py> {
     /// The current context changed.
