@@ -282,10 +282,14 @@ pub mod impl_ {
 mod tests {
     use super::impl_::{context_watcher, ContextWatcherCallback, ContextWatcherCallbackDef};
     use super::ContextEvent;
-    use crate::exceptions::{PyRuntimeError, PyValueError};
+    use crate::exceptions::PyRuntimeError;
+    #[cfg(feature = "macros")]
+    use crate::exceptions::PyValueError;
+    #[cfg(feature = "macros")]
     use crate::test_utils::UnraisableCapture;
     use crate::types::{PyAnyMethods, PyContext};
     use crate::{ffi, PyErr, PyResult, Python};
+    #[cfg(feature = "macros")]
     use alloc::string::ToString;
     use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
     use static_assertions::assert_not_impl_any;
@@ -390,6 +394,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "macros")]
     fn callback_error_preserves_a_pending_exception() {
         Python::attach(|py| {
             UnraisableCapture::enter(py, |capture| {
@@ -415,6 +420,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "macros")]
     fn registered_callback_errors_are_unraisable() {
         Python::attach(|py| {
             UnraisableCapture::enter(py, |capture| {
