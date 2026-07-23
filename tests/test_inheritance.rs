@@ -6,6 +6,46 @@ use pyo3::types::IntoPyDict;
 
 mod test_utils;
 
+/// Macro to generate refcount leak tests for types.
+/// Ensures that creating and destroying instances doesn't leak references to the type.
+/// Regression test for issues #1363 and #6223.
+macro_rules! assert_type_refcount_stable {
+    // Simple case: type with parameterless constructor
+    ($type_name:ty) => {
+        assert_type_refcount_stable!($type_name, stringify!($type_name), "Type()");
+    };
+    // With custom constructor
+    ($type_name:ty, $test_name:expr, $ctor:expr) => {{
+        Python::attach(|py| {
+            #[expect(non_snake_case)]
+            let Type = py.get_type::<$type_name>();
+            let ctor_code = $ctor;
+            py_run!(
+                py,
+                Type,
+                &format!(
+                    r#"
+                        import gc
+                        import sys
+
+                        gc.collect()
+                        count = sys.getrefcount(Type)
+
+                        for i in range(1000):
+                            obj = {}
+                            del obj
+
+                        gc.collect()
+                        after = sys.getrefcount(Type)
+                        assert after == count, f"Type ref count leaked: {{after}} vs {{count}}"
+                        "#,
+                    ctor_code
+                )
+            );
+        });
+    }};
+}
+
 #[pyclass(subclass)]
 struct BaseClass {
     #[pyo3(get)]
@@ -187,26 +227,28 @@ mod inheriting_native_type {
         },
     };
 
+    use pyo3::types::PySet;
+
+    #[cfg(not(any(PyPy, GraalPy)))]
+    #[pyclass(extends=PySet)]
+    #[derive(Debug)]
+    pub struct SetWithName {
+        #[pyo3(get, name = "name")]
+        _name: &'static str,
+    }
+
+    #[cfg(not(any(PyPy, GraalPy)))]
+    #[pymethods]
+    impl SetWithName {
+        #[new]
+        fn new() -> Self {
+            SetWithName { _name: "Hello :)" }
+        }
+    }
+
     #[cfg(not(any(PyPy, GraalPy)))]
     #[test]
     fn inherit_set() {
-        use pyo3::types::PySet;
-
-        #[pyclass(extends=PySet)]
-        #[derive(Debug)]
-        struct SetWithName {
-            #[pyo3(get, name = "name")]
-            _name: &'static str,
-        }
-
-        #[pymethods]
-        impl SetWithName {
-            #[new]
-            fn new() -> Self {
-                SetWithName { _name: "Hello :)" }
-            }
-        }
-
         Python::attach(|py| {
             let set_sub = pyo3::Py::new(py, SetWithName::new()).unwrap();
             py_run!(
@@ -314,31 +356,33 @@ mod inheriting_native_type {
     }
 
     #[cfg(Py_3_12)]
+    #[pyclass(extends=pyo3::types::PyTzInfo)]
+    struct TzInfoWithName {
+        #[pyo3(get)]
+        name: &'static str,
+    }
+
+    #[cfg(Py_3_12)]
+    #[pymethods]
+    impl TzInfoWithName {
+        #[new]
+        fn new() -> Self {
+            Self { name: "Hello :)" }
+        }
+
+        #[pyo3(signature = (_dt, /))]
+        fn utcoffset<'py>(
+            &self,
+            _dt: Option<&Bound<'_, pyo3::types::PyDateTime>>,
+            py: Python<'py>,
+        ) -> PyResult<Bound<'py, pyo3::types::PyDelta>> {
+            pyo3::types::PyDelta::new(py, 0, 3600, 0, true)
+        }
+    }
+
+    #[cfg(Py_3_12)]
     #[test]
     fn inherit_tzinfo() {
-        #[pyclass(extends=pyo3::types::PyTzInfo)]
-        struct TzInfoWithName {
-            #[pyo3(get)]
-            name: &'static str,
-        }
-
-        #[pymethods]
-        impl TzInfoWithName {
-            #[new]
-            fn new() -> Self {
-                Self { name: "Hello :)" }
-            }
-
-            #[pyo3(signature = (_dt, /))]
-            fn utcoffset<'py>(
-                &self,
-                _dt: Option<&Bound<'_, pyo3::types::PyDateTime>>,
-                py: Python<'py>,
-            ) -> PyResult<Bound<'py, pyo3::types::PyDelta>> {
-                pyo3::types::PyDelta::new(py, 0, 3600, 0, true)
-            }
-        }
-
         Python::attach(|py| {
             let tz = pyo3::Py::new(py, TzInfoWithName::new()).unwrap();
             py_run!(
@@ -357,39 +401,43 @@ mod inheriting_native_type {
         });
     }
 
-    #[test]
     #[cfg(Py_3_12)]
+    #[pyclass(extends=pyo3::types::PyList, subclass)]
+    struct ListWithName {
+        #[pyo3(get)]
+        name: &'static str,
+    }
+
+    #[cfg(Py_3_12)]
+    #[pymethods]
+    impl ListWithName {
+        #[new]
+        fn new() -> Self {
+            Self { name: "Hello :)" }
+        }
+    }
+
+    #[cfg(Py_3_12)]
+    #[pyclass(extends=ListWithName)]
+    struct SubListWithName {
+        #[pyo3(get)]
+        sub_name: &'static str,
+    }
+
+    #[cfg(Py_3_12)]
+    #[pymethods]
+    impl SubListWithName {
+        #[new]
+        fn new() -> PyClassInitializer<Self> {
+            PyClassInitializer::from(ListWithName::new()).add_subclass(Self {
+                sub_name: "Sublist",
+            })
+        }
+    }
+
+    #[cfg(Py_3_12)]
+    #[test]
     fn inherit_list() {
-        #[pyclass(extends=pyo3::types::PyList, subclass)]
-        struct ListWithName {
-            #[pyo3(get)]
-            name: &'static str,
-        }
-
-        #[pymethods]
-        impl ListWithName {
-            #[new]
-            fn new() -> Self {
-                Self { name: "Hello :)" }
-            }
-        }
-
-        #[pyclass(extends=ListWithName)]
-        struct SubListWithName {
-            #[pyo3(get)]
-            sub_name: &'static str,
-        }
-
-        #[pymethods]
-        impl SubListWithName {
-            #[new]
-            fn new() -> PyClassInitializer<Self> {
-                PyClassInitializer::from(ListWithName::new()).add_subclass(Self {
-                    sub_name: "Sublist",
-                })
-            }
-        }
-
         Python::attach(|py| {
             let list_with_name = pyo3::Bound::new(py, ListWithName::new()).unwrap();
             let sub_list_with_name = pyo3::Bound::new(py, SubListWithName::new()).unwrap();
@@ -409,6 +457,42 @@ mod inheriting_native_type {
             );
         });
     }
+
+    // Refcount tests for native type classes
+    #[cfg(not(any(PyPy, GraalPy)))]
+    #[test]
+    fn test_setwitname_ref_counts() {
+        assert_type_refcount_stable!(SetWithName);
+    }
+
+    #[cfg(not(GraalPy))]
+    #[test]
+    fn test_dictwithname_ref_counts() {
+        assert_type_refcount_stable!(DictWithName);
+    }
+
+    #[test]
+    fn test_customexception_ref_counts() {
+        assert_type_refcount_stable!(CustomException, "custom_exception", r#"Type('test')"#);
+    }
+
+    #[cfg(Py_3_12)]
+    #[test]
+    fn test_tzinfowithname_ref_counts() {
+        assert_type_refcount_stable!(TzInfoWithName);
+    }
+
+    #[cfg(Py_3_12)]
+    #[test]
+    fn test_listwithname_ref_counts() {
+        assert_type_refcount_stable!(ListWithName);
+    }
+
+    #[cfg(Py_3_12)]
+    #[test]
+    fn test_sublistwithname_ref_counts() {
+        assert_type_refcount_stable!(SubListWithName);
+    }
 }
 
 #[pyclass(subclass)]
@@ -422,37 +506,28 @@ impl SimpleClass {
     }
 }
 
+// Generate refcount tests for all top-level types
+#[test]
+fn test_baseclass_ref_counts() {
+    assert_type_refcount_stable!(BaseClass);
+}
+
 #[test]
 fn test_subclass_ref_counts() {
-    // regression test for issue #1363
-    Python::attach(|py| {
-        #[expect(non_snake_case)]
-        let SimpleClass = py.get_type::<SimpleClass>();
-        py_run!(
-            py,
-            SimpleClass,
-            r#"
-            import gc
-            import sys
+    assert_type_refcount_stable!(SubClass);
+}
 
-            class SubClass(SimpleClass):
-                pass
+#[test]
+fn test_base_class_with_result_ref_counts() {
+    assert_type_refcount_stable!(BaseClassWithResult, "base_class_with_result", "Type(10)");
+}
 
-            gc.collect()
-            count = sys.getrefcount(SubClass)
+#[test]
+fn test_subclass2_ref_counts() {
+    assert_type_refcount_stable!(SubClass2, "subclass2", "Type(10)");
+}
 
-            for i in range(1000):
-                c = SubClass()
-                del c
-
-            gc.collect()
-            after = sys.getrefcount(SubClass)
-            # depending on Python's GC the count may be either identical or exactly 1000 higher,
-            # both are expected values that are not representative of the issue.
-            #
-            # (With issue #1363 the count will be decreased.)
-            assert after == count or (after == count + 1000), f"{after} vs {count}"
-            "#
-        );
-    })
+#[test]
+fn test_simpleclass_ref_counts() {
+    assert_type_refcount_stable!(SimpleClass);
 }

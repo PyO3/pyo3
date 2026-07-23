@@ -265,7 +265,8 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         // FIXME: there is potentially subtle issues here if the base is overwritten
         // at runtime? To be investigated.
         let type_ptr = type_obj.as_type_ptr();
-        let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
+        let actual_type_ptr = ffi::Py_TYPE(slf);
+        let actual_type = PyType::from_borrowed_type_ptr(py, actual_type_ptr);
 
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
         #[cfg(not(RustPython))]
@@ -296,7 +297,7 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         } else {
             type_obj.get_slot(TP_FREE).expect("type missing tp_free")(slf.cast());
         }
-        Py_DECREF(type_ptr as *mut ffi::PyObject);
+        Py_DECREF(actual_type_ptr as *mut ffi::PyObject);
     }
 }
 
