@@ -62,16 +62,29 @@ impl PyFrozenDict {
         // constructor.
         let items = PyList::new(py, iterable)?;
 
+        Self::from_sequence(&items)
+    }
+
+    /// Creates a new frozendict from the sequence given.
+    ///
+    /// The sequence must consist of `(PyObject, PyObject)`. This is
+    /// equivalent to `dict([("a", 1), ("b", 2)])`.
+    ///
+    /// Returns an error on invalid input. In the case of key collisions,
+    /// this keeps the last entry seen.
+    #[cfg(not(any(PyPy, GraalPy)))]
+    pub fn from_sequence<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyFrozenDict>> {
+        let py = seq.py();
         #[cfg(Py_LIMITED_API)]
         {
             PyFrozenDict::type_object(py)
-                .call1((items,))
+                .call1((seq,))
                 .map(|obj| unsafe { obj.cast_into_unchecked() })
         }
         #[cfg(not(Py_LIMITED_API))]
         {
             unsafe {
-                ffi::PyFrozenDict_New(items.as_ptr())
+                ffi::PyFrozenDict_New(seq.as_ptr())
                     .assume_owned_or_err(py)
                     .map(|obj| obj.cast_into_unchecked())
             }
@@ -365,6 +378,17 @@ mod tests {
             items.insert("a", 1);
             items.insert("b", 2);
             let fd = PyFrozenDict::new(py, items).unwrap();
+            assert_eq!(fd.len(), 2);
+            assert!(fd.contains("a").unwrap());
+            assert!(fd.contains("b").unwrap());
+        })
+    }
+
+    #[test]
+    fn test_frozendict_new_from_sequence() {
+        Python::attach(|py| {
+            let seq = PyList::new(py, vec![("a", 1), ("b", 2)]).unwrap();
+            let fd = PyFrozenDict::from_sequence(&seq).unwrap();
             assert_eq!(fd.len(), 2);
             assert!(fd.contains("a").unwrap());
             assert!(fd.contains("b").unwrap());
