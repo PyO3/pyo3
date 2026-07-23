@@ -19,3 +19,26 @@ pyobject_native_type_core!(
     #module=Some("contextvars"),
     #checkfunction=ffi::PyContext_CheckExact
 );
+
+#[cfg(test)]
+mod tests {
+    use super::PyContext;
+    use crate::types::PyAnyMethods;
+    use crate::Python;
+
+    #[test]
+    fn context_type() {
+        Python::attach(|py| {
+            let context = py
+                .import(c"contextvars")
+                .unwrap()
+                .getattr(c"Context")
+                .unwrap()
+                .call0()
+                .unwrap();
+
+            assert!(context.is_exact_instance_of::<PyContext>());
+            context.cast::<PyContext>().unwrap();
+        });
+    }
+}
