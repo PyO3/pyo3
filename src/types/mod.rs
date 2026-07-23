@@ -10,7 +10,7 @@ pub use self::bytes::{PyBytes, PyBytesMethods};
 pub use self::capsule::{CapsuleName, PyCapsule, PyCapsuleMethods};
 pub use self::code::{PyCode, PyCodeInput, PyCodeMethods};
 pub use self::complex::{PyComplex, PyComplexMethods};
-#[cfg(all(Py_3_14, not(Py_LIMITED_API), not(any(PyPy, GraalPy, RustPython))))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, RustPython)))]
 pub use self::context::PyContext;
 pub use self::datetime::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
@@ -269,7 +269,7 @@ pub(crate) mod bytes;
 pub(crate) mod capsule;
 mod code;
 pub(crate) mod complex;
-#[cfg(all(Py_3_14, not(Py_LIMITED_API), not(any(PyPy, GraalPy, RustPython))))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, RustPython)))]
 mod context;
 pub(crate) mod datetime;
 pub(crate) mod dict;
