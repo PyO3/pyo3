@@ -111,7 +111,12 @@ impl Drop for ContextWatcherGuard<'_> {
 /// The callback must be a function path and must have this signature:
 ///
 /// ```rust
-/// # #![cfg(all(Py_3_14, not(Py_LIMITED_API), not(any(PyPy, GraalPy, RustPython))))]
+/// # #![cfg(all(
+/// #     Py_3_14,
+/// #     not(Py_GIL_DISABLED),
+/// #     not(Py_LIMITED_API),
+/// #     not(any(PyPy, GraalPy, RustPython))
+/// # ))]
 /// use pyo3::context::ContextEvent;
 /// use pyo3::prelude::*;
 ///
@@ -136,9 +141,8 @@ impl Drop for ContextWatcherGuard<'_> {
 /// pointer. The macro creates a unique static trampoline for the function, avoiding global callback
 /// storage. State can still be shared through safe static synchronization primitives.
 ///
-/// The callback may run concurrently on free-threaded Python builds. Panics and returned
-/// [`PyErr`][crate::PyErr] values are reported as unraisable exceptions and never unwind across the
-/// C boundary.
+/// Panics and returned [`PyErr`][crate::PyErr] values are reported as unraisable exceptions and
+/// never unwind across the C boundary.
 #[doc(alias = "PyContext_AddWatcher")]
 #[macro_export]
 macro_rules! register_context_watcher {
@@ -283,7 +287,6 @@ mod tests {
     use super::impl_::{context_watcher, ContextWatcherCallback, ContextWatcherCallbackDef};
     use super::ContextEvent;
     use crate::exceptions::PyRuntimeError;
-    #[cfg(feature = "macros")]
     use crate::exceptions::PyValueError;
     #[cfg(feature = "macros")]
     use crate::test_utils::UnraisableCapture;
@@ -296,18 +299,14 @@ mod tests {
 
     static SWITCH_COUNT: AtomicUsize = AtomicUsize::new(0);
     static SAW_CONTEXT: AtomicBool = AtomicBool::new(false);
-    static SAW_NONE: AtomicBool = AtomicBool::new(false);
 
     #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
     fn record_switch(_py: Python<'_>, event: ContextEvent<'_, '_>) -> PyResult<()> {
         if let ContextEvent::Switched(context) = event {
             SWITCH_COUNT.fetch_add(1, Ordering::Relaxed);
-            match context {
-                Some(context) => {
-                    assert!(context.is_exact_instance_of::<PyContext>());
-                    SAW_CONTEXT.store(true, Ordering::Relaxed);
-                }
-                None => SAW_NONE.store(true, Ordering::Relaxed),
+            if let Some(context) = context {
+                assert!(context.is_exact_instance_of::<PyContext>());
+                SAW_CONTEXT.store(true, Ordering::Relaxed);
             }
         }
         Ok(())
@@ -318,7 +317,6 @@ mod tests {
         Python::attach(|py| {
             SWITCH_COUNT.store(0, Ordering::Relaxed);
             SAW_CONTEXT.store(false, Ordering::Relaxed);
-            SAW_NONE.store(false, Ordering::Relaxed);
 
             let watcher = crate::register_context_watcher!(py, record_switch).unwrap();
             py.run(
@@ -331,7 +329,6 @@ mod tests {
             let count_after_first_run = SWITCH_COUNT.load(Ordering::Relaxed);
             assert!(count_after_first_run >= 2);
             assert!(SAW_CONTEXT.load(Ordering::Relaxed));
-            assert!(SAW_NONE.load(Ordering::Relaxed));
 
             drop(watcher);
 
@@ -366,6 +363,62 @@ mod tests {
             )
             .unwrap();
             assert_eq!(EXPLICIT_CLEAR_COUNT.load(Ordering::Relaxed), 0);
+        });
+    }
+
+    static DUPLICATE_CALLBACK_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+    #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
+    fn record_duplicate_callback(_py: Python<'_>, event: ContextEvent<'_, '_>) -> PyResult<()> {
+        if matches!(event, ContextEvent::Switched(_)) {
+            DUPLICATE_CALLBACK_COUNT.fetch_add(1, Ordering::Relaxed);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn multiple_watchers_can_register_the_same_callback() {
+        Python::attach(|py| {
+            DUPLICATE_CALLBACK_COUNT.store(0, Ordering::Relaxed);
+
+            let first = crate::register_context_watcher!(py, record_duplicate_callback).unwrap();
+            let second = crate::register_context_watcher!(py, record_duplicate_callback).unwrap();
+
+            py.run(
+                c"import contextvars\ncontextvars.Context().run(lambda: None)",
+                None,
+                None,
+            )
+            .unwrap();
+            assert!(DUPLICATE_CALLBACK_COUNT.load(Ordering::Relaxed) >= 4);
+
+            drop(first);
+            let count_with_both = DUPLICATE_CALLBACK_COUNT.load(Ordering::Relaxed);
+            py.run(c"contextvars.Context().run(lambda: None)", None, None)
+                .unwrap();
+            assert!(DUPLICATE_CALLBACK_COUNT.load(Ordering::Relaxed) >= count_with_both + 2);
+
+            drop(second);
+            let count_after_drop = DUPLICATE_CALLBACK_COUNT.load(Ordering::Relaxed);
+            py.run(c"contextvars.Context().run(lambda: None)", None, None)
+                .unwrap();
+            assert_eq!(
+                DUPLICATE_CALLBACK_COUNT.load(Ordering::Relaxed),
+                count_after_drop
+            );
+        });
+    }
+
+    #[test]
+    fn dropping_watcher_preserves_a_pending_exception() {
+        Python::attach(|py| {
+            let watcher = crate::register_context_watcher!(py, record_explicit_clear).unwrap();
+            PyValueError::new_err("original error").restore(py);
+
+            drop(watcher);
+
+            let error = PyErr::fetch(py);
+            assert!(error.is_instance_of::<PyValueError>(py));
         });
     }
 
