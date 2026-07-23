@@ -159,7 +159,15 @@ pub trait PyFrozenSetMethods<'py>: crate::sealed::Sealed {
 impl<'py> PyFrozenSetMethods<'py> for Bound<'py, PyFrozenSet> {
     #[inline]
     fn len(&self) -> usize {
-        unsafe { ffi::PySet_Size(self.as_ptr()) as usize }
+        let size = cfg_select! {
+            // SAFETY: self is a valid frozenset object.
+            not(any(Py_LIMITED_API, PyPy, GraalPy)) => unsafe {
+                ffi::PySet_GET_SIZE(self.as_ptr())
+            },
+            // SAFETY: self is a valid frozenset object.
+            _ => unsafe { ffi::PySet_Size(self.as_ptr()) },
+        };
+        size as usize
     }
 
     fn contains<K>(&self, key: K) -> PyResult<bool>
