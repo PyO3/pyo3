@@ -1664,6 +1664,8 @@ impl SlotFragmentDef {
             arguments: &[Ty::Object],
             extract_error_mode: ExtractErrorMode::NotImplemented,
             ret_ty: Ty::Object,
+            // SAFETY: Combined slot dispatch based on type which guarantees
+            // the receiver is of the correct type for direct calls to the fragment.
             self_conversion: unsafe { SelfConversionPolicy::trusted() },
         }
     }
