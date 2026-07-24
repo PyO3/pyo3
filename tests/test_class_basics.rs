@@ -475,6 +475,32 @@ fn access_dunder_dict() {
     });
 }
 
+#[test]
+fn dunder_dict_is_released() {
+    Python::attach(|py| {
+        let inst = Py::new(
+            py,
+            DunderDictSupport {
+                _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            },
+        )
+        .unwrap();
+
+        inst.setattr(py, "a", 1).unwrap();
+
+        let dict = inst.bind(py).getattr("__dict__").unwrap();
+        let get_refcnt = || {
+            // SAFETY: `dict` holds a valid reference while its reference count is read.
+            unsafe { pyo3::ffi::Py_REFCNT(dict.as_ptr()) }
+        };
+        let refcnt = get_refcnt();
+
+        drop(inst);
+
+        assert_eq!(get_refcnt(), refcnt - 1);
+    });
+}
+
 // If the base class has dict support, child class also has dict
 #[pyclass(extends=DunderDictSupport)]
 struct InheritDict {
