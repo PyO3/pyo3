@@ -155,9 +155,33 @@ impl<T: PyClass> PyClassInitializer<T> {
 
         // SAFETY: `obj` is constructed using `T::Layout` but has not been initialized yet
         let contents = unsafe { <T as PyClassImpl>::Layout::contents_uninit(obj) };
+
+        let new_contents = PyClassObjectContents::new(self.init);
+
+        // CPython 3.11 and 3.12 eagerly create the instance dict for types with a nonzero
+        // `tp_dictoffset` in `_PyObject_InitializeDict`, storing an owned reference in
+        // the `__dict__` slot, which lives inside `contents`. Carry that value over
+        // instead of clobbering it below, otherwise it leaks. Python 3.13 returned to
+        // creating the instance dict lazily
+        //
+        // The condition is `not(Py_3_13)` rather than `all(Py_3_11, not(Py_3_13))`
+        // because an abi3 build with a lower minimum version can still run on 3.11 and
+        // 3.12; on 3.10 and older this is a harmless no-op (the slot is always null
+        // there).
+        #[cfg(not(Py_3_13))]
+        let new_contents = {
+            let mut new_contents = new_contents;
+            // SAFETY: `tp_alloc` zero-initializes the object, so the slot contains either
+            // zeroes (a valid empty slot value) or a valid owned pointer stored by the base
+            // `tp_new` through the type's `tp_dictoffset`.
+            new_contents.dict =
+                unsafe { core::ptr::read(&raw const (*(*contents).as_mut_ptr()).dict) };
+            new_contents
+        };
+
         // SAFETY: `contents` is a non-null pointer to the space allocated for our
         // `PyClassObjectContents` (either statically in Rust or dynamically by Python)
-        unsafe { (*contents).write(PyClassObjectContents::new(self.init)) };
+        unsafe { (*contents).write(new_contents) };
 
         // Safety: obj is a valid pointer to an object of type `target_type`, which` is a known
         // subclass of `T`
