@@ -48,20 +48,20 @@ def test_eq(ty: type[EqType]):
     c = ty(1)
 
     assert a == b
-    assert a == b
+    assert not (a != b)
     assert a != c
-    assert a != c
+    assert not (a == c)
 
     assert b == a
-    assert a == b
+    assert not (a != b)
     assert b != c
-    assert b != c
+    assert not (b == c)
 
+    assert not a == 0
     assert a != 0
-    assert a != 0
-    assert b != 0
+    assert not b == 0
     assert b != 1
-    assert c != 1
+    assert not c == 1
     assert c != 1
 
     # Ensure that passing a wrong self type from Python does not cause UB
@@ -102,14 +102,14 @@ def test_eq_default_ne(ty: type[EqDefaultType]):
     c = ty(1)
 
     assert a == b
-    assert a == b
+    assert not (a != b)
     assert a != c
-    assert a != c
+    assert not (a == c)
 
     assert b == a
-    assert a == b
+    assert not (a != b)
     assert b != c
-    assert b != c
+    assert not (b == c)
 
     # Ensure that passing a wrong self type from Python does not cause UB
     if ty is not PyEqDefaultNe:
@@ -236,25 +236,25 @@ def test_ordered_default_ne(ty: type[OrderedDefaultType]):
     c = ty(1)
 
     assert a == b
-    assert a == b
+    assert not (a != b)
     assert a <= b
     assert a >= b
     assert a != c
-    assert a != c
+    assert not (a == c)
     assert a <= c
 
     assert b == a
-    assert b == a
+    assert not (b != a)
     assert b <= a
     assert b >= a
     assert b != c
-    assert b != c
+    assert not (b == c)
     assert b <= c
 
     assert c != a
-    assert c != a
+    assert not (c == a)
     assert c != b
-    assert c != b
+    assert not (c == b)
     assert c > a
     assert c >= a
     assert c > b
