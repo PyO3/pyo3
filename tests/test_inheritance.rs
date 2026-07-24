@@ -220,7 +220,7 @@ mod inheriting_native_type {
 
     #[cfg(not(GraalPy))]
     use {
-        pyo3::types::{PyCapsule, PyDict},
+        pyo3::types::{PyCapsule, PyDict, PySet},
         std::sync::{
             atomic::{AtomicBool, Ordering},
             Arc,
