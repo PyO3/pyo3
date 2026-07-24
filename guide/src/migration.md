@@ -1092,7 +1092,8 @@ Instead, variants using `Bound<T>` smart pointers have been introduced, for exam
 The GIL Ref APIs have been deprecated, but to make migration easier it is possible to disable these deprecation warnings by enabling the `gil-refs` feature.
 
 > [!TIP]
-> The one single exception where an existing API was changed in-place is the `pyo3::intern!` macro. Almost all uses of this macro did not need to update code to account it changing to return `&Bound<PyString>` immediately, and adding an `intern_bound!` replacement was perceived as adding more work for users.
+> The one single exception where an existing API was changed in-place is the `pyo3::intern!` macro.
+> Almost all uses of this macro did not need to update code to account it changing to return `&Bound<PyString>` immediately, and adding an `intern_bound!` replacement was perceived as adding more work for users.
 
 It is recommended that users do this as a first step of updating to PyO3 0.21 so that the deprecation warnings do not get in the way of resolving the rest of the migration steps.
 
@@ -2040,8 +2041,6 @@ Attempting to do this will now raise an `ImportError`.
 ## from 0.15.* to 0.16
 
 ### Drop support for older technologies
-
-<!-- rumdl-enable MD024 -->
 
 <details>
 <summary><small>Click to expand</small></summary>

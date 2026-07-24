@@ -74,7 +74,8 @@ For more information about how to use both `lldb` and `gdb` you can read the [gd
    pip install -e .
    ```
 
-   > **Note**: When using debuggers, make sure that `python` resolves to an actual Python binary or symlink and not a shim script.
+   > [!NOTE]
+   > When using debuggers, make sure that `python` resolves to an actual Python binary or symlink and not a shim script.
    > Some tools like pyenv use shim scripts which can interfere with debugging.
 
 ### Debugger specific setup

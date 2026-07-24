@@ -51,7 +51,8 @@ At the time of writing this documentation, the `pyi` files are referenced in fou
 
 [PEP8 - Style Guide for Python Code - #Function Annotations](https://www.python.org/dev/peps/pep-0008/#function-annotations) (last point) recommends all third party library creators to provide stub files as the source of knowledge about the package for type checker tools.
 
-> (...) it is expected that users of third party library packages may want to run type checkers over those packages. For this purpose [PEP 484](https://www.python.org/dev/peps/pep-0484) recommends the use of stub files: .pyi files that are read by the type checker in preference of the corresponding .py files. (...)
+> (...) it is expected that users of third party library packages may want to run type checkers over those packages.
+> For this purpose [PEP 484](https://www.python.org/dev/peps/pep-0484) recommends the use of stub files: .pyi files that are read by the type checker in preference of the corresponding .py files. (...)
 
 [PEP484 - Type Hints - #Stub Files](https://www.python.org/dev/peps/pep-0484/#stub-files) defines stub files as follows.
 
@@ -141,7 +142,8 @@ That way everything that is exposed by our extension module can be imported dire
 ##### `py.typed` requirement
 
 As stated in [PEP561](https://www.python.org/dev/peps/pep-0561/):
-> Package maintainers who wish to support type checking of their code MUST add a marker file named py.typed to their package supporting typing. This marker applies recursively: if a top-level package includes it, all its sub-packages MUST support type checking as well.
+> Package maintainers who wish to support type checking of their code MUST add a marker file named py.typed to their package supporting typing.
+> This marker applies recursively: if a top-level package includes it, all its sub-packages MUST support type checking as well.
 
 If we do not include that file, some IDEs might still use our `pyi` files to show hints, but the type checkers might not.
 MyPy will raise an error in this situation:

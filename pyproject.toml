@@ -66,6 +66,9 @@ headings = false
 reflow = true
 reflow_mode = "sentence-per-line"
 
+[tool.rumdl.MD046]
+style = "fenced"
+
 [tool.uv]
 package = false
 
