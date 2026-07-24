@@ -317,19 +317,20 @@ const MAX_SLOTS_WITH_TRAILING_NULL: usize = MAX_SLOTS + 1;
 /// On Python 3.15+ we use `PySlot` system and `PyModule_FromSlotsAndSpec`
 #[cfg(Py_3_15)]
 pub type PrimaryModuleSlots = PyModuleSlots;
-#[cfg(Py_3_15)]
+#[cfg(all(Py_3_15, not(all(Py_LIMITED_API, Py_GIL_DISABLED))))]
 pub type SecondaryModuleSlots = PyModuleDefSlots;
 
 /// On Python 3.14 and older the primary system is `ffi::PyModuleDef`.
 #[cfg(not(Py_3_15))]
 pub type PrimaryModuleSlots = PyModuleDefSlots;
-#[cfg(not(Py_3_15))]
+#[cfg(not(all(Py_3_15, not(all(Py_LIMITED_API, Py_GIL_DISABLED)))))]
 pub type SecondaryModuleSlots = ();
 
 pub const fn secondary_slots(slots: &'static PrimaryModuleSlots) -> SecondaryModuleSlots {
     cfg_select! {
         // On Python 3.15+ we populate `PyModuleDefSlots` to point at primary slots
-        Py_3_15 => PyModuleDefSlots(UnsafeCell::new([
+        // (as long as not using abi3t where `PyModuleDef` is opaque and we cannot know the layout)
+        all(Py_3_15, not(all(Py_LIMITED_API, Py_GIL_DISABLED))) => PyModuleDefSlots(UnsafeCell::new([
             ffi::PyModuleDef_Slot {
                 slot: ffi::Py_slot_subslots,
                 value: slots.0.get().cast(),
@@ -507,6 +508,8 @@ pub struct PyModuleSlots(
 );
 
 /// Slots to populate a `PyModuleDef`
+/// Cannot create a `PyModuleDef` on abi3t due to lack of knowledge of object layout
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 pub struct PyModuleDefSlots(
     UnsafeCell<
         [ffi::PyModuleDef_Slot; cfg_select! {
@@ -524,6 +527,7 @@ pub struct PyModuleDefSlots(
 unsafe impl Sync for PyModuleSlots {}
 // SAFETY: the inner values are only accessed within a `ModuleDef`,
 // which only uses them to build the `ffi::ModuleDef`.
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 unsafe impl Sync for PyModuleDefSlots {}
 
 /// Trait to add an element (class, function...) to a module.
