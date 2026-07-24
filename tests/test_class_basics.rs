@@ -475,6 +475,48 @@ fn access_dunder_dict() {
     });
 }
 
+// Compares global allocator statistics, which requires that no other thread allocates during
+// the measurement, so this is flaky on the free-threaded build
+#[cfg(not(Py_GIL_DISABLED))]
+#[test]
+fn dict_class_creation_does_not_leak() {
+    Python::attach(|py| {
+        let blocks = || {
+            py.import("sys")
+                .unwrap()
+                .call_method0("getallocatedblocks")
+                .unwrap()
+                .extract::<i64>()
+                .unwrap()
+        };
+        let cycle = |n: usize| {
+            for _ in 0..n {
+                let inst = Py::new(
+                    py,
+                    DunderDictSupport {
+                        _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+                    },
+                )
+                .unwrap();
+                drop(inst);
+            }
+        };
+        // warm up interned strings, freelists and other caches
+        cycle(1_000);
+        let before = blocks();
+        cycle(10_000);
+        let after = blocks();
+        // On Python 3.11 and 3.12 `object.__new__` eagerly creates the instance dict, which
+        // used to be clobbered (and so leaked, one block per instance) during initialization
+        // of the class object contents.
+        assert!(
+            after - before < 1_000,
+            "leaked {} blocks over 10000 instances",
+            after - before
+        );
+    });
+}
+
 // If the base class has dict support, child class also has dict
 #[pyclass(extends=DunderDictSupport)]
 struct InheritDict {
