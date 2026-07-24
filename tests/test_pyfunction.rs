@@ -406,7 +406,7 @@ conversion_error('string1', -100, ('string2', 10.), None, ValueClass(-5))",
         assert_eq!(
             extract_traceback(py, exception),
             "TypeError: failed to \
-    extract field ValueClass.value: OverflowError: can't convert negative int to unsigned"
+    extract field ValueClass.value: ValueError: can't convert negative int to unsigned"
         );
     });
 }

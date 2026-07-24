@@ -156,8 +156,8 @@ def test_time_with_fold(fold):
 @pytest.mark.parametrize(
     "args", [(-1, 0, 0, 0), (0, -1, 0, 0), (0, 0, -1, 0), (0, 0, 0, -1)]
 )
-def test_invalid_time_fails_overflow(args):
-    with pytest.raises(OverflowError):
+def test_negative_time_fails(args):
+    with pytest.raises(ValueError):
         rdt.make_time(*args)
 
 
