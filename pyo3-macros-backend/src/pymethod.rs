@@ -515,7 +515,7 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
         pub unsafe extern "C" fn __pymethod___clear____(
             _slf: *mut #pyo3_path::ffi::PyObject,
         ) -> ::std::ffi::c_int {
-            #pyo3_path::impl_::pymethods::_call_clear(_slf, |py, _slf| {
+            #pyo3_path::impl_::pymethods::_call_clear::<#cls>(_slf, |py, _slf| {
                 #holders
                 let result = #fncall;
                 let result = #pyo3_path::impl_::wrap::converter(&result).wrap(result)?;
