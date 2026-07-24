@@ -1,6 +1,6 @@
-from typing import Type, TypeVar
-
 import sys
+from typing import TypeVar
+
 import pytest
 from pyo3_pytests.comparisons import (
     Eq,
@@ -42,26 +42,26 @@ EqType = TypeVar("EqType", Eq, EqDerived, PyEq)
 @pytest.mark.parametrize(
     "ty", (Eq, EqDerived, PyEq), ids=("rust", "rust-derived", "python")
 )
-def test_eq(ty: Type[EqType]):
+def test_eq(ty: type[EqType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
 
     assert a == b
-    assert not (a != b)
+    assert a == b
     assert a != c
-    assert not (a == c)
+    assert a != c
 
     assert b == a
-    assert not (a != b)
+    assert a == b
     assert b != c
-    assert not (b == c)
+    assert b != c
 
-    assert not a == 0
     assert a != 0
-    assert not b == 0
+    assert a != 0
+    assert b != 0
     assert b != 1
-    assert not c == 1
+    assert c != 1
     assert c != 1
 
     # Ensure that passing a wrong self type from Python does not cause UB
@@ -96,20 +96,20 @@ EqDefaultType = TypeVar("EqDefaultType", EqDefaultNe, PyEqDefaultNe)
 
 
 @pytest.mark.parametrize("ty", (EqDefaultNe, PyEqDefaultNe), ids=("rust", "python"))
-def test_eq_default_ne(ty: Type[EqDefaultType]):
+def test_eq_default_ne(ty: type[EqDefaultType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
 
     assert a == b
-    assert not (a != b)
+    assert a == b
     assert a != c
-    assert not (a == c)
+    assert a != c
 
     assert b == a
-    assert not (a != b)
+    assert a == b
     assert b != c
-    assert not (b == c)
+    assert b != c
 
     # Ensure that passing a wrong self type from Python does not cause UB
     if ty is not PyEqDefaultNe:
@@ -166,7 +166,7 @@ OrderedType = TypeVar("OrderedType", Ordered, OrderedDerived, OrderedRichCmp, Py
     (Ordered, OrderedDerived, OrderedRichCmp, PyOrdered),
     ids=("rust", "rust-derived", "rust-richcmp", "python"),
 )
-def test_ordered(ty: Type[OrderedType]):
+def test_ordered(ty: type[OrderedType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
@@ -230,31 +230,31 @@ OrderedDefaultType = TypeVar("OrderedDefaultType", OrderedDefaultNe, PyOrderedDe
 @pytest.mark.parametrize(
     "ty", (OrderedDefaultNe, PyOrderedDefaultNe), ids=("rust", "python")
 )
-def test_ordered_default_ne(ty: Type[OrderedDefaultType]):
+def test_ordered_default_ne(ty: type[OrderedDefaultType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
 
     assert a == b
-    assert not (a != b)
+    assert a == b
     assert a <= b
     assert a >= b
     assert a != c
-    assert not (a == c)
+    assert a != c
     assert a <= c
 
     assert b == a
-    assert not (b != a)
+    assert b == a
     assert b <= a
     assert b >= a
     assert b != c
-    assert not (b == c)
+    assert b != c
     assert b <= c
 
     assert c != a
-    assert not (c == a)
+    assert c != a
     assert c != b
-    assert not (c == b)
+    assert c != b
     assert c > a
     assert c >= a
     assert c > b

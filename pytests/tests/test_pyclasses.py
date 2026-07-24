@@ -1,6 +1,5 @@
 import platform
 import sys
-from typing import Type
 
 import pytest
 from pyo3_pytests import pyclasses
@@ -128,7 +127,7 @@ class ClassWithoutConstructor:
         ),
     ],
 )
-def test_no_constructor_defined_propagates_cause(cls: Type, exc_message: str):
+def test_no_constructor_defined_propagates_cause(cls: type, exc_message: str):
     original_error = ValueError("Original message")
     with pytest.raises(Exception) as exc_info:
         try:

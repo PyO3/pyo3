@@ -11,6 +11,7 @@ dynamic = ["version"]
 
 [tool.ruff.lint.extend-per-file-ignores]
 "__init__.py" = ["F403"]
+"noxfile.py" = ["BLE001", "TRY002"]
 
 [tool.towncrier]
 filename = "CHANGELOG.md"
