@@ -91,17 +91,17 @@ def test_invalid_date_fails():
         rdt.make_date(2017, 2, 30)
 
 
-@given(d=st.dates(MIN_DATETIME.date(), MAX_DATETIME.date()))
-def test_date_from_timestamp(d):
+@given(dt=st.datetimes(MIN_DATETIME, MAX_DATETIME))
+def test_date_from_timestamp(dt):
     try:
-        ts = pdt.datetime.timestamp(d)
-    except Exception:
+        ts = pdt.datetime.timestamp(dt)
+    except OverflowError:
         # out of range for timestamp
         return
 
     try:
         expected = pdt.date.fromtimestamp(ts)  # noqa: DTZ012
-    except Exception as pdt_fail:
+    except OverflowError as pdt_fail:
         # date from timestamp failed; expect the same from Rust binding
         with pytest.raises(type(pdt_fail)) as exc_info:
             rdt.date_from_timestamp(ts)
@@ -241,13 +241,13 @@ def test_datetime_typeerror():
 def test_datetime_from_timestamp(dt):
     try:
         ts = pdt.datetime.timestamp(dt)
-    except Exception:
+    except OverflowError:
         # out of range for timestamp
         return
 
     try:
         expected = pdt.datetime.fromtimestamp(ts)  # noqa: DTZ006
-    except Exception as pdt_fail:
+    except OverflowError as pdt_fail:
         # datetime from timestamp failed; expect the same from Rust binding
         with pytest.raises(type(pdt_fail)) as exc_info:
             rdt.datetime_from_timestamp(ts)
