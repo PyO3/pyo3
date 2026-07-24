@@ -227,8 +227,6 @@ mod inheriting_native_type {
         },
     };
 
-    use pyo3::types::PySet;
-
     #[cfg(not(any(PyPy, GraalPy)))]
     #[pyclass(extends=PySet)]
     #[derive(Debug)]
