@@ -72,7 +72,6 @@ impl PyFrozenDict {
     ///
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
-    #[cfg(not(any(PyPy, GraalPy)))]
     pub fn from_sequence<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyFrozenDict>> {
         let py = seq.py();
         #[cfg(Py_LIMITED_API)]
