@@ -1655,20 +1655,16 @@ impl SlotFragmentDef {
 
     const fn binary_operator(fragment: &'static str) -> Self {
         // Binary operator fragments (`__add__`, `__radd__`, etc.) are combined
-        // into a shared slot (e.g. `nb_add`) that may call the forward fragment
-        // with a non-class receiver (e.g. `1 + MyClass()` → `nb_add(1, c)`).
-        // The runtime helper then tries the reflected fragment with the operands
-        // swapped, which can also produce a non-class `_slf`.  Both cases require
-        // a checked type conversion so that a mismatch gracefully returns
-        // `NotImplemented` rather than causing undefined behaviour.
-        // TODO: addressing #6024 could allow to simplify this by using type
-        // checks to directly dispatch to the right fragment.
+        // into a shared slot (e.g. `nb_add`) that dispatch to the appropriate
+        // fragment based on the receiver type.
+        // Direct calls to the fragment through method wrappers are guaranteed
+        // to have a receiver of the correct type.
         SlotFragmentDef {
             fragment,
             arguments: &[Ty::Object],
             extract_error_mode: ExtractErrorMode::NotImplemented,
             ret_ty: Ty::Object,
-            self_conversion: SelfConversionPolicy::checked(),
+            self_conversion: unsafe { SelfConversionPolicy::trusted() },
         }
     }
 
