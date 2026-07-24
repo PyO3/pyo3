@@ -668,10 +668,10 @@ macro_rules! define_pyclass_binary_operator_slot {
                         match super_obj.call_method1(forward_name, (&other_bound,)) {
                             ::core::result::Result::Ok(result) => return ::core::result::Result::Ok(result.into_ptr()),
                             ::core::result::Result::Err(e) => {
-                                // If parent doesn't implement the method, return NotImplemented instead of AttributeError
-                                if e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) {
-                                    return ::core::result::Result::Ok(py.NotImplemented().into_ptr());
-                                } else {
+                                // If parent doesn't implement the method,
+                                // try the reflected method on our class instead
+                                // of returning NotImplemented for AttributeError
+                                if !e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) {
                                     return ::core::result::Result::Err(e);
                                 }
                             }
@@ -966,10 +966,10 @@ macro_rules! generate_pyclass_pow_slot {
                 match super_obj.call_method1($crate::intern!(py, "__pow__"), (&rhs_obj, mod_obj)) {
                     ::core::result::Result::Ok(result) => return ::core::result::Result::Ok(result.into_ptr()),
                     ::core::result::Result::Err(e) => {
-                        // If parent doesn't implement the method, return NotImplemented instead of AttributeError
-                        if e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) {
-                            return ::core::result::Result::Ok(py.NotImplemented().into_ptr());
-                        } else {
+                        // If parent doesn't implement the method,
+                        // try the reflected method on our class instead
+                        // of returning NotImplemented for AttributeError
+                        if !e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) {
                             return ::core::result::Result::Err(e);
                         }
                     }

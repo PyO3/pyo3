@@ -327,39 +327,111 @@ struct RhsArithmetic(String);
 #[pymethods]
 impl RhsArithmetic {
     fn __radd__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} + {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} + {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} + {}", self.0)
+        }
     }
 
     fn __rsub__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} - {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} - {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} - {}", self.0)
+        }
     }
 
     fn __rmul__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} * {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} * {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} * {}", self.0)
+        }
     }
 
     fn __rlshift__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} << {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} << {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} << {}", self.0)
+        }
     }
 
     fn __rrshift__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} >> {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} >> {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} >> {}", self.0)
+        }
     }
 
     fn __rand__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} & {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} & {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} & {}", self.0)
+        }
     }
 
     fn __rxor__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} ^ {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} ^ {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} ^ {}", self.0)
+        }
     }
 
     fn __ror__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} | {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} | {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} | {}", self.0)
+        }
     }
 
     fn __rpow__(&self, other: &Bound<'_, PyAny>, _mod: Option<&Bound<'_, PyAny>>) -> String {
-        format!("{other:?} ** {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} ** {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} ** {}", self.0)
+        }
     }
 }
 
@@ -369,22 +441,31 @@ fn rhs_arithmetic() {
         let c = Py::new(py, RhsArithmetic("RA".to_string())).unwrap();
         py_run!(py, c, "assert c.__radd__(1) == '1 + RA'");
         py_run!(py, c, "assert 1 + c == '1 + RA'");
+        py_run!(py, c, "assert c + c == 'RA + RA'");
         py_run!(py, c, "assert c.__rsub__(1) == '1 - RA'");
         py_run!(py, c, "assert 1 - c == '1 - RA'");
+        py_run!(py, c, "assert c - c == 'RA - RA'");
         py_run!(py, c, "assert c.__rmul__(1) == '1 * RA'");
         py_run!(py, c, "assert 1 * c == '1 * RA'");
+        py_run!(py, c, "assert c * c == 'RA * RA'");
         py_run!(py, c, "assert c.__rlshift__(1) == '1 << RA'");
         py_run!(py, c, "assert 1 << c == '1 << RA'");
+        py_run!(py, c, "assert c << c == 'RA << RA'");
         py_run!(py, c, "assert c.__rrshift__(1) == '1 >> RA'");
         py_run!(py, c, "assert 1 >> c == '1 >> RA'");
+        py_run!(py, c, "assert c >> c == 'RA >> RA'");
         py_run!(py, c, "assert c.__rand__(1) == '1 & RA'");
         py_run!(py, c, "assert 1 & c == '1 & RA'");
+        py_run!(py, c, "assert c & c == 'RA & RA'");
         py_run!(py, c, "assert c.__rxor__(1) == '1 ^ RA'");
         py_run!(py, c, "assert 1 ^ c == '1 ^ RA'");
+        py_run!(py, c, "assert c ^ c == 'RA ^ RA'");
         py_run!(py, c, "assert c.__ror__(1) == '1 | RA'");
         py_run!(py, c, "assert 1 | c == '1 | RA'");
+        py_run!(py, c, "assert c | c == 'RA | RA'");
         py_run!(py, c, "assert c.__rpow__(1) == '1 ** RA'");
         py_run!(py, c, "assert 1 ** c == '1 ** RA'");
+        py_run!(py, c, "assert c ** c == 'RA ** RA'");
     });
 }
 
