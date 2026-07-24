@@ -2563,8 +2563,32 @@ fn get_env_interpreter() -> Option<PathBuf> {
     match (env_var("VIRTUAL_ENV"), env_var("CONDA_PREFIX")) {
         // Use cfg rather than CARGO_CFG_TARGET_OS because this affects where files are located on the
         // build host
-        (Some(dir), None) => Some(venv_interpreter(&dir, cfg!(windows))),
-        (None, Some(dir)) => Some(conda_env_interpreter(&dir, cfg!(windows))),
+        (Some(dir), None) => {
+            let path = venv_interpreter(&dir, cfg!(windows));
+            if path.exists() {
+                Some(path)
+            } else {
+                warn!(
+                    "VIRTUAL_ENV is set to `{}` but no Python interpreter found at `{}`; ignoring",
+                    dir.to_string_lossy(),
+                    path.display()
+                );
+                None
+            }
+        }
+        (None, Some(dir)) => {
+            let path = conda_env_interpreter(&dir, cfg!(windows));
+            if path.exists() {
+                Some(path)
+            } else {
+                warn!(
+                    "CONDA_PREFIX is set to `{}` but no Python interpreter found at `{}`; ignoring",
+                    dir.to_string_lossy(),
+                    path.display()
+                );
+                None
+            }
+        }
         (Some(_), Some(_)) => {
             warn!(
                 "Both VIRTUAL_ENV and CONDA_PREFIX are set. PyO3 will ignore both of these for \
