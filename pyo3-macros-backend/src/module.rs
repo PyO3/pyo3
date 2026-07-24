@@ -544,19 +544,19 @@ fn module_initialization(
                 #pyo3_path::impl_::trampoline::module_exec(module, #module_exec)
             }
 
-            // The full slots, used for the PyModExport initialization
-            static SLOTS: impl_::PyModuleSlots = impl_::PyModuleSlotsBuilder::new()
+            static SLOTS: impl_::PrimaryModuleSlots = impl_::PyModuleSlotsBuilder::new()
                 .with_mod_exec(__pyo3_module_exec)
                 .with_abi_info()
                 .with_gil_used(#gil_used)
                 .with_name(__PYO3_NAME)
                 .with_doc(#doc)
                 .build();
+            static SECONDARY_SLOTS: impl_::SecondaryModuleSlots = impl_::secondary_slots(&SLOTS);
 
             // Since the macros need to be written agnostic to the Python version
             // we need to explicitly pass the name and docstring for PyModuleDef
             // initialization.
-            impl_::ModuleDef::new(__PYO3_NAME, #doc, &SLOTS)
+            impl_::ModuleDef::new(__PYO3_NAME, #doc, &SLOTS, &SECONDARY_SLOTS)
         };
     };
     if !is_submodule {
