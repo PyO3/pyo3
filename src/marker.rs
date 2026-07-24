@@ -683,12 +683,6 @@ impl<'py> Python<'py> {
         PyNotImplemented::get(self).to_owned().into_any().unbind()
     }
 
-    /// Deprecated version of [Python::version_str].
-    #[deprecated(since = "0.29.0", note = "use Python::version_str instead")]
-    pub fn version(self) -> &'static str {
-        Python::version_str()
-    }
-
     /// Gets the running Python interpreter version as a string.
     ///
     /// # Examples
