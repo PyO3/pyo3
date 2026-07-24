@@ -1,3 +1,5 @@
+#[cfg(Py_GIL_DISABLED)]
+use crate::cpython::pyatomic::_Py_atomic_load_ssize_relaxed;
 use crate::object::*;
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::pyport::Py_hash_t;
@@ -29,13 +31,25 @@ pub struct PySetObject {
     pub weakreflist: *mut PyObject,
 }
 
-// skipped
+#[inline]
+#[cfg(all(not(any(PyPy, GraalPy)), not(Py_LIMITED_API)))]
+pub(crate) unsafe fn _PySet_CAST(so: *mut PyObject) -> *mut PySetObject {
+    debug_assert_eq!(PyAnySet_Check(so), 1);
+    so.cast()
+}
+
 #[inline]
 #[cfg(all(not(any(PyPy, GraalPy)), not(Py_LIMITED_API)))]
 pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t {
-    debug_assert_eq!(PyAnySet_Check(so), 1);
-    let so = so.cast::<PySetObject>();
-    (*so).used
+    let so = _PySet_CAST(so);
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        _Py_atomic_load_ssize_relaxed(&raw const (*so).used)
+    }
+    #[cfg(not(Py_GIL_DISABLED))]
+    {
+        (*so).used
+    }
 }
 
 // skipped _PySet_Dummy

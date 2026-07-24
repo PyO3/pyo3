@@ -31,6 +31,7 @@ pub(crate) mod marshal;
 pub(crate) mod methodobject;
 pub(crate) mod object;
 pub(crate) mod objimpl;
+pub(crate) mod pyatomic;
 pub(crate) mod pydebug;
 pub(crate) mod pyerrors;
 #[cfg(not(PyPy))]

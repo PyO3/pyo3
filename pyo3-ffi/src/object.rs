@@ -172,7 +172,10 @@ pub struct PyVarObject {
     pub _ob_size_graalpy: Py_ssize_t,
 }
 
-// skipped private _PyVarObject_CAST
+#[inline]
+pub(crate) unsafe fn _PyVarObject_CAST(op: *mut PyObject) -> *mut PyVarObject {
+    op.cast()
+}
 
 #[inline]
 #[cfg(not(any(GraalPy, PyPy, RustPython)))]
