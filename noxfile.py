@@ -227,9 +227,8 @@ def rustfmt(session: nox.Session):
 
 @nox.session(name="ruff")
 def ruff(session: nox.Session):
-    session.install("ruff")
-    _run(session, "ruff", "format", ".", "--check")
-    _run(session, "ruff", "check", ".")
+    _run(session, "uv", "run", "ruff", "format", ".", "--check")
+    _run(session, "uv", "run", "ruff", "check", ".")
 
 
 @nox.session(name="rumdl", venv_backend="none")
@@ -1699,7 +1698,6 @@ def update_ui_tests(session: nox.Session):
 def test_introspection(session: nox.Session):
     with tempfile.TemporaryDirectory() as stub_dir:
         session.install("maturin")
-        session.install("ruff")
         options = []
         target = os.environ.get("CARGO_BUILD_TARGET")
         if target is not None:
@@ -1733,7 +1731,7 @@ def test_introspection(session: nox.Session):
             "pyo3_pytests",
             stub_dir,
         )
-        _run(session, "ruff", "format", stub_dir)
+        _run(session, "uv", "run", "ruff", "format", stub_dir)
         _ensure_directory_equals(Path(stub_dir), Path("pytests/stubs"))
 
 
