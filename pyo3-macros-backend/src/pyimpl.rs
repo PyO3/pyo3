@@ -319,6 +319,16 @@ fn add_shared_proto_slots(
         }};
     }
 
+    macro_rules! try_add_binop_slot {
+        ($slot:ident, $forward:literal, $reflected:literal) => {{
+            let has_forward = implemented_proto_fragments.remove($forward);
+            let has_reflected = implemented_proto_fragments.remove($reflected);
+            if has_forward || has_reflected {
+                proto_impls.push(quote! { #pyo3_path::impl_::pyclass::$slot!(#ty, #has_forward, #has_reflected) });
+            }
+        }};
+    }
+
     try_add_shared_slot!(
         generate_pyclass_getattro_slot,
         "__getattribute__",
@@ -327,24 +337,24 @@ fn add_shared_proto_slots(
     try_add_shared_slot!(generate_pyclass_setattr_slot, "__setattr__", "__delattr__");
     try_add_shared_slot!(generate_pyclass_setdescr_slot, "__set__", "__delete__");
     try_add_shared_slot!(generate_pyclass_setitem_slot, "__setitem__", "__delitem__");
-    try_add_shared_slot!(generate_pyclass_add_slot, "__add__", "__radd__");
-    try_add_shared_slot!(generate_pyclass_sub_slot, "__sub__", "__rsub__");
-    try_add_shared_slot!(generate_pyclass_mul_slot, "__mul__", "__rmul__");
-    try_add_shared_slot!(generate_pyclass_mod_slot, "__mod__", "__rmod__");
-    try_add_shared_slot!(generate_pyclass_divmod_slot, "__divmod__", "__rdivmod__");
-    try_add_shared_slot!(generate_pyclass_lshift_slot, "__lshift__", "__rlshift__");
-    try_add_shared_slot!(generate_pyclass_rshift_slot, "__rshift__", "__rrshift__");
-    try_add_shared_slot!(generate_pyclass_and_slot, "__and__", "__rand__");
-    try_add_shared_slot!(generate_pyclass_or_slot, "__or__", "__ror__");
-    try_add_shared_slot!(generate_pyclass_xor_slot, "__xor__", "__rxor__");
-    try_add_shared_slot!(generate_pyclass_matmul_slot, "__matmul__", "__rmatmul__");
-    try_add_shared_slot!(generate_pyclass_truediv_slot, "__truediv__", "__rtruediv__");
-    try_add_shared_slot!(
+    try_add_binop_slot!(generate_pyclass_add_slot, "__add__", "__radd__");
+    try_add_binop_slot!(generate_pyclass_sub_slot, "__sub__", "__rsub__");
+    try_add_binop_slot!(generate_pyclass_mul_slot, "__mul__", "__rmul__");
+    try_add_binop_slot!(generate_pyclass_mod_slot, "__mod__", "__rmod__");
+    try_add_binop_slot!(generate_pyclass_divmod_slot, "__divmod__", "__rdivmod__");
+    try_add_binop_slot!(generate_pyclass_lshift_slot, "__lshift__", "__rlshift__");
+    try_add_binop_slot!(generate_pyclass_rshift_slot, "__rshift__", "__rrshift__");
+    try_add_binop_slot!(generate_pyclass_and_slot, "__and__", "__rand__");
+    try_add_binop_slot!(generate_pyclass_or_slot, "__or__", "__ror__");
+    try_add_binop_slot!(generate_pyclass_xor_slot, "__xor__", "__rxor__");
+    try_add_binop_slot!(generate_pyclass_matmul_slot, "__matmul__", "__rmatmul__");
+    try_add_binop_slot!(generate_pyclass_truediv_slot, "__truediv__", "__rtruediv__");
+    try_add_binop_slot!(
         generate_pyclass_floordiv_slot,
         "__floordiv__",
         "__rfloordiv__"
     );
-    try_add_shared_slot!(generate_pyclass_pow_slot, "__pow__", "__rpow__");
+    try_add_binop_slot!(generate_pyclass_pow_slot, "__pow__", "__rpow__");
     try_add_shared_slot!(
         generate_pyclass_richcompare_slot,
         "__lt__",
