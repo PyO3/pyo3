@@ -227,9 +227,8 @@ def rustfmt(session: nox.Session):
 
 @nox.session(name="ruff")
 def ruff(session: nox.Session):
-    session.install("ruff")
-    _run(session, "ruff", "format", ".", "--check")
-    _run(session, "ruff", "check", ".")
+    _run(session, "uv", "run", "ruff", "format", ".", "--check")
+    _run(session, "uv", "run", "ruff", "check", ".")
 
 
 @nox.session(name="rumdl", venv_backend="none")
