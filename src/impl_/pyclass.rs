@@ -64,7 +64,16 @@ pub trait PyClassDict: sealed::Sealed {
     const INIT: Self;
     /// Empties the dictionary of its key-value pairs.
     #[inline]
-    fn clear_dict(&mut self, _py: Python<'_>) {}
+    fn clear_dict(&self, _py: Python<'_>) {}
+    /// Visits the `__dict__`, if any, on behalf of `tp_traverse`.
+    ///
+    /// # Safety
+    /// - Must only be called from a `tp_traverse` implementation, passing that
+    ///   implementation's `visit` and `arg` unchanged.
+    #[inline]
+    unsafe fn traverse_dict(&self, _visit: ffi::visitproc, _arg: *mut c_void) -> c_int {
+        0
+    }
 }
 
 /// Represents the `__weakref__` field for `#[pyclass]`.
@@ -100,9 +109,17 @@ pub struct PyClassDictSlot(*mut ffi::PyObject);
 impl PyClassDict for PyClassDictSlot {
     const INIT: Self = Self(core::ptr::null_mut());
     #[inline]
-    fn clear_dict(&mut self, _py: Python<'_>) {
+    fn clear_dict(&self, _py: Python<'_>) {
         if !self.0.is_null() {
             unsafe { ffi::PyDict_Clear(self.0) }
+        }
+    }
+    #[inline]
+    unsafe fn traverse_dict(&self, visit: ffi::visitproc, arg: *mut c_void) -> c_int {
+        if self.0.is_null() {
+            0
+        } else {
+            unsafe { visit(self.0, arg) }
         }
     }
 }
