@@ -1,8 +1,8 @@
 from .word_count import search, search_sequential, search_sequential_detached
 
 __all__ = [
-    "search_py",
     "search",
+    "search_py",
     "search_sequential",
     "search_sequential_detached",
 ]

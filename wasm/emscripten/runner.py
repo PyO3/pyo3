@@ -1,7 +1,7 @@
 #!/usr/local/bin/python
 import pathlib
-import sys
 import subprocess
+import sys
 
 p = pathlib.Path(sys.argv[1])
 

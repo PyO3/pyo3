@@ -450,7 +450,7 @@ If the input is neither a string nor an integer, the error message will be: `"'<
 
 - `pyo3(transparent)`
   - extract the field directly from the object as `obj.extract()` instead of `get_item()` or
-      `getattr()`
+    `getattr()`
   - Newtype structs and tuple-variants are treated as transparent per default.
   - only supported for single-field structs and enum variants
 - `pyo3(annotation = "name")`
@@ -636,24 +636,24 @@ All the same rules from above apply as well.
     - `#[derive(IntoPyObject)]` will invoke the function with `Cow::Owned`
     - `#[derive(IntoPyObjectRef)]` will invoke the function with `Cow::Borrowed`
 
-    ```rust,no_run
-    # use pyo3::prelude::*;
-    # use pyo3::IntoPyObjectExt;
-    # use std::borrow::Cow;
-    #[derive(Clone)]
-    struct NotIntoPy(usize);
+  ```rust,no_run
+  # use pyo3::prelude::*;
+  # use pyo3::IntoPyObjectExt;
+  # use std::borrow::Cow;
+  #[derive(Clone)]
+  struct NotIntoPy(usize);
 
-    #[derive(IntoPyObject, IntoPyObjectRef)]
-    struct MyStruct {
-        #[pyo3(into_py_with = convert)]
-        not_into_py: NotIntoPy,
-    }
+  #[derive(IntoPyObject, IntoPyObjectRef)]
+  struct MyStruct {
+      #[pyo3(into_py_with = convert)]
+      not_into_py: NotIntoPy,
+  }
 
-    /// Convert `NotIntoPy` into Python
-    fn convert<'py>(not_into_py: Cow<'_, NotIntoPy>, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        not_into_py.0.into_bound_py_any(py)
-    }
-    ```
+  /// Convert `NotIntoPy` into Python
+  fn convert<'py>(not_into_py: Cow<'_, NotIntoPy>, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+      not_into_py.0.into_bound_py_any(py)
+  }
+  ```
 
 ### manual implementation
 

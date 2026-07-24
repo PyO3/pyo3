@@ -17,6 +17,20 @@ classifiers = [
     "Operating System :: POSIX",
     "Operating System :: MacOS :: MacOS X",
 ]
+requires-python = ">=3.9"
+
+[tool.ruff]
+exclude = ["stubs"]
+[tool.ruff.lint]
+extend-ignore = [
+    "BLE001",
+    "TRY002",
+]
+[tool.ruff.per-file-target-version]
+"tests/test_enums_match.py" = "py310"
+[tool.ruff.lint.extend-per-file-ignores]
+# we deliberately want to exercise specific comparison operators
+"tests/test_comparisons.py" = ["SIM201", "SIM202"]
 
 [project.optional-dependencies]
 dev = [

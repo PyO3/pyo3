@@ -60,8 +60,10 @@ The Python model we want to expose is the following one, which already contains 
 class Model:
     def set_variables(self, inputs):
         self.inputs = inputs
+
     def compute(self):
         self.results = [elt**2 - 3 for elt in self.inputs]
+
     def get_results(self):
         return self.results
 ```
@@ -248,21 +250,24 @@ Let's run the file python file:
 class Model:
     def set_variables(self, inputs):
         self.inputs = inputs
+
     def compute(self):
         self.results = [elt**2 - 3 for elt in self.inputs]
+
     def get_results(self):
         return self.results
 
-if __name__=="__main__":
-  import trait_exposure
 
-  myModel = Model()
-  my_rust_model = trait_exposure.UserModel(myModel)
-  my_rust_model.set_variables([2.0])
-  print("Print value from Python: ", myModel.inputs)
-  my_rust_model.compute()
-  print("Print value from Python through Rust: ", my_rust_model.get_results())
-  print("Print value directly from Python: ", myModel.get_results())
+if __name__ == "__main__":
+    import trait_exposure
+
+    myModel = Model()
+    my_rust_model = trait_exposure.UserModel(myModel)
+    my_rust_model.set_variables([2.0])
+    print("Print value from Python: ", myModel.inputs)
+    my_rust_model.compute()
+    print("Print value from Python through Rust: ", my_rust_model.get_results())
+    print("Print value directly from Python: ", myModel.get_results())
 ```
 
 This outputs:
@@ -312,11 +317,13 @@ Let's assume now that the return type of one of the methods of our Model class i
 class Model:
     def set_variables(self, inputs):
         self.inputs = inputs
+
     def compute(self):
-        self.results = [elt**2 -3 for elt in self.inputs]
+        self.results = [elt**2 - 3 for elt in self.inputs]
+
     def get_results(self):
         return self.results[0]
-        #return self.results <-- this is the expected output
+        # return self.results <-- this is the expected output
 ```
 
 This call results in the following panic:

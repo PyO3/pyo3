@@ -337,7 +337,6 @@ For a type named `SharedType`, the steps to achieve this are as follows:
 
 1. `base-package-core` defines a `#[repr(C)]` struct which contains the data to be shared across the boundary.
 
-<!-- rumdl-disable MD013 -->
 2. The `BaseApi` struct defined in the previous sections is extended to include functions to manipulate this struct (these functions will later be provided by `base-package`).
 
    At a minimum, this will probably include:
@@ -361,7 +360,6 @@ For a type named `SharedType`, the steps to achieve this are as follows:
    - `IntoPyPyObject` - the `into_pyobject` function can delegate to the `create_shared_type` function pointer in the API struct.
 
    - `FromPyObject<'_>` - the `extract` function can delegate to the `cast_shared_type` function pointer in the API struct.
-<!-- rumdl-enable MD013 -->
 
 4. `base-package` implements a `#[pyclass]` which is a thin wrapper around the `SharedType` struct, defining its Python functionality.
 

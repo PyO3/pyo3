@@ -57,6 +57,7 @@ import typing
 
 CONSTANT: typing.Final = "FOO"
 
+
 class Class:
     def __init__(self, value: int) -> None: ...
 
@@ -65,6 +66,7 @@ class Class:
 
     def __eq__(self, other: Class) -> bool: ...
     def __ne__(self, other: Class) -> bool: ...
+
 
 def list_of_int_identity(arg: "list[int]") -> "list[int]": ...
 ```
