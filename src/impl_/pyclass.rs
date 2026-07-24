@@ -571,6 +571,7 @@ macro_rules! define_pyclass_binary_operator_slot {
                     _other: *mut $crate::ffi::PyObject,
                 ) -> $crate::PyResult<*mut $crate::ffi::PyObject> {
                     use $crate::impl_::pyclass::*;
+                    use $crate::types::PyAnyMethods;
                     let collector = PyClassImplCollector::<$cls>::new();
 
                     let lhs_obj = unsafe { $crate::Bound::from_borrowed_ptr(py, _slf) };
@@ -583,7 +584,7 @@ macro_rules! define_pyclass_binary_operator_slot {
                         return unsafe { collector.$rhs(py, _other, _slf) };
                     }
 
-                    Result::Ok(py.NotImplemented().into_ptr())
+                    ::core::result::Result::Ok(py.NotImplemented().into_ptr())
                 }
 
                 $crate::ffi::PyType_Slot {
@@ -602,6 +603,7 @@ macro_rules! define_pyclass_binary_operator_slot {
                     _other: *mut $crate::ffi::PyObject,
                 ) -> $crate::PyResult<*mut $crate::ffi::PyObject> {
                     use $crate::impl_::pyclass::*;
+                    use $crate::types::PyAnyMethods;
                     let lhs_obj = unsafe { $crate::Bound::from_borrowed_ptr(py, _slf) };
 
                     if lhs_obj.is_instance_of::<$cls>() {
@@ -616,22 +618,22 @@ macro_rules! define_pyclass_binary_operator_slot {
                         let py_type = <$cls as $crate::PyTypeInfo>::type_object(py);
                         let reflected_name = $crate::intern!(py, concat!(stringify!($rhs)));
                         let super_obj = match $crate::types::PySuper::new(&py_type, &rhs_obj) {
-                            Ok(s) => s,
-                            Err(e) => return Err(e),
+                            ::core::result::Result::Ok(s) => s,
+                            ::core::result::Result::Err(e) => return ::core::result::Result::Err(e),
                         };
                         match super_obj.call_method1(reflected_name, (&lhs_obj,)) {
-                            Ok(result) => return Ok(result.into_ptr()),
-                            Err(e) => {
+                            ::core::result::Result::Ok(result) => return ::core::result::Result::Ok(result.into_ptr()),
+                            ::core::result::Result::Err(e) => {
                                 // If parent doesn't implement the method, return NotImplemented instead of AttributeError
                                 if e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) {
-                                    return Ok(py.NotImplemented().into_ptr());
+                                    return ::core::result::Result::Ok(py.NotImplemented().into_ptr());
                                 } else {
-                                    return Err(e);
+                                    return ::core::result::Result::Err(e);
                                 }
                             }
                         }
                     }
-                    Result::Ok(py.NotImplemented().into_ptr())
+                    ::core::result::Result::Ok(py.NotImplemented().into_ptr())
                 }
 
                 $crate::ffi::PyType_Slot {
@@ -650,6 +652,7 @@ macro_rules! define_pyclass_binary_operator_slot {
                     _other: *mut $crate::ffi::PyObject,
                 ) -> $crate::PyResult<*mut $crate::ffi::PyObject> {
                     use $crate::impl_::pyclass::*;
+                    use $crate::types::PyAnyMethods;
 
                     let lhs_obj = unsafe { $crate::Bound::from_borrowed_ptr(py, _slf) };
                     if lhs_obj.is_instance_of::<$cls>() {
@@ -659,17 +662,17 @@ macro_rules! define_pyclass_binary_operator_slot {
                         let forward_name = $crate::intern!(py, concat!(stringify!($lhs)));
                         let other_bound = unsafe { $crate::Bound::from_borrowed_ptr(py, _other) };
                         let super_obj = match $crate::types::PySuper::new(&py_type, &lhs_obj) {
-                            Ok(s) => s,
-                            Err(e) => return Err(e),
+                            ::core::result::Result::Ok(s) => s,
+                            ::core::result::Result::Err(e) => return ::core::result::Result::Err(e),
                         };
                         match super_obj.call_method1(forward_name, (&other_bound,)) {
-                            Ok(result) => return Ok(result.into_ptr()),
-                            Err(e) => {
+                            ::core::result::Result::Ok(result) => return ::core::result::Result::Ok(result.into_ptr()),
+                            ::core::result::Result::Err(e) => {
                                 // If parent doesn't implement the method, return NotImplemented instead of AttributeError
                                 if e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) {
-                                    return Ok(py.NotImplemented().into_ptr());
+                                    return ::core::result::Result::Ok(py.NotImplemented().into_ptr());
                                 } else {
-                                    return Err(e);
+                                    return ::core::result::Result::Err(e);
                                 }
                             }
                         }
@@ -682,7 +685,7 @@ macro_rules! define_pyclass_binary_operator_slot {
                         return unsafe { collector.$rhs(py, _other, _slf) };
                     }
 
-                    Result::Ok(py.NotImplemented().into_ptr())
+                    ::core::result::Result::Ok(py.NotImplemented().into_ptr())
                 }
 
                 $crate::ffi::PyType_Slot {
@@ -858,6 +861,7 @@ macro_rules! generate_pyclass_pow_slot {
             _mod: *mut $crate::ffi::PyObject,
         ) -> $crate::PyResult<*mut $crate::ffi::PyObject> {
             use $crate::impl_::pyclass::*;
+            use $crate::types::PyAnyMethods;
             let collector = PyClassImplCollector::<$cls>::new();
 
             let lhs_obj = unsafe { $crate::Bound::from_borrowed_ptr(py, _slf) };
@@ -870,7 +874,7 @@ macro_rules! generate_pyclass_pow_slot {
                 return unsafe { collector.__rpow__(py, _other, _slf, _mod) };
             }
 
-            Result::Ok(py.NotImplemented().into_ptr())
+            ::core::result::Result::Ok(py.NotImplemented().into_ptr())
         }
 
         $crate::ffi::PyType_Slot {
@@ -889,6 +893,7 @@ macro_rules! generate_pyclass_pow_slot {
             _mod: *mut $crate::ffi::PyObject,
         ) -> $crate::PyResult<*mut $crate::ffi::PyObject> {
             use $crate::impl_::pyclass::*;
+            use $crate::types::PyAnyMethods;
             let lhs_obj = unsafe { $crate::Bound::from_borrowed_ptr(py, _slf) };
 
             if lhs_obj.is_instance_of::<$cls>() {
@@ -907,22 +912,22 @@ macro_rules! generate_pyclass_pow_slot {
                     unsafe { $crate::Bound::from_borrowed_ptr(py, _mod) }
                 };
                 let super_obj = match $crate::types::PySuper::new(&py_type, &rhs_obj) {
-                    Ok(s) => s,
-                    Err(e) => return Err(e),
+                    ::core::result::Result::Ok(s) => s,
+                    ::core::result::Result::Err(e) => return ::core::result::Result::Err(e),
                 };
                 match super_obj.call_method1($crate::intern!(py, "__rpow__"), (&lhs_obj, mod_obj)) {
-                    Ok(result) => return Ok(result.into_ptr()),
-                    Err(e) => {
+                    ::core::result::Result::Ok(result) => return ::core::result::Result::Ok(result.into_ptr()),
+                    ::core::result::Result::Err(e) => {
                         // If parent doesn't implement the method, return NotImplemented instead of AttributeError
                         if e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) {
-                            return Ok(py.NotImplemented().into_ptr());
+                            return ::core::result::Result::Ok(py.NotImplemented().into_ptr());
                         } else {
-                            return Err(e);
+                            return ::core::result::Result::Err(e);
                         }
                     }
                 }
             }
-            Result::Ok(py.NotImplemented().into_ptr())
+            ::core::result::Result::Ok(py.NotImplemented().into_ptr())
         }
 
         $crate::ffi::PyType_Slot {
@@ -941,6 +946,7 @@ macro_rules! generate_pyclass_pow_slot {
             _mod: *mut $crate::ffi::PyObject,
         ) -> $crate::PyResult<*mut $crate::ffi::PyObject> {
             use $crate::impl_::pyclass::*;
+            use $crate::types::PyAnyMethods;
 
             let lhs_obj = unsafe { $crate::Bound::from_borrowed_ptr(py, _slf) };
             if lhs_obj.is_instance_of::<$cls>() {
@@ -958,13 +964,13 @@ macro_rules! generate_pyclass_pow_slot {
                     Err(e) => return Err(e),
                 };
                 match super_obj.call_method1($crate::intern!(py, "__pow__"), (&rhs_obj, mod_obj)) {
-                    Ok(result) => return Ok(result.into_ptr()),
-                    Err(e) => {
+                    ::core::result::Result::Ok(result) => return ::core::result::Result::Ok(result.into_ptr()),
+                    ::core::result::Result::Err(e) => {
                         // If parent doesn't implement the method, return NotImplemented instead of AttributeError
                         if e.is_instance_of::<$crate::exceptions::PyAttributeError>(py) {
-                            return Ok(py.NotImplemented().into_ptr());
+                            return ::core::result::Result::Ok(py.NotImplemented().into_ptr());
                         } else {
-                            return Err(e);
+                            return ::core::result::Result::Err(e);
                         }
                     }
                 }
@@ -977,7 +983,7 @@ macro_rules! generate_pyclass_pow_slot {
                 return unsafe { collector.__rpow__(py, _other, _slf, _mod) };
             }
 
-            Result::Ok(py.NotImplemented().into_ptr())
+            ::core::result::Result::Ok(py.NotImplemented().into_ptr())
         }
 
         $crate::ffi::PyType_Slot {
