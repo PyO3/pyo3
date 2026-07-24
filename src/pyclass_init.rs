@@ -7,7 +7,10 @@ use crate::impl_::pyclass::{PyClassBaseType, PyClassImpl};
 use crate::impl_::pyclass_init::PyNativeTypeInitializer;
 use crate::internal::pyclass_init::PyObjectInit;
 use crate::pycell::impl_::PyClassObjectLayout;
-use crate::{ffi, Bound, PyClass, PyResult, Python};
+use crate::types::{PyDict, PyTuple};
+use crate::{
+    ffi, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, PyClass, PyResult, Python,
+};
 use crate::{ffi::PyTypeObject, pycell::impl_::PyClassObjectContents};
 use core::marker::PhantomData;
 
@@ -63,6 +66,8 @@ use core::marker::PhantomData;
 pub struct PyClassInitializer<T: PyClass> {
     init: T,
     super_init: <T::BaseType as PyClassBaseType>::Initializer,
+    args: Option<Py<PyTuple>>,
+    kwargs: Option<Py<PyDict>>,
 }
 
 impl<T: PyClass> PyClassInitializer<T> {
@@ -72,7 +77,12 @@ impl<T: PyClass> PyClassInitializer<T> {
     #[track_caller]
     #[inline]
     pub fn new(init: T, super_init: <T::BaseType as PyClassBaseType>::Initializer) -> Self {
-        Self { init, super_init }
+        Self {
+            init,
+            super_init,
+            args: None,
+            kwargs: None,
+        }
     }
 
     /// Constructs a new initializer from an initializer for the base class.
@@ -151,7 +161,12 @@ impl<T: PyClass> PyClassInitializer<T> {
     where
         T: PyClass,
     {
-        let obj = unsafe { self.super_init.into_new_object(py, target_type)? };
+        let args = self
+            .args
+            .map(|args| args.into_bound(py))
+            .unwrap_or_else(|| PyTuple::empty(py));
+        let kwargs = self.kwargs.map(|kwargs| kwargs.into_bound(py));
+        let obj = unsafe { self.super_init.into_new_object(target_type, args, kwargs)? };
 
         // SAFETY: `obj` is constructed using `T::Layout` but has not been initialized yet
         let contents = unsafe { <T as PyClassImpl>::Layout::contents_uninit(obj) };
@@ -168,9 +183,11 @@ impl<T: PyClass> PyClassInitializer<T> {
 impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
     unsafe fn into_new_object(
         self,
-        py: Python<'_>,
         subtype: *mut PyTypeObject,
+        args: Bound<'_, PyTuple>,
+        _kwargs: Option<Bound<'_, PyDict>>,
     ) -> PyResult<*mut ffi::PyObject> {
+        let py = args.py();
         unsafe {
             self.create_class_object_of_type(py, subtype)
                 .map(Bound::into_ptr)
@@ -200,5 +217,83 @@ where
     fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
         let (sub, base) = sub_and_base;
         PyClassInitializer::from(base).add_subclass(sub)
+    }
+}
+
+/// Wrapper type around the arguments that are passed to the native base type of a `#[pyclass]`
+pub struct PySuperNew<'py> {
+    args: Bound<'py, PyTuple>,
+    kwargs: Option<Bound<'py, PyDict>>,
+}
+
+impl<'py> PySuperNew<'py> {
+    /// Creates a new [`PySuperNew`] using the provided arguments
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    ///
+    /// # fn main() -> PyResult<()> {
+    /// # Python::attach(|py| {
+    /// // create an initializer using two positional and no keyword arguments
+    /// let super_new = PySuperNew::call(py, ("Hello", "World"), None)?;
+    /// # Ok(())
+    /// # })}
+    /// ```
+    pub fn call<A>(py: Python<'py>, args: A, kwargs: Option<Bound<'py, PyDict>>) -> PyResult<Self>
+    where
+        A: IntoPyObject<'py, Target = PyTuple>,
+    {
+        let args = args.into_pyobject_or_pyerr(py)?.into_bound();
+        Ok(Self { args, kwargs })
+    }
+
+    /// Converts this [`PySuperNew`] into a [`PyClassInitializer<T>`] for a `#[pyclass]`, forwarding
+    /// its arguments the `T`s native base initializer.
+    ///
+    /// ```
+    /// # #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
+    /// # use pyo3::prelude::*;
+    /// # #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
+    /// # use pyo3::types::PyDateTime;
+    ///
+    /// # #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
+    /// #[pyclass(extends = PyDateTime, get_all)]
+    /// struct CustomDate {
+    ///     field: usize
+    /// }
+    ///
+    /// # #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
+    /// #[pymethods]
+    /// impl CustomDate {
+    ///     #[new]
+    ///     fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    ///         // `PyDateTime` requires initialization with (year, month, day) positional arguments
+    ///         Ok(PySuperNew::call(py, (2012, 12, 21), None)?.for_class(Self { field: 42 }))
+    ///     }
+    /// }
+    ///
+    /// # #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
+    /// # fn main() -> PyResult<()> {
+    /// # use pyo3::PyTypeInfo;
+    /// # Python::attach(|py| {
+    /// # let ty = CustomDate::type_object(py);
+    /// # pyo3::py_run!(py, ty, "assert str(ty()) == '2012-12-21 00:00:00'");
+    /// # pyo3::py_run!(py, ty, "assert ty().field == 42");
+    /// # Ok(())
+    /// # })}
+    /// # #[cfg(not(any(not(Py_LIMITED_API), Py_3_12)))]
+    /// # fn main() {}
+    /// ```
+    pub fn for_class<T>(self, class: T) -> PyClassInitializer<T>
+    where
+        T: PyClass,
+        T::BaseType: PyClassBaseType<Initializer = PyNativeTypeInitializer<T::BaseType>>,
+    {
+        PyClassInitializer {
+            init: class,
+            super_init: PyNativeTypeInitializer(PhantomData),
+            args: Some(self.args.unbind()),
+            kwargs: self.kwargs.map(Bound::unbind),
+        }
     }
 }
