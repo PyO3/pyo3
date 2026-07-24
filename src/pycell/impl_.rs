@@ -6,8 +6,6 @@ use core::marker::PhantomData;
 use core::mem::{offset_of, ManuallyDrop, MaybeUninit};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use pyo3_ffi::Py_DECREF;
-
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
@@ -16,7 +14,7 @@ use crate::internal::get_slot::{TP_DEALLOC, TP_FREE};
 use crate::sync::PyOnceLock;
 use crate::type_object::{PyLayout, PySizedLayout, PyTypeInfo};
 use crate::types::PyType;
-use crate::{ffi, PyClass, Python};
+use crate::{ffi, Bound, PyClass, Python};
 
 use crate::types::PyTypeMethods;
 
@@ -266,7 +264,20 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         // at runtime? To be investigated.
         let type_ptr = type_obj.as_type_ptr();
         let actual_type_ptr = ffi::Py_TYPE(slf);
-        let actual_type = PyType::from_borrowed_type_ptr(py, actual_type_ptr);
+        let actual_type = if ffi::PyType_HasFeature(actual_type_ptr, ffi::Py_TPFLAGS_HEAPTYPE) != 0
+        {
+            // For heap types, instances must decref the type object  when they
+            // are deallocated, so we create a bound from a borrowed pointer as
+            // as if it was an owned pointer. In this way, when the bound is dropped,
+            // it will decref the type object.
+            Bound::from_owned_ptr(py, actual_type_ptr as *mut ffi::PyObject)
+                .cast_into_unchecked::<PyType>()
+        } else {
+            // For non heap types, we can just create a bound from a borrowed pointer.
+            // This aligns with Py_TYPE contract.
+            Bound::from_borrowed_ptr(py, actual_type_ptr as *mut ffi::PyObject)
+                .cast_into_unchecked::<PyType>()
+        };
 
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
         #[cfg(not(RustPython))]
@@ -297,7 +308,10 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         } else {
             type_obj.get_slot(TP_FREE).expect("type missing tp_free")(slf.cast());
         }
-        Py_DECREF(actual_type_ptr as *mut ffi::PyObject);
+
+        // Cause the reference to the type to be decrefed for heap types, which
+        // is necessary to avoid a reference leak.
+        drop(actual_type);
     }
 }
 
