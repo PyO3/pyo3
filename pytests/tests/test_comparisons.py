@@ -1,3 +1,4 @@
+# ruff: file-ignore[SIM201,SIM202] we deliberately want to exercise specific comparison operators
 import sys
 from typing import TypeVar
 
