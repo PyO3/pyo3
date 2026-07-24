@@ -1,5 +1,7 @@
 //! Code generation for the function that initializes a python module and adds classes and function.
 
+#[cfg(feature = "experimental-module-state")]
+use crate::attributes::StateAttribute;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{
     attribute_introspection_code, introspection_id_const, module_introspection_code,
@@ -38,6 +40,8 @@ pub struct PyModuleOptions {
     module: Option<ModuleAttribute>,
     submodule: Option<kw::submodule>,
     gil_used: Option<GILUsedAttribute>,
+    #[cfg(feature = "experimental-module-state")]
+    state: Option<StateAttribute>,
 }
 
 impl Parse for PyModuleOptions {
@@ -85,6 +89,10 @@ impl PyModuleOptions {
                     ),
                     PyModulePyO3Option::GILUsed(gil_used) => {
                         set_option!(gil_used)
+                    }
+                    #[cfg(feature = "experimental-module-state")]
+                    PyModulePyO3Option::State(state) => {
+                        set_option!(state)
                     }
                 }
 
@@ -167,6 +175,13 @@ pub fn pymodule_module_impl(
     let mut module_consts = Vec::new();
     let mut module_consts_cfg_attrs = Vec::new();
 
+    #[cfg(feature = "experimental-module-state")]
+    let mut state_type: Option<syn::Path> = None;
+    #[cfg(feature = "experimental-module-state")]
+    if let Some(explicit_state) = &options.state {
+        state_type = Some(explicit_state.value.clone());
+    }
+
     let _: Vec<()> = (*items).iter_mut().map(|item|{
         match item {
             Item::Use(item_use) => {
@@ -196,7 +211,7 @@ pub fn pymodule_module_impl(
                         item_fn.span() => "`#[pyfunction]` cannot be used alongside `#[pymodule_init]`"
                     );
                     ensure_spanned!(pymodule_init.is_none(), item_fn.span() => "only one `#[pymodule_init]` may be specified");
-                    pymodule_init = Some(quote! { #ident(module)?; });
+                    pymodule_init = Some(quote! { #ident(module) });
                 } else if has_attribute(&item_fn.attrs, "pyfunction")
                     || has_attribute_with_namespace(
                         &item_fn.attrs,
@@ -239,6 +254,21 @@ pub fn pymodule_module_impl(
                     )? {
                         set_module_attribute(&mut item_struct.attrs, &full_name);
                     }
+                }
+                #[cfg(feature = "experimental-module-state")]
+                if find_and_remove_attribute(&mut item_struct.attrs, "pymodule_state") {
+                    if state_type.is_some() {
+                        bail_spanned!(item_struct.span() =>
+                            "Multiple `#[pymodule_state]` structs found. Specify state type explicitly with `#[pymodule(state = ...)]`");
+                    }
+                    state_type = Some(
+                        syn::Path {
+                            leading_colon: None,
+                            segments: std::iter::once(syn::PathSegment {
+                                ident: item_struct.ident.clone(),
+                                arguments: syn::PathArguments::None,
+                            }).collect(),}
+                    );
                 }
             }
             Item::Enum(item_enum) => {
@@ -393,6 +423,38 @@ pub fn pymodule_module_impl(
 
     let gil_used = options.gil_used.is_some_and(|op| op.value.value);
 
+    #[cfg(feature = "experimental-module-state")]
+    let allocate_state = {
+        // For mod declarations with state, require an init function
+        if let Some(state) = options.state.as_ref().map(|s| &s.value) {
+            if pymodule_init.is_none() {
+                return Err(syn::Error::new_spanned(
+                &ident,
+                "module with `state` attribute must have a `#[pymodule_init]` function that returns the state value"
+            ));
+            }
+
+            pymodule_init = Some(quote! {
+                let state: #state = #pymodule_init?;
+                #pyo3_path::impl_::pymodule::pyo3_module_state_init(module, state)
+            });
+            true
+        } else {
+            if pymodule_init.is_none() {
+                pymodule_init = Some(quote! { #pyo3_path::PyResult::Ok(()) });
+            };
+
+            false
+        }
+    };
+    #[cfg(not(feature = "experimental-module-state"))]
+    let allocate_state = {
+        if pymodule_init.is_none() {
+            pymodule_init = Some(quote! { #pyo3_path::PyResult::Ok(()) });
+        };
+        false
+    };
+
     let initialization = module_initialization(
         &full_name,
         &name,
@@ -401,6 +463,7 @@ pub fn pymodule_module_impl(
         options.submodule.is_some(),
         gil_used,
         doc.as_ref(),
+        allocate_state,
     )?;
 
     let module_consts_names = module_consts.iter().map(|i| i.unraw().to_string());
@@ -428,7 +491,6 @@ pub fn pymodule_module_impl(
                 )*
 
                 #pymodule_init
-                ::std::result::Result::Ok(())
             }
         }
     ))
@@ -453,6 +515,11 @@ pub fn pymodule_function_impl(
 
     let gil_used = options.gil_used.is_some_and(|op| op.value.value);
 
+    #[cfg(feature = "experimental-module-state")]
+    let allocate_state = options.state.is_some();
+    #[cfg(not(feature = "experimental-module-state"))]
+    let allocate_state = false;
+
     let initialization = module_initialization(
         &name.to_string(),
         &name,
@@ -461,6 +528,7 @@ pub fn pymodule_function_impl(
         false,
         gil_used,
         doc.as_ref(),
+        allocate_state,
     )?;
 
     #[cfg(feature = "experimental-inspect")]
@@ -486,6 +554,25 @@ pub fn pymodule_function_impl(
     }
     module_args.push(quote!(::std::convert::Into::into(module)));
 
+    #[cfg(feature = "experimental-module-state")]
+    let init_func = {
+        if let Some(state) = &options.state {
+            let state = &state.value;
+            quote! {
+                let state: #state = #ident(#(#module_args),*)?;
+                #pyo3_path::impl_::pymodule::pyo3_module_state_init(module, state)
+            }
+        } else {
+            quote! {
+                #ident(#(#module_args),*)
+            }
+        }
+    };
+    #[cfg(not(feature = "experimental-module-state"))]
+    let init_func = quote! {
+        #ident(#(#module_args),*)
+    };
+
     Ok(quote! {
         #[doc(hidden)]
         #vis mod #ident {
@@ -501,7 +588,7 @@ pub fn pymodule_function_impl(
         #[allow(unknown_lints, non_local_definitions)]
         impl #ident::ModuleExec {
             fn __pyo3_module_exec(module: &#pyo3_path::Bound<'_, #pyo3_path::types::PyModule>) -> #pyo3_path::PyResult<()> {
-                #ident(#(#module_args),*)
+                #init_func
             }
         }
     })
@@ -515,6 +602,7 @@ fn module_initialization(
     is_submodule: bool,
     gil_used: bool,
     doc: Option<&PythonDoc>,
+    allocate_state: bool,
 ) -> Result<TokenStream> {
     let Ctx { pyo3_path, .. } = ctx;
     let pyinit_symbol = format!("PyInit_{name}");
@@ -524,6 +612,10 @@ fn module_initialization(
         doc.to_cstr_stream(ctx)?
     } else {
         c"".into_token_stream()
+    };
+
+    let mod_new = quote! {
+        #pyo3_path::impl_::pymodule::ModuleDef::new(__PYO3_NAME, #doc, &SLOTS, #allocate_state)
     };
 
     let mut result = quote! {
@@ -546,7 +638,7 @@ fn module_initialization(
 
             // The full slots, used for the PyModExport initialization
             static SLOTS: impl_::PyModuleSlots = impl_::PyModuleSlotsBuilder::new()
-                .with_mod_exec(impl_::pyo3_module_state_init)
+                .with_mod_exec(__pyo3_module_exec)
                 .with_abi_info()
                 .with_gil_used(#gil_used)
                 .with_name(__PYO3_NAME)
@@ -556,7 +648,7 @@ fn module_initialization(
             // Since the macros need to be written agnostic to the Python version
             // we need to explicitly pass the name and docstring for PyModuleDef
             // initialization.
-            impl_::ModuleDef::new(__PYO3_NAME, #doc, &SLOTS)
+            #mod_new
         };
     };
     if !is_submodule {
@@ -720,11 +812,18 @@ enum PyModulePyO3Option {
     Name(NameAttribute),
     Module(ModuleAttribute),
     GILUsed(GILUsedAttribute),
+    #[cfg(feature = "experimental-module-state")]
+    State(StateAttribute),
 }
 
 impl Parse for PyModulePyO3Option {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let lookahead = input.lookahead1();
+        #[cfg(feature = "experimental-module-state")]
+        if lookahead.peek(attributes::kw::state) {
+            return input.parse().map(PyModulePyO3Option::State);
+        }
+
         if lookahead.peek(attributes::kw::name) {
             input.parse().map(PyModulePyO3Option::Name)
         } else if lookahead.peek(syn::Token![crate]) {

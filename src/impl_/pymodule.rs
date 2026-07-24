@@ -10,7 +10,6 @@ use core::{
     ffi::{c_int, c_void},
     marker::PhantomData,
     mem::MaybeUninit,
-    os::raw::{c_int, c_void},
 };
 
 #[cfg(all(
@@ -35,7 +34,6 @@ use portable_atomic::AtomicI64;
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
 use crate::exceptions::PyRuntimeError;
-use crate::impl_::trampoline::trampoline;
 use crate::prelude::PyTypeMethods;
 use crate::{
     ffi,
@@ -45,11 +43,6 @@ use crate::{
     Bound, Py, PyAny, PyClass, PyResult, PyTypeInfo, Python,
 };
 use crate::{ffi_ptr_ext::FfiPtrExt, PyErr};
-use crate::{
-    sync::PyOnceLock,
-    types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
-    Py, PyAny, Python,
-};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
@@ -80,7 +73,25 @@ impl ModuleDef {
         name: &'static CStr,
         doc: &'static CStr,
         slots: &'static PyModuleSlots,
+        allocate_state: bool,
     ) -> Self {
+        #[cfg(feature = "experimental-module-state")]
+        let m_size = if allocate_state {
+            std::mem::size_of::<ModuleState>() as _
+        } else {
+            0
+        };
+        #[cfg(feature = "experimental-module-state")]
+        let m_free = if allocate_state {
+            Some(pyo3_module_state_free as unsafe extern "C" fn(*mut c_void))
+        } else {
+            None
+        };
+        #[cfg(not(feature = "experimental-module-state"))]
+        let m_size = 0;
+        #[cfg(not(feature = "experimental-module-state"))]
+        let m_free = None;
+
         // This is only used in PyO3 for append_to_inittab on Python 3.15 and newer.
         // There could also be other tools that need the legacy init hook.
         #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
@@ -101,11 +112,11 @@ impl ModuleDef {
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
             m_name: name.as_ptr(),
             m_doc: doc.as_ptr(),
-            m_size: std::mem::size_of::<ModuleState>() as _,
+            m_size: m_size,
             // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
             // but that requires mut ptr deref on MSRV.
             m_slots: slots.0.get() as _,
-            m_free: Some(pyo3_module_state_free),
+            m_free: m_free,
             ..INIT
         });
 
@@ -532,25 +543,21 @@ impl PyAddToModule for ModuleDef {
 
 /// Called during multi-phase initialization in order to create an instance of
 /// ModuleState on the memory area specific to modules.
-///
-/// Slot: [`Py_mod_exec`]
-///
-/// [`Py_mod_exec`]: https://docs.python.org/3/c-api/module.html#c.Py_mod_exec
-pub unsafe extern "C" fn pyo3_module_state_init(module: *mut ffi::PyObject) -> c_int {
+pub fn pyo3_module_state_init<T: 'static>(module: &Bound<'_, PyModule>, state: T) -> PyResult<()> {
     unsafe {
-        trampoline(|_| {
-            let state: *mut MaybeUninit<ModuleState> = ffi::PyModule_GetState(module).cast();
+        let m_state: *mut MaybeUninit<ModuleState> = ffi::PyModule_GetState(module.as_ptr()).cast();
 
-            // CPython builtins just assert this, but cross ffi panics are tricky, so we return an
-            // error instead
-            if state.is_null() {
-                return Err(PyRuntimeError::new_err("PyO3 per-module state was null. This is a bug in the Python interpreter runtime."));
-            }
+        // CPython builtins just assert this, but cross ffi panics are tricky, so we return an
+        // error instead
+        if m_state.is_null() {
+            return Err(PyRuntimeError::new_err(
+                "PyO3 per-module state was null. This is a bug in the Python interpreter runtime.",
+            ));
+        }
 
-            (*state).write(ModuleState::new());
+        (*m_state).write(ModuleState::new(state));
 
-            Ok(0)
-        })
+        Ok(())
     }
 }
 
@@ -719,7 +726,7 @@ mod tests {
             }
         }
 
-        static SLOTS: PyModuleSlots<5> = PyModuleSlotsBuilder::new()
+        static SLOTS: PyModuleSlots = PyModuleSlotsBuilder::new()
             .with_gil_used(false)
             .with_mod_exec(pyo3_module_state_init)
             .with_mod_exec(state_test)

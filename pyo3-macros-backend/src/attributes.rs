@@ -56,6 +56,8 @@ pub mod kw {
     syn::custom_keyword!(category);
     syn::custom_keyword!(from_py_object);
     syn::custom_keyword!(skip_from_py_object);
+    #[cfg(feature = "experimental-module-state")]
+    syn::custom_keyword!(state);
 }
 
 fn take_int(read: &mut &str, tracker: &mut usize) -> String {
@@ -349,6 +351,8 @@ pub type TextSignatureAttribute = KeywordAttribute<kw::text_signature, TextSigna
 pub type NewImplTypeAttribute = KeywordAttribute<kw::new, NewImplTypeAttributeValue>;
 pub type SubmoduleAttribute = kw::submodule;
 pub type GILUsedAttribute = KeywordAttribute<kw::gil_used, LitBool>;
+#[cfg(feature = "experimental-module-state")]
+pub type StateAttribute = KeywordAttribute<kw::state, Path>;
 
 impl<K: Parse + std::fmt::Debug, V: Parse> Parse for KeywordAttribute<K, V> {
     fn parse(input: ParseStream<'_>) -> Result<Self> {

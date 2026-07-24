@@ -1,68 +1,35 @@
-use std::ptr::NonNull;
-
-use crate::internal::typemap::{CloneAny, TypeMap};
 use crate::types::PyModule;
 use crate::{ffi, Bound};
-
-/// The internal typemap for [`ModuleState`]
-pub type StateMap = TypeMap<dyn CloneAny + Send>;
-
-/// A marker trait for indicating what type level guarantees (and requirements)
-/// are made for PyO3 `PyModule` state types.
-///
-/// In general, a type *must be*
-///
-/// 1. Fully owned (`'static`)
-/// 2. Cloneable (`Clone`)
-/// 3. Sendable (`Send`)
-///
-/// To qualify as `PyModule` state.
-///
-/// This type is automatically implemented for all types that qualify, so no
-/// further action is required.
-pub trait ModuleStateType: Clone + Send {}
-impl<T: Clone + Send> ModuleStateType for T {}
+use alloc::boxed::Box;
+use core::ptr::NonNull;
 
 /// Represents a Python module's state.
 ///
 /// More precisely, this `struct` resides on the per-module memory area
 /// allocated during the module's creation.
+#[cfg(feature = "experimental-module-state")]
 #[repr(C)]
 #[derive(Debug)]
 pub struct ModuleState {
-    inner: Option<NonNull<StateCapsule>>,
+    inner: Option<Box<dyn std::any::Any>>,
 }
 
 impl ModuleState {
     /// Create a new, empty [`ModuleState`]
-    pub fn new() -> Self {
-        let boxed = Box::new(StateCapsule::new());
-
+    pub fn new<T: 'static>(value: T) -> Self {
         Self {
-            inner: NonNull::new(Box::into_raw(boxed)),
+            inner: Some(Box::new(value)),
         }
     }
 
-    pub fn state_map_ref(&self) -> &StateMap {
-        &self.inner_ref().sm
+    /// Retrieve immutable reference to state
+    pub fn inner_ref<T: 'static>(&self) -> Option<&T> {
+        self.inner.as_ref().and_then(|s| s.downcast_ref::<T>())
     }
 
-    pub fn state_map_mut(&mut self) -> &mut StateMap {
-        &mut self.inner_mut().sm
-    }
-
-    fn inner_ref(&self) -> &StateCapsule {
-        self.inner
-            .as_ref()
-            .map(|ptr| unsafe { ptr.as_ref() })
-            .expect("BUG: ModuleState.inner should always be Some, except when dropping")
-    }
-
-    fn inner_mut(&mut self) -> &mut StateCapsule {
-        self.inner
-            .as_mut()
-            .map(|ptr| unsafe { ptr.as_mut() })
-            .expect("BUG: ModuleState.inner should always be Some, except when dropping")
+    /// Retrieve mutable reference to state
+    pub fn inner_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        self.inner.as_mut().and_then(|s| s.downcast_mut::<T>())
     }
 
     /// This is the actual [`Drop::drop`] implementation, split out
@@ -74,11 +41,7 @@ impl ModuleState {
     /// Calling this function multiple times on a single ModuleState is a noop,
     /// beyond the first
     unsafe fn drop_impl(&mut self) {
-        if let Some(ptr) = self.inner.take().map(|state| state.as_ptr()) {
-            // SAFETY: This ptr is allocated via Box::new in Self::new, and is
-            // non null
-            unsafe { drop(Box::from_raw(ptr)) }
-        }
+        self.inner.take();
     }
 }
 
@@ -89,12 +52,8 @@ impl ModuleState {
     ///
     /// This function can panic if called on a PyModule that has not yet been
     /// initialized
-    pub(crate) fn from_bound<'a>(this: &'a Bound<'_, PyModule>) -> &'a Self {
-        unsafe {
-            Self::pymodule_get_state(this.as_ptr())
-                .map(|ptr| ptr.as_ref())
-                .expect("pyo3 PyModules should always have per-module state")
-        }
+    pub(crate) fn from_bound<'a>(this: &'a Bound<'_, PyModule>) -> Option<&'a Self> {
+        unsafe { Self::pymodule_get_state(this.as_ptr()).map(|ptr| ptr.as_ref()) }
     }
 
     /// Fetch the [`ModuleState`] mutably from a bound PyModule, inheriting it's
@@ -104,12 +63,8 @@ impl ModuleState {
     ///
     /// This function can panic if called on a PyModule that has not yet been
     /// initialized
-    pub(crate) fn from_bound_mut<'a>(this: &'a mut Bound<'_, PyModule>) -> &'a mut Self {
-        unsafe {
-            Self::pymodule_get_state(this.as_ptr())
-                .map(|mut ptr| ptr.as_mut())
-                .expect("pyo3 PyModules should always have per-module state")
-        }
+    pub(crate) fn from_bound_mut<'a>(this: &'a mut Bound<'_, PyModule>) -> Option<&'a mut Self> {
+        unsafe { Self::pymodule_get_state(this.as_ptr()).map(|mut ptr| ptr.as_mut()) }
     }
 
     /// Associated low level function for retrieving a pyo3 `pymodule`'s state
@@ -147,46 +102,5 @@ impl Drop for ModuleState {
     fn drop(&mut self) {
         // SAFETY: we're being dropped, so we'll never be accessed again
         unsafe { self.drop_impl() };
-    }
-}
-
-impl Default for ModuleState {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Inner layout of [`ModuleState`].
-#[derive(Debug, Clone)]
-struct StateCapsule {
-    sm: StateMap,
-}
-
-impl StateCapsule {
-    fn new() -> Self {
-        Self {
-            sm: StateMap::new(),
-        }
-    }
-}
-
-impl Default for StateCapsule {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn type_assertions() {
-        fn is_send<T: Send>(_t: &T) {}
-        fn is_clone<T: Clone>(_t: &T) {}
-
-        let this = StateCapsule::new();
-        is_send(&this);
-        is_clone(&this);
     }
 }

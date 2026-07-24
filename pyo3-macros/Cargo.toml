@@ -18,6 +18,7 @@ proc-macro = true
 multiple-pymethods = []
 experimental-async = ["pyo3-macros-backend/experimental-async"]
 experimental-inspect = ["pyo3-macros-backend/experimental-inspect"]
+experimental-module-state = []
 
 [dependencies]
 proc-macro2 = { version = "1.0.60", default-features = false }
