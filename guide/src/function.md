@@ -193,7 +193,10 @@ It can take any combination of the following options:
 
   ```python
   import warnings
-  from raising_warning_fn import function_with_warning, function_with_warning_and_custom_category
+  from raising_warning_fn import (
+      function_with_warning,
+      function_with_warning_and_custom_category,
+  )
 
   function_with_warning()
   function_with_warning_and_custom_category()

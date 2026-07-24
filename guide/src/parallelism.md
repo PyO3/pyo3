@@ -94,12 +94,8 @@ from word_count import search_sequential_detached
 
 executor = ThreadPoolExecutor(max_workers=2)
 
-future_1 = executor.submit(
-    word_count.search_sequential_detached, contents, needle
-)
-future_2 = executor.submit(
-    word_count.search_sequential_detached, contents, needle
-)
+future_1 = executor.submit(word_count.search_sequential_detached, contents, needle)
+future_2 = executor.submit(word_count.search_sequential_detached, contents, needle)
 result_1 = future_1.result()
 result_2 = future_2.result()
 ```

@@ -293,6 +293,7 @@ instead of the generic:
 ```python
 from typing import Any
 
+
 def list_of_int_identity(arg: Any) -> Any: ...
 ```
 

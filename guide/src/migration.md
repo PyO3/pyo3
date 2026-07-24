@@ -2141,7 +2141,6 @@ To explain this in detail, consider the following Python class:
 
 ```python
 class ExampleContainer:
-
     def __len__(self):
         return 5
 

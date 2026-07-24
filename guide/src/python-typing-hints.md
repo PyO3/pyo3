@@ -28,15 +28,19 @@ class BaseException(object):
     __context__: BaseException | None
     __suppress_context__: bool
     __traceback__: TracebackType | None
+
     def __init__(self, *args: object) -> None: ...
     def __str__(self) -> str: ...
     def __repr__(self) -> str: ...
     def with_traceback(self: _TBE, tb: TracebackType | None) -> _TBE: ...
 
+
 class SystemExit(BaseException):
     code: int
 
+
 class Exception(BaseException): ...
+
 
 class StopIteration(Exception):
     value: Any
@@ -169,10 +173,11 @@ class Car:
     :param body_type: the name of body type, e.g. hatchback, sedan
     :param horsepower: power of the engine in horsepower
     """
+
     def __init__(self, body_type: str, horsepower: int) -> None: ...
 
     @classmethod
-    def from_unique_name(cls, name: str) -> 'Car':
+    def from_unique_name(cls, name: str) -> "Car":
         """
         Creates a Car based on unique name
 
@@ -200,7 +205,8 @@ Take for example the following `.pyi` file that specifies a `Car` that can accep
 ```python
 from typing import Generic, TypeVar
 
-W = TypeVar('W')
+W = TypeVar("W")
+
 
 class Car(Generic[W]):
     def __init__(self, wheels: list[W]) -> None: ...

@@ -56,11 +56,13 @@ Note that it can also be implemented as a higher order function:
 ```python
 def Counter(wraps):
     count = 0
+
     def call(*args, **kwargs):
         nonlocal count
         count += 1
         print(f"{wraps.__name__} has been called {count} time(s)")
         return wraps(*args, **kwargs)
+
     return call
 ```
 
@@ -101,6 +103,7 @@ As a result, something innocent like this will raise an exception:
 def say_hello():
     if say_hello.count < 2:
         print(f"hello from decorator")
+
 
 say_hello()
 # RuntimeError: Already borrowed
