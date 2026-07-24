@@ -11,6 +11,8 @@ mod utils;
 mod attributes;
 mod combine_errors;
 mod derive_attributes;
+#[cfg(feature = "experimental-inspect")]
+mod exception;
 mod frompyobject;
 mod intopyobject;
 #[cfg(feature = "experimental-inspect")]
@@ -27,6 +29,8 @@ mod pyimpl;
 mod pymethod;
 mod quotes;
 
+#[cfg(feature = "experimental-inspect")]
+pub use exception::{build_exception_introspection, ExceptionIntrospectionArgs};
 pub use frompyobject::build_derive_from_pyobject;
 pub use intopyobject::build_derive_into_pyobject;
 pub use module::{pymodule_function_impl, pymodule_module_impl, PyModuleOptions};

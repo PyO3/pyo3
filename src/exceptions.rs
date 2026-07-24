@@ -171,6 +171,8 @@ macro_rules! create_exception {
         $crate::impl_exception_boilerplate!($name);
 
         $crate::create_exception_type_object!($module, $name, $base, None);
+
+        $crate::create_exception_introspection!($name, $base);
     };
     ($module: expr, $name: ident, $base: ty, $doc: expr) => {
         #[repr(transparent)]
@@ -180,6 +182,8 @@ macro_rules! create_exception {
         $crate::impl_exception_boilerplate!($name);
 
         $crate::create_exception_type_object!($module, $name, $base, Some($doc));
+
+        $crate::create_exception_introspection!($name, $base, $doc);
     };
 }
 
@@ -248,6 +252,22 @@ macro_rules! create_exception_type_object {
         }
     };
 }
+
+#[cfg(not(all(feature = "experimental-inspect", feature = "macros")))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! create_exception_introspection(
+    ($name: ident, $base: ty $(, $doc: expr)?) => {};
+);
+
+#[cfg(all(feature = "experimental-inspect", feature = "macros"))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! create_exception_introspection(
+    ($name: ident, $base: ty $(, $doc: expr)?) => {
+        $crate::exception_introspection_impl!($crate, $name, $base $(, $doc)?);
+    };
+);
 
 /// Adds a TYPE_HINT constant if the `experimental-inspect`  feature is enabled.
 #[cfg(not(feature = "experimental-inspect"))]
