@@ -264,20 +264,14 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         // at runtime? To be investigated.
         let type_ptr = type_obj.as_type_ptr();
         let actual_type_ptr = ffi::Py_TYPE(slf);
-        let actual_type = if ffi::PyType_HasFeature(actual_type_ptr, ffi::Py_TPFLAGS_HEAPTYPE) != 0
-        {
-            // For heap types, instances must decref the type object  when they
-            // are deallocated, so we create a bound from a borrowed pointer as
-            // as if it was an owned pointer. In this way, when the bound is dropped,
-            // it will decref the type object.
-            Bound::from_owned_ptr(py, actual_type_ptr as *mut ffi::PyObject)
-                .cast_into_unchecked::<PyType>()
-        } else {
-            // For non heap types, we can just create a bound from a borrowed pointer.
-            // This aligns with Py_TYPE contract.
-            Bound::from_borrowed_ptr(py, actual_type_ptr as *mut ffi::PyObject)
-                .cast_into_unchecked::<PyType>()
-        };
+
+        // For heap types, instances must decref the type object  when they
+        // are deallocated, so we create a bound from a borrowed pointer as
+        // as if it was an owned pointer. In this way, when the bound is dropped,
+        // it will decref the type object.
+        debug_assert!(ffi::PyType_HasFeature(actual_type_ptr, ffi::Py_TPFLAGS_HEAPTYPE) != 0);
+        let actual_type = Bound::from_owned_ptr(py, actual_type_ptr as *mut ffi::PyObject)
+            .cast_into_unchecked::<PyType>();
 
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
         #[cfg(not(RustPython))]
