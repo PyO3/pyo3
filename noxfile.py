@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 import json
 import os
@@ -8,6 +10,7 @@ import sys
 import sysconfig
 import tarfile
 import tempfile
+from collections.abc import Iterable, Iterator
 from contextlib import ExitStack, contextmanager
 from difflib import unified_diff
 from functools import lru_cache
@@ -17,14 +20,7 @@ from shlex import quote
 from typing import (
     Any,
     Callable,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
     Literal,
-    Optional,
-    Set,
-    Tuple,
 )
 
 import nox.command
@@ -52,7 +48,7 @@ PYO3_DOCS_TARGET = PYO3_TARGET / "doc"
 FREE_THREADED_BUILD = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 
 
-def _get_output(*args: str, env: Optional[Dict[str, str]] = None) -> str:
+def _get_output(*args: str, env: dict[str, str] | None = None) -> str:
     try:
         return subprocess.run(
             args, capture_output=True, text=True, check=True, stdin=None, env=env
@@ -66,7 +62,7 @@ def _get_output(*args: str, env: Optional[Dict[str, str]] = None) -> str:
 
 def _parse_supported_interpreter_version(
     python_impl: Literal["cpython", "pypy"],
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     output = _get_output("cargo", "metadata", "--format-version=1", "--no-deps")
     cargo_packages = json.loads(output)["packages"]
     # Check Python interpreter version support in package metadata
@@ -80,7 +76,7 @@ def _parse_supported_interpreter_version(
 
 def _supported_interpreter_versions(
     python_impl: Literal["cpython", "pypy"],
-) -> List[str]:
+) -> list[str]:
     min_version, max_version = _parse_supported_interpreter_version(python_impl)
     major = int(min_version.split(".")[0])
     assert major == 3, f"unsupported Python major version {major}"
@@ -261,8 +257,8 @@ def clippy(session: nox.Session) -> bool:
 def _clippy(
     session: nox.Session,
     *,
-    env: Dict[str, str] = None,
-    version: Optional[Tuple[int, int]] = None,
+    env: dict[str, str] | None = None,
+    version: tuple[int, int] | None = None,
 ) -> bool:
     success = True
     env = env or os.environ
@@ -327,7 +323,7 @@ def clippy_all(session: nox.Session) -> None:
     success = True
 
     def _clippy_with_config(
-        env: Dict[str, str], version: Optional[Tuple[int, int]]
+        env: dict[str, str], version: tuple[int, int] | None
     ) -> None:
         nonlocal success
         success &= _clippy(session, env=env, version=version)
@@ -343,7 +339,7 @@ def clippy_all(session: nox.Session) -> None:
 def check_all(session: nox.Session) -> None:
     success = True
 
-    def _check(env: Dict[str, str], version: Tuple[int, int]) -> None:
+    def _check(env: dict[str, str], version: tuple[int, int]) -> None:
         nonlocal success
         for feature_set in _get_feature_sets():
             try:
@@ -410,7 +406,7 @@ def contributors(session: nox.Session) -> None:
         for commit in body["commits"]:
             try:
                 authors.add(commit["author"]["login"])
-            except Exception:
+            except KeyError:
                 continue
 
         if "next" in resp.links:
@@ -418,7 +414,7 @@ def contributors(session: nox.Session) -> None:
         else:
             break
 
-    authors = sorted(list(authors), key=lambda author: author.lower())
+    authors = sorted(authors, key=lambda author: author.lower())
 
     for author in authors:
         print(f"@{author}")
@@ -818,7 +814,7 @@ def _url_path_from_file_path(file_path: str) -> str:
     return url_path
 
 
-def _url_and_file_paths(url_path: str, file_path: str) -> Tuple[str, str]:
+def _url_and_file_paths(url_path: str, file_path: str) -> tuple[str, str]:
     """Returns all combinations of url and file paths with and without index.html suffix"""
     if url_path == file_path:
         return (url_path,)
@@ -1087,9 +1083,9 @@ _INNER_CFG_RE = re.compile(r"^#!\[\s*cfg\s*\((.*)\)\s*\]\s*$")
 _FEATURE_RE = re.compile(r'feature\s*=\s*"([^"]+)"')
 
 
-def _read_inner_cfgs(path: Path) -> List[str]:
+def _read_inner_cfgs(path: Path) -> list[str]:
     """Return the bodies of leading `#![cfg(...)]` inner attributes."""
-    cfgs: List[str] = []
+    cfgs: list[str] = []
     with path.open("r", encoding="utf-8") as f:
         for line in f:
             stripped = line.strip()
@@ -1260,7 +1256,7 @@ def set_msrv_package_versions(session: nox.Session):
         lock_file = project / "Cargo.lock"
 
         def load_pkg_versions():
-            cargo_lock = toml.loads(lock_file.read_text())
+            cargo_lock = toml.loads(lock_file.read_text())  # noqa: B023
             # Cargo allows to depends on multiple versions of the same package
             pkg_versions = defaultdict(list)
             for pkg in cargo_lock["package"]:
@@ -1501,12 +1497,12 @@ def _check_raw_dylib_macro(session: nox.Session):
     )
 
 
-def _raw_dylib_x86_private_functions() -> Set[str]:
+def _raw_dylib_x86_private_functions() -> set[str]:
     ffi_src = PYO3_DIR / "pyo3-ffi" / "src"
     private_fns = set()
     for path in ffi_src.rglob("*.rs"):
         for block in _iter_extern_libpython_blocks(path.read_text()):
-            attrs: List[str] = []
+            attrs: list[str] = []
             for line in block.splitlines():
                 stripped = line.strip()
                 if stripped.startswith("#["):
@@ -1767,14 +1763,14 @@ def _ensure_directory_equals(expected_dir: Path, actual_dir: Path):
         )
 
 
-@lru_cache()
-def _get_rust_info() -> Tuple[str, ...]:
+@lru_cache
+def _get_rust_info() -> tuple[str, ...]:
     output = _get_output("rustc", "-vV")
 
     return tuple(output.splitlines())
 
 
-def get_rust_version() -> Tuple[int, int, int, List[str]]:
+def get_rust_version() -> tuple[int, int, int, list[str]]:
     for line in _get_rust_info():
         if line.startswith(_RELEASE_LINE_START):
             version = line[len(_RELEASE_LINE_START) :].strip()
@@ -1796,10 +1792,10 @@ def _get_rust_default_target() -> str:
             return line[len(_HOST_LINE_START) :].strip()
 
 
-@lru_cache()
+@lru_cache
 def _get_feature_sets(
-    version: Optional[Tuple[int, int]] = None,
-) -> Tuple[Optional[str], ...]:
+    version: tuple[int, int] | None = None,
+) -> tuple[str | None, ...]:
     """Returns feature sets to use for Rust jobs"""
     if version is None:
         version = sys.version_info[:2]
@@ -1838,7 +1834,7 @@ _RELEASE_LINE_START = "release: "
 _HOST_LINE_START = "host: "
 
 
-def _get_coverage_env(*flags: str) -> Dict[str, str]:
+def _get_coverage_env(*flags: str) -> dict[str, str]:
     llvm_cov_execution_env = os.environ.copy()
     # prevent llvm-cov from hanging asking to install llvm-tools-preview
     # (allow user to override this, if they wish, e.g. in CI)
@@ -1898,10 +1894,10 @@ def _run_cargo(
 def _run_cargo_test(
     session: nox.Session,
     *,
-    package: Optional[str] = None,
-    features: Optional[str] = None,
-    env: Optional[Dict[str, str]] = None,
-    extra_flags: Optional[List[str]] = None,
+    package: str | None = None,
+    features: str | None = None,
+    env: dict[str, str] | None = None,
+    extra_flags: list[str] | None = None,
 ) -> None:
     command = ["cargo"]
     if "careful" in session.posargs:
@@ -1943,7 +1939,7 @@ def _run_cargo_set_package_version(
     pkg_id: str,
     version: str,
     *,
-    project: Optional[str] = None,
+    project: str | None = None,
 ) -> None:
     command = ["cargo", "update", "-p", pkg_id, "--precise", version, "--workspace"]
     if project:
@@ -1952,7 +1948,7 @@ def _run_cargo_set_package_version(
 
 
 def _for_all_version_configs(
-    session: nox.Session, job: Callable[[Dict[str, str]], None]
+    session: nox.Session, job: Callable[[dict[str, str]], None]
 ) -> None:
     env = os.environ.copy()
     with _config_file() as config_file:

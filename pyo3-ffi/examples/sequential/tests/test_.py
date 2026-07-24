@@ -18,4 +18,4 @@ def test_cmp():
     b = Id()
     assert a <= b
     assert a < b
-    assert a == a
+    assert a == a  # noqa: PLR0124

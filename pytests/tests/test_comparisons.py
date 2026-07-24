@@ -1,6 +1,6 @@
-from typing import Type, TypeVar
-
 import sys
+from typing import TypeVar
+
 import pytest
 from pyo3_pytests.comparisons import (
     Eq,
@@ -42,7 +42,7 @@ EqType = TypeVar("EqType", Eq, EqDerived, PyEq)
 @pytest.mark.parametrize(
     "ty", (Eq, EqDerived, PyEq), ids=("rust", "rust-derived", "python")
 )
-def test_eq(ty: Type[EqType]):
+def test_eq(ty: type[EqType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
@@ -96,7 +96,7 @@ EqDefaultType = TypeVar("EqDefaultType", EqDefaultNe, PyEqDefaultNe)
 
 
 @pytest.mark.parametrize("ty", (EqDefaultNe, PyEqDefaultNe), ids=("rust", "python"))
-def test_eq_default_ne(ty: Type[EqDefaultType]):
+def test_eq_default_ne(ty: type[EqDefaultType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
@@ -166,7 +166,7 @@ OrderedType = TypeVar("OrderedType", Ordered, OrderedDerived, OrderedRichCmp, Py
     (Ordered, OrderedDerived, OrderedRichCmp, PyOrdered),
     ids=("rust", "rust-derived", "rust-richcmp", "python"),
 )
-def test_ordered(ty: Type[OrderedType]):
+def test_ordered(ty: type[OrderedType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
@@ -230,7 +230,7 @@ OrderedDefaultType = TypeVar("OrderedDefaultType", OrderedDefaultNe, PyOrderedDe
 @pytest.mark.parametrize(
     "ty", (OrderedDefaultNe, PyOrderedDefaultNe), ids=("rust", "python")
 )
-def test_ordered_default_ne(ty: Type[OrderedDefaultType]):
+def test_ordered_default_ne(ty: type[OrderedDefaultType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)

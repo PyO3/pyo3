@@ -55,6 +55,7 @@ A dummy `Layer` implementation may look like this:
 ```python
 import rust_extension
 
+
 class MyPythonLayer:
     def __init__(self):
         pass
@@ -73,6 +74,7 @@ class MyPythonLayer:
 
     def on_record(self, span_id: str, values: str, state: int):
         print(f"[on_record]: {span_id} | {values} | {state}")
+
 
 def main():
     rust_extension.initialize_tracing(MyPythonLayer())
