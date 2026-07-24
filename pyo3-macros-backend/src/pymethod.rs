@@ -562,13 +562,13 @@ pub(crate) fn impl_py_class_attribute(
 
     let wrapper_ident = format_ident!("__pymethod_{}__", name);
     let python_name = spec.null_terminated_python_name();
-    let body = quotes::ok_wrap(fncall, ctx);
+    let conversion = quotes::wrap_into_pyobject(quote!(result), quote!(py), ctx);
 
     let associated_method = quote! {
         fn #wrapper_ident(py: #pyo3_path::Python<'_>) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
             let function = #cls::#name; // Shadow the method name to avoid #3017
-            let result = #body;
-            #pyo3_path::impl_::wrap::converter(&result).map_into_pyobject(py, result)
+            let result = #fncall;
+            #conversion
         }
     };
 
@@ -1546,7 +1546,7 @@ fn generate_method_body(
 
             let value = syn::Ident::new("value", Span::call_site());
             let resolver = quote_spanned! { *output_span =>
-                #pyo3_path::impl_::pymethods::tp_new_resolver::<#cls, _>(&#value).resolve(#value);
+                #pyo3_path::impl_::pymethods::tp_new_resolver::<#cls, _>(&#value).resolve(#value)
             };
 
             let body = quote! {
