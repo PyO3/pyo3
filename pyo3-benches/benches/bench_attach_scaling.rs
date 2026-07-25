@@ -16,7 +16,7 @@ mod scaling {
 
     use pyo3::prelude::*;
 
-    const THREADS: [usize; 4] = [1, 2, 4, 8];
+    const THREADS: [usize; 3] = [1, 2, 4];
 
     // Nested attaches, so that each iteration is a pool drain rather than a `PyGILState_Ensure`.
     fn bench_nested_attach(c: &mut Criterion, name: &str) {
