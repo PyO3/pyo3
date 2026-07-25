@@ -174,8 +174,11 @@ impl<T: PyClass> PyClassInitializer<T> {
             // SAFETY: `tp_alloc` zero-initializes the object, so the slot contains either
             // zeroes (a valid empty slot value) or a valid owned pointer stored by the base
             // `tp_new` through the type's `tp_dictoffset`.
-            new_contents.dict =
-                unsafe { core::ptr::read(&raw const (*(*contents).as_mut_ptr()).dict) };
+            unsafe {
+                let contents_ptr = (*contents).as_mut_ptr();
+                let dict_ptr = core::ptr::addr_of!((*contents_ptr).dict);
+                new_contents.dict = core::ptr::read(dict_ptr);
+            }
             new_contents
         };
 
