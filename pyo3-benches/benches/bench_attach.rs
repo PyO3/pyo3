@@ -13,9 +13,16 @@ fn bench_dirty_attach(b: &mut Bencher<'_>) {
     b.iter(|| Python::attach(|py| obj.clone_ref(py)));
 }
 
+fn bench_empty_pool_attach(b: &mut Bencher<'_>) {
+    // Drop the returned clone while detached so that the reference pool exists but is empty.
+    drop(Python::attach(|py| py.None()));
+    b.iter(|| Python::attach(|_| {}));
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("clean_attach", bench_clean_attach);
     c.bench_function("dirty_attach", bench_dirty_attach);
+    c.bench_function("empty_pool_attach", bench_empty_pool_attach);
 }
 
 criterion_group!(benches, criterion_benchmark);
