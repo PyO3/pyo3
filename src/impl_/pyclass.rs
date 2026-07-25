@@ -63,6 +63,9 @@ pub trait PyClassDict: sealed::Sealed {
     /// Empties the dictionary of its key-value pairs.
     #[inline]
     fn clear_dict(&self, _py: Python<'_>) {}
+    /// Releases the owned reference to the dictionary.
+    #[inline]
+    fn release_dict(&mut self, _py: Python<'_>) {}
     /// Visits the `__dict__`, if any, on behalf of `tp_traverse`.
     ///
     /// # Safety
@@ -111,6 +114,10 @@ impl PyClassDict for PyClassDictSlot {
         if !self.0.is_null() {
             unsafe { ffi::PyDict_Clear(self.0) }
         }
+    }
+    #[inline]
+    fn release_dict(&mut self, _py: Python<'_>) {
+        unsafe { ffi::Py_CLEAR(&raw mut self.0) }
     }
     #[inline]
     unsafe fn traverse_dict(&self, visit: ffi::visitproc, arg: *mut c_void) -> c_int {
