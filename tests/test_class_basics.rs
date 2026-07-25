@@ -502,45 +502,53 @@ fn dunder_dict_is_released() {
     });
 }
 
-// Compares global allocator statistics, which requires that no other thread allocates during
-// the measurement, so this is flaky on the free-threaded build
-#[cfg(not(Py_GIL_DISABLED))]
+// The `__dict__` slot must hold exactly what CPython's `tp_new` left there: CPython 3.11
+// and 3.12 eagerly create the instance dict in `object.__new__` for types with a nonzero
+// `tp_dictoffset`, and the pyclass contents initialization must preserve it rather than
+// clobber it. All other versions create the dict lazily on first access.
+#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 #[test]
-fn dict_class_creation_does_not_leak() {
+fn instance_dict_slot_is_not_clobbered() {
     Python::attach(|py| {
-        let blocks = || {
-            py.import("sys")
-                .unwrap()
-                .call_method0("getallocatedblocks")
-                .unwrap()
-                .extract::<i64>()
-                .unwrap()
+        let inst = Py::new(
+            py,
+            DunderDictSupport {
+                _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+            },
+        )
+        .unwrap();
+
+        // Read the `__dict__` slot directly (see `_PyObject_GetDictPtr`), *without*
+        // going through `__dict__`.
+        // SAFETY: `inst` is a valid object whose type has a positive `tp_dictoffset`.
+        let read_slot = || unsafe {
+            let offset = (*pyo3::ffi::Py_TYPE(inst.as_ptr())).tp_dictoffset;
+            assert!(offset > 0);
+            *inst
+                .as_ptr()
+                .cast::<u8>()
+                .offset(offset)
+                .cast::<*mut pyo3::ffi::PyObject>()
         };
-        let cycle = |n: usize| {
-            for _ in 0..n {
-                let inst = Py::new(
-                    py,
-                    DunderDictSupport {
-                        _pad: *b"DEADBEEFDEADBEEFDEADBEEFDEADBEEF",
-                    },
-                )
-                .unwrap();
-                drop(inst);
-            }
-        };
-        // warm up interned strings, freelists and other caches
-        cycle(1_000);
-        let before = blocks();
-        cycle(10_000);
-        let after = blocks();
-        // On Python 3.11 and 3.12 `object.__new__` eagerly creates the instance dict, which
-        // used to be clobbered (and so leaked, one block per instance) during initialization
-        // of the class object contents.
-        assert!(
-            after - before < 1_000,
-            "leaked {} blocks over 10000 instances",
-            after - before
-        );
+
+        let slot_dict = read_slot();
+        if cfg!(all(Py_3_11, not(Py_3_13))) {
+            // `object.__new__` created the dict; it must survive pyclass initialization.
+            assert!(
+                !slot_dict.is_null(),
+                "the eagerly created __dict__ was clobbered during pyclass initialization"
+            );
+            // The slot holds the only reference to it.
+            assert_eq!(unsafe { pyo3::ffi::Py_REFCNT(slot_dict) }, 1);
+        } else {
+            // No eager creation on these versions; the slot starts out empty.
+            assert!(slot_dict.is_null());
+        }
+
+        // Whichever way the dict comes into existence, `__dict__` must be the dict
+        // stored in the slot.
+        let dict_attr = inst.bind(py).getattr("__dict__").unwrap();
+        assert_eq!(read_slot(), dict_attr.as_ptr());
     });
 }
 
