@@ -460,36 +460,37 @@ mod inheriting_native_type {
     }
 
     // Refcount tests for native type classes
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(not(any(PyPy, GraalPy, Py_GIL_DISABLED)))]
     #[test]
     fn test_setwitname_ref_counts() {
         assert_type_refcount_stable!(SetWithName);
     }
 
-    #[cfg(not(GraalPy))]
+    #[cfg(not(any(GraalPy, Py_GIL_DISABLED)))]
     #[test]
     fn test_dictwithname_ref_counts() {
         assert_type_refcount_stable!(DictWithName);
     }
 
+    #[cfg(not(Py_GIL_DISABLED))]
     #[test]
     fn test_customexception_ref_counts() {
         assert_type_refcount_stable!(CustomException, "custom_exception", r#"Type('test')"#);
     }
 
-    #[cfg(Py_3_12)]
+    #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
     #[test]
     fn test_tzinfowithname_ref_counts() {
         assert_type_refcount_stable!(TzInfoWithName);
     }
 
-    #[cfg(Py_3_12)]
+    #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
     #[test]
     fn test_listwithname_ref_counts() {
         assert_type_refcount_stable!(ListWithName);
     }
 
-    #[cfg(Py_3_12)]
+    #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
     #[test]
     fn test_sublistwithname_ref_counts() {
         assert_type_refcount_stable!(SubListWithName);
@@ -508,26 +509,31 @@ impl SimpleClass {
 }
 
 // Generate refcount tests for all top-level types
+#[cfg(not(Py_GIL_DISABLED))]
 #[test]
 fn test_baseclass_ref_counts() {
     assert_type_refcount_stable!(BaseClass);
 }
 
+#[cfg(not(Py_GIL_DISABLED))]
 #[test]
 fn test_subclass_ref_counts() {
     assert_type_refcount_stable!(SubClass);
 }
 
+#[cfg(not(Py_GIL_DISABLED))]
 #[test]
 fn test_base_class_with_result_ref_counts() {
     assert_type_refcount_stable!(BaseClassWithResult, "base_class_with_result", "Type(10)");
 }
 
+#[cfg(not(Py_GIL_DISABLED))]
 #[test]
 fn test_subclass2_ref_counts() {
     assert_type_refcount_stable!(SubClass2, "subclass2", "Type(10)");
 }
 
+#[cfg(not(Py_GIL_DISABLED))]
 #[test]
 fn test_simpleclass_ref_counts() {
     assert_type_refcount_stable!(SimpleClass);
