@@ -790,6 +790,13 @@ fn test_drop_buffer_during_traversal_without_gil() {
 
 // A `visitproc` may return non-zero to halt traversal early -- `gc.get_referrers()` does this
 // once it has found the object it is looking for.
+thread_local! {
+    // Whether the `visit.call` below returned non-zero for the object being traversed right now.
+    // A collection triggered by another test visits with a `visitproc` which returns zero, so
+    // only `gc.get_referrers` sets this.
+    static SUPER_STOPPED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 #[pyclass(subclass)]
 struct TraverseBase {
     field: Option<Py<PyAny>>,
@@ -798,8 +805,13 @@ struct TraverseBase {
 #[pymethods]
 impl TraverseBase {
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        SUPER_STOPPED.set(false);
         if let Some(field) = &self.field {
-            visit.call(field)?;
+            if let Err(err) = visit.call(field) {
+                SUPER_STOPPED.set(true);
+                SUPER_STOPPED_OBSERVED.store(true, Ordering::SeqCst);
+                return Err(err);
+            }
         }
         Ok(())
     }
@@ -809,9 +821,12 @@ impl TraverseBase {
     }
 }
 
-// Set by `TraverseChild::__traverse__` so the test can assert whether the child's own traverse
-// body ran.
-static CHILD_TRAVERSED: AtomicBool = AtomicBool::new(false);
+// Set when the super-type traverse asks to stop, so that the test can tell the early return was
+// reached rather than passing for want of a non-zero `visitproc`.
+static SUPER_STOPPED_OBSERVED: AtomicBool = AtomicBool::new(false);
+
+// Set if `TraverseChild::__traverse__` ran even though the super-type traverse asked to stop.
+static CHILD_RAN_AFTER_SUPER_STOPPED: AtomicBool = AtomicBool::new(false);
 
 #[pyclass(extends=TraverseBase)]
 struct TraverseChild {}
@@ -820,7 +835,9 @@ struct TraverseChild {}
 impl TraverseChild {
     #[expect(clippy::unnecessary_wraps)]
     fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        CHILD_TRAVERSED.store(true, Ordering::SeqCst);
+        if SUPER_STOPPED.get() {
+            CHILD_RAN_AFTER_SUPER_STOPPED.store(true, Ordering::SeqCst);
+        }
         Ok(())
     }
 }
@@ -835,8 +852,6 @@ fn test_super_traverse_early_return_does_not_abort() {
         .add_subclass(TraverseChild {});
         let child = Bound::new(py, initializer).unwrap();
 
-        CHILD_TRAVERSED.store(false, Ordering::SeqCst);
-
         // `target` is held by the base, so the super-type traverse is the one which finds it and
         // returns non-zero into `TraverseChild`'s traverse. `_call_traverse` must stop there and
         // return that value, without going on to run `TraverseChild::__traverse__` (the early
@@ -848,7 +863,11 @@ fn test_super_traverse_early_return_does_not_abort() {
             .unwrap();
         assert!(referrers.len().unwrap() > 0);
         assert!(
-            !CHILD_TRAVERSED.load(Ordering::SeqCst),
+            SUPER_STOPPED_OBSERVED.load(Ordering::SeqCst),
+            "super-type traverse never returned non-zero, so the early return was not exercised"
+        );
+        assert!(
+            !CHILD_RAN_AFTER_SUPER_STOPPED.load(Ordering::SeqCst),
             "child __traverse__ ran despite the super-type traverse returning non-zero"
         );
 
