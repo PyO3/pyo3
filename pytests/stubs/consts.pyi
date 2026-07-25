@@ -1,5 +1,7 @@
 from typing import Final, final
 
+__all__ = ["ESCAPING", "PI", "ClassWithConst"]
+
 ESCAPING: Final = "S\0\x01\t\n\r\"'\\"
 """
 We experiment with "escaping"

@@ -1,6 +1,20 @@
 from _typeshed import Incomplete
 from typing import Final, final
 
+__all__ = [
+    "AssertingBaseClass",
+    "ClassWithDecorators",
+    "ClassWithDict",
+    "ClassWithoutConstructor",
+    "EmptyClass",
+    "Number",
+    "PlainObject",
+    "PyClassIter",
+    "PyClassThreadIter",
+    "SubClassWithInit",
+    "map_a_class",
+]
+
 class AssertingBaseClass:
     """
     Demonstrates a base class which can operate on the relevant subclass in its constructor.

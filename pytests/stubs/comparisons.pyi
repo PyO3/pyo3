@@ -1,5 +1,15 @@
 from typing import final
 
+__all__ = [
+    "Eq",
+    "EqDefaultNe",
+    "EqDerived",
+    "Ordered",
+    "OrderedDefaultNe",
+    "OrderedDerived",
+    "OrderedRichCmp",
+]
+
 @final
 class Eq:
     def __eq__(self, /, other: object) -> bool: ...

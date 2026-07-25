@@ -1,5 +1,7 @@
 from os import PathLike
 from pathlib import Path
 
+__all__ = ["make_path", "take_pathbuf"]
+
 def make_path() -> Path: ...
 def take_pathbuf(path: str | PathLike[str]) -> Path: ...

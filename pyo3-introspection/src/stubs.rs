@@ -92,24 +92,28 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
         ));
     }
 
+    let dunder_all = dunder_all_stubs(module, &imports);
+
     let mut final_elements = Vec::new();
     if let Some(docstring) = &module.docstring {
         final_elements.push(format!("\"\"\"\n{docstring}\n\"\"\""));
     }
     final_elements.extend(imports.imports);
+    final_elements.extend(dunder_all);
     final_elements.extend(elements);
 
     let mut output = String::new();
 
-    // We insert two line jumps (i.e. empty strings) only above and below multiple line elements (classes with methods, functions with decorators)
+    // We insert two line jumps (i.e. empty strings) only above and below multiple line elements
+    // (classes with methods, functions with decorators) and the `__all__` declaration
     for element in final_elements {
-        let is_multiline = element.contains('\n');
-        if is_multiline && !output.is_empty() && !output.ends_with("\n\n") {
+        let needs_empty_lines = element.contains('\n') || element.starts_with("__all__");
+        if needs_empty_lines && !output.is_empty() && !output.ends_with("\n\n") {
             output.push('\n');
         }
         output.push_str(&element);
         output.push('\n');
-        if is_multiline {
+        if needs_empty_lines {
             output.push('\n');
         }
     }
@@ -119,6 +123,54 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
         output.pop();
     }
     output
+}
+
+/// Generates the `__all__` declaration of a module, if we are able to write an accurate one.
+///
+/// [`PyModuleMethods::add`] appends every name it adds to the module `__all__`, so any `#[pymodule]`
+/// with at least one member has an `__all__` at runtime and the stub must declare it too.
+///
+/// We only emit it for complete modules: for an incomplete one we do not know the full list of
+/// members, and an `__all__` missing some of them would hide from type checkers names that do exist
+/// at runtime.
+///
+/// [`PyModuleMethods::add`]: https://docs.rs/pyo3/latest/pyo3/types/trait.PyModuleMethods.html#tymethod.add
+fn dunder_all_stubs(module: &Module, imports: &Imports) -> Option<String> {
+    if module.incomplete {
+        return None;
+    }
+    if module.attributes.iter().any(|a| a.name == "__all__") {
+        // The introspection data carries an explicit `__all__`, it is more accurate than ours
+        return None;
+    }
+    let member_count = module.attributes.len()
+        + module.classes.len()
+        + module.functions.len()
+        + module.modules.len();
+    if member_count == 0 {
+        // Nothing was ever added to the module, so it has no `__all__` at runtime either
+        return None;
+    }
+
+    // Each of these lists is already sorted by name, so we just list the members in the order the
+    // stub declares them, with the submodules (declared in their own file) last.
+    let mut elts = Vec::with_capacity(member_count);
+    elts.extend(
+        module
+            .attributes
+            .iter()
+            .map(|a| &a.name)
+            .chain(module.classes.iter().map(|c| &c.name))
+            .chain(module.functions.iter().map(|f| &f.name))
+            .chain(module.modules.iter().map(|m| &m.name))
+            .map(|name| Expr::Constant {
+                value: Constant::Str(name.clone()),
+            }),
+    );
+
+    let mut buffer = "__all__ = ".to_string();
+    imports.serialize_expr(&Expr::List { elts }, &mut buffer);
+    Some(buffer)
 }
 
 fn class_stubs(class: &Class, imports: &Imports) -> String {
@@ -903,6 +955,67 @@ mod tests {
         let mut output = String::new();
         imports.serialize_expr(&big_type, &mut output);
         assert_eq!(output, "dict[A, (A3.C, A3.D, B, A2, int, int2, float)]");
+    }
+
+    fn empty_module(name: &str) -> Module {
+        Module {
+            name: name.into(),
+            modules: Vec::new(),
+            classes: Vec::new(),
+            functions: Vec::new(),
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        }
+    }
+
+    /// The `pytests` stubs cover the common cases, we only test the ones they don't have:
+    /// a module with a submodule, and an empty module.
+    #[test]
+    fn test_dunder_all() {
+        let module = Module {
+            modules: vec![empty_module("sub")],
+            classes: vec![Class {
+                name: "Zulu".into(),
+                bases: Vec::new(),
+                methods: Vec::new(),
+                attributes: Vec::new(),
+                decorators: Vec::new(),
+                inner_classes: Vec::new(),
+                docstring: None,
+            }],
+            functions: vec![Function {
+                name: "func".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: Vec::new(),
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: None,
+                is_async: false,
+                docstring: None,
+            }],
+            attributes: vec![Attribute {
+                name: "CONST".into(),
+                value: Some(Expr::Constant {
+                    value: Constant::Int("1".into()),
+                }),
+                annotation: None,
+                docstring: None,
+            }],
+            ..empty_module("bar")
+        };
+        // The names are the ones `PyModuleMethods::add` puts in `__all__` at runtime, including
+        // the submodule which is declared in its own stub file.
+        assert_eq!(
+            module_stubs(&module, &["foo"]),
+            "__all__ = [\"CONST\", \"Zulu\", \"func\", \"sub\"]\n\nCONST = 1\nclass Zulu: ...\ndef func(): ...\n"
+        );
+        // Nothing was added to an empty module, so it has no `__all__` at runtime either
+        assert_eq!(module_stubs(&empty_module("bar"), &["foo"]), "");
     }
 
     #[test]

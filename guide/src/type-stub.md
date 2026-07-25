@@ -55,6 +55,8 @@ will generate the following stub file:
 ```python
 import typing
 
+__all__ = ["CONSTANT", "Class", "list_of_int_identity"]
+
 CONSTANT: typing.Final = "FOO"
 
 
@@ -89,3 +91,4 @@ PyO3 also provides the smaller `pyo3-introspection` binary that allows to genera
 - `FromPyObject::INPUT_TYPE` and `IntoPyObject::OUTPUT_TYPE` must be implemented for PyO3 to get the proper input/output type annotations to use.
 - PyO3 is not able to introspect the content of `#[pymodule]` and `#[pymodule_init]` functions.
   If they are present, the module is tagged as incomplete using a fake `def __getattr__(name: str) -> Incomplete: ...` function [following best practices](https://typing.python.org/en/latest/guides/writing_stubs.html#incomplete-stubs).
+  Such a module also gets no `__all__` declaration, because the set of names it exports at runtime is not known.
