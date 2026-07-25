@@ -9,6 +9,7 @@ mod test_utils;
 /// Macro to generate refcount leak tests for types.
 /// Ensures that creating and destroying instances doesn't leak references to the type.
 /// Regression test for issues #1363 and #6223.
+#[cfg(not(Py_GIL_DISABLED))]
 macro_rules! assert_type_refcount_stable {
     // Simple case: type with parameterless constructor
     ($type_name:ty) => {
