@@ -97,7 +97,7 @@ pyobject_native_type_core!(
     pyobject_native_static_type_object!(ffi::PyTuple_Type),
     "builtins", "tuple",
     #checkfunction=ffi::PyTuple_Check,
-    #type_hint=type_hint_subscript!(PyTuple::TYPE_HINT, PyAny::TYPE_HINT, PyStaticExpr::Constant { value: PyStaticConstant::Ellipsis })
+    #standalone_type_hint=type_hint_subscript!(PyTuple::TYPE_HINT, PyAny::TYPE_HINT, PyStaticExpr::Constant { value: PyStaticConstant::Ellipsis })
 );
 
 #[cfg(RustPython)]
@@ -110,7 +110,7 @@ pyobject_native_type_core!(
     "builtins",
     "tuple",
     #checkfunction=ffi::PyTuple_Check,
-    #type_hint=type_hint_subscript!(PyTuple::TYPE_HINT, PyAny::TYPE_HINT, PyStaticExpr::Constant { value: PyStaticConstant::Ellipsis })
+    #standalone_type_hint=type_hint_subscript!(PyTuple::TYPE_HINT, PyAny::TYPE_HINT, PyStaticExpr::Constant { value: PyStaticConstant::Ellipsis })
 );
 
 impl PyTuple {

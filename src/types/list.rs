@@ -35,7 +35,7 @@ pyobject_native_type_core!(
     pyobject_native_static_type_object!(ffi::PyList_Type),
     "builtins", "list",
     #checkfunction=ffi::PyList_Check,
-    #type_hint=type_hint_subscript!(PyList::TYPE_HINT, PyAny::TYPE_HINT)
+    #standalone_type_hint=type_hint_subscript!(PyList::TYPE_HINT, PyAny::TYPE_HINT)
 );
 
 #[cfg(RustPython)]
@@ -48,7 +48,7 @@ pyobject_native_type_core!(
     "builtins",
     "list",
     #checkfunction=ffi::PyList_Check,
-    #type_hint=type_hint_subscript!(PyList::TYPE_HINT, PyAny::TYPE_HINT)
+    #standalone_type_hint=type_hint_subscript!(PyList::TYPE_HINT, PyAny::TYPE_HINT)
 );
 
 #[cfg(Py_3_12)]

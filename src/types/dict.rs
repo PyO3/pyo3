@@ -1,9 +1,9 @@
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::instance::{Borrowed, Bound};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::type_hint_subscript;
+use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyList, PyMapping};
 use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
@@ -35,7 +35,7 @@ pyobject_native_type!(
     "builtins",
     "dict",
     #checkfunction=ffi::PyDict_Check,
-    #type_hint=type_hint_subscript!(PyDict::TYPE_HINT, PyAny::TYPE_HINT, PyAny::TYPE_HINT)
+    #standalone_type_hint=type_hint_subscript!(PyDict::TYPE_HINT, PyAny::TYPE_HINT, PyAny::TYPE_HINT)
 );
 
 #[cfg(RustPython)]
@@ -48,7 +48,7 @@ pyobject_native_type_core!(
     "builtins",
     "dict",
     #checkfunction=ffi::PyDict_Check,
-    #type_hint=type_hint_subscript!(PyDict::TYPE_HINT, PyAny::TYPE_HINT, PyAny::TYPE_HINT)
+    #standalone_type_hint=type_hint_subscript!(PyDict::TYPE_HINT, PyAny::TYPE_HINT, PyAny::TYPE_HINT)
 );
 
 /// Represents a Python `dict_keys`.

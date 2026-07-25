@@ -169,6 +169,7 @@ mod tests {
     use super::*;
     use crate::platform::prelude::*;
     use crate::types::{PyDict, PyList, PyTuple};
+    use crate::{Bound, FromPyObject, IntoPyObject, Py};
 
     #[test]
     fn container_standalone_type_hints_are_parametrized() {
@@ -200,5 +201,37 @@ mod tests {
             <PyTuple as PyTypeInfo>::TYPE_HINT.to_string(),
             "builtins.tuple"
         );
+    }
+
+    #[test]
+    fn container_bound_and_py_use_standalone_type_hints() {
+        macro_rules! assert_container {
+            ($ty:ty, $expected:expr) => {
+                assert_eq!(
+                    <$ty as PyTypeInfo>::STANDALONE_TYPE_HINT.to_string(),
+                    $expected
+                );
+                assert_eq!(
+                    <Bound<'_, $ty> as FromPyObject<'_, '_>>::INPUT_TYPE.to_string(),
+                    $expected
+                );
+                assert_eq!(
+                    <Py<$ty> as FromPyObject<'_, '_>>::INPUT_TYPE.to_string(),
+                    $expected
+                );
+                assert_eq!(
+                    <Bound<'_, $ty> as IntoPyObject<'_>>::OUTPUT_TYPE.to_string(),
+                    $expected
+                );
+                assert_eq!(
+                    <Py<$ty> as IntoPyObject<'_>>::OUTPUT_TYPE.to_string(),
+                    $expected
+                );
+            };
+        }
+
+        assert_container!(PyList, "builtins.list[typing.Any]");
+        assert_container!(PyDict, "builtins.dict[typing.Any, typing.Any]");
+        assert_container!(PyTuple, "builtins.tuple[typing.Any, ...]");
     }
 }
