@@ -16,7 +16,16 @@ env:
 
 jobs:
   benchmarks:
+    name: benchmarks/${{ matrix.mode }}
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: simulation
+            session: codspeed
+          - mode: walltime
+            session: codspeed-walltime
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v7
@@ -49,6 +58,6 @@ jobs:
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@v5.0.1
         with:
-          run: uvx nox -s codspeed
+          run: uvx nox -s ${{ matrix.session }}
           token: ${{ secrets.CODSPEED_TOKEN }}
-          mode: simulation
+          mode: ${{ matrix.mode }}
