@@ -539,6 +539,7 @@ fn instance_dict_slot_is_not_clobbered() {
                 "the eagerly created __dict__ was clobbered during pyclass initialization"
             );
             // The slot holds the only reference to it.
+            // SAFETY: previous assert guarantees it's a valid PyObject
             assert_eq!(unsafe { pyo3::ffi::Py_REFCNT(slot_dict) }, 1);
         } else {
             // No eager creation on these versions; the slot starts out empty.
