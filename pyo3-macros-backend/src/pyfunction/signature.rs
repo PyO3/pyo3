@@ -296,6 +296,11 @@ impl PythonSignature {
             .checked_sub(self.default_positional_parameters.len())
             .expect("should always have positional defaults <= positional parameters")
     }
+
+    /// Makes every positional parameter positional-only, as a trailing `/` in a signature does.
+    pub fn make_all_parameters_positional_only(&mut self) {
+        self.positional_only_parameters = self.positional_parameters.len();
+    }
 }
 
 #[derive(Clone)]
@@ -391,7 +396,7 @@ impl ParseState {
     ) -> syn::Result<()> {
         match self {
             ParseState::Positional => {
-                signature.positional_only_parameters = signature.positional_parameters.len();
+                signature.make_all_parameters_positional_only();
                 *self = ParseState::PositionalAfterPosargs;
                 Ok(())
             }

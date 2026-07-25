@@ -1796,8 +1796,13 @@ struct FunctionIntrospectionData<'a> {
 
 #[cfg(feature = "experimental-inspect")]
 impl FunctionIntrospectionData<'_> {
-    fn generate(self, ctx: &Ctx, cls: &syn::Type) -> TokenStream {
-        let signature = FunctionSignature::from_arguments(self.arguments);
+    fn generate(self, ctx: &Ctx, cls: &syn::Type, slot: &SlotDef) -> TokenStream {
+        let mut signature = FunctionSignature::from_arguments(self.arguments);
+        if slot.arguments_are_positional_only() {
+            signature
+                .python_signature
+                .make_all_parameters_positional_only();
+        }
         let returns = self.returns;
         self.names
             .iter()
@@ -1836,7 +1841,7 @@ fn generate_protocol_slot(
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
     let mut def = slot.generate_type_slot(cls, &spec, name, ctx)?;
     #[cfg(feature = "experimental-inspect")]
-    def.add_introspection(introspection_data.generate(ctx, cls));
+    def.add_introspection(introspection_data.generate(ctx, cls, slot));
     Ok(def)
 }
 
@@ -1861,7 +1866,7 @@ fn generate_default_protocol_slot(
         ctx,
     )?;
     #[cfg(feature = "experimental-inspect")]
-    def.add_introspection(introspection_data.generate(ctx, cls));
+    def.add_introspection(introspection_data.generate(ctx, cls, slot));
     Ok(def)
 }
 
@@ -2436,8 +2441,9 @@ fn pyclass_richcmp_simple_enum(
     #[cfg(feature = "experimental-inspect")]
     let introspection = FunctionIntrospectionData {
         names: &["__eq__", "__ne__"],
+        // `value` is the parameter name CPython uses in the `tp_richcompare` slot wrappers
         arguments: vec![FnArg::Regular(RegularArg {
-            name: Cow::Owned(format_ident!("other")),
+            name: Cow::Owned(format_ident!("value")),
             ty: &any,
             from_py_with: None,
             default_value: None,
@@ -2512,8 +2518,9 @@ fn pyclass_richcmp(
                 } else {
                     &["__eq__", "__ne__"]
                 },
+                // `value` is the parameter name CPython uses in the `tp_richcompare` slot wrappers
                 arguments: vec![FnArg::Regular(RegularArg {
-                    name: Cow::Owned(format_ident!("other")),
+                    name: Cow::Owned(format_ident!("value")),
                     ty: &parse_quote!(&#cls),
                     from_py_with: None,
                     default_value: None,

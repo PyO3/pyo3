@@ -189,6 +189,27 @@ enum PyMethodProtoKind {
     SlotFragment(&'static SlotFragmentDef),
 }
 
+impl PyMethodKind {
+    /// Whether Python sees all the parameters of such a method as positional-only.
+    ///
+    /// See [`SlotDef::arguments_are_positional_only`]. `__call__` joins `__new__` and `__init__`
+    /// in being called with `args` and `kwargs`, so this is exactly the set of magic methods for
+    /// which `#[pyo3(signature = ...)]` is allowed.
+    #[cfg(feature = "experimental-inspect")]
+    fn arguments_are_positional_only(&self) -> bool {
+        match self {
+            PyMethodKind::Fn => false,
+            PyMethodKind::Proto(proto) => match proto {
+                PyMethodProtoKind::Slot(slot) => slot.arguments_are_positional_only(),
+                PyMethodProtoKind::SlotFragment(_) => true,
+                PyMethodProtoKind::Call
+                | PyMethodProtoKind::Traverse
+                | PyMethodProtoKind::Clear => false,
+            },
+        }
+    }
+}
+
 impl<'a> PyMethod<'a> {
     pub fn parse(
         sig: &'a mut syn::Signature,
@@ -197,10 +218,21 @@ impl<'a> PyMethod<'a> {
     ) -> Result<Self> {
         check_generic(sig)?;
         ensure_function_options_valid(&options)?;
-        let spec = FnSpec::parse(sig, meth_attrs, options)?;
+        #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
+        let mut spec = FnSpec::parse(sig, meth_attrs, options)?;
 
         let method_name = spec.python_name.to_string();
         let kind = PyMethodKind::from_name(&method_name);
+
+        // The parameters of a method backed by a type slot are positional-only, record that in
+        // the signature. Nothing else can: `#[pyo3(signature = ...)]` is rejected for exactly
+        // these methods, see `ensure_no_forbidden_protocol_attributes`.
+        #[cfg(feature = "experimental-inspect")]
+        if kind.arguments_are_positional_only() {
+            spec.signature
+                .python_signature
+                .make_all_parameters_positional_only();
+        }
 
         Ok(Self {
             kind,
@@ -1322,6 +1354,19 @@ enum SlotCallingConvention {
 }
 
 impl SlotDef {
+    /// Whether Python sees the arguments of this slot as positional-only.
+    ///
+    /// CPython exposes type slots through slot wrappers which reject keyword arguments, e.g.
+    /// `__eq__` has the signature `($self, value, /)`. `tp_new` and `tp_init` are the exception:
+    /// they receive `args` and `kwargs` and so keep the signature declared in Rust.
+    #[cfg(feature = "experimental-inspect")]
+    pub fn arguments_are_positional_only(&self) -> bool {
+        !matches!(
+            self.calling_convention,
+            SlotCallingConvention::TpNew | SlotCallingConvention::TpInit
+        )
+    }
+
     const fn new(slot: &'static str, func_ty: &'static str) -> Self {
         // The FFI function pointer type determines the arguments and return type
         let (calling_convention, ret_ty) = match func_ty.as_bytes() {
