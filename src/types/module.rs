@@ -1,7 +1,8 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
-use crate::impl_::pymodule_state::{ModuleState, ModuleStateType};
+#[cfg(feature = "experimental-module-state")]
+use crate::impl_::pymodule_state::ModuleState;
 use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
@@ -421,26 +422,39 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// This is a no-op on the GIL-enabled build.
     fn gil_used(&self, gil_used: bool) -> PyResult<()>;
 
-    /// Get an immutable view into the per-module state associated with this
-    /// PyModule.
-    fn state_ref<T>(&self) -> Option<&T>
-    where
-        T: ModuleStateType + 'static;
-
-    /// Get a mutable view into the per-module state associated with this
-    /// PyModule.
-    fn state_mut<T>(&mut self) -> Option<&mut T>
-    where
-        T: ModuleStateType + 'static;
-
-    /// Get a mutable view into the per-module state associated with this
-    /// PyModule.
+    /// Get a reference to the module state of type T
     ///
-    /// Will initialize the state type with the given `f` if needed.
-    fn state_or_init<T, F>(&mut self, f: F) -> &mut T
-    where
-        T: ModuleStateType + 'static,
-        F: FnOnce() -> T;
+    /// Returns None if state is not initialized or type doesn't match.
+    ///
+    /// # Example
+    /// ```ignore
+    /// if let Some(state) = m.module_state::<MyState>() {
+    ///     println!("State: {:?}", state);
+    /// }
+    /// ```
+    #[cfg(feature = "experimental-module-state")]
+    fn module_state<T: 'static>(&self) -> Option<&T>;
+
+    /// Get a mutable reference to the module state of type T
+    ///
+    /// Returns None if state is not initialized or type doesn't match.
+    ///
+    /// # Safety
+    ///
+    /// This is unsafe because it bypasses Rust's borrow checker.
+    /// You must ensure no other references exist to the state.
+    /// Locking the module in a critical section can be used to ensure this.
+    ///
+    /// # Example
+    /// ```ignore
+    /// unsafe {
+    ///     if let Some(state) = m.module_state_mut::<MyState>() {
+    ///         state.initialize()?;
+    ///     }
+    /// }
+    /// ```
+    #[cfg(feature = "experimental-module-state")]
+    unsafe fn module_state_mut<T: 'static>(&mut self) -> Option<&mut T>;
 }
 
 impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
@@ -589,31 +603,14 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         Ok(())
     }
 
-    fn state_ref<T>(&self) -> Option<&T>
-    where
-        T: ModuleStateType + 'static,
-    {
-        ModuleState::from_bound(self).state_map_ref().get::<T>()
+    #[cfg(feature = "experimental-module-state")]
+    fn module_state<T: 'static>(&self) -> Option<&T> {
+        ModuleState::from_bound(self).and_then(|state| state.inner_ref::<T>())
     }
 
-    fn state_mut<T>(&mut self) -> Option<&mut T>
-    where
-        T: ModuleStateType + 'static,
-    {
-        ModuleState::from_bound_mut(self)
-            .state_map_mut()
-            .get_mut::<T>()
-    }
-
-    fn state_or_init<T, F>(&mut self, f: F) -> &mut T
-    where
-        T: ModuleStateType + 'static,
-        F: FnOnce() -> T,
-    {
-        ModuleState::from_bound_mut(self)
-            .state_map_mut()
-            .entry::<T>()
-            .or_insert_with(f)
+    #[cfg(feature = "experimental-module-state")]
+    unsafe fn module_state_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        ModuleState::from_bound_mut(self).and_then(|state| state.inner_mut::<T>())
     }
 }
 
