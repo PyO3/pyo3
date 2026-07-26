@@ -4,12 +4,13 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 #[allow(unused_imports, reason = "conditionally used")]
 use crate::platform::prelude::*;
+#[cfg(feature = "experimental-module-state")]
+use core::mem::MaybeUninit;
 use core::{
     cell::UnsafeCell,
     ffi::CStr,
     ffi::{c_int, c_void},
     marker::PhantomData,
-    mem::MaybeUninit,
 };
 
 #[cfg(all(
@@ -33,11 +34,14 @@ use portable_atomic::AtomicI64;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
+#[cfg(feature = "experimental-module-state")]
 use crate::exceptions::PyRuntimeError;
+#[cfg(feature = "experimental-module-state")]
+use crate::impl_::pymodule_state::ModuleState;
 use crate::prelude::PyTypeMethods;
 use crate::{
     ffi,
-    impl_::{pyfunction::PyFunctionDef, pymodule_state::ModuleState},
+    impl_::pyfunction::PyFunctionDef,
     sync::PyOnceLock,
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict, PyModule, PyModuleMethods},
     Bound, Py, PyAny, PyClass, PyResult, PyTypeInfo, Python,
@@ -87,6 +91,8 @@ impl ModuleDef {
         } else {
             None
         };
+        #[cfg(not(feature = "experimental-module-state"))]
+        let _ = allocate_state;
         #[cfg(not(feature = "experimental-module-state"))]
         let m_size = 0;
         #[cfg(not(feature = "experimental-module-state"))]
@@ -543,6 +549,7 @@ impl PyAddToModule for ModuleDef {
 
 /// Called during multi-phase initialization in order to create an instance of
 /// ModuleState on the memory area specific to modules.
+#[cfg(feature = "experimental-module-state")]
 pub fn pyo3_module_state_init<T: 'static>(module: &Bound<'_, PyModule>, state: T) -> PyResult<()> {
     unsafe {
         let m_state: *mut MaybeUninit<ModuleState> = ffi::PyModule_GetState(module.as_ptr()).cast();
@@ -567,6 +574,7 @@ pub fn pyo3_module_state_init<T: 'static>(module: &Bound<'_, PyModule>, state: T
 ///
 /// [`m_free`]: https://docs.python.org/3/c-api/module.html#c.PyModuleDef.m_free
 /// [`PyModuleDef`]: https://docs.python.org/3/c-api/module.html#c.PyModuleDef
+#[cfg(feature = "experimental-module-state")]
 pub unsafe extern "C" fn pyo3_module_state_free(module: *mut c_void) {
     unsafe { ModuleState::pymodule_free_state(module.cast()) };
 }

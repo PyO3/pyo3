@@ -7,7 +7,6 @@ use core::ptr::NonNull;
 ///
 /// More precisely, this `struct` resides on the per-module memory area
 /// allocated during the module's creation.
-#[cfg(feature = "experimental-module-state")]
 #[repr(C)]
 #[derive(Debug)]
 pub struct ModuleState {
