@@ -1,0 +1,3 @@
+recursive-include src *
+recursive-include tests *
+include README.md
