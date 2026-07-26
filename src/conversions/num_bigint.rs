@@ -364,10 +364,16 @@ fn int_from_pylong_digits(digits: &[u32]) -> Vec<u32> {
     let n_digits = digits
         .last()
         .map(|last| {
-            let total_bits = (digits.len() - 1) * PYLONG_BITS_IN_DIGIT
-                + (u32::BITS - last.leading_zeros()) as usize;
+            let prefix_bits = (digits.len() - 1) * PYLONG_BITS_IN_DIGIT;
+            let last_bits = (u32::BITS - last.leading_zeros()) as usize;
 
-            total_bits.div_ceil(u32::BITS as usize)
+            let total_bits = prefix_bits + last_bits;
+
+            if total_bits == 0 {
+                0
+            } else {
+                (total_bits - 1) / u32::BITS as usize + 1
+            }
         })
         .unwrap_or(0);
 
