@@ -297,7 +297,8 @@ impl PythonSignature {
             .expect("should always have positional defaults <= positional parameters")
     }
 
-    /// Makes every positional parameter positional-only, as a trailing `/` in a signature does.
+    /// Makes every positional parameter positional-only, exactly as a trailing `/` in a
+    /// signature does. Deliberately leaves keyword-only parameters alone.
     pub fn make_all_parameters_positional_only(&mut self) {
         self.positional_only_parameters = self.positional_parameters.len();
     }

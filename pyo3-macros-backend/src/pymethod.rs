@@ -189,23 +189,24 @@ enum PyMethodProtoKind {
     SlotFragment(&'static SlotFragmentDef),
 }
 
-impl PyMethodKind {
-    /// Whether Python sees all the parameters of such a method as positional-only.
+impl PyMethodProtoKind {
+    /// Whether Python hands this protocol an `args`/`kwargs` pair.
     ///
-    /// See [`SlotDef::arguments_are_positional_only`]. `__call__` joins `__new__` and `__init__`
-    /// in being called with `args` and `kwargs`, so this is exactly the set of magic methods for
-    /// which `#[pyo3(signature = ...)]` is allowed.
-    #[cfg(feature = "experimental-inspect")]
-    fn arguments_are_positional_only(&self) -> bool {
+    /// `tp_new`, `tp_init` and `tp_call` do, so they accept keyword arguments and a
+    /// `#[pyo3(signature = ...)]` has something to act on. Every other protocol is reached
+    /// through a slot wrapper with a fixed C-level signature: its parameters are positional-only
+    /// and a signature attribute would have nothing to unpack.
+    ///
+    /// Should `signature` ever be accepted on protocol methods just to supply type hints, only
+    /// the `ensure_no_forbidden_protocol_attributes` use goes away: which parameters Python sees
+    /// as positional-only is dictated by CPython, not by what the user declares.
+    fn takes_args_and_kwargs(&self) -> bool {
         match self {
-            PyMethodKind::Fn => false,
-            PyMethodKind::Proto(proto) => match proto {
-                PyMethodProtoKind::Slot(slot) => slot.arguments_are_positional_only(),
-                PyMethodProtoKind::SlotFragment(_) => true,
-                PyMethodProtoKind::Call
-                | PyMethodProtoKind::Traverse
-                | PyMethodProtoKind::Clear => false,
-            },
+            PyMethodProtoKind::Slot(slot) => slot.takes_args_and_kwargs(),
+            PyMethodProtoKind::Call => true,
+            PyMethodProtoKind::SlotFragment(_)
+            | PyMethodProtoKind::Traverse
+            | PyMethodProtoKind::Clear => false,
         }
     }
 }
@@ -218,7 +219,6 @@ impl<'a> PyMethod<'a> {
     ) -> Result<Self> {
         check_generic(sig)?;
         ensure_function_options_valid(&options)?;
-        #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
         let mut spec = FnSpec::parse(sig, meth_attrs, options)?;
 
         let method_name = spec.python_name.to_string();
@@ -227,11 +227,12 @@ impl<'a> PyMethod<'a> {
         // The parameters of a method backed by a type slot are positional-only, record that in
         // the signature. Nothing else can: `#[pyo3(signature = ...)]` is rejected for exactly
         // these methods, see `ensure_no_forbidden_protocol_attributes`.
-        #[cfg(feature = "experimental-inspect")]
-        if kind.arguments_are_positional_only() {
-            spec.signature
-                .python_signature
-                .make_all_parameters_positional_only();
+        if let PyMethodKind::Proto(proto) = &kind {
+            if !proto.takes_args_and_kwargs() {
+                spec.signature
+                    .python_signature
+                    .make_all_parameters_positional_only();
+            }
         }
 
         Ok(Self {
@@ -371,14 +372,7 @@ fn ensure_no_forbidden_protocol_attributes(
 ) -> syn::Result<()> {
     if let Some(signature) = &spec.signature.attribute {
         // __new__, __init__ and __call__ are allowed to have a signature, but nothing else is.
-        if !matches!(
-            proto_kind,
-            PyMethodProtoKind::Slot(SlotDef {
-                calling_convention: SlotCallingConvention::TpNew | SlotCallingConvention::TpInit,
-                ..
-            })
-        ) && !matches!(proto_kind, PyMethodProtoKind::Call)
-        {
+        if !proto_kind.takes_args_and_kwargs() {
             bail_spanned!(signature.kw.span() => format!("`signature` cannot be used with magic method `{}`", method_name));
         }
     }
@@ -1354,14 +1348,14 @@ enum SlotCallingConvention {
 }
 
 impl SlotDef {
-    /// Whether Python sees the arguments of this slot as positional-only.
+    /// Whether this slot receives Python's `args`/`kwargs` pair rather than a fixed set of
+    /// positional arguments.
     ///
-    /// CPython exposes type slots through slot wrappers which reject keyword arguments, e.g.
-    /// `__eq__` has the signature `($self, value, /)`. `tp_new` and `tp_init` are the exception:
-    /// they receive `args` and `kwargs` and so keep the signature declared in Rust.
-    #[cfg(feature = "experimental-inspect")]
-    pub fn arguments_are_positional_only(&self) -> bool {
-        !matches!(
+    /// Only `tp_new` and `tp_init` do; every other slot is exposed to Python through a slot
+    /// wrapper which rejects keyword arguments, e.g. `__eq__` has the signature
+    /// `($self, value, /)`.
+    pub const fn takes_args_and_kwargs(&self) -> bool {
+        matches!(
             self.calling_convention,
             SlotCallingConvention::TpNew | SlotCallingConvention::TpInit
         )

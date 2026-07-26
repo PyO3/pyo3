@@ -1798,7 +1798,7 @@ struct FunctionIntrospectionData<'a> {
 impl FunctionIntrospectionData<'_> {
     fn generate(self, ctx: &Ctx, cls: &syn::Type, slot: &SlotDef) -> TokenStream {
         let mut signature = FunctionSignature::from_arguments(self.arguments);
-        if slot.arguments_are_positional_only() {
+        if !slot.takes_args_and_kwargs() {
             signature
                 .python_signature
                 .make_all_parameters_positional_only();
