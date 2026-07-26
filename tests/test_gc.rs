@@ -10,7 +10,7 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 use std::sync::Once;
 use std::sync::{Arc, Mutex};
 
@@ -736,6 +736,27 @@ extern "C" fn visit_error(
     -1
 }
 
+// the fields visited below, set before driving the traversal
+static BASE_FIELD: AtomicPtr<pyo3::ffi::PyObject> = AtomicPtr::new(std::ptr::null_mut());
+static CHILD_FIELD: AtomicPtr<pyo3::ffi::PyObject> = AtomicPtr::new(std::ptr::null_mut());
+static BASE_VISITED: AtomicBool = AtomicBool::new(false);
+static CHILD_VISITED: AtomicBool = AtomicBool::new(false);
+
+// a visitor function which errors on `BASE_FIELD` only
+extern "C" fn visit_error_on_base_field(
+    object: *mut pyo3::ffi::PyObject,
+    _arg: *mut core::ffi::c_void,
+) -> std::ffi::c_int {
+    if object == CHILD_FIELD.load(Ordering::SeqCst) {
+        CHILD_VISITED.store(true, Ordering::SeqCst);
+    }
+    if object == BASE_FIELD.load(Ordering::SeqCst) {
+        BASE_VISITED.store(true, Ordering::SeqCst);
+        return -1;
+    }
+    0
+}
+
 #[test]
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))] // buffer availability
 fn test_drop_buffer_during_traversal_without_gil() {
@@ -788,71 +809,70 @@ fn test_drop_buffer_during_traversal_without_gil() {
     });
 }
 
-// A `visitproc` may return non-zero to halt traversal early -- `gc.get_referrers()` does this
-// once it has found the object it is looking for.
-#[pyclass(subclass)]
-struct TraverseBase {
-    field: Option<Py<PyAny>>,
-}
-
-#[pymethods]
-impl TraverseBase {
-    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        if let Some(field) = &self.field {
-            visit.call(field)?;
-        }
-        Ok(())
-    }
-
-    fn __clear__(&mut self) {
-        self.field = None;
-    }
-}
-
-// Set by `TraverseChild::__traverse__` so the test can assert whether the child's own traverse
-// body ran.
-static CHILD_TRAVERSED: AtomicBool = AtomicBool::new(false);
-
-#[pyclass(extends=TraverseBase)]
-struct TraverseChild {}
-
-#[pymethods]
-impl TraverseChild {
-    #[expect(clippy::unnecessary_wraps)]
-    fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        CHILD_TRAVERSED.store(true, Ordering::SeqCst);
-        Ok(())
-    }
-}
-
 #[test]
 fn test_super_traverse_early_return_does_not_abort() {
+    #[pyclass(subclass)]
+    struct TraverseBase {
+        field: Py<PyAny>,
+    }
+
+    #[pymethods]
+    impl TraverseBase {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            visit.call(&self.field)
+        }
+    }
+
+    #[pyclass(extends=TraverseBase)]
+    struct TraverseChild {
+        field: Py<PyAny>,
+    }
+
+    #[pymethods]
+    impl TraverseChild {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            visit.call(&self.field)
+        }
+    }
+
     Python::attach(|py| {
-        let target = pyo3::types::PyList::empty(py);
+        let base_field = pyo3::types::PyList::empty(py).into_any().unbind();
+        let child_field = pyo3::types::PyList::empty(py).into_any().unbind();
+
         let initializer = PyClassInitializer::from(TraverseBase {
-            field: Some(target.clone().into_any().unbind()),
+            field: base_field.clone_ref(py),
         })
-        .add_subclass(TraverseChild {});
+        .add_subclass(TraverseChild {
+            field: child_field.clone_ref(py),
+        });
         let child = Bound::new(py, initializer).unwrap();
 
-        CHILD_TRAVERSED.store(false, Ordering::SeqCst);
+        BASE_FIELD.store(base_field.as_ptr(), Ordering::SeqCst);
+        CHILD_FIELD.store(child_field.as_ptr(), Ordering::SeqCst);
 
-        // `target` is held by the base, so the super-type traverse is the one which finds it and
-        // returns non-zero into `TraverseChild`'s traverse. `_call_traverse` must stop there and
-        // return that value, without going on to run `TraverseChild::__traverse__` (the early
-        // return which used to drop the still-armed `PanicTrap` and abort the process).
-        let referrers = py
-            .import("gc")
-            .unwrap()
-            .call_method1("get_referrers", (&target,))
-            .unwrap();
-        assert!(referrers.len().unwrap() > 0);
+        let traverse =
+            unsafe { get_type_traverse(py.get_type::<TraverseChild>().as_type_ptr()).unwrap() };
+
+        let retval = unsafe {
+            traverse(
+                child.as_ptr(),
+                visit_error_on_base_field,
+                std::ptr::null_mut(),
+            )
+        };
+
         assert!(
-            !CHILD_TRAVERSED.load(Ordering::SeqCst),
+            BASE_VISITED.load(Ordering::SeqCst),
+            "super-type traverse never visited its field, so the early return was not exercised"
+        );
+        assert_eq!(
+            retval, -1,
+            "traverse did not propagate the non-zero return of the super-type traverse"
+        );
+        assert!(
+            !CHILD_VISITED.load(Ordering::SeqCst),
             "child __traverse__ ran despite the super-type traverse returning non-zero"
         );
-
-        drop(child);
     });
 }
 
