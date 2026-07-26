@@ -99,6 +99,9 @@ pyo3-build-config = { path = "pyo3-build-config", version = "=0.29.0" }
 [features]
 default = ["macros"]
 
+# Enables support defining Python module state backed by a Rust structure.
+experimental-module-state = ["macros", "pyo3-macros/experimental-module-state"]
+
 # Enables support for `async fn` for `#[pyfunction]` and `#[pymethods]`.
 experimental-async = ["macros", "pyo3-macros/experimental-async"]
 
