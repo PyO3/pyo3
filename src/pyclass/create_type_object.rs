@@ -526,46 +526,38 @@ impl PyTypeBuilder {
 
         #[cfg(Py_3_15)]
         let type_object = {
-            let mut slots = [
+            // Use Vec to accommodate optional module slot in Python 3.15+ slot API
+            let mut slots_vec = vec![
                 ffi::PySlot_DATA(ffi::Py_tp_name, class_name.as_ptr() as *mut c_void),
                 ffi::PySlot_UINT64(ffi::Py_tp_flags, flags.into()),
                 ffi::PySlot_DATA(ffi::Py_tp_slots, self.slots.as_mut_ptr().cast::<c_void>()),
-                match basicsize {
-                    1.. => ffi::PySlot_SIZE(ffi::Py_tp_basicsize, basicsize),
-                    // zero size; don't set the slot at all, the VM will use the parent size
-                    //
-                    // This can *ONLY* be hit on the variable-sized case with a rust ZST,
-                    // as a fully-sized case will always have size at least equal to `PyObject`
-                    0 => ffi::PySlot_END(),
-                    ..0 => ffi::PySlot_SIZE(ffi::Py_tp_extra_basicsize, -basicsize),
-                },
-                // NB: insert additional slots BEFORE `basicsize` slot as it might be null
-                ffi::PySlot_END(),
             ];
 
-            // SAFETY: We've correctly setup the slots array at this point.
-            // The FFI call is known to return a new type object or null on error.
+            // Add basicsize slot if non-zero
+            match basicsize {
+                1.. => slots_vec.push(ffi::PySlot_SIZE(ffi::Py_tp_basicsize, basicsize)),
+                // zero size; don't set the slot at all, the VM will use the parent size
+                //
+                // This can *ONLY* be hit on the variable-sized case with a rust ZST,
+                // as a fully-sized case will always have size at least equal to `PyObject`
+                0 => {}
+                ..0 => slots_vec.push(ffi::PySlot_SIZE(ffi::Py_tp_extra_basicsize, -basicsize)),
+            }
+
+            // In Python 3.15+, pass module context via Py_tp_module slot
+            if let Some(mod_ptr) = module_ptr {
+                slots_vec.push(ffi::PySlot_DATA(ffi::Py_tp_module, mod_ptr as *mut c_void));
+            }
+
+            // Sentinel to mark end of slots
+            slots_vec.push(ffi::PySlot_END());
+
+            // SAFETY: We've correctly setup the slots array.
+            // PyType_FromSlots returns a new type object or NULL on error.
             unsafe {
-                // Use PyType_FromModuleAndSpec if module context available (Python 3.10+)
-                if let Some(mod_ptr) = module_ptr {
-                    ffi::PyType_FromModuleAndSpec(
-                        mod_ptr,
-                        &raw mut ffi::PyType_Spec {
-                            name: class_name.as_ptr() as _,
-                            basicsize: basicsize as c_int,
-                            itemsize: 0,
-                            flags: flags.try_into().unwrap(),
-                            slots: slots.as_mut_ptr(),
-                        },
-                        ptr::null_mut(),
-                    )
+                ffi::PyType_FromSlots(slots_vec.as_mut_ptr())
                     .assume_owned_or_err(py)?
                     .cast_into_unchecked::<PyType>()
-                } else {
-                    ffi::PyType_FromSlots(slots.as_mut_ptr())
-                        .assume_owned_or_err(py)?
-                        .cast_into_unchecked::<PyType>()
-                }
             }
         };
 
