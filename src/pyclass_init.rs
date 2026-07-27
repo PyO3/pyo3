@@ -205,16 +205,21 @@ fn eagerly_created_dict_possible<T: PyClassImpl>(py: Python<'_>) -> bool {
     if core::mem::size_of::<T::Dict>() == 0 {
         return false;
     }
-    #[cfg(Py_LIMITED_API)]
-    {
-        use crate::sync::PyOnceLock;
-        static IS_PYTHON_3_13: PyOnceLock<bool> = PyOnceLock::new();
-        !*IS_PYTHON_3_13.get_or_init(py, || py.version_info() >= (3, 13))
-    }
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        let _ = py;
-        true
+    cfg_select! {
+        Py_LIMITED_API =>
+        {
+            use crate::sync::PyOnceLock;
+            static IS_PYTHON_3_11_OR_3_12: PyOnceLock<bool> = PyOnceLock::new();
+            *IS_PYTHON_3_11_OR_3_12.get_or_init(py, || {
+                let version_info = py.version_info();
+                matches!((version_info.major, version_info.minor), (3, 11) | (3, 12))
+            })
+        }
+        not(Py_LIMITED_API) =>
+        {
+            let _ = py;
+            cfg!(Py_3_11)
+        }
     }
 }
 
