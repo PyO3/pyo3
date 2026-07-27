@@ -7,7 +7,7 @@ use core::ffi::{c_int, c_ulong, c_void};
 // skipped PyThread_exit_thread
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyThread_get_thread_ident")]
+    #[cfg(not(PyPy))]
     pub fn PyThread_get_thread_ident() -> c_ulong;
 }
 
