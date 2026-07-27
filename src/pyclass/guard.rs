@@ -475,25 +475,12 @@ impl<U: ?Sized> Drop for PyClassGuardMap<'_, U> {
 ///         _slf: *mut ::pyo3::ffi::PyObject,
 ///     ) -> ::pyo3::PyResult<*mut ::pyo3::ffi::PyObject> {
 ///         let function = Number::increment;
-/// #       #[allow(clippy::let_unit_value)]
-///         let mut holder_0 = ::pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT;
-///         let result = {
-///             let ret = function(::pyo3::impl_::extract_argument::extract_pyclass_ref_mut::<Number>(
-///                 unsafe { ::pyo3::impl_::extract_argument::cast_function_argument(py, _slf) },
-///                 &mut holder_0,
-///             )?);
-///             {
-///                 let result = {
-///                     let obj = ret;
-/// #                   #[allow(clippy::useless_conversion)]
-///                     ::pyo3::impl_::wrap::converter(&obj)
-///                         .wrap(obj)
-///                         .map_err(::core::convert::Into::<::pyo3::PyErr>::into)
-///                 };
-///                 ::pyo3::impl_::wrap::converter(&result).map_into_ptr(py, result)
-///             }
-///         };
-///         result
+///         let (mut holder_0,) = (::pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT,);
+///         let ret = function(::pyo3::impl_::extract_argument::extract_pyclass_ref_mut::<Number>(
+///             unsafe { ::pyo3::impl_::extract_argument::cast_function_argument(py, _slf) },
+///             &mut holder_0,
+///         )?);
+///         ::pyo3::impl_::wrap::converter(&ret).wrap_into_ptr(py, ret)
 ///     }
 ///
 ///     unsafe {

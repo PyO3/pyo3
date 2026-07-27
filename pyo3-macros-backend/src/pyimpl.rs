@@ -223,16 +223,23 @@ pub fn impl_methods(
         PyClassMethodsType::Inventory => submit_methods_inventory(ty, methods, proto_impls, ctx),
     };
 
+    // Skip emitting the associated-methods impl block entirely when it would be empty.
+    let associated_methods_impl = (!associated_methods.is_empty()).then(|| {
+        quote! {
+            #[doc(hidden)]
+            #[allow(non_snake_case)]
+            impl #ty {
+                #(#associated_methods)*
+            }
+        }
+    });
+
     Ok(quote! {
         #(#extra_fragments)*
 
         #items
 
-        #[doc(hidden)]
-        #[allow(non_snake_case)]
-        impl #ty {
-            #(#associated_methods)*
-        }
+        #associated_methods_impl
     })
 }
 
