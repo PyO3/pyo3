@@ -86,13 +86,8 @@ fn get_config(m: &Bound<'_, PyModule>) -> PyResult<String> {
 
 /// Example of accessing state from a class method
 ///
-/// Classes defined in a module with state can access that state via PyAnyMethods.
-/// The `type_module_state()` and `type_module_state_mut()` methods are available on
-/// any `Bound<'_, PyAny>`, which includes instances like `Bound<'_, Self>`.
-///
-/// These methods use Py_TYPE() and PyType_GetModuleState internally, avoiding
-/// incref/decref overhead compared to explicitly calling get_type().
-#[pyclass]
+/// Classes defined in a module with state can access that state via Python token.
+#[pyclass(module = "module_state")]
 struct Counter {
     name: String,
 }
@@ -104,23 +99,9 @@ impl Counter {
         Counter { name }
     }
 
-    /// Access module state from a class method using PyAnyMethods
-    ///
-    /// Since Bound<'_, Counter> coerces to Bound<'_, PyAny>, we can directly
-    /// call type_module_state() without calling get_type() first.
-    ///
-    /// Future API (when PyAnyMethods are implemented):
-    /// fn get_module_state_value(slf: &Bound<'_, Self>) -> PyResult<i32> {
-    ///     if let Some(state) = slf.type_module_state::<ModuleState>() {
-    ///         Ok(state.counter)
-    ///     } else {
-    ///         Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-    ///             "Module state not available"
-    ///         ))
-    ///     }
-    /// }
+    /// Access module state from a class method using Python token
     fn get_shared_counter_value(slf: &Bound<'_, Self>) -> PyResult<i32> {
-        if let Some(state) = slf.type_module_state::<ModuleState>()? {
+        if let Some(state) = slf.py().type_module_state::<Counter, ModuleState>()? {
             Ok(*state.counter.lock().unwrap())
         } else {
             Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
@@ -130,20 +111,8 @@ impl Counter {
     }
 
     /// Update module state from a class method
-    ///
-    /// Once PyAnyMethods are implemented:
-    /// unsafe fn update_config(slf: &Bound<'_, Self>, new_config: String) -> PyResult<()> {
-    ///     if let Some(state) = slf.type_module_state_mut::<ModuleState>() {
-    ///         state.config = new_config;
-    ///         Ok(())
-    ///     } else {
-    ///         Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-    ///             "Module state not available"
-    ///         ))
-    ///     }
-    /// }
     fn increment_shared_counter(slf: &Bound<'_, Self>) -> PyResult<i32> {
-        if let Some(state) = slf.type_module_state::<ModuleState>()? {
+        if let Some(state) = slf.py().type_module_state::<Counter, ModuleState>()? {
             *state.counter.lock().unwrap() += 1;
             Ok(*state.counter.lock().unwrap())
         } else {
@@ -151,10 +120,6 @@ impl Counter {
                 "Module state not available",
             ))
         }
-    }
-
-    fn __repr__(&self) -> String {
-        format!("Counter(name='{}')", self.name)
     }
 }
 
@@ -167,7 +132,7 @@ fn module_state(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<ModuleStat
     m.add_function(wrap_pyfunction!(get_config, m)?)?;
 
     // Add classes to the module
-    m.add_class::<Counter>()?;
+    m.add_class_with_module::<Counter>()?;
 
     // Add module docstring
     m.add(
