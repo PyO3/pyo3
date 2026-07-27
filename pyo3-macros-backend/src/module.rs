@@ -171,16 +171,24 @@ pub fn pymodule_module_impl(
         Ok(())
     }
 
-    let mut pymodule_init = None;
-    let mut module_consts = Vec::new();
-    let mut module_consts_cfg_attrs = Vec::new();
-
     #[cfg(feature = "experimental-module-state")]
     let mut state_type: Option<syn::Path> = None;
     #[cfg(feature = "experimental-module-state")]
     if let Some(explicit_state) = &options.state {
         state_type = Some(explicit_state.value.clone());
     }
+
+    let mut pymodule_init: Option<TokenStream> = None;
+    #[cfg(feature = "experimental-module-state")]
+    let mut pymodule_traverse: Option<TokenStream> = None;
+    #[cfg(not(feature = "experimental-module-state"))]
+    let pymodule_traverse: Option<TokenStream> = None;
+    #[cfg(feature = "experimental-module-state")]
+    let mut pymodule_clear: Option<TokenStream> = None;
+    #[cfg(not(feature = "experimental-module-state"))]
+    let pymodule_clear: Option<TokenStream> = None;
+    let mut module_consts = Vec::new();
+    let mut module_consts_cfg_attrs = Vec::new();
 
     let _: Vec<()> = (*items).iter_mut().map(|item|{
         match item {
@@ -204,7 +212,30 @@ pub fn pymodule_module_impl(
                 );
                 let is_pymodule_init =
                     find_and_remove_attribute(&mut item_fn.attrs, "pymodule_init");
+                #[cfg(feature = "experimental-module-state")]
+                let is_pymodule_traverse =
+                find_and_remove_attribute(&mut item_fn.attrs, "pymodule_traverse");
+                #[cfg(feature = "experimental-module-state")]
+                let is_pymodule_clear =
+                    find_and_remove_attribute(&mut item_fn.attrs, "pymodule_clear");
                 let ident = &item_fn.sig.ident;
+                #[cfg(feature = "experimental-module-state")]
+                if is_pymodule_traverse {
+                    ensure_spanned!(
+                        !has_attribute(&item_fn.attrs, "pyfunction"),
+                        item_fn.span() => "`#[pyfunction]` cannot be used alongside `#[pymodule_traverse]`"
+                    );
+                    ensure_spanned!(pymodule_traverse.is_none(), item_fn.span() => "only one `#[pymodule_traverse]` may be specified");
+                    pymodule_traverse = Some(quote! { #ident });
+                } else if is_pymodule_clear {
+                    ensure_spanned!(
+                        !has_attribute(&item_fn.attrs, "pyfunction"),
+                        item_fn.span() => "`#[pyfunction]` cannot be used alongside `#[pymodule_clear]`"
+                    );
+                    ensure_spanned!(pymodule_clear.is_none(), item_fn.span() => "only one `#[pymodule_clear]` may be specified");
+                    pymodule_clear = Some(quote! { #ident })
+                }
+
                 if is_pymodule_init {
                     ensure_spanned!(
                         !has_attribute(&item_fn.attrs, "pyfunction"),
@@ -464,6 +495,8 @@ pub fn pymodule_module_impl(
         gil_used,
         doc.as_ref(),
         allocate_state,
+        pymodule_traverse,
+        pymodule_clear,
     )?;
 
     let module_consts_names = module_consts.iter().map(|i| i.unraw().to_string());
@@ -529,6 +562,8 @@ pub fn pymodule_function_impl(
         gil_used,
         doc.as_ref(),
         allocate_state,
+        None,
+        None,
     )?;
 
     #[cfg(feature = "experimental-inspect")]
@@ -603,6 +638,8 @@ fn module_initialization(
     gil_used: bool,
     doc: Option<&PythonDoc>,
     allocate_state: bool,
+    pymodule_traverse: Option<TokenStream>,
+    pymodule_clear: Option<TokenStream>,
 ) -> Result<TokenStream> {
     let Ctx { pyo3_path, .. } = ctx;
     let pyinit_symbol = format!("PyInit_{name}");
@@ -614,6 +651,114 @@ fn module_initialization(
         c"".into_token_stream()
     };
 
+    // Generate traverse and clear C callbacks if present
+    #[cfg(feature = "experimental-module-state")]
+    let (traverse_callback, clear_callback) =
+        if pymodule_traverse.is_some() || pymodule_clear.is_some() {
+            let traverse_code = if let Some(traverse_fn) = &pymodule_traverse {
+                quote! {
+                    unsafe extern "C" fn __pyo3_module_traverse(
+                        module: *mut #pyo3_path::ffi::PyObject,
+                        visit: #pyo3_path::ffi::visitproc,
+                        arg: *mut ::std::ffi::c_void,
+                    ) -> ::std::ffi::c_int {
+                        #pyo3_path::Python::with_gil(|py| {
+                            let module_bound = #pyo3_path::Bound::new_borrowed(py, module);
+                            let py_module = module_bound.cast_exact::<#pyo3_path::types::PyModule>()
+                                .expect("module object is not PyModule");
+
+                            match py_module.module_state::<::std::any::Any>() {
+                                Ok(state_any) => {
+                                    let visit_fn = #pyo3_path::PyVisit {
+                                        visit,
+                                        arg,
+                                        _guard: ::std::marker::PhantomData,
+                                    };
+                                    // Call user's traverse function with state and visit
+                                    match #traverse_fn(state_any, visit_fn) {
+                                        Ok(()) => 0,
+                                        Err(_) => -1,
+                                    }
+                                }
+                                Err(_) => -1,
+                            }
+                        })
+                    }
+                }
+            } else {
+                quote! {}
+            };
+
+            let clear_code = if let Some(clear_fn) = &pymodule_clear {
+                quote! {
+                    unsafe extern "C" fn __pyo3_module_clear(
+                        module: *mut #pyo3_path::ffi::PyObject,
+                    ) -> ::std::ffi::c_int {
+                        #pyo3_path::Python::with_gil(|py| {
+                            let module_bound = #pyo3_path::Bound::new_borrowed(py, module);
+                            let py_module = module_bound.cast_exact::<#pyo3_path::types::PyModule>()
+                                .expect("module object is not PyModule");
+
+                            match py_module.module_state_mut::<::std::any::Any>() {
+                                Ok(state_any_mut) => {
+                                    // Call user's clear function with mutable state
+                                    match #clear_fn(state_any_mut) {
+                                        Ok(()) => 0,
+                                        Err(_) => -1,
+                                    }
+                                }
+                                Err(_) => -1,
+                            }
+                        })
+                    }
+                }
+            } else {
+                quote! {}
+            };
+
+            (traverse_code, clear_code)
+        } else {
+            (quote! {}, quote! {})
+        };
+
+    #[cfg(not(feature = "experimental-module-state"))]
+    let (traverse_callback, clear_callback) = {
+        let (_, _) = (pymodule_traverse, pymodule_clear);
+        (quote! {}, quote! {})
+    };
+
+    #[cfg(feature = "experimental-module-state")]
+    let (traverse_arg, clear_arg) = if pymodule_traverse.is_some() || pymodule_clear.is_some() {
+        let traverse = if pymodule_traverse.is_some() {
+            quote! { ::core::option::Option::Some(__pyo3_module_traverse) }
+        } else {
+            quote! { ::core::option::Option::None }
+        };
+        let clear = if pymodule_clear.is_some() {
+            quote! { ::core::option::Option::Some(__pyo3_module_clear) }
+        } else {
+            quote! { ::core::option::Option::None }
+        };
+        (traverse, clear)
+    } else {
+        (
+            quote! { ::core::option::Option::None },
+            quote! { ::core::option::Option::None },
+        )
+    };
+
+    #[cfg(feature = "experimental-module-state")]
+    let mod_new = quote! {
+        #pyo3_path::impl_::pymodule::ModuleDef::new(
+            __PYO3_NAME,
+            #doc,
+            &SLOTS,
+            #allocate_state,
+            #traverse_arg,
+            #clear_arg,
+        )
+    };
+    #[cfg(not(feature = "experimental-module-state"))]
     let mod_new = quote! {
         #pyo3_path::impl_::pymodule::ModuleDef::new(__PYO3_NAME, #doc, &SLOTS, #allocate_state)
     };
@@ -635,6 +780,9 @@ fn module_initialization(
             unsafe extern "C" fn __pyo3_module_exec(module: *mut #pyo3_path::ffi::PyObject) -> ::std::ffi::c_int {
                 #pyo3_path::impl_::trampoline::module_exec(module, #module_exec)
             }
+
+            #traverse_callback
+            #clear_callback
 
             // The full slots, used for the PyModExport initialization
             static SLOTS: impl_::PyModuleSlots = impl_::PyModuleSlotsBuilder::new()

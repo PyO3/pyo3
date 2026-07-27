@@ -78,6 +78,8 @@ impl ModuleDef {
         doc: &'static CStr,
         slots: &'static PyModuleSlots,
         allocate_state: bool,
+        traverse: Option<ffi::traverseproc>,
+        clear: Option<ffi::inquiry>,
     ) -> Self {
         #[cfg(feature = "experimental-module-state")]
         let m_size = if allocate_state {
@@ -115,15 +117,19 @@ impl ModuleDef {
         };
 
         #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
-        let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
-            m_name: name.as_ptr(),
-            m_doc: doc.as_ptr(),
-            m_size: m_size,
-            // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
-            // but that requires mut ptr deref on MSRV.
-            m_slots: slots.0.get() as _,
-            m_free: m_free,
-            ..INIT
+        let ffi_def = UnsafeCell::new({
+            ffi::PyModuleDef {
+                m_name: name.as_ptr(),
+                m_doc: doc.as_ptr(),
+                m_size: m_size,
+                // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
+                // but that requires mut ptr deref on MSRV.
+                m_slots: slots.0.get() as _,
+                m_free: m_free,
+                m_traverse: traverse,
+                m_clear: clear,
+                ..INIT
+            }
         });
 
         ModuleDef {
