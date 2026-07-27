@@ -98,6 +98,28 @@ impl<'py> PyBytesWriter<'py> {
             )
         }
     }
+
+    /// Writes the `bytes` into `self`.
+    pub fn write_bytes(&mut self, bytes: &[u8]) -> PyResult<()> {
+        #[cfg(Py_LIMITED_API)]
+        {
+            self.buffer.extend_from_slice(bytes);
+        }
+
+        #[cfg(not(Py_LIMITED_API))]
+        {
+            let len = bytes.len();
+            let pos = self.len();
+
+            // SAFETY: We write the new uninitialized bytes below.
+            unsafe { self.set_len(pos + len)? }
+
+            // SAFETY: We have ensured enough capacity above.
+            unsafe { ptr::copy_nonoverlapping(bytes.as_ptr(), self.as_mut_ptr().add(pos), len) };
+        }
+
+        Ok(())
+    }
 }
 
 impl<'py> TryFrom<PyBytesWriter<'py>> for Bound<'py, PyBytes> {
@@ -175,15 +197,7 @@ impl std::io::Write for PyBytesWriter<'_> {
     }
 
     fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
-        let len = buf.len();
-        let pos = self.len();
-
-        // SAFETY: We write the new uninitialized bytes below.
-        unsafe { self.set_len(pos + len)? }
-
-        // SAFETY: We have ensured enough capacity above.
-        unsafe { ptr::copy_nonoverlapping(buf.as_ptr(), self.as_mut_ptr().add(pos), len) };
-
+        self.write_bytes(buf)?;
         Ok(())
     }
 }
