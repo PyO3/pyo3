@@ -17,6 +17,8 @@ pub(crate) mod prelude {
 #[cfg(feature = "hashbrown")]
 pub use hashbrown::{HashMap, HashSet};
 
-// TODO conditionally import these based on "std" feature
-#[cfg(not(feature = "hashbrown"))]
+#[cfg(all(not(feature = "hashbrown"), wip_feature_std))]
 pub use std::collections::{HashMap, HashSet};
+
+#[cfg(all(not(feature = "hashbrown"), not(wip_feature_std)))]
+compile_error!("Please enable at least one of the following features: hashbrown, std");
