@@ -446,8 +446,6 @@ pub use self::ceval::*;
 pub use self::codecs::*;
 pub use self::compile::*;
 pub use self::complexobject::*;
-#[cfg(not(Py_LIMITED_API))]
-pub use self::context::*;
 #[cfg(Py_3_13)]
 pub use self::critical_section::*;
 #[cfg(not(Py_LIMITED_API))]
@@ -516,8 +514,6 @@ mod ceval;
 mod codecs;
 mod compile;
 mod complexobject;
-#[cfg(not(Py_LIMITED_API))]
-mod context;
 mod critical_section;
 #[cfg(not(Py_LIMITED_API))]
 pub(crate) mod datetime;

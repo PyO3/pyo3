@@ -236,7 +236,17 @@ unsafe_op_in_unsafe_fn = "warn"
 level = "warn"
 check-cfg = [
     'cfg(pyo3_disable_reference_pool)',
-    'cfg(pyo3_leak_on_drop_without_reference_pool)'
+    'cfg(pyo3_leak_on_drop_without_reference_pool)',
+    'cfg(pyo3_use_raw_dylib)',
+    # this horrible hard-coded list should be kept in sync with the list of possible
+    # cfgs in pyo3-ffi/src/impl_/macros.rs
+    #
+    # for library names outside of this set we don't support raw-dylib and require a
+    # proper import library
+    #
+    # maybe in the future this list will not be necessary, see
+    # internals.rust-lang.org/t/support-renames-with-link-name-kind-raw-dylib/24415
+    'cfg(pyo3_dll, values("python3", "python3_d", "python3t", "python3t_d", "python38", "python38_d", "python39", "python39_d", "python310", "python310_d", "python311", "python311_d", "python312", "python312_d", "python313", "python313_d", "python313t", "python313t_d", "python314", "python314_d", "python314t", "python314t_d", "python315", "python315_d", "python315t", "python315t_d", "python316", "python316_d", "python316t", "python316t_d", "libpypy3.11-c"))',
 ]
 
 

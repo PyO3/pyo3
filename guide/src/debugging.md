@@ -74,7 +74,8 @@ For more information about how to use both `lldb` and `gdb` you can read the [gd
    pip install -e .
    ```
 
-   > **Note**: When using debuggers, make sure that `python` resolves to an actual Python binary or symlink and not a shim script.
+   > [!NOTE]
+   > When using debuggers, make sure that `python` resolves to an actual Python binary or symlink and not a shim script.
    > Some tools like pyenv use shim scripts which can interfere with debugging.
 
 ### Debugger specific setup
@@ -285,8 +286,8 @@ def update_launch_json(vscode_config_file_path=None):
                 "program": python_path,
                 "args": ["${file}"],
                 "cwd": "${workspaceFolder}",
-                "sourceLanguages": ["rust"]
-            }
+                "sourceLanguages": ["rust"],
+            },
         ],
     }
 
@@ -309,7 +310,9 @@ def update_launch_json(vscode_config_file_path=None):
                         config_exists = True
 
                 if not config_exists:
-                    existing_config.setdefault("configurations", []).append(debug_config["configurations"][0])
+                    existing_config.setdefault("configurations", []).append(
+                        debug_config["configurations"][0]
+                    )
 
                 debug_config = existing_config
             except Exception:
@@ -330,7 +333,7 @@ def get_jupyter_kernel_pid():
         int: The process ID of the Jupyter kernel, or None if not found.
     """
     # Check if we're running in a Jupyter environment
-    if 'ipykernel' in sys.modules:
+    if "ipykernel" in sys.modules:
         pid = os.getpid()
         print(f"Jupyter kernel PID: {pid}")
         return pid

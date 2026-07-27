@@ -1,8 +1,7 @@
 import pathlib
 
-import pytest
-
 import pyo3_pytests.path as rpath
+import pytest
 
 
 def test_make_path():

@@ -17,6 +17,13 @@ classifiers = [
     "Operating System :: POSIX",
     "Operating System :: MacOS :: MacOS X",
 ]
+requires-python = ">=3.9"
+
+[tool.ruff]
+exclude = ["stubs"]
+
+[tool.ruff.per-file-target-version]
+"tests/test_enums_match.py" = "py310"
 
 [project.optional-dependencies]
 dev = [

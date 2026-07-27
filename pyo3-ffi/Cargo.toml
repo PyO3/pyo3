@@ -19,9 +19,6 @@ libc = "0.2.62"
 
 default = []
 
-# deprecated
-extension-module = ["pyo3-build-config/extension-module"]
-
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
 abi3 = []
 
@@ -39,7 +36,8 @@ abi3-py315 = ["abi3"]
 
 abi3t-py315 = ["abi3t"]
 
-# deprecated: no longer needed, raw-dylib is used instead
+# deprecated
+extension-module = ["pyo3-build-config/extension-module"]
 generate-import-lib = ["pyo3-build-config/generate-import-lib"]
 
 [dev-dependencies]

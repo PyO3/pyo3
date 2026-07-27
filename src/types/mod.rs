@@ -20,6 +20,8 @@ pub use self::ellipsis::PyEllipsis;
 pub use self::float::{PyFloat, PyFloatMethods};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 pub use self::frame::{PyFrame, PyFrameMethods};
+#[cfg(Py_3_15)]
+pub use self::frozendict::{PyFrozenDict, PyFrozenDictMethods};
 pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
 pub use self::function::PyCFunction;
 pub use self::function::PyFunction;
@@ -82,6 +84,8 @@ pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefRe
 /// In these cases the iterators are implemented by forwarding to [`PyIterator`].
 pub mod iter {
     pub use super::dict::BoundDictIterator;
+    #[cfg(Py_3_15)]
+    pub use super::frozendict::BoundFrozenDictIterator;
     pub use super::frozenset::BoundFrozenSetIterator;
     pub use super::list::BoundListIterator;
     pub use super::set::BoundSetIterator;
@@ -273,6 +277,8 @@ mod ellipsis;
 pub(crate) mod float;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod frame;
+#[cfg(Py_3_15)]
+pub(crate) mod frozendict;
 pub(crate) mod frozenset;
 mod function;
 pub(crate) mod genericalias;

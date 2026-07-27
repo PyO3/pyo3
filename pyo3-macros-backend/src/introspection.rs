@@ -604,13 +604,11 @@ pub fn unique_element_id() -> u64 {
 }
 
 fn ident_to_type(ident: &Ident) -> Cow<'static, Type> {
-    Cow::Owned(
-        TypePath {
-            path: ident.clone().into(),
-            qself: None,
-        }
-        .into(),
-    )
+    Cow::Owned(Type::Path(TypePath {
+        attrs: Vec::new(),
+        path: ident.clone().into(),
+        qself: None,
+    }))
 }
 
 fn escape_json_string(value: &str) -> String {

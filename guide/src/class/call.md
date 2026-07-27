@@ -56,11 +56,13 @@ Note that it can also be implemented as a higher order function:
 ```python
 def Counter(wraps):
     count = 0
+
     def call(*args, **kwargs):
         nonlocal count
         count += 1
         print(f"{wraps.__name__} has been called {count} time(s)")
         return wraps(*args, **kwargs)
+
     return call
 ```
 
@@ -102,6 +104,7 @@ def say_hello():
     if say_hello.count < 2:
         print(f"hello from decorator")
 
+
 say_hello()
 # RuntimeError: Already borrowed
 ```
@@ -119,8 +122,5 @@ This shows the dangers of running arbitrary Python code - note that "running arb
 This is especially important if you are writing unsafe code; Python code must never be able to cause undefined behavior.
 You must ensure that your Rust code is in a consistent state before doing any of the above things.
 
-<!-- rumdl-disable MD057 -->
-<!-- TODO: investigate why this lint is being triggered -->
 [previous implementation]: <https://github.com/PyO3/pyo3/discussions/2598> "Thread Safe Decorator <Help Wanted> · Discussion #2598 · PyO3/pyo3"
 [`AtomicU64`]: <https://doc.rust-lang.org/std/sync/atomic/type.AtomicU64.html> "AtomicU64 in std::sync::atomic - Rust"
-<!-- rumdl-enable MD057 -->

@@ -33,6 +33,8 @@ pub use crate::types::capsule::PyCapsuleMethods;
 pub use crate::types::complex::PyComplexMethods;
 pub use crate::types::dict::PyDictMethods;
 pub use crate::types::float::PyFloatMethods;
+#[cfg(Py_3_15)]
+pub use crate::types::frozendict::PyFrozenDictMethods;
 pub use crate::types::frozenset::PyFrozenSetMethods;
 pub use crate::types::list::PyListMethods;
 pub use crate::types::mapping::PyMappingMethods;

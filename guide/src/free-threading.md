@@ -146,8 +146,10 @@ from my_module import ThreadIter
 
 i = ThreadIter()
 
+
 def increment():
     next(i)
+
 
 with concurrent.futures.ThreadPoolExecutor(max_workers=16) as tpe:
     futures = [tpe.submit(increment) for _ in range(100)]
