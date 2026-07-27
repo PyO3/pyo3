@@ -1,4 +1,6 @@
-use core::ffi::{c_int, c_ulong, c_void};
+#[cfg(not(PyPy))]
+use core::ffi::c_ulong;
+use core::ffi::{c_int, c_void};
 
 // skipped PyThread_type_lock
 // skipped PyLockStatus
