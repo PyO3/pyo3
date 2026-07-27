@@ -1,3 +1,4 @@
+#[cfg(not(PyPy))]
 use core::ffi::c_ulong;
 
 extern_libpython! {
