@@ -558,11 +558,21 @@ mod tests {
         assert_not_impl_any!(super::ContextWatcherGuard<'_>: Send, Sync);
     }
 
+    static FORGOTTEN_GUARD_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+    #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
+    fn record_forgotten_guard(_py: Python<'_>, event: ContextEvent<'_, '_>) -> PyResult<()> {
+        if matches!(event, ContextEvent::Switched(_)) {
+            FORGOTTEN_GUARD_COUNT.fetch_add(1, Ordering::Relaxed);
+        }
+        Ok(())
+    }
+
     #[test]
     fn forgotten_guard() {
         Python::attach(|py| {
-            SWITCH_COUNT.store(0, Ordering::Relaxed);
-            let watcher = crate::register_context_watcher!(py, record_switch).unwrap();
+            FORGOTTEN_GUARD_COUNT.store(0, Ordering::Relaxed);
+            let watcher = crate::register_context_watcher!(py, record_forgotten_guard).unwrap();
             core::mem::forget(watcher);
 
             py.run(
@@ -572,7 +582,7 @@ mod tests {
             )
             .unwrap();
 
-            assert!(SWITCH_COUNT.load(Ordering::Relaxed) > 0);
+            assert!(FORGOTTEN_GUARD_COUNT.load(Ordering::Relaxed) > 0);
         });
     }
 }
