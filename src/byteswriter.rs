@@ -21,11 +21,10 @@ use crate::{
     py_result_ext::PyResultExt,
 };
 use crate::{types::PyBytes, Bound, IntoPyObject, PyErr, PyResult, Python};
+#[cfg(all(not(Py_LIMITED_API), wip_feature_std))]
+use core::ptr;
 #[cfg(not(Py_LIMITED_API))]
-use core::{
-    mem::ManuallyDrop,
-    ptr::{self, NonNull},
-};
+use core::{mem::ManuallyDrop, ptr::NonNull};
 use std::io::IoSlice;
 
 pub struct PyBytesWriter<'py> {
@@ -143,7 +142,7 @@ impl<'py> Drop for PyBytesWriter<'py> {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(wip_feature_std, not(Py_LIMITED_API)))]
 impl std::io::Write for PyBytesWriter<'_> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.write_all(buf)?;
@@ -189,7 +188,7 @@ impl std::io::Write for PyBytesWriter<'_> {
     }
 }
 
-#[cfg(Py_LIMITED_API)]
+#[cfg(all(wip_feature_std, Py_LIMITED_API))]
 impl std::io::Write for PyBytesWriter<'_> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.buffer.write(buf)
@@ -216,9 +215,30 @@ impl std::io::Write for PyBytesWriter<'_> {
 mod tests {
     use super::*;
     use crate::types::PyBytesMethods;
+    #[cfg(wip_feature_std)]
     use std::io::Write;
 
+    /// Fake write trait so that tests can be compiled
+    #[cfg(not(wip_feature_std))]
+    trait FakeWrite {
+        fn write(&mut self, _buf: &[u8]) -> Result<usize, ()> {
+            unreachable!()
+        }
+
+        fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> Result<usize, ()> {
+            unreachable!()
+        }
+
+        fn write_all(&mut self, _buf: &[u8]) -> Result<(), ()> {
+            unreachable!()
+        }
+    }
+
+    #[cfg(not(wip_feature_std))]
+    impl FakeWrite for PyBytesWriter<'_> {}
+
     #[test]
+    #[cfg_attr(not(wip_feature_std), ignore)]
     fn test_io_write() {
         Python::attach(|py| {
             let buf = b"hallo world";
@@ -230,6 +250,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(wip_feature_std), ignore)]
     fn test_pre_allocated() {
         Python::attach(|py| {
             let buf = b"hallo world";
@@ -242,6 +263,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(wip_feature_std), ignore)]
     fn test_io_write_vectored() {
         Python::attach(|py| {
             let bufs = [IoSlice::new(b"hallo "), IoSlice::new(b"world")];
@@ -253,6 +275,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(wip_feature_std), ignore)]
     fn test_io_write_vectored_large() {
         Python::attach(|py| {
             let large_data = vec![b'\n'; 1024]; // 1 KB
@@ -271,6 +294,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(wip_feature_std), ignore)]
     fn test_large_data() {
         Python::attach(|py| {
             let mut writer = PyBytesWriter::new(py).unwrap();
