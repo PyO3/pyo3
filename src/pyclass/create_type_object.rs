@@ -47,6 +47,26 @@ pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<PyClassTypeObjec
 where
     T: PyClass,
 {
+    create_type_object_inner::<T>(py, None)
+}
+
+pub(crate) fn create_type_object_with_module<T>(
+    py: Python<'_>,
+    module: *mut ffi::PyObject,
+) -> PyResult<PyClassTypeObject>
+where
+    T: PyClass,
+{
+    create_type_object_inner::<T>(py, Some(module))
+}
+
+fn create_type_object_inner<T>(
+    py: Python<'_>,
+    module_ptr: Option<*mut ffi::PyObject>,
+) -> PyResult<PyClassTypeObject>
+where
+    T: PyClass,
+{
     // Written this way to monomorphize the majority of the logic.
     #[expect(clippy::too_many_arguments)]
     unsafe fn inner(
@@ -67,6 +87,7 @@ where
         name: &'static str,
         module: Option<&'static str>,
         basicsize: ffi::Py_ssize_t,
+        module_ptr: Option<*mut ffi::PyObject>,
     ) -> PyResult<PyClassTypeObject> {
         unsafe {
             PyTypeBuilder {
@@ -97,7 +118,7 @@ where
             .offsets(dict_offset, weaklist_offset)
             .set_is_basetype(is_basetype)
             .class_items(items_iter)
-            .build(py, name, module, basicsize)
+            .build(py, name, module, basicsize, module_ptr)
         }
     }
 
@@ -120,6 +141,7 @@ where
             <T as PyClass>::NAME,
             <T as PyClassImpl>::MODULE,
             <T as PyClassImpl>::Layout::BASIC_SIZE,
+            module_ptr,
         )
     }
 }
@@ -414,6 +436,7 @@ impl PyTypeBuilder {
         name: &'static str,
         module_name: Option<&'static str>,
         basicsize: ffi::Py_ssize_t,
+        module_ptr: Option<*mut ffi::PyObject>,
     ) -> PyResult<PyClassTypeObject> {
         // `c_ulong` and `c_uint` have the same size
         // on some platforms (like windows)
@@ -523,9 +546,26 @@ impl PyTypeBuilder {
             // SAFETY: We've correctly setup the slots array at this point.
             // The FFI call is known to return a new type object or null on error.
             unsafe {
-                ffi::PyType_FromSlots(slots.as_mut_ptr())
+                // Use PyType_FromModuleAndSpec if module context available (Python 3.10+)
+                if let Some(mod_ptr) = module_ptr {
+                    ffi::PyType_FromModuleAndSpec(
+                        mod_ptr,
+                        &raw mut ffi::PyType_Spec {
+                            name: class_name.as_ptr() as _,
+                            basicsize: basicsize as c_int,
+                            itemsize: 0,
+                            flags: flags.try_into().unwrap(),
+                            slots: slots.as_mut_ptr(),
+                        },
+                        ptr::null_mut(),
+                    )
                     .assume_owned_or_err(py)?
                     .cast_into_unchecked::<PyType>()
+                } else {
+                    ffi::PyType_FromSlots(slots.as_mut_ptr())
+                        .assume_owned_or_err(py)?
+                        .cast_into_unchecked::<PyType>()
+                }
             }
         };
 
@@ -542,9 +582,26 @@ impl PyTypeBuilder {
             // SAFETY: We've correctly setup the PyType_Spec at this point.
             // The FFI call is known to return a new type object or null on error.
             unsafe {
-                ffi::PyType_FromSpec(&mut spec)
-                    .assume_owned_or_err(py)?
-                    .cast_into_unchecked::<PyType>()
+                // Use PyType_FromModuleAndSpec if module context available (Python 3.10+)
+                #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+                if let Some(mod_ptr) = module_ptr {
+                    ffi::PyType_FromModuleAndSpec(mod_ptr, &mut spec, ptr::null_mut())
+                        .assume_owned_or_err(py)?
+                        .cast_into_unchecked::<PyType>()
+                } else {
+                    ffi::PyType_FromSpec(&mut spec)
+                        .assume_owned_or_err(py)?
+                        .cast_into_unchecked::<PyType>()
+                }
+
+                #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
+                {
+                    let _ = module_ptr;
+                    // Python < 3.10 with LIMITED_API: use fallback
+                    ffi::PyType_FromSpec(&mut spec)
+                        .assume_owned_or_err(py)?
+                        .cast_into_unchecked::<PyType>()
+                }
             }
         };
 

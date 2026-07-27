@@ -270,6 +270,16 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// Instead, this method is *generic*, and requires us to use the
     /// "turbofish" syntax to specify the class we want to add.
     ///
+    /// # Module Association and Module State
+    ///
+    /// When using module state, you need to use [`add_class_with_module`] instead.
+    /// If your class methods call `module_state()` or access `PyType_GetModuleState()`,
+    /// the type *must* be created with proper module context. This happens automatically
+    /// when using `add_class_with_module`, but `add_class` creates the type without
+    /// module context (if the type hasn't been accessed yet).
+    ///
+    /// For types that don't use module state, `add_class` is sufficient.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
@@ -285,24 +295,40 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// }
     ///  ```
     ///
-    /// Python code can see this class as such:
-    /// ```python
-    /// from my_module import Foo
-    ///
-    /// print("Foo is", Foo)
-    /// ```
-    ///
-    /// This will result in the following output:
-    /// ```text
-    /// Foo is <class 'builtins.Foo'>
-    /// ```
-    ///
-    /// Note that as we haven't defined a [constructor][1], Python code can't actually
-    /// make an *instance* of `Foo` (or *get* one for that matter, as we haven't exported
-    /// anything that can return instances of `Foo`).
-    ///
+    /// [`add_class_with_module`]: Self::add_class_with_module
     #[doc = concat!("[1]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#constructor")]
     fn add_class<T>(&self) -> PyResult<()>
+    where
+        T: PyClass;
+
+    /// Adds a class to a module with module context.
+    ///
+    /// This method should be used when you need `PyType_GetModuleState()` or `module_state()`
+    /// to work correctly in class methods. It ensures the type is created with the proper
+    /// module association, enabling module state access.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the type has already been created (cached). To use this method,
+    /// you must call it *before* the class type is first accessed elsewhere in your code.
+    /// This is typically done early in the module initialization.
+    ///
+    /// If you don't need module state in your class methods, prefer the regular [`add_class`]
+    /// method instead.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// #[pymodule]
+    /// fn my_module(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+    ///     // Add class with module context - enables module_state() calls
+    ///     m.add_class_with_module::<MyClass>()?;
+    ///     Ok(())
+    /// }
+    /// ```
+    ///
+    /// [`add_class`]: Self::add_class
+    fn add_class_with_module<T>(&self) -> PyResult<()>
     where
         T: PyClass;
 
@@ -555,6 +581,17 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         self.add(
             <T as PyClass>::NAME,
             T::lazy_type_object().get_or_try_init(py)?,
+        )
+    }
+
+    fn add_class_with_module<T>(&self) -> PyResult<()>
+    where
+        T: PyClass,
+    {
+        let py = self.py();
+        self.add(
+            <T as PyClass>::NAME,
+            T::lazy_type_object().try_init_with_module(py, self.as_ptr())?,
         )
     }
 

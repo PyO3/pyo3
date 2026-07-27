@@ -95,6 +95,35 @@ impl ModuleState {
             }
         }
     }
+
+    /// Get the module state from a type's module.
+    ///
+    /// Returns `Ok(None)` if the module doesn't have state, state is not initialized,
+    /// or doesn't match the requested type.
+    ///
+    /// # Safety
+    ///
+    /// - `type_ptr` must be a valid, non-null pointer to a `PyTypeObject`.
+    /// - The GIL must be held (represented by `py`).
+    pub(crate) unsafe fn get_from_type_ptr<'py, T: 'static>(
+        py: crate::Python<'py>,
+        type_ptr: *mut ffi::PyTypeObject,
+    ) -> crate::PyResult<Option<&'py T>> {
+        use crate::err;
+
+        let mstate = unsafe {
+            let state_ptr = ffi::PyType_GetModuleState(type_ptr);
+            if state_ptr.is_null() {
+                if !ffi::PyErr_Occurred().is_null() {
+                    return Err(err::PyErr::fetch(py));
+                }
+                return Ok(None);
+            }
+
+            &*(state_ptr as *const ModuleState)
+        };
+        Ok(mstate.inner_ref::<T>())
+    }
 }
 
 impl Drop for ModuleState {

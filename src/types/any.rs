@@ -6,14 +6,12 @@ use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 use crate::impl_::pycell::{PyClassObjectBase, PyStaticClassObject};
-#[cfg(feature = "experimental-module-state")]
-use crate::impl_::pymodule_state::ModuleState;
 use crate::instance::Bound;
 use crate::internal::get_slot::TP_DESCR_GET;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::PySuper;
-use crate::types::{PyDict, PyIterator, PyList, PyModule, PyString, PyType};
+use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
 use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py};
 #[cfg(RustPython)]
 use crate::{sync::PyOnceLock, types::typeobject::PyTypeMethods};
@@ -823,23 +821,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// This is equivalent to the Python expression `super()`
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>>;
 
-    /// Returns a reference to the module in which this object's class is defined.
-    fn type_module(&self) -> PyResult<Bound<'py, PyModule>>;
-
-    /// Get a reference to the module state from this object's class's defining module
-    ///
-    /// Returns None if the class is defined in a module with no state, state is not initialized
-    /// or does not match the requested type.
-    ///
-    /// # Example
-    /// ```ignore
-    /// if let Some(state) = obj.type_module_state::<MyState>() {
-    ///     println!("State: {:?}", state);
-    /// }
-    /// ```
-    #[cfg(feature = "experimental-module-state")]
-    fn type_module_state<T: 'static>(&self) -> PyResult<Option<&T>>;
-
     // We do not provide a type_module_state mut since users cannot lock the module
     // during access to the state, so it cannot be safe to access a mutable reference
     // to the state.
@@ -1432,40 +1413,6 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>> {
         PySuper::new(&self.get_type(), self)
-    }
-
-    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
-    fn type_module(&self) -> PyResult<Bound<'py, PyModule>> {
-        // Get the type pointer directly using Py_TYPE() - no incref/decref
-        let type_ptr = unsafe { ffi::Py_TYPE(self.as_ptr()) };
-
-        let mod_ptr = unsafe { ffi::PyType_GetModule(type_ptr) };
-        if mod_ptr.is_null() {
-            return Err(PyErr::fetch(self.py()));
-        }
-        Ok(unsafe {
-            Bound::from_borrowed_ptr(self.py(), mod_ptr).cast_into_unchecked::<PyModule>()
-        })
-    }
-
-    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
-    fn type_module_state<T: 'static>(&self) -> PyResult<Option<&T>> {
-        unsafe {
-            // Get the type pointer directly using Py_TYPE() - no incref/decref
-            let type_ptr = ffi::Py_TYPE(self.as_ptr());
-
-            // Get the module state from the type
-            let state_ptr = ffi::PyType_GetModuleState(type_ptr);
-            if state_ptr.is_null() {
-                if !ffi::PyErr_Occurred().is_null() {
-                    return Err(PyErr::fetch(self.py()));
-                }
-                return Ok(None);
-            }
-
-            let mstate = &*(state_ptr as *const ModuleState);
-            Ok(mstate.inner_ref::<T>())
-        }
     }
 }
 
