@@ -10,7 +10,7 @@ struct NotASelfType;
 #[pymethods]
 impl MyClass {
     fn method_with_invalid_self_type(_slf: NotASelfType, _py: Python<'_>, _index: u32) {}
-    //~^ ERROR: the trait bound `NotASelfType: From<&pyo3::Bound<'_, MyClass>>` is not satisfied
+    //~^ ERROR: the trait bound `NotASelfType: TryFrom<&pyo3::Bound<'_, MyClass>>` is not satisfied
 }
 
 fn main() {}
