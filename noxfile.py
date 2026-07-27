@@ -1755,6 +1755,8 @@ def test_introspection(session: nox.Session):
     with tempfile.TemporaryDirectory() as stub_dir:
         session.install("maturin")
         session.install("ruff")
+        # `pytest-benchmark` backs the `--benchmark-disable` in `pytests/pyproject.toml`
+        session.install("pytest", "pytest-benchmark")
         options = []
         target = os.environ.get("CARGO_BUILD_TARGET")
         if target is not None:
@@ -1790,6 +1792,9 @@ def test_introspection(session: nox.Session):
         )
         _run(session, "ruff", "format", stub_dir)
         _ensure_directory_equals(Path(stub_dir), Path("pytests/stubs"))
+        # The stubs only match a module built with the features used above, so this test
+        # is skipped by the regular `pytests` session and runs here instead.
+        _run(session, "pytest", "pytests/tests/test_stubs.py")
 
 
 def _ensure_directory_equals(expected_dir: Path, actual_dir: Path):
