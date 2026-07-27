@@ -557,4 +557,22 @@ mod tests {
     fn watcher_guard_is_not_send_or_sync() {
         assert_not_impl_any!(super::ContextWatcherGuard<'_>: Send, Sync);
     }
+
+    #[test]
+    fn forgotten_guard() {
+        Python::attach(|py| {
+            SWITCH_COUNT.store(0, Ordering::Relaxed);
+            let watcher = crate::register_context_watcher!(py, record_switch).unwrap();
+            core::mem::forget(watcher);
+
+            py.run(
+                c"import contextvars; contextvars.Context().run(lambda: None)",
+                None,
+                None,
+            )
+            .unwrap();
+
+            assert!(SWITCH_COUNT.load(Ordering::Relaxed) > 0);
+        });
+    }
 }
