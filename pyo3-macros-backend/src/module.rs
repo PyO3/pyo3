@@ -629,6 +629,7 @@ pub fn pymodule_function_impl(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn module_initialization(
     full_name: &str,
     name: &syn::Ident,
@@ -746,8 +747,12 @@ fn module_initialization(
             quote! { ::core::option::Option::None },
         )
     };
+    #[cfg(not(feature = "experimental-module-state"))]
+    let (traverse_arg, clear_arg) = (
+        quote! { ::core::option::Option::None },
+        quote! { ::core::option::Option::None },
+    );
 
-    #[cfg(feature = "experimental-module-state")]
     let mod_new = quote! {
         #pyo3_path::impl_::pymodule::ModuleDef::new(
             __PYO3_NAME,
@@ -757,10 +762,6 @@ fn module_initialization(
             #traverse_arg,
             #clear_arg,
         )
-    };
-    #[cfg(not(feature = "experimental-module-state"))]
-    let mod_new = quote! {
-        #pyo3_path::impl_::pymodule::ModuleDef::new(__PYO3_NAME, #doc, &SLOTS, #allocate_state)
     };
 
     let mut result = quote! {
