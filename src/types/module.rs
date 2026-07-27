@@ -129,7 +129,8 @@ impl PyModule {
     //
     ///  <strong>Warning</strong>: This will compile and execute code. <strong>Never</strong> pass untrusted code to this function!
     ///
-    /// </pre></div>
+    /// </pre>
+    /// </div>
     ///
     /// # Errors
     ///
