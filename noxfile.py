@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import io
 import json
 import os
@@ -87,6 +88,15 @@ def _supported_interpreter_versions(
     if python_impl == "cpython":
         versions += [f"{major}.{minor}t" for minor in range(14, max_minor + 1)]
     return versions
+
+
+@functools.cache
+def _is_no_std() -> bool:
+    no_std = os.environ.get("PYO3_WIP_NO_STD")
+    if no_std is None:
+        return False
+    no_std = no_std.strip()
+    return no_std == "1" or no_std.lower() == "true"
 
 
 PY_VERSIONS = _supported_interpreter_versions("cpython")
@@ -1568,6 +1578,12 @@ def _cfg_attr_is_non_cpython_only(attr: str) -> bool:
             match.group(1),
         )
     )
+
+
+_REQUIRED_FOR_NO_STD = {
+    "hashbrown",
+    "parking_lot",
+}
 
 
 @nox.session(name="check-feature-powerset", venv_backend="none")
