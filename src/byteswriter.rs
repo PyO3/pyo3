@@ -69,6 +69,12 @@ impl<'py> PyBytesWriter<'py> {
         }
     }
 
+    /// Returns true if [`PyBytesWriter::len`] is 0.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Get the current length of the internal buffer.
     #[inline]
     pub fn len(&self) -> usize {
