@@ -41,6 +41,7 @@ pub struct PyBytesWriter<'py> {
 impl<'py> PyBytesWriter<'py> {
     /// Create a new `PyBytesWriter` with a default initial capacity.
     #[inline]
+    #[allow(unused, reason = "used in test cases")]
     pub(crate) fn new(py: Python<'py>) -> PyResult<Self> {
         Self::with_capacity(py, 0)
     }
