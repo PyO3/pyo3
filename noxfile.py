@@ -1821,6 +1821,8 @@ def _get_feature_sets(
 
     cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
 
+    required = ",".join(_REQUIRED_FOR_NO_STD) if _is_no_std() else ""
+
     features = "full"
 
     if "wasm32-wasip1" not in cargo_target:
@@ -1839,14 +1841,19 @@ def _get_feature_sets(
     # do fewer abi3t builds?
     if version >= (3, 15):
         return (
-            None,
-            "abi3",
-            "abi3t",
-            features,
-            f"abi3,{features}",
-            f"abi3t,{features}",
+            required,
+            f"abi3,{required}",
+            f"abi3t,{required}",
+            f"{features},{required}",
+            f"abi3,{features},{required}",
+            f"abi3t,{features},{required}",
         )
-    return (None, "abi3", features, f"abi3,{features}")
+    return (
+        required,
+        f"abi3,{required}",
+        f"{features},{required}",
+        f"abi3,{features},{required}",
+    )
 
 
 _RELEASE_LINE_START = "release: "
