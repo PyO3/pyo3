@@ -436,7 +436,7 @@ pub mod marker;
 pub mod marshal;
 #[macro_use]
 pub mod sync;
-pub(crate) mod byteswriter;
+pub mod byteswriter;
 pub mod panic;
 pub mod pybacked;
 pub mod pycell;

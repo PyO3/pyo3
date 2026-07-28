@@ -1,6 +1,8 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+//! Helper for makeing a [`PyBytes`], see [`PyBytesWriter`] for details.
+
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[allow(unused_imports, reason = "conditionally used")]
@@ -27,6 +29,7 @@ use core::ptr;
 use core::{mem::ManuallyDrop, ptr::NonNull};
 use std::io::IoSlice;
 
+/// Type used to create a [`PyBytes`], used in [`PyBytes::new_with_writer`].
 pub struct PyBytesWriter<'py> {
     python: Python<'py>,
     #[cfg(not(Py_LIMITED_API))]
@@ -38,14 +41,14 @@ pub struct PyBytesWriter<'py> {
 impl<'py> PyBytesWriter<'py> {
     /// Create a new `PyBytesWriter` with a default initial capacity.
     #[inline]
-    pub fn new(py: Python<'py>) -> PyResult<Self> {
+    pub(crate) fn new(py: Python<'py>) -> PyResult<Self> {
         Self::with_capacity(py, 0)
     }
 
     /// Create a new `PyBytesWriter` with the specified initial capacity.
     #[inline]
     #[cfg_attr(Py_LIMITED_API, allow(clippy::unnecessary_wraps))]
-    pub fn with_capacity(py: Python<'py>, capacity: usize) -> PyResult<Self> {
+    pub(crate) fn with_capacity(py: Python<'py>, capacity: usize) -> PyResult<Self> {
         cfg_select! {
             not(Py_LIMITED_API) => NonNull::new(unsafe { PyBytesWriter_Create(capacity as _) }).map_or_else(
                 || Err(PyErr::fetch(py)),
