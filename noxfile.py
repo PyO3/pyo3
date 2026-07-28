@@ -1676,6 +1676,8 @@ def check_feature_powerset(session: nox.Session):
         *abi3_version_features,
         *abi3t_version_features,
     ]
+    if _is_no_std():
+        features_to_skip.extend(_REQUIRED_FOR_NO_STD)
 
     # deny warnings
     env = os.environ.copy()
@@ -1697,6 +1699,7 @@ def check_feature_powerset(session: nox.Session):
             *(f"--group-features={comma_join(group)}" for group in features_to_group),
             "check",
             "--all-targets",
+            f"--features={comma_join(_REQUIRED_FOR_NO_STD)}" if _is_no_std() else "",
             env=env,
         )
 
