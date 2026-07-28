@@ -102,21 +102,19 @@ impl<'py> PyBytesWriter<'py> {
     /// Writes the `bytes` into `self`.
     #[cfg_attr(Py_LIMITED_API, expect(clippy::unnecessary_wraps))]
     pub fn write_bytes(&mut self, bytes: &[u8]) -> PyResult<()> {
-        #[cfg(Py_LIMITED_API)]
-        {
-            self.buffer.extend_from_slice(bytes);
-        }
+        cfg_select! {
+            Py_LIMITED_API => self.buffer.extend_from_slice(bytes),
 
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            let len = bytes.len();
-            let pos = self.len();
+            _ => {
+                let len = bytes.len();
+                let pos = self.len();
 
-            // SAFETY: We write the new uninitialized bytes below.
-            unsafe { self.set_len(pos + len)? }
+                // SAFETY: We write the new uninitialized bytes below.
+                unsafe { self.set_len(pos + len)? }
 
-            // SAFETY: We have ensured enough capacity above.
-            unsafe { ptr::copy_nonoverlapping(bytes.as_ptr(), self.as_mut_ptr().add(pos), len) };
+                // SAFETY: We have ensured enough capacity above.
+                unsafe { ptr::copy_nonoverlapping(bytes.as_ptr(), self.as_mut_ptr().add(pos), len) };
+            }
         }
 
         Ok(())
