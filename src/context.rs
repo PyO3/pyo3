@@ -91,9 +91,7 @@ impl Drop for ContextWatcherGuard<'_> {
         // - `PyErr_SetRaisedException` steals the owned reference returned above
         unsafe {
             let pending_exception = ffi::PyErr_GetRaisedException();
-            let result = ffi::PyContext_ClearWatcher(self.watcher_id);
-
-            if result == -1 {
+            if ffi::PyContext_ClearWatcher(self.watcher_id) == -1 {
                 ffi::PyErr_WriteUnraisable(core::ptr::null_mut());
             }
 
@@ -121,11 +119,9 @@ impl Drop for ContextWatcherGuard<'_> {
 /// use pyo3::prelude::*;
 ///
 /// fn context_changed(
-///     py: Python<'_>,
-///     event: ContextEvent<'_, '_>,
+///     _py: Python<'_>,
+///     _event: ContextEvent<'_, '_>,
 /// ) -> PyResult<()> {
-///     let _ = py;
-///     let _ = event;
 ///     Ok(())
 /// }
 ///
@@ -179,8 +175,9 @@ pub mod impl_ {
         // SAFETY:
         // - `py` proves that the thread is attached
         // - `context_watcher::<Callback>` is a static C-compatible function
-        let watcher_id = unsafe { ffi::PyContext_AddWatcher(context_watcher::<Callback>) };
-        let watcher_id = error_on_minusone_with_result(py, watcher_id)?;
+        let watcher_id = error_on_minusone_with_result(py, unsafe {
+            ffi::PyContext_AddWatcher(context_watcher::<Callback>)
+        })?;
 
         Ok(ContextWatcherGuard {
             watcher_id,
@@ -205,15 +202,29 @@ pub mod impl_ {
         // SAFETY: the caller guarantees that the thread is attached.
         let pending_exception = unsafe { ffi::PyErr_GetRaisedException() };
 
-        // SAFETY: the caller guarantees that the thread is attached. `trampoline` catches all
-        // panics and converts callback errors into a Python exception with a -1 return value.
+        // SAFETY:
+        // - the caller guarantees that the thread is attached and `object` follows the contract
+        //   for `event`
+        // - `trampoline` catches panics and converts callback errors into a Python exception
+        // - the callback's higher-ranked signature prevents borrowed event data from escaping
         let result = unsafe {
             crate::impl_::trampoline::trampoline(|py| {
-                let borrow_guard = ();
-                // SAFETY:
-                // - CPython guarantees that `object` follows the contract for `event`
-                // - `borrow_guard` limits the resulting borrow to this callback invocation
-                let event = event_from_raw(py, event, object, &borrow_guard);
+                let event = match event {
+                    ffi::Py_CONTEXT_SWITCHED => {
+                        let object = object.assume_borrowed(py);
+
+                        if object.is_none() {
+                            ContextEvent::Switched(None)
+                        } else {
+                            ContextEvent::Switched(Some(object.cast_unchecked()))
+                        }
+                    }
+
+                    raw_event => {
+                        let object = object.assume_borrowed_or_opt(py);
+                        ContextEvent::Unknown { raw_event, object }
+                    }
+                };
 
                 (Callback::CALLBACK)(py, event)?;
 
@@ -252,42 +263,13 @@ pub mod impl_ {
 
         0
     }
-
-    unsafe fn event_from_raw<'a, 'py>(
-        py: Python<'py>,
-        event: ffi::PyContextEvent,
-        object: *mut ffi::PyObject,
-        _borrow_guard: &'a (),
-    ) -> ContextEvent<'a, 'py> {
-        match event {
-            ffi::Py_CONTEXT_SWITCHED => {
-                // SAFETY: CPython documents a non-null context object or `None` for this event.
-                let object = unsafe { object.assume_borrowed(py) };
-
-                if object.is_none() {
-                    ContextEvent::Switched(None)
-                } else {
-                    // SAFETY: CPython guarantees that a non-None object for this event is a
-                    // `contextvars.Context`.
-                    ContextEvent::Switched(Some(unsafe { object.cast_unchecked() }))
-                }
-            }
-            raw_event => {
-                // SAFETY: unknown events may have a NULL object; a non-null object is borrowed for
-                // at least the callback duration, which is bounded by `_borrow_guard`.
-                let object = unsafe { object.assume_borrowed_or_opt(py) };
-                ContextEvent::Unknown { raw_event, object }
-            }
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::impl_::{context_watcher, ContextWatcherCallback, ContextWatcherCallbackDef};
     use super::ContextEvent;
-    use crate::exceptions::PyRuntimeError;
-    use crate::exceptions::PyValueError;
+    use crate::exceptions::{PyRuntimeError, PyValueError};
     #[cfg(feature = "macros")]
     use crate::test_utils::UnraisableCapture;
     use crate::types::{PyAnyMethods, PyContext};
