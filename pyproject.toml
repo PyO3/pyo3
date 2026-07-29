@@ -71,6 +71,7 @@ package = false
 
 [dependency-groups]
 dev = [
+  "ruff<0.16",
   "rumdl",
   "typos",
 ]
