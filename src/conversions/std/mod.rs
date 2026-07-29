@@ -10,5 +10,6 @@ mod path;
 mod set;
 mod slice;
 mod string;
+mod sync;
 mod time;
 mod vec;
