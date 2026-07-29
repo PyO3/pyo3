@@ -23,8 +23,6 @@ use crate::{
     py_result_ext::PyResultExt,
 };
 use crate::{types::PyBytes, Bound, IntoPyObject, PyErr, PyResult, Python};
-#[cfg(all(not(Py_LIMITED_API), wip_feature_std))]
-use core::ptr;
 #[cfg(not(Py_LIMITED_API))]
 use core::{mem::ManuallyDrop, ptr::NonNull};
 use std::io::IoSlice;
@@ -123,7 +121,7 @@ impl<'py> PyBytesWriter<'py> {
                 unsafe { self.set_len(pos + len)? }
 
                 // SAFETY: We have ensured enough capacity above.
-                unsafe { ptr::copy_nonoverlapping(bytes.as_ptr(), self.as_mut_ptr().add(pos), len) };
+                unsafe { core::ptr::copy_nonoverlapping(bytes.as_ptr(), self.as_mut_ptr().add(pos), len) };
             }
         }
 
@@ -193,7 +191,7 @@ impl std::io::Write for PyBytesWriter<'_> {
 
         for buf in bufs {
             // SAFETY: We have ensured enough capacity above.
-            unsafe { ptr::copy_nonoverlapping(buf.as_ptr(), ptr, buf.len()) };
+            unsafe { core::ptr::copy_nonoverlapping(buf.as_ptr(), ptr, buf.len()) };
 
             // SAFETY: We just wrote buf.len() bytes
             ptr = unsafe { ptr.add(buf.len()) };
