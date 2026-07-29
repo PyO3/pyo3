@@ -253,6 +253,47 @@ fn test_inplace_repeat() {
     });
 }
 
+#[pyclass(sequence)]
+struct SequenceOperators;
+
+#[pymethods]
+impl SequenceOperators {
+    fn __concat__(&self, _other: &Self) -> &'static str {
+        "concat"
+    }
+
+    fn __inplace_concat__(&self, _other: &Self) -> &'static str {
+        "inplace_concat"
+    }
+
+    fn __repeat__(&self, _count: isize) -> &'static str {
+        "repeat"
+    }
+
+    fn __inplace_repeat__(&self, _count: isize) -> &'static str {
+        "inplace_repeat"
+    }
+}
+
+#[test]
+fn sequence_operators_use_distinct_slots() {
+    Python::attach(|py| {
+        let d = [
+            ("left", Bound::new(py, SequenceOperators).unwrap()),
+            ("right", Bound::new(py, SequenceOperators).unwrap()),
+        ]
+        .into_py_dict(py)
+        .unwrap();
+
+        py_assert!(py, *d, "left + right == 'concat'");
+        py_run!(py, *d, "result = left; result += right");
+        py_assert!(py, *d, "result == 'inplace_concat'");
+        py_assert!(py, *d, "left * 2 == 'repeat'");
+        py_run!(py, *d, "result = left; result *= 2");
+        py_assert!(py, *d, "result == 'inplace_repeat'");
+    });
+}
+
 // Check that #[pyo3(get, set)] works correctly for Vec<PyObject>
 
 #[pyclass]

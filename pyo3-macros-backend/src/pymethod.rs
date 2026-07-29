@@ -1084,8 +1084,8 @@ pub const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc");
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc");
 const __CONCAT__: SlotDef = SlotDef::new("Py_sq_concat", "binaryfunc");
 const __REPEAT__: SlotDef = SlotDef::new("Py_sq_repeat", "ssizeargfunc");
-const __INPLACE_CONCAT__: SlotDef = SlotDef::new("Py_sq_concat", "binaryfunc");
-const __INPLACE_REPEAT__: SlotDef = SlotDef::new("Py_sq_repeat", "ssizeargfunc");
+const __INPLACE_CONCAT__: SlotDef = SlotDef::new("Py_sq_inplace_concat", "binaryfunc");
+const __INPLACE_REPEAT__: SlotDef = SlotDef::new("Py_sq_inplace_repeat", "ssizeargfunc");
 pub const __GETITEM__: SlotDef = SlotDef::new("Py_mp_subscript", "binaryfunc");
 
 const __POS__: SlotDef = SlotDef::new("Py_nb_positive", "unaryfunc");
