@@ -861,6 +861,7 @@ fn test_super_traverse_early_return_does_not_abort() {
 // `__traverse__` / `__clear__`; a `__clear__` without a `__traverse__` is rejected at
 // type-creation time.
 
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[test]
 fn dict_class_is_a_gc_type() {
     Python::attach(|py| {
@@ -871,11 +872,13 @@ fn dict_class_is_a_gc_type() {
 }
 
 /// `#[pyclass(dict)]` with neither `__traverse__` nor `__clear__`: both slots are synthesized.
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(dict)]
 struct DictCycleNoTraverse {
     _guard: DropGuard,
 }
 
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[test]
 fn dict_cycle_collected_without_traverse() {
     let (guard, check) = drop_check();
@@ -893,11 +896,13 @@ fn dict_cycle_collected_without_traverse() {
 
 /// `#[pyclass(dict)]` with `__traverse__` but no `__clear__`: the `__dict__` is visited by
 /// `_call_traverse` and cleared by a synthesized `tp_clear`.
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(dict)]
 struct DictCycleTraverseOnly {
     _guard: DropGuard,
 }
 
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pymethods]
 impl DictCycleTraverseOnly {
     #[expect(clippy::unnecessary_wraps)]
@@ -907,6 +912,7 @@ impl DictCycleTraverseOnly {
     }
 }
 
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[test]
 fn dict_cycle_collected_with_traverse_only() {
     let (guard, check) = drop_check();
@@ -923,12 +929,14 @@ fn dict_cycle_collected_with_traverse_only() {
 
 /// `#[pyclass(dict)]` with both `__traverse__` and `__clear__`: the `__dict__` is folded into
 /// the user-defined slots by `_call_traverse` / `_call_clear`.
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pyclass(dict)]
 struct DictCycleTraverseAndClear {
     _guard: DropGuard,
     field: Option<Py<PyAny>>,
 }
 
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[pymethods]
 impl DictCycleTraverseAndClear {
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
@@ -943,6 +951,7 @@ impl DictCycleTraverseAndClear {
     }
 }
 
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[test]
 fn dict_cycle_collected_with_traverse_and_clear() {
     let (guard, check) = drop_check();

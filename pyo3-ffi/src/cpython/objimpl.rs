@@ -30,8 +30,15 @@ extern_libpython! {
     #[cfg(Py_3_9)]
     pub fn PyObject_IS_GC(o: *mut PyObject) -> c_int;
 
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(all(Py_3_9, not(any(PyPy, GraalPy))))]
     pub fn PyObject_GET_WEAKREFS_LISTPTR(o: *mut PyObject) -> *mut *mut PyObject;
+}
+
+#[inline]
+#[cfg(not(Py_3_9))]
+pub unsafe fn PyObject_GET_WEAKREFS_LISTPTR(o: *mut PyObject) -> *mut *mut PyObject {
+    let weaklistoffset = (*Py_TYPE(o)).tp_weaklistoffset;
+    o.byte_offset(weaklistoffset) as *mut *mut PyObject
 }
 
 #[inline]

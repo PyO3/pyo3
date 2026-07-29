@@ -478,6 +478,7 @@ fn access_dunder_dict() {
     });
 }
 
+#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 #[test]
 fn dunder_dict_is_released() {
     Python::attach(|py| {
