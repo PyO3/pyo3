@@ -8,6 +8,7 @@ use crate::inspect::PyStaticExpr;
 use crate::instance::Bound;
 #[cfg(Py_3_11)]
 use crate::intern;
+use crate::internal::stdio::write_py_stderr;
 use crate::panic::PanicException;
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
@@ -302,8 +303,10 @@ impl PyErr {
             .map(|py_str| py_str.to_string_lossy().into())
             .unwrap_or_else(|_| String::from("Unwrapped panic from Python code"));
 
-        eprintln!("--- PyO3 is resuming a panic after fetching a PanicException from Python. ---");
-        eprintln!("Python stack trace below:");
+        write_py_stderr(
+            c"--- PyO3 is resuming a panic after fetching a PanicException from Python. ---",
+        );
+        write_py_stderr(c"Python stack trace below:");
 
         PyErrState::normalized(state).restore(py);
 
