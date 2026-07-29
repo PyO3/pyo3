@@ -41,17 +41,10 @@ impl Once {
 
     #[inline(always)]
     pub fn is_completed(&self) -> bool {
-        #[cfg(wip_feature_std)]
-        {
-            self.0.is_completed()
-        }
-        #[cfg(all(not(wip_feature_std), feature = "parking_lot"))]
-        {
-            matches!(self.0.state(), parking_lot::OnceState::Done)
-        }
-        #[cfg(all(not(wip_feature_std), feature = "parking_lot"))]
-        {
-            compile_error!("Please enable at least one of the following features: std, parking_lot")
+        cfg_select! {
+            wip_feature_std => self.0.is_completed(),
+            feature = "parking_lot" => matches!(self.0.state(), parking_lot::OnceState::Done),
+            _ => compile_error!("Please enable at least one of the following features: std, parking_lot"),
         }
     }
 }
