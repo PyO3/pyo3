@@ -61,7 +61,7 @@ def _get_output(*args: str, env: dict[str, str] | None = None) -> str:
 
 
 def _parse_supported_interpreter_version(
-    python_impl: Literal["cpython", "pypy"],
+    python_impl: Literal["cpython", "pypy", "graalpy"],
 ) -> tuple[str, str]:
     output = _get_output("cargo", "metadata", "--format-version=1", "--no-deps")
     cargo_packages = json.loads(output)["packages"]
@@ -75,7 +75,7 @@ def _parse_supported_interpreter_version(
 
 
 def _supported_interpreter_versions(
-    python_impl: Literal["cpython", "pypy"],
+    python_impl: Literal["cpython", "pypy", "graalpy"],
 ) -> list[str]:
     min_version, max_version = _parse_supported_interpreter_version(python_impl)
     major = int(min_version.split(".")[0])
@@ -95,6 +95,7 @@ ABI3T_PY_VERSIONS = [
     p for p in PY_VERSIONS if p.endswith("t") and int(p.split(".")[1].strip("t")) > 14
 ]
 PYPY_VERSIONS = _supported_interpreter_versions("pypy")
+GRAALPY_VERSIONS = _supported_interpreter_versions("graalpy")
 
 
 @nox.session(venv_backend="none")
@@ -1965,6 +1966,9 @@ def _for_all_version_configs(
 
         for version in PYPY_VERSIONS:
             _job_with_config("PyPy", version)
+
+        for version in GRAALPY_VERSIONS:
+            _job_with_config("GraalVM", version)
 
 
 class _ConfigFile:
