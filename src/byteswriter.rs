@@ -110,7 +110,7 @@ impl<'py> PyBytesWriter<'py> {
     }
 
     /// Writes the `bytes` into `self`.
-    #[cfg_attr(Py_LIMITED_API, expect(clippy::unnecessary_wraps))]
+    #[allow(clippy::unnecessary_wraps)]
     pub fn write_bytes(&mut self, bytes: &[u8]) -> PyResult<()> {
         cfg_select! {
             Py_LIMITED_API => self.buffer.extend_from_slice(bytes),
