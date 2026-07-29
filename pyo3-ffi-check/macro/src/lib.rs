@@ -359,6 +359,7 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyObject_GC_New", ""),
     ("PyObject_GC_NewVar", ""),
     ("PyObject_GC_Resize", ""),
+    ("PyObject_GET_WEAKREFS_LISTPTR", "not(Py_3_9)"),
     ("PyObject_IS_GC", "not(Py_3_9)"),
     ("PyObject_New", ""),
     ("PyObject_NewVar", ""),
