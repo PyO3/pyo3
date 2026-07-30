@@ -96,11 +96,6 @@ where
     // Panic guard for incremental initialization of arrays.
     //
     // Disarm the guard with `mem::forget` once the array has been initialized.
-    //
-    // # Safety
-    //
-    // All write accesses to this structure are unsafe and must maintain a correct
-    // count of `initialized` elements.
     struct Guard<'a, T> {
         // The array to be initialized.
         array_mut: &'a mut [MaybeUninit<T>],
