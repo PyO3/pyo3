@@ -142,11 +142,15 @@ impl FromPyObject<'_, '_> for OsString {
             );
             let size = size - 1; // exclude null terminator
 
-            let mut buffer = vec![0; size as usize];
+            let mut buffer: Vec<u16> = Vec::with_capacity(size as usize);
             // SAFETY: passing valid pointer to python API
             let bytes_read =
                 unsafe { ffi::PyUnicode_AsWideChar(pystring.as_ptr(), buffer.as_mut_ptr(), size) };
             assert_eq!(bytes_read, size);
+
+            // SAFETY: `PyUnicode_AsWideChar` wrote exactly `bytes_read == size` elements
+            // into `buffer`
+            unsafe { buffer.set_len(size as usize) };
 
             // Copy wide char buffer into OsString
             let os_string = std::os::windows::ffi::OsStringExt::from_wide(&buffer);
