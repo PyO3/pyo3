@@ -50,7 +50,7 @@
 //! }
 //! ```
 
-use crate::exceptions::{PyTypeError, PyValueError};
+use crate::exceptions::{PyOverflowError, PyTypeError, PyValueError};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[cfg(Py_LIMITED_API)]
@@ -178,11 +178,13 @@ impl<'py> IntoPyObject<'py> for Duration {
                 total_seconds % SECONDS_PER_DAY,
             )
         };
-        // Create the timedelta with days, seconds, microseconds
-        // Safe to unwrap as we've verified the values are within bounds
+        let days = days
+            .try_into()
+            .map_err(|_| PyOverflowError::new_err("duration out of range for Python timedelta"))?;
+
         PyDelta::new(
             py,
-            days.try_into().expect("days overflow"),
+            days,
             seconds.try_into().expect("seconds overflow"),
             micro_seconds,
             true,
@@ -861,6 +863,11 @@ mod tests {
             assert!(result.is_err());
             let err_type = result.unwrap_err().get_type(py).name().unwrap();
             assert_eq!(err_type, "OverflowError");
+
+            for duration in [Duration::MIN, Duration::MAX] {
+                let err = duration.into_pyobject(py).unwrap_err();
+                assert_eq!(err.get_type(py).name().unwrap(), "OverflowError");
+            }
         });
     }
 
