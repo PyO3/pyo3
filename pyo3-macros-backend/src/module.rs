@@ -164,6 +164,9 @@ pub fn pymodule_module_impl(
     }
 
     let mut pymodule_init = None;
+    // Whether the `#[pymodule_init]`, if there is one, receives the module. An initialiser that
+    // does not cannot add attributes to it, which is what lets the module stay introspectable.
+    let mut pymodule_init_takes_module = false;
     let mut module_consts = Vec::new();
     let mut module_consts_cfg_attrs = Vec::new();
 
@@ -196,7 +199,20 @@ pub fn pymodule_module_impl(
                         item_fn.span() => "`#[pyfunction]` cannot be used alongside `#[pymodule_init]`"
                     );
                     ensure_spanned!(pymodule_init.is_none(), item_fn.span() => "only one `#[pymodule_init]` may be specified");
-                    pymodule_init = Some(quote! { #ident(module)?; });
+                    ensure_spanned!(
+                        item_fn.sig.inputs.len() <= 1,
+                        item_fn.sig.inputs.span() => "`#[pymodule_init]` takes either no argument or the module"
+                    );
+                    // An initialiser that asks for the module can add anything to it, and the macro
+                    // cannot see what; one that does not is provably side-effect-only as far as the
+                    // module's attributes are concerned. Only the first makes the module
+                    // incomplete for introspection.
+                    pymodule_init_takes_module = !item_fn.sig.inputs.is_empty();
+                    pymodule_init = Some(if pymodule_init_takes_module {
+                        quote! { #ident(module)?; }
+                    } else {
+                        quote! { #ident()?; }
+                    });
                 } else if has_attribute(&item_fn.attrs, "pyfunction")
                     || has_attribute_with_namespace(
                         &item_fn.attrs,
@@ -382,7 +398,7 @@ pub fn pymodule_module_impl(
         &module_items,
         &module_items_cfg_attrs,
         doc.as_ref(),
-        pymodule_init.is_some(),
+        pymodule_init_takes_module,
     );
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
