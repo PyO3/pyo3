@@ -1,6 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
-
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
@@ -26,6 +23,8 @@ impl FromPyObject<'_, '_> for PathBuf {
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         // We use os.fspath to get the underlying path as bytes or str
+        // SAFETY: valid pointer is passed to python API, and `PyOS_FSPath` returns
+        // a new owned reference or NULL with an error set
         let path = unsafe { ffi::PyOS_FSPath(ob.as_ptr()).assume_owned_or_err(ob.py())? };
         Ok(path.extract::<OsString>()?.into())
     }

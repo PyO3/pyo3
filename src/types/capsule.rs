@@ -14,11 +14,11 @@ use crate::{
 };
 use crate::{Bound, Python};
 use crate::{PyErr, PyResult};
+use alloc::ffi::CString;
 use core::ffi::CStr;
 use core::ffi::{c_char, c_int, c_void};
 use core::mem::offset_of;
 use core::ptr::{self, NonNull};
-use std::ffi::CString;
 
 /// Represents a Python Capsule
 /// as described in [Capsules](https://docs.python.org/3/c-api/capsule.html#capsules):
