@@ -114,9 +114,9 @@ where
             debug_assert!(self.initialized <= self.array_mut.len());
             // SAFETY: this slice will contain only initialized objects.
             unsafe {
-                self.array_mut
-                    .get_unchecked_mut(..self.initialized)
-                    .assume_init_drop();
+                core::ptr::drop_in_place(
+                    &mut self.array_mut[..self.initialized] as *mut [_] as *mut [T],
+                );
             }
         }
     }
