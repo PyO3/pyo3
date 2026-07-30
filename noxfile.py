@@ -1834,9 +1834,14 @@ def _get_feature_sets(
 
     if FREE_THREADED_BUILD:
         if version >= (3, 15):
-            return (None, "abi3t", features, f"abi3t,{features}")
+            return (
+                required,
+                f"abi3t,{required}",
+                f"{features},{required}",
+                f"abi3t,{features},{required}",
+            )
         else:
-            return (None, features)
+            return (required, f"{features},{required}")
 
     # do fewer abi3t builds?
     if version >= (3, 15):
