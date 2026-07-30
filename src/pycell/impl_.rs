@@ -14,7 +14,7 @@ use crate::internal::get_slot::{TP_DEALLOC, TP_FREE};
 use crate::sync::PyOnceLock;
 use crate::type_object::{PyLayout, PySizedLayout, PyTypeInfo};
 use crate::types::PyType;
-use crate::{ffi, PyClass, Python};
+use crate::{ffi, Bound, PyClass, Python};
 
 use crate::types::PyTypeMethods;
 
@@ -263,30 +263,34 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         // FIXME: there is potentially subtle issues here if the base is overwritten
         // at runtime? To be investigated.
         let type_ptr = type_obj.as_type_ptr();
-        let actual_type = PyType::from_borrowed_type_ptr(py, ffi::Py_TYPE(slf));
+        let actual_type_ptr = ffi::Py_TYPE(slf);
+
+        // For heap types, instances must decref the type object  when they
+        // are deallocated, so we create a bound from a borrowed pointer as
+        // as if it was an owned pointer. In this way, when the bound is dropped,
+        // it will decref the type object.
+        debug_assert!(ffi::PyType_HasFeature(actual_type_ptr, ffi::Py_TPFLAGS_HEAPTYPE) != 0);
+        let actual_type = Bound::from_owned_ptr(py, actual_type_ptr as *mut ffi::PyObject)
+            .cast_into_unchecked::<PyType>();
 
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
         #[cfg(not(RustPython))]
-        if core::ptr::eq(type_ptr, &raw const ffi::PyBaseObject_Type) {
-            let tp_free = actual_type
-                .get_slot(TP_FREE)
-                .expect("PyBaseObject_Type should have tp_free");
-            return tp_free(slf.cast());
-        }
+        let base_object_type_ptr = &raw const ffi::PyBaseObject_Type;
         #[cfg(RustPython)]
-        if core::ptr::eq(type_ptr, {
+        let base_object_type_ptr = {
             static TYPE: PyOnceLock<crate::Py<PyType>> = PyOnceLock::new();
             TYPE.import(py, "builtins", "object").unwrap().as_type_ptr()
-        }) {
+        };
+
+        if core::ptr::eq(type_ptr, base_object_type_ptr) {
             let tp_free = actual_type
                 .get_slot(TP_FREE)
                 .expect("PyBaseObject_Type should have tp_free");
-            return tp_free(slf.cast());
+            tp_free(slf.cast());
         }
-
         // More complex native types (e.g. `extends=PyDict`) require calling the base's dealloc.
         // FIXME: should this be using actual_type.tp_dealloc?
-        if let Some(dealloc) = type_obj.get_slot(TP_DEALLOC) {
+        else if let Some(dealloc) = type_obj.get_slot(TP_DEALLOC) {
             // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
             // assumes the exception is currently GC tracked, so we have to re-track
             // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
@@ -298,6 +302,10 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         } else {
             type_obj.get_slot(TP_FREE).expect("type missing tp_free")(slf.cast());
         }
+
+        // Cause the reference to the type to be decrefed for heap types, which
+        // is necessary to avoid a reference leak.
+        drop(actual_type);
     }
 }
 

@@ -1010,10 +1010,6 @@ pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_
                 ffi::PyObject_Free
             };
             free(obj.as_ptr().cast());
-
-            if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-                ffi::Py_DECREF(ty as *mut ffi::PyObject);
-            }
         }
     }
 }
