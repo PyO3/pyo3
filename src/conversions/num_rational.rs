@@ -1,5 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "num-rational")]
 //! Conversions to and from [num-rational](https://docs.rs/num-rational) types.
 //!
@@ -77,9 +75,11 @@ macro_rules! rational_conversion {
                 let py = obj.py();
                 let py_numerator_obj = obj.getattr(crate::intern!(py, "numerator"))?;
                 let py_denominator_obj = obj.getattr(crate::intern!(py, "denominator"))?;
+                // SAFETY: `PyNumber_Long` returns a new owned reference or NULL with an error set
                 let numerator_owned = unsafe {
                     Bound::from_owned_ptr_or_err(py, ffi::PyNumber_Long(py_numerator_obj.as_ptr()))?
                 };
+                // SAFETY: `PyNumber_Long` returns a new owned reference or NULL with an error set
                 let denominator_owned = unsafe {
                     Bound::from_owned_ptr_or_err(
                         py,
