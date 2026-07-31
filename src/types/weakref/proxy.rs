@@ -47,14 +47,8 @@ impl PyWeakrefProxy {
     /// Returns a `TypeError` if `object` is not weak referenceable (Most native types and PyClasses without `weakref` flag).
     ///
     /// # Examples
-    #[cfg_attr(
-        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
-        doc = "```rust,ignore"
-    )]
-    #[cfg_attr(
-        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
-        doc = "```rust"
-    )]
+    #[cfg_attr(not(feature = "macros"), doc = "```rust,ignore")]
+    #[cfg_attr(feature = "macros", doc = "```rust")]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefProxy;
     ///
@@ -96,14 +90,8 @@ impl PyWeakrefProxy {
     /// Returns a `TypeError` if `object` is not weak referenceable (Most native types and PyClasses without `weakref` flag) or if the `callback` is not callable or None.
     ///
     /// # Examples
-    #[cfg_attr(
-        not(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9))))),
-        doc = "```rust,ignore"
-    )]
-    #[cfg_attr(
-        all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))),
-        doc = "```rust"
-    )]
+    #[cfg_attr(not(feature = "macros"), doc = "```rust,ignore")]
+    #[cfg_attr(feature = "macros", doc = "```rust")]
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyWeakrefProxy;
     ///
@@ -190,6 +178,7 @@ impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefProxy> {
 #[cfg(test)]
 mod tests {
     use crate::exceptions::{PyAttributeError, PyReferenceError, PyTypeError};
+    use crate::platform::prelude::*;
     use crate::types::any::{PyAny, PyAnyMethods};
     use crate::types::weakref::{PyWeakrefMethods, PyWeakrefProxy};
     use crate::{Bound, PyResult, Python};
@@ -451,8 +440,7 @@ mod tests {
             }
         }
 
-        // under 'abi3-py38' PyClass cannot be weakreferencable.
-        #[cfg(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))))]
+        #[cfg(feature = "macros")]
         mod pyo3_pyclass {
             use super::*;
             use crate::{pyclass, Py};
@@ -768,8 +756,7 @@ mod tests {
             }
         }
 
-        // under 'abi3-py38' PyClass cannot be weakreferencable.
-        #[cfg(all(feature = "macros", not(all(Py_LIMITED_API, not(Py_3_9)))))]
+        #[cfg(feature = "macros")]
         mod pyo3_pyclass {
             use super::*;
             use crate::{pyclass, pymethods, Py};

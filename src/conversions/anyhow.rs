@@ -120,6 +120,7 @@ impl From<anyhow::Error> for PyErr {
 #[cfg(test)]
 mod test_anyhow {
     use crate::exceptions::{PyRuntimeError, PyValueError};
+    use crate::platform::prelude::*;
     use crate::prelude::*;
     use crate::types::IntoPyDict;
 

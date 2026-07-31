@@ -4,7 +4,8 @@ To get started using PyO3 you will need three things: a Rust toolchain, a Python
 We'll cover each of these below.
 
 > [!TIP]
-> If you'd like to chat to the PyO3 maintainers and other PyO3 users, consider joining the [PyO3 Discord server](https://discord.gg/33kcChzH7f). We're keen to hear about your experience getting started, so we can make PyO3 as accessible as possible for everyone!
+> If you'd like to chat to the PyO3 maintainers and other PyO3 users, consider joining the [PyO3 Discord server](https://discord.gg/33kcChzH7f).
+> We're keen to hear about your experience getting started, so we can make PyO3 as accessible as possible for everyone!
 
 ## Rust
 
@@ -17,7 +18,7 @@ If you can run `rustc --version` and the version is new enough you're good to go
 
 ## Python
 
-To use PyO3, you need at least Python 3.8.
+To use PyO3, you need at least Python 3.9.
 While you can simply use the default Python interpreter on your system, it is recommended to use a virtual environment.
 
 ## Virtualenvs
@@ -153,7 +154,7 @@ build-backend = "maturin"
 
 [project]
 name = "pyo3_example"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",

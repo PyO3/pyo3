@@ -1457,6 +1457,7 @@ impl<'py> Bound<'py, PyAny> {
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::prelude::*;
     use crate::{
         basic::CompareOp,
         test_utils::generate_unique_module_name,

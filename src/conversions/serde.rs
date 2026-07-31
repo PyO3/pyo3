@@ -12,6 +12,7 @@
 //! serde = "1.0"
 //! ```
 
+use crate::platform::prelude::*;
 use crate::{Py, PyAny, PyClass, Python};
 use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
 

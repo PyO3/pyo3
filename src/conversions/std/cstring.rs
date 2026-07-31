@@ -1,13 +1,15 @@
 use crate::exceptions::PyUnicodeDecodeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+#[allow(unused_imports, reason = "conditionally used")]
+use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::PyString;
 use crate::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, Python};
 use alloc::borrow::Cow;
+use alloc::ffi::CString;
 use core::ffi::CStr;
-use std::ffi::CString;
 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 use {
     crate::{exceptions::PyValueError, ffi},

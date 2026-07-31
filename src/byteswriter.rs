@@ -3,6 +3,8 @@
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+#[allow(unused_imports, reason = "conditionally used")]
+use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::PyTypeInfo;
 #[cfg(not(Py_LIMITED_API))]

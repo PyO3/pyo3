@@ -63,7 +63,7 @@ extern_libpython! {
         name: *const c_char,
         value: *const c_char,
     ) -> c_int;
-    #[cfg(any(Py_3_10, all(Py_3_9, not(Py_LIMITED_API))))]
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     #[cfg_attr(PyPy, link_name = "PyPyModule_AddType")]
     pub fn PyModule_AddType(
         module: *mut PyObject,

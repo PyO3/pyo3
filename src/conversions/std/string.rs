@@ -1,5 +1,6 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
@@ -177,6 +178,7 @@ impl FromPyObject<'_, '_> for char {
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::prelude::*;
     use crate::types::any::PyAnyMethods;
     use crate::{IntoPyObject, Python};
     use alloc::borrow::Cow;

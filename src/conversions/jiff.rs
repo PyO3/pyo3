@@ -48,6 +48,7 @@
 use crate::exceptions::{PyTypeError, PyValueError};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+use crate::platform::prelude::*;
 use crate::types::{PyAnyMethods, PyNone};
 use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
@@ -611,7 +612,7 @@ mod tests {
     // Only Python>=3.9 has the zoneinfo package
     // We skip the test on windows too since we'd need to install
     // tzdata there to make this work.
-    #[cfg(all(Py_3_9, not(target_os = "windows")))]
+    #[cfg(not(target_os = "windows"))]
     fn test_zoneinfo_is_not_fixed_offset() {
         use crate::types::any::PyAnyMethods;
         use crate::types::dict::PyDictMethods;
@@ -806,7 +807,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(Py_3_9, not(windows)))]
+    #[cfg(not(windows))]
     fn test_pyo3_datetime_into_pyobject_tz() {
         Python::attach(|py| {
             let datetime = DateTime::new(2024, 12, 11, 23, 3, 13, 0)
@@ -858,7 +859,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(Py_3_9, not(windows)))]
+    #[cfg(not(windows))]
     fn test_ambiguous_datetime_to_pyobject() {
         use core::str::FromStr;
         let dates = [
@@ -1055,7 +1056,7 @@ mod tests {
             .unwrap()
     }
 
-    #[cfg(all(Py_3_9, not(windows)))]
+    #[cfg(not(windows))]
     fn python_zoneinfo<'py>(py: Python<'py>, timezone: &str) -> Bound<'py, PyAny> {
         py.import("zoneinfo")
             .unwrap()
@@ -1292,7 +1293,7 @@ mod tests {
             }
 
             #[test]
-            #[cfg(all(Py_3_9, not(windows)))]
+            #[cfg(not(windows))]
             fn test_zoned_datetime_roundtrip_around_timezone_transition(
                 (timezone, transition) in prop_oneof![
                                 Just(&TimeZone::get("Europe/London").unwrap()),

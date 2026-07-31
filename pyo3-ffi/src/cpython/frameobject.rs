@@ -45,7 +45,4 @@ extern_libpython! {
     pub fn PyFrame_FastToLocals(f: *mut PyFrameObject);
 
     // skipped _PyFrame_DebugMallocStats
-
-    #[cfg(not(Py_3_9))]
-    pub fn PyFrame_ClearFreeList() -> c_int;
 }

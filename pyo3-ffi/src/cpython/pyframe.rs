@@ -1,4 +1,4 @@
-#[cfg(any(Py_3_11, all(Py_3_9, not(PyPy))))]
+#[cfg(any(Py_3_11, not(PyPy)))]
 use crate::PyFrameObject;
 use crate::{PyObject, PyTypeObject, Py_IS_TYPE};
 #[cfg(Py_3_12)]
@@ -41,7 +41,7 @@ pub unsafe fn PyFrameLocalsProxy_Check(op: *mut PyObject) -> c_int {
 }
 
 extern_libpython! {
-    #[cfg(all(Py_3_9, not(PyPy)))]
+    #[cfg(not(PyPy))]
     pub fn PyFrame_GetBack(frame: *mut PyFrameObject) -> *mut PyFrameObject;
 
     #[cfg(Py_3_11)]

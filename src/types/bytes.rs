@@ -1,6 +1,8 @@
 use crate::byteswriter::PyBytesWriter;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
+#[allow(unused_imports, reason = "used to build docs")]
+use crate::platform::prelude::*;
 use crate::{ffi, Py, PyAny, PyResult, Python};
 #[cfg(RustPython)]
 use crate::{

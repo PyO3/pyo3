@@ -19,7 +19,7 @@ By default it will attempt to use the following in order:
 - The `python` executable (if it's a Python 3 interpreter).
 - The `python3` executable.
 
-You can override the Python interpreter by setting the `PYO3_PYTHON` environment variable, e.g. `PYO3_PYTHON=python3.8`, `PYO3_PYTHON=/usr/bin/python3.9`, or even a PyPy interpreter `PYO3_PYTHON=pypy3`.
+You can override the Python interpreter by setting the `PYO3_PYTHON` environment variable, e.g. `PYO3_PYTHON=python3.9`, `PYO3_PYTHON=/usr/bin/python3.10`, or even a PyPy interpreter `PYO3_PYTHON=pypy3`.
 
 Once the Python interpreter is located, `pyo3-build-config` executes it to query the information in the `sysconfig` module which is needed to configure the rest of the compilation.
 
@@ -40,7 +40,6 @@ Caused by:
   cargo:rustc-check-cfg=cfg(GraalPy)
   cargo:rustc-check-cfg=cfg(RustPython)
   cargo:rustc-check-cfg=cfg(py_sys_config, values("Py_DEBUG", "Py_REF_DEBUG", "Py_TRACE_REFS", "COUNT_ALLOCS"))
-  cargo:rustc-check-cfg=cfg(Py_3_8)
   cargo:rustc-check-cfg=cfg(Py_3_9)
   cargo:rustc-check-cfg=cfg(Py_3_10)
   cargo:rustc-check-cfg=cfg(Py_3_11)
@@ -49,7 +48,6 @@ Caused by:
   cargo:rustc-check-cfg=cfg(Py_3_14)
   cargo:rustc-check-cfg=cfg(Py_3_15)
   cargo:rustc-check-cfg=cfg(Py_3_16)
-  cargo:rustc-check-cfg=cfg(pyo3_dll, values("python3", "python3_d", "python3t", "python3t_d", "python38", "python38_d", "python39", "python39_d", "python310", "python310_d", "python311", "python311_d", "python312", "python312_d", "python313", "python313_d", "python313t", "python313t_d", "python314", "python314_d", "python314t", "python314t_d", "python315", "python315_d", "python315t", "python315t_d", "python316", "python316_d", "python316t", "python316t_d", "libpypy3.11-c"))
   cargo:rerun-if-env-changed=PYO3_CONFIG_FILE
   cargo:rerun-if-env-changed=PYO3_CROSS
   cargo:rerun-if-env-changed=PYO3_CROSS_LIB_DIR
@@ -230,7 +228,7 @@ This makes binaries, tests, and examples "just work".
 However, Python extension modules on Unix must not link to libpython for [manylinux](https://www.python.org/dev/peps/pep-0513/) compliance.
 
 The downside of not linking to `libpython` is that binaries, tests, and examples (which usually embed Python) will fail to build.
-As a result, PyO3 uses an envionment variable `PYO3_BUILD_EXTENSION_MODULE` to disable linking to `libpython`.
+As a result, PyO3 uses an environment variable `PYO3_BUILD_EXTENSION_MODULE` to disable linking to `libpython`.
 This should only be set when building a library for distribution.
 `maturin >= 1.9.4` and `setuptools-rust >= 1.12` will set this for you automatically.
 
@@ -239,6 +237,16 @@ This should only be set when building a library for distribution.
 > This feature caused linking to be disabled for all compile targets, including Rust tests and benchmarks.
 >
 > Projects are encouraged to migrate off the feature, as it caused [major development pain](faq.md#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror) due to the lack of linking.
+
+### The `PYO3_USE_RAW_DYLIB` environment variable
+
+When targeting Windows, PyO3 will attempt to use [`raw-dylib` linking](https://doc.rust-lang.org/reference/items/external-blocks.html#dylib-versus-raw-dylib) to avoid the need for users to provide an actual import library to link against.
+
+On occasion the full Python import library may be needed (e.g. mixed C/Rust projects where the C code uses symbols not defined by `pyo3-ffi`).
+In these cases, setting `PYO3_USE_RAW_DYLIB=0` can be used to disable `raw-dylib` linking.
+
+> [!NOTE]
+> Historically PyO3 used a `generate-import-lib` feature which needed external machinery to achieve the same result of `raw-dylib` linking.
 
 ### `Py_LIMITED_API`/`abi3`/`abi3t`
 
@@ -282,9 +290,9 @@ There are three steps involved in targeting `abi3` or `abi3t` when building Pyth
 
 #### Minimum Python version for `abi3` and `abi3t` builds
 
-Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py38`, `abi3-py39`, `abi3-py310` etc. to set the minimum required Python version for your `abi3` wheel.
-For example, if you set the `abi3-py38` feature, your wheel can be used on all Python 3 versions from Python 3.8 and up.
-`maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp38-abi3-manylinux2020_x86_64.whl`.
+Because a single `abi3` wheel can be used with many different Python versions, PyO3 has feature flags `abi3-py39`, `abi3-py310`, `abi3-py311` etc. to set the minimum required Python version for your `abi3` wheel.
+For example, if you set the `abi3-py39` feature, your wheel can be used on all Python 3 versions from Python 3.9 and up.
+`maturin` and `setuptools-rust` will give the wheel a name like `my-extension-1.0-cp39-abi3-manylinux2020_x86_64.whl`.
 
 Similarly, there is an `abi3t-py315` feature and future PyO3 versions will offer `abi3t-py316` and so on.
 
@@ -292,11 +300,11 @@ As your extension module may be run with multiple different Python versions you 
 See [the relevant section of this guide](./building-and-distribution/multiple-python-versions.md#checking-the-python-version-at-runtime) on supporting multiple Python versions at runtime.
 
 PyO3 is only able to link your extension module to abi3 version up to and including your host Python version.
-E.g., if you set `abi3-py39` and try to compile the crate with a host of Python 3.8, the build will fail.
+E.g., if you set `abi3-py310` and try to compile the crate with a host of Python 3.9, the build will fail.
 
 > [!NOTE]
 > If you set more that one of these `abi3` version feature flags the lowest version always wins.
-> For example, with both `abi3-py38` and `abi3-py39` set, PyO3 would build a wheel which supports Python 3.8 and up.
+> For example, with both `abi3-py39` and `abi3-py310` set, PyO3 would build a wheel which supports Python 3.9 and up.
 
 #### Building stable ABI extension modules without a Python interpreter
 
@@ -399,8 +407,7 @@ When cross-compiling, PyO3's build script cannot execute the target Python inter
 
 - `PYO3_CROSS`: If present this variable forces PyO3 to configure as a cross-compilation.
 - `PYO3_CROSS_LIB_DIR`: This variable can be set to the directory containing the target's libpython DSO and the associated `_sysconfigdata*.py` file for Unix-like targets.
-  This variable is only needed when the output binary must link to libpython explicitly (e.g. when targeting Android or embedding a Python interpreter), or when it is absolutely required to get the interpreter configuration from `_sysconfigdata*.py`.
-  On Windows, this variable is not needed because PyO3 uses `raw-dylib` linking.
+  This variable is only needed when the output binary must link to libpython explicitly (e.g. when targeting Android, Windows when `raw-dylib` linking is unavailable, or embedding a Python interpreter), or when it is absolutely required to get the interpreter configuration from `_sysconfigdata*.py`.
 - `PYO3_CROSS_PYTHON_VERSION`: Major and minor version (e.g. 3.9) of the target Python installation.
   This variable is only needed if PyO3 cannot determine the version to target from `abi3-py3*` features, or if `PYO3_CROSS_LIB_DIR` is not set, or if there are multiple versions of Python present in `PYO3_CROSS_LIB_DIR`.
 - `PYO3_CROSS_PYTHON_IMPLEMENTATION`: Python implementation name ("CPython" or "PyPy") of the target Python installation.
@@ -417,18 +424,10 @@ cargo build --target armv7-unknown-linux-gnueabihf
 If there are multiple python versions at the cross lib directory and you cannot set a more precise location to include both the `libpython` DSO and `_sysconfigdata*.py` files, you can set the required version:
 
 ```sh
-export PYO3_CROSS_PYTHON_VERSION=3.8
+export PYO3_CROSS_PYTHON_VERSION=3.9
 export PYO3_CROSS_LIB_DIR="/home/pyo3/cross/sysroot/usr/lib"
 
 cargo build --target armv7-unknown-linux-gnueabihf
-```
-
-Or another example building for Windows (no `PYO3_CROSS_LIB_DIR` needed thanks to `raw-dylib`):
-
-```sh
-export PYO3_CROSS_PYTHON_VERSION=3.9
-
-cargo build --target x86_64-pc-windows-gnu
 ```
 
 Any of the `abi3-py3*` features can be enabled instead of setting `PYO3_CROSS_PYTHON_VERSION` in the above examples.

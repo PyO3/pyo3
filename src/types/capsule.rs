@@ -3,6 +3,7 @@
 use crate::exceptions::PySystemError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::box_into_non_null;
+use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::{ffi, PyAny};
 #[cfg(RustPython)]
@@ -13,11 +14,11 @@ use crate::{
 };
 use crate::{Bound, Python};
 use crate::{PyErr, PyResult};
+use alloc::ffi::CString;
 use core::ffi::CStr;
 use core::ffi::{c_char, c_int, c_void};
 use core::mem::offset_of;
 use core::ptr::{self, NonNull};
-use std::ffi::CString;
 
 /// Represents a Python Capsule
 /// as described in [Capsules](https://docs.python.org/3/c-api/capsule.html#capsules):
@@ -688,6 +689,7 @@ fn name_ptr(name: Option<&CStr>) -> *const c_char {
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::prelude::*;
     use crate::prelude::PyModule;
     use crate::types::capsule::PyCapsuleMethods;
     use crate::types::module::PyModuleMethods;

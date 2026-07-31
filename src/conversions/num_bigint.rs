@@ -1,5 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "num-bigint")]
 //!  Conversions to and from [num-bigint](https://docs.rs/num-bigint)’s [`BigInt`] and [`BigUint`] types.
 //!
@@ -49,11 +47,13 @@
 //! assert n + 1 == value
 //! ```
 
+#[allow(unused_imports, reason = "conditionally used")]
+use crate::platform::prelude::*;
 #[cfg(Py_LIMITED_API)]
 use crate::types::{bytes::PyBytesMethods, PyBytes};
 use crate::{
-    conversion::IntoPyObject, std::num::nb_index, types::PyInt, Borrowed, Bound, FromPyObject,
-    PyAny, PyErr, PyResult, Python,
+    conversion::IntoPyObject, conversions::std::num::nb_index, types::PyInt, Borrowed, Bound,
+    FromPyObject, PyAny, PyErr, PyResult, Python,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -122,6 +122,7 @@ macro_rules! bigint_conversion {
                     } else {
                         None
                     };
+                    // SAFETY: `int.from_bytes` returns a python `int`
                     unsafe {
                         py.get_type::<PyInt>()
                             .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
@@ -237,6 +238,8 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
         n_bits.div_ceil(32)
     };
     buffer.reserve_exact(n_digits);
+    // SAFETY: `buffer` has capacity for `n_digits` u32s, which `_PyLong_AsByteArray`
+    // fully initializes on success; `set_len` is only reached on success
     unsafe {
         crate::err::error_on_minusone(
             long.py(),
@@ -267,6 +270,7 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     if !SIGNED {
         flags |= ffi::Py_ASNATIVEBYTES_UNSIGNED_BUFFER | ffi::Py_ASNATIVEBYTES_REJECT_NEGATIVE;
     }
+    // SAFETY: passing a NULL buffer with size 0 is the documented way to query the required size
     let n_bytes =
         unsafe { ffi::PyLong_AsNativeBytes(long.as_ptr().cast(), core::ptr::null_mut(), 0, flags) };
     let n_bytes_unsigned: usize = n_bytes
@@ -277,6 +281,8 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     }
     let n_digits = n_bytes_unsigned.div_ceil(4);
     buffer.reserve_exact(n_digits);
+    // SAFETY: `buffer` has capacity for `n_digits` u32s; `PyLong_AsNativeBytes` fills
+    // the entire buffer regardless of the value, so `set_len` is always valid
     unsafe {
         ffi::PyLong_AsNativeBytes(
             long.as_ptr().cast(),
@@ -437,7 +443,7 @@ class C:
             macro_rules! test {
                 ($T:ty, $value:expr, $py:expr) => {
                     let value = $value;
-                    println!("{}: {}", stringify!($T), value);
+                    std::println!("{}: {}", stringify!($T), value);
                     let python_value = value.clone().into_pyobject(py).unwrap();
                     let roundtrip_value = python_value.extract::<$T>().unwrap();
                     assert_eq!(value, roundtrip_value);

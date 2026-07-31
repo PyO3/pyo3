@@ -162,6 +162,8 @@ mod tests {
     #[cfg(all(not(PyPy), Py_3_10))]
     use super::PySendResult;
     use crate::exceptions::PyTypeError;
+    #[allow(unused_imports, reason = "conditionally used")]
+    use crate::platform::prelude::*;
     #[cfg(all(not(PyPy), Py_3_10))]
     use crate::types::PyNone;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};

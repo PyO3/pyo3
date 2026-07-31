@@ -57,7 +57,7 @@ opaque_struct!(pub symtable);
 opaque_struct!(pub _node);
 
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
-#[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
+#[deprecated(note = "Python 3.9")]
 #[inline]
 pub unsafe fn PyParser_SimpleParseString(s: *const c_char, b: c_int) -> *mut _node {
     #[allow(deprecated)]
@@ -65,7 +65,7 @@ pub unsafe fn PyParser_SimpleParseString(s: *const c_char, b: c_int) -> *mut _no
 }
 
 #[cfg(not(any(PyPy, Py_LIMITED_API, Py_3_10)))]
-#[cfg_attr(Py_3_9, deprecated(note = "Python 3.9"))]
+#[deprecated(note = "Python 3.9")]
 #[inline]
 pub unsafe fn PyParser_SimpleParseFile(fp: *mut FILE, s: *const c_char, b: c_int) -> *mut _node {
     #[allow(deprecated)]

@@ -131,6 +131,7 @@ mod tests {
     use alloc::borrow::Cow;
 
     use crate::exceptions::PyTypeError;
+    use crate::platform::prelude::*;
     use crate::{IntoPyObject, Python};
 
     use crate::types::PyAnyMethods;

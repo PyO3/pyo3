@@ -1,5 +1,7 @@
 /* --- PyStatus ----------------------------------------------- */
 
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
+use crate::PyObject;
 use crate::Py_ssize_t;
 use core::ffi::{c_char, c_int, c_ulong};
 use libc::wchar_t;
@@ -88,7 +90,7 @@ pub struct PyConfig {
     pub use_hash_seed: c_int,
     pub hash_seed: c_ulong,
     pub faulthandler: c_int,
-    #[cfg(all(Py_3_9, not(Py_3_10)))]
+    #[cfg(not(Py_3_10))]
     pub _use_peg_parser: c_int,
     pub tracemalloc: c_int,
     #[cfg(Py_3_12)]
@@ -99,8 +101,6 @@ pub struct PyConfig {
     #[cfg(Py_3_11)]
     pub code_debug_ranges: c_int,
     pub show_ref_count: c_int,
-    #[cfg(not(Py_3_9))]
-    pub show_alloc_count: c_int,
     pub dump_refs: c_int,
     #[cfg(Py_3_11)]
     pub dump_refs_file: *mut wchar_t,
@@ -177,7 +177,7 @@ pub struct PyConfig {
     pub base_prefix: *mut wchar_t,
     pub exec_prefix: *mut wchar_t,
     pub base_exec_prefix: *mut wchar_t,
-    #[cfg(all(Py_3_9, not(Py_3_10)))]
+    #[cfg(not(Py_3_10))]
     pub platlibdir: *mut wchar_t,
     pub skip_source_first_line: c_int,
     pub run_command: *mut wchar_t,
@@ -187,11 +187,11 @@ pub struct PyConfig {
     pub sys_path_0: *mut wchar_t,
     pub _install_importlib: c_int,
     pub _init_main: c_int,
-    #[cfg(all(Py_3_9, not(Py_3_12)))]
+    #[cfg(not(Py_3_12))]
     pub _isolated_interpreter: c_int,
     #[cfg(Py_3_11)]
     pub _is_python_build: c_int,
-    #[cfg(all(Py_3_9, not(Py_3_10)))]
+    #[cfg(not(Py_3_10))]
     pub _orig_argv: PyWideStringList,
     #[cfg(all(Py_3_13, py_sys_config = "Py_DEBUG"))]
     pub run_presite: *mut wchar_t,
@@ -234,4 +234,62 @@ extern_libpython! {
 
 extern_libpython! {
     pub fn Py_GetArgcArgv(argc: *mut c_int, argv: *mut *mut *mut wchar_t);
+}
+
+// --- PyInitConfig ---------------------------------------------------------
+
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
+opaque_struct!(pub PyInitConfig);
+
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
+extern_libpython! {
+    pub fn PyInitConfig_Create() -> *mut PyInitConfig;
+    pub fn PyInitConfig_Free(config: *mut PyInitConfig);
+
+    pub fn PyInitConfig_GetError(
+        config: *mut PyInitConfig,
+        err_message: *mut *const c_char,
+    ) -> c_int;
+    pub fn PyInitConfig_GetExitCode(config: *mut PyInitConfig, exitcode: *mut c_int) -> c_int;
+
+    pub fn PyInitConfig_HasOption(config: *mut PyInitConfig, name: *const c_char) -> c_int;
+    pub fn PyInitConfig_GetInt(
+        config: *mut PyInitConfig,
+        name: *const c_char,
+        value: *mut u64,
+    ) -> c_int;
+    pub fn PyInitConfig_GetStr(
+        config: *mut PyInitConfig,
+        name: *const c_char,
+        value: *mut *mut c_char,
+    ) -> c_int;
+    pub fn PyInitConfig_GetStrList(
+        config: *mut PyInitConfig,
+        name: *const c_char,
+        length: *mut usize,
+        items: *mut *mut *mut c_char,
+    ) -> c_int;
+    pub fn PyInitConfig_FreeStrList(length: usize, items: *mut *mut c_char);
+
+    pub fn PyInitConfig_SetInt(config: *mut PyInitConfig, name: *const c_char, value: u64)
+        -> c_int;
+    pub fn PyInitConfig_SetStr(
+        config: *mut PyInitConfig,
+        name: *const c_char,
+        value: *const c_char,
+    ) -> c_int;
+    pub fn PyInitConfig_SetStrList(
+        config: *mut PyInitConfig,
+        name: *const c_char,
+        length: usize,
+        items: *mut *const c_char,
+    ) -> c_int;
+
+    pub fn PyInitConfig_AddModule(
+        config: *mut PyInitConfig,
+        name: *const c_char,
+        initfunc: extern "C" fn() -> *mut PyObject,
+    ) -> c_int;
+
+    pub fn Py_InitializeFromInitConfig(config: *mut PyInitConfig) -> c_int;
 }

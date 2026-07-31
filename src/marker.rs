@@ -118,7 +118,7 @@
 //!
 //! [`SendWrapper`]: https://docs.rs/send_wrapper/latest/send_wrapper/struct.SendWrapper.html
 //! [`Rc`]: alloc::rc::Rc
-//! [`Py`]: crate::Py
+//! [`Py`]: Py
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyResult};
 use crate::internal::state::{AttachGuard, SuspendAttach};
@@ -131,7 +131,6 @@ use crate::version::PythonVersionInfo;
 use crate::{ffi, Bound, Py, PyTypeInfo};
 use core::ffi::CStr;
 use core::marker::PhantomData;
-use std::sync::LazyLock;
 
 /// Types that are safe to access while the GIL is not held.
 ///
@@ -286,10 +285,11 @@ mod nightly {
 
         impl !Ungil for crate::ffi::PyThreadState {}
         impl !Ungil for crate::ffi::PyInterpreterState {}
+        #[cfg(not(any(PyPy, GraalPy)))]
         impl !Ungil for crate::ffi::PyWeakReference {}
         impl !Ungil for crate::ffi::PyFrameObject {}
         impl !Ungil for crate::ffi::PyCodeObject {}
-        #[cfg(not(Py_LIMITED_API))]
+        #[cfg(all(not(PyPy), not(Py_LIMITED_API)))]
         impl !Ungil for crate::ffi::PyDictKeysObject {}
         #[cfg(not(any(Py_LIMITED_API, Py_3_10)))]
         impl !Ungil for crate::ffi::PyArena {}
@@ -696,13 +696,9 @@ impl<'py> Python<'py> {
     /// assert!(Python::version_str().starts_with("3."));
     /// ```
     pub fn version_str() -> &'static str {
-        static VERSION: LazyLock<&'static str> = LazyLock::new(|| unsafe {
-            CStr::from_ptr(ffi::Py_GetVersion())
-                .to_str()
-                .expect("Python version string not UTF-8")
-        });
-
-        &VERSION
+        unsafe { CStr::from_ptr(ffi::Py_GetVersion()) }
+            .to_str()
+            .expect("Python version string not UTF-8")
     }
 
     /// Gets the running Python interpreter version as a struct similar to
@@ -712,9 +708,9 @@ impl<'py> Python<'py> {
     /// ```rust
     /// # use pyo3::Python;
     /// Python::attach(|py| {
-    ///     // PyO3 supports Python 3.8 and up.
-    ///     assert!(py.version_info() >= (3, 8));
-    ///     assert!(py.version_info() >= (3, 8, 0));
+    ///     // PyO3 supports Python 3.9 and up.
+    ///     assert!(py.version_info() >= (3, 9));
+    ///     assert!(py.version_info() >= (3, 9, 0));
     /// });
     /// ```
     pub fn version_info(self) -> PythonVersionInfo {
@@ -800,6 +796,7 @@ impl<'unbound> Python<'unbound> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
     use crate::{
         internal::state::ForbidAttaching,
         types::{IntoPyDict, PyList},
@@ -968,7 +965,7 @@ mod tests {
     fn test_py_run_inserts_globals_2() {
         use alloc::ffi::CString;
 
-        #[crate::pyclass(crate = "crate", skip_from_py_object)]
+        #[crate::pyclass(crate = "crate")]
         #[derive(Clone)]
         struct CodeRunner {
             code: CString,

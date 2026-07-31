@@ -7,6 +7,8 @@
 // the inner mod enables the #![allow(dead_code)] to
 // be applied - `src/test_utils.rs` uses `include!` to pull in this file
 
+extern crate alloc;
+
 #[allow(
     dead_code,
     unused_macros,
@@ -23,6 +25,8 @@ mod inner {
     use super::*;
 
     use pyo3::prelude::*;
+
+    use alloc::string::ToString;
 
     #[cfg(any(not(all(Py_GIL_DISABLED, Py_3_14)), feature = "macros"))]
     use pyo3::sync::MutexExt;

@@ -1,20 +1,27 @@
 error[E0277]: the trait bound `PyErr: From<MyError>` is not satisfied
-  --> tests/ui/invalid_result_conversion.rs:22:25
-   |
-22 | fn should_not_work() -> Result<(), MyError> {
-   |                         ^^^^^^ the trait `From<MyError>` is not implemented for `PyErr`
-   |
-   = help: `PyErr` implements trait `From<T>`:
-             From<AddrParseError>
-             From<CastError<'_, '_>>
-             From<CastIntoError<'_>>
-             From<CharTryFromError>
-             From<FromUtf8Error>
-             From<Infallible>
-             From<IntoInnerError<W>>
-             From<IntoStringError>
-           and $N others
-   = note: required for `MyError` to implement `Into<PyErr>`
+   --> tests/ui/invalid_result_conversion.rs:22:25
+    |
+ 22 | fn should_not_work() -> Result<(), MyError> {
+    |                         ^^^^^^ the trait `From<MyError>` is not implemented for `PyErr`
+    |
+    = help: `PyErr` implements trait `From<T>`:
+              From<AddrParseError>
+              From<CastError<'_, '_>>
+              From<CastIntoError<'_>>
+              From<CharTryFromError>
+              From<FromUtf8Error>
+              From<Infallible>
+              From<IntoInnerError<W>>
+              From<IntoStringError>
+            and $N others
+note: required by a bound in `pyo3::impl_::wrap::IntoPyObjectConverter::<Result<T, E>>::wrap_into_ptr`
+ --> src/impl_/wrap.rs
+  |
+  |     pub fn wrap_into_ptr(&self, py: Python<'py>, obj: Result<T, E>) -> PyResult<*mut ffi::PyObject>
+  |            ------------- required by a bound in this associated function
+  |     where
+  |         PyErr: From<E>,
+  |                ^^^^^^^ required by this bound in `IntoPyObjectConverter::<Result<T, E>>::wrap_into_ptr`
 
 error: aborting due to 1 previous error
 

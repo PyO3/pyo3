@@ -1,6 +1,7 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+use crate::platform::prelude::*;
 use core::{ffi::CStr, marker::PhantomData};
 use std::thread::{self, ThreadId};
 
@@ -258,6 +259,17 @@ unsafe impl<T> Sync for LazyTypeObject<T> {}
 pub fn type_object_init_failed(py: Python<'_>, err: PyErr, type_name: &str) -> ! {
     err.write_unraisable(py, None);
     panic!("failed to create type object for `{type_name}`")
+}
+
+/// The full macro-expanded implementation of `type_object_raw` for `#[pyclass]` types, kept
+/// out-of-line here to reduce the amount of macro-generated code.
+#[inline]
+pub fn pyclass_type_object_raw<T: PyClass>(py: Python<'_>) -> *mut ffi::PyTypeObject {
+    use crate::types::PyTypeMethods;
+    T::lazy_type_object()
+        .get_or_try_init(py)
+        .unwrap_or_else(|e| type_object_init_failed(py, e, <T as PyClass>::NAME))
+        .as_type_ptr()
 }
 
 #[cold]

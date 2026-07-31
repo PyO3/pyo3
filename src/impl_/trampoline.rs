@@ -8,6 +8,7 @@
 use core::{any::Any, ffi::c_int, panic::UnwindSafe};
 
 use crate::internal::state::AttachGuard;
+use crate::platform::prelude::*;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput, impl_::panic::PanicTrap,
     panic::PanicException, types::PyModule, Bound, PyResult, Python,
@@ -146,12 +147,16 @@ trampolines!(
     ) -> *mut ffi::PyObject;
 );
 
-/// "fastcall" method calls only avaible on abi3 in Python 3.10 and up, otherwise fall back to the older call convention.
+/// "fastcall" method calls only available on abi3 in Python 3.10 and up, otherwise fall back to the older call convention.
 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 pub use self::fastcall_cfunction_with_keywords as maybe_fastcall_cfunction_with_keywords;
 
 #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
 pub use self::cfunction_with_keywords as maybe_fastcall_cfunction_with_keywords;
+
+/// Short aliases for the trampolines above, used by the macros to keep the generated code small.
+pub use self::cfunction_with_keywords as cfunc_kw;
+pub use self::maybe_fastcall_cfunction_with_keywords as fastcall_kw;
 
 // Trampolines used by slot methods
 trampolines!(
@@ -230,7 +235,7 @@ pub unsafe extern "C" fn releasebufferproc<Meth: MethodDef<releasebufferproc::Fu
     slf: *mut ffi::PyObject,
     buf: *mut ffi::Py_buffer,
 ) {
-    // SAFETY: caller upholds rquirements
+    // SAFETY: caller upholds requirements
     unsafe { releasebufferproc::inner(slf, buf, Meth::METH) }
 }
 

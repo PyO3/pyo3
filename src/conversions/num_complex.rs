@@ -1,5 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "num-complex")]
 
 //!  Conversions to and from [num-complex](https://docs.rs/num-complex)’
@@ -112,6 +110,7 @@ impl PyComplex {
         py: Python<'_>,
         complex: Complex<F>,
     ) -> Bound<'_, PyComplex> {
+        // SAFETY: `PyComplex_FromDoubles` returns a new owned reference to a complex object
         unsafe {
             ffi::PyComplex_FromDoubles(complex.re.into(), complex.im.into())
                 .assume_owned(py)
@@ -132,6 +131,8 @@ macro_rules! complex_conversion {
             const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("builtins", "complex");
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                // SAFETY: `PyComplex_FromDoubles` returns a new owned reference to a
+                // complex object
                 unsafe {
                     Ok(
                         ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double)
@@ -166,6 +167,7 @@ macro_rules! complex_conversion {
 
             fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Complex<$float>, Self::Error> {
                 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+                // SAFETY: passing valid pointer to python API
                 unsafe {
                     let val = ffi::PyComplex_AsCComplex(obj.as_ptr());
                     if val.real == -1.0 {
@@ -177,6 +179,7 @@ macro_rules! complex_conversion {
                 }
 
                 #[cfg(any(Py_LIMITED_API, PyPy))]
+                // SAFETY: passing valid pointer to python API
                 unsafe {
                     use $crate::types::any::PyAnyMethods;
                     let complex;

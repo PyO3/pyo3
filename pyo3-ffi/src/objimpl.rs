@@ -110,10 +110,10 @@ pub unsafe fn PyObject_GC_NewVar<T>(typeobj: *mut PyTypeObject, n: Py_ssize_t) -
 }
 
 extern_libpython! {
-    #[cfg(any(all(Py_3_9, not(PyPy)), Py_3_10))] // added in 3.9, or 3.10 on PyPy
+    #[cfg(any(not(PyPy), Py_3_10))] // added in 3.9, or 3.10 on PyPy
     #[cfg_attr(PyPy, link_name = "PyPyObject_GC_IsTracked")]
     pub fn PyObject_GC_IsTracked(arg1: *mut PyObject) -> c_int;
-    #[cfg(any(all(Py_3_9, not(PyPy)), Py_3_10))] // added in 3.9, or 3.10 on PyPy
+    #[cfg(any(not(PyPy), Py_3_10))] // added in 3.9, or 3.10 on PyPy
     #[cfg_attr(PyPy, link_name = "PyPyObject_GC_IsFinalized")]
     pub fn PyObject_GC_IsFinalized(arg1: *mut PyObject) -> c_int;
 }

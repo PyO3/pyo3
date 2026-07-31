@@ -126,9 +126,7 @@ impl PyModule {
     /// <div class="information">
     ///     <div class="tooltip compile_fail" style="">&#x26a0; &#xfe0f;</div>
     /// </div><div class="example-wrap" style="display:inline-block"><pre class="compile_fail" style="white-space:normal;font:inherit;">
-    //
-    ///  <strong>Warning</strong>: This will compile and execute code. <strong>Never</strong> pass untrusted code to this function!
-    ///
+    /// <strong>Warning</strong>: This will compile and execute code. <strong>Never</strong> pass untrusted code to this function!
     /// </pre></div>
     ///
     /// # Errors

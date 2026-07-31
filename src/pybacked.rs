@@ -5,6 +5,7 @@
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_union;
 use crate::{

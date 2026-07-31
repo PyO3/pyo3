@@ -1,5 +1,6 @@
-import sysconfig
 import sys
+import sysconfig
+
 import pytest
 
 FREE_THREADED_BUILD = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))

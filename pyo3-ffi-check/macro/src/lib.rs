@@ -240,13 +240,15 @@ fn get_fields_from_file(path: &Path) -> Vec<String> {
 // C Macros are re-exported in pyo3-ffi as functions with the same name to get roughly equivalent semantics,
 // bindgen doesn't generate symbols for C macros, we note their exclusions here.
 //
-// Each entry is `(name, cfg)` where `cfg` is a Rust `cfg` predicate (e.g. `"Py_3_8"`,
+// Each entry is `(name, cfg)` where `cfg` is a Rust `cfg` predicate (e.g. `"Py_3_9"`,
 // `"not(Py_3_11)"`, `"all(PyPy, not(Py_3_10))"`) describing the configurations in which the
 // symbol exists as a macro in C. An empty string means "all known configurations".
 const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     // FIXME: for many of these `not(PyPy)` cases,
     // it seems that PyPy might actually offer symbols which PyO3
     // should be using rather than implementing inline functions
+    ("PyAnyDict_Check", ""),
+    ("PyAnyDict_CheckExact", ""),
     ("PyAnySet_Check", "not(PyPy)"),
     ("PyAnySet_CheckExact", "not(PyPy)"),
     ("PyAsyncGen_CheckExact", ""),
@@ -324,6 +326,8 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyFloat_CheckExact", "not(PyPy)"),
     ("PyFrame_Check", ""),
     ("PyFrameLocalsProxy_Check", ""),
+    ("PyFrozenDict_Check", ""),
+    ("PyFrozenDict_CheckExact", ""),
     ("PyFrozenSet_Check", "not(PyPy)"),
     ("PyFrozenSet_CheckExact", "not(PyPy)"),
     ("PyFunction_Check", "not(PyPy)"),
@@ -347,7 +351,6 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyModule_FromDefAndSpec", "not(PyPy)"),
     ("PyObject_CallMethodNoArgs", ""),
     ("PyObject_CallMethodOneArg", ""),
-    ("PyObject_CheckBuffer", "not(Py_3_9)"),
     (
         "PyObject_DelAttr",
         "any(all(not(PyPy), not(Py_3_13)), all(PyPy, Py_3_11))",
@@ -359,7 +362,6 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyObject_GC_New", ""),
     ("PyObject_GC_NewVar", ""),
     ("PyObject_GC_Resize", ""),
-    ("PyObject_IS_GC", "not(Py_3_9)"),
     ("PyObject_New", ""),
     ("PyObject_NewVar", ""),
     ("PyObject_TypeCheck", ""),
@@ -427,7 +429,7 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyVectorcall_NARGS", "not(Py_3_12)"),
     ("Py_CLEAR", ""),
     ("Py_CompileString", "not(Py_3_10)"),
-    ("Py_CompileStringFlags", "not(PyPy)"),
+    ("Py_CompileStringFlags", "all(not(PyPy), not(Py_3_15))"),
     ("Py_DECREF", ""),
     ("Py_Ellipsis", ""),
     ("Py_False", ""),
@@ -467,7 +469,6 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "PyCode_New",
     "PyCode_NewWithPosOnlyArgs",
     "PyCFunction_New",
-    "PyObject_GET_WEAKREFS_LISTPTR",
     "PyFrame_BlockSetup",
     "PySys_AddWarnOption",
     "PySys_AddWarnOptionUnicode",
@@ -477,7 +478,7 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     // This symbol was not in headers but still public until Python 3.10,
     // should be able to remove this exclusion once support for 3.9 dropped
     "Py_GetArgcArgv",
-    // pyo3-ffi defined these functions for 3.8 but they only exist for 3.9+
+    // pyo3-ffi defines these as inline functions on some Python versions
     "PyObject_CallOneArg",
     "PyObject_Vectorcall",
     "PyVectorcall_Function",

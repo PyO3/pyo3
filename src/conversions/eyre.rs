@@ -126,6 +126,7 @@ impl From<eyre::Report> for PyErr {
 #[cfg(test)]
 mod tests {
     use crate::exceptions::{PyRuntimeError, PyValueError};
+    use crate::platform::prelude::*;
     use crate::prelude::*;
     use crate::types::IntoPyDict;
 

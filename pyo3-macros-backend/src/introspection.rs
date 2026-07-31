@@ -425,20 +425,31 @@ impl IntrospectionNode<'_> {
             }
             Self::List(list) => {
                 content.push_str("[");
-                for (i, AttributedIntrospectionNode { node, attributes }) in
-                    list.into_iter().enumerate()
-                {
-                    if attributes.is_empty() {
+                if list.iter().all(|element| element.attributes.is_empty()) {
+                    for (i, element) in list.into_iter().enumerate() {
                         if i > 0 {
                             content.push_str(",");
                         }
-                        node.add_to_serialization(content, pyo3_crate_path);
-                    } else {
+                        element.node.add_to_serialization(content, pyo3_crate_path);
+                    }
+                } else {
+                    // A `,` must only be written if at least one of the elements before the one
+                    // it precedes is compiled in, so we gate it behind an `any(..)` of their
+                    // `cfg`s on top of the element's own. This needs no special case: `any()` is
+                    // false, so the first element gets no separator, and `all()` is true, so an
+                    // element without `cfg` makes every later separator unconditional.
+                    let mut preceding = Vec::new();
+                    for AttributedIntrospectionNode { node, attributes } in list {
+                        content.push_tokens(
+                            quote! { #[cfg(any(#(#preceding),*))] #(#attributes)* ",".as_bytes() },
+                        );
+                        let cfgs = attributes
+                            .iter()
+                            .filter_map(|attribute| attribute.meta.require_list().ok())
+                            .map(|cfg| &cfg.tokens);
+                        preceding.push(quote! { all(#(#cfgs),*) });
                         // We serialize the element to easily gate it behind the attributes
                         let mut nested_builder = ConcatenationBuilder::default();
-                        if i > 0 {
-                            nested_builder.push_str(",");
-                        }
                         node.add_to_serialization(&mut nested_builder, pyo3_crate_path);
                         let nested_content = nested_builder.into_token_stream(pyo3_crate_path);
                         content.push_tokens(quote! { #(#attributes)* #nested_content });
@@ -604,13 +615,11 @@ pub fn unique_element_id() -> u64 {
 }
 
 fn ident_to_type(ident: &Ident) -> Cow<'static, Type> {
-    Cow::Owned(
-        TypePath {
-            path: ident.clone().into(),
-            qself: None,
-        }
-        .into(),
-    )
+    Cow::Owned(Type::Path(TypePath {
+        attrs: Vec::new(),
+        path: ident.clone().into(),
+        qself: None,
+    }))
 }
 
 fn escape_json_string(value: &str) -> String {

@@ -74,7 +74,7 @@ impl PyClassThreadIter {
 }
 
 /// Demonstrates a base class which can operate on the relevant subclass in its constructor.
-#[pyclass(subclass, skip_from_py_object)]
+#[pyclass(subclass)]
 #[derive(Clone, Debug)]
 struct AssertingBaseClass;
 
@@ -136,7 +136,7 @@ impl SubClassWithInit {
     }
 }
 
-#[pyclass(skip_from_py_object)]
+#[pyclass]
 #[derive(Clone)]
 struct ClassWithDecorators {
     attr: Option<usize>,

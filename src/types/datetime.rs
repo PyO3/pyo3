@@ -6,8 +6,6 @@
 #[cfg(not(Py_LIMITED_API))]
 use crate::err::PyErr;
 use crate::err::PyResult;
-#[cfg(not(Py_3_9))]
-use crate::exceptions::PyImportError;
 #[cfg(not(Py_LIMITED_API))]
 use crate::ffi::{
     self, PyDateTime_CAPI, PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR,
@@ -756,11 +754,6 @@ impl PyTzInfo {
         static ZONE_INFO: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
         let zoneinfo = ZONE_INFO.import(py, "zoneinfo", "ZoneInfo");
-
-        #[cfg(not(Py_3_9))]
-        let zoneinfo = zoneinfo
-            .or_else(|_| ZONE_INFO.import(py, "backports.zoneinfo", "ZoneInfo"))
-            .map_err(|_| PyImportError::new_err("Could not import \"backports.zoneinfo.ZoneInfo\". ZoneInfo is required when converting timezone-aware DateTime's. Please install \"backports.zoneinfo\" on python < 3.9"));
 
         zoneinfo?
             .call1((iana_name,))?

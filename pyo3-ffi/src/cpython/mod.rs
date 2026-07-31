@@ -7,6 +7,7 @@ pub(crate) mod ceval;
 pub(crate) mod code;
 pub(crate) mod compile;
 pub(crate) mod complexobject;
+pub(crate) mod context;
 #[cfg(all(Py_3_14, Py_GIL_DISABLED))]
 pub(crate) mod critical_section;
 pub(crate) mod descrobject;
@@ -24,14 +25,13 @@ pub(crate) mod initconfig;
 pub(crate) mod listobject;
 #[cfg(Py_3_13)]
 pub(crate) mod lock;
-#[cfg(Py_3_14)]
-pub(crate) mod longintrepr;
 pub(crate) mod longobject;
 pub(crate) mod marshal;
-#[cfg(all(Py_3_9, not(PyPy)))]
+#[cfg(not(PyPy))]
 pub(crate) mod methodobject;
 pub(crate) mod object;
 pub(crate) mod objimpl;
+pub(crate) mod pyatomic;
 pub(crate) mod pydebug;
 pub(crate) mod pyerrors;
 #[cfg(not(PyPy))]
@@ -43,6 +43,7 @@ pub(crate) mod pythonrun;
 pub(crate) mod floatobject;
 pub(crate) mod pyframe;
 pub(crate) mod pyhash;
+pub(crate) mod setobject;
 pub(crate) mod traceback;
 pub(crate) mod tupleobject;
 pub(crate) mod unicodeobject;
@@ -58,6 +59,7 @@ pub use self::ceval::*;
 pub use self::code::*;
 pub use self::compile::*;
 pub use self::complexobject::*;
+pub use self::context::*;
 #[cfg(all(Py_3_14, Py_GIL_DISABLED))]
 pub use self::critical_section::{PyCriticalSection2_BeginMutex, PyCriticalSection_BeginMutex};
 pub use self::descrobject::*;
@@ -73,11 +75,9 @@ pub use self::initconfig::*;
 pub use self::listobject::*;
 #[cfg(Py_3_13)]
 pub use self::lock::*;
-#[cfg(Py_3_14)]
-pub use self::longintrepr::*;
 pub use self::longobject::*;
 pub use self::marshal::*;
-#[cfg(all(Py_3_9, not(PyPy)))]
+#[cfg(not(PyPy))]
 pub use self::methodobject::*;
 pub use self::object::*;
 pub use self::objimpl::*;
@@ -91,6 +91,7 @@ pub use self::pylifecycle::*;
 pub use self::pymem::*;
 pub use self::pystate::*;
 pub use self::pythonrun::*;
+pub use self::setobject::*;
 pub use self::traceback::*;
 pub use self::tupleobject::*;
 pub use self::unicodeobject::*;

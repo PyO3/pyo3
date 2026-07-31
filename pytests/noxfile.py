@@ -1,9 +1,9 @@
-from typing import Iterable
 import shutil
+import sys
+from collections.abc import Iterable
 from pathlib import Path
 
 import nox
-import sys
 from nox.command import CommandFailed
 
 nox.options.sessions = ["test"]

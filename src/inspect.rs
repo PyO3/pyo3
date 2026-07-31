@@ -449,6 +449,7 @@ impl AsRef<PyStaticExpr> for PyClassNameStaticExpr {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
 
     #[test]
     fn test_to_string() {

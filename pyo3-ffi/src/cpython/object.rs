@@ -263,8 +263,6 @@ pub struct PyTypeObject {
     pub tp_vectorcall: Option<vectorcallfunc>,
     #[cfg(Py_3_12)]
     pub tp_watched: c_char,
-    #[cfg(not(any(PyPy, Py_3_9)))]
-    pub tp_print: Option<printfunc>,
     #[cfg(py_sys_config = "COUNT_ALLOCS")]
     pub tp_allocs: Py_ssize_t,
     #[cfg(py_sys_config = "COUNT_ALLOCS")]
@@ -305,7 +303,6 @@ pub struct PyHeapTypeObject {
     pub ht_qualname: *mut object::PyObject,
     #[cfg(not(PyPy))]
     pub ht_cached_keys: *mut c_void,
-    #[cfg(Py_3_9)]
     pub ht_module: *mut object::PyObject,
     #[cfg(all(Py_3_11, not(PyPy)))]
     _ht_tpname: *mut c_char,
@@ -321,7 +318,7 @@ pub struct PyHeapTypeObject {
 #[cfg(not(Py_3_11))]
 pub unsafe fn PyHeapType_GET_MEMBERS(etype: *mut PyHeapTypeObject) -> *mut PyMemberDef {
     let py_type = object::Py_TYPE(etype as *mut object::PyObject);
-    let ptr = etype.offset((*py_type).tp_basicsize);
+    let ptr = etype.byte_offset((*py_type).tp_basicsize);
     ptr as *mut PyMemberDef
 }
 

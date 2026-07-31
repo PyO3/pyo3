@@ -55,6 +55,7 @@ mod pyo3_pytests {
         sys_modules.set_item("pyo3_pytests.awaitable", m.getattr("awaitable")?)?;
         sys_modules.set_item("pyo3_pytests.buf_and_str", m.getattr("buf_and_str")?)?;
         sys_modules.set_item("pyo3_pytests.comparisons", m.getattr("comparisons")?)?;
+        #[cfg(not(Py_LIMITED_API))]
         sys_modules.set_item("pyo3_pytests.datetime", m.getattr("datetime")?)?;
         sys_modules.set_item("pyo3_pytests.dict_iter", m.getattr("dict_iter")?)?;
         sys_modules.set_item("pyo3_pytests.enums", m.getattr("enums")?)?;

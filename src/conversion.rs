@@ -1,15 +1,14 @@
 //! Defines conversions between Rust and Python types.
 use crate::err::PyResult;
-use crate::impl_::pyclass::ExtractPyClassWithClone;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_identifier, type_hint_subscript, PyStaticExpr};
+use crate::platform::prelude::*;
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
 use crate::types::PyList;
 use crate::types::PyTuple;
 use crate::{
-    Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyClassGuard, PyErr, PyRef, PyRefMut,
-    PyTypeCheck, Python,
+    Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyTypeCheck, Python,
 };
 use core::convert::Infallible;
 use core::marker::PhantomData;
@@ -441,6 +440,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
 }
 
 mod from_py_object_sequence {
+    use crate::platform::prelude::*;
     use crate::PyResult;
 
     /// Private trait for implementing specialized sequence extraction for `Vec<u8>` and `[u8; N]`
@@ -509,20 +509,6 @@ pub(crate) use from_py_object_sequence::FromPyObjectSequence;
 /// [`Arc<T>`]: alloc::sync::Arc
 pub trait FromPyObjectOwned<'py>: for<'a> FromPyObject<'a, 'py> {}
 impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py> {}
-
-impl<'a, 'py, T> FromPyObject<'a, 'py> for T
-where
-    T: PyClass + Clone + ExtractPyClassWithClone,
-{
-    type Error = PyClassGuardError<'a, 'py>;
-
-    #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = <T as crate::PyTypeInfo>::TYPE_HINT;
-
-    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
-        Ok(obj.extract::<PyClassGuard<'_, T>>()?.clone())
-    }
-}
 
 impl<'a, 'py, T> FromPyObject<'a, 'py> for PyRef<'py, T>
 where
@@ -593,6 +579,7 @@ mod test_no_clone {}
 mod tests {
     #[test]
     #[cfg(feature = "macros")]
+    #[expect(deprecated)]
     fn test_pyclass_skip_from_py_object() {
         use crate::{types::PyAnyMethods, FromPyObject, IntoPyObject, PyErr, Python};
 

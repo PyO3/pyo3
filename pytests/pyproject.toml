@@ -17,11 +17,19 @@ classifiers = [
     "Operating System :: POSIX",
     "Operating System :: MacOS :: MacOS X",
 ]
+requires-python = ">=3.9"
+
+[tool.ruff]
+exclude = ["stubs"]
+
+[tool.ruff.per-file-target-version]
+"tests/test_enums_match.py" = "py310"
 
 [project.optional-dependencies]
 dev = [
     "hypothesis>=3.55",
-    "mypy~=1.0",
+    # mypy doesn't build on GraalPy when installed via uv
+    "mypy~=1.0; platform_python_implementation != 'GraalVM'",
     "pyrefly~=0.57.0",
     "pytest-asyncio>=0.21,<2",
     "pytest-benchmark>=3.4",

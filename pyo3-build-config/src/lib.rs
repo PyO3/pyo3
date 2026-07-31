@@ -28,7 +28,7 @@ use target_lexicon::{Architecture, OperatingSystem};
 ///
 /// | Flag | Description |
 /// | ---- | ----------- |
-/// | `#[cfg(Py_3_8)]`, `#[cfg(Py_3_9)]`, `#[cfg(Py_3_10)]`, `#[cfg(Py_3_11)]`, ... | These attributes mark code only for a given Python version and up. For example, `#[cfg(Py_3_8)]` marks code which can run on Python 3.8 **and newer**. There is one attribute for each Python version currently supported by PyO3. |
+/// | `#[cfg(Py_3_9)]`, `#[cfg(Py_3_10)]`, `#[cfg(Py_3_11)]`, `#[cfg(Py_3_12)]`, ... | These attributes mark code only for a given Python version and up. For example, `#[cfg(Py_3_9)]` marks code which can run on Python 3.9 **and newer**. There is one attribute for each Python version currently supported by PyO3. |
 /// | `#[cfg(Py_LIMITED_API)]` | This marks code which is run when compiling with PyO3's `abi3` or abi3t feature enabled. |
 /// | `#[cfg(Py_GIL_DISABLED)]` | This marks code which is run on the free-threaded interpreter. |
 /// | `#[cfg(PyPy)]` | This marks code which is run when compiling for PyPy. |
@@ -164,34 +164,6 @@ pub fn print_expected_cfgs() {
     for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
         println!("cargo:rustc-check-cfg=cfg(Py_3_{i})");
     }
-
-    // pyo3_dll cfg for raw-dylib linking on Windows
-    let mut dll_names = vec![
-        "python3".to_string(),
-        "python3_d".to_string(),
-        "python3t".to_string(),
-        "python3t_d".to_string(),
-    ];
-    for i in impl_::MINIMUM_SUPPORTED_VERSION.minor..=impl_::STABLE_ABI_MAX_MINOR + 1 {
-        dll_names.push(format!("python3{i}"));
-        dll_names.push(format!("python3{i}_d"));
-        if i >= 13 {
-            dll_names.push(format!("python3{i}t"));
-            dll_names.push(format!("python3{i}t_d"));
-        }
-    }
-    // PyPy DLL names (libpypy3.X-c.dll)
-    for i in
-        impl_::MINIMUM_SUPPORTED_VERSION_PYPY.minor..=impl_::MAXIMUM_SUPPORTED_VERSION_PYPY.minor
-    {
-        dll_names.push(format!("libpypy3.{i}-c"));
-    }
-    let values = dll_names
-        .iter()
-        .map(|n| format!("\"{n}\""))
-        .collect::<Vec<_>>()
-        .join(", ");
-    println!("cargo:rustc-check-cfg=cfg(pyo3_dll, values({values}))");
 }
 
 /// Private exports used in PyO3's build.rs
