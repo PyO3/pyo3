@@ -1,4 +1,4 @@
-//@normalize-stderr-test: ".*/src/rust/(.*)" -> "../src/$1"
+
 use pyo3::prelude::*;
 
 fn test_not_send_detach(py: Python<'_>) {

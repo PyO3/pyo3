@@ -152,6 +152,11 @@ fn main() {
             Regex::new(r"and \d+ others").unwrap().into(),
             b"and $$N others".to_vec(),
         ),
+        // Normalize paths into the Rust toolchain sources
+        (
+            Regex::new(r"[^\s]*?/rustlib/src/rust").unwrap().into(),
+            b"$$RUST_SRC".to_vec(),
+        ),
         // Some trait implementations which are only emitted with certain
         // features enabled
         (
@@ -269,13 +274,40 @@ fn normalize_src_blocks(output: &[u8]) -> Vec<u8> {
         .into_owned()
 }
 
+fn check_rust_src_paths(output: &[u8], errors: &mut Vec<ui_test::Error>) -> bool {
+    use std::sync::LazyLock;
+
+    use regex::bytes::Regex;
+
+    static REMAPPED_RUST_SRC: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"/rustc/[0-9a-f]{40}/library/").unwrap());
+
+    if REMAPPED_RUST_SRC.is_match(output) {
+        // This causes `ui_test` to emit:
+        //
+        // ```
+        // error: a bug in `ui_test` occurred
+        // rust-src is required for UI tests; install it with `rustup component add rust-src`
+        // ```
+        errors.push(ui_test::Error::Bug(
+            "rust-src is required for UI tests; install it with `rustup component add rust-src`"
+                .into(),
+        ));
+        false
+    } else {
+        true
+    }
+}
+
 fn error_on_output_conflict_normalized(
     path: &std::path::Path,
     output: &[u8],
     errors: &mut Vec<ui_test::Error>,
     config: &ui_test::per_test_config::TestConfig,
 ) {
-    ui_test::error_on_output_conflict(path, &normalize_src_blocks(output), errors, config);
+    if check_rust_src_paths(output, errors) {
+        ui_test::error_on_output_conflict(path, &normalize_src_blocks(output), errors, config);
+    }
 }
 
 fn bless_output_files_normalized(
@@ -284,7 +316,9 @@ fn bless_output_files_normalized(
     errors: &mut Vec<ui_test::Error>,
     config: &ui_test::per_test_config::TestConfig,
 ) {
-    ui_test::bless_output_files(path, &normalize_src_blocks(output), errors, config);
+    if check_rust_src_paths(output, errors) {
+        ui_test::bless_output_files(path, &normalize_src_blocks(output), errors, config);
+    }
 }
 
 /// Some tests have different error messages when the `experimental-inspect` feature is
