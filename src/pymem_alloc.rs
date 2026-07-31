@@ -98,32 +98,49 @@ unsafe fn recover_raw(ptr: *mut u8) -> *mut u8 {
 unsafe impl GlobalAlloc for PyMemRawAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         if layout.align() <= MIN_ALIGN {
-            // SAFETY: `PyMem_RawMalloc` accepts any size, including 0.
+            // SAFETY: `PyMem_RawMalloc` accepts any size, including 0, returning a
+            // distinct non-NULL pointer as if `PyMem_RawMalloc(1)` were called.
+            //
+            // See: https://docs.python.org/3/c-api/memory.html#c.PyMem_RawMalloc
             unsafe { pyo3_ffi::PyMem_RawMalloc(layout.size()) as *mut u8 }
         } else {
-            // SAFETY: `PyMem_RawMalloc` accepts any size, including 0.
+            // SAFETY: same zero-size guarantee as above.
+            //
+            // See: https://docs.python.org/3/c-api/memory.html#c.PyMem_RawMalloc
             unsafe { raw_alloc_with_header(layout, |total| pyo3_ffi::PyMem_RawMalloc(total)) }
         }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         if layout.align() <= MIN_ALIGN {
-            // SAFETY: `ptr` was allocated by `PyMem_RawMalloc`/`PyMem_RawCalloc` with this layout.
+            // SAFETY: `ptr` must have been returned by a prior `PyMem_RawMalloc`,
+            // `PyMem_RawRealloc`, or `PyMem_RawCalloc` call, and must not have
+            // been freed before.
+            //
+            // See: https://docs.python.org/3/c-api/memory.html#c.PyMem_RawFree
             unsafe { pyo3_ffi::PyMem_RawFree(ptr as *mut _) }
         } else {
             // SAFETY: `ptr` was returned by `finish_aligned`, so it has a `Header` before it.
             let raw = unsafe { recover_raw(ptr) };
-            // SAFETY: `raw` was allocated by `PyMem_RawMalloc`/`PyMem_RawCalloc`.
+            // SAFETY: `raw` is the original pointer from `PyMem_RawMalloc`/`PyMem_RawCalloc`,
+            // which is what `PyMem_RawFree` requires.
+            //
+            // See: https://docs.python.org/3/c-api/memory.html#c.PyMem_RawFree
             unsafe { pyo3_ffi::PyMem_RawFree(raw as *mut _) }
         }
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
         if layout.align() <= MIN_ALIGN {
-            // SAFETY: `PyMem_RawCalloc` accepts any size, including 0.
+            // SAFETY: `PyMem_RawCalloc` accepts any size, including 0, returning a
+            // distinct non-NULL pointer as if `PyMem_RawCalloc(1, 1)` were called.
+            //
+            // See: https://docs.python.org/3/c-api/memory.html#c.PyMem_RawCalloc
             unsafe { pyo3_ffi::PyMem_RawCalloc(1, layout.size()) as *mut u8 }
         } else {
-            // SAFETY: `PyMem_RawCalloc` accepts any size, including 0.
+            // SAFETY: same zero-size guarantee as above.
+            //
+            // See: https://docs.python.org/3/c-api/memory.html#c.PyMem_RawCalloc
             unsafe { raw_alloc_with_header(layout, |total| pyo3_ffi::PyMem_RawCalloc(1, total)) }
         }
     }
