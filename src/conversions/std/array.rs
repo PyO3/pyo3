@@ -131,6 +131,7 @@ where
 
     core::mem::forget(guard);
 
+    // TODO: use MaybeUninit::array_assume_init if that stabilises in future?
     Ok(array.map(|elem|
         // SAFETY: the loop above has fully initialized all `N` elements of `array`,
         // since we only exit the loop once `guard.initialized == N`.
