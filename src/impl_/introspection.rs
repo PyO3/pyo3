@@ -27,6 +27,21 @@ impl<T: PyReturnType, E> PyReturnType for Result<T, E> {
     const OUTPUT_TYPE: PyStaticExpr = T::OUTPUT_TYPE;
 }
 
+pub trait PyIntoPyObjectMaybeRefType<const REF_IMPL_EXISTS: bool> {
+    const OUTPUT_TYPE: PyStaticExpr;
+}
+
+impl<'a, 'py, T: 'a> PyIntoPyObjectMaybeRefType<true> for T
+where
+    &'a T: IntoPyObject<'py>,
+{
+    const OUTPUT_TYPE: PyStaticExpr = <&T as IntoPyObject<'_>>::OUTPUT_TYPE;
+}
+
+impl<'py, T: IntoPyObject<'py>> PyIntoPyObjectMaybeRefType<false> for T {
+    const OUTPUT_TYPE: PyStaticExpr = <T as IntoPyObject<'_>>::OUTPUT_TYPE;
+}
+
 #[repr(C)]
 pub struct SerializedIntrospectionFragment<const LEN: usize> {
     pub length: u32,

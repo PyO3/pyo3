@@ -2211,7 +2211,7 @@ fn descriptors_to_items(
                     &field_python_name(field, options.name.as_ref(), renaming_rule)?,
                     &FunctionSignature::from_arguments(vec![]),
                     Some("self"),
-                    PyExpr::from_return_type(return_type, Some(&parent)),
+                    PyExpr::from_into_py_object_maybe_ref(return_type, Some(&parent)),
                     vec![PyExpr::builtin("property")],
                     false,
                     false,
