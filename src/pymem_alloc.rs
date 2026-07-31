@@ -23,7 +23,7 @@ use core::{
 pub struct PyMemRawAllocator;
 
 // CPython documents this alignment as `ALIGNOF_MAX_ALIGN_T`
-const MAX_ALIGN: usize = cfg_select! {
+const MIN_ALIGN: usize = cfg_select! {
     // Windows: 8 for both `MS_WIN32` / `MS_WIN64`.
     target_os = "windows" => 8,
     // macOS: 16 on Intel (`i386` / `x86_64`),
@@ -34,10 +34,12 @@ const MAX_ALIGN: usize = cfg_select! {
     _ => 8,
 };
 
-/// Bytes reserved before an over-aligned block to stash the original
-/// pointer returned by `PyMem_RawMalloc`, so it can be recovered for
-/// `PyMem_RawFree` / `PyMem_RawRealloc`.
-const HEADER: usize = size_of::<*mut u8>();
+/// Original pointer returned by the allocator, stashed directly before
+/// an over-aligned block.
+///
+/// Recovered by [`recover_raw`] to pass back to `PyMem_RawFree` / `PyMem_RawRealloc`.
+#[repr(transparent)]
+struct Header(*mut u8);
 
 #[cold]
 unsafe fn raw_alloc_with_header(
@@ -47,7 +49,7 @@ unsafe fn raw_alloc_with_header(
     let Some(total) = layout
         .size()
         .checked_add(layout.align())
-        .and_then(|total| total.checked_add(HEADER))
+        .and_then(|total| total.checked_add(size_of::<Header>()))
     else {
         return ptr::null_mut();
     };
@@ -63,22 +65,22 @@ unsafe fn raw_alloc_with_header(
 
 #[inline]
 unsafe fn finish_aligned(raw: *mut u8, layout: Layout) -> *mut u8 {
-    let addr = raw as usize + HEADER;
-    let aligned_addr = (addr + layout.align() - 1) & !(layout.align() - 1);
+    let addr = raw as usize + size_of::<Header>();
+    let mask = layout.align() - 1;
+    let aligned_addr = (addr + mask) & !mask;
     let block = unsafe { raw.add(aligned_addr - raw as usize) };
-    unsafe { (block.sub(HEADER) as *mut *mut u8).write_unaligned(raw) };
-
+    unsafe { ptr::write((block as *mut Header).sub(1), Header(raw)) };
     block
 }
 
 #[inline]
 unsafe fn recover_raw(ptr: *mut u8) -> *mut u8 {
-    unsafe { (ptr.sub(HEADER) as *mut *mut u8).read_unaligned() }
+    unsafe { ptr::read((ptr as *mut Header).sub(1)).0 }
 }
 
 unsafe impl GlobalAlloc for PyMemRawAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        if layout.align() <= MAX_ALIGN {
+        if layout.align() <= MIN_ALIGN {
             unsafe { pyo3_ffi::PyMem_RawMalloc(layout.size()) as *mut u8 }
         } else {
             unsafe { raw_alloc_with_header(layout, |total| pyo3_ffi::PyMem_RawMalloc(total)) }
@@ -86,7 +88,7 @@ unsafe impl GlobalAlloc for PyMemRawAllocator {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        if layout.align() <= MAX_ALIGN {
+        if layout.align() <= MIN_ALIGN {
             unsafe { pyo3_ffi::PyMem_RawFree(ptr as *mut _) }
         } else {
             let raw = unsafe { recover_raw(ptr) };
@@ -95,7 +97,7 @@ unsafe impl GlobalAlloc for PyMemRawAllocator {
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        if layout.align() <= MAX_ALIGN {
+        if layout.align() <= MIN_ALIGN {
             unsafe { pyo3_ffi::PyMem_RawCalloc(1, layout.size()) as *mut u8 }
         } else {
             unsafe { raw_alloc_with_header(layout, |total| pyo3_ffi::PyMem_RawCalloc(1, total)) }
@@ -105,7 +107,7 @@ unsafe impl GlobalAlloc for PyMemRawAllocator {
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };
 
-        if layout.align() <= MAX_ALIGN && new_layout.align() <= MAX_ALIGN {
+        if layout.align() <= MIN_ALIGN && new_layout.align() <= MIN_ALIGN {
             return unsafe { pyo3_ffi::PyMem_RawRealloc(ptr as *mut _, new_size) as *mut u8 };
         }
 
