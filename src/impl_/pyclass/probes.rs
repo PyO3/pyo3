@@ -44,15 +44,6 @@ where
     pub const VALUE: bool = true;
 }
 
-probe!(IsIntoPyObject);
-
-impl<'py, T> IsIntoPyObject<T>
-where
-    T: IntoPyObject<'py>,
-{
-    pub const VALUE: bool = true;
-}
-
 probe!(IsSend);
 
 impl<T: Send> IsSend<T> {
