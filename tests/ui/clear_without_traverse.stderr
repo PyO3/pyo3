@@ -1,22 +1,8 @@
 error[E0080]: evaluation panicked: an implementation of `__clear__` requires an implementation of `__traverse__`
-  --> tests/ui/clear_without_traverse.rs:8:8
-   |
- 8 |     fn __clear__(&mut self) {}
-   |        ^^^^^^^^^ evaluation of `<impl pyo3::impl_::pyclass::PyMethods<ClearWithoutTraverse> for pyo3::impl_::pyclass::PyClassImplCollector<ClearWithoutTraverse>>::py_methods::ITEMS::_` failed inside this call
-   |
-note: inside `pyo3::impl_::pyclass::assertions::assert_type_implements_traverse`
-  --> $RUST_SRC/library/core/src/panic.rs:62:9
-   |
-62 |           $crate::panicking::panic_fmt($crate::const_format_args!($($t)+));
-   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the failure occurred here
-   |
-  ::: src/impl_/pyclass/assertions.rs:20:5
-   |
-20 | /     assert!(
-21 | |         implements_traverse,
-22 | |         "an implementation of `__clear__` requires an implementation of `__traverse__`"
-23 | |     )
-   | |_____- in this macro invocation
+ --> tests/ui/clear_without_traverse.rs:8:8
+  |
+8 |     fn __clear__(&mut self) {}
+  |        ^^^^^^^^^ evaluation of `<impl pyo3::impl_::pyclass::PyMethods<ClearWithoutTraverse> for pyo3::impl_::pyclass::PyClassImplCollector<ClearWithoutTraverse>>::py_methods::ITEMS::_` failed here
 
 error: aborting due to 1 previous error
 
