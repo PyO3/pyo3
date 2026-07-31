@@ -112,6 +112,7 @@ unsafe impl GlobalAlloc for PyMemRawAllocator {
         }
 
         let new_ptr = unsafe { self.alloc(new_layout) };
+
         if !new_ptr.is_null() {
             unsafe {
                 ptr::copy_nonoverlapping(ptr, new_ptr, layout.size().min(new_size));
