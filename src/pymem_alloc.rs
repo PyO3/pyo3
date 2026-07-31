@@ -1,7 +1,7 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-//! GlobalAlloc backed by CPython's `PyMem_Raw*` (`PYMEM_DOMAIN_RAW`).
+//! `GlobalAlloc` backed by CPython's `PyMem_Raw*` (`PYMEM_DOMAIN_RAW`).
 //!
 //! ```
 //! use pyo3::pymem_alloc::PyMemRawAllocator;
