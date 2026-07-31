@@ -18,15 +18,15 @@ The following sections also contain specific ideas on where to start contributin
 ## AI Contributions
 
 In alignment with our [Code of Conduct] we expect contributors using AI to respect the impact of their contributions on the PyO3 community.
-This applies to pull requests, issues, comments, discussions, and any other interaction with the community.
-See other projects such as FastAPI which describes "Human Effort Denial of Service" and LLVM's discussion of "Extractive Contributions".
+A "contribution" includes pull requests, issues, comments, discussions, and any other interaction with the community.
+See other projects such as FastAPI which describes ["Human Effort Denial of Service"](https://tiangolo.com/open-source/contributing/#human-effort-denial-of-service) and LLVM's discussion of ["Extractive Contributions"](https://llvm.org/docs/AIToolPolicy.html#extractive-contributions).
 
 We note that many have strong opinions on the use of AI, and the technical and social landscape is changing rapidly.
 As a project PyO3 does not take a position on AI and its merits or issues; we accept that AI is a reality of current software development and wish to prioritise here the best outcomes for the PyO3 community.
 
 Please abide by the following guidelines for AI contributions:
-- Do not submit raw AI contributions; you may freely use AI to assist your reasoning so long as you communicate in your own words any contribution you make to the project.
-  Submitting raw AI output potentially amplifies the time needed to read and reason about the output from just your own time to many PyO3 community members' time.
+- Do not submit raw AI output; you are expected to be able to use your own words to explain and reason about any contribution you make to the project.
+  Submitting raw AI output amplifies the time needed to read and reason about the output from just your own time to many PyO3 community members' time.
 - Do not submit AI-generated solutions to issues labelled "easy" or "Good First Issue".
   These issues are the best opportunity for new contributors to familiarise with the project and using AI to complete these adds value for nobody.
 - Any code which you submit with AI assistance must clearly have sufficient ownership from you that you can assert full copyright in accordance with our MIT and Apache licensing.
