@@ -51,7 +51,6 @@ pub struct ModuleDef {
     // wrapped in UnsafeCell so that Rust compiler treats this as interior mutability
     #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
-    #[cfg(Py_3_15)]
     name: &'static CStr,
     #[cfg(Py_3_15)]
     doc: &'static CStr,
@@ -105,7 +104,6 @@ impl ModuleDef {
         ModuleDef {
             #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
             ffi_def,
-            #[cfg(Py_3_15)]
             name,
             #[cfg(Py_3_15)]
             doc,
@@ -176,66 +174,35 @@ impl ModuleDef {
         static SIMPLE_NAMESPACE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
         let simple_ns = SIMPLE_NAMESPACE.import(py, "types", "SimpleNamespace")?;
 
-        #[cfg(not(Py_3_15))]
-        {
-            let ffi_def = self.ffi_def.get();
+        let kwargs = PyDict::new(py);
+        kwargs.set_item("name", self.name)?;
+        let spec = simple_ns.call((), Some(&kwargs))?;
 
-            let m_name = unsafe { CStr::from_ptr((*ffi_def).m_name) };
-            let name = m_name
-                .to_str()
-                .map_err(|e| {
-                    crate::exceptions::PyUnicodeDecodeError::new_err_from_utf8(
-                        py,
-                        m_name.to_bytes(),
-                        e,
-                    )
-                })?
-                .to_string();
-            let kwargs = PyDict::new(py);
-            kwargs.set_item("name", name)?;
-            let spec = simple_ns.call((), Some(&kwargs))?;
+        self.module
+            .get_or_try_init(py, || {
+                let module = unsafe {
+                    cfg_select! {
+                        Py_3_15 => ffi::PyModule_FromSlotsAndSpec(self.get_slots(), spec.as_ptr()),
+                        not(Py_3_15) => ffi::PyModule_FromDefAndSpec(self.ffi_def.get(), spec.as_ptr()),
+                    }.assume_owned_or_err(py)
+                }?.cast_into()?;
 
-            self.module
-                .get_or_try_init(py, || {
-                    let def = self.ffi_def.get();
-                    let module = unsafe {
-                        ffi::PyModule_FromDefAndSpec(def, spec.as_ptr()).assume_owned_or_err(py)?
+                cfg_select! {
+                    Py_3_15 => {
+                        if unsafe { ffi::PyModule_Exec(module.as_ptr()) } != 0 {
+                            return Err(PyErr::fetch(py));
+                        }
+                    },
+                    not(Py_3_15) => {
+                        if unsafe { ffi::PyModule_ExecDef(module.as_ptr(), self.ffi_def.get()) } != 0 {
+                            return Err(PyErr::fetch(py));
+                        }
                     }
-                    .cast_into()?;
-                    if unsafe { ffi::PyModule_ExecDef(module.as_ptr(), def) } != 0 {
-                        return Err(PyErr::fetch(py));
-                    }
-                    Ok(module.unbind())
-                })
-                .map(|py_module| py_module.clone_ref(py))
-        }
+                };
 
-        #[cfg(Py_3_15)]
-        {
-            let name = self.name;
-            let doc = self.doc;
-            let kwargs = PyDict::new(py);
-            kwargs.set_item("name", name)?;
-            let spec = simple_ns.call((), Some(&kwargs))?;
-
-            self.module
-                .get_or_try_init(py, || {
-                    let slots = self.get_slots();
-                    let module = unsafe {
-                        ffi::PyModule_FromSlotsAndSpec(slots, spec.as_ptr())
-                            .assume_owned_or_err(py)?
-                    }
-                    .cast_into()?;
-                    if unsafe { ffi::PyModule_SetDocString(module.as_ptr(), doc.as_ptr()) } != 0 {
-                        return Err(PyErr::fetch(py));
-                    }
-                    if unsafe { ffi::PyModule_Exec(module.as_ptr()) } != 0 {
-                        return Err(PyErr::fetch(py));
-                    }
-                    Ok(module.unbind())
-                })
-                .map(|py_module| py_module.clone_ref(py))
-        }
+                Ok(module.unbind())
+            })
+            .map(|py_module| py_module.clone_ref(py))
     }
     #[cfg(Py_3_15)]
     pub fn get_slots(&'static self) -> *mut ffi::PySlot {
