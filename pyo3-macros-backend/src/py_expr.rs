@@ -66,7 +66,7 @@ pub enum PyConstant {
 }
 
 impl PyExpr {
-    /// Build from a builtins name like `None`
+    /// Build from a builtins name like `str`
     pub fn builtin(name: impl Into<Cow<'static, str>>) -> Self {
         Self::Name { id: name.into() }
     }
@@ -172,6 +172,11 @@ impl PyExpr {
     /// `...`
     pub fn ellipsis() -> Self {
         Self::Constant(PyConstant::Ellipsis)
+    }
+
+    /// `None`
+    pub fn none() -> Self {
+        Self::Constant(PyConstant::None)
     }
 
     pub fn to_introspection_token_stream(&self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
