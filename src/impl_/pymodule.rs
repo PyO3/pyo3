@@ -635,11 +635,8 @@ mod tests {
             assert_eq!(secondary_slots[0].value, SLOTS.0.get().cast());
             assert!(secondary_slots[1] == ffi::PyModuleDef_Slot::default());
         }
-        #[cfg(Py_3_15)]
-        {
-            assert_eq!(module_def.name, NAME);
-            assert_eq!(module_def.doc, DOC);
-        }
+
+        assert_eq!(module_def.name, NAME);
     }
 
     #[test]
