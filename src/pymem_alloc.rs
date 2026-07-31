@@ -124,3 +124,159 @@ unsafe impl GlobalAlloc for PyMemRawAllocator {
         new_ptr
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use alloc::vec::Vec;
+
+    unsafe fn assert_zeroes(ptr: *mut u8, layout: Layout) {
+        unsafe {
+            for ofs in 0..layout.size() {
+                assert_eq!(0, ptr.add(ofs).read());
+            }
+        }
+    }
+
+    #[test]
+    fn alloc_dealloc_small_align() {
+        let alloc = PyMemRawAllocator;
+        let layout = Layout::from_size_align(64, MIN_ALIGN).unwrap();
+        unsafe {
+            let ptr = alloc.alloc(layout);
+            assert!(!ptr.is_null());
+            assert_eq!(ptr.addr() % layout.align(), 0);
+            ptr.write_bytes(0xAB, layout.size());
+            alloc.dealloc(ptr, layout);
+        }
+    }
+
+    #[test]
+    fn alloc_dealloc_over_aligned() {
+        let alloc = PyMemRawAllocator;
+        for align in [MIN_ALIGN * 2, 64, 256, 4096] {
+            let layout = Layout::from_size_align(128, align).unwrap();
+            unsafe {
+                let ptr = alloc.alloc(layout);
+                assert!(!ptr.is_null());
+                assert_eq!(ptr.addr() % align, 0, "align={align}");
+                ptr.write_bytes(0xCD, layout.size());
+                alloc.dealloc(ptr, layout);
+            }
+        }
+    }
+
+    #[test]
+    fn alloc_zeroed_small_align() {
+        let alloc = PyMemRawAllocator;
+        let layout = Layout::from_size_align(256, MIN_ALIGN).unwrap();
+        unsafe {
+            let ptr = alloc.alloc_zeroed(layout);
+            assert!(!ptr.is_null());
+            assert_zeroes(ptr, layout);
+            alloc.dealloc(ptr, layout);
+        }
+    }
+
+    #[test]
+    fn alloc_zeroed_over_aligned() {
+        let alloc = PyMemRawAllocator;
+        let layout = Layout::from_size_align(4096, 64).unwrap();
+        unsafe {
+            let ptr = alloc.alloc_zeroed(layout);
+            assert!(!ptr.is_null());
+            assert_eq!(ptr.addr() % layout.align(), 0);
+            assert_zeroes(ptr, layout);
+            alloc.dealloc(ptr, layout);
+        }
+    }
+
+    #[test]
+    fn realloc_grow_preserves_data_small_align() {
+        let alloc = PyMemRawAllocator;
+        let old_layout = Layout::from_size_align(16, MIN_ALIGN).unwrap();
+        unsafe {
+            let ptr = alloc.alloc(old_layout);
+            assert!(!ptr.is_null());
+            ptr.write_bytes(0x42, old_layout.size());
+
+            let new_ptr = alloc.realloc(ptr, old_layout, 256);
+            assert!(!new_ptr.is_null());
+            for i in 0..old_layout.size() {
+                assert_eq!(new_ptr.add(i).read(), 0x42);
+            }
+            alloc.dealloc(new_ptr, Layout::from_size_align(256, MIN_ALIGN).unwrap());
+        }
+    }
+
+    #[test]
+    fn realloc_shrink_preserves_data_small_align() {
+        let alloc = PyMemRawAllocator;
+        let old_layout = Layout::from_size_align(256, MIN_ALIGN).unwrap();
+        unsafe {
+            let ptr = alloc.alloc(old_layout);
+            assert!(!ptr.is_null());
+            ptr.write_bytes(0x7A, old_layout.size());
+
+            let new_ptr = alloc.realloc(ptr, old_layout, 16);
+            assert!(!new_ptr.is_null());
+            for i in 0..16 {
+                assert_eq!(new_ptr.add(i).read(), 0x7A);
+            }
+            alloc.dealloc(new_ptr, Layout::from_size_align(16, MIN_ALIGN).unwrap());
+        }
+    }
+
+    #[test]
+    fn realloc_over_aligned_preserves_data() {
+        let alloc = PyMemRawAllocator;
+        let align = 64;
+        let old_layout = Layout::from_size_align(32, align).unwrap();
+        unsafe {
+            let ptr = alloc.alloc(old_layout);
+            assert!(!ptr.is_null());
+            ptr.write_bytes(0x55, old_layout.size());
+
+            let new_ptr = alloc.realloc(ptr, old_layout, 512);
+            assert!(!new_ptr.is_null());
+            assert_eq!(new_ptr.addr() % align, 0);
+            for i in 0..old_layout.size() {
+                assert_eq!(new_ptr.add(i).read(), 0x55);
+            }
+            alloc.dealloc(new_ptr, Layout::from_size_align(512, align).unwrap());
+        }
+    }
+
+    #[test]
+    fn no_overlap_between_allocations() {
+        let alloc = PyMemRawAllocator;
+        let layouts: Vec<Layout> = vec![
+            Layout::from_size_align(16, MIN_ALIGN).unwrap(),
+            Layout::from_size_align(128, 64).unwrap(),
+            Layout::from_size_align(4096, 4096).unwrap(),
+            Layout::from_size_align(64, MIN_ALIGN).unwrap(),
+        ];
+        unsafe {
+            let ptrs: Vec<*mut u8> = layouts
+                .iter()
+                .map(|&layout| {
+                    let ptr = alloc.alloc_zeroed(layout);
+                    assert!(!ptr.is_null());
+                    ptr.write_bytes(0xEE, layout.size());
+                    ptr
+                })
+                .collect();
+
+            for (&ptr, &layout) in ptrs.iter().zip(&layouts) {
+                for i in 0..layout.size() {
+                    assert_eq!(ptr.add(i).read(), 0xEE);
+                }
+            }
+
+            for (ptr, layout) in ptrs.into_iter().zip(layouts) {
+                alloc.dealloc(ptr, layout);
+            }
+        }
+    }
+}
