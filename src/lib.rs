@@ -150,7 +150,7 @@
 //!
 //! # Minimum supported Rust and Python versions
 //!
-//! Requires Rust 1.63 or greater.
+//! Requires Rust 1.83 or greater.
 //!
 //! PyO3 supports the following Python distributions:
 //!   - CPython 3.8 or greater
