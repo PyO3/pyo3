@@ -32,16 +32,17 @@ use portable_atomic::AtomicI64;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
+use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(any(not(all(Py_LIMITED_API, Py_GIL_DISABLED)), Py_3_15))]
 use crate::internal_tricks::array_ptr_as_mut;
 use crate::prelude::PyTypeMethods;
+use crate::{err::error_on_minusone, py_result_ext::PyResultExt};
 use crate::{
     ffi,
     impl_::pyfunction::PyFunctionDef,
     types::{PyModule, PyModuleMethods},
     Bound, PyClass, PyResult, PyTypeInfo,
 };
-use crate::{ffi_ptr_ext::FfiPtrExt, PyErr};
 use crate::{
     sync::PyOnceLock,
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
@@ -54,8 +55,6 @@ pub struct ModuleDef {
     #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     ffi_def: UnsafeCell<ffi::PyModuleDef>,
     name: &'static CStr,
-    #[cfg(Py_3_15)]
-    doc: &'static CStr,
     #[cfg(Py_3_15)]
     slots: &'static PyModuleSlots,
     /// Interpreter ID where module was initialized (not applicable on PyPy).
@@ -81,41 +80,32 @@ impl ModuleDef {
         // This is only used in PyO3 for append_to_inittab on Python 3.15 and newer.
         // There could also be other tools that need the legacy init hook.
         #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
-        #[allow(clippy::declare_interior_mutable_const)]
-        const INIT: ffi::PyModuleDef = ffi::PyModuleDef {
-            m_base: ffi::PyModuleDef_HEAD_INIT,
-            m_name: core::ptr::null(),
-            m_doc: core::ptr::null(),
-            m_size: 0,
-            m_methods: core::ptr::null_mut(),
-            m_slots: core::ptr::null_mut(),
-            m_traverse: None,
-            m_clear: None,
-            m_free: None,
-        };
-
-        #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
         let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
+            m_base: ffi::PyModuleDef_HEAD_INIT,
             m_name: name.as_ptr(),
             m_doc: doc.as_ptr(),
+            m_size: 0,
+            m_methods: core::ptr::null_mut(),
             m_slots: array_ptr_as_mut({
                 cfg_select! {
                     Py_3_15 => secondary_slots.0.get(),
                     _ => slots.0.get(),
                 }
             }),
-            ..INIT
+            m_traverse: None,
+            m_clear: None,
+            m_free: None,
         });
 
         #[cfg(any(not(Py_3_15), all(Py_LIMITED_API, Py_GIL_DISABLED)))]
         let _ = secondary_slots;
+        #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
+        let _ = doc;
 
         ModuleDef {
             #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
             ffi_def,
             name,
-            #[cfg(Py_3_15)]
-            doc,
             #[cfg(Py_3_15)]
             slots,
             // -1 is never expected to be a valid interpreter ID
@@ -189,25 +179,23 @@ impl ModuleDef {
 
         self.module
             .get_or_try_init(py, || {
-                let module = unsafe {
+                // SAFETY: slots / def are static and fully initialized, spec is a valid object,
+                // and these functions are known to create a valid module object on success
+                let module: Bound<'_, PyModule> = unsafe {
                     cfg_select! {
                         Py_3_15 => ffi::PyModule_FromSlotsAndSpec(self.get_slots(), spec.as_ptr()),
                         not(Py_3_15) => ffi::PyModule_FromDefAndSpec(self.ffi_def.get(), spec.as_ptr()),
                     }.assume_owned_or_err(py)
-                }?.cast_into()?;
+                    .cast_into_unchecked()
+                }?;
 
-                cfg_select! {
-                    Py_3_15 => {
-                        if unsafe { ffi::PyModule_Exec(module.as_ptr()) } != 0 {
-                            return Err(PyErr::fetch(py));
-                        }
-                    },
-                    not(Py_3_15) => {
-                        if unsafe { ffi::PyModule_ExecDef(module.as_ptr(), self.ffi_def.get()) } != 0 {
-                            return Err(PyErr::fetch(py));
-                        }
+                // SAFETY: module is a known valid module object
+                error_on_minusone(py, unsafe {
+                    cfg_select! {
+                        Py_3_15 => ffi::PyModule_Exec(module.as_ptr()),
+                        not(Py_3_15) => ffi::PyModule_ExecDef(module.as_ptr(), self.ffi_def.get()),
                     }
-                };
+                })?;
 
                 Ok(module.unbind())
             })
