@@ -21,7 +21,7 @@ use core::{
 /// since the raw domain doesn't require an attached thread state.
 pub struct PyMemRawAllocator;
 
-// CPython documents this alignment as `ALIGNOF_MAX_ALIGN_T`/
+// CPython documents this alignment as `ALIGNOF_MAX_ALIGN_T`
 const MAX_ALIGN: usize = cfg_select! {
     // Windows: 8 for both `MS_WIN32` / `MS_WIN64`.
     target_os = "windows" => 8,
