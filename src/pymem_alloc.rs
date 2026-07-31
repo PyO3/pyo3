@@ -52,7 +52,7 @@ unsafe fn raw_alloc_with_header(
         return ptr::null_mut();
     };
 
-    let raw = unsafe { alloc_fn(total) } as *mut u8;
+    let raw = alloc_fn(total) as *mut u8;
 
     if raw.is_null() {
         return ptr::null_mut();
