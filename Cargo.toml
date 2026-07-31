@@ -185,6 +185,7 @@ full = [
     "ordered-float",
     "parking_lot",
     "py-clone",
+    "pymem-raw-alloc",
     "rust_decimal",
     "serde",
     "smallvec",
