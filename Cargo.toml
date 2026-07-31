@@ -157,6 +157,8 @@ chrono-local = ["chrono/clock", "dep:iana-time-zone"]
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
 
+pymem-raw-alloc = []
+
 # Activates all additional features
 # This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.
 full = [

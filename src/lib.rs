@@ -480,6 +480,9 @@ pub mod inspect;
 // other paths to the same items. (e.g. `pyo3::types::PyAnyMethods` instead of `pyo3::prelude::PyAnyMethods`).
 pub mod prelude;
 
+#[cfg(feature = "pymem-raw-alloc")]
+pub mod pymem_alloc;
+
 /// Test readme and user guide
 #[cfg(doctest)]
 pub mod doc_test {
