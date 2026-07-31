@@ -21,9 +21,17 @@ use core::{
 /// since the raw domain doesn't require an attached thread state.
 pub struct PyMemRawAllocator;
 
-// CPython documents this alignment as `ALIGNOF_MAX_ALIGN_T`
-// (8 on Windows; autoconf-derived on Unix, not guaranteed >8 on every target/libc).
-const MAX_ALIGN: usize = 8;
+// CPython documents this alignment as `ALIGNOF_MAX_ALIGN_T`/
+const MAX_ALIGN: usize = cfg_select! {
+    // Windows: 8 for both `MS_WIN32` / `MS_WIN64`.
+    target_os = "windows" => 8,
+    // macOS: 16 on Intel (`i386` / `x86_64`),
+    all(target_vendor = "apple", any(target_arch = "x86", target_arch = "x86_64")) => 16,
+    // macOS: 8 on other archs (e.g. `arm64`).
+    all(target_vendor = "apple", not(any(target_arch = "x86", target_arch = "x86_64"))) => 8,
+    // Other Unix: autoconf-derived at build time, not checked in, not guaranteed > 8.
+    _ => 8,
+};
 
 /// Bytes reserved before an over-aligned block to stash the original
 /// pointer returned by `PyMem_RawMalloc`, so it can be recovered for
