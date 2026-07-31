@@ -1,0 +1,14 @@
+[package]
+name = "module_state_example"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.83"
+
+[lib]
+name = "module_state"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { path = "../../", features = ["experimental-module-state"] }
+
+[workspace]

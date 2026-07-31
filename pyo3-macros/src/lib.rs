@@ -12,6 +12,62 @@ use pyo3_macros_backend::{
 use quote::quote;
 use syn::{parse_macro_input, Item};
 
+/// Mark a struct as the module state container
+///
+/// Used in `#[pymodule]` on modules to auto-detect the state type.
+/// Requires the `experimental-module-state` feature to be enabled.
+///
+/// # Example
+/// ```ignore
+/// #[pymodule]
+/// mod my_module {
+///     #[pymodule_state]
+///     struct MyState {
+///         cache: HashMap<String, i32>,
+///     }
+///
+///     fn init(m: &Bound<'_, PyModule>) -> PyResult<MyState> {
+///         Ok(MyState { cache: HashMap::new() })
+///     }
+/// }
+/// ```
+#[cfg(feature = "experimental-module-state")]
+#[proc_macro_attribute]
+pub fn pymodule_state(
+    _args: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    // This macro does nothing - it's just a marker for #[pymodule]'s code generation
+    // The actual work is done by #[pymodule]'s analysis pass
+    input
+}
+
+/// Mark a function as the module traverse handler for GC cycle detection.
+/// Only one `#[pymodule_traverse]` allowed per module.
+/// Requires: `experimental-module-state` feature.
+#[cfg(feature = "experimental-module-state")]
+#[proc_macro_attribute]
+pub fn pymodule_traverse(
+    _args: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    // This macro does nothing - it's just a marker for #[pymodule]'s code generation
+    input
+}
+
+/// Mark a function as the module clear handler for breaking GC cycles.
+/// Only one `#[pymodule_clear]` allowed per module.
+/// Requires: `experimental-module-state` feature.
+#[cfg(feature = "experimental-module-state")]
+#[proc_macro_attribute]
+pub fn pymodule_clear(
+    _args: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    // This macro does nothing - it's just a marker for #[pymodule]'s code generation
+    input
+}
+
 /// A proc macro used to implement Python modules.
 ///
 /// The name of the module will be taken from the module name, unless `#[pyo3(name = "my_name")]`

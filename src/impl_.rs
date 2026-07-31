@@ -28,3 +28,6 @@ pub mod pymodule;
 pub mod trampoline;
 pub mod unindent;
 pub mod wrap;
+
+#[cfg(feature = "experimental-module-state")]
+pub mod pymodule_state;

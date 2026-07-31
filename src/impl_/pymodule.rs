@@ -4,6 +4,8 @@
 //! Implementation details of `#[pymodule]` which need to be accessible from proc-macro generated code.
 #[allow(unused_imports, reason = "conditionally used")]
 use crate::platform::prelude::*;
+#[cfg(feature = "experimental-module-state")]
+use core::mem::MaybeUninit;
 use core::{
     cell::UnsafeCell,
     ffi::CStr,
@@ -32,19 +34,19 @@ use portable_atomic::AtomicI64;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::exceptions::PyImportError;
+#[cfg(feature = "experimental-module-state")]
+use crate::exceptions::PyRuntimeError;
+#[cfg(feature = "experimental-module-state")]
+use crate::impl_::pymodule_state::ModuleState;
 use crate::prelude::PyTypeMethods;
 use crate::{
     ffi,
     impl_::pyfunction::PyFunctionDef,
-    types::{PyModule, PyModuleMethods},
-    Bound, PyClass, PyResult, PyTypeInfo,
+    sync::PyOnceLock,
+    types::{any::PyAnyMethods, dict::PyDictMethods, PyDict, PyModule, PyModuleMethods},
+    Bound, Py, PyAny, PyClass, PyResult, PyTypeInfo, Python,
 };
 use crate::{ffi_ptr_ext::FfiPtrExt, PyErr};
-use crate::{
-    sync::PyOnceLock,
-    types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
-    Py, PyAny, Python,
-};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
@@ -75,7 +77,29 @@ impl ModuleDef {
         name: &'static CStr,
         doc: &'static CStr,
         slots: &'static PyModuleSlots,
+        allocate_state: bool,
+        traverse: Option<ffi::traverseproc>,
+        clear: Option<ffi::inquiry>,
     ) -> Self {
+        #[cfg(feature = "experimental-module-state")]
+        let m_size = if allocate_state {
+            std::mem::size_of::<ModuleState>() as _
+        } else {
+            0
+        };
+        #[cfg(feature = "experimental-module-state")]
+        let m_free = if allocate_state {
+            Some(pyo3_module_state_free as unsafe extern "C" fn(*mut c_void))
+        } else {
+            None
+        };
+        #[cfg(not(feature = "experimental-module-state"))]
+        let _ = allocate_state;
+        #[cfg(not(feature = "experimental-module-state"))]
+        let m_size = 0;
+        #[cfg(not(feature = "experimental-module-state"))]
+        let m_free = None;
+
         // This is only used in PyO3 for append_to_inittab on Python 3.15 and newer.
         // There could also be other tools that need the legacy init hook.
         #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
@@ -93,13 +117,19 @@ impl ModuleDef {
         };
 
         #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
-        let ffi_def = UnsafeCell::new(ffi::PyModuleDef {
-            m_name: name.as_ptr(),
-            m_doc: doc.as_ptr(),
-            // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
-            // but that requires mut ptr deref on MSRV.
-            m_slots: slots.0.get() as _,
-            ..INIT
+        let ffi_def = UnsafeCell::new({
+            ffi::PyModuleDef {
+                m_name: name.as_ptr(),
+                m_doc: doc.as_ptr(),
+                m_size,
+                // TODO: would be slightly nicer to use `[T]::as_mut_ptr()` here,
+                // but that requires mut ptr deref on MSRV.
+                m_slots: slots.0.get() as _,
+                m_free,
+                m_traverse: traverse,
+                m_clear: clear,
+                ..INIT
+            }
         });
 
         ModuleDef {
@@ -523,6 +553,38 @@ impl PyAddToModule for ModuleDef {
     }
 }
 
+/// Called during multi-phase initialization in order to create an instance of
+/// ModuleState on the memory area specific to modules.
+#[cfg(feature = "experimental-module-state")]
+pub fn pyo3_module_state_init<T: 'static>(module: &Bound<'_, PyModule>, state: T) -> PyResult<()> {
+    unsafe {
+        let m_state: *mut MaybeUninit<ModuleState> = ffi::PyModule_GetState(module.as_ptr()).cast();
+
+        // CPython builtins just assert this, but cross ffi panics are tricky, so we return an
+        // error instead
+        if m_state.is_null() {
+            return Err(PyRuntimeError::new_err(
+                "PyO3 per-module state was null. This is a bug in the Python interpreter runtime.",
+            ));
+        }
+
+        (*m_state).write(ModuleState::new(state));
+
+        Ok(())
+    }
+}
+
+/// Called during deallocation of the module object.
+///
+/// Used for the [`m_free`] field of [`PyModuleDef`].
+///
+/// [`m_free`]: https://docs.python.org/3/c-api/module.html#c.PyModuleDef.m_free
+/// [`PyModuleDef`]: https://docs.python.org/3/c-api/module.html#c.PyModuleDef
+#[cfg(feature = "experimental-module-state")]
+pub unsafe extern "C" fn pyo3_module_state_free(module: *mut c_void) {
+    unsafe { ModuleState::pymodule_free_state(module.cast()) };
+}
+
 #[cfg(test)]
 mod tests {
     use alloc::borrow::Cow;
@@ -566,7 +628,7 @@ mod tests {
             .with_doc(DOC)
             .build();
 
-        static MODULE_DEF: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS);
+        static MODULE_DEF: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS, false, None, None);
 
         Python::attach(|py| {
             let module = MODULE_DEF.make_module(py).unwrap().into_bound(py);
@@ -606,7 +668,7 @@ mod tests {
 
         static SLOTS: PyModuleSlots = PyModuleSlotsBuilder::new().build();
 
-        let module_def: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS);
+        let module_def: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS, false, None, None);
 
         #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
         unsafe {
@@ -657,6 +719,128 @@ mod tests {
         let result = std::panic::catch_unwind(|| builder.with_mod_exec(module_exec).build());
 
         assert!(result.is_err());
+    }
+
+    #[cfg(feature = "experimental-module-state")]
+    #[test]
+    fn module_state_init() {
+        use super::pyo3_module_state_init;
+
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        struct UserState(u64);
+
+        static NAME: &CStr = c"test_module_state_init";
+        static DOC: &CStr = c"This test is for checking PyO3 ModuleState is initialized correctly";
+
+        static SLOTS: PyModuleSlots = PyModuleSlotsBuilder::new().with_gil_used(false).build();
+
+        static MODULE_DEF: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS, true, None, None);
+
+        Python::attach(|py| {
+            let module = MODULE_DEF
+                .make_module(py)
+                .expect("module to initialize without error")
+                .into_bound(py);
+
+            let mystate = UserState(42);
+
+            pyo3_module_state_init(&module, mystate).expect("state initialization should succeed");
+
+            assert_eq!(
+                Some(&mystate),
+                module.module_state::<UserState>(),
+                "initialized state is referenceable"
+            );
+        })
+    }
+
+    #[cfg(feature = "experimental-module-state")]
+    #[test]
+    fn module_state_type_mismatch() {
+        use super::pyo3_module_state_init;
+
+        #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+        struct StateA(i32);
+
+        #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+        struct StateB(i32);
+
+        static NAME: &CStr = c"test_type_mismatch";
+        static DOC: &CStr = c"";
+        static SLOTS: PyModuleSlots = PyModuleSlotsBuilder::new().build();
+        static MODULE_DEF: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS, true, None, None);
+
+        Python::attach(|py| {
+            let module = MODULE_DEF.make_module(py).unwrap().into_bound(py);
+            let state_a = StateA(42);
+
+            pyo3_module_state_init(&module, state_a).unwrap();
+
+            // Type A accessible
+            assert_eq!(Some(&state_a), module.module_state::<StateA>());
+
+            // Type B (different type) returns None - safe type mismatch handling
+            assert_eq!(None, module.module_state::<StateB>());
+        })
+    }
+
+    #[test]
+    fn module_state_without_allocation() {
+        static NAME: &CStr = c"test_no_state";
+        static DOC: &CStr = c"";
+        static SLOTS: PyModuleSlots = PyModuleSlotsBuilder::new().build();
+
+        // allocate_state = false
+        static MODULE_DEF: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS, false, None, None);
+
+        Python::attach(|py| {
+            let _module = MODULE_DEF.make_module(py).unwrap().into_bound(py);
+
+            #[expect(dead_code)]
+            #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+            struct AnyState(i32);
+
+            // No state allocated, always returns None
+            #[cfg(feature = "experimental-module-state")]
+            assert_eq!(None, _module.module_state::<AnyState>());
+        })
+    }
+
+    #[cfg(feature = "experimental-module-state")]
+    #[test]
+    fn module_state_mutable_access() {
+        use super::pyo3_module_state_init;
+
+        #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+        struct Counter {
+            value: i32,
+        }
+
+        static NAME: &CStr = c"test_mutable";
+        static DOC: &CStr = c"";
+        static SLOTS: PyModuleSlots = PyModuleSlotsBuilder::new().build();
+        static MODULE_DEF: ModuleDef = ModuleDef::new(NAME, DOC, &SLOTS, true, None, None);
+
+        Python::attach(|py| {
+            let mut module = MODULE_DEF.make_module(py).unwrap().into_bound(py);
+
+            let initial = Counter { value: 0 };
+            pyo3_module_state_init(&module, initial).unwrap();
+
+            // Verify initial
+            assert_eq!(Some(&initial), module.module_state::<Counter>());
+
+            // Modify via mutable access
+            unsafe {
+                if let Some(state) = module.module_state_mut::<Counter>() {
+                    state.value = 42;
+                }
+            }
+
+            // Verify modification persists
+            let expected = Counter { value: 42 };
+            assert_eq!(Some(&expected), module.module_state::<Counter>());
+        })
     }
 
     #[test]

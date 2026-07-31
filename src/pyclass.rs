@@ -6,7 +6,9 @@ mod create_type_object;
 mod gc;
 mod guard;
 
-pub(crate) use self::create_type_object::{create_type_object, PyClassTypeObject};
+pub(crate) use self::create_type_object::{
+    create_type_object, create_type_object_with_module, PyClassTypeObject,
+};
 
 pub use self::gc::{PyTraverseError, PyVisit};
 pub use self::guard::{

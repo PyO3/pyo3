@@ -653,6 +653,30 @@ impl<'py> Python<'py> {
         T::type_object(self)
     }
 
+    /// Gets the module state for a type.
+    ///
+    /// Returns `Ok(None)` if the type's module doesn't have state, the state is not initialized,
+    /// or doesn't match the requested state type.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// if let Some(state) = py.get_module_state::<MyType, MyState>()? {
+    ///     // Use state
+    /// }
+    /// ```
+    #[cfg(feature = "experimental-module-state")]
+    pub fn type_module_state<T, S>(self) -> PyResult<Option<&'py S>>
+    where
+        T: PyTypeInfo,
+        S: 'static,
+    {
+        use crate::impl_::pymodule_state::ModuleState;
+        let type_ptr = T::type_object_raw(self);
+        // Safety: `type_ptr` is a valid pointer to a Python type object
+        unsafe { ModuleState::get_from_type_ptr::<S>(self, type_ptr) }
+    }
+
     /// Imports the Python module with the specified name.
     pub fn import<N>(self, name: N) -> PyResult<Bound<'py, PyModule>>
     where

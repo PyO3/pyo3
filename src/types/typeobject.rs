@@ -4,6 +4,8 @@ use crate::instance::Borrowed;
 use crate::pybacked::PyBackedStr;
 #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_13)))]
 use crate::types::any::PyAnyMethods;
+#[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+use crate::types::PyModule;
 use crate::types::PyTuple;
 use crate::{ffi, Bound, PyAny, PyTypeInfo, Python};
 #[cfg(RustPython)]
@@ -108,6 +110,23 @@ pub trait PyTypeMethods<'py>: crate::sealed::Sealed {
     ///
     /// Equivalent to the Python expression `self.__bases__`.
     fn bases(&self) -> Bound<'py, PyTuple>;
+
+    /// Get the module object that defines this type.
+    ///
+    /// # Errors
+    /// Returns an error if the type doesn't have a module.
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+    fn module_object(&self) -> PyResult<Bound<'py, PyModule>>;
+
+    /// Get the module state from this type's module.
+    ///
+    /// Returns `Ok(None)` if the module doesn't have state.
+    ///
+    /// # Errors
+    /// Returns an error if the type doesn't have a module or if state retrieval fails.
+    #[cfg(feature = "experimental-module-state")]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+    fn module_state<T: 'static>(&self) -> PyResult<Option<&'py T>>;
 }
 
 impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
@@ -254,6 +273,25 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
         };
 
         bases
+    }
+
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+    fn module_object(&self) -> PyResult<Bound<'py, PyModule>> {
+        unsafe {
+            let mod_ptr = ffi::PyType_GetModule(self.as_type_ptr());
+            if mod_ptr.is_null() {
+                return Err(err::PyErr::fetch(self.py()));
+            }
+            Ok(Bound::from_borrowed_ptr(self.py(), mod_ptr).cast_into_unchecked::<PyModule>())
+        }
+    }
+
+    #[cfg(feature = "experimental-module-state")]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+    fn module_state<T: 'static>(&self) -> PyResult<Option<&'py T>> {
+        use crate::impl_::pymodule_state::ModuleState;
+        // SAFETY: `self.as_type_ptr()` is a valid pointer to a Python type object
+        unsafe { ModuleState::get_from_type_ptr::<T>(self.py(), self.as_type_ptr()) }
     }
 }
 

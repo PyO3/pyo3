@@ -820,6 +820,10 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// This is equivalent to the Python expression `super()`
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>>;
+
+    // We do not provide a type_module_state mut since users cannot lock the module
+    // during access to the state, so it cannot be safe to access a mutable reference
+    // to the state.
 }
 
 macro_rules! implement_binop {

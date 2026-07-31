@@ -10,6 +10,7 @@ rust-version = "1.83"
 [features]
 experimental-async = ["pyo3/experimental-async"]
 experimental-inspect = ["pyo3/experimental-inspect"]
+experimental-module-state = ["pyo3/experimental-module-state"]
 
 [dependencies]
 pyo3.path = "../"

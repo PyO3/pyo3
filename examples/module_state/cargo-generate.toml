@@ -1,0 +1,15 @@
+[template]
+# This file is used by cargo-generate if someone wants to use this
+# as a template for creating new module state projects
+exclude = [".git", "target", ".template"]
+
+[placeholders.project_name]
+type = "string"
+prompt = "What is the name of your project?"
+regex = "^[a-zA-Z][a-zA-Z0-9_-]*$"
+
+[placeholders.module_name]
+type = "string"
+prompt = "What would you like your module to be called in Python?"
+regex = "^[a-z][a-z0-9_]*$"
+default = "my_module"

@@ -15,7 +15,7 @@ use crate::{
     exceptions::PyRuntimeError,
     ffi,
     impl_::pymethods::PyMethodDefType,
-    pyclass::{create_type_object, PyClassTypeObject},
+    pyclass::{create_type_object, create_type_object_with_module, PyClassTypeObject},
     types::PyType,
     Bound, Py, PyAny, PyClass, PyErr, PyResult, Python,
 };
@@ -76,6 +76,62 @@ impl<T: PyClass> LazyTypeObject<T> {
             <T as PyClass>::NAME,
             T::items_iter(),
         )
+    }
+
+    /// Gets the type object, initializing it with module association.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The type has already been created (race condition guard)
+    /// - Type creation fails
+    ///
+    /// This method enforces that the type is created with proper module context,
+    /// enabling `PyType_GetModule()` and `module_state()` to work correctly.
+    #[cold]
+    pub fn try_init_with_module<'py>(
+        &self,
+        py: Python<'py>,
+        module: *mut ffi::PyObject,
+    ) -> PyResult<&Bound<'py, PyType>> {
+        // Race condition guard: type must not already be created
+        if self.0.fully_initialized_type.get(py).is_some() {
+            return Err(PyErr::new::<crate::exceptions::PyTypeError, _>(
+                "Cannot create type with module: type already exists. \
+                 Call this method early in module initialization, \
+                 before the type is accessed elsewhere.",
+            ));
+        }
+
+        // Manually perform initialization with module, similar to try_init but with module passed
+        (|| -> PyResult<_> {
+            let PyClassTypeObject {
+                type_object,
+                is_immutable_type,
+                ..
+            } = self
+                .0
+                .value
+                .get_or_try_init(py, || create_type_object_with_module::<T>(py, module))?;
+            let type_object = type_object.bind(py);
+            self.0.ensure_init(
+                type_object,
+                *is_immutable_type,
+                <T as PyClass>::NAME,
+                T::items_iter(),
+            )?;
+            Ok(type_object)
+        })()
+        .map_err(|err| {
+            wrap_in_runtime_error(
+                py,
+                err,
+                format!(
+                    "An error occurred while initializing class {}",
+                    <T as PyClass>::NAME
+                ),
+            )
+        })
     }
 }
 

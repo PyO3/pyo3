@@ -1,6 +1,8 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
+#[cfg(feature = "experimental-module-state")]
+use crate::impl_::pymodule_state::ModuleState;
 use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
@@ -266,6 +268,16 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// Instead, this method is *generic*, and requires us to use the
     /// "turbofish" syntax to specify the class we want to add.
     ///
+    /// # Module Association and Module State
+    ///
+    /// When using module state, you need to use [`add_class_with_module`] instead.
+    /// If your class methods call `module_state()` or access `PyType_GetModuleState()`,
+    /// the type *must* be created with proper module context. This happens automatically
+    /// when using `add_class_with_module`, but `add_class` creates the type without
+    /// module context (if the type hasn't been accessed yet).
+    ///
+    /// For types that don't use module state, `add_class` is sufficient.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
@@ -281,24 +293,40 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// }
     ///  ```
     ///
-    /// Python code can see this class as such:
-    /// ```python
-    /// from my_module import Foo
-    ///
-    /// print("Foo is", Foo)
-    /// ```
-    ///
-    /// This will result in the following output:
-    /// ```text
-    /// Foo is <class 'builtins.Foo'>
-    /// ```
-    ///
-    /// Note that as we haven't defined a [constructor][1], Python code can't actually
-    /// make an *instance* of `Foo` (or *get* one for that matter, as we haven't exported
-    /// anything that can return instances of `Foo`).
-    ///
+    /// [`add_class_with_module`]: Self::add_class_with_module
     #[doc = concat!("[1]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/class.html#constructor")]
     fn add_class<T>(&self) -> PyResult<()>
+    where
+        T: PyClass;
+
+    /// Adds a class to a module with module context.
+    ///
+    /// This method should be used when you need `PyType_GetModuleState()` or `module_state()`
+    /// to work correctly in class methods. It ensures the type is created with the proper
+    /// module association, enabling module state access.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the type has already been created (cached). To use this method,
+    /// you must call it *before* the class type is first accessed elsewhere in your code.
+    /// This is typically done early in the module initialization.
+    ///
+    /// If you don't need module state in your class methods, prefer the regular [`add_class`]
+    /// method instead.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// #[pymodule]
+    /// fn my_module(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+    ///     // Add class with module context - enables module_state() calls
+    ///     m.add_class_with_module::<MyClass>()?;
+    ///     Ok(())
+    /// }
+    /// ```
+    ///
+    /// [`add_class`]: Self::add_class
+    fn add_class_with_module<T>(&self) -> PyResult<()>
     where
         T: PyClass;
 
@@ -417,6 +445,40 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// This is a no-op on the GIL-enabled build.
     fn gil_used(&self, gil_used: bool) -> PyResult<()>;
+
+    /// Get a reference to the module state of type T
+    ///
+    /// Returns None if state is not initialized or type doesn't match.
+    ///
+    /// # Example
+    /// ```ignore
+    /// if let Some(state) = m.module_state::<MyState>() {
+    ///     println!("State: {:?}", state);
+    /// }
+    /// ```
+    #[cfg(feature = "experimental-module-state")]
+    fn module_state<T: 'static>(&self) -> Option<&T>;
+
+    /// Get a mutable reference to the module state of type T
+    ///
+    /// Returns None if state is not initialized or type doesn't match.
+    ///
+    /// # Safety
+    ///
+    /// This is unsafe because it bypasses Rust's borrow checker.
+    /// You must ensure no other references exist to the state.
+    /// Locking the module in a critical section can be used to ensure this.
+    ///
+    /// # Example
+    /// ```ignore
+    /// unsafe {
+    ///     if let Some(state) = m.module_state_mut::<MyState>() {
+    ///         state.initialize()?;
+    ///     }
+    /// }
+    /// ```
+    #[cfg(feature = "experimental-module-state")]
+    unsafe fn module_state_mut<T: 'static>(&mut self) -> Option<&mut T>;
 }
 
 impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
@@ -520,6 +582,17 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         )
     }
 
+    fn add_class_with_module<T>(&self) -> PyResult<()>
+    where
+        T: PyClass,
+    {
+        let py = self.py();
+        self.add(
+            <T as PyClass>::NAME,
+            T::lazy_type_object().try_init_with_module(py, self.as_ptr())?,
+        )
+    }
+
     fn add_wrapped<T>(&self, wrapper: &impl Fn(Python<'py>) -> T) -> PyResult<()>
     where
         T: IntoPyCallbackOutput<'py, Py<PyAny>>,
@@ -563,6 +636,16 @@ impl<'py> PyModuleMethods<'py> for Bound<'py, PyModule> {
         }
         #[cfg(any(Py_LIMITED_API, not(Py_GIL_DISABLED)))]
         Ok(())
+    }
+
+    #[cfg(feature = "experimental-module-state")]
+    fn module_state<T: 'static>(&self) -> Option<&T> {
+        ModuleState::from_bound(self).and_then(|state| state.inner_ref::<T>())
+    }
+
+    #[cfg(feature = "experimental-module-state")]
+    unsafe fn module_state_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        ModuleState::from_bound_mut(self).and_then(|state| state.inner_mut::<T>())
     }
 }
 
