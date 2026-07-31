@@ -729,7 +729,7 @@ impl Drop for PyUntypedBuffer {
         if Python::try_attach(|_| unsafe { self.0.release() }).is_none()
             && crate::internal::state::is_in_gc_traversal()
         {
-            // NOTE: write using libc becuase we can't call python APIs during gc traversal
+            // NOTE: write using libc because we can't call python APIs during gc traversal
             let message = "Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory.";
             unsafe {
                 libc::write(2, message.as_ptr().cast(), message.len());
