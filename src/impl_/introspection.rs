@@ -27,6 +27,11 @@ impl<T: PyReturnType, E> PyReturnType for Result<T, E> {
     const OUTPUT_TYPE: PyStaticExpr = T::OUTPUT_TYPE;
 }
 
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be converted to a Python object",
+    label = "required by `#[pyo3(get)]` to create a readable property from a field of type `{Self}`",
+    note = "implement `IntoPyObject` for `&{Self}` or `IntoPyObject + Clone` for `{Self}` to define the conversion"
+)]
 pub trait PyIntoPyObjectMaybeRefType<const REF_IMPL_EXISTS: bool> {
     const OUTPUT_TYPE: PyStaticExpr;
 }
