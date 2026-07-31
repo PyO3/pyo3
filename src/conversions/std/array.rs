@@ -9,6 +9,8 @@ use crate::types::PySequence;
 use crate::{err::CastError, ffi, FromPyObject, PyAny, PyResult, PyTypeInfo, Python};
 use crate::{exceptions, Borrowed, Bound, PyErr};
 
+use core::mem::MaybeUninit;
+
 impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
 where
     T: IntoPyObject<'py>,
@@ -91,8 +93,21 @@ fn array_try_from_fn<E, F, T, const N: usize>(mut cb: F) -> Result<[T; N], E>
 where
     F: FnMut(usize) -> Result<T, E>,
 {
-    use core::mem::MaybeUninit;
+    let mut array: [MaybeUninit<T>; N] = [const { MaybeUninit::uninit() }; N];
 
+    array_try_from_fn_erased(&mut array, &mut cb)?;
+
+    // TODO: use `MaybeUninit::array_assume_init` if that stabilises in future?
+    //
+    // SAFETY: the loop above has fully initialized all `N` elements of `array`,
+    // since we only exit the loop once `guard.initialized == N`.
+    Ok(array.map(|elem| unsafe { elem.assume_init() }))
+}
+
+fn array_try_from_fn_erased<E, T>(
+    buffer: &mut [MaybeUninit<T>],
+    cb: &mut impl FnMut(usize) -> Result<T, E>,
+) -> Result<(), E> {
     // Panic guard for incremental initialization of arrays.
     //
     // Disarm the guard with `mem::forget` once the array has been initialized.
@@ -101,6 +116,27 @@ where
         array_mut: &'a mut [MaybeUninit<T>],
         // The number of items that have been initialized so far.
         initialized: usize,
+    }
+
+    impl<T> Guard<'_, T> {
+        // Adds an item to the array and updates the initialized item counter.
+        //
+        // # Safety
+        //
+        // No more than N elements must be initialized.
+        #[inline]
+        unsafe fn push_unchecked(&mut self, item: T) {
+            // SAFETY: If `initialized` was correct before and the caller does not
+            // invoke this method more than N times, then writes will be in-bounds
+            // and slots will not be initialized more than once.
+            unsafe {
+                self.array_mut
+                    .get_unchecked_mut(self.initialized)
+                    .write(item);
+
+                self.initialized = self.initialized.unchecked_add(1)
+            }
+        }
     }
 
     impl<T> Drop for Guard<'_, T> {
@@ -116,26 +152,20 @@ where
         }
     }
 
-    let mut array: [MaybeUninit<T>; N] = [const { MaybeUninit::uninit() }; N];
-
     let mut guard = Guard {
-        array_mut: &mut array,
+        array_mut: buffer,
         initialized: 0,
     };
 
-    while guard.initialized < N {
+    while guard.initialized < guard.array_mut.len() {
         let item = cb(guard.initialized)?;
-        guard.array_mut[guard.initialized].write(item);
-        guard.initialized += 1;
+        // SAFETY: loop condition ensures there's space to push the item.
+        unsafe { guard.push_unchecked(item) };
     }
 
     core::mem::forget(guard);
 
-    // TODO: use `MaybeUninit::array_assume_init` if that stabilises in future?
-    //
-    // SAFETY: the loop above has fully initialized all `N` elements of `array`,
-    // since we only exit the loop once `guard.initialized == N`.
-    Ok(array.map(|elem| unsafe { elem.assume_init() }))
+    Ok(())
 }
 
 pub(crate) fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
