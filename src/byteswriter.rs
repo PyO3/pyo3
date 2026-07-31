@@ -25,7 +25,6 @@ use crate::{
 use crate::{types::PyBytes, Bound, IntoPyObject, PyErr, PyResult, Python};
 #[cfg(not(Py_LIMITED_API))]
 use core::{mem::ManuallyDrop, ptr::NonNull};
-use std::io::IoSlice;
 
 /// Type used to create a [`PyBytes`], used in [`PyBytes::new_with_writer`].
 pub struct PyBytesWriter<'py> {
@@ -178,7 +177,7 @@ impl std::io::Write for PyBytesWriter<'_> {
         Ok(buf.len())
     }
 
-    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> std::io::Result<usize> {
+    fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
         let len = bufs.iter().map(|b| b.len()).sum();
         let pos = self.len();
 
@@ -215,7 +214,7 @@ impl std::io::Write for PyBytesWriter<'_> {
         self.buffer.write(buf)
     }
 
-    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> std::io::Result<usize> {
+    fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
         self.buffer.write_vectored(bufs)
     }
 
@@ -239,7 +238,7 @@ mod tests {
     #[cfg(wip_feature_std)]
     use crate::types::PyBytesMethods;
     #[cfg(wip_feature_std)]
-    use std::io::Write;
+    use std::io::{IoSlice, Write};
 
     #[test]
     #[cfg_attr(not(wip_feature_std), ignore)]
