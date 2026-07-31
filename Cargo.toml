@@ -433,7 +433,3 @@ required-features = ["macros"]
 [[test]]
 name = "test_various"
 required-features = ["macros"]
-
-[[test]]
-name = "test_pymem_alloc"
-required-features = ["macros"]
