@@ -17,8 +17,8 @@ use core::{
     ptr,
 };
 
-/// `GlobalAlloc` implementation backed by CPython's `PyMem_Raw*` functions  
-/// (`PYMEM_DOMAIN_RAW`). Safe to use from any thread, attached or not,  
+/// `GlobalAlloc` implementation backed by CPython's `PyMem_Raw*` functions
+/// (`PYMEM_DOMAIN_RAW`). Safe to use from any thread, attached or not,
 /// since the raw domain doesn't require an attached thread state.
 pub struct PyMemRawAllocator;
 
