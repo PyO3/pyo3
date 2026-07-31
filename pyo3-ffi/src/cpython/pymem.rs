@@ -1,22 +1,6 @@
 use core::ffi::c_void;
 use libc::size_t;
 
-extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyMem_RawMalloc")]
-    pub fn PyMem_RawMalloc(size: size_t) -> *mut c_void;
-    #[cfg_attr(PyPy, link_name = "PyPyMem_RawCalloc")]
-    pub fn PyMem_RawCalloc(nelem: size_t, elsize: size_t) -> *mut c_void;
-    #[cfg_attr(PyPy, link_name = "PyPyMem_RawRealloc")]
-    pub fn PyMem_RawRealloc(ptr: *mut c_void, new_size: size_t) -> *mut c_void;
-    #[cfg_attr(PyPy, link_name = "PyPyMem_RawFree")]
-    pub fn PyMem_RawFree(ptr: *mut c_void);
-
-    // skipped _PyMem_GetCurrentAllocatorName
-    // skipped _PyMem_RawStrdup
-    // skipped _PyMem_Strdup
-    // skipped _PyMem_RawWcsdup
-}
-
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub enum PyMemAllocatorDomain {
