@@ -103,6 +103,8 @@ $ python
 '25'
 ```
 
+When checking runtime performance, run `maturin develop --release` to build with optimizations.
+
 To make changes to the package, just edit the Rust source code and then re-run `maturin develop` to recompile.
 
 To run this all as a single copy-and-paste, use the bash script below (replace `string_sum` in the first command with the desired package name):
