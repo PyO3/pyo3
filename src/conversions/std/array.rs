@@ -85,8 +85,8 @@ where
     })
 }
 
-// TODO use core::array::try_from_fn, if that stabilises:
-// (https://github.com/rust-lang/rust/issues/89379)
+// TODO: use `core::array::try_from_fn`, if that stabilises:
+// https://github.com/rust-lang/rust/issues/89379
 fn array_try_from_fn<E, F, T, const N: usize>(mut cb: F) -> Result<[T; N], E>
 where
     F: FnMut(usize) -> Result<T, E>,
@@ -116,7 +116,7 @@ where
         }
     }
 
-    let mut array: [MaybeUninit<T>; N] = [const { core::mem::MaybeUninit::uninit() }; N];
+    let mut array: [MaybeUninit<T>; N] = [const { MaybeUninit::uninit() }; N];
 
     let mut guard = Guard {
         array_mut: &mut array,
@@ -131,11 +131,11 @@ where
 
     core::mem::forget(guard);
 
-    // TODO: use MaybeUninit::array_assume_init if that stabilises in future?
-    Ok(array.map(|elem|
-        // SAFETY: the loop above has fully initialized all `N` elements of `array`,
-        // since we only exit the loop once `guard.initialized == N`.
-        unsafe { elem.assume_init() }))
+    // TODO: use `MaybeUninit::array_assume_init` if that stabilises in future?
+    //
+    // SAFETY: the loop above has fully initialized all `N` elements of `array`,
+    // since we only exit the loop once `guard.initialized == N`.
+    Ok(array.map(|elem| unsafe { elem.assume_init() }))
 }
 
 pub(crate) fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
