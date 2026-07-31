@@ -116,7 +116,7 @@ where
         }
     }
 
-    let mut array: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
+    let mut array: [MaybeUninit<T>; N] = [const { core::mem::MaybeUninit::uninit() }; N];
 
     let mut guard = Guard {
         array_mut: &mut array,
