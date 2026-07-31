@@ -1,5 +1,6 @@
 #![cfg(feature = "macros")]
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 
 use pyo3::create_exception;
@@ -269,5 +270,41 @@ fn test_inner_module_full_path() {
     Python::attach(|py| {
         let m = declarative_module(py);
         py_assert!(py, m, "m.full_path_inner");
+    })
+}
+
+static NO_ARG_INIT_RAN: AtomicBool = AtomicBool::new(false);
+
+/// A `#[pymodule_init]` that does not take the module cannot add attributes to it, which is what
+/// lets the module stay complete for introspection. It is still called.
+#[pymodule]
+mod module_with_no_arg_init {
+    use super::NO_ARG_INIT_RAN;
+    use pyo3::prelude::*;
+    use std::sync::atomic::Ordering;
+
+    #[pyfunction]
+    pub fn triple(x: usize) -> usize {
+        x * 3
+    }
+
+    #[pymodule_init]
+    #[expect(clippy::unnecessary_wraps)]
+    fn init() -> PyResult<()> {
+        NO_ARG_INIT_RAN.store(true, Ordering::SeqCst);
+        Ok(())
+    }
+}
+
+#[test]
+fn test_pymodule_init_without_module() {
+    Python::attach(|py| {
+        let m = pyo3::wrap_pymodule!(module_with_no_arg_init)(py);
+        let m = m.bind(py);
+        py_assert!(py, m, "m.triple(3) == 9");
+        assert!(
+            NO_ARG_INIT_RAN.load(Ordering::SeqCst),
+            "a `#[pymodule_init]` taking no argument should still be called"
+        );
     })
 }
