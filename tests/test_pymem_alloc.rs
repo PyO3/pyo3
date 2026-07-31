@@ -3,7 +3,7 @@
 use pyo3::pymem_alloc::PyMemRawAllocator;
 
 #[global_allocator]
-static GLOBAL: PyMemRawAllocator = PyMemRawAllocator;
+static GLOBAL_ALLOCATOR: PyMemRawAllocator = PyMemRawAllocator;
 
 #[test]
 fn allocations_work_through_global_allocator() {
