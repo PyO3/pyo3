@@ -673,7 +673,7 @@ mod tests {
             };
             assert_eq!((*module_def.ffi_def.get()).m_slots, expected_slots);
         }
-        #[cfg(Py_3_15)]
+        #[cfg(all(Py_3_15, not(all(Py_LIMITED_API, Py_GIL_DISABLED))))]
         unsafe {
             let secondary_slots = &*SECONDARY_SLOTS.0.get();
             assert_eq!(secondary_slots[0].slot, ffi::Py_slot_subslots);
