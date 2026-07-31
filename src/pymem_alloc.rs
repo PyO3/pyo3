@@ -12,6 +12,7 @@
 
 use core::{
     alloc::{GlobalAlloc, Layout},
+    ffi::c_void,
     mem::size_of,
     ptr,
 };
@@ -39,7 +40,10 @@ const MAX_ALIGN: usize = cfg_select! {
 const HEADER: usize = size_of::<*mut u8>();
 
 #[cold]
-unsafe fn raw_alloc_aligned_with_header(layout: Layout) -> *mut u8 {
+unsafe fn raw_alloc_with_header(
+    layout: Layout,
+    alloc_fn: impl FnOnce(usize) -> *mut c_void,
+) -> *mut u8 {
     let Some(total) = layout
         .size()
         .checked_add(layout.align())
@@ -48,29 +52,12 @@ unsafe fn raw_alloc_aligned_with_header(layout: Layout) -> *mut u8 {
         return ptr::null_mut();
     };
 
-    let raw = unsafe { pyo3_ffi::PyMem_RawMalloc(total) } as *mut u8;
+    let raw = unsafe { alloc_fn(total) } as *mut u8;
 
     if raw.is_null() {
         return ptr::null_mut();
     }
 
-    unsafe { finish_aligned(raw, layout) }
-}
-
-#[cold]
-unsafe fn raw_calloc_aligned_with_header(layout: Layout) -> *mut u8 {
-    let Some(total) = layout
-        .size()
-        .checked_add(layout.align())
-        .and_then(|total| total.checked_add(HEADER))
-    else {
-        return ptr::null_mut();
-    };
-    let raw = unsafe { pyo3_ffi::PyMem_RawCalloc(1, total) } as *mut u8;
-
-    if raw.is_null() {
-        return ptr::null_mut();
-    }
     unsafe { finish_aligned(raw, layout) }
 }
 
@@ -94,7 +81,7 @@ unsafe impl GlobalAlloc for PyMemRawAllocator {
         if layout.align() <= MAX_ALIGN {
             unsafe { pyo3_ffi::PyMem_RawMalloc(layout.size()) as *mut u8 }
         } else {
-            unsafe { raw_alloc_aligned_with_header(layout) }
+            unsafe { raw_alloc_with_header(layout, |total| pyo3_ffi::PyMem_RawMalloc(total)) }
         }
     }
 
@@ -111,7 +98,7 @@ unsafe impl GlobalAlloc for PyMemRawAllocator {
         if layout.align() <= MAX_ALIGN {
             unsafe { pyo3_ffi::PyMem_RawCalloc(1, layout.size()) as *mut u8 }
         } else {
-            unsafe { raw_calloc_aligned_with_header(layout) }
+            unsafe { raw_alloc_with_header(layout, |total| pyo3_ffi::PyMem_RawCalloc(1, total)) }
         }
     }
 
