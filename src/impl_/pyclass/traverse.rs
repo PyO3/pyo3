@@ -7,6 +7,8 @@ use crate::{
 ///
 /// Type parameter `T` is necessary to make the trait local to the implementing crate.
 pub trait PyClassTraverse<T> {
+    /// `self` is used for autoref specialization of `PyClassImplCollector` and `&PyClassImplCollector`.
+    /// `this` is the instance of the class being traversed.
     fn __traverse__(self, this: &T, visit: PyVisit<'_>) -> Result<(), PyTraverseError>;
 }
 
