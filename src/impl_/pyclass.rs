@@ -7,6 +7,7 @@ use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
     ffi_ptr_ext::FfiPtrExt,
+    gc::{PyTraverseError, PyVisit},
     impl_::{
         freelist::PyObjectFreeList,
         pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout},
@@ -31,10 +32,12 @@ pub mod doc;
 mod lazy_type_object;
 #[macro_use]
 mod probes;
+mod traverse;
 
 pub use assertions::*;
 pub use lazy_type_object::{pyclass_type_object_raw, type_object_init_failed, LazyTypeObject};
 pub use probes::*;
+pub use traverse::PyClassTraverse;
 
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
@@ -152,7 +155,7 @@ impl PyClassWeakRef for PyClassWeakRefSlot {
 pub struct PyClassImplCollector<T>(PhantomData<T>);
 
 impl<T> PyClassImplCollector<T> {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self(PhantomData)
     }
 }
@@ -271,6 +274,8 @@ pub trait PyClassImpl: Sized + 'static {
     }
 
     fn lazy_type_object() -> &'static LazyTypeObject<Self>;
+
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>;
 }
 
 mod generic_pyclass {
@@ -1158,13 +1163,12 @@ pub trait PyClassBaseType: Sized {
     type Layout<T: PyClassImpl>;
 }
 
-/// Implementation of tp_dealloc for pyclasses without gc
+/// Implementation of tp_dealloc for `#[pyclass]` types
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
-    unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
-}
-
-/// Implementation of tp_dealloc for pyclasses with gc
-pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::PyObject) {
+    // All PyO3 types are heap allocated and are required to implement GC traversal to
+    // enable traversing the type object at a minimum.
+    // SAFETY: `obj` is guaranteed to be a Python object (this function is called from the Python interpreter)
+    debug_assert_eq!(unsafe { ffi::PyType_IS_GC(ffi::Py_TYPE(obj)) }, 1);
     #[cfg(not(PyPy))]
     unsafe {
         ffi::PyObject_GC_UnTrack(obj.cast());

@@ -1,0 +1,19 @@
+error[E0080]: evaluation panicked: an implementation of `__clear__` requires an implementation of `__traverse__`
+  --> tests/ui/clear_without_traverse.rs:8:8
+   |
+ 8 |     fn __clear__(&mut self) {}
+   |        ^^^^^^^^^ evaluation of `<impl pyo3::impl_::pyclass::PyMethods<ClearWithoutTraverse> for pyo3::impl_::pyclass::PyClassImplCollector<ClearWithoutTraverse>>::py_methods::ITEMS::_` failed inside this call
+   |
+note: inside `pyo3::impl_::pyclass::assertions::assert_type_implements_traverse`
+  --> /rustc/31fca3adb283cc9dfd56b49cdee9a96eb9c96ffd/library/core/src/panic.rs:62:8
+   |
+   = note: the failure occurred here
+   |
+  ::: src/impl_/pyclass/assertions.rs:21:9
+   |
+21 |         panic!("an implementation of `__clear__` requires an implementation of `__traverse__`");
+   |         --------------------------------------------------------------------------------------- in this macro invocation
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0080`.

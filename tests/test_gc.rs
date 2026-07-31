@@ -876,6 +876,47 @@ fn test_super_traverse_early_return_does_not_abort() {
     });
 }
 
+#[test]
+fn python_subclass_type_cycle_is_collected() {
+    #[pyclass(subclass)]
+    struct Base;
+
+    #[pymethods]
+    impl Base {
+        #[new]
+        fn new() -> Self {
+            Self
+        }
+    }
+
+    Python::attach(|py| {
+        let locals = pyo3::types::PyDict::new(py);
+        locals.set_item("Base", py.get_type::<Base>()).unwrap();
+        py.run(
+            c"\
+import gc
+import weakref
+
+class Sub(Base):
+    pass
+
+instance = Sub()
+# Sub owns instance through its type dict; instance owns Sub through ob_type.
+Sub.instance = instance
+instance_ref = weakref.ref(instance)
+type_ref = weakref.ref(Sub)
+del instance, Sub
+gc.collect()
+assert instance_ref() is None
+assert type_ref() is None
+",
+            None,
+            Some(&locals),
+        )
+        .unwrap();
+    });
+}
+
 // A `#[pyclass(dict)]` can form a reference cycle through its instance `__dict__`
 // (`obj.attr = obj`). The tests below cover each valid combination of user-defined
 // `__traverse__` / `__clear__`; a `__clear__` without a `__traverse__` is rejected at
