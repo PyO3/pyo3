@@ -134,7 +134,10 @@ unsafe impl GlobalAlloc for PyMemRawAllocator {
         let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };
 
         if layout.align() <= MIN_ALIGN {
-            // SAFETY: `ptr` was allocated with `layout`, `PyMem_RawRealloc` handles the resize.
+            // SAFETY: CPython's `PyMem_RawRealloc` contract mirrors `PyMem_RawFree`:
+            // `ptr` must come from a prior `PyMem_Raw{Malloc,Realloc,Calloc}` call.
+            //
+            // See: https://docs.python.org/3/c-api/memory.html#c.PyMem_RawRealloc
             return unsafe { pyo3_ffi::PyMem_RawRealloc(ptr as *mut _, new_size) as *mut u8 };
         }
 
