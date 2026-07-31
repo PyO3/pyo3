@@ -105,9 +105,11 @@ unsafe impl GlobalAlloc for PyMemRawAllocator {
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        // `GlobalAlloc::realloc`'s contract guarantees `align` is unchanged between calls,
+        // so it's enough to check the (single, shared) alignment once.
         let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };
 
-        if layout.align() <= MIN_ALIGN && new_layout.align() <= MIN_ALIGN {
+        if layout.align() <= MIN_ALIGN {
             return unsafe { pyo3_ffi::PyMem_RawRealloc(ptr as *mut _, new_size) as *mut u8 };
         }
 
