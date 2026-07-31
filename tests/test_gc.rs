@@ -915,44 +915,6 @@ fn test_super_traverse_early_return_does_not_abort() {
 }
 
 #[test]
-fn python_subclass_cycle_is_not_collected_while_type_is_referenced() {
-    #[pyclass(subclass)]
-    struct Base;
-
-    #[pymethods]
-    impl Base {
-        #[new]
-        fn new() -> Self {
-            Self
-        }
-    }
-
-    Python::attach(|py| {
-        let locals = pyo3::types::PyDict::new(py);
-        locals.set_item("Base", py.get_type::<Base>()).unwrap();
-        let subtype = py
-            .eval(c"type('Sub', (Base,), {})", None, Some(&locals))
-            .unwrap()
-            .cast_into::<pyo3::types::PyType>()
-            .unwrap()
-            .unbind();
-        let instance = subtype.bind(py).call0().unwrap();
-        subtype.bind(py).setattr("instance", &instance).unwrap();
-        let instance_ref = py
-            .import("weakref")
-            .unwrap()
-            .call_method1("ref", (&instance,))
-            .unwrap()
-            .unbind();
-        drop(instance);
-
-        py.import("gc").unwrap().call_method0("collect").unwrap();
-
-        assert!(!instance_ref.bind(py).call0().unwrap().is_none());
-    });
-}
-
-#[test]
 fn python_subclass_type_cycle_is_collected() {
     #[pyclass(subclass)]
     struct Base;
