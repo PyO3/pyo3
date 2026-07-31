@@ -477,7 +477,7 @@ unsafe fn call_super_traverse(
     // which demonstrates CPython's expectation that the base heap type is responsible
     // for the traversal of the instance's type object.
     if ty.is_null() || unsafe { ffi::PyType_HasFeature(ty, Py_TPFLAGS_HEAPTYPE) } == 0 {
-        // If the base does not exist of is not a heap type, we are responsible for
+        // If the base does not exist or is not a heap type, we are responsible for
         // traversing the type object now (all PyO3 types are heap types).
         debug_assert_eq!(
             unsafe { ffi::PyType_HasFeature(this_type, Py_TPFLAGS_HEAPTYPE) },
