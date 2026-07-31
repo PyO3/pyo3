@@ -398,14 +398,6 @@ where
 {
     unsafe { call_super_traverse(slf, visit, arg, current_traverse) }?;
 
-    // Traverse the type object itself (necessary for heap types, which all PyO3 types are)
-    let type_object = unsafe { ffi::Py_TYPE(slf) };
-    debug_assert_eq!(
-        unsafe { ffi::PyType_HasFeature(type_object, Py_TPFLAGS_HEAPTYPE) },
-        1
-    );
-    make_traverse_result(unsafe { visit(type_object.cast(), arg) })?;
-
     // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
     // traversal is running so no mutations can occur.
     let class_object: &<T as PyClassImpl>::Layout = unsafe { &*slf.cast() };
@@ -453,6 +445,7 @@ unsafe fn call_super_traverse(
     // - (a) we cannot do refcounting and
     // - (b) the type of the object cannot change.
     let mut ty = unsafe { ffi::Py_TYPE(obj) };
+    let this_type = ty;
     let mut traverse: Option<ffi::traverseproc>;
 
     // First find the current type by the current_traverse function
@@ -475,6 +468,22 @@ unsafe fn call_super_traverse(
             break;
         }
         traverse = unsafe { get_slot(ty, TP_TRAVERSE) };
+    }
+
+    // If the base with a different traverse is not a heap type, this type is responsible
+    // for traversing the type object of this heap type (all PyO3 types are heap types).
+    //
+    // See also <https://github.com/python/cpython/blob/10a84540c2c2533e31f5f0649cc4e4afdd991ba2/Objects/typeobject.c#L2574-L2583>
+    // which demonstrates CPython's expectation that the base heap type is responsible
+    // for the traversal of the instance's type object.
+    if ty.is_null() || unsafe { ffi::PyType_HasFeature(ty, Py_TPFLAGS_HEAPTYPE) } == 0 {
+        // If the base does not exist of is not a heap type, we are responsible for
+        // traversing the type object now (all PyO3 types are heap types).
+        debug_assert_eq!(
+            unsafe { ffi::PyType_HasFeature(this_type, Py_TPFLAGS_HEAPTYPE) },
+            1
+        );
+        make_traverse_result(unsafe { visit(this_type.cast(), arg) })?;
     }
 
     // If we found a type with a different traverse function, call it
