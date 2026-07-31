@@ -157,8 +157,6 @@ chrono-local = ["chrono/clock", "dep:iana-time-zone"]
 # Optimizes PyObject to Vec conversion and so on.
 nightly = []
 
-pymem-raw-alloc = []
-
 # Activates all additional features
 # This is mostly intended for testing purposes - activating *all* of these isn't particularly useful.
 full = [
@@ -185,7 +183,6 @@ full = [
     "ordered-float",
     "parking_lot",
     "py-clone",
-    "pymem-raw-alloc",
     "rust_decimal",
     "serde",
     "smallvec",
@@ -439,4 +436,4 @@ required-features = ["macros"]
 
 [[test]]
 name = "test_pymem_alloc"
-required-features = ["pymem-raw-alloc"]
+required-features = ["macros"]

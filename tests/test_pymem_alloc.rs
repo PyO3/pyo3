@@ -1,5 +1,3 @@
-#![cfg(feature = "pymem-raw-alloc")]
-
 use pyo3::pymem_alloc::PyMemRawAllocator;
 
 #[global_allocator]

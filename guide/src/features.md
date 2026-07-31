@@ -147,23 +147,6 @@ See [the `#[pyclass]` implementation details](class.md#implementation-details) f
 The `nightly` feature needs the nightly Rust compiler.
 This allows PyO3 to use the `auto_traits` and `negative_impls` features to fix the `Python::detach` function.
 
-### `pymem-raw-alloc`
-
-This feature adds the `pyo3::pymem_alloc` module, providing `PyMemRawAllocator`, a `GlobalAlloc` implementation backed by CPython's `PyMem_RawMalloc` / `PyMem_RawCalloc` / `PyMem_RawRealloc` / `PyMem_RawFree` (the `PYMEM_DOMAIN_RAW` allocator domain).
-
-Unlike `PyMem_Malloc` (`PYMEM_DOMAIN_MEM`), the raw domain does not require an attached thread state, so it is safe to use as a process-wide `#[global_allocator]`, including on threads that are never attached to the Python interpreter.
-
-Routing all Rust allocations through `PyMem_Raw*` gives `tracemalloc` visibility into Rust-side memory usage for free, and can reduce allocator contention on the free-threaded build compared to the system allocator, without pulling in a large allocator such as `mimalloc`.
-
-This type is *not* registered as `#[global_allocator]` automatically; enabling the feature only makes the type available, opt in explicitly:
-
-```rust,ignore
-use pyo3::pymem_alloc::PyMemRawAllocator;
-
-#[global_allocator]
-static ALLOCATOR: PyMemRawAllocator = PyMemRawAllocator;
-```
-
 ## Optional Dependencies
 
 These features enable conversions between Python types and types from other Rust crates, enabling easy access to the rest of the Rust ecosystem.

@@ -102,10 +102,6 @@
 //! - `multiple-pymethods`: Enables the use of multiple [`#[pymethods]`](macro@crate::pymethods)
 //! blocks per [`#[pyclass]`](macro@crate::pyclass). This adds a dependency on the [inventory]
 //! crate, which is not supported on all platforms.
-//! - `pymem-raw-alloc`: Adds the [`pymem_alloc`] module, providing
-//! [`PyMemRawAllocator`](pymem_alloc::PyMemRawAllocator), a `GlobalAlloc` implementation backed by
-//! CPython's `PyMem_Raw*` allocator functions (`PYMEM_DOMAIN_RAW`).
-//! Not registered as the global allocator automatically.
 //!
 //! The following features enable interactions with other crates in the Rust ecosystem:
 //!
@@ -485,7 +481,7 @@ pub mod inspect;
 // other paths to the same items. (e.g. `pyo3::types::PyAnyMethods` instead of `pyo3::prelude::PyAnyMethods`).
 pub mod prelude;
 
-#[cfg(all(feature = "pymem-raw-alloc", not(Py_LIMITED_API)))]
+#[cfg(not(Py_LIMITED_API))]
 pub mod pymem_alloc;
 
 /// Test readme and user guide
