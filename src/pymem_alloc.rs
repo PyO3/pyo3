@@ -181,13 +181,12 @@ mod tests {
     use super::*;
 
     use alloc::vec::Vec;
-    use core::mem;
 
     // TODO: use `.addr()` directly on MSRV 1.84 (`ptr_addr(ptr)` -> `ptr.addr()`)
     #[inline(always)]
     fn ptr_addr<T>(ptr: *const T) -> usize {
         // SAFETY: Pointer-to-integer transmutes are valid.
-        unsafe { mem::transmute(ptr.cast::<()>()) }
+        unsafe { core::mem::transmute(ptr.cast::<()>()) }
     }
 
     // SAFETY: `ptr` must be valid for reads of `layout.size()` bytes.
