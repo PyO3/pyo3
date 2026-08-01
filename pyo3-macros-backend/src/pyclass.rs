@@ -1800,7 +1800,6 @@ impl FunctionIntrospectionData<'_> {
                 .python_signature
                 .make_all_parameters_positional_only();
         }
-        let returns = self.returns;
         self.names
             .iter()
             .flat_map(|name| {
@@ -1810,7 +1809,7 @@ impl FunctionIntrospectionData<'_> {
                     name,
                     &signature,
                     Some("self"),
-                    parse_quote!(-> #returns),
+                    PyExpr::from_return_type(self.returns.clone(), Some(cls)),
                     [],
                     false,
                     self.is_returning_not_implemented_on_extraction_error,
@@ -2212,19 +2211,20 @@ fn descriptors_to_items(
             #[cfg(feature = "experimental-inspect")]
             {
                 // We generate introspection data
-                let return_type = &field.ty;
+                let parent = parse_quote!(#cls);
+                let return_type = field.ty.clone();
                 getter.add_introspection(function_introspection_code(
                     &ctx.pyo3_path,
                     None,
                     &field_python_name(field, options.name.as_ref(), renaming_rule)?,
                     &FunctionSignature::from_arguments(vec![]),
                     Some("self"),
-                    parse_quote!(-> #return_type),
+                    PyExpr::from_into_py_object_maybe_ref(return_type, Some(&parent)),
                     vec![PyExpr::builtin("property")],
                     false,
                     false,
-                    utils::get_doc(&field.attrs, None).as_ref(),
-                    Some(&parse_quote!(#cls)),
+                    get_doc(&field.attrs, None).as_ref(),
+                    Some(&parent),
                 ));
             }
             items.push(getter);
@@ -2261,7 +2261,7 @@ fn descriptors_to_items(
                         annotation: None,
                     })]),
                     Some("self"),
-                    syn::ReturnType::Default,
+                    PyExpr::none(),
                     vec![PyExpr::attribute(
                         PyExpr::attribute(
                             PyExpr::from_type(
