@@ -1,3 +1,5 @@
+#![cfg(any(Py_3_13, not(Py_LIMITED_API)))]
+
 use pyo3::pymem_alloc::PyMemRawAllocator;
 
 #[global_allocator]
