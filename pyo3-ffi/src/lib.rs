@@ -409,7 +409,9 @@ macro_rules! opaque_struct {
 /// ```rust,no_run
 /// use core::ffi::CStr;
 ///
+/// # #[allow(deprecated)]
 /// const HELLO: &CStr = pyo3_ffi::c_str!("hello");
+/// # #[allow(deprecated)]
 /// static WORLD: &CStr = pyo3_ffi::c_str!("world");
 /// ```
 #[deprecated(since = "0.29.1", note = "use native c\"...\" literals instead")]

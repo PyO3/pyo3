@@ -474,7 +474,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
-    /// use pyo3_ffi::c_str;
     /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
@@ -531,7 +530,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3_ffi::c_str;
     /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
@@ -568,7 +566,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
-    /// use pyo3_ffi::c_str;
     /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
@@ -614,7 +611,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3_ffi::c_str;
     /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
@@ -651,7 +647,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3_ffi::c_str;
     /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"

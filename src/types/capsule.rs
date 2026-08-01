@@ -57,7 +57,7 @@ use core::ptr::{self, NonNull};
 ///
 /// # Example
 /// ```
-/// use pyo3::{prelude::*, types::PyCapsule, ffi::c_str};
+/// use pyo3::{prelude::*, types::PyCapsule};
 ///
 /// #[repr(C)]
 /// struct Foo {
@@ -110,7 +110,7 @@ impl PyCapsule {
     /// # Example
     ///
     /// ```
-    /// use pyo3::{prelude::*, types::PyCapsule, ffi::c_str};
+    /// use pyo3::{prelude::*, types::PyCapsule};
     /// use core::ffi::CStr;
     /// use core::ptr::NonNull;
     ///
