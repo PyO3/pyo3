@@ -411,7 +411,8 @@ pub fn impl_wrap_pyfunction(
     let introspection = function_introspection_code(
         pyo3_path,
         Some(name),
-        &name.to_string(),
+        // `name` is the Rust identifier, which `#[pyo3(name = "...")]` overrides for Python
+        &spec.python_name.to_string(),
         &spec.signature,
         None,
         match &func.sig.output {

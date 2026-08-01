@@ -414,6 +414,10 @@ pub fn method_introspection_code(
                 // We cant to keep the first argument type, hence this hack
                 spec.signature.arguments.pop();
                 spec.signature.python_signature.positional_parameters.pop();
+                // the `CompareOp` parameter is gone; keep the positional-only count in range
+                spec.signature
+                    .python_signature
+                    .make_all_parameters_positional_only();
                 method_introspection_code(
                     &spec,
                     attrs,

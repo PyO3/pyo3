@@ -149,28 +149,26 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
         buffer.push_str(" ...");
     }
     if let Some(docstring) = &class.docstring {
-        buffer.push_str("\n    \"\"\"");
-        for line in docstring.lines() {
-            buffer.push_str("\n    ");
-            buffer.push_str(line);
-        }
-        buffer.push_str("\n    \"\"\"");
+        push_docstring(&mut buffer, "    ", docstring);
     }
     for attribute in &class.attributes {
         // We do the indentation
         buffer.push_str("\n    ");
-        buffer.push_str(&attribute_stubs(attribute, imports).replace('\n', "\n    "));
+        push_indented(&mut buffer, "    ", &attribute_stubs(attribute, imports));
     }
     for method in &class.methods {
         // We do the indentation
         buffer.push_str("\n    ");
-        buffer
-            .push_str(&function_stubs(method, imports, Some(&class.name)).replace('\n', "\n    "));
+        push_indented(
+            &mut buffer,
+            "    ",
+            &function_stubs(method, imports, Some(&class.name)),
+        );
     }
     for inner_class in &class.inner_classes {
         // We do the indentation
         buffer.push_str("\n    ");
-        buffer.push_str(&class_stubs(inner_class, imports).replace('\n', "\n    "));
+        push_indented(&mut buffer, "    ", &class_stubs(inner_class, imports));
     }
     buffer
 }
@@ -232,16 +230,48 @@ fn function_stubs(function: &Function, imports: &Imports, class_name: Option<&st
         imports.serialize_expr(returns, &mut buffer);
     }
     if let Some(docstring) = &function.docstring {
-        buffer.push_str(":\n    \"\"\"");
-        for line in docstring.lines() {
-            buffer.push_str("\n    ");
-            buffer.push_str(line);
-        }
-        buffer.push_str("\n    \"\"\"");
+        buffer.push(':');
+        push_docstring(&mut buffer, "    ", docstring);
     } else {
         buffer.push_str(": ...");
     }
     buffer
+}
+
+/// Appends `text` to `buffer`, prefixing every line after the first with `indent`.
+///
+/// The first line is left alone because callers have already written the indentation for it; this
+/// is the same contract `text.replace('\n', "\n{indent}")` had, minus one thing: a blank line stays
+/// blank instead of being padded out to the indentation. Trailing whitespace on an otherwise empty
+/// line is invisible in the source but still trailing whitespace, it trips `W293` in every Python
+/// linter, and a generated file is exactly the kind of file nobody gets to hand-fix.
+fn push_indented(buffer: &mut String, indent: &str, text: &str) {
+    for (index, line) in text.split('\n').enumerate() {
+        if index > 0 {
+            buffer.push('\n');
+            if !line.is_empty() {
+                buffer.push_str(indent);
+            }
+        }
+        buffer.push_str(line);
+    }
+}
+
+/// Appends a `"""`-quoted docstring indented by `indent`, starting on a fresh line.
+fn push_docstring(buffer: &mut String, indent: &str, docstring: &str) {
+    buffer.push('\n');
+    buffer.push_str(indent);
+    buffer.push_str("\"\"\"");
+    for line in docstring.lines() {
+        buffer.push('\n');
+        if !line.is_empty() {
+            buffer.push_str(indent);
+            buffer.push_str(line);
+        }
+    }
+    buffer.push('\n');
+    buffer.push_str(indent);
+    buffer.push_str("\"\"\"");
 }
 
 fn attribute_stubs(attribute: &Attribute, imports: &Imports) -> String {
@@ -255,12 +285,7 @@ fn attribute_stubs(attribute: &Attribute, imports: &Imports) -> String {
         imports.serialize_expr(value, &mut buffer);
     }
     if let Some(docstring) = &attribute.docstring {
-        buffer.push_str("\n\"\"\"");
-        for line in docstring.lines() {
-            buffer.push('\n');
-            buffer.push_str(line);
-        }
-        buffer.push_str("\n\"\"\"");
+        push_docstring(&mut buffer, "", docstring);
     }
     buffer
 }
@@ -941,5 +966,59 @@ mod tests {
         );
         assert_eq!(make_module_path_relative("foo", "foo.la", false), ".");
         assert_eq!(make_module_path_relative("foo", "bar", true), "foo");
+    }
+
+    /// Docstrings are re-indented into the class or function body, and a paragraph break inside one
+    /// is an empty line. Padding it out to the body indentation is trailing whitespace, which
+    /// `W293` flags and which nobody can fix by hand in a generated file.
+    #[test]
+    fn docstring_blank_lines_are_not_padded_with_indentation() {
+        let module = Module {
+            name: "bar".into(),
+            modules: Vec::new(),
+            classes: vec![Class {
+                name: "Zulu".into(),
+                bases: Vec::new(),
+                methods: vec![Function {
+                    name: "method".into(),
+                    decorators: Vec::new(),
+                    arguments: Arguments {
+                        positional_only_arguments: Vec::new(),
+                        arguments: Vec::new(),
+                        vararg: None,
+                        keyword_only_arguments: Vec::new(),
+                        kwarg: None,
+                    },
+                    returns: None,
+                    is_async: false,
+                    docstring: Some("Summary.\n\nDetail.".into()),
+                }],
+                attributes: Vec::new(),
+                decorators: Vec::new(),
+                inner_classes: Vec::new(),
+                docstring: Some("Class summary.\n\nClass detail.".into()),
+            }],
+            functions: Vec::new(),
+            attributes: vec![Attribute {
+                name: "CONST".into(),
+                value: None,
+                annotation: None,
+                docstring: Some("Const summary.\n\nConst detail.".into()),
+            }],
+            incomplete: false,
+            docstring: None,
+        };
+
+        let stubs = module_stubs(&module, &["foo"]);
+        assert!(
+            !stubs
+                .lines()
+                .any(|line| !line.is_empty() && line.trim().is_empty()),
+            "generated stubs contain a blank line padded with whitespace:\n{stubs:?}"
+        );
+        // The indentation of the non-empty lines is unaffected.
+        assert!(stubs.contains("\n    Class summary.\n\n    Class detail.\n"));
+        assert!(stubs.contains("\n        Summary.\n\n        Detail.\n"));
+        assert!(stubs.contains("\nConst summary.\n\nConst detail.\n"));
     }
 }
