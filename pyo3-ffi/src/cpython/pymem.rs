@@ -1,4 +1,6 @@
+#[cfg(not(any(PyPy, GraalPy)))]
 use core::ffi::c_void;
+#[cfg(not(any(PyPy, GraalPy)))]
 use libc::size_t;
 
 #[repr(C)]
