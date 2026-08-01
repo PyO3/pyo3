@@ -77,6 +77,7 @@ unsafe fn finish_aligned(raw: *mut u8, layout: Layout) -> *mut u8 {
     let addr = raw as usize + size_of::<Header>();
     let mask = layout.align() - 1;
     let aligned_addr = (addr + mask) & !mask;
+    // SAFETY: `aligned_addr` is within `raw`'s allocated range.
     let block = unsafe { raw.add(aligned_addr - raw as usize) };
     // SAFETY: `block` is within the allocation and has at least `size_of::<Header>()`
     // bytes of padding before it, so writing a `Header` there is in-bounds.
@@ -95,6 +96,7 @@ unsafe fn recover_raw(ptr: *mut u8) -> *mut u8 {
     unsafe { ptr::read((ptr as *mut Header).sub(1)).0 }
 }
 
+// SAFETY: forwards to `PyMem_Raw*`, satisfying the `GlobalAlloc` contract.
 unsafe impl GlobalAlloc for PyMemRawAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         if layout.align() <= MIN_ALIGN {
@@ -182,6 +184,7 @@ mod tests {
 
     // SAFETY: `ptr` must be valid for reads of `layout.size()` bytes.
     unsafe fn assert_zeroes(ptr: *mut u8, layout: Layout) {
+        // SAFETY: caller guarantees `ptr` is valid for `layout.size()` bytes.
         unsafe {
             for ofs in 0..layout.size() {
                 assert_eq!(0, ptr.add(ofs).read());
