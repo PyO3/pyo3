@@ -157,15 +157,15 @@ fn subclass_new() {
     Python::attach(|py| {
         let super_cls = py.get_type::<SuperClass>();
         let source = cr#"
-        class Class(SuperClass):
-            def __new__(cls):
-                return super().__new__(cls)  # This should return an instance of Class
+class Class(SuperClass):
+    def __new__(cls):
+        return super().__new__(cls)  # This should return an instance of Class
 
-            @property
-            def from_rust(self):
-                return False
-        c = Class()
-        assert c.from_rust is False
+    @property
+    def from_rust(self):
+        return False
+c = Class()
+assert c.from_rust is False
         "#;
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("SuperClass", super_cls).unwrap();

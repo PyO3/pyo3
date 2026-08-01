@@ -894,39 +894,39 @@ fn descr_getset() {
     Python::attach(|py| {
         let counter = py.get_type::<DescrCounter>();
         let source = cr#"
-        class Class:
-            counter = Counter()
+class Class:
+    counter = Counter()
 
-        # access via type
-        counter = Class.counter
-        assert counter.count == 1
+# access via type
+counter = Class.counter
+assert counter.count == 1
 
-        # access with instance directly
-        assert Counter.__get__(counter, Class()).count == 2
+# access with instance directly
+assert Counter.__get__(counter, Class()).count == 2
 
-        # access via instance
-        c = Class()
-        assert c.counter.count == 3
+# access via instance
+c = Class()
+assert c.counter.count == 3
 
-        # __set__
-        c.counter = Counter()
-        assert c.counter.count == 4
+# __set__
+c.counter = Counter()
+assert c.counter.count == 4
 
-        # __delete__
-        del c.counter
-        assert c.counter.count == 1
+# __delete__
+del c.counter
+assert c.counter.count == 1
 
-        # wrong receiver type should be rejected by CPython slot wrapper
-        for call in (
-            lambda: Counter.__get__(object(), Class()),
-            lambda: Counter.__set__(object(), Class(), Counter()),
-            lambda: Counter.__delete__(object(), Class()),
-        ):
-            try:
-                call()
-                assert False, "expected TypeError"
-            except TypeError:
-                pass
+# wrong receiver type should be rejected by CPython slot wrapper
+for call in (
+    lambda: Counter.__get__(object(), Class()),
+    lambda: Counter.__set__(object(), Class(), Counter()),
+    lambda: Counter.__delete__(object(), Class()),
+):
+    try:
+        call()
+        assert False, "expected TypeError"
+    except TypeError:
+        pass
         "#;
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Counter", counter).unwrap();
