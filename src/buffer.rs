@@ -685,7 +685,7 @@ impl PyUntypedBuffer {
     #[inline]
     pub fn format(&self) -> &CStr {
         if self.raw().format.is_null() {
-            ffi::c_str!("B")
+            c"B"
         } else {
             unsafe { CStr::from_ptr(self.raw().format) }
         }

@@ -1465,7 +1465,6 @@ mod tests {
         Bound, BoundObject, IntoPyObject, PyTypeInfo, Python,
     };
     use core::fmt::Debug;
-    use pyo3_ffi::c_str;
 
     #[test]
     fn test_lookup_special() {
@@ -1640,7 +1639,7 @@ class SimpleClass:
     def foo(self):
         return 42
 "#,
-                c_str!(file!()),
+                core::ffi::CStr::from_bytes_with_nul(concat!(file!(), "\0").as_bytes()).unwrap(),
                 &generate_unique_module_name("test_module"),
             )
             .expect("module creation failed");
