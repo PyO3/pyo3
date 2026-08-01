@@ -27,5 +27,4 @@ fn allocations_work_through_global_allocator() {
     }
 
     assert_eq!(ptr_addr(&*boxed as *const Aligned) % 64, 0);
-    assert_eq!((&*boxed as *const Aligned).addr() % 64, 0);
 }
