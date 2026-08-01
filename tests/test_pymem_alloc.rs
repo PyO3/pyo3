@@ -10,7 +10,7 @@ fn allocations_work_through_global_allocator() {
     assert_eq!(vec, vec![1, 2, 3, 4]);
 
     let s = String::from("hello");
-    assert_eq!(s.len(), 4);
+    assert_eq!(s.len(), 5);
 
     #[repr(align(64))]
     struct Aligned([u8; 128]);
