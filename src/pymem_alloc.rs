@@ -181,6 +181,14 @@ mod tests {
     use super::*;
 
     use alloc::vec::Vec;
+    use core::mem;
+
+    // TODO: use `.addr()` directly on MSRV 1.84 (`ptr_addr(ptr)` -> `ptr.addr()`)
+    #[inline(always)]
+    fn ptr_addr<T>(ptr: *const T) -> usize {
+        // SAFETY: Pointer-to-integer transmutes are valid.
+        unsafe { mem::transmute(ptr.cast::<()>()) }
+    }
 
     // SAFETY: `ptr` must be valid for reads of `layout.size()` bytes.
     unsafe fn assert_zeroes(ptr: *mut u8, layout: Layout) {
@@ -200,7 +208,7 @@ mod tests {
         unsafe {
             let ptr = alloc.alloc(layout);
             assert!(!ptr.is_null());
-            assert_eq!(ptr.addr() % layout.align(), 0);
+            assert_eq!(ptr_addr(ptr) % layout.align(), 0);
             ptr.write_bytes(0xAB, layout.size());
             alloc.dealloc(ptr, layout);
         }
@@ -215,7 +223,7 @@ mod tests {
             unsafe {
                 let ptr = alloc.alloc(layout);
                 assert!(!ptr.is_null());
-                assert_eq!(ptr.addr() % align, 0, "align={align}");
+                assert_eq!(ptr_addr(ptr) % align, 0, "align={align}");
                 ptr.write_bytes(0xCD, layout.size());
                 alloc.dealloc(ptr, layout);
             }
@@ -243,7 +251,7 @@ mod tests {
         unsafe {
             let ptr = alloc.alloc_zeroed(layout);
             assert!(!ptr.is_null());
-            assert_eq!(ptr.addr() % layout.align(), 0);
+            assert_eq!(ptr_addr(ptr) % layout.align(), 0);
             assert_zeroes(ptr, layout);
             alloc.dealloc(ptr, layout);
         }
@@ -303,7 +311,7 @@ mod tests {
 
             let new_ptr = alloc.realloc(ptr, old_layout, 512);
             assert!(!new_ptr.is_null());
-            assert_eq!(new_ptr.addr() % align, 0);
+            assert_eq!(ptr_addr(new_ptr) % align, 0);
             for i in 0..old_layout.size() {
                 assert_eq!(new_ptr.add(i).read(), 0x55);
             }
