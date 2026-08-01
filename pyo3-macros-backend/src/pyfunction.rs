@@ -3,6 +3,8 @@ use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{function_introspection_code, introspection_id_const};
 #[cfg(feature = "experimental-inspect")]
+use crate::py_expr::PyExpr;
+#[cfg(feature = "experimental-inspect")]
 use crate::utils::get_doc;
 use crate::utils::Ctx;
 use crate::{
@@ -21,8 +23,9 @@ use std::ffi::CString;
 use std::iter::empty;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::LitCStr;
-use syn::{ext::IdentExt, spanned::Spanned, LitStr, Path, Result, Token};
+#[cfg(feature = "experimental-inspect")]
+use syn::ReturnType;
+use syn::{ext::IdentExt, spanned::Spanned, LitCStr, LitStr, Path, Result, Token};
 
 mod signature;
 
@@ -412,7 +415,10 @@ pub fn impl_wrap_pyfunction(
         &spec.python_name.to_string(),
         &spec.signature,
         None,
-        func.sig.output.clone(),
+        match &func.sig.output {
+            ReturnType::Type(_, t) => PyExpr::from_return_type((**t).clone(), None),
+            ReturnType::Default => PyExpr::none(),
+        },
         empty(),
         func.sig.asyncness.is_some(),
         false,
