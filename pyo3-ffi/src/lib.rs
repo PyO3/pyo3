@@ -479,7 +479,6 @@ pub use self::pyerrors::*;
 pub use self::pyframe::*;
 pub use self::pyhash::*;
 pub use self::pylifecycle::*;
-#[cfg(any(Py_3_13, not(Py_LIMITED_API)))]
 pub use self::pymem::*;
 pub use self::pyport::*;
 pub use self::pystate::*;
