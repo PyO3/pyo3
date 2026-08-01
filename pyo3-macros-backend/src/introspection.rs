@@ -21,7 +21,7 @@ use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::{Attribute, Ident, ReturnType, Type, TypePath};
+use syn::{Attribute, Ident, Type, TypePath};
 
 static GLOBAL_COUNTER_FOR_UNIQUE_NAMES: AtomicUsize = AtomicUsize::new(0);
 
@@ -103,7 +103,7 @@ pub fn function_introspection_code(
     name: &str,
     signature: &FunctionSignature<'_>,
     first_argument: Option<&'static str>,
-    returns: ReturnType,
+    returns: PyExpr,
     decorators: impl IntoIterator<Item = PyExpr>,
     is_async: bool,
     is_returning_not_implemented_on_extraction_error: bool,
@@ -131,11 +131,7 @@ pub fn function_introspection_code(
             {
                 returns.as_type_hint().into()
             } else {
-                match returns {
-                    ReturnType::Default => PyExpr::builtin("None"),
-                    ReturnType::Type(_, ty) => PyExpr::from_return_type(*ty, parent),
-                }
-                .into()
+                returns.into()
             },
         ),
     ]);
