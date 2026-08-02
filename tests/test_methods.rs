@@ -123,6 +123,63 @@ fn class_method() {
     });
 }
 
+#[test]
+fn class_method_magic_methods() {
+    #[pyclass(subclass)]
+    struct ClassMethodMagic;
+
+    #[pymethods]
+    impl ClassMethodMagic {
+        #[new]
+        fn new() -> Self {
+            Self
+        }
+
+        #[classmethod]
+        fn __len__(cls: &Bound<'_, PyType>) -> usize {
+            if cls.is_exact_instance_of::<PyType>() {
+                42
+            } else {
+                0
+            }
+        }
+
+        #[classmethod]
+        fn __call__<'py>(cls: &Bound<'py, PyType>) -> Bound<'py, PyType> {
+            cls.clone()
+        }
+
+        #[classmethod]
+        fn __add__<'py>(cls: &Bound<'py, PyType>, _other: &Bound<'_, PyAny>) -> Bound<'py, PyType> {
+            cls.clone()
+        }
+    }
+
+    Python::attach(|py| {
+        let cls = py.get_type::<ClassMethodMagic>();
+        py_run!(
+            py,
+            cls,
+            r#"
+class Subclass(cls):
+    pass
+
+obj = Subclass()
+assert len(obj) == 42
+assert obj() is Subclass
+assert obj + None is Subclass
+
+try:
+    1 + obj
+except TypeError:
+    pass
+else:
+    raise AssertionError("the forward operator accepted the wrong receiver")
+"#
+        );
+    });
+}
+
 #[pyclass]
 struct ClassMethodWithArgs {}
 
