@@ -1,4 +1,4 @@
-from typing import Any, Tuple
+from typing import Any
 
 from pyo3_pytests import pyfunctions
 
@@ -103,7 +103,7 @@ def test_positional_only_rs(benchmark):
 
 def with_typed_args_py(
     a: bool, b: int, c: float, d: str
-) -> Tuple[bool, int, float, str]:
+) -> tuple[bool, int, float, str]:
     return a, b, c, d
 
 

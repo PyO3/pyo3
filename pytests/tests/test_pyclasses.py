@@ -1,6 +1,5 @@
 import platform
 import sys
-from typing import Type
 
 import pytest
 from pyo3_pytests import pyclasses
@@ -128,15 +127,14 @@ class ClassWithoutConstructor:
         ),
     ],
 )
-def test_no_constructor_defined_propagates_cause(cls: Type, exc_message: str):
+def test_no_constructor_defined_propagates_cause(cls: type, exc_message: str):
     original_error = ValueError("Original message")
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(TypeError) as exc_info:
         try:
             raise original_error
-        except Exception:
+        except ValueError:
             cls()  # should raise TypeError("No constructor defined for ...")
 
-    assert exc_info.type is TypeError
     assert exc_info.value.args == (exc_message,)
     assert exc_info.value.__context__ is original_error
 

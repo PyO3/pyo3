@@ -129,6 +129,13 @@ fn many_keyword_arguments<'py>(
 
 #[pymodule]
 pub mod pyfunctions {
+    // `any()` is never true. Keeps the introspection data of a `#[pymodule]` whose first member
+    // is `cfg`-ed out covered by `nox -s test-introspection`; it used to serialize the member
+    // list as the invalid JSON `[,"..."]`.
+    #[cfg(any())]
+    #[pymodule_export]
+    use super::none;
+
     #[cfg(feature = "experimental-async")]
     #[pymodule_export]
     use super::with_async;
@@ -137,4 +144,9 @@ pub mod pyfunctions {
         args_kwargs, many_keyword_arguments, none, positional_only, simple, simple_args,
         simple_args_kwargs, simple_kwargs, with_typed_args,
     };
+
+    // Likewise for a `cfg`-ed out last member.
+    #[cfg(any())]
+    #[pymodule_export]
+    use super::simple;
 }

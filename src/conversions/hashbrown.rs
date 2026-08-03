@@ -150,16 +150,20 @@ where
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         match ob.cast::<PySet>() {
-            Ok(set) => set
-                .iter()
-                .map(|any| any.extract().map_err(Into::into))
-                .collect(),
+            Ok(set) => {
+                let mut result = Self::with_capacity_and_hasher(set.len(), S::default());
+                for item in set.iter() {
+                    result.insert(item.extract().map_err(Into::into)?);
+                }
+                Ok(result)
+            }
             Err(err) => {
                 if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
-                    frozen_set
-                        .iter()
-                        .map(|any| any.extract().map_err(Into::into))
-                        .collect()
+                    let mut result = Self::with_capacity_and_hasher(frozen_set.len(), S::default());
+                    for item in frozen_set.iter() {
+                        result.insert(item.extract().map_err(Into::into)?);
+                    }
+                    Ok(result)
                 } else {
                     Err(PyErr::from(err))
                 }

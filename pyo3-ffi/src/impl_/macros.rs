@@ -268,10 +268,12 @@ macro_rules! extern_libpython {
             "python313", "python313_d",
             "python314", "python314_d",
             "python315", "python315_d",
+            "python316", "python316_d",
             // free-threaded builds (3.13+)
             "python313t", "python313t_d",
             "python314t", "python314t_d",
             "python315t", "python315t_d",
+            "python316t", "python316t_d",
             // PyPy (DLL is libpypy3.X-c.dll, not pythonXY.dll)
             "libpypy3.11-c",
         );
@@ -286,11 +288,12 @@ macro_rules! extern_libpython {
     // separate cfg_attr arms per architecture.
     (@impl $abi:literal { $($body:tt)* } $($dll:literal),* $(,)?) => {
         $(
-            #[cfg_attr(all(windows, target_arch = "x86", pyo3_dll = $dll),
+            #[cfg_attr(all(windows, pyo3_use_raw_dylib, target_arch = "x86", pyo3_dll = $dll),
                 link(name = $dll, kind = "raw-dylib", import_name_type = "undecorated"))]
-            #[cfg_attr(all(windows, not(target_arch = "x86"), pyo3_dll = $dll),
+            #[cfg_attr(all(windows, pyo3_use_raw_dylib, not(target_arch = "x86"), pyo3_dll = $dll),
                 link(name = $dll, kind = "raw-dylib"))]
         )*
+        #[cfg_attr(all(windows, not(pyo3_use_raw_dylib)), link(name = "pythonXY"))]
         extern $abi {
             extern_libpython_items! { $($body)* }
         }

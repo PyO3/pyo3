@@ -222,7 +222,7 @@ macro_rules! bigint_conversion {
                     } else {
                         None
                     };
-                    // SAFETY: `PyInt.from_bytes` returns an int object (PyInt).
+                    // SAFETY: `int.from_bytes` returns a python `int`
                     unsafe {
                         py.get_type::<PyInt>()
                             .call_method("from_bytes", (bytes_obj, "little"), kwargs.as_ref())
@@ -435,8 +435,8 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
         n_bits.div_ceil(32)
     };
     buffer.reserve_exact(n_digits);
-    // SAFETY: `buffer` has capacity for `n_digits * 4` bytes, and
-    // `_PyLong_AsByteArray` initializes that buffer on success.
+    // SAFETY: `buffer` has capacity for `n_digits` u32s, which `_PyLong_AsByteArray`
+    // fully initializes on success; `set_len` is only reached on success
     unsafe {
         crate::err::error_on_minusone(
             long.py(),
@@ -467,7 +467,7 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     if !SIGNED {
         flags |= ffi::Py_ASNATIVEBYTES_UNSIGNED_BUFFER | ffi::Py_ASNATIVEBYTES_REJECT_NEGATIVE;
     }
-    // SAFETY: passing a null buffer with size 0 requests the required byte length.
+    // SAFETY: passing a NULL buffer with size 0 is the documented way to query the required size
     let n_bytes =
         unsafe { ffi::PyLong_AsNativeBytes(long.as_ptr().cast(), core::ptr::null_mut(), 0, flags) };
     let n_bytes_unsigned: usize = n_bytes.try_into().map_err(|_| PyErr::fetch(long.py()))?;
@@ -476,8 +476,8 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     }
     let n_digits = n_bytes_unsigned.div_ceil(4);
     buffer.reserve_exact(n_digits);
-    // SAFETY: `buffer` has capacity for `n_digits * 4` bytes, and
-    // `PyLong_AsNativeBytes` writes into the full requested buffer.
+    // SAFETY: `buffer` has capacity for `n_digits` u32s; `PyLong_AsNativeBytes` fills
+    // the entire buffer regardless of the value, so `set_len` is always valid
     unsafe {
         ffi::PyLong_AsNativeBytes(
             long.as_ptr().cast(),

@@ -228,7 +228,7 @@ def main():
     for line in sys.stdin:
         if not line.strip():
             continue
-        [context, book] = json.loads(line)
+        [_context, book] = json.loads(line)
 
         # Parse glossary terms from the glossary chapter.
         glossary_content = find_glossary_content(book["items"])

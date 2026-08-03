@@ -33,7 +33,7 @@ mod lazy_type_object;
 mod probes;
 
 pub use assertions::*;
-pub use lazy_type_object::{type_object_init_failed, LazyTypeObject};
+pub use lazy_type_object::{pyclass_type_object_raw, type_object_init_failed, LazyTypeObject};
 pub use probes::*;
 
 /// Gets the offset of the dictionary from the start of the object in bytes.
@@ -64,7 +64,19 @@ pub trait PyClassDict: sealed::Sealed {
     const INIT: Self;
     /// Empties the dictionary of its key-value pairs.
     #[inline]
-    fn clear_dict(&mut self, _py: Python<'_>) {}
+    fn clear_dict(&self, _py: Python<'_>) {}
+    /// Releases the owned reference to the dictionary.
+    #[inline]
+    fn release_dict(&mut self, _py: Python<'_>) {}
+    /// Visits the `__dict__`, if any, on behalf of `tp_traverse`.
+    ///
+    /// # Safety
+    /// - Must only be called from a `tp_traverse` implementation, passing that
+    ///   implementation's `visit` and `arg` unchanged.
+    #[inline]
+    unsafe fn traverse_dict(&self, _visit: ffi::visitproc, _arg: *mut c_void) -> c_int {
+        0
+    }
 }
 
 /// Represents the `__weakref__` field for `#[pyclass]`.
@@ -100,9 +112,21 @@ pub struct PyClassDictSlot(*mut ffi::PyObject);
 impl PyClassDict for PyClassDictSlot {
     const INIT: Self = Self(core::ptr::null_mut());
     #[inline]
-    fn clear_dict(&mut self, _py: Python<'_>) {
+    fn clear_dict(&self, _py: Python<'_>) {
         if !self.0.is_null() {
             unsafe { ffi::PyDict_Clear(self.0) }
+        }
+    }
+    #[inline]
+    fn release_dict(&mut self, _py: Python<'_>) {
+        unsafe { ffi::Py_CLEAR(&raw mut self.0) }
+    }
+    #[inline]
+    unsafe fn traverse_dict(&self, visit: ffi::visitproc, arg: *mut c_void) -> c_int {
+        if self.0.is_null() {
+            0
+        } else {
+            unsafe { visit(self.0, arg) }
         }
     }
 }
@@ -155,6 +179,13 @@ pub struct PyClassItems {
 // Allow PyClassItems in statics
 unsafe impl Sync for PyClassItems {}
 
+/// Shared empty items, used by the macros for classes without any intrinsic items to keep the
+/// generated code small.
+pub static NO_PY_CLASS_ITEMS: PyClassItems = PyClassItems {
+    methods: &[],
+    slots: &[],
+};
+
 /// Implements the underlying functionality of `#[pyclass]`, assembled by various proc macros.
 ///
 /// Users are discouraged from implementing this trait manually; it is a PyO3 implementation detail
@@ -164,7 +195,7 @@ pub trait PyClassImpl: Sized + 'static {
     ///
     /// (Currently defaults to `builtins` if unset, this will likely be improved in the future, it
     /// may also be removed when passing module objects in class init.)
-    const MODULE: Option<&'static str>;
+    const MODULE: Option<&'static str> = None;
 
     /// #[pyclass(subclass)]
     const IS_BASETYPE: bool = false;
@@ -215,12 +246,12 @@ pub trait PyClassImpl: Sized + 'static {
     /// Docstring for the class provided on the struct or enum.
     ///
     /// This is exposed for `PyClassDocGenerator` to use as a docstring piece.
-    const RAW_DOC: &'static CStr;
+    const RAW_DOC: &'static CStr = c"";
 
     /// Fully rendered class doc, including the `text_signature` if a constructor is defined.
     ///
     /// This is constructed at compile-time with const specialization via the proc macros with help
-    /// from the PyClassDocGenerator` type.
+    /// from the `PyClassDocGenerator` type.
     const DOC: &'static CStr;
 
     fn items_iter() -> PyClassItemsIter;

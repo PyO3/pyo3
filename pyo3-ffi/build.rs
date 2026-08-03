@@ -191,15 +191,79 @@ fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result
     Ok(())
 }
 
-fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
-    let interpreter_config = &build_config.interpreter_config;
+/// `raw-dylib` currently does not support arbitrary names
+/// (see https://internals.rust-lang.org/t/support-renames-with-link-name-kind-raw-dylib/24415)
+/// so if the lib name is not one of the known subset, we must fall back to full linking.
+fn lib_name_is_known_for_raw_dylib(lib_name: &str) -> bool {
+    // pyo3_dll cfg for raw-dylib linking on Windows
+    if matches!(
+        lib_name,
+        "python3" | "python3_d" | "python3t" | "python3t_d"
+    ) {
+        return true;
+    }
+
+    // support raw-dylib linking for all CPython versions supported, plus the next prerelease
+    for i in SUPPORTED_VERSIONS_CPYTHON.min.minor..=SUPPORTED_VERSIONS_CPYTHON.max.minor + 1 {
+        if lib_name == format!("python3{i}") || lib_name == format!("python3{i}_d") {
+            return true;
+        }
+        if i >= 13 && (lib_name == format!("python3{i}t") || lib_name == format!("python3{i}t_d")) {
+            return true;
+        }
+    }
+    // PyPy DLL names (libpypy3.X-c.dll)
+    for i in SUPPORTED_VERSIONS_PYPY.min.minor..=SUPPORTED_VERSIONS_PYPY.max.minor {
+        if lib_name == format!("libpypy3.{i}-c") {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Whether to use raw-dylib linking.
+///
+/// Currently, this only applies if all of the following are true:
+/// - The target OS is Windows.
+/// - The Python library name is one of the [known subset][lib_name_is_known_for_raw_dylib].
+/// - The `PYO3_USE_RAW_DYLIB` environment variable is not set, or is set to `1`.
+///
+/// NB in some cases (e.g. mixed C / Rust builds) it might be necessary to link the full Python
+/// library rather than rely on the symbols which PyO3 defines as raw-dylib, which is why
+/// we have the opt-out env var.
+fn should_use_raw_dylib_linking(lib_name: &str) -> bool {
     let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
+    if target_os != "windows" {
+        return false;
+    }
+
+    match (
+        lib_name_is_known_for_raw_dylib(lib_name),
+        env_var("PYO3_USE_RAW_DYLIB"),
+    ) {
+        (true, None) => true,
+        (true, Some(os_str)) if os_str == "1" => true,
+        (false, Some(os_str)) if os_str == "1" => {
+            warn!(
+                "PYO3_USE_RAW_DYLIB is set to 1 but the Python library name is not recognized. \
+                Falling back to full linking."
+            );
+            false
+        }
+        _ => false,
+    }
+}
+
+fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
+    let target_os = cargo_env_var("CARGO_CFG_TARGET_OS").unwrap();
+    let interpreter_config = &build_config.interpreter_config;
 
     let lib_name = interpreter_config
         .lib_name()
         .ok_or("attempted to link to Python shared library but config does not contain lib_name")?;
 
-    if target_os == "windows" {
+    if should_use_raw_dylib_linking(lib_name) {
         // Use raw-dylib linking: emit a cfg so that `extern_libpython!` picks the
         // right `#[link(name = "...", kind = "raw-dylib")]` attribute at compile time.
         // This eliminates the need for import libraries (.lib files) entirely.
@@ -207,27 +271,36 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
         // Note: raw-dylib is inherently dynamic linking. Static embedding of the
         // Python interpreter on Windows is not supported by this path (and is not
         // officially supported by CPython on Windows).
+        println!("cargo:rustc-cfg=pyo3_use_raw_dylib");
         println!("cargo:rustc-cfg=pyo3_dll=\"{lib_name}\"");
-    } else {
-        println!(
-            "cargo:rustc-link-lib={link_model}{lib_name}",
-            link_model = if interpreter_config.shared() {
-                ""
-            } else {
-                "static="
-            },
-        );
+        return Ok(());
+    }
 
-        if let Some(lib_dir) = interpreter_config.lib_dir() {
-            println!("cargo:rustc-link-search=native={lib_dir}");
-        } else if matches!(build_config.source, BuildConfigSource::CrossCompile) {
-            warn!(
-                "The output binary will link to libpython, \
-                but PYO3_CROSS_LIB_DIR environment variable is not set. \
-                Ensure that the target Python library directory is \
-                in the rustc native library search path."
-            );
+    println!(
+        "cargo:rustc-link-lib={link_model}{alias}{lib_name}",
+        link_model = if interpreter_config.shared() {
+            ""
+        } else {
+            "static="
+        },
+        // on windows we emit `#[link(name = "pythonXY")]` attributes
+        // and need this alias here to get the right name for the final link
+        alias = if target_os == "windows" {
+            "pythonXY:"
+        } else {
+            ""
         }
+    );
+
+    if let Some(lib_dir) = interpreter_config.lib_dir() {
+        println!("cargo:rustc-link-search=native={lib_dir}");
+    } else if matches!(build_config.source, BuildConfigSource::CrossCompile) {
+        warn!(
+            "The output binary will link to libpython, \
+            but PYO3_CROSS_LIB_DIR environment variable is not set. \
+            Ensure that the target Python library directory is \
+            in the rustc native library search path."
+        );
     }
 
     Ok(())

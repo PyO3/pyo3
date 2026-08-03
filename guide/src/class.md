@@ -928,8 +928,7 @@ impl MyClass {
 ```
 
 > [!NOTE]
-> If the method has a `Result` return type and returns an `Err`, PyO3 will panic during
-class creation.
+> If the method has a `Result` return type and returns an `Err`, PyO3 will panic during class creation.
 
 > [!NOTE]
 > `#[classattr]` does not work with [`#[pyo3(warn(...))]`](./function.md#warn) attribute.
@@ -1317,8 +1316,9 @@ Python::attach(|py| {
 ```
 
 Ordering of enum variants is optionally added using `#[pyo3(ord)]`.
-*Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument.*
-*If not implemented, a compile time error is raised.*
+> [!NOTE]
+> Implementation of the `PartialOrd` trait is required when passing the `ord` argument.
+> If not implemented, a compile time error is raised.
 
 ```rust
 # use pyo3::prelude::*;

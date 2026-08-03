@@ -1,6 +1,8 @@
 use crate::impl_::pyfunction::PyFunctionDef;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 use crate::types::PyFrame;
+#[cfg(Py_3_15)]
+use crate::types::PyFrozenDict;
 use crate::types::{
     PyBool, PyByteArray, PyBytes, PyCapsule, PyComplex, PyDict, PyFloat, PyFrozenSet, PyList,
     PyMapping, PyMappingProxy, PyModule, PyRange, PySequence, PySet, PySlice, PyString,
@@ -33,6 +35,8 @@ impl Sealed for Bound<'_, PyCapsule> {}
 impl Sealed for Bound<'_, PyComplex> {}
 impl Sealed for Bound<'_, PyDict> {}
 impl Sealed for Bound<'_, PyFloat> {}
+#[cfg(Py_3_15)]
+impl Sealed for Bound<'_, PyFrozenDict> {}
 impl Sealed for Bound<'_, PyFrozenSet> {}
 impl Sealed for Bound<'_, PyList> {}
 impl Sealed for Bound<'_, PyMapping> {}

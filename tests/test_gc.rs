@@ -10,7 +10,7 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 use std::sync::Once;
 use std::sync::{Arc, Mutex};
 
@@ -736,6 +736,27 @@ extern "C" fn visit_error(
     -1
 }
 
+// the fields visited below, set before driving the traversal
+static BASE_FIELD: AtomicPtr<pyo3::ffi::PyObject> = AtomicPtr::new(std::ptr::null_mut());
+static CHILD_FIELD: AtomicPtr<pyo3::ffi::PyObject> = AtomicPtr::new(std::ptr::null_mut());
+static BASE_VISITED: AtomicBool = AtomicBool::new(false);
+static CHILD_VISITED: AtomicBool = AtomicBool::new(false);
+
+// a visitor function which errors on `BASE_FIELD` only
+extern "C" fn visit_error_on_base_field(
+    object: *mut pyo3::ffi::PyObject,
+    _arg: *mut core::ffi::c_void,
+) -> std::ffi::c_int {
+    if object == CHILD_FIELD.load(Ordering::SeqCst) {
+        CHILD_VISITED.store(true, Ordering::SeqCst);
+    }
+    if object == BASE_FIELD.load(Ordering::SeqCst) {
+        BASE_VISITED.store(true, Ordering::SeqCst);
+        return -1;
+    }
+    0
+}
+
 #[test]
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))] // buffer availability
 fn test_drop_buffer_during_traversal_without_gil() {
@@ -786,4 +807,179 @@ fn test_drop_buffer_during_traversal_without_gil() {
 
         check.assert_drops_with_gc(ptr);
     });
+}
+
+#[test]
+fn test_super_traverse_early_return_does_not_abort() {
+    #[pyclass(subclass)]
+    struct TraverseBase {
+        field: Py<PyAny>,
+    }
+
+    #[pymethods]
+    impl TraverseBase {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            visit.call(&self.field)
+        }
+    }
+
+    #[pyclass(extends=TraverseBase)]
+    struct TraverseChild {
+        field: Py<PyAny>,
+    }
+
+    #[pymethods]
+    impl TraverseChild {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            visit.call(&self.field)
+        }
+    }
+
+    Python::attach(|py| {
+        let base_field = pyo3::types::PyList::empty(py).into_any().unbind();
+        let child_field = pyo3::types::PyList::empty(py).into_any().unbind();
+
+        let initializer = PyClassInitializer::from(TraverseBase {
+            field: base_field.clone_ref(py),
+        })
+        .add_subclass(TraverseChild {
+            field: child_field.clone_ref(py),
+        });
+        let child = Bound::new(py, initializer).unwrap();
+
+        BASE_FIELD.store(base_field.as_ptr(), Ordering::SeqCst);
+        CHILD_FIELD.store(child_field.as_ptr(), Ordering::SeqCst);
+
+        let traverse =
+            unsafe { get_type_traverse(py.get_type::<TraverseChild>().as_type_ptr()).unwrap() };
+
+        let retval = unsafe {
+            traverse(
+                child.as_ptr(),
+                visit_error_on_base_field,
+                std::ptr::null_mut(),
+            )
+        };
+
+        assert!(
+            BASE_VISITED.load(Ordering::SeqCst),
+            "super-type traverse never visited its field, so the early return was not exercised"
+        );
+        assert_eq!(
+            retval, -1,
+            "traverse did not propagate the non-zero return of the super-type traverse"
+        );
+        assert!(
+            !CHILD_VISITED.load(Ordering::SeqCst),
+            "child __traverse__ ran despite the super-type traverse returning non-zero"
+        );
+    });
+}
+
+// A `#[pyclass(dict)]` can form a reference cycle through its instance `__dict__`
+// (`obj.attr = obj`). The tests below cover each valid combination of user-defined
+// `__traverse__` / `__clear__`; a `__clear__` without a `__traverse__` is rejected at
+// type-creation time.
+
+#[test]
+fn dict_class_is_a_gc_type() {
+    Python::attach(|py| {
+        let ty = py.get_type::<DictCycleNoTraverse>();
+        let flags = unsafe { ffi::PyType_GetFlags(ty.as_type_ptr()) };
+        assert_ne!(flags & ffi::Py_TPFLAGS_HAVE_GC, 0);
+    });
+}
+
+/// `#[pyclass(dict)]` with neither `__traverse__` nor `__clear__`: both slots are synthesized.
+#[pyclass(dict)]
+struct DictCycleNoTraverse {
+    _guard: DropGuard,
+}
+
+#[test]
+fn dict_cycle_collected_without_traverse() {
+    let (guard, check) = drop_check();
+
+    let ptr = Python::attach(|py| {
+        let inst = Bound::new(py, DictCycleNoTraverse { _guard: guard }).unwrap();
+        // Reference cycle through the instance `__dict__`: inst.__dict__["cycle"] -> inst.
+        inst.setattr("cycle", &inst).unwrap();
+        check.assert_not_dropped();
+        inst.as_ptr()
+    });
+
+    check.assert_drops_with_gc(ptr);
+}
+
+/// `#[pyclass(dict)]` with `__traverse__` but no `__clear__`: the `__dict__` is visited by
+/// `_call_traverse` and cleared by a synthesized `tp_clear`.
+#[pyclass(dict)]
+struct DictCycleTraverseOnly {
+    _guard: DropGuard,
+}
+
+#[pymethods]
+impl DictCycleTraverseOnly {
+    #[expect(clippy::unnecessary_wraps)]
+    fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        // No Rust references to visit; the `__dict__` is visited by `_call_traverse` itself.
+        Ok(())
+    }
+}
+
+#[test]
+fn dict_cycle_collected_with_traverse_only() {
+    let (guard, check) = drop_check();
+
+    let ptr = Python::attach(|py| {
+        let inst = Bound::new(py, DictCycleTraverseOnly { _guard: guard }).unwrap();
+        inst.setattr("cycle", &inst).unwrap();
+        check.assert_not_dropped();
+        inst.as_ptr()
+    });
+
+    check.assert_drops_with_gc(ptr);
+}
+
+/// `#[pyclass(dict)]` with both `__traverse__` and `__clear__`: the `__dict__` is folded into
+/// the user-defined slots by `_call_traverse` / `_call_clear`.
+#[pyclass(dict)]
+struct DictCycleTraverseAndClear {
+    _guard: DropGuard,
+    field: Option<Py<PyAny>>,
+}
+
+#[pymethods]
+impl DictCycleTraverseAndClear {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        if let Some(field) = &self.field {
+            visit.call(field)?;
+        }
+        Ok(())
+    }
+
+    fn __clear__(&mut self) {
+        self.field = None;
+    }
+}
+
+#[test]
+fn dict_cycle_collected_with_traverse_and_clear() {
+    let (guard, check) = drop_check();
+
+    let ptr = Python::attach(|py| {
+        let inst = Bound::new(
+            py,
+            DictCycleTraverseAndClear {
+                _guard: guard,
+                field: None,
+            },
+        )
+        .unwrap();
+        inst.setattr("cycle", &inst).unwrap();
+        check.assert_not_dropped();
+        inst.as_ptr()
+    });
+
+    check.assert_drops_with_gc(ptr);
 }

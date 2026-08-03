@@ -247,6 +247,8 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     // FIXME: for many of these `not(PyPy)` cases,
     // it seems that PyPy might actually offer symbols which PyO3
     // should be using rather than implementing inline functions
+    ("PyAnyDict_Check", ""),
+    ("PyAnyDict_CheckExact", ""),
     ("PyAnySet_Check", "not(PyPy)"),
     ("PyAnySet_CheckExact", "not(PyPy)"),
     ("PyAsyncGen_CheckExact", ""),
@@ -324,6 +326,8 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyFloat_CheckExact", "not(PyPy)"),
     ("PyFrame_Check", ""),
     ("PyFrameLocalsProxy_Check", ""),
+    ("PyFrozenDict_Check", ""),
+    ("PyFrozenDict_CheckExact", ""),
     ("PyFrozenSet_Check", "not(PyPy)"),
     ("PyFrozenSet_CheckExact", "not(PyPy)"),
     ("PyFunction_Check", "not(PyPy)"),
@@ -425,7 +429,7 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyVectorcall_NARGS", "not(Py_3_12)"),
     ("Py_CLEAR", ""),
     ("Py_CompileString", "not(Py_3_10)"),
-    ("Py_CompileStringFlags", "not(PyPy)"),
+    ("Py_CompileStringFlags", "all(not(PyPy), not(Py_3_15))"),
     ("Py_DECREF", ""),
     ("Py_Ellipsis", ""),
     ("Py_False", ""),

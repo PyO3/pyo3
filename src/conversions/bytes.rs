@@ -1,5 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "bytes")]
 
 //! Conversions to and from [bytes](https://docs.rs/bytes/latest/bytes/)'s [`Bytes`].
@@ -141,6 +139,8 @@ mod tests {
             assert_eq!(&*bytes, b"foobar");
 
             // Editing the bytearray should not change extracted Bytes
+            // SAFETY: the slice is dropped within this statement without running any Python code,
+            // and `bytes` holds a copy of the data, so the buffer is not aliased
             unsafe { py_bytearray.as_bytes_mut()[0] = b'x' };
             assert_eq!(&bytes, "foobar");
             assert_eq!(&py_bytearray.extract::<Vec<u8>>().unwrap(), b"xoobar");

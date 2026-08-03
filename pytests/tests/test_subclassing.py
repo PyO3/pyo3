@@ -1,4 +1,4 @@
-from pyo3_pytests.subclassing import Subclassable, Subclass
+from pyo3_pytests.subclassing import Subclass, Subclassable
 
 
 class SomeSubClass(Subclassable):

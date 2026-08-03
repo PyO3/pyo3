@@ -3,14 +3,9 @@ requires-python = ">=3.9"
 name = "pyo3"
 dynamic = ["version"]
 
-[tool.ruff.per-file-target-version]
-# experimental-inspect generates .pyi files that use positional-only `/` marker
-"*.pyi" = "py39"
-# uses `match` statement
-"pytests/tests/test_enums_match.py" = "py310"
-
 [tool.ruff.lint.extend-per-file-ignores]
 "__init__.py" = ["F403"]
+"noxfile.py" = ["BLE001", "TRY002"]
 
 [tool.towncrier]
 filename = "CHANGELOG.md"
@@ -66,11 +61,15 @@ headings = false
 reflow = true
 reflow_mode = "sentence-per-line"
 
+[tool.rumdl.MD046]
+style = "fenced"
+
 [tool.uv]
 package = false
 
 [dependency-groups]
 dev = [
+  "ruff",
   "rumdl",
   "typos",
 ]

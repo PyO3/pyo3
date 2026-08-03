@@ -1,6 +1,5 @@
-from hypothesis import given, assume
+from hypothesis import assume, given
 from hypothesis import strategies as st
-
 from pyo3_pytests import othermod
 
 INTEGER31_ST = st.integers(min_value=(-(2**30)), max_value=(2**30 - 1))

@@ -380,7 +380,7 @@ impl<T: PyClassImpl> PyClassObjectContents<T> {
         if self.thread_checker.can_drop(py) {
             unsafe { ManuallyDrop::drop(&mut self.value) };
         }
-        self.dict.clear_dict(py);
+        self.dict.release_dict(py);
         unsafe { self.weakref.clear_weakrefs(py_object, py) };
     }
 }
