@@ -367,10 +367,10 @@ pub(crate) fn is_30bit_layout() -> bool {
     const PYLONG_DIGIT_SIZE: u8 = 4;
     const PYLONG_DIGITS_ORDER: i8 = -1;
 
-    #[cfg(target_endian = "little")]
-    const NATIVE_DIGIT_ENDIANNESS: i8 = -1;
-    #[cfg(target_endian = "big")]
-    const NATIVE_DIGIT_ENDIANNESS: i8 = 1;
+    const NATIVE_DIGIT_ENDIANNESS: i8 = cfg_select! {
+        target_endian = "little" => -1,
+        target_endian = "big" => 1,
+    };
 
     *DIGITS.get_or_init(|| {
         let layout = unsafe { &*ffi::PyLong_GetNativeLayout() };
