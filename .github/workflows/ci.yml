@@ -641,7 +641,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@v2.85.5
         with:
           tool: cargo-hack,cargo-minimal-versions
       - run: python3 -m pip install --upgrade pip && pip install nox[uv]

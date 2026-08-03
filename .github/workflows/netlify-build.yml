@@ -27,7 +27,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
 
       - name: Setup mdBook
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.5
         with:
           tool: mdbook@0.5, mdbook-tabs@0.3, lychee
 
