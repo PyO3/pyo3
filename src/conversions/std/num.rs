@@ -496,16 +496,16 @@ mod fast_128bit_int_conversion {
                             return Ok(pylong_from_digits(py, negative, digits));
                         }
                     }
-                    #[cfg(Py_3_13)]
-                    {
-                        let bytes = self.to_ne_bytes();
-                        Ok(int_from_ne_bytes::<{ $is_signed }>(py, &bytes))
-                    }
-                    #[cfg(not(Py_3_13))]
-                    {
-                        let bytes = self.to_le_bytes();
-                        Ok(int_from_le_bytes::<{ $is_signed }>(py, &bytes))
-                    }
+
+                    let bytes = cfg_select! {
+                        Py_3_13 => self.to_ne_bytes(),
+                        not(Py_3_13) => self.to_le_bytes(),
+                    };
+
+                    Ok(cfg_select! {
+                        Py_3_13 => int_from_ne_bytes::<{ $is_signed }>(py, &bytes),
+                        not(Py_3_13) => int_from_le_bytes::<{ $is_signed }>(py, &bytes),
+                    })
                 }
             }
 
