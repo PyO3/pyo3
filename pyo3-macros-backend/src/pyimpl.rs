@@ -501,9 +501,7 @@ pub fn method_introspection_code(
         }
     }
     let return_type = if spec.python_name == "__new__" {
-        // Hack to return Self while implementing IntoPyObject
-        // TODO: use typing.Self?
-        PyExpr::from_return_type(parse_quote!(#pyo3_path::PyClassGuard<Self>), Some(parent))
+        PyExpr::attribute(PyExpr::typing_or_extensions_if_less(11), "Self")
     } else {
         match spec.output.clone() {
             // `__next__` and `__anext__` may say "iteration is over" with `None`, in which case

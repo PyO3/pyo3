@@ -148,3 +148,13 @@ pub const fn escaped_json_string_len(input: &str) -> usize {
     }
     len
 }
+
+pub const fn typing_or_extensions_if_not_3_11() -> PyStaticExpr {
+    PyStaticExpr::Name {
+        id: if cfg!(Py_3_11) {
+            "typing"
+        } else {
+            "typing_extensions"
+        },
+    }
+}
