@@ -1,6 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
-
 //! Defines how Python calls are dispatched, see [`PyCallArgs`].for more information.
 
 use crate::ffi_ptr_ext::FfiPtrExt as _;
@@ -197,6 +194,10 @@ impl<'py> PyCallArgs<'py> for Borrowed<'_, 'py, PyTuple> {
         kwargs: Borrowed<'_, 'py, PyDict>,
         _: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
+        // SAFETY: `function`, `self` and `kwargs` are valid pointers to a
+        // callable, a tuple and a dict, and `PyObject_Call` returns a new
+        // owned reference on success, or NULL with an exception set on
+        // failure.
         unsafe {
             ffi::PyObject_Call(function.as_ptr(), self.as_ptr(), kwargs.as_ptr())
                 .assume_owned_or_err(function.py())
@@ -209,6 +210,10 @@ impl<'py> PyCallArgs<'py> for Borrowed<'_, 'py, PyTuple> {
         function: Borrowed<'_, 'py, PyAny>,
         _: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
+        // SAFETY: `function` and `self` are valid pointers to a callable and
+        // a tuple, NULL is documented as a valid value for kwargs, and
+        // `PyObject_Call` returns a new owned reference on success, or NULL
+        // with an exception set on failure.
         unsafe {
             ffi::PyObject_Call(function.as_ptr(), self.as_ptr(), core::ptr::null_mut())
                 .assume_owned_or_err(function.py())
