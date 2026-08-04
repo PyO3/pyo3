@@ -343,7 +343,7 @@ fn test_ref_only_getter() {
 #[test]
 fn test_unit_getter() {
     #[derive(Clone)]
-    #[pyclass]
+    #[pyclass(skip_from_py_object)]
     struct Container {
         #[pyo3(get)]
         value: (),
