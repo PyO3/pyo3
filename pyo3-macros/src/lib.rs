@@ -123,6 +123,14 @@ pub fn pymethods(attr: TokenStream, input: TokenStream) -> TokenStream {
     pymethods_impl(attr, input, methods_type)
 }
 
+#[doc(hidden)]
+#[proc_macro]
+#[cfg(feature = "experimental-inspect")]
+pub fn exception_introspection_impl(input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(input as pyo3_macros_backend::ExceptionIntrospectionArgs);
+    pyo3_macros_backend::build_exception_introspection(args).into()
+}
+
 /// A proc macro used to expose Rust functions to Python.
 ///
 /// Functions annotated with `#[pyfunction]` can also be annotated with the following `#[pyo3]`

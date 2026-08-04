@@ -469,6 +469,10 @@ pub use pyo3_macros::{
 #[cfg(feature = "macros")]
 pub use pyo3_macros::pyclass;
 
+#[doc(hidden)]
+#[cfg(all(feature = "macros", feature = "experimental-inspect"))]
+pub use pyo3_macros::exception_introspection_impl;
+
 #[cfg(feature = "macros")]
 #[macro_use]
 mod macros;
