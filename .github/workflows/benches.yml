@@ -46,7 +46,7 @@ jobs:
           tool: cargo-codspeed
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@v5.0.1
         with:
           run: uvx nox -s codspeed
           token: ${{ secrets.CODSPEED_TOKEN }}
