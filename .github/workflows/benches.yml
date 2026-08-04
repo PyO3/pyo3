@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  UV_CONSTRAINT: ${{ github.workspace }}/.github/uv-constraints.txt
   UV_PYTHON: "3.14t"
 
 jobs:
