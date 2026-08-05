@@ -571,6 +571,27 @@ jobs:
             .nox/wasi
           key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.wasi-python.outputs.version }}
 
+  no_std:
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        session: ["test-py", "test-rust", "clippy"]
+    env:
+      PYO3_WIP_NO_STD: "1"
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      - name: Test
+        run: uvx nox -s ${{ matrix.session }}
+
   test-debug:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
