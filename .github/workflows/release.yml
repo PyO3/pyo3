@@ -9,6 +9,9 @@ on:
       version:
         description: The version to build
 
+env:
+  UV_CONSTRAINT: ${{ github.workspace }}/.github/uv-constraints.txt
+
 jobs:
   release:
     permissions:
