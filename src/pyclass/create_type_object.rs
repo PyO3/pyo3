@@ -344,8 +344,7 @@ impl PyTypeBuilder {
     }
 
     fn type_doc(mut self, type_doc: &'static CStr) -> Self {
-        let slice = type_doc.to_bytes();
-        if !slice.is_empty() {
+        if !type_doc.is_empty() {
             unsafe { self.push_slot(ffi::Py_tp_doc, type_doc.as_ptr() as *mut c_char) }
 
             #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
@@ -358,9 +357,9 @@ impl PyTypeBuilder {
                     .push(Box::new(move |_self, type_object| unsafe {
                         ffi::PyObject_Free((*type_object).tp_doc as _);
 
-                        let byte_length = slice.len() + 1; // +1 for nul terminator
-                        let data = ffi::PyMem_Malloc(byte_length);
-                        data.copy_from(slice.as_ptr() as _, byte_length);
+                        let slice = type_doc.to_bytes_with_nul();
+                        let data = ffi::PyMem_Malloc(slice.len());
+                        data.copy_from(slice.as_ptr() as _, slice.len());
                         (*type_object).tp_doc = data as _;
                     }))
             }
