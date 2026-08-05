@@ -1690,7 +1690,7 @@ def check_feature_powerset(session: nox.Session):
 
     comma_join = ",".join
     for abi_name in ["abi3", "abi3t"]:
-        _run_cargo(
+        args = [
             session,
             subcommand,
             "--feature-powerset",
@@ -1699,9 +1699,10 @@ def check_feature_powerset(session: nox.Session):
             *(f"--group-features={comma_join(group)}" for group in features_to_group),
             "check",
             "--all-targets",
-            f"--features={comma_join(_REQUIRED_FOR_NO_STD)}" if _is_no_std() else "",
-            env=env,
-        )
+        ]
+        if not _is_no_std:
+            args.push(f"--features={comma_join(_REQUIRED_FOR_NO_STD)}")
+        _run_cargo(*args, env=env)
 
 
 @nox.session(name="update-ui-tests", venv_backend="none")
