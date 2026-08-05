@@ -4,7 +4,9 @@ use std::ffi::CString;
 use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::unique_element_id;
-use crate::method::{CallingConvention, ExtractErrorMode, PyArg, SelfConversionPolicy};
+use crate::method::{
+    CallingConvention, ClassMethodReceiver, ExtractErrorMode, PyArg, SelfConversionPolicy,
+};
 use crate::params::{impl_arg_params, impl_regular_arg_param, Holders};
 use crate::pyfunction::WarningFactory;
 use crate::utils::PythonDoc;
@@ -409,6 +411,7 @@ pub fn impl_py_method_def(
         // instance of the owning type before reaching the C function. The
         // trusted path is therefore valid.
         unsafe { SelfConversionPolicy::trusted() },
+        ClassMethodReceiver::Class,
         ctx,
     )?;
     let methoddef = spec.get_methoddef(
@@ -436,6 +439,7 @@ fn impl_call_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> Result<Metho
         // SAFETY: The `tp_call` slot is dispatched by CPython, which guarantees
         // the receiver is of the correct type.
         unsafe { SelfConversionPolicy::trusted() },
+        ClassMethodReceiver::Instance,
         ctx,
     )?;
     let slot_def = quote! {
@@ -1538,9 +1542,19 @@ fn generate_method_body(
         pyo3_path,
         output_span,
     } = ctx;
-    let self_arg = spec
-        .tp
-        .self_arg(Some(cls), extract_error_mode, self_conversion, holders, ctx);
+    let self_arg = spec.tp.self_arg(
+        Some(cls),
+        extract_error_mode,
+        self_conversion,
+        match calling_convention {
+            SlotCallingConvention::TpNew => ClassMethodReceiver::Class,
+            SlotCallingConvention::TpInit | SlotCallingConvention::FixedArguments(_) => {
+                ClassMethodReceiver::Instance
+            }
+        },
+        holders,
+        ctx,
+    );
     let rust_name = spec.name;
     let warnings = spec.warnings.build_py_warning(ctx);
 
