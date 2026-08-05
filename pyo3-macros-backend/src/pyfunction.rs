@@ -3,6 +3,8 @@ use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{function_introspection_code, introspection_id_const};
 #[cfg(feature = "experimental-inspect")]
+use crate::py_expr::PyExpr;
+#[cfg(feature = "experimental-inspect")]
 use crate::utils::get_doc;
 use crate::utils::Ctx;
 use crate::{
@@ -10,7 +12,7 @@ use crate::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
         FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
     },
-    method::{self, CallingConvention, FnArg, SelfConversionPolicy},
+    method::{self, CallingConvention, ClassMethodReceiver, FnArg, SelfConversionPolicy},
     pymethod::check_generic,
 };
 use proc_macro2::{Span, TokenStream};
@@ -21,8 +23,9 @@ use std::ffi::CString;
 use std::iter::empty;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::LitCStr;
-use syn::{ext::IdentExt, spanned::Spanned, LitStr, Path, Result, Token};
+#[cfg(feature = "experimental-inspect")]
+use syn::ReturnType;
+use syn::{ext::IdentExt, spanned::Spanned, LitCStr, LitStr, Path, Result, Token};
 
 mod signature;
 
@@ -408,10 +411,14 @@ pub fn impl_wrap_pyfunction(
     let introspection = function_introspection_code(
         pyo3_path,
         Some(name),
-        &name.to_string(),
+        // `name` is the Rust identifier, which `#[pyo3(name = "...")]` overrides for Python
+        &spec.python_name.to_string(),
         &spec.signature,
         None,
-        func.sig.output.clone(),
+        match &func.sig.output {
+            ReturnType::Type(_, t) => PyExpr::from_return_type((**t).clone(), None),
+            ReturnType::Default => PyExpr::none(),
+        },
         empty(),
         func.sig.asyncness.is_some(),
         false,
@@ -438,6 +445,7 @@ pub fn impl_wrap_pyfunction(
         None,
         calling_convention,
         SelfConversionPolicy::checked(),
+        ClassMethodReceiver::Class,
         ctx,
     )?;
     let methoddef = spec.get_methoddef(

@@ -4,7 +4,9 @@ use std::ffi::CString;
 use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::unique_element_id;
-use crate::method::{CallingConvention, ExtractErrorMode, PyArg, SelfConversionPolicy};
+use crate::method::{
+    CallingConvention, ClassMethodReceiver, ExtractErrorMode, PyArg, SelfConversionPolicy,
+};
 use crate::params::{impl_arg_params, impl_regular_arg_param, Holders};
 use crate::pyfunction::WarningFactory;
 use crate::utils::PythonDoc;
@@ -191,6 +193,28 @@ enum PyMethodProtoKind {
     SlotFragment(&'static SlotFragmentDef),
 }
 
+impl PyMethodProtoKind {
+    /// Whether Python hands this protocol an `args`/`kwargs` pair.
+    ///
+    /// `tp_new`, `tp_init` and `tp_call` do, so they accept keyword arguments and a
+    /// `#[pyo3(signature = ...)]` has something to act on. Every other protocol is reached
+    /// through a slot wrapper with a fixed C-level signature: its parameters are positional-only
+    /// and a signature attribute would have nothing to unpack.
+    ///
+    /// Should `signature` ever be accepted on protocol methods just to supply type hints, only
+    /// the `ensure_no_forbidden_protocol_attributes` use goes away: which parameters Python sees
+    /// as positional-only is dictated by CPython, not by what the user declares.
+    fn takes_args_and_kwargs(&self) -> bool {
+        match self {
+            PyMethodProtoKind::Slot(slot) => slot.takes_args_and_kwargs(),
+            PyMethodProtoKind::Call => true,
+            PyMethodProtoKind::SlotFragment(_)
+            | PyMethodProtoKind::Traverse
+            | PyMethodProtoKind::Clear => false,
+        }
+    }
+}
+
 impl<'a> PyMethod<'a> {
     pub fn parse(
         sig: &'a mut syn::Signature,
@@ -199,10 +223,21 @@ impl<'a> PyMethod<'a> {
     ) -> Result<Self> {
         check_generic(sig)?;
         ensure_function_options_valid(&options)?;
-        let spec = FnSpec::parse(sig, meth_attrs, options)?;
+        let mut spec = FnSpec::parse(sig, meth_attrs, options)?;
 
         let method_name = spec.python_name.to_string();
         let kind = PyMethodKind::from_name(&method_name);
+
+        // The parameters of a method backed by a type slot are positional-only, record that in
+        // the signature. Nothing else can: `#[pyo3(signature = ...)]` is rejected for exactly
+        // these methods, see `ensure_no_forbidden_protocol_attributes`.
+        if let PyMethodKind::Proto(proto) = &kind {
+            if !proto.takes_args_and_kwargs() {
+                spec.signature
+                    .python_signature
+                    .make_all_parameters_positional_only();
+            }
+        }
 
         Ok(Self {
             kind,
@@ -341,14 +376,7 @@ fn ensure_no_forbidden_protocol_attributes(
 ) -> syn::Result<()> {
     if let Some(signature) = &spec.signature.attribute {
         // __new__, __init__ and __call__ are allowed to have a signature, but nothing else is.
-        if !matches!(
-            proto_kind,
-            PyMethodProtoKind::Slot(SlotDef {
-                calling_convention: SlotCallingConvention::TpNew | SlotCallingConvention::TpInit,
-                ..
-            })
-        ) && !matches!(proto_kind, PyMethodProtoKind::Call)
-        {
+        if !proto_kind.takes_args_and_kwargs() {
             bail_spanned!(signature.kw.span() => format!("`signature` cannot be used with magic method `{}`", method_name));
         }
     }
@@ -385,6 +413,7 @@ pub fn impl_py_method_def(
         // instance of the owning type before reaching the C function. The
         // trusted path is therefore valid.
         unsafe { SelfConversionPolicy::trusted() },
+        ClassMethodReceiver::Class,
         ctx,
     )?;
     let methoddef = spec.get_methoddef(
@@ -412,6 +441,7 @@ fn impl_call_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> Result<Metho
         // SAFETY: The `tp_call` slot is dispatched by CPython, which guarantees
         // the receiver is of the correct type.
         unsafe { SelfConversionPolicy::trusted() },
+        ClassMethodReceiver::Instance,
         ctx,
     )?;
     let slot_def = quote! {
@@ -872,7 +902,6 @@ pub fn impl_py_getter_def(
                         { ::std::mem::offset_of!(#cls, #field) },
                         { #pyo3_path::impl_::pyclass::IsPyT::<#ty>::VALUE },
                         { #pyo3_path::impl_::pyclass::IsIntoPyObjectRef::<#ty>::VALUE },
-                        { #pyo3_path::impl_::pyclass::IsIntoPyObject::<#ty>::VALUE },
                     > = unsafe { #pyo3_path::impl_::pyclass::PyClassGetterGenerator::new() };
                     #generator
                 }
@@ -1322,6 +1351,19 @@ enum SlotCallingConvention {
 }
 
 impl SlotDef {
+    /// Whether this slot receives Python's `args`/`kwargs` pair rather than a fixed set of
+    /// positional arguments.
+    ///
+    /// Only `tp_new` and `tp_init` do; every other slot is exposed to Python through a slot
+    /// wrapper which rejects keyword arguments, e.g. `__eq__` has the signature
+    /// `($self, value, /)`.
+    pub const fn takes_args_and_kwargs(&self) -> bool {
+        matches!(
+            self.calling_convention,
+            SlotCallingConvention::TpNew | SlotCallingConvention::TpInit
+        )
+    }
+
     const fn new(slot: &'static str, func_ty: &'static str) -> Self {
         // The FFI function pointer type determines the arguments and return type
         let (calling_convention, ret_ty) = match func_ty.as_bytes() {
@@ -1500,9 +1542,19 @@ fn generate_method_body(
         pyo3_path,
         output_span,
     } = ctx;
-    let self_arg = spec
-        .tp
-        .self_arg(Some(cls), extract_error_mode, self_conversion, holders, ctx);
+    let self_arg = spec.tp.self_arg(
+        Some(cls),
+        extract_error_mode,
+        self_conversion,
+        match calling_convention {
+            SlotCallingConvention::TpNew => ClassMethodReceiver::Class,
+            SlotCallingConvention::TpInit | SlotCallingConvention::FixedArguments(_) => {
+                ClassMethodReceiver::Instance
+            }
+        },
+        holders,
+        ctx,
+    );
     let rust_name = spec.name;
     let warnings = spec.warnings.build_py_warning(ctx);
 

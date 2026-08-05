@@ -296,10 +296,12 @@ pub mod pyo3_build_script_impl {
             target.architecture,
             Architecture::Wasm32 | Architecture::Wasm64
         );
-        let is_emscripten = target.operating_system == target_lexicon::OperatingSystem::Emscripten;
+        let is_emscripten = target.operating_system == OperatingSystem::Emscripten;
+        let is_cygwin = target.operating_system == OperatingSystem::Cygwin;
+        let is_windows = target.operating_system == OperatingSystem::Windows;
         // webassembly targets generally don't support rpath, emscripten is the only exception currently aware of:
         // https://github.com/emscripten-core/emscripten/issues/22126
-        if is_linking_libpython && (!is_wasm || is_emscripten) {
+        if is_linking_libpython && !is_windows && !is_cygwin && (!is_wasm || is_emscripten) {
             if let Some(lib_dir) = interpreter_config.lib_dir() {
                 println!("cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}");
             }

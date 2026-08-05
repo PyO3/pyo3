@@ -46,12 +46,14 @@ error: `name` is useless without `get` or `set`
 51 | struct NameWithoutGetSet(#[pyo3(name = "value")] i32);
    |                                 ^^^^^^^^^^^^^^
 
-error[E0277]: the trait bound `PhantomData<i32>: pyo3::impl_::introspection::return_type::Sealed` is not satisfied
+error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
   --> tests/ui/invalid_property_args.rs:57:12
    |
 57 |     value: ::std::marker::PhantomData<i32>,
-   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `IntoPyObject<'_>` is not implemented for `PhantomData<i32>`
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by `#[pyo3(get)]` to create a readable property from a field of type `PhantomData<i32>`
    |
+   = help: the trait `IntoPyObject<'_>` is not implemented for `PhantomData<i32>`
+   = note: implement `IntoPyObject` for `&PhantomData<i32>` or `IntoPyObject + Clone` for `PhantomData<i32>` to define the conversion
    = help: the following other types implement trait `IntoPyObject<'py>`:
              &&'a T
              &&OsStr
@@ -62,15 +64,7 @@ error[E0277]: the trait bound `PhantomData<i32>: pyo3::impl_::introspection::ret
              &'a (T0, T1, T2, T3)
              &'a (T0, T1, T2, T3, T4)
            and $N others
-   = note: required for `PhantomData<i32>` to implement `pyo3::impl_::introspection::return_type::Sealed`
-note: required by a bound in `pyo3::impl_::introspection::PyReturnType::OUTPUT_TYPE`
- --> src/impl_/introspection.rs
-  |
-  | pub trait PyReturnType: return_type::Sealed {
-  |                         ^^^^^^^^^^^^^^^^^^^ required by this bound in `PyReturnType::OUTPUT_TYPE`
-  |     /// The function return type
-  |     const OUTPUT_TYPE: PyStaticExpr;
-  |           ----------- required by a bound in this associated constant
+   = note: required for `PhantomData<i32>` to implement `pyo3::impl_::introspection::PyIntoPyObjectMaybeRefType<false>`
 
 error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
     --> tests/ui/invalid_property_args.rs:57:12
@@ -91,14 +85,14 @@ error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
                &'a (T0, T1, T2, T3, T4)
              and $N others
      = note: required for `PhantomData<i32>` to implement `for<'py> pyo3::impl_::pyclass::PyO3GetField<'py>`
-note: required by a bound in `pyo3::impl_::pyclass::PyClassGetterGenerator::<ClassT, FieldT, OFFSET, false, false, IMPLEMENTS_INTOPYOBJECT>::generate`
+note: required by a bound in `pyo3::impl_::pyclass::PyClassGetterGenerator::<ClassT, FieldT, OFFSET, false, false>::generate`
  --> src/impl_/pyclass.rs
   |
   |     pub const fn generate(&self, name: &'static CStr, doc: Option<&'static CStr>) -> PyMethodDefType
   |                  -------- required by a bound in this associated function
 ...
   |         for<'py> FieldT: PyO3GetField<'py>,
-  |                          ^^^^^^^^^^^^^^^^^ required by this bound in `PyClassGetterGenerator::<ClassT, FieldT, OFFSET, false, false, IMPLEMENTS_INTOPYOBJECT>::generate`
+  |                          ^^^^^^^^^^^^^^^^^ required by this bound in `PyClassGetterGenerator::<ClassT, FieldT, OFFSET, false, false>::generate`
 
 error: aborting due to 10 previous errors
 
