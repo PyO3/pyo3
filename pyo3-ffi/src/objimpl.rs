@@ -94,7 +94,17 @@ extern_libpython! {
 
     #[cfg(not(PyPy))]
     pub fn PyObject_GC_UnTrack(arg1: *mut c_void);
+}
 
+#[cfg(PyPy)]
+#[inline]
+pub fn PyObject_GC_Track(_: *mut c_void) {}
+
+#[cfg(PyPy)]
+#[inline]
+pub fn PyObject_GC_UnTrack(_: *mut c_void) {}
+
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyObject_GC_Del")]
     pub fn PyObject_GC_Del(arg1: *mut c_void);
 }
