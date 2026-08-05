@@ -12,7 +12,7 @@ use crate::{
         self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
         FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
     },
-    method::{self, CallingConvention, FnArg, SelfConversionPolicy},
+    method::{self, CallingConvention, ClassMethodReceiver, FnArg, SelfConversionPolicy},
     pymethod::check_generic,
 };
 use proc_macro2::{Span, TokenStream};
@@ -445,6 +445,7 @@ pub fn impl_wrap_pyfunction(
         None,
         calling_convention,
         SelfConversionPolicy::checked(),
+        ClassMethodReceiver::Class,
         ctx,
     )?;
     let methoddef = spec.get_methoddef(
