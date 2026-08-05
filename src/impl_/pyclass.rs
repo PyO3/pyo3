@@ -1168,9 +1168,11 @@ pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) 
     // All PyO3 types are heap allocated and are required to implement GC traversal to
     // enable traversing the type object at a minimum.
     // SAFETY: `obj` is guaranteed to be a Python object (this function is called from the Python interpreter)
-    debug_assert_eq!(unsafe { ffi::PyType_IS_GC(ffi::Py_TYPE(obj)) }, 1);
     #[cfg(not(PyPy))]
     unsafe {
+        // https://github.com/pypy/pypy/issues/5556 - PyPy incorrectly does not make
+        // Python subclasses of PyO3 types proper GC types
+        debug_assert_eq!(ffi::PyType_IS_GC(ffi::Py_TYPE(obj)), 1);
         ffi::PyObject_GC_UnTrack(obj.cast());
     }
     unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
