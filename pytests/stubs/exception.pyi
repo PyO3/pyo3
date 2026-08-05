@@ -1,5 +1,9 @@
 from _typeshed import Incomplete
-from typing import Any
+from typing import Any, final
+
+@final
+class MyValueErrorClass(ValueError):
+    def __new__(cls, /) -> MyValueErrorClass: ...
 
 def raise_my_value_error() -> None: ...
 def return_my_value_error() -> Any: ...
