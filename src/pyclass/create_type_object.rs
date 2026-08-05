@@ -357,8 +357,10 @@ impl PyTypeBuilder {
                 self.cleanup
                     .push(Box::new(move |_self, type_object| unsafe {
                         ffi::PyObject_Free((*type_object).tp_doc as _);
-                        let data = ffi::PyMem_Malloc(slice.len());
-                        data.copy_from(slice.as_ptr() as _, slice.len());
+
+                        let byte_length = slice.len() + 1; // +1 for nul terminator
+                        let data = ffi::PyMem_Malloc(byte_length);
+                        data.copy_from(slice.as_ptr() as _, byte_length);
                         (*type_object).tp_doc = data as _;
                     }))
             }
