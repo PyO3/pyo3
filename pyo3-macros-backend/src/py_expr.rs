@@ -2,7 +2,7 @@
 
 use crate::utils::PyO3CratePath;
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use std::borrow::Cow;
 use syn::visit_mut::{visit_type_mut, VisitMut};
 use syn::{Expr, ExprLit, ExprPath, Lit, Type};
@@ -22,6 +22,10 @@ pub enum PyExpr {
     ArgumentType(Type),
     /// The Python type matching the given Rust type given as a function returned value
     ReturnType(Type),
+    /// The Python type `__next__` yields, without the `Option` meaning `StopIteration`
+    IterNextReturnType(Type),
+    /// The Python type `__anext__` yields, without the `Option` meaning `StopAsyncIteration`
+    AsyncIterNextReturnType(Type),
     /// The Python type matching the given Rust type
     Type(Type),
     /// A name
@@ -114,6 +118,20 @@ impl PyExpr {
     /// If self_type is set, self_type will replace Self in the given type
     pub fn from_return_type(t: Type, self_type: Option<&Type>) -> Self {
         Self::ReturnType(clean_type(t, self_type))
+    }
+
+    /// The type hint of the Rust type used as the output type of `__next__`
+    ///
+    /// If self_type is set, self_type will replace Self in the given type
+    pub fn from_iter_next_return_type(t: Type, self_type: Option<&Type>) -> Self {
+        Self::IterNextReturnType(clean_type(t, self_type))
+    }
+
+    /// The type hint of the Rust type used as the output type of `__anext__`
+    ///
+    /// If self_type is set, self_type will replace Self in the given type
+    pub fn from_async_iter_next_return_type(t: Type, self_type: Option<&Type>) -> Self {
+        Self::AsyncIterNextReturnType(clean_type(t, self_type))
     }
 
     /// The type hint of the Rust type `PyTypeCheck` trait.
@@ -228,6 +246,15 @@ impl PyExpr {
                     TYPE
                 }}
             }
+            Self::IterNextReturnType(t) => {
+                iter_next_output_type(pyo3_crate_path, t, "IterNextOutput", "IterNextTypeFallback")
+            }
+            Self::AsyncIterNextReturnType(t) => iter_next_output_type(
+                pyo3_crate_path,
+                t,
+                "AsyncIterNextOutput",
+                "AsyncIterNextTypeFallback",
+            ),
             Self::Type(t) => {
                 quote! { <#t as #pyo3_crate_path::type_object::PyTypeCheck>::TYPE_HINT }
             }
@@ -285,6 +312,27 @@ impl PyExpr {
             },
         }
     }
+}
+
+/// The type hint of what `__next__` / `__anext__` yields, read off the same wrapper the slot uses
+/// to convert the returned value so that the stub and the runtime agree on which return types say
+/// "iteration is over" with `None`.
+fn iter_next_output_type(
+    pyo3_crate_path: &PyO3CratePath,
+    t: &Type,
+    wrapper: &str,
+    fallback: &str,
+) -> TokenStream {
+    let wrapper = format_ident!("{wrapper}");
+    let fallback = format_ident!("{fallback}");
+    quote! {{
+        #[allow(
+            unused_imports,
+            reason = "the fallback trait is unused when the inherent const applies"
+        )]
+        use #pyo3_crate_path::impl_::pymethods::#fallback as _;
+        #pyo3_crate_path::impl_::pymethods::#wrapper::<#t>::OUTPUT_TYPE
+    }}
 }
 
 fn clean_type(mut t: Type, self_type: Option<&Type>) -> Type {

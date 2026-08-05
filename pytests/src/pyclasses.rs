@@ -7,6 +7,8 @@ use pyo3::types::{PyComplex, PyType};
 #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 use pyo3::types::{PyDict, PyTuple};
 
+use crate::awaitable::awaitable::IterAwaitable;
+
 #[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct EmptyClass {}
@@ -47,6 +49,92 @@ impl PyClassIter {
         } else {
             Err(PyStopIteration::new_err("Ended"))
         }
+    }
+}
+
+/// This is for demonstrating how to stop iteration by returning `None` from __next__
+#[pyclass]
+#[derive(Default)]
+struct PyClassOptionIter {
+    count: usize,
+}
+
+#[pymethods]
+impl PyClassOptionIter {
+    #[new]
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(&mut self) -> Option<usize> {
+        if self.count < 5 {
+            self.count += 1;
+            Some(self.count)
+        } else {
+            None
+        }
+    }
+}
+
+/// This is for demonstrating how to stop iteration by returning `None` from a fallible __next__
+#[pyclass]
+#[derive(Default)]
+struct PyClassResultOptionIter {
+    count: usize,
+}
+
+#[pymethods]
+impl PyClassResultOptionIter {
+    #[new]
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    #[expect(clippy::unnecessary_wraps, reason = "covering the fallible signature")]
+    fn __next__(&mut self) -> PyResult<Option<usize>> {
+        if self.count < 5 {
+            self.count += 1;
+            Ok(Some(self.count))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+/// This is for demonstrating how to stop iteration by returning `None` from __anext__
+#[pyclass]
+#[derive(Default)]
+struct PyClassOptionAsyncIter {
+    count: usize,
+}
+
+#[pymethods]
+impl PyClassOptionAsyncIter {
+    #[new]
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    fn __aiter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __anext__(&mut self, py: Python<'_>) -> PyResult<Option<IterAwaitable>> {
+        if self.count >= 5 {
+            return Ok(None);
+        }
+        self.count += 1;
+        // `__anext__` hands back an awaitable, which `async for` awaits for the next value.
+        let value = self.count.into_pyobject(py)?.into_any().unbind();
+        Ok(Some(IterAwaitable::new(value)))
     }
 }
 
@@ -341,6 +429,7 @@ pub mod pyclasses {
     #[pymodule_export]
     use super::{
         map_a_class, AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass,
-        Number, PlainObject, PyClassIter, PyClassThreadIter,
+        Number, PlainObject, PyClassIter, PyClassOptionAsyncIter, PyClassOptionIter,
+        PyClassResultOptionIter, PyClassThreadIter,
     };
 }

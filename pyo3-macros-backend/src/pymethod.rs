@@ -1096,18 +1096,15 @@ pub const __RICHCMP__: SlotDef = SlotDef::new("Py_tp_richcompare", "richcmpfunc"
     .extract_error_mode(ExtractErrorMode::NotImplemented);
 const __GET__: SlotDef = SlotDef::new("Py_tp_descr_get", "descrgetfunc");
 const __ITER__: SlotDef = SlotDef::new("Py_tp_iter", "getiterfunc");
-const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc")
-    .return_specialized_conversion(
-        TokenGenerator(|_| quote! { IterBaseKind, IterOptionKind, IterResultOptionKind }),
-        TokenGenerator(|_| quote! { iter_tag }),
-    );
+const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc").return_iter_conversion(
+    TokenGenerator(|_| quote! { IterNextOutput }),
+    TokenGenerator(|_| quote! { IterNextConvertFallback }),
+);
 const __AWAIT__: SlotDef = SlotDef::new("Py_am_await", "unaryfunc");
 const __AITER__: SlotDef = SlotDef::new("Py_am_aiter", "unaryfunc");
-const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_specialized_conversion(
-    TokenGenerator(
-        |_| quote! { AsyncIterBaseKind, AsyncIterOptionKind, AsyncIterResultOptionKind },
-    ),
-    TokenGenerator(|_| quote! { async_iter_tag }),
+const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_iter_conversion(
+    TokenGenerator(|_| quote! { AsyncIterNextOutput }),
+    TokenGenerator(|_| quote! { AsyncIterNextConvertFallback }),
 );
 pub const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc");
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc");
@@ -1299,7 +1296,10 @@ fn extract_object(
 enum ReturnMode {
     ReturnSelf,
     Conversion(TokenGenerator),
-    SpecializedConversion(TokenGenerator, TokenGenerator),
+    /// `__next__` / `__anext__`: the return value goes through the wrapper named by the first
+    /// generator, whose inherent `convert` handles the return types saying "iteration is over"
+    /// with `None`, and whose fallback trait, named by the second, handles all the others.
+    IterConversion(TokenGenerator, TokenGenerator),
 }
 
 impl ReturnMode {
@@ -1313,13 +1313,17 @@ impl ReturnMode {
                     #pyo3_path::impl_::callback::convert(py, _result)
                 }
             }
-            ReturnMode::SpecializedConversion(traits, tag) => {
-                let traits = TokenGeneratorCtx(*traits, ctx);
-                let tag = TokenGeneratorCtx(*tag, ctx);
+            ReturnMode::IterConversion(wrapper, fallback) => {
+                let wrapper = TokenGeneratorCtx(*wrapper, ctx);
+                let fallback = TokenGeneratorCtx(*fallback, ctx);
                 quote! {
                     let _result = #call;
-                    use #pyo3_path::impl_::pymethods::{#traits};
-                    (&_result).#tag().convert(py, _result)
+                    #[allow(
+                        unused_imports,
+                        reason = "the fallback trait is unused when the inherent `convert` applies"
+                    )]
+                    use #pyo3_path::impl_::pymethods::#fallback as _;
+                    #pyo3_path::impl_::pymethods::#wrapper(_result).convert(py)
                 }
             }
             ReturnMode::ReturnSelf => quote! {
@@ -1434,12 +1438,12 @@ impl SlotDef {
         self
     }
 
-    const fn return_specialized_conversion(
+    const fn return_iter_conversion(
         mut self,
-        traits: TokenGenerator,
-        tag: TokenGenerator,
+        wrapper: TokenGenerator,
+        fallback: TokenGenerator,
     ) -> Self {
-        self.return_mode = Some(ReturnMode::SpecializedConversion(traits, tag));
+        self.return_mode = Some(ReturnMode::IterConversion(wrapper, fallback));
         self
     }
 
