@@ -244,7 +244,7 @@ fn initialize_tp_dict(
     // the POV of other threads.
     for (key, val) in items {
         crate::err::error_on_minusone(py, unsafe {
-            ffi::PyObject_SetAttrString(type_object, key.as_ptr(), val.into_ptr())
+            ffi::PyObject_SetAttrString(type_object, key.as_ptr(), val.as_ptr())
         })?;
     }
     Ok(())
