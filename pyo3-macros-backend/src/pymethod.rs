@@ -128,6 +128,7 @@ impl PyMethodKind {
             "__ior__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__IOR__)),
             "__getbuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__GETBUFFER__)),
             "__releasebuffer__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__RELEASEBUFFER__)),
+            "__del__" => PyMethodKind::Proto(PyMethodProtoKind::Slot(&__DEL__)),
             // Protocols implemented through traits
             "__getattribute__" => {
                 PyMethodKind::Proto(PyMethodProtoKind::SlotFragment(&__GETATTRIBUTE__))
@@ -1147,6 +1148,10 @@ const __GETBUFFER__: SlotDef = SlotDef::new("Py_bf_getbuffer", "getbufferproc").
 const __RELEASEBUFFER__: SlotDef =
     SlotDef::new("Py_bf_releasebuffer", "releasebufferproc").require_unsafe();
 const __CLEAR__: SlotDef = SlotDef::new("Py_tp_clear", "inquiry");
+const __DEL__: SlotDef = SlotDef::new("Py_tp_finalize", "finalizefunc")
+    .ffi_cast_ty_override("destructor")
+    .require_instance_method()
+    .require_del_supported();
 
 #[derive(Clone, Copy)]
 enum Ty {
@@ -1335,11 +1340,17 @@ impl ReturnMode {
 pub struct SlotDef {
     slot: StaticIdent,
     trampoline_ty: StaticIdent,
+    /// When the FFI type name differs from the trampoline module name, this
+    /// overrides the type used in the `as ffi::<type>` cast.
+    ffi_cast_ty: Option<StaticIdent>,
     calling_convention: SlotCallingConvention,
     ret_ty: Ty,
     extract_error_mode: ExtractErrorMode,
     return_mode: Option<ReturnMode>,
     require_unsafe: bool,
+    /// When set, emits a compile-time assertion that `__del__` is supported on
+    /// the current abi3 / Python version combination (see `assert_del_supported`).
+    require_del_supported: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -1359,6 +1370,18 @@ impl SlotCallingConvention {
         Self::FixedArguments {
             arguments,
             requires_instance_receiver: false,
+        }
+    }
+
+    const fn require_instance_method(self) -> Self {
+        match self {
+            Self::FixedArguments { arguments, .. } => Self::FixedArguments {
+                arguments,
+                requires_instance_receiver: true,
+            },
+            Self::TpNew | Self::TpInit => {
+                panic!("require_instance_method only supported for fixed-argument slots")
+            }
         }
     }
 
@@ -1432,6 +1455,7 @@ impl SlotDef {
                 SlotCallingConvention::fixed_arguments(&[Ty::PyBuffer]),
                 Ty::Void,
             ),
+            b"finalizefunc" => (SlotCallingConvention::fixed_arguments(&[]), Ty::Void),
             b"ternaryfunc" => (
                 SlotCallingConvention::fixed_arguments(&[Ty::Object, Ty::Object]),
                 Ty::Object,
@@ -1442,11 +1466,13 @@ impl SlotDef {
         SlotDef {
             slot: StaticIdent::new(slot),
             trampoline_ty: StaticIdent::new(trampoline_ty),
+            ffi_cast_ty: None,
             calling_convention,
             ret_ty,
             extract_error_mode: ExtractErrorMode::Raise,
             return_mode: None,
             require_unsafe: false,
+            require_del_supported: false,
         }
     }
 
@@ -1455,6 +1481,11 @@ impl SlotDef {
         SlotDef::new(slot, "binaryfunc")
             .extract_error_mode(ExtractErrorMode::NotImplemented)
             .return_self()
+    }
+
+    const fn ffi_cast_ty_override(mut self, ffi_cast_ty: &'static str) -> Self {
+        self.ffi_cast_ty = Some(StaticIdent::new(ffi_cast_ty));
+        self
     }
 
     const fn return_conversion(mut self, return_conversion: TokenGenerator) -> Self {
@@ -1486,6 +1517,16 @@ impl SlotDef {
         self
     }
 
+    const fn require_instance_method(mut self) -> Self {
+        self.calling_convention = self.calling_convention.require_instance_method();
+        self
+    }
+
+    const fn require_del_supported(mut self) -> Self {
+        self.require_del_supported = true;
+        self
+    }
+
     pub fn generate_type_slot(
         &self,
         cls: &syn::Type,
@@ -1497,12 +1538,15 @@ impl SlotDef {
         let SlotDef {
             slot,
             trampoline_ty,
+            ffi_cast_ty,
             calling_convention,
             extract_error_mode,
             ret_ty,
             return_mode,
             require_unsafe,
+            require_del_supported,
         } = self;
+        let ffi_cast_ty = ffi_cast_ty.unwrap_or(*trampoline_ty);
         if *require_unsafe {
             ensure_spanned!(
                 spec.unsafety.is_some(),
@@ -1542,10 +1586,31 @@ impl SlotDef {
                 #body
             }
         };
+        let trampoline = quote! {
+            #pyo3_path::impl_::trampoline::get_trampoline_function!(#trampoline_ty, #cls::#wrapper_ident)
+                as #pyo3_path::ffi::#ffi_cast_ty as _
+        };
+        // On abi3 before Python 3.15, `__del__` is unsupported because
+        // `PyObject_CallFinalizerFromDealloc` is not part of the limited API.
+        // Surface that as a clear diagnostic pointed at the user's `__del__`
+        // rather than an opaque "cannot find `finalizefunc`" error. The check is
+        // embedded in the slot's `pfunc` so it is const-evaluated when the
+        // type's slot table is built (and is a no-op where `__del__` is supported).
+        let pfunc = if *require_del_supported {
+            let assertion = quote_spanned! {
+                name.span() =>
+                const _: () = #pyo3_path::impl_::pyclass::assert_del_supported();
+            };
+            quote! {
+                { #assertion #trampoline }
+            }
+        } else {
+            trampoline
+        };
         let slot_def = quote! {
             #pyo3_path::ffi::PyType_Slot {
                 slot: #pyo3_path::ffi::#slot,
-                pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(#trampoline_ty, #cls::#wrapper_ident) as #pyo3_path::ffi::#trampoline_ty as _
+                pfunc: #pfunc,
             }
         };
         Ok(MethodAndSlotDef {

@@ -1,3 +1,4 @@
+import gc
 import sysconfig
 from sys import implementation
 
@@ -34,3 +35,21 @@ def test_hammer_attaching_in_thread():
 )
 def test_detach_during_finalization():
     loopy.append(misc.detach_during_finalization())
+
+
+@pytest.mark.skipif(
+    implementation.name == "graalpy",
+    reason="GraalPy drops pyclass instances without invoking tp_finalize on this path",
+)
+def test_pyclass_del_runs_during_finalization():
+    misc.reset_del_drop_counts()
+    obj = misc.DelDropProbe()
+    del obj
+
+    for _ in range(10):
+        gc.collect()
+        finalized, dropped = misc.del_drop_counts()
+        if finalized == dropped == 1:
+            break
+
+    assert misc.del_drop_counts() == (1, 1)

@@ -3,6 +3,14 @@ use pyo3::{
     types::{PyDict, PyString},
 };
 
+#[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+#[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+static DEL_DROP_PROBE_FINALIZED: AtomicUsize = AtomicUsize::new(0);
+#[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+static DEL_DROP_PROBE_DROPPED: AtomicUsize = AtomicUsize::new(0);
+
 #[pyfunction]
 fn issue_219() {
     // issue 219: attaching inside #[pyfunction] deadlocks.
@@ -13,6 +21,46 @@ fn issue_219() {
 struct LockHolder {
     #[expect(unused, reason = "used to block until sender is dropped")]
     sender: std::sync::mpsc::Sender<()>,
+}
+
+#[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+#[pyclass]
+struct DelDropProbe;
+
+#[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+#[pymethods]
+impl DelDropProbe {
+    #[new]
+    fn new() -> Self {
+        Self
+    }
+
+    fn __del__(&self) {
+        DEL_DROP_PROBE_FINALIZED.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+#[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+impl Drop for DelDropProbe {
+    fn drop(&mut self) {
+        DEL_DROP_PROBE_DROPPED.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+#[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+#[pyfunction]
+fn reset_del_drop_counts() {
+    DEL_DROP_PROBE_FINALIZED.store(0, Ordering::SeqCst);
+    DEL_DROP_PROBE_DROPPED.store(0, Ordering::SeqCst);
+}
+
+#[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+#[pyfunction]
+fn del_drop_counts() -> (usize, usize) {
+    (
+        DEL_DROP_PROBE_FINALIZED.load(Ordering::SeqCst),
+        DEL_DROP_PROBE_DROPPED.load(Ordering::SeqCst),
+    )
 }
 
 // This will repeatedly attach and detach from the Python interpreter
@@ -90,4 +138,8 @@ pub mod misc {
         accepts_bool, detach_during_finalization, get_item_and_run_callback,
         get_type_fully_qualified_name, hammer_attaching_in_thread, issue_219,
     };
+
+    #[cfg(any(not(Py_LIMITED_API), Py_3_15))]
+    #[pymodule_export]
+    use super::{del_drop_counts, reset_del_drop_counts, DelDropProbe};
 }
