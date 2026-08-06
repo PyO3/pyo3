@@ -1,0 +1,7 @@
+error: `#[pymodule_init]` takes either no argument or the module
+ --> tests/ui/invalid_pymodule_init_args.rs:8:13
+  |
+8 |     fn init(_m: &Bound<'_, PyModule>, _extra: usize) -> PyResult<()> {
+  |             ^^
+
+error: aborting due to 1 previous error
