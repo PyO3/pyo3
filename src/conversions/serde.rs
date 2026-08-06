@@ -24,11 +24,9 @@ where
     where
         S: Serializer,
     {
-        Python::attach(|py| {
-            self.try_borrow(py)
-                .map_err(|e| ser::Error::custom(e.to_string()))?
-                .serialize(serializer)
-        })
+        self.try_borrow_guard()
+            .map_err(|e| ser::Error::custom(e.to_string()))?
+            .serialize(serializer)
     }
 }
 

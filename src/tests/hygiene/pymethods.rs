@@ -123,7 +123,7 @@ impl Dummy {
 
     fn __delitem__(&self, key: u32) {}
 
-    fn __iter__(_: crate::pycell::PyRef<'_, Self>, py: crate::Python<'_>) -> crate::Py<DummyIter> {
+    fn __iter__(_: crate::PyClassGuard<'_, Self>, py: crate::Python<'_>) -> crate::Py<DummyIter> {
         crate::Py::new(py, DummyIter {}).unwrap()
     }
 
@@ -132,7 +132,7 @@ impl Dummy {
     }
 
     fn __reversed__(
-        slf: crate::pycell::PyRef<'_, Self>,
+        slf: crate::PyClassGuard<'_, Self>,
         py: crate::Python<'_>,
     ) -> crate::Py<DummyIter> {
         crate::Py::new(py, DummyIter {}).unwrap()
@@ -274,19 +274,19 @@ impl Dummy {
 
     fn __ior__(&mut self, other: &Self) {}
 
-    fn __neg__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
+    fn __neg__(slf: crate::PyClassGuard<'_, Self>) -> crate::PyClassGuard<'_, Self> {
         slf
     }
 
-    fn __pos__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
+    fn __pos__(slf: crate::PyClassGuard<'_, Self>) -> crate::PyClassGuard<'_, Self> {
         slf
     }
 
-    fn __abs__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
+    fn __abs__(slf: crate::PyClassGuard<'_, Self>) -> crate::PyClassGuard<'_, Self> {
         slf
     }
 
-    fn __invert__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
+    fn __invert__(slf: crate::PyClassGuard<'_, Self>) -> crate::PyClassGuard<'_, Self> {
         slf
     }
 
@@ -344,7 +344,7 @@ impl Dummy {
     // Awaitable Objects
     //////////////////////
 
-    fn __await__(slf: crate::pycell::PyRef<'_, Self>) -> crate::pycell::PyRef<'_, Self> {
+    fn __await__(slf: crate::PyClassGuard<'_, Self>) -> crate::PyClassGuard<'_, Self> {
         slf
     }
 
@@ -354,7 +354,7 @@ impl Dummy {
     //////////////////////
 
     fn __aiter__(
-        slf: crate::pycell::PyRef<'_, Self>,
+        slf: crate::PyClassGuard<'_, Self>,
         py: crate::Python<'_>,
     ) -> crate::Py<DummyIter> {
         crate::Py::new(py, DummyIter {}).unwrap()
@@ -484,10 +484,10 @@ impl WarningDummy {
     }
 
     #[pyo3(warn(message = "this method raises warning"))]
-    fn method_with_warning(_slf: crate::PyRef<'_, Self>) {}
+    fn method_with_warning(_slf: crate::PyClassGuard<'_, Self>) {}
 
     #[pyo3(warn(message = "this method raises warning", category = crate::exceptions::PyFutureWarning))]
-    fn method_with_warning_and_custom_category(_slf: crate::PyRef<'_, Self>) {}
+    fn method_with_warning_and_custom_category(_slf: crate::PyClassGuard<'_, Self>) {}
 
     #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
     #[pyo3(warn(message = "this method raises user-defined warning", category = UserDefinedWarning))]
@@ -525,7 +525,7 @@ impl WarningDummy {
     }
 
     #[pyo3(warn(message = "the + op method raises warning"))]
-    fn __add__(&self, other: crate::PyRef<'_, Self>) -> Self {
+    fn __add__(&self, other: crate::PyClassGuard<'_, Self>) -> Self {
         Self {
             value: self.value + other.value,
         }
