@@ -163,7 +163,9 @@ impl PythonDoc {
             };
         }
         let Ctx { pyo3_path, .. } = ctx;
-        Ok(quote!(#pyo3_path::ffi::c_str!(concat!(#(#parts),*))))
+        Ok(quote!(
+            #pyo3_path::ffi::_cstr_from_utf8_with_nul_checked(concat!(#(#parts),*, "\0"))
+        ))
     }
 }
 

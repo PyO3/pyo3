@@ -474,7 +474,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
-    /// use pyo3_ffi::c_str;
     /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
@@ -531,7 +530,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3_ffi::c_str;
     /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
@@ -568,7 +566,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     /// ```rust
     /// use pyo3::prelude::*;
     /// use pyo3::types::PyDict;
-    /// use pyo3_ffi::c_str;
     /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
@@ -614,7 +611,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3_ffi::c_str;
     /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
@@ -651,7 +647,6 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3_ffi::c_str;
     /// use core::ffi::CStr;
     ///
     /// const CODE: &CStr = cr#"
@@ -1465,7 +1460,6 @@ mod tests {
         Bound, BoundObject, IntoPyObject, PyTypeInfo, Python,
     };
     use core::fmt::Debug;
-    use pyo3_ffi::c_str;
 
     #[test]
     fn test_lookup_special() {
@@ -1640,7 +1634,7 @@ class SimpleClass:
     def foo(self):
         return 42
 "#,
-                c_str!(file!()),
+                core::ffi::CStr::from_bytes_with_nul(concat!(file!(), "\0").as_bytes()).unwrap(),
                 &generate_unique_module_name("test_module"),
             )
             .expect("module creation failed");
