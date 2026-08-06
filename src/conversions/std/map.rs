@@ -8,10 +8,11 @@ use crate::{
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
     Borrowed, FromPyObject, PyAny, PyErr, Python,
 };
+use alloc::collections;
 use core::{cmp, hash};
-use std::collections;
 
-impl<'py, K, V, H> IntoPyObject<'py> for collections::HashMap<K, V, H>
+#[cfg(wip_feature_std)]
+impl<'py, K, V, H> IntoPyObject<'py> for std::collections::HashMap<K, V, H>
 where
     K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     V: IntoPyObject<'py>,
@@ -34,7 +35,8 @@ where
     }
 }
 
-impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a collections::HashMap<K, V, H>
+#[cfg(wip_feature_std)]
+impl<'a, 'py, K, V, H> IntoPyObject<'py> for &'a std::collections::HashMap<K, V, H>
 where
     &'a K: IntoPyObject<'py> + cmp::Eq + hash::Hash,
     &'a V: IntoPyObject<'py>,
@@ -103,7 +105,8 @@ where
     }
 }
 
-impl<'py, K, V, S> FromPyObject<'_, 'py> for collections::HashMap<K, V, S>
+#[cfg(wip_feature_std)]
+impl<'py, K, V, S> FromPyObject<'_, 'py> for std::collections::HashMap<K, V, S>
 where
     K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
     V: FromPyObjectOwned<'py>,
@@ -117,7 +120,7 @@ where
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let dict = ob.cast::<PyDict>()?;
-        let mut ret = collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
+        let mut ret = std::collections::HashMap::with_capacity_and_hasher(dict.len(), S::default());
         for (k, v) in dict.iter() {
             ret.insert(
                 k.extract().map_err(Into::into)?,
@@ -156,10 +159,13 @@ where
 mod tests {
     use super::*;
     use alloc::collections::BTreeMap;
+    #[cfg(wip_feature_std)]
     use std::collections::HashMap;
 
     #[test]
+    #[cfg_attr(not(wip_feature_std), ignore)]
     fn test_hashmap_to_python() {
+        #[cfg(wip_feature_std)]
         Python::attach(|py| {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
@@ -203,7 +209,9 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(wip_feature_std), ignore)]
     fn test_hashmap_into_python() {
+        #[cfg(wip_feature_std)]
         Python::attach(|py| {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);

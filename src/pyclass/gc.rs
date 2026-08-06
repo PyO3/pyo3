@@ -1,6 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
-
 use core::{
     ffi::{c_int, c_void},
     marker::PhantomData,
@@ -42,8 +39,10 @@ impl PyVisit<'_> {
     {
         let ptr = obj.into().map_or_else(core::ptr::null_mut, Py::as_ptr);
         if !ptr.is_null() {
-            // SAFETY: constructor guaranteed `visit` and `arg` are valid
-            // and `ptr` is known to be a valid pointer to a Python object.
+            // SAFETY: `PyVisit` is only created during a `tp_traverse` call and
+            // cannot outlive it, so `visit` and `arg` are still the pair the
+            // interpreter passed in; `ptr` comes from `Py::as_ptr`, so it is a
+            // valid object pointer.
             let retval = unsafe { (self.visit)(ptr, self.arg) };
             make_traverse_result(retval)
         } else {
