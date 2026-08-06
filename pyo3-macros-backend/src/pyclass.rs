@@ -3087,6 +3087,11 @@ impl<'a> PyClassImplsBuilder<'a> {
                     static TYPE_OBJECT: LazyTypeObject<#cls> = LazyTypeObject::new();
                     &TYPE_OBJECT
                 }
+
+                fn __traverse__(&self, visit: #pyo3_path::gc::PyVisit<'_>) -> ::std::result::Result<(), #pyo3_path::gc::PyTraverseError> {
+                    use #pyo3_path::impl_::pyclass::{PyClassTraverse, PyClassImplCollector};
+                    PyClassImplCollector::<Self>::new().__traverse__(self, visit)
+                }
             }
 
             #default_methods_impl

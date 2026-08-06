@@ -1561,6 +1561,10 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         static TYPE_OBJECT: LazyTypeObject<MyClass> = LazyTypeObject::new();
         &TYPE_OBJECT
     }
+
+    fn __traverse__(&self, _visit: pyo3::pyclass::PyVisit<'_>) -> Result<(), pyo3::pyclass::PyTraverseError> {
+        Ok(())
+    }
 }
 
 # Python::attach(|py| {
