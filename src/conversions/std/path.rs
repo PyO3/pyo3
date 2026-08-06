@@ -1,3 +1,5 @@
+#![cfg(wip_feature_std)]
+
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]

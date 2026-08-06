@@ -1,3 +1,5 @@
+#![cfg(wip_feature_std)]
+
 use crate::conversion::IntoPyObject;
 use crate::exceptions::{PyOverflowError, PyValueError};
 #[cfg(feature = "experimental-inspect")]

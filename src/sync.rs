@@ -393,6 +393,7 @@ impl OnceExt for parking_lot::Once {
     }
 }
 
+#[cfg(wip_feature_std)]
 impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
     fn get_or_init_py_attached<F>(&self, py: Python<'_>, f: F) -> &T
     where
@@ -404,6 +405,7 @@ impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
     }
 }
 
+#[cfg(wip_feature_std)]
 impl<T> MutexExt<T> for std::sync::Mutex<T> {
     type LockResult<'a>
         = std::sync::LockResult<std::sync::MutexGuard<'a, T>>
@@ -522,6 +524,7 @@ where
     }
 }
 
+#[cfg(wip_feature_std)]
 impl<T> RwLockExt<T> for std::sync::RwLock<T> {
     type ReadLockResult<'a>
         = std::sync::LockResult<std::sync::RwLockReadGuard<'a, T>>
@@ -685,6 +688,7 @@ where
     });
 }
 
+#[cfg(wip_feature_std)]
 #[cold]
 fn init_once_lock_py_attached<'a, F, T>(
     lock: &'a std::sync::OnceLock<T>,
@@ -711,11 +715,13 @@ where
 
 mod once_lock_ext_sealed {
     pub trait Sealed {}
+    #[cfg(wip_feature_std)]
     impl<T> Sealed for std::sync::OnceLock<T> {}
 }
 
 mod rwlock_ext_sealed {
     pub trait Sealed {}
+    #[cfg(wip_feature_std)]
     impl<T> Sealed for std::sync::RwLock<T> {}
     #[cfg(feature = "lock_api")]
     impl<R, T> Sealed for lock_api::RwLock<R, T> {}
