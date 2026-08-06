@@ -26,7 +26,10 @@ def test(session: nox.Session):
     # - is a dependency of gevent
     try_install_binary("zope.interface", "<7")
     try_install_binary("gevent", ">=22.10.2")
-    ignored_paths = []
+    # The stubs are generated from a build with `experimental-async,experimental-inspect`,
+    # so only such a build exports the members they declare. The `test-introspection`
+    # session runs this test against one.
+    ignored_paths = ["tests/test_stubs.py"]
     if sys.version_info < (3, 10):
         # Match syntax is only available in Python >= 3.10
         ignored_paths.append("tests/test_enums_match.py")
