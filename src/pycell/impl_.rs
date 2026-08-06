@@ -304,7 +304,7 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
             // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
             // assumes the exception is currently GC tracked, so we have to re-track
             // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
-            #[cfg(not(any(Py_3_11, PyPy)))]
+            #[cfg(not(Py_3_11))]
             if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
                 ffi::PyObject_GC_Track(slf.cast());
             }

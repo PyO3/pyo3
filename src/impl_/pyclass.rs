@@ -1165,10 +1165,9 @@ pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) 
 
 /// Implementation of tp_dealloc for pyclasses with gc
 pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::PyObject) {
-    #[cfg(not(PyPy))]
-    unsafe {
-        ffi::PyObject_GC_UnTrack(obj.cast());
-    }
+    // SAFETY: `tp_dealloc` is required to untrack GC objects before invalidating any fields
+    unsafe { ffi::PyObject_GC_UnTrack(obj.cast()) };
+    // SAFETY: `tp_dealloc` is called with valid `obj` by CPython, with an attached thread state
     unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
 }
 
