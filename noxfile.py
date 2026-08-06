@@ -318,6 +318,14 @@ def codspeed(session: nox.Session) -> bool:
     _run(session, "pytest", "--codspeed", external=True)
 
 
+@nox.session(name="codspeed-walltime")
+def codspeed_walltime(session: nox.Session) -> bool:
+    bench = "bench_attach_scaling"
+    os.chdir(PYO3_DIR / "pyo3-benches")
+    _run_cargo(session, "codspeed", "build", "--bench", bench)
+    _run_cargo(session, "codspeed", "run", "--bench", bench)
+
+
 @nox.session(name="clippy-all", venv_backend="none")
 def clippy_all(session: nox.Session) -> None:
     success = True
