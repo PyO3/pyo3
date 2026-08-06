@@ -1,6 +1,8 @@
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::type_hint_subscript;
 use crate::internal_tricks::get_ssize_index;
 #[allow(unused_imports, reason = "used to build docs")]
 use crate::platform::prelude::*;
@@ -32,7 +34,8 @@ pyobject_native_type_core!(
     PyList,
     pyobject_native_static_type_object!(ffi::PyList_Type),
     "builtins", "list",
-    #checkfunction=ffi::PyList_Check
+    #checkfunction=ffi::PyList_Check,
+    #standalone_type_hint=type_hint_subscript!(PyList::TYPE_HINT, PyAny::TYPE_HINT)
 );
 
 #[cfg(RustPython)]
@@ -44,7 +47,8 @@ pyobject_native_type_core!(
     },
     "builtins",
     "list",
-    #checkfunction=ffi::PyList_Check
+    #checkfunction=ffi::PyList_Check,
+    #standalone_type_hint=type_hint_subscript!(PyList::TYPE_HINT, PyAny::TYPE_HINT)
 );
 
 #[cfg(Py_3_12)]

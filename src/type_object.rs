@@ -60,8 +60,22 @@ pub unsafe trait PyTypeInfo: Sized {
     const MODULE: Option<&'static str>;
 
     /// Provides the full python type as a type hint.
+    ///
+    /// This is also used as a building block for parametrized type hints, e.g. `Vec<T>` is
+    /// hinted as `Self::TYPE_HINT[T::OUTPUT_TYPE]`, so it must stay unparametrized (e.g. `list`
+    /// rather than `list[Any]`).
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_identifier!("_typeshed", "Incomplete");
+
+    /// The type hint used for `Bound<'_, Self>` and `Py<Self>` when no more specific
+    /// parametrization is known.
+    ///
+    /// Defaults to [`TYPE_HINT`](Self::TYPE_HINT). Generic native container types like
+    /// [`PyList`](crate::types::PyList) override this to the fully parametrized form (e.g.
+    /// `list[Any]`) so that generated stubs pass `mypy --strict`, while keeping `TYPE_HINT`
+    /// itself unparametrized for reuse as described above.
+    #[cfg(feature = "experimental-inspect")]
+    const STANDALONE_TYPE_HINT: PyStaticExpr = Self::TYPE_HINT;
 
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
@@ -113,6 +127,11 @@ pub unsafe trait PyTypeCheck {
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr;
 
+    /// The type hint used for `Bound<'_, Self>` and `Py<Self>` when no more specific
+    /// parametrization is known. Defaults to [`TYPE_HINT`](Self::TYPE_HINT).
+    #[cfg(feature = "experimental-inspect")]
+    const STANDALONE_TYPE_HINT: PyStaticExpr = Self::TYPE_HINT;
+
     /// Checks if `object` is an instance of `Self`, which may include a subtype.
     ///
     /// This should be equivalent to the Python expression `isinstance(object, Self)`.
@@ -131,6 +150,9 @@ where
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = <T as PyTypeInfo>::TYPE_HINT;
 
+    #[cfg(feature = "experimental-inspect")]
+    const STANDALONE_TYPE_HINT: PyStaticExpr = <T as PyTypeInfo>::STANDALONE_TYPE_HINT;
+
     #[inline]
     fn type_check(object: &Bound<'_, PyAny>) -> bool {
         T::is_type_of(object)
@@ -139,5 +161,77 @@ where
     #[inline]
     fn classinfo_object(py: Python<'_>) -> Bound<'_, PyAny> {
         T::type_object(py).into_any()
+    }
+}
+
+#[cfg(all(test, feature = "experimental-inspect"))]
+mod tests {
+    use super::*;
+    use crate::platform::prelude::*;
+    use crate::types::{PyDict, PyList, PyTuple};
+    use crate::{Bound, FromPyObject, IntoPyObject, Py};
+
+    #[test]
+    fn container_standalone_type_hints_are_parametrized() {
+        assert_eq!(
+            <PyList as PyTypeInfo>::STANDALONE_TYPE_HINT.to_string(),
+            "builtins.list[typing.Any]"
+        );
+        assert_eq!(
+            <PyDict as PyTypeInfo>::STANDALONE_TYPE_HINT.to_string(),
+            "builtins.dict[typing.Any, typing.Any]"
+        );
+        assert_eq!(
+            <PyTuple as PyTypeInfo>::STANDALONE_TYPE_HINT.to_string(),
+            "builtins.tuple[typing.Any, ...]"
+        );
+    }
+
+    #[test]
+    fn container_type_hints_stay_unparametrized_for_composition() {
+        assert_eq!(
+            <PyList as PyTypeInfo>::TYPE_HINT.to_string(),
+            "builtins.list"
+        );
+        assert_eq!(
+            <PyDict as PyTypeInfo>::TYPE_HINT.to_string(),
+            "builtins.dict"
+        );
+        assert_eq!(
+            <PyTuple as PyTypeInfo>::TYPE_HINT.to_string(),
+            "builtins.tuple"
+        );
+    }
+
+    #[test]
+    fn container_bound_and_py_use_standalone_type_hints() {
+        macro_rules! assert_container {
+            ($ty:ty, $expected:expr) => {
+                assert_eq!(
+                    <$ty as PyTypeInfo>::STANDALONE_TYPE_HINT.to_string(),
+                    $expected
+                );
+                assert_eq!(
+                    <Bound<'_, $ty> as FromPyObject<'_, '_>>::INPUT_TYPE.to_string(),
+                    $expected
+                );
+                assert_eq!(
+                    <Py<$ty> as FromPyObject<'_, '_>>::INPUT_TYPE.to_string(),
+                    $expected
+                );
+                assert_eq!(
+                    <Bound<'_, $ty> as IntoPyObject<'_>>::OUTPUT_TYPE.to_string(),
+                    $expected
+                );
+                assert_eq!(
+                    <Py<$ty> as IntoPyObject<'_>>::OUTPUT_TYPE.to_string(),
+                    $expected
+                );
+            };
+        }
+
+        assert_container!(PyList, "builtins.list[typing.Any]");
+        assert_container!(PyDict, "builtins.dict[typing.Any, typing.Any]");
+        assert_container!(PyTuple, "builtins.tuple[typing.Any, ...]");
     }
 }
