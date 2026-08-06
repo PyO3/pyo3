@@ -47,8 +47,7 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
-          # PyPy can have FFI changes within Python versions, which creates pain in CI
-          check-latest: ${{ startsWith(inputs.python-version, 'pypy') }}
+          check-latest: true
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
