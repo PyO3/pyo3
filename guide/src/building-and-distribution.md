@@ -21,6 +21,10 @@ By default it will attempt to use the following in order:
 
 You can override the Python interpreter by setting the `PYO3_PYTHON` environment variable, e.g. `PYO3_PYTHON=python3.9`, `PYO3_PYTHON=/usr/bin/python3.10`, or even a PyPy interpreter `PYO3_PYTHON=pypy3`.
 
+Build tools may additionally set the `PYO3_BASE_PYTHON` environment variable, which takes precedence over `PYO3_PYTHON`.
+This is intended to point at a stable interpreter path (e.g. `sys._base_executable`) when `PYO3_PYTHON` points inside an ephemeral virtual environment (as created by PEP 517 build frontends with build isolation).
+When `PYO3_BASE_PYTHON` is set, changes to `PYO3_PYTHON` do not trigger rebuilds, which keeps compilation caches warm across builds in freshly-created (and randomly-named) temporary environments.
+
 Once the Python interpreter is located, `pyo3-build-config` executes it to query the information in the `sysconfig` module which is needed to configure the rest of the compilation.
 
 To validate the configuration which PyO3 will use, you can run a compilation with the environment variable `PYO3_PRINT_CONFIG=1` set.
@@ -55,6 +59,7 @@ Caused by:
   cargo:rerun-if-env-changed=PYO3_CROSS_PYTHON_IMPLEMENTATION
   cargo:rerun-if-env-changed=PYO3_NO_PYTHON
   cargo:rerun-if-env-changed=PYO3_ENVIRONMENT_SIGNATURE
+  cargo:rerun-if-env-changed=PYO3_BASE_PYTHON
   cargo:rerun-if-env-changed=PYO3_PYTHON
   cargo:rerun-if-env-changed=VIRTUAL_ENV
   cargo:rerun-if-env-changed=CONDA_PREFIX
