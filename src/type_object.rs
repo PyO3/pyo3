@@ -72,7 +72,7 @@ pub unsafe trait PyTypeInfo: Sized {
         //
         // By making `Bound` we assume ownership which is then safe against races.
         let tp = Self::type_object_raw(py).cast::<ffi::PyObject>();
-        // SAFETY: the pointer is known to be a borrowed type object and we immeditely make a new reference
+        // SAFETY: the pointer is known to be a borrowed type object and we immediately make a new reference
         unsafe { tp.assume_borrowed_unchecked(py).cast_unchecked() }.to_owned()
     }
 
