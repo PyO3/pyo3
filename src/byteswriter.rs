@@ -1,6 +1,8 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+//! Helper for making a [`PyBytes`], see [`PyBytesWriter`] for details.
+
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[allow(unused_imports, reason = "conditionally used")]
@@ -22,12 +24,9 @@ use crate::{
 };
 use crate::{types::PyBytes, Bound, IntoPyObject, PyErr, PyResult, Python};
 #[cfg(not(Py_LIMITED_API))]
-use core::{
-    mem::ManuallyDrop,
-    ptr::{self, NonNull},
-};
-use std::io::IoSlice;
+use core::{mem::ManuallyDrop, ptr::NonNull};
 
+/// Type used to create a [`PyBytes`], used in [`PyBytes::new_with_writer`].
 pub struct PyBytesWriter<'py> {
     python: Python<'py>,
     #[cfg(not(Py_LIMITED_API))]
@@ -39,14 +38,15 @@ pub struct PyBytesWriter<'py> {
 impl<'py> PyBytesWriter<'py> {
     /// Create a new `PyBytesWriter` with a default initial capacity.
     #[inline]
-    pub fn new(py: Python<'py>) -> PyResult<Self> {
+    #[allow(unused, reason = "used in test cases")]
+    pub(crate) fn new(py: Python<'py>) -> PyResult<Self> {
         Self::with_capacity(py, 0)
     }
 
     /// Create a new `PyBytesWriter` with the specified initial capacity.
     #[inline]
     #[cfg_attr(Py_LIMITED_API, allow(clippy::unnecessary_wraps))]
-    pub fn with_capacity(py: Python<'py>, capacity: usize) -> PyResult<Self> {
+    pub(crate) fn with_capacity(py: Python<'py>, capacity: usize) -> PyResult<Self> {
         cfg_select! {
             not(Py_LIMITED_API) => NonNull::new(unsafe { PyBytesWriter_Create(capacity as _) }).map_or_else(
                 || Err(PyErr::fetch(py)),
@@ -64,6 +64,12 @@ impl<'py> PyBytesWriter<'py> {
                 buffer: Vec::with_capacity(capacity),
             })
         }
+    }
+
+    /// Returns true if [`PyBytesWriter::len`] is 0.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Get the current length of the internal buffer.
@@ -98,6 +104,27 @@ impl<'py> PyBytesWriter<'py> {
                 PyBytesWriter_Resize(self.writer.as_ptr(), new_len as _),
             )
         }
+    }
+
+    /// Writes the `bytes` into `self`.
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn write_bytes(&mut self, bytes: &[u8]) -> PyResult<()> {
+        cfg_select! {
+            Py_LIMITED_API => self.buffer.extend_from_slice(bytes),
+
+            _ => {
+                let len = bytes.len();
+                let pos = self.len();
+
+                // SAFETY: We write the new uninitialized bytes below.
+                unsafe { self.set_len(pos + len)? }
+
+                // SAFETY: We have ensured enough capacity above.
+                unsafe { core::ptr::copy_nonoverlapping(bytes.as_ptr(), self.as_mut_ptr().add(pos), len) };
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -143,14 +170,14 @@ impl<'py> Drop for PyBytesWriter<'py> {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(all(wip_feature_std, not(Py_LIMITED_API)))]
 impl std::io::Write for PyBytesWriter<'_> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.write_all(buf)?;
         Ok(buf.len())
     }
 
-    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> std::io::Result<usize> {
+    fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
         let len = bufs.iter().map(|b| b.len()).sum();
         let pos = self.len();
 
@@ -163,7 +190,7 @@ impl std::io::Write for PyBytesWriter<'_> {
 
         for buf in bufs {
             // SAFETY: We have ensured enough capacity above.
-            unsafe { ptr::copy_nonoverlapping(buf.as_ptr(), ptr, buf.len()) };
+            unsafe { core::ptr::copy_nonoverlapping(buf.as_ptr(), ptr, buf.len()) };
 
             // SAFETY: We just wrote buf.len() bytes
             ptr = unsafe { ptr.add(buf.len()) };
@@ -176,26 +203,18 @@ impl std::io::Write for PyBytesWriter<'_> {
     }
 
     fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
-        let len = buf.len();
-        let pos = self.len();
-
-        // SAFETY: We write the new uninitialized bytes below.
-        unsafe { self.set_len(pos + len)? }
-
-        // SAFETY: We have ensured enough capacity above.
-        unsafe { ptr::copy_nonoverlapping(buf.as_ptr(), self.as_mut_ptr().add(pos), len) };
-
+        self.write_bytes(buf)?;
         Ok(())
     }
 }
 
-#[cfg(Py_LIMITED_API)]
+#[cfg(all(wip_feature_std, Py_LIMITED_API))]
 impl std::io::Write for PyBytesWriter<'_> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.buffer.write(buf)
     }
 
-    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> std::io::Result<usize> {
+    fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
         self.buffer.write_vectored(bufs)
     }
 
@@ -214,12 +233,17 @@ impl std::io::Write for PyBytesWriter<'_> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(wip_feature_std)]
     use super::*;
+    #[cfg(wip_feature_std)]
     use crate::types::PyBytesMethods;
-    use std::io::Write;
+    #[cfg(wip_feature_std)]
+    use std::io::{IoSlice, Write};
 
     #[test]
+    #[cfg_attr(not(wip_feature_std), ignore)]
     fn test_io_write() {
+        #[cfg(wip_feature_std)]
         Python::attach(|py| {
             let buf = b"hallo world";
             let mut writer = PyBytesWriter::new(py).unwrap();
@@ -230,7 +254,9 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(wip_feature_std), ignore)]
     fn test_pre_allocated() {
+        #[cfg(wip_feature_std)]
         Python::attach(|py| {
             let buf = b"hallo world";
             let mut writer = PyBytesWriter::with_capacity(py, buf.len()).unwrap();
@@ -242,7 +268,9 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(wip_feature_std), ignore)]
     fn test_io_write_vectored() {
+        #[cfg(wip_feature_std)]
         Python::attach(|py| {
             let bufs = [IoSlice::new(b"hallo "), IoSlice::new(b"world")];
             let mut writer = PyBytesWriter::new(py).unwrap();
@@ -253,7 +281,9 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(wip_feature_std), ignore)]
     fn test_io_write_vectored_large() {
+        #[cfg(wip_feature_std)]
         Python::attach(|py| {
             let large_data = vec![b'\n'; 1024]; // 1 KB
             let bufs = [
@@ -271,7 +301,9 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(wip_feature_std), ignore)]
     fn test_large_data() {
+        #[cfg(wip_feature_std)]
         Python::attach(|py| {
             let mut writer = PyBytesWriter::new(py).unwrap();
             let large_data = vec![0; 1024]; // 1 KB
