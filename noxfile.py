@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import io
 import json
 import os
@@ -87,6 +88,15 @@ def _supported_interpreter_versions(
     if python_impl == "cpython":
         versions += [f"{major}.{minor}t" for minor in range(14, max_minor + 1)]
     return versions
+
+
+@functools.cache
+def _is_no_std() -> bool:
+    no_std = os.environ.get("PYO3_WIP_NO_STD")
+    if no_std is None:
+        return False
+    no_std = no_std.strip()
+    return no_std == "1" or no_std.lower() == "true"
 
 
 PY_VERSIONS = _supported_interpreter_versions("cpython")
@@ -1570,6 +1580,12 @@ def _cfg_attr_is_non_cpython_only(attr: str) -> bool:
     )
 
 
+_REQUIRED_FOR_NO_STD = {
+    "hashbrown",
+    "parking_lot",
+}
+
+
 @nox.session(name="check-feature-powerset", venv_backend="none")
 def check_feature_powerset(session: nox.Session):
     if toml is None:
@@ -1660,6 +1676,8 @@ def check_feature_powerset(session: nox.Session):
         *abi3_version_features,
         *abi3t_version_features,
     ]
+    if _is_no_std():
+        features_to_skip.extend(_REQUIRED_FOR_NO_STD)
 
     # deny warnings
     env = os.environ.copy()
@@ -1672,7 +1690,7 @@ def check_feature_powerset(session: nox.Session):
 
     comma_join = ",".join
     for abi_name in ["abi3", "abi3t"]:
-        _run_cargo(
+        args = [
             session,
             subcommand,
             "--feature-powerset",
@@ -1681,8 +1699,10 @@ def check_feature_powerset(session: nox.Session):
             *(f"--group-features={comma_join(group)}" for group in features_to_group),
             "check",
             "--all-targets",
-            env=env,
-        )
+        ]
+        if not _is_no_std:
+            args.push(f"--features={comma_join(_REQUIRED_FOR_NO_STD)}")
+        _run_cargo(*args, env=env)
 
 
 @nox.session(name="update-ui-tests", venv_backend="none")
@@ -1802,6 +1822,8 @@ def _get_feature_sets(
 
     cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
 
+    required = ",".join(_REQUIRED_FOR_NO_STD) if _is_no_std() else ""
+
     features = "full"
 
     if "wasm32-wasip1" not in cargo_target:
@@ -1813,21 +1835,31 @@ def _get_feature_sets(
 
     if FREE_THREADED_BUILD:
         if version >= (3, 15):
-            return (None, "abi3t", features, f"abi3t,{features}")
+            return (
+                required,
+                f"abi3t,{required}",
+                f"{features},{required}",
+                f"abi3t,{features},{required}",
+            )
         else:
-            return (None, features)
+            return (required, f"{features},{required}")
 
     # do fewer abi3t builds?
     if version >= (3, 15):
         return (
-            None,
-            "abi3",
-            "abi3t",
-            features,
-            f"abi3,{features}",
-            f"abi3t,{features}",
+            required,
+            f"abi3,{required}",
+            f"abi3t,{required}",
+            f"{features},{required}",
+            f"abi3,{features},{required}",
+            f"abi3t,{features},{required}",
         )
-    return (None, "abi3", features, f"abi3,{features}")
+    return (
+        required,
+        f"abi3,{required}",
+        f"{features},{required}",
+        f"abi3,{features},{required}",
+    )
 
 
 _RELEASE_LINE_START = "release: "
