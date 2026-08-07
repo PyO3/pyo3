@@ -184,8 +184,11 @@ impl_to_pyerr!(core::str::ParseBoolError, exceptions::PyValueError);
 impl_to_pyerr!(alloc::ffi::NulError, exceptions::PyValueError);
 impl_to_pyerr!(core::net::AddrParseError, exceptions::PyValueError);
 impl_to_pyerr!(core::time::TryFromFloatSecsError, exceptions::PyValueError);
+#[cfg(wip_feature_std)]
 impl_to_pyerr!(std::time::SystemTimeError, exceptions::PyValueError);
+#[cfg(wip_feature_std)]
 impl_to_pyerr!(std::path::StripPrefixError, exceptions::PyValueError);
+#[cfg(wip_feature_std)]
 impl_to_pyerr!(std::env::JoinPathsError, exceptions::PyValueError);
 impl_to_pyerr!(core::char::ParseCharError, exceptions::PyValueError);
 impl_to_pyerr!(core::char::CharTryFromError, exceptions::PyValueError);

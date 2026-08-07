@@ -167,3 +167,8 @@ def test_many_keyword_arguments_rs(benchmark):
     )
     py = call_with_many_keyword_arguments(many_keyword_arguments_py)
     assert rust == py
+
+
+def test_renamed():
+    assert pyfunctions.renamed() == 42
+    assert not hasattr(pyfunctions, "rust_name_of_renamed")

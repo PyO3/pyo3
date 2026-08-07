@@ -71,7 +71,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.29.0"
+pyo3 = "0.29.1"
 ```
 
 **`src/lib.rs`**
@@ -102,6 +102,8 @@ $ python
 >>> string_sum.sum_as_string(5, 20)
 '25'
 ```
+
+When checking runtime performance, run `maturin develop --release` to build with optimizations.
 
 To make changes to the package, just edit the Rust source code and then re-run `maturin develop` to recompile.
 
@@ -137,7 +139,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.29.0"
+version = "0.29.1"
 # Enabling this cargo feature will cause PyO3 to start a Python interpreter on first call to `Python::attach`
 features = ["auto-initialize"]
 ```

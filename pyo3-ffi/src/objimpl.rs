@@ -94,7 +94,20 @@ extern_libpython! {
 
     #[cfg(not(PyPy))]
     pub fn PyObject_GC_UnTrack(arg1: *mut c_void);
+}
 
+// PyPy currently implements the following two as no-op macros
+// https://github.com/pypy/pypy/blob/194f9f44b50552d75484d67cda6e2b36607dee0c/pypy/module/cpyext/include/objimpl.h#L178-L190
+
+#[cfg(PyPy)]
+#[inline(always)]
+pub unsafe fn PyObject_GC_Track(_: *mut c_void) {}
+
+#[cfg(PyPy)]
+#[inline(always)]
+pub unsafe fn PyObject_GC_UnTrack(_: *mut c_void) {}
+
+extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyObject_GC_Del")]
     pub fn PyObject_GC_Del(arg1: *mut c_void);
 }

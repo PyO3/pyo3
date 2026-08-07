@@ -14,7 +14,7 @@ use crate::internal::get_slot::{TP_DEALLOC, TP_FREE};
 use crate::sync::PyOnceLock;
 use crate::type_object::{PyLayout, PySizedLayout, PyTypeInfo};
 use crate::types::PyType;
-use crate::{ffi, Bound, PyClass, Python};
+use crate::{ffi, PyClass, Python};
 
 use crate::types::PyTypeMethods;
 
@@ -270,8 +270,18 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         // as if it was an owned pointer. In this way, when the bound is dropped,
         // it will decref the type object.
         debug_assert!(ffi::PyType_HasFeature(actual_type_ptr, ffi::Py_TPFLAGS_HEAPTYPE) != 0);
-        let actual_type = Bound::from_owned_ptr(py, actual_type_ptr as *mut ffi::PyObject)
-            .cast_into_unchecked::<PyType>();
+        let actual_type = cfg_select! {
+            not(PyPy) => crate::Bound::from_owned_ptr(py, actual_type_ptr as *mut ffi::PyObject)
+                .cast_into_unchecked::<PyType>(),
+            // See https://github.com/pypy/pypy/issues/5555 - it seems that PyPy does not
+            // support the CPython semantics properly, so we avoid taking ownership of the
+            // type object on PyPy.
+            //
+            // TODO: If the PyPy bug is fixed we should remove this workaround and just create
+            // a `Bound` as above.
+            PyPy => crate::Borrowed::from_ptr(py, actual_type_ptr as *mut ffi::PyObject)
+                .cast_unchecked::<PyType>(),
+        };
 
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
         #[cfg(not(RustPython))]
@@ -294,7 +304,7 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
             // Before CPython 3.11 BaseException_dealloc would use Py_GC_UNTRACK which
             // assumes the exception is currently GC tracked, so we have to re-track
             // before calling the dealloc so that it can safely call Py_GC_UNTRACK.
-            #[cfg(not(any(Py_3_11, PyPy)))]
+            #[cfg(not(Py_3_11))]
             if ffi::PyType_FastSubclass(type_ptr, ffi::Py_TPFLAGS_BASE_EXC_SUBCLASS) == 1 {
                 ffi::PyObject_GC_Track(slf.cast());
             }
@@ -305,6 +315,10 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
 
         // Cause the reference to the type to be decrefed for heap types, which
         // is necessary to avoid a reference leak.
+        #[cfg_attr(
+            PyPy,
+            expect(dropping_copy_types, reason = "see PyPy workaround for decref above")
+        )]
         drop(actual_type);
     }
 }

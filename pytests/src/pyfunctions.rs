@@ -4,6 +4,12 @@ use pyo3::types::{PyDict, PyTuple};
 #[pyfunction(signature = ())]
 fn none() {}
 
+// Exposed under a different name than the Rust one, which the generated stubs have to use.
+#[pyfunction(name = "renamed")]
+fn rust_name_of_renamed() -> usize {
+    42
+}
+
 type Any<'py> = Bound<'py, PyAny>;
 type Dict<'py> = Bound<'py, PyDict>;
 type Tuple<'py> = Bound<'py, PyTuple>;
@@ -141,8 +147,8 @@ pub mod pyfunctions {
     use super::with_async;
     #[pymodule_export]
     use super::{
-        args_kwargs, many_keyword_arguments, none, positional_only, simple, simple_args,
-        simple_args_kwargs, simple_kwargs, with_typed_args,
+        args_kwargs, many_keyword_arguments, none, positional_only, rust_name_of_renamed, simple,
+        simple_args, simple_args_kwargs, simple_kwargs, with_typed_args,
     };
 
     // Likewise for a `cfg`-ed out last member.

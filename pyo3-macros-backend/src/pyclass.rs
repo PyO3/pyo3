@@ -1479,8 +1479,7 @@ fn impl_complex_enum_struct_variant_cls(
                 match &*slf.into_super() {
                     #enum_name::#variant_ident { #field_name, .. } =>
                         #pyo3_path::impl_::pyclass::ConvertField::<
-                            { #pyo3_path::impl_::pyclass::IsIntoPyObjectRef::<#field_type>::VALUE },
-                            { #pyo3_path::impl_::pyclass::IsIntoPyObject::<#field_type>::VALUE },
+                            { #pyo3_path::impl_::pyclass::IsIntoPyObjectRef::<#field_type>::VALUE }
                         >::convert_field::<#field_type>(#field_name, py),
                     _ => ::core::unreachable!("Wrong complex enum variant found in variant wrapper PyClass"),
                 }
@@ -1572,8 +1571,7 @@ fn impl_complex_enum_tuple_variant_field_getters(
                 match &*slf.into_super() {
                     #enum_name::#variant_ident ( #(#field_access_tokens), *) =>
                         #pyo3_path::impl_::pyclass::ConvertField::<
-                            { #pyo3_path::impl_::pyclass::IsIntoPyObjectRef::<#field_type>::VALUE },
-                            { #pyo3_path::impl_::pyclass::IsIntoPyObject::<#field_type>::VALUE },
+                            { #pyo3_path::impl_::pyclass::IsIntoPyObjectRef::<#field_type>::VALUE }
                         >::convert_field::<#field_type>(val, py),
                     _ => ::core::unreachable!("Wrong complex enum variant found in variant wrapper PyClass"),
                 }
@@ -1790,9 +1788,13 @@ struct FunctionIntrospectionData<'a> {
 
 #[cfg(feature = "experimental-inspect")]
 impl FunctionIntrospectionData<'_> {
-    fn generate(self, ctx: &Ctx, cls: &syn::Type) -> TokenStream {
-        let signature = FunctionSignature::from_arguments(self.arguments);
-        let returns = self.returns;
+    fn generate(self, ctx: &Ctx, cls: &syn::Type, slot: &SlotDef) -> TokenStream {
+        let mut signature = FunctionSignature::from_arguments(self.arguments);
+        if !slot.takes_args_and_kwargs() {
+            signature
+                .python_signature
+                .make_all_parameters_positional_only();
+        }
         self.names
             .iter()
             .flat_map(|name| {
@@ -1802,7 +1804,7 @@ impl FunctionIntrospectionData<'_> {
                     name,
                     &signature,
                     Some("self"),
-                    parse_quote!(-> #returns),
+                    PyExpr::from_return_type(self.returns.clone(), Some(cls)),
                     [],
                     false,
                     self.is_returning_not_implemented_on_extraction_error,
@@ -1830,7 +1832,7 @@ fn generate_protocol_slot(
     #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
     let mut def = slot.generate_type_slot(cls, &spec, name, ctx)?;
     #[cfg(feature = "experimental-inspect")]
-    def.add_introspection(introspection_data.generate(ctx, cls));
+    def.add_introspection(introspection_data.generate(ctx, cls, slot));
     Ok(def)
 }
 
@@ -1855,7 +1857,7 @@ fn generate_default_protocol_slot(
         ctx,
     )?;
     #[cfg(feature = "experimental-inspect")]
-    def.add_introspection(introspection_data.generate(ctx, cls));
+    def.add_introspection(introspection_data.generate(ctx, cls, slot));
     Ok(def)
 }
 
@@ -2204,19 +2206,20 @@ fn descriptors_to_items(
             #[cfg(feature = "experimental-inspect")]
             {
                 // We generate introspection data
-                let return_type = &field.ty;
+                let parent = parse_quote!(#cls);
+                let return_type = field.ty.clone();
                 getter.add_introspection(function_introspection_code(
                     &ctx.pyo3_path,
                     None,
                     &field_python_name(field, options.name.as_ref(), renaming_rule)?,
                     &FunctionSignature::from_arguments(vec![]),
                     Some("self"),
-                    parse_quote!(-> #return_type),
+                    PyExpr::from_into_py_object_maybe_ref(return_type, Some(&parent)),
                     vec![PyExpr::builtin("property")],
                     false,
                     false,
-                    utils::get_doc(&field.attrs, None).as_ref(),
-                    Some(&parse_quote!(#cls)),
+                    get_doc(&field.attrs, None).as_ref(),
+                    Some(&parent),
                 ));
             }
             items.push(getter);
@@ -2253,7 +2256,7 @@ fn descriptors_to_items(
                         annotation: None,
                     })]),
                     Some("self"),
-                    syn::ReturnType::Default,
+                    PyExpr::none(),
                     vec![PyExpr::attribute(
                         PyExpr::attribute(
                             PyExpr::from_type(
@@ -2422,8 +2425,9 @@ fn pyclass_richcmp_simple_enum(
     #[cfg(feature = "experimental-inspect")]
     let introspection = FunctionIntrospectionData {
         names: &["__eq__", "__ne__"],
+        // `value` is the parameter name CPython uses in the `tp_richcompare` slot wrappers
         arguments: vec![FnArg::Regular(RegularArg {
-            name: Cow::Owned(format_ident!("other")),
+            name: Cow::Owned(format_ident!("value")),
             ty: &any,
             from_py_with: None,
             default_value: None,
@@ -2498,8 +2502,9 @@ fn pyclass_richcmp(
                 } else {
                     &["__eq__", "__ne__"]
                 },
+                // `value` is the parameter name CPython uses in the `tp_richcompare` slot wrappers
                 arguments: vec![FnArg::Regular(RegularArg {
-                    name: Cow::Owned(format_ident!("other")),
+                    name: Cow::Owned(format_ident!("value")),
                     ty: &parse_quote!(&#cls),
                     from_py_with: None,
                     default_value: None,
