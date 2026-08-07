@@ -9,7 +9,7 @@ use core::cell::Cell;
 #[cfg_attr(pyo3_disable_reference_pool, allow(unused_imports))]
 use core::{mem, ptr::NonNull};
 #[cfg(not(pyo3_disable_reference_pool))]
-use std::sync::{Mutex, OnceLock};
+use std::sync::Mutex;
 
 std::thread_local! {
     /// This is an internal counter in pyo3 monitoring whether this thread is attached to the interpreter.
@@ -270,19 +270,19 @@ impl ReferencePool {
 }
 
 #[cfg(not(pyo3_disable_reference_pool))]
-static POOL: OnceLock<ReferencePool> = OnceLock::new();
+static POOL: ReferencePool = ReferencePool::new();
 
 #[cfg(not(pyo3_disable_reference_pool))]
 fn get_pool() -> &'static ReferencePool {
-    POOL.get_or_init(ReferencePool::new)
+    &POOL
 }
 
 #[cfg_attr(pyo3_disable_reference_pool, inline(always))]
 #[cfg_attr(pyo3_disable_reference_pool, allow(unused_variables))]
 fn drop_deferred_references(py: Python<'_>) {
     #[cfg(not(pyo3_disable_reference_pool))]
-    if let Some(pool) = POOL.get() {
-        pool.drop_deferred_references(py);
+    {
+        POOL.drop_deferred_references(py);
     }
 }
 
@@ -311,10 +311,10 @@ impl Drop for SuspendAttach {
         unsafe { ffi::PyEval_RestoreThread(self.tstate) };
         // Update counts of `Py<T>` that were dropped while not attached.
         #[cfg(not(pyo3_disable_reference_pool))]
-        if let Some(pool) = POOL.get() {
+        {
             // SAFETY: just re-attached
             let py = unsafe { Python::assume_attached() };
-            pool.drop_deferred_references(py);
+            POOL.drop_deferred_references(py);
         }
     }
 }
