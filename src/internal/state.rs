@@ -146,7 +146,7 @@ impl AttachGuard {
 
     /// Attach to the interpreter, without a fast-path to check if the thread is already attached.
     /// # Safety
-    /// The interpreter must be sufficiently initialized ot attach a thread.
+    /// The interpreter must be sufficiently initialized to attach a thread.
     #[cold]
     unsafe fn do_attach_unchecked() -> Self {
         // SAFETY: interpreter is sufficiently initialized to attach a thread.
