@@ -1,6 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
-
 //! Python type object information
 
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -74,30 +71,27 @@ pub unsafe trait PyTypeInfo: Sized {
         // the type object to be freed.
         //
         // By making `Bound` we assume ownership which is then safe against races.
-        unsafe {
-            Self::type_object_raw(py)
-                .cast::<ffi::PyObject>()
-                .assume_borrowed_unchecked(py)
-                .to_owned()
-                .cast_into_unchecked()
-        }
+        let tp = Self::type_object_raw(py).cast::<ffi::PyObject>();
+        // SAFETY: the pointer is known to be a borrowed type object and we immeditely make a new reference
+        unsafe { tp.assume_borrowed_unchecked(py).cast_unchecked() }.to_owned()
     }
 
     /// Checks if `object` is an instance of this type or a subclass of this type.
     #[inline]
     fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
-        unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0 }
+        let tp = Self::type_object_raw(object.py());
+        // SAFETY: pointers are known to be correct types and borrowed
+        (unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), tp) }) != 0
     }
 
     /// Checks if `object` is an instance of this type.
     #[inline]
     fn is_exact_type_of(object: &Bound<'_, PyAny>) -> bool {
-        unsafe {
-            ptr::eq(
-                ffi::Py_TYPE(object.as_ptr()),
-                Self::type_object_raw(object.py()),
-            )
-        }
+        ptr::eq(
+            // SAFETY: no additional requirements
+            unsafe { ffi::Py_TYPE(object.as_ptr()) },
+            Self::type_object_raw(object.py()),
+        )
     }
 }
 
@@ -124,6 +118,7 @@ pub unsafe trait PyTypeCheck {
     fn classinfo_object(py: Python<'_>) -> Bound<'_, PyAny>;
 }
 
+// SAFETY: requirements upheld by impl of PyTypeInfo
 unsafe impl<T> PyTypeCheck for T
 where
     T: PyTypeInfo,
