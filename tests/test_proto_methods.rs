@@ -1,10 +1,10 @@
 #![cfg(feature = "macros")]
 
 use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
+use pyo3::platform::sync::non_poison::Mutex;
 use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
 use pyo3::{prelude::*, py_run};
 use std::iter;
-use std::sync::Mutex;
 
 mod test_utils;
 
@@ -429,7 +429,7 @@ impl Iterator {
     }
 
     fn __next__(slf: PyRefMut<'_, Self>) -> Option<i32> {
-        slf.iter.lock().unwrap().next()
+        slf.iter.lock().next()
     }
 }
 
