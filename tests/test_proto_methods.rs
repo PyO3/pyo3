@@ -424,11 +424,11 @@ struct Iterator {
 
 #[pymethods]
 impl Iterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
-    fn __next__(slf: PyRefMut<'_, Self>) -> Option<i32> {
+    fn __next__(slf: PyClassGuardMut<'_, Self>) -> Option<i32> {
         slf.iter.lock().unwrap().next()
     }
 }
@@ -748,11 +748,11 @@ impl OnceFuture {
         }
     }
 
-    fn __await__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __await__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
     fn __next__<'py>(&mut self, py: Python<'py>) -> Option<&Bound<'py, PyAny>> {
@@ -809,7 +809,7 @@ impl AsyncIterator {
         }
     }
 
-    fn __aiter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __aiter__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
@@ -872,10 +872,10 @@ impl DescrCounter {
     }
     /// Each access will increase the count
     fn __get__<'a>(
-        mut slf: PyRefMut<'a, Self>,
+        mut slf: PyClassGuardMut<'a, Self>,
         _instance: &Bound<'_, PyAny>,
         _owner: Option<&Bound<'_, PyType>>,
-    ) -> PyRefMut<'a, Self> {
+    ) -> PyClassGuardMut<'a, Self> {
         slf.count += 1;
         slf
     }
