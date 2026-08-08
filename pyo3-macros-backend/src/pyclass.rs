@@ -3019,7 +3019,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                     #input_type
 
                     fn extract(obj: #pyo3_path::Borrowed<'a, 'py, #pyo3_path::PyAny>) -> ::std::result::Result<Self,  <Self as #pyo3_path::FromPyObject<'a, 'py>>::Error> {
-                        ::std::result::Result::Ok(::std::clone::Clone::clone(&*obj.extract::<#pyo3_path::PyClassGuard<'_, #cls>>()?))
+                        #pyo3_path::impl_::pyclass::extract_pyclass_with_clone(obj)
                     }
                 }
             }
