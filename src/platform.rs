@@ -22,3 +22,5 @@ pub use std::collections::{HashMap, HashSet};
 
 #[cfg(all(not(feature = "hashbrown"), not(wip_feature_std)))]
 compile_error!("Please enable at least one of the following features: hashbrown, std");
+
+pub mod thread;
