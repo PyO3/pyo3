@@ -6,8 +6,10 @@ use pyo3::types::PyString;
 
 mod test_utils;
 
+// `Copy` + `from_py_object` is a regression test for `clippy::clone_on_copy`
+// firing in the generated `FromPyObject` implementation (#6308)
 #[pyclass(eq, eq_int, from_py_object)]
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MyEnum {
     Variant,
     OtherVariant,
