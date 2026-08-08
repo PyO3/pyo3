@@ -474,6 +474,17 @@ mod tests {
     }
 
     #[test]
+    fn test_py_as_bytes() {
+        let pyobj: Py<PyBytes> = Python::attach(|py| PyBytes::new(py, b"abc").unbind());
+
+        let data = Python::attach(|py| pyobj.as_bytes(py));
+
+        assert_eq!(data, b"abc");
+
+        Python::attach(move |_py| drop(pyobj));
+    }
+
+    #[test]
     fn test_with_writer() {
         Python::attach(|py| {
             let bytes = PyBytes::new_with_writer(py, 0, |writer| {

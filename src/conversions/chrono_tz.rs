@@ -91,15 +91,16 @@ impl FromPyObject<'_, '_> for Tz {
 
 #[cfg(all(test, not(windows)))] // Troubles loading timezones on Windows
 mod tests {
-    use super::*;
     use crate::prelude::PyAnyMethods;
-    use crate::types::IntoPyDict;
     use crate::types::PyTzInfo;
     use crate::Bound;
     use crate::Python;
-    use chrono::offset::LocalResult;
-    use chrono::NaiveDate;
-    use chrono::{DateTime, Utc};
+    #[cfg(feature = "chrono")]
+    use crate::{types::IntoPyDict, IntoPyObject};
+    #[cfg(feature = "chrono")]
+    use alloc::{str::FromStr, string::ToString};
+    #[cfg(feature = "chrono")]
+    use chrono::{offset::LocalResult, DateTime, NaiveDate, Utc};
     use chrono_tz::Tz;
 
     #[test]
@@ -118,6 +119,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "chrono")]
     fn test_ambiguous_datetime_to_pyobject() {
         let dates = [
             DateTime::<Utc>::from_str("2020-10-24 23:00:00 UTC").unwrap(),
@@ -166,6 +168,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "chrono")]
     fn test_nonexistent_datetime_from_pyobject() {
         // Pacific_Apia skipped the 30th of December 2011 entirely
 
