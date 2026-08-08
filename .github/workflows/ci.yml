@@ -546,12 +546,21 @@ jobs:
           # wasi sdk sets CC variables which break Python's configure script
           # (it also sets WASI_SDK_PATH even without `add-to-path`, which is sufficient)
           add-to-path: false
+      # Key the cache on the CPython version nox will actually build, not just
+      # `UV_PYTHON` ("3.14"): otherwise a new patch release restores the previous
+      # patch's build, skips the build below, and `test-wasm` then fails with
+      # "failed to search the lib dir at PYO3_CROSS_LIB_DIR=...".
+      - name: Resolve CPython version for the WASI build
+        id: wasi-python
+        run: |
+          version=$(uv run --no-project --python "$UV_PYTHON" python -c 'import sys; print(".".join(map(str, sys.version_info[:3])))')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - uses: actions/cache/restore@v6
         id: cache
         with:
           path: |
             .nox/wasi
-          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
+          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.wasi-python.outputs.version }}
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -565,7 +574,7 @@ jobs:
         with:
           path: |
             .nox/wasi
-          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
+          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.wasi-python.outputs.version }}
 
   test-debug:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
