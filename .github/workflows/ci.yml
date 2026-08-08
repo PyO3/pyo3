@@ -543,10 +543,8 @@ jobs:
           # wasi sdk sets CC variables which break Python's configure script
           # (it also sets WASI_SDK_PATH even without `add-to-path`, which is sufficient)
           add-to-path: false
-      # Key the cache on the CPython version nox will actually build, not just
-      # `UV_PYTHON` ("3.14"): otherwise a new patch release restores the previous
-      # patch's build, skips the build below, and `test-wasm` then fails with
-      # "failed to search the lib dir at PYO3_CROSS_LIB_DIR=...".
+      # Key the cache on the CPython version nox will actually build so a new
+      # patch release busts cache properly
       - name: Resolve CPython version for the WASI build
         id: wasi-python
         run: |
