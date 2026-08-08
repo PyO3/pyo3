@@ -12,9 +12,10 @@ use crate::{
     },
     internal::pyclass_init::PyObjectInit,
     pycell::{impl_::PyClassObjectLayout, PyBorrowError},
+    pyclass::PyClassGuardError,
     types::{any::PyAnyMethods, PyBool},
-    Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
-    PyTypeCheck, PyTypeInfo, Python,
+    Borrowed, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr,
+    PyResult, PyTypeCheck, PyTypeInfo, Python,
 };
 use core::{
     ffi::CStr,
@@ -44,6 +45,16 @@ pub const fn dict_offset<T: PyClass>() -> PyObjectOffset {
 #[inline]
 pub const fn weaklist_offset<T: PyClass>() -> PyObjectOffset {
     <T as PyClassImpl>::Layout::WEAKLIST_OFFSET
+}
+
+/// Extracts a `T: PyClass + Clone` from a Python object by cloning it out of
+/// the [`PyClassGuard`].
+#[inline]
+pub fn extract_pyclass_with_clone<'a, 'py, T: PyClass + Clone>(
+    obj: Borrowed<'a, 'py, PyAny>,
+) -> Result<T, PyClassGuardError<'a, 'py>> {
+    let guard = <PyClassGuard<'a, T> as FromPyObject<'a, 'py>>::extract(obj)?;
+    Ok(T::clone(&guard))
 }
 
 mod sealed {
