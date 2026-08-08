@@ -884,10 +884,13 @@ fn opt_to_pyobj(opt: Option<&Bound<'_, PyTzInfo>>) -> *mut ffi::PyObject {
 mod tests {
     use super::*;
 
+    #[cfg(not(Py_LIMITED_API))]
+    use crate::ffi::PyDateTime_IMPORT;
     #[cfg(feature = "macros")]
     use crate::py_run;
-    use crate::types::{IntoPyDict, PyDate, PyDateTime, PyTime, PyTzInfo};
-    use pyo3_ffi::PyDateTime_IMPORT;
+    #[cfg(not(Py_LIMITED_API))]
+    use crate::types::PyDate;
+    use crate::types::{IntoPyDict, PyDateTime, PyTime, PyTzInfo};
     use std::ffi::CString;
 
     #[test]
@@ -1039,6 +1042,7 @@ mod tests {
         Ok((obj, sub_obj, sub_sub_obj))
     }
 
+    #[cfg(not(Py_LIMITED_API))]
     macro_rules! assert_check_exact {
         ($check_func:ident, $check_func_exact:ident, $obj: expr) => {
             unsafe {
@@ -1049,6 +1053,7 @@ mod tests {
         };
     }
 
+    #[cfg(not(Py_LIMITED_API))]
     macro_rules! assert_check_only {
         ($check_func:ident, $check_func_exact:ident, $obj: expr) => {
             unsafe {
@@ -1060,6 +1065,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(Py_LIMITED_API))]
     fn test_date_check() {
         Python::attach(|py| {
             let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "date", "2018, 1, 1").unwrap();
@@ -1074,6 +1080,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(Py_LIMITED_API))]
     fn test_time_check() {
         Python::attach(|py| {
             let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "time", "12, 30, 15").unwrap();
@@ -1089,6 +1096,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(Py_LIMITED_API))]
     fn test_datetime_check() {
         Python::attach(|py| {
             let (obj, sub_obj, sub_sub_obj) =
@@ -1108,6 +1116,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(Py_LIMITED_API))]
     fn test_delta_check() {
         Python::attach(|py| {
             let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "timedelta", "1, -3").unwrap();
