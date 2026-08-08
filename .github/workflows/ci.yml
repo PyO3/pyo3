@@ -450,10 +450,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      # Pinned: since nightly-2026-08-07 cargo no longer finds `cargo careful`'s own
-      # sysroot at runtime, so the `pyo3-macros` test binary (proc-macro crates link
-      # `libstd` dynamically) dies with "error while loading shared libraries:
-      # libstd-<hash>.so". Revert to `@nightly` once this is fixed:
+      # TODO: unpin to rust-toolchain@nightly once the below is fixed
       # https://github.com/RalfJung/cargo-careful/issues/55
       - uses: dtolnay/rust-toolchain@master
         with:
