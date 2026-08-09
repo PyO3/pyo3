@@ -433,3 +433,8 @@ required-features = ["macros"]
 [[test]]
 name = "test_various"
 required-features = ["macros"]
+
+[patch.crates-io]
+# target-lexicon 0.13.5 does not yet include OperatingSystem::Zos;
+# use the main branch until the next release.
+target-lexicon = { git = "https://github.com/bytecodealliance/target-lexicon", branch = "main" }
