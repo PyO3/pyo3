@@ -3,7 +3,7 @@ use crate::model::{
     VariableLengthArgument,
 };
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 use std::iter::once;
 use std::path::PathBuf;
@@ -274,6 +274,21 @@ fn push_docstring(buffer: &mut String, indent: &str, docstring: &str) {
     buffer.push_str("\"\"\"");
 }
 
+/// Collects the operands of a `|` chain in source order, skipping repeats.
+fn flatten_union<'a>(expr: &'a Expr, operands: &mut Vec<&'a Expr>, seen: &mut HashSet<&'a Expr>) {
+    if let Expr::BinOp {
+        left,
+        op: Operator::BitOr,
+        right,
+    } = expr
+    {
+        flatten_union(left, operands, seen);
+        flatten_union(right, operands, seen);
+    } else if seen.insert(expr) {
+        operands.push(expr);
+    }
+}
+
 fn attribute_stubs(attribute: &Attribute, imports: &Imports) -> String {
     let mut buffer = attribute.name.clone();
     if let Some(annotation) = &attribute.annotation {
@@ -482,13 +497,20 @@ impl Imports {
                     buffer.push_str(attr);
                 }
             }
-            Expr::BinOp { left, op, right } => {
-                self.serialize_expr(left, buffer);
-                buffer.push(' ');
-                buffer.push(match op {
-                    Operator::BitOr => '|',
-                });
-                self.serialize_expr(right, buffer);
+            Expr::BinOp {
+                op: Operator::BitOr,
+                ..
+            } => {
+                // Union deduplication needs to happen here because the macro
+                // generation only sees unresolved associated constants.
+                let mut operands = Vec::new();
+                flatten_union(expr, &mut operands, &mut HashSet::new());
+                for (index, operand) in operands.into_iter().enumerate() {
+                    if index > 0 {
+                        buffer.push_str(" | ");
+                    }
+                    self.serialize_expr(operand, buffer);
+                }
             }
             Expr::Tuple { elts } => {
                 buffer.push('(');
@@ -1020,5 +1042,45 @@ mod tests {
         assert!(stubs.contains("\n    Class summary.\n\n    Class detail.\n"));
         assert!(stubs.contains("\n        Summary.\n\n        Detail.\n"));
         assert!(stubs.contains("\nConst summary.\n\nConst detail.\n"));
+    }
+
+    #[test]
+    fn union_members_are_deduplicated_and_spaced() {
+        let str_ = || Expr::Name { id: "str".into() };
+        let path_like = || Expr::Subscript {
+            value: Box::new(Expr::Attribute {
+                value: Box::new(Expr::Name { id: "os".into() }),
+                attr: "PathLike".into(),
+            }),
+            slice: Box::new(str_()),
+        };
+        let union = |left: Expr, right: Expr| Expr::BinOp {
+            left: Box::new(left),
+            op: Operator::BitOr,
+            right: Box::new(right),
+        };
+        let imports = Imports {
+            imports: Vec::new(),
+            renaming: BTreeMap::from([
+                (("builtins".into(), "str".into()), "str".into()),
+                (("os".into(), "PathLike".into()), "PathLike".into()),
+            ]),
+        };
+        let serialize = |expr| {
+            let mut buffer = String::new();
+            imports.serialize_expr(&expr, &mut buffer);
+            buffer
+        };
+
+        // `str | os.PathLike[str] | str`, nested to the right
+        assert_eq!(
+            serialize(union(str_(), union(path_like(), str_()))),
+            "str | PathLike[str]"
+        );
+        // and the same chain nested to the left
+        assert_eq!(
+            serialize(union(union(str_(), path_like()), str_())),
+            "str | PathLike[str]"
+        );
     }
 }
