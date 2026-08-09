@@ -24,12 +24,14 @@ macro_rules! assert_type_refcount_stable {
         Python::attach(|py| {
             let ty = py.get_type::<$type_name>();
 
+            // SAFETY: ty is known to be a valid object
             let before = unsafe { ffi::Py_REFCNT(ty.as_ptr()) };
 
             for _ in 0..1000 {
                 let _ = ($ctor)(py);
             }
 
+            // SAFETY: ty is known to be a valid object
             let after = unsafe { ffi::Py_REFCNT(ty.as_ptr()) };
             assert_eq!(
                 before, after,
@@ -492,16 +494,16 @@ fn test_inherit_pyclass_refcount() {
 #[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
 #[test]
 fn test_inherit_native_type_refcount() {
-    #[pyclass(extends=pyo3::types::PyList)]
-    struct InheritList {}
+    #[pyclass(extends=pyo3::types::PyDict)]
+    struct InheritDict {}
 
     #[pymethods]
-    impl InheritList {
+    impl InheritDict {
         #[new]
         fn new() -> PyClassInitializer<Self> {
-            PyClassInitializer::from(pyo3::types::PyList::empty()).add_subclass(Self {})
+            PyClassInitializer::from(Self {})
         }
     }
 
-    assert_type_refcount_stable!(InheritList);
+    assert_type_refcount_stable!(InheritDict);
 }
