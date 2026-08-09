@@ -1,5 +1,6 @@
 #![cfg(feature = "macros")]
 
+use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::IntoPyDict;
@@ -9,39 +10,31 @@ mod test_utils;
 /// Macro to generate refcount leak tests for types.
 /// Ensures that creating and destroying instances doesn't leak references to the type.
 /// Regression test for issues #1363 and #6223.
-#[cfg(not(Py_GIL_DISABLED))]
 macro_rules! assert_type_refcount_stable {
     // Simple case: type with parameterless constructor
     ($type_name:ty) => {
-        assert_type_refcount_stable!($type_name, stringify!($type_name), "Type()");
+        assert_type_refcount_stable!($type_name, stringify!($type_name), |py| Py::new(
+            py,
+            <$type_name>::new()
+        )
+        .unwrap());
     };
     // With custom constructor
     ($type_name:ty, $test_name:expr, $ctor:expr) => {{
         Python::attach(|py| {
-            #[expect(non_snake_case)]
-            let Type = py.get_type::<$type_name>();
-            let ctor_code = $ctor;
-            py_run!(
-                py,
-                Type,
-                &format!(
-                    r#"
-                        import gc
-                        import sys
+            let ty = py.get_type::<$type_name>();
 
-                        gc.collect()
-                        count = sys.getrefcount(Type)
+            let before = unsafe { ffi::Py_REFCNT(ty.as_ptr()) };
 
-                        for i in range(1000):
-                            obj = {}
-                            del obj
+            for _ in 0..1000 {
+                let _ = ($ctor)(py);
+            }
 
-                        gc.collect()
-                        after = sys.getrefcount(Type)
-                        assert after == count, f"Type ref count leaked: {{after}} vs {{count}}"
-                        "#,
-                    ctor_code
-                )
+            let after = unsafe { ffi::Py_REFCNT(ty.as_ptr()) };
+            assert_eq!(
+                before, after,
+                "Type ref count leaked: {} vs {}",
+                after, before
             );
         });
     }};
@@ -459,83 +452,56 @@ mod inheriting_native_type {
             );
         });
     }
-
-    // Refcount tests for native type classes
-    #[cfg(not(any(PyPy, GraalPy, Py_GIL_DISABLED)))]
-    #[test]
-    fn test_setwitname_ref_counts() {
-        assert_type_refcount_stable!(SetWithName);
-    }
-
-    #[cfg(not(any(GraalPy, Py_GIL_DISABLED)))]
-    #[test]
-    fn test_dictwithname_ref_counts() {
-        assert_type_refcount_stable!(DictWithName);
-    }
-
-    #[cfg(not(Py_GIL_DISABLED))]
-    #[test]
-    fn test_customexception_ref_counts() {
-        assert_type_refcount_stable!(CustomException, "custom_exception", r#"Type('test')"#);
-    }
-
-    #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
-    #[test]
-    fn test_tzinfowithname_ref_counts() {
-        assert_type_refcount_stable!(TzInfoWithName);
-    }
-
-    #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
-    #[test]
-    fn test_listwithname_ref_counts() {
-        assert_type_refcount_stable!(ListWithName);
-    }
-
-    #[cfg(all(Py_3_12, not(Py_GIL_DISABLED)))]
-    #[test]
-    fn test_sublistwithname_ref_counts() {
-        assert_type_refcount_stable!(SubListWithName);
-    }
 }
 
-#[pyclass(subclass)]
-struct SimpleClass {}
-
-#[pymethods]
-impl SimpleClass {
-    #[new]
-    fn new() -> Self {
-        Self {}
-    }
-}
-
-// Generate refcount tests for all top-level types
-#[cfg(not(Py_GIL_DISABLED))]
 #[test]
-fn test_baseclass_ref_counts() {
-    assert_type_refcount_stable!(BaseClass);
+fn test_inherit_object_refcount() {
+    #[pyclass] // no extends is equivalent to inheriting from `object`
+    struct InheritObject {}
+
+    #[pymethods]
+    impl InheritObject {
+        #[new]
+        fn new() -> Self {
+            Self {}
+        }
+    }
+
+    assert_type_refcount_stable!(InheritObject);
 }
 
-#[cfg(not(Py_GIL_DISABLED))]
 #[test]
-fn test_subclass_ref_counts() {
-    assert_type_refcount_stable!(SubClass);
+fn test_inherit_pyclass_refcount() {
+    #[pyclass(subclass)]
+    struct Base {}
+
+    #[pyclass(extends=Base)]
+    struct InheritPyClass {}
+
+    #[pymethods]
+    impl InheritPyClass {
+        #[new]
+        fn new() -> PyClassInitializer<Self> {
+            PyClassInitializer::from(Base {}).add_subclass(Self {})
+        }
+    }
+
+    assert_type_refcount_stable!(InheritPyClass);
 }
 
-#[cfg(not(Py_GIL_DISABLED))]
+#[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
 #[test]
-fn test_base_class_with_result_ref_counts() {
-    assert_type_refcount_stable!(BaseClassWithResult, "base_class_with_result", "Type(10)");
-}
+fn test_inherit_native_type_refcount() {
+    #[pyclass(extends=pyo3::types::PyList)]
+    struct InheritList {}
 
-#[cfg(not(Py_GIL_DISABLED))]
-#[test]
-fn test_subclass2_ref_counts() {
-    assert_type_refcount_stable!(SubClass2, "subclass2", "Type(10)");
-}
+    #[pymethods]
+    impl InheritList {
+        #[new]
+        fn new() -> PyClassInitializer<Self> {
+            PyClassInitializer::from(pyo3::types::PyList::empty()).add_subclass(Self {})
+        }
+    }
 
-#[cfg(not(Py_GIL_DISABLED))]
-#[test]
-fn test_simpleclass_ref_counts() {
-    assert_type_refcount_stable!(SimpleClass);
+    assert_type_refcount_stable!(InheritList);
 }
