@@ -98,10 +98,12 @@ mod tests {
     #[cfg(feature = "chrono")]
     use crate::{types::IntoPyDict, IntoPyObject};
     #[cfg(feature = "chrono")]
-    use alloc::{str::FromStr, string::ToString};
+    use alloc::string::ToString;
     #[cfg(feature = "chrono")]
     use chrono::{offset::LocalResult, DateTime, NaiveDate, Utc};
     use chrono_tz::Tz;
+    #[cfg(feature = "chrono")]
+    use core::str::FromStr;
 
     #[test]
     fn test_frompyobject() {

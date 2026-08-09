@@ -55,15 +55,15 @@ mod tests {
     #[pyclass(crate = "crate")]
     #[derive(Debug, Serialize, Deserialize)]
     struct Group {
-        name: std::string::String,
+        name: alloc::string::String,
     }
 
     #[pyclass(crate = "crate")]
     #[derive(Debug, Serialize, Deserialize)]
     struct User {
-        username: std::string::String,
+        username: alloc::string::String,
         group: Option<Py<Group>>,
-        friends: std::vec::Vec<Py<User>>,
+        friends: alloc::vec::Vec<Py<User>>,
     }
 
     #[test]

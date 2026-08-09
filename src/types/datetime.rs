@@ -888,10 +888,9 @@ mod tests {
     use crate::ffi::PyDateTime_IMPORT;
     #[cfg(feature = "macros")]
     use crate::py_run;
-    #[cfg(not(Py_LIMITED_API))]
-    use crate::types::PyDate;
-    use crate::types::{IntoPyDict, PyDateTime, PyTime, PyTzInfo};
-    use std::ffi::CString;
+    use crate::types::{IntoPyDict, PyDate, PyDateTime, PyTime, PyTzInfo};
+    use alloc::ffi::CString;
+    use core::iter;
 
     #[test]
     #[cfg(feature = "macros")]
@@ -1179,8 +1178,6 @@ mod tests {
 
     #[test]
     fn test_pytime_out_of_bounds() {
-        use crate::types::PyTime;
-
         Python::attach(|py| {
             for val in INVALID_TIMES {
                 let (hour, minute, second, microsecond) = val;
@@ -1192,9 +1189,6 @@ mod tests {
 
     #[test]
     fn test_pydatetime_out_of_bounds() {
-        use crate::types::PyDateTime;
-        use std::iter;
-
         Python::attach(|py| {
             let valid_time = (0, 0, 0, 0);
             let valid_date = (2018, 1, 1);
