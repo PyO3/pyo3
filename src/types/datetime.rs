@@ -889,8 +889,11 @@ mod tests {
     #[cfg(feature = "macros")]
     use crate::py_run;
     use crate::types::{IntoPyDict, PyDate, PyDateTime, PyTime, PyTzInfo};
+
     use alloc::ffi::CString;
     use core::iter;
+
+    use assert_approx_eq::assert_approx_eq;
 
     #[test]
     #[cfg(feature = "macros")]
@@ -1129,9 +1132,6 @@ mod tests {
 
     #[test]
     fn test_datetime_utc() {
-        use crate::types::PyDateTime;
-        use assert_approx_eq::assert_approx_eq;
-
         Python::attach(|py| {
             let utc = PyTzInfo::utc(py).unwrap();
 
@@ -1165,8 +1165,6 @@ mod tests {
 
     #[test]
     fn test_pydate_out_of_bounds() {
-        use crate::types::PyDate;
-
         Python::attach(|py| {
             for val in INVALID_DATES {
                 let (year, month, day) = val;
