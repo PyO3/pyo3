@@ -1,23 +1,22 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+use pyo3_ffi::Py_TPFLAGS_HEAPTYPE;
+
 use crate::exceptions::PyStopAsyncIteration;
 use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::impl_::panic::PanicTrap;
-use crate::impl_::pycell::PyClassObjectBaseLayout;
 use crate::impl_::pyclass::PyClassDict as _;
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
 use crate::internal::pyclass_init::PyClassInit;
 use crate::internal::state::ForbidAttaching;
-use crate::pycell::impl_::{PyClassBorrowChecker as _, PyClassObjectLayout};
+use crate::pycell::impl_::{PyClassObjectBaseLayout, PyClassObjectLayout};
+use crate::pyclass::gc::{make_traverse_result, PyTraverseError, PyVisit};
 use crate::types::PyType;
-use crate::{
-    ffi, Borrowed, Bound, Py, PyAny, PyClass, PyErr, PyResult, PyTraverseError, PyVisit, Python,
-};
+use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult, Python};
 use core::ffi::CStr;
 use core::ffi::{c_int, c_void};
 use core::fmt;
-use core::marker::PhantomData;
 use core::panic::AssertUnwindSafe;
 use core::ptr::{null_mut, NonNull};
 use std::panic::catch_unwind;
@@ -348,12 +347,10 @@ impl PyDeleterDef {
 /// }
 /// ```
 #[doc(hidden)]
-pub unsafe fn _call_traverse<T>(
+pub unsafe extern "C" fn tp_traverse<T>(
     slf: *mut ffi::PyObject,
-    impl_: fn(&T, PyVisit<'_>) -> Result<(), PyTraverseError>,
     visit: ffi::visitproc,
     arg: *mut c_void,
-    current_traverse: ffi::traverseproc,
 ) -> c_int
 where
     T: PyClass,
@@ -369,7 +366,13 @@ where
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
     let lock = ForbidAttaching::during_traverse();
 
-    let retval = unsafe { traverse_impl(slf, impl_, visit, arg, current_traverse) };
+    let retval = match catch_unwind(AssertUnwindSafe(move || unsafe {
+        traverse_impl::<T>(slf, visit, arg, tp_traverse::<T>)
+    })) {
+        Ok(Ok(())) => 0,
+        Ok(Err(traverse_error)) => traverse_error.into_inner(),
+        Err(_err) => -1,
+    };
 
     // Drop lock before trap just in case dropping lock panics
     drop(lock);
@@ -382,23 +385,18 @@ where
 ///
 /// # Safety
 /// - `slf` must be a valid pointer to an instance of `T`.
-/// - Must only be called from `_call_traverse`, which holds the `PanicTrap` and `ForbidAttaching`
+/// - Must only be called from `tp_traverse`, which holds the `PanicTrap` and `ForbidAttaching`
 ///   lock this relies on.
 unsafe fn traverse_impl<T>(
     slf: *mut ffi::PyObject,
-    impl_: fn(&T, PyVisit<'_>) -> Result<(), PyTraverseError>,
     visit: ffi::visitproc,
     arg: *mut c_void,
     current_traverse: ffi::traverseproc,
-) -> c_int
+) -> Result<(), PyTraverseError>
 where
     T: PyClass,
 {
-    // A non-zero return means a `visitproc` has asked us to stop the traversal.
-    let super_retval = unsafe { call_super_traverse(slf, visit, arg, current_traverse) };
-    if super_retval != 0 {
-        return super_retval;
-    }
+    unsafe { call_super_traverse(slf, visit, arg, current_traverse) }?;
 
     // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
     // traversal is running so no mutations can occur.
@@ -406,43 +404,24 @@ where
 
     // The `__dict__` is not Rust data, so it is visited without the thread and borrow checks
     // below: it must stay reachable to the GC even when the pyclass data cannot be traversed.
-    let dict_retval = unsafe { class_object.contents().dict.traverse_dict(visit, arg) };
-    if dict_retval != 0 {
-        return dict_retval;
+    make_traverse_result(unsafe { class_object.contents().dict.traverse_dict(visit, arg) })?;
+
+    // Unsendable types: `PyClassGuard::try_from_class_object` will panic on thread safety issue,
+    // fail gracefully here first. This check is a no-op for types which are not `#[pyclass(unsendable)]`.
+    if class_object.check_threadsafe().is_err() {
+        return Ok(());
     }
 
-    // `#[pyclass(unsendable)]` types can only be deallocated by their own thread, so do not
-    // traverse them if not on their owning thread :(
-    // ... and we cannot traverse a type which might be being mutated by a Rust thread.
-    if class_object.check_threadsafe().is_err()
-        || class_object.borrow_checker().try_borrow().is_err()
-    {
-        return 0;
-    }
-
-    struct TraverseGuard<'a, T: PyClassImpl>(&'a T::Layout);
-    impl<T: PyClassImpl> Drop for TraverseGuard<'_, T> {
-        fn drop(&mut self) {
-            self.0.borrow_checker().release_borrow()
-        }
-    }
-
-    // `.try_borrow()` above created a borrow, we need to release it when we're done
-    // traversing the object. This allows us to read `instance` safely.
-    let _guard = TraverseGuard::<T>(class_object);
-    let instance = unsafe { &*class_object.contents().value.get() };
-
-    let visit = PyVisit {
-        visit,
-        arg,
-        _guard: PhantomData,
+    // If we cannot safely obtain Rust state to traverse, we cannot traverse the object.
+    let Ok(guard) = PyClassGuard::<T>::try_from_class_object(class_object) else {
+        return Ok(());
     };
 
-    match catch_unwind(AssertUnwindSafe(move || impl_(instance, visit))) {
-        Ok(Ok(())) => 0,
-        Ok(Err(traverse_error)) => traverse_error.into_inner(),
-        Err(_err) => -1,
-    }
+    // SAFETY: `visit` and `arg` are a pair from the Python interpreter, `'a` is bound here to
+    // the anonymous lifetime of `__traverse__` and so can't be promoted to `'static` by construction.
+    let visit = unsafe { PyVisit::new(visit, arg) };
+
+    T::__traverse__(&guard, visit)
 }
 
 /// Call super-type traverse method, if necessary.
@@ -460,12 +439,13 @@ unsafe fn call_super_traverse(
     visit: ffi::visitproc,
     arg: *mut c_void,
     current_traverse: ffi::traverseproc,
-) -> c_int {
+) -> Result<(), PyTraverseError> {
     // SAFETY: in this function here it's ok to work with raw type objects `ffi::Py_TYPE`
     // because the GC is running and so
     // - (a) we cannot do refcounting and
     // - (b) the type of the object cannot change.
     let mut ty = unsafe { ffi::Py_TYPE(obj) };
+    let this_type = ty;
     let mut traverse: Option<ffi::traverseproc>;
 
     // First find the current type by the current_traverse function
@@ -477,7 +457,7 @@ unsafe fn call_super_traverse(
         ty = unsafe { get_slot(ty, TP_BASE) };
         if ty.is_null() {
             // FIXME: return an error if current type not in the MRO? Should be impossible.
-            return 0;
+            return Ok(());
         }
     }
 
@@ -490,13 +470,29 @@ unsafe fn call_super_traverse(
         traverse = unsafe { get_slot(ty, TP_TRAVERSE) };
     }
 
+    // If the base with a different traverse is not a heap type, this type is responsible
+    // for traversing the type object of this heap type (all PyO3 types are heap types).
+    //
+    // See also <https://github.com/python/cpython/blob/10a84540c2c2533e31f5f0649cc4e4afdd991ba2/Objects/typeobject.c#L2574-L2583>
+    // which demonstrates CPython's expectation that the base heap type is responsible
+    // for the traversal of the instance's type object.
+    if ty.is_null() || unsafe { ffi::PyType_HasFeature(ty, Py_TPFLAGS_HEAPTYPE) } == 0 {
+        // If the base does not exist or is not a heap type, we are responsible for
+        // traversing the type object now (all PyO3 types are heap types).
+        debug_assert_eq!(
+            unsafe { ffi::PyType_HasFeature(this_type, Py_TPFLAGS_HEAPTYPE) },
+            1
+        );
+        make_traverse_result(unsafe { visit(this_type.cast(), arg) })?;
+    }
+
     // If we found a type with a different traverse function, call it
     if let Some(traverse) = traverse {
-        return unsafe { traverse(obj, visit, arg) };
+        return make_traverse_result(unsafe { traverse(obj, visit, arg) });
     }
 
     // FIXME same question as cython: what if the current type is not in the MRO?
-    0
+    Ok(())
 }
 
 /// Calls an implementation of __clear__ for tp_clear
@@ -527,27 +523,6 @@ where
             Ok(0)
         })
     }
-}
-
-/// `tp_traverse` for a `#[pyclass]` which defines no `__traverse__` of its own: visits the
-/// base type and the instance `__dict__` (if it is a `#[pyclass(dict)]`).
-pub unsafe extern "C" fn synthesized_traverse<T>(
-    slf: *mut ffi::PyObject,
-    visit: ffi::visitproc,
-    arg: *mut c_void,
-) -> c_int
-where
-    T: PyClass,
-{
-    let super_retval = unsafe { call_super_traverse(slf, visit, arg, synthesized_traverse::<T>) };
-    if super_retval != 0 {
-        return super_retval;
-    }
-
-    // SAFETY: `slf` is a valid pointer to an instance of `T`, and traversal is running so no
-    // mutations can occur. The `__dict__` is not Rust data, so needs no thread or borrow check.
-    let class_object: &<T as PyClassImpl>::Layout = unsafe { &*slf.cast() };
-    unsafe { class_object.contents().dict.traverse_dict(visit, arg) }
 }
 
 /// `tp_clear` for a `#[pyclass]` which defines no `__clear__` of its own: calls the base type

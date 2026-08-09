@@ -10,6 +10,7 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 use std::sync::Once;
 use std::sync::{Arc, Mutex};
@@ -736,6 +737,18 @@ extern "C" fn visit_error(
     -1
 }
 
+#[derive(Default)]
+struct VisitCounter(HashMap<*mut ffi::PyObject, usize>);
+
+extern "C" fn count_visits(
+    object: *mut ffi::PyObject,
+    arg: *mut core::ffi::c_void,
+) -> std::ffi::c_int {
+    let counter = unsafe { &mut *arg.cast::<VisitCounter>() };
+    *counter.0.entry(object).or_default() += 1;
+    0
+}
+
 // the fields visited below, set before driving the traversal
 static BASE_FIELD: AtomicPtr<pyo3::ffi::PyObject> = AtomicPtr::new(std::ptr::null_mut());
 static CHILD_FIELD: AtomicPtr<pyo3::ffi::PyObject> = AtomicPtr::new(std::ptr::null_mut());
@@ -810,6 +823,31 @@ fn test_drop_buffer_during_traversal_without_gil() {
 }
 
 #[test]
+fn type_object_is_visited_once_when_pyclasses_subtype_each_other() {
+    #[pyclass(subclass)]
+    struct TraverseBase;
+
+    #[pyclass(extends = TraverseBase)]
+    struct TraverseChild;
+
+    Python::attach(|py| {
+        let child = Bound::new(
+            py,
+            PyClassInitializer::from(TraverseBase).add_subclass(TraverseChild),
+        )
+        .unwrap();
+        let child_type = py.get_type::<TraverseChild>();
+        let traverse = unsafe { get_type_traverse(child_type.as_type_ptr()).unwrap() };
+        let mut counter = VisitCounter::default();
+
+        let retval = unsafe { traverse(child.as_ptr(), count_visits, (&raw mut counter).cast()) };
+
+        assert_eq!(retval, 0);
+        assert_eq!(counter.0.get(&child_type.as_ptr()), Some(&1));
+    });
+}
+
+#[test]
 fn test_super_traverse_early_return_does_not_abort() {
     #[pyclass(subclass)]
     struct TraverseBase {
@@ -873,6 +911,47 @@ fn test_super_traverse_early_return_does_not_abort() {
             !CHILD_VISITED.load(Ordering::SeqCst),
             "child __traverse__ ran despite the super-type traverse returning non-zero"
         );
+    });
+}
+
+#[test]
+fn python_subclass_type_cycle_is_collected() {
+    #[pyclass(subclass)]
+    struct Base;
+
+    #[pymethods]
+    impl Base {
+        #[new]
+        fn new() -> Self {
+            Self
+        }
+    }
+
+    Python::attach(|py| {
+        let locals = pyo3::types::PyDict::new(py);
+        locals.set_item("Base", py.get_type::<Base>()).unwrap();
+        py.run(
+            c"\
+import gc
+import weakref
+
+class Sub(Base):
+    pass
+
+instance = Sub()
+# Sub owns instance through its type dict; instance owns Sub through ob_type.
+Sub.instance = instance
+instance_ref = weakref.ref(instance)
+type_ref = weakref.ref(Sub)
+del instance, Sub
+gc.collect()
+assert instance_ref() is None
+assert type_ref() is None
+",
+            None,
+            Some(&locals),
+        )
+        .unwrap();
     });
 }
 
