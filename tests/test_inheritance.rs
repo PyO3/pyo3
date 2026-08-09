@@ -21,24 +21,34 @@ macro_rules! assert_type_refcount_stable {
     };
     // With custom constructor
     ($type_name:ty, $test_name:expr, $ctor:expr) => {{
-        Python::attach(|py| {
-            let ty = py.get_type::<$type_name>();
+        let ty = Python::attach(|py| py.get_type::<$type_name>().unbind());
 
-            // SAFETY: ty is known to be a valid object
-            let before = unsafe { ffi::Py_REFCNT(ty.as_ptr()) };
+        // SAFETY: ty is known to be a valid object
+        let before = Python::attach(|_| unsafe { ffi::Py_REFCNT(ty.as_ptr()) });
 
-            for _ in 0..1000 {
-                let _ = ($ctor)(py);
-            }
-
-            // SAFETY: ty is known to be a valid object
-            let after = unsafe { ffi::Py_REFCNT(ty.as_ptr()) };
-            assert_eq!(
-                before, after,
-                "Type ref count leaked: {} vs {}",
-                after, before
-            );
+        // Using a separate thread works around tricks in free-threaded Python to
+        // make type object reference counting fast. We spawn a new thread and
+        // using a temporary thread state for the loop. When that thread is destructed,
+        // free-threaded Python merges the temporary thread state refcounts
+        // back onto the main object.
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                Python::attach(|py| {
+                    for _ in 0..1000 {
+                        let _ = ($ctor)(py);
+                    }
+                })
+            });
         });
+
+        // SAFETY: ty is known to be a valid object
+        let after = Python::attach(|_| unsafe { ffi::Py_REFCNT(ty.as_ptr()) });
+
+        assert_eq!(
+            before, after,
+            "Type ref count leaked: {} vs {}",
+            after, before
+        );
     }};
 }
 
