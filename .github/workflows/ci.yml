@@ -450,8 +450,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@nightly
+      # TODO: unpin to rust-toolchain@nightly once the below is fixed
+      # https://github.com/RalfJung/cargo-careful/issues/55
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: nightly-2026-08-06
           components: rust-src
       - uses: taiki-e/install-action@cargo-careful
       - uses: astral-sh/setup-uv@v7
@@ -540,12 +543,19 @@ jobs:
           # wasi sdk sets CC variables which break Python's configure script
           # (it also sets WASI_SDK_PATH even without `add-to-path`, which is sufficient)
           add-to-path: false
+      # Key the cache on the CPython version nox will actually build so a new
+      # patch release busts cache properly
+      - name: Resolve CPython version for the WASI build
+        id: wasi-python
+        run: |
+          version=$(uv run --no-project --python "$UV_PYTHON" python -c 'import sys; print(".".join(map(str, sys.version_info[:3])))')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - uses: actions/cache/restore@v6
         id: cache
         with:
           path: |
             .nox/wasi
-          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
+          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.wasi-python.outputs.version }}
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -559,7 +569,7 @@ jobs:
         with:
           path: |
             .nox/wasi
-          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
+          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.wasi-python.outputs.version }}
 
   test-debug:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}

@@ -548,8 +548,11 @@ def test_wasm(session: nox.Session):
     )
     session.env["PYO3_CROSS_LIB_DIR"] = str(info.libdir)
     session.env["CARGO_BUILD_TARGET"] = target
+    # The checkout is mounted at `/`; point the embedded interpreter at the stdlib and
+    # the WASI build outputs.
+    build_lib_dir = info.libdir.relative_to(info.cpython_dir).as_posix()
     session.env["CARGO_TARGET_WASM32_WASIP1_RUNNER"] = (
-        f"wasmtime run --dir {info.cpython_dir}::/ --env PYTHONPATH=/lib"
+        f"wasmtime run --dir {info.cpython_dir}::/ --env PYTHONPATH=/Lib:/{build_lib_dir}"
     )
     session.env["RUSTFLAGS"] = " ".join(
         [
