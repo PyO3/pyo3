@@ -5,11 +5,16 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::IntoPyDict;
 
+#[path = "../src/internal/macros.rs"]
+#[macro_use]
+mod macros; // for cfg_select polyfill on MSRV < 1.95
+
 mod test_utils;
 
 /// Macro to generate refcount leak tests for types.
 /// Ensures that creating and destroying instances doesn't leak references to the type.
 /// Regression test for issues #1363 and #6223.
+#[cfg(not(all(target_arch = "wasm32", Py_GIL_DISABLED)))]
 macro_rules! assert_type_refcount_stable {
     // Simple case: type with parameterless constructor
     ($type_name:ty) => {
@@ -26,20 +31,31 @@ macro_rules! assert_type_refcount_stable {
         // SAFETY: ty is known to be a valid object
         let before = Python::attach(|_| unsafe { ffi::Py_REFCNT(ty.as_ptr()) });
 
+        let drive_refcounts = || {
+            Python::attach(|py| {
+                for _ in 0..1000 {
+                    let _ = ($ctor)(py);
+                }
+            })
+        };
+
         // Using a separate thread works around tricks in free-threaded Python to
         // make type object reference counting fast. We spawn a new thread and
         // using a temporary thread state for the loop. When that thread is destructed,
         // free-threaded Python merges the temporary thread state refcounts
         // back onto the main object.
-        std::thread::scope(|s| {
-            s.spawn(|| {
-                Python::attach(|py| {
-                    for _ in 0..1000 {
-                        let _ = ($ctor)(py);
-                    }
-                })
-            });
-        });
+        cfg_select! {
+            Py_GIL_DISABLED => {
+                std::thread::scope(|s| {
+                    s.spawn(|| {
+                        drive_refcounts();
+                    });
+                });
+            }
+            not(Py_GIL_DISABLED) => {
+                drive_refcounts();
+            }
+        }
 
         // SAFETY: ty is known to be a valid object
         let after = Python::attach(|_| unsafe { ffi::Py_REFCNT(ty.as_ptr()) });
@@ -467,6 +483,7 @@ mod inheriting_native_type {
 }
 
 #[test]
+#[cfg(not(all(target_arch = "wasm32", Py_GIL_DISABLED)))]
 fn test_inherit_object_refcount() {
     #[pyclass] // no extends is equivalent to inheriting from `object`
     struct InheritObject {}
@@ -483,6 +500,7 @@ fn test_inherit_object_refcount() {
 }
 
 #[test]
+#[cfg(not(all(target_arch = "wasm32", Py_GIL_DISABLED)))]
 fn test_inherit_pyclass_refcount() {
     #[pyclass(subclass)]
     struct Base {}
@@ -502,6 +520,7 @@ fn test_inherit_pyclass_refcount() {
 }
 
 #[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
+#[cfg(not(all(target_arch = "wasm32", Py_GIL_DISABLED)))]
 #[test]
 fn test_inherit_native_type_refcount() {
     #[pyclass(extends=pyo3::types::PyDict)]
