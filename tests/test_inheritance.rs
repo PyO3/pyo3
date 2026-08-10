@@ -521,6 +521,7 @@ fn test_inherit_pyclass_refcount() {
 
 #[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
 #[cfg(not(all(target_arch = "wasm32", Py_GIL_DISABLED)))]
+#[cfg(not(GraalPy))] // FIXME: it should be possible to use variable layout to inherit dict on graalpy
 #[test]
 fn test_inherit_native_type_refcount() {
     #[pyclass(extends=pyo3::types::PyDict)]
