@@ -192,7 +192,9 @@ type PyObjVec = Vec<NonNull<ffi::PyObject>>;
 #[cfg(not(pyo3_disable_reference_pool))]
 /// Thread-safe storage for objects which were dec_ref while not attached.
 struct ReferencePool {
-    // Whether any decrefs are (or may be) pending
+    // Whether any decrefs are (or may be) pending. The `Mutex` performs
+    // synchronization so we can use `Relaxed` ordering for all operations
+    // on this flag.
     dirty: AtomicBool,
     pending_decrefs: Mutex<PyObjVec>,
 }
@@ -208,16 +210,41 @@ impl ReferencePool {
 
     fn register_decref(&self, obj: NonNull<ffi::PyObject>) {
         self.pending_decrefs.lock().unwrap().push(obj);
-        self.dirty.store(true, Ordering::Release);
+        self.dirty.store(true, Ordering::Relaxed);
     }
 
-    fn drop_deferred_references(&self, _py: Python<'_>) {
-        if !self.dirty.load(Ordering::Acquire) {
+    fn drop_deferred_references(&self, py: Python<'_>) {
+        // Check the dirty flag first to avoid any possible contention from atomic
+        // RMW operation to update the dirty flag on a hit.
+        if !self.dirty.load(Ordering::Relaxed) {
             return;
         }
-        self.dirty.store(false, Ordering::Relaxed);
+
+        // dirty flag is set, we _probably_ need to drop references (the flag is
+        // not updated under the mutex so false positives are possible but rare)
+        self.drop_deferred_references_slow(py);
+    }
+
+    #[cold]
+    fn drop_deferred_references_slow(&self, _py: Python<'_>) {
+        // Compare and swap the dirty flag to false avoids multiple threads from having
+        // contention on the mutex.
+        if self
+            .dirty
+            .compare_exchange(true, false, Ordering::Relaxed, Ordering::Relaxed)
+            .is_err()
+        {
+            // Another thread is already dropping the references, so we can return early.
+            return;
+        }
 
         let mut pending_decrefs = self.pending_decrefs.lock().unwrap();
+        if pending_decrefs.is_empty() {
+            // We don't set the dirty flag under the mutex so it's possible to reach
+            // this case as a false positive. Returning early avoids a store on false
+            // positives.
+            return;
+        }
         let decrefs = mem::take(&mut *pending_decrefs);
         drop(pending_decrefs);
 
