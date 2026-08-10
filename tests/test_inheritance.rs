@@ -1,6 +1,5 @@
 #![cfg(feature = "macros")]
 
-use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::IntoPyDict;
@@ -29,7 +28,7 @@ macro_rules! assert_type_refcount_stable {
         let ty = Python::attach(|py| py.get_type::<$type_name>().unbind());
 
         // SAFETY: ty is known to be a valid object
-        let before = Python::attach(|_| unsafe { ffi::Py_REFCNT(ty.as_ptr()) });
+        let before = Python::attach(|_| unsafe { pyo3::ffi::Py_REFCNT(ty.as_ptr()) });
 
         let drive_refcounts = || {
             Python::attach(|py| {
@@ -58,7 +57,7 @@ macro_rules! assert_type_refcount_stable {
         }
 
         // SAFETY: ty is known to be a valid object
-        let after = Python::attach(|_| unsafe { ffi::Py_REFCNT(ty.as_ptr()) });
+        let after = Python::attach(|_| unsafe { pyo3::ffi::Py_REFCNT(ty.as_ptr()) });
 
         assert_eq!(
             before, after,
