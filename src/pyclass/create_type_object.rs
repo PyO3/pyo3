@@ -3,6 +3,7 @@
 
 use crate::exceptions::PyAttributeError;
 use crate::impl_::pymethods::{Deleter, PyDeleterDef};
+use crate::internal::get_slot::{get_slot, TP_CLEAR};
 use crate::platform::prelude::*;
 use crate::platform::HashMap;
 #[cfg(not(Py_3_10))]
@@ -391,11 +392,6 @@ impl PyTypeBuilder {
         self
     }
 
-    fn base_is_gc(&self) -> bool {
-        // SAFETY: `self.tp_base` is a valid pointer to a `PyTypeObject`
-        unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 }
-    }
-
     fn build(
         mut self,
         py: Python<'_>,
@@ -427,15 +423,25 @@ impl PyTypeBuilder {
         unsafe { self.push_slot(ffi::Py_tp_traverse, self.tp_traverse as *mut c_void) }
 
         // We may need to install a `tp_clear` if this type didn't define one:
-        if !self.has_clear &&
-            // - if this type is `#[pyclass(dict)]`, to support clearing the dict, or
-            self.dict_offset.is_some() ||
-            // - if the base is a gc type, to support clearing the base's fields.
-            self.base_is_gc()
-        {
-            let synthesized_clear = self.synthesized_clear;
-            // Safety: This is the correct slot type for Py_tp_clear
-            unsafe { self.push_slot(ffi::Py_tp_clear, synthesized_clear as *mut c_void) }
+        if !self.has_clear {
+            if self.dict_offset.is_some() {
+                // (1) if this type is `#[pyclass(dict)]`, to support clearing the dict
+                // SAFETY: This is the correct slot type for Py_tp_clear
+                unsafe { self.push_slot(ffi::Py_tp_clear, self.synthesized_clear as *mut c_void) }
+            } else if let Some(base_clear) =
+                // SAFETY: `self.tp_base` is known to be a valid pointer to a PyTypeObject
+                unsafe { get_slot(self.tp_base, TP_CLEAR) }
+            {
+                // (2) if the base has a tp_clear, to support clearing the base's fields.
+                //
+                // (CPython only inherits the base clear in subclasses if the subclass
+                // doesn't define any of `Py_TPFLAGS_HAVE_GC`, `tp_traverse`, or `tp_clear`
+                // itself, but `#[pyclass]` types always have GC and `tp_traverse` set
+                // so this inheritance doesn't happen automatically.)
+
+                // SAFETY: This is the correct slot type for Py_tp_clear
+                unsafe { self.push_slot(ffi::Py_tp_clear, base_clear as *mut c_void) }
+            }
         }
 
         // For sequences, implement sq_length instead of mp_length

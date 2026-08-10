@@ -1062,3 +1062,55 @@ fn dict_cycle_collected_with_traverse_and_clear() {
 
     check.assert_drops_with_gc(ptr);
 }
+
+#[test]
+fn test_subclass_clear() {
+    // An incorrect PyO3 implementation would prevent subclass `__clear__`
+    // from ever being installed, thus causing this cycle test to leak.
+
+    #[pyclass(subclass)]
+    struct Base {
+        _guard: DropGuard,
+    }
+
+    #[pyclass(extends = Base)]
+    struct SubClear {
+        field: Option<Py<PyAny>>,
+    }
+
+    #[pymethods]
+    impl SubClear {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            visit.call(&self.field)
+        }
+
+        fn __clear__(&mut self) {
+            self.field = None;
+        }
+    }
+
+    let (guard, check) = drop_check();
+
+    let ptr = Python::attach(|py| {
+        let base = Base { _guard: guard };
+        let obj = Bound::new(
+            py,
+            PyClassInitializer::from(base).add_subclass(SubClear { field: None }),
+        )
+        .unwrap();
+        obj.borrow_mut().field = Some(obj.clone().into_any().unbind());
+
+        check.assert_not_dropped();
+        let ptr = obj.as_ptr();
+        drop(obj);
+        #[cfg(not(Py_GIL_DISABLED))]
+        {
+            // other thread might have caused GC on free-threaded build
+            check.assert_not_dropped();
+        }
+
+        ptr
+    });
+
+    check.assert_drops_with_gc(ptr);
+}
