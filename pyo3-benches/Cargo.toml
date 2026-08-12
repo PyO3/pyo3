@@ -31,6 +31,10 @@ name = "bench_attach"
 harness = false
 
 [[bench]]
+name = "bench_attach_scaling"
+harness = false
+
+[[bench]]
 name = "bench_call"
 harness = false
 
