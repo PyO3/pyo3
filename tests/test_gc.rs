@@ -76,7 +76,8 @@ fn drop_check() -> (DropGuard, DropCheck) {
     (DropGuard(flag.clone()), DropCheck(flag))
 }
 
-/// Helper structure that records when it has been dropped in the cor
+/// Helper structure that records when it has been dropped
+#[pyclass]
 struct DropGuard(Arc<Once>);
 impl Drop for DropGuard {
     fn drop(&mut self) {
@@ -917,42 +918,51 @@ fn test_super_traverse_early_return_does_not_abort() {
 #[test]
 fn python_subclass_type_cycle_is_collected() {
     #[pyclass(subclass)]
-    struct Base;
+    struct Base {
+        // installed via a Python constructor, hence the `Py` wrapping
+        _guard: Py<DropGuard>,
+    }
 
     #[pymethods]
     impl Base {
         #[new]
-        fn new() -> Self {
-            Self
+        fn new(guard: Py<DropGuard>) -> Self {
+            Self { _guard: guard }
         }
     }
 
-    Python::attach(|py| {
+    // Create subtype from Python; by creating a non-PyO3 subclass we can
+    // demonstrate PyO3 implements heap type traversal & deallocation
+    // properly.
+    let sub = Python::attach(|py| {
         let locals = pyo3::types::PyDict::new(py);
         locals.set_item("Base", py.get_type::<Base>()).unwrap();
         py.run(
             c"\
-import gc
-import weakref
-
 class Sub(Base):
     pass
-
-instance = Sub()
-# Sub owns instance through its type dict; instance owns Sub through ob_type.
-Sub.instance = instance
-instance_ref = weakref.ref(instance)
-type_ref = weakref.ref(Sub)
-del instance, Sub
-gc.collect()
-assert instance_ref() is None
-assert type_ref() is None
 ",
             None,
             Some(&locals),
         )
         .unwrap();
+
+        locals.get_item("Sub").unwrap().unwrap().unbind()
     });
+
+    let (guard, check) = drop_check();
+
+    Python::attach(|py| {
+        // Create an instance of the subclass, install it on the subclass
+        // to create a cycle
+        let instance = sub.call1(py, (guard,)).unwrap();
+        sub.setattr(py, "instance", instance).unwrap();
+    });
+
+    let ptr = sub.as_ptr();
+    drop(sub);
+
+    check.assert_drops_with_gc(ptr);
 }
 
 // A `#[pyclass(dict)]` can form a reference cycle through its instance `__dict__`
