@@ -20,10 +20,10 @@ impl PyTraverseError {
 /// Object visitor for GC.
 #[derive(Clone)]
 pub struct PyVisit<'a> {
-    pub(crate) visit: ffi::visitproc,
-    pub(crate) arg: *mut c_void,
+    visit: ffi::visitproc,
+    arg: *mut c_void,
     /// Prevents the `PyVisit` from outliving the `__traverse__` call.
-    pub(crate) _guard: PhantomData<&'a ()>,
+    _guard: PhantomData<&'a ()>,
 }
 
 impl PyVisit<'_> {
@@ -43,13 +43,34 @@ impl PyVisit<'_> {
             // cannot outlive it, so `visit` and `arg` are still the pair the
             // interpreter passed in; `ptr` comes from `Py::as_ptr`, so it is a
             // valid object pointer.
-            match NonZero::new(unsafe { (self.visit)(ptr, self.arg) }) {
-                None => Ok(()),
-                Some(r) => Err(PyTraverseError(r)),
-            }
+            let retval = unsafe { (self.visit)(ptr, self.arg) };
+            make_traverse_result(retval)
         } else {
             Ok(())
         }
+    }
+
+    /// # Safety
+    ///
+    /// The caller must pass a `visit` and `arg` pair that are guaranteed to be valid for
+    /// the inferred lifetime `'a`.
+    pub(crate) unsafe fn new(visit: ffi::visitproc, arg: *mut c_void) -> Self {
+        Self {
+            visit,
+            arg,
+            _guard: PhantomData,
+        }
+    }
+}
+
+/// Cast the return value of a `visitproc` to a `Result<(), PyTraverseError>`.
+///
+/// This should optimize to a no-op in release builds due to the 0 niche in `PyTraverseError`.
+#[inline]
+pub(crate) fn make_traverse_result(retval: c_int) -> Result<(), PyTraverseError> {
+    match NonZero::new(retval) {
+        None => Ok(()),
+        Some(r) => Err(PyTraverseError(r)),
     }
 }
 

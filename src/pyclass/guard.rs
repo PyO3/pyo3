@@ -107,7 +107,9 @@ impl<'a, T: PyClass> PyClassGuard<'a, T> {
         Self::try_from_class_object(obj.get_class_object())
     }
 
-    fn try_from_class_object(obj: &'a <T as PyClassImpl>::Layout) -> Result<Self, PyBorrowError> {
+    pub(crate) fn try_from_class_object(
+        obj: &'a <T as PyClassImpl>::Layout,
+    ) -> Result<Self, PyBorrowError> {
         obj.ensure_threadsafe();
         obj.borrow_checker().try_borrow().map(|_| Self {
             ptr: NonNull::from(obj).cast(),

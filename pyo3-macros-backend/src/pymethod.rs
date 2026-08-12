@@ -65,6 +65,8 @@ pub enum GeneratedPyMethod {
     Method(MethodAndMethodDef),
     Proto(MethodAndSlotDef),
     SlotTraitImpl(String, TokenStream),
+    /// Opaque tokens to be appended to the `impl` block
+    Tokens(TokenStream),
 }
 
 pub struct PyMethod<'a> {
@@ -302,7 +304,7 @@ pub fn gen_py_method(
                     GeneratedPyMethod::Proto(impl_call_slot(cls, spec, ctx)?)
                 }
                 PyMethodProtoKind::Traverse => {
-                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, spec, ctx)?)
+                    GeneratedPyMethod::Tokens(impl_traverse_slot(cls, spec, ctx)?)
                 }
                 PyMethodProtoKind::Clear => {
                     GeneratedPyMethod::Proto(impl_clear_slot(cls, spec, ctx)?)
@@ -454,11 +456,7 @@ fn impl_call_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> Result<Metho
     })
 }
 
-fn impl_traverse_slot(
-    cls: &syn::Type,
-    spec: &FnSpec<'_>,
-    ctx: &Ctx,
-) -> syn::Result<MethodAndSlotDef> {
+fn impl_traverse_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result<TokenStream> {
     let Ctx { pyo3_path, .. } = ctx;
     if let (Some(py_arg), _) = split_off_python_arg(&spec.signature.arguments) {
         return Err(syn::Error::new_spanned(py_arg.ty, "__traverse__ may not take `Python`. \
@@ -490,24 +488,16 @@ fn impl_traverse_slot(
 
     let rust_fn_ident = spec.name;
 
-    let associated_method = quote! {
-        pub unsafe extern "C" fn __pymethod_traverse__(
-            slf: *mut #pyo3_path::ffi::PyObject,
-            visit: #pyo3_path::ffi::visitproc,
-            arg: *mut ::std::ffi::c_void,
-        ) -> ::std::ffi::c_int {
-            #pyo3_path::impl_::pymethods::_call_traverse::<#cls>(slf, #cls::#rust_fn_ident, visit, arg, #cls::__pymethod_traverse__)
+    Ok(quote! {
+        impl #pyo3_path::impl_::pyclass::PyClassTraverse<#cls> for #pyo3_path::impl_::pyclass::PyClassImplCollector<#cls> {
+            fn __traverse__(
+                self,
+                this: &#cls,
+                visit: #pyo3_path::pyclass::PyVisit<'_>
+            ) -> ::std::result::Result<(), #pyo3_path::pyclass::PyTraverseError> {
+                #cls::#rust_fn_ident(this, visit)
+            }
         }
-    };
-    let slot_def = quote! {
-        #pyo3_path::ffi::PyType_Slot {
-            slot: #pyo3_path::ffi::Py_tp_traverse,
-            pfunc: #cls::__pymethod_traverse__ as #pyo3_path::ffi::traverseproc as _
-        }
-    };
-    Ok(MethodAndSlotDef {
-        associated_method,
-        slot_def,
     })
 }
 
@@ -553,10 +543,20 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
             }, #cls::__pymethod___clear____)
         }
     };
+    let assert_implements_traverse = quote_spanned! { name.span() =>
+        assert_type_implements_traverse(#pyo3_path::impl_::pyclass::ImplementsTraverse::<#cls>::VALUE);
+    };
     let slot_def = quote! {
-        #pyo3_path::ffi::PyType_Slot {
-            slot: #pyo3_path::ffi::Py_tp_clear,
-            pfunc: #cls::__pymethod___clear____ as #pyo3_path::ffi::inquiry as _
+        {
+            const _: () = {
+                #[allow(unused_imports, reason = "Probe not used if assertion trips")]
+                use #pyo3_path::impl_::pyclass::{Probe as _, assert_type_implements_traverse};
+                #assert_implements_traverse
+            };
+            #pyo3_path::ffi::PyType_Slot {
+                slot: #pyo3_path::ffi::Py_tp_clear,
+                pfunc: #cls::__pymethod___clear____ as #pyo3_path::ffi::inquiry as _
+            }
         }
     };
     Ok(MethodAndSlotDef {

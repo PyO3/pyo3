@@ -3,22 +3,22 @@
 
 use crate::exceptions::PyAttributeError;
 use crate::impl_::pymethods::{Deleter, PyDeleterDef};
+use crate::internal::get_slot::{get_slot, TP_CLEAR};
 use crate::platform::prelude::*;
 use crate::platform::HashMap;
 #[cfg(not(Py_3_10))]
 use crate::types::typeobject::PyTypeMethods;
 use crate::{
-    exceptions::PyTypeError,
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     impl_::{
         pyclass::{
             assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-            tp_dealloc_with_gc, PyClassImpl, PyClassItemsIter, PyObjectOffset,
+            PyClassImpl, PyClassItemsIter, PyObjectOffset,
         },
         pymethods::{
-            synthesized_clear, synthesized_traverse, Getter, PyGetterDef, PyMethodDefType,
-            PySetterDef, Setter,
+            synthesized_clear, tp_traverse, Getter, PyGetterDef, PyMethodDefType, PySetterDef,
+            Setter,
         },
         trampoline::trampoline,
     },
@@ -26,12 +26,12 @@ use crate::{
     types::PyType,
     Py, PyClass, PyResult, PyTypeInfo, Python,
 };
-use alloc::ffi::CString;
 use core::{
     ffi::CStr,
-    ffi::{c_char, c_int, c_ulong, c_void},
+    ffi::{c_int, c_ulong, c_void},
     ptr::{self, NonNull},
 };
+use std::ffi::CString;
 
 pub(crate) struct PyClassTypeObject {
     pub type_object: Py<PyType>,
@@ -52,9 +52,8 @@ where
     unsafe fn inner(
         py: Python<'_>,
         base: *mut ffi::PyTypeObject,
-        dealloc: unsafe extern "C" fn(*mut ffi::PyObject),
-        dealloc_with_gc: unsafe extern "C" fn(*mut ffi::PyObject),
-        synthesized_traverse: ffi::traverseproc,
+        tp_dealloc: ffi::destructor,
+        tp_traverse: ffi::traverseproc,
         synthesized_clear: ffi::inquiry,
         is_mapping: bool,
         is_sequence: bool,
@@ -77,21 +76,18 @@ where
                 #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
                 cleanup: Vec::new(),
                 tp_base: base,
-                tp_dealloc: dealloc,
-                tp_dealloc_with_gc: dealloc_with_gc,
-                synthesized_traverse,
+                tp_dealloc,
+                tp_traverse,
                 synthesized_clear,
                 is_mapping,
                 is_sequence,
                 is_immutable_type,
                 has_new: false,
-                has_dealloc: false,
                 has_getitem: false,
                 has_setitem: false,
-                has_traverse: false,
                 has_clear: false,
                 dict_offset: None,
-                class_flags: 0,
+                class_flags: ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC,
             }
             .type_doc(doc)
             .offsets(dict_offset, weaklist_offset)
@@ -106,8 +102,7 @@ where
             py,
             T::BaseType::type_object_raw(py),
             tp_dealloc::<T>,
-            tp_dealloc_with_gc::<T>,
-            synthesized_traverse::<T>,
+            tp_traverse::<T>,
             synthesized_clear::<T>,
             T::IS_MAPPING,
             T::IS_SEQUENCE,
@@ -139,19 +134,15 @@ struct PyTypeBuilder {
     cleanup: Vec<PyTypeBuilderCleanup>,
     tp_base: *mut ffi::PyTypeObject,
     tp_dealloc: ffi::destructor,
-    tp_dealloc_with_gc: ffi::destructor,
-    /// `tp_traverse` / `tp_clear` to install when the class needs the slot but defines no
-    /// `__traverse__` / `__clear__` of its own.
-    synthesized_traverse: ffi::traverseproc,
+    tp_traverse: ffi::traverseproc,
+    /// `tp_clear` to install when the class defines no `__clear__` of its own
     synthesized_clear: ffi::inquiry,
     is_mapping: bool,
     is_sequence: bool,
     is_immutable_type: bool,
     has_new: bool,
-    has_dealloc: bool,
     has_getitem: bool,
     has_setitem: bool,
-    has_traverse: bool,
     has_clear: bool,
     dict_offset: Option<PyObjectOffset>,
     class_flags: c_ulong,
@@ -159,25 +150,17 @@ struct PyTypeBuilder {
 
 impl PyTypeBuilder {
     /// # Safety
-    /// The given pointer must be of the correct type for the given slot
-    unsafe fn push_slot<T>(&mut self, slot: c_int, pfunc: *mut T) {
+    /// The given pointer must be valid for the given slot
+    unsafe fn push_slot(&mut self, slot: c_int, pfunc: *mut c_void) {
         match slot {
             ffi::Py_tp_new => self.has_new = true,
-            ffi::Py_tp_dealloc => self.has_dealloc = true,
             ffi::Py_mp_subscript => self.has_getitem = true,
             ffi::Py_mp_ass_subscript => self.has_setitem = true,
-            ffi::Py_tp_traverse => {
-                self.has_traverse = true;
-                self.class_flags |= ffi::Py_TPFLAGS_HAVE_GC;
-            }
             ffi::Py_tp_clear => self.has_clear = true,
             _ => {}
         }
 
-        self.slots.push(ffi::PyType_Slot {
-            slot,
-            pfunc: pfunc as _,
-        });
+        self.slots.push(ffi::PyType_Slot { slot, pfunc });
     }
 
     /// # Safety
@@ -345,7 +328,7 @@ impl PyTypeBuilder {
 
     fn type_doc(mut self, type_doc: &'static CStr) -> Self {
         if !type_doc.is_empty() {
-            unsafe { self.push_slot(ffi::Py_tp_doc, type_doc.as_ptr() as *mut c_char) }
+            unsafe { self.push_slot(ffi::Py_tp_doc, type_doc.as_ptr() as *mut c_void) }
 
             #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
             {
@@ -422,7 +405,7 @@ impl PyTypeBuilder {
 
         let getset_defs = self.finalize_methods_and_properties();
 
-        unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base) }
+        unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base as *mut c_void) }
 
         if !self.has_new {
             #[cfg(not(Py_3_10))]
@@ -436,53 +419,28 @@ impl PyTypeBuilder {
             }
         }
 
-        // A reference cycle can run through the instance `__dict__` (`obj.x = obj`), so a class
-        // with a `__dict__` must be a GC type. `_call_traverse` / `_call_clear` service the
-        // `__dict__` when the user defines `__traverse__` / `__clear__`; synthesize whichever
-        // slot they did not.
-        //
-        // Must run before the `tp_dealloc` selection below, which keys off `has_traverse`.
-        if self.dict_offset.is_some() {
-            if !self.has_traverse {
-                let synthesized_traverse = self.synthesized_traverse;
-                // Safety: This is the correct slot type for Py_tp_traverse
-                unsafe { self.push_slot(ffi::Py_tp_traverse, synthesized_traverse as *mut c_void) }
-            }
-            if !self.has_clear {
-                let synthesized_clear = self.synthesized_clear;
-                // Safety: This is the correct slot type for Py_tp_clear
-                unsafe { self.push_slot(ffi::Py_tp_clear, synthesized_clear as *mut c_void) }
-            }
-        }
+        unsafe { self.push_slot(ffi::Py_tp_dealloc, self.tp_dealloc as *mut c_void) }
+        unsafe { self.push_slot(ffi::Py_tp_traverse, self.tp_traverse as *mut c_void) }
 
-        let base_is_gc = unsafe { ffi::PyType_IS_GC(self.tp_base) == 1 };
-        let tp_dealloc = if self.has_traverse || base_is_gc {
-            self.tp_dealloc_with_gc
-        } else {
-            self.tp_dealloc
-        };
-        unsafe { self.push_slot(ffi::Py_tp_dealloc, tp_dealloc as *mut c_void) }
+        // We may need to install a `tp_clear` if this type didn't define one:
+        if !self.has_clear {
+            if self.dict_offset.is_some() {
+                // (1) if this type is `#[pyclass(dict)]`, to support clearing the dict
+                // SAFETY: This is the correct slot type for Py_tp_clear
+                unsafe { self.push_slot(ffi::Py_tp_clear, self.synthesized_clear as *mut c_void) }
+            } else if let Some(base_clear) =
+                // SAFETY: `self.tp_base` is known to be a valid pointer to a PyTypeObject
+                unsafe { get_slot(self.tp_base, TP_CLEAR) }
+            {
+                // (2) if the base has a tp_clear, to support clearing the base's fields.
+                //
+                // (CPython only inherits the base clear in subclasses if the subclass
+                // doesn't define any of `Py_TPFLAGS_HAVE_GC`, `tp_traverse`, or `tp_clear`
+                // itself, but `#[pyclass]` types always have GC and `tp_traverse` set
+                // so this inheritance doesn't happen automatically.)
 
-        if self.has_clear && !self.has_traverse {
-            return Err(PyTypeError::new_err(format!(
-                "`#[pyclass]` {name} implements __clear__ without __traverse__"
-            )));
-        }
-
-        // If this type is a GC type, and the base also is, we may need to add
-        // `tp_traverse` / `tp_clear` implementations to call the base, if this type didn't
-        // define `__traverse__` or `__clear__`.
-        //
-        // This is because when Py_TPFLAGS_HAVE_GC is set, then `tp_traverse` and
-        // `tp_clear` are not inherited.
-        if ((self.class_flags & ffi::Py_TPFLAGS_HAVE_GC) != 0) && base_is_gc {
-            // If this assertion breaks, need to consider doing the same for __traverse__.
-            assert!(self.has_traverse); // Py_TPFLAGS_HAVE_GC is set when a `__traverse__` method is found
-
-            if !self.has_clear {
-                let synthesized_clear = self.synthesized_clear;
-                // Safety: This is the correct slot type for Py_tp_clear
-                unsafe { self.push_slot(ffi::Py_tp_clear, synthesized_clear as *mut c_void) }
+                // SAFETY: This is the correct slot type for Py_tp_clear
+                unsafe { self.push_slot(ffi::Py_tp_clear, base_clear as *mut c_void) }
             }
         }
 
