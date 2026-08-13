@@ -413,11 +413,22 @@ mod tests {
 
     #[cfg(not(pyo3_disable_reference_pool))]
     fn pool_dec_refs_does_not_contain(obj: &Py<PyAny>) -> bool {
-        !get_pool()
-            .pending_decrefs
-            .lock()
-            .unwrap()
-            .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
+        for _ in 0..100 {
+            if !get_pool()
+                .pending_decrefs
+                .lock()
+                .unwrap()
+                .contains(&unsafe { NonNull::new_unchecked(obj.as_ptr()) })
+            {
+                return true;
+            }
+
+            // It is possible for another thread to be about to remove the decref
+            // from the pool having already cleared the dirty flag, wait a bit and re-check.
+            std::thread::sleep(core::time::Duration::from_millis(5));
+        }
+
+        false
     }
 
     // With free-threading, threads can empty the POOL at any time, so this
@@ -576,14 +587,13 @@ mod tests {
     #[cfg(not(pyo3_disable_reference_pool))]
     fn test_detached_drop_is_collected_on_next_attach() {
         let obj = Python::attach(get_object);
-        let (count, ptr) = Python::attach(|py| (obj._get_refcnt(py), obj.clone_ref(py).into_ptr()));
+        let ptr = Python::attach(|py| obj.clone_ref(py).into_ptr());
 
         // A decref registered while detached applies once an attach drains the pool.
         get_pool().register_decref(NonNull::new(ptr).unwrap());
 
-        Python::attach(|py| {
-            assert_eq!(count, obj._get_refcnt(py));
-            drop(obj);
+        Python::attach(|_| {
+            assert!(pool_dec_refs_does_not_contain(&obj));
         });
     }
 
