@@ -575,6 +575,7 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         session: ["test-py", "test-rust", "clippy"]
     env:
