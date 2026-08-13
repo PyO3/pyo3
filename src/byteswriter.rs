@@ -233,12 +233,19 @@ impl std::io::Write for PyBytesWriter<'_> {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(wip_feature_std)]
     use super::*;
     #[cfg(wip_feature_std)]
     use crate::types::PyBytesMethods;
     #[cfg(wip_feature_std)]
     use std::io::{IoSlice, Write};
+
+    #[test]
+    fn new_byteswriter_is_empty() {
+        Python::attach(|py| {
+            let writer = PyBytesWriter::new(py).unwrap();
+            assert!(writer.is_empty());
+        });
+    }
 
     #[test]
     #[cfg_attr(not(wip_feature_std), ignore)]
