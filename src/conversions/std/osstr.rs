@@ -1,5 +1,3 @@
-#![cfg(wip_feature_std)]
-
 use crate::conversion::IntoPyObject;
 #[cfg(not(target_os = "wasi"))]
 use crate::ffi;
