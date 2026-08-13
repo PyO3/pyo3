@@ -258,6 +258,7 @@ impl ReferencePool {
     unsafe fn register_decref(&self, obj: NonNull<ffi::PyObject>) {
         // SAFETY: requirements upheld by caller
         let pending = unsafe { PendingDecref::new(obj) };
+        self.dirty.store(true, Ordering::Relaxed);
         self.pending_decrefs.lock().unwrap().push(pending);
     }
 
