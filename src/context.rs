@@ -64,8 +64,9 @@ impl ContextWatcherGuard<'_> {
         self.active = false;
 
         // SAFETY:
-        // - `self.py` proves that the thread is attached to the interpreter for which the watcher
-        //   was registered
+        // - `self.py` proves that the thread is attached to an interpreter; PyO3 does not
+        //   currently support attaching to more than one interpreter, so this is the interpreter
+        //   for which the watcher was registered
         // - `watcher_id` was returned by `PyContext_AddWatcher`
         error_on_minusone(self.py, unsafe {
             ffi::PyContext_ClearWatcher(self.watcher_id)
@@ -82,7 +83,9 @@ impl Drop for ContextWatcherGuard<'_> {
         self.active = false;
 
         // A destructor must not replace an exception which was already pending. The Python token
-        // stored in the guard proves that this thread is still attached to the correct interpreter.
+        // stored in the guard proves that this thread is still attached to an interpreter; PyO3
+        // does not currently support attaching to more than one interpreter, so this is the same
+        // interpreter the watcher was registered on.
         //
         // SAFETY:
         // - the thread is attached, as guaranteed by `self.py`
@@ -109,12 +112,6 @@ impl Drop for ContextWatcherGuard<'_> {
 /// The callback must be a function path and must have this signature:
 ///
 /// ```rust
-/// # #![cfg(all(
-/// #     Py_3_14,
-/// #     not(Py_GIL_DISABLED),
-/// #     not(Py_LIMITED_API),
-/// #     not(any(PyPy, GraalPy, RustPython))
-/// # ))]
 /// use pyo3::context::ContextEvent;
 /// use pyo3::prelude::*;
 ///
