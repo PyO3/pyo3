@@ -305,11 +305,6 @@ impl ReferencePool {
 #[cfg(not(pyo3_disable_reference_pool))]
 static POOL: ReferencePool = ReferencePool::new();
 
-#[cfg(not(pyo3_disable_reference_pool))]
-fn get_pool() -> &'static ReferencePool {
-    &POOL
-}
-
 #[cfg_attr(pyo3_disable_reference_pool, inline(always))]
 #[cfg_attr(pyo3_disable_reference_pool, allow(unused_variables))]
 fn drop_deferred_references(py: Python<'_>) {
@@ -400,7 +395,7 @@ pub unsafe fn register_decref(obj: NonNull<ffi::PyObject>) {
     #[cfg(not(pyo3_disable_reference_pool))]
     {
         // SAFETY: caller upholds requirements
-        unsafe { get_pool().register_decref(obj) };
+        unsafe { POOL.register_decref(obj) };
     }
     #[cfg(all(
         pyo3_disable_reference_pool,
@@ -461,15 +456,9 @@ mod tests {
     #[cfg(not(pyo3_disable_reference_pool))]
     fn pool_dec_refs_does_not_contain(obj: &Py<PyAny>) -> bool {
         for _ in 0..100 {
-            if !get_pool()
-                .pending_decrefs
-                .lock()
-                .unwrap()
-                .iter()
-                .any(|pending| {
-                    pending.as_raw() == (unsafe { NonNull::new_unchecked(obj.as_ptr()) })
-                })
-            {
+            if !POOL.pending_decrefs.lock().unwrap().iter().any(|pending| {
+                pending.as_raw() == (unsafe { NonNull::new_unchecked(obj.as_ptr()) })
+            }) {
                 return true;
             }
 
@@ -485,8 +474,7 @@ mod tests {
     // function does not test anything meaningful
     #[cfg(not(any(pyo3_disable_reference_pool, Py_GIL_DISABLED)))]
     fn pool_dec_refs_contains(obj: &Py<PyAny>) -> bool {
-        get_pool()
-            .pending_decrefs
+        POOL.pending_decrefs
             .lock()
             .unwrap()
             .iter()
@@ -641,7 +629,7 @@ mod tests {
         let ptr = Python::attach(|py| obj.clone_ref(py).into_ptr());
 
         // A decref registered while detached applies once an attach drains the pool.
-        unsafe { get_pool().register_decref(NonNull::new(ptr).unwrap()) };
+        unsafe { POOL.register_decref(NonNull::new(ptr).unwrap()) };
 
         Python::attach(|_| {
             assert!(pool_dec_refs_does_not_contain(&obj));
@@ -680,10 +668,10 @@ mod tests {
             let capsule =
                 unsafe { ffi::PyCapsule_New(ptr as _, core::ptr::null(), Some(capsule_drop)) };
 
-            unsafe { get_pool().register_decref(NonNull::new(capsule).unwrap()) };
+            unsafe { POOL.register_decref(NonNull::new(capsule).unwrap()) };
 
             // Updating the counts will call decref on the capsule, which calls capsule_drop
-            get_pool().drop_deferred_references(py);
+            POOL.drop_deferred_references(py);
         })
     }
 
@@ -695,9 +683,7 @@ mod tests {
 
             // For AttachGuard::attach
 
-            unsafe {
-                get_pool().register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap())
-            };
+            unsafe { POOL.register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap()) };
             #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
             let _guard = AttachGuard::attach();
@@ -705,9 +691,7 @@ mod tests {
 
             // For AttachGuard::assume
 
-            unsafe {
-                get_pool().register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap())
-            };
+            unsafe { POOL.register_decref(NonNull::new(obj.clone_ref(py).into_ptr()).unwrap()) };
             #[cfg(not(Py_GIL_DISABLED))]
             assert!(pool_dec_refs_contains(&obj));
             let _guard2 = unsafe { AttachGuard::assume() };
