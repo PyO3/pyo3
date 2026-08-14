@@ -6,7 +6,7 @@ mod module {
 
     #[pymodule_init]
     fn init(_m: &Bound<'_, PyModule>, _extra: usize) -> PyResult<()> {
-        //~^ ERROR: `#[pymodule_init]` takes either no argument or the module
+//~^ ERROR: `#[pymodule_init]` takes either no argument or the module
         Ok(())
     }
 }

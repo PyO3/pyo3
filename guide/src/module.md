@@ -174,3 +174,22 @@ mod my_extension {
 }
 # }
 ```
+
+The module argument may be omitted if the initialization does not need it, for example when it only installs some global state:
+
+```rust,no_run
+# mod procedural_module_no_arg_test {
+#[pyo3::pymodule]
+mod my_extension {
+    use pyo3::prelude::*;
+
+    #[pymodule_init]
+    fn init() -> PyResult<()> {
+        // Arbitrary code which does not touch the module
+        Ok(())
+    }
+}
+# }
+```
+
+Prefer this form where possible: an initializer which is not handed the module does not add attributes to it, so [type stub generation](type-stub.md) can keep describing the module in full.

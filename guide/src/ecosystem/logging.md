@@ -28,9 +28,10 @@ mod my_module {
     }
 
     #[pymodule_init]
-    fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    fn init() -> PyResult<()> {
         // A good place to install the Rust -> Python logger.
         pyo3_log::init();
+        Ok(())
     }
 }
 ```

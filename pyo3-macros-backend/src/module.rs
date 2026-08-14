@@ -164,8 +164,8 @@ pub fn pymodule_module_impl(
     }
 
     let mut pymodule_init = None;
-    // Whether the `#[pymodule_init]`, if there is one, receives the module. An initialiser that
-    // does not cannot add attributes to it, which is what lets the module stay introspectable.
+    // An initialiser which receives the module can add attributes the macro cannot see; one which
+    // does not is what lets the module stay complete for introspection.
     let mut pymodule_init_takes_module = false;
     let mut module_consts = Vec::new();
     let mut module_consts_cfg_attrs = Vec::new();
@@ -201,12 +201,8 @@ pub fn pymodule_module_impl(
                     ensure_spanned!(pymodule_init.is_none(), item_fn.span() => "only one `#[pymodule_init]` may be specified");
                     ensure_spanned!(
                         item_fn.sig.inputs.len() <= 1,
-                        item_fn.sig.inputs.span() => "`#[pymodule_init]` takes either no argument or the module"
+                        item_fn.sig.inputs[1].span() => "`#[pymodule_init]` takes either no argument or the module"
                     );
-                    // An initialiser that asks for the module can add anything to it, and the macro
-                    // cannot see what; one that does not is provably side-effect-only as far as the
-                    // module's attributes are concerned. Only the first makes the module
-                    // incomplete for introspection.
                     pymodule_init_takes_module = !item_fn.sig.inputs.is_empty();
                     pymodule_init = Some(if pymodule_init_takes_module {
                         quote! { #ident(module)?; }
