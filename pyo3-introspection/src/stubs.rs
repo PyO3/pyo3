@@ -127,14 +127,9 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
 
 /// Generates the `__all__` declaration of a module, if we are able to write an accurate one.
 ///
-/// [`PyModuleMethods::add`] appends every name it adds to the module `__all__`, so any `#[pymodule]`
-/// with at least one member has an `__all__` at runtime and the stub must declare it too.
-///
-/// We only emit it for complete modules: for an incomplete one we do not know the full list of
-/// members, and an `__all__` missing some of them would hide from type checkers names that do exist
-/// at runtime.
-///
-/// [`PyModuleMethods::add`]: https://docs.rs/pyo3/latest/pyo3/types/trait.PyModuleMethods.html#tymethod.add
+/// `PyModuleMethods::add` appends every name it adds to the module `__all__`, so any `#[pymodule]`
+/// with at least one member has one at runtime. Incomplete modules are skipped: we do not know all
+/// of their members, and a partial `__all__` would hide names that do exist at runtime.
 fn dunder_all_stubs(module: &Module, imports: &Imports) -> Option<String> {
     if module.incomplete {
         return None;
@@ -152,8 +147,8 @@ fn dunder_all_stubs(module: &Module, imports: &Imports) -> Option<String> {
         return None;
     }
 
-    // Each of these lists is already sorted by name, so we just list the members in the order the
-    // stub declares them, with the submodules (declared in their own file) last.
+    // Each of these lists is already sorted by name, so listing them in the order the stub declares
+    // them keeps the output stable.
     let mut elts = Vec::with_capacity(member_count);
     elts.extend(
         module
