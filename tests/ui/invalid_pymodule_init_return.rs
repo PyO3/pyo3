@@ -9,4 +9,15 @@ mod module {
     }
 }
 
+#[pymodule]
+//~^ ERROR: the trait bound `Result<usize, PyErr>: pyo3::impl_::pymodule::PyModuleInitResult` is not satisfied
+mod module_result {
+    use pyo3::prelude::*;
+
+    #[pymodule_init]
+    fn init() -> PyResult<usize> {
+        Ok(0)
+    }
+}
+
 fn main() {}

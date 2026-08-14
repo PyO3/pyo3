@@ -485,7 +485,7 @@ unsafe impl Sync for PyModuleSlots {}
 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 unsafe impl Sync for PyModuleDefSlots {}
 
-/// Used to accept either `()` or a `Result` from a `#[pymodule_init]` function.
+/// Used to accept either `()` or `Result<(), E>` from a `#[pymodule_init]` function.
 pub trait PyModuleInitResult {
     fn into_result(self) -> PyResult<()>;
 }
@@ -496,12 +496,12 @@ impl PyModuleInitResult for () {
     }
 }
 
-impl<T, E> PyModuleInitResult for Result<T, E>
+impl<E> PyModuleInitResult for Result<(), E>
 where
     PyErr: From<E>,
 {
     fn into_result(self) -> PyResult<()> {
-        self.map(|_| ()).map_err(PyErr::from)
+        self.map_err(PyErr::from)
     }
 }
 

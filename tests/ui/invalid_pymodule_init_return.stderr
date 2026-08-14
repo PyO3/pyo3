@@ -10,12 +10,27 @@ help: the following other types implement trait `pyo3::impl_::pymodule::PyModule
   |   impl PyModuleInitResult for () {
   |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `()`
 ...
-  | / impl<T, E> PyModuleInitResult for Result<T, E>
+  | / impl<E> PyModuleInitResult for Result<(), E>
   | | where
   | |     PyErr: From<E>,
-  | |___________________^ `Result<T, E>`
+  | |___________________^ `Result<(), E>`
   = note: this error originates in the attribute macro `pymodule` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error: aborting due to 1 previous error
+error[E0277]: the trait bound `Result<usize, PyErr>: pyo3::impl_::pymodule::PyModuleInitResult` is not satisfied
+   --> tests/ui/invalid_pymodule_init_return.rs:12:1
+    |
+ 12 | #[pymodule]
+    | ^^^^^^^^^^^ the trait `pyo3::impl_::pymodule::PyModuleInitResult` is not implemented for `Result<usize, PyErr>`
+    |
+help: the trait `pyo3::impl_::pymodule::PyModuleInitResult` is implemented for `Result<(), E>`
+ --> src/impl_/pymodule.rs
+  |
+  | / impl<E> PyModuleInitResult for Result<(), E>
+  | | where
+  | |     PyErr: From<E>,
+  | |___________________^
+  = note: this error originates in the attribute macro `pymodule` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 2 previous errors
 
 For more information about this error, try `rustc --explain E0277`.

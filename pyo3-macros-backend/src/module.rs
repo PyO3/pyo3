@@ -201,7 +201,7 @@ pub fn pymodule_module_impl(
                     ensure_spanned!(pymodule_init.is_none(), item_fn.span() => "only one `#[pymodule_init]` may be specified");
                     ensure_spanned!(
                         item_fn.sig.inputs.len() <= 1,
-                        item_fn.sig.inputs[1].span() => "`#[pymodule_init]` takes either no argument or the module"
+                        item_fn.sig.span() => "`#[pymodule_init]` takes either no argument or the module"
                     );
                     pymodule_init_takes_module = !item_fn.sig.inputs.is_empty();
                     let call = if pymodule_init_takes_module {
