@@ -40,8 +40,5 @@ pub mod othermod {
     // An initialiser without the module argument leaves the module complete for introspection:
     // `stubs/othermod.pyi` has no `__getattr__` catch-all.
     #[pymodule_init]
-    #[expect(clippy::unnecessary_wraps)]
-    fn init() -> PyResult<()> {
-        Ok(())
-    }
+    fn init() {}
 }

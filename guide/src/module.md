@@ -175,18 +175,16 @@ mod my_extension {
 # }
 ```
 
-The module argument may be omitted if the initialization does not need it, for example when it only installs some global state:
+The module argument may be omitted if the initialization does not need it, for example when it only installs some global state.
+The return type may then be omitted too, since there is nothing left which can fail:
 
 ```rust,no_run
 # mod procedural_module_no_arg_test {
 #[pyo3::pymodule]
 mod my_extension {
-    use pyo3::prelude::*;
-
     #[pymodule_init]
-    fn init() -> PyResult<()> {
+    fn init() {
         // Arbitrary code which does not touch the module
-        Ok(())
     }
 }
 # }

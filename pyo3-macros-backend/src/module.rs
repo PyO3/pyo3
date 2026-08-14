@@ -204,10 +204,13 @@ pub fn pymodule_module_impl(
                         item_fn.sig.inputs[1].span() => "`#[pymodule_init]` takes either no argument or the module"
                     );
                     pymodule_init_takes_module = !item_fn.sig.inputs.is_empty();
-                    pymodule_init = Some(if pymodule_init_takes_module {
-                        quote! { #ident(module)?; }
+                    let call = if pymodule_init_takes_module {
+                        quote! { #ident(module) }
                     } else {
-                        quote! { #ident()?; }
+                        quote! { #ident() }
+                    };
+                    pymodule_init = Some(quote! {
+                        #pyo3_path::impl_::pymodule::PyModuleInitResult::into_result(#call)?;
                     });
                 } else if has_attribute(&item_fn.attrs, "pyfunction")
                     || has_attribute_with_namespace(

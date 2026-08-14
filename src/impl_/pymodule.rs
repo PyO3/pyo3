@@ -41,7 +41,7 @@ use crate::{
     ffi,
     impl_::pyfunction::PyFunctionDef,
     types::{PyModule, PyModuleMethods},
-    Bound, PyClass, PyResult, PyTypeInfo,
+    Bound, PyClass, PyErr, PyResult, PyTypeInfo,
 };
 use crate::{
     sync::PyOnceLock,
@@ -484,6 +484,26 @@ unsafe impl Sync for PyModuleSlots {}
 // which only uses them to build the `ffi::ModuleDef`.
 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 unsafe impl Sync for PyModuleDefSlots {}
+
+/// Used to accept either `()` or a `Result` from a `#[pymodule_init]` function.
+pub trait PyModuleInitResult {
+    fn into_result(self) -> PyResult<()>;
+}
+
+impl PyModuleInitResult for () {
+    fn into_result(self) -> PyResult<()> {
+        Ok(())
+    }
+}
+
+impl<T, E> PyModuleInitResult for Result<T, E>
+where
+    PyErr: From<E>,
+{
+    fn into_result(self) -> PyResult<()> {
+        self.map(|_| ()).map_err(PyErr::from)
+    }
+}
 
 /// Trait to add an element (class, function...) to a module.
 ///

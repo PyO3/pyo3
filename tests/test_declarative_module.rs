@@ -303,3 +303,32 @@ fn test_pymodule_init_without_module() {
         assert!(NO_ARG_INIT_RAN.load(Ordering::SeqCst));
     })
 }
+
+static UNIT_INIT_RAN: AtomicBool = AtomicBool::new(false);
+
+#[pymodule]
+mod module_with_unit_init {
+    use super::UNIT_INIT_RAN;
+    use pyo3::prelude::*;
+    use std::sync::atomic::Ordering;
+
+    #[pyfunction]
+    fn quadruple(x: usize) -> usize {
+        x * 4
+    }
+
+    #[pymodule_init]
+    fn init() {
+        UNIT_INIT_RAN.store(true, Ordering::SeqCst);
+    }
+}
+
+#[test]
+fn test_pymodule_init_returning_unit() {
+    Python::attach(|py| {
+        let m = pyo3::wrap_pymodule!(module_with_unit_init)(py);
+        let m = m.bind(py);
+        py_assert!(py, m, "m.quadruple(3) == 12");
+        assert!(UNIT_INIT_RAN.load(Ordering::SeqCst));
+    })
+}
