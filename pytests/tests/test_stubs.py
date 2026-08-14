@@ -18,28 +18,20 @@ def _stub_dunder_all(path: Path):
     return None
 
 
-def _module_for_stub(path: Path):
-    root = pyo3_pytests.pyo3_pytests
-    return root if path.name == "__init__.pyi" else getattr(root, path.stem)
-
-
 @pytest.mark.parametrize(
     "stub_file", sorted(STUBS_DIR.glob("*.pyi")), ids=lambda path: path.name
 )
 def test_stub_dunder_all_matches_runtime(stub_file: Path):
     """The `__all__` in the stubs must name what the module exports at import time.
 
-    We compare sorted lists rather than the lists themselves: the stubs list the members in
-    the order they are declared in, which is not the order `PyModuleMethods::add` appends
-    them in. `__all__` is only ever consumed as a set of names, so that difference is not
-    observable.
-
-    This needs `pyo3_pytests` built with the features the stubs were generated from, so it
-    runs in the `test-introspection` nox session rather than in `pytests`' own one.
+    Sorted, because the stubs declare the members in a different order than
+    `PyModuleMethods::add` appends them in, and `__all__` is only consumed as a set of names.
     """
     stub_all = _stub_dunder_all(stub_file)
     if stub_all is None:
         pytest.skip("incomplete modules get no `__all__`, see `guide/src/type-stub.md`")
-    runtime_all = _module_for_stub(stub_file).__all__
+    root = pyo3_pytests.pyo3_pytests
+    module = root if stub_file.name == "__init__.pyi" else getattr(root, stub_file.stem)
+    runtime_all = module.__all__
     assert sorted(stub_all) == sorted(runtime_all)
     assert len(stub_all) == len(set(stub_all)), "`__all__` has duplicates"
