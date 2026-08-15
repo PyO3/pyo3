@@ -93,10 +93,9 @@ impl FromPyObject<'_, '_> for Tz {
 mod tests {
     use crate::prelude::PyAnyMethods;
     use crate::types::PyTzInfo;
-    use crate::Bound;
-    use crate::Python;
+    use crate::{Bound, Python, IntoPyObject};
     #[cfg(feature = "chrono")]
-    use crate::{types::IntoPyDict, IntoPyObject};
+    use crate::{types::IntoPyDict};
     #[cfg(feature = "chrono")]
     use alloc::string::ToString;
     #[cfg(feature = "chrono")]
@@ -202,7 +201,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(Py_GIL_DISABLED))] // https://github.com/python/cpython/issues/116738#issuecomment-2404360445
     fn test_into_pyobject() {
         Python::attach(|py| {
             let assert_eq = |l: Bound<'_, PyTzInfo>, r: Bound<'_, PyTzInfo>| {
