@@ -12,7 +12,6 @@ use crate::{
 use core::ops::Index;
 use core::slice::SliceIndex;
 use core::str;
-#[cfg(wip_feature_std)]
 use std::io::Write;
 
 /// Represents a Python `bytes` object.
