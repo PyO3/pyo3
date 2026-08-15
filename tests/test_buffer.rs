@@ -29,7 +29,7 @@ struct TestBufferErrors {
 #[pymethods]
 impl TestBufferErrors {
     unsafe fn __getbuffer__(
-        slf: PyRefMut<'_, Self>,
+        slf: Bound<'_, Self>,
         view: *mut ffi::Py_buffer,
         flags: c_int,
     ) -> PyResult<()> {
@@ -41,7 +41,8 @@ impl TestBufferErrors {
             return Err(PyBufferError::new_err("Object is not writable"));
         }
 
-        let bytes = &slf.buf;
+        let borrow = slf.try_borrow_guard_mut()?;
+        let bytes = &borrow.buf;
 
         unsafe {
             (*view).buf = bytes.as_ptr() as *mut c_void;
@@ -60,7 +61,7 @@ impl TestBufferErrors {
             (*view).suboffsets = ptr::null_mut();
             (*view).internal = ptr::null_mut();
 
-            if let Some(err) = &slf.error {
+            if let Some(err) = &borrow.error {
                 use TestGetBufferError::*;
                 match err {
                     NullShape => {
@@ -79,7 +80,7 @@ impl TestBufferErrors {
                 }
             }
 
-            (*view).obj = slf.into_ptr();
+            (*view).obj = slf.clone().into_ptr();
         }
 
         Ok(())
@@ -100,7 +101,7 @@ fn test_get_buffer_errors() {
 
         assert!(PyBuffer::<u32>::get(instance.bind(py)).is_ok());
 
-        instance.borrow_mut(py).error = Some(TestGetBufferError::NullShape);
+        instance.try_borrow_guard_mut().unwrap().error = Some(TestGetBufferError::NullShape);
         assert_eq!(
             PyBuffer::<u32>::get(instance.bind(py))
                 .unwrap_err()
@@ -108,7 +109,7 @@ fn test_get_buffer_errors() {
             "BufferError: shape is null"
         );
 
-        instance.borrow_mut(py).error = Some(TestGetBufferError::NullStrides);
+        instance.try_borrow_guard_mut().unwrap().error = Some(TestGetBufferError::NullStrides);
         assert_eq!(
             PyBuffer::<u32>::get(instance.bind(py))
                 .unwrap_err()
@@ -116,7 +117,8 @@ fn test_get_buffer_errors() {
             "BufferError: strides is null"
         );
 
-        instance.borrow_mut(py).error = Some(TestGetBufferError::IncorrectItemSize);
+        instance.try_borrow_guard_mut().unwrap().error =
+            Some(TestGetBufferError::IncorrectItemSize);
         assert_eq!(
             PyBuffer::<u32>::get(instance.bind(py))
                 .unwrap_err()
@@ -124,7 +126,7 @@ fn test_get_buffer_errors() {
             "BufferError: buffer contents are not compatible with u32"
         );
 
-        instance.borrow_mut(py).error = Some(TestGetBufferError::IncorrectFormat);
+        instance.try_borrow_guard_mut().unwrap().error = Some(TestGetBufferError::IncorrectFormat);
         assert_eq!(
             PyBuffer::<u32>::get(instance.bind(py))
                 .unwrap_err()
@@ -132,7 +134,8 @@ fn test_get_buffer_errors() {
             "BufferError: buffer contents are not compatible with u32"
         );
 
-        instance.borrow_mut(py).error = Some(TestGetBufferError::IncorrectAlignment);
+        instance.try_borrow_guard_mut().unwrap().error =
+            Some(TestGetBufferError::IncorrectAlignment);
         assert_eq!(
             PyBuffer::<u32>::get(instance.bind(py))
                 .unwrap_err()

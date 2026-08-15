@@ -7,9 +7,9 @@ use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
 use crate::types::PyList;
 use crate::types::PyTuple;
-use crate::{
-    Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyTypeCheck, Python,
-};
+use crate::{Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyTypeCheck, Python};
+#[expect(deprecated)]
+use crate::{PyRef, PyRefMut};
 use core::convert::Infallible;
 use core::marker::PhantomData;
 
@@ -510,6 +510,7 @@ pub(crate) use from_py_object_sequence::FromPyObjectSequence;
 pub trait FromPyObjectOwned<'py>: for<'a> FromPyObject<'a, 'py> {}
 impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py> {}
 
+#[expect(deprecated)]
 impl<'a, 'py, T> FromPyObject<'a, 'py> for PyRef<'py, T>
 where
     T: PyClass,
@@ -527,6 +528,7 @@ where
     }
 }
 
+#[expect(deprecated)]
 impl<'a, 'py, T> FromPyObject<'a, 'py> for PyRefMut<'py, T>
 where
     T: PyClass<Frozen = False>,
@@ -592,7 +594,7 @@ mod tests {
 
             fn extract(obj: crate::Borrowed<'_, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
                 if let Ok(obj) = obj.cast::<Self>() {
-                    Ok(obj.borrow().clone())
+                    Ok(obj.try_borrow_guard()?.clone())
                 } else {
                     obj.extract::<i32>().map(Self)
                 }

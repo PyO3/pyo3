@@ -54,8 +54,8 @@ It is also worth remembering the following special types:
 | `Python<'py>`    | A token used to prove attachment to the Python interpreter. |
 | `Bound<'py, T>`  | A Python object with a lifetime which binds it to the attachment to the Python interpreter. This provides access to most of PyO3's APIs. |
 | `Py<T>`          | A Python object not connected to any lifetime of attachment to the Python interpreter. This can be sent to other threads. |
-| `PyRef<T>`       | A `#[pyclass]` borrowed immutably.    |
-| `PyRefMut<T>`    | A `#[pyclass]` borrowed mutably.      |
+| `PyClassGuard<T>`       | A `#[pyclass]` borrowed immutably.    |
+| `PyClassGuardMut<T>`    | A `#[pyclass]` borrowed mutably.      |
 
 For more detail on accepting `#[pyclass]` values as function arguments, see [the section of this guide on Python Classes](../class.md).
 
@@ -105,8 +105,8 @@ Finally, the following Rust types are also able to convert to Python as return v
 | `BTreeSet<T>` | `Set[T]`                        |
 | `Py<T>` | `T`                                   |
 | `Bound<T>` | `T`                                |
-| `PyRef<T: PyClass>` | `T`                       |
-| `PyRefMut<T: PyClass>` | `T`                    |
+| `PyClassGuard<T: PyClass>` | `T`                       |
+| `PyClassGuardMut<T: PyClass>` | `T`                    |
 
 [^1]: Requires the `num-bigint` optional feature.
 

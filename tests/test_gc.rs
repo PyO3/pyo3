@@ -50,8 +50,8 @@ fn spin_freelist(py: Python<'_>, data: usize) {
     for _ in 0..500 {
         let inst1 = Py::new(py, ClassWithFreelistAndData { data: Some(data) }).unwrap();
         let inst2 = Py::new(py, ClassWithFreelistAndData { data: Some(data) }).unwrap();
-        assert_eq!(inst1.borrow(py).data, Some(data));
-        assert_eq!(inst2.borrow(py).data, Some(data));
+        assert_eq!(inst1.try_borrow_guard().unwrap().data, Some(data));
+        assert_eq!(inst2.try_borrow_guard().unwrap().data, Some(data));
     }
 }
 
@@ -163,7 +163,7 @@ impl CycleWithClear {
     }
 
     fn __clear__(slf: &Bound<'_, Self>) {
-        slf.borrow_mut().cycle = None;
+        slf.try_borrow_guard_mut().unwrap().cycle = None;
     }
 }
 
@@ -181,7 +181,7 @@ fn test_cycle_clear() {
         )
         .unwrap();
 
-        inst.borrow_mut().cycle = Some(inst.clone().into_any().unbind());
+        inst.try_borrow_guard_mut().unwrap().cycle = Some(inst.clone().into_any().unbind());
 
         // gc.get_objects can create references to partially initialized objects,
         // leading to races on the free-threaded build.
@@ -227,7 +227,7 @@ fn gc_null_traversal() {
             },
         )
         .unwrap();
-        obj.borrow_mut(py).cycle = Some(obj.clone_ref(py));
+        obj.try_borrow_guard_mut().unwrap().cycle = Some(obj.clone_ref(py));
 
         // the object doesn't have to be cleaned up, it just needs to be traversed.
         py.run(c"import gc; gc.collect()", None, None).unwrap();
@@ -274,8 +274,8 @@ fn inheritance_with_new_methods_with_drop() {
             .cast_into::<SubClassWithDrop>()
             .unwrap();
 
-        inst.as_super().borrow_mut().guard = Some(guard_base);
-        inst.borrow_mut().guard = Some(guard_sub);
+        inst.as_super().try_borrow_guard_mut().unwrap().guard = Some(guard_base);
+        inst.try_borrow_guard_mut().unwrap().guard = Some(guard_sub);
 
         check_base.assert_not_dropped();
         check_sub.assert_not_dropped();
@@ -319,14 +319,22 @@ fn gc_during_borrow() {
         // create an object and check that traversing it works normally
         // when it's not borrowed
         let cell = Bound::new(py, TraversableClass::new()).unwrap();
-        assert!(!cell.borrow().traversed.load(Ordering::Relaxed));
+        assert!(!cell
+            .try_borrow_guard()
+            .unwrap()
+            .traversed
+            .load(Ordering::Relaxed));
         unsafe { traverse(cell.as_ptr(), novisit, std::ptr::null_mut()) };
-        assert!(cell.borrow().traversed.load(Ordering::Relaxed));
+        assert!(cell
+            .try_borrow_guard()
+            .unwrap()
+            .traversed
+            .load(Ordering::Relaxed));
 
         // create an object and check that it is not traversed if the GC
         // is invoked while it is already borrowed mutably
         let cell2 = Bound::new(py, TraversableClass::new()).unwrap();
-        let guard = cell2.borrow_mut();
+        let guard = cell2.try_borrow_guard_mut().unwrap();
         assert!(!guard.traversed.load(Ordering::Relaxed));
         unsafe { traverse(cell2.as_ptr(), novisit, std::ptr::null_mut()) };
         assert!(!guard.traversed.load(Ordering::Relaxed));
@@ -471,6 +479,7 @@ fn traverse_cannot_be_hijacked() {
         fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>;
     }
 
+    #[expect(deprecated)]
     impl Traversable for PyRef<'_, HijackedTraverse> {
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
             self.hijacked.store(true, Ordering::Release);
@@ -484,9 +493,15 @@ fn traverse_cannot_be_hijacked() {
         let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
 
         let cell = Bound::new(py, HijackedTraverse::new()).unwrap();
-        assert_eq!(cell.borrow().traversed_and_hijacked(), (false, false));
+        assert_eq!(
+            cell.try_borrow_guard().unwrap().traversed_and_hijacked(),
+            (false, false)
+        );
         unsafe { traverse(cell.as_ptr(), novisit, std::ptr::null_mut()) };
-        assert_eq!(cell.borrow().traversed_and_hijacked(), (true, false));
+        assert_eq!(
+            cell.try_borrow_guard().unwrap().traversed_and_hijacked(),
+            (true, false)
+        );
     })
 }
 
@@ -522,7 +537,7 @@ fn drop_during_traversal_with_gil() {
         )
         .unwrap();
 
-        *inst.borrow_mut(py).cycle.lock().unwrap() = Some(inst.clone_ref(py));
+        *inst.try_borrow_guard_mut().unwrap().cycle.lock().unwrap() = Some(inst.clone_ref(py));
 
         check.assert_not_dropped();
         let ptr = inst.as_ptr();
@@ -556,7 +571,7 @@ fn drop_during_traversal_without_gil() {
         )
         .unwrap();
 
-        *inst.borrow_mut(py).cycle.lock().unwrap() = Some(inst.clone_ref(py));
+        *inst.try_borrow_guard_mut().unwrap().cycle.lock().unwrap() = Some(inst.clone_ref(py));
 
         check.assert_not_dropped();
         inst
@@ -616,7 +631,7 @@ fn unsendable_are_not_traversed_on_foreign_thread() {
         .join()
         .unwrap();
 
-        assert!(!obj.borrow().traversed.get());
+        assert!(!obj.try_borrow_guard().unwrap().traversed.get());
 
         // traversal on home thread still works
         assert_eq!(
@@ -624,7 +639,7 @@ fn unsendable_are_not_traversed_on_foreign_thread() {
             0
         );
 
-        assert!(obj.borrow().traversed.get());
+        assert!(obj.try_borrow_guard().unwrap().traversed.get());
     });
 }
 
@@ -654,7 +669,8 @@ fn test_traverse_subclass() {
             PyClassInitializer::from(base).add_subclass(SubOverrideTraverse {}),
         )
         .unwrap();
-        obj.borrow_mut().as_super().cycle = Some(obj.clone().into_any().unbind());
+        obj.try_borrow_guard_mut().unwrap().as_super().cycle =
+            Some(obj.clone().into_any().unbind());
 
         check.assert_not_dropped();
         let ptr = obj.as_ptr();
@@ -701,7 +717,8 @@ fn test_traverse_subclass_override_clear() {
             PyClassInitializer::from(base).add_subclass(SubOverrideClear {}),
         )
         .unwrap();
-        obj.borrow_mut().as_super().cycle = Some(obj.clone().into_any().unbind());
+        obj.try_borrow_guard_mut().unwrap().as_super().cycle =
+            Some(obj.clone().into_any().unbind());
 
         check.assert_not_dropped();
         let ptr = obj.as_ptr();
@@ -814,7 +831,7 @@ fn test_drop_buffer_during_traversal_without_gil() {
         )
         .unwrap();
 
-        obj.borrow_mut(py).cycle = Some(obj.clone_ref(py).into_any());
+        obj.try_borrow_guard_mut().unwrap().cycle = Some(obj.clone_ref(py).into_any());
 
         let ptr = obj.as_ptr();
         drop(obj);
