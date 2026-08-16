@@ -1,3 +1,5 @@
+//! See [`PyBytes`] for more info. This mod also contains its helper type [`PyBytesWriter`].
+
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 #[allow(unused_imports, reason = "used to build docs")]
