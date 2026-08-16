@@ -7,7 +7,7 @@ use core::ffi::*;
 // use full-path names in atomic.rs
 #[cfg(not(Py_LIMITED_API))]
 use core::sync::atomic::*;
-#[cfg(any(not(Py_3_10), not(Py_LIMITED_API)))]
+#[cfg(not(Py_LIMITED_API))]
 use libc::FILE;
 use libc::{size_t, wchar_t};
 
