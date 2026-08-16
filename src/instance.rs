@@ -2298,10 +2298,9 @@ impl<T> Drop for Py<T> {
 
         #[cold]
         fn drop_slow(obj: NonNull<ffi::PyObject>) {
-            // SAFETY: handing ownership of the reference to `register_decref`.
-            unsafe {
-                state::register_decref(obj);
-            }
+            // SAFETY: the Py instance being dropped will not use the pointer any more
+            let obj = unsafe { Py::from_non_null(obj) };
+            state::register_decref(obj);
         }
 
         inner(self.0)
