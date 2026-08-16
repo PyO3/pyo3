@@ -1,4 +1,3 @@
-
 extern_libpython! {
     pub fn PyErr_WarnExplicitObject(
         category: *mut PyObject,

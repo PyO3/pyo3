@@ -1,4 +1,3 @@
-
 #[cfg(not(PyPy))]
 opaque_struct!(pub PyDictKeysObject);
 

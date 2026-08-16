@@ -1,4 +1,3 @@
-
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyMem_RawMalloc")]
     pub fn PyMem_RawMalloc(size: size_t) -> *mut c_void;

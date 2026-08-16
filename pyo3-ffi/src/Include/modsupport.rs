@@ -59,10 +59,7 @@ extern_libpython! {
     ) -> c_int;
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     #[cfg_attr(PyPy, link_name = "PyPyModule_AddType")]
-    pub fn PyModule_AddType(
-        module: *mut PyObject,
-        type_: *mut PyTypeObject,
-    ) -> c_int;
+    pub fn PyModule_AddType(module: *mut PyObject, type_: *mut PyTypeObject) -> c_int;
     // skipped PyModule_AddIntMacro
     // skipped PyModule_AddStringMacro
     pub fn PyModule_SetDocString(arg1: *mut PyObject, arg2: *const c_char) -> c_int;
