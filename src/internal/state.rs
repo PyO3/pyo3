@@ -408,12 +408,22 @@ mod tests {
 
     #[cfg(not(pyo3_disable_reference_pool))]
     fn pool_dec_refs_does_not_contain(obj: &Py<PyAny>) -> bool {
-        !POOL
-            .pending_decrefs
-            .lock()
-            .unwrap()
-            .iter()
-            .any(|pending| pending.is(obj))
+        for _ in 0..100 {
+            if !POOL
+                .pending_decrefs
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|pending| pending.is(obj))
+            {
+                return true;
+            }
+
+            // It is possible for another thread to be about to remove the decref
+            // from the pool having already cleared the dirty flag, wait a bit and re-check.
+            std::thread::sleep(core::time::Duration::from_millis(5));
+        }
+        false
     }
 
     // With free-threading, threads can empty the POOL at any time, so this
