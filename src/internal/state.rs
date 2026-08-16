@@ -385,9 +385,6 @@ impl Drop for ForbidAttaching {
 /// Registers a Python object pointer inside the release pool, to have its reference count decreased
 /// the next time the thread is attached in pyo3.
 ///
-/// If the thread is attached, the reference count will be decreased immediately instead of being queued
-/// for later.
-///
 /// # Safety
 /// - The object must be an owned Python reference.
 /// - The reference must not be used after calling this function.
