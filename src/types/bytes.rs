@@ -1,4 +1,3 @@
-use crate::byteswriter::PyBytesWriter;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 #[allow(unused_imports, reason = "used to build docs")]
@@ -12,6 +11,10 @@ use crate::{
 use core::ops::Index;
 use core::slice::SliceIndex;
 use core::str;
+
+pub use self::writer::PyBytesWriter;
+
+mod writer;
 
 /// Represents a Python `bytes` object.
 ///

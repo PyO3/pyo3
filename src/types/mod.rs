@@ -351,9 +351,9 @@ macro_rules! pyobject_native_type {
 pub(crate) mod any;
 pub(crate) mod boolobject;
 pub(crate) mod bytearray;
-pub(crate) mod bytes;
-pub mod capsule;
-pub mod code;
+pub mod bytes;
+pub(crate) mod capsule;
+mod code;
 pub(crate) mod complex;
 pub mod datetime;
 pub mod dict;
