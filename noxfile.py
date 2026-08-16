@@ -187,9 +187,18 @@ def test_rust(session: nox.Session):
 
 @nox.session(name="test-py", venv_backend="none")
 def test_py(session: nox.Session) -> None:
-    _run(session, "nox", "-f", "pytests/noxfile.py", external=True)
+    features = (
+        ",".join(f"pyo3/{feat}" for feat in _REQUIRED_FOR_NO_STD)
+        if _is_no_std()
+        else None
+    )
+    features = f"--features={features}" if features else None
+
+    _run(session, "nox", "-f", "pytests/noxfile.py", "--", features, external=True)
     for example in glob("examples/*/noxfile.py"):
-        _run(session, "nox", "-f", example, external=True)
+        if _is_no_std() and example.startswith("examples/setuptools-rust-starter"):
+            continue
+        _run(session, "nox", "-f", example, "--", features, external=True)
     for example in glob("pyo3-ffi/examples/*/noxfile.py"):
         _run(session, "nox", "-f", example, external=True)
 
@@ -1894,7 +1903,7 @@ def _get_coverage_env(*flags: str) -> dict[str, str]:
     return env
 
 
-def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
+def _run(session: nox.Session, *args: str | None, **kwargs: Any) -> None:
     """Wrapper for _run(session, which creates nice groups on GitHub Actions."""
     is_github_actions = _is_github_actions()
     failed = False
@@ -1902,7 +1911,8 @@ def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
         # Insert ::group:: at the start of nox's command line output
         print("::group::", end="", flush=True, file=sys.stderr)
     try:
-        session.run(*args, **kwargs)
+        filtered_args = [x for x in args if x is not None]
+        session.run(*filtered_args, **kwargs)
     except nox.command.CommandFailed:
         failed = True
         raise
