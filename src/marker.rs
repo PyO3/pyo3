@@ -123,6 +123,7 @@ use crate::conversion::IntoPyObject;
 use crate::err::{self, PyResult};
 use crate::internal::state::{AttachGuard, SuspendAttach};
 use crate::types::any::PyAnyMethods;
+use crate::types::code::PyCodeInput;
 use crate::types::{
     PyAny, PyCode, PyCodeMethods, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString,
     PyType,
@@ -595,7 +596,7 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let code = PyCode::compile(self, code, c"<string>", crate::types::PyCodeInput::Eval)?;
+        let code = PyCode::compile(self, code, c"<string>", PyCodeInput::Eval)?;
         code.run(globals, locals)
     }
 
@@ -638,7 +639,7 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
-        let code = PyCode::compile(self, code, c"<string>", crate::types::PyCodeInput::File)?;
+        let code = PyCode::compile(self, code, c"<string>", PyCodeInput::File)?;
         code.run(globals, locals).map(|obj| {
             debug_assert!(obj.is_none());
         })

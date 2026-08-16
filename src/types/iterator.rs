@@ -1,3 +1,5 @@
+//! Python iterators and related types.
+
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
