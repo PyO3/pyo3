@@ -563,35 +563,35 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             //
             // Maybe one day the rustdoc json output can be used to avoid this problem
             ("Py_INCREF", Err(FunctionNameMismatch(e))) if e == "Py_IncRef" => FunctionInfo {
-                modifiers: quote!(),
+                modifiers: quote!(unsafe),
                 arg_count: 1,
                 variadic: false,
             },
             ("Py_IncRef", Err(FunctionNameMismatch(e))) if e == "Py_INCREF" => FunctionInfo {
-                modifiers: quote!(extern "C"),
+                modifiers: quote!(unsafe extern "C"),
                 arg_count: 1,
                 variadic: false,
             },
             ("Py_DECREF", Err(FunctionNameMismatch(e))) if e == "Py_DecRef" => FunctionInfo {
-                modifiers: quote!(),
+                modifiers: quote!(unsafe),
                 arg_count: 1,
                 variadic: false,
             },
             ("Py_DecRef", Err(FunctionNameMismatch(e))) if e == "Py_DECREF" => FunctionInfo {
-                modifiers: quote!(extern "C"),
+                modifiers: quote!(unsafe extern "C"),
                 arg_count: 1,
                 variadic: false,
             },
             ("PyThreadState_GET", Err(FunctionNameMismatch(e))) if e == "PyThreadState_Get" => {
                 FunctionInfo {
-                    modifiers: quote!(),
+                    modifiers: quote!(unsafe),
                     arg_count: 0,
                     variadic: false,
                 }
             }
             ("PyThreadState_Get", Err(FunctionNameMismatch(e))) if e == "PyThreadState_GET" => {
                 FunctionInfo {
-                    modifiers: quote!(extern "C"),
+                    modifiers: quote!(unsafe extern "C"),
                     arg_count: 0,
                     variadic: false,
                 }
