@@ -1,6 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
-
 //! Synchronization mechanisms which are aware of the existence of the Python interpreter.
 //!
 //! The Python interpreter has multiple "stop the world" situations which may block threads, such as
@@ -372,6 +369,9 @@ impl OnceExt for parking_lot::Once {
             return;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
 
         self.call_once(move || {
@@ -389,6 +389,9 @@ impl OnceExt for parking_lot::Once {
             return;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
 
         self.call_once_force(move |state| {
@@ -452,6 +455,9 @@ impl<R: lock_api::RawMutex, T> MutexExt<T> for lock_api::Mutex<R, T> {
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.lock();
         drop(ts_guard);
@@ -474,6 +480,9 @@ where
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.lock_arc();
         drop(ts_guard);
@@ -497,6 +506,9 @@ where
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.lock();
         drop(ts_guard);
@@ -520,6 +532,9 @@ where
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.lock_arc();
         drop(ts_guard);
@@ -602,6 +617,9 @@ impl<R: lock_api::RawRwLock, T> RwLockExt<T> for lock_api::RwLock<R, T> {
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.read();
         drop(ts_guard);
@@ -613,6 +631,9 @@ impl<R: lock_api::RawRwLock, T> RwLockExt<T> for lock_api::RwLock<R, T> {
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.write();
         drop(ts_guard);
@@ -640,6 +661,9 @@ where
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.read_arc();
         drop(ts_guard);
@@ -651,6 +675,9 @@ where
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.write_arc();
         drop(ts_guard);

@@ -51,4 +51,4 @@ jobs:
         with:
           run: uvx nox -s codspeed
           token: ${{ secrets.CODSPEED_TOKEN }}
-          mode: ${{ matrix.mode }}
+          mode: simulation
