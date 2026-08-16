@@ -92,10 +92,10 @@ impl FromPyObject<'_, '_> for Tz {
 #[cfg(all(test, not(windows)))] // Troubles loading timezones on Windows
 mod tests {
     use crate::prelude::PyAnyMethods;
-    use crate::types::PyTzInfo;
-    use crate::{Bound, Python, IntoPyObject};
     #[cfg(feature = "chrono")]
-    use crate::{types::IntoPyDict};
+    use crate::types::IntoPyDict;
+    use crate::types::PyTzInfo;
+    use crate::{Bound, IntoPyObject, Python};
     #[cfg(feature = "chrono")]
     use alloc::string::ToString;
     #[cfg(feature = "chrono")]
