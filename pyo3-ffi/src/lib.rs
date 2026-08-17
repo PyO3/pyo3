@@ -484,8 +484,8 @@ pub use self::pymem::*;
 pub use self::pyport::*;
 pub use self::pystate::*;
 pub use self::pystrtod::*;
-pub use self::pythead::*;
 pub use self::pythonrun::*;
+pub use self::pythread::*;
 pub use self::pytypedefs::*;
 pub use self::rangeobject::*;
 pub use self::refcount::*;
@@ -576,7 +576,7 @@ mod pythonrun;
 // skipped pystrhex.h
 // skipped pystrcmp.h
 mod pystrtod;
-mod pythead;
+mod pythread;
 // skipped pytime.h
 mod pytypedefs;
 mod rangeobject;
