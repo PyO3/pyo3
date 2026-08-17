@@ -1716,7 +1716,7 @@ def check_feature_powerset(session: nox.Session):
             "--all-targets",
         ]
         if not _is_no_std():
-            args.push(f"--features={comma_join(_REQUIRED_FOR_NO_STD)}")
+            args.append(f"--features={comma_join(_REQUIRED_FOR_NO_STD)}")
         _run_cargo(*args, env=env)
 
 
