@@ -335,6 +335,7 @@ pub trait RwLockExt<T>: rwlock_ext_sealed::Sealed {
     fn write_py_attached(&self, py: Python<'_>) -> Self::WriteLockResult<'_>;
 }
 
+#[cfg(wip_feature_std)]
 #[allow(clippy::disallowed_types)]
 impl OnceExt for std::sync::Once {
     type OnceState = std::sync::OnceState;
@@ -683,6 +684,7 @@ where
     }
 }
 
+#[cfg(wip_feature_std)]
 #[cold]
 #[allow(clippy::disallowed_types)]
 fn init_once_py_attached<F, T>(once: &std::sync::Once, _py: Python<'_>, f: F)
@@ -700,6 +702,7 @@ where
     });
 }
 
+#[cfg(wip_feature_std)]
 #[cold]
 #[allow(clippy::disallowed_types)]
 fn init_once_force_py_attached<F, T>(once: &std::sync::Once, _py: Python<'_>, f: F)
@@ -767,8 +770,10 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
     use std::sync::Barrier;
+    #[cfg(wip_feature_std)]
     #[cfg(not(target_arch = "wasm32"))]
     use std::sync::Mutex;
+    #[cfg(wip_feature_std)]
     #[cfg(not(target_arch = "wasm32"))]
     use std::sync::{Once, OnceState};
 
@@ -842,6 +847,7 @@ mod tests {
 
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[cfg(wip_feature_std)]
     fn test_once_ext() {
         macro_rules! test_once {
             ($once:expr, $is_poisoned:expr) => {{
@@ -887,6 +893,7 @@ mod tests {
     }
 
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[cfg(wip_feature_std)]
     #[test]
     fn test_once_lock_ext() {
         let cell = std::sync::OnceLock::new();
@@ -904,6 +911,7 @@ mod tests {
 
     #[cfg(feature = "macros")]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[cfg(wip_feature_std)]
     #[test]
     fn test_mutex_ext() {
         let barrier = Barrier::new(2);
@@ -996,6 +1004,7 @@ mod tests {
     }
 
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[cfg(wip_feature_std)]
     #[test]
     fn test_mutex_ext_poison() {
         let mutex = Mutex::new(42);
