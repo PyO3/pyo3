@@ -147,12 +147,11 @@ impl PyBytes {
     ///
     /// ```
     /// use pyo3::{prelude::*, types::PyBytes};
-    /// use std::io::Write;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
     ///     let py_bytes = PyBytes::new_with_writer(py, 0, |writer| {
-    ///         writer.write_all(b"hello world")?;
+    ///         writer.write_bytes(b"hello world")?;
     ///         Ok(())
     ///     })?;
     ///     assert_eq!(py_bytes.as_bytes(), b"hello world");
