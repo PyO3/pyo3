@@ -428,7 +428,7 @@ pub fn pymodule_module_impl(
                 )*
 
                 #pymodule_init
-                ::std::result::Result::Ok(())
+                ::core::result::Result::Ok(())
             }
         }
     ))
@@ -484,7 +484,7 @@ pub fn pymodule_function_impl(
     if function.sig.inputs.len() == 2 {
         module_args.push(quote!(module.py()));
     }
-    module_args.push(quote!(::std::convert::Into::into(module)));
+    module_args.push(quote!(::core::convert::Into::into(module)));
 
     Ok(quote! {
         #[doc(hidden)]
@@ -528,7 +528,7 @@ fn module_initialization(
 
     let mut result = quote! {
         #[doc(hidden)]
-        pub static __PYO3_NAME: &'static ::std::ffi::CStr = #pyo3_name;
+        pub static __PYO3_NAME: &'static ::core::ffi::CStr = #pyo3_name;
 
         // This structure exists for `fn` modules declared within `fn` bodies, where due to the hidden
         // module (used for importing) the `fn` to initialize the module cannot be seen from the #module_def
@@ -540,11 +540,11 @@ fn module_initialization(
         pub static _PYO3_DEF: #pyo3_path::impl_::pymodule::ModuleDef = {
             use #pyo3_path::impl_::pymodule as impl_;
 
-            unsafe extern "C" fn __pyo3_module_exec(module: *mut #pyo3_path::ffi::PyObject) -> ::std::ffi::c_int {
+            unsafe extern "C" fn __pyo3_module_exec(module: *mut #pyo3_path::ffi::PyObject) -> ::core::ffi::c_int {
                 #pyo3_path::impl_::trampoline::module_exec(module, #module_exec)
             }
 
-            static DOC: &'static ::std::ffi::CStr = #doc;
+            static DOC: &'static ::core::ffi::CStr = #doc;
             static SLOTS: impl_::PrimaryModuleSlots = impl_::PyModuleSlotsBuilder::new()
                 .with_mod_exec(__pyo3_module_exec)
                 .with_abi_info()

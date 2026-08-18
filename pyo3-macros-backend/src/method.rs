@@ -313,7 +313,7 @@ impl FnType {
                 };
                 let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion, reason = "#[classmethod] accepts anything which implements `From<&Bound<PyType>>`")]
-                    ::std::convert::Into::into(
+                    ::core::convert::Into::into(
                         #pyo3_path::Bound::ref_from_ptr(#py, &#class_method_receiver)
                             .cast_unchecked::<#pyo3_path::types::PyType>()
                     )
@@ -326,7 +326,7 @@ impl FnType {
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion, reason = "`pass_module` accepts anything which implements `From<&Bound<PyModule>>`")]
-                    ::std::convert::Into::into(
+                    ::core::convert::Into::into(
                         #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
                             .cast_unchecked::<#pyo3_path::types::PyModule>()
                     )
@@ -414,8 +414,8 @@ impl ExtractErrorMode {
             ExtractErrorMode::Raise => quote! { #extract? },
             ExtractErrorMode::NotImplemented => quote! {
                 match #extract {
-                    ::std::result::Result::Ok(value) => value,
-                    ::std::result::Result::Err(_) => { return #pyo3_path::impl_::callback::convert(py, py.NotImplemented()); },
+                    ::core::result::Result::Ok(value) => value,
+                    ::core::result::Result::Err(_) => { return #pyo3_path::impl_::callback::convert(py, py.NotImplemented()); },
                 }
             },
         }
