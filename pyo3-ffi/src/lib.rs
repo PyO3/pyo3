@@ -430,7 +430,6 @@ pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &core::ffi::CStr {
 }
 
 // Macros for declaring `extern` blocks that link against libpython.
-// See `impl_/macros.rs` for the implementation.
 #[path = "impl_/macros.rs"]
 #[macro_use]
 mod macros;
