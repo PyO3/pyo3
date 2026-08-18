@@ -19,7 +19,12 @@ use core::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit};
 use std::sync::{Once, OnceState};
 
 pub mod critical_section;
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+mod mutex;
 pub(crate) mod once_lock;
+
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+pub use self::mutex::{PyMutex, PyMutexGuard};
 
 /// Deprecated alias for [`pyo3::sync::critical_section::with_critical_section`][crate::sync::critical_section::with_critical_section]
 #[deprecated(
