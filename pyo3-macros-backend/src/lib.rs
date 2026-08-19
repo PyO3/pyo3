@@ -13,6 +13,7 @@ mod combine_errors;
 mod derive_attributes;
 mod frompyobject;
 mod intopyobject;
+mod pygcintegration;
 #[cfg(feature = "experimental-inspect")]
 mod introspection;
 mod konst;
@@ -29,6 +30,7 @@ mod quotes;
 
 pub use frompyobject::build_derive_from_pyobject;
 pub use intopyobject::build_derive_into_pyobject;
+pub use pygcintegration::build_derive_py_gc_integration;
 pub use module::{pymodule_function_impl, pymodule_module_impl, PyModuleOptions};
 pub use pyclass::{build_py_class, build_py_enum, PyClassArgs};
 pub use pyfunction::{build_py_function, PyFunctionOptions};
