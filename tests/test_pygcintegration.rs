@@ -86,10 +86,12 @@ enum Node {
 
 #[test]
 fn may_contain_cycles_structs_and_enums() {
-    assert!(!Leaf::MAY_CONTAIN_CYCLES);
-    assert!(!Branch::MAY_CONTAIN_CYCLES);
-    assert!(!BranchWithIgnoredField::MAY_CONTAIN_CYCLES);
-    assert!(!Node::MAY_CONTAIN_CYCLES);
+    const {
+        assert!(!Leaf::MAY_CONTAIN_CYCLES);
+        assert!(!Branch::MAY_CONTAIN_CYCLES);
+        assert!(!BranchWithIgnoredField::MAY_CONTAIN_CYCLES);
+        assert!(!Node::MAY_CONTAIN_CYCLES);
+    }
 }
 
 #[test]
@@ -168,7 +170,7 @@ fn wrappers_compile_and_clear() {
 
 #[test]
 fn opaque_wrapper_breaks_traversal_chain() {
-    assert!(!OpaqueWrapper::MAY_CONTAIN_CYCLES);
+    const { assert!(!OpaqueWrapper::MAY_CONTAIN_CYCLES) };
 
     Python::attach(|py| {
         let obj = py.None();
@@ -186,7 +188,13 @@ fn opaque_wrapper_breaks_traversal_chain() {
 fn direct_py_field_is_traversed() {
     Python::attach(|py| {
         let inner = py.None();
-        let value = Py::new(py, TraversedByPyClass { field: inner.clone_ref(py) }).unwrap();
+        let value = Py::new(
+            py,
+            TraversedByPyClass {
+                field: inner.clone_ref(py),
+            },
+        )
+        .unwrap();
 
         let locals = PyDict::new(py);
         locals.set_item("gc", py.import("gc").unwrap()).unwrap();

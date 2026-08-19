@@ -46,7 +46,8 @@ fn parse_gc_field<'a>(field: &'a syn::Field, member: syn::Member) -> Result<GcFi
                 gc = Some(opt);
             }
         } else if attr.path().is_ident("pyo3") {
-            let _ = attr.parse_args_with(Punctuated::<GcFieldAttribute, Token![,]>::parse_terminated)?;
+            let _ =
+                attr.parse_args_with(Punctuated::<GcFieldAttribute, Token![,]>::parse_terminated)?;
         }
     }
 
@@ -78,7 +79,10 @@ fn fields_for_struct(fields: &Fields) -> Result<Vec<GcField<'_>>> {
     }
 }
 
-fn traverse_stmts_for_struct(fields: &[GcField<'_>], pyo3_path: &crate::utils::PyO3CratePath) -> TokenStream {
+fn traverse_stmts_for_struct(
+    fields: &[GcField<'_>],
+    pyo3_path: &crate::utils::PyO3CratePath,
+) -> TokenStream {
     let included = fields.iter().filter(|field| field.include).map(|field| {
         let member = &field.member;
         let ty = field.ty;
@@ -95,7 +99,10 @@ fn traverse_stmts_for_struct(fields: &[GcField<'_>], pyo3_path: &crate::utils::P
     }
 }
 
-fn clear_stmts_for_struct(fields: &[GcField<'_>], pyo3_path: &crate::utils::PyO3CratePath) -> TokenStream {
+fn clear_stmts_for_struct(
+    fields: &[GcField<'_>],
+    pyo3_path: &crate::utils::PyO3CratePath,
+) -> TokenStream {
     let included = fields.iter().filter(|field| field.include).map(|field| {
         let member = &field.member;
         let ty = field.ty;
@@ -154,10 +161,7 @@ fn append_where_predicates(
     generics
 }
 
-fn assertion_impl(
-    fields: &[GcField<'_>],
-    pyo3_path: &crate::utils::PyO3CratePath,
-) -> TokenStream {
+fn assertion_impl(fields: &[GcField<'_>], pyo3_path: &crate::utils::PyO3CratePath) -> TokenStream {
     let assertions: Vec<_> = fields
         .iter()
         .filter(|field| !field.include)

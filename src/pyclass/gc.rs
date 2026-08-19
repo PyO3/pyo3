@@ -1,6 +1,7 @@
 use core::{
     ffi::CStr,
     ffi::{c_int, c_void},
+    hash::{BuildHasher, Hash},
     marker::PhantomData,
     num::NonZero,
     ops::{Deref, DerefMut},
@@ -16,7 +17,6 @@ use alloc::{
 use std::{
     collections::{HashMap, HashSet},
     ffi::{OsStr, OsString},
-    hash::{BuildHasher, Hash},
     path::{Path, PathBuf},
     sync::OnceLock,
 };
@@ -42,6 +42,8 @@ pub unsafe trait PyGcTraversable {
 macro_rules! impl_py_gc_no_cycles {
     ($($ty:ty),* $(,)?) => {
         $(
+            // SAFETY: These types contain no Python object references and therefore
+            // can safely report no cycles and perform no clearing.
             unsafe impl PyGcTraversable for $ty {
                 const MAY_CONTAIN_CYCLES: bool = false;
 
@@ -85,6 +87,8 @@ impl_py_gc_no_cycles!(
     OsString,
 );
 
+// SAFETY: Shared references do not own data; forwarding traversal is correct and
+// clear is a no-op because `&T` cannot clear through immutable access.
 unsafe impl<T: ?Sized + PyGcTraversable> PyGcTraversable for &T {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
@@ -101,6 +105,7 @@ unsafe impl<T: ?Sized + PyGcTraversable> PyGcTraversable for &T {
     fn clear(&mut self) {}
 }
 
+// SAFETY: Mutable references can forward both traversal and clearing to `T`.
 unsafe impl<T: ?Sized + PyGcTraversable> PyGcTraversable for &mut T {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
@@ -121,6 +126,7 @@ unsafe impl<T: ?Sized + PyGcTraversable> PyGcTraversable for &mut T {
     }
 }
 
+// SAFETY: `PhantomData<T>` stores no runtime data and cannot reference Python objects.
 unsafe impl<T> PyGcTraversable for PhantomData<T> {
     const MAY_CONTAIN_CYCLES: bool = false;
 
@@ -133,6 +139,7 @@ unsafe impl<T> PyGcTraversable for PhantomData<T> {
     fn clear(&mut self) {}
 }
 
+// SAFETY: `Option<T>` contains at most one `T`; delegating to contained value is sound.
 unsafe impl<T: PyGcTraversable> PyGcTraversable for Option<T> {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
@@ -152,6 +159,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for Option<T> {
     }
 }
 
+// SAFETY: `Vec<T>` owns zero or more `T`; visiting / clearing each element is sound.
 unsafe impl<T: PyGcTraversable> PyGcTraversable for Vec<T> {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
@@ -171,6 +179,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for Vec<T> {
     }
 }
 
+// SAFETY: `VecDeque<T>` owns zero or more `T`; visiting / clearing each element is sound.
 unsafe impl<T: PyGcTraversable> PyGcTraversable for VecDeque<T> {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
@@ -190,6 +199,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for VecDeque<T> {
     }
 }
 
+// SAFETY: `LinkedList<T>` owns zero or more `T`; visiting / clearing each element is sound.
 unsafe impl<T: PyGcTraversable> PyGcTraversable for LinkedList<T> {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
@@ -209,6 +219,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for LinkedList<T> {
     }
 }
 
+// SAFETY: `BinaryHeap<T>` owns zero or more `T`; visiting / clearing each element is sound.
 unsafe impl<T: PyGcTraversable + Ord> PyGcTraversable for BinaryHeap<T> {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
@@ -228,6 +239,7 @@ unsafe impl<T: PyGcTraversable + Ord> PyGcTraversable for BinaryHeap<T> {
     }
 }
 
+// SAFETY: `HashMap<K, V, S>` owns keys and values; visiting / clearing entries is sound.
 unsafe impl<K, V, S> PyGcTraversable for HashMap<K, V, S>
 where
     K: PyGcTraversable + Eq + Hash,
@@ -257,6 +269,7 @@ where
     }
 }
 
+// SAFETY: `HashSet<T, S>` owns zero or more `T`; visiting / clearing each element is sound.
 unsafe impl<T, S> PyGcTraversable for HashSet<T, S>
 where
     T: PyGcTraversable + Eq + Hash,
@@ -280,6 +293,7 @@ where
     }
 }
 
+// SAFETY: `BTreeMap<K, V>` owns keys and values; visiting / clearing entries is sound.
 unsafe impl<K, V> PyGcTraversable for BTreeMap<K, V>
 where
     K: PyGcTraversable + Ord,
@@ -308,6 +322,7 @@ where
     }
 }
 
+// SAFETY: `BTreeSet<T>` owns zero or more `T`; visiting / clearing each element is sound.
 unsafe impl<T: PyGcTraversable + Ord> PyGcTraversable for BTreeSet<T> {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
@@ -327,6 +342,7 @@ unsafe impl<T: PyGcTraversable + Ord> PyGcTraversable for BTreeSet<T> {
     }
 }
 
+// SAFETY: `OnceLock<T>` owns at most one initialized `T`; delegating if present is sound.
 unsafe impl<T: PyGcTraversable> PyGcTraversable for OnceLock<T> {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
@@ -346,6 +362,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for OnceLock<T> {
     }
 }
 
+// SAFETY: `Result<T, E>` owns either `T` or `E`; delegating to active variant is sound.
 unsafe impl<T, E> PyGcTraversable for Result<T, E>
 where
     T: PyGcTraversable,
@@ -375,6 +392,7 @@ where
     }
 }
 
+// SAFETY: Arrays own all elements; visiting / clearing each element is sound.
 unsafe impl<T: PyGcTraversable, const N: usize> PyGcTraversable for [T; N] {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
@@ -396,6 +414,7 @@ unsafe impl<T: PyGcTraversable, const N: usize> PyGcTraversable for [T; N] {
     }
 }
 
+// SAFETY: Slices reference elements; traversal and clear forwarding per element is sound.
 unsafe impl<T: PyGcTraversable> PyGcTraversable for [T] {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
@@ -417,6 +436,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for [T] {
     }
 }
 
+// SAFETY: `Box<T>` uniquely owns one `T`; delegating traversal and clear is sound.
 unsafe impl<T: PyGcTraversable> PyGcTraversable for Box<T> {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
@@ -434,6 +454,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for Box<T> {
     }
 }
 
+// SAFETY: `Py<T>` is a strong reference to a Python object and must always be visited.
 unsafe impl<T> PyGcTraversable for Py<T> {
     const MAY_CONTAIN_CYCLES: bool = true;
 
@@ -490,6 +511,7 @@ impl<T> From<T> for PyGcOpaque<T> {
     }
 }
 
+// SAFETY: `PyGcOpaque<T>` intentionally opts out of traversal and clear by contract.
 unsafe impl<T> PyGcTraversable for PyGcOpaque<T> {
     const MAY_CONTAIN_CYCLES: bool = false;
 
