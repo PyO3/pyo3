@@ -6,6 +6,8 @@
 //! APIs may may change at any time without documentation in the CHANGELOG and without
 //! breaking semver guarantees.
 
+pub extern crate alloc;
+
 pub mod callback;
 pub mod concat;
 #[cfg(feature = "experimental-async")]
