@@ -2539,9 +2539,9 @@ fn pyclass_hash(
         Some(opt) => {
             let mut hash_impl = parse_quote_spanned! { opt.span() =>
                 fn __pyo3__generated____hash__(&self) -> u64 {
-                    let mut s = #pyo3_path::platform::DefaultHasher::new();
-                    ::core::hash::Hash::hash(self, &mut s);
-                    ::core::hash::Hasher::finish(&s)
+                    use core::hash::BuildHasher;
+                    use #pyo3_path::platform::DefaultHashBuilder;
+                    DefaultHashBuilder::default().hash_one(self)
                 }
             };
             let hash_slot = generate_protocol_slot(

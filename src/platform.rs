@@ -15,10 +15,30 @@ pub(crate) mod prelude {
 }
 
 #[cfg(feature = "hashbrown")]
-pub use hashbrown::{DefaultHasher, HashMap, HashSet};
+pub use hashbrown::{HashMap, HashSet};
 
 #[cfg(all(not(feature = "hashbrown"), wip_feature_std))]
-pub use std::collections::{hash_map::DefaultHasher, HashMap, HashSet};
+pub use std::collections::{HashMap, HashSet};
+
+#[cfg(feature = "hashbrown")]
+#[derive(Default)]
+pub struct DefaultHashBuilder(hashbrown::DefaultHashBuilder);
+
+#[cfg(all(not(feature = "hashbrown"), wip_feature_std))]
+#[derive(Default)]
+pub struct DefaultHashBuilder(core::hash::BuildHasherDefault<std::hash::DefaultHasher>);
+
+impl core::hash::BuildHasher for DefaultHashBuilder {
+    #[cfg(feature = "hashbrown")]
+    type Hasher = hashbrown::DefaultHasher;
+    #[cfg(all(not(feature = "hashbrown"), wip_feature_std))]
+    type Hasher = std::hash::DefaultHasher;
+
+    #[inline(always)]
+    fn build_hasher(&self) -> Self::Hasher {
+        self.0.build_hasher()
+    }
+}
 
 #[cfg(all(not(feature = "hashbrown"), not(wip_feature_std)))]
 compile_error!("Please enable at least one of the following features: hashbrown, std");
