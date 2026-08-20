@@ -32,6 +32,7 @@ impl core::hash::BuildHasher for DefaultHashBuilder {
     #[cfg(feature = "hashbrown")]
     type Hasher = hashbrown::DefaultHasher;
     #[cfg(all(not(feature = "hashbrown"), wip_feature_std))]
+    #[expect(clippy::disallowed_types)]
     type Hasher = std::hash::DefaultHasher;
 
     #[inline(always)]
