@@ -2528,6 +2528,7 @@ fn pyclass_hash(
     cls: &syn::Type,
     ctx: &Ctx,
 ) -> Result<(Option<syn::ImplItemFn>, Option<MethodAndSlotDef>)> {
+    let pyo3_path = &ctx.pyo3_path;
     if options.hash.is_some() {
         ensure_spanned!(
             options.frozen.is_some(), options.hash.span() => "The `hash` option requires the `frozen` option.";
@@ -2538,7 +2539,7 @@ fn pyclass_hash(
         Some(opt) => {
             let mut hash_impl = parse_quote_spanned! { opt.span() =>
                 fn __pyo3__generated____hash__(&self) -> u64 {
-                    let mut s = std::collections::hash_map::DefaultHasher::new();
+                    let mut s = #pyo3_path::platform::DefaultHasher::new();
                     ::core::hash::Hash::hash(self, &mut s);
                     ::core::hash::Hasher::finish(&s)
                 }
