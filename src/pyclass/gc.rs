@@ -1,3 +1,12 @@
+use crate::{ffi, Py};
+use alloc::{
+    borrow::{Cow, ToOwned},
+    boxed::Box,
+    collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque},
+    ffi::CString,
+    string::String,
+    vec::Vec,
+};
 use core::{
     ffi::CStr,
     ffi::{c_int, c_void},
@@ -6,22 +15,12 @@ use core::{
     num::NonZero,
     ops::{Deref, DerefMut},
 };
-
-use alloc::{
-    boxed::Box,
-    collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque},
-    ffi::CString,
-    string::String,
-    vec::Vec,
-};
 use std::{
     collections::{HashMap, HashSet},
     ffi::{OsStr, OsString},
     path::{Path, PathBuf},
     sync::OnceLock,
 };
-
-use crate::{ffi, Py};
 
 /// Trait describing how values participate in Python's cyclic garbage collector.
 ///
@@ -450,6 +449,35 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for Box<T> {
     fn clear(&mut self) {
         if T::MAY_CONTAIN_CYCLES {
             (**self).clear();
+        }
+    }
+}
+
+// SAFETY: `Cow<'a, T>` either borrows a `T` or owns `T::Owned`; delegating to
+// the active variant preserves traversal soundness.
+unsafe impl<'a, T: ?Sized + PyGcTraversable + ToOwned> PyGcTraversable for Cow<'a, T>
+where
+    T::Owned: PyGcTraversable,
+{
+    const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES || T::Owned::MAY_CONTAIN_CYCLES;
+
+    fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        if Self::MAY_CONTAIN_CYCLES {
+            match self {
+                Self::Borrowed(value) if T::MAY_CONTAIN_CYCLES => value.traverse(visit)?,
+                Self::Owned(value) if T::Owned::MAY_CONTAIN_CYCLES => value.traverse(visit)?,
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn clear(&mut self) {
+        if T::Owned::MAY_CONTAIN_CYCLES {
+            match self {
+                Self::Borrowed(_) => {}
+                Self::Owned(value) => value.clear(),
+            }
         }
     }
 }
