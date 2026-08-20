@@ -429,10 +429,10 @@ use impl_traits;
 mod test {
     use super::*;
     use crate::impl_::pyclass::{value_of, IsSend, IsSync};
+    use crate::platform::DefaultHashBuilder;
     use crate::types::PyAnyMethods as _;
     use crate::{IntoPyObject, Python};
-    use core::hash::{Hash, Hasher};
-    use std::collections::hash_map::DefaultHasher;
+    use core::hash::BuildHasher;
 
     #[test]
     fn py_backed_str_empty() {
@@ -588,18 +588,10 @@ mod test {
     #[test]
     fn test_backed_str_hash() {
         Python::attach(|py| {
-            let h = {
-                let mut hasher = DefaultHasher::new();
-                "abcde".hash(&mut hasher);
-                hasher.finish()
-            };
+            let h = DefaultHashBuilder::default().hash_one("abcde");
 
             let s1: PyBackedStr = PyString::new(py, "abcde").try_into().unwrap();
-            let h1 = {
-                let mut hasher = DefaultHasher::new();
-                s1.hash(&mut hasher);
-                hasher.finish()
-            };
+            let h1 = DefaultHashBuilder::default().hash_one(&s1);
 
             assert_eq!(h, h1);
         });
@@ -734,25 +726,13 @@ mod test {
     #[test]
     fn test_backed_bytes_hash() {
         Python::attach(|py| {
-            let h = {
-                let mut hasher = DefaultHasher::new();
-                b"abcde".hash(&mut hasher);
-                hasher.finish()
-            };
+            let h = DefaultHashBuilder::default().hash_one(b"abcde");
 
             let b1: PyBackedBytes = PyBytes::new(py, b"abcde").into();
-            let h1 = {
-                let mut hasher = DefaultHasher::new();
-                b1.hash(&mut hasher);
-                hasher.finish()
-            };
+            let h1 = DefaultHashBuilder::default().hash_one(&b1);
 
             let b2: PyBackedBytes = PyByteArray::new(py, b"abcde").into();
-            let h2 = {
-                let mut hasher = DefaultHasher::new();
-                b2.hash(&mut hasher);
-                hasher.finish()
-            };
+            let h2 = DefaultHashBuilder::default().hash_one(&b2);
 
             assert_eq!(h, h1);
             assert_eq!(h, h2);
