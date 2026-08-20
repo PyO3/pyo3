@@ -1,0 +1,7 @@
+[[disallowed-types]]
+path = "core::hash::DefaultHasher"
+reason = "use crate::platform::DefaultHashBuilder instead"
+
+[[disallowed-types]]
+path = "core::hash::BuildHasherDefault"
+reason = "use crate::platform::DefaultHashBuilder instead"
