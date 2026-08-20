@@ -17,6 +17,7 @@ pub mod exceptions;
 pub mod extract_argument;
 pub mod freelist;
 pub mod frompyobject;
+pub mod hash;
 #[cfg(feature = "experimental-inspect")]
 pub mod introspection;
 pub mod panic;
