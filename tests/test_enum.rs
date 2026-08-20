@@ -328,10 +328,8 @@ fn test_complex_enum_with_hash() {
             msg: String::from("Hello"),
         };
         let hash = {
-            use std::hash::{Hash, Hasher};
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            class.hash(&mut hasher);
-            hasher.finish() as isize
+            use core::hash::BuildHasher;
+            pyo3::platform::DefaultHashBuilder::default().hash_one(&class)
         };
 
         let env = [
