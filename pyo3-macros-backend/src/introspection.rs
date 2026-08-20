@@ -15,6 +15,7 @@ use crate::utils::{PyO3CratePath, PythonDoc, StrOrExpr};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::borrow::Cow;
+#[expect(clippy::disallowed_types)]
 use std::collections::hash_map::DefaultHasher;
 use std::collections::BTreeMap;
 use std::fmt::Write;
