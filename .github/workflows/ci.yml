@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - "newsfragments/*.md"
   merge_group:
     types: [checks_requested]
   workflow_dispatch:
