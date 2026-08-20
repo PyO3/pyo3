@@ -2556,7 +2556,7 @@ fn pyclass_hash(
                     #[diagnostic::do_not_recommend]
                     #[allow(non_local_definitions, reason = "generated code")]
                     impl PyHashable for #cls {
-                        const RANDOM_STATE: RandomState = RandomState::with_seeds(#k0, #k1, #k2, #k3);
+                        const BUILD_HASHER: RandomState = RandomState::with_seeds(#k0, #k1, #k2, #k3);
                     }
 
                     <Self as PyHashable>::py_hash(self)
