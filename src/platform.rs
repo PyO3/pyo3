@@ -25,6 +25,7 @@ pub use std::collections::{HashMap, HashSet};
 pub struct DefaultHashBuilder(hashbrown::DefaultHashBuilder);
 
 #[cfg(all(not(feature = "hashbrown"), wip_feature_std))]
+#[expect(clippy::disallowed_types)]
 #[derive(Default)]
 pub struct DefaultHashBuilder(core::hash::BuildHasherDefault<std::hash::DefaultHasher>);
 
