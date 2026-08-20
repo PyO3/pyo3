@@ -14,6 +14,10 @@ use core::{
     marker::PhantomData,
     num::NonZero,
     ops::{Deref, DerefMut},
+    sync::atomic::{
+        AtomicBool, AtomicI16, AtomicI32, AtomicI64, AtomicI8, AtomicIsize, AtomicU16, AtomicU32,
+        AtomicU64, AtomicU8, AtomicUsize,
+    },
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -84,6 +88,17 @@ impl_py_gc_no_cycles!(
     PathBuf,
     OsStr,
     OsString,
+    AtomicBool,
+    AtomicI8,
+    AtomicU8,
+    AtomicI16,
+    AtomicU16,
+    AtomicI32,
+    AtomicU32,
+    AtomicI64,
+    AtomicU64,
+    AtomicIsize,
+    AtomicUsize,
 );
 
 // SAFETY: Shared references do not own data; forwarding traversal is correct and
