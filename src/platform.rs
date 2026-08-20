@@ -15,10 +15,10 @@ pub(crate) mod prelude {
 }
 
 #[cfg(feature = "hashbrown")]
-pub use hashbrown::{HashMap, HashSet};
+pub use hashbrown::{DefaultHasher, HashMap, HashSet};
 
 #[cfg(all(not(feature = "hashbrown"), wip_feature_std))]
-pub use std::collections::{HashMap, HashSet};
+pub use std::collections::{hash_map::DefaultHasher, HashMap, HashSet};
 
 #[cfg(all(not(feature = "hashbrown"), not(wip_feature_std)))]
 compile_error!("Please enable at least one of the following features: hashbrown, std");
