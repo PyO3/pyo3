@@ -3,7 +3,7 @@
 use std::env;
 
 fn main() {
-    // miminal support for running in cargo-nextest
+    // minimal support for running in cargo-nextest
     // https://nexte.st/docs/design/custom-test-harnesses/
     {
         let mut list = false;
