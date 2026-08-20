@@ -1,5 +1,5 @@
 [[disallowed-types]]
-path = "core::hash::DefaultHasher"
+path = "std::hash::DefaultHasher"
 reason = "use crate::platform::DefaultHashBuilder instead"
 
 [[disallowed-types]]
