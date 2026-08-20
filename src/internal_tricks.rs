@@ -53,8 +53,7 @@ pub(crate) fn traverse_eq(f: Option<ffi::traverseproc>, g: ffi::traverseproc) ->
 
 // TODO: use Box::into_non_null when stabilized
 pub(crate) fn box_into_non_null<T>(b: Box<T>) -> NonNull<T> {
-    // SAFETY: `Box::into_raw` guarantees an non-null pointer
-    unsafe { NonNull::new_unchecked(Box::into_raw(b)) }
+    NonNull::from(Box::leak(b))
 }
 
 /// Replacement for the unstable `<*mut [T; N]>::as_mut_ptr` method, which avoids
