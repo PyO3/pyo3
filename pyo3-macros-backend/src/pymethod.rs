@@ -1097,14 +1097,14 @@ pub const __RICHCMP__: SlotDef = SlotDef::new("Py_tp_richcompare", "richcmpfunc"
 const __GET__: SlotDef = SlotDef::new("Py_tp_descr_get", "descrgetfunc");
 const __ITER__: SlotDef = SlotDef::new("Py_tp_iter", "getiterfunc");
 const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc").return_iter_conversion(
-    TokenGenerator(|_| quote! { IterNextOutput }),
-    TokenGenerator(|_| quote! { IterNextConvertFallback }),
+    StaticIdent::new("IterNextOutput"),
+    StaticIdent::new("IterNextConvertFallback"),
 );
 const __AWAIT__: SlotDef = SlotDef::new("Py_am_await", "unaryfunc");
 const __AITER__: SlotDef = SlotDef::new("Py_am_aiter", "unaryfunc");
 const __ANEXT__: SlotDef = SlotDef::new("Py_am_anext", "unaryfunc").return_iter_conversion(
-    TokenGenerator(|_| quote! { AsyncIterNextOutput }),
-    TokenGenerator(|_| quote! { AsyncIterNextConvertFallback }),
+    StaticIdent::new("AsyncIterNextOutput"),
+    StaticIdent::new("AsyncIterNextConvertFallback"),
 );
 pub const __LEN__: SlotDef = SlotDef::new("Py_mp_length", "lenfunc");
 const __CONTAINS__: SlotDef = SlotDef::new("Py_sq_contains", "objobjproc");
@@ -1296,10 +1296,10 @@ fn extract_object(
 enum ReturnMode {
     ReturnSelf,
     Conversion(TokenGenerator),
-    /// `__next__` / `__anext__`: the return value goes through the wrapper named by the first
-    /// generator, whose inherent `convert` handles the return types saying "iteration is over"
-    /// with `None`, and whose fallback trait, named by the second, handles all the others.
-    IterConversion(TokenGenerator, TokenGenerator),
+    /// `__next__` / `__anext__`: the return value goes through the wrapper named first, whose
+    /// inherent `convert` handles the return types saying "iteration is over" with `None`, and
+    /// whose fallback trait, named second, handles all the others.
+    IterConversion(StaticIdent, StaticIdent),
 }
 
 impl ReturnMode {
@@ -1314,8 +1314,6 @@ impl ReturnMode {
                 }
             }
             ReturnMode::IterConversion(wrapper, fallback) => {
-                let wrapper = TokenGeneratorCtx(*wrapper, ctx);
-                let fallback = TokenGeneratorCtx(*fallback, ctx);
                 quote! {
                     let _result = #call;
                     #[allow(
@@ -1438,11 +1436,7 @@ impl SlotDef {
         self
     }
 
-    const fn return_iter_conversion(
-        mut self,
-        wrapper: TokenGenerator,
-        fallback: TokenGenerator,
-    ) -> Self {
+    const fn return_iter_conversion(mut self, wrapper: StaticIdent, fallback: StaticIdent) -> Self {
         self.return_mode = Some(ReturnMode::IterConversion(wrapper, fallback));
         self
     }

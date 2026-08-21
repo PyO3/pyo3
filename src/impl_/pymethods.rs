@@ -703,6 +703,9 @@ iter_next_output!(
     exhausted: Ok(null_mut())
 );
 
+// Unlike `tp_iternext`, `am_anext` has no "returned null, no error set" convention: doing that
+// makes CPython raise `SystemError: error return without exception set`, so exhaustion has to be
+// signalled by raising `StopAsyncIteration` directly.
 iter_next_output!(
     AsyncIterNextOutput,
     AsyncIterNextConvertFallback,
