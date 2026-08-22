@@ -359,14 +359,6 @@ pub fn register_decref(obj: Py<PyAny>) {
     }
 }
 
-/// Private helper function to check if we are currently in a GC traversal (as detected by PyO3).
-#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
-pub(crate) fn is_in_gc_traversal() -> bool {
-    ATTACH_COUNT
-        .try_with(|c| c.get() == ATTACH_FORBIDDEN_DURING_TRAVERSE)
-        .unwrap_or(false)
-}
-
 /// Increments pyo3's internal attach count - to be called whenever an AttachGuard is created.
 #[inline(always)]
 fn increment_attach_count() {
