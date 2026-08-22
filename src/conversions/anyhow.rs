@@ -102,7 +102,7 @@
 //! [Error handling]: https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html "Recoverable Errors with Result - The Rust Programming Language"
 
 use crate::exceptions::PyRuntimeError;
-use crate::PyErr;
+use crate::{IntoPyObject, PyErr, Python};
 
 impl From<anyhow::Error> for PyErr {
     fn from(mut error: anyhow::Error) -> Self {
@@ -113,12 +113,22 @@ impl From<anyhow::Error> for PyErr {
                 Err(error) => error,
             };
         }
-        PyRuntimeError::new_err(format!("{error:?}"))
+
+        let err = PyRuntimeError::new_err(format!("{error:?}"));
+        #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+        Python::try_attach(|py| {
+            if let Ok(tb) = error.backtrace().into_pyobject(py) {
+                err.set_traceback(py, Some(tb));
+            }
+        });
+        err
     }
 }
 
 #[cfg(test)]
 mod test_anyhow {
+    use std::path::PathBuf;
+
     use crate::exceptions::{PyRuntimeError, PyValueError};
     use crate::platform::prelude::*;
     use crate::prelude::*;
@@ -178,6 +188,7 @@ mod test_anyhow {
             |py| converted.is_instance_of::<PyValueError>(py)
         ))
     }
+
     #[test]
     fn test_pyo3_unwrap_complex_err() {
         let origin_exc = PyValueError::new_err("Value Error");
@@ -187,5 +198,20 @@ mod test_anyhow {
         assert!(Python::attach(
             |py| converted.is_instance_of::<PyRuntimeError>(py)
         ))
+    }
+
+    #[test]
+    fn test_traceback() {
+        let origin_exc = PyValueError::new_err("Value Error");
+        let mut err: anyhow::Error = origin_exc.into();
+        err = err.context("Context");
+        let converted: PyErr = err.into();
+        Python::attach(|py| {
+            let traceback = converted.traceback(py).expect("expected traceback");
+            let format = traceback.format().expect("expected formatting to work");
+            let file_path = PathBuf::from(file!());
+            let file_name = file_path.file_name().and_then(|s| s.to_str()).unwrap();
+            assert!(format.contains(file_name));
+        })
     }
 }
