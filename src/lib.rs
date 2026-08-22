@@ -422,13 +422,6 @@ pub mod impl_;
 
 pub mod buffer;
 pub mod call;
-#[cfg(all(
-    Py_3_14,
-    not(Py_GIL_DISABLED),
-    not(Py_LIMITED_API),
-    not(any(PyPy, GraalPy, RustPython))
-))]
-pub mod context;
 pub mod conversion;
 mod conversions;
 #[cfg(feature = "experimental-async")]

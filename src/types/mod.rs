@@ -358,7 +358,7 @@ pub mod capsule;
 pub mod code;
 pub(crate) mod complex;
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, RustPython)))]
-mod context;
+pub mod context;
 pub mod datetime;
 pub mod dict;
 mod ellipsis;
