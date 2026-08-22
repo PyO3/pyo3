@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
@@ -2528,6 +2529,7 @@ fn pyclass_hash(
     cls: &syn::Type,
     ctx: &Ctx,
 ) -> Result<(Option<syn::ImplItemFn>, Option<MethodAndSlotDef>)> {
+    let pyo3_path = &ctx.pyo3_path;
     if options.hash.is_some() {
         ensure_spanned!(
             options.frozen.is_some(), options.hash.span() => "The `hash` option requires the `frozen` option.";
@@ -2536,11 +2538,28 @@ fn pyclass_hash(
     }
     match options.hash {
         Some(opt) => {
+            // generate the keys for this class's RandomState
+            let mut hasher = DefaultHasher::new();
+            cls.hash(&mut hasher);
+            let k0 = hasher.finish();
+            k0.hash(&mut hasher);
+            let k1 = hasher.finish();
+            k1.hash(&mut hasher);
+            let k2 = hasher.finish();
+            k2.hash(&mut hasher);
+            let k3 = hasher.finish();
+
             let mut hash_impl = parse_quote_spanned! { opt.span() =>
-                fn __pyo3__generated____hash__(&self) -> u64 {
-                    let mut s = std::collections::hash_map::DefaultHasher::new();
-                    ::core::hash::Hash::hash(self, &mut s);
-                    ::core::hash::Hasher::finish(&s)
+                fn __pyo3__generated____hash__(&self) -> #pyo3_path::ffi::Py_hash_t {
+                    use #pyo3_path::impl_::hash::{PyHashable, RandomState};
+
+                    #[diagnostic::do_not_recommend]
+                    #[allow(non_local_definitions, reason = "generated code")]
+                    impl PyHashable for #cls {
+                        const BUILD_HASHER: RandomState = RandomState::with_seeds(#k0, #k1, #k2, #k3);
+                    }
+
+                    <Self as PyHashable>::py_hash(self)
                 }
             };
             let hash_slot = generate_protocol_slot(

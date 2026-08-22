@@ -72,6 +72,40 @@ error: #[pyclass] can't be used on enums without any variants - all variants of 
 119 | enum AllEnumVariantsDisabled {
     |      ^^^^^^^^^^^^^^^^^^^^^^^
 
+error[E0277]: the trait bound `SimpleHashOptRequiresHash: Hash` is not satisfied
+  --> tests/ui/invalid_pyclass_enum.rs:69:6
+   |
+69 | enum SimpleHashOptRequiresHash {
+   |      ^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Hash` is not implemented for `SimpleHashOptRequiresHash`
+   |
+note: required by a bound in `pyo3::impl_::hash::PyHashable`
+ --> src/impl_/hash.rs
+  |
+  | pub trait PyHashable: Hash {
+  |                       ^^^^ required by this bound in `PyHashable`
+help: consider annotating `SimpleHashOptRequiresHash` with `#[derive(Hash)]`
+   |
+69 + #[derive(Hash)]
+70 | enum SimpleHashOptRequiresHash {
+   |
+
+error[E0277]: the trait bound `ComplexHashOptRequiresHash: Hash` is not satisfied
+  --> tests/ui/invalid_pyclass_enum.rs:77:6
+   |
+77 | enum ComplexHashOptRequiresHash {
+   |      ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Hash` is not implemented for `ComplexHashOptRequiresHash`
+   |
+note: required by a bound in `pyo3::impl_::hash::PyHashable`
+ --> src/impl_/hash.rs
+  |
+  | pub trait PyHashable: Hash {
+  |                       ^^^^ required by this bound in `PyHashable`
+help: consider annotating `ComplexHashOptRequiresHash` with `#[derive(Hash)]`
+   |
+77 + #[derive(Hash)]
+78 | enum ComplexHashOptRequiresHash {
+   |
+
 error[E0369]: binary operation `==` cannot be applied to type `&SimpleEqOptRequiresPartialEq`
   --> tests/ui/invalid_pyclass_enum.rs:36:11
    |
@@ -146,6 +180,14 @@ error[E0277]: the trait bound `SimpleHashOptRequiresHash: Hash` is not satisfied
 66 | #[pyclass(frozen, eq, eq_int, hash)]
    |                               ^^^^ the trait `Hash` is not implemented for `SimpleHashOptRequiresHash`
    |
+note: required by a bound in `pyo3::impl_::hash::PyHashable::py_hash`
+ --> src/impl_/hash.rs
+  |
+  | pub trait PyHashable: Hash {
+  |                       ^^^^ required by this bound in `PyHashable::py_hash`
+...
+  |     fn py_hash(&self) -> Py_hash_t {
+  |        ------- required by a bound in this associated function
 help: consider annotating `SimpleHashOptRequiresHash` with `#[derive(Hash)]`
    |
 69 + #[derive(Hash)]
@@ -158,6 +200,14 @@ error[E0277]: the trait bound `ComplexHashOptRequiresHash: Hash` is not satisfie
 74 | #[pyclass(frozen, eq, hash)]
    |                       ^^^^ the trait `Hash` is not implemented for `ComplexHashOptRequiresHash`
    |
+note: required by a bound in `pyo3::impl_::hash::PyHashable::py_hash`
+ --> src/impl_/hash.rs
+  |
+  | pub trait PyHashable: Hash {
+  |                       ^^^^ required by this bound in `PyHashable::py_hash`
+...
+  |     fn py_hash(&self) -> Py_hash_t {
+  |        ------- required by a bound in this associated function
 help: consider annotating `ComplexHashOptRequiresHash` with `#[derive(Hash)]`
    |
 77 + #[derive(Hash)]
@@ -232,7 +282,7 @@ help: consider annotating `InvalidOrderedComplexEnum2` with `#[derive(PartialEq,
 113 | enum InvalidOrderedComplexEnum2 {
     |
 
-error: aborting due to 22 previous errors
+error: aborting due to 24 previous errors
 
 Some errors have detailed explanations: E0277, E0369.
 For more information about an error, try `rustc --explain E0277`.

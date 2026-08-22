@@ -239,10 +239,8 @@ fn class_with_hash() {
         use pyo3::types::IntoPyDict;
         let class = ClassWithHash { value: 42 };
         let hash = {
-            use std::hash::{Hash, Hasher};
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            class.hash(&mut hasher);
-            hasher.finish() as isize
+            use pyo3::impl_::hash::PyHashable;
+            class.py_hash()
         };
 
         let env = [

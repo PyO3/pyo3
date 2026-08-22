@@ -298,10 +298,8 @@ fn test_simple_enum_with_hash() {
         use pyo3::types::IntoPyDict;
         let class = SimpleEnumWithHash::A;
         let hash = {
-            use std::hash::{Hash, Hasher};
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            class.hash(&mut hasher);
-            hasher.finish() as isize
+            use pyo3::impl_::hash::PyHashable;
+            class.py_hash()
         };
 
         let env = [
@@ -330,10 +328,8 @@ fn test_complex_enum_with_hash() {
             msg: String::from("Hello"),
         };
         let hash = {
-            use std::hash::{Hash, Hasher};
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            class.hash(&mut hasher);
-            hasher.finish() as isize
+            use pyo3::impl_::hash::PyHashable;
+            class.py_hash()
         };
 
         let env = [
