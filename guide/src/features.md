@@ -155,6 +155,7 @@ These features enable conversions between Python types and types from other Rust
 
 Adds a dependency on [anyhow](https://docs.rs/anyhow).
 Enables a conversion from [anyhow](https://docs.rs/anyhow)’s [`Error`](https://docs.rs/anyhow/latest/anyhow/struct.Error.html) type to [`PyErr`]({{#PYO3_DOCS_URL}}/pyo3/struct.PyErr.html), for easy error handling.
+Includes the [`btparse`][#btparse] feature.
 
 ### `arc_lock`
 
@@ -164,6 +165,10 @@ Like [`Arc<parking_lot::Mutex>`](https://docs.rs/parking_lot/latest/parking_lot/
 ### `bigdecimal`
 
 Adds a dependency on [bigdecimal](https://docs.rs/bigdecimal) and enables conversions into its [`BigDecimal`](https://docs.rs/bigdecimal/latest/bigdecimal/struct.BigDecimal.html) type.
+
+### `btparse`
+
+Adds a dependency on [btparse](https://docs.rs/btparse) and enables conversions into its [`Backtrace`](https://docs.rs/btparse/latest/btparse/struct.Backtrace.html) and [`Frame`](https://docs.rs/btparse/latest/btparse/struct.Frame.html) types.
 
 ### `bytes`
 
