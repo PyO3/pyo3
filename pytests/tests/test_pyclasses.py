@@ -71,6 +71,10 @@ def test_option_iter(cls):
         next(i)
 
 
+@pytest.mark.skipif(
+    sys.implementation.name == "graalpy" and sys.implementation.version < (25, 1),
+    reason="`async for` on GraalPy < 25.1 lets a synchronously raised StopAsyncIteration escape",
+)
 def test_option_async_iter():
     async def collect():
         return [value async for value in pyclasses.PyClassOptionAsyncIter()]
