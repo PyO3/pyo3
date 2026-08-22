@@ -104,6 +104,7 @@
 //! crate, which is not supported on all platforms.
 //!
 //! The following features enable interactions with other crates in the Rust ecosystem:
+//!
 //! - [`anyhow`]: Enables a conversion from [anyhow]’s [`Error`][anyhow_error] type to [`PyErr`].
 //! - [`chrono`]: Enables a conversion from [chrono]'s structures to the equivalent Python ones.
 //! - [`chrono-tz`]: Enables a conversion from [chrono-tz]'s `Tz` enum. Requires Python 3.9+.
@@ -479,6 +480,9 @@ pub mod inspect;
 // Putting the declaration of prelude at the end seems to help encourage rustc and rustdoc to prefer using
 // other paths to the same items. (e.g. `pyo3::types::PyAnyMethods` instead of `pyo3::prelude::PyAnyMethods`).
 pub mod prelude;
+
+#[cfg(any(Py_3_13, not(Py_LIMITED_API)))]
+pub mod pymem_alloc;
 
 /// Test readme and user guide
 #[cfg(doctest)]
