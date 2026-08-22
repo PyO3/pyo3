@@ -1,5 +1,7 @@
 from typing import final
 
+__all__ = ["SubDict", "Subclass", "Subclassable"]
+
 @final
 class SubDict(dict):
     def __new__(cls, /) -> SubDict: ...
