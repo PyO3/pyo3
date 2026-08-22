@@ -97,6 +97,12 @@ where
     pub const VALUE: bool = true;
 }
 
+probe!(IsPyGcTraversable);
+
+impl<T: crate::pyclass::PyGcTraversable> IsPyGcTraversable<T> {
+    pub const VALUE: bool = true;
+}
+
 #[cfg(test)]
 macro_rules! value_of {
     ($probe:ident, $ty:ty) => {{

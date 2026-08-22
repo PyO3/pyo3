@@ -13,6 +13,7 @@ pub use crate::err::{PyErr, PyResult};
 pub use crate::instance::{Borrowed, Bound, Py};
 pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
+pub use crate::pyclass::{PyGcOpaque, PyGcTraversable};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::types::{PyAny, PyModule};
 pub use crate::{PyClassGuard, PyClassGuardMut};
@@ -20,6 +21,7 @@ pub use crate::{PyClassGuard, PyClassGuardMut};
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{
     pyclass, pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef,
+    PyGcTraversable,
 };
 
 #[cfg(feature = "macros")]

@@ -1,0 +1,74 @@
+error: expected boolean literal
+  --> tests/ui/invalid_pygcintegration_derive.rs:32:17
+   |
+32 |     #[pyo3(gc = "false")]
+   |                 ^^^^^^^
+
+error: `gc` may only be specified once
+  --> tests/ui/invalid_pygcintegration_derive.rs:46:24
+   |
+46 |     #[pyo3(gc = false, gc = false)]
+   |                        ^^
+
+error: expected `gc`
+  --> tests/ui/invalid_pygcintegration_derive.rs:53:12
+   |
+53 |     #[pyo3(attribute)]
+   |            ^^^^^^^^^
+
+error[E0277]: the trait bound `NotTraversable: pyo3::PyGcTraversable` is not satisfied
+  --> tests/ui/invalid_pygcintegration_derive.rs:17:10
+   |
+17 | #[derive(PyGcTraversable)]
+   |          ^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `pyo3::PyGcTraversable` is not implemented for `NotTraversable`
+  --> tests/ui/invalid_pygcintegration_derive.rs:3:1
+   |
+ 3 | struct NotTraversable;
+   | ^^^^^^^^^^^^^^^^^^^^^
+   = help: the following other types implement trait `pyo3::PyGcTraversable`:
+             &T
+             &mut T
+             ()
+             BTreeMap<K, V>
+             BTreeSet<T>
+             BinaryHeap<T>
+             Box<T>
+             CStr
+           and $N others
+   = note: this error originates in the derive macro `PyGcTraversable` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotTraversable: pyo3::PyGcTraversable` is not satisfied
+  --> tests/ui/invalid_pygcintegration_derive.rs:23:10
+   |
+23 | #[derive(PyGcTraversable)]
+   |          ^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `pyo3::PyGcTraversable` is not implemented for `NotTraversable`
+  --> tests/ui/invalid_pygcintegration_derive.rs:3:1
+   |
+ 3 | struct NotTraversable;
+   | ^^^^^^^^^^^^^^^^^^^^^
+   = help: the following other types implement trait `pyo3::PyGcTraversable`:
+             &T
+             &mut T
+             ()
+             BTreeMap<K, V>
+             BTreeSet<T>
+             BinaryHeap<T>
+             Box<T>
+             CStr
+           and $N others
+   = note: this error originates in the derive macro `PyGcTraversable` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation panicked: `#[pyo3(gc = false)]` may not be used on fields which implement `PyGcTraversable`
+  --> tests/ui/invalid_pygcintegration_derive.rs:37:10
+   |
+37 | #[derive(PyGcTraversable)]
+   |          ^^^^^^^^^^^^^^^ evaluation of `__PYO3_GC_FALSE_ASSERT_0` failed here
+
+error: aborting due to 6 previous errors
+
+Some errors have detailed explanations: E0080, E0277.
+For more information about an error, try `rustc --explain E0080`.
