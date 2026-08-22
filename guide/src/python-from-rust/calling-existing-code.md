@@ -243,14 +243,19 @@ The example below shows:
 
 ```rust,ignore
 use pyo3::prelude::*;
-use pyo3_ffi::c_str;
+use core::ffi::CStr;
 
 fn main() -> PyResult<()> {
-    let py_foo = c_str!(include_str!(concat!(
+    let py_foo = CStr::from_bytes_with_nul(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/python_app/utils/foo.py"
-    )));
-    let py_app = c_str!(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py")));
+        "/python_app/utils/foo.py",
+        "\0"
+    ).as_bytes()).unwrap();
+    let py_app = CStr::from_bytes_with_nul(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/python_app/app.py",
+        "\0"
+    ).as_bytes()).unwrap();
     let from_python = Python::attach(|py| -> PyResult<Py<PyAny>> {
         PyModule::from_code(py, py_foo, c"foo.py", c"utils.foo")?;
         let app: Py<PyAny> = PyModule::from_code(py, py_app, c"app.py", c"")?

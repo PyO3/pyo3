@@ -196,7 +196,9 @@ macro_rules! create_exception_type_object {
             $module,
             $name,
             $base,
-            ::core::option::Option::Some($crate::ffi::c_str!($doc))
+            ::core::option::Option::Some($crate::ffi::_cstr_from_utf8_with_nul_checked(concat!(
+                $doc, "\0"
+            )))
         );
     };
     ($module: expr, $name: ident, $base: ty, $doc: expr) => {
@@ -220,10 +222,11 @@ macro_rules! create_exception_type_object {
                     .get_or_init(py, || {
                         $crate::PyErr::new_type(
                             py,
-                            $crate::ffi::c_str!(concat!(
+                            $crate::ffi::_cstr_from_utf8_with_nul_checked(concat!(
                                 stringify!($module),
                                 ".",
-                                stringify!($name)
+                                stringify!($name),
+                                "\0"
                             )),
                             $doc,
                             ::core::option::Option::Some(&py.get_type::<$base>()),
