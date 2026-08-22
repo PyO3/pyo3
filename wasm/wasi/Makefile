@@ -1,6 +1,6 @@
 include ../common.mk
 
-WASI_SDK_VERSION=24
+WASI_SDK_VERSION=33
 WASMTIME_VERSION=46.0.1
 
 CONFIG_SITE=$(PYTHONBUILD)/Tools/wasm/wasi/config.site-wasm32-wasi

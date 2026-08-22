@@ -541,7 +541,9 @@ jobs:
       - name: "Install WASI SDK"
         uses: bytecodealliance/setup-wasi-sdk-action@main
         with:
-          version: "24"
+          # keep in sync with wasm/wasi/Makefile; must stay recent enough that the
+          # GitHub release assets carry the SHA-256 digest the action verifies
+          version: "33"
           # wasi sdk sets CC variables which break Python's configure script
           # (it also sets WASI_SDK_PATH even without `add-to-path`, which is sufficient)
           add-to-path: false
