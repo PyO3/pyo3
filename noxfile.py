@@ -504,6 +504,8 @@ def test_emscripten(session: nox.Session):
             "-C link-arg=-sEXPORTED_FUNCTIONS=_main,__PyRuntime",
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
             "-C link-arg=-sSTACK_SIZE=262144",
+            # https://github.com/python/cpython/issues/156243
+            "-C link-arg=-sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE=$stringToNewUTF8",
         ]
     )
     session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
