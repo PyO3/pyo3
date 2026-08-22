@@ -98,7 +98,7 @@ impl OrderedRichCmp {
     }
 }
 
-#[pyclass(eq, ord, hash, str, frozen)]
+#[pyclass(eq, ord, str, frozen)]
 #[derive(PartialEq, Eq, Ord, PartialOrd, Hash)]
 struct OrderedDerived(i64);
 
