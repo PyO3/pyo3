@@ -886,6 +886,7 @@ jobs:
       - careful
       - docsrs
       - emscripten
+      - wasm32-wasip1
       - test-debug
       - test-version-limits
       - check-feature-powerset
