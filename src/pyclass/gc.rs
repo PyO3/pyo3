@@ -101,24 +101,6 @@ impl_py_gc_no_cycles!(
     AtomicUsize,
 );
 
-// SAFETY: Shared references do not own data; forwarding traversal is correct and
-// clear is a no-op because `&T` cannot clear through immutable access.
-unsafe impl<T: ?Sized + PyGcTraversable> PyGcTraversable for &T {
-    const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
-
-    #[inline]
-    fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        if T::MAY_CONTAIN_CYCLES {
-            (**self).traverse(visit)
-        } else {
-            Ok(())
-        }
-    }
-
-    #[inline]
-    fn clear(&mut self) {}
-}
-
 // SAFETY: Mutable references can forward both traversal and clearing to `T`.
 unsafe impl<T: ?Sized + PyGcTraversable> PyGcTraversable for &mut T {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
