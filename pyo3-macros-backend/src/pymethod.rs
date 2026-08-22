@@ -65,6 +65,8 @@ pub enum GeneratedPyMethod {
     Method(MethodAndMethodDef),
     Proto(MethodAndSlotDef),
     SlotTraitImpl(String, TokenStream),
+    /// Opaque tokens to be appended to the `impl` block
+    Tokens(TokenStream),
 }
 
 pub struct PyMethod<'a> {
@@ -302,7 +304,7 @@ pub fn gen_py_method(
                     GeneratedPyMethod::Proto(impl_call_slot(cls, spec, ctx)?)
                 }
                 PyMethodProtoKind::Traverse => {
-                    GeneratedPyMethod::Proto(impl_traverse_slot(cls, spec, ctx)?)
+                    GeneratedPyMethod::Tokens(impl_traverse_slot(cls, spec, ctx)?)
                 }
                 PyMethodProtoKind::Clear => {
                     GeneratedPyMethod::Proto(impl_clear_slot(cls, spec, ctx)?)
@@ -454,11 +456,7 @@ fn impl_call_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> Result<Metho
     })
 }
 
-fn impl_traverse_slot(
-    cls: &syn::Type,
-    spec: &FnSpec<'_>,
-    ctx: &Ctx,
-) -> syn::Result<MethodAndSlotDef> {
+fn impl_traverse_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result<TokenStream> {
     let Ctx { pyo3_path, .. } = ctx;
     if let (Some(py_arg), _) = split_off_python_arg(&spec.signature.arguments) {
         return Err(syn::Error::new_spanned(py_arg.ty, "__traverse__ may not take `Python`. \
@@ -490,24 +488,16 @@ fn impl_traverse_slot(
 
     let rust_fn_ident = spec.name;
 
-    let associated_method = quote! {
-        pub unsafe extern "C" fn __pymethod_traverse__(
-            slf: *mut #pyo3_path::ffi::PyObject,
-            visit: #pyo3_path::ffi::visitproc,
-            arg: *mut ::std::ffi::c_void,
-        ) -> ::std::ffi::c_int {
-            #pyo3_path::impl_::pymethods::_call_traverse::<#cls>(slf, #cls::#rust_fn_ident, visit, arg, #cls::__pymethod_traverse__)
+    Ok(quote! {
+        impl #pyo3_path::impl_::pyclass::PyClassTraverse<#cls> for #pyo3_path::impl_::pyclass::PyClassImplCollector<#cls> {
+            fn __traverse__(
+                self,
+                this: &#cls,
+                visit: #pyo3_path::pyclass::PyVisit<'_>
+            ) -> ::core::result::Result<(), #pyo3_path::pyclass::PyTraverseError> {
+                #cls::#rust_fn_ident(this, visit)
+            }
         }
-    };
-    let slot_def = quote! {
-        #pyo3_path::ffi::PyType_Slot {
-            slot: #pyo3_path::ffi::Py_tp_traverse,
-            pfunc: #cls::__pymethod_traverse__ as #pyo3_path::ffi::traverseproc as _
-        }
-    };
-    Ok(MethodAndSlotDef {
-        associated_method,
-        slot_def,
     })
 }
 
@@ -544,19 +534,29 @@ fn impl_clear_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result
     let associated_method = quote! {
         pub unsafe extern "C" fn __pymethod___clear____(
             _slf: *mut #pyo3_path::ffi::PyObject,
-        ) -> ::std::ffi::c_int {
+        ) -> ::core::ffi::c_int {
             #pyo3_path::impl_::pymethods::_call_clear::<#cls>(_slf, |py, _slf| {
                 #holders
                 let result = #fncall;
                 let result = #pyo3_path::impl_::wrap::converter(&result).wrap(result)?;
-                ::std::result::Result::Ok(result)
+                ::core::result::Result::Ok(result)
             }, #cls::__pymethod___clear____)
         }
     };
+    let assert_implements_traverse = quote_spanned! { name.span() =>
+        assert_type_implements_traverse(#pyo3_path::impl_::pyclass::ImplementsTraverse::<#cls>::VALUE);
+    };
     let slot_def = quote! {
-        #pyo3_path::ffi::PyType_Slot {
-            slot: #pyo3_path::ffi::Py_tp_clear,
-            pfunc: #cls::__pymethod___clear____ as #pyo3_path::ffi::inquiry as _
+        {
+            const _: () = {
+                #[allow(unused_imports, reason = "Probe not used if assertion trips")]
+                use #pyo3_path::impl_::pyclass::{Probe as _, assert_type_implements_traverse};
+                #assert_implements_traverse
+            };
+            #pyo3_path::ffi::PyType_Slot {
+                slot: #pyo3_path::ffi::Py_tp_clear,
+                pfunc: #cls::__pymethod___clear____ as #pyo3_path::ffi::inquiry as _
+            }
         }
     };
     Ok(MethodAndSlotDef {
@@ -739,7 +739,7 @@ pub fn impl_py_setter_def(
             let extract = impl_regular_arg_param(
                 arg,
                 ident,
-                quote!(::std::option::Option::Some(_value)),
+                quote!(::core::option::Option::Some(_value)),
                 &mut holders,
                 ctx,
             );
@@ -788,10 +788,10 @@ pub fn impl_py_setter_def(
         #cfg_attrs
         unsafe fn #wrapper_ident(
             py: #pyo3_path::Python<'_>,
-            _slf: ::std::ptr::NonNull<#pyo3_path::ffi::PyObject>,
-            _value: ::std::ptr::NonNull<#pyo3_path::ffi::PyObject>,
-        ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
-            use ::std::convert::Into;
+            _slf: ::core::ptr::NonNull<#pyo3_path::ffi::PyObject>,
+            _value: ::core::ptr::NonNull<#pyo3_path::ffi::PyObject>,
+        ) -> #pyo3_path::PyResult<::core::ffi::c_int> {
+            use ::core::convert::Into;
             let _value = #pyo3_path::impl_::extract_argument::cast_non_null_function_argument(py, _value);
             #init_holders
             #extract
@@ -899,7 +899,7 @@ pub fn impl_py_getter_def(
                     const GENERATOR: #pyo3_path::impl_::pyclass::PyClassGetterGenerator::<
                         #cls,
                         #ty,
-                        { ::std::mem::offset_of!(#cls, #field) },
+                        { ::core::mem::offset_of!(#cls, #field) },
                         { #pyo3_path::impl_::pyclass::IsPyT::<#ty>::VALUE },
                         { #pyo3_path::impl_::pyclass::IsIntoPyObjectRef::<#ty>::VALUE },
                     > = unsafe { #pyo3_path::impl_::pyclass::PyClassGetterGenerator::new() };
@@ -929,7 +929,7 @@ pub fn impl_py_getter_def(
                 #cfg_attrs
                 unsafe fn #wrapper_ident(
                     py: #pyo3_path::Python<'_>,
-                    _slf: ::std::ptr::NonNull<#pyo3_path::ffi::PyObject>
+                    _slf: ::core::ptr::NonNull<#pyo3_path::ffi::PyObject>
                 ) -> #pyo3_path::PyResult<*mut #pyo3_path::ffi::PyObject> {
                     #init_holders
                     #warnings
@@ -976,8 +976,8 @@ pub fn impl_py_deleter_def(
     let associated_method = quote! {
         unsafe fn #wrapper_ident(
             py: #pyo3_path::Python<'_>,
-            _slf: ::std::ptr::NonNull<#pyo3_path::ffi::PyObject>,
-        ) -> #pyo3_path::PyResult<::std::ffi::c_int> {
+            _slf: ::core::ptr::NonNull<#pyo3_path::ffi::PyObject>,
+        ) -> #pyo3_path::PyResult<::core::ffi::c_int> {
             #init_holders
             #warnings
             let result = #deleter_impl;
@@ -1167,8 +1167,8 @@ impl Ty {
         let pyo3_path = pyo3_path.to_tokens_spanned(*output_span);
         match self {
             Ty::Object | Ty::MaybeNullObject => quote! { *mut #pyo3_path::ffi::PyObject },
-            Ty::NonNullObject => quote! { ::std::ptr::NonNull<#pyo3_path::ffi::PyObject> },
-            Ty::Int | Ty::CompareOp => quote! { ::std::ffi::c_int },
+            Ty::NonNullObject => quote! { ::core::ptr::NonNull<#pyo3_path::ffi::PyObject> },
+            Ty::Int | Ty::CompareOp => quote! { ::core::ffi::c_int },
             Ty::PyHashT => quote! { #pyo3_path::ffi::Py_hash_t },
             Ty::PySsizeT => quote! { #pyo3_path::ffi::Py_ssize_t },
             Ty::Void => quote! { () },
@@ -1230,7 +1230,7 @@ impl Ty {
                 let ty = arg.ty();
                 extract_error_mode.handle_error(
                     quote! {
-                            ::std::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| #pyo3_path::exceptions::PyValueError::new_err(e.to_string()))
+                            ::core::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| #pyo3_path::exceptions::PyValueError::new_err(e.to_string()))
                     },
                     ctx
                 )
@@ -1328,7 +1328,7 @@ impl ReturnMode {
                 let _result: #pyo3_path::PyResult<()> = #pyo3_path::impl_::callback::convert(py, #call);
                 _result?;
                 #pyo3_path::ffi::Py_XINCREF(_slf);
-                ::std::result::Result::Ok(_slf)
+                ::core::result::Result::Ok(_slf)
             },
         }
     }
@@ -1962,8 +1962,8 @@ pub fn field_python_name(
 fn doc_to_optional_cstr(doc: Option<&PythonDoc>, ctx: &Ctx) -> Result<TokenStream> {
     Ok(if let Some(doc) = doc {
         let doc = doc.to_cstr_stream(ctx)?;
-        quote!(::std::option::Option::Some(#doc))
+        quote!(::core::option::Option::Some(#doc))
     } else {
-        quote!(::std::option::Option::None)
+        quote!(::core::option::Option::None)
     })
 }

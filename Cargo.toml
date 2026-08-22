@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.29.1"
+version = "0.29.2"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -36,10 +36,10 @@ libc = "0.2.62"
 once_cell = "1.21"
 
 # ffi bindings to the python interpreter, split into a separate crate so they can be used independently
-pyo3-ffi = { path = "pyo3-ffi", version = "=0.29.1" }
+pyo3-ffi = { path = "pyo3-ffi", version = "=0.29.2" }
 
 # support crate for macros feature
-pyo3-macros = { path = "pyo3-macros", version = "=0.29.1", optional = true }
+pyo3-macros = { path = "pyo3-macros", version = "=0.29.2", optional = true }
 
 # support crate for multiple-pymethods feature
 inventory = { version = "0.3.5", optional = true }
@@ -94,7 +94,7 @@ regex = "1.12.3"
 ctrlc = "3.5.2"
 
 [build-dependencies]
-pyo3-build-config = { path = "pyo3-build-config", version = "=0.29.1" }
+pyo3-build-config = { path = "pyo3-build-config", version = "=0.29.2" }
 
 [features]
 default = ["macros"]
@@ -262,10 +262,6 @@ workspace = true
 # building and launching empty test suites.
 
 [[test]]
-name = "test_anyhow"
-required-features = ["anyhow"]
-
-[[test]]
 name = "test_append_to_inittab"
 required-features = ["macros"]
 
@@ -279,10 +275,6 @@ required-features = ["macros"]
 
 [[test]]
 name = "test_buffer_protocol"
-required-features = ["macros"]
-
-[[test]]
-name = "test_bytes"
 required-features = ["macros"]
 
 [[test]]
@@ -407,15 +399,7 @@ name = "test_sequence"
 required-features = ["macros"]
 
 [[test]]
-name = "test_serde"
-required-features = ["serde"]
-
-[[test]]
 name = "test_static_slots"
-required-features = ["macros"]
-
-[[test]]
-name = "test_string"
 required-features = ["macros"]
 
 [[test]]

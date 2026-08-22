@@ -10,6 +10,7 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 use std::sync::Once;
 use std::sync::{Arc, Mutex};
@@ -75,7 +76,8 @@ fn drop_check() -> (DropGuard, DropCheck) {
     (DropGuard(flag.clone()), DropCheck(flag))
 }
 
-/// Helper structure that records when it has been dropped in the cor
+/// Helper structure that records when it has been dropped
+#[pyclass]
 struct DropGuard(Arc<Once>);
 impl Drop for DropGuard {
     fn drop(&mut self) {
@@ -736,6 +738,18 @@ extern "C" fn visit_error(
     -1
 }
 
+#[derive(Default)]
+struct VisitCounter(HashMap<*mut ffi::PyObject, usize>);
+
+extern "C" fn count_visits(
+    object: *mut ffi::PyObject,
+    arg: *mut core::ffi::c_void,
+) -> std::ffi::c_int {
+    let counter = unsafe { &mut *arg.cast::<VisitCounter>() };
+    *counter.0.entry(object).or_default() += 1;
+    0
+}
+
 // the fields visited below, set before driving the traversal
 static BASE_FIELD: AtomicPtr<pyo3::ffi::PyObject> = AtomicPtr::new(std::ptr::null_mut());
 static CHILD_FIELD: AtomicPtr<pyo3::ffi::PyObject> = AtomicPtr::new(std::ptr::null_mut());
@@ -810,6 +824,31 @@ fn test_drop_buffer_during_traversal_without_gil() {
 }
 
 #[test]
+fn type_object_is_visited_once_when_pyclasses_subtype_each_other() {
+    #[pyclass(subclass)]
+    struct TraverseBase;
+
+    #[pyclass(extends = TraverseBase)]
+    struct TraverseChild;
+
+    Python::attach(|py| {
+        let child = Bound::new(
+            py,
+            PyClassInitializer::from(TraverseBase).add_subclass(TraverseChild),
+        )
+        .unwrap();
+        let child_type = py.get_type::<TraverseChild>();
+        let traverse = unsafe { get_type_traverse(child_type.as_type_ptr()).unwrap() };
+        let mut counter = VisitCounter::default();
+
+        let retval = unsafe { traverse(child.as_ptr(), count_visits, (&raw mut counter).cast()) };
+
+        assert_eq!(retval, 0);
+        assert_eq!(counter.0.get(&child_type.as_ptr()), Some(&1));
+    });
+}
+
+#[test]
 fn test_super_traverse_early_return_does_not_abort() {
     #[pyclass(subclass)]
     struct TraverseBase {
@@ -874,6 +913,56 @@ fn test_super_traverse_early_return_does_not_abort() {
             "child __traverse__ ran despite the super-type traverse returning non-zero"
         );
     });
+}
+
+#[test]
+fn python_subclass_type_cycle_is_collected() {
+    #[pyclass(subclass)]
+    struct Base {
+        // installed via a Python constructor, hence the `Py` wrapping
+        _guard: Py<DropGuard>,
+    }
+
+    #[pymethods]
+    impl Base {
+        #[new]
+        fn new(guard: Py<DropGuard>) -> Self {
+            Self { _guard: guard }
+        }
+    }
+
+    // Create subtype from Python; by creating a non-PyO3 subclass we can
+    // demonstrate PyO3 implements heap type traversal & deallocation
+    // properly.
+    let sub = Python::attach(|py| {
+        let locals = pyo3::types::PyDict::new(py);
+        locals.set_item("Base", py.get_type::<Base>()).unwrap();
+        py.run(
+            c"\
+class Sub(Base):
+    pass
+",
+            None,
+            Some(&locals),
+        )
+        .unwrap();
+
+        locals.get_item("Sub").unwrap().unwrap().unbind()
+    });
+
+    let (guard, check) = drop_check();
+
+    Python::attach(|py| {
+        // Create an instance of the subclass, install it on the subclass
+        // to create a cycle
+        let instance = sub.call1(py, (guard,)).unwrap();
+        sub.setattr(py, "instance", instance).unwrap();
+    });
+
+    let ptr = sub.as_ptr();
+    drop(sub);
+
+    check.assert_drops_with_gc(ptr);
 }
 
 // A `#[pyclass(dict)]` can form a reference cycle through its instance `__dict__`
@@ -979,6 +1068,58 @@ fn dict_cycle_collected_with_traverse_and_clear() {
         inst.setattr("cycle", &inst).unwrap();
         check.assert_not_dropped();
         inst.as_ptr()
+    });
+
+    check.assert_drops_with_gc(ptr);
+}
+
+#[test]
+fn test_subclass_clear() {
+    // An incorrect PyO3 implementation would prevent subclass `__clear__`
+    // from ever being installed, thus causing this cycle test to leak.
+
+    #[pyclass(subclass)]
+    struct Base {
+        _guard: DropGuard,
+    }
+
+    #[pyclass(extends = Base)]
+    struct SubClear {
+        field: Option<Py<PyAny>>,
+    }
+
+    #[pymethods]
+    impl SubClear {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            visit.call(&self.field)
+        }
+
+        fn __clear__(&mut self) {
+            self.field = None;
+        }
+    }
+
+    let (guard, check) = drop_check();
+
+    let ptr = Python::attach(|py| {
+        let base = Base { _guard: guard };
+        let obj = Bound::new(
+            py,
+            PyClassInitializer::from(base).add_subclass(SubClear { field: None }),
+        )
+        .unwrap();
+        obj.borrow_mut().field = Some(obj.clone().into_any().unbind());
+
+        check.assert_not_dropped();
+        let ptr = obj.as_ptr();
+        drop(obj);
+        #[cfg(not(Py_GIL_DISABLED))]
+        {
+            // other thread might have caused GC on free-threaded build
+            check.assert_not_dropped();
+        }
+
+        ptr
     });
 
     check.assert_drops_with_gc(ptr);

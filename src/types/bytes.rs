@@ -12,7 +12,6 @@ use crate::{
 use core::ops::Index;
 use core::slice::SliceIndex;
 use core::str;
-#[cfg(wip_feature_std)]
 use std::io::Write;
 
 /// Represents a Python `bytes` object.
@@ -471,6 +470,17 @@ mod tests {
             let ref_borrowed: &[u8] = py_bytes_borrowed.as_ref();
             assert_eq!(ref_borrowed, b);
         })
+    }
+
+    #[test]
+    fn test_py_as_bytes() {
+        let pyobj: Py<PyBytes> = Python::attach(|py| PyBytes::new(py, b"abc").unbind());
+
+        let data = Python::attach(|py| pyobj.as_bytes(py));
+
+        assert_eq!(data, b"abc");
+
+        Python::attach(move |_py| drop(pyobj));
     }
 
     #[test]

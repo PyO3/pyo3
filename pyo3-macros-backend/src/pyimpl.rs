@@ -169,6 +169,9 @@ pub fn impl_methods(
                             proto_impls.push(quote!(#(#attrs)* #slot_def));
                             associated_methods.push(quote!(#(#attrs)* #associated_method));
                         }
+                        GeneratedPyMethod::Tokens(tokens) => {
+                            extra_fragments.push(tokens);
+                        }
                     }
                 }
                 syn::ImplItem::Const(konst) => {
@@ -235,11 +238,11 @@ pub fn impl_methods(
     });
 
     Ok(quote! {
-        #(#extra_fragments)*
-
         #items
 
         #associated_methods_impl
+
+        #(#extra_fragments)*
     })
 }
 

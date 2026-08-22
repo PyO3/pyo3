@@ -7,6 +7,7 @@ use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
     ffi_ptr_ext::FfiPtrExt,
+    gc::{PyTraverseError, PyVisit},
     impl_::{
         freelist::PyObjectFreeList,
         pycell::{GetBorrowChecker, PyClassMutability, PyClassObjectBaseLayout},
@@ -14,9 +15,10 @@ use crate::{
     },
     internal::pyclass_init::PyObjectInit,
     pycell::{impl_::PyClassObjectLayout, PyBorrowError},
+    pyclass::PyClassGuardError,
     types::{any::PyAnyMethods, PyBool},
-    Borrowed, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult,
-    PyTypeCheck, PyTypeInfo, Python,
+    Borrowed, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr,
+    PyResult, PyTypeCheck, PyTypeInfo, Python,
 };
 use core::{
     ffi::CStr,
@@ -31,10 +33,12 @@ pub mod doc;
 mod lazy_type_object;
 #[macro_use]
 mod probes;
+mod traverse;
 
 pub use assertions::*;
 pub use lazy_type_object::{pyclass_type_object_raw, type_object_init_failed, LazyTypeObject};
 pub use probes::*;
+pub use traverse::PyClassTraverse;
 
 /// Gets the offset of the dictionary from the start of the object in bytes.
 #[inline]
@@ -46,6 +50,16 @@ pub const fn dict_offset<T: PyClass>() -> PyObjectOffset {
 #[inline]
 pub const fn weaklist_offset<T: PyClass>() -> PyObjectOffset {
     <T as PyClassImpl>::Layout::WEAKLIST_OFFSET
+}
+
+/// Extracts a `T: PyClass + Clone` from a Python object by cloning it out of
+/// the [`PyClassGuard`].
+#[inline]
+pub fn extract_pyclass_with_clone<'a, 'py, T: PyClass + Clone>(
+    obj: Borrowed<'a, 'py, PyAny>,
+) -> Result<T, PyClassGuardError<'a, 'py>> {
+    let guard = <PyClassGuard<'a, T> as FromPyObject<'a, 'py>>::extract(obj)?;
+    Ok(T::clone(&guard))
 }
 
 mod sealed {
@@ -152,7 +166,7 @@ impl PyClassWeakRef for PyClassWeakRefSlot {
 pub struct PyClassImplCollector<T>(PhantomData<T>);
 
 impl<T> PyClassImplCollector<T> {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self(PhantomData)
     }
 }
@@ -271,6 +285,8 @@ pub trait PyClassImpl: Sized + 'static {
     }
 
     fn lazy_type_object() -> &'static LazyTypeObject<Self>;
+
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>;
 }
 
 mod generic_pyclass {
@@ -1158,13 +1174,17 @@ pub trait PyClassBaseType: Sized {
     type Layout<T: PyClassImpl>;
 }
 
-/// Implementation of tp_dealloc for pyclasses without gc
+/// Implementation of tp_dealloc for `#[pyclass]` types
 pub(crate) unsafe extern "C" fn tp_dealloc<T: PyClass>(obj: *mut ffi::PyObject) {
-    unsafe { crate::impl_::trampoline::dealloc(obj, <T as PyClassImpl>::Layout::tp_dealloc) }
-}
-
-/// Implementation of tp_dealloc for pyclasses with gc
-pub(crate) unsafe extern "C" fn tp_dealloc_with_gc<T: PyClass>(obj: *mut ffi::PyObject) {
+    // All PyO3 types are heap allocated and are required to implement GC traversal to
+    // enable traversing the type object at a minimum.
+    // SAFETY: `obj` is guaranteed to be a Python object (this function is called from the Python interpreter)
+    #[cfg(not(PyPy))]
+    unsafe {
+        // https://github.com/pypy/pypy/issues/5556 - PyPy incorrectly does not make
+        // Python subclasses of PyO3 types proper GC types
+        debug_assert_eq!(ffi::PyType_IS_GC(ffi::Py_TYPE(obj)), 1);
+    }
     // SAFETY: `tp_dealloc` is required to untrack GC objects before invalidating any fields
     unsafe { ffi::PyObject_GC_UnTrack(obj.cast()) };
     // SAFETY: `tp_dealloc` is called with valid `obj` by CPython, with an attached thread state

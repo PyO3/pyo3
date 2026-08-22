@@ -1,5 +1,7 @@
 #![cfg(feature = "macros")]
 
+use std::env;
+
 fn main() {
     if cfg!(target_arch = "wasm32") {
         // Not possible to invoke compiler from wasm
@@ -52,6 +54,10 @@ fn main() {
     // There doesn't seem to be a good way to forward all these features automatically,
     // so have to just list the relevant ones here.
     let deps_features = [
+        #[cfg(not(wip_feature_std))]
+        "pyo3/hashbrown".to_string(),
+        #[cfg(not(wip_feature_std))]
+        "pyo3/parking_lot".to_string(),
         #[cfg(feature = "macros")]
         "pyo3/macros".to_string(),
         #[cfg(feature = "abi3")]
@@ -75,6 +81,10 @@ fn main() {
     let mut deps_cargo = ui_test::CommandBuilder::cargo();
     deps_cargo.args.push("--features".into());
     deps_cargo.args.push(deps_features.join(",").into());
+    #[cfg(not(wip_feature_std))]
+    deps_cargo
+        .envs
+        .push(("PYO3_WIP_NO_STD".into(), Some("1".into())));
 
     config.comment_defaults.base().set_custom(
         "dependencies",

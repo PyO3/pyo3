@@ -65,7 +65,8 @@ mod inner {
         }};
         // Case2: dict & no err_msg
         ($py:expr, *$dict:expr, $code:expr, $err:ident) => {{
-            let res = $py.run(&std::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed()));
+            extern crate alloc;
+            let res = $py.run(&alloc::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed()));
             let err = res.expect_err(&format!("Did not raise {}", stringify!($err)));
             if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()).unwrap() {
                 panic!("Expected {} but got {:?}", stringify!($err), err)
@@ -103,7 +104,8 @@ mod inner {
         }};
         ($py:expr, *$dict:expr, $code:expr, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
             $crate::test_utils::CatchWarnings::enter($py, |warning_record| {
-                $py.run(&std::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed())).expect("Failed to run warning testing code");
+                extern crate alloc;
+                $py.run(&alloc::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed())).expect("Failed to run warning testing code");
                 let expected_warnings = [$(($warning_msg, <$warning_category as pyo3::PyTypeInfo>::type_object($py))),+];
 
                 assert_eq!(warning_record.len(), expected_warnings.len(), "Expecting {} warnings but got {}", expected_warnings.len(), warning_record.len());
@@ -285,9 +287,9 @@ mod inner {
     #[allow(unused_imports, reason = "not all tests use this macro")]
     pub(crate) use assert_warnings;
 
-    pub fn generate_unique_module_name(base: &str) -> std::ffi::CString {
+    pub fn generate_unique_module_name(base: &str) -> alloc::ffi::CString {
         let uuid = Uuid::new_v4().simple().to_string();
-        std::ffi::CString::new(format!("{base}_{uuid}")).unwrap()
+        alloc::ffi::CString::new(format!("{base}_{uuid}")).unwrap()
     }
 }
 

@@ -1,3 +1,5 @@
+//! Python slices and related types.
+
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
