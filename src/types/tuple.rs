@@ -3,7 +3,7 @@
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_subscript, PyStaticExpr};
+use crate::inspect::{type_hint_subscript, PyStaticConstant, PyStaticExpr};
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 #[allow(unused_imports, reason = "used to build docs")]
@@ -94,7 +94,13 @@ fn try_new_from_iter<'py>(
 pub struct PyTuple(PyAny);
 
 #[cfg(not(RustPython))]
-pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyTuple_Type), "builtins", "tuple", #checkfunction=ffi::PyTuple_Check);
+pyobject_native_type_core!(
+    PyTuple,
+    pyobject_native_static_type_object!(ffi::PyTuple_Type),
+    "builtins", "tuple",
+    #checkfunction=ffi::PyTuple_Check,
+    #standalone_type_hint=type_hint_subscript!(PyTuple::TYPE_HINT, PyAny::TYPE_HINT, PyStaticExpr::Constant { value: PyStaticConstant::Ellipsis })
+);
 
 #[cfg(RustPython)]
 pyobject_native_type_core!(
@@ -105,7 +111,8 @@ pyobject_native_type_core!(
     },
     "builtins",
     "tuple",
-    #checkfunction=ffi::PyTuple_Check
+    #checkfunction=ffi::PyTuple_Check,
+    #standalone_type_hint=type_hint_subscript!(PyTuple::TYPE_HINT, PyAny::TYPE_HINT, PyStaticExpr::Constant { value: PyStaticConstant::Ellipsis })
 );
 
 impl PyTuple {
