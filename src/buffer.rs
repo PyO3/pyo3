@@ -30,9 +30,10 @@ use core::ffi::{
     c_ushort, c_void,
 };
 use core::marker::{PhantomData, PhantomPinned};
+use core::mem::ManuallyDrop;
 use core::pin::Pin;
 use core::ptr::NonNull;
-use core::{cell, mem, ptr, slice};
+use core::{cell, mem, slice};
 use core::{ffi::CStr, fmt::Debug};
 
 /// A typed form of [`PyUntypedBuffer`].
@@ -47,7 +48,7 @@ pub struct PyUntypedBuffer(
     // [`PyBuffer_FillInfo`](https://github.com/python/cpython/blob/2fd43a1ffe4ff1f6c46f6045bc327d6085c40fbf/Objects/abstract.c#L798-L802).
     //
     // Therefore we use `Pin<Box<...>>` to document for ourselves that the memory address of the `Py_buffer` is expected to be stable
-    Pin<Box<RawBuffer>>,
+    ManuallyDrop<Pin<Box<RawBuffer>>>,
 );
 
 /// Wrapper around `ffi::Py_buffer` to be `!Unpin`.
@@ -498,7 +499,7 @@ impl PyUntypedBuffer {
         };
         // Create PyBuffer immediately so that if validation checks fail, the PyBuffer::drop code
         // will call PyBuffer_Release (thus avoiding any leaks).
-        let buf = Self(Pin::from(buf));
+        let buf = Self(ManuallyDrop::new(Pin::from(buf)));
         let raw = buf.raw();
 
         if raw.shape.is_null() {
@@ -555,7 +556,7 @@ impl PyUntypedBuffer {
 
             // Finally, drop the contained Pin<Box<_>> in place, to free the
             // Box memory.
-            ptr::drop_in_place::<Pin<Box<RawBuffer>>>(&mut mdself.0);
+            ManuallyDrop::drop(&mut mdself.0);
         }
     }
 
@@ -726,13 +727,18 @@ impl RawBuffer {
 
 impl Drop for PyUntypedBuffer {
     fn drop(&mut self) {
-        if Python::try_attach(|_| unsafe { self.0.release() }).is_none() {
+        if Python::try_attach(|_| unsafe {
+            self.0.release();
+            ManuallyDrop::drop(&mut self.0);
+        })
+        .is_none()
+        {
             let buffer: *const ffi::Py_buffer = &raw const self.0 .0;
             unsafe { ffi::Py_AddPendingCall(Some(deferred_release), buffer.cast_mut().cast()) };
 
             extern "C" fn deferred_release(arg: *mut c_void) -> i32 {
-                let buffer: *mut ffi::Py_buffer = arg.cast();
-                unsafe { ffi::PyBuffer_Release(buffer) };
+                // SAFETY: PyUntypedBuffer is repr(transparent) around a pointer to a ffi::Py_buffer
+                let _: PyUntypedBuffer = unsafe { mem::transmute(arg) };
                 0
             }
         }
