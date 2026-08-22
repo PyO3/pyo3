@@ -29,7 +29,7 @@ The table below contains the Python type and the corresponding function argument
 | `slice`       | -                               | `PySlice`           |
 | `type`        | -                               | `PyType`            |
 | `module`      | -                               | `PyModule`          |
-| `collections.abc.Buffer` | -                    | `PyBuffer<T>`        |
+| `collections.abc.Buffer` | -                    | `PyBuffer<T>`, `PyBufferView<T>` |
 | `datetime.datetime` | `SystemTime`, `chrono::DateTime<Tz>`[^7], `chrono::NaiveDateTime`[^7] | `PyDateTime`        |
 | `datetime.date` | `chrono::NaiveDate`[^7]       | `PyDate`            |
 | `datetime.time` | `chrono::NaiveTime`[^7]       | `PyTime`            |
