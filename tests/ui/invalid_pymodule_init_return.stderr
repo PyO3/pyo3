@@ -1,0 +1,36 @@
+error[E0277]: the trait bound `usize: pyo3::impl_::pymodule::PyModuleInitResult` is not satisfied
+   --> tests/ui/invalid_pymodule_init_return.rs:3:1
+    |
+  3 | #[pymodule]
+    | ^^^^^^^^^^^ the trait `pyo3::impl_::pymodule::PyModuleInitResult` is not implemented for `usize`
+    |
+help: the following other types implement trait `pyo3::impl_::pymodule::PyModuleInitResult`
+ --> src/impl_/pymodule.rs
+  |
+  |   impl PyModuleInitResult for () {
+  |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `()`
+...
+  | / impl<E> PyModuleInitResult for Result<(), E>
+  | | where
+  | |     PyErr: From<E>,
+  | |___________________^ `Result<(), E>`
+  = note: this error originates in the attribute macro `pymodule` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `Result<usize, PyErr>: pyo3::impl_::pymodule::PyModuleInitResult` is not satisfied
+   --> tests/ui/invalid_pymodule_init_return.rs:12:1
+    |
+ 12 | #[pymodule]
+    | ^^^^^^^^^^^ the trait `pyo3::impl_::pymodule::PyModuleInitResult` is not implemented for `Result<usize, PyErr>`
+    |
+help: the trait `pyo3::impl_::pymodule::PyModuleInitResult` is implemented for `Result<(), E>`
+ --> src/impl_/pymodule.rs
+  |
+  | / impl<E> PyModuleInitResult for Result<(), E>
+  | | where
+  | |     PyErr: From<E>,
+  | |___________________^
+  = note: this error originates in the attribute macro `pymodule` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0277`.

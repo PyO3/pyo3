@@ -174,3 +174,20 @@ mod my_extension {
 }
 # }
 ```
+
+The module argument may be omitted if the initialization does not need it, for example when it only installs some global state.
+The return type may then be omitted too, since there is nothing left which can fail:
+
+```rust,no_run
+# mod procedural_module_no_arg_test {
+#[pyo3::pymodule]
+mod my_extension {
+    #[pymodule_init]
+    fn init() {
+        // Arbitrary code which does not touch the module
+    }
+}
+# }
+```
+
+Prefer this form where possible: an initializer which is not handed the module does not add attributes to it, so [type stub generation](type-stub.md) can keep describing the module in full.
