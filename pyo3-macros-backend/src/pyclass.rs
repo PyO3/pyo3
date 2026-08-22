@@ -2536,11 +2536,19 @@ fn pyclass_hash(
     }
     match options.hash {
         Some(opt) => {
+            #[cfg(wip_feature_std)]
             let mut hash_impl = parse_quote_spanned! { opt.span() =>
                 fn __pyo3__generated____hash__(&self) -> u64 {
                     let mut s = std::collections::hash_map::DefaultHasher::new();
                     ::core::hash::Hash::hash(self, &mut s);
                     ::core::hash::Hasher::finish(&s)
+                }
+            };
+            #[cfg(not(wip_feature_std))]
+            let mut hash_impl = parse_quote_spanned! { opt.span() =>
+                fn __pyo3__generated____hash__(&self) -> u64 {
+                    compile_error!("please enable pyo3/std feature to generate a hash function");
+                    unreachable!()
                 }
             };
             let hash_slot = generate_protocol_slot(
