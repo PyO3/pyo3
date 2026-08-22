@@ -726,15 +726,16 @@ impl RawBuffer {
 
 impl Drop for PyUntypedBuffer {
     fn drop(&mut self) {
-        if Python::try_attach(|_| unsafe { self.0.release() }).is_none()
-            && crate::internal::state::is_in_gc_traversal()
-        {
-            eprintln!("Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory.");
+        if Python::try_attach(|_| unsafe { self.0.release() }).is_none() {
+            let buffer: *const ffi::Py_buffer = &raw const self.0 .0;
+            unsafe { ffi::Py_AddPendingCall(Some(deferred_release), buffer.cast_mut().cast()) };
+
+            extern "C" fn deferred_release(arg: *mut c_void) -> i32 {
+                let buffer: *mut ffi::Py_buffer = arg.cast();
+                unsafe { ffi::PyBuffer_Release(buffer) };
+                0
+            }
         }
-        // If `try_attach` failed and `is_in_gc_traversal()` is false, then probably the interpreter has
-        // already finalized and we can just assume that the underlying memory has already been freed.
-        //
-        // So we don't handle that case here.
     }
 }
 
