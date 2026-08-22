@@ -9,6 +9,7 @@
 //! interpreter.
 //!
 //! This module provides synchronization primitives which are able to synchronize under these conditions.
+use crate::platform::sync::Once;
 use crate::{
     internal::state::SuspendAttach,
     sealed::Sealed,
@@ -16,7 +17,6 @@ use crate::{
     Bound, Py, Python,
 };
 use core::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit};
-use std::sync::{Once, OnceState};
 
 pub mod critical_section;
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
@@ -165,7 +165,7 @@ impl<T> GILOnceCell<T> {
         // NB this can block, but since this is only writing a single value and
         // does not call arbitrary python code, we don't need to worry about
         // deadlocks with the GIL.
-        self.once.call_once_force(|_| {
+        self.once.call_once_force(|| {
             // SAFETY: no other threads can be writing this value, because we are
             // inside the `call_once_force` closure.
             unsafe {
@@ -340,8 +340,10 @@ pub trait RwLockExt<T>: rwlock_ext_sealed::Sealed {
     fn write_py_attached(&self, py: Python<'_>) -> Self::WriteLockResult<'_>;
 }
 
-impl OnceExt for Once {
-    type OnceState = OnceState;
+#[cfg(wip_feature_std)]
+#[allow(clippy::disallowed_types)]
+impl OnceExt for std::sync::Once {
+    type OnceState = std::sync::OnceState;
 
     fn call_once_py_attached(&self, py: Python<'_>, f: impl FnOnce()) {
         if self.is_completed() {
@@ -351,7 +353,7 @@ impl OnceExt for Once {
         init_once_py_attached(self, py, f)
     }
 
-    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&OnceState)) {
+    fn call_once_force_py_attached(&self, py: Python<'_>, f: impl FnOnce(&std::sync::OnceState)) {
         if self.is_completed() {
             return;
         }
@@ -412,6 +414,8 @@ impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
     }
 }
 
+#[cfg(wip_feature_std)]
+#[allow(clippy::disallowed_types)]
 impl<T> MutexExt<T> for std::sync::Mutex<T> {
     type LockResult<'a>
         = std::sync::LockResult<std::sync::MutexGuard<'a, T>>
@@ -685,8 +689,10 @@ where
     }
 }
 
+#[cfg(wip_feature_std)]
 #[cold]
-fn init_once_py_attached<F, T>(once: &Once, _py: Python<'_>, f: F)
+#[allow(clippy::disallowed_types)]
+fn init_once_py_attached<F, T>(once: &std::sync::Once, _py: Python<'_>, f: F)
 where
     F: FnOnce() -> T,
 {
@@ -701,10 +707,12 @@ where
     });
 }
 
+#[cfg(wip_feature_std)]
 #[cold]
-fn init_once_force_py_attached<F, T>(once: &Once, _py: Python<'_>, f: F)
+#[allow(clippy::disallowed_types)]
+fn init_once_force_py_attached<F, T>(once: &std::sync::Once, _py: Python<'_>, f: F)
 where
-    F: FnOnce(&OnceState) -> T,
+    F: FnOnce(&std::sync::OnceState) -> T,
 {
     // SAFETY: detach from the runtime right before a possibly blocking call
     // then reattach when the blocking call completes and before calling
@@ -755,6 +763,7 @@ mod rwlock_ext_sealed {
     impl<R, T> Sealed for alloc::sync::Arc<lock_api::RwLock<R, T>> {}
 }
 
+#[allow(clippy::disallowed_types, reason = "tests")]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -766,8 +775,12 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
     use std::sync::Barrier;
+    #[cfg(wip_feature_std)]
     #[cfg(not(target_arch = "wasm32"))]
     use std::sync::Mutex;
+    #[cfg(wip_feature_std)]
+    #[cfg(not(target_arch = "wasm32"))]
+    use std::sync::{Once, OnceState};
 
     #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "macros")]
@@ -839,6 +852,7 @@ mod tests {
 
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[cfg(wip_feature_std)]
     fn test_once_ext() {
         macro_rules! test_once {
             ($once:expr, $is_poisoned:expr) => {{
@@ -884,6 +898,7 @@ mod tests {
     }
 
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[cfg(wip_feature_std)]
     #[test]
     fn test_once_lock_ext() {
         let cell = std::sync::OnceLock::new();
@@ -901,6 +916,7 @@ mod tests {
 
     #[cfg(feature = "macros")]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[cfg(wip_feature_std)]
     #[test]
     fn test_mutex_ext() {
         let barrier = Barrier::new(2);
@@ -993,6 +1009,7 @@ mod tests {
     }
 
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
+    #[cfg(wip_feature_std)]
     #[test]
     fn test_mutex_ext_poison() {
         let mutex = Mutex::new(42);

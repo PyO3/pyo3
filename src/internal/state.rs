@@ -5,13 +5,13 @@ use crate::impl_::panic::PanicTrap;
 use crate::platform::prelude::*;
 use crate::{ffi, Py, PyAny, Python};
 
+#[cfg(not(pyo3_disable_reference_pool))]
+use crate::platform::sync::non_poison::Mutex;
 use core::cell::Cell;
 #[cfg_attr(pyo3_disable_reference_pool, allow(unused_imports))]
 use core::mem;
 #[cfg(not(pyo3_disable_reference_pool))]
 use core::sync::atomic::{AtomicBool, Ordering};
-#[cfg(not(pyo3_disable_reference_pool))]
-use std::sync::Mutex;
 
 std::thread_local! {
     /// This is an internal counter in pyo3 monitoring whether this thread is attached to the interpreter.
@@ -218,7 +218,7 @@ impl ReferencePool {
 
     fn register_decref(&self, obj: Py<PyAny>) {
         self.dirty.store(true, Ordering::Relaxed);
-        self.pending_decrefs.lock().unwrap().push(obj);
+        self.pending_decrefs.lock().push(obj);
     }
 
     fn drop_deferred_references(&self, py: Python<'_>) {
@@ -246,7 +246,7 @@ impl ReferencePool {
             return;
         }
 
-        let mut pending_decrefs = self.pending_decrefs.lock().unwrap();
+        let mut pending_decrefs = self.pending_decrefs.lock();
         if pending_decrefs.is_empty() {
             // We don't set the dirty flag under the mutex so it's possible to reach
             // this case as a false positive. Returning early avoids a store on false
@@ -412,7 +412,6 @@ mod tests {
             if !POOL
                 .pending_decrefs
                 .lock()
-                .unwrap()
                 .iter()
                 .any(|pending| pending.is(obj))
             {
@@ -432,7 +431,6 @@ mod tests {
     fn pool_dec_refs_contains(obj: &Py<PyAny>) -> bool {
         POOL.pending_decrefs
             .lock()
-            .unwrap()
             .iter()
             .any(|pending| pending.is(obj))
     }

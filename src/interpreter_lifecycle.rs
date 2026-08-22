@@ -1,17 +1,19 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+use crate::platform::sync::Once;
+
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::{ffi, internal::state::AttachGuard, Python};
 
-static START: std::sync::Once = std::sync::Once::new();
+static START: Once = Once::new();
 
 #[cfg(not(any(PyPy, GraalPy)))]
 pub(crate) fn initialize() {
     // Protect against race conditions when Python is not yet initialized and multiple threads
     // concurrently call 'initialize()'. Note that we do not protect against
     // concurrent initialization of the Python runtime by other users of the Python C API.
-    START.call_once_force(|_| unsafe {
+    START.call_once_force(|| unsafe {
         // Use call_once_force because if initialization panics, it's okay to try again.
         if ffi::Py_IsInitialized() == 0 {
             ffi::Py_InitializeEx(0);
@@ -127,7 +129,7 @@ pub(crate) fn ensure_initialized() {
             initialize();
         }
 
-        START.call_once_force(|_| unsafe {
+        START.call_once_force(|| unsafe {
             // Use call_once_force because if there is a panic because the interpreter is
             // not initialized, it's fine for the user to initialize the interpreter and
             // retry.

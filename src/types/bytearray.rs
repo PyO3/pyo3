@@ -335,6 +335,7 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
     }
 }
 
+#[allow(clippy::disallowed_types, reason = "tests")]
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};
@@ -481,11 +482,11 @@ mod tests {
     #[test]
     fn test_data_integrity_in_critical_section() {
         use crate::instance::Py;
+        use crate::platform::sync::non_poison::Mutex;
         use crate::sync::{critical_section::with_critical_section, MutexExt};
 
         use core::sync::atomic::{AtomicBool, Ordering};
         use core::time::Duration;
-        use std::sync::Mutex;
         use std::thread;
         use std::thread::ScopedJoinHandle;
 
@@ -508,12 +509,12 @@ mod tests {
             data: &Mutex<Py<PyByteArray>>,
             py: Python<'py>,
         ) -> Bound<'py, PyByteArray> {
-            data.lock_py_attached(py).unwrap().bind(py).clone()
+            data.lock_py_attached(py).bind(py).clone()
         }
 
         fn set_data(data: &Mutex<Py<PyByteArray>>, new: Bound<'_, PyByteArray>) {
             let py = new.py();
-            *data.lock_py_attached(py).unwrap() = new.unbind()
+            *data.lock_py_attached(py) = new.unbind()
         }
 
         let running = AtomicBool::new(true);
