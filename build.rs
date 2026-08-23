@@ -56,7 +56,9 @@ fn configure_pyo3() -> Result<()> {
 /// Enables a faux `std` feature by default.
 ///
 /// Set env var `PYO3_WIP_NO_STD` to `1` to disable it.
-// Has a matching function in pyo3-macros-backend's build.rs
+// Has matching functions in
+// - pyo3-macros-backend
+// - pytests
 fn configure_wip_no_std() {
     println!("cargo:rustc-check-cfg=cfg(wip_feature_std)");
     match env_var("PYO3_WIP_NO_STD").map(|s| s.into_string().unwrap()) {
