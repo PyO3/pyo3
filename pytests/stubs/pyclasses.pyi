@@ -1,3 +1,4 @@
+from .awaitable import IterAwaitable
 from _typeshed import Incomplete
 from typing import Final, final
 
@@ -119,6 +120,33 @@ class PyClassIter:
         """
         A constructor
         """
+    def __next__(self, /) -> int: ...
+
+@final
+class PyClassOptionAsyncIter:
+    """
+    This is for demonstrating how to stop iteration by returning `None` from __anext__
+    """
+    def __aiter__(self, /) -> PyClassOptionAsyncIter: ...
+    def __anext__(self, /) -> IterAwaitable: ...
+    def __new__(cls, /) -> PyClassOptionAsyncIter: ...
+
+@final
+class PyClassOptionIter:
+    """
+    This is for demonstrating how to stop iteration by returning `None` from __next__
+    """
+    def __iter__(self, /) -> PyClassOptionIter: ...
+    def __new__(cls, /) -> PyClassOptionIter: ...
+    def __next__(self, /) -> int: ...
+
+@final
+class PyClassResultOptionIter:
+    """
+    This is for demonstrating how to stop iteration by returning `None` from a fallible __next__
+    """
+    def __iter__(self, /) -> PyClassResultOptionIter: ...
+    def __new__(cls, /) -> PyClassResultOptionIter: ...
     def __next__(self, /) -> int: ...
 
 @final
