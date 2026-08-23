@@ -3,6 +3,26 @@
 use std::env;
 
 fn main() {
+    // minimal support for running in cargo-nextest
+    // https://nexte.st/docs/design/custom-test-harnesses/
+    {
+        let mut list = false;
+        let mut ignored = false;
+        for arg in env::args() {
+            match arg.as_str() {
+                "--list" => list = true,
+                "--ignored" => ignored = true,
+                _ => (),
+            }
+        }
+        if list {
+            if !ignored {
+                println!("ui_test: test");
+            }
+            return;
+        }
+    }
+
     if cfg!(target_arch = "wasm32") {
         // Not possible to invoke compiler from wasm
         return;
