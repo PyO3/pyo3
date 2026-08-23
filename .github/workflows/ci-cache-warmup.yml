@@ -32,3 +32,19 @@ jobs:
         with:
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
+
+  emscripten:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/build-emscripten
+        with:
+          save-cache: true
+
+  wasm32-wasip1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/build-wasi
+        with:
+          save-cache: true
