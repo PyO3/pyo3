@@ -64,6 +64,12 @@ error: `eq_int` can only be used on simple enums.
 75 | #[pyclass(eq_int)]
    |           ^^^^^^
 
+error: please enable pyo3/std feature to generate a hash function
+  --> tests/ui/invalid_pyclass_args.rs:79:23
+   |
+79 | #[pyclass(frozen, eq, hash)]
+   |                       ^^^^
+
 error: The `hash` option requires the `frozen` option.
   --> tests/ui/invalid_pyclass_args.rs:85:11
    |
@@ -75,6 +81,12 @@ error: The `hash` option requires the `eq` option.
    |
 85 | #[pyclass(hash)]
    |           ^^^^
+
+error: please enable pyo3/std feature to generate a hash function
+  --> tests/ui/invalid_pyclass_args.rs:91:23
+   |
+91 | #[pyclass(frozen, eq, hash)]
+   |                       ^^^^
 
 error: The `ord` option requires the `eq` option.
    --> tests/ui/invalid_pyclass_args.rs:106:11
@@ -317,18 +329,6 @@ note: candidate #2 is defined in an impl for the type `EqOptAndManualRichCmp`
    | ^^^^^^^^^^^^
    = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0277]: the trait bound `HashOptRequiresHash: Hash` is not satisfied
-  --> tests/ui/invalid_pyclass_args.rs:79:23
-   |
-79 | #[pyclass(frozen, eq, hash)]
-   |                       ^^^^ the trait `Hash` is not implemented for `HashOptRequiresHash`
-   |
-help: consider annotating `HashOptRequiresHash` with `#[derive(Hash)]`
-   |
-83 + #[derive(Hash)]
-84 | struct HashOptRequiresHash;
-   |
-
 error[E0034]: multiple applicable items in scope
   --> tests/ui/invalid_pyclass_args.rs:91:1
    |
@@ -489,7 +489,7 @@ note: candidate #2 is defined in an impl for the type `NewFromFieldsWithManualNe
     | ^^^^^^^^^^^^
     = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error: aborting due to 49 previous errors
+error: aborting due to 50 previous errors
 
 Some errors have detailed explanations: E0034, E0119, E0277, E0369, E0592, E0609.
 For more information about an error, try `rustc --explain E0034`.

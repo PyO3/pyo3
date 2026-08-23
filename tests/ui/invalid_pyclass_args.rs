@@ -1,6 +1,8 @@
-//@revisions: default inspect
-//@[default] without-experimental-inspect
+//@revisions: default nostd inspect
+//@[default,nostd] no-experimental-inspect
 //@[inspect] with-experimental-inspect
+//@[default,inspect] with-std
+//@[nostd] no-std
 #![deny(deprecated)]
 
 use pyo3::prelude::*;
@@ -75,7 +77,8 @@ impl EqOptAndManualRichCmp {
 struct NoEqInt {}
 
 #[pyclass(frozen, eq, hash)]
-//~^ ERROR: the trait bound `HashOptRequiresHash: Hash` is not satisfied
+//~[default,inspect]^ ERROR: the trait bound `HashOptRequiresHash: Hash` is not satisfied
+//~[nostd]| ERROR: please enable pyo3/std feature to generate a hash function
 #[derive(PartialEq)]
 struct HashOptRequiresHash;
 
@@ -88,6 +91,7 @@ struct HashWithoutFrozenAndEq;
 #[pyclass(frozen, eq, hash)]
 //~^ ERROR: duplicate definitions with name `__pymethod___hash____`
 //~| ERROR: multiple applicable items in scope
+//~[nostd]| ERROR: please enable pyo3/std feature to generate a hash function
 #[derive(PartialEq, Hash)]
 struct HashOptAndManualHash {}
 
