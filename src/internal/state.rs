@@ -217,8 +217,14 @@ impl ReferencePool {
     }
 
     fn register_decref(&self, obj: Py<PyAny>) {
-        self.dirty.store(true, Ordering::Relaxed);
+        // It is important to set the dirty flag _after_ pushing the object
+        // - at worst an existing drainer can take the object immediately and
+        // the dirty flag will lead to a false positive drain.
+        //
+        // If the order is reversed, the draining can run before the object
+        // is pushed and it might be leaked.
         self.pending_decrefs.lock().unwrap().push(obj);
+        self.dirty.store(true, Ordering::Relaxed);
     }
 
     fn drop_deferred_references(&self, py: Python<'_>) {
