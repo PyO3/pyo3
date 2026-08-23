@@ -166,7 +166,7 @@ The given signatures should be interpreted as follows:
 Iterators can be defined using these methods:
 
 - `__iter__(<self>) -> object`
-- `__next__(<self>) -> Option<object> or IterNextOutput` ([see details](#returning-a-value-from-iteration))
+- `__next__(<self>) -> Option<object>` ([see details](#returning-a-value-from-iteration))
 
 Returning `None` from `__next__` indicates that that there are no further items.
 
