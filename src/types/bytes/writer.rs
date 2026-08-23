@@ -46,7 +46,7 @@ impl<'py> PyBytesWriter<'py> {
     /// Create a new `PyBytesWriter` with the specified initial capacity.
     #[inline]
     #[cfg_attr(Py_LIMITED_API, allow(clippy::unnecessary_wraps))]
-    pub(crate) fn with_capacity(py: Python<'py>, capacity: usize) -> PyResult<Self> {
+    pub(super) fn with_capacity(py: Python<'py>, capacity: usize) -> PyResult<Self> {
         cfg_select! {
             not(Py_LIMITED_API) => NonNull::new(unsafe { PyBytesWriter_Create(capacity as _) }).map_or_else(
                 || Err(PyErr::fetch(py)),
