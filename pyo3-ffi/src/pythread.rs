@@ -1,5 +1,30 @@
 use core::ffi::{c_int, c_void};
 
+// skipped PyThread_type_lock
+// skipped PyLockStatus
+// skipped PyThread_init_thread
+// skipped PyThread_start_new_thread
+// skipped PyThread_exit_thread
+// skipped PyThread_get_thread_ident
+// skipped PyThread_get_thread_native_id
+// skipped PyThread_allocate_lock
+// skipped PyThread_free_lock
+// skipped PyThread_acquire_lock
+// skipped WAIT_LOCK
+// skipped NOWAIT_LOCK
+// skipped PY_TIMEOUT_T
+// skipped PyThread_acquire_lock_timed
+// skipped PyThread_release_lock
+// skipped PyThread_get_stacksize
+// skipped PyThread_set_stacksize
+// skipped PyThread_GetInfo
+// skipped PyThread_create_key
+// skipped PyThread_delete_key
+// skipped PyThread_set_key_value
+// skipped PyThread_get_key_value
+// skipped PyThread_delete_key_value
+// skipped PyThread_ReInitTLS
+
 #[cfg(Py_LIMITED_API)]
 opaque_struct!(pub Py_tss_t);
 
