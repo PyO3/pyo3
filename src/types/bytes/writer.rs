@@ -36,13 +36,6 @@ pub struct PyBytesWriter<'py> {
 }
 
 impl<'py> PyBytesWriter<'py> {
-    /// Create a new `PyBytesWriter` with a default initial capacity.
-    #[inline]
-    #[allow(unused, reason = "used in test cases")]
-    pub(crate) fn new(py: Python<'py>) -> PyResult<Self> {
-        Self::with_capacity(py, 0)
-    }
-
     /// Create a new `PyBytesWriter` with the specified initial capacity.
     #[inline]
     #[cfg_attr(Py_LIMITED_API, allow(clippy::unnecessary_wraps))]
@@ -242,7 +235,7 @@ mod tests {
     #[test]
     fn new_byteswriter_is_empty() {
         Python::attach(|py| {
-            let writer = PyBytesWriter::new(py).unwrap();
+            let writer = PyBytesWriter::with_capacity(py, 0).unwrap();
             assert!(writer.is_empty());
         });
     }
@@ -253,7 +246,7 @@ mod tests {
         #[cfg(wip_feature_std)]
         Python::attach(|py| {
             let buf = b"hallo world";
-            let mut writer = PyBytesWriter::new(py).unwrap();
+            let mut writer = PyBytesWriter::with_capacity(py, 0).unwrap();
             assert_eq!(writer.write(buf).unwrap(), 11);
             let bytes: Bound<'_, PyBytes> = writer.try_into().unwrap();
             assert_eq!(bytes.as_bytes(), buf);
@@ -280,7 +273,7 @@ mod tests {
         #[cfg(wip_feature_std)]
         Python::attach(|py| {
             let bufs = [IoSlice::new(b"hallo "), IoSlice::new(b"world")];
-            let mut writer = PyBytesWriter::new(py).unwrap();
+            let mut writer = PyBytesWriter::with_capacity(py, 0).unwrap();
             assert_eq!(writer.write_vectored(&bufs).unwrap(), 11);
             let bytes: Bound<'_, PyBytes> = writer.try_into().unwrap();
             assert_eq!(bytes.as_bytes(), b"hallo world");
@@ -298,7 +291,7 @@ mod tests {
                 IoSlice::new(&large_data),
                 IoSlice::new(b"world"),
             ];
-            let mut writer = PyBytesWriter::new(py).unwrap();
+            let mut writer = PyBytesWriter::with_capacity(py, 0).unwrap();
             assert_eq!(writer.write_vectored(&bufs).unwrap(), 1034);
             let bytes: Bound<'_, PyBytes> = writer.try_into().unwrap();
             assert!(bytes.as_bytes().starts_with(b"hallo\n"));
@@ -312,7 +305,7 @@ mod tests {
     fn test_large_data() {
         #[cfg(wip_feature_std)]
         Python::attach(|py| {
-            let mut writer = PyBytesWriter::new(py).unwrap();
+            let mut writer = PyBytesWriter::with_capacity(py, 0).unwrap();
             let large_data = vec![0; 1024]; // 1 KB
             writer.write_all(&large_data).unwrap();
             let bytes: Bound<'_, PyBytes> = writer.try_into().unwrap();
