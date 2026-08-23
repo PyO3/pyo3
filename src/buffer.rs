@@ -32,6 +32,8 @@ use core::ffi::{
 use core::marker::{PhantomData, PhantomPinned};
 use core::mem::ManuallyDrop;
 use core::pin::Pin;
+#[cfg(not(Py_3_11))]
+use core::ptr;
 use core::ptr::NonNull;
 use core::{cell, mem, slice};
 use core::{ffi::CStr, fmt::Debug};
