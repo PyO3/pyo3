@@ -157,7 +157,9 @@ pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(PyPy)");
     println!("cargo:rustc-check-cfg=cfg(GraalPy)");
     println!("cargo:rustc-check-cfg=cfg(RustPython)");
-    println!("cargo:rustc-check-cfg=cfg(py_sys_config, values(\"Py_DEBUG\", \"Py_REF_DEBUG\", \"Py_TRACE_REFS\", \"COUNT_ALLOCS\"))");
+    println!(
+        r#"cargo:rustc-check-cfg=cfg(py_sys_config, values("Py_DEBUG", "Py_REF_DEBUG", "Py_TRACE_REFS", "COUNT_ALLOCS"))"#
+    );
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)
