@@ -261,7 +261,7 @@ extern_libpython! {
         consumed: *mut Py_ssize_t,
     ) -> *mut PyObject;
     #[cfg(target_os = "windows")]
-    pub fn PyUnicode_DecodeCodePagetateful(
+    pub fn PyUnicode_DecodeCodePageStateful(
         code_page: c_int,
         string: *const c_char,
         length: Py_ssize_t,
