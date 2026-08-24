@@ -1,4 +1,5 @@
-use crate::byteswriter::PyBytesWriter;
+//! See [`PyBytes`] for more info. This mod also contains its helper type [`PyBytesWriter`].
+
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 #[allow(unused_imports, reason = "used to build docs")]
@@ -12,7 +13,10 @@ use crate::{
 use core::ops::Index;
 use core::slice::SliceIndex;
 use core::str;
-use std::io::Write;
+
+pub use self::writer::PyBytesWriter;
+
+mod writer;
 
 /// Represents a Python `bytes` object.
 ///
@@ -143,12 +147,11 @@ impl PyBytes {
     ///
     /// ```
     /// use pyo3::{prelude::*, types::PyBytes};
-    /// use std::io::Write;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
     ///     let py_bytes = PyBytes::new_with_writer(py, 0, |writer| {
-    ///         writer.write_all(b"hello world")?;
+    ///         writer.write_bytes(b"hello world")?;
     ///         Ok(())
     ///     })?;
     ///     assert_eq!(py_bytes.as_bytes(), b"hello world");
@@ -157,13 +160,13 @@ impl PyBytes {
     /// # }
     /// ```
     #[inline]
-    pub fn new_with_writer<F>(
-        py: Python<'_>,
+    pub fn new_with_writer<'py, F>(
+        py: Python<'py>,
         reserved_capacity: usize,
         write: F,
-    ) -> PyResult<Bound<'_, PyBytes>>
+    ) -> PyResult<Bound<'py, PyBytes>>
     where
-        F: FnOnce(&mut dyn Write) -> PyResult<()>,
+        F: FnOnce(&mut PyBytesWriter<'py>) -> PyResult<()>,
     {
         let mut writer = PyBytesWriter::with_capacity(py, reserved_capacity)?;
         write(&mut writer)?;
@@ -487,7 +490,7 @@ mod tests {
     fn test_with_writer() {
         Python::attach(|py| {
             let bytes = PyBytes::new_with_writer(py, 0, |writer| {
-                writer.write_all(b"hallo")?;
+                writer.write_bytes(b"hallo")?;
                 Ok(())
             })
             .unwrap();
