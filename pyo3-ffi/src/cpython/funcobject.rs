@@ -89,15 +89,53 @@ extern_libpython! {
 }
 
 // skipped _PyFunction_Vectorcall
-// skipped PyFunction_GET_CODE
-// skipped PyFunction_GET_GLOBALS
-// skipped PyFunction_GET_MODULE
-// skipped PyFunction_GET_DEFAULTS
-// skipped PyFunction_GET_KW_DEFAULTS
-// skipped PyFunction_GET_CLOSURE
-// skipped PyFunction_GET_ANNOTATIONS
 
-// skipped PyClassMethod_Type
-// skipped PyStaticMethod_Type
-// skipped PyClassMethod_New
-// skipped PyStaticMethod_New
+#[inline]
+pub unsafe fn PyFunction_GET_CODE(func: *mut PyObject) -> *mut PyObject {
+    assert!(PyFunction_Check(func));
+    return func.cast::<PyFunctionObject>().func_code;
+}
+
+#[inline]
+pub unsafe fn PyFunction_GET_GLOBALS(func: *mut PyObject) -> *mut PyObject {
+    assert!(PyFunction_Check(func));
+    return func.cast::<PyFunctionObject>().func_globals;
+}
+
+#[inline]
+pub unsafe fn PyFunction_GET_MODULE(func: *mut PyObject) -> *mut PyObject {
+    assert!(PyFunction_Check(func));
+    return func.cast::<PyFunctionObject>().func_module;
+}
+
+#[inline]
+pub unsafe fn PyFunction_GET_DEFAULTS(func: *mut PyObject) -> *mut PyObject {
+    assert!(PyFunction_Check(func));
+    return func.cast::<PyFunctionObject>().func_defaults;
+}
+
+#[inline]
+pub unsafe fn PyFunction_GET_KW_DEFAULTS(func: *mut PyObject) -> *mut PyObject {
+    assert!(PyFunction_Check(func));
+    return func.cast::<PyFunctionObject>().func_kwdefaults;
+}
+
+#[inline]
+pub unsafe fn PyFunction_GET_CLOSURE(func: *mut PyObject) -> *mut PyObject {
+    assert!(PyFunction_Check(func));
+    return func.cast::<PyFunctionObject>().func_closure;
+}
+
+#[inline]
+pub unsafe fn PyFunction_GET_ANNOTATIONS(func: *mut PyObject) -> *mut PyObject {
+    assert!(PyFunction_Check(func));
+    return func.cast::<PyFunctionObject>().func_annotations;
+}
+
+extern_libpython! {
+    pub static mut PyClassMethod_Type: crate::PyTypeObject;
+    pub static mut PyStaticMethod_Type: crate::PyTypeObject;
+
+    pub fn PyClassMethod_New(ob: *mut PyObject) -> *mut PyObject;
+    pub fn PyStaticMethod_New(ob: *mut PyObject) -> *mut PyObject;
+}
