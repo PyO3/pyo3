@@ -93,43 +93,43 @@ extern_libpython! {
 #[inline]
 pub unsafe fn PyFunction_GET_CODE(func: *mut PyObject) -> *mut PyObject {
     assert_eq!(PyFunction_Check(func), 1);
-    return (*func.cast::<PyFunctionObject>()).func_code;
+    (*func.cast::<PyFunctionObject>()).func_code
 }
 
 #[inline]
 pub unsafe fn PyFunction_GET_GLOBALS(func: *mut PyObject) -> *mut PyObject {
     assert_eq!(PyFunction_Check(func), 1);
-    return (*func.cast::<PyFunctionObject>()).func_globals;
+    (*func.cast::<PyFunctionObject>()).func_globals
 }
 
 #[inline]
 pub unsafe fn PyFunction_GET_MODULE(func: *mut PyObject) -> *mut PyObject {
     assert_eq!(PyFunction_Check(func), 1);
-    return (*func.cast::<PyFunctionObject>()).func_module;
+    (*func.cast::<PyFunctionObject>()).func_module
 }
 
 #[inline]
 pub unsafe fn PyFunction_GET_DEFAULTS(func: *mut PyObject) -> *mut PyObject {
     assert_eq!(PyFunction_Check(func), 1);
-    return (*func.cast::<PyFunctionObject>()).func_defaults;
+    (*func.cast::<PyFunctionObject>()).func_defaults
 }
 
 #[inline]
 pub unsafe fn PyFunction_GET_KW_DEFAULTS(func: *mut PyObject) -> *mut PyObject {
     assert_eq!(PyFunction_Check(func), 1);
-    return (*func.cast::<PyFunctionObject>()).func_kwdefaults;
+    (*func.cast::<PyFunctionObject>()).func_kwdefaults
 }
 
 #[inline]
 pub unsafe fn PyFunction_GET_CLOSURE(func: *mut PyObject) -> *mut PyObject {
     assert_eq!(PyFunction_Check(func), 1);
-    return (*func.cast::<PyFunctionObject>()).func_closure;
+    (*func.cast::<PyFunctionObject>()).func_closure
 }
 
 #[inline]
 pub unsafe fn PyFunction_GET_ANNOTATIONS(func: *mut PyObject) -> *mut PyObject {
     assert_eq!(PyFunction_Check(func), 1);
-    return (*func.cast::<PyFunctionObject>()).func_annotations;
+    (*func.cast::<PyFunctionObject>()).func_annotations
 }
 
 extern_libpython! {
