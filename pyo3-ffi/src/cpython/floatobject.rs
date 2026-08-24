@@ -26,10 +26,18 @@ pub unsafe fn PyFloat_AS_DOUBLE(op: *mut PyObject) -> c_double {
     return PyFloat_AsDouble(op);
 }
 
-// skipped PyFloat_Pack2
-// skipped PyFloat_Pack4
-// skipped PyFloat_Pack8
+extern_libpython! {
+    #[cfg(Py_3_11)]
+    pub fn PyFloat_Pack2(x: c_double, p: *mut char, le: c_int) -> c_int;
+    #[cfg(Py_3_11)]
+    pub fn PyFloat_Pack4(x: c_double, p: *mut char, le: c_int) -> c_int;
+    #[cfg(Py_3_11)]
+    pub fn PyFloat_Pack8(x: c_double, p: *mut char, le: c_int) -> c_int;
 
-// skipped PyFloat_Unpack2
-// skipped PyFloat_Unpack4
-// skipped PyFloat_Unpack8
+    #[cfg(Py_3_11)]
+    pub fn PyFloat_Unpack2(p: *const char, le: c_int) -> c_double;
+    #[cfg(Py_3_11)]
+    pub fn PyFloat_Unpack4(p: *const char, le: c_int) -> c_double;
+    #[cfg(Py_3_11)]
+    pub fn PyFloat_Unpack8(p: *const char, le: c_int) -> c_double;
+}
