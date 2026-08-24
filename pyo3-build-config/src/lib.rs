@@ -146,10 +146,10 @@ fn get_inner() -> InterpreterConfig {
     interpreter_config.expect("failed to parse PyO3 config")
 }
 
-/// Registers `pyo3`s config names as reachable cfg expressions
+/// Registers `pyo3`s config names as reachable cfg expressions.
 ///
 /// - <https://github.com/rust-lang/cargo/pull/13571>
-/// - <https://doc.rust-lang.org/nightly/cargo/reference/build-scripts.html#rustc-check-cfg>
+/// - <https://doc.rust-lang.org/cargo/reference/build-scripts.html#rustc-check-cfg>
 #[doc(hidden)]
 pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(Py_LIMITED_API)");
