@@ -3,7 +3,9 @@ use crate::PyFloat_AsDouble;
 #[cfg(not(GraalPy))]
 use crate::PyFloat_Check;
 use crate::PyObject;
-use core::ffi::{c_char, c_double, c_int};
+#[cfg(Py_3_11)]
+use core::ffi::{c_char, c_int};
+use core::ffi::c_double;
 
 #[repr(C)]
 pub struct PyFloatObject {
