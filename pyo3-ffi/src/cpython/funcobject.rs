@@ -92,44 +92,44 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyFunction_GET_CODE(func: *mut PyObject) -> *mut PyObject {
-    assert!(PyFunction_Check(func));
-    return func.cast::<PyFunctionObject>().func_code;
+    assert!(PyFunction_Check(func) == true);
+    return (*func.cast::<PyFunctionObject>()).func_code;
 }
 
 #[inline]
 pub unsafe fn PyFunction_GET_GLOBALS(func: *mut PyObject) -> *mut PyObject {
-    assert!(PyFunction_Check(func));
-    return func.cast::<PyFunctionObject>().func_globals;
+    assert!(PyFunction_Check(func) == true);
+    return (*func.cast::<PyFunctionObject>()).func_globals;
 }
 
 #[inline]
 pub unsafe fn PyFunction_GET_MODULE(func: *mut PyObject) -> *mut PyObject {
-    assert!(PyFunction_Check(func));
-    return func.cast::<PyFunctionObject>().func_module;
+    assert!(PyFunction_Check(func) == true);
+    return (*func.cast::<PyFunctionObject>()).func_module;
 }
 
 #[inline]
 pub unsafe fn PyFunction_GET_DEFAULTS(func: *mut PyObject) -> *mut PyObject {
-    assert!(PyFunction_Check(func));
-    return func.cast::<PyFunctionObject>().func_defaults;
+    assert!(PyFunction_Check(func) == true);
+    return (*func.cast::<PyFunctionObject>()).func_defaults;
 }
 
 #[inline]
 pub unsafe fn PyFunction_GET_KW_DEFAULTS(func: *mut PyObject) -> *mut PyObject {
-    assert!(PyFunction_Check(func));
-    return func.cast::<PyFunctionObject>().func_kwdefaults;
+    assert!(PyFunction_Check(func) == true);
+    return (*func.cast::<PyFunctionObject>()).func_kwdefaults;
 }
 
 #[inline]
 pub unsafe fn PyFunction_GET_CLOSURE(func: *mut PyObject) -> *mut PyObject {
-    assert!(PyFunction_Check(func));
-    return func.cast::<PyFunctionObject>().func_closure;
+    assert!(PyFunction_Check(func) == true);
+    return (*func.cast::<PyFunctionObject>()).func_closure;
 }
 
 #[inline]
 pub unsafe fn PyFunction_GET_ANNOTATIONS(func: *mut PyObject) -> *mut PyObject {
-    assert!(PyFunction_Check(func));
-    return func.cast::<PyFunctionObject>().func_annotations;
+    assert!(PyFunction_Check(func) == true);
+    return (*func.cast::<PyFunctionObject>()).func_annotations;
 }
 
 extern_libpython! {
