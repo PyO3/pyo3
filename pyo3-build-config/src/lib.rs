@@ -188,6 +188,7 @@ pub mod pyo3_build_script_impl {
         cargo_env_var, env_var, is_linking_libpython_for_target, target_triple_from_env,
         InterpreterConfig, PythonAbi, PythonAbiKind, PythonVersion, StableAbi,
     };
+
     pub enum BuildConfigSource {
         /// Config was provided by `PYO3_CONFIG_FILE`.
         ConfigFile,
