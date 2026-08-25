@@ -337,7 +337,7 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyFunction_GET_DEFAULTS", ""),
     ("PyFunction_GET_KW_DEFAULTS", ""),
     ("PyFunction_GET_CLOSURE", ""),
-    ("PyFunction_GET_ANNOTATIONS:, ""),
+    ("PyFunction_GET_ANNOTATIONS", ""),
     ("PyGen_Check", "not(PyPy)"),
     ("PyGen_CheckExact", "not(PyPy)"),
     ("PyHeapType_GET_MEMBERS", "not(Py_3_11)"),
