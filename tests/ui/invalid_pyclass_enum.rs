@@ -69,7 +69,7 @@ enum NoEqInt {
 
 #[pyclass(frozen, eq, eq_int, hash)]
 //~[default]^ ERROR: the trait bound `SimpleHashOptRequiresHash: Hash` is not satisfied
-//~[nostd]| ERROR: please enable pyo3/std feature to generate a hash function
+//~[nostd]| ERROR: `#[pyclass(hash)]` requires PyO3's `std` feature
 #[derive(PartialEq)]
 enum SimpleHashOptRequiresHash {
     A,
@@ -78,7 +78,7 @@ enum SimpleHashOptRequiresHash {
 
 #[pyclass(frozen, eq, hash)]
 //~[default]^ ERROR: the trait bound `ComplexHashOptRequiresHash: Hash` is not satisfied
-//~[nostd]| ERROR: please enable pyo3/std feature to generate a hash function
+//~[nostd]| ERROR: `#[pyclass(hash)]` requires PyO3's `std` feature
 #[derive(PartialEq)]
 enum ComplexHashOptRequiresHash {
     A(i32),

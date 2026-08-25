@@ -42,13 +42,13 @@ error: `eq_int` can only be used on simple enums.
 63 | #[pyclass(eq_int)]
    |           ^^^^^^
 
-error: please enable pyo3/std feature to generate a hash function
+error: `#[pyclass(hash)]` requires PyO3's `std` feature
   --> tests/ui/invalid_pyclass_enum.rs:70:31
    |
 70 | #[pyclass(frozen, eq, eq_int, hash)]
    |                               ^^^^
 
-error: please enable pyo3/std feature to generate a hash function
+error: `#[pyclass(hash)]` requires PyO3's `std` feature
   --> tests/ui/invalid_pyclass_enum.rs:79:23
    |
 79 | #[pyclass(frozen, eq, hash)]

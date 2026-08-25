@@ -78,7 +78,7 @@ struct NoEqInt {}
 
 #[pyclass(frozen, eq, hash)]
 //~[default,inspect]^ ERROR: the trait bound `HashOptRequiresHash: Hash` is not satisfied
-//~[nostd]| ERROR: please enable pyo3/std feature to generate a hash function
+//~[nostd]| ERROR: `#[pyclass(hash)]` requires PyO3's `std` feature
 #[derive(PartialEq)]
 struct HashOptRequiresHash;
 
@@ -91,7 +91,7 @@ struct HashWithoutFrozenAndEq;
 #[pyclass(frozen, eq, hash)]
 //~^ ERROR: duplicate definitions with name `__pymethod___hash____`
 //~| ERROR: multiple applicable items in scope
-//~[nostd]| ERROR: please enable pyo3/std feature to generate a hash function
+//~[nostd]| ERROR: `#[pyclass(hash)]` requires PyO3's `std` feature
 #[derive(PartialEq, Hash)]
 struct HashOptAndManualHash {}
 

@@ -2547,7 +2547,7 @@ fn pyclass_hash(
             #[cfg(not(wip_feature_std))]
             let mut hash_impl = parse_quote_spanned! { opt.span() =>
                 fn __pyo3__generated____hash__(&self) -> u64 {
-                    compile_error!("please enable pyo3/std feature to generate a hash function");
+                    compile_error!("`#[pyclass(hash)]` requires PyO3's `std` feature");
                     unreachable!()
                 }
             };
