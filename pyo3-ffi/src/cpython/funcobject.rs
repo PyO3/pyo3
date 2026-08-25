@@ -91,42 +91,50 @@ extern_libpython! {
 // skipped _PyFunction_Vectorcall
 
 #[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
 pub unsafe fn _PyFunction_CAST(func: *mut PyObject) -> *mut PyFunctionObject {
     assert_eq!(PyFunction_Check(func), 1);
     func.cast::<PyFunctionObject>()
 }
 
 #[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
 pub unsafe fn PyFunction_GET_CODE(func: *mut PyObject) -> *mut PyObject {
     (*_PyFunction_CAST(func)).func_code
 }
 
 #[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
 pub unsafe fn PyFunction_GET_GLOBALS(func: *mut PyObject) -> *mut PyObject {
     (*_PyFunction_CAST(func)).func_globals
 }
 
 #[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
 pub unsafe fn PyFunction_GET_MODULE(func: *mut PyObject) -> *mut PyObject {
     (*_PyFunction_CAST(func)).func_module
 }
 
 #[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
 pub unsafe fn PyFunction_GET_DEFAULTS(func: *mut PyObject) -> *mut PyObject {
     (*_PyFunction_CAST(func)).func_defaults
 }
 
 #[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
 pub unsafe fn PyFunction_GET_KW_DEFAULTS(func: *mut PyObject) -> *mut PyObject {
     (*_PyFunction_CAST(func)).func_kwdefaults
 }
 
 #[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
 pub unsafe fn PyFunction_GET_CLOSURE(func: *mut PyObject) -> *mut PyObject {
     (*_PyFunction_CAST(func)).func_closure
 }
 
 #[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
 pub unsafe fn PyFunction_GET_ANNOTATIONS(func: *mut PyObject) -> *mut PyObject {
     (*_PyFunction_CAST(func)).func_annotations
 }
