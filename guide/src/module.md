@@ -176,7 +176,7 @@ mod my_extension {
 ```
 
 The module argument may be omitted if the initialization does not need it, for example when it only installs some global state.
-The return type may then be omitted too, since there is nothing left which can fail:
+The return type may then be omitted too:
 
 ```rust,no_run
 # mod procedural_module_no_arg_test {
