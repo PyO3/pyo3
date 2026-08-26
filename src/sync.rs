@@ -1,6 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
-
 //! Synchronization mechanisms which are aware of the existence of the Python interpreter.
 //!
 //! The Python interpreter has multiple "stop the world" situations which may block threads, such as
@@ -22,7 +19,12 @@ use core::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit};
 use std::sync::{Once, OnceState};
 
 pub mod critical_section;
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+mod mutex;
 pub(crate) mod once_lock;
+
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+pub use self::mutex::{PyMutex, PyMutexGuard};
 
 /// Deprecated alias for [`pyo3::sync::critical_section::with_critical_section`][crate::sync::critical_section::with_critical_section]
 #[deprecated(
@@ -367,6 +369,9 @@ impl OnceExt for parking_lot::Once {
             return;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
 
         self.call_once(move || {
@@ -384,6 +389,9 @@ impl OnceExt for parking_lot::Once {
             return;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
 
         self.call_once_force(move |state| {
@@ -393,7 +401,6 @@ impl OnceExt for parking_lot::Once {
     }
 }
 
-#[cfg(wip_feature_std)]
 impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
     fn get_or_init_py_attached<F>(&self, py: Python<'_>, f: F) -> &T
     where
@@ -405,7 +412,6 @@ impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
     }
 }
 
-#[cfg(wip_feature_std)]
 impl<T> MutexExt<T> for std::sync::Mutex<T> {
     type LockResult<'a>
         = std::sync::LockResult<std::sync::MutexGuard<'a, T>>
@@ -449,6 +455,9 @@ impl<R: lock_api::RawMutex, T> MutexExt<T> for lock_api::Mutex<R, T> {
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.lock();
         drop(ts_guard);
@@ -471,6 +480,9 @@ where
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.lock_arc();
         drop(ts_guard);
@@ -494,6 +506,9 @@ where
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.lock();
         drop(ts_guard);
@@ -517,6 +532,9 @@ where
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.lock_arc();
         drop(ts_guard);
@@ -524,7 +542,6 @@ where
     }
 }
 
-#[cfg(wip_feature_std)]
 impl<T> RwLockExt<T> for std::sync::RwLock<T> {
     type ReadLockResult<'a>
         = std::sync::LockResult<std::sync::RwLockReadGuard<'a, T>>
@@ -600,6 +617,9 @@ impl<R: lock_api::RawRwLock, T> RwLockExt<T> for lock_api::RwLock<R, T> {
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.read();
         drop(ts_guard);
@@ -611,6 +631,9 @@ impl<R: lock_api::RawRwLock, T> RwLockExt<T> for lock_api::RwLock<R, T> {
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.write();
         drop(ts_guard);
@@ -638,6 +661,9 @@ where
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.read_arc();
         drop(ts_guard);
@@ -649,6 +675,9 @@ where
             return guard;
         }
 
+        // SAFETY: detach from the runtime right before a possibly blocking call
+        // then reattach when the blocking call completes and before calling
+        // into the C API.
         let ts_guard = unsafe { SuspendAttach::new() };
         let res = self.write_arc();
         drop(ts_guard);
@@ -688,7 +717,6 @@ where
     });
 }
 
-#[cfg(wip_feature_std)]
 #[cold]
 fn init_once_lock_py_attached<'a, F, T>(
     lock: &'a std::sync::OnceLock<T>,
@@ -715,13 +743,11 @@ where
 
 mod once_lock_ext_sealed {
     pub trait Sealed {}
-    #[cfg(wip_feature_std)]
     impl<T> Sealed for std::sync::OnceLock<T> {}
 }
 
 mod rwlock_ext_sealed {
     pub trait Sealed {}
-    #[cfg(wip_feature_std)]
     impl<T> Sealed for std::sync::RwLock<T> {}
     #[cfg(feature = "lock_api")]
     impl<R, T> Sealed for lock_api::RwLock<R, T> {}

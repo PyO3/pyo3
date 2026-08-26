@@ -430,8 +430,9 @@ pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &core::ffi::CStr {
 }
 
 // Macros for declaring `extern` blocks that link against libpython.
-// See `impl_/macros.rs` for the implementation.
-include!("impl_/macros.rs");
+#[path = "impl_/macros.rs"]
+#[macro_use]
+mod macros;
 
 pub mod compat;
 mod impl_;
@@ -484,6 +485,7 @@ pub use self::pyport::*;
 pub use self::pystate::*;
 pub use self::pystrtod::*;
 pub use self::pythonrun::*;
+pub use self::pythread::*;
 pub use self::pytypedefs::*;
 pub use self::rangeobject::*;
 pub use self::refcount::*;
@@ -574,7 +576,7 @@ mod pythonrun;
 // skipped pystrhex.h
 // skipped pystrcmp.h
 mod pystrtod;
-// skipped pythread.h
+mod pythread;
 // skipped pytime.h
 mod pytypedefs;
 mod rangeobject;

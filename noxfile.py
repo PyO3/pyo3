@@ -18,11 +18,7 @@ from functools import lru_cache
 from glob import glob
 from pathlib import Path
 from shlex import quote
-from typing import (
-    Any,
-    Callable,
-    Literal,
-)
+from typing import Any, Literal, Protocol
 
 import nox.command
 
@@ -187,9 +183,18 @@ def test_rust(session: nox.Session):
 
 @nox.session(name="test-py", venv_backend="none")
 def test_py(session: nox.Session) -> None:
-    _run(session, "nox", "-f", "pytests/noxfile.py", external=True)
+    features = (
+        ",".join(f"pyo3/{feat}" for feat in _REQUIRED_FOR_NO_STD)
+        if _is_no_std()
+        else None
+    )
+    features = f"--features={features}" if features else None
+
+    _run(session, "nox", "-f", "pytests/noxfile.py", "--", features, external=True)
     for example in glob("examples/*/noxfile.py"):
-        _run(session, "nox", "-f", example, external=True)
+        if _is_no_std() and example.startswith("examples/setuptools-rust-starter"):
+            continue
+        _run(session, "nox", "-f", example, "--", features, external=True)
     for example in glob("pyo3-ffi/examples/*/noxfile.py"):
         _run(session, "nox", "-f", example, external=True)
 
@@ -269,10 +274,11 @@ def _clippy(
     *,
     env: dict[str, str] | None = None,
     version: tuple[int, int] | None = None,
+    free_threaded: bool = FREE_THREADED_BUILD,
 ) -> bool:
     success = True
     env = env or os.environ
-    for feature_set in _get_feature_sets(version):
+    for feature_set in _get_feature_sets(version=version, free_threaded=free_threaded):
         try:
             _run_cargo(
                 session,
@@ -328,23 +334,17 @@ def codspeed(session: nox.Session) -> bool:
     _run(session, "pytest", "--codspeed", external=True)
 
 
-@nox.session(name="codspeed-walltime")
-def codspeed_walltime(session: nox.Session) -> bool:
-    bench = "bench_attach_scaling"
-    os.chdir(PYO3_DIR / "pyo3-benches")
-    _run_cargo(session, "codspeed", "build", "--bench", bench)
-    _run_cargo(session, "codspeed", "run", "--bench", bench)
-
-
 @nox.session(name="clippy-all", venv_backend="none")
 def clippy_all(session: nox.Session) -> None:
     success = True
 
     def _clippy_with_config(
-        env: dict[str, str], version: tuple[int, int] | None
+        *, env: dict[str, str], version: tuple[int, int] | None, free_threaded: bool
     ) -> None:
         nonlocal success
-        success &= _clippy(session, env=env, version=version)
+        success &= _clippy(
+            session, env=env, version=version, free_threaded=free_threaded
+        )
 
     _for_all_version_configs(session, _clippy_with_config)
     success &= _clippy_additional_workspaces(session)
@@ -357,9 +357,13 @@ def clippy_all(session: nox.Session) -> None:
 def check_all(session: nox.Session) -> None:
     success = True
 
-    def _check(env: dict[str, str], version: tuple[int, int]) -> None:
+    def _check(
+        *, env: dict[str, str], version: tuple[int, int] | None, free_threaded: bool
+    ) -> None:
         nonlocal success
-        for feature_set in _get_feature_sets():
+        for feature_set in _get_feature_sets(
+            version=version, free_threaded=free_threaded
+        ):
             try:
                 _run_cargo(
                     session,
@@ -500,6 +504,8 @@ def test_emscripten(session: nox.Session):
             "-C link-arg=-sEXPORTED_FUNCTIONS=_main,__PyRuntime",
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
             "-C link-arg=-sSTACK_SIZE=262144",
+            # https://github.com/python/cpython/issues/156243
+            "-C link-arg=-sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE=$stringToNewUTF8",
         ]
     )
     session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
@@ -538,19 +544,39 @@ class WasiInfo:
         self.libdir = crossbuild_dir / "build" / f"lib.wasi-wasm32-{self.pymajorminor}"
 
 
-@nox.session(name="build-wasm", venv_backend="none")
-def build_wasm(session: nox.Session):
-    info = WasiInfo()
+def _make_wasm(session: nox.Session, info: WasiInfo, *targets: str):
     _run(
         session,
         "make",
         "-C",
         str(info.wasi_dir),
+        *targets,
         f"PYTHON={sys.executable}",
         f"BUILDROOT={info.builddir}",
         f"PYMAJORMINORMICRO={info.pyversion}",
         external=True,
     )
+
+
+@nox.session(name="prepare-wasm", venv_backend="none")
+def prepare_wasm(session: nox.Session):
+    import tomllib
+
+    info = WasiInfo()
+    _make_wasm(session, info, "prepare")
+
+    with (info.cpython_dir / "Platforms/WASI/config.toml").open("rb") as config_file:
+        wasi_sdk_version = tomllib.load(config_file)["targets"]["wasi-sdk"]
+
+    session.log("CPython requires WASI SDK %s", wasi_sdk_version)
+    if github_output := os.environ.get("GITHUB_OUTPUT"):
+        with open(github_output, "a") as output_file:
+            print(f"wasi-sdk-version={wasi_sdk_version}", file=output_file)
+
+
+@nox.session(name="build-wasm", venv_backend="none")
+def build_wasm(session: nox.Session):
+    _make_wasm(session, WasiInfo())
 
 
 @nox.session(name="test-wasm", venv_backend="none")
@@ -578,7 +604,12 @@ def test_wasm(session: nox.Session):
             "-C link-arg=-lwasi-emulated-signal",
             "-C link-arg=-lwasi-emulated-process-clocks",
             "-C link-arg=-lwasi-emulated-getpid",
-            "-C link-arg=-lmpdec",
+            "-C link-arg=-lpthread",
+            "-C link-arg=-lHacl_Hash_MD5",
+            "-C link-arg=-lHacl_Hash_SHA1",
+            "-C link-arg=-lHacl_Hash_SHA2",
+            "-C link-arg=-lHacl_Hash_SHA3",
+            "-C link-arg=-lHacl_Hash_BLAKE2",
             "-C link-arg=-lHacl_HMAC",
             "-C link-arg=-lexpat",
         ]
@@ -1711,8 +1742,8 @@ def check_feature_powerset(session: nox.Session):
             "check",
             "--all-targets",
         ]
-        if not _is_no_std:
-            args.push(f"--features={comma_join(_REQUIRED_FOR_NO_STD)}")
+        if not _is_no_std():
+            args.append(f"--features={comma_join(_REQUIRED_FOR_NO_STD)}")
         _run_cargo(*args, env=env)
 
 
@@ -1825,7 +1856,9 @@ def _get_rust_default_target() -> str:
 
 @lru_cache
 def _get_feature_sets(
+    *,
     version: tuple[int, int] | None = None,
+    free_threaded: bool = FREE_THREADED_BUILD,
 ) -> tuple[str | None, ...]:
     """Returns feature sets to use for Rust jobs"""
     if version is None:
@@ -1844,7 +1877,7 @@ def _get_feature_sets(
     if is_rust_nightly():
         features += ",nightly"
 
-    if FREE_THREADED_BUILD:
+    if free_threaded:
         if version >= (3, 15):
             return (
                 required,
@@ -1902,7 +1935,7 @@ def _get_coverage_env(*flags: str) -> dict[str, str]:
     return env
 
 
-def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
+def _run(session: nox.Session, *args: str | None, **kwargs: Any) -> None:
     """Wrapper for _run(session, which creates nice groups on GitHub Actions."""
     is_github_actions = _is_github_actions()
     failed = False
@@ -1910,7 +1943,8 @@ def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
         # Insert ::group:: at the start of nox's command line output
         print("::group::", end="", flush=True, file=sys.stderr)
     try:
-        session.run(*args, **kwargs)
+        filtered_args = [x for x in args if x is not None]
+        session.run(*filtered_args, **kwargs)
     except nox.command.CommandFailed:
         failed = True
         raise
@@ -1990,9 +2024,13 @@ def _run_cargo_set_package_version(
     _run(session, *command, external=True)
 
 
-def _for_all_version_configs(
-    session: nox.Session, job: Callable[[dict[str, str]], None]
-) -> None:
+class Job(Protocol):
+    def __call__(
+        self, *, env: dict[str, str], version: tuple[int, int], free_threaded: bool
+    ) -> None: ...
+
+
+def _for_all_version_configs(session: nox.Session, job: Job) -> None:
     env = os.environ.copy()
     with _config_file() as config_file:
         env["PYO3_CONFIG_FILE"] = config_file.name
@@ -2000,8 +2038,9 @@ def _for_all_version_configs(
         def _job_with_config(implementation, version):
             session.log(f"{implementation} {version}")
             config_file.set(implementation, version)
-            major_minor = tuple(map(int, version.strip("t").split(".")))
-            job(env, major_minor)
+            major_minor = tuple[int, int](map(int, version.strip("t").split(".")))
+            free_threaded = version.endswith("t")
+            job(env=env, version=major_minor, free_threaded=free_threaded)
 
         for version in PY_VERSIONS:
             _job_with_config("CPython", version)

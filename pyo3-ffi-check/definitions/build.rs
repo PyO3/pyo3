@@ -61,7 +61,13 @@ fn main() {
         .header("wrapper.h")
         .clang_args(clang_args)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
-        .parse_callbacks(Box::new(ParseCallbacks));
+        .parse_callbacks(Box::new(ParseCallbacks))
+        .blocklist_item("memcpy")
+        .blocklist_item("memmove")
+        .blocklist_item("memset")
+        .blocklist_item("memcmp")
+        .blocklist_item("strlen")
+        .blocklist_item("bcmp");
 
     if matches!(
         config.implementation(),

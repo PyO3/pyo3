@@ -262,10 +262,6 @@ workspace = true
 # building and launching empty test suites.
 
 [[test]]
-name = "test_anyhow"
-required-features = ["anyhow"]
-
-[[test]]
 name = "test_append_to_inittab"
 required-features = ["macros"]
 
@@ -279,10 +275,6 @@ required-features = ["macros"]
 
 [[test]]
 name = "test_buffer_protocol"
-required-features = ["macros"]
-
-[[test]]
-name = "test_bytes"
 required-features = ["macros"]
 
 [[test]]
@@ -407,15 +399,7 @@ name = "test_sequence"
 required-features = ["macros"]
 
 [[test]]
-name = "test_serde"
-required-features = ["serde"]
-
-[[test]]
 name = "test_static_slots"
-required-features = ["macros"]
-
-[[test]]
-name = "test_string"
 required-features = ["macros"]
 
 [[test]]

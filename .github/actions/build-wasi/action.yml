@@ -1,0 +1,59 @@
+name: Build WASI
+description: Build the cached CPython WASI environment
+inputs:
+  save-cache:
+    description: Whether to save caches
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Select Python
+      shell: bash
+      run: echo "UV_PYTHON=3.15" >> "$GITHUB_ENV"
+    - uses: astral-sh/setup-uv@v7
+      with:
+        save-cache: ${{ inputs.save-cache }}
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32-wasip1
+        components: rust-src
+    - name: Install wasmtime
+      uses: bytecodealliance/actions/wasmtime/setup@v1
+    - name: Resolve CPython version
+      id: python
+      shell: bash
+      run: |
+        version=$(uv run --no-project --python "$UV_PYTHON" python -c 'import sys; print(sys.version.split()[0])')
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+    - name: Restore build cache
+      if: inputs.save-cache != 'true'
+      id: cache-restore
+      uses: actions/cache/restore@v6
+      with:
+        path: .nox/wasi
+        key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.python.outputs.version }}
+    - name: Restore and save build cache
+      if: inputs.save-cache == 'true'
+      id: cache
+      uses: actions/cache@v6
+      with:
+        path: .nox/wasi
+        key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.python.outputs.version }}
+    - uses: Swatinem/rust-cache@v2
+      with:
+        save-if: ${{ inputs.save-cache }}
+    - name: Prepare CPython source
+      id: prepare
+      shell: bash
+      run: uvx nox -s prepare-wasm
+    - name: Install WASI SDK
+      uses: bytecodealliance/setup-wasi-sdk-action@v1
+      with:
+        version: ${{ steps.prepare.outputs.wasi-sdk-version }}
+        add-to-path: false
+    - name: Build
+      if: steps.cache.outputs.cache-hit != 'true' && steps.cache-restore.outputs.cache-hit != 'true'
+      shell: bash
+      run: uvx nox -s build-wasm
