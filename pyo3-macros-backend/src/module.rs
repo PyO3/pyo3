@@ -13,6 +13,7 @@ use crate::{
     },
     combine_errors::CombineErrors,
     get_doc,
+    method::{split_off_python_arg, FnArg},
     pyclass::PyClassPyO3Option,
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
     utils::{has_attribute, has_attribute_with_namespace, Ctx, IdentOrStr, PythonDoc},
@@ -199,18 +200,26 @@ pub fn pymodule_module_impl(
                         item_fn.span() => "`#[pyfunction]` cannot be used alongside `#[pymodule_init]`"
                     );
                     ensure_spanned!(pymodule_init.is_none(), item_fn.span() => "only one `#[pymodule_init]` may be specified");
+                    let ident = ident.clone();
+                    let sig_span = item_fn.sig.span();
+                    let args: Vec<_> = item_fn
+                        .sig
+                        .inputs
+                        .iter_mut()
+                        .map(FnArg::parse)
+                        .try_combine_syn_errors()?;
+                    let (py_arg, args) = split_off_python_arg(&args);
                     ensure_spanned!(
-                        item_fn.sig.inputs.len() <= 1,
-                        item_fn.sig.span() => "`#[pymodule_init]` takes either no argument or the module"
+                        args.len() <= 1,
+                        sig_span => "`#[pymodule_init]` takes an optional `Python` argument followed by an optional module argument"
                     );
-                    pymodule_init_takes_module = !item_fn.sig.inputs.is_empty();
-                    let call = if pymodule_init_takes_module {
-                        quote! { #ident(module) }
-                    } else {
-                        quote! { #ident() }
-                    };
+                    pymodule_init_takes_module = !args.is_empty();
+                    let call_args = py_arg
+                        .map(|_| quote! { module.py() })
+                        .into_iter()
+                        .chain(pymodule_init_takes_module.then(|| quote! { module }));
                     pymodule_init = Some(quote! {
-                        #pyo3_path::impl_::pymodule::PyModuleInitResult::into_result(#call)?;
+                        #pyo3_path::impl_::pymodule::PyModuleInitResult::into_result(#ident(#(#call_args),*))?;
                     });
                 } else if has_attribute(&item_fn.attrs, "pyfunction")
                     || has_attribute_with_namespace(

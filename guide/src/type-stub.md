@@ -90,3 +90,4 @@ PyO3 also provides the smaller `pyo3-introspection` binary that allows to genera
 - PyO3 is not able to introspect the content of `#[pymodule]` and `#[pymodule_init]` functions.
   If they are present, the module is tagged as incomplete using a fake `def __getattr__(name: str) -> Incomplete: ...` function [following best practices](https://typing.python.org/en/latest/guides/writing_stubs.html#incomplete-stubs).
   A `#[pymodule_init]` function [declared without the module argument](module.md#procedural-initialization) is exempt: it is not handed the module, so the module is taken to be complete.
+  A `Python<'_>` marker on its own does not count as the module argument.

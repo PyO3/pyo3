@@ -1,9 +1,10 @@
-error[E0277]: the trait bound `usize: pyo3::impl_::pymodule::PyModuleInitResult` is not satisfied
+error[E0277]: `usize` is not a suitable return value for `#[pymodule_init]` functions
    --> tests/ui/invalid_pymodule_init_return.rs:3:1
     |
   3 | #[pymodule]
     | ^^^^^^^^^^^ the trait `pyo3::impl_::pymodule::PyModuleInitResult` is not implemented for `usize`
     |
+    = note: `#[pymodule_init]` functions may return `()` or `Result<(), E>` where `PyErr: From<E>`
 help: the following other types implement trait `pyo3::impl_::pymodule::PyModuleInitResult`
  --> src/impl_/pymodule.rs
   |
@@ -16,12 +17,13 @@ help: the following other types implement trait `pyo3::impl_::pymodule::PyModule
   | |___________________^ `Result<(), E>`
   = note: this error originates in the attribute macro `pymodule` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0277]: the trait bound `Result<usize, PyErr>: pyo3::impl_::pymodule::PyModuleInitResult` is not satisfied
+error[E0277]: `Result<usize, PyErr>` is not a suitable return value for `#[pymodule_init]` functions
    --> tests/ui/invalid_pymodule_init_return.rs:12:1
     |
  12 | #[pymodule]
     | ^^^^^^^^^^^ the trait `pyo3::impl_::pymodule::PyModuleInitResult` is not implemented for `Result<usize, PyErr>`
     |
+    = note: `#[pymodule_init]` functions may return `()` or `Result<(), E>` where `PyErr: From<E>`
 help: the trait `pyo3::impl_::pymodule::PyModuleInitResult` is implemented for `Result<(), E>`
  --> src/impl_/pymodule.rs
   |

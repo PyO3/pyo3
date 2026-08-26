@@ -486,6 +486,10 @@ unsafe impl Sync for PyModuleSlots {}
 unsafe impl Sync for PyModuleDefSlots {}
 
 /// Used to accept either `()` or `Result<(), E>` from a `#[pymodule_init]` function.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` is not a suitable return value for `#[pymodule_init]` functions",
+    note = "`#[pymodule_init]` functions may return `()` or `Result<(), E>` where `PyErr: From<E>`"
+)]
 pub trait PyModuleInitResult {
     fn into_result(self) -> PyResult<()>;
 }

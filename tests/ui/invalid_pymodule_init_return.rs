@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
 #[pymodule]
-//~^ ERROR: the trait bound `usize: pyo3::impl_::pymodule::PyModuleInitResult` is not satisfied
+//~^ ERROR: `usize` is not a suitable return value for `#[pymodule_init]` functions
 mod module {
     #[pymodule_init]
     fn init() -> usize {
@@ -10,7 +10,7 @@ mod module {
 }
 
 #[pymodule]
-//~^ ERROR: the trait bound `Result<usize, PyErr>: pyo3::impl_::pymodule::PyModuleInitResult` is not satisfied
+//~^ ERROR: `Result<usize, PyErr>` is not a suitable return value for `#[pymodule_init]` functions
 mod module_result {
     use pyo3::prelude::*;
 

@@ -190,4 +190,23 @@ mod my_extension {
 # }
 ```
 
-Prefer this form where possible: an initializer which is not handed the module does not add attributes to it, so [type stub generation](type-stub.md) can keep describing the module in full.
+A `Python<'_>` marker may be taken as the first argument, either on its own or followed by the module.
+This suits an initializer which needs the interpreter but not the module itself:
+
+```rust,no_run
+# mod procedural_module_py_arg_test {
+#[pyo3::pymodule]
+mod my_extension {
+    use pyo3::prelude::*;
+
+    #[pymodule_init]
+    fn init(py: Python<'_>) -> PyResult<()> {
+        // Arbitrary code which needs the interpreter but not the module
+        py.import("decimal")?;
+        Ok(())
+    }
+}
+# }
+```
+
+Prefer a form which does not take the module where possible: an initializer which is not handed the module does not add attributes to it, so [type stub generation](type-stub.md) can keep describing the module in full.
