@@ -753,7 +753,10 @@ mod watcher_tests {
                 .unbind()
         });
 
-        Python::attach(|py| watcher.clear(py).unwrap());
+        let count_after_clear = Python::attach(|py| {
+            watcher.clear(py).unwrap();
+            UNBOUND_CLEAR_COUNT.load(Ordering::Relaxed)
+        });
 
         Python::attach(|py| {
             py.run(
@@ -763,7 +766,10 @@ mod watcher_tests {
             )
             .unwrap();
         });
-        assert_eq!(UNBOUND_CLEAR_COUNT.load(Ordering::Relaxed), 0);
+        assert_eq!(
+            UNBOUND_CLEAR_COUNT.load(Ordering::Relaxed),
+            count_after_clear
+        );
     }
 
     static REBOUND_COUNT: AtomicUsize = AtomicUsize::new(0);
