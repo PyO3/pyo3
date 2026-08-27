@@ -18,7 +18,6 @@ use core::ptr::NonNull;
 pub struct PyObjectFreeList {
     entries: Box<[Option<NonNull<ffi::PyObject>>]>,
     split: usize,
-    capacity: usize,
 }
 
 // safety: the pointers are never used internally and they are cleared when they are given out
@@ -29,11 +28,7 @@ impl PyObjectFreeList {
     pub fn with_capacity(capacity: usize) -> PyObjectFreeList {
         let entries = vec![None; capacity].into_boxed_slice();
 
-        PyObjectFreeList {
-            entries,
-            split: 0,
-            capacity,
-        }
+        PyObjectFreeList { entries, split: 0 }
     }
 
     /// Pops the first non empty item.
@@ -53,7 +48,7 @@ impl PyObjectFreeList {
     /// Inserts a value into the list. Returns `Some(val)` if the `PyObjectFreeList` is full.
     pub fn insert(&mut self, val: NonNull<ffi::PyObject>) -> Option<NonNull<ffi::PyObject>> {
         let next = self.split + 1;
-        if next < self.capacity {
+        if next < self.entries.len() {
             self.entries[self.split] = Some(val);
             self.split = next;
             None
