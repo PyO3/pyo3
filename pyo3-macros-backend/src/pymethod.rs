@@ -1230,6 +1230,7 @@ impl Ty {
                 let ty = arg.ty();
                 extract_error_mode.handle_error(
                     quote! {
+                            #[allow(unreachable_code, reason = "error type might be !")]
                             ::core::convert::TryInto::<#ty>::try_into(#ident).map_err(|e| #pyo3_path::exceptions::PyValueError::new_err(e.to_string()))
                     },
                     ctx
