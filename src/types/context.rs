@@ -722,19 +722,16 @@ mod watcher_tests {
             )
             .unwrap();
         });
-        let count_before_drop = UNBOUND_DROP_COUNT.load(Ordering::Relaxed);
-        assert!(count_before_drop >= 2);
+        assert!(UNBOUND_DROP_COUNT.load(Ordering::Relaxed) >= 2);
 
         drop(watcher);
+        let count_after_drop = UNBOUND_DROP_COUNT.load(Ordering::Relaxed);
 
         Python::attach(|py| {
             py.run(c"contextvars.Context().run(lambda: None)", None, None)
                 .unwrap();
         });
-        assert_eq!(
-            UNBOUND_DROP_COUNT.load(Ordering::Relaxed),
-            count_before_drop
-        );
+        assert_eq!(UNBOUND_DROP_COUNT.load(Ordering::Relaxed), count_after_drop);
     }
 
     static UNBOUND_CLEAR_COUNT: AtomicUsize = AtomicUsize::new(0);
