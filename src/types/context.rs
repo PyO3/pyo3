@@ -255,12 +255,6 @@ pub mod impl_ {
 
                 (Callback::CALLBACK)(py, event)?;
 
-                // Although normal PyO3 APIs return errors as `PyResult`, `PyErr::restore` can be
-                // called directly. Do not allow an Ok return with an exception still set.
-                if crate::PyErr::occurred(py) {
-                    return Err(crate::PyErr::fetch(py));
-                }
-
                 Ok(0)
             })
         };
