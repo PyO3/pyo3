@@ -39,8 +39,7 @@ impl Drop for InitConfig {
 }
 
 impl InitConfig {
-    /// Initializes the python interpreter from the configuration. On success it returns the exit code
-    /// requested by the interpreter, if present.
+    /// Initializes the python interpreter from the configuration.
     ///
     /// # Panic
     /// Panics if the interpreter is already initialized.
