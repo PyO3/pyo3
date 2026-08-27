@@ -3,8 +3,6 @@ use std::ffi::OsString;
 
 fn main() {
     configure_wip_no_std();
-    pyo3_build_config::use_pyo3_cfgs();
-    pyo3_build_config::add_extension_module_link_args();
 }
 
 /// Enables a faux `std` feature by default.
