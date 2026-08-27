@@ -384,11 +384,6 @@ def check_all(session: nox.Session) -> None:
 
 
 @nox.session(venv_backend="none")
-def publish(session: nox.Session) -> None:
-    _run_cargo(session, "publish", "--workspace")
-
-
-@nox.session(venv_backend="none")
 def contributors(session: nox.Session) -> None:
     import requests
 
