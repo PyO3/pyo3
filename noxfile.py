@@ -384,16 +384,6 @@ def check_all(session: nox.Session) -> None:
 
 
 @nox.session(venv_backend="none")
-def publish(session: nox.Session) -> None:
-    _run_cargo_publish(session, package="pyo3-build-config")
-    _run_cargo_publish(session, package="pyo3-macros-backend")
-    _run_cargo_publish(session, package="pyo3-macros")
-    _run_cargo_publish(session, package="pyo3-ffi")
-    _run_cargo_publish(session, package="pyo3")
-    _run_cargo_publish(session, package="pyo3-introspection")
-
-
-@nox.session(venv_backend="none")
 def contributors(session: nox.Session) -> None:
     import requests
 
@@ -2005,10 +1995,6 @@ def _run_cargo_test(
             test_env["PATH"] = os.pathsep.join((str(abi3t_compat), path))
 
     _run(session, *command, external=True, env=test_env)
-
-
-def _run_cargo_publish(session: nox.Session, *, package: str) -> None:
-    _run_cargo(session, "publish", f"--package={package}")
 
 
 def _run_cargo_set_package_version(
