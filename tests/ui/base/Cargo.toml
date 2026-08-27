@@ -2,6 +2,7 @@
 name = "pyo3_ui_tests"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 [dependencies]
 pyo3 = { version = "0.29.2", default-features = false, path = "../../../" }
