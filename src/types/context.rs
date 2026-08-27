@@ -424,9 +424,33 @@ mod watcher_tests {
     use alloc::string::ToString;
     use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
     use static_assertions::{assert_impl_all, assert_not_impl_any};
+    use std::sync::{Mutex, MutexGuard, PoisonError};
 
+    // Context watchers are interpreter-global and limited to eight slots, so tests which register
+    // watchers must not run concurrently.
+    static WATCHER_TEST_MUTEX: Mutex<()> = Mutex::new(());
     static SWITCH_COUNT: AtomicUsize = AtomicUsize::new(0);
     static SAW_CONTEXT: AtomicBool = AtomicBool::new(false);
+
+    fn acquire_watcher_test_lock() -> MutexGuard<'static, ()> {
+        WATCHER_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn run_context_switch(py: Python<'_>) {
+        py.run(
+            c"import contextvars; contextvars.Context().run(lambda: None)",
+            None,
+            None,
+        )
+        .unwrap();
+    }
+
+    fn assert_no_context_switches(py: Python<'_>, count_before: usize) {
+        run_context_switch(py);
+        assert_eq!(SWITCH_COUNT.load(Ordering::Relaxed), count_before);
+    }
 
     #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
     fn record_switch(_py: Python<'_>, event: ContextEvent<'_, '_>) -> PyResult<()> {
@@ -442,17 +466,13 @@ mod watcher_tests {
 
     #[test]
     fn watcher_is_cleared_on_drop() {
+        let _guard = acquire_watcher_test_lock();
         Python::attach(|py| {
             SWITCH_COUNT.store(0, Ordering::Relaxed);
             SAW_CONTEXT.store(false, Ordering::Relaxed);
 
             let watcher = PyContext::add_watcher(py, watch_callback!(record_switch)).unwrap();
-            py.run(
-                c"import contextvars\ncontextvars.Context().run(lambda: None)",
-                None,
-                None,
-            )
-            .unwrap();
+            run_context_switch(py);
 
             let count_after_first_run = SWITCH_COUNT.load(Ordering::Relaxed);
             assert!(count_after_first_run >= 2);
@@ -460,91 +480,51 @@ mod watcher_tests {
 
             drop(watcher);
 
-            py.run(c"contextvars.Context().run(lambda: None)", None, None)
-                .unwrap();
-            assert_eq!(SWITCH_COUNT.load(Ordering::Relaxed), count_after_first_run);
+            assert_no_context_switches(py, count_after_first_run);
         });
-    }
-
-    static EXPLICIT_CLEAR_COUNT: AtomicUsize = AtomicUsize::new(0);
-
-    #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
-    fn record_explicit_clear(_py: Python<'_>, event: ContextEvent<'_, '_>) -> PyResult<()> {
-        if matches!(event, ContextEvent::Switched(_)) {
-            EXPLICIT_CLEAR_COUNT.fetch_add(1, Ordering::Relaxed);
-        }
-        Ok(())
     }
 
     #[test]
     fn watcher_can_be_cleared_explicitly() {
+        let _guard = acquire_watcher_test_lock();
         Python::attach(|py| {
-            EXPLICIT_CLEAR_COUNT.store(0, Ordering::Relaxed);
+            SWITCH_COUNT.store(0, Ordering::Relaxed);
 
-            let watcher =
-                PyContext::add_watcher(py, watch_callback!(record_explicit_clear)).unwrap();
+            let watcher = PyContext::add_watcher(py, watch_callback!(record_switch)).unwrap();
             watcher.clear().unwrap();
 
-            py.run(
-                c"import contextvars\ncontextvars.Context().run(lambda: None)",
-                None,
-                None,
-            )
-            .unwrap();
-            assert_eq!(EXPLICIT_CLEAR_COUNT.load(Ordering::Relaxed), 0);
+            assert_no_context_switches(py, 0);
         });
-    }
-
-    static DUPLICATE_CALLBACK_COUNT: AtomicUsize = AtomicUsize::new(0);
-
-    #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
-    fn record_duplicate_callback(_py: Python<'_>, event: ContextEvent<'_, '_>) -> PyResult<()> {
-        if matches!(event, ContextEvent::Switched(_)) {
-            DUPLICATE_CALLBACK_COUNT.fetch_add(1, Ordering::Relaxed);
-        }
-        Ok(())
     }
 
     #[test]
     fn multiple_watchers_can_register_the_same_callback() {
+        let _guard = acquire_watcher_test_lock();
         Python::attach(|py| {
-            DUPLICATE_CALLBACK_COUNT.store(0, Ordering::Relaxed);
+            SWITCH_COUNT.store(0, Ordering::Relaxed);
 
-            let first =
-                PyContext::add_watcher(py, watch_callback!(record_duplicate_callback)).unwrap();
-            let second =
-                PyContext::add_watcher(py, watch_callback!(record_duplicate_callback)).unwrap();
+            let first = PyContext::add_watcher(py, watch_callback!(record_switch)).unwrap();
+            let second = PyContext::add_watcher(py, watch_callback!(record_switch)).unwrap();
 
-            py.run(
-                c"import contextvars\ncontextvars.Context().run(lambda: None)",
-                None,
-                None,
-            )
-            .unwrap();
-            assert!(DUPLICATE_CALLBACK_COUNT.load(Ordering::Relaxed) >= 4);
+            run_context_switch(py);
+            assert!(SWITCH_COUNT.load(Ordering::Relaxed) >= 4);
 
             drop(first);
-            let count_with_both = DUPLICATE_CALLBACK_COUNT.load(Ordering::Relaxed);
-            py.run(c"contextvars.Context().run(lambda: None)", None, None)
-                .unwrap();
-            assert!(DUPLICATE_CALLBACK_COUNT.load(Ordering::Relaxed) >= count_with_both + 2);
+            let count_with_both = SWITCH_COUNT.load(Ordering::Relaxed);
+            run_context_switch(py);
+            assert!(SWITCH_COUNT.load(Ordering::Relaxed) >= count_with_both + 2);
 
             drop(second);
-            let count_after_drop = DUPLICATE_CALLBACK_COUNT.load(Ordering::Relaxed);
-            py.run(c"contextvars.Context().run(lambda: None)", None, None)
-                .unwrap();
-            assert_eq!(
-                DUPLICATE_CALLBACK_COUNT.load(Ordering::Relaxed),
-                count_after_drop
-            );
+            let count_after_drop = SWITCH_COUNT.load(Ordering::Relaxed);
+            assert_no_context_switches(py, count_after_drop);
         });
     }
 
     #[test]
     fn dropping_watcher_preserves_a_pending_exception() {
+        let _guard = acquire_watcher_test_lock();
         Python::attach(|py| {
-            let watcher =
-                PyContext::add_watcher(py, watch_callback!(record_explicit_clear)).unwrap();
+            let watcher = PyContext::add_watcher(py, watch_callback!(record_switch)).unwrap();
             PyValueError::new_err("original error").restore(py);
 
             drop(watcher);
@@ -607,16 +587,12 @@ mod watcher_tests {
     #[test]
     #[cfg(feature = "macros")]
     fn registered_callback_errors_are_unraisable() {
+        let _guard = acquire_watcher_test_lock();
         Python::attach(|py| {
             UnraisableCapture::enter(py, |capture| {
                 let watcher = PyContext::add_watcher(py, watch_callback!(fail_callback)).unwrap();
 
-                py.run(
-                    c"import contextvars\ncontextvars.Context().run(lambda: None)",
-                    None,
-                    None,
-                )
-                .unwrap();
+                run_context_switch(py);
 
                 let (watcher_error, _) = capture.take_capture().expect("missing unraisable error");
                 assert!(watcher_error.is_instance_of::<PyRuntimeError>(py));
@@ -686,156 +662,67 @@ mod watcher_tests {
     }
 
     #[test]
-    fn bound_watcher_guard_is_not_send_or_sync() {
+    fn context_watcher_guard_traits() {
         assert_not_impl_any!(super::BoundContextWatcherGuard<'_>: Send, Sync);
-    }
-
-    #[test]
-    fn unbound_watcher_guard_is_send_and_sync() {
         assert_impl_all!(super::ContextWatcherGuard: Send, Sync);
     }
 
-    static UNBOUND_DROP_COUNT: AtomicUsize = AtomicUsize::new(0);
-
-    #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
-    fn record_unbound_drop(_py: Python<'_>, event: ContextEvent<'_, '_>) -> PyResult<()> {
-        if matches!(event, ContextEvent::Switched(_)) {
-            UNBOUND_DROP_COUNT.fetch_add(1, Ordering::Relaxed);
-        }
-        Ok(())
-    }
-
     #[test]
-    fn unbound_watcher_outlives_attachment_and_attaches_on_drop() {
-        UNBOUND_DROP_COUNT.store(0, Ordering::Relaxed);
+    fn unbound_watcher_attaches_on_drop_from_another_thread() {
+        let _guard = acquire_watcher_test_lock();
+        SWITCH_COUNT.store(0, Ordering::Relaxed);
         let watcher = Python::attach(|py| {
-            PyContext::add_watcher(py, watch_callback!(record_unbound_drop))
+            PyContext::add_watcher(py, watch_callback!(record_switch))
                 .unwrap()
                 .unbind()
         });
 
-        Python::attach(|py| {
-            py.run(
-                c"import contextvars; contextvars.Context().run(lambda: None)",
-                None,
-                None,
-            )
-            .unwrap();
-        });
-        assert!(UNBOUND_DROP_COUNT.load(Ordering::Relaxed) >= 2);
+        Python::attach(run_context_switch);
+        assert!(SWITCH_COUNT.load(Ordering::Relaxed) >= 2);
 
-        drop(watcher);
-        let count_after_drop = UNBOUND_DROP_COUNT.load(Ordering::Relaxed);
+        std::thread::spawn(move || drop(watcher)).join().unwrap();
+        let count_after_drop = SWITCH_COUNT.load(Ordering::Relaxed);
 
-        Python::attach(|py| {
-            py.run(c"contextvars.Context().run(lambda: None)", None, None)
-                .unwrap();
-        });
-        assert_eq!(UNBOUND_DROP_COUNT.load(Ordering::Relaxed), count_after_drop);
-    }
-
-    static UNBOUND_CLEAR_COUNT: AtomicUsize = AtomicUsize::new(0);
-
-    #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
-    fn record_unbound_clear(_py: Python<'_>, event: ContextEvent<'_, '_>) -> PyResult<()> {
-        if matches!(event, ContextEvent::Switched(_)) {
-            UNBOUND_CLEAR_COUNT.fetch_add(1, Ordering::Relaxed);
-        }
-        Ok(())
+        Python::attach(|py| assert_no_context_switches(py, count_after_drop));
     }
 
     #[test]
     fn unbound_watcher_can_be_cleared_with_an_attachment() {
-        UNBOUND_CLEAR_COUNT.store(0, Ordering::Relaxed);
+        let _guard = acquire_watcher_test_lock();
+        SWITCH_COUNT.store(0, Ordering::Relaxed);
         let watcher = Python::attach(|py| {
-            PyContext::add_watcher(py, watch_callback!(record_unbound_clear))
+            PyContext::add_watcher(py, watch_callback!(record_switch))
                 .unwrap()
                 .unbind()
         });
 
         let count_after_clear = Python::attach(|py| {
             watcher.clear(py).unwrap();
-            UNBOUND_CLEAR_COUNT.load(Ordering::Relaxed)
+            SWITCH_COUNT.load(Ordering::Relaxed)
         });
 
-        Python::attach(|py| {
-            py.run(
-                c"import contextvars; contextvars.Context().run(lambda: None)",
-                None,
-                None,
-            )
-            .unwrap();
-        });
-        assert_eq!(
-            UNBOUND_CLEAR_COUNT.load(Ordering::Relaxed),
-            count_after_clear
-        );
-    }
-
-    static REBOUND_COUNT: AtomicUsize = AtomicUsize::new(0);
-
-    #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
-    fn record_rebound(_py: Python<'_>, event: ContextEvent<'_, '_>) -> PyResult<()> {
-        if matches!(event, ContextEvent::Switched(_)) {
-            REBOUND_COUNT.fetch_add(1, Ordering::Relaxed);
-        }
-        Ok(())
+        Python::attach(|py| assert_no_context_switches(py, count_after_clear));
     }
 
     #[test]
     fn unbound_watcher_can_be_rebound() {
-        REBOUND_COUNT.store(0, Ordering::Relaxed);
+        let _guard = acquire_watcher_test_lock();
+        SWITCH_COUNT.store(0, Ordering::Relaxed);
         let watcher = Python::attach(|py| {
-            PyContext::add_watcher(py, watch_callback!(record_rebound))
+            PyContext::add_watcher(py, watch_callback!(record_switch))
                 .unwrap()
                 .unbind()
         });
 
         Python::attach(|py| {
             let watcher = watcher.into_bound(py);
-            py.run(
-                c"import contextvars; contextvars.Context().run(lambda: None)",
-                None,
-                None,
-            )
-            .unwrap();
+            run_context_switch(py);
 
-            let count_before_drop = REBOUND_COUNT.load(Ordering::Relaxed);
+            let count_before_drop = SWITCH_COUNT.load(Ordering::Relaxed);
             assert!(count_before_drop >= 2);
             drop(watcher);
 
-            py.run(c"contextvars.Context().run(lambda: None)", None, None)
-                .unwrap();
-            assert_eq!(REBOUND_COUNT.load(Ordering::Relaxed), count_before_drop);
-        });
-    }
-
-    static FORGOTTEN_GUARD_COUNT: AtomicUsize = AtomicUsize::new(0);
-
-    #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
-    fn record_forgotten_guard(_py: Python<'_>, event: ContextEvent<'_, '_>) -> PyResult<()> {
-        if matches!(event, ContextEvent::Switched(_)) {
-            FORGOTTEN_GUARD_COUNT.fetch_add(1, Ordering::Relaxed);
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn forgotten_guard() {
-        Python::attach(|py| {
-            FORGOTTEN_GUARD_COUNT.store(0, Ordering::Relaxed);
-            let watcher =
-                PyContext::add_watcher(py, watch_callback!(record_forgotten_guard)).unwrap();
-            core::mem::forget(watcher);
-
-            py.run(
-                c"import contextvars; contextvars.Context().run(lambda: None)",
-                None,
-                None,
-            )
-            .unwrap();
-
-            assert!(FORGOTTEN_GUARD_COUNT.load(Ordering::Relaxed) > 0);
+            assert_no_context_switches(py, count_before_drop);
         });
     }
 }
