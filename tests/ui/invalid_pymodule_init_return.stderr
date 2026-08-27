@@ -1,8 +1,11 @@
 error[E0277]: `usize` is not a suitable return value for `#[pymodule_init]` functions
-   --> tests/ui/invalid_pymodule_init_return.rs:3:1
+   --> tests/ui/invalid_pymodule_init_return.rs:6:8
     |
-  3 | #[pymodule]
-    | ^^^^^^^^^^^ the trait `pyo3::impl_::pymodule::PyModuleInitResult` is not implemented for `usize`
+  6 |     fn init() -> usize {
+    |        ^^^^^^^-
+    |        |      |
+    |        |      required by a bound introduced by this call
+    |        the trait `pyo3::impl_::pymodule::PyModuleInitResult` is not implemented for `usize`
     |
     = note: `#[pymodule_init]` functions may return `()` or `Result<(), E>` where `PyErr: From<E>`
 help: the following other types implement trait `pyo3::impl_::pymodule::PyModuleInitResult`
@@ -15,13 +18,15 @@ help: the following other types implement trait `pyo3::impl_::pymodule::PyModule
   | | where
   | |     PyErr: From<E>,
   | |___________________^ `Result<(), E>`
-  = note: this error originates in the attribute macro `pymodule` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: `Result<usize, PyErr>` is not a suitable return value for `#[pymodule_init]` functions
-   --> tests/ui/invalid_pymodule_init_return.rs:12:1
+   --> tests/ui/invalid_pymodule_init_return.rs:17:8
     |
- 12 | #[pymodule]
-    | ^^^^^^^^^^^ the trait `pyo3::impl_::pymodule::PyModuleInitResult` is not implemented for `Result<usize, PyErr>`
+ 17 |     fn init() -> PyResult<usize> {
+    |        ^^^^^^^-
+    |        |      |
+    |        |      required by a bound introduced by this call
+    |        the trait `pyo3::impl_::pymodule::PyModuleInitResult` is not implemented for `Result<usize, PyErr>`
     |
     = note: `#[pymodule_init]` functions may return `()` or `Result<(), E>` where `PyErr: From<E>`
 help: the trait `pyo3::impl_::pymodule::PyModuleInitResult` is implemented for `Result<(), E>`
@@ -31,7 +36,6 @@ help: the trait `pyo3::impl_::pymodule::PyModuleInitResult` is implemented for `
   | | where
   | |     PyErr: From<E>,
   | |___________________^
-  = note: this error originates in the attribute macro `pymodule` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: aborting due to 2 previous errors
 

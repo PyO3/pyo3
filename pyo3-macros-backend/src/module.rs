@@ -13,13 +13,14 @@ use crate::{
     },
     combine_errors::CombineErrors,
     get_doc,
-    method::{split_off_python_arg, FnArg},
+    method::FnArg,
     pyclass::PyClassPyO3Option,
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
+    pymethod::split_off_python_arg,
     utils::{has_attribute, has_attribute_with_namespace, Ctx, IdentOrStr, PythonDoc},
 };
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use std::ffi::CString;
 use syn::LitCStr;
 use syn::{
@@ -202,6 +203,7 @@ pub fn pymodule_module_impl(
                     ensure_spanned!(pymodule_init.is_none(), item_fn.span() => "only one `#[pymodule_init]` may be specified");
                     let ident = ident.clone();
                     let sig_span = item_fn.sig.span();
+                    let return_span = item_fn.sig.output.span();
                     let args: Vec<_> = item_fn
                         .sig
                         .inputs
@@ -218,7 +220,8 @@ pub fn pymodule_module_impl(
                         .map(|_| quote! { module.py() })
                         .into_iter()
                         .chain(pymodule_init_takes_module.then(|| quote! { module }));
-                    pymodule_init = Some(quote! {
+                    let pyo3_path = pyo3_path.to_tokens_spanned(return_span);
+                    pymodule_init = Some(quote_spanned! { return_span =>
                         #pyo3_path::impl_::pymodule::PyModuleInitResult::into_result(#ident(#(#call_args),*))?;
                     });
                 } else if has_attribute(&item_fn.attrs, "pyfunction")

@@ -5,8 +5,7 @@ use crate::attributes::{FromPyWithAttribute, NameAttribute, RenamingRule};
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::unique_element_id;
 use crate::method::{
-    split_off_python_arg, CallingConvention, ClassMethodReceiver, ExtractErrorMode,
-    SelfConversionPolicy,
+    CallingConvention, ClassMethodReceiver, ExtractErrorMode, PyArg, SelfConversionPolicy,
 };
 use crate::params::{impl_arg_params, impl_regular_arg_param, Holders};
 use crate::pyfunction::WarningFactory;
@@ -1034,6 +1033,16 @@ fn impl_call_deleter(
     };
 
     Ok(fncall)
+}
+
+/// Split an argument of pyo3::Python from the front of the arg list, if present
+pub(crate) fn split_off_python_arg<'a, 'b>(
+    args: &'a [FnArg<'b>],
+) -> (Option<&'a PyArg<'b>>, &'a [FnArg<'b>]) {
+    match args {
+        [FnArg::Py(py), args @ ..] => (Some(py), args),
+        args => (None, args),
+    }
 }
 
 pub enum PropertyType<'a> {
