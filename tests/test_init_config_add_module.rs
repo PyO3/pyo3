@@ -3,12 +3,12 @@
 #![allow(clippy::undocumented_unsafe_blocks, reason = "tests")]
 
 use pyo3::add_module_to_init_config;
-use pyo3::init_config::InitConfig;
+use pyo3::init_config::PyInitConfig;
 use pyo3::prelude::*;
 
 #[test]
 fn test_add_module() {
-    let mut config = InitConfig::default();
+    let mut config = PyInitConfig::default();
     add_module_to_init_config!(config, m).unwrap();
     Python::initialize_from_init_config(config).unwrap();
     Python::attach(|py| {

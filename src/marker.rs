@@ -122,7 +122,7 @@
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyResult};
 #[cfg(not(any(PyPy, GraalPy)))]
-use crate::init_config::{InitConfig, InitializeFromConfigError};
+use crate::init_config::{InitializeFromConfigError, PyInitConfig};
 use crate::internal::state::{AttachGuard, SuspendAttach};
 use crate::types::any::PyAnyMethods;
 use crate::types::code::PyCodeInput;
@@ -485,7 +485,7 @@ impl Python<'_> {
     #[cfg(not(any(PyPy, GraalPy)))]
     #[inline]
     pub fn initialize_from_init_config(
-        config: InitConfig,
+        config: PyInitConfig,
     ) -> Result<(), InitializeFromConfigError> {
         config.initialize()
     }
