@@ -1,4 +1,4 @@
-//! This module holds the [`InitConfig`] struct, see struct level docs for more detail.
+//! This module holds the [`PyInitConfig`] struct, see struct level docs for more detail.
 
 use core::ffi::{c_char, c_int, CStr};
 use core::fmt::Display;
@@ -194,7 +194,7 @@ impl PyModuleInitInfo {
     }
 }
 
-/// Error returned by [`InitConfig::initialize`]
+/// Error returned by [`Python::initialize_from_init_config`](crate::Python::initialize_from_init_config)
 #[derive(Debug)]
 pub enum InitializeFromConfigError {
     /// The interpreter requested exiting with
@@ -221,7 +221,7 @@ impl Display for InitializeFromConfigError {
     }
 }
 
-/// Error type when [`InitConfig`] methods fail
+/// Error type when [`PyInitConfig`] methods fail
 #[derive(Debug)]
 pub struct PyInitConfigError(Box<str>);
 
@@ -234,7 +234,7 @@ impl Display for PyInitConfigError {
 
 impl core::error::Error for PyInitConfigError {}
 
-/// A string option for python configuration, returned by [`InitConfig::get_str`].
+/// A string option for python configuration, returned by [`PyInitConfig::get_str`].
 // NOTE: this cannot use a string because the memory needs to be freed with [`libc::free`]
 pub struct StringOption(NonNull<c_char>);
 
@@ -255,7 +255,7 @@ impl Drop for StringOption {
     }
 }
 
-/// A list of strings for a python configuration option, returned by [`InitConfig::get_str_list`].
+/// A list of strings for a python configuration option, returned by [`PyInitConfig::get_str_list`].
 pub struct StringListOption {
     length: usize,
     items: NonNull<*mut c_char>,
