@@ -1,6 +1,7 @@
 #![cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
 
 use pyo3::init_config::InitConfig;
+use pyo3::prelude::Python;
 
 #[test]
 fn test_init_fail() {
@@ -8,5 +9,5 @@ fn test_init_fail() {
     config
         .set_str(c"prefix", c"/path/that/does/not/exit")
         .unwrap();
-    config.initialize().unwrap_err();
+    Python::initialize_from_init_config(config).unwrap();
 }

@@ -7,5 +7,5 @@ use pyo3::prelude::Python;
 #[should_panic(expected = "already initialized")]
 fn panics_if_already_init() {
     Python::initialize();
-    InitConfig::default().initialize().unwrap();
+    Python::initialize_from_init_config(InitConfig::default()).unwrap();
 }

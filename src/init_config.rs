@@ -43,7 +43,7 @@ impl InitConfig {
     ///
     /// # Panic
     /// Panics if the interpreter is already initialized.
-    pub fn initialize(self) -> Result<(), InitializeFromConfigError> {
+    pub(crate) fn initialize(self) -> Result<(), InitializeFromConfigError> {
         // SAFETY: points to a valid config object
         let result =
             unsafe { crate::interpreter_lifecycle::initialize_from_config(self.0.as_ptr()) }

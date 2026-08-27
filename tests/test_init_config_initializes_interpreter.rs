@@ -2,10 +2,11 @@
 #![allow(clippy::undocumented_unsafe_blocks, reason = "tests")]
 
 use pyo3::init_config::InitConfig;
+use pyo3::prelude::Python;
 
 #[test]
 fn test_initializes_interpreter() {
     let config = InitConfig::default();
-    config.initialize().unwrap();
+    Python::initialize_from_init_config(config).unwrap();
     assert_ne!(unsafe { pyo3::ffi::Py_IsInitialized() }, 0);
 }

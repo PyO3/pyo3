@@ -10,7 +10,7 @@ use pyo3::prelude::*;
 fn test_add_module() {
     let mut config = InitConfig::default();
     add_module_to_init_config!(config, m).unwrap();
-    config.initialize().unwrap();
+    Python::initialize_from_init_config(config).unwrap();
     Python::attach(|py| {
         let m = py.import("m").unwrap();
         let get_42 = m.getattr("get_42").unwrap();
