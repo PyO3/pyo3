@@ -2,14 +2,14 @@
 #![cfg(feature = "macros")]
 #![allow(clippy::undocumented_unsafe_blocks, reason = "tests")]
 
-use pyo3::add_module_to_init_config;
 use pyo3::init_config::PyInitConfig;
 use pyo3::prelude::*;
+use pyo3::pymodule_init_info;
 
 #[test]
 fn test_add_module() {
     let mut config = PyInitConfig::default();
-    add_module_to_init_config!(config, m).unwrap();
+    config.add_module(pymodule_init_info!(m)).unwrap();
     Python::initialize_from_init_config(config).unwrap();
     Python::attach(|py| {
         let m = py.import("m").unwrap();

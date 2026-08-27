@@ -144,15 +144,14 @@ impl PyInitConfig {
         )
     }
 
-    #[doc(hidden)]
-    pub fn add_module(
-        &mut self,
-        name: &CStr,
-        initfunc: unsafe extern "C" fn() -> *mut PyObject,
-    ) -> Result<(), PyInitConfigError> {
+    /// Add the module to the configuration so that the embedded interpreter initialized from this config
+    /// can use it.
+    ///
+    /// Create a [`PyModuleInitInfo`] with the macro [`pymodule_init_info`](crate::pymodule_init_info).
+    pub fn add_module(&mut self, module: PyModuleInitInfo) -> Result<(), PyInitConfigError> {
         self.check_error(
             // SAFETY: pointers are valid
-            unsafe { PyInitConfig_AddModule(self.0.as_ptr(), name.as_ptr(), initfunc) },
+            unsafe { PyInitConfig_AddModule(self.0.as_ptr(), module.name.as_ptr(), module.init) },
         )
     }
 
@@ -177,6 +176,21 @@ impl PyInitConfig {
         // SAFETY: error message is a null terminated UTF-8 string
         let err_message = unsafe { CStr::from_ptr(err_message).to_str().unwrap_unchecked() };
         PyInitConfigError(err_message.into())
+    }
+}
+
+/// Argument to [`PyInitConfig::add_module`].
+///
+/// Created with macro [`pymodule_init_info`](crate::pymodule_init_info).
+pub struct PyModuleInitInfo {
+    name: &'static CStr,
+    init: unsafe extern "C" fn() -> *mut PyObject,
+}
+
+impl PyModuleInitInfo {
+    #[doc(hidden)]
+    pub fn new(name: &'static CStr, init: unsafe extern "C" fn() -> *mut PyObject) -> Self {
+        Self { name, init }
     }
 }
 
