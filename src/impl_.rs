@@ -30,3 +30,7 @@ pub mod pymodule;
 pub mod trampoline;
 pub mod unindent;
 pub mod wrap;
+
+pub mod platform {
+    pub use crate::platform::*;
+}

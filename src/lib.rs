@@ -413,8 +413,7 @@ mod internal;
 #[macro_use]
 mod internal_tricks;
 
-#[doc(hidden)]
-pub mod platform;
+mod platform;
 
 // Macro dependencies, also contains macros exported for use across the codebase and
 // in expanded macros.

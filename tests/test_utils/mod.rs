@@ -33,7 +33,7 @@ mod inner {
     use pyo3::types::{IntoPyDict, PyList};
 
     #[cfg(any(not(all(Py_GIL_DISABLED, Py_3_14)), feature = "macros"))]
-    use pyo3::platform::sync::non_poison::Mutex;
+    use pyo3::impl_::platform::sync::non_poison::Mutex;
 
     use uuid::Uuid;
 

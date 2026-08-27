@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
-use pyo3::platform::sync::non_poison::Mutex;
+use pyo3::impl_::platform::sync::non_poison::Mutex;
 use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
 use pyo3::{prelude::*, py_run};
 use std::iter;

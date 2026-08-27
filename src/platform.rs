@@ -1,5 +1,6 @@
 //! This module is to support platform compatibility with `no_std` environments.
 #![allow(unused_imports)]
+#![doc(hidden)]
 
 /// This prelude is intended to be used instead of the prelude from `std`.
 pub(crate) mod prelude {
