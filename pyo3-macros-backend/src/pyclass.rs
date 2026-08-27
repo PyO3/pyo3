@@ -3129,9 +3129,10 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {
                 impl #pyo3_path::impl_::pyclass::PyClassWithFreeList for #cls {
                     #[inline]
-                    fn get_free_list(py: #pyo3_path::Python<'_>) -> &'static #pyo3_path::platform::sync::non_poison::Mutex<#pyo3_path::impl_::freelist::PyObjectFreeList> {
-                        static FREELIST: #pyo3_path::sync::PyOnceLock<#pyo3_path::platform::sync::non_poison::Mutex<#pyo3_path::impl_::freelist::PyObjectFreeList>> = #pyo3_path::sync::PyOnceLock::new();
-                        &FREELIST.get_or_init(py, || #pyo3_path::platform::sync::non_poison::Mutex::new(#pyo3_path::impl_::freelist::PyObjectFreeList::with_capacity(#freelist)))
+                    fn get_free_list(py: #pyo3_path::Python<'_>) -> impl ::core::ops::DerefMut<Target = #pyo3_path::impl_::freelist::PyObjectFreeList> {
+                        static FREELIST: #pyo3_path::impl_::freelist::FreeList = #pyo3_path::impl_::freelist::FreeList::new();
+                        const CAPACITY: usize = const { #freelist };
+                        FREELIST.get(py, CAPACITY)
                     }
                 }
             }
