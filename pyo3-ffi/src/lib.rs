@@ -485,7 +485,6 @@ pub use self::pyport::*;
 pub use self::pystate::*;
 pub use self::pystrtod::*;
 pub use self::pythonrun::*;
-#[cfg_attr(PyPy, expect(unused_imports, reason = "not implemented for PyPy"))]
 pub use self::pythread::*;
 pub use self::pytypedefs::*;
 pub use self::rangeobject::*;
