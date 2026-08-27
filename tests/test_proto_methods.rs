@@ -1,7 +1,6 @@
 #![cfg(feature = "macros")]
 
 use pyo3::exceptions::{PyAttributeError, PyIndexError, PyValueError};
-use pyo3::impl_::platform::sync::non_poison::Mutex;
 use pyo3::types::{PyDict, PyList, PyMapping, PySequence, PySlice, PyType};
 use pyo3::{prelude::*, py_run};
 use std::iter;
@@ -419,7 +418,7 @@ fn sequence() {
 
 #[pyclass]
 struct Iterator {
-    iter: Mutex<Box<dyn iter::Iterator<Item = i32> + Send>>,
+    iter: Box<dyn iter::Iterator<Item = i32> + Send + Sync>,
 }
 
 #[pymethods]
@@ -428,8 +427,8 @@ impl Iterator {
         slf
     }
 
-    fn __next__(slf: PyRefMut<'_, Self>) -> Option<i32> {
-        slf.iter.lock().next()
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<i32> {
+        slf.iter.next()
     }
 }
 
@@ -439,7 +438,7 @@ fn iterator() {
         let inst = Py::new(
             py,
             Iterator {
-                iter: Mutex::new(Box::new(5..8)),
+                iter: Box::new(5..8),
             },
         )
         .unwrap();
