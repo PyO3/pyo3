@@ -39,8 +39,10 @@ pyobject_native_type_core!(
 impl PyContext {
     /// Registers a context watcher for the current interpreter.
     ///
-    /// Use [`watch_callback!`] to create the callback passed to this method. The returned
-    /// [`ContextWatcherGuard`] removes the watcher when dropped.
+    /// Use [`watch_callback!`] to create the callback passed to this method.
+    /// The returned [`BoundContextWatcherGuard`] removes the watcher when dropped; call
+    /// [`BoundContextWatcherGuard::unbind`] if the watcher needs to outlive the current Python
+    /// attachment.
     ///
     /// Panics and returned [`PyErr`][crate::PyErr] values are reported as unraisable exceptions and
     /// never unwind across the C boundary.
@@ -48,14 +50,14 @@ impl PyContext {
     pub fn add_watcher(
         py: Python<'_>,
         callback: WatchCallback,
-    ) -> PyResult<ContextWatcherGuard<'_>> {
+    ) -> PyResult<BoundContextWatcherGuard<'_>> {
         // SAFETY:
         // - `py` proves that the thread is attached
         // - `callback` contains a static C-compatible function
         let watcher_id =
             error_on_minusone_with_result(py, unsafe { ffi::PyContext_AddWatcher(callback.0) })?;
 
-        Ok(ContextWatcherGuard {
+        Ok(BoundContextWatcherGuard {
             watcher_id,
             py,
             active: true,
@@ -86,7 +88,7 @@ pub enum ContextEvent<'a, 'py> {
     },
 }
 
-/// A guard which keeps a context watcher registered.
+/// A Python-bound guard which keeps a context watcher registered.
 ///
 /// The watcher is registered for the current Python interpreter and is removed when this guard is
 /// dropped. Use [`clear`][Self::clear] to remove it explicitly and observe any error returned by
@@ -95,66 +97,167 @@ pub enum ContextEvent<'a, 'py> {
 /// This guard is bound to the [`Python`] attachment used to create it. It therefore cannot be sent
 /// to another thread, moved outside that attachment, or moved into [`Python::detach`].
 ///
-/// If this guard is forgotten, the watcher remains registered. This does not create a dangling
-/// function pointer because [`watch_callback!`] creates a static, monomorphized trampoline.
+/// Use [`unbind`][Self::unbind] to convert this guard into a [`ContextWatcherGuard`] which can be
+/// stored outside the current attachment.
 #[must_use = "dropping the guard immediately unregisters the context watcher"]
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
-pub struct ContextWatcherGuard<'py> {
+pub struct BoundContextWatcherGuard<'py> {
     watcher_id: c_int,
     py: Python<'py>,
     active: bool,
 }
 
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
-impl ContextWatcherGuard<'_> {
+impl BoundContextWatcherGuard<'_> {
     /// Removes this watcher from the current Python interpreter.
     ///
     /// Dropping the guard also removes the watcher, but cannot report a failure to the caller.
     #[doc(alias = "PyContext_ClearWatcher")]
     pub fn clear(mut self) -> PyResult<()> {
         self.active = false;
+        clear_watcher(self.py, self.watcher_id)
+    }
 
-        // SAFETY:
-        // - `self.py` proves that the thread is attached to an interpreter; PyO3 does not
-        //   currently support attaching to more than one interpreter, so this is the interpreter
-        //   for which the watcher was registered
-        // - `watcher_id` was returned by `PyContext_AddWatcher`
-        error_on_minusone(self.py, unsafe {
-            ffi::PyContext_ClearWatcher(self.watcher_id)
-        })
+    /// Removes the connection to the current Python attachment, allowing the guard to be stored
+    /// outside it or sent to another thread.
+    ///
+    /// Dropping the returned guard automatically attaches to Python to remove the watcher. To avoid
+    /// that attachment, convert it back with [`ContextWatcherGuard::into_bound`] before dropping it,
+    /// or call [`ContextWatcherGuard::clear`] while attached.
+    pub fn unbind(mut self) -> ContextWatcherGuard {
+        self.active = false;
+        ContextWatcherGuard {
+            watcher_id: self.watcher_id,
+            active: true,
+        }
     }
 }
 
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
-impl Drop for ContextWatcherGuard<'_> {
+impl Drop for BoundContextWatcherGuard<'_> {
     fn drop(&mut self) {
         if !self.active {
             return;
         }
 
         self.active = false;
+        clear_watcher_on_drop(self.py, self.watcher_id);
+    }
+}
 
-        // A destructor must not replace an exception which was already pending. The Python token
-        // stored in the guard proves that this thread is still attached to an interpreter; PyO3
-        // does not currently support attaching to more than one interpreter, so this is the same
-        // interpreter the watcher was registered on.
-        //
-        // SAFETY:
-        // - the thread is attached, as guaranteed by `self.py`
-        // - `PyErr_GetRaisedException` returns an owned reference or NULL
-        // - `watcher_id` was returned by `PyContext_AddWatcher`
-        // - `PyErr_SetRaisedException` steals the owned reference returned above
-        unsafe {
-            let pending_exception = ffi::PyErr_GetRaisedException();
-            if ffi::PyContext_ClearWatcher(self.watcher_id) == -1 {
-                ffi::PyErr_WriteUnraisable(core::ptr::null_mut());
-            }
+/// An unbound guard which keeps a context watcher registered.
+///
+/// Unlike [`BoundContextWatcherGuard`], this guard is not tied to a particular [`Python`]
+/// attachment, so it can be stored outside that attachment or sent to another thread.
+///
+/// Dropping this guard automatically attaches to Python to remove the watcher. Use
+/// [`clear`][Self::clear] to remove it with an existing attachment and observe any error returned by
+/// CPython, or [`into_bound`][Self::into_bound] to recover a bound guard.
+///
+/// If Python cannot be attached during drop, the watcher remains registered. This does not create a
+/// dangling function pointer because [`watch_callback!`] creates a static, monomorphized trampoline.
+///
+/// # Example
+///
+/// ```rust
+/// use pyo3::prelude::*;
+/// use pyo3::types::context::{watch_callback, ContextEvent};
+/// use pyo3::types::PyContext;
+///
+/// fn context_changed(
+///     _py: Python<'_>,
+///     _event: ContextEvent<'_, '_>,
+/// ) -> PyResult<()> {
+///     Ok(())
+/// }
+///
+/// # fn main() -> PyResult<()> {
+/// let watcher = Python::attach(|py| -> PyResult<_> {
+///     Ok(PyContext::add_watcher(py, watch_callback!(context_changed))?.unbind())
+/// })?;
+///
+/// // The guard can be stored until an attachment is available for explicit cleanup.
+/// Python::attach(|py| watcher.clear(py))
+/// # }
+/// ```
+#[must_use = "dropping the guard unregisters the context watcher"]
+#[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
+pub struct ContextWatcherGuard {
+    watcher_id: c_int,
+    active: bool,
+}
 
-            if !pending_exception.is_null() {
-                // Be defensive in case an unraisable hook itself left an exception set.
-                ffi::PyErr_Clear();
-                ffi::PyErr_SetRaisedException(pending_exception);
-            }
+#[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
+impl ContextWatcherGuard {
+    /// Removes this watcher from the current Python interpreter.
+    ///
+    /// Dropping the guard also removes the watcher, but cannot report a failure to the caller.
+    #[doc(alias = "PyContext_ClearWatcher")]
+    pub fn clear(mut self, py: Python<'_>) -> PyResult<()> {
+        self.active = false;
+        clear_watcher(py, self.watcher_id)
+    }
+
+    /// Connects this guard to the given Python attachment.
+    ///
+    /// PyO3 does not currently support using a module from multiple interpreters, so `py` is the
+    /// attachment for the interpreter in which this watcher was registered.
+    pub fn into_bound<'py>(mut self, py: Python<'py>) -> BoundContextWatcherGuard<'py> {
+        self.active = false;
+        BoundContextWatcherGuard {
+            watcher_id: self.watcher_id,
+            py,
+            active: true,
+        }
+    }
+}
+
+#[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
+impl Drop for ContextWatcherGuard {
+    fn drop(&mut self) {
+        if !self.active {
+            return;
+        }
+
+        self.active = false;
+        let watcher_id = self.watcher_id;
+        let _ = Python::try_attach(|py| clear_watcher_on_drop(py, watcher_id));
+    }
+}
+
+#[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
+fn clear_watcher(py: Python<'_>, watcher_id: c_int) -> PyResult<()> {
+    // SAFETY:
+    // - `py` proves that the thread is attached to an interpreter; PyO3 does not currently support
+    //   attaching to more than one interpreter, so this is the interpreter for which the watcher
+    //   was registered
+    // - `watcher_id` was returned by `PyContext_AddWatcher`
+    error_on_minusone(py, unsafe { ffi::PyContext_ClearWatcher(watcher_id) })
+}
+
+#[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
+fn clear_watcher_on_drop(_py: Python<'_>, watcher_id: c_int) {
+    // A destructor must not replace an exception which was already pending. The Python token proves
+    // that this thread is attached to an interpreter; PyO3 does not currently support attaching to
+    // more than one interpreter, so this is the same interpreter the watcher was registered on. The
+    // raw exception API is intentional because `PyErr::take` may resume a `PanicException`, while
+    // `Drop` must preserve it without unwinding.
+    //
+    // SAFETY:
+    // - the thread is attached, as guaranteed by `_py`
+    // - `PyErr_GetRaisedException` returns an owned reference or NULL
+    // - `watcher_id` was returned by `PyContext_AddWatcher`
+    // - `PyErr_SetRaisedException` steals the owned reference returned above
+    unsafe {
+        let pending_exception = ffi::PyErr_GetRaisedException();
+        if ffi::PyContext_ClearWatcher(watcher_id) == -1 {
+            ffi::PyErr_WriteUnraisable(core::ptr::null_mut());
+        }
+
+        if !pending_exception.is_null() {
+            // Be defensive in case an unraisable hook itself left an exception set.
+            ffi::PyErr_Clear();
+            ffi::PyErr_SetRaisedException(pending_exception);
         }
     }
 }
@@ -168,9 +271,32 @@ pub struct WatchCallback(ffi::PyContext_WatchCallback);
 
 /// Creates a context watcher callback from a safe Rust function.
 ///
+/// The function must be a path with this signature:
+///
+/// ```rust
+/// use pyo3::prelude::*;
+/// use pyo3::types::context::{watch_callback, ContextEvent};
+/// use pyo3::types::PyContext;
+///
+/// fn context_changed(
+///     _py: Python<'_>,
+///     _event: ContextEvent<'_, '_>,
+/// ) -> PyResult<()> {
+///     Ok(())
+/// }
+///
+/// # fn main() -> PyResult<()> {
+/// Python::attach(|py| {
+///     let _watcher = PyContext::add_watcher(py, watch_callback!(context_changed))?;
+///     Ok(())
+/// })
+/// # }
+/// ```
+///
 /// A function path is required because CPython's context watcher callback has no user-data
 /// pointer. The macro creates a unique static trampoline for the function, avoiding global callback
 /// storage. State can still be shared through safe static synchronization primitives.
+///
 #[macro_export]
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
 macro_rules! watch_callback {
@@ -192,7 +318,6 @@ pub use crate::watch_callback;
 #[doc(hidden)]
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
 pub mod impl_ {
-
     use crate::{ffi_ptr_ext::FfiPtrExt, types::PyAnyMethods};
 
     use super::*;
@@ -287,41 +412,18 @@ pub mod impl_ {
 }
 
 #[cfg(all(test, Py_3_14, not(Py_GIL_DISABLED)))]
-mod tests {
-    use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
-
-    #[cfg(feature = "macros")]
-    use alloc::string::ToString;
-    use static_assertions::assert_not_impl_any;
-
+mod watcher_tests {
+    use super::impl_::{context_watcher, ContextWatcherCallback, ContextWatcherCallbackDef};
+    use super::{ContextEvent, PyContext};
     use crate::exceptions::{PyRuntimeError, PyValueError};
-    use crate::types::context::impl_::{
-        context_watcher, ContextWatcherCallback, ContextWatcherCallbackDef,
-    };
-    use crate::types::context::ContextEvent;
-    use crate::types::PyAnyMethods;
-    use crate::{PyErr, Python};
-
     #[cfg(feature = "macros")]
     use crate::test_utils::UnraisableCapture;
-
-    use super::*;
-
-    #[test]
-    fn context_type() {
-        Python::attach(|py| {
-            let context = py
-                .import(c"contextvars")
-                .unwrap()
-                .getattr(c"Context")
-                .unwrap()
-                .call0()
-                .unwrap();
-
-            assert!(context.is_exact_instance_of::<PyContext>());
-            context.cast::<PyContext>().unwrap();
-        });
-    }
+    use crate::types::PyAnyMethods;
+    use crate::{ffi, PyErr, PyResult, Python};
+    #[cfg(feature = "macros")]
+    use alloc::string::ToString;
+    use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
+    use static_assertions::{assert_impl_all, assert_not_impl_any};
 
     static SWITCH_COUNT: AtomicUsize = AtomicUsize::new(0);
     static SAW_CONTEXT: AtomicBool = AtomicBool::new(false);
@@ -584,8 +686,125 @@ mod tests {
     }
 
     #[test]
-    fn watcher_guard_is_not_send_or_sync() {
-        assert_not_impl_any!(super::ContextWatcherGuard<'_>: Send, Sync);
+    fn bound_watcher_guard_is_not_send_or_sync() {
+        assert_not_impl_any!(super::BoundContextWatcherGuard<'_>: Send, Sync);
+    }
+
+    #[test]
+    fn unbound_watcher_guard_is_send_and_sync() {
+        assert_impl_all!(super::ContextWatcherGuard: Send, Sync);
+    }
+
+    static UNBOUND_DROP_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+    #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
+    fn record_unbound_drop(_py: Python<'_>, event: ContextEvent<'_, '_>) -> PyResult<()> {
+        if matches!(event, ContextEvent::Switched(_)) {
+            UNBOUND_DROP_COUNT.fetch_add(1, Ordering::Relaxed);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn unbound_watcher_outlives_attachment_and_attaches_on_drop() {
+        UNBOUND_DROP_COUNT.store(0, Ordering::Relaxed);
+        let watcher = Python::attach(|py| {
+            PyContext::add_watcher(py, watch_callback!(record_unbound_drop))
+                .unwrap()
+                .unbind()
+        });
+
+        Python::attach(|py| {
+            py.run(
+                c"import contextvars; contextvars.Context().run(lambda: None)",
+                None,
+                None,
+            )
+            .unwrap();
+        });
+        let count_before_drop = UNBOUND_DROP_COUNT.load(Ordering::Relaxed);
+        assert!(count_before_drop >= 2);
+
+        drop(watcher);
+
+        Python::attach(|py| {
+            py.run(c"contextvars.Context().run(lambda: None)", None, None)
+                .unwrap();
+        });
+        assert_eq!(
+            UNBOUND_DROP_COUNT.load(Ordering::Relaxed),
+            count_before_drop
+        );
+    }
+
+    static UNBOUND_CLEAR_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+    #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
+    fn record_unbound_clear(_py: Python<'_>, event: ContextEvent<'_, '_>) -> PyResult<()> {
+        if matches!(event, ContextEvent::Switched(_)) {
+            UNBOUND_CLEAR_COUNT.fetch_add(1, Ordering::Relaxed);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn unbound_watcher_can_be_cleared_with_an_attachment() {
+        UNBOUND_CLEAR_COUNT.store(0, Ordering::Relaxed);
+        let watcher = Python::attach(|py| {
+            PyContext::add_watcher(py, watch_callback!(record_unbound_clear))
+                .unwrap()
+                .unbind()
+        });
+
+        Python::attach(|py| watcher.clear(py).unwrap());
+
+        Python::attach(|py| {
+            py.run(
+                c"import contextvars; contextvars.Context().run(lambda: None)",
+                None,
+                None,
+            )
+            .unwrap();
+        });
+        assert_eq!(UNBOUND_CLEAR_COUNT.load(Ordering::Relaxed), 0);
+    }
+
+    static REBOUND_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+    #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
+    fn record_rebound(_py: Python<'_>, event: ContextEvent<'_, '_>) -> PyResult<()> {
+        if matches!(event, ContextEvent::Switched(_)) {
+            REBOUND_COUNT.fetch_add(1, Ordering::Relaxed);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn unbound_watcher_can_be_rebound() {
+        REBOUND_COUNT.store(0, Ordering::Relaxed);
+        let watcher = Python::attach(|py| {
+            PyContext::add_watcher(py, watch_callback!(record_rebound))
+                .unwrap()
+                .unbind()
+        });
+
+        Python::attach(|py| {
+            let watcher = watcher.into_bound(py);
+            py.run(
+                c"import contextvars; contextvars.Context().run(lambda: None)",
+                None,
+                None,
+            )
+            .unwrap();
+
+            let count_before_drop = REBOUND_COUNT.load(Ordering::Relaxed);
+            assert!(count_before_drop >= 2);
+            drop(watcher);
+
+            py.run(c"contextvars.Context().run(lambda: None)", None, None)
+                .unwrap();
+            assert_eq!(REBOUND_COUNT.load(Ordering::Relaxed), count_before_drop);
+        });
     }
 
     static FORGOTTEN_GUARD_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -614,6 +833,29 @@ mod tests {
             .unwrap();
 
             assert!(FORGOTTEN_GUARD_COUNT.load(Ordering::Relaxed) > 0);
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PyContext;
+    use crate::types::PyAnyMethods;
+    use crate::Python;
+
+    #[test]
+    fn context_type() {
+        Python::attach(|py| {
+            let context = py
+                .import(c"contextvars")
+                .unwrap()
+                .getattr(c"Context")
+                .unwrap()
+                .call0()
+                .unwrap();
+
+            assert!(context.is_exact_instance_of::<PyContext>());
+            context.cast::<PyContext>().unwrap();
         });
     }
 }
