@@ -222,7 +222,9 @@ pub mod impl_ {
         object: *mut ffi::PyObject,
     ) -> c_int {
         // A context watcher may be called with an exception already set. Save it before invoking
-        // arbitrary Rust code so that safe PyO3 APIs can be used normally inside the callback.
+        // arbitrary Rust code so that safe PyO3 APIs can be used normally inside the callback. The
+        // raw exception API is intentional because `PyErr::take` may resume a `PanicException`,
+        // which must not unwind across this C boundary.
         //
         // SAFETY: the caller guarantees that the thread is attached.
         let pending_exception = unsafe { ffi::PyErr_GetRaisedException() };
@@ -236,12 +238,12 @@ pub mod impl_ {
             crate::impl_::trampoline::trampoline(|py| {
                 let event = match event {
                     ffi::Py_CONTEXT_SWITCHED => {
-                        let object = object.assume_borrowed(py);
+                        let object = object.assume_borrowed_or_err(py)?;
 
                         if object.is_none() {
                             ContextEvent::Switched(None)
                         } else {
-                            ContextEvent::Switched(Some(object.cast_unchecked()))
+                            ContextEvent::Switched(Some(object.cast()?))
                         }
                     }
 
