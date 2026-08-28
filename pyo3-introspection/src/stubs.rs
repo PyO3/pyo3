@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 use std::iter::once;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 /// Generates the [type stubs](https://typing.readthedocs.io/en/latest/source/stubs.html) of a given module.
@@ -15,33 +15,35 @@ use std::str::FromStr;
 /// in files with a relevant name.
 pub fn module_stub_files(module: &Module) -> HashMap<PathBuf, String> {
     let mut output_files = HashMap::new();
-    add_module_stub_files(module, &[], &mut output_files);
+    add_module_stub_files(module, Path::new(""), &[], &mut output_files);
     output_files
 }
 
 fn add_module_stub_files(
     module: &Module,
-    module_path: &[&str],
+    directory: &Path,
+    parents: &[&str],
     output_files: &mut HashMap<PathBuf, String>,
 ) {
-    let mut file_path = PathBuf::new();
-    for e in module_path {
-        file_path = file_path.join(e);
-    }
     output_files.insert(
-        file_path.join("__init__.pyi"),
-        module_stubs(module, module_path),
+        directory.join("__init__.pyi"),
+        module_stubs(module, parents),
     );
-    let mut module_path = module_path.to_vec();
-    module_path.push(&module.name);
+    let mut parents = parents.to_vec();
+    parents.push(&module.name);
     for submodule in &module.modules {
         if submodule.modules.is_empty() {
             output_files.insert(
-                file_path.join(format!("{}.pyi", submodule.name)),
-                module_stubs(submodule, &module_path),
+                directory.join(format!("{}.pyi", submodule.name)),
+                module_stubs(submodule, &parents),
             );
         } else {
-            add_module_stub_files(submodule, &module_path, output_files);
+            add_module_stub_files(
+                submodule,
+                &directory.join(&submodule.name),
+                &parents,
+                output_files,
+            );
         }
     }
 }
@@ -1082,5 +1084,65 @@ mod tests {
             serialize(union(union(str_(), path_like()), str_())),
             "str | PathLike[str]"
         );
+    }
+
+    #[test]
+    fn nested_packages_are_written_into_their_own_directory() {
+        let attribute = |name: &str| Attribute {
+            name: name.into(),
+            value: None,
+            annotation: Some(Expr::Attribute {
+                value: Box::new(Expr::Name { id: "top".into() }),
+                attr: "Top".into(),
+            }),
+            docstring: None,
+        };
+        let module = |name: &str, modules: Vec<Module>, attributes: Vec<Attribute>| Module {
+            name: name.into(),
+            modules,
+            classes: Vec::new(),
+            functions: Vec::new(),
+            attributes,
+            incomplete: false,
+            docstring: None,
+        };
+        let mut top = module(
+            "top",
+            vec![
+                module(
+                    "child",
+                    vec![module("grandchild", Vec::new(), vec![attribute("deep")])],
+                    vec![attribute("mid")],
+                ),
+                module("sibling", Vec::new(), Vec::new()),
+            ],
+            Vec::new(),
+        );
+        top.classes.push(Class {
+            name: "Top".into(),
+            bases: Vec::new(),
+            methods: Vec::new(),
+            attributes: Vec::new(),
+            decorators: Vec::new(),
+            inner_classes: Vec::new(),
+            docstring: None,
+        });
+
+        let files = module_stub_files(&top);
+        let mut paths = files.keys().cloned().collect::<Vec<_>>();
+        paths.sort();
+        assert_eq!(
+            paths,
+            [
+                PathBuf::from("__init__.pyi"),
+                PathBuf::from("child/__init__.pyi"),
+                PathBuf::from("child/grandchild.pyi"),
+                PathBuf::from("sibling.pyi"),
+            ]
+        );
+        // The parents passed to `module_stubs` must stay the module names, not the directories.
+        assert!(files[Path::new("child/__init__.pyi")].contains("from .. import Top"));
+        assert!(files[Path::new("child/grandchild.pyi")].contains("from .. import Top"));
+        assert!(files[Path::new("sibling.pyi")].is_empty());
     }
 }
