@@ -60,22 +60,13 @@ fn panic_access_error(err: AccessError) -> ! {
 
 impl<T: 'static> LocalKey<T> {
     pub const unsafe fn new(init: fn() -> T) -> LocalKey<T> {
-        cfg_select! {
-            Py_LIMITED_API => {
-                LocalKey {
-                    inner: AtomicPtr::new(core::ptr::null_mut()),
-                    state: AtomicU8::new(LOCAL_KEY_UNALLOCATED),
-                    init,
-                }
+        LocalKey {
+            inner: cfg_select! {
+                Py_LIMITED_API => AtomicPtr::new(core::ptr::null_mut()),
+                _ => UnsafeCell::new(Py_tss_NEEDS_INIT),
             },
-
-            _ => {
-                LocalKey {
-                    inner: UnsafeCell::new(Py_tss_NEEDS_INIT),
-                    state: AtomicU8::new(LOCAL_KEY_CREATED),
-                    init
-                }
-            }
+            state: AtomicU8::new(LOCAL_KEY_UNINIT),
+            init,
         }
     }
 
