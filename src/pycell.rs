@@ -100,6 +100,7 @@
 //!
 //!     // We borrow the guard and then dereference
 //!     // it to get a mutable reference to Number
+//! #   #[expect(deprecated)]
 //!     let mut guard: PyRefMut<'_, Number> = n.bind(py).borrow_mut();
 //!     let n_mutable: &mut Number = &mut *guard;
 //!
@@ -242,6 +243,7 @@ use impl_::{PyClassBorrowChecker, PyClassObjectBaseLayout, PyClassObjectLayout};
 ///             .add_subclass(Child { name: "Caterpillar" })
 ///     }
 ///
+/// #   #[expect(deprecated)]
 ///     fn format(slf: PyRef<'_, Self>) -> String {
 ///         // We can get *mut ffi::PyObject from PyRef
 ///         let refcnt = unsafe { pyo3::ffi::Py_REFCNT(slf.as_ptr()) };
@@ -258,12 +260,14 @@ use impl_::{PyClassBorrowChecker, PyClassObjectBaseLayout, PyClassObjectLayout};
 ///
 /// See the [module-level documentation](self) for more information.
 #[repr(transparent)]
+#[deprecated(since = "0.30.0", note = "use `PyClassGuard` instead")]
 pub struct PyRef<'p, T: PyClass> {
     // TODO: once the GIL Ref API is removed, consider adding a lifetime parameter to `PyRef` to
     // store `Borrowed` here instead, avoiding reference counting overhead.
     inner: Bound<'p, T>,
 }
 
+#[expect(deprecated)]
 impl<'p, T: PyClass> PyRef<'p, T> {
     /// Returns a `Python` token that is bound to the lifetime of the `PyRef`.
     pub fn py(&self) -> Python<'p> {
@@ -271,6 +275,7 @@ impl<'p, T: PyClass> PyRef<'p, T> {
     }
 }
 
+#[expect(deprecated)]
 impl<T, U> AsRef<U> for PyRef<'_, T>
 where
     T: PyClass<BaseType = U>,
@@ -281,6 +286,7 @@ where
     }
 }
 
+#[expect(deprecated)]
 impl<'py, T: PyClass> PyRef<'py, T> {
     /// Returns the raw FFI pointer represented by self.
     ///
@@ -320,6 +326,7 @@ impl<'py, T: PyClass> PyRef<'py, T> {
     }
 }
 
+#[expect(deprecated)]
 impl<'p, T> PyRef<'p, T>
 where
     T: PyClass,
@@ -359,6 +366,7 @@ where
     ///             .add_subclass(Base2 { name2: "base2" })
     ///             .add_subclass(Self { name3: "sub" })
     ///     }
+    /// #   #[expect(deprecated)]
     ///     fn name(slf: PyRef<'_, Self>) -> String {
     ///         let subname = slf.name3;
     ///         let super_ = slf.into_super();
@@ -442,6 +450,7 @@ where
     ///     fn sub_name_len(&self) -> usize {
     ///         self.sub_name.len()
     ///     }
+    /// #   #[expect(deprecated)]
     ///     fn format_name_lengths(slf: PyRef<'_, Self>) -> String {
     ///         format!("{} {}", slf.as_super().base_name_len(), slf.sub_name_len())
     ///     }
@@ -462,6 +471,7 @@ where
     }
 }
 
+#[expect(deprecated)]
 impl<T: PyClass> Deref for PyRef<'_, T> {
     type Target = T;
 
@@ -471,6 +481,7 @@ impl<T: PyClass> Deref for PyRef<'_, T> {
     }
 }
 
+#[expect(deprecated)]
 impl<T: PyClass> Drop for PyRef<'_, T> {
     fn drop(&mut self) {
         self.inner
@@ -480,6 +491,7 @@ impl<T: PyClass> Drop for PyRef<'_, T> {
     }
 }
 
+#[expect(deprecated)]
 impl<'py, T: PyClass> IntoPyObject<'py> for PyRef<'py, T> {
     type Target = T;
     type Output = Bound<'py, T>;
@@ -493,6 +505,7 @@ impl<'py, T: PyClass> IntoPyObject<'py> for PyRef<'py, T> {
     }
 }
 
+#[expect(deprecated)]
 impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &'a PyRef<'py, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, T>;
@@ -506,12 +519,14 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &'a PyRef<'py, T> {
     }
 }
 
+#[expect(deprecated)]
 impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
     }
 }
 
+#[expect(deprecated)]
 impl<'py, T: PyClass> TryFrom<&Bound<'py, T>> for PyRef<'py, T> {
     type Error = PyBorrowError;
     #[inline]
@@ -523,6 +538,7 @@ impl<'py, T: PyClass> TryFrom<&Bound<'py, T>> for PyRef<'py, T> {
 /// A wrapper type for a mutably borrowed value from a [`Bound<'py, T>`].
 ///
 /// See the [module-level documentation](self) for more information.
+#[deprecated(since = "0.30.0", note = "use `PyClassGuardMut` instead")]
 #[repr(transparent)]
 pub struct PyRefMut<'p, T: PyClass<Frozen = False>> {
     // TODO: once the GIL Ref API is removed, consider adding a lifetime parameter to `PyRef` to
@@ -530,6 +546,7 @@ pub struct PyRefMut<'p, T: PyClass<Frozen = False>> {
     inner: Bound<'p, T>,
 }
 
+#[expect(deprecated)]
 impl<'p, T: PyClass<Frozen = False>> PyRefMut<'p, T> {
     /// Returns a `Python` token that is bound to the lifetime of the `PyRefMut`.
     pub fn py(&self) -> Python<'p> {
@@ -537,6 +554,7 @@ impl<'p, T: PyClass<Frozen = False>> PyRefMut<'p, T> {
     }
 }
 
+#[expect(deprecated)]
 impl<T> AsRef<T::BaseType> for PyRefMut<'_, T>
 where
     T: PyClass<Frozen = False>,
@@ -547,6 +565,7 @@ where
     }
 }
 
+#[expect(deprecated)]
 impl<T> AsMut<T::BaseType> for PyRefMut<'_, T>
 where
     T: PyClass<Frozen = False>,
@@ -557,6 +576,7 @@ where
     }
 }
 
+#[expect(deprecated)]
 impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     /// Returns the raw FFI pointer represented by self.
     ///
@@ -603,6 +623,7 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     }
 }
 
+#[expect(deprecated)]
 impl<'p, T> PyRefMut<'p, T>
 where
     T: PyClass<Frozen = False>,
@@ -642,6 +663,7 @@ where
     }
 }
 
+#[expect(deprecated)]
 impl<T: PyClass<Frozen = False>> Deref for PyRefMut<'_, T> {
     type Target = T;
 
@@ -651,6 +673,7 @@ impl<T: PyClass<Frozen = False>> Deref for PyRefMut<'_, T> {
     }
 }
 
+#[expect(deprecated)]
 impl<T: PyClass<Frozen = False>> DerefMut for PyRefMut<'_, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
@@ -658,6 +681,7 @@ impl<T: PyClass<Frozen = False>> DerefMut for PyRefMut<'_, T> {
     }
 }
 
+#[expect(deprecated)]
 impl<T: PyClass<Frozen = False>> Drop for PyRefMut<'_, T> {
     fn drop(&mut self) {
         self.inner
@@ -667,6 +691,7 @@ impl<T: PyClass<Frozen = False>> Drop for PyRefMut<'_, T> {
     }
 }
 
+#[expect(deprecated)]
 impl<'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyRefMut<'py, T> {
     type Target = T;
     type Output = Bound<'py, T>;
@@ -680,6 +705,7 @@ impl<'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for PyRefMut<'py, T> {
     }
 }
 
+#[expect(deprecated)]
 impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &'a PyRefMut<'py, T> {
     type Target = T;
     type Output = Borrowed<'a, 'py, T>;
@@ -693,12 +719,14 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &'a PyRefMut<'py
     }
 }
 
+#[expect(deprecated)]
 impl<T: PyClass<Frozen = False> + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.deref(), f)
     }
 }
 
+#[expect(deprecated)]
 impl<'py, T: PyClass<Frozen = False>> TryFrom<&Bound<'py, T>> for PyRefMut<'py, T> {
     type Error = PyBorrowMutError;
     #[inline]
@@ -834,12 +862,14 @@ mod tests {
             crate::Py::new(py, init).expect("allocation error")
         }
 
+        #[expect(deprecated)]
         fn get_values(self_: PyRef<'_, Self>) -> (usize, usize, usize) {
             let val1 = self_.as_super().as_super().val1;
             let val2 = self_.as_super().val2;
             (val1, val2, self_.val3)
         }
 
+        #[expect(deprecated)]
         fn double_values(mut self_: PyRefMut<'_, Self>) {
             self_.as_super().as_super().val1 *= 2;
             self_.as_super().val2 *= 2;

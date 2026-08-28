@@ -29,7 +29,7 @@ struct TestBufferErrors {
 #[pymethods]
 impl TestBufferErrors {
     unsafe fn __getbuffer__(
-        slf: PyRefMut<'_, Self>,
+        slf: Bound<'_, Self>,
         view: *mut ffi::Py_buffer,
         flags: c_int,
     ) -> PyResult<()> {
@@ -41,7 +41,8 @@ impl TestBufferErrors {
             return Err(PyBufferError::new_err("Object is not writable"));
         }
 
-        let bytes = &slf.buf;
+        let borrow = slf.borrow_mut();
+        let bytes = &borrow.buf;
 
         unsafe {
             (*view).buf = bytes.as_ptr() as *mut c_void;
@@ -60,7 +61,7 @@ impl TestBufferErrors {
             (*view).suboffsets = ptr::null_mut();
             (*view).internal = ptr::null_mut();
 
-            if let Some(err) = &slf.error {
+            if let Some(err) = &borrow.error {
                 use TestGetBufferError::*;
                 match err {
                     NullShape => {

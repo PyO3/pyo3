@@ -137,12 +137,12 @@ struct RefGetterSetter {
 #[pymethods]
 impl RefGetterSetter {
     #[getter]
-    fn get_num(slf: PyRef<'_, Self>) -> i32 {
+    fn get_num(slf: PyClassGuard<'_, Self>) -> i32 {
         slf.num
     }
 
     #[setter]
-    fn set_num(mut slf: PyRefMut<'_, Self>, value: i32) {
+    fn set_num(mut slf: PyClassGuardMut<'_, Self>, value: i32) {
         slf.num = value;
     }
 }
