@@ -186,7 +186,7 @@ macro_rules! thread_local {
         $(
             $(#[$attr])*
             #[allow(unused_braces)]
-            // SAFETY: correctly intializes a LocalKey
+            // SAFETY: correctly initializes a LocalKey
             $vis static $name: $crate::platform::thread::LocalKey<$ty> = unsafe {
                 $crate::platform::thread::LocalKey::new({
                     fn init() -> $ty {
