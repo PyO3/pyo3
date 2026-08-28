@@ -589,14 +589,15 @@ impl<'a> FunctionSignature<'a> {
     /// Gives the last `count` positional parameters a `None` default, matching a CPython slot
     /// wrapper which substitutes `None` for the trailing arguments the caller may omit.
     pub fn default_trailing_parameters_to_none(&mut self, count: usize) {
-        let regular = self.arguments.iter_mut().filter_map(|arg| match arg {
-            FnArg::Regular(arg) => Some(arg),
-            _ => None,
-        });
         let mut defaulted = 0;
-        for arg in regular.rev().take(count) {
-            arg.default_value = Some(Box::new(parse_quote!(None)));
-            defaulted += 1;
+        for arg in self.arguments.iter_mut().rev() {
+            if defaulted == count {
+                break;
+            }
+            if let FnArg::Regular(arg) = arg {
+                arg.default_value = Some(Box::new(parse_quote!(None)));
+                defaulted += 1;
+            }
         }
         for _ in 0..defaulted {
             self.python_signature

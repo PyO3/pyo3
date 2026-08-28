@@ -2016,3 +2016,46 @@ fn doc_to_optional_cstr(doc: Option<&PythonDoc>, ctx: &Ctx) -> Result<TokenStrea
         quote!(::core::option::Option::None)
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_short_callable_slots_have_optional_trailing_args() {
+        assert_eq!(__GET__.optional_trailing_args(), 1);
+        assert_eq!(__POW__.optional_trailing_args(), 1);
+        assert_eq!(__RPOW__.optional_trailing_args(), 1);
+        assert_eq!(__ITER__.optional_trailing_args(), 0);
+        assert_eq!(__LT__.optional_trailing_args(), 0);
+        assert_eq!(__IADD__.optional_trailing_args(), 0);
+    }
+
+    #[test]
+    fn optional_trailing_args_defaults_to_zero() {
+        assert_eq!(
+            SlotDef::new("Py_tp_iter", "getiterfunc").optional_trailing_args(),
+            0
+        );
+        assert_eq!(
+            SlotDef::new("Py_tp_iter", "getiterfunc")
+                .with_optional_trailing_args(2)
+                .optional_trailing_args(),
+            2
+        );
+        assert_eq!(
+            SlotFragmentDef::new("__pow__", &[Ty::Object]).optional_trailing_args(),
+            0
+        );
+        assert_eq!(
+            SlotFragmentDef::new("__pow__", &[Ty::Object])
+                .with_optional_trailing_args(1)
+                .optional_trailing_args(),
+            1
+        );
+        assert_eq!(
+            SlotFragmentDef::binary_operator("__add__").optional_trailing_args(),
+            0
+        );
+    }
+}
