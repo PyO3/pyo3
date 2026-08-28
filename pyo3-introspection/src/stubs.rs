@@ -1011,11 +1011,9 @@ mod tests {
         }
     }
 
-    /// The `pytests` stubs cover the common cases, we only test the ones they don't have:
-    /// a module with a submodule, and an empty module.
-    #[test]
-    fn test_dunder_all() {
-        let module = Module {
+    /// A module with one member of every kind that lands in `__all__` at runtime.
+    fn populated_module() -> Module {
+        Module {
             modules: vec![empty_module("sub")],
             classes: vec![Class {
                 name: "Zulu".into(),
@@ -1049,15 +1047,39 @@ mod tests {
                 docstring: None,
             }],
             ..empty_module("bar")
-        };
+        }
+    }
+
+    /// The `pytests` stubs cover the common cases, we only test the ones they don't have:
+    /// a module with a submodule, and an empty module.
+    #[test]
+    fn test_dunder_all() {
         // The names are the ones `PyModuleMethods::add` puts in `__all__` at runtime, including
         // the submodule which is declared in its own stub file.
         assert_eq!(
-            module_stubs(&module, &["foo"]),
+            module_stubs(&populated_module(), &["foo"]),
             "__all__ = [\"CONST\", \"Zulu\", \"func\", \"sub\"]\n\nCONST = 1\nclass Zulu: ...\ndef func(): ...\n"
         );
         // Nothing was added to an empty module, so it has no `__all__` at runtime either
         assert_eq!(module_stubs(&empty_module("bar"), &["foo"]), "");
+    }
+
+    /// A `#[pymodule_init]` that is handed the module can add anything to it, so the module is
+    /// tagged incomplete and the members we know about are not the whole of `__all__`. An
+    /// initialiser declared without the module argument leaves the module complete and keeps its
+    /// `__all__`, which `test_dunder_all` and the `othermod` stubs of `pytests` cover.
+    #[test]
+    fn test_dunder_all_omitted_for_incomplete_module() {
+        let module = Module {
+            incomplete: true,
+            ..populated_module()
+        };
+        let stubs = module_stubs(&module, &["foo"]);
+        assert!(
+            !stubs.contains("__all__"),
+            "an incomplete module must not declare `__all__`:\n{stubs}"
+        );
+        assert!(stubs.contains("def __getattr__(name: str) -> Incomplete: ...\n"));
     }
 
     #[test]
