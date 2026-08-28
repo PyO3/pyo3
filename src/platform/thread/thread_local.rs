@@ -5,7 +5,7 @@ use core::marker::PhantomData;
 use core::ptr::{self, NonNull};
 use core::sync::atomic::{AtomicPtr, AtomicU8, Ordering};
 
-#[cfg(not(any(RustPython, Py_LIMITED_API)))]
+#[cfg(not(Py_LIMITED_API))]
 use pyo3_ffi::Py_tss_NEEDS_INIT;
 
 use crate::ffi::{
@@ -15,10 +15,10 @@ use crate::ffi::{
 use crate::platform::prelude::*;
 
 pub struct LocalKey<T: 'static> {
-    #[cfg(any(RustPython, Py_LIMITED_API))]
+    #[cfg(Py_LIMITED_API)]
     inner: AtomicPtr<crate::ffi::Py_tss_t>,
 
-    #[cfg(not(any(RustPython, Py_LIMITED_API)))]
+    #[cfg(not(Py_LIMITED_API))]
     inner: UnsafeCell<crate::ffi::Py_tss_t>,
 
     state: AtomicU8,
@@ -26,7 +26,7 @@ pub struct LocalKey<T: 'static> {
 }
 
 // SAFETY: the unsafecell is only accessed by python tss functions which are thread safe
-#[cfg(not(any(RustPython, Py_LIMITED_API)))]
+#[cfg(not(Py_LIMITED_API))]
 unsafe impl<T: 'static> Sync for LocalKey<T> {}
 
 const LOCAL_KEY_UNINIT: u8 = 0;
@@ -61,7 +61,7 @@ fn panic_access_error(err: AccessError) -> ! {
 impl<T: 'static> LocalKey<T> {
     pub const unsafe fn new(init: fn() -> T) -> LocalKey<T> {
         cfg_select! {
-            any(RustPython, Py_LIMITED_API) => {
+            Py_LIMITED_API => {
                 LocalKey {
                     inner: AtomicPtr::new(core::ptr::null_mut()),
                     state: AtomicU8::new(LOCAL_KEY_UNALLOCATED),
@@ -107,7 +107,7 @@ impl<T: 'static> LocalKey<T> {
         Ok(f(val))
     }
 
-    #[cfg(any(RustPython, Py_LIMITED_API))]
+    #[cfg(Py_LIMITED_API)]
     fn initialize(&'static self) {
         // SAFETY: no requirements
         let inner = unsafe { PyThread_tss_alloc() };
@@ -130,7 +130,7 @@ impl<T: 'static> LocalKey<T> {
         }
     }
 
-    #[cfg(not(any(RustPython, Py_LIMITED_API)))]
+    #[cfg(not(Py_LIMITED_API))]
     fn initialize(&'static self) {
         // SAFETY: inner is initialized with Py_tss_NEEDS_INIT
         let result = unsafe { PyThread_tss_create(self.inner.get()) };
@@ -142,7 +142,7 @@ impl<T: 'static> LocalKey<T> {
     /// Can only be called if tss is created
     unsafe fn get_val<'a>(&'static self) -> &'a T {
         let inner = cfg_select! {
-            any(RustPython, Py_LIMITED_API) => self.inner.load(Ordering::SeqCst),
+            Py_LIMITED_API => self.inner.load(Ordering::SeqCst),
             _ => self.inner.get(),
         };
         // SAFETY: inner is a valid tss key (upheld by caller)
@@ -167,7 +167,7 @@ impl<T: 'static> Drop for LocalKey<T> {
     fn drop(&mut self) {
         self.state.store(LOCAL_KEY_DESTROYED, Ordering::SeqCst);
         cfg_select! {
-            any(RustPython, Py_LIMITED_API) => {
+            Py_LIMITED_API => {
                 // SAFETY: inner is returned by PyThread_tss_alloc and is not used after this call
                 unsafe { PyThread_tss_free(self.inner.load(Ordering::SeqCst)) };
             },
