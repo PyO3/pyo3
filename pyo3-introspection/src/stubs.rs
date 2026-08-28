@@ -46,7 +46,7 @@ fn add_module_stub_files(
     }
 }
 
-/// Generates the module stubs to a String, not including submodules
+/// Generates the module stubs to a String, re-exporting the submodules but not their content
 fn module_stubs(module: &Module, parents: &[&str]) -> String {
     let imports = Imports::create(module, parents);
     let mut elements = Vec::new();
@@ -372,6 +372,7 @@ impl Imports {
             .map(|c| c.name.clone())
             .chain(module.functions.iter().map(|f| f.name.clone()))
             .chain(module.attributes.iter().map(|a| a.name.clone()))
+            .chain(module.modules.iter().map(|m| m.name.clone()))
         {
             local_name_to_module_and_attribute
                 .insert(name.clone(), (current_module_name.clone(), name.clone()));
@@ -440,6 +441,18 @@ impl Imports {
                 ));
             }
         }
+        // Submodules are attributes of their parent at runtime, so we re-export them.
+        // The redundant alias is what marks a name as a public re-export for type checkers.
+        if module_is_package {
+            let mut submodules = module
+                .modules
+                .iter()
+                .map(|m| format!("{0} as {0}", m.name))
+                .collect::<Vec<_>>();
+            submodules.sort();
+            imports.push(format!("from . import {}", submodules.join(", ")));
+        }
+
         imports.sort(); // We make sure they are sorted
 
         Self { imports, renaming }
@@ -950,6 +963,35 @@ mod tests {
         let mut output = String::new();
         imports.serialize_expr(&big_type, &mut output);
         assert_eq!(output, "dict[A, (A3.C, A3.D, B, A2, int, int2, float)]");
+    }
+
+    /// A submodule is an attribute of its parent at runtime, so the parent stub must re-export it.
+    #[test]
+    fn submodules_are_re_exported_by_their_parent() {
+        let submodule = |name: &str| Module {
+            name: name.into(),
+            modules: Vec::new(),
+            classes: Vec::new(),
+            functions: Vec::new(),
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        let module = Module {
+            name: "foo".into(),
+            modules: vec![submodule("zulu"), submodule("alpha")],
+            classes: Vec::new(),
+            functions: Vec::new(),
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        assert_eq!(
+            module_stubs(&module, &[]),
+            "from . import alpha as alpha, zulu as zulu\n"
+        );
+        // A module without submodules gets no such line.
+        assert_eq!(module_stubs(&submodule("alpha"), &["foo"]), "");
     }
 
     #[test]
