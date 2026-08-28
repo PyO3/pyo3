@@ -27,3 +27,9 @@ pub use std::collections::{HashMap, HashSet};
 compile_error!("Please enable at least one of the following features: hashbrown, std");
 
 pub mod thread;
+
+#[cfg(wip_feature_std)]
+pub use std::thread_local;
+
+#[cfg(not(wip_feature_std))]
+pub use crate::thread_local;
