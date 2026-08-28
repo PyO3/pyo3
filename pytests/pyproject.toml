@@ -19,11 +19,18 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 
-[tool.ruff]
-exclude = ["stubs"]
-
 [tool.ruff.per-file-target-version]
 "tests/test_enums_match.py" = "py310"
+
+# Some ruff lints our auto-generated stub fails
+[tool.ruff.lint.per-file-ignores]
+"stubs/*.pyi" = [
+    "I001",   # unsorted imports
+    "PYI020", # quoted annotations
+    "PYI029", # redundant `__str__` definition
+    "PYI034", # `__new__` returning the class instead of `Self`
+    "UP037",  # quoted annotations
+]
 
 [project.optional-dependencies]
 dev = [
