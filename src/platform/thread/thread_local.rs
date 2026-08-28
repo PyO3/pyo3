@@ -189,3 +189,22 @@ macro_rules! thread_local {
         )+
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::LocalKey;
+
+    use core::cell::Cell;
+
+    #[test]
+    fn create_and_set_thread_local() {
+        crate::thread_local! {
+            static NUM: Cell<u32> = Cell::new(42);
+        };
+
+        assert_eq!(NUM.with(|val| val.get()), 42);
+
+        NUM.with(|val| val.set(18));
+        assert_eq!(NUM.with(|val| val.get()), 18);
+    }
+}
