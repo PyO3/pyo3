@@ -156,3 +156,58 @@ pub const fn escaped_json_string_len(input: &str) -> usize {
     }
     len
 }
+
+#[cfg(test)]
+#[cfg(feature = "macros")]
+mod tests {
+    use super::*;
+    use crate::prelude::*;
+    use crate::PyTypeInfo;
+
+    #[pyclass(crate = "crate", frozen, subclass)]
+    struct Empty;
+
+    #[pyclass(crate = "crate", frozen, subclass)]
+    struct WithField(#[allow(dead_code)] u64);
+
+    #[pyclass(crate = "crate", subclass)]
+    struct Mutable;
+
+    #[pyclass(crate = "crate", extends = Empty, frozen)]
+    struct EmptyChild;
+
+    /// The condition `mypy.stubtest` checks, from the runtime type objects.
+    fn runtime_is_disjoint_base<T: PyTypeInfo>(py: Python<'_>) -> bool {
+        let attr =
+            |obj: &Bound<'_, PyAny>, name| obj.getattr(name).unwrap().extract::<isize>().unwrap();
+        let ty = T::type_object(py).into_any();
+        let base = ty.getattr("__base__").unwrap();
+        attr(&ty, "__basicsize__") != attr(&base, "__basicsize__")
+            || attr(&ty, "__itemsize__") != attr(&base, "__itemsize__")
+    }
+
+    #[test]
+    fn is_disjoint_base_matches_runtime_layout() {
+        Python::attach(|py| {
+            assert_eq!(
+                is_disjoint_base::<Empty>(),
+                runtime_is_disjoint_base::<Empty>(py)
+            );
+            assert_eq!(
+                is_disjoint_base::<WithField>(),
+                runtime_is_disjoint_base::<WithField>(py)
+            );
+            assert_eq!(
+                is_disjoint_base::<Mutable>(),
+                runtime_is_disjoint_base::<Mutable>(py)
+            );
+            assert_eq!(
+                is_disjoint_base::<EmptyChild>(),
+                runtime_is_disjoint_base::<EmptyChild>(py)
+            );
+            // The cases must not all agree by accident.
+            assert!(is_disjoint_base::<WithField>());
+            assert!(!is_disjoint_base::<EmptyChild>());
+        });
+    }
+}
