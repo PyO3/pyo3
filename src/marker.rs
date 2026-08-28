@@ -121,7 +121,7 @@
 //! [`Py`]: Py
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyResult};
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
 use crate::init_config::{InitializeFromConfigError, PyInitConfig};
 use crate::internal::state::{AttachGuard, SuspendAttach};
 use crate::types::any::PyAnyMethods;
@@ -482,7 +482,7 @@ impl Python<'_> {
     ///
     /// # Panic
     /// Panics if the interpreter is already initialized.
-    #[cfg(not(any(PyPy, GraalPy)))]
+    #[cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
     #[inline]
     pub fn initialize_from_init_config(
         config: PyInitConfig,
