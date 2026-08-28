@@ -26,3 +26,9 @@ pub mod collections {
 }
 
 pub mod thread;
+
+#[cfg(wip_feature_std)]
+pub use std::thread_local;
+
+#[cfg(not(wip_feature_std))]
+pub use crate::thread_local;
