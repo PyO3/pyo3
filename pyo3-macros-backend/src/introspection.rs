@@ -78,12 +78,28 @@ pub fn class_introspection_code(
     if let Some(extends) = extends {
         desc.insert("bases", IntrospectionNode::List(vec![extends.into()]));
     }
-    if is_final {
-        desc.insert(
-            "decorators",
-            IntrospectionNode::List(vec![PyExpr::module_attr("typing", "final").into()]),
-        );
-    }
+    desc.insert(
+        "decorators",
+        if is_final {
+            IntrospectionNode::List(vec![PyExpr::module_attr("typing", "final").into()])
+        } else {
+            // Being a disjoint base depends on the instance layout, so the decorator list is
+            // picked by the compiler.
+            let disjoint_base = IntrospectionNode::List(vec![PyExpr::module_attr(
+                "typing_extensions",
+                "disjoint_base",
+            )
+            .into()])
+            .serialize(pyo3_crate_path);
+            IntrospectionNode::Const(quote! {
+                if #pyo3_crate_path::impl_::introspection::is_disjoint_base::<#ident>() {
+                    (#disjoint_base) as &[u8]
+                } else {
+                    "[]".as_bytes()
+                }
+            })
+        },
+    );
     if let Some(parent) = parent {
         desc.insert(
             "parent",
@@ -351,6 +367,8 @@ enum IntrospectionNode<'a> {
     Doc(&'a PythonDoc),
     Map(BTreeMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<AttributedIntrospectionNode<'a>>),
+    /// A const expression evaluating to the serialized node as `&[u8]`
+    Const(TokenStream),
 }
 
 impl IntrospectionNode<'_> {
@@ -361,6 +379,12 @@ impl IntrospectionNode<'_> {
             pyo3_crate_path,
             format_ident!("PYO3_INTROSPECTION_1_{}", unique_element_id()),
         )
+    }
+
+    fn serialize(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
+        let mut content = ConcatenationBuilder::default();
+        self.add_to_serialization(&mut content, pyo3_crate_path);
+        content.into_token_stream(pyo3_crate_path)
     }
 
     fn add_to_serialization(
@@ -445,14 +469,13 @@ impl IntrospectionNode<'_> {
                             .map(|cfg| &cfg.tokens);
                         preceding.push(quote! { all(#(#cfgs),*) });
                         // We serialize the element to easily gate it behind the attributes
-                        let mut nested_builder = ConcatenationBuilder::default();
-                        node.add_to_serialization(&mut nested_builder, pyo3_crate_path);
-                        let nested_content = nested_builder.into_token_stream(pyo3_crate_path);
+                        let nested_content = node.serialize(pyo3_crate_path);
                         content.push_tokens(quote! { #(#attributes)* #nested_content });
                     }
                 }
                 content.push_str("]");
             }
+            Self::Const(tokens) => content.push_tokens(tokens),
         }
     }
 }

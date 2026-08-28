@@ -1,5 +1,7 @@
 use crate::conversion::IntoPyObject;
+use crate::impl_::pyclass::PyClassImpl;
 use crate::inspect::PyStaticExpr;
+use crate::pycell::impl_::PyClassObjectContents;
 
 /// Seals `PyReturnType` so that types outside PyO3 cannot implement it.
 mod return_type {
@@ -45,6 +47,12 @@ where
 
 impl<'py, T: IntoPyObject<'py>> PyIntoPyObjectMaybeRefType<false> for T {
     const OUTPUT_TYPE: PyStaticExpr = <T as IntoPyObject<'_>>::OUTPUT_TYPE;
+}
+
+/// Whether `T` adds data to the instance layout of its base class, making it a
+/// [disjoint base](https://peps.python.org/pep-0800/) at runtime.
+pub const fn is_disjoint_base<T: PyClassImpl>() -> bool {
+    core::mem::size_of::<PyClassObjectContents<T>>() > 0
 }
 
 #[repr(C)]

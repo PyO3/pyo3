@@ -1,7 +1,9 @@
 from .awaitable import IterAwaitable
 from _typeshed import Incomplete
 from typing import Final, final
+from typing_extensions import disjoint_base
 
+@disjoint_base
 class AssertingBaseClass:
     """
     Demonstrates a base class which can operate on the relevant subclass in its constructor.
