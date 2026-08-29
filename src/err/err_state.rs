@@ -415,6 +415,13 @@ mod tests {
         exceptions::PyValueError, sync::PyOnceLock, Py, PyAny, PyErr, PyErrArguments, Python,
     };
 
+    // import a few things from std without leaking any imports
+    #[cfg(not(target_arch = "wasm32"))]
+    mod thread {
+        extern crate std;
+        pub use std::thread::{sleep, spawn};
+    }
+
     #[test]
     #[should_panic(expected = "Re-entrant normalization of PyErrState detected")]
     fn test_reentrant_normalization() {
@@ -451,7 +458,7 @@ mod tests {
                 // releasing the GIL potentially allows for other threads to deadlock
                 // with the normalization going on here
                 py.detach(|| {
-                    std::thread::sleep(core::time::Duration::from_millis(10));
+                    thread::sleep(core::time::Duration::from_millis(10));
                 });
                 py.None()
             }
@@ -462,7 +469,7 @@ mod tests {
         // Let many threads attempt to read the normalized value at the same time
         let handles = (0..10)
             .map(|_| {
-                std::thread::spawn(|| {
+                thread::spawn(|| {
                     Python::attach(|py| {
                         ERR.get(py).expect("is set just above").value(py);
                     });
