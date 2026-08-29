@@ -365,7 +365,6 @@ pub(crate) const PYLONG_BITS_IN_DIGIT: usize = 30;
 pub(crate) fn is_30bit_layout(py: Python<'_>) -> bool {
     use crate::sync::PyOnceLock;
 
-    // static DIGITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     static DIGITS: PyOnceLock<bool> = PyOnceLock::new();
 
     const PYLONG_DIGIT_SIZE: u8 = 4;
