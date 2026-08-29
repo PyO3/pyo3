@@ -83,6 +83,7 @@ impl<T: 'static> LocalKey<T> {
     }
 
     #[inline]
+    #[track_caller]
     pub fn try_with<F, R>(&'static self, f: F) -> Result<R, AccessError>
     where
         F: FnOnce(&T) -> R,
@@ -99,6 +100,7 @@ impl<T: 'static> LocalKey<T> {
     }
 
     #[cfg(Py_LIMITED_API)]
+    #[track_caller]
     fn initialize(&'static self) {
         // SAFETY: no requirements
         let inner = unsafe { PyThread_tss_alloc() };
@@ -122,6 +124,7 @@ impl<T: 'static> LocalKey<T> {
     }
 
     #[cfg(not(Py_LIMITED_API))]
+    #[track_caller]
     fn initialize(&'static self) {
         // SAFETY: inner is initialized with Py_tss_NEEDS_INIT
         let result = unsafe { PyThread_tss_create(self.inner.get()) };
@@ -131,6 +134,7 @@ impl<T: 'static> LocalKey<T> {
 
     /// # Safety
     /// Can only be called if tss is created
+    #[track_caller]
     unsafe fn get_val<'a>(&'static self) -> &'a T {
         let inner = cfg_select! {
             Py_LIMITED_API => self.inner.load(Ordering::SeqCst),
