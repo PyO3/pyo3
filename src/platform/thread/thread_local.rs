@@ -30,8 +30,9 @@ pub struct LocalKey<T: 'static> {
 unsafe impl<T: 'static> Sync for LocalKey<T> {}
 
 const LOCAL_KEY_UNINIT: u8 = 0;
-const LOCAL_KEY_CREATED: u8 = 1;
-const LOCAL_KEY_DESTROYED: u8 = 2;
+const LOCAL_KEY_INITIALIZING: u8 = 1;
+const LOCAL_KEY_CREATED: u8 = 2;
+const LOCAL_KEY_DESTROYED: u8 = 3;
 
 impl<T: 'static> Debug for LocalKey<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -89,7 +90,25 @@ impl<T: 'static> LocalKey<T> {
         F: FnOnce(&T) -> R,
     {
         match self.state.load(Ordering::SeqCst) {
-            LOCAL_KEY_UNINIT => self.initialize(),
+            LOCAL_KEY_UNINIT => {
+                if self
+                    .state
+                    .compare_exchange(
+                        LOCAL_KEY_UNINIT,
+                        LOCAL_KEY_INITIALIZING,
+                        Ordering::SeqCst,
+                        Ordering::SeqCst,
+                    )
+                    .is_ok()
+                {
+                    self.initialize();
+                }
+            }
+            LOCAL_KEY_INITIALIZING => {
+                while self.state.load(Ordering::SeqCst) == LOCAL_KEY_INITIALIZING {
+                    core::hint::spin_loop();
+                }
+            }
             LOCAL_KEY_CREATED => (),
             LOCAL_KEY_DESTROYED => return Err(AccessError),
             _ => unreachable!(),
@@ -109,18 +128,8 @@ impl<T: 'static> LocalKey<T> {
         let result = unsafe { PyThread_tss_create(inner.as_ptr()) };
         assert_eq!(result, 0, "failed to created thread specific storage");
 
-        match self.inner.compare_exchange(
-            ptr::null_mut(),
-            inner.as_ptr(),
-            Ordering::SeqCst,
-            Ordering::SeqCst,
-        ) {
-            Ok(_) => self.state.store(LOCAL_KEY_CREATED, Ordering::SeqCst),
-            Err(redundant_tss) => {
-                // SAFETY: inner is returned by PyThread_tss_alloc and is not used after this call
-                unsafe { PyThread_tss_free(redundant_tss) };
-            }
-        }
+        self.inner.store(inner.as_ptr(), Ordering::SeqCst);
+        self.state.store(LOCAL_KEY_CREATED, Ordering::SeqCst);
     }
 
     #[cfg(not(Py_LIMITED_API))]
