@@ -651,6 +651,7 @@ All the same rules from above apply as well.
   #[derive(Clone)]
   struct NotIntoPy(usize);
 
+  # #[cfg(wip_feature_std)]
   #[derive(IntoPyObject, IntoPyObjectRef)]
   struct MyStruct {
       #[pyo3(into_py_with = convert)]
