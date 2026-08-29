@@ -416,6 +416,7 @@ mod tests {
     };
 
     // import a few things from std without leaking any imports
+    #[cfg(not(target_arch = "wasm32"))]
     mod thread {
         extern crate std;
         pub use std::thread::{sleep, spawn};
