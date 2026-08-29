@@ -1,9 +1,6 @@
 use core::ffi::c_ulong;
 use core::num::NonZero;
 
-#[cfg(all(PyPy, not(wip_feature_std)))]
-compile_error!("Thread ID is not available for PyPy with no_std");
-
 #[cfg(not(wip_feature_std))]
 use pyo3_ffi::PyThread_get_thread_ident;
 

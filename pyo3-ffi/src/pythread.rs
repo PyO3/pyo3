@@ -1,6 +1,4 @@
-#[cfg(not(PyPy))]
-use core::ffi::c_ulong;
-use core::ffi::{c_int, c_void};
+use core::ffi::{c_int, c_ulong, c_void};
 
 // skipped PyThread_type_lock
 // skipped PyLockStatus
@@ -9,7 +7,7 @@ use core::ffi::{c_int, c_void};
 // skipped PyThread_exit_thread
 
 extern_libpython! {
-    #[cfg(not(PyPy))]
+    #[cfg_attr(PyPy, link_name = "PyPyThread_get_thread_ident")]
     pub fn PyThread_get_thread_ident() -> c_ulong;
 }
 
