@@ -1,9 +1,11 @@
 use crate::platform::prelude::*;
 use crate::{err::PyErrArguments, exceptions, types, PyErr, Python};
 use crate::{IntoPyObject, Py, PyAny};
+#[cfg(wip_feature_std)]
 use std::io;
 
 /// Convert `PyErr` to `io::Error`
+#[cfg(wip_feature_std)]
 impl From<PyErr> for io::Error {
     fn from(err: PyErr) -> Self {
         let kind = Python::attach(|py| {
@@ -44,6 +46,7 @@ impl From<PyErr> for io::Error {
 /// Create `PyErr` from `io::Error`
 /// (`OSError` except if the `io::Error` is wrapping a Python exception,
 /// in this case the exception is returned)
+#[cfg(wip_feature_std)]
 impl From<io::Error> for PyErr {
     fn from(err: io::Error) -> PyErr {
         // If the error wraps a Python error we return it
@@ -69,6 +72,7 @@ impl From<io::Error> for PyErr {
     }
 }
 
+#[cfg(wip_feature_std)]
 impl PyErrArguments for io::Error {
     fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         //FIXME(icxolu) remove unwrap
@@ -80,12 +84,14 @@ impl PyErrArguments for io::Error {
     }
 }
 
+#[cfg(wip_feature_std)]
 impl<W> From<io::IntoInnerError<W>> for PyErr {
     fn from(err: io::IntoInnerError<W>) -> PyErr {
         err.into_error().into()
     }
 }
 
+#[cfg(wip_feature_std)]
 impl<W: Send + Sync> PyErrArguments for io::IntoInnerError<W> {
     fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         self.into_error().arguments(py)
@@ -184,8 +190,11 @@ impl_to_pyerr!(core::str::ParseBoolError, exceptions::PyValueError);
 impl_to_pyerr!(alloc::ffi::NulError, exceptions::PyValueError);
 impl_to_pyerr!(core::net::AddrParseError, exceptions::PyValueError);
 impl_to_pyerr!(core::time::TryFromFloatSecsError, exceptions::PyValueError);
+#[cfg(wip_feature_std)]
 impl_to_pyerr!(std::time::SystemTimeError, exceptions::PyValueError);
+#[cfg(wip_feature_std)]
 impl_to_pyerr!(std::path::StripPrefixError, exceptions::PyValueError);
+#[cfg(wip_feature_std)]
 impl_to_pyerr!(std::env::JoinPathsError, exceptions::PyValueError);
 impl_to_pyerr!(core::char::ParseCharError, exceptions::PyValueError);
 impl_to_pyerr!(core::char::CharTryFromError, exceptions::PyValueError);
@@ -197,9 +206,11 @@ mod tests {
     use crate::exceptions::PyUnicodeDecodeError;
     use crate::types::PyAnyMethods;
     use crate::{IntoPyObjectExt as _, PyErr, Python};
+    #[cfg(wip_feature_std)]
     use std::io;
 
     #[test]
+    #[cfg(wip_feature_std)]
     fn io_errors() {
         use crate::types::any::PyAnyMethods;
 
@@ -317,23 +328,35 @@ mod tests {
             check_err(float_secs_err.into(), &expected);
 
             // SystemTimeError
-            let sys_time_err = std::time::SystemTime::now()
-                .duration_since(std::time::SystemTime::now() + core::time::Duration::from_secs(1))
-                .unwrap_err();
-            let expected = sys_time_err.to_string();
-            check_err(sys_time_err.into(), &expected);
+            #[cfg(wip_feature_std)]
+            {
+                let sys_time_err = std::time::SystemTime::now()
+                    .duration_since(
+                        std::time::SystemTime::now() + core::time::Duration::from_secs(1),
+                    )
+                    .unwrap_err();
+                let expected = sys_time_err.to_string();
+                check_err(sys_time_err.into(), &expected);
+            }
 
             // StripPrefixError
-            let strip_prefix_err = std::path::Path::new("/a/b/c")
-                .strip_prefix("/x/y/z")
-                .unwrap_err();
-            let expected = strip_prefix_err.to_string();
-            check_err(strip_prefix_err.into(), &expected);
+            #[cfg(wip_feature_std)]
+            {
+                let strip_prefix_err = std::path::Path::new("/a/b/c")
+                    .strip_prefix("/x/y/z")
+                    .unwrap_err();
+                let expected = strip_prefix_err.to_string();
+                check_err(strip_prefix_err.into(), &expected);
+            }
 
             // JoinPathsError
-            let join_paths_err = std::env::join_paths(["a:b", "a;b", "a\"b"].iter()).unwrap_err();
-            let expected = join_paths_err.to_string();
-            check_err(join_paths_err.into(), &expected);
+            #[cfg(wip_feature_std)]
+            {
+                let join_paths_err =
+                    std::env::join_paths(["a:b", "a;b", "a\"b"].iter()).unwrap_err();
+                let expected = join_paths_err.to_string();
+                check_err(join_paths_err.into(), &expected);
+            }
 
             // ParseCharError
             let parse_char_err = "abc".parse::<char>().unwrap_err();
