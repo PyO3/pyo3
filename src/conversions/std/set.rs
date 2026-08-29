@@ -1,6 +1,8 @@
 use alloc::vec::Vec;
-use core::{cmp, hash};
-use std::collections;
+
+use core::cmp;
+#[cfg(wip_feature_std)]
+use core::hash;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
@@ -14,7 +16,8 @@ use crate::{
     Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
 };
 
-impl<'py, K, S> IntoPyObject<'py> for collections::HashSet<K, S>
+#[cfg(wip_feature_std)]
+impl<'py, K, S> IntoPyObject<'py> for std::collections::HashSet<K, S>
 where
     K: IntoPyObject<'py> + Eq + hash::Hash,
     S: hash::BuildHasher + Default,
@@ -31,7 +34,8 @@ where
     }
 }
 
-impl<'a, 'py, K, H> IntoPyObject<'py> for &'a collections::HashSet<K, H>
+#[cfg(wip_feature_std)]
+impl<'a, 'py, K, H> IntoPyObject<'py> for &'a std::collections::HashSet<K, H>
 where
     &'a K: IntoPyObject<'py> + Eq + hash::Hash,
     H: hash::BuildHasher,
@@ -47,7 +51,8 @@ where
     }
 }
 
-impl<'py, K, S> FromPyObject<'_, 'py> for collections::HashSet<K, S>
+#[cfg(wip_feature_std)]
+impl<'py, K, S> FromPyObject<'_, 'py> for std::collections::HashSet<K, S>
 where
     K: FromPyObjectOwned<'py> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
@@ -81,7 +86,7 @@ where
     }
 }
 
-impl<'py, K> IntoPyObject<'py> for collections::BTreeSet<K>
+impl<'py, K> IntoPyObject<'py> for alloc::collections::BTreeSet<K>
 where
     K: IntoPyObject<'py> + cmp::Ord,
 {
@@ -97,7 +102,7 @@ where
     }
 }
 
-impl<'a, 'py, K> IntoPyObject<'py> for &'a collections::BTreeSet<K>
+impl<'a, 'py, K> IntoPyObject<'py> for &'a alloc::collections::BTreeSet<K>
 where
     &'a K: IntoPyObject<'py> + cmp::Ord,
     K: 'a,
@@ -114,7 +119,7 @@ where
     }
 }
 
-impl<'py, K> FromPyObject<'_, 'py> for collections::BTreeSet<K>
+impl<'py, K> FromPyObject<'_, 'py> for alloc::collections::BTreeSet<K>
 where
     K: FromPyObjectOwned<'py> + cmp::Ord,
 {
@@ -152,9 +157,11 @@ mod tests {
     use crate::types::{any::PyAnyMethods, PyFrozenSet, PySet};
     use crate::{IntoPyObject, Python};
     use alloc::collections::BTreeSet;
+    #[cfg(wip_feature_std)]
     use std::collections::HashSet;
 
     #[test]
+    #[cfg(wip_feature_std)]
     fn test_extract_hashset() {
         Python::attach(|py| {
             let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
@@ -184,12 +191,15 @@ mod tests {
     fn test_set_into_pyobject() {
         Python::attach(|py| {
             let bt: BTreeSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
+            #[cfg(wip_feature_std)]
             let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
 
             let bto = (&bt).into_pyobject(py).unwrap();
+            #[cfg(wip_feature_std)]
             let hso = (&hs).into_pyobject(py).unwrap();
 
             assert_eq!(bt, bto.extract().unwrap());
+            #[cfg(wip_feature_std)]
             assert_eq!(hs, hso.extract().unwrap());
         });
     }
