@@ -331,6 +331,13 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyFrozenSet_Check", "not(PyPy)"),
     ("PyFrozenSet_CheckExact", "not(PyPy)"),
     ("PyFunction_Check", "not(PyPy)"),
+    ("PyFunction_GET_CODE", "all(not(PyPy), not(GraalPy))"),
+    ("PyFunction_GET_GLOBALS", "all(not(PyPy), not(GraalPy))"),
+    ("PyFunction_GET_MODULE", "all(not(PyPy), not(GraalPy))"),
+    ("PyFunction_GET_DEFAULTS", "all(not(PyPy), not(GraalPy))"),
+    ("PyFunction_GET_KW_DEFAULTS", "all(not(PyPy), not(GraalPy))"),
+    ("PyFunction_GET_CLOSURE", "all(not(PyPy), not(GraalPy))"),
+    ("PyFunction_GET_ANNOTATIONS", "all(not(PyPy), not(GraalPy))"),
     ("PyGen_Check", "not(PyPy)"),
     ("PyGen_CheckExact", "not(PyPy)"),
     ("PyHeapType_GET_MEMBERS", "not(Py_3_11)"),
@@ -451,6 +458,7 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     // These functions were only added in 3.10, but pyo3-ffi defines them for
     // all versions. Technically not macros but the machinery happens to work
     // the same way.
+    ("_PyFunction_CAST", "all(not(PyPy), not(GraalPy))"),
     ("Py_Is", "not(Py_3_10)"),
     ("Py_IsFalse", "not(Py_3_10)"),
     ("Py_IsTrue", "not(Py_3_10)"),
