@@ -10,6 +10,7 @@ use crate::{dictobject::PyDict_Check, PyDict_CheckExact};
 
 #[cfg(all(not(PyPy), Py_3_13))]
 use core::ffi::c_char;
+#[cfg(Py_3_12)]
 use core::ffi::c_int;
 
 #[cfg(not(PyPy))]
