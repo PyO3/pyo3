@@ -17,6 +17,7 @@ extern_libpython! {
     pub fn PyErr_Display(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject);
 
     #[cfg(Py_3_12)]
+    #[cfg_attr(PyPy, link_name = "PyPyErr_DisplayException")]
     pub fn PyErr_DisplayException(exc: *mut PyObject);
 }
 
