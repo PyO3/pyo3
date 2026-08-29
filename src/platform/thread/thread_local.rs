@@ -89,29 +89,31 @@ impl<T: 'static> LocalKey<T> {
     where
         F: FnOnce(&T) -> R,
     {
-        match self.state.load(Ordering::SeqCst) {
-            LOCAL_KEY_UNINIT => {
-                if self
-                    .state
-                    .compare_exchange(
-                        LOCAL_KEY_UNINIT,
-                        LOCAL_KEY_INITIALIZING,
-                        Ordering::SeqCst,
-                        Ordering::SeqCst,
-                    )
-                    .is_ok()
-                {
-                    self.initialize();
+        loop {
+            match self.state.load(Ordering::SeqCst) {
+                LOCAL_KEY_UNINIT => {
+                    if self
+                        .state
+                        .compare_exchange(
+                            LOCAL_KEY_UNINIT,
+                            LOCAL_KEY_INITIALIZING,
+                            Ordering::SeqCst,
+                            Ordering::SeqCst,
+                        )
+                        .is_ok()
+                    {
+                        self.initialize();
+                    }
                 }
-            }
-            LOCAL_KEY_INITIALIZING => {
-                while self.state.load(Ordering::SeqCst) == LOCAL_KEY_INITIALIZING {
-                    core::hint::spin_loop();
+                LOCAL_KEY_INITIALIZING => {
+                    while self.state.load(Ordering::SeqCst) == LOCAL_KEY_INITIALIZING {
+                        core::hint::spin_loop();
+                    }
                 }
+                LOCAL_KEY_CREATED => break,
+                LOCAL_KEY_DESTROYED => return Err(AccessError),
+                _ => unreachable!(),
             }
-            LOCAL_KEY_CREATED => (),
-            LOCAL_KEY_DESTROYED => return Err(AccessError),
-            _ => unreachable!(),
         }
         // SAFETY: the match statement above ensures we only reach this point if tss is created
         let val = unsafe { self.get_val() };
