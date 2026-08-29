@@ -436,6 +436,7 @@ pub mod marker;
 pub mod marshal;
 #[macro_use]
 pub mod sync;
+#[cfg(wip_feature_std)]
 pub mod panic;
 pub mod pybacked;
 pub mod pycell;

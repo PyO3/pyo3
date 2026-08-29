@@ -5,13 +5,21 @@
 //! They exist to monomorphise std::panic::catch_unwind once into PyO3, rather than inline in every
 //! function, thus saving a huge amount of compile-time complexity.
 
-use core::{any::Any, ffi::c_int, panic::UnwindSafe};
+#[cfg(wip_feature_std)]
+use core::any::Any;
+use core::{ffi::c_int, panic::UnwindSafe};
 
 use crate::internal::state::AttachGuard;
+#[cfg(wip_feature_std)]
+use crate::panic::PanicException;
+#[allow(
+    unused_imports,
+    reason = "conditional compilation use item from prelude"
+)]
 use crate::platform::prelude::*;
 use crate::{
     ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput, impl_::panic::PanicTrap,
-    panic::PanicException, types::PyModule, Bound, PyResult, Python,
+    types::PyModule, Bound, PyResult, Python,
 };
 
 #[inline]
@@ -301,16 +309,20 @@ where
     // SAFETY: This function requires the thread to already be attached.
     let guard = unsafe { AttachGuard::assume() };
     let py = guard.python();
-    let out = panic_result_into_callback_output(
-        py,
-        std::panic::catch_unwind(move || -> PyResult<_> { body(py) }),
-    );
+    let out = cfg_select! {
+        wip_feature_std => panic_result_into_callback_output(
+            py,
+            std::panic::catch_unwind(move || -> PyResult<_> { body(py) }),
+        ),
+        _ => result_into_callback_output(py, body(py)),
+    };
     trap.disarm();
     out
 }
 
 /// Converts the output of std::panic::catch_unwind into a Python function output, either by raising a Python
 /// exception or by unwrapping the contained success output.
+#[cfg(wip_feature_std)]
 #[inline]
 fn panic_result_into_callback_output<R>(
     py: Python<'_>,
@@ -320,9 +332,21 @@ where
     R: PyCallbackOutput,
 {
     let py_err = match panic_result {
-        Ok(Ok(value)) => return value,
-        Ok(Err(py_err)) => py_err,
+        Ok(result) => return result_into_callback_output(py, result),
         Err(payload) => PanicException::from_panic_payload(payload),
+    };
+    py_err.restore(py);
+    R::ERR_VALUE
+}
+
+#[inline]
+fn result_into_callback_output<R>(py: Python<'_>, result: PyResult<R>) -> R
+where
+    R: PyCallbackOutput,
+{
+    let py_err = match result {
+        Ok(value) => return value,
+        Err(py_err) => py_err,
     };
     py_err.restore(py);
     R::ERR_VALUE
@@ -350,9 +374,14 @@ where
     let guard = unsafe { AttachGuard::assume() };
     let py = guard.python();
 
-    if let Err(py_err) = std::panic::catch_unwind(move || body(py))
-        .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
-    {
+    let result = cfg_select! {
+        wip_feature_std => std::panic::catch_unwind(move || body(py))
+            .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload))),
+
+        _ => body(py),
+    };
+
+    if let Err(py_err) = result {
         // SAFETY: caller upholds requirements
         py_err.write_unraisable(py, unsafe { ctx.assume_borrowed_or_opt(py) }.as_deref());
     }
