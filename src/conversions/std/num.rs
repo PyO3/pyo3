@@ -482,40 +482,43 @@ pub(crate) fn pylong_visit_digits<R>(
     f(negative, 0, Some(digits))
 }
 
-struct U128DigitIterator {
-    inner: u128,
-}
-
-impl Iterator for U128DigitIterator {
-    type Item = u32;
-
-    fn next(&mut self) -> Option<u32> {
-        const DIGIT_MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
-
-        if self.inner == 0 {
-            return None;
-        }
-        let digit = (self.inner as u32) & DIGIT_MASK;
-        self.inner >>= PYLONG_BITS_IN_DIGIT;
-        Some(digit)
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let digit_count = self.len();
-        (digit_count, Some(digit_count))
-    }
-}
-
-impl ExactSizeIterator for U128DigitIterator {
-    fn len(&self) -> usize {
-        let bit_count = u128::BITS - self.inner.leading_zeros();
-        (bit_count as usize).div_ceil(PYLONG_BITS_IN_DIGIT)
-    }
-}
-
 #[cfg(any(not(Py_LIMITED_API), Py_3_15))]
 mod fast_128bit_int_conversion {
     use super::*;
+
+    #[cfg(Py_3_14)]
+    struct U128DigitIterator {
+        inner: u128,
+    }
+
+    #[cfg(Py_3_14)]
+    impl Iterator for U128DigitIterator {
+        type Item = u32;
+
+        fn next(&mut self) -> Option<u32> {
+            const DIGIT_MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
+
+            if self.inner == 0 {
+                return None;
+            }
+            let digit = (self.inner as u32) & DIGIT_MASK;
+            self.inner >>= PYLONG_BITS_IN_DIGIT;
+            Some(digit)
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let digit_count = self.len();
+            (digit_count, Some(digit_count))
+        }
+    }
+
+    #[cfg(Py_3_14)]
+    impl ExactSizeIterator for U128DigitIterator {
+        fn len(&self) -> usize {
+            let bit_count = u128::BITS - self.inner.leading_zeros();
+            (bit_count as usize).div_ceil(PYLONG_BITS_IN_DIGIT)
+        }
+    }
 
     // for 128bit Integers
     macro_rules! int_convert_128 {
