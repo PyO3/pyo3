@@ -5,8 +5,9 @@ use crate::platform::prelude::*;
 #[cfg(not(Py_3_12))]
 use crate::platform::sync::non_poison::Mutex;
 use crate::platform::sync::Once;
+use crate::platform::thread::{self, ThreadId};
+
 use core::cell::{Cell, UnsafeCell};
-use std::thread::ThreadId;
 
 #[cfg(not(Py_3_12))]
 use crate::sync::MutexExt;
@@ -99,7 +100,7 @@ impl PyErrState {
         if let Some(thread) = self.normalizing_thread.get() {
             assert_ne!(
                 thread,
-                std::thread::current().id(),
+                thread::current().id(),
                 "Re-entrant normalization of PyErrState detected"
             );
         }
@@ -107,8 +108,7 @@ impl PyErrState {
         // avoid deadlock of `.call_once` with the GIL
         py.detach(|| {
             self.normalized.call_once(|| {
-                self.normalizing_thread
-                    .set(Some(std::thread::current().id()));
+                self.normalizing_thread.set(Some(thread::current().id()));
 
                 // Safety: no other thread can access the inner value while we are normalizing it.
                 let state = unsafe {
@@ -411,6 +411,13 @@ mod tests {
         exceptions::PyValueError, sync::PyOnceLock, Py, PyAny, PyErr, PyErrArguments, Python,
     };
 
+    // import a few things from std without leaking any imports
+    #[cfg(not(target_arch = "wasm32"))]
+    mod thread {
+        extern crate std;
+        pub use std::thread::{sleep, spawn};
+    }
+
     #[test]
     #[should_panic(expected = "Re-entrant normalization of PyErrState detected")]
     fn test_reentrant_normalization() {
@@ -447,7 +454,7 @@ mod tests {
                 // releasing the GIL potentially allows for other threads to deadlock
                 // with the normalization going on here
                 py.detach(|| {
-                    std::thread::sleep(core::time::Duration::from_millis(10));
+                    thread::sleep(core::time::Duration::from_millis(10));
                 });
                 py.None()
             }
@@ -458,7 +465,7 @@ mod tests {
         // Let many threads attempt to read the normalized value at the same time
         let handles = (0..10)
             .map(|_| {
-                std::thread::spawn(|| {
+                thread::spawn(|| {
                     Python::attach(|py| {
                         ERR.get(py).expect("is set just above").value(py);
                     });

@@ -5,3 +5,7 @@ reason = "use crate::platform::sync::non_poison::Mutex for `no_std` compatibilit
 [[disallowed-types]]
 path = "std::sync::Once"
 reason = "use crate::platform::sync::Once for no_std compatibility"
+
+[[disallowed-types]]
+path = "std::thread::ThreadId"
+reason = "Use crate::platform::ThreadId for `no_std` compatibility"

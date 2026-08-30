@@ -3,6 +3,7 @@
 
 #[allow(unused_imports, reason = "conditionally used")]
 use crate::platform::prelude::*;
+use crate::platform::thread;
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
@@ -28,7 +29,6 @@ use core::{
     marker::PhantomData,
     ptr::{self, NonNull},
 };
-use std::thread;
 
 mod assertions;
 pub mod doc;
