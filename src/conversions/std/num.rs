@@ -400,6 +400,35 @@ pub(crate) fn pylong_from_digits<I: ExactSizeIterator<Item = u32>>(
     digits: I,
 ) -> Bound<'_, PyInt> {
     let digits_len = digits.len();
+
+    if digits_len == 0 {
+        // Return the constant 0 as a fast path
+        return unsafe {
+            ffi::Py_GetConstant(ffi::Py_CONSTANT_ZERO)
+                .assume_owned(py)
+                .cast_into_unchecked()
+        };
+    } else if digits_len == 1 {
+        // Using the direct constructors for small integers
+        // is lower overhead than the writer API; the writer output
+        // is likely to be dropped for an immoratal value anyway.
+        let digit = digits.into_iter().next().unwrap();
+        if negative {
+            return unsafe {
+                // NB digit has at most 30 bits so this can't overflow i32
+                ffi::PyLong_FromInt32(-(digit as i32))
+                    .assume_owned(py)
+                    .cast_into_unchecked()
+            };
+        } else {
+            return unsafe {
+                ffi::PyLong_FromUInt32(digit)
+                    .assume_owned(py)
+                    .cast_into_unchecked()
+            };
+        }
+    }
+
     let mut ptr = core::ptr::null_mut();
     let writer = unsafe {
         ffi::PyLongWriter_Create(negative.into(), digits_len as ffi::Py_ssize_t, &mut ptr)
@@ -450,6 +479,37 @@ pub(crate) fn pylong_visit_digits<R>(
     f(negative, 0, Some(digits))
 }
 
+struct U128DigitIterator {
+    inner: u128,
+}
+
+impl Iterator for U128DigitIterator {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<u32> {
+        const DIGIT_MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
+
+        if self.inner == 0 {
+            return None;
+        }
+        let digit = (self.inner as u32) & DIGIT_MASK;
+        self.inner >>= PYLONG_BITS_IN_DIGIT;
+        Some(digit)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let digit_count = self.len();
+        (digit_count, Some(digit_count))
+    }
+}
+
+impl ExactSizeIterator for U128DigitIterator {
+    fn len(&self) -> usize {
+        let bit_count = u128::BITS - self.inner.leading_zeros();
+        (bit_count as usize).div_ceil(PYLONG_BITS_IN_DIGIT)
+    }
+}
+
 #[cfg(any(not(Py_LIMITED_API), Py_3_15))]
 mod fast_128bit_int_conversion {
     use super::*;
@@ -469,7 +529,6 @@ mod fast_128bit_int_conversion {
                     #[cfg(Py_3_14)]
                     {
                         if is_30bit_layout() {
-                            const DIGIT_MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
                             let signed = self as i128;
                             let negative = $is_signed && signed < 0;
                             let abs = if negative {
@@ -478,22 +537,11 @@ mod fast_128bit_int_conversion {
                                 self as u128
                             };
 
-                            let digits_len = if abs >> 30 == 0 {
-                                1
-                            } else if abs >> 60 == 0 {
-                                2
-                            } else if abs >> 90 == 0 {
-                                3
-                            } else if abs >> 120 == 0 {
-                                4
-                            } else {
-                                5
-                            };
-
-                            let digits = (0..digits_len)
-                                .map(|i| (abs >> (i * PYLONG_BITS_IN_DIGIT)) as u32 & DIGIT_MASK);
-
-                            return Ok(pylong_from_digits(py, negative, digits));
+                            return Ok(pylong_from_digits(
+                                py,
+                                negative,
+                                U128DigitIterator { inner: abs },
+                            ));
                         }
                     }
 
