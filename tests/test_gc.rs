@@ -1,18 +1,25 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "macros")]
+#![cfg_attr(
+    wip_feature_std,
+    expect(clippy::disallowed_types, reason = "mutex and once used for std tests")
+)]
 
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
-#[cfg(not(Py_GIL_DISABLED))]
+#[cfg(all(wip_feature_std, not(Py_GIL_DISABLED)))]
 use pyo3::py_run;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
-use std::sync::Once;
-use std::sync::{Arc, Mutex};
+#[cfg(wip_feature_std)]
+use std::sync::Arc;
+#[cfg(wip_feature_std)]
+use std::sync::{Mutex, Once};
 
 mod test_utils;
 
@@ -70,20 +77,26 @@ fn multithreaded_class_with_freelist() {
 /// Helper function to create a pair of objects that can be used to test drops;
 /// the first object is a guard that records when it has been dropped, the second
 /// object is a check that can be used to assert that the guard has been dropped.
+#[cfg(wip_feature_std)]
 fn drop_check() -> (DropGuard, DropCheck) {
     let flag = Arc::new(Once::new());
     (DropGuard(flag.clone()), DropCheck(flag))
 }
 
-/// Helper structure that records when it has been dropped in the cor
+/// Helper structure that records when it has been dropped
+#[pyclass]
+#[cfg(wip_feature_std)]
 struct DropGuard(Arc<Once>);
+#[cfg(wip_feature_std)]
 impl Drop for DropGuard {
     fn drop(&mut self) {
         self.0.call_once(|| ());
     }
 }
 
+#[cfg(wip_feature_std)]
 struct DropCheck(Arc<Once>);
+#[cfg(wip_feature_std)]
 impl DropCheck {
     #[track_caller]
     fn assert_not_dropped(&self) {
@@ -123,6 +136,7 @@ impl DropCheck {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn data_is_dropped() {
     #[pyclass]
     struct DataIsDropped {
@@ -148,12 +162,14 @@ fn data_is_dropped() {
     check2.assert_dropped();
 }
 
+#[cfg(wip_feature_std)]
 #[pyclass(subclass)]
 struct CycleWithClear {
     cycle: Option<Py<PyAny>>,
     _guard: DropGuard,
 }
 
+#[cfg(wip_feature_std)]
 #[pymethods]
 impl CycleWithClear {
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
@@ -166,6 +182,7 @@ impl CycleWithClear {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn test_cycle_clear() {
     let (guard, check) = drop_check();
 
@@ -233,6 +250,7 @@ fn gc_null_traversal() {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn inheritance_with_new_methods_with_drop() {
     #[pyclass(subclass)]
     struct BaseClassWithDrop {
@@ -488,12 +506,14 @@ fn traverse_cannot_be_hijacked() {
     })
 }
 
+#[cfg(wip_feature_std)]
 #[pyclass]
 struct DropDuringTraversal {
     cycle: Mutex<Option<Py<Self>>>,
     _guard: DropGuard,
 }
 
+#[cfg(wip_feature_std)]
 #[pymethods]
 impl DropDuringTraversal {
     #[expect(clippy::unnecessary_wraps)]
@@ -505,6 +525,7 @@ impl DropDuringTraversal {
 }
 
 #[cfg(not(pyo3_disable_reference_pool))]
+#[cfg(wip_feature_std)]
 #[test]
 fn drop_during_traversal_with_gil() {
     let (guard, check) = drop_check();
@@ -539,6 +560,7 @@ fn drop_during_traversal_with_gil() {
 }
 
 #[cfg(not(pyo3_disable_reference_pool))]
+#[cfg(wip_feature_std)]
 #[test]
 fn drop_during_traversal_without_gil() {
     let (guard, check) = drop_check();
@@ -627,6 +649,7 @@ fn unsendable_are_not_traversed_on_foreign_thread() {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn test_traverse_subclass() {
     #[pyclass(extends = CycleWithClear)]
     struct SubOverrideTraverse {}
@@ -668,6 +691,7 @@ fn test_traverse_subclass() {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn test_traverse_subclass_override_clear() {
     #[pyclass(extends = CycleWithClear)]
     struct SubOverrideClear {}
@@ -736,6 +760,18 @@ extern "C" fn visit_error(
     -1
 }
 
+#[derive(Default)]
+struct VisitCounter(HashMap<*mut ffi::PyObject, usize>);
+
+extern "C" fn count_visits(
+    object: *mut ffi::PyObject,
+    arg: *mut core::ffi::c_void,
+) -> std::ffi::c_int {
+    let counter = unsafe { &mut *arg.cast::<VisitCounter>() };
+    *counter.0.entry(object).or_default() += 1;
+    0
+}
+
 // the fields visited below, set before driving the traversal
 static BASE_FIELD: AtomicPtr<pyo3::ffi::PyObject> = AtomicPtr::new(std::ptr::null_mut());
 static CHILD_FIELD: AtomicPtr<pyo3::ffi::PyObject> = AtomicPtr::new(std::ptr::null_mut());
@@ -758,6 +794,7 @@ extern "C" fn visit_error_on_base_field(
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))] // buffer availability
 fn test_drop_buffer_during_traversal_without_gil() {
     use pyo3::buffer::PyBuffer;
@@ -806,6 +843,31 @@ fn test_drop_buffer_during_traversal_without_gil() {
         drop(obj);
 
         check.assert_drops_with_gc(ptr);
+    });
+}
+
+#[test]
+fn type_object_is_visited_once_when_pyclasses_subtype_each_other() {
+    #[pyclass(subclass)]
+    struct TraverseBase;
+
+    #[pyclass(extends = TraverseBase)]
+    struct TraverseChild;
+
+    Python::attach(|py| {
+        let child = Bound::new(
+            py,
+            PyClassInitializer::from(TraverseBase).add_subclass(TraverseChild),
+        )
+        .unwrap();
+        let child_type = py.get_type::<TraverseChild>();
+        let traverse = unsafe { get_type_traverse(child_type.as_type_ptr()).unwrap() };
+        let mut counter = VisitCounter::default();
+
+        let retval = unsafe { traverse(child.as_ptr(), count_visits, (&raw mut counter).cast()) };
+
+        assert_eq!(retval, 0);
+        assert_eq!(counter.0.get(&child_type.as_ptr()), Some(&1));
     });
 }
 
@@ -876,12 +938,64 @@ fn test_super_traverse_early_return_does_not_abort() {
     });
 }
 
+#[test]
+#[cfg(wip_feature_std)]
+fn python_subclass_type_cycle_is_collected() {
+    #[pyclass(subclass)]
+    struct Base {
+        // installed via a Python constructor, hence the `Py` wrapping
+        _guard: Py<DropGuard>,
+    }
+
+    #[pymethods]
+    impl Base {
+        #[new]
+        fn new(guard: Py<DropGuard>) -> Self {
+            Self { _guard: guard }
+        }
+    }
+
+    // Create subtype from Python; by creating a non-PyO3 subclass we can
+    // demonstrate PyO3 implements heap type traversal & deallocation
+    // properly.
+    let sub = Python::attach(|py| {
+        let locals = pyo3::types::PyDict::new(py);
+        locals.set_item("Base", py.get_type::<Base>()).unwrap();
+        py.run(
+            c"\
+class Sub(Base):
+    pass
+",
+            None,
+            Some(&locals),
+        )
+        .unwrap();
+
+        locals.get_item("Sub").unwrap().unwrap().unbind()
+    });
+
+    let (guard, check) = drop_check();
+
+    Python::attach(|py| {
+        // Create an instance of the subclass, install it on the subclass
+        // to create a cycle
+        let instance = sub.call1(py, (guard,)).unwrap();
+        sub.setattr(py, "instance", instance).unwrap();
+    });
+
+    let ptr = sub.as_ptr();
+    drop(sub);
+
+    check.assert_drops_with_gc(ptr);
+}
+
 // A `#[pyclass(dict)]` can form a reference cycle through its instance `__dict__`
 // (`obj.attr = obj`). The tests below cover each valid combination of user-defined
 // `__traverse__` / `__clear__`; a `__clear__` without a `__traverse__` is rejected at
 // type-creation time.
 
 #[test]
+#[cfg(wip_feature_std)]
 fn dict_class_is_a_gc_type() {
     Python::attach(|py| {
         let ty = py.get_type::<DictCycleNoTraverse>();
@@ -891,12 +1005,14 @@ fn dict_class_is_a_gc_type() {
 }
 
 /// `#[pyclass(dict)]` with neither `__traverse__` nor `__clear__`: both slots are synthesized.
+#[cfg(wip_feature_std)]
 #[pyclass(dict)]
 struct DictCycleNoTraverse {
     _guard: DropGuard,
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn dict_cycle_collected_without_traverse() {
     let (guard, check) = drop_check();
 
@@ -914,10 +1030,12 @@ fn dict_cycle_collected_without_traverse() {
 /// `#[pyclass(dict)]` with `__traverse__` but no `__clear__`: the `__dict__` is visited by
 /// `_call_traverse` and cleared by a synthesized `tp_clear`.
 #[pyclass(dict)]
+#[cfg(wip_feature_std)]
 struct DictCycleTraverseOnly {
     _guard: DropGuard,
 }
 
+#[cfg(wip_feature_std)]
 #[pymethods]
 impl DictCycleTraverseOnly {
     #[expect(clippy::unnecessary_wraps)]
@@ -928,6 +1046,7 @@ impl DictCycleTraverseOnly {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn dict_cycle_collected_with_traverse_only() {
     let (guard, check) = drop_check();
 
@@ -943,12 +1062,14 @@ fn dict_cycle_collected_with_traverse_only() {
 
 /// `#[pyclass(dict)]` with both `__traverse__` and `__clear__`: the `__dict__` is folded into
 /// the user-defined slots by `_call_traverse` / `_call_clear`.
+#[cfg(wip_feature_std)]
 #[pyclass(dict)]
 struct DictCycleTraverseAndClear {
     _guard: DropGuard,
     field: Option<Py<PyAny>>,
 }
 
+#[cfg(wip_feature_std)]
 #[pymethods]
 impl DictCycleTraverseAndClear {
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
@@ -964,6 +1085,7 @@ impl DictCycleTraverseAndClear {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn dict_cycle_collected_with_traverse_and_clear() {
     let (guard, check) = drop_check();
 
@@ -979,6 +1101,59 @@ fn dict_cycle_collected_with_traverse_and_clear() {
         inst.setattr("cycle", &inst).unwrap();
         check.assert_not_dropped();
         inst.as_ptr()
+    });
+
+    check.assert_drops_with_gc(ptr);
+}
+
+#[test]
+#[cfg(wip_feature_std)]
+fn test_subclass_clear() {
+    // An incorrect PyO3 implementation would prevent subclass `__clear__`
+    // from ever being installed, thus causing this cycle test to leak.
+
+    #[pyclass(subclass)]
+    struct Base {
+        _guard: DropGuard,
+    }
+
+    #[pyclass(extends = Base)]
+    struct SubClear {
+        field: Option<Py<PyAny>>,
+    }
+
+    #[pymethods]
+    impl SubClear {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            visit.call(&self.field)
+        }
+
+        fn __clear__(&mut self) {
+            self.field = None;
+        }
+    }
+
+    let (guard, check) = drop_check();
+
+    let ptr = Python::attach(|py| {
+        let base = Base { _guard: guard };
+        let obj = Bound::new(
+            py,
+            PyClassInitializer::from(base).add_subclass(SubClear { field: None }),
+        )
+        .unwrap();
+        obj.borrow_mut().field = Some(obj.clone().into_any().unbind());
+
+        check.assert_not_dropped();
+        let ptr = obj.as_ptr();
+        drop(obj);
+        #[cfg(not(Py_GIL_DISABLED))]
+        {
+            // other thread might have caused GC on free-threaded build
+            check.assert_not_dropped();
+        }
+
+        ptr
     });
 
     check.assert_drops_with_gc(ptr);

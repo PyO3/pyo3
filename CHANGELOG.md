@@ -10,6 +10,49 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.29.2] - 2026-08-05
+
+### Packaging
+
+- Add `PYO3_USE_RAW_DYLIB=0` opt-out of `raw-dylib` linking for Windows. [#6185](https://github.com/PyO3/pyo3/pull/6185)
+
+### Fixed
+
+- Fix PyO3 0.29 regression with failure to link under Cygwin / MSYS2. [#6185](https://github.com/PyO3/pyo3/pull/6185)
+- Fix stubs generation for field getters (`#[pyo3(get)]`) when `IntoPyObject` is only implemented on references of the field type. [#6276](https://github.com/PyO3/pyo3/pull/6276)
+- Fix `#[classmethod]` magic methods receiving the instance instead of its type when invoked through a type slot. [#6283](https://github.com/PyO3/pyo3/pull/6283)
+- Fix `pyo3_build_config::add_libpython_rpath_link_args` emitting Unix-style rpath linker arguments on Windows and Cygwin. [#6284](https://github.com/PyO3/pyo3/pull/6284)
+- Fix PyO3 0.29.1 regression on PyPy causing crashes when deallocating `#[pyclass]` instances. [#6294](https://github.com/PyO3/pyo3/pull/6294)
+- Fix missing trailing nul in Python 3.9 `#[pyclass]` docstrings. [#6296](https://github.com/PyO3/pyo3/pull/6296)
+- Fix reference count leak of `#[classattr]` values created from `fn` items. [#6297](https://github.com/PyO3/pyo3/pull/6297)
+
+## [0.29.1] - 2026-08-02
+
+### Changed
+
+- Use the inline definition of `Py_TYPE` in the unlimited API on 3.14+ [#6179](https://github.com/PyO3/pyo3/pull/6179)
+
+### Fixed
+
+- Fix incorrect pointer arithmetic in FFI definitions `PyObject_GET_WEAKREFS_LISTPTR` and `PyHeapType_GET_MEMBERS`. [#6145](https://github.com/PyO3/pyo3/pull/6145)
+- Fix compilation error with `nightly` feature on PyPy and GraalPy due to `!Ungil` implementations for FFI types not available on those platforms. [#6146](https://github.com/PyO3/pyo3/pull/6146)
+- Fix `append_to_inittab` and `PyInit_<module>` internal module definition corruption on 32-bit and big-endian platforms on Python 3.15+. [#6150](https://github.com/PyO3/pyo3/pull/6150)
+- Fix return value of `PyClassGuardMutSuper::as_super` being scoped to the full guard lifetime, now the `&mut` borrow of the `as_super()` call. [#6181](https://github.com/PyO3/pyo3/pull/6181)
+- Fix builds for free-threaded interpreters older than 3.15 erroring with "cannot set a minimum Python version" when an `abi3t-py3*` feature is enabled and the configuration comes from `PYO3_CONFIG_FILE`, sysconfigdata or cross-compilation defaults. [#6192](https://github.com/PyO3/pyo3/pull/6192)
+- Fix a memory leak when deallocating `#[pyclass(dict)]` instances with a populated `__dict__`. [#6198](https://github.com/PyO3/pyo3/pull/6198)
+- Fix an abort inside a `#[pyclass]`'s GC traversal when the traversal is stopped early. [#6206](https://github.com/PyO3/pyo3/pull/6206)
+- Fix reference cycles through the `__dict__` of a `#[pyclass(dict)]` never being collected. [#6206](https://github.com/PyO3/pyo3/pull/6206)
+- Fix building on GraalPy 3.13. [#6208](https://github.com/PyO3/pyo3/pull/6208)
+- Fix reference count leak of references to `#[pyclass]` type objects held by their instances on instance deallocation. [#6224](https://github.com/PyO3/pyo3/pull/6224)
+- Fix FFI definitions `PyByteArray_GET_SIZE`, `PyList_GET_SIZE`, and `PySet_GET_SIZE` to use an atomic load for free-threaded Python. [#6230](https://github.com/PyO3/pyo3/pull/6230)
+- Fix a memory leak on Python 3.11 and 3.12 where creating an instance of a `#[pyclass(dict)]` class leaked one empty dict per instance. [#6234](https://github.com/PyO3/pyo3/pull/6234)
+- Fix `experimental-inspect` type stubs to emit the arguments of many magic methods as positional-only to match runtime behavior, rather than positional-or-keyword. [#6239](https://github.com/PyO3/pyo3/pull/6239)
+- Fix `experimental-inspect` type stubs to emit the Python name rather than the Rust name for `#[pyfunction(name = "...")]`. [#6254](https://github.com/PyO3/pyo3/pull/6254)
+- Fix `experimental-inspect` generating invalid internal JSON when `#[pymodule]` members are gated by `#[cfg]`. [#6255](https://github.com/PyO3/pyo3/pull/6255)
+- Fix `__inplace_concat__` and `__inplace_repeat__` overriding `__concat__` and `__repeat__` when both were defined. [#6260](https://github.com/PyO3/pyo3/pull/6260)
+- Fix conversion of out-of-range `time::Duration` values to return `OverflowError` instead of panicking. [#6266](https://github.com/PyO3/pyo3/pull/6266)
+- Fix `experimental-inspect` type stubs padding blank lines inside indented docstrings. [#6270](https://github.com/PyO3/pyo3/pull/6270)
+
 ## [0.29.0] - 2026-06-11
 
 ### Packaging
@@ -2655,7 +2698,10 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.28.3...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.29.2...HEAD
+[0.29.1]: https://github.com/pyo3/pyo3/compare/v0.29.1...v0.29.2
+[0.29.1]: https://github.com/pyo3/pyo3/compare/v0.29.0...v0.29.1
+[0.29.0]: https://github.com/pyo3/pyo3/compare/v0.28.3...v0.29.0
 [0.28.3]: https://github.com/pyo3/pyo3/compare/v0.28.2...v0.28.3
 [0.28.2]: https://github.com/pyo3/pyo3/compare/v0.28.1...v0.28.2
 [0.28.1]: https://github.com/pyo3/pyo3/compare/v0.28.0...v0.28.1

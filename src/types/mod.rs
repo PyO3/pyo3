@@ -3,54 +3,135 @@
 
 //! Various types defined by the Python interpreter such as `int`, `str` and `tuple`.
 
+#[doc(inline)]
 pub use self::any::{PyAny, PyAnyMethods};
+#[doc(inline)]
 pub use self::boolobject::{PyBool, PyBoolMethods};
+#[doc(inline)]
 pub use self::bytearray::{PyByteArray, PyByteArrayMethods};
+#[doc(inline)]
 pub use self::bytes::{PyBytes, PyBytesMethods};
-pub use self::capsule::{CapsuleName, PyCapsule, PyCapsuleMethods};
-pub use self::code::{PyCode, PyCodeInput, PyCodeMethods};
+#[doc(inline)]
+pub use self::capsule::{PyCapsule, PyCapsuleMethods};
+#[doc(inline)]
+pub use self::code::{PyCode, PyCodeMethods};
+#[doc(inline)]
 pub use self::complex::{PyComplex, PyComplexMethods};
+#[doc(inline)]
 pub use self::datetime::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 #[cfg(not(Py_LIMITED_API))]
+#[doc(inline)]
 pub use self::datetime::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
-pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 #[cfg(not(any(PyPy, GraalPy, RustPython)))]
-pub use self::dict::{PyDictItems, PyDictKeys, PyDictValues};
+#[doc(inline)]
+pub use self::dict::{items::PyDictItems, keys::PyDictKeys, values::PyDictValues};
+#[doc(inline)]
+pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
+#[doc(inline)]
 pub use self::ellipsis::PyEllipsis;
+#[doc(inline)]
 pub use self::float::{PyFloat, PyFloatMethods};
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+#[doc(inline)]
 pub use self::frame::{PyFrame, PyFrameMethods};
 #[cfg(Py_3_15)]
+#[doc(inline)]
 pub use self::frozendict::{PyFrozenDict, PyFrozenDictMethods};
-pub use self::frozenset::{PyFrozenSet, PyFrozenSetBuilder, PyFrozenSetMethods};
-pub use self::function::PyCFunction;
-pub use self::function::PyFunction;
+#[doc(inline)]
+pub use self::frozenset::{PyFrozenSet, PyFrozenSetMethods};
+#[doc(inline)]
+pub use self::function::{PyCFunction, PyFunction};
+#[doc(inline)]
 pub use self::genericalias::PyGenericAlias;
+#[doc(inline)]
+pub use self::int::PyInt;
+#[doc(inline)]
 pub use self::iterator::PyIterator;
-#[cfg(all(not(PyPy), Py_3_10))]
-pub use self::iterator::PySendResult;
+#[doc(inline)]
 pub use self::list::{PyList, PyListMethods};
+#[doc(inline)]
 pub use self::mapping::{PyMapping, PyMappingMethods};
-pub use self::mappingproxy::PyMappingProxy;
+#[doc(inline)]
+pub use self::mappingproxy::{PyMappingProxy, PyMappingProxyMethods};
+#[doc(inline)]
 pub use self::memoryview::PyMemoryView;
+#[doc(inline)]
 pub use self::module::{PyModule, PyModuleMethods};
-#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
-pub use self::mutex::{PyMutex, PyMutexGuard};
+#[doc(inline)]
 pub use self::none::PyNone;
+#[doc(inline)]
 pub use self::notimplemented::PyNotImplemented;
-pub use self::num::PyInt;
+#[doc(inline)]
 pub use self::pysuper::PySuper;
+#[doc(inline)]
 pub use self::range::{PyRange, PyRangeMethods};
+#[doc(inline)]
 pub use self::sequence::{PySequence, PySequenceMethods};
+#[doc(inline)]
 pub use self::set::{PySet, PySetMethods};
-pub use self::slice::{PySlice, PySliceIndices, PySliceMethods};
-#[cfg(not(Py_LIMITED_API))]
-pub use self::string::PyStringData;
+#[doc(inline)]
+pub use self::slice::{PySlice, PySliceMethods};
+#[doc(inline)]
 pub use self::string::{PyString, PyStringMethods};
+#[doc(inline)]
 pub use self::traceback::{PyTraceback, PyTracebackMethods};
+#[doc(inline)]
 pub use self::tuple::{PyTuple, PyTupleMethods};
+#[doc(inline)]
 pub use self::typeobject::{PyType, PyTypeMethods};
+#[doc(inline)]
 pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefReference};
+
+/// Deprecated alias for [`crate::sync::PyMutex`].
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+#[deprecated(since = "0.30.0", note = "moved to `pyo3::sync::PyMutex`")]
+pub type PyMutex<T> = crate::sync::PyMutex<T>;
+
+/// Deprecated alias for [`crate::sync::PyMutexGuard`].
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+#[deprecated(since = "0.30.0", note = "moved to `pyo3::sync::PyMutexGuard`")]
+pub type PyMutexGuard<'a, T> = crate::sync::PyMutexGuard<'a, T>;
+
+/// Deprecated alias for [`capsule::CapsuleName`].
+#[deprecated(
+    since = "0.30.0",
+    note = "moved to `pyo3::types::capsule::CapsuleName`"
+)]
+pub type CapsuleName = capsule::CapsuleName;
+
+/// Deprecated alias for [`code::PyCodeInput`].
+#[deprecated(since = "0.30.0", note = "moved to `pyo3::types::code::PyCodeInput`")]
+pub type PyCodeInput = code::PyCodeInput;
+
+/// Deprecated alias for [`frozenset::PyFrozenSetBuilder`].
+#[deprecated(
+    since = "0.30.0",
+    note = "moved to `pyo3::types::frozenset::PyFrozenSetBuilder`"
+)]
+pub type PyFrozenSetBuilder<'py> = frozenset::PyFrozenSetBuilder<'py>;
+
+/// Deprecated alias for [`iterator::PySendResult`].
+#[cfg(all(not(PyPy), Py_3_10))]
+#[deprecated(
+    since = "0.30.0",
+    note = "moved to `pyo3::types::iterator::PySendResult`"
+)]
+pub type PySendResult<'py> = iterator::PySendResult<'py>;
+
+/// Deprecated alias for [`slice::PySliceIndices`].
+#[deprecated(
+    since = "0.30.0",
+    note = "moved to `pyo3::types::slice::PySliceIndices`"
+)]
+pub type PySliceIndices = slice::PySliceIndices;
+
+/// Deprecated alias for [`string::PyStringData`].
+#[cfg(not(Py_LIMITED_API))]
+#[deprecated(
+    since = "0.30.0",
+    note = "moved to `pyo3::types::string::PyStringData`"
+)]
+pub type PyStringData<'a> = string::PyStringData<'a>;
 
 /// Iteration over Python collections.
 ///
@@ -83,6 +164,9 @@ pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefRe
 /// the Limited API and PyPy, the underlying structures are opaque and that may not be possible.
 /// In these cases the iterators are implemented by forwarding to [`PyIterator`].
 pub mod iter {
+    // TODO: we might want to remove this `iter` module and instead just let the
+    // iterators be imported directly from their respective modules.
+
     pub use super::dict::BoundDictIterator;
     #[cfg(Py_3_15)]
     pub use super::frozendict::BoundFrozenDictIterator;
@@ -267,39 +351,37 @@ macro_rules! pyobject_native_type {
 pub(crate) mod any;
 pub(crate) mod boolobject;
 pub(crate) mod bytearray;
-pub(crate) mod bytes;
-pub(crate) mod capsule;
-mod code;
+pub mod bytes;
+pub mod capsule;
+pub mod code;
 pub(crate) mod complex;
-pub(crate) mod datetime;
-pub(crate) mod dict;
+pub mod datetime;
+pub mod dict;
 mod ellipsis;
 pub(crate) mod float;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod frame;
 #[cfg(Py_3_15)]
-pub(crate) mod frozendict;
-pub(crate) mod frozenset;
+pub mod frozendict;
+pub mod frozenset;
 mod function;
 pub(crate) mod genericalias;
-pub(crate) mod iterator;
-pub(crate) mod list;
+mod int;
+pub mod iterator;
+pub mod list;
 pub(crate) mod mapping;
-pub(crate) mod mappingproxy;
+pub mod mappingproxy;
 mod memoryview;
 pub(crate) mod module;
-#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
-mod mutex;
 mod none;
 mod notimplemented;
-mod num;
 mod pysuper;
 pub(crate) mod range;
 pub(crate) mod sequence;
-pub(crate) mod set;
-pub(crate) mod slice;
-pub(crate) mod string;
+pub mod set;
+pub mod slice;
+pub mod string;
 pub(crate) mod traceback;
-pub(crate) mod tuple;
+pub mod tuple;
 pub(crate) mod typeobject;
 pub(crate) mod weakref;

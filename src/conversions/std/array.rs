@@ -1,6 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
-
 use crate::conversion::{FromPyObjectOwned, FromPyObjectSequence, IntoPyObject};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
@@ -8,6 +5,8 @@ use crate::types::any::PyAnyMethods;
 use crate::types::PySequence;
 use crate::{err::CastError, ffi, FromPyObject, PyAny, PyResult, PyTypeInfo, Python};
 use crate::{exceptions, Borrowed, Bound, PyErr};
+
+use core::mem::MaybeUninit;
 
 impl<'py, T, const N: usize> IntoPyObject<'py> for [T; N]
 where
@@ -71,6 +70,7 @@ where
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
+    // SAFETY: passing valid pointer to python API
     if unsafe { ffi::PySequence_Check(obj.as_ptr()) } == 0 {
         return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
     }
@@ -85,46 +85,85 @@ where
     })
 }
 
-// TODO use core::array::try_from_fn, if that stabilises:
-// (https://github.com/rust-lang/rust/issues/89379)
+// TODO: use `core::array::try_from_fn`, if that stabilises:
+// https://github.com/rust-lang/rust/issues/89379
 fn array_try_from_fn<E, F, T, const N: usize>(mut cb: F) -> Result<[T; N], E>
 where
     F: FnMut(usize) -> Result<T, E>,
 {
-    // Helper to safely create arrays since the standard library doesn't
-    // provide one yet. Shouldn't be necessary in the future.
-    struct ArrayGuard<T, const N: usize> {
-        dst: *mut T,
+    let mut array: [MaybeUninit<T>; N] = [const { MaybeUninit::uninit() }; N];
+
+    array_try_from_fn_erased(&mut array, &mut cb)?;
+
+    // TODO: use `MaybeUninit::array_assume_init` if that stabilises in future?
+    //
+    // SAFETY: the loop above has fully initialized all `N` elements of `array`,
+    // since we only exit the loop once `guard.initialized == N`.
+    Ok(array.map(|elem| unsafe { elem.assume_init() }))
+}
+
+fn array_try_from_fn_erased<E, T>(
+    buffer: &mut [MaybeUninit<T>],
+    cb: &mut impl FnMut(usize) -> Result<T, E>,
+) -> Result<(), E> {
+    // Panic guard for incremental initialization of arrays.
+    //
+    // Disarm the guard with `mem::forget` once the array has been initialized.
+    struct Guard<'a, T> {
+        // The array to be initialized.
+        array_mut: &'a mut [MaybeUninit<T>],
+        // The number of items that have been initialized so far.
         initialized: usize,
     }
 
-    impl<T, const N: usize> Drop for ArrayGuard<T, N> {
-        fn drop(&mut self) {
-            debug_assert!(self.initialized <= N);
-            let initialized_part = core::ptr::slice_from_raw_parts_mut(self.dst, self.initialized);
+    impl<T> Guard<'_, T> {
+        // Adds an item to the array and updates the initialized item counter.
+        //
+        // # Safety
+        //
+        // No more than N elements must be initialized.
+        #[inline]
+        unsafe fn push_unchecked(&mut self, item: T) {
+            // SAFETY: If `initialized` was correct before and the caller does not
+            // invoke this method more than N times, then writes will be in-bounds
+            // and slots will not be initialized more than once.
             unsafe {
-                core::ptr::drop_in_place(initialized_part);
+                self.array_mut
+                    .get_unchecked_mut(self.initialized)
+                    .write(item);
+
+                self.initialized = self.initialized.unchecked_add(1)
             }
         }
     }
 
-    // [MaybeUninit<T>; N] would be "nicer" but is actually difficult to create - there are nightly
-    // APIs which would make this easier.
-    let mut array: core::mem::MaybeUninit<[T; N]> = core::mem::MaybeUninit::uninit();
-    let mut guard: ArrayGuard<T, N> = ArrayGuard {
-        dst: array.as_mut_ptr() as _,
+    impl<T> Drop for Guard<'_, T> {
+        #[inline]
+        fn drop(&mut self) {
+            debug_assert!(self.initialized <= self.array_mut.len());
+            // SAFETY: this slice will contain only initialized objects.
+            unsafe {
+                core::ptr::drop_in_place(
+                    &mut self.array_mut[..self.initialized] as *mut [_] as *mut [T],
+                );
+            }
+        }
+    }
+
+    let mut guard = Guard {
+        array_mut: buffer,
         initialized: 0,
     };
-    unsafe {
-        let mut value_ptr = array.as_mut_ptr() as *mut T;
-        for i in 0..N {
-            core::ptr::write(value_ptr, cb(i)?);
-            value_ptr = value_ptr.offset(1);
-            guard.initialized += 1;
-        }
-        core::mem::forget(guard);
-        Ok(array.assume_init())
+
+    while guard.initialized < guard.array_mut.len() {
+        let item = cb(guard.initialized)?;
+        // SAFETY: loop condition ensures there's space to push the item.
+        unsafe { guard.push_unchecked(item) };
     }
+
+    core::mem::forget(guard);
+
+    Ok(())
 }
 
 pub(crate) fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {

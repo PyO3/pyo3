@@ -175,7 +175,7 @@ macro_rules! bigint_conversion {
 
                 #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
                 {
-                    if is_30bit_layout() {
+                    if is_30bit_layout(py) {
                         let bits: usize = $bits(self)
                             .try_into()
                             .expect(concat!(stringify!($rust_ty), " bit length fits in usize"));
@@ -260,7 +260,7 @@ impl<'py> FromPyObject<'_, 'py> for BigInt {
             num_owned.as_borrowed()
         };
         #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
-        if is_30bit_layout() {
+        if is_30bit_layout(ob.py()) {
             return pylong_visit_digits(num.as_any().as_borrowed(), |negative, compact, digits| {
                 let Some(digits) = digits else {
                     return Ok(BigInt::from(compact));
@@ -322,7 +322,7 @@ impl<'py> FromPyObject<'_, 'py> for BigUint {
             num_owned.as_borrowed()
         };
         #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
-        if is_30bit_layout() {
+        if is_30bit_layout(ob.py()) {
             return pylong_visit_digits(num.as_any().as_borrowed(), |negative, compact, digits| {
                 if negative {
                     return Err(crate::exceptions::PyValueError::new_err(

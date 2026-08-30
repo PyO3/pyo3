@@ -2,7 +2,7 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "macros")]
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicI32, Ordering};
 
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
@@ -614,9 +614,9 @@ fn return_value_borrows_from_arguments<'py>(
     py: Python<'py>,
     key: &'py Key,
     value: &'py Value,
-) -> HashMap<&'py str, i32> {
+) -> BTreeMap<&'py str, i32> {
     py.detach(move || {
-        let mut map = HashMap::new();
+        let mut map = BTreeMap::new();
         map.insert(key.0.as_str(), value.0);
         map
     })

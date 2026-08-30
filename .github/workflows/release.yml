@@ -9,6 +9,9 @@ on:
       version:
         description: The version to build
 
+env:
+  UV_CONSTRAINT: ${{ github.workspace }}/.github/uv-constraints.txt
+
 jobs:
   release:
     permissions:
@@ -31,6 +34,6 @@ jobs:
         id: auth
 
       - name: Publish to crates.io
-        run: uvx nox -s publish
+        run: cargo publish --workspace
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}

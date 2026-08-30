@@ -13,12 +13,14 @@ use crate::{
     },
     combine_errors::CombineErrors,
     get_doc,
+    method::FnArg,
     pyclass::PyClassPyO3Option,
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
+    pymethod::split_off_python_arg,
     utils::{has_attribute, has_attribute_with_namespace, Ctx, IdentOrStr, PythonDoc},
 };
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use std::ffi::CString;
 use syn::LitCStr;
 use syn::{
@@ -164,6 +166,9 @@ pub fn pymodule_module_impl(
     }
 
     let mut pymodule_init = None;
+    // An initialiser which receives the module can add attributes the macro cannot see; one which
+    // does not is what lets the module stay complete for introspection.
+    let mut pymodule_init_takes_module = false;
     let mut module_consts = Vec::new();
     let mut module_consts_cfg_attrs = Vec::new();
 
@@ -196,7 +201,29 @@ pub fn pymodule_module_impl(
                         item_fn.span() => "`#[pyfunction]` cannot be used alongside `#[pymodule_init]`"
                     );
                     ensure_spanned!(pymodule_init.is_none(), item_fn.span() => "only one `#[pymodule_init]` may be specified");
-                    pymodule_init = Some(quote! { #ident(module)?; });
+                    let ident = ident.clone();
+                    let sig_span = item_fn.sig.span();
+                    let return_span = item_fn.sig.output.span();
+                    let args: Vec<_> = item_fn
+                        .sig
+                        .inputs
+                        .iter_mut()
+                        .map(FnArg::parse)
+                        .try_combine_syn_errors()?;
+                    let (py_arg, args) = split_off_python_arg(&args);
+                    ensure_spanned!(
+                        args.len() <= 1,
+                        sig_span => "`#[pymodule_init]` takes an optional `Python` argument followed by an optional module argument"
+                    );
+                    pymodule_init_takes_module = !args.is_empty();
+                    let call_args = py_arg
+                        .map(|_| quote! { module.py() })
+                        .into_iter()
+                        .chain(pymodule_init_takes_module.then(|| quote! { module }));
+                    let pyo3_path = pyo3_path.to_tokens_spanned(return_span);
+                    pymodule_init = Some(quote_spanned! { return_span =>
+                        #pyo3_path::impl_::pymodule::PyModuleInitResult::into_result(#ident(#(#call_args),*))?;
+                    });
                 } else if has_attribute(&item_fn.attrs, "pyfunction")
                     || has_attribute_with_namespace(
                         &item_fn.attrs,
@@ -382,7 +409,7 @@ pub fn pymodule_module_impl(
         &module_items,
         &module_items_cfg_attrs,
         doc.as_ref(),
-        pymodule_init.is_some(),
+        pymodule_init_takes_module,
     );
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};
@@ -428,7 +455,7 @@ pub fn pymodule_module_impl(
                 )*
 
                 #pymodule_init
-                ::std::result::Result::Ok(())
+                ::core::result::Result::Ok(())
             }
         }
     ))
@@ -484,7 +511,7 @@ pub fn pymodule_function_impl(
     if function.sig.inputs.len() == 2 {
         module_args.push(quote!(module.py()));
     }
-    module_args.push(quote!(::std::convert::Into::into(module)));
+    module_args.push(quote!(::core::convert::Into::into(module)));
 
     Ok(quote! {
         #[doc(hidden)]
@@ -528,7 +555,7 @@ fn module_initialization(
 
     let mut result = quote! {
         #[doc(hidden)]
-        pub const __PYO3_NAME: &'static ::std::ffi::CStr = #pyo3_name;
+        pub static __PYO3_NAME: &'static ::core::ffi::CStr = #pyo3_name;
 
         // This structure exists for `fn` modules declared within `fn` bodies, where due to the hidden
         // module (used for importing) the `fn` to initialize the module cannot be seen from the #module_def
@@ -540,23 +567,24 @@ fn module_initialization(
         pub static _PYO3_DEF: #pyo3_path::impl_::pymodule::ModuleDef = {
             use #pyo3_path::impl_::pymodule as impl_;
 
-            unsafe extern "C" fn __pyo3_module_exec(module: *mut #pyo3_path::ffi::PyObject) -> ::std::ffi::c_int {
+            unsafe extern "C" fn __pyo3_module_exec(module: *mut #pyo3_path::ffi::PyObject) -> ::core::ffi::c_int {
                 #pyo3_path::impl_::trampoline::module_exec(module, #module_exec)
             }
 
-            // The full slots, used for the PyModExport initialization
-            static SLOTS: impl_::PyModuleSlots = impl_::PyModuleSlotsBuilder::new()
+            static DOC: &'static ::core::ffi::CStr = #doc;
+            static SLOTS: impl_::PrimaryModuleSlots = impl_::PyModuleSlotsBuilder::new()
                 .with_mod_exec(__pyo3_module_exec)
                 .with_abi_info()
                 .with_gil_used(#gil_used)
                 .with_name(__PYO3_NAME)
-                .with_doc(#doc)
+                .with_doc(DOC)
                 .build();
+            static SECONDARY_SLOTS: impl_::SecondaryModuleSlots = impl_::secondary_slots(&SLOTS);
 
             // Since the macros need to be written agnostic to the Python version
             // we need to explicitly pass the name and docstring for PyModuleDef
             // initialization.
-            impl_::ModuleDef::new(__PYO3_NAME, #doc, &SLOTS)
+            impl_::ModuleDef::new(__PYO3_NAME, DOC, &SLOTS, &SECONDARY_SLOTS)
         };
     };
     if !is_submodule {

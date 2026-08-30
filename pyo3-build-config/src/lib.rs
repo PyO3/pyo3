@@ -33,6 +33,7 @@ use target_lexicon::{Architecture, OperatingSystem};
 /// | `#[cfg(Py_GIL_DISABLED)]` | This marks code which is run on the free-threaded interpreter. |
 /// | `#[cfg(PyPy)]` | This marks code which is run when compiling for PyPy. |
 /// | `#[cfg(GraalPy)]` | This marks code which is run when compiling for GraalPy. |
+/// | `#[cfg(RustPython)]` | This marks code which is run when compiling for RustPython. |
 ///
 /// For examples of how to use these attributes,
 #[doc = concat!("[see PyO3's guide](https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/building-and-distribution/multiple-python-versions.html)")]
@@ -146,10 +147,10 @@ fn get_inner() -> InterpreterConfig {
     interpreter_config.expect("failed to parse PyO3 config")
 }
 
-/// Registers `pyo3`s config names as reachable cfg expressions
+/// Registers `pyo3`s config names as reachable cfg expressions.
 ///
 /// - <https://github.com/rust-lang/cargo/pull/13571>
-/// - <https://doc.rust-lang.org/nightly/cargo/reference/build-scripts.html#rustc-check-cfg>
+/// - <https://doc.rust-lang.org/cargo/reference/build-scripts.html#rustc-check-cfg>
 #[doc(hidden)]
 pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(Py_LIMITED_API)");
@@ -157,7 +158,9 @@ pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(PyPy)");
     println!("cargo:rustc-check-cfg=cfg(GraalPy)");
     println!("cargo:rustc-check-cfg=cfg(RustPython)");
-    println!("cargo:rustc-check-cfg=cfg(py_sys_config, values(\"Py_DEBUG\", \"Py_REF_DEBUG\", \"Py_TRACE_REFS\", \"COUNT_ALLOCS\"))");
+    println!(
+        r#"cargo:rustc-check-cfg=cfg(py_sys_config, values("Py_DEBUG", "Py_REF_DEBUG", "Py_TRACE_REFS", "COUNT_ALLOCS"))"#
+    );
 
     // allow `Py_3_*` cfgs from the minimum supported version up to the
     // maximum minor version (+1 for development for the next)
@@ -185,6 +188,7 @@ pub mod pyo3_build_script_impl {
         cargo_env_var, env_var, is_linking_libpython_for_target, target_triple_from_env,
         InterpreterConfig, PythonAbi, PythonAbiKind, PythonVersion, StableAbi,
     };
+
     pub enum BuildConfigSource {
         /// Config was provided by `PYO3_CONFIG_FILE`.
         ConfigFile,
@@ -296,10 +300,12 @@ pub mod pyo3_build_script_impl {
             target.architecture,
             Architecture::Wasm32 | Architecture::Wasm64
         );
-        let is_emscripten = target.operating_system == target_lexicon::OperatingSystem::Emscripten;
+        let is_emscripten = target.operating_system == OperatingSystem::Emscripten;
+        let is_cygwin = target.operating_system == OperatingSystem::Cygwin;
+        let is_windows = target.operating_system == OperatingSystem::Windows;
         // webassembly targets generally don't support rpath, emscripten is the only exception currently aware of:
         // https://github.com/emscripten-core/emscripten/issues/22126
-        if is_linking_libpython && (!is_wasm || is_emscripten) {
+        if is_linking_libpython && !is_windows && !is_cygwin && (!is_wasm || is_emscripten) {
             if let Some(lib_dir) = interpreter_config.lib_dir() {
                 println!("cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}");
             }

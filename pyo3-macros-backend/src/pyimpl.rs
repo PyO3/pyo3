@@ -169,6 +169,9 @@ pub fn impl_methods(
                             proto_impls.push(quote!(#(#attrs)* #slot_def));
                             associated_methods.push(quote!(#(#attrs)* #associated_method));
                         }
+                        GeneratedPyMethod::Tokens(tokens) => {
+                            extra_fragments.push(tokens);
+                        }
                     }
                 }
                 syn::ImplItem::Const(konst) => {
@@ -235,11 +238,11 @@ pub fn impl_methods(
     });
 
     Ok(quote! {
-        #(#extra_fragments)*
-
         #items
 
         #associated_methods_impl
+
+        #(#extra_fragments)*
     })
 }
 
@@ -414,6 +417,10 @@ pub fn method_introspection_code(
                 // We cant to keep the first argument type, hence this hack
                 spec.signature.arguments.pop();
                 spec.signature.python_signature.positional_parameters.pop();
+                // the `CompareOp` parameter is gone; keep the positional-only count in range
+                spec.signature
+                    .python_signature
+                    .make_all_parameters_positional_only();
                 method_introspection_code(
                     &spec,
                     attrs,
@@ -495,9 +502,21 @@ pub fn method_introspection_code(
     }
     let return_type = if spec.python_name == "__new__" {
         // Hack to return Self while implementing IntoPyObject
-        parse_quote!(-> #pyo3_path::PyClassGuard<Self>)
+        // TODO: use typing.Self?
+        PyExpr::from_return_type(parse_quote!(#pyo3_path::PyClassGuard<Self>), Some(parent))
     } else {
-        spec.output.clone()
+        match spec.output.clone() {
+            // `__next__` and `__anext__` may say "iteration is over" with `None`, in which case
+            // that `Option` is not part of the Python-visible return type.
+            ReturnType::Type(_, t) if name.as_str() == "__next__" => {
+                PyExpr::from_iter_next_return_type(*t, Some(parent))
+            }
+            ReturnType::Type(_, t) if name.as_str() == "__anext__" => {
+                PyExpr::from_async_iter_next_return_type(*t, Some(parent))
+            }
+            ReturnType::Type(_, t) => PyExpr::from_return_type(*t, Some(parent)),
+            ReturnType::Default => PyExpr::none(),
+        }
     };
     function_introspection_code(
         pyo3_path,

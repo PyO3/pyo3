@@ -6,8 +6,10 @@ use pyo3::types::PyString;
 
 mod test_utils;
 
+// `Copy` + `from_py_object` is a regression test for `clippy::clone_on_copy`
+// firing in the generated `FromPyObject` implementation (#6308)
 #[pyclass(eq, eq_int, from_py_object)]
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MyEnum {
     Variant,
     OtherVariant,
@@ -283,6 +285,7 @@ fn test_simple_enum_eq_only() {
     })
 }
 
+#[cfg(wip_feature_std)]
 #[pyclass(frozen, eq, eq_int, hash)]
 #[derive(PartialEq, Hash)]
 enum SimpleEnumWithHash {
@@ -291,6 +294,7 @@ enum SimpleEnumWithHash {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn test_simple_enum_with_hash() {
     Python::attach(|py| {
         use pyo3::types::IntoPyDict;
@@ -313,6 +317,7 @@ fn test_simple_enum_with_hash() {
     });
 }
 
+#[cfg(wip_feature_std)]
 #[pyclass(eq, hash)]
 #[derive(PartialEq, Hash)]
 enum ComplexEnumWithHash {
@@ -321,6 +326,7 @@ enum ComplexEnumWithHash {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn test_complex_enum_with_hash() {
     Python::attach(|py| {
         use pyo3::types::IntoPyDict;

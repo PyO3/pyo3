@@ -53,6 +53,12 @@ pub(crate) fn traverse_eq(f: Option<ffi::traverseproc>, g: ffi::traverseproc) ->
 
 // TODO: use Box::into_non_null when stabilized
 pub(crate) fn box_into_non_null<T>(b: Box<T>) -> NonNull<T> {
-    // SAFETY: `Box::into_raw` guarantees an non-null pointer
-    unsafe { NonNull::new_unchecked(Box::into_raw(b)) }
+    NonNull::from(Box::leak(b))
+}
+
+/// Replacement for the unstable `<*mut [T; N]>::as_mut_ptr` method, which avoids
+/// possibility of type getting lost from using e.g. `.cast()` to change array
+/// type to point to the data.
+pub(crate) const fn array_ptr_as_mut<T, const N: usize>(ptr: *mut [T; N]) -> *mut T {
+    ptr.cast()
 }

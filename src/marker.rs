@@ -123,6 +123,7 @@ use crate::conversion::IntoPyObject;
 use crate::err::{self, PyResult};
 use crate::internal::state::{AttachGuard, SuspendAttach};
 use crate::types::any::PyAnyMethods;
+use crate::types::code::PyCodeInput;
 use crate::types::{
     PyAny, PyCode, PyCodeMethods, PyDict, PyEllipsis, PyModule, PyNone, PyNotImplemented, PyString,
     PyType,
@@ -131,7 +132,6 @@ use crate::version::PythonVersionInfo;
 use crate::{ffi, Bound, Py, PyTypeInfo};
 use core::ffi::CStr;
 use core::marker::PhantomData;
-use std::sync::LazyLock;
 
 /// Types that are safe to access while the GIL is not held.
 ///
@@ -596,7 +596,7 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let code = PyCode::compile(self, code, c"<string>", crate::types::PyCodeInput::Eval)?;
+        let code = PyCode::compile(self, code, c"<string>", PyCodeInput::Eval)?;
         code.run(globals, locals)
     }
 
@@ -639,7 +639,7 @@ impl<'py> Python<'py> {
         globals: Option<&Bound<'py, PyDict>>,
         locals: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
-        let code = PyCode::compile(self, code, c"<string>", crate::types::PyCodeInput::File)?;
+        let code = PyCode::compile(self, code, c"<string>", PyCodeInput::File)?;
         code.run(globals, locals).map(|obj| {
             debug_assert!(obj.is_none());
         })
@@ -697,13 +697,9 @@ impl<'py> Python<'py> {
     /// assert!(Python::version_str().starts_with("3."));
     /// ```
     pub fn version_str() -> &'static str {
-        static VERSION: LazyLock<&'static str> = LazyLock::new(|| unsafe {
-            CStr::from_ptr(ffi::Py_GetVersion())
-                .to_str()
-                .expect("Python version string not UTF-8")
-        });
-
-        &VERSION
+        unsafe { CStr::from_ptr(ffi::Py_GetVersion()) }
+            .to_str()
+            .expect("Python version string not UTF-8")
     }
 
     /// Gets the running Python interpreter version as a struct similar to

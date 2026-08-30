@@ -1,5 +1,7 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
 
+//! Python capsules and related types.
+
 use crate::exceptions::PySystemError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::box_into_non_null;

@@ -1,6 +1,33 @@
 #![cfg(feature = "macros")]
 
+use std::{
+    env,
+    panic::{RefUnwindSafe, UnwindSafe},
+};
+
+use ui_test::{spanned::Spanned, CommentParser, Revisioned};
+
 fn main() {
+    // minimal support for running in cargo-nextest
+    // https://nexte.st/docs/design/custom-test-harnesses/
+    {
+        let mut list = false;
+        let mut ignored = false;
+        for arg in env::args() {
+            match arg.as_str() {
+                "--list" => list = true,
+                "--ignored" => ignored = true,
+                _ => (),
+            }
+        }
+        if list {
+            if !ignored {
+                println!("ui_test: test");
+            }
+            return;
+        }
+    }
+
     if cfg!(target_arch = "wasm32") {
         // Not possible to invoke compiler from wasm
         return;
@@ -52,6 +79,10 @@ fn main() {
     // There doesn't seem to be a good way to forward all these features automatically,
     // so have to just list the relevant ones here.
     let deps_features = [
+        #[cfg(not(wip_feature_std))]
+        "pyo3/hashbrown".to_string(),
+        #[cfg(not(wip_feature_std))]
+        "pyo3/parking_lot".to_string(),
         #[cfg(feature = "macros")]
         "pyo3/macros".to_string(),
         #[cfg(feature = "abi3")]
@@ -75,6 +106,10 @@ fn main() {
     let mut deps_cargo = ui_test::CommandBuilder::cargo();
     deps_cargo.args.push("--features".into());
     deps_cargo.args.push(deps_features.join(",").into());
+    #[cfg(not(wip_feature_std))]
+    deps_cargo
+        .envs
+        .push(("PYO3_WIP_NO_STD".into(), Some("1".into())));
 
     config.comment_defaults.base().set_custom(
         "dependencies",
@@ -142,6 +177,11 @@ fn main() {
             Regex::new(r"and \d+ others").unwrap().into(),
             b"and $$N others".to_vec(),
         ),
+        // Normalize paths into the Rust toolchain sources
+        (
+            Regex::new(r"[^\s]*?/rustlib/src/rust").unwrap().into(),
+            b"$$RUST_SRC".to_vec(),
+        ),
         // Some trait implementations which are only emitted with certain
         // features enabled
         (
@@ -156,28 +196,34 @@ fn main() {
         ),
     ]);
 
+    /// Generic function to configure a revision to require a given feature to
+    /// be enabled or disabled (`custom_comments` requires function pointers).
+    fn require_feature_enabled<F: Feature, const ENABLED: bool>(
+        parser: &mut CommentParser<&mut Revisioned>,
+        _args: Spanned<&str>,
+        span: Span,
+    ) {
+        parser.set_custom_once(
+            F::ENABLED_FLAG,
+            SplitBuildOnFeature::<F>::new(ENABLED),
+            span,
+        );
+    }
+
+    config.custom_comments.insert(
+        ExperimentalInspect::ENABLED_FLAG,
+        require_feature_enabled::<ExperimentalInspect, true>,
+    );
+    config.custom_comments.insert(
+        ExperimentalInspect::DISABLED_FLAG,
+        require_feature_enabled::<ExperimentalInspect, false>,
+    );
     config
         .custom_comments
-        .insert("with-experimental-inspect", |parser, _args, span| {
-            parser.set_custom_once(
-                "with-experimental-inspect",
-                SplitBuildOnExperimentalInspect {
-                    requires_inspect: true,
-                },
-                span,
-            );
-        });
+        .insert(Std::ENABLED_FLAG, require_feature_enabled::<Std, true>);
     config
         .custom_comments
-        .insert("without-experimental-inspect", |parser, _args, span| {
-            parser.set_custom_once(
-                "without-experimental-inspect",
-                SplitBuildOnExperimentalInspect {
-                    requires_inspect: false,
-                },
-                span,
-            );
-        });
+        .insert(Std::DISABLED_FLAG, require_feature_enabled::<Std, false>);
 
     // `ctrlc` doesn't build on wasm
     #[cfg(not(target_arch = "wasm32"))]
@@ -259,13 +305,40 @@ fn normalize_src_blocks(output: &[u8]) -> Vec<u8> {
         .into_owned()
 }
 
+fn check_rust_src_paths(output: &[u8], errors: &mut Vec<ui_test::Error>) -> bool {
+    use std::sync::LazyLock;
+
+    use regex::bytes::Regex;
+
+    static REMAPPED_RUST_SRC: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"/rustc/[0-9a-f]{40}/library/").unwrap());
+
+    if REMAPPED_RUST_SRC.is_match(output) {
+        // This causes `ui_test` to emit:
+        //
+        // ```
+        // error: a bug in `ui_test` occurred
+        // rust-src is required for UI tests; install it with `rustup component add rust-src`
+        // ```
+        errors.push(ui_test::Error::Bug(
+            "rust-src is required for UI tests; install it with `rustup component add rust-src`"
+                .into(),
+        ));
+        false
+    } else {
+        true
+    }
+}
+
 fn error_on_output_conflict_normalized(
     path: &std::path::Path,
     output: &[u8],
     errors: &mut Vec<ui_test::Error>,
     config: &ui_test::per_test_config::TestConfig,
 ) {
-    ui_test::error_on_output_conflict(path, &normalize_src_blocks(output), errors, config);
+    if check_rust_src_paths(output, errors) {
+        ui_test::error_on_output_conflict(path, &normalize_src_blocks(output), errors, config);
+    }
 }
 
 fn bless_output_files_normalized(
@@ -274,17 +347,76 @@ fn bless_output_files_normalized(
     errors: &mut Vec<ui_test::Error>,
     config: &ui_test::per_test_config::TestConfig,
 ) {
-    ui_test::bless_output_files(path, &normalize_src_blocks(output), errors, config);
+    if check_rust_src_paths(output, errors) {
+        ui_test::bless_output_files(path, &normalize_src_blocks(output), errors, config);
+    }
 }
 
-/// Some tests have different error messages when the `experimental-inspect` feature is
+/// Trait naming a feature which may be enabled or disabled in a given build.
+///
+/// The trait bounds are useful because `ui_test`'s `Flag` trait requires all these.
+trait Feature: Send + Sync + UnwindSafe + RefUnwindSafe + 'static {
+    const ENABLED: bool;
+    const ENABLED_FLAG: &'static str;
+    const DISABLED_FLAG: &'static str;
+}
+
+struct ExperimentalInspect;
+
+impl Feature for ExperimentalInspect {
+    const ENABLED: bool = cfg!(feature = "experimental-inspect");
+    const ENABLED_FLAG: &'static str = "with-experimental-inspect";
+    const DISABLED_FLAG: &'static str = "no-experimental-inspect";
+}
+
+struct Std;
+
+impl Feature for Std {
+    const ENABLED: bool = cfg!(wip_feature_std);
+    const ENABLED_FLAG: &'static str = "with-std";
+    const DISABLED_FLAG: &'static str = "no-std";
+}
+/// Some tests have different error messages when a given feature is
 /// enabled.
-#[derive(Clone, Debug)]
-struct SplitBuildOnExperimentalInspect {
-    requires_inspect: bool,
+struct SplitBuildOnFeature<F: Feature> {
+    /// Whether the revision requires the feature to be enabled.
+    feature_required: bool,
+    phantom: std::marker::PhantomData<F>,
 }
 
-impl ui_test::custom_flags::Flag for SplitBuildOnExperimentalInspect {
+// Avoid `#[derive(Clone)]` because `F` may not be `Clone`.
+impl<F: Feature> Clone for SplitBuildOnFeature<F> {
+    fn clone(&self) -> Self {
+        Self {
+            feature_required: self.feature_required,
+            phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+// Debug the revision as the feature flag which it requires
+impl<F: Feature> std::fmt::Debug for SplitBuildOnFeature<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SplitBuildOnFeature")
+            .field(if self.feature_required {
+                &F::ENABLED_FLAG
+            } else {
+                &F::DISABLED_FLAG
+            })
+            .finish()
+    }
+}
+
+impl<F: Feature> SplitBuildOnFeature<F> {
+    fn new(feature_required: bool) -> Self {
+        Self {
+            feature_required,
+            phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<F: Feature> ui_test::custom_flags::Flag for SplitBuildOnFeature<F> {
     fn clone_inner(&self) -> Box<dyn ui_test::custom_flags::Flag> {
         Box::new(self.clone())
     }
@@ -301,6 +433,6 @@ impl ui_test::custom_flags::Flag for SplitBuildOnExperimentalInspect {
     ) -> bool {
         // returning `true` skips the test, so return true when the feature doesn't
         // match the requirement of the test
-        self.requires_inspect != cfg!(feature = "experimental-inspect")
+        self.feature_required != F::ENABLED
     }
 }

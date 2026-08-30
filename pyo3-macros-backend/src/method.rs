@@ -235,6 +235,12 @@ pub enum FnType {
     ClassAttribute,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum ClassMethodReceiver {
+    Class,
+    Instance,
+}
+
 impl FnType {
     pub fn skip_first_rust_argument_in_python_signature(&self) -> bool {
         match self {
@@ -264,6 +270,7 @@ impl FnType {
         cls: Option<&syn::Type>,
         error_mode: ExtractErrorMode,
         self_conversion: SelfConversionPolicy,
+        class_method_receiver: ClassMethodReceiver,
         holders: &mut Holders,
         ctx: &Ctx,
     ) -> Option<TokenStream> {
@@ -282,10 +289,32 @@ impl FnType {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
+                let class_method_receiver = match class_method_receiver {
+                    ClassMethodReceiver::Class => quote! { #slf.cast() },
+                    ClassMethodReceiver::Instance => {
+                        let type_check = match self_conversion.0 {
+                            SelfConversionPolicyInner::Trusted => quote! {},
+                            SelfConversionPolicyInner::Checked => {
+                                let cls = cls.expect("no class given for a class method");
+                                let type_check = error_mode.handle_error(
+                                    quote_spanned! { *span =>
+                                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf).cast::<#cls>()
+                                    },
+                                    ctx,
+                                );
+                                quote! { #type_check; }
+                            }
+                        };
+                        quote! {{
+                            #type_check
+                            #pyo3_path::ffi::Py_TYPE(#slf).cast()
+                        }}
+                    }
+                };
                 let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion, reason = "#[classmethod] accepts anything which implements `From<&Bound<PyType>>`")]
-                    ::std::convert::Into::into(
-                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
+                    ::core::convert::Into::into(
+                        #pyo3_path::Bound::ref_from_ptr(#py, &#class_method_receiver)
                             .cast_unchecked::<#pyo3_path::types::PyType>()
                     )
                 };
@@ -297,7 +326,7 @@ impl FnType {
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion, reason = "`pass_module` accepts anything which implements `From<&Bound<PyModule>>`")]
-                    ::std::convert::Into::into(
+                    ::core::convert::Into::into(
                         #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
                             .cast_unchecked::<#pyo3_path::types::PyModule>()
                     )
@@ -385,8 +414,8 @@ impl ExtractErrorMode {
             ExtractErrorMode::Raise => quote! { #extract? },
             ExtractErrorMode::NotImplemented => quote! {
                 match #extract {
-                    ::std::result::Result::Ok(value) => value,
-                    ::std::result::Result::Err(_) => { return #pyo3_path::impl_::callback::convert(py, py.NotImplemented()); },
+                    ::core::result::Result::Ok(value) => value,
+                    ::core::result::Result::Err(_) => { return #pyo3_path::impl_::callback::convert(py, py.NotImplemented()); },
                 }
             },
         }
@@ -774,6 +803,7 @@ impl<'a> FnSpec<'a> {
         cls: Option<&syn::Type>,
         convention: CallingConvention,
         self_conversion: SelfConversionPolicy,
+        class_method_receiver: ClassMethodReceiver,
         ctx: &Ctx,
     ) -> Result<TokenStream> {
         let Ctx {
@@ -800,6 +830,7 @@ impl<'a> FnSpec<'a> {
                 cls,
                 ExtractErrorMode::Raise,
                 self_conversion,
+                class_method_receiver,
                 &mut holders,
                 ctx,
             );

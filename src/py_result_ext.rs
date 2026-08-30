@@ -1,6 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
-
 use crate::{Bound, PyAny, PyResult, PyTypeCheck};
 
 pub(crate) trait PyResultExt<'py>: crate::sealed::Sealed {
@@ -14,8 +11,12 @@ impl<'py> PyResultExt<'py> for PyResult<Bound<'py, PyAny>> {
         self.and_then(|instance| instance.cast_into().map_err(Into::into))
     }
 
+    /// # Safety
+    ///
+    /// see requirements for [`Bound::cast_into_unchecked`]
     #[inline]
     unsafe fn cast_into_unchecked<T>(self) -> PyResult<Bound<'py, T>> {
+        // SAFETY: caller upholds requirements
         self.map(|instance| unsafe { instance.cast_into_unchecked() })
     }
 }

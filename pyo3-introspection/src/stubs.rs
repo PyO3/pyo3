@@ -3,10 +3,10 @@ use crate::model::{
     VariableLengthArgument,
 };
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 use std::iter::once;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 /// Generates the [type stubs](https://typing.readthedocs.io/en/latest/source/stubs.html) of a given module.
@@ -15,33 +15,35 @@ use std::str::FromStr;
 /// in files with a relevant name.
 pub fn module_stub_files(module: &Module) -> HashMap<PathBuf, String> {
     let mut output_files = HashMap::new();
-    add_module_stub_files(module, &[], &mut output_files);
+    add_module_stub_files(module, Path::new(""), &[], &mut output_files);
     output_files
 }
 
 fn add_module_stub_files(
     module: &Module,
-    module_path: &[&str],
+    directory: &Path,
+    parents: &[&str],
     output_files: &mut HashMap<PathBuf, String>,
 ) {
-    let mut file_path = PathBuf::new();
-    for e in module_path {
-        file_path = file_path.join(e);
-    }
     output_files.insert(
-        file_path.join("__init__.pyi"),
-        module_stubs(module, module_path),
+        directory.join("__init__.pyi"),
+        module_stubs(module, parents),
     );
-    let mut module_path = module_path.to_vec();
-    module_path.push(&module.name);
+    let mut parents = parents.to_vec();
+    parents.push(&module.name);
     for submodule in &module.modules {
         if submodule.modules.is_empty() {
             output_files.insert(
-                file_path.join(format!("{}.pyi", submodule.name)),
-                module_stubs(submodule, &module_path),
+                directory.join(format!("{}.pyi", submodule.name)),
+                module_stubs(submodule, &parents),
             );
         } else {
-            add_module_stub_files(submodule, &module_path, output_files);
+            add_module_stub_files(
+                submodule,
+                &directory.join(&submodule.name),
+                &parents,
+                output_files,
+            );
         }
     }
 }
@@ -149,28 +151,26 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
         buffer.push_str(" ...");
     }
     if let Some(docstring) = &class.docstring {
-        buffer.push_str("\n    \"\"\"");
-        for line in docstring.lines() {
-            buffer.push_str("\n    ");
-            buffer.push_str(line);
-        }
-        buffer.push_str("\n    \"\"\"");
+        push_docstring(&mut buffer, "    ", docstring);
     }
     for attribute in &class.attributes {
         // We do the indentation
         buffer.push_str("\n    ");
-        buffer.push_str(&attribute_stubs(attribute, imports).replace('\n', "\n    "));
+        push_indented(&mut buffer, "    ", &attribute_stubs(attribute, imports));
     }
     for method in &class.methods {
         // We do the indentation
         buffer.push_str("\n    ");
-        buffer
-            .push_str(&function_stubs(method, imports, Some(&class.name)).replace('\n', "\n    "));
+        push_indented(
+            &mut buffer,
+            "    ",
+            &function_stubs(method, imports, Some(&class.name)),
+        );
     }
     for inner_class in &class.inner_classes {
         // We do the indentation
         buffer.push_str("\n    ");
-        buffer.push_str(&class_stubs(inner_class, imports).replace('\n', "\n    "));
+        push_indented(&mut buffer, "    ", &class_stubs(inner_class, imports));
     }
     buffer
 }
@@ -232,16 +232,63 @@ fn function_stubs(function: &Function, imports: &Imports, class_name: Option<&st
         imports.serialize_expr(returns, &mut buffer);
     }
     if let Some(docstring) = &function.docstring {
-        buffer.push_str(":\n    \"\"\"");
-        for line in docstring.lines() {
-            buffer.push_str("\n    ");
-            buffer.push_str(line);
-        }
-        buffer.push_str("\n    \"\"\"");
+        buffer.push(':');
+        push_docstring(&mut buffer, "    ", docstring);
     } else {
         buffer.push_str(": ...");
     }
     buffer
+}
+
+/// Appends `text` to `buffer`, prefixing every line after the first with `indent`.
+///
+/// The first line is left alone because callers have already written the indentation for it; this
+/// is the same contract `text.replace('\n', "\n{indent}")` had, minus one thing: a blank line stays
+/// blank instead of being padded out to the indentation. Trailing whitespace on an otherwise empty
+/// line is invisible in the source but still trailing whitespace, it trips `W293` in every Python
+/// linter, and a generated file is exactly the kind of file nobody gets to hand-fix.
+fn push_indented(buffer: &mut String, indent: &str, text: &str) {
+    for (index, line) in text.split('\n').enumerate() {
+        if index > 0 {
+            buffer.push('\n');
+            if !line.is_empty() {
+                buffer.push_str(indent);
+            }
+        }
+        buffer.push_str(line);
+    }
+}
+
+/// Appends a `"""`-quoted docstring indented by `indent`, starting on a fresh line.
+fn push_docstring(buffer: &mut String, indent: &str, docstring: &str) {
+    buffer.push('\n');
+    buffer.push_str(indent);
+    buffer.push_str("\"\"\"");
+    for line in docstring.lines() {
+        buffer.push('\n');
+        if !line.is_empty() {
+            buffer.push_str(indent);
+            buffer.push_str(line);
+        }
+    }
+    buffer.push('\n');
+    buffer.push_str(indent);
+    buffer.push_str("\"\"\"");
+}
+
+/// Collects the operands of a `|` chain in source order, skipping repeats.
+fn flatten_union<'a>(expr: &'a Expr, operands: &mut Vec<&'a Expr>, seen: &mut HashSet<&'a Expr>) {
+    if let Expr::BinOp {
+        left,
+        op: Operator::BitOr,
+        right,
+    } = expr
+    {
+        flatten_union(left, operands, seen);
+        flatten_union(right, operands, seen);
+    } else if seen.insert(expr) {
+        operands.push(expr);
+    }
 }
 
 fn attribute_stubs(attribute: &Attribute, imports: &Imports) -> String {
@@ -255,12 +302,7 @@ fn attribute_stubs(attribute: &Attribute, imports: &Imports) -> String {
         imports.serialize_expr(value, &mut buffer);
     }
     if let Some(docstring) = &attribute.docstring {
-        buffer.push_str("\n\"\"\"");
-        for line in docstring.lines() {
-            buffer.push('\n');
-            buffer.push_str(line);
-        }
-        buffer.push_str("\n\"\"\"");
+        push_docstring(&mut buffer, "", docstring);
     }
     buffer
 }
@@ -457,13 +499,20 @@ impl Imports {
                     buffer.push_str(attr);
                 }
             }
-            Expr::BinOp { left, op, right } => {
-                self.serialize_expr(left, buffer);
-                buffer.push(' ');
-                buffer.push(match op {
-                    Operator::BitOr => '|',
-                });
-                self.serialize_expr(right, buffer);
+            Expr::BinOp {
+                op: Operator::BitOr,
+                ..
+            } => {
+                // Union deduplication needs to happen here because the macro
+                // generation only sees unresolved associated constants.
+                let mut operands = Vec::new();
+                flatten_union(expr, &mut operands, &mut HashSet::new());
+                for (index, operand) in operands.into_iter().enumerate() {
+                    if index > 0 {
+                        buffer.push_str(" | ");
+                    }
+                    self.serialize_expr(operand, buffer);
+                }
             }
             Expr::Tuple { elts } => {
                 buffer.push('(');
@@ -941,5 +990,159 @@ mod tests {
         );
         assert_eq!(make_module_path_relative("foo", "foo.la", false), ".");
         assert_eq!(make_module_path_relative("foo", "bar", true), "foo");
+    }
+
+    /// Docstrings are re-indented into the class or function body, and a paragraph break inside one
+    /// is an empty line. Padding it out to the body indentation is trailing whitespace, which
+    /// `W293` flags and which nobody can fix by hand in a generated file.
+    #[test]
+    fn docstring_blank_lines_are_not_padded_with_indentation() {
+        let module = Module {
+            name: "bar".into(),
+            modules: Vec::new(),
+            classes: vec![Class {
+                name: "Zulu".into(),
+                bases: Vec::new(),
+                methods: vec![Function {
+                    name: "method".into(),
+                    decorators: Vec::new(),
+                    arguments: Arguments {
+                        positional_only_arguments: Vec::new(),
+                        arguments: Vec::new(),
+                        vararg: None,
+                        keyword_only_arguments: Vec::new(),
+                        kwarg: None,
+                    },
+                    returns: None,
+                    is_async: false,
+                    docstring: Some("Summary.\n\nDetail.".into()),
+                }],
+                attributes: Vec::new(),
+                decorators: Vec::new(),
+                inner_classes: Vec::new(),
+                docstring: Some("Class summary.\n\nClass detail.".into()),
+            }],
+            functions: Vec::new(),
+            attributes: vec![Attribute {
+                name: "CONST".into(),
+                value: None,
+                annotation: None,
+                docstring: Some("Const summary.\n\nConst detail.".into()),
+            }],
+            incomplete: false,
+            docstring: None,
+        };
+
+        let stubs = module_stubs(&module, &["foo"]);
+        assert!(
+            !stubs
+                .lines()
+                .any(|line| !line.is_empty() && line.trim().is_empty()),
+            "generated stubs contain a blank line padded with whitespace:\n{stubs:?}"
+        );
+        // The indentation of the non-empty lines is unaffected.
+        assert!(stubs.contains("\n    Class summary.\n\n    Class detail.\n"));
+        assert!(stubs.contains("\n        Summary.\n\n        Detail.\n"));
+        assert!(stubs.contains("\nConst summary.\n\nConst detail.\n"));
+    }
+
+    #[test]
+    fn union_members_are_deduplicated_and_spaced() {
+        let str_ = || Expr::Name { id: "str".into() };
+        let path_like = || Expr::Subscript {
+            value: Box::new(Expr::Attribute {
+                value: Box::new(Expr::Name { id: "os".into() }),
+                attr: "PathLike".into(),
+            }),
+            slice: Box::new(str_()),
+        };
+        let union = |left: Expr, right: Expr| Expr::BinOp {
+            left: Box::new(left),
+            op: Operator::BitOr,
+            right: Box::new(right),
+        };
+        let imports = Imports {
+            imports: Vec::new(),
+            renaming: BTreeMap::from([
+                (("builtins".into(), "str".into()), "str".into()),
+                (("os".into(), "PathLike".into()), "PathLike".into()),
+            ]),
+        };
+        let serialize = |expr| {
+            let mut buffer = String::new();
+            imports.serialize_expr(&expr, &mut buffer);
+            buffer
+        };
+
+        // `str | os.PathLike[str] | str`, nested to the right
+        assert_eq!(
+            serialize(union(str_(), union(path_like(), str_()))),
+            "str | PathLike[str]"
+        );
+        // and the same chain nested to the left
+        assert_eq!(
+            serialize(union(union(str_(), path_like()), str_())),
+            "str | PathLike[str]"
+        );
+    }
+
+    #[test]
+    fn nested_packages_are_written_into_their_own_directory() {
+        let attribute = |name: &str| Attribute {
+            name: name.into(),
+            value: None,
+            annotation: Some(Expr::Attribute {
+                value: Box::new(Expr::Name { id: "top".into() }),
+                attr: "Top".into(),
+            }),
+            docstring: None,
+        };
+        let module = |name: &str, modules: Vec<Module>, attributes: Vec<Attribute>| Module {
+            name: name.into(),
+            modules,
+            classes: Vec::new(),
+            functions: Vec::new(),
+            attributes,
+            incomplete: false,
+            docstring: None,
+        };
+        let mut top = module(
+            "top",
+            vec![
+                module(
+                    "child",
+                    vec![module("grandchild", Vec::new(), vec![attribute("deep")])],
+                    vec![attribute("mid")],
+                ),
+                module("sibling", Vec::new(), Vec::new()),
+            ],
+            Vec::new(),
+        );
+        top.classes.push(Class {
+            name: "Top".into(),
+            bases: Vec::new(),
+            methods: Vec::new(),
+            attributes: Vec::new(),
+            decorators: Vec::new(),
+            inner_classes: Vec::new(),
+            docstring: None,
+        });
+
+        let files = module_stub_files(&top);
+        let mut paths = files.keys().cloned().collect::<Vec<_>>();
+        paths.sort();
+        assert_eq!(
+            paths,
+            [
+                PathBuf::from("__init__.pyi"),
+                PathBuf::from("child/__init__.pyi"),
+                PathBuf::from("child/grandchild.pyi"),
+                PathBuf::from("sibling.pyi"),
+            ]
+        );
+        // The parents passed to `module_stubs` must stay the module names, not the directories.
+        assert!(files[Path::new("child/__init__.pyi")].contains("from .. import Top"));
+        assert!(files[Path::new("child/grandchild.pyi")].contains("from .. import Top"));
+        assert!(files[Path::new("sibling.pyi")].is_empty());
     }
 }
