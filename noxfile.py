@@ -1747,7 +1747,12 @@ def update_ui_tests(session: nox.Session):
     _run_cargo(session, *command, "--features=abi3,full", env=env)
 
     env["PYO3_WIP_NO_STD"] = "1"
-    _run_cargo(session, *command, "--features=macros,hashbrown", env=env)
+    _run_cargo(
+        session,
+        *command,
+        f"--features=macros,{','.join(_REQUIRED_FOR_NO_STD)}",
+        env=env,
+    )
 
 
 @nox.session(name="test-introspection")
