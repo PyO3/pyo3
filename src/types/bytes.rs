@@ -214,6 +214,15 @@ impl<'a> Borrowed<'a, '_, PyBytes> {
     /// Gets the Python string as a byte slice.
     #[allow(clippy::wrong_self_convention)]
     pub(crate) fn as_bytes(self) -> &'a [u8] {
+        #[cfg(not(Py_LIMITED_API))]
+        unsafe {
+            let buffer = ffi::PyBytes_AS_STRING(self.as_ptr()).cast::<u8>();
+            let length = ffi::Py_SIZE(self.as_ptr()) as usize;
+            debug_assert!(!buffer.is_null());
+            core::slice::from_raw_parts(buffer, length)
+        }
+
+        #[cfg(Py_LIMITED_API)]
         unsafe {
             let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
