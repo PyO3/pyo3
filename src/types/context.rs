@@ -392,6 +392,10 @@ pub mod impl_ {
 
                 (Callback::CALLBACK)(py, event)?;
 
+                if crate::PyErr::occurred(py) {
+                    return Err(crate::PyErr::fetch(py));
+                }
+
                 Ok(0)
             })
         };
@@ -567,6 +571,33 @@ mod watcher_tests {
             assert_eq!(result, -1);
             let error = PyErr::fetch(py);
             assert!(error.is_instance_of::<PyRuntimeError>(py));
+        });
+    }
+
+    #[allow(clippy::unnecessary_wraps, reason = "context watcher callback")]
+    fn restore_error_callback(py: Python<'_>, _event: ContextEvent<'_, '_>) -> PyResult<()> {
+        PyRuntimeError::new_err("watcher restored error").restore(py);
+        Ok(())
+    }
+
+    struct RestoringErrorCallback;
+
+    impl ContextWatcherCallbackDef for RestoringErrorCallback {
+        const CALLBACK: ContextWatcherCallback = restore_error_callback;
+    }
+
+    #[test]
+    fn callback_cannot_return_success_with_an_exception_set() {
+        Python::attach(|py| {
+            // SAFETY: the thread is attached and None is valid for Py_CONTEXT_SWITCHED.
+            let result = unsafe {
+                context_watcher::<RestoringErrorCallback>(ffi::Py_CONTEXT_SWITCHED, ffi::Py_None())
+            };
+
+            assert_eq!(result, -1);
+            let error = PyErr::fetch(py);
+            assert!(error.is_instance_of::<PyRuntimeError>(py));
+            assert_eq!(error.to_string(), "RuntimeError: watcher restored error");
         });
     }
 
