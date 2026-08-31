@@ -4,8 +4,6 @@ use crate::exceptions::PyOverflowError;
 use crate::exceptions::PyValueError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
-#[cfg(Py_LIMITED_API)]
-use crate::intern;
 #[cfg(wip_feature_std)]
 use crate::sync::PyOnceLock;
 #[cfg(feature = "experimental-inspect")]
@@ -44,6 +42,8 @@ impl FromPyObject<'_, '_> for Duration {
         };
         #[cfg(Py_LIMITED_API)]
         let (days, seconds, microseconds): (i32, i32, i32) = {
+            use crate::intern;
+            use crate::types::any::PyAnyMethods;
             let py = delta.py();
             (
                 delta.getattr(intern!(py, "days"))?.extract()?,
