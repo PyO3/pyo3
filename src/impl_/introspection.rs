@@ -1,7 +1,7 @@
 use crate::conversion::IntoPyObject;
 use crate::impl_::pyclass::PyClassImpl;
 use crate::inspect::PyStaticExpr;
-use crate::pycell::impl_::PyClassObjectContents;
+use crate::pycell::impl_::PyClassObjectLayout;
 
 /// Seals `PyReturnType` so that types outside PyO3 cannot implement it.
 mod return_type {
@@ -49,10 +49,10 @@ impl<'py, T: IntoPyObject<'py>> PyIntoPyObjectMaybeRefType<false> for T {
     const OUTPUT_TYPE: PyStaticExpr = <T as IntoPyObject<'_>>::OUTPUT_TYPE;
 }
 
-/// Whether `T` adds data to the instance layout of its base class, making it a
+/// Whether `T` is laid out differently from its base class, making it a
 /// [disjoint base](https://peps.python.org/pep-0800/) at runtime.
 pub const fn is_disjoint_base<T: PyClassImpl>() -> bool {
-    core::mem::size_of::<PyClassObjectContents<T>>() > 0
+    <T::Layout as PyClassObjectLayout<T>>::IS_DISJOINT_BASE
 }
 
 #[repr(C)]
@@ -176,6 +176,14 @@ mod tests {
     #[pyclass(crate = "crate", extends = Empty, frozen)]
     struct EmptyChild;
 
+    #[pyclass(crate = "crate", subclass, frozen)]
+    struct SizedBase(#[allow(dead_code)] u64);
+
+    /// Adds no data, but is aligned more strictly than its base, so instances still grow.
+    #[pyclass(crate = "crate", extends = SizedBase, frozen)]
+    #[repr(align(32))]
+    struct OverAligned;
+
     /// The condition `mypy.stubtest` checks, from the runtime type objects.
     fn runtime_is_disjoint_base<T: PyTypeInfo>(py: Python<'_>) -> bool {
         let attr =
@@ -204,6 +212,20 @@ mod tests {
             assert_eq!(
                 is_disjoint_base::<EmptyChild>(),
                 runtime_is_disjoint_base::<EmptyChild>(py)
+            );
+            assert_eq!(
+                is_disjoint_base::<SizedBase>(),
+                runtime_is_disjoint_base::<SizedBase>(py)
+            );
+            // Empty contents, so only the padding makes this disjoint.
+            assert_eq!(
+                core::mem::size_of::<crate::pycell::impl_::PyClassObjectContents<OverAligned>>(),
+                0
+            );
+            assert!(runtime_is_disjoint_base::<OverAligned>(py));
+            assert_eq!(
+                is_disjoint_base::<OverAligned>(),
+                runtime_is_disjoint_base::<OverAligned>(py)
             );
             // The cases must not all agree by accident.
             assert!(is_disjoint_base::<WithField>());

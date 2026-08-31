@@ -350,6 +350,10 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     /// ([docs](https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize))
     const BASIC_SIZE: ffi::Py_ssize_t;
 
+    /// Whether instances are laid out differently from the base class, making the class a
+    /// [disjoint base](https://peps.python.org/pep-0800/).
+    const IS_DISJOINT_BASE: bool;
+
     /// Gets the offset of the dictionary from the start of the struct in bytes.
     const DICT_OFFSET: PyObjectOffset;
 
@@ -428,6 +432,11 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyStaticClassObje
         assert!(size <= ffi::Py_ssize_t::MAX as usize);
         size as _
     };
+
+    // Not just `size_of::<PyClassObjectContents<T>>() > 0`: empty contents aligned more
+    // strictly than the base still grow the instance, through `repr(C)` padding.
+    const IS_DISJOINT_BASE: bool = core::mem::size_of::<Self>()
+        != core::mem::size_of::<<T::BaseType as PyClassBaseType>::LayoutAsBase>();
 
     const DICT_OFFSET: PyObjectOffset = {
         let offset = offset_of!(PyStaticClassObject<T>, contents)
@@ -544,6 +553,10 @@ impl<T: PyClass<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassObject
         // negative to indicate 'extra' space that cpython will allocate for us
         -(size as ffi::Py_ssize_t)
     };
+
+    // cpython appends the contents, reusing the base's size when there are none.
+    const IS_DISJOINT_BASE: bool = core::mem::size_of::<PyClassObjectContents<T>>() > 0;
+
     const DICT_OFFSET: PyObjectOffset = {
         let offset = offset_of!(PyClassObjectContents<T>, dict);
         assert!(offset <= ffi::Py_ssize_t::MAX as usize);
