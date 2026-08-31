@@ -640,6 +640,7 @@ All the same rules from above apply as well.
   # use pyo3::prelude::*;
   # use pyo3::IntoPyObjectExt;
   # use std::borrow::Cow;
+  # #[allow(dead_code)]
   #[derive(Clone)]
   struct NotIntoPy(usize);
 
