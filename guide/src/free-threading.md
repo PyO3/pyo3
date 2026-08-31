@@ -205,20 +205,24 @@ Here the same example as above built using a [`Once`] instead of a
 
 ```rust
 # use pyo3::prelude::*;
+# #[cfg(wip_feature_std)]
 use std::sync::Once;
 use pyo3::sync::OnceExt;
 use pyo3::types::PyDict;
 
+# #[cfg(wip_feature_std)]
 struct RuntimeCache {
     once: Once,
     cache: Option<Py<PyDict>>
 }
 
+# #[cfg(wip_feature_std)]
 let mut cache = RuntimeCache {
     once: Once::new(),
     cache: None
 };
 
+# #[cfg(wip_feature_std)]
 Python::attach(|py| {
     // guaranteed to be called once and only once
     cache.once.call_once_py_attached(py, || {
@@ -241,11 +245,14 @@ Before:
 # use pyo3::prelude::*;
 use pyo3::sync::GILProtected;
 use pyo3::types::{PyDict, PyNone};
+# #[cfg(wip_feature_std)]
 use std::cell::RefCell;
 
+# #[cfg(wip_feature_std)]
 static OBJECTS: GILProtected<RefCell<Vec<Py<PyDict>>>> =
     GILProtected::new(RefCell::new(Vec::new()));
 
+# #[cfg(wip_feature_std)]
 Python::attach(|py| {
     // stand-in for something that executes arbitrary Python code
     let d = PyDict::new(py);
@@ -261,8 +268,10 @@ After (using a `Mutex`):
 # use pyo3::prelude::*;
 # fn main() {
 use pyo3::types::{PyDict, PyNone};
+# #[cfg(wip_feature_std)]
 use std::sync::Mutex;
 
+# #[cfg(wip_feature_std)]
 static OBJECTS: Mutex<Vec<Py<PyDict>>> = Mutex::new(Vec::new());
 
 Python::attach(|py| {
@@ -271,6 +280,7 @@ Python::attach(|py| {
     d.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
     // as with any `Mutex` usage, lock the mutex for as little time as possible
     // in this case, we do it just while pushing into the `Vec`
+    # #[cfg(wip_feature_std)]
     OBJECTS.lock().unwrap().push(d.unbind());
 });
 # }
