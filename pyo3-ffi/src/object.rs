@@ -390,7 +390,6 @@ extern_libpython! {
     ) -> *mut PyObject;
 
     #[cfg(Py_3_12)]
-    #[cfg_attr(PyPy, link_name = "PyPyObject_GetTypeData")]
     pub fn PyObject_GetTypeData(obj: *mut PyObject, cls: *mut PyTypeObject) -> *mut c_void;
 
     #[cfg(Py_3_12)]
