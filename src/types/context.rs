@@ -432,15 +432,14 @@ mod watcher_tests {
     use super::impl_::{context_watcher, ContextWatcherCallback, ContextWatcherCallbackDef};
     use super::{ContextEvent, PyContext};
     use crate::exceptions::{PyRuntimeError, PyValueError};
+    use crate::platform::sync::non_poison::{Mutex, MutexGuard};
     #[cfg(feature = "macros")]
     use crate::test_utils::UnraisableCapture;
     use crate::types::PyAnyMethods;
     use crate::{ffi, PyErr, PyResult, Python};
-    #[cfg(feature = "macros")]
     use alloc::string::ToString;
     use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
     use static_assertions::{assert_impl_all, assert_not_impl_any};
-    use std::sync::{Mutex, MutexGuard, PoisonError};
 
     // Context watchers are interpreter-global and limited to eight slots, so tests which register
     // watchers must not run concurrently.
@@ -449,9 +448,7 @@ mod watcher_tests {
     static SAW_CONTEXT: AtomicBool = AtomicBool::new(false);
 
     fn acquire_watcher_test_lock() -> MutexGuard<'static, ()> {
-        WATCHER_TEST_MUTEX
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
+        WATCHER_TEST_MUTEX.lock()
     }
 
     fn run_context_switch(py: Python<'_>) {
