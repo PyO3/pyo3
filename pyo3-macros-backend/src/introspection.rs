@@ -83,21 +83,18 @@ pub fn class_introspection_code(
         if is_final {
             IntrospectionNode::List(vec![PyExpr::module_attr("typing", "final").into()])
         } else {
-            // Being a disjoint base depends on the instance layout, so the decorator list is
-            // picked by the compiler.
-            let disjoint_base = IntrospectionNode::List(vec![PyExpr::module_attr(
-                "typing_extensions",
-                "disjoint_base",
-            )
-            .into()])
-            .serialize(pyo3_crate_path);
-            IntrospectionNode::Const(quote! {
-                if #pyo3_crate_path::impl_::introspection::is_disjoint_base::<#ident>() {
-                    (#disjoint_base) as &[u8]
-                } else {
-                    "[]".as_bytes()
-                }
-            })
+            // Being a disjoint base depends on the instance layout, so the compiler picks the list.
+            IntrospectionNode::If {
+                condition: quote! {
+                    #pyo3_crate_path::impl_::introspection::is_disjoint_base::<#ident>()
+                },
+                then: Box::new(IntrospectionNode::List(vec![PyExpr::module_attr(
+                    "typing_extensions",
+                    "disjoint_base",
+                )
+                .into()])),
+                otherwise: Box::new(IntrospectionNode::List(Vec::new())),
+            }
         },
     );
     if let Some(parent) = parent {
@@ -367,8 +364,12 @@ enum IntrospectionNode<'a> {
     Doc(&'a PythonDoc),
     Map(BTreeMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<AttributedIntrospectionNode<'a>>),
-    /// A const expression evaluating to the serialized node as `&[u8]`
-    Const(TokenStream),
+    /// Emits `if $condition { $then } else { $otherwise }`, for facts only the compiler knows.
+    If {
+        condition: TokenStream,
+        then: Box<IntrospectionNode<'a>>,
+        otherwise: Box<IntrospectionNode<'a>>,
+    },
 }
 
 impl IntrospectionNode<'_> {
@@ -475,7 +476,22 @@ impl IntrospectionNode<'_> {
                 }
                 content.push_str("]");
             }
-            Self::Const(tokens) => content.push_tokens(tokens),
+            Self::If {
+                condition,
+                then,
+                otherwise,
+            } => {
+                // The casts unify the branches: a node serializes to `&[u8; N]` or `&[u8]`.
+                let then = then.serialize(pyo3_crate_path);
+                let otherwise = otherwise.serialize(pyo3_crate_path);
+                content.push_tokens(quote! {
+                    if #condition {
+                        (#then) as &[u8]
+                    } else {
+                        (#otherwise) as &[u8]
+                    }
+                });
+            }
         }
     }
 }
