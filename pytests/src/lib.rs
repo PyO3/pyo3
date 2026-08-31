@@ -15,6 +15,7 @@ mod exception;
 mod misc;
 mod objstore;
 mod othermod;
+#[cfg(wip_feature_std)]
 mod path;
 mod pyclasses;
 mod pyfunctions;
@@ -34,11 +35,15 @@ mod pyo3_pytests {
     #[pymodule_export]
     use datetime::datetime;
 
+    #[cfg(wip_feature_std)]
+    #[pymodule_export]
+    use path::path;
+
     #[pymodule_export]
     use {
         awaitable::awaitable, comparisons::comparisons, consts::consts, dict_iter::dict_iter,
         enums::enums, exception::exception, misc::misc, objstore::objstore, othermod::othermod,
-        path::path, pyclasses::pyclasses, pyfunctions::pyfunctions, sequence::sequence,
+        pyclasses::pyclasses, pyfunctions::pyfunctions, sequence::sequence,
         subclassing::subclassing,
     };
 
