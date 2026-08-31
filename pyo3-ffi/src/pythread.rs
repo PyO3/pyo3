@@ -1,11 +1,16 @@
-use core::ffi::{c_int, c_void};
+use core::ffi::{c_int, c_ulong, c_void};
 
 // skipped PyThread_type_lock
 // skipped PyLockStatus
 // skipped PyThread_init_thread
 // skipped PyThread_start_new_thread
 // skipped PyThread_exit_thread
-// skipped PyThread_get_thread_ident
+
+extern_libpython! {
+    #[cfg_attr(PyPy, link_name = "PyPyThread_get_thread_ident")]
+    pub fn PyThread_get_thread_ident() -> c_ulong;
+}
+
 // skipped PyThread_get_thread_native_id
 // skipped PyThread_allocate_lock
 // skipped PyThread_free_lock

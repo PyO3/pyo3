@@ -3,6 +3,7 @@
 
 #[allow(unused_imports, reason = "conditionally used")]
 use crate::platform::prelude::*;
+use crate::platform::thread;
 use crate::{
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
@@ -20,13 +21,14 @@ use crate::{
     Borrowed, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr,
     PyResult, PyTypeCheck, PyTypeInfo, Python,
 };
+
+use core::ops::DerefMut;
 use core::{
     ffi::CStr,
     ffi::{c_int, c_void},
     marker::PhantomData,
     ptr::{self, NonNull},
 };
-use std::{sync::Mutex, thread};
 
 mod assertions;
 pub mod doc;
@@ -980,7 +982,7 @@ pub use generate_pyclass_richcompare_slot;
 /// Do not implement this trait manually. Instead, use `#[pyclass(freelist = N)]`
 /// on a Rust struct to implement it.
 pub trait PyClassWithFreeList: PyClass + generic_pyclass::Sealed {
-    fn get_free_list(py: Python<'_>) -> &'static Mutex<PyObjectFreeList>;
+    fn get_free_list(py: Python<'_>) -> impl DerefMut<Target = PyObjectFreeList>;
 }
 
 /// Implementation of tp_alloc for `freelist` classes.
@@ -998,7 +1000,7 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
     // If this type is a variable type or the subtype is not equal to this type, we cannot use the
     // freelist
     if nitems == 0 && ptr::eq(subtype, self_type) {
-        let mut free_list = T::get_free_list(py).lock().unwrap();
+        let mut free_list = T::get_free_list(py);
         if let Some(obj) = free_list.pop() {
             drop(free_list);
             unsafe { ffi::PyObject_Init(obj.as_ptr(), subtype) };
@@ -1023,7 +1025,7 @@ pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_
             T::type_object_raw(Python::assume_attached()),
             ffi::Py_TYPE(obj.as_ptr())
         );
-        let mut free_list = T::get_free_list(Python::assume_attached()).lock().unwrap();
+        let mut free_list = T::get_free_list(Python::assume_attached());
         if let Some(obj) = free_list.insert(obj) {
             drop(free_list);
             let ty = ffi::Py_TYPE(obj.as_ptr());

@@ -572,7 +572,9 @@ Both `struct`s and `enum`s are supported.
 ```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
+# #[cfg(wip_feature_std)]
 # use std::collections::HashMap;
+# #[cfg(wip_feature_std)]
 # use std::hash::Hash;
 
 // structs convert into `PyDict` with field names as keys
@@ -585,6 +587,7 @@ struct Struct {
 // tuple structs convert into `PyTuple`
 // lifetimes and generics are supported, the impl will be bounded by
 // `K: IntoPyObject, V: IntoPyObject`
+# #[cfg(wip_feature_std)]
 #[derive(IntoPyObject)]
 struct Tuple<'a, K: Hash + Eq, V>(&'a str, HashMap<K, V>);
 ```
@@ -611,9 +614,12 @@ For `enum`s each variant is converted according to the rules for `struct`s above
 ```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
+# #[cfg(wip_feature_std)]
 # use std::collections::HashMap;
+# #[cfg(wip_feature_std)]
 # use std::hash::Hash;
 
+# #[cfg(wip_feature_std)]
 #[derive(IntoPyObject)]
 enum Enum<'a, 'py, K: Hash + Eq, V> { // enums are supported and convert using the same
     TransparentTuple(Py<PyAny>),       // rules on the variants as the structs above
@@ -639,11 +645,14 @@ All the same rules from above apply as well.
   ```rust,no_run
   # use pyo3::prelude::*;
   # use pyo3::IntoPyObjectExt;
+  # #[cfg(wip_feature_std)]
   # use std::borrow::Cow;
+  # use core::convert;
   # #[allow(dead_code)]
   #[derive(Clone)]
   struct NotIntoPy(usize);
 
+  # #[cfg(wip_feature_std)]
   #[derive(IntoPyObject, IntoPyObjectRef)]
   struct MyStruct {
       #[pyo3(into_py_with = convert)]
@@ -651,6 +660,7 @@ All the same rules from above apply as well.
   }
 
   /// Convert `NotIntoPy` into Python
+  # #[cfg(wip_feature_std)]
   fn convert<'py>(not_into_py: Cow<'_, NotIntoPy>, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
       not_into_py.0.into_bound_py_any(py)
   }
