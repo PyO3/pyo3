@@ -35,6 +35,8 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PyContext_CheckExact
 );
 
+// TODO: enable support on free-threaded builds once
+// https://github.com/python/cpython/issues/155619 is fixed
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
 impl PyContext {
     /// Registers a context watcher for the current interpreter.
@@ -363,7 +365,8 @@ pub mod impl_ {
             crate::impl_::trampoline::trampoline(|py| {
                 let event = match event {
                     ffi::Py_CONTEXT_SWITCHED => {
-                        let object = object.assume_borrowed_or_err(py)?;
+                        // SAFETY: `Py_CONTEXT_SWITCHED` is documented to always have None or a context object passed
+                        let object = unsafe { object.assume_borrowed_unchecked(py) };
 
                         if object.is_none() {
                             ContextEvent::Switched(None)
