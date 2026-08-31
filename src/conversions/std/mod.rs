@@ -12,6 +12,5 @@ mod path;
 mod set;
 mod slice;
 mod string;
-#[cfg(wip_feature_std)]
 mod time;
 mod vec;
