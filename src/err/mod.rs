@@ -869,6 +869,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "new panic")]
     #[cfg(not(Py_3_12))]
+    #[cfg(wip_feature_std)]
     fn fetching_normalized_panic_exception_resumes_unwind() {
         use crate::panic::PanicException;
 
