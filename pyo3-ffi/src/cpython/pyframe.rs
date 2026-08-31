@@ -66,11 +66,14 @@ extern_libpython! {
     pub fn PyFrame_GetVarString(frame: *mut PyFrameObject, name: *mut c_char) -> *mut PyObject;
 
     #[cfg(Py_3_12)]
+    #[cfg(not(PyPy))]
     pub fn PyUnstable_InterpreterFrame_GetCode(frame: *mut _PyInterpreterFrame) -> *mut PyObject;
 
     #[cfg(Py_3_12)]
+    #[cfg(not(PyPy))]
     pub fn PyUnstable_InterpreterFrame_GetLasti(frame: *mut _PyInterpreterFrame) -> c_int;
 
     #[cfg(Py_3_12)]
+    #[cfg(not(PyPy))]
     pub fn PyUnstable_InterpreterFrame_GetLine(frame: *mut _PyInterpreterFrame) -> c_int;
 }

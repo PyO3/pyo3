@@ -50,8 +50,10 @@ extern_libpython! {
         arg3: *mut *mut PyObject,
     );
     #[cfg(Py_3_12)]
+    #[cfg_attr(PyPy, link_name = "PyPyErr_GetRaisedException")]
     pub fn PyErr_GetRaisedException() -> *mut PyObject;
     #[cfg(Py_3_12)]
+    #[cfg_attr(PyPy, link_name = "PyPyErr_SetRaisedException")]
     pub fn PyErr_SetRaisedException(exc: *mut PyObject);
     #[cfg(Py_3_11)]
     #[cfg_attr(PyPy, link_name = "PyPyErr_GetHandledException")]
