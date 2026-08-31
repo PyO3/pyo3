@@ -532,6 +532,11 @@ jobs:
       - name: Test
         run: uvx nox -s ${{ matrix.session }}
 
+  no_std-required:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'no_std') }}
+    needs: [no_std]
+    runs-on: ubuntu-latest
+
   test-debug:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     needs: [fmt]
@@ -828,6 +833,7 @@ jobs:
       - test-cross-compilation
       - test-cross-compilation-windows
       - test-introspection
+      - no_std-required
     if: always()
     runs-on: ubuntu-latest
     steps:
