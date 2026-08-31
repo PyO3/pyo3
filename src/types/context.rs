@@ -338,6 +338,31 @@ pub mod impl_ {
         WatchCallback(context_watcher::<Callback>)
     }
 
+    unsafe fn event_from_raw<'a, 'py>(
+        py: Python<'py>,
+        event: ffi::PyContextEvent,
+        object: *mut ffi::PyObject,
+    ) -> PyResult<ContextEvent<'a, 'py>> {
+        match event {
+            ffi::Py_CONTEXT_SWITCHED => {
+                // SAFETY: `Py_CONTEXT_SWITCHED` is documented to always have None or a context object passed
+                let object = unsafe { object.assume_borrowed_unchecked(py) };
+
+                if object.is_none() {
+                    Ok(ContextEvent::Switched(None))
+                } else {
+                    Ok(ContextEvent::Switched(Some(object.cast()?)))
+                }
+            }
+
+            raw_event => {
+                // SAFETY: the caller guarantees that `object` follows the contract for `event`.
+                let object = unsafe { object.assume_borrowed_or_opt(py) };
+                Ok(ContextEvent::Unknown { raw_event, object })
+            }
+        }
+    }
+
     /// C-compatible trampoline for a context watcher callback.
     ///
     /// # Safety
@@ -363,23 +388,7 @@ pub mod impl_ {
         // - the callback's higher-ranked signature prevents borrowed event data from escaping
         let result = unsafe {
             crate::impl_::trampoline::trampoline(|py| {
-                let event = match event {
-                    ffi::Py_CONTEXT_SWITCHED => {
-                        // SAFETY: `Py_CONTEXT_SWITCHED` is documented to always have None or a context object passed
-                        let object = unsafe { object.assume_borrowed_unchecked(py) };
-
-                        if object.is_none() {
-                            ContextEvent::Switched(None)
-                        } else {
-                            ContextEvent::Switched(Some(object.cast()?))
-                        }
-                    }
-
-                    raw_event => {
-                        let object = object.assume_borrowed_or_opt(py);
-                        ContextEvent::Unknown { raw_event, object }
-                    }
-                };
+                let event = event_from_raw(py, event, object)?;
 
                 (Callback::CALLBACK)(py, event)?;
 
