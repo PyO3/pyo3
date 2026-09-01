@@ -10,9 +10,6 @@ pub(crate) mod prelude {
         string::{String, ToString},
         vec::Vec,
     };
-
-    // TODO find a `no_std` replacement for eprintln
-    pub use std::eprintln;
 }
 
 pub mod sync;
