@@ -1,5 +1,5 @@
 //@revisions: default inspect
-//@[default] without-experimental-inspect
+//@[default] no-experimental-inspect
 //@[inspect] with-experimental-inspect
 
 struct Blah;

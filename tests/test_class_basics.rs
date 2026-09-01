@@ -227,6 +227,7 @@ fn class_with_object_field() {
     });
 }
 
+#[cfg(wip_feature_std)]
 #[pyclass(frozen, eq, hash)]
 #[derive(PartialEq, Hash)]
 struct ClassWithHash {
@@ -234,6 +235,7 @@ struct ClassWithHash {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn class_with_hash() {
     Python::attach(|py| {
         use pyo3::types::IntoPyDict;

@@ -247,11 +247,35 @@ extern_libpython! {
         unicode: *mut PyObject,
         mapping: *mut PyObject,
     ) -> *mut PyObject;
-    // skipped PyUnicode_DecodeMBCS
-    // skipped PyUnicode_DecodeMBCSStateful
-    // skipped PyUnicode_DecodeCodePageStateful
-    // skipped PyUnicode_AsMBCSString
-    // skipped PyUnicode_EncodeCodePage
+    #[cfg(target_os = "windows")]
+    pub fn PyUnicode_DecodeMBCS(
+        string: *const c_char,
+        length: Py_ssize_t,
+        errors: *const c_char,
+    ) -> *mut PyObject;
+    #[cfg(target_os = "windows")]
+    pub fn PyUnicode_DecodeMBCSStateful(
+        string: *const c_char,
+        length: Py_ssize_t,
+        errors: *const c_char,
+        consumed: *mut Py_ssize_t,
+    ) -> *mut PyObject;
+    #[cfg(target_os = "windows")]
+    pub fn PyUnicode_DecodeCodePageStateful(
+        code_page: c_int,
+        string: *const c_char,
+        length: Py_ssize_t,
+        errors: *const c_char,
+        consumed: *mut Py_ssize_t,
+    ) -> *mut PyObject;
+    #[cfg(target_os = "windows")]
+    pub fn PyUnicode_AsMBCSString(unicode: *mut PyObject) -> *mut PyObject;
+    #[cfg(target_os = "windows")]
+    pub fn PyUnicode_EncodeCodePage(
+        code_page: c_int,
+        unicode: *mut PyObject,
+        errors: *const c_char,
+    ) -> *mut PyObject;
     pub fn PyUnicode_DecodeLocaleAndSize(
         str: *const c_char,
         len: Py_ssize_t,
@@ -353,7 +377,8 @@ extern_libpython! {
         string: *const c_char,
         size: Py_ssize_t,
     ) -> c_int;
-    // skipped PyUnicode_Equal
+    #[cfg(Py_3_14)]
+    pub fn PyUnicode_Equal(str1: *mut PyObject, str2: *mut PyObject) -> c_int;
     pub fn PyUnicode_RichCompare(
         left: *mut PyObject,
         right: *mut PyObject,

@@ -19,11 +19,18 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 
-[tool.ruff]
-exclude = ["stubs"]
-
 [tool.ruff.per-file-target-version]
 "tests/test_enums_match.py" = "py310"
+
+# Some ruff lints our auto-generated stub fails
+[tool.ruff.lint.per-file-ignores]
+"stubs/*.pyi" = [
+    "I001",   # unsorted imports
+    "PYI020", # quoted annotations
+    "PYI029", # redundant `__str__` definition
+    "PYI034", # `__new__` returning the class instead of `Self`
+    "UP037",  # quoted annotations
+]
 
 [project.optional-dependencies]
 dev = [
@@ -34,5 +41,6 @@ dev = [
     "pytest-asyncio>=0.21,<2",
     "pytest-benchmark>=3.4",
     "pytest>=7",
-    "typing_extensions>=4.0.0"
+    # 4.2 for `assert_type`
+    "typing_extensions>=4.2.0"
 ]

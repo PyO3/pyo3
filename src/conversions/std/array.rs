@@ -1,6 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
-
 use crate::conversion::{FromPyObjectOwned, FromPyObjectSequence, IntoPyObject};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
@@ -73,6 +70,7 @@ where
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
+    // SAFETY: passing valid pointer to python API
     if unsafe { ffi::PySequence_Check(obj.as_ptr()) } == 0 {
         return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
     }

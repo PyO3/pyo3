@@ -175,6 +175,7 @@ macro_rules! int_fits_c_long {
 
             fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
+                #[allow(unreachable_code, reason = "error type might be !")]
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
             }
@@ -361,8 +362,10 @@ int_convert_u64_or_i64!(
 pub(crate) const PYLONG_BITS_IN_DIGIT: usize = 30;
 
 #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
-pub(crate) fn is_30bit_layout() -> bool {
-    static DIGITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+pub(crate) fn is_30bit_layout(py: Python<'_>) -> bool {
+    use crate::sync::PyOnceLock;
+
+    static DIGITS: PyOnceLock<bool> = PyOnceLock::new();
 
     const PYLONG_DIGIT_SIZE: u8 = 4;
     const PYLONG_DIGITS_ORDER: i8 = -1;
@@ -372,7 +375,7 @@ pub(crate) fn is_30bit_layout() -> bool {
     #[cfg(target_endian = "big")]
     const NATIVE_DIGIT_ENDIANNESS: i8 = 1;
 
-    *DIGITS.get_or_init(|| {
+    *DIGITS.get_or_init(py, || {
         let layout = unsafe { &*ffi::PyLong_GetNativeLayout() };
         layout.bits_per_digit == PYLONG_BITS_IN_DIGIT as u8
             && layout.digit_size == PYLONG_DIGIT_SIZE
@@ -463,7 +466,7 @@ mod fast_128bit_int_conversion {
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     #[cfg(Py_3_14)]
                     {
-                        if is_30bit_layout() {
+                        if is_30bit_layout(py) {
                             const DIGIT_MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
                             let signed = self as i128;
                             let negative = $is_signed && signed < 0;
@@ -516,7 +519,7 @@ mod fast_128bit_int_conversion {
                     let num = nb_index(&ob)?;
                     #[cfg(Py_3_14)]
                     {
-                        if is_30bit_layout() {
+                        if is_30bit_layout(ob.py()) {
                             let overflow = || {
                                 exceptions::PyOverflowError::new_err(
                                     "Python int larger than 128 bits",

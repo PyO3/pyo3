@@ -384,16 +384,6 @@ def check_all(session: nox.Session) -> None:
 
 
 @nox.session(venv_backend="none")
-def publish(session: nox.Session) -> None:
-    _run_cargo_publish(session, package="pyo3-build-config")
-    _run_cargo_publish(session, package="pyo3-macros-backend")
-    _run_cargo_publish(session, package="pyo3-macros")
-    _run_cargo_publish(session, package="pyo3-ffi")
-    _run_cargo_publish(session, package="pyo3")
-    _run_cargo_publish(session, package="pyo3-introspection")
-
-
-@nox.session(venv_backend="none")
 def contributors(session: nox.Session) -> None:
     import requests
 
@@ -504,6 +494,8 @@ def test_emscripten(session: nox.Session):
             "-C link-arg=-sEXPORTED_FUNCTIONS=_main,__PyRuntime",
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
             "-C link-arg=-sSTACK_SIZE=262144",
+            # https://github.com/python/cpython/issues/156243
+            "-C link-arg=-sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE=$stringToNewUTF8",
         ]
     )
     session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
@@ -542,19 +534,39 @@ class WasiInfo:
         self.libdir = crossbuild_dir / "build" / f"lib.wasi-wasm32-{self.pymajorminor}"
 
 
-@nox.session(name="build-wasm", venv_backend="none")
-def build_wasm(session: nox.Session):
-    info = WasiInfo()
+def _make_wasm(session: nox.Session, info: WasiInfo, *targets: str):
     _run(
         session,
         "make",
         "-C",
         str(info.wasi_dir),
+        *targets,
         f"PYTHON={sys.executable}",
         f"BUILDROOT={info.builddir}",
         f"PYMAJORMINORMICRO={info.pyversion}",
         external=True,
     )
+
+
+@nox.session(name="prepare-wasm", venv_backend="none")
+def prepare_wasm(session: nox.Session):
+    import tomllib
+
+    info = WasiInfo()
+    _make_wasm(session, info, "prepare")
+
+    with (info.cpython_dir / "Platforms/WASI/config.toml").open("rb") as config_file:
+        wasi_sdk_version = tomllib.load(config_file)["targets"]["wasi-sdk"]
+
+    session.log("CPython requires WASI SDK %s", wasi_sdk_version)
+    if github_output := os.environ.get("GITHUB_OUTPUT"):
+        with open(github_output, "a") as output_file:
+            print(f"wasi-sdk-version={wasi_sdk_version}", file=output_file)
+
+
+@nox.session(name="build-wasm", venv_backend="none")
+def build_wasm(session: nox.Session):
+    _make_wasm(session, WasiInfo())
 
 
 @nox.session(name="test-wasm", venv_backend="none")
@@ -582,7 +594,12 @@ def test_wasm(session: nox.Session):
             "-C link-arg=-lwasi-emulated-signal",
             "-C link-arg=-lwasi-emulated-process-clocks",
             "-C link-arg=-lwasi-emulated-getpid",
-            "-C link-arg=-lmpdec",
+            "-C link-arg=-lpthread",
+            "-C link-arg=-lHacl_Hash_MD5",
+            "-C link-arg=-lHacl_Hash_SHA1",
+            "-C link-arg=-lHacl_Hash_SHA2",
+            "-C link-arg=-lHacl_Hash_SHA3",
+            "-C link-arg=-lHacl_Hash_BLAKE2",
             "-C link-arg=-lHacl_HMAC",
             "-C link-arg=-lexpat",
         ]
@@ -1729,6 +1746,14 @@ def update_ui_tests(session: nox.Session):
     _run_cargo(session, *command, "--features=full", env=env)
     _run_cargo(session, *command, "--features=abi3,full", env=env)
 
+    env["PYO3_WIP_NO_STD"] = "1"
+    _run_cargo(
+        session,
+        *command,
+        f"--features=macros,{','.join(_REQUIRED_FOR_NO_STD)}",
+        env=env,
+    )
+
 
 @nox.session(name="test-introspection")
 def test_introspection(session: nox.Session):
@@ -1978,10 +2003,6 @@ def _run_cargo_test(
             test_env["PATH"] = os.pathsep.join((str(abi3t_compat), path))
 
     _run(session, *command, external=True, env=test_env)
-
-
-def _run_cargo_publish(session: nox.Session, *, package: str) -> None:
-    _run_cargo(session, "publish", f"--package={package}")
 
 
 def _run_cargo_set_package_version(

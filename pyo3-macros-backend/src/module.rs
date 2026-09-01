@@ -13,12 +13,14 @@ use crate::{
     },
     combine_errors::CombineErrors,
     get_doc,
+    method::FnArg,
     pyclass::PyClassPyO3Option,
     pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
+    pymethod::split_off_python_arg,
     utils::{has_attribute, has_attribute_with_namespace, Ctx, IdentOrStr, PythonDoc},
 };
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use std::ffi::CString;
 use syn::LitCStr;
 use syn::{
@@ -164,6 +166,9 @@ pub fn pymodule_module_impl(
     }
 
     let mut pymodule_init = None;
+    // An initialiser which receives the module can add attributes the macro cannot see; one which
+    // does not is what lets the module stay complete for introspection.
+    let mut pymodule_init_takes_module = false;
     let mut module_consts = Vec::new();
     let mut module_consts_cfg_attrs = Vec::new();
 
@@ -196,7 +201,29 @@ pub fn pymodule_module_impl(
                         item_fn.span() => "`#[pyfunction]` cannot be used alongside `#[pymodule_init]`"
                     );
                     ensure_spanned!(pymodule_init.is_none(), item_fn.span() => "only one `#[pymodule_init]` may be specified");
-                    pymodule_init = Some(quote! { #ident(module)?; });
+                    let ident = ident.clone();
+                    let sig_span = item_fn.sig.span();
+                    let return_span = item_fn.sig.output.span();
+                    let args: Vec<_> = item_fn
+                        .sig
+                        .inputs
+                        .iter_mut()
+                        .map(FnArg::parse)
+                        .try_combine_syn_errors()?;
+                    let (py_arg, args) = split_off_python_arg(&args);
+                    ensure_spanned!(
+                        args.len() <= 1,
+                        sig_span => "`#[pymodule_init]` takes an optional `Python` argument followed by an optional module argument"
+                    );
+                    pymodule_init_takes_module = !args.is_empty();
+                    let call_args = py_arg
+                        .map(|_| quote! { module.py() })
+                        .into_iter()
+                        .chain(pymodule_init_takes_module.then(|| quote! { module }));
+                    let pyo3_path = pyo3_path.to_tokens_spanned(return_span);
+                    pymodule_init = Some(quote_spanned! { return_span =>
+                        #pyo3_path::impl_::pymodule::PyModuleInitResult::into_result(#ident(#(#call_args),*))?;
+                    });
                 } else if has_attribute(&item_fn.attrs, "pyfunction")
                     || has_attribute_with_namespace(
                         &item_fn.attrs,
@@ -382,7 +409,7 @@ pub fn pymodule_module_impl(
         &module_items,
         &module_items_cfg_attrs,
         doc.as_ref(),
-        pymodule_init.is_some(),
+        pymodule_init_takes_module,
     );
     #[cfg(not(feature = "experimental-inspect"))]
     let introspection = quote! {};

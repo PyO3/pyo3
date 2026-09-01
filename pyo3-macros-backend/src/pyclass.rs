@@ -2536,11 +2536,19 @@ fn pyclass_hash(
     }
     match options.hash {
         Some(opt) => {
+            #[cfg(wip_feature_std)]
             let mut hash_impl = parse_quote_spanned! { opt.span() =>
                 fn __pyo3__generated____hash__(&self) -> u64 {
                     let mut s = std::collections::hash_map::DefaultHasher::new();
                     ::core::hash::Hash::hash(self, &mut s);
                     ::core::hash::Hasher::finish(&s)
+                }
+            };
+            #[cfg(not(wip_feature_std))]
+            let mut hash_impl = parse_quote_spanned! { opt.span() =>
+                fn __pyo3__generated____hash__(&self) -> u64 {
+                    compile_error!("`#[pyclass(hash)]` requires PyO3's `std` feature");
+                    unreachable!()
                 }
             };
             let hash_slot = generate_protocol_slot(
@@ -3121,9 +3129,10 @@ impl<'a> PyClassImplsBuilder<'a> {
             quote! {
                 impl #pyo3_path::impl_::pyclass::PyClassWithFreeList for #cls {
                     #[inline]
-                    fn get_free_list(py: #pyo3_path::Python<'_>) -> &'static ::std::sync::Mutex<#pyo3_path::impl_::freelist::PyObjectFreeList> {
-                        static FREELIST: #pyo3_path::sync::PyOnceLock<::std::sync::Mutex<#pyo3_path::impl_::freelist::PyObjectFreeList>> = #pyo3_path::sync::PyOnceLock::new();
-                        &FREELIST.get_or_init(py, || ::std::sync::Mutex::new(#pyo3_path::impl_::freelist::PyObjectFreeList::with_capacity(#freelist)))
+                    fn get_free_list(py: #pyo3_path::Python<'_>) -> impl ::core::ops::DerefMut<Target = #pyo3_path::impl_::freelist::PyObjectFreeList> {
+                        static FREELIST: #pyo3_path::impl_::freelist::FreeList = #pyo3_path::impl_::freelist::FreeList::new();
+                        const CAPACITY: usize = const { #freelist };
+                        FREELIST.get(py, CAPACITY)
                     }
                 }
             }

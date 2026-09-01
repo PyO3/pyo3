@@ -1,0 +1,13 @@
+error: `#[pymodule_init]` takes an optional `Python` argument followed by an optional module argument
+ --> tests/ui/invalid_pymodule_init_args.rs:8:5
+  |
+8 |     fn init(_m: &Bound<'_, PyModule>, _extra: usize) -> PyResult<()> {
+  |     ^^
+
+error: `#[pymodule_init]` takes an optional `Python` argument followed by an optional module argument
+  --> tests/ui/invalid_pymodule_init_args.rs:19:5
+   |
+19 |     fn init(_m: &Bound<'_, PyModule>, _py: Python<'_>) -> PyResult<()> {
+   |     ^^
+
+error: aborting due to 2 previous errors

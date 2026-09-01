@@ -485,93 +485,28 @@ jobs:
   emscripten:
     name: emscripten
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
-    needs: [fmt]
+    needs: [fmt, resolve]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: astral-sh/setup-uv@v7
+      - uses: ./.github/actions/build-emscripten
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-emscripten
-          components: rust-src
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      - uses: actions/cache/restore@v6
-        id: cache
-        with:
-          path: |
-            .nox/emscripten
-          key: emscripten-${{ hashFiles('wasm/emscripten/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
-      - uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - name: Build
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: uvx nox -s build-emscripten
       - name: Test
         run: uvx nox -s test-emscripten
-      - uses: actions/cache/save@v6
-        if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-        with:
-          path: |
-            .nox/emscripten
-          key: emscripten-${{ hashFiles('wasm/emscripten/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
 
   wasm32-wasip1:
     name: wasm32-wasip1
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
-    needs: [fmt]
+    needs: [fmt, resolve]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: astral-sh/setup-uv@v7
+      - uses: ./.github/actions/build-wasi
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-wasip1
-          components: rust-src
-      - name: "Install wasmtime"
-        uses: bytecodealliance/actions/wasmtime/setup@v1
-      - name: "Install WASI SDK"
-        uses: bytecodealliance/setup-wasi-sdk-action@main
-        with:
-          version: "24"
-          # wasi sdk sets CC variables which break Python's configure script
-          # (it also sets WASI_SDK_PATH even without `add-to-path`, which is sufficient)
-          add-to-path: false
-      # Key the cache on the CPython version nox will actually build so a new
-      # patch release busts cache properly
-      - name: Resolve CPython version for the WASI build
-        id: wasi-python
-        run: |
-          version=$(uv run --no-project --python "$UV_PYTHON" python -c 'import sys; print(".".join(map(str, sys.version_info[:3])))')
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache/restore@v6
-        id: cache
-        with:
-          path: |
-            .nox/wasi
-          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.wasi-python.outputs.version }}
-      - uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - name: Build
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: uvx nox -s build-wasm
       - name: Test
         run: uvx nox -s test-wasm
-      - uses: actions/cache/save@v6
-        if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-        with:
-          path: |
-            .nox/wasi
-          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.wasi-python.outputs.version }}
 
   no_std:
     needs: [fmt]
@@ -886,6 +821,7 @@ jobs:
       - careful
       - docsrs
       - emscripten
+      - wasm32-wasip1
       - test-debug
       - test-version-limits
       - check-feature-powerset
