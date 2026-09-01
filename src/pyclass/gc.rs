@@ -19,11 +19,12 @@ use core::{
         AtomicU64, AtomicU8, AtomicUsize,
     },
 };
+use std::sync::TryLockError::{Poisoned, WouldBlock};
 use std::{
     collections::{HashMap, HashSet},
     ffi::{OsStr, OsString},
     path::{Path, PathBuf},
-    sync::OnceLock,
+    sync::{Mutex, OnceLock, RwLock},
 };
 
 /// Trait describing how values participate in Python's cyclic garbage collector.
@@ -354,6 +355,62 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for OnceLock<T> {
     fn clear(&mut self) {
         if T::MAY_CONTAIN_CYCLES {
             let _ = self.take();
+        }
+    }
+}
+
+// SAFETY: `Mutex<T>` provides synchronized access to one `T`; delegating through
+// the lock guard preserves traversal and clear soundness.
+unsafe impl<T: PyGcTraversable> PyGcTraversable for Mutex<T> {
+    const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
+
+    fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        if T::MAY_CONTAIN_CYCLES {
+            self.try_lock().map_or_else(
+                |err| match err {
+                    Poisoned(value) => value.into_inner().traverse(visit.clone()),
+                    WouldBlock => Ok(()),
+                },
+                |guard| guard.traverse(visit.clone()),
+            )?;
+        }
+        Ok(())
+    }
+
+    fn clear(&mut self) {
+        if T::MAY_CONTAIN_CYCLES {
+            self.get_mut().map_or_else(
+                |poisoned| poisoned.into_inner().clear(),
+                |value| value.clear(),
+            );
+        }
+    }
+}
+
+// SAFETY: `RwLock<T>` provides synchronized access to one `T`; delegating through
+// read / mutable access preserves traversal and clear soundness.
+unsafe impl<T: PyGcTraversable> PyGcTraversable for RwLock<T> {
+    const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
+
+    fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        if T::MAY_CONTAIN_CYCLES {
+            self.try_read().map_or_else(
+                |err| match err {
+                    Poisoned(value) => value.into_inner().traverse(visit.clone()),
+                    WouldBlock => Ok(()),
+                },
+                |guard| guard.traverse(visit.clone()),
+            )?;
+        }
+        Ok(())
+    }
+
+    fn clear(&mut self) {
+        if T::MAY_CONTAIN_CYCLES {
+            self.get_mut().map_or_else(
+                |poisoned| poisoned.into_inner().clear(),
+                |value| value.clear(),
+            );
         }
     }
 }
