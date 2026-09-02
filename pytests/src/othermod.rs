@@ -38,7 +38,7 @@ pub mod othermod {
     pub const USIZE_MAX: usize = usize::MAX;
 
     // An initialiser without the module argument leaves the module complete for introspection:
-    // `stubs/othermod.pyi` has no `__getattr__` catch-all.
+    // `stubs/othermod.pyi` has no `__getattr__` catch-all and keeps its `__all__`.
     #[pymodule_init]
     fn init() {}
 }
