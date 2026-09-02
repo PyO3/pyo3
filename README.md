@@ -1,12 +1,12 @@
 # PyO3
 
-[![actions status](https://img.shields.io/github/actions/workflow/status/PyO3/pyo3/ci.yml?branch=main&logo=github&style=)](https://github.com/PyO3/pyo3/actions)
-[![benchmark](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/PyO3/pyo3)
-[![codecov](https://img.shields.io/codecov/c/gh/PyO3/pyo3?logo=codecov)](https://codecov.io/gh/PyO3/pyo3)
-[![crates.io](https://img.shields.io/crates/v/pyo3?logo=rust)](https://crates.io/crates/pyo3)
-[![minimum rustc 1.83](https://img.shields.io/badge/rustc-1.83+-blue?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
-[![discord server](https://img.shields.io/discord/1209263839632424990?logo=discord)](https://discord.gg/33kcChzH7f)
-[![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green?logo=github)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
+<a href="https://github.com/PyO3/pyo3/actions"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/github/ci/PyO3/pyo3.svg?variant=outline&size=xs&mode=dark&logo=github&label=build"><img alt="build" src="https://shieldcn.dev/github/ci/PyO3/pyo3.svg?variant=outline&size=xs&mode=light&theme=zinc&logo=github&label=build"></picture></a>
+[![benchmark](https://shieldcn.dev/badge/codspeed-FF7A55.svg?font=geist&logo=data%3Aimage%2Fsvg%2Bxml%2C%3Csvg+xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27+fill%3D%27none%27+viewBox%3D%270+0+32+32%27%3E%3Cpath+fill%3D%27%2523ff8c4a%27+d%3D%27M8.3+16.7h1.4l3.1+1.6-1.7.2c-3.2.5-4.9-.4-4.5-1.7.1-.5+1-.3+1.7-.1m11-13c2.3+1.3+2.9+2.2+4+3.3+2.7+0+4.2+1.9+3.7+4.7-.3+1.8-4.2+1.2-5+0l-4.6+3.4c-.8.6-3.5.4-3.7.3l1.1-2a5+5+0+0+0+.7-2.5q0-2-2.2-2.1-.3+0-.3.3l.3.2c.8+0+1.3+1+1.3+1.6q0+.8-.4+2c-.3.7-1.5+2.4-1.8+2.6a.2.2+0+0+0+0+.4h.1l.3.1+1+.2L17+16a5+5+0+0+1+3+.5q.6.3.7.8l.1.5c0+1-2.3.4-5+.3h-.6q-1.5+0-3.2-.9h-.2l-1.2-.7-.8-.7c-.3-.6-.1-.6.7-1.5-1.4.2-1.5.3-3+.3-1.7+0-4.4-.1-4.4-1.6q0-1.5+2.2-1.1Q4.6+9.2+7+7c4-3.8+9.6+1.4+13.4+1.4+1.7+0-3-2.5-5-3.2s1.1-3.5+4-1.5M24+8.9a.6.6+0+1+0+0+1+.6.6+0+0+0+0-1%27%2F%3E%3C%2Fsvg%3E&gradient=D8390E%2C+E98234&iconSize=16&size=xs)](https://codspeed.io/PyO3/pyo3)
+[![codecov](https://shieldcn.dev/codecov/github/pyo3/pyo3.svg?variant=branded&size=xs)](https://codecov.io/gh/PyO3/pyo3)
+[![crates.io](https://shieldcn.dev/crates/pyo3.svg?variant=branded&size=xs)](https://crates.io/crates/pyo3)
+[![msvr](https://shieldcn.dev/badge/dynamic/json.svg?url=https%3A%2F%2Fcrates.io%2Fapi%2Fv1%2Fcrates%2Fpyo3&query=%24.versions%5B0%5D.rust_version&variant=branded&size=xs&mode=light&logo=rust&label=rustc&color=DEA584&suffix=%2B)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![discord server](https://shieldcn.dev/discord/online-members/33kcChzH7f.svg?variant=branded&size=xs)](https://discord.gg/33kcChzH7f)
+[![contributing notes](https://shieldcn.dev/badge/contribute-on%20github-abcde3.svg?size=xs&font=geist&split=true&logo=github&color=4db80f&labelColor=4f4f4f&valueColor=ffffff)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
 [Rust](https://www.rust-lang.org/) bindings for [Python](https://www.python.org/), including tools for creating native Python extension modules. Running and interacting with Python code from a Rust binary is also supported.
 
