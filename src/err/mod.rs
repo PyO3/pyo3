@@ -497,7 +497,6 @@ impl PyErr {
     /// Example:
     /// ```rust
     /// # use pyo3::prelude::*;
-    /// # use pyo3::ffi::c_str;
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| {
     ///     let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>();

@@ -48,8 +48,8 @@ pyobject_native_type_core!(
 impl PyCFunction {
     /// Create a new built-in function with keywords (*args and/or **kwargs).
     ///
-    /// To create `name` and `doc` static strings on Rust versions older than 1.77 (which added c"" literals),
-    /// use the [`c_str!`](crate::ffi::c_str) macro.
+    /// Both `name` and `doc` must be static C strings, for example `c"function_name"` and
+    /// `c"function documentation"`.
     pub fn new_with_keywords<'py>(
         py: Python<'py>,
         fun: ffi::PyCFunctionWithKeywords,
@@ -66,8 +66,8 @@ impl PyCFunction {
 
     /// Create a new built-in function which takes no arguments.
     ///
-    /// To create `name` and `doc` static strings on Rust versions older than 1.77 (which added c"" literals),
-    /// use the [`c_str!`](crate::ffi::c_str) macro.
+    /// Both `name` and `doc` must be static C strings, for example `c"function_name"` and
+    /// `c"function documentation"`.
     pub fn new<'py>(
         py: Python<'py>,
         fun: ffi::PyCFunction,
