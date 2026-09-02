@@ -245,6 +245,9 @@ The example below shows:
 use pyo3::prelude::*;
 use pyo3_ffi::c_str;
 
+# #[cfg(not(wip_feature_std))]
+# fn main() {}
+# #[cfg(wip_feature_std)]
 fn main() -> PyResult<()> {
     let py_foo = c_str!(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -282,6 +285,9 @@ use std::fs;
 use std::path::Path;
 use std::ffi::CString;
 
+# #[cfg(not(wip_feature_std))]
+# fn main() {}
+# #[cfg(wip_feature_std)]
 fn main() -> PyResult<()> {
     let path = Path::new("/usr/share/python_app");
     let py_app = CString::new(fs::read_to_string(path.join("app.py"))?)?;
