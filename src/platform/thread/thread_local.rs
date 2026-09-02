@@ -27,7 +27,6 @@ pub struct LocalKey<T: 'static> {
 }
 
 // SAFETY: the unsafecell is only accessed by python tss functions which are thread safe
-#[cfg(not(Py_LIMITED_API))]
 unsafe impl<T: 'static> Sync for LocalKey<T> {}
 
 impl<T: 'static> Debug for LocalKey<T> {
