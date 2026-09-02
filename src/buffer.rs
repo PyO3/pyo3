@@ -956,6 +956,7 @@ mod tests {
     }
 
     #[test]
+    #[expect(deprecated, reason = "testing deprecated method")]
     fn test_bytes_buffer() {
         Python::attach(|py| {
             let bytes = PyBytes::new(py, b"abcde");
@@ -988,6 +989,7 @@ mod tests {
     }
 
     #[test]
+    #[expect(deprecated, reason = "testing deprecated method")]
     fn test_array_buffer() {
         Python::attach(|py| {
             let array = py
