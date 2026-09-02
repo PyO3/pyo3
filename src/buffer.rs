@@ -326,6 +326,28 @@ impl<T: Element> PyBuffer<T> {
         }
     }
 
+    /// Gets the buffer memory as a slice.
+    ///
+    /// Returns null if the buffer is not C-style contiguous
+    pub fn as_slice_ptr(&self) -> *mut [T] {
+        self.slice_pointer_internal(self.is_c_contiguous())
+    }
+
+    /// Gets the buffer memory as a slice.
+    ///
+    /// This function returns null if the buffer is not Fortran-style contiguous
+    pub fn as_fortran_slice_ptr(&self) -> *mut [T] {
+        self.slice_pointer_internal(self.is_fortran_contiguous())
+    }
+
+    fn slice_pointer_internal(&self, null: bool) -> *mut [T] {
+        if null {
+            ptr::slice_from_raw_parts_mut(ptr::null_mut(), 0)
+        } else {
+            ptr::slice_from_raw_parts_mut(self.raw().buf.cast(), self.item_count())
+        }
+    }
+
     /// Copies the buffer elements to the specified slice.
     /// If the buffer is multi-dimensional, the elements are written in C-style order.
     ///
