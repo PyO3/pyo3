@@ -707,6 +707,7 @@ mod watcher_tests {
         assert_impl_all!(super::ContextWatcherGuard: Send, Sync);
     }
 
+    #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn unbound_watcher_attaches_on_drop_from_another_thread() {
         let _guard = acquire_watcher_test_lock();
