@@ -1,7 +1,20 @@
 //! `GlobalAlloc` backed by CPython's `PyMem_Raw*` (`PYMEM_DOMAIN_RAW`).
 //!
+//! > [!WARNING]
+//! > This is experimental and provisional.
+//! >
+//! > Earlier Python 3.15 release candidates had a bug where, if `tracemalloc`
+//! > was enabled, its raw-domain allocator hook called `PyGILState_Ensure()`
+//! > internally, which could deadlock a native thread calling `PyMem_RawMalloc`/
+//! > `PyMem_RawFree` without an attached thread state while another thread held
+//! > the GIL. This was fixed upstream by storing trace data as raw strings
+//! > instead of Python objects, removing the need to acquire a thread state,
+//! > and the fix was backported into the Python 3.15 final release.
+//! > See [python/cpython#155725](https://github.com/python/cpython/issues/155725)
+//! > and [PyO3/pyo3#6268](https://github.com/PyO3/pyo3/issues/6268) for details.
+//!
 //! ```
-//! use pyo3::pymem_alloc::PyMemRawAllocator;
+//! //! use pyo3::pymem_alloc::PyMemRawAllocator;
 //!
 //! #[global_allocator]
 //! static GLOBAL_ALLOCATOR: PyMemRawAllocator = PyMemRawAllocator;
