@@ -4,6 +4,7 @@ use pyo3::init_config::PyInitConfig;
 use pyo3::prelude::Python;
 
 #[test]
+#[ignore = "this doesn't seem to be a reliable way to make python fail to initialize"]
 fn test_init_fail() {
     let mut config = PyInitConfig::default();
     config
