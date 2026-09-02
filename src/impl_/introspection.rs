@@ -1,5 +1,7 @@
 use crate::conversion::IntoPyObject;
+use crate::impl_::pyclass::PyClassImpl;
 use crate::inspect::PyStaticExpr;
+use crate::pycell::impl_::PyClassObjectLayout;
 
 /// Seals `PyReturnType` so that types outside PyO3 cannot implement it.
 mod return_type {
@@ -45,6 +47,12 @@ where
 
 impl<'py, T: IntoPyObject<'py>> PyIntoPyObjectMaybeRefType<false> for T {
     const OUTPUT_TYPE: PyStaticExpr = <T as IntoPyObject<'_>>::OUTPUT_TYPE;
+}
+
+/// Whether `T` is laid out differently from its base class, making it a
+/// [disjoint base](https://peps.python.org/pep-0800/) at runtime.
+pub const fn is_disjoint_base<T: PyClassImpl>() -> bool {
+    <T::Layout as PyClassObjectLayout<T>>::IS_DISJOINT_BASE
 }
 
 #[repr(C)]
@@ -147,4 +155,84 @@ pub const fn escaped_json_string_len(input: &str) -> usize {
         i += 1;
     }
     len
+}
+
+#[cfg(test)]
+#[cfg(feature = "macros")]
+mod tests {
+    use super::*;
+    use crate::prelude::*;
+    use crate::PyTypeInfo;
+
+    #[pyclass(crate = "crate", frozen, subclass)]
+    struct Empty;
+
+    #[pyclass(crate = "crate", frozen, subclass)]
+    struct WithField(#[allow(dead_code)] u64);
+
+    #[pyclass(crate = "crate", subclass)]
+    struct Mutable;
+
+    #[pyclass(crate = "crate", extends = Empty, frozen)]
+    struct EmptyChild;
+
+    #[pyclass(crate = "crate", subclass, frozen)]
+    struct SizedBase(#[allow(dead_code)] u64);
+
+    /// Adds no data, but is aligned more strictly than its base, so instances still grow.
+    /// The alignment is far larger than any base layout, so the padding always happens.
+    #[pyclass(crate = "crate", extends = SizedBase, frozen)]
+    #[repr(align(128))]
+    struct OverAligned;
+
+    /// The condition `mypy.stubtest` checks, from the runtime type objects.
+    fn runtime_is_disjoint_base<T: PyTypeInfo>(py: Python<'_>) -> bool {
+        let attr =
+            |obj: &Bound<'_, PyAny>, name| obj.getattr(name).unwrap().extract::<isize>().unwrap();
+        let ty = T::type_object(py).into_any();
+        let base = ty.getattr("__base__").unwrap();
+        attr(&ty, "__basicsize__") != attr(&base, "__basicsize__")
+            || attr(&ty, "__itemsize__") != attr(&base, "__itemsize__")
+    }
+
+    #[test]
+    fn is_disjoint_base_matches_runtime_layout() {
+        Python::attach(|py| {
+            assert_eq!(
+                is_disjoint_base::<Empty>(),
+                runtime_is_disjoint_base::<Empty>(py)
+            );
+            assert_eq!(
+                is_disjoint_base::<WithField>(),
+                runtime_is_disjoint_base::<WithField>(py)
+            );
+            assert_eq!(
+                is_disjoint_base::<Mutable>(),
+                runtime_is_disjoint_base::<Mutable>(py)
+            );
+            assert_eq!(
+                is_disjoint_base::<EmptyChild>(),
+                runtime_is_disjoint_base::<EmptyChild>(py)
+            );
+            assert_eq!(
+                is_disjoint_base::<SizedBase>(),
+                runtime_is_disjoint_base::<SizedBase>(py)
+            );
+            // Empty contents, so only the padding makes this disjoint. The variable layout
+            // has CPython append the contents instead, so there is nothing to pad there.
+            assert_eq!(
+                core::mem::size_of::<crate::pycell::impl_::PyClassObjectContents<OverAligned>>(),
+                0
+            );
+            #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+            assert!(runtime_is_disjoint_base::<OverAligned>(py));
+            assert_eq!(
+                is_disjoint_base::<OverAligned>(),
+                runtime_is_disjoint_base::<OverAligned>(py)
+            );
+            // The cases must not all agree by accident.
+            assert!(is_disjoint_base::<WithField>());
+            assert!(!is_disjoint_base::<EmptyChild>());
+        });
+    }
 }

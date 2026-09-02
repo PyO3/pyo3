@@ -78,12 +78,25 @@ pub fn class_introspection_code(
     if let Some(extends) = extends {
         desc.insert("bases", IntrospectionNode::List(vec![extends.into()]));
     }
-    if is_final {
-        desc.insert(
-            "decorators",
-            IntrospectionNode::List(vec![PyExpr::module_attr("typing", "final").into()]),
-        );
-    }
+    desc.insert(
+        "decorators",
+        if is_final {
+            IntrospectionNode::List(vec![PyExpr::module_attr("typing", "final").into()])
+        } else {
+            // Being a disjoint base depends on the instance layout, so the compiler picks the list.
+            IntrospectionNode::If {
+                condition: quote! {
+                    #pyo3_crate_path::impl_::introspection::is_disjoint_base::<#ident>()
+                },
+                then: Box::new(IntrospectionNode::List(vec![PyExpr::module_attr(
+                    "typing_extensions",
+                    "disjoint_base",
+                )
+                .into()])),
+                otherwise: Box::new(IntrospectionNode::List(Vec::new())),
+            }
+        },
+    );
     if let Some(parent) = parent {
         desc.insert(
             "parent",
@@ -351,6 +364,12 @@ enum IntrospectionNode<'a> {
     Doc(&'a PythonDoc),
     Map(BTreeMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<AttributedIntrospectionNode<'a>>),
+    /// Emits `if $condition { $then } else { $otherwise }`, for facts only the compiler knows.
+    If {
+        condition: TokenStream,
+        then: Box<IntrospectionNode<'a>>,
+        otherwise: Box<IntrospectionNode<'a>>,
+    },
 }
 
 impl IntrospectionNode<'_> {
@@ -361,6 +380,12 @@ impl IntrospectionNode<'_> {
             pyo3_crate_path,
             format_ident!("PYO3_INTROSPECTION_1_{}", unique_element_id()),
         )
+    }
+
+    fn serialize(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
+        let mut content = ConcatenationBuilder::default();
+        self.add_to_serialization(&mut content, pyo3_crate_path);
+        content.into_token_stream(pyo3_crate_path)
     }
 
     fn add_to_serialization(
@@ -445,13 +470,27 @@ impl IntrospectionNode<'_> {
                             .map(|cfg| &cfg.tokens);
                         preceding.push(quote! { all(#(#cfgs),*) });
                         // We serialize the element to easily gate it behind the attributes
-                        let mut nested_builder = ConcatenationBuilder::default();
-                        node.add_to_serialization(&mut nested_builder, pyo3_crate_path);
-                        let nested_content = nested_builder.into_token_stream(pyo3_crate_path);
+                        let nested_content = node.serialize(pyo3_crate_path);
                         content.push_tokens(quote! { #(#attributes)* #nested_content });
                     }
                 }
                 content.push_str("]");
+            }
+            Self::If {
+                condition,
+                then,
+                otherwise,
+            } => {
+                // The casts unify the branches: a node serializes to `&[u8; N]` or `&[u8]`.
+                let then = then.serialize(pyo3_crate_path);
+                let otherwise = otherwise.serialize(pyo3_crate_path);
+                content.push_tokens(quote! {
+                    if #condition {
+                        (#then) as &[u8]
+                    } else {
+                        (#otherwise) as &[u8]
+                    }
+                });
             }
         }
     }
