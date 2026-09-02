@@ -1,18 +1,25 @@
 use crate::conversion::IntoPyObject;
-use crate::exceptions::{PyOverflowError, PyValueError};
+#[cfg(wip_feature_std)]
+use crate::exceptions::PyOverflowError;
+use crate::exceptions::PyValueError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
-#[cfg(Py_LIMITED_API)]
-use crate::intern;
+#[cfg(wip_feature_std)]
 use crate::sync::PyOnceLock;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
+#[cfg(wip_feature_std)]
 use crate::types::any::PyAnyMethods;
+use crate::types::PyDelta;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::PyDeltaAccess;
-use crate::types::{PyDateTime, PyDelta, PyTzInfo};
-use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
+#[cfg(wip_feature_std)]
+use crate::types::{PyDateTime, PyTzInfo};
+use crate::{Borrowed, Bound, FromPyObject, PyAny, PyErr, Python};
+#[cfg(wip_feature_std)]
+use crate::{Py, PyResult};
 use core::time::Duration;
+#[cfg(wip_feature_std)]
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
@@ -35,6 +42,8 @@ impl FromPyObject<'_, '_> for Duration {
         };
         #[cfg(Py_LIMITED_API)]
         let (days, seconds, microseconds): (i32, i32, i32) = {
+            use crate::intern;
+            use crate::types::any::PyAnyMethods;
             let py = delta.py();
             (
                 delta.getattr(intern!(py, "days"))?.extract()?,
@@ -103,6 +112,7 @@ impl<'py> IntoPyObject<'py> for &Duration {
 //
 // TODO: it might be nice to investigate using timestamps anyway, at least when the datetime is a safe range.
 
+#[cfg(wip_feature_std)]
 impl FromPyObject<'_, '_> for SystemTime {
     type Error = PyErr;
 
@@ -119,6 +129,7 @@ impl FromPyObject<'_, '_> for SystemTime {
     }
 }
 
+#[cfg(wip_feature_std)]
 impl<'py> IntoPyObject<'py> for SystemTime {
     type Target = PyDateTime;
     type Output = Bound<'py, Self::Target>;
@@ -137,6 +148,7 @@ impl<'py> IntoPyObject<'py> for SystemTime {
     }
 }
 
+#[cfg(wip_feature_std)]
 impl<'py> IntoPyObject<'py> for &SystemTime {
     type Target = PyDateTime;
     type Output = Bound<'py, Self::Target>;
@@ -151,6 +163,7 @@ impl<'py> IntoPyObject<'py> for &SystemTime {
     }
 }
 
+#[cfg(wip_feature_std)]
 fn unix_epoch_py(py: Python<'_>) -> PyResult<Borrowed<'_, '_, PyDateTime>> {
     static UNIX_EPOCH: PyOnceLock<Py<PyDateTime>> = PyOnceLock::new();
     Ok(UNIX_EPOCH
@@ -164,10 +177,13 @@ fn unix_epoch_py(py: Python<'_>) -> PyResult<Borrowed<'_, '_, PyDateTime>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
     use crate::platform::prelude::*;
+    #[cfg(wip_feature_std)]
     use crate::types::PyDict;
 
     #[test]
+    #[cfg(wip_feature_std)]
     fn test_duration_frompyobject() {
         Python::attach(|py| {
             assert_eq!(
@@ -202,6 +218,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(wip_feature_std)]
     fn test_duration_frompyobject_negative() {
         Python::attach(|py| {
             assert_eq!(
@@ -215,6 +232,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(wip_feature_std)]
     fn test_duration_into_pyobject() {
         Python::attach(|py| {
             let assert_eq = |l: Bound<'_, PyAny>, r: Bound<'_, PyAny>| {
@@ -272,6 +290,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(wip_feature_std)]
     fn test_time_frompyobject() {
         Python::attach(|py| {
             assert_eq!(
@@ -298,6 +317,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(wip_feature_std)]
     fn test_time_frompyobject_before_epoch() {
         Python::attach(|py| {
             assert_eq!(
@@ -311,6 +331,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(wip_feature_std)]
     fn test_time_intopyobject() {
         Python::attach(|py| {
             let assert_eq = |l: Bound<'_, PyDateTime>, r: Bound<'_, PyDateTime>| {
@@ -336,6 +357,7 @@ mod tests {
         });
     }
 
+    #[cfg(wip_feature_std)]
     #[expect(clippy::too_many_arguments)]
     fn new_datetime(
         py: Python<'_>,
@@ -362,6 +384,7 @@ mod tests {
         .unwrap()
     }
 
+    #[cfg(wip_feature_std)]
     fn max_datetime(py: Python<'_>) -> Bound<'_, PyDateTime> {
         let naive_max = datetime_class(py).getattr("max").unwrap();
         let kargs = PyDict::new(py);
@@ -376,6 +399,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(wip_feature_std)]
     fn test_time_intopyobject_overflow() {
         let big_system_time = UNIX_EPOCH
             .checked_add(Duration::new(300000000000, 0))
@@ -385,6 +409,7 @@ mod tests {
         })
     }
 
+    #[cfg(wip_feature_std)]
     fn new_timedelta(
         py: Python<'_>,
         days: i32,
@@ -396,10 +421,12 @@ mod tests {
             .unwrap()
     }
 
+    #[cfg(wip_feature_std)]
     fn datetime_class(py: Python<'_>) -> Bound<'_, PyAny> {
         py.import("datetime").unwrap().getattr("datetime").unwrap()
     }
 
+    #[cfg(wip_feature_std)]
     fn timedelta_class(py: Python<'_>) -> Bound<'_, PyAny> {
         py.import("datetime").unwrap().getattr("timedelta").unwrap()
     }
