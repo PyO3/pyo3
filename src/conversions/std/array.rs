@@ -176,9 +176,16 @@ pub(crate) fn invalid_sequence_length(expected: usize, actual: usize) -> PyErr {
 mod tests {
     use crate::platform::prelude::*;
     #[cfg(panic = "unwind")]
-    use core::sync::atomic::{AtomicUsize, Ordering};
+    use core::any::Any;
     #[cfg(panic = "unwind")]
-    use std::panic;
+    use core::sync::atomic::{AtomicUsize, Ordering};
+
+    // allow use of panic mod without leaking anything else from std
+    #[cfg(panic = "unwind")]
+    mod panic {
+        extern crate std;
+        pub use std::panic::*;
+    }
 
     use crate::{
         conversion::IntoPyObject,
@@ -345,7 +352,7 @@ mod tests {
 
     // https://stackoverflow.com/a/59211505
     #[cfg(panic = "unwind")]
-    fn catch_unwind_silent<F, R>(f: F) -> std::thread::Result<R>
+    fn catch_unwind_silent<F, R>(f: F) -> Result<R, Box<dyn Any + Send + 'static>>
     where
         F: FnOnce() -> R + panic::UnwindSafe,
     {

@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 use std::iter::once;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 /// Generates the [type stubs](https://typing.readthedocs.io/en/latest/source/stubs.html) of a given module.
@@ -15,38 +15,40 @@ use std::str::FromStr;
 /// in files with a relevant name.
 pub fn module_stub_files(module: &Module) -> HashMap<PathBuf, String> {
     let mut output_files = HashMap::new();
-    add_module_stub_files(module, &[], &mut output_files);
+    add_module_stub_files(module, Path::new(""), &[], &mut output_files);
     output_files
 }
 
 fn add_module_stub_files(
     module: &Module,
-    module_path: &[&str],
+    directory: &Path,
+    parents: &[&str],
     output_files: &mut HashMap<PathBuf, String>,
 ) {
-    let mut file_path = PathBuf::new();
-    for e in module_path {
-        file_path = file_path.join(e);
-    }
     output_files.insert(
-        file_path.join("__init__.pyi"),
-        module_stubs(module, module_path),
+        directory.join("__init__.pyi"),
+        module_stubs(module, parents),
     );
-    let mut module_path = module_path.to_vec();
-    module_path.push(&module.name);
+    let mut parents = parents.to_vec();
+    parents.push(&module.name);
     for submodule in &module.modules {
         if submodule.modules.is_empty() {
             output_files.insert(
-                file_path.join(format!("{}.pyi", submodule.name)),
-                module_stubs(submodule, &module_path),
+                directory.join(format!("{}.pyi", submodule.name)),
+                module_stubs(submodule, &parents),
             );
         } else {
-            add_module_stub_files(submodule, &module_path, output_files);
+            add_module_stub_files(
+                submodule,
+                &directory.join(&submodule.name),
+                &parents,
+                output_files,
+            );
         }
     }
 }
 
-/// Generates the module stubs to a String, not including submodules
+/// Generates the module stubs to a String, re-exporting the submodules but not their content
 fn module_stubs(module: &Module, parents: &[&str]) -> String {
     let imports = Imports::create(module, parents);
     let mut elements = Vec::new();
@@ -419,6 +421,7 @@ impl Imports {
             .map(|c| c.name.clone())
             .chain(module.functions.iter().map(|f| f.name.clone()))
             .chain(module.attributes.iter().map(|a| a.name.clone()))
+            .chain(module.modules.iter().map(|m| m.name.clone()))
         {
             local_name_to_module_and_attribute
                 .insert(name.clone(), (current_module_name.clone(), name.clone()));
@@ -487,6 +490,18 @@ impl Imports {
                 ));
             }
         }
+        // Submodules are attributes of their parent at runtime, so we re-export them.
+        // The redundant alias is what marks a name as a public re-export for type checkers.
+        if module_is_package {
+            let mut submodules = module
+                .modules
+                .iter()
+                .map(|m| format!("{0} as {0}", m.name))
+                .collect::<Vec<_>>();
+            submodules.sort();
+            imports.push(format!("from . import {}", submodules.join(", ")));
+        }
+
         imports.sort(); // We make sure they are sorted
 
         Self { imports, renaming }
@@ -1011,6 +1026,26 @@ mod tests {
         }
     }
 
+    /// A submodule is an attribute of its parent at runtime, so the parent stub must re-export it.
+    #[test]
+    fn submodules_are_re_exported_by_their_parent() {
+        let module = Module {
+            name: "foo".into(),
+            modules: vec![empty_module("zulu"), empty_module("alpha")],
+            classes: Vec::new(),
+            functions: Vec::new(),
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        assert_eq!(
+            module_stubs(&module, &[]),
+            "from . import alpha as alpha, zulu as zulu\n\n__all__ = [\"zulu\", \"alpha\"]\n"
+        );
+        // A module without submodules gets no such line.
+        assert_eq!(module_stubs(&empty_module("alpha"), &["foo"]), "");
+    }
+
     /// A module with one member of every kind that lands in `__all__` at runtime.
     fn populated_module() -> Module {
         Module {
@@ -1058,7 +1093,7 @@ mod tests {
         // the submodule which is declared in its own stub file.
         assert_eq!(
             module_stubs(&populated_module(), &["foo"]),
-            "__all__ = [\"CONST\", \"Zulu\", \"func\", \"sub\"]\n\nCONST = 1\nclass Zulu: ...\ndef func(): ...\n"
+            "from . import sub as sub\n\n__all__ = [\"CONST\", \"Zulu\", \"func\", \"sub\"]\n\nCONST = 1\nclass Zulu: ...\ndef func(): ...\n"
         );
         // Nothing was added to an empty module, so it has no `__all__` at runtime either
         assert_eq!(module_stubs(&empty_module("bar"), &["foo"]), "");
@@ -1212,5 +1247,65 @@ mod tests {
             serialize(union(union(str_(), path_like()), str_())),
             "str | PathLike[str]"
         );
+    }
+
+    #[test]
+    fn nested_packages_are_written_into_their_own_directory() {
+        let attribute = |name: &str| Attribute {
+            name: name.into(),
+            value: None,
+            annotation: Some(Expr::Attribute {
+                value: Box::new(Expr::Name { id: "top".into() }),
+                attr: "Top".into(),
+            }),
+            docstring: None,
+        };
+        let module = |name: &str, modules: Vec<Module>, attributes: Vec<Attribute>| Module {
+            name: name.into(),
+            modules,
+            classes: Vec::new(),
+            functions: Vec::new(),
+            attributes,
+            incomplete: false,
+            docstring: None,
+        };
+        let mut top = module(
+            "top",
+            vec![
+                module(
+                    "child",
+                    vec![module("grandchild", Vec::new(), vec![attribute("deep")])],
+                    vec![attribute("mid")],
+                ),
+                module("sibling", Vec::new(), Vec::new()),
+            ],
+            Vec::new(),
+        );
+        top.classes.push(Class {
+            name: "Top".into(),
+            bases: Vec::new(),
+            methods: Vec::new(),
+            attributes: Vec::new(),
+            decorators: Vec::new(),
+            inner_classes: Vec::new(),
+            docstring: None,
+        });
+
+        let files = module_stub_files(&top);
+        let mut paths = files.keys().cloned().collect::<Vec<_>>();
+        paths.sort();
+        assert_eq!(
+            paths,
+            [
+                PathBuf::from("__init__.pyi"),
+                PathBuf::from("child/__init__.pyi"),
+                PathBuf::from("child/grandchild.pyi"),
+                PathBuf::from("sibling.pyi"),
+            ]
+        );
+        // The parents passed to `module_stubs` must stay the module names, not the directories.
+        assert!(files[Path::new("child/__init__.pyi")].contains("from .. import Top"));
+        assert!(files[Path::new("child/grandchild.pyi")].contains("from .. import Top"));
+        assert!(files[Path::new("sibling.pyi")].is_empty());
     }
 }

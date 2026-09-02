@@ -3,6 +3,7 @@ use core::ptr::NonNull;
 use crate::ffi::{self, Py_ssize_t, PY_SSIZE_T_MAX};
 use crate::platform::prelude::*;
 
+#[cfg(wip_feature_std)]
 macro_rules! pyo3_exception {
     ($doc: expr, $name: ident, $base: ty) => {
         #[doc = $doc]
