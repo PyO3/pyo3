@@ -3,18 +3,18 @@
 use alloc::sync::Arc;
 use core::{
     future::Future,
-    panic,
     pin::Pin,
     task::{Context, Poll, Waker},
 };
 
 use pyo3_macros::{pyclass, pymethods};
 
+#[cfg(all(wip_feature_std, panic = "unwind"))]
+use crate::panic::PanicException;
 use crate::platform::prelude::*;
 use crate::{
     coroutine::{cancel::ThrowCallback, waker::AsyncioWaker},
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
-    panic::PanicException,
     types::{string::PyStringMethods, PyIterator, PyString},
     Bound, Py, PyAny, PyErr, PyResult, Python,
 };
@@ -90,18 +90,23 @@ impl Coroutine {
         let waker = Waker::from(self.waker.clone().unwrap());
         // poll the Rust future and forward its results if ready
         // polling is UnwindSafe because the future is dropped in case of panic
-        let poll = || future_rs.as_mut().poll(&mut Context::from_waker(&waker));
-        match std::panic::catch_unwind(panic::AssertUnwindSafe(poll)) {
-            Ok(Poll::Ready(res)) => {
-                self.close();
-                return Err(PyStopIteration::new_err((res?,)));
-            }
-            Err(err) => {
-                self.close();
-                return Err(PanicException::from_panic_payload(err));
-            }
-            _ => {}
+        #[allow(unused_mut, reason = "conditional compilation")]
+        let mut poll = || future_rs.as_mut().poll(&mut Context::from_waker(&waker));
+        let res = cfg_select! {
+            all(wip_feature_std, panic = "unwind") => {
+                std::panic::catch_unwind(core::panic::AssertUnwindSafe(poll)).map_err(|payload| {
+                    self.close();
+                    PanicException::from_panic_payload(payload)
+                })?
+            },
+
+            _ => poll(),
+        };
+        if let Poll::Ready(res) = res {
+            self.close();
+            return Err(PyStopIteration::new_err((res?,)));
         }
+
         // otherwise, initialize the waker `asyncio.Future`
         if let Some(future) = self.waker.as_ref().unwrap().initialize_future(py)? {
             // `asyncio.Future` must be awaited; fortunately, it implements `__iter__ = __await__`

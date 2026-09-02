@@ -240,6 +240,7 @@ fn coroutine_is_cancelled() {
 }
 
 #[test]
+#[cfg(all(panic = "unwind", wip_feature_std))]
 fn coroutine_panic() {
     #[pyfunction]
     async fn panic() {

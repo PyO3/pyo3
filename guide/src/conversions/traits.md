@@ -648,6 +648,7 @@ All the same rules from above apply as well.
   # #[cfg(wip_feature_std)]
   # use std::borrow::Cow;
   # use core::convert;
+  # #[allow(dead_code)]
   #[derive(Clone)]
   struct NotIntoPy(usize);
 
