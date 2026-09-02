@@ -481,7 +481,7 @@ pub mod inspect;
 // other paths to the same items. (e.g. `pyo3::types::PyAnyMethods` instead of `pyo3::prelude::PyAnyMethods`).
 pub mod prelude;
 
-#[cfg(any(Py_3_13, not(Py_LIMITED_API)))]
+#[cfg(all(Py_3_15, not(Py_LIMITED_API)))]
 pub mod pymem_alloc;
 
 /// Test readme and user guide
