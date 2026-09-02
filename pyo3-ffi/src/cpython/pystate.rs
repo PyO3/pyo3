@@ -1,3 +1,5 @@
+#[cfg(all(Py_3_11, not(PyPy)))]
+use crate::cpython::pyframe::_PyInterpreterFrame;
 use crate::PyThreadState;
 use crate::{PyFrameObject, PyInterpreterState, PyObject};
 use core::ffi::c_int;
@@ -11,6 +13,20 @@ pub type Py_tracefunc = unsafe extern "C" fn(
     what: c_int,
     arg: *mut PyObject,
 ) -> c_int;
+
+#[cfg(all(not(Py_3_11), not(PyPy)))]
+pub type _PyFrameEvalFunction = unsafe extern "C" fn(
+    tstate: *mut PyThreadState,
+    frame: *mut PyFrameObject,
+    throwflag: c_int,
+) -> *mut PyObject;
+
+#[cfg(all(Py_3_11, not(PyPy)))]
+pub type _PyFrameEvalFunction = unsafe extern "C" fn(
+    tstate: *mut PyThreadState,
+    frame: *mut _PyInterpreterFrame,
+    throwflag: c_int,
+) -> *mut PyObject;
 
 pub const PyTrace_CALL: c_int = 0;
 pub const PyTrace_EXCEPTION: c_int = 1;
@@ -78,8 +94,18 @@ extern_libpython! {
 
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_DeleteCurrent")]
     pub fn PyThreadState_DeleteCurrent();
-}
 
-// skipped private _PyFrameEvalFunction
-// skipped private _PyInterpreterState_GetEvalFrameFunc
-// skipped private _PyInterpreterState_SetEvalFrameFunc
+    #[cfg(all(not(Py_3_11), not(PyPy)))]
+    pub fn _PyInterpreterState_GetEvalFrameFunc(
+        interp: *mut PyInterpreterState,
+    ) -> Option<_PyFrameEvalFunction>;
+    #[cfg(all(Py_3_11, not(PyPy)))]
+    pub fn _PyInterpreterState_GetEvalFrameFunc(
+        interp: *mut PyInterpreterState,
+    ) -> _PyFrameEvalFunction;
+    #[cfg(not(PyPy))]
+    pub fn _PyInterpreterState_SetEvalFrameFunc(
+        interp: *mut PyInterpreterState,
+        eval_frame: Option<_PyFrameEvalFunction>,
+    );
+}
