@@ -31,17 +31,23 @@
 //! # Example: Propagating a `PyErr` into [`anyhow::Error`]
 //!
 //! ```rust
+//! # #[cfg(wip_feature_std)]
 //! use pyo3::prelude::*;
+//! # #[cfg(wip_feature_std)]
 //! use std::path::PathBuf;
 //!
 //! // A wrapper around a Rust function.
 //! // The pyfunction macro performs the conversion to a PyErr
+//! # #[cfg(wip_feature_std)]
 //! #[pyfunction]
 //! fn py_open(filename: PathBuf) -> anyhow::Result<Vec<u8>> {
 //!     let data = std::fs::read(filename)?;
 //!     Ok(data)
 //! }
 //!
+//! # #[cfg(not(wip_feature_std))]
+//! # fn main() {}
+//! # #[cfg(wip_feature_std)]
 //! fn main() {
 //!     let error = Python::attach(|py| -> PyResult<Vec<u8>> {
 //!         let fun = wrap_pyfunction!(py_open, py)?;
