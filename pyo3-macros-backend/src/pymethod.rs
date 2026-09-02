@@ -213,6 +213,14 @@ impl PyMethodProtoKind {
             | PyMethodProtoKind::Clear => false,
         }
     }
+
+    fn optional_trailing_args(&self) -> usize {
+        match self {
+            PyMethodProtoKind::Slot(slot) => slot.optional_trailing_args(),
+            PyMethodProtoKind::SlotFragment(fragment) => fragment.optional_trailing_args(),
+            PyMethodProtoKind::Call | PyMethodProtoKind::Traverse | PyMethodProtoKind::Clear => 0,
+        }
+    }
 }
 
 impl<'a> PyMethod<'a> {
@@ -236,6 +244,8 @@ impl<'a> PyMethod<'a> {
                 spec.signature
                     .python_signature
                     .make_all_parameters_positional_only();
+                spec.signature
+                    .default_trailing_parameters_to_none(proto.optional_trailing_args());
             }
         }
 
@@ -1096,7 +1106,9 @@ pub const __HASH__: SlotDef =
     ));
 pub const __RICHCMP__: SlotDef = SlotDef::new("Py_tp_richcompare", "richcmpfunc")
     .extract_error_mode(ExtractErrorMode::NotImplemented);
-const __GET__: SlotDef = SlotDef::new("Py_tp_descr_get", "descrgetfunc");
+const __GET__: SlotDef = SlotDef::new("Py_tp_descr_get", "descrgetfunc")
+    // `__get__($self, instance, owner=None, /)`
+    .with_optional_trailing_args(1);
 const __ITER__: SlotDef = SlotDef::new("Py_tp_iter", "getiterfunc");
 const __NEXT__: SlotDef = SlotDef::new("Py_tp_iternext", "iternextfunc").return_iter_conversion(
     StaticIdent::new("IterNextOutput"),
@@ -1345,6 +1357,7 @@ pub struct SlotDef {
     extract_error_mode: ExtractErrorMode,
     return_mode: Option<ReturnMode>,
     require_unsafe: bool,
+    optional_trailing_args: usize,
 }
 
 enum SlotCallingConvention {
@@ -1367,6 +1380,17 @@ impl SlotDef {
             self.calling_convention,
             SlotCallingConvention::TpNew | SlotCallingConvention::TpInit
         )
+    }
+
+    /// How many trailing arguments CPython's slot wrapper lets the caller omit, each of which
+    /// reaches the slot as `None`.
+    pub const fn optional_trailing_args(&self) -> usize {
+        self.optional_trailing_args
+    }
+
+    const fn with_optional_trailing_args(mut self, count: usize) -> Self {
+        self.optional_trailing_args = count;
+        self
     }
 
     const fn new(slot: &'static str, func_ty: &'static str) -> Self {
@@ -1424,6 +1448,7 @@ impl SlotDef {
             extract_error_mode: ExtractErrorMode::Raise,
             return_mode: None,
             require_unsafe: false,
+            optional_trailing_args: 0,
         }
     }
 
@@ -1475,6 +1500,8 @@ impl SlotDef {
             ret_ty,
             return_mode,
             require_unsafe,
+            // introspection only, not part of codegen
+            optional_trailing_args: _,
         } = self;
         if *require_unsafe {
             ensure_spanned!(
@@ -1693,6 +1720,7 @@ struct SlotFragmentDef {
     /// Those fragments must use `Checked` so that a type mismatch returns
     /// `NotImplemented` instead of causing undefined behaviour.
     self_conversion: SelfConversionPolicy,
+    optional_trailing_args: usize,
 }
 
 impl SlotFragmentDef {
@@ -1703,6 +1731,7 @@ impl SlotFragmentDef {
             extract_error_mode: ExtractErrorMode::Raise,
             ret_ty: Ty::Void,
             self_conversion: SelfConversionPolicy::checked(),
+            optional_trailing_args: 0,
         }
     }
 
@@ -1722,6 +1751,7 @@ impl SlotFragmentDef {
             extract_error_mode: ExtractErrorMode::NotImplemented,
             ret_ty: Ty::Object,
             self_conversion: SelfConversionPolicy::checked(),
+            optional_trailing_args: 0,
         }
     }
 
@@ -1740,6 +1770,16 @@ impl SlotFragmentDef {
         self
     }
 
+    /// See [`SlotDef::optional_trailing_args`].
+    const fn optional_trailing_args(&self) -> usize {
+        self.optional_trailing_args
+    }
+
+    const fn with_optional_trailing_args(mut self, count: usize) -> Self {
+        self.optional_trailing_args = count;
+        self
+    }
+
     fn generate_pyproto_fragment(
         &self,
         cls: &syn::Type,
@@ -1753,6 +1793,8 @@ impl SlotFragmentDef {
             extract_error_mode,
             ret_ty,
             self_conversion,
+            // introspection only, not part of codegen
+            optional_trailing_args: _,
         } = self;
         let fragment_trait = format_ident!("PyClass{}SlotFragment", fragment);
         let method = syn::Ident::new(fragment, Span::call_site());
@@ -1867,10 +1909,14 @@ const __ROR__: SlotFragmentDef = SlotFragmentDef::binary_operator("__ror__");
 
 const __POW__: SlotFragmentDef = SlotFragmentDef::new("__pow__", &[Ty::Object, Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .ret_ty(Ty::Object);
+    .ret_ty(Ty::Object)
+    // `__pow__($self, value, mod=None, /)`
+    .with_optional_trailing_args(1);
 const __RPOW__: SlotFragmentDef = SlotFragmentDef::new("__rpow__", &[Ty::Object, Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
-    .ret_ty(Ty::Object);
+    .ret_ty(Ty::Object)
+    // `__rpow__($self, value, mod=None, /)`
+    .with_optional_trailing_args(1);
 
 const __LT__: SlotFragmentDef = SlotFragmentDef::new("__lt__", &[Ty::Object])
     .extract_error_mode(ExtractErrorMode::NotImplemented)
@@ -1969,4 +2015,47 @@ fn doc_to_optional_cstr(doc: Option<&PythonDoc>, ctx: &Ctx) -> Result<TokenStrea
     } else {
         quote!(::core::option::Option::None)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_short_callable_slots_have_optional_trailing_args() {
+        assert_eq!(__GET__.optional_trailing_args(), 1);
+        assert_eq!(__POW__.optional_trailing_args(), 1);
+        assert_eq!(__RPOW__.optional_trailing_args(), 1);
+        assert_eq!(__ITER__.optional_trailing_args(), 0);
+        assert_eq!(__LT__.optional_trailing_args(), 0);
+        assert_eq!(__IADD__.optional_trailing_args(), 0);
+    }
+
+    #[test]
+    fn optional_trailing_args_defaults_to_zero() {
+        assert_eq!(
+            SlotDef::new("Py_tp_iter", "getiterfunc").optional_trailing_args(),
+            0
+        );
+        assert_eq!(
+            SlotDef::new("Py_tp_iter", "getiterfunc")
+                .with_optional_trailing_args(2)
+                .optional_trailing_args(),
+            2
+        );
+        assert_eq!(
+            SlotFragmentDef::new("__pow__", &[Ty::Object]).optional_trailing_args(),
+            0
+        );
+        assert_eq!(
+            SlotFragmentDef::new("__pow__", &[Ty::Object])
+                .with_optional_trailing_args(1)
+                .optional_trailing_args(),
+            1
+        );
+        assert_eq!(
+            SlotFragmentDef::binary_operator("__add__").optional_trailing_args(),
+            0
+        );
+    }
 }
