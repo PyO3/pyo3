@@ -1,12 +1,15 @@
 //! Defines conversions between Rust and Python types.
 use crate::err::PyResult;
+use crate::exceptions::PyValueError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_identifier, type_hint_subscript, PyStaticExpr};
 use crate::platform::prelude::*;
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
-use crate::types::PyList;
+#[cfg(feature = "experimental-inspect")]
+use crate::types::PyNone;
 use crate::types::PyTuple;
+use crate::types::{PyAnyMethods as _, PyList};
 use crate::{
     Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyTypeCheck, Python,
 };
@@ -541,6 +544,19 @@ where
             .map_err(|e| PyClassGuardMutError(Some(e)))?
             .try_borrow_mut()
             .map_err(|_| PyClassGuardMutError(None))
+    }
+}
+
+impl<'py> FromPyObject<'_, 'py> for () {
+    type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: PyStaticExpr = PyNone::TYPE_HINT;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+        obj.is_none()
+            .then_some(())
+            .ok_or(PyValueError::new_err("expected None"))
     }
 }
 
