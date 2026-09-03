@@ -347,6 +347,10 @@ name = "test_gc"
 required-features = ["macros"]
 
 [[test]]
+name = "test_pygcintegration"
+required-features = ["macros"]
+
+[[test]]
 name = "test_getter_setter"
 required-features = ["macros"]
 
