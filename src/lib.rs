@@ -436,6 +436,8 @@ pub mod marker;
 pub mod marshal;
 #[macro_use]
 pub mod sync;
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
+pub mod init_config;
 #[cfg(wip_feature_std)]
 pub mod panic;
 pub mod pybacked;

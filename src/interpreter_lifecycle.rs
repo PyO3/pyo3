@@ -3,6 +3,9 @@
 
 use crate::platform::sync::Once;
 
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
+use core::ffi::c_int;
+
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::{ffi, internal::state::AttachGuard, Python};
 
@@ -22,6 +25,27 @@ pub(crate) fn initialize() {
             ffi::PyEval_SaveThread();
         }
     });
+}
+
+/// Calls [`Py_InitializeFromInitConfig`](pyo3_ffi::Py_InitializeFromInitConfig) to initialize the
+/// interpreter if it's not already initialized and returns its result.
+///
+/// Returns [`None`] if the interpreter is already initialized
+///
+/// # Safety
+/// `config` must point to a valid [`PyInitConfig`](crate::ffi::PyInitConfig) object.
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
+pub(crate) unsafe fn initialize_from_config(config: *mut ffi::PyInitConfig) -> Option<c_int> {
+    let mut result = None;
+    START.call_once_force(|| unsafe {
+        if ffi::Py_IsInitialized() == 0 {
+            result = Some(ffi::Py_InitializeFromInitConfig(config));
+
+            // Release the GIL
+            ffi::PyEval_SaveThread();
+        }
+    });
+    result
 }
 
 /// Executes the provided closure with an embedded Python interpreter.

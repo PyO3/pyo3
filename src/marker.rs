@@ -121,6 +121,8 @@
 //! [`Py`]: Py
 use crate::conversion::IntoPyObject;
 use crate::err::{self, PyResult};
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
+use crate::init_config::{InitializeFromConfigError, PyInitConfig};
 use crate::internal::state::{AttachGuard, SuspendAttach};
 use crate::types::any::PyAnyMethods;
 use crate::types::code::PyCodeInput;
@@ -474,6 +476,18 @@ impl Python<'_> {
     #[cfg(not(any(PyPy, GraalPy)))]
     pub fn initialize() {
         crate::interpreter_lifecycle::initialize();
+    }
+
+    /// Initializes the python interpreter from the configuration.
+    ///
+    /// # Panic
+    /// Panics if the interpreter is already initialized.
+    #[cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
+    #[inline]
+    pub fn initialize_from_init_config(
+        config: PyInitConfig,
+    ) -> Result<(), InitializeFromConfigError> {
+        config.initialize()
     }
 
     /// Like [`Python::attach`] except Python interpreter state checking is skipped.
