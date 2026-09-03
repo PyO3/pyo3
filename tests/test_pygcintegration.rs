@@ -88,6 +88,9 @@ enum Node {
     },
 }
 
+#[derive(PyGcTraversable)]
+enum Empty {}
+
 #[test]
 fn may_contain_cycles_structs_and_enums() {
     const {
@@ -95,6 +98,7 @@ fn may_contain_cycles_structs_and_enums() {
         assert!(!Branch::MAY_CONTAIN_CYCLES);
         assert!(!BranchWithIgnoredField::MAY_CONTAIN_CYCLES);
         assert!(!Node::MAY_CONTAIN_CYCLES);
+        assert!(!Empty::MAY_CONTAIN_CYCLES);
     }
 }
 

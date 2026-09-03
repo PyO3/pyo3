@@ -223,147 +223,151 @@ pub fn build_derive_py_gc_integration(tokens: &DeriveInput) -> Result<TokenStrea
             (fields, quote!(#traverse), quote!(#clear), cycles)
         }
         syn::Data::Enum(data) => {
-            ensure_spanned!(
-                !data.variants.is_empty(),
-                tokens.span() => "cannot derive `PyGcTraversable` for empty enum"
-            );
+            if data.variants.is_empty() {
+                (
+                    Vec::new(),
+                    quote!(Ok(())),
+                    quote! {},
+                    quote!(false),
+                )
+            } else {
+                let mut all_fields = Vec::new();
+                let mut traverse_arms = Vec::new();
+                let mut clear_arms = Vec::new();
 
-            let mut all_fields = Vec::new();
-            let mut traverse_arms = Vec::new();
-            let mut clear_arms = Vec::new();
+                for variant in &data.variants {
+                    let variant_ident = &variant.ident;
+                    let variant_fields = fields_for_struct(&variant.fields)?;
+                    all_fields.extend(variant_fields.iter().map(|field| GcField {
+                        member: field.member.clone(),
+                        ty: field.ty,
+                        include: field.include,
+                    }));
 
-            for variant in &data.variants {
-                let variant_ident = &variant.ident;
-                let variant_fields = fields_for_struct(&variant.fields)?;
-                all_fields.extend(variant_fields.iter().map(|field| GcField {
-                    member: field.member.clone(),
-                    ty: field.ty,
-                    include: field.include,
-                }));
+                    match &variant.fields {
+                        Fields::Named(named) => {
+                            let bindings: Vec<_> = named
+                                .named
+                                .iter()
+                                .enumerate()
+                                .map(|(i, field)| {
+                                    let field_ident = field.ident.as_ref().expect("named field");
+                                    let binding = format_ident!("field_{i}");
+                                    quote!(#field_ident: #binding)
+                                })
+                                .collect();
 
-                match &variant.fields {
-                    Fields::Named(named) => {
-                        let bindings: Vec<_> = named
-                            .named
-                            .iter()
-                            .enumerate()
-                            .map(|(i, field)| {
-                                let field_ident = field.ident.as_ref().expect("named field");
-                                let binding = format_ident!("field_{i}");
-                                quote!(#field_ident: #binding)
-                            })
-                            .collect();
-
-                        let traverse_stmts = variant_fields
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, field)| field.include)
-                            .map(|(i, field)| {
-                                let binding = format_ident!("field_{i}");
-                                let ty = field.ty;
-                                quote! {
-                                    if <#ty as #pyo3_path::pyclass::PyGcTraversable>::MAY_CONTAIN_CYCLES {
-                                        #pyo3_path::pyclass::PyGcTraversable::traverse(#binding, visit.clone())?;
+                            let traverse_stmts = variant_fields
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, field)| field.include)
+                                .map(|(i, field)| {
+                                    let binding = format_ident!("field_{i}");
+                                    let ty = field.ty;
+                                    quote! {
+                                        if <#ty as #pyo3_path::pyclass::PyGcTraversable>::MAY_CONTAIN_CYCLES {
+                                            #pyo3_path::pyclass::PyGcTraversable::traverse(#binding, visit.clone())?;
+                                        }
                                     }
+                                });
+
+                            let clear_stmts = variant_fields
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, field)| field.include)
+                                .map(|(i, field)| {
+                                    let binding = format_ident!("field_{i}");
+                                    let ty = field.ty;
+                                    quote! {
+                                        if <#ty as #pyo3_path::pyclass::PyGcTraversable>::MAY_CONTAIN_CYCLES {
+                                            #pyo3_path::pyclass::PyGcTraversable::clear(#binding);
+                                        }
+                                    }
+                                });
+
+                            traverse_arms.push(quote! {
+                                Self::#variant_ident { #(#bindings),* } => {
+                                    #(#traverse_stmts)*
+                                    Ok(())
                                 }
                             });
-
-                        let clear_stmts = variant_fields
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, field)| field.include)
-                            .map(|(i, field)| {
-                                let binding = format_ident!("field_{i}");
-                                let ty = field.ty;
-                                quote! {
-                                    if <#ty as #pyo3_path::pyclass::PyGcTraversable>::MAY_CONTAIN_CYCLES {
-                                        #pyo3_path::pyclass::PyGcTraversable::clear(#binding);
-                                    }
+                            clear_arms.push(quote! {
+                                Self::#variant_ident { #(#bindings),* } => {
+                                    #(#clear_stmts)*
                                 }
                             });
+                        }
+                        Fields::Unnamed(unnamed) => {
+                            let bindings: Vec<_> = unnamed
+                                .unnamed
+                                .iter()
+                                .enumerate()
+                                .map(|(i, _)| format_ident!("field_{i}"))
+                                .collect();
 
-                        traverse_arms.push(quote! {
-                            Self::#variant_ident { #(#bindings),* } => {
-                                #(#traverse_stmts)*
-                                Ok(())
-                            }
-                        });
-                        clear_arms.push(quote! {
-                            Self::#variant_ident { #(#bindings),* } => {
-                                #(#clear_stmts)*
-                            }
-                        });
-                    }
-                    Fields::Unnamed(unnamed) => {
-                        let bindings: Vec<_> = unnamed
-                            .unnamed
-                            .iter()
-                            .enumerate()
-                            .map(|(i, _)| format_ident!("field_{i}"))
-                            .collect();
-
-                        let traverse_stmts = variant_fields
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, field)| field.include)
-                            .map(|(i, field)| {
-                                let binding = format_ident!("field_{i}");
-                                let ty = field.ty;
-                                quote! {
-                                    if <#ty as #pyo3_path::pyclass::PyGcTraversable>::MAY_CONTAIN_CYCLES {
-                                        #pyo3_path::pyclass::PyGcTraversable::traverse(#binding, visit.clone())?;
+                            let traverse_stmts = variant_fields
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, field)| field.include)
+                                .map(|(i, field)| {
+                                    let binding = format_ident!("field_{i}");
+                                    let ty = field.ty;
+                                    quote! {
+                                        if <#ty as #pyo3_path::pyclass::PyGcTraversable>::MAY_CONTAIN_CYCLES {
+                                            #pyo3_path::pyclass::PyGcTraversable::traverse(#binding, visit.clone())?;
+                                        }
                                     }
+                                });
+
+                            let clear_stmts = variant_fields
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, field)| field.include)
+                                .map(|(i, field)| {
+                                    let binding = format_ident!("field_{i}");
+                                    let ty = field.ty;
+                                    quote! {
+                                        if <#ty as #pyo3_path::pyclass::PyGcTraversable>::MAY_CONTAIN_CYCLES {
+                                            #pyo3_path::pyclass::PyGcTraversable::clear(#binding);
+                                        }
+                                    }
+                                });
+
+                            traverse_arms.push(quote! {
+                                Self::#variant_ident(#(#bindings),*) => {
+                                    #(#traverse_stmts)*
+                                    Ok(())
                                 }
                             });
-
-                        let clear_stmts = variant_fields
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, field)| field.include)
-                            .map(|(i, field)| {
-                                let binding = format_ident!("field_{i}");
-                                let ty = field.ty;
-                                quote! {
-                                    if <#ty as #pyo3_path::pyclass::PyGcTraversable>::MAY_CONTAIN_CYCLES {
-                                        #pyo3_path::pyclass::PyGcTraversable::clear(#binding);
-                                    }
+                            clear_arms.push(quote! {
+                                Self::#variant_ident(#(#bindings),*) => {
+                                    #(#clear_stmts)*
                                 }
                             });
-
-                        traverse_arms.push(quote! {
-                            Self::#variant_ident(#(#bindings),*) => {
-                                #(#traverse_stmts)*
-                                Ok(())
-                            }
-                        });
-                        clear_arms.push(quote! {
-                            Self::#variant_ident(#(#bindings),*) => {
-                                #(#clear_stmts)*
-                            }
-                        });
-                    }
-                    Fields::Unit => {
-                        traverse_arms.push(quote!(Self::#variant_ident => Ok(())));
-                        clear_arms.push(quote!(Self::#variant_ident => {}));
+                        }
+                        Fields::Unit => {
+                            traverse_arms.push(quote!(Self::#variant_ident => Ok(())));
+                            clear_arms.push(quote!(Self::#variant_ident => {}));
+                        }
                     }
                 }
-            }
 
-            let cycles = cycle_or_expr(&all_fields, pyo3_path);
-            (
-                all_fields,
-                quote! {
-                    match self {
-                        #(#traverse_arms),*
-                    }
-                },
-                quote! {
-                    match self {
-                        #(#clear_arms),*
-                    }
-                },
-                cycles,
-            )
+                let cycles = cycle_or_expr(&all_fields, pyo3_path);
+                (
+                    all_fields,
+                    quote! {
+                        match self {
+                            #(#traverse_arms),*
+                        }
+                    },
+                    quote! {
+                        match self {
+                            #(#clear_arms),*
+                        }
+                    },
+                    cycles,
+                )
+            }
         }
         syn::Data::Union(_) => {
             bail_spanned!(tokens.span() => "#[derive(PyGcTraversable)] is not supported for unions")
