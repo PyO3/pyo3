@@ -1,3 +1,7 @@
+//@revisions: default nostd
+//@[default] with-std
+//@[nostd] no-std
+
 use pyo3::prelude::*;
 
 #[pyclass]
