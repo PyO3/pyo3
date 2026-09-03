@@ -574,6 +574,48 @@ unsafe impl<T> PyGcTraversable for Py<T> {
 /// This is useful for intentional recursion breakpoints where traversing a
 /// reference would recurse indefinitely. Only use this when the wrapped value
 /// is known to be traversed through another path.
+///
+/// # Examples
+///
+/// Deriving traversal on maps where only one side contains Python references:
+///
+/// ```
+/// # #[cfg(feature = "macros")] {
+/// use std::collections::HashMap;
+/// use std::num::Wrapping;
+/// use pyo3::{Py, PyAny, PyGcOpaque, PyGcTraversable};
+///
+/// #[derive(PyGcTraversable)]
+/// struct ValueIndex {
+///     // `Wrapping<u64>` stands in for a third-party key type which does not
+///     // implement `PyGcTraversable`; wrapping it makes the map traversable.
+///     entries: HashMap<PyGcOpaque<Wrapping<u64>>, Py<PyAny>>,
+/// }
+///
+/// const _: () = {
+///     assert!(ValueIndex::MAY_CONTAIN_CYCLES);
+/// };
+/// # }
+/// ```
+///
+/// Breaking a traversal cycle manually in a bidirectional graph:
+///
+/// ```
+/// # #[cfg(feature = "macros")] {
+/// use std::sync::Arc;
+/// use pyo3::{Py, PyAny, PyGcOpaque, PyGcTraversable};
+///
+/// #[derive(PyGcTraversable)]
+/// struct Node {
+///     payload: Py<PyAny>,
+///     // Forward edges recurse through Rust-owned nodes.
+///     children: Vec<Arc<Node>>,
+///     // Back-edge is skipped here to avoid traversing the same cycle twice.
+///     // It must be reachable from another traversed path.
+///     parent: PyGcOpaque<Option<Arc<Node>>>,
+/// }
+/// # }
+/// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct PyGcOpaque<T>(T);
