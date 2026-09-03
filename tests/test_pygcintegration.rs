@@ -3,6 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::{PyTraverseError, PyVisit};
+use pyo3::{PyGcOpaque, PyGcTraversable};
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 use std::marker::PhantomData;
