@@ -32,7 +32,8 @@ use std::{
 ///
 /// # Safety
 ///
-/// Implementations must not execute arbitrary Python code from `traverse`.
+/// Implementations must not execute arbitrary Python code from `traverse`,
+/// including calling `Python::attach`.
 pub unsafe trait PyGcTraversable {
     /// Whether this type may hold Python object references which can participate in cycles.
     const MAY_CONTAIN_CYCLES: bool;
