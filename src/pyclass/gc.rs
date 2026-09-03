@@ -5,6 +5,7 @@ use alloc::{
     collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque},
     ffi::CString,
     string::String,
+    sync::Arc,
     vec::Vec,
 };
 use core::{
@@ -411,6 +412,27 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for RwLock<T> {
                 |poisoned| poisoned.into_inner().clear(),
                 |value| value.clear(),
             );
+        }
+    }
+}
+
+// SAFETY: `Arc<T>` shares ownership of one `T`; traversal can delegate through
+// immutable access, and clearing is only possible when uniquely owned.
+unsafe impl<T: PyGcTraversable> PyGcTraversable for Arc<T> {
+    const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
+
+    fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        if T::MAY_CONTAIN_CYCLES {
+            (**self).traverse(visit)?;
+        }
+        Ok(())
+    }
+
+    fn clear(&mut self) {
+        if T::MAY_CONTAIN_CYCLES {
+            if let Some(value) = Arc::get_mut(self) {
+                value.clear();
+            }
         }
     }
 }
