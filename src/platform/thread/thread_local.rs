@@ -110,7 +110,7 @@ impl<T: 'static> LocalKey<T> {
 
     fn get_raw(&self) -> NonNull<crate::ffi::Py_tss_t> {
         cfg_select! {
-            Py_LIMITED_API => self.inner.get_or_init(initialize_tss),
+            Py_LIMITED_API => *self.inner.get_or_init(initialize_tss),
             _ => NonNull::new(self.inner.get_or_init(initialize_tss).get()).unwrap(),
         }
     }
