@@ -3,14 +3,14 @@ Objects related to PyBuffer and PyStr
 """
 
 from collections.abc import Sequence
-from typing import Any, final
+from typing import Any, Self, final
 
 @final
 class BytesExtractor:
     """
     This is for confirming that PyBuffer does not cause memory leak
     """
-    def __new__(cls, /) -> BytesExtractor: ...
+    def __new__(cls, /) -> Self: ...
     @staticmethod
     def from_buffer(buf: Any) -> int: ...
     @staticmethod
