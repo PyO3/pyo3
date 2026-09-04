@@ -47,26 +47,6 @@ error: `name` is useless without `get` or `set`
    |                                 ^^^^^^^^^^^^^^
 
 error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
-  --> tests/ui/invalid_property_args.rs:59:12
-   |
-59 |     value: ::std::marker::PhantomData<i32>,
-   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by `#[pyo3(get)]` to create a readable property from a field of type `PhantomData<i32>`
-   |
-   = help: the trait `IntoPyObject<'_>` is not implemented for `PhantomData<i32>`
-   = note: implement `IntoPyObject` for `&PhantomData<i32>` or `IntoPyObject + Clone` for `PhantomData<i32>` to define the conversion
-   = help: the following other types implement trait `IntoPyObject<'py>`:
-             &&'a T
-             &&OsStr
-             &&Path
-             &&str
-             &'a (T0, T1)
-             &'a (T0, T1, T2)
-             &'a (T0, T1, T2, T3)
-             &'a (T0, T1, T2, T3, T4)
-           and $N others
-   = note: required for `PhantomData<i32>` to implement `pyo3::impl_::introspection::PyIntoPyObjectMaybeRefType<false>`
-
-error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
     --> tests/ui/invalid_property_args.rs:59:12
      |
   59 |     value: ::std::marker::PhantomData<i32>,
@@ -76,13 +56,13 @@ error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
      = note: implement `IntoPyObject` for `&PhantomData<i32>` or `IntoPyObject + Clone` for `PhantomData<i32>` to define the conversion
      = help: the following other types implement trait `IntoPyObject<'py>`:
                &&'a T
-               &&OsStr
-               &&Path
                &&str
                &'a (T0, T1)
                &'a (T0, T1, T2)
                &'a (T0, T1, T2, T3)
                &'a (T0, T1, T2, T3, T4)
+               &'a (T0, T1, T2, T3, T4, T5)
+               &'a (T0, T1, T2, T3, T4, T5, T6)
              and $N others
      = note: required for `PhantomData<i32>` to implement `for<'py> pyo3::impl_::pyclass::PyO3GetField<'py>`
 note: required by a bound in `pyo3::impl_::pyclass::PyClassGetterGenerator::<ClassT, FieldT, OFFSET, false, false>::generate`
@@ -94,6 +74,6 @@ note: required by a bound in `pyo3::impl_::pyclass::PyClassGetterGenerator::<Cla
   |         for<'py> FieldT: PyO3GetField<'py>,
   |                          ^^^^^^^^^^^^^^^^^ required by this bound in `PyClassGetterGenerator::<ClassT, FieldT, OFFSET, false, false>::generate`
 
-error: aborting due to 10 previous errors
+error: aborting due to 9 previous errors
 
 For more information about this error, try `rustc --explain E0277`.

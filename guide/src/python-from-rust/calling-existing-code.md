@@ -276,12 +276,20 @@ It is recommended to use absolute paths because then your binary can be run from
 `src/main.rs`:
 
 ```rust,no_run
+# #[cfg(wip_feature_std)]
 use pyo3::prelude::*;
+# #[cfg(wip_feature_std)]
 use pyo3::types::PyList;
+# #[cfg(wip_feature_std)]
 use std::fs;
+# #[cfg(wip_feature_std)]
 use std::path::Path;
+# #[cfg(wip_feature_std)]
 use std::ffi::CString;
 
+# #[cfg(not(wip_feature_std))]
+# fn main() {}
+# #[cfg(wip_feature_std)]
 fn main() -> PyResult<()> {
     let path = Path::new("/usr/share/python_app");
     let py_app = CString::new(fs::read_to_string(path.join("app.py"))?)?;
