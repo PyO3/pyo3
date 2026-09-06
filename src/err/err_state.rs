@@ -2,14 +2,12 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 
 use crate::platform::prelude::*;
-#[cfg(not(Py_3_12))]
 use crate::platform::sync::non_poison::Mutex;
 use crate::platform::sync::Once;
 use crate::platform::thread::{self, ThreadId};
 
-use core::cell::{Cell, UnsafeCell};
+use core::cell::UnsafeCell;
 
-#[cfg(not(Py_3_12))]
 use crate::sync::MutexExt;
 use crate::{
     exceptions::{PyBaseException, PyTypeError},
@@ -24,7 +22,7 @@ pub(crate) struct PyErrState {
     // after normalization.
     normalized: Once,
     // Guard against re-entrancy when normalizing the exception state.
-    normalizing_thread: Cell<Option<ThreadId>>,
+    normalizing_thread: Mutex<Option<ThreadId>>,
     inner: UnsafeCell<Option<PyErrStateInner>>,
 }
 
@@ -69,7 +67,7 @@ impl PyErrState {
     fn from_inner(inner: PyErrStateInner) -> Self {
         Self {
             normalized: Once::new(),
-            normalizing_thread: Cell::new(None),
+            normalizing_thread: Mutex::new(None),
             inner: UnsafeCell::new(Some(inner)),
         }
     }
@@ -97,7 +95,7 @@ impl PyErrState {
 
         // Guard against re-entrant normalization, because `Once` does not provide
         // re-entrancy guarantees.
-        if let Some(thread) = self.normalizing_thread.get() {
+        if let Some(thread) = *self.normalizing_thread.lock_py_attached(py) {
             assert_ne!(
                 thread,
                 thread::current().id(),
@@ -108,7 +106,7 @@ impl PyErrState {
         // avoid deadlock of `.call_once` with the GIL
         py.detach(|| {
             self.normalized.call_once(|| {
-                self.normalizing_thread.set(Some(thread::current().id()));
+                *self.normalizing_thread.lock() = Some(thread::current().id());
 
                 // Safety: no other thread can access the inner value while we are normalizing it.
                 let state = unsafe {
