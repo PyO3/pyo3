@@ -4,7 +4,7 @@ ifneq ($(PYMAJORMINOR),3.15)
 $(error PYMAJORMINOR must be 3.15, got '$(PYMAJORMINOR)')
 endif
 
-NODE_VERSION=24.18.0
+NODE_VERSION=24.20.0
 
 PLATFORM=wasm32_emscripten
 SYSCONFIGDATA_NAME=_sysconfigdata__$(PLATFORM)
