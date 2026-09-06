@@ -517,6 +517,7 @@ jobs:
         session: ["test-py", "test-rust", "clippy"]
     env:
       PYO3_WIP_NO_STD: "1"
+    continue-on-error: ${{ !contains(github.event.pull_request.labels.*.name, 'no_std') }}
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v7
@@ -822,6 +823,7 @@ jobs:
       - docsrs
       - emscripten
       - wasm32-wasip1
+      - no_std
       - test-debug
       - test-version-limits
       - check-feature-powerset
