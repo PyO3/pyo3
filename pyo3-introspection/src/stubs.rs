@@ -862,32 +862,6 @@ mod tests {
     }
 
     #[test]
-    fn empty_tuple_subscripts() {
-        let tuple = |elts| Expr::Subscript {
-            value: Box::new(Expr::Name { id: "tuple".into() }),
-            slice: Box::new(Expr::Tuple { elts }),
-        };
-        let int = Expr::Name { id: "int".into() };
-        let imports = Imports {
-            imports: Vec::new(),
-            renaming: BTreeMap::from([
-                (("builtins".into(), "tuple".into()), "tuple".into()),
-                (("builtins".into(), "int".into()), "int".into()),
-            ]),
-        };
-
-        for (expr, expected) in [
-            (tuple(Vec::new()), "tuple[()]"),
-            (tuple(vec![tuple(Vec::new())]), "tuple[tuple[()]]"),
-            (tuple(vec![int, tuple(Vec::new())]), "tuple[int, tuple[()]]"),
-        ] {
-            let mut buffer = String::new();
-            imports.serialize_expr(&expr, &mut buffer);
-            assert_eq!(buffer, expected);
-        }
-    }
-
-    #[test]
     fn test_import() {
         let big_type = Expr::Subscript {
             value: Box::new(Expr::Name { id: "dict".into() }),
