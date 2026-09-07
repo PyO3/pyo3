@@ -4,6 +4,11 @@ use pyo3::types::{PyDict, PyTuple};
 #[pyfunction(signature = ())]
 fn none() {}
 
+#[pyfunction]
+fn nested_empty_tuples() -> ((), ((),)) {
+    ((), ((),))
+}
+
 // Exposed under a different name than the Rust one, which the generated stubs have to use.
 #[pyfunction(name = "renamed")]
 fn rust_name_of_renamed() -> usize {
@@ -147,8 +152,9 @@ pub mod pyfunctions {
     use super::with_async;
     #[pymodule_export]
     use super::{
-        args_kwargs, many_keyword_arguments, none, positional_only, rust_name_of_renamed, simple,
-        simple_args, simple_args_kwargs, simple_kwargs, with_typed_args,
+        args_kwargs, many_keyword_arguments, nested_empty_tuples, none, positional_only,
+        rust_name_of_renamed, simple, simple_args, simple_args_kwargs, simple_kwargs,
+        with_typed_args,
     };
 
     // Likewise for a `cfg`-ed out last member.
