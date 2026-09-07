@@ -531,8 +531,12 @@ impl Imports {
                 self.serialize_expr(value, buffer);
                 buffer.push('[');
                 if let Expr::Tuple { elts } = &**slice {
-                    // We don't display the tuple parentheses
-                    self.serialize_elts(elts, buffer);
+                    if elts.is_empty() {
+                        // Empty tuples need parentheses to avoid invalid syntax like `tuple[]`
+                        buffer.push_str("()");
+                    } else {
+                        self.serialize_elts(elts, buffer);
+                    }
                 } else {
                     self.serialize_expr(slice, buffer);
                 }
