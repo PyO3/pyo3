@@ -327,39 +327,111 @@ struct RhsArithmetic(String);
 #[pymethods]
 impl RhsArithmetic {
     fn __radd__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} + {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} + {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} + {}", self.0)
+        }
     }
 
     fn __rsub__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} - {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} - {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} - {}", self.0)
+        }
     }
 
     fn __rmul__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} * {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} * {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} * {}", self.0)
+        }
     }
 
     fn __rlshift__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} << {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} << {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} << {}", self.0)
+        }
     }
 
     fn __rrshift__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} >> {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} >> {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} >> {}", self.0)
+        }
     }
 
     fn __rand__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} & {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} & {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} & {}", self.0)
+        }
     }
 
     fn __rxor__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} ^ {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} ^ {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} ^ {}", self.0)
+        }
     }
 
     fn __ror__(&self, other: &Bound<'_, PyAny>) -> String {
-        format!("{other:?} | {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} | {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} | {}", self.0)
+        }
     }
 
     fn __rpow__(&self, other: &Bound<'_, PyAny>, _mod: Option<&Bound<'_, PyAny>>) -> String {
-        format!("{other:?} ** {}", self.0)
+        if other.is_instance_of::<Self>() {
+            format!(
+                "{} ** {}",
+                other.cast::<RhsArithmetic>().unwrap().borrow().0,
+                self.0
+            )
+        } else {
+            format!("{other:?} ** {}", self.0)
+        }
     }
 }
 
@@ -369,22 +441,31 @@ fn rhs_arithmetic() {
         let c = Py::new(py, RhsArithmetic("RA".to_string())).unwrap();
         py_run!(py, c, "assert c.__radd__(1) == '1 + RA'");
         py_run!(py, c, "assert 1 + c == '1 + RA'");
+        py_run!(py, c, "assert c + c == 'RA + RA'");
         py_run!(py, c, "assert c.__rsub__(1) == '1 - RA'");
         py_run!(py, c, "assert 1 - c == '1 - RA'");
+        py_run!(py, c, "assert c - c == 'RA - RA'");
         py_run!(py, c, "assert c.__rmul__(1) == '1 * RA'");
         py_run!(py, c, "assert 1 * c == '1 * RA'");
+        py_run!(py, c, "assert c * c == 'RA * RA'");
         py_run!(py, c, "assert c.__rlshift__(1) == '1 << RA'");
         py_run!(py, c, "assert 1 << c == '1 << RA'");
+        py_run!(py, c, "assert c << c == 'RA << RA'");
         py_run!(py, c, "assert c.__rrshift__(1) == '1 >> RA'");
         py_run!(py, c, "assert 1 >> c == '1 >> RA'");
+        py_run!(py, c, "assert c >> c == 'RA >> RA'");
         py_run!(py, c, "assert c.__rand__(1) == '1 & RA'");
         py_run!(py, c, "assert 1 & c == '1 & RA'");
+        py_run!(py, c, "assert c & c == 'RA & RA'");
         py_run!(py, c, "assert c.__rxor__(1) == '1 ^ RA'");
         py_run!(py, c, "assert 1 ^ c == '1 ^ RA'");
+        py_run!(py, c, "assert c ^ c == 'RA ^ RA'");
         py_run!(py, c, "assert c.__ror__(1) == '1 | RA'");
         py_run!(py, c, "assert 1 | c == '1 | RA'");
+        py_run!(py, c, "assert c | c == 'RA | RA'");
         py_run!(py, c, "assert c.__rpow__(1) == '1 ** RA'");
         py_run!(py, c, "assert 1 ** c == '1 ** RA'");
+        py_run!(py, c, "assert c ** c == 'RA ** RA'");
     });
 }
 
@@ -518,6 +599,249 @@ fn lhs_fellback_to_rhs() {
         py_run!(py, c, "assert 1 | c == '1 | RA'");
         py_run!(py, c, "assert 1 ** c == '1 ** RA'");
         py_run!(py, c, "assert 1 @ c == '1 @ RA'");
+    });
+}
+
+// ============================================================================
+// Binary Operator Inheritance Tests
+// Tests super() delegation with parent classes and multiple inheritance
+// ============================================================================
+
+/// Test 1: Parent Forward → Child Reflected (Rust only)
+/// Parent implements __add__, child implements __radd__
+#[pyclass(subclass)]
+struct AddBase;
+
+#[pymethods]
+impl AddBase {
+    fn __repr__(&self) -> &'static str {
+        "AddBase"
+    }
+
+    fn __add__(&self, other: &Bound<'_, PyAny>) -> String {
+        format!("AddBase.__add__({other:?})")
+    }
+}
+
+#[pyclass(extends=AddBase)]
+struct AddChild;
+
+#[pymethods]
+impl AddChild {
+    fn __repr__(&self) -> &'static str {
+        "AddChild"
+    }
+
+    fn __radd__(&self, other: &Bound<'_, PyAny>) -> String {
+        format!("AddChild.__radd__({other:?})")
+    }
+}
+
+#[test]
+fn binary_inheritance_forward_to_reflected() {
+    Python::attach(|py| {
+        let child = Py::new(py, (AddChild, AddBase)).unwrap();
+
+        py_run!(
+            py,
+            child,
+            r#"
+assert child + 5 == "AddBase.__add__(5)", f"Forward (child + 5): expected 'AddBase.__add__(5)', got {child + 5!r}"
+assert 5 + child == "AddChild.__radd__(5)", f"Reflected (5 + child): expected 'AddChild.__radd__(5)', got {5 + child!r}"
+        "#
+        );
+    });
+}
+
+/// Test 2: Parent Reflected → Child Forward (Rust only)
+/// Parent implements __radd__, child implements __add__
+#[pyclass(subclass)]
+struct RAddBase;
+
+#[pymethods]
+impl RAddBase {
+    fn __repr__(&self) -> &'static str {
+        "RAddBase"
+    }
+
+    fn __radd__(&self, other: &Bound<'_, PyAny>) -> String {
+        format!("RAddBase.__radd__({other:?})")
+    }
+}
+
+#[pyclass(extends=RAddBase)]
+struct RAddChild;
+
+#[pymethods]
+impl RAddChild {
+    fn __repr__(&self) -> &'static str {
+        "RAddChild"
+    }
+
+    fn __add__(&self, other: &Bound<'_, PyAny>) -> String {
+        format!("RAddChild.__add__({other:?})")
+    }
+}
+
+#[test]
+fn binary_inheritance_reflected_to_forward() {
+    Python::attach(|py| {
+        let child = Py::new(py, (RAddChild, RAddBase)).unwrap();
+
+        py_run!(
+            py,
+            child,
+            r#"
+assert child + 5 == "RAddChild.__add__(5)", f"Forward (child + 5): expected 'RAddChild.__add__(5)', got {child + 5!r}"
+assert 5 + child == "RAddBase.__radd__(5)", f"Reflected (5 + child): expected 'RAddBase.__radd__(5)', got {5 + child!r}"
+        "#
+        );
+    });
+}
+
+/// Test 3: Rust Child Forward + Pure Python Mixin Reflected
+/// Tests both MRO orders: (RustImpl, PyMixin) and (PyMixin, RustImpl)
+#[pyclass(subclass)]
+struct ForwardOnly;
+
+#[pymethods]
+impl ForwardOnly {
+    #[new]
+    fn new() -> Self {
+        ForwardOnly
+    }
+
+    fn __repr__(&self) -> &'static str {
+        "ForwardOnly"
+    }
+
+    fn __add__(&self, other: &Bound<'_, PyAny>) -> String {
+        format!("ForwardOnly.__add__({other:?})")
+    }
+}
+
+#[test]
+fn binary_inheritance_rust_forward_py_reflected_mro_rust_first() {
+    Python::attach(|py| {
+        // Create ForwardOnly instance to get its type, then use in Python inheritance
+        let forward_only = Bound::new(py, ForwardOnly).unwrap();
+        let forward_type = forward_only.get_type();
+
+        py_run!(
+            py,
+            forward_type,
+            r#"
+class PyReflectedMixin:
+    def __radd__(self, other):
+        return f"PyReflectedMixin.__radd__({other!r})"
+
+class ChildRustFirst(forward_type, PyReflectedMixin):
+    pass
+
+child = ChildRustFirst()
+assert child + 5 == "ForwardOnly.__add__(5)", f"Forward (child + 5): expected 'ForwardOnly.__add__(5)', got {child + 5!r}"
+assert 5 + child == "PyReflectedMixin.__radd__(5)", f"Reflected (5 + child): expected 'PyReflectedMixin.__radd__(5)', got {5 + child!r}"
+        "#
+        );
+    });
+}
+
+#[test]
+fn binary_inheritance_rust_forward_py_reflected_mro_py_first() {
+    Python::attach(|py| {
+        // Create ForwardOnly instance to get its type, then use in Python inheritance
+        let forward_only = Bound::new(py, ForwardOnly).unwrap();
+        let forward_type = forward_only.get_type();
+
+        py_run!(
+            py,
+            forward_type,
+            r#"
+class PyReflectedMixin:
+    def __radd__(self, other):
+        return f"PyReflectedMixin.__radd__({other!r})"
+
+class ChildPyFirst(PyReflectedMixin, forward_type):
+    pass
+
+child = ChildPyFirst()
+assert child + 5 == "ForwardOnly.__add__(5)", f"Forward (child + 5): expected 'ForwardOnly.__add__(5)', got {child + 5!r}"
+assert 5 + child == "PyReflectedMixin.__radd__(5)", f"Reflected (5 + child): expected 'PyReflectedMixin.__radd__(5)', got {5 + child!r}"
+        "#
+        );
+    });
+}
+
+/// Test 4: Rust Child Reflected + Pure Python Mixin Forward
+/// Tests both MRO orders: (RustImpl, PyMixin) and (PyMixin, RustImpl)
+#[pyclass(subclass)]
+struct ReflectedOnly;
+
+#[pymethods]
+impl ReflectedOnly {
+    #[new]
+    fn new() -> Self {
+        ReflectedOnly
+    }
+
+    fn __repr__(&self) -> &'static str {
+        "ReflectedOnly"
+    }
+
+    fn __radd__(&self, other: &Bound<'_, PyAny>) -> String {
+        format!("ReflectedOnly.__radd__({other:?})")
+    }
+}
+
+#[test]
+fn binary_inheritance_rust_reflected_py_forward_mro_rust_first() {
+    Python::attach(|py| {
+        // Create ReflectedOnly instance to get its type, then use in Python inheritance
+        let reflected_only = Bound::new(py, ReflectedOnly).unwrap();
+        let reflected_type = reflected_only.get_type();
+
+        py_run!(
+            py,
+            reflected_type,
+            r#"
+class PyForwardMixin:
+    def __add__(self, other):
+        return f"PyForwardMixin.__add__({other!r})"
+
+class ChildRustFirst(reflected_type, PyForwardMixin):
+    pass
+
+child = ChildRustFirst()
+assert child + 5 == "PyForwardMixin.__add__(5)", f"Forward (child + 5): expected 'PyForwardMixin.__add__(5)', got {child + 5!r}"
+assert 5 + child == "ReflectedOnly.__radd__(5)", f"Reflected (5 + child): expected 'ReflectedOnly.__radd__(5)', got {5 + child!r}"
+        "#
+        );
+    });
+}
+
+#[test]
+fn binary_inheritance_rust_reflected_py_forward_mro_py_first() {
+    Python::attach(|py| {
+        // Create ReflectedOnly instance to get its type, then use in Python inheritance
+        let reflected_only = Bound::new(py, ReflectedOnly).unwrap();
+        let reflected_type = reflected_only.get_type();
+
+        py_run!(
+            py,
+            reflected_type,
+            r#"
+class PyForwardMixin:
+    def __add__(self, other):
+        return f"PyForwardMixin.__add__({other!r})"
+
+class ChildPyFirst(PyForwardMixin, reflected_type):
+    pass
+
+child = ChildPyFirst()
+assert child + 5 == "PyForwardMixin.__add__(5)", f"Forward (child + 5): expected 'PyForwardMixin.__add__(5)', got {child + 5!r}"
+assert 5 + child == "ReflectedOnly.__radd__(5)", f"Reflected (5 + child): expected 'ReflectedOnly.__radd__(5)', got {5 + child!r}"
+        "#
+        );
     });
 }
 
