@@ -1,5 +1,5 @@
 from datetime import date, datetime, time, timedelta, tzinfo
-from typing import Self,  SupportsFloat, SupportsIndex, final
+from typing import Self, SupportsFloat, SupportsIndex, final
 
 @final
 class TzClass(tzinfo):

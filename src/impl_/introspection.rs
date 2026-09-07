@@ -55,8 +55,16 @@ pub const fn is_disjoint_base<T: PyClassImpl>() -> bool {
     <T::Layout as PyClassObjectLayout<T>>::IS_DISJOINT_BASE
 }
 
-/// The module to import `typing` features new in Python 3.15 from: `typing` itself when targeting
-/// 3.15 or newer, `typing_extensions` otherwise.
+pub const fn typing_or_extensions_if_not_3_11() -> PyStaticExpr {
+    PyStaticExpr::Name {
+        id: if cfg!(Py_3_11) {
+            "typing"
+        } else {
+            "typing_extensions"
+        },
+    }
+}
+
 pub const fn typing_or_extensions_if_not_3_15() -> PyStaticExpr {
     PyStaticExpr::Name {
         id: if cfg!(Py_3_15) {
@@ -167,16 +175,6 @@ pub const fn escaped_json_string_len(input: &str) -> usize {
         i += 1;
     }
     len
-}
-
-pub const fn typing_or_extensions_if_not_3_11() -> PyStaticExpr {
-    PyStaticExpr::Name {
-        id: if cfg!(Py_3_11) {
-            "typing"
-        } else {
-            "typing_extensions"
-        },
-    }
 }
 
 #[cfg(test)]

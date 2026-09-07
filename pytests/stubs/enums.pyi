@@ -32,7 +32,9 @@ class ComplexEnum:
     @final
     class MultiFieldStruct(ComplexEnum):
         __match_args__: Final = ("a", "b", "c")
-        def __new__(cls, /, a: SupportsIndex, b: SupportsFloat | SupportsIndex, c: bool) -> Self: ...
+        def __new__(
+            cls, /, a: SupportsIndex, b: SupportsFloat | SupportsIndex, c: bool
+        ) -> Self: ...
         @property
         def a(self, /) -> int: ...
         @property

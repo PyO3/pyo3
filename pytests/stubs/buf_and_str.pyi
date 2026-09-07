@@ -4,7 +4,7 @@ Objects related to PyBuffer and PyStr
 
 from _typeshed import SupportsGetItem
 from collections.abc import Buffer
-from typing import SupportsIndex, Self, final
+from typing import Self, SupportsIndex, final
 
 @final
 class BytesExtractor:
