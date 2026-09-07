@@ -302,8 +302,12 @@ impl fmt::Display for PyStaticExpr {
                 value.fmt(f)?;
                 f.write_char('[')?;
                 if let PyStaticExpr::Tuple { elts } = slice {
-                    // We don't display the tuple parentheses
-                    fmt_elements(elts, f)?;
+                    if elts.is_empty() {
+                        // Empty tuples need parentheses to avoid invalid syntax like `tuple[]`
+                        f.write_str("()")?;
+                    } else {
+                        fmt_elements(elts, f)?;
+                    }
                 } else {
                     slice.fmt(f)?;
                 }
@@ -470,6 +474,22 @@ mod tests {
             T.to_string(),
             "dict[int | typing.Literal[\"\\0\\t\\\\\\\"\"], datetime.time]"
         )
+    }
+
+    #[test]
+    fn test_empty_tuple_type_hints() {
+        use crate::IntoPyObject;
+
+        for (expr, expected) in [
+            (<()>::OUTPUT_TYPE, "builtins.tuple[()]"),
+            (<((),)>::OUTPUT_TYPE, "builtins.tuple[builtins.tuple[()]]"),
+            (
+                <(i32, ())>::OUTPUT_TYPE,
+                "builtins.tuple[builtins.int, builtins.tuple[()]]",
+            ),
+        ] {
+            assert_eq!(expr.to_string(), expected);
+        }
     }
 
     #[test]

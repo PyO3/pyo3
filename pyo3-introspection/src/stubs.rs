@@ -544,8 +544,12 @@ impl Imports {
                 self.serialize_expr(value, buffer);
                 buffer.push('[');
                 if let Expr::Tuple { elts } = &**slice {
-                    // We don't display the tuple parentheses
-                    self.serialize_elts(elts, buffer);
+                    if elts.is_empty() {
+                        // Empty tuples need parentheses to avoid invalid syntax like `tuple[]`
+                        buffer.push_str("()");
+                    } else {
+                        self.serialize_elts(elts, buffer);
+                    }
                 } else {
                     self.serialize_expr(slice, buffer);
                 }
@@ -855,6 +859,32 @@ mod tests {
             "async def foo(): ...",
             function_stubs(&function, &Imports::default(), None)
         )
+    }
+
+    #[test]
+    fn empty_tuple_subscripts() {
+        let tuple = |elts| Expr::Subscript {
+            value: Box::new(Expr::Name { id: "tuple".into() }),
+            slice: Box::new(Expr::Tuple { elts }),
+        };
+        let int = Expr::Name { id: "int".into() };
+        let imports = Imports {
+            imports: Vec::new(),
+            renaming: BTreeMap::from([
+                (("builtins".into(), "tuple".into()), "tuple".into()),
+                (("builtins".into(), "int".into()), "int".into()),
+            ]),
+        };
+
+        for (expr, expected) in [
+            (tuple(Vec::new()), "tuple[()]"),
+            (tuple(vec![tuple(Vec::new())]), "tuple[tuple[()]]"),
+            (tuple(vec![int, tuple(Vec::new())]), "tuple[int, tuple[()]]"),
+        ] {
+            let mut buffer = String::new();
+            imports.serialize_expr(&expr, &mut buffer);
+            assert_eq!(buffer, expected);
+        }
     }
 
     #[test]
