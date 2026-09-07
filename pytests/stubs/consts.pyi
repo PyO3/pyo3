@@ -2,7 +2,7 @@ from typing import Final, final
 
 ESCAPING: Final = "S\0\x01\t\n\r\"'\\"
 """
-We experiment with "escaping"
+We experiment with \"escaping\"
 """
 
 PI: Final[float]
