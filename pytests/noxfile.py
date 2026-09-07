@@ -47,7 +47,7 @@ def bench(session: nox.Session):
     session.run("pytest", "--benchmark-enable", "--benchmark-only", *session.posargs)
 
 
-@nox.session
+@nox.session(python="3.14")
 def mypy(session: nox.Session):
     type_checker(
         session,
@@ -56,7 +56,7 @@ def mypy(session: nox.Session):
     # TODO: enable stubtest session.run_always("python", "-m", "mypy.stubtest", "pyo3_pytests")
 
 
-@nox.session
+@nox.session(python="3.14")
 def pyrefly(session: nox.Session):
     type_checker(
         session,

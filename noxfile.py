@@ -1755,7 +1755,9 @@ def update_ui_tests(session: nox.Session):
     )
 
 
-@nox.session(name="test-introspection")
+# We set the Python version here because PyO3 stub generation is version-sensitive
+# This version number should be kept in sync with the one of the pytests mypy and pyrefly jobs
+@nox.session(name="test-introspection", python="3.14")
 def test_introspection(session: nox.Session):
     with tempfile.TemporaryDirectory() as stub_dir:
         session.install("maturin")
