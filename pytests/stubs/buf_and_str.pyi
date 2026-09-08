@@ -2,9 +2,8 @@
 Objects related to PyBuffer and PyStr
 """
 
-from collections.abc import Sequence
+from collections.abc import Buffer, Sequence
 from typing import final
-from typing_extensions import Buffer
 
 @final
 class BytesExtractor:

@@ -223,11 +223,19 @@ impl<T: Element> FromPyObject<'_, '_> for PyBuffer<T> {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    // `collections.abc.Buffer` requires `python>=3.12`
-    const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("typing_extensions", "Buffer");
+    const INPUT_TYPE: PyStaticExpr = buffer_type_hint();
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<PyBuffer<T>, Self::Error> {
         Self::get(&obj)
+    }
+}
+
+#[cfg(feature = "experimental-inspect")]
+const fn buffer_type_hint() -> PyStaticExpr {
+    if cfg!(Py_3_12) {
+        type_hint_identifier!("collections.abc", "Buffer")
+    } else {
+        type_hint_identifier!("typing_extensions", "Buffer")
     }
 }
 
@@ -796,6 +804,24 @@ mod tests {
     use crate::types::any::PyAnyMethods;
     use crate::types::PyBytes;
     use crate::Python;
+
+    #[cfg(feature = "experimental-inspect")]
+    #[test]
+    fn collections_abc_is_only_chosen_when_it_has_buffer() {
+        Python::attach(|py| {
+            let hint = buffer_type_hint().to_string();
+            let collections_abc_has_it = py
+                .import("collections.abc")
+                .unwrap()
+                .hasattr("Buffer")
+                .unwrap();
+            assert!(
+                hint == "typing_extensions.Buffer"
+                    || (hint == "collections.abc.Buffer" && collections_abc_has_it),
+                "unexpected buffer type hint: {hint}"
+            );
+        });
+    }
 
     #[test]
     fn test_debug() {
