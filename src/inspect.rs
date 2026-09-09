@@ -499,6 +499,7 @@ mod tests {
             ("\u{1b}", r#""\x1b""#),
             ("\u{7}", r#""\x07""#),
             ("\u{b}\u{c}", r#""\x0b\x0c""#),
+            ("a\nb\r\u{1b}", r#""a\nb\r\x1b""#),
         ] {
             let expr = PyStaticExpr::Constant {
                 value: PyStaticConstant::Str(value),
