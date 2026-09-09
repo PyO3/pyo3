@@ -273,8 +273,14 @@ fn push_docstring(buffer: &mut String, indent: &str, docstring: &str) {
         buffer.push('\n');
         if !line.is_empty() {
             buffer.push_str(indent);
+            let mut quotes = 0;
             for c in line.chars() {
-                if c.is_ascii_control() || matches!(c, '"' | '\\') {
+                quotes = if c == '"' { quotes + 1 } else { 0 };
+                if quotes == 3 {
+                    buffer.push('\\');
+                    quotes = 0;
+                }
+                if c.is_ascii_control() || c == '\\' {
                     buffer.extend(ascii::escape_default(c as u8).map(char::from));
                 } else {
                     buffer.push(c);
@@ -1073,7 +1079,15 @@ mod tests {
                 attributes: Vec::new(),
                 decorators: Vec::new(),
                 inner_classes: Vec::new(),
-                docstring: Some("Class summary.\n\nClass detail: \"\"\".".into()),
+                docstring: Some(
+                    concat!(
+                        "Class summary.\n\n",
+                        r#"Quotes: "a" "" """ """" """"" """""" """""""."#,
+                        "\n",
+                        r#"Edges: \"""\ """"#,
+                    )
+                    .into(),
+                ),
             }],
             functions: Vec::new(),
             attributes: vec![Attribute {
@@ -1094,8 +1108,14 @@ mod tests {
             "generated stubs contain a blank line padded with whitespace:\n{stubs:?}"
         );
         // Escaping preserves the indentation and paragraph breaks in every scope.
-        assert!(stubs.starts_with("\"\"\"\n\\\"\\\"\\\" C:\\\\Users\\\\someone\n\"\"\"\n"));
-        assert!(stubs.contains("\n    Class summary.\n\n    Class detail: \\\"\\\"\\\".\n"));
+        assert!(stubs.starts_with("\"\"\"\n\"\"\\\" C:\\\\Users\\\\someone\n\"\"\"\n"));
+        assert!(stubs.contains(concat!(
+            "\n    Class summary.\n\n",
+            r#"    Quotes: "a" "" ""\" ""\"" ""\""" ""\"""\" ""\"""\""."#,
+            "\n",
+            r#"    Edges: \\""\"\\ ""\""#,
+            "\n",
+        )));
         assert!(stubs.contains("\n        Summary.\n\n        C:\\\\Users\\\\someone\\\\\n"));
         assert!(stubs.contains("\nConst summary.\n\nControls: \\x0007\\t\\r. Unicode: café 🦀.\n"));
     }
