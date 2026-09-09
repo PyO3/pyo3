@@ -2,8 +2,8 @@
 Objects related to PyBuffer and PyStr
 """
 
-from collections.abc import Sequence
-from typing import Any, final
+from collections.abc import Buffer, Sequence
+from typing import final
 
 @final
 class BytesExtractor:
@@ -12,7 +12,7 @@ class BytesExtractor:
     """
     def __new__(cls, /) -> BytesExtractor: ...
     @staticmethod
-    def from_buffer(buf: Any) -> int: ...
+    def from_buffer(buf: Buffer) -> int: ...
     @staticmethod
     def from_bytes(bytes: bytes) -> int: ...
     @staticmethod
