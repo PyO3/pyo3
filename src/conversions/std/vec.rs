@@ -1,5 +1,5 @@
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_subscript, PyStaticExpr};
+use crate::inspect::{type_hint_identifier, type_hint_subscript, PyStaticExpr};
 use crate::platform::prelude::*;
 use crate::{
     conversion::{FromPyObject, FromPyObjectOwned, FromPyObjectSequence, IntoPyObject},
@@ -57,8 +57,15 @@ where
 {
     type Error = PyErr;
 
+    // `SupportsGetItem` is the closest static approximation of `PySequence_Check`, and unlike
+    // `collections.abc.Sequence` it also accepts e.g. NumPy arrays. Type checkers therefore also
+    // accept `dict` and `str`, which extraction rejects at runtime.
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySequence::TYPE_HINT, T::INPUT_TYPE);
+    const INPUT_TYPE: PyStaticExpr = type_hint_subscript!(
+        type_hint_identifier!("_typeshed", "SupportsGetItem"),
+        type_hint_identifier!("builtins", "int"),
+        T::INPUT_TYPE
+    );
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {
