@@ -89,7 +89,6 @@ PyO3 also provides the smaller `pyo3-introspection` binary that allows to genera
 - `FromPyObject::INPUT_TYPE` and `IntoPyObject::OUTPUT_TYPE` must be implemented for PyO3 to get the proper input/output type annotations to use.
 - The generated stubs depend on the Python version the extension is built for.
   For example, the `disjoint_base` decorator is imported from `typing` when targeting Python 3.15 or newer and from `typing_extensions` otherwise.
-  Similarly, `PyBuffer` is annotated with `collections.abc.Buffer` when targeting Python 3.12 or newer and with `typing_extensions.Buffer` otherwise.
   If you commit generated stubs to your repository, generate them with the oldest Python version you support (or with the matching `abi3-pyXY` feature) so that they are valid for every version.
 - PyO3 is not able to introspect the content of `#[pymodule]` and `#[pymodule_init]` functions.
   If they are present, the module is tagged as incomplete using a fake `def __getattr__(name: str) -> Incomplete: ...` function [following best practices](https://typing.python.org/en/latest/guides/writing_stubs.html#incomplete-stubs).

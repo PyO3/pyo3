@@ -223,19 +223,14 @@ impl<T: Element> FromPyObject<'_, '_> for PyBuffer<T> {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = buffer_type_hint();
-
-    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<PyBuffer<T>, Self::Error> {
-        Self::get(&obj)
-    }
-}
-
-#[cfg(feature = "experimental-inspect")]
-const fn buffer_type_hint() -> PyStaticExpr {
-    if cfg!(Py_3_12) {
+    const INPUT_TYPE: PyStaticExpr = if cfg!(Py_3_12) {
         type_hint_identifier!("collections.abc", "Buffer")
     } else {
         type_hint_identifier!("typing_extensions", "Buffer")
+    };
+
+    fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<PyBuffer<T>, Self::Error> {
+        Self::get(&obj)
     }
 }
 
@@ -809,17 +804,17 @@ mod tests {
     #[test]
     fn collections_abc_is_only_chosen_when_it_has_buffer() {
         Python::attach(|py| {
-            let hint = buffer_type_hint().to_string();
-            let collections_abc_has_it = py
-                .import("collections.abc")
-                .unwrap()
-                .hasattr("Buffer")
-                .unwrap();
-            assert!(
-                hint == "typing_extensions.Buffer"
-                    || (hint == "collections.abc.Buffer" && collections_abc_has_it),
-                "unexpected buffer type hint: {hint}"
-            );
+            let hint = <PyBuffer<u8> as FromPyObject<'_, '_>>::INPUT_TYPE.to_string();
+            if hint == "collections.abc.Buffer" {
+                let collections_abc_has_it = py
+                    .import("collections.abc")
+                    .unwrap()
+                    .hasattr("Buffer")
+                    .unwrap();
+                assert!(collections_abc_has_it);
+            } else {
+                assert_eq!(hint, "typing_extensions.Buffer");
+            }
         });
     }
 
