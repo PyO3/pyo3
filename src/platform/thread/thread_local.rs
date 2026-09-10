@@ -136,6 +136,8 @@ fn initialize_tss() -> UnsafeCell<crate::ffi::Py_tss_t> {
 macro_rules! thread_local {
     ($($(#[$attr:meta])* $vis:vis static $name:ident : $ty:ty = $(const)? $init:expr;)+) => {
         $(
+            const _: () = assert!(!core::mem::needs_drop::<$ty>(), "thread local values must be trivially droppable for `no_std` support");
+
             $(#[$attr])*
             #[allow(unused_braces)]
             // SAFETY: correctly initializes a LocalKey
