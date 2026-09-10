@@ -1,10 +1,9 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use crate::platform::sync::Once;
-
 #[cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
-use core::ffi::c_int;
+use crate::init_config::{InitializeFromConfigError, PyInitConfig};
+use crate::platform::sync::Once;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::{ffi, internal::state::AttachGuard, Python};
@@ -27,25 +26,48 @@ pub(crate) fn initialize() {
     });
 }
 
-/// Calls [`Py_InitializeFromInitConfig`](pyo3_ffi::Py_InitializeFromInitConfig) to initialize the
-/// interpreter if it's not already initialized and returns its result.
-///
-/// Returns [`None`] if the interpreter is already initialized
-///
-/// # Safety
-/// `config` must point to a valid [`PyInitConfig`](crate::ffi::PyInitConfig) object.
 #[cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
-pub(crate) unsafe fn initialize_from_config(config: *mut ffi::PyInitConfig) -> Option<c_int> {
-    let mut result = None;
-    START.call_once_force(|| unsafe {
-        if ffi::Py_IsInitialized() == 0 {
-            result = Some(ffi::Py_InitializeFromInitConfig(config));
+pub(crate) fn initialize_from_config(
+    config: PyInitConfig,
+) -> Result<(), InitializeFromConfigError> {
+    const ALREADY_INIT_MESSAGE: &str = "interpreter is already initialized";
 
+    let mut ret_val = None;
+    START.call_once_force(|| {
+        assert_eq!(
+            (unsafe { ffi::Py_IsInitialized() }),
+            0,
+            "{ALREADY_INIT_MESSAGE}"
+        );
+
+        // SAFETY: points to a valid config object
+        let result = unsafe { ffi::Py_InitializeFromInitConfig(config.raw().as_ptr()) };
+        let result = match result {
+            0 => Ok(()),
+            -1 => {
+                let mut exitcode = 0;
+                // SAFETY: pointers are valid
+                let result = unsafe {
+                    ffi::PyInitConfig_GetExitCode(config.raw().as_ptr(), &raw mut exitcode)
+                };
+                match result {
+                    0 => Err(InitializeFromConfigError::Message(config.get_err())),
+                    1 => Err(InitializeFromConfigError::Exit(exitcode)),
+                    _ => unreachable!(),
+                }
+            }
+            _ => unreachable!(),
+        };
+
+        if result.is_ok() {
             // Release the GIL
-            ffi::PyEval_SaveThread();
+            unsafe { ffi::PyEval_SaveThread() };
         }
+
+        ret_val = Some(result);
     });
-    result
+
+    ret_val.expect(ALREADY_INIT_MESSAGE)
 }
 
 /// Executes the provided closure with an embedded Python interpreter.

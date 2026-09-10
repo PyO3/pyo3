@@ -10,9 +10,9 @@ use crate::platform::prelude::*;
 
 use pyo3_ffi::{
     PyInitConfig_AddModule, PyInitConfig_Create, PyInitConfig_Free, PyInitConfig_FreeStrList,
-    PyInitConfig_GetError, PyInitConfig_GetExitCode, PyInitConfig_GetInt, PyInitConfig_GetStr,
-    PyInitConfig_GetStrList, PyInitConfig_HasOption, PyInitConfig_SetInt, PyInitConfig_SetStr,
-    PyInitConfig_SetStrList, PyObject,
+    PyInitConfig_GetError, PyInitConfig_GetInt, PyInitConfig_GetStr, PyInitConfig_GetStrList,
+    PyInitConfig_HasOption, PyInitConfig_SetInt, PyInitConfig_SetStr, PyInitConfig_SetStrList,
+    PyObject,
 };
 
 /// Holds configuration that can be used to initialized the python interpreter.
@@ -39,32 +39,6 @@ impl Drop for PyInitConfig {
 }
 
 impl PyInitConfig {
-    /// Initializes the python interpreter from the configuration.
-    ///
-    /// # Panic
-    /// Panics if the interpreter is already initialized.
-    pub(crate) fn initialize(self) -> Result<(), InitializeFromConfigError> {
-        // SAFETY: points to a valid config object
-        let result =
-            unsafe { crate::interpreter_lifecycle::initialize_from_config(self.0.as_ptr()) }
-                .expect("python interpreter is already initialized");
-        match result {
-            0 => Ok(()),
-            -1 => {
-                let mut exitcode = 0;
-                // SAFETY: pointers are valid
-                let result =
-                    unsafe { PyInitConfig_GetExitCode(self.0.as_ptr(), &raw mut exitcode) };
-                match result {
-                    0 => Err(InitializeFromConfigError::Message(self.get_err())),
-                    1 => Err(InitializeFromConfigError::Exit(exitcode)),
-                    _ => unreachable!(),
-                }
-            }
-            _ => unreachable!(),
-        }
-    }
-
     /// Check if the configuration has an option called `name`.
     pub fn has_option(&self, name: &CStr) -> bool {
         // SAFETY: pointers are valid
@@ -155,6 +129,10 @@ impl PyInitConfig {
         )
     }
 
+    pub(crate) fn raw(&self) -> NonNull<crate::ffi::PyInitConfig> {
+        self.0
+    }
+
     #[track_caller]
     fn check_error(&self, result: c_int) -> Result<(), PyInitConfigError> {
         match result {
@@ -165,7 +143,7 @@ impl PyInitConfig {
     }
 
     #[track_caller]
-    fn get_err(&self) -> PyInitConfigError {
+    pub(crate) fn get_err(&self) -> PyInitConfigError {
         let mut err_message: *const c_char = ptr::null();
         assert_eq!(
             // SAFETY: pointers are valid

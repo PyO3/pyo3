@@ -487,7 +487,7 @@ impl Python<'_> {
     pub fn initialize_from_init_config(
         config: PyInitConfig,
     ) -> Result<(), InitializeFromConfigError> {
-        config.initialize()
+        crate::interpreter_lifecycle::initialize_from_config(config)
     }
 
     /// Like [`Python::attach`] except Python interpreter state checking is skipped.
