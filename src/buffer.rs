@@ -755,20 +755,18 @@ impl RawBuffer {
 
 impl Drop for PyUntypedBuffer {
     fn drop(&mut self) {
-        if Python::try_attach(|_| unsafe { self.0.release() }).is_none()
-            && crate::internal::state::is_in_gc_traversal()
-        {
-            // NOTE: write using libc because we can't call python APIs during gc traversal
-            let message = "Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory.";
-            unsafe {
-                libc::write(
-                    2,
-                    message.as_ptr().cast(),
-                    #[allow(clippy::useless_conversion, reason = "platform specific")]
-                    message.len().try_into().unwrap(),
-                );
-            }
+        #[cfg_attr(not(wip_feature_std), expect(unused_variables))]
+        let released = Python::try_attach(|_| unsafe {
+            self.0.release();
+        })
+        .is_some();
+
+        // TODO remove once implementing GC traversal is unsafe
+        #[cfg(wip_feature_std)]
+        if !released && crate::internal::state::is_in_gc_traversal() {
+            std::eprintln!("Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory.");
         }
+
         // If `try_attach` failed and `is_in_gc_traversal()` is false, then probably the interpreter has
         // already finalized and we can just assume that the underlying memory has already been freed.
         //
