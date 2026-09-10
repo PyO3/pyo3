@@ -2,13 +2,13 @@
 name = "pyo3-build-config"
 version = "0.29.2"
 description = "Build configuration for the PyO3 ecosystem"
-authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
-keywords = ["pyo3", "python", "cpython", "ffi"]
-homepage = "https://github.com/pyo3/pyo3"
-repository = "https://github.com/pyo3/pyo3"
-categories = ["api-bindings", "development-tools::ffi"]
-license = "MIT OR Apache-2.0"
-edition = "2021"
+authors.workspace = true
+keywords.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
