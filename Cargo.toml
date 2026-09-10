@@ -205,7 +205,7 @@ members = [
 [workspace.package]
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
-homepage = "https://github.com/pyo3/pyo3"
+homepage = "https://pyo3.rs/"
 repository = "https://github.com/pyo3/pyo3"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "MIT OR Apache-2.0"
