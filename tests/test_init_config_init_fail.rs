@@ -9,4 +9,7 @@ fn test_init_fail() {
     // invalid allocator value should cause Python to fail to initialize reliably
     config.set_int(c"allocator", 999).unwrap();
     Python::initialize_from_init_config(config).unwrap_err();
+
+    let config = PyInitConfig::default();
+    Python::initialize_from_init_config(config).expect("should be able to retry after init fails");
 }
