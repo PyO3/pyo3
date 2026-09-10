@@ -22,7 +22,6 @@ pub struct LocalKey<T: 'static> {
     #[cfg(not(Py_LIMITED_API))]
     inner: OnceCell<UnsafeCell<crate::ffi::Py_tss_t>>,
 
-    destroyed: AtomicBool,
     init: fn() -> T,
 }
 
@@ -58,7 +57,6 @@ impl<T: 'static> LocalKey<T> {
     pub const unsafe fn new(init: fn() -> T) -> LocalKey<T> {
         LocalKey {
             inner: OnceCell::new(),
-            destroyed: AtomicBool::new(false),
             init,
         }
     }
@@ -81,9 +79,6 @@ impl<T: 'static> LocalKey<T> {
     where
         F: FnOnce(&T) -> R,
     {
-        if self.destroyed.load(Ordering::SeqCst) {
-            return Err(AccessError);
-        }
         let val = self.get_val();
         Ok(f(val))
     }
@@ -134,23 +129,6 @@ fn initialize_tss() -> UnsafeCell<crate::ffi::Py_tss_t> {
     let result = unsafe { PyThread_tss_create(&raw mut tss) };
     assert_eq!(result, 0, "failed to created thread specific storage");
     UnsafeCell::new(tss)
-}
-
-impl<T: 'static> Drop for LocalKey<T> {
-    fn drop(&mut self) {
-        self.destroyed.store(true, Ordering::SeqCst);
-        let inner = self.get_raw();
-        cfg_select! {
-            Py_LIMITED_API => {
-                // SAFETY: inner is returned by PyThread_tss_alloc and is not used after this call
-                unsafe { PyThread_tss_free(inner.as_ptr()) };
-            },
-            _ => {
-                // SAFETY: inner is not used again after this call
-                unsafe { PyThread_tss_delete(inner.as_ptr()) };
-            },
-        }
-    }
 }
 
 #[macro_export]
