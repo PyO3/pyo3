@@ -30,6 +30,7 @@ pub(crate) fn initialize() {
     });
 }
 
+#[allow(dead_code, reason = "conditional compilation")]
 fn is_initialized() -> bool {
     (unsafe { Py_IsInitialized() } != 0)
 }
