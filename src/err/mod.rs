@@ -305,11 +305,10 @@ impl PyErr {
             .map(|py_str| py_str.to_string_lossy().into())
             .unwrap_or_else(|_| String::from("Unwrapped panic from Python code"));
 
-        write_py_stderr(
-            py,
-            c"--- PyO3 is resuming a panic after fetching a PanicException from Python. ---",
+        std::eprintln!(
+            "--- PyO3 is resuming a panic after fetching a PanicException from Python. ---"
         );
-        write_py_stderr(py, c"Python stack trace below:");
+        std::eprintln!("Python stack trace below:");
 
         PyErrState::normalized(state).restore(py);
 
