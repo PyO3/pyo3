@@ -249,7 +249,10 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// The returned slice uses type `Cell<T>` because it's theoretically possible for any call into the Python runtime
     /// to modify the values in the slice.
-    #[deprecated(note = "this function is unsound")]
+    #[deprecated(
+        since = "0.29.3",
+        note = "this function is unsound, use unsafe fn `as_slice_ptr` instead"
+    )]
     pub fn as_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [ReadOnlyCell<T>]> {
         if self.is_c_contiguous() {
             unsafe {
@@ -273,7 +276,10 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// The returned slice uses type `Cell<T>` because it's theoretically possible for any call into the Python runtime
     /// to modify the values in the slice.
-    #[deprecated(note = "this function is unsound")]
+    #[deprecated(
+        since = "0.29.3",
+        note = "this function is unsound, use unsafe fn `as_slice_ptr` instead"
+    )]
     pub fn as_mut_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [cell::Cell<T>]> {
         if !self.readonly() && self.is_c_contiguous() {
             unsafe {
@@ -296,7 +302,10 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// The returned slice uses type `Cell<T>` because it's theoretically possible for any call into the Python runtime
     /// to modify the values in the slice.
-    #[deprecated(note = "this function is unsound")]
+    #[deprecated(
+        since = "0.29.3",
+        note = "this function is unsound, use unsafe fn `as_fortran_slice_ptr` instead"
+    )]
     pub fn as_fortran_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [ReadOnlyCell<T>]> {
         if mem::size_of::<T>() == self.item_size() && self.is_fortran_contiguous() {
             unsafe {
@@ -320,7 +329,10 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// The returned slice uses type `Cell<T>` because it's theoretically possible for any call into the Python runtime
     /// to modify the values in the slice.
-    #[deprecated(note = "this function is unsound")]
+    #[deprecated(
+        since = "0.29.3",
+        note = "this function is unsound, use unsafe fn `as_fortran_slice_ptr` instead"
+    )]
     pub fn as_fortran_mut_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [cell::Cell<T>]> {
         if !self.readonly() && self.is_fortran_contiguous() {
             unsafe {
