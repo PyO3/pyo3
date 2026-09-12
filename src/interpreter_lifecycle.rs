@@ -157,7 +157,7 @@ where
 /// progress (another thread is inside `initialize()`), `call_once` blocks
 /// until it completes.
 pub(crate) fn wait_for_initialization() {
-    START.wait();
+    START.get_or_init(|| assert_ne!(unsafe { crate::ffi::Py_IsInitialized() }, 0));
 }
 
 pub(crate) fn ensure_initialized() {
