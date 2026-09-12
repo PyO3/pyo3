@@ -6,6 +6,9 @@ on:
       - "newsfragments/*.md"
   merge_group:
     types: [checks_requested]
+  push: # re-run some jobs on push (after merge queue succeeds) to warm up caches
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
@@ -20,6 +23,9 @@ env:
 
 jobs:
   fmt:
+    # no caches to warm up
+    if: github.event_name != 'push'
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
@@ -136,6 +142,9 @@ jobs:
     continue-on-error: ${{ matrix.rust != 'stable' }}
     steps:
       - uses: actions/checkout@v7.0.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
