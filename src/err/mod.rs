@@ -131,14 +131,26 @@ impl PyErr {
         T: PyTypeInfo,
         A: PyErrArguments + Send + Sync + 'static,
     {
-        #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+        #[cfg(all(
+            debug_assertions,
+            Py_3_12,
+            not(Py_LIMITED_API),
+            not(PyPy),
+            not(GraalPy)
+        ))]
         let backtrace = backtrace::Backtrace::new_unresolved();
 
         PyErr::from_state(PyErrState::lazy(Box::new(move |py| {
             PyErrStateLazyFnOutput {
                 ptype: T::type_object(py).into(),
                 pvalue: args.arguments(py),
-                #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+                #[cfg(all(
+                    debug_assertions,
+                    Py_3_12,
+                    not(Py_LIMITED_API),
+                    not(PyPy),
+                    not(GraalPy)
+                ))]
                 backtrace,
             }
         })))

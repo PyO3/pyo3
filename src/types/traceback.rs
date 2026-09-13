@@ -281,7 +281,7 @@ def f():
     }
 
     #[test]
-    #[cfg(all(debug_assertions, not(Py_LIMITED_API), feature = "macros"))]
+    #[cfg(all(debug_assertions, Py_3_12, not(Py_LIMITED_API), feature = "macros"))]
     fn test_rust_frames_in_backtrace() {
         #[crate::pyfunction(crate = "crate")]
         fn produce_err_result() -> PyResult<()> {

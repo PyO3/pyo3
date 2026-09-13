@@ -8,7 +8,13 @@ use crate::platform::thread::{self, ThreadId};
 
 use core::cell::UnsafeCell;
 
-#[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+#[cfg(all(
+    debug_assertions,
+    Py_3_12,
+    not(Py_LIMITED_API),
+    not(PyPy),
+    not(GraalPy)
+))]
 use crate::err::backtrace_to_frames;
 use crate::sync::MutexExt;
 use crate::{
@@ -41,14 +47,26 @@ impl PyErrState {
     }
 
     pub(crate) fn lazy_arguments(ptype: Py<PyAny>, args: impl PyErrArguments + 'static) -> Self {
-        #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+        #[cfg(all(
+            debug_assertions,
+            Py_3_12,
+            not(Py_LIMITED_API),
+            not(PyPy),
+            not(GraalPy)
+        ))]
         let backtrace = backtrace::Backtrace::new_unresolved();
 
         Self::from_inner(PyErrStateInner::Lazy(Box::new(move |py| {
             PyErrStateLazyFnOutput {
                 ptype,
                 pvalue: args.arguments(py),
-                #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+                #[cfg(all(
+                    debug_assertions,
+                    Py_3_12,
+                    not(Py_LIMITED_API),
+                    not(PyPy),
+                    not(GraalPy)
+                ))]
                 backtrace,
             }
         })))
@@ -307,7 +325,13 @@ impl PyErrStateNormalized {
 pub(crate) struct PyErrStateLazyFnOutput {
     pub(crate) ptype: Py<PyAny>,
     pub(crate) pvalue: Py<PyAny>,
-    #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+    #[cfg(all(
+        debug_assertions,
+        Py_3_12,
+        not(Py_LIMITED_API),
+        not(PyPy),
+        not(GraalPy)
+    ))]
     pub(crate) backtrace: backtrace::Backtrace,
 }
 
@@ -400,7 +424,13 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
     let PyErrStateLazyFnOutput {
         ptype,
         pvalue,
-        #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+        #[cfg(all(
+            debug_assertions,
+            Py_3_12,
+            not(Py_LIMITED_API),
+            not(PyPy),
+            not(GraalPy)
+        ))]
         mut backtrace,
     } = lazy(py);
 
