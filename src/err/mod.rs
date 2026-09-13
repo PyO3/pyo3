@@ -25,7 +25,7 @@ use crate::{BoundObject, Py, PyAny, Python};
 use core::convert::Infallible;
 use core::ffi::CStr;
 use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
-#[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+#[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 use {crate::types::PyFrame, std::ffi::CString};
 
 mod cast_error;
@@ -131,14 +131,14 @@ impl PyErr {
         T: PyTypeInfo,
         A: PyErrArguments + Send + Sync + 'static,
     {
-        #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+        #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
         let backtrace = backtrace::Backtrace::new_unresolved();
 
         PyErr::from_state(PyErrState::lazy(Box::new(move |py| {
             PyErrStateLazyFnOutput {
                 ptype: T::type_object(py).into(),
                 pvalue: args.arguments(py),
-                #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+                #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
                 backtrace,
             }
         })))
@@ -301,7 +301,7 @@ impl PyErr {
 
         let err = PyErr::from_state(PyErrState::normalized(state));
 
-        #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+        #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
         {
             let mut backtrace = backtrace::Backtrace::new();
             if let Some(traceback) = PyTraceback::from_frames(
@@ -749,7 +749,7 @@ impl<'py> IntoPyObject<'py> for PyErr {
     }
 }
 
-#[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+#[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 fn backtrace_to_frames<'py, 'a>(
     py: Python<'py>,
     backtrace: &'a mut backtrace::Backtrace,
