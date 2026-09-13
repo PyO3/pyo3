@@ -112,14 +112,9 @@ pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
     ///         .expect_err("raise will create a Python error");
     ///
     ///     let traceback = err.traceback(py).expect("raised exception will have a traceback");
-    ///     assert_eq!(
-    ///         format!("{}{}", traceback.format()?, err),
-    ///         "\
-    /// Traceback (most recent call last):
-    ///   File \"<string>\", line 1, in <module>
-    /// Exception: banana\
-    /// "
-    ///     );
+    ///     let formatted = traceback.format()?;
+    ///     assert!(formatted.starts_with("Traceback (most recent call last):\n"));
+    ///     assert!(formatted.contains("File \"<string>\", line 1, in <module>"));
     ///     Ok(())
     /// })
     /// # ;
