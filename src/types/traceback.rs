@@ -150,11 +150,10 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::exceptions::PyValueError;
+    use crate::IntoPyObject;
     use crate::{
-        pyfunction,
         types::{dict::PyDictMethods, PyDict},
-        wrap_pyfunction, IntoPyObject, PyErr, Python,
+        PyErr, Python,
     };
 
     #[test]
@@ -282,15 +281,15 @@ def f():
     }
 
     #[test]
-    #[cfg(all(debug_assertions, not(Py_LIMITED_API)))]
+    #[cfg(all(debug_assertions, not(Py_LIMITED_API), feature = "macros"))]
     fn test_rust_frames_in_backtrace() {
-        #[pyfunction(crate = "crate")]
+        #[crate::pyfunction(crate = "crate")]
         fn produce_err_result() -> PyResult<()> {
-            Err(PyValueError::new_err("Error result"))
+            Err(crate::exceptions::PyValueError::new_err("Error result"))
         }
 
         Python::attach(|py| {
-            let func = wrap_pyfunction!(produce_err_result)(py).unwrap();
+            let func = crate::wrap_pyfunction!(produce_err_result)(py).unwrap();
             let globals = PyDict::new(py);
             globals.set_item("func", func).unwrap();
 
