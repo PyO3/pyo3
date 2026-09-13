@@ -3,6 +3,23 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.29.* to 0.30
+
+### Removed methods from `PyBuffer<T>`: `as_slice`, `as_mut_slice`, `as_fortran_slice`, and `as_fortran_mut_slice`
+
+<details open>
+<summary><small>Click to expand</small></summary>
+
+Previously, these methods could be used to modify the contents of the buffer in place.
+These functions were removed because the implementation was unsound.
+
+Instead you can use `copy_to_slice` (or `copy_to_fortran_slice`) to copy the buffer into a regular rust slice, make your changes, then use `copy_from_slice` (or `copy_from_fortran_slice`) to copy it back into the buffer.
+
+Alternatively, you can call `as_slice_ptr` (or `as_fortran_slice_ptr`) to get a `NonNull<[T]>` instead.
+As with all rust pointers, there isn't much you can do with them safely, but you can pass them to C APIs or unsafely convert them into references if you have some other way to uphold rust's aliasing guarantees.
+
+</details>
+
 ## from 0.28.* to 0.29
 
 ### Removed implementations of `From<str::Utf8Error>`, `From<string::FromUtf16Error>`, and `From<char::DecodeUtf16Error>` for `PyErr`
