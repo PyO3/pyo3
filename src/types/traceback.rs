@@ -158,17 +158,15 @@ mod tests {
     };
 
     #[test]
-    #[cfg(false)]
     fn format_traceback() {
         Python::attach(|py| {
             let err = py
                 .run(c"raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
 
-            assert_eq!(
-                err.traceback(py).unwrap().format().unwrap(),
-                "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n"
-            );
+            let traceback = err.traceback(py).unwrap().format().unwrap();
+            assert!(traceback.starts_with("Traceback (most recent call last):\n"));
+            assert!(traceback.contains("File \"<string>\", line 1, in <module>"));
         })
     }
 

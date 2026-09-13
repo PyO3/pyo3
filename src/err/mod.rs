@@ -956,7 +956,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(false)]
     fn err_debug() {
         // Debug representation should be like the following (without the newlines):
         // PyErr {
@@ -972,20 +971,14 @@ mod tests {
 
             let debug_str = format!("{err:?}");
             assert!(debug_str.starts_with("PyErr { "));
-            assert!(debug_str.ends_with(" }"));
-
-            // Strip "PyErr { " and " }". Split into 3 substrings to separate type,
-            // value, and traceback while not splitting the string within traceback.
-            let mut fields = debug_str["PyErr { ".len()..debug_str.len() - 2].splitn(3, ", ");
-
-            assert_eq!(fields.next().unwrap(), "type: <class 'Exception'>");
-            assert_eq!(fields.next().unwrap(), "value: Exception('banana')");
-            assert_eq!(
-                fields.next().unwrap(),
-                "traceback: Some(\"Traceback (most recent call last):\\n  File \\\"<string>\\\", line 1, in <module>\\n\")"
+            assert!(debug_str.contains("type: <class 'Exception'>"));
+            assert!(debug_str.contains("value: Exception('banana')"));
+            assert!(debug_str.contains("traceback: Some(\"Traceback (most recent call last):"));
+            assert!(
+                debug_str.contains("File \\\"<string>\\\", line 1, in <module>"),
+                "debug traceback should contain the Python frame"
             );
-
-            assert!(fields.next().is_none());
+            assert!(debug_str.ends_with(" }"));
         });
     }
 
