@@ -155,7 +155,7 @@ unsafe impl PyGcTraversable for PyErr {
                 visit.call(&normalized.ptype)?;
                 visit.call(&normalized.pvalue)?;
                 #[cfg(not(Py_3_12))]
-                visit.call(normalized.ptraceback.lock().as_ref())?;
+                normalized.ptraceback.traverse(visit)?;
                 Ok(())
             }
             _ => unreachable!(),

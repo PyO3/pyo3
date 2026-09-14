@@ -69,7 +69,10 @@ impl OnceExt for Once {
 pub mod non_poison {
     // TODO replace with cfg_select when MSRV >= 1.95.0
     #[cfg(wip_feature_std)]
-    pub use std::sync::MutexGuard;
+    pub use {
+        crate::{PyGcTraversable, PyTraverseError, PyVisit},
+        std::sync::MutexGuard,
+    };
 
     #[cfg(all(not(wip_feature_std), feature = "parking_lot"))]
     pub use parking_lot::{Mutex, MutexGuard};
@@ -134,6 +137,27 @@ pub mod non_poison {
             self.inner
                 .lock_py_attached(py)
                 .unwrap_or_else(|e| e.into_inner())
+        }
+    }
+
+    // SAFETY: This delegates to the inner `std::sync::Mutex`, which is `PyGcTraversable` if `T` is `PyGcTraversable`.
+    #[cfg(wip_feature_std)]
+    unsafe impl<T: PyGcTraversable> PyGcTraversable for Mutex<T> {
+        #[allow(clippy::disallowed_types)]
+        const MAY_CONTAIN_CYCLES: bool = <std::sync::Mutex<T>>::MAY_CONTAIN_CYCLES;
+
+        fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            if Self::MAY_CONTAIN_CYCLES {
+                self.inner.traverse(visit)
+            } else {
+                Ok(())
+            }
+        }
+
+        fn clear(&mut self) {
+            if Self::MAY_CONTAIN_CYCLES {
+                self.inner.clear();
+            }
         }
     }
 }
