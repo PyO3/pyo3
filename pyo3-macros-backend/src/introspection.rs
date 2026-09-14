@@ -604,7 +604,7 @@ impl ConcatenationBuilder {
             elements.push(ConcatenationBuilderElement::String(self.current_string));
         }
 
-        // #[no_mangle] is required to make sure some linkers like Linux ones do not mangle the section name too.
+        // #[unsafe(no_mangle)] is required to make sure some linkers like Linux ones do not mangle the section name too.
         quote! {
             const _: () = {
                 const PIECES: &[&[u8]] = &[#(#elements , )*];
