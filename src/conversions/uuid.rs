@@ -21,7 +21,7 @@
 //!
 //! Rust code to create a function that parses a UUID string and returns it as a `Uuid`:
 //!
-//! ```rust,no_run
+//! ```rust,no_run,standalone_crate
 //! use pyo3::prelude::*;
 //! use pyo3::exceptions::PyValueError;
 //! use uuid::Uuid;

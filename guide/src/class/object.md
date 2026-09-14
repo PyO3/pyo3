@@ -2,7 +2,7 @@
 
 Recall the `Number` class from the previous chapter:
 
-```rust,no_run
+```rust,no_run,standalone_crate
 # #![allow(dead_code)]
 # fn main() {}
 use pyo3::prelude::*;
@@ -337,7 +337,7 @@ impl Number {
 
 ### Final code
 
-```rust,no_run
+```rust,no_run,standalone_crate
 # fn main() {}
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};

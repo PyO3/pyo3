@@ -21,7 +21,7 @@
 //! Using [`BigInt`] to correctly increment an arbitrary precision integer.
 //! This is not possible with Rust's native integers if the Python integer is too large,
 //! in which case it will fail its conversion and raise `OverflowError`.
-//! ```rust,no_run
+//! ```rust,no_run,standalone_crate
 //! use num_bigint::BigInt;
 //! use pyo3::prelude::*;
 //!

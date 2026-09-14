@@ -469,7 +469,7 @@ Because of this, we can write a function wrapper that takes the `UserModel`--whi
 
 It is also required to make the struct public.
 
-```rust,no_run
+```rust,no_run,standalone_crate
 # #![allow(dead_code)]
 # fn main() {}
 use pyo3::prelude::*;

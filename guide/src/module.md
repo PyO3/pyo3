@@ -2,7 +2,7 @@
 
 You can create a module using `#[pymodule]`:
 
-```rust,no_run
+```rust,no_run,standalone_crate
 # mod declarative_module_basic_test {
 use pyo3::prelude::*;
 
@@ -118,7 +118,7 @@ It is possible to declare functions, classes, sub-modules and constants inline i
 
 For example:
 
-```rust,no_run
+```rust,no_run,standalone_crate
 # mod declarative_module_test {
 #[pyo3::pymodule]
 mod my_extension {
@@ -155,7 +155,7 @@ In the previous example, the `Nested` class will have for `module` `my_extension
 
 If the macros provided by PyO3 are not enough, it is possible to run code at the module initialization:
 
-```rust,no_run
+```rust,no_run,standalone_crate
 # mod procedural_module_test {
 #[pyo3::pymodule]
 mod my_extension {
@@ -178,7 +178,7 @@ mod my_extension {
 The module argument may be omitted if the initialization does not need it, for example when it only installs some global state.
 The return type may then be omitted too:
 
-```rust,no_run
+```rust,no_run,standalone_crate
 # mod procedural_module_no_arg_test {
 #[pyo3::pymodule]
 mod my_extension {
@@ -193,7 +193,7 @@ mod my_extension {
 A `Python<'_>` marker may be taken as the first argument, either on its own or followed by the module.
 This suits an initializer which needs the interpreter but not the module itself:
 
-```rust,no_run
+```rust,no_run,standalone_crate
 # mod procedural_module_py_arg_test {
 #[pyo3::pymodule]
 mod my_extension {

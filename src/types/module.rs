@@ -138,7 +138,8 @@ impl PyModule {
     ///
     /// # Example: bundle in a file at compile time with [`include_str!`][core::include_str]:
     ///
-    /// ```rust
+    // `standalone_crate` for `script.py` to be found in the right place
+    /// ```rust,standalone_crate
     /// use pyo3::prelude::*;
     /// use pyo3::ffi::c_str;
     ///
@@ -232,7 +233,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,no_run,standalone_crate
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
@@ -268,7 +269,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,no_run,standalone_crate
     /// use pyo3::prelude::*;
     ///
     /// #[pyclass]
@@ -321,7 +322,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,no_run,standalone_crate
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
@@ -357,7 +358,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// Note that this also requires the [`wrap_pyfunction!`][2] macro
     /// to wrap a function annotated with [`#[pyfunction]`][1].
     ///
-    /// ```rust,no_run
+    /// ```rust,no_run,standalone_crate
     /// use pyo3::prelude::*;
     ///
     /// #[pyfunction]
@@ -400,7 +401,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,no_run,standalone_crate
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]

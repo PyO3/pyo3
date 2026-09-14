@@ -21,7 +21,7 @@
 //!
 //! Rust code to create functions that add ordered floats:
 //!
-//! ```rust,no_run
+//! ```rust,no_run,standalone_crate
 //! use ordered_float::{NotNan, OrderedFloat};
 //! use pyo3::prelude::*;
 //!

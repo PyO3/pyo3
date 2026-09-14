@@ -29,7 +29,7 @@
 //!
 //! Rust code to create functions which return `Bytes` or take `Bytes` as arguments:
 //!
-//! ```rust,no_run
+//! ```rust,no_run,standalone_crate
 //! use pyo3::prelude::*;
 //! use bytes::Bytes;
 //!

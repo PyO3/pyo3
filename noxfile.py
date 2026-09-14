@@ -124,7 +124,18 @@ def test_rust(session: nox.Session):
 
     _run_cargo_test(session, package="pyo3-ffi", extra_flags=extra_flags)
 
+    env = os.environ.copy()
     extra_flags.append("--no-default-features")
+
+    if is_rust_nightly():
+        # Forcing doctest merge helps smoke test that merged doctests are running
+        # correctly. Requires a nightly flag; Rust 2024 edition will attempt to
+        # merge doctests but silently fall back if the merge fails due to e.g.
+        # symbol conflicts. Using `standalone_crate` can isolate problematic tests
+        # as a short-term workaround.
+        env["RUSTDOCFLAGS"] = (
+            env.get("RUSTDOCFLAGS", "") + " -Z unstable-options --merge-doctests=yes"
+        )
 
     for feature_set in _get_feature_sets():
         flags = extra_flags.copy()
@@ -139,7 +150,7 @@ def test_rust(session: nox.Session):
         # We need to pass the feature set to the test command
         # so that it can be used in the test code
         # (e.g. for `#[cfg(feature = "abi3-py39")]`)
-        _run_cargo_test(session, features=feature_set, extra_flags=flags)
+        _run_cargo_test(session, features=feature_set, extra_flags=flags, env=env)
 
         if feature_set is not None and "full" in feature_set:
             # UI tests can have different output depending on features enabled, but
@@ -149,6 +160,7 @@ def test_rust(session: nox.Session):
                 session,
                 features=feature_set.replace("full", "macros"),
                 extra_flags=[*extra_flags, "--test", "test_compile_error"],
+                env=env,
             )
 
         if (
@@ -164,6 +176,7 @@ def test_rust(session: nox.Session):
                 session,
                 features=feature_set.replace("abi3", "abi3-py39"),
                 extra_flags=flags,
+                env=env,
             )
 
         if (
@@ -178,6 +191,7 @@ def test_rust(session: nox.Session):
                 session,
                 features=feature_set.replace("abi3t", "abi3t-py315"),
                 extra_flags=flags,
+                env=env,
             )
 
 

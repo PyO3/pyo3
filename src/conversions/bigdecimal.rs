@@ -20,7 +20,7 @@
 //!
 //! Rust code to create a function that adds one to a BigDecimal
 //!
-//! ```rust
+//! ```rust,standalone_crate
 //! use bigdecimal::BigDecimal;
 //! use pyo3::prelude::*;
 //!

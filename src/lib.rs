@@ -189,7 +189,7 @@
 //! ```
 //!
 //! **`src/lib.rs`**
-//! ```rust,no_run
+//! ```rust,no_run,standalone_crate
 //! use pyo3::prelude::*;
 //!
 //! /// Formats the sum of two numbers as string.

@@ -109,7 +109,7 @@ macro_rules! import_exception {
 ///
 /// # Examples
 ///
-/// ```
+/// ```standalone_crate
 /// use pyo3::prelude::*;
 /// use pyo3::create_exception;
 /// use pyo3::exceptions::PyException;

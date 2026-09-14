@@ -311,10 +311,14 @@ impl FnType {
                         }}
                     }
                 };
+                let holder = holders.push_holder(*span);
                 let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion, reason = "#[classmethod] accepts anything which implements `From<&Bound<PyType>>`")]
                     ::core::convert::Into::into(
-                        #pyo3_path::Bound::ref_from_ptr(#py, &#class_method_receiver)
+                        #pyo3_path::Bound::ref_from_ptr(
+                            #py,
+                            ::core::option::Option::insert(&mut #holder, #class_method_receiver),
+                        )
                             .cast_unchecked::<#pyo3_path::types::PyType>()
                     )
                 };
@@ -324,10 +328,14 @@ impl FnType {
                 let py = syn::Ident::new("py", Span::call_site());
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
+                let holder = holders.push_holder(*span);
                 let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion, reason = "`pass_module` accepts anything which implements `From<&Bound<PyModule>>`")]
                     ::core::convert::Into::into(
-                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
+                        #pyo3_path::Bound::ref_from_ptr(
+                            #py,
+                            ::core::option::Option::insert(&mut #holder, #slf.cast()),
+                        )
                             .cast_unchecked::<#pyo3_path::types::PyModule>()
                     )
                 };

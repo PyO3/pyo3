@@ -20,7 +20,7 @@
 //!
 //! Rust code to create a function that adds one to a Decimal
 //!
-//! ```rust,no_run
+//! ```rust,no_run,standalone_crate
 //! use rust_decimal::Decimal;
 //! use pyo3::prelude::*;
 //!
