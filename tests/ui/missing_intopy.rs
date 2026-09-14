@@ -1,6 +1,8 @@
-//@revisions: default inspect
-//@[default] no-experimental-inspect
+//@revisions: default nostd inspect
+//@[default,nostd] no-experimental-inspect
 //@[inspect] with-experimental-inspect
+//@[default,inspect] with-std
+//@[nostd] no-std
 
 struct Blah;
 

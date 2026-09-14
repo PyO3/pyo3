@@ -1,5 +1,7 @@
 from typing import Any, Final, final
+from typing_extensions import disjoint_base
 
+@disjoint_base
 class ComplexEnum:
     @final
     class EmptyStruct(ComplexEnum):
@@ -58,6 +60,7 @@ class ComplexEnum:
         @property
         def b(self, /) -> str | None: ...
 
+@disjoint_base
 class MixedComplexEnum:
     @final
     class Empty(MixedComplexEnum):
@@ -95,6 +98,7 @@ class SimpleEnumWithoutDerive:
     def __int__(self, /) -> int: ...
     def __repr__(self, /) -> str: ...
 
+@disjoint_base
 class SimpleTupleEnum:
     @final
     class Int(SimpleTupleEnum):
@@ -114,6 +118,7 @@ class SimpleTupleEnum:
         def __len__(self, /) -> int: ...
         def __new__(cls, /, _0: str) -> SimpleTupleEnum.Str: ...
 
+@disjoint_base
 class TupleEnum:
     @final
     class EmptyTuple(TupleEnum):

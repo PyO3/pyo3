@@ -87,6 +87,9 @@ PyO3 also provides the smaller `pyo3-introspection` binary that allows to genera
 - Introspection only works with Python modules declared with an inline Rust module.
   Modules declared using a function are not supported.
 - `FromPyObject::INPUT_TYPE` and `IntoPyObject::OUTPUT_TYPE` must be implemented for PyO3 to get the proper input/output type annotations to use.
+- The generated stubs depend on the Python version the extension is built for.
+  For example, the `disjoint_base` decorator is imported from `typing` when targeting Python 3.15 or newer and from `typing_extensions` otherwise.
+  If you commit generated stubs to your repository, generate them with the oldest Python version you support (or with the matching `abi3-pyXY` feature) so that they are valid for every version.
 - PyO3 is not able to introspect the content of `#[pymodule]` and `#[pymodule_init]` functions.
   If they are present, the module is tagged as incomplete using a fake `def __getattr__(name: str) -> Incomplete: ...` function [following best practices](https://typing.python.org/en/latest/guides/writing_stubs.html#incomplete-stubs).
   A `#[pymodule_init]` function [declared without the module argument](module.md#procedural-initialization) is exempt: it is not handed the module, so the module is taken to be complete.

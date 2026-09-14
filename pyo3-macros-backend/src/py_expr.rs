@@ -2,7 +2,7 @@
 
 use crate::utils::{PyO3CratePath, StaticIdent};
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use std::borrow::Cow;
 use syn::visit_mut::{visit_type_mut, VisitMut};
 use syn::{Expr, ExprLit, ExprPath, Lit, Type};
@@ -47,6 +47,8 @@ pub enum PyExpr {
     Subscript { value: Box<Self>, slice: Box<Self> },
     /// A constant
     Constant(PyConstant),
+    /// The `typing` module, or `typing_extensions` when targeting a Python older than `3.{version_3_x}`
+    TypingOrExtensionsIfLess { version_3_x: u8 },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -206,6 +208,13 @@ impl PyExpr {
         Self::Constant(PyConstant::None)
     }
 
+    /// The `typing` module, or `typing_extensions` when targeting a Python older than `3.{version_3_x}`
+    ///
+    /// The choice is made by the PyO3 crate, which knows the targeted Python version.
+    pub fn typing_or_extensions_if_less(version_3_x: u8) -> Self {
+        Self::TypingOrExtensionsIfLess { version_3_x }
+    }
+
     pub fn to_introspection_token_stream(&self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
         match self {
             Self::FromPyObjectType(t) => {
@@ -313,6 +322,10 @@ impl PyExpr {
                     quote! { #pyo3_crate_path::inspect::PyStaticExpr::Constant { value: #pyo3_crate_path::inspect::PyStaticConstant::Ellipsis } }
                 }
             },
+            Self::TypingOrExtensionsIfLess { version_3_x } => {
+                let ident = format_ident!("typing_or_extensions_if_not_3_{version_3_x}");
+                quote! { #pyo3_crate_path::impl_::introspection::#ident() }
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ use crate::model::{
     Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator,
     VariableLengthArgument,
 };
+use std::ascii;
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
@@ -96,7 +97,9 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
 
     let mut final_elements = Vec::new();
     if let Some(docstring) = &module.docstring {
-        final_elements.push(format!("\"\"\"\n{docstring}\n\"\"\""));
+        let mut buffer = String::new();
+        push_docstring(&mut buffer, "", docstring);
+        final_elements.push(buffer);
     }
     final_elements.extend(imports.imports);
     final_elements.extend(elements);
@@ -261,14 +264,28 @@ fn push_indented(buffer: &mut String, indent: &str, text: &str) {
 
 /// Appends a `"""`-quoted docstring indented by `indent`, starting on a fresh line.
 fn push_docstring(buffer: &mut String, indent: &str, docstring: &str) {
-    buffer.push('\n');
+    if !buffer.is_empty() {
+        buffer.push('\n');
+    }
     buffer.push_str(indent);
     buffer.push_str("\"\"\"");
     for line in docstring.lines() {
         buffer.push('\n');
         if !line.is_empty() {
             buffer.push_str(indent);
-            buffer.push_str(line);
+            let mut quotes = 0;
+            for c in line.chars() {
+                quotes = if c == '"' { quotes + 1 } else { 0 };
+                if quotes == 3 {
+                    buffer.push('\\');
+                    quotes = 0;
+                }
+                if c.is_ascii_control() || c == '\\' {
+                    buffer.extend(ascii::escape_default(c as u8).map(char::from));
+                } else {
+                    buffer.push(c);
+                }
+            }
         }
     }
     buffer.push('\n');
@@ -544,8 +561,12 @@ impl Imports {
                 self.serialize_expr(value, buffer);
                 buffer.push('[');
                 if let Expr::Tuple { elts } = &**slice {
-                    // We don't display the tuple parentheses
-                    self.serialize_elts(elts, buffer);
+                    if elts.is_empty() {
+                        // Empty tuples need parentheses to avoid invalid syntax like `tuple[]`
+                        buffer.push_str("()");
+                    } else {
+                        self.serialize_elts(elts, buffer);
+                    }
                 } else {
                     self.serialize_expr(slice, buffer);
                 }
@@ -1038,7 +1059,7 @@ mod tests {
     /// is an empty line. Padding it out to the body indentation is trailing whitespace, which
     /// `W293` flags and which nobody can fix by hand in a generated file.
     #[test]
-    fn docstring_blank_lines_are_not_padded_with_indentation() {
+    fn docstrings_are_escaped_and_blank_lines_are_not_padded() {
         let module = Module {
             name: "bar".into(),
             modules: Vec::new(),
@@ -1057,22 +1078,30 @@ mod tests {
                     },
                     returns: None,
                     is_async: false,
-                    docstring: Some("Summary.\n\nDetail.".into()),
+                    docstring: Some("Summary.\n\nC:\\Users\\someone\\".into()),
                 }],
                 attributes: Vec::new(),
                 decorators: Vec::new(),
                 inner_classes: Vec::new(),
-                docstring: Some("Class summary.\n\nClass detail.".into()),
+                docstring: Some(
+                    concat!(
+                        "Class summary.\n\n",
+                        r#"Quotes: "a" "" """ """" """"" """""" """""""."#,
+                        "\n",
+                        r#"Edges: \"""\ """"#,
+                    )
+                    .into(),
+                ),
             }],
             functions: Vec::new(),
             attributes: vec![Attribute {
                 name: "CONST".into(),
                 value: None,
                 annotation: None,
-                docstring: Some("Const summary.\n\nConst detail.".into()),
+                docstring: Some("Const summary.\n\nControls: \x0007\t\r. Unicode: café 🦀.".into()),
             }],
             incomplete: false,
-            docstring: None,
+            docstring: Some("\"\"\" C:\\Users\\someone".into()),
         };
 
         let stubs = module_stubs(&module, &["foo"]);
@@ -1082,10 +1111,17 @@ mod tests {
                 .any(|line| !line.is_empty() && line.trim().is_empty()),
             "generated stubs contain a blank line padded with whitespace:\n{stubs:?}"
         );
-        // The indentation of the non-empty lines is unaffected.
-        assert!(stubs.contains("\n    Class summary.\n\n    Class detail.\n"));
-        assert!(stubs.contains("\n        Summary.\n\n        Detail.\n"));
-        assert!(stubs.contains("\nConst summary.\n\nConst detail.\n"));
+        // Escaping preserves the indentation and paragraph breaks in every scope.
+        assert!(stubs.starts_with("\"\"\"\n\"\"\\\" C:\\\\Users\\\\someone\n\"\"\"\n"));
+        assert!(stubs.contains(concat!(
+            "\n    Class summary.\n\n",
+            r#"    Quotes: "a" "" ""\" ""\"" ""\""" ""\"""\" ""\"""\""."#,
+            "\n",
+            r#"    Edges: \\""\"\\ ""\""#,
+            "\n",
+        )));
+        assert!(stubs.contains("\n        Summary.\n\n        C:\\\\Users\\\\someone\\\\\n"));
+        assert!(stubs.contains("\nConst summary.\n\nControls: \\x0007\\t\\r. Unicode: café 🦀.\n"));
     }
 
     #[test]
