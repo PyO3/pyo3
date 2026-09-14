@@ -265,6 +265,7 @@ extern_libpython! {
         mapping: *mut PyObject,
     ) -> *mut PyObject;
     #[cfg(target_os = "windows")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyUnicode_DecodeMBCS")]
     pub fn PyUnicode_DecodeMBCS(
         string: *const c_char,
         length: Py_ssize_t,
@@ -286,8 +287,10 @@ extern_libpython! {
         consumed: *mut Py_ssize_t,
     ) -> *mut PyObject;
     #[cfg(target_os = "windows")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyUnicode_AsMBCSString")]
     pub fn PyUnicode_AsMBCSString(unicode: *mut PyObject) -> *mut PyObject;
     #[cfg(target_os = "windows")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyUnicode_EncodeCodePage")]
     pub fn PyUnicode_EncodeCodePage(
         code_page: c_int,
         unicode: *mut PyObject,
