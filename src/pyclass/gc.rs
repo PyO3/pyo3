@@ -1,4 +1,3 @@
-use crate::pybacked::{PyBackedBytes, PyBackedStr};
 use crate::{ffi, Py};
 use alloc::{
     borrow::{Cow, ToOwned},
@@ -105,8 +104,6 @@ impl_py_gc_no_cycles!(
     AtomicU64,
     AtomicIsize,
     AtomicUsize,
-    PyBackedStr,
-    PyBackedBytes
 );
 
 // SAFETY: Mutable references can forward both traversal and clearing to `T`.
