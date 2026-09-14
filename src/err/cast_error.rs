@@ -153,7 +153,7 @@ struct DisplayClassInfo<'a, 'py>(&'a Bound<'py, PyAny>);
 
 impl core::fmt::Display for DisplayClassInfo<'_, '_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        if let Ok(t) = self.0.cast::<PyType>() {
+        match self.0.cast::<PyType>() { Ok(t) => {
             if t.is(PyNone::type_object(t.py())) {
                 f.write_str("None")
             } else {
@@ -162,7 +162,7 @@ impl core::fmt::Display for DisplayClassInfo<'_, '_> {
                     .to_string_lossy()
                     .fmt(f)
             }
-        } else if let Ok(t) = self.0.cast::<PyTuple>() {
+        } _ => { match self.0.cast::<PyTuple>() { Ok(t) => {
             for (i, t) in t.iter().enumerate() {
                 if i > 0 {
                     f.write_str(" | ")?;
@@ -170,9 +170,9 @@ impl core::fmt::Display for DisplayClassInfo<'_, '_> {
                 write!(f, "{}", DisplayClassInfo(&t))?;
             }
             Ok(())
-        } else {
+        } _ => {
             self.0.fmt(f)
-        }
+        }}}}
     }
 }
 

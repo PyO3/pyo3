@@ -24,9 +24,9 @@ extern_libpython! {
     note = "renamed to PyUnstable_Eval_RequestCodeExtraIndex"
 )]
 #[inline]
-pub unsafe extern "C" fn _PyEval_RequestCodeExtraIndex(func: freefunc) -> Py_ssize_t {
+pub unsafe extern "C" fn _PyEval_RequestCodeExtraIndex(func: freefunc) -> Py_ssize_t { unsafe {
     PyUnstable_Eval_RequestCodeExtraIndex(func)
-}
+}}
 
 extern_libpython! {
 

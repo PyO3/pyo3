@@ -415,7 +415,7 @@ macro_rules! opaque_struct {
 #[macro_export]
 macro_rules! c_str {
     // TODO: deprecate this now MSRV is above 1.77
-    ($s:expr) => {
+    ($s:expr_2021) => {
         $crate::_cstr_from_utf8_with_nul_checked(concat!($s, "\0"))
     };
 }

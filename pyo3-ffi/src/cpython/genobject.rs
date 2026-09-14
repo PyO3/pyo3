@@ -44,14 +44,14 @@ extern_libpython! {
 }
 
 #[inline]
-pub unsafe fn PyGen_Check(op: *mut PyObject) -> c_int {
+pub unsafe fn PyGen_Check(op: *mut PyObject) -> c_int { unsafe {
     PyObject_TypeCheck(op, &raw mut PyGen_Type)
-}
+}}
 
 #[inline]
-pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
+pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int { unsafe {
     Py_IS_TYPE(op, &raw mut PyGen_Type)
-}
+}}
 
 extern_libpython! {
     pub fn PyGen_New(frame: *mut PyFrameObject) -> *mut PyObject;
@@ -71,9 +71,9 @@ extern_libpython! {
 // skipped _PyCoroWrapper_Type
 
 #[inline]
-pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int {
+pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int { unsafe {
     PyObject_TypeCheck(op, &raw mut PyCoro_Type)
-}
+}}
 
 // skipped _PyCoro_GetAwaitableIter
 // skipped PyCoro_New
@@ -90,8 +90,8 @@ extern_libpython! {
 // skipped PyAsyncGen_New
 
 #[inline]
-pub unsafe fn PyAsyncGen_CheckExact(op: *mut PyObject) -> c_int {
+pub unsafe fn PyAsyncGen_CheckExact(op: *mut PyObject) -> c_int { unsafe {
     PyObject_TypeCheck(op, &raw mut PyAsyncGen_Type)
-}
+}}
 
 // skipped _PyAsyncGenValueWrapperNew

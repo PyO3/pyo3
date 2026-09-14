@@ -37,8 +37,8 @@ extern_libpython! {
 // skipped _PyObject_GC_Calloc
 
 #[inline]
-pub unsafe fn PyType_SUPPORTS_WEAKREFS(t: *mut PyTypeObject) -> c_int {
+pub unsafe fn PyType_SUPPORTS_WEAKREFS(t: *mut PyTypeObject) -> c_int { unsafe {
     ((*t).tp_weaklistoffset > 0) as c_int
-}
+}}
 
 // skipped PyUnstable_Object_GC_NewWithExtraData

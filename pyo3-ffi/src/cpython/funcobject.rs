@@ -64,9 +64,9 @@ extern_libpython! {
 }
 
 #[inline]
-pub unsafe fn PyFunction_Check(op: *mut PyObject) -> c_int {
+pub unsafe fn PyFunction_Check(op: *mut PyObject) -> c_int { unsafe {
     Py_IS_TYPE(op, &raw mut PyFunction_Type)
-}
+}}
 
 extern_libpython! {
     pub fn PyFunction_New(code: *mut PyObject, globals: *mut PyObject) -> *mut PyObject;
@@ -92,52 +92,52 @@ extern_libpython! {
 
 #[inline]
 #[cfg(all(not(PyPy), not(GraalPy)))]
-pub unsafe fn _PyFunction_CAST(func: *mut PyObject) -> *mut PyFunctionObject {
+pub unsafe fn _PyFunction_CAST(func: *mut PyObject) -> *mut PyFunctionObject { unsafe {
     assert_eq!(PyFunction_Check(func), 1);
     func.cast::<PyFunctionObject>()
-}
+}}
 
 #[inline]
 #[cfg(all(not(PyPy), not(GraalPy)))]
-pub unsafe fn PyFunction_GET_CODE(func: *mut PyObject) -> *mut PyObject {
+pub unsafe fn PyFunction_GET_CODE(func: *mut PyObject) -> *mut PyObject { unsafe {
     (*_PyFunction_CAST(func)).func_code
-}
+}}
 
 #[inline]
 #[cfg(all(not(PyPy), not(GraalPy)))]
-pub unsafe fn PyFunction_GET_GLOBALS(func: *mut PyObject) -> *mut PyObject {
+pub unsafe fn PyFunction_GET_GLOBALS(func: *mut PyObject) -> *mut PyObject { unsafe {
     (*_PyFunction_CAST(func)).func_globals
-}
+}}
 
 #[inline]
 #[cfg(all(not(PyPy), not(GraalPy)))]
-pub unsafe fn PyFunction_GET_MODULE(func: *mut PyObject) -> *mut PyObject {
+pub unsafe fn PyFunction_GET_MODULE(func: *mut PyObject) -> *mut PyObject { unsafe {
     (*_PyFunction_CAST(func)).func_module
-}
+}}
 
 #[inline]
 #[cfg(all(not(PyPy), not(GraalPy)))]
-pub unsafe fn PyFunction_GET_DEFAULTS(func: *mut PyObject) -> *mut PyObject {
+pub unsafe fn PyFunction_GET_DEFAULTS(func: *mut PyObject) -> *mut PyObject { unsafe {
     (*_PyFunction_CAST(func)).func_defaults
-}
+}}
 
 #[inline]
 #[cfg(all(not(PyPy), not(GraalPy)))]
-pub unsafe fn PyFunction_GET_KW_DEFAULTS(func: *mut PyObject) -> *mut PyObject {
+pub unsafe fn PyFunction_GET_KW_DEFAULTS(func: *mut PyObject) -> *mut PyObject { unsafe {
     (*_PyFunction_CAST(func)).func_kwdefaults
-}
+}}
 
 #[inline]
 #[cfg(all(not(PyPy), not(GraalPy)))]
-pub unsafe fn PyFunction_GET_CLOSURE(func: *mut PyObject) -> *mut PyObject {
+pub unsafe fn PyFunction_GET_CLOSURE(func: *mut PyObject) -> *mut PyObject { unsafe {
     (*_PyFunction_CAST(func)).func_closure
-}
+}}
 
 #[inline]
 #[cfg(all(not(PyPy), not(GraalPy)))]
-pub unsafe fn PyFunction_GET_ANNOTATIONS(func: *mut PyObject) -> *mut PyObject {
+pub unsafe fn PyFunction_GET_ANNOTATIONS(func: *mut PyObject) -> *mut PyObject { unsafe {
     (*_PyFunction_CAST(func)).func_annotations
-}
+}}
 
 extern_libpython! {
     pub static mut PyClassMethod_Type: crate::PyTypeObject;

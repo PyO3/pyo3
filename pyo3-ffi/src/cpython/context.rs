@@ -15,19 +15,19 @@ extern_libpython! {
 }
 
 #[inline]
-pub unsafe fn PyContext_CheckExact(op: *mut PyObject) -> c_int {
+pub unsafe fn PyContext_CheckExact(op: *mut PyObject) -> c_int { unsafe {
     Py_IS_TYPE(op, &raw mut PyContext_Type)
-}
+}}
 
 #[inline]
-pub unsafe fn PyContextVar_CheckExact(op: *mut PyObject) -> c_int {
+pub unsafe fn PyContextVar_CheckExact(op: *mut PyObject) -> c_int { unsafe {
     Py_IS_TYPE(op, &raw mut PyContextVar_Type)
-}
+}}
 
 #[inline]
-pub unsafe fn PyContextToken_CheckExact(op: *mut PyObject) -> c_int {
+pub unsafe fn PyContextToken_CheckExact(op: *mut PyObject) -> c_int { unsafe {
     Py_IS_TYPE(op, &raw mut PyContextToken_Type)
-}
+}}
 
 extern_libpython! {
     pub fn PyContext_New() -> *mut PyObject;

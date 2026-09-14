@@ -154,7 +154,7 @@ fn test_auto_test_signature_function() {
     }
 
     macro_rules! assert_text_signature {
-        ($py:expr, $func:ident, $expected:expr) => {
+        ($py:expr_2021, $func:ident, $expected:expr_2021) => {
             assert_eq!(
                 wrap_pyfunction!($func, $py)
                     .unwrap()

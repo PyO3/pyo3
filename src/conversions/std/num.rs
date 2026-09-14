@@ -66,11 +66,11 @@ macro_rules! int_fits_larger_int {
 }
 
 macro_rules! extract_int {
-    ($obj:ident, $error_val:expr, $pylong_as:expr) => {
+    ($obj:ident, $error_val:expr_2021, $pylong_as:expr_2021) => {
         extract_int!($obj, $error_val, $pylong_as, false)
     };
 
-    ($obj:ident, $error_val:expr, $pylong_as:expr, $force_index_call: literal) => {
+    ($obj:ident, $error_val:expr_2021, $pylong_as:expr_2021, $force_index_call: literal) => {
         // `PyLong_AsLong` and friends take care of calling `PyNumber_Index`,
         // however 3.9 does lossy conversion of floats, hence we only use the
         // simplest logic for 3.10+ where that was fixed - python/cpython#82180.
@@ -91,7 +91,7 @@ macro_rules! extract_int {
 }
 
 macro_rules! int_convert_u64_or_i64 {
-    ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ll_or_ull:expr, $force_index_call:literal) => {
+    ($rust_type:ty, $pylong_from_ll_or_ull:expr_2021, $pylong_as_ll_or_ull:expr_2021, $force_index_call:literal) => {
         impl<'py> IntoPyObject<'py> for $rust_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
@@ -260,13 +260,13 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
         obj: Borrowed<'_, 'py, PyAny>,
         _: crate::conversion::private::Token,
     ) -> Option<impl FromPyObjectSequence<Target = u8>> {
-        if let Ok(bytes) = obj.cast::<PyBytes>() {
+        match obj.cast::<PyBytes>() { Ok(bytes) => {
             Some(BytesSequenceExtractor::Bytes(bytes))
-        } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
+        } _ => { match obj.cast::<PyByteArray>() { Ok(byte_array) => {
             Some(BytesSequenceExtractor::ByteArray(byte_array))
-        } else {
+        } _ => {
             None
-        }
+        }}}}
     }
 }
 

@@ -19,7 +19,8 @@ fn test_concurrent_init_site_race() {
     )
     .unwrap();
 
-    std::env::set_var("PYTHONPATH", &tmpdir);
+    // FIXME: Audit that the environment access only happens in single-threaded code.
+    unsafe { std::env::set_var("PYTHONPATH", &tmpdir) };
 
     std::thread::scope(|s| {
         s.spawn(|| {

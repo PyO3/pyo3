@@ -22,19 +22,19 @@ pub struct PyByteArrayObject {
 opaque_struct!(pub PyByteArrayObject);
 
 #[inline]
-pub(crate) unsafe fn _PyByteArray_CAST(op: *mut PyObject) -> *mut PyByteArrayObject {
+pub(crate) unsafe fn _PyByteArray_CAST(op: *mut PyObject) -> *mut PyByteArrayObject { unsafe {
     debug_assert_eq!(PyByteArray_Check(op), 1);
     op.cast()
-}
+}}
 
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
-pub unsafe fn PyByteArray_AS_STRING(op: *mut PyObject) -> *mut c_char {
+pub unsafe fn PyByteArray_AS_STRING(op: *mut PyObject) -> *mut c_char { unsafe {
     (*_PyByteArray_CAST(op)).ob_start
-}
+}}
 
 #[inline]
-pub unsafe fn PyByteArray_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
+pub unsafe fn PyByteArray_GET_SIZE(op: *mut PyObject) -> Py_ssize_t { unsafe {
     let byte_array = _PyByteArray_CAST(op);
     #[cfg(Py_GIL_DISABLED)]
     {
@@ -44,4 +44,4 @@ pub unsafe fn PyByteArray_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
     {
         Py_SIZE(byte_array.cast())
     }
-}
+}}

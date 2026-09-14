@@ -5,7 +5,7 @@ use crate::platform::prelude::*;
 
 #[cfg(wip_feature_std)]
 macro_rules! pyo3_exception {
-    ($doc: expr, $name: ident, $base: ty) => {
+    ($doc: expr_2021, $name: ident, $base: ty) => {
         #[doc = $doc]
         #[repr(transparent)]
         pub struct $name($crate::PyAny);

@@ -231,7 +231,7 @@ impl<T> Drop for GILOnceCell<T> {
 /// ```
 #[macro_export]
 macro_rules! intern {
-    ($py: expr, $text: expr) => {{
+    ($py: expr_2021, $text: expr_2021) => {{
         static INTERNED: $crate::sync::Interned = $crate::sync::Interned::new($text);
         INTERNED.get($py)
     }};
@@ -855,7 +855,7 @@ mod tests {
     #[cfg(wip_feature_std)]
     fn test_once_ext() {
         macro_rules! test_once {
-            ($once:expr, $is_poisoned:expr) => {{
+            ($once:expr_2021, $is_poisoned:expr_2021) => {{
                 // adapted from the example in the docs for Once::try_once_force
                 let init = $once;
                 std::thread::scope(|s| {

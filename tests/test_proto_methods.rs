@@ -599,16 +599,16 @@ struct GetItem {}
 #[pymethods]
 impl GetItem {
     fn __getitem__(&self, idx: &Bound<'_, PyAny>) -> PyResult<&'static str> {
-        if let Ok(slice) = idx.cast::<PySlice>() {
+        match idx.cast::<PySlice>() { Ok(slice) => {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
                 return Ok("slice");
             }
-        } else if let Ok(idx) = idx.extract::<isize>() {
+        } _ => { match idx.extract::<isize>() { Ok(idx) => {
             if idx == 1 {
                 return Ok("int");
             }
-        }
+        } _ => {}}}}
         Err(PyValueError::new_err("error"))
     }
 }

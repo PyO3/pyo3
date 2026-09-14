@@ -93,9 +93,9 @@ use core::sync::atomic::{AtomicIsize, Ordering};
 // skipped _Py_atomic_load_uint_relaxed
 
 #[inline]
-pub(crate) unsafe fn _Py_atomic_load_ssize_relaxed(value: *const Py_ssize_t) -> Py_ssize_t {
+pub(crate) unsafe fn _Py_atomic_load_ssize_relaxed(value: *const Py_ssize_t) -> Py_ssize_t { unsafe {
     AtomicIsize::from_ptr(value.cast_mut()).load(Ordering::Relaxed)
-}
+}}
 
 // skipped _Py_atomic_load_ptr_relaxed
 // skipped _Py_atomic_load_ullong_relaxed

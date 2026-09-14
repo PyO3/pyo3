@@ -16,6 +16,6 @@ extern_libpython! {
 
 #[inline]
 #[cfg(not(RustPython))]
-pub unsafe fn PyRange_Check(op: *mut PyObject) -> c_int {
+pub unsafe fn PyRange_Check(op: *mut PyObject) -> c_int { unsafe {
     Py_IS_TYPE(op, &raw mut PyRange_Type)
-}
+}}

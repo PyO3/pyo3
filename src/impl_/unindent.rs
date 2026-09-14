@@ -156,7 +156,7 @@ pub const fn unindent_sized<const N: usize>(src: &[u8]) -> ([u8; N], usize) {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! unindent {
-    ($value:expr) => {{
+    ($value:expr_2021) => {{
         const RAW: &str = $value;
         const LEN: usize = RAW.len();
         const UNINDENTED: ([u8; LEN], usize) =

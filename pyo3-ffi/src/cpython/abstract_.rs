@@ -145,14 +145,14 @@ extern_libpython! {
 pub unsafe fn PyObject_CallMethodNoArgs(
     self_: *mut PyObject,
     name: *mut PyObject,
-) -> *mut PyObject {
+) -> *mut PyObject { unsafe {
     crate::PyObject_VectorcallMethod(
         name,
         &self_,
         1 | PY_VECTORCALL_ARGUMENTS_OFFSET,
         core::ptr::null_mut(),
     )
-}
+}}
 
 #[cfg(not(PyPy))]
 #[inline(always)]
@@ -160,7 +160,7 @@ pub unsafe fn PyObject_CallMethodOneArg(
     self_: *mut PyObject,
     name: *mut PyObject,
     arg: *mut PyObject,
-) -> *mut PyObject {
+) -> *mut PyObject { unsafe {
     let args = [self_, arg];
     assert!(!arg.is_null());
     crate::PyObject_VectorcallMethod(
@@ -169,7 +169,7 @@ pub unsafe fn PyObject_CallMethodOneArg(
         2 | PY_VECTORCALL_ARGUMENTS_OFFSET,
         core::ptr::null_mut(),
     )
-}
+}}
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyObject_LengthHint")]
@@ -229,36 +229,36 @@ extern_libpython! {
 }
 
 #[inline(always)]
-pub unsafe fn PySequence_ITEM(seq: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
+pub unsafe fn PySequence_ITEM(seq: *mut PyObject, i: Py_ssize_t) -> *mut PyObject { unsafe {
     (*(*Py_TYPE(seq)).tp_as_sequence).sq_item.unwrap_unchecked()(seq, i)
-}
+}}
 
 #[inline(always)]
 #[cfg(not(any(PyPy, GraalPy)))]
-pub unsafe fn PySequence_Fast_GET_SIZE(seq: *mut PyObject) -> Py_ssize_t {
+pub unsafe fn PySequence_Fast_GET_SIZE(seq: *mut PyObject) -> Py_ssize_t { unsafe {
     if PyList_Check(seq) == 1 {
         PyList_GET_SIZE(seq)
     } else {
         PyTuple_GET_SIZE(seq)
     }
-}
+}}
 
 #[inline(always)]
 #[cfg(not(any(PyPy, GraalPy)))]
-pub unsafe fn PySequence_Fast_GET_ITEM(seq: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
+pub unsafe fn PySequence_Fast_GET_ITEM(seq: *mut PyObject, i: Py_ssize_t) -> *mut PyObject { unsafe {
     if PyList_Check(seq) == 1 {
         PyList_GET_ITEM(seq, i)
     } else {
         PyTuple_GET_ITEM(seq, i)
     }
-}
+}}
 
 #[inline(always)]
 #[cfg(not(any(PyPy, GraalPy)))]
-pub unsafe fn PySequence_Fast_ITEMS(seq: *mut PyObject) -> *mut *mut PyObject {
+pub unsafe fn PySequence_Fast_ITEMS(seq: *mut PyObject) -> *mut *mut PyObject { unsafe {
     if PyList_Check(seq) == 1 {
         (*seq.cast::<PyListObject>()).ob_item
     } else {
         (*seq.cast::<PyTupleObject>()).ob_item.as_mut_ptr()
     }
-}
+}}

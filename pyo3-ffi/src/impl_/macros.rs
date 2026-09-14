@@ -306,7 +306,7 @@ macro_rules! extern_libpython {
                 link(name = $dll, kind = "raw-dylib"))]
         )*
         #[cfg_attr(all(windows, not(pyo3_use_raw_dylib)), link(name = "pythonXY"))]
-        extern $abi {
+        unsafe extern $abi {
             extern_libpython_items! { $($body)* }
         }
     };

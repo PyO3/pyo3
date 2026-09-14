@@ -30,15 +30,15 @@ extern_libpython! {
 
 #[cfg(not(RustPython))]
 #[inline]
-pub unsafe fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int {
+pub unsafe fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int { unsafe {
     Py_IS_TYPE(op, &raw mut PyCFunction_Type)
-}
+}}
 
 #[cfg(not(RustPython))]
 #[inline]
-pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
+pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int { unsafe {
     PyObject_TypeCheck(op, &raw mut PyCFunction_Type)
-}
+}}
 
 pub type PyCFunction =
     unsafe extern "C" fn(slf: *mut PyObject, args: *mut PyObject) -> *mut PyObject;
@@ -211,18 +211,18 @@ const _: () =
     assert!(mem::size_of::<PyMethodDefPointer>() == mem::size_of::<Option<extern "C" fn()>>());
 
 #[inline]
-pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject {
+pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject { unsafe {
     PyCFunction_NewEx(ml, slf, core::ptr::null_mut())
-}
+}}
 
 #[inline]
 pub unsafe fn PyCFunction_NewEx(
     ml: *mut PyMethodDef,
     slf: *mut PyObject,
     module: *mut PyObject,
-) -> *mut PyObject {
+) -> *mut PyObject { unsafe {
     PyCMethod_New(ml, slf, module, core::ptr::null_mut())
-}
+}}
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyCMethod_New")]

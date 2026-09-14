@@ -28,12 +28,12 @@ extern_libpython! {
 
 #[cfg(not(Py_LIMITED_API))]
 #[inline]
-pub unsafe fn PyBytes_AS_STRING(op: *mut PyObject) -> *const c_char {
+pub unsafe fn PyBytes_AS_STRING(op: *mut PyObject) -> *const c_char { unsafe {
     #[cfg(not(any(PyPy, GraalPy)))]
     return &(*op.cast::<PyBytesObject>()).ob_sval as *const c_char;
     #[cfg(any(PyPy, GraalPy))]
     return crate::PyBytes_AsString(op);
-}
+}}
 
 #[cfg(Py_3_15)]
 opaque_struct!(pub PyBytesWriter);

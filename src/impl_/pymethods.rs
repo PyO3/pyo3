@@ -595,7 +595,7 @@ unsafe fn call_super_clear(
 // and win over the blanket fallback impls, which cover every other return type. The sync and the
 // async wrapper come from one macro so they cannot drift apart either.
 macro_rules! iter_next_output {
-    ($wrapper:ident, $convert_fallback:ident, $type_fallback:ident, exhausted: $exhausted:expr) => {
+    ($wrapper:ident, $convert_fallback:ident, $type_fallback:ident, exhausted: $exhausted:expr_2021) => {
         pub struct $wrapper<T>(pub T);
 
         // The conversion bound sits on the method rather than on the impl, so that a return type

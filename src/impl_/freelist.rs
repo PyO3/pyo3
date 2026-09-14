@@ -29,7 +29,7 @@ impl FreeList {
         &self,
         py: Python<'_>,
         capacity: usize,
-    ) -> impl DerefMut<Target = PyObjectFreeList> + '_ {
+    ) -> impl DerefMut<Target = PyObjectFreeList> + '_ + use<'_> {
         self.0
             .get_or_init(py, || Mutex::new(PyObjectFreeList::with_capacity(capacity)))
             .lock_py_attached(py)

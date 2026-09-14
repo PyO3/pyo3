@@ -21,14 +21,14 @@ pub struct PyListObject {
 
 #[inline]
 #[cfg(not(PyPy))]
-pub(crate) unsafe fn _PyList_CAST(op: *mut PyObject) -> *mut PyListObject {
+pub(crate) unsafe fn _PyList_CAST(op: *mut PyObject) -> *mut PyListObject { unsafe {
     debug_assert_eq!(PyList_Check(op), 1);
     op.cast()
-}
+}}
 
 #[inline]
 #[cfg(not(PyPy))]
-pub unsafe fn PyList_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
+pub unsafe fn PyList_GET_SIZE(op: *mut PyObject) -> Py_ssize_t { unsafe {
     let list = _PyList_CAST(op);
     #[cfg(Py_GIL_DISABLED)]
     {
@@ -38,21 +38,21 @@ pub unsafe fn PyList_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
     {
         Py_SIZE(list.cast())
     }
-}
+}}
 
 /// Macro, trading safety for speed
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
-pub unsafe fn PyList_GET_ITEM(op: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
+pub unsafe fn PyList_GET_ITEM(op: *mut PyObject, i: Py_ssize_t) -> *mut PyObject { unsafe {
     *(*_PyList_CAST(op)).ob_item.offset(i)
-}
+}}
 
 /// Macro, *only* to be used to fill in brand new lists
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
-pub unsafe fn PyList_SET_ITEM(op: *mut PyObject, i: Py_ssize_t, v: *mut PyObject) {
+pub unsafe fn PyList_SET_ITEM(op: *mut PyObject, i: Py_ssize_t, v: *mut PyObject) { unsafe {
     *(*_PyList_CAST(op)).ob_item.offset(i) = v;
-}
+}}
 
 // skipped _PyList_Extend
 // skipped _PyList_DebugMallocStats

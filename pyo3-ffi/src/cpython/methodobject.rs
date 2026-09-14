@@ -14,27 +14,27 @@ extern_libpython! {
 }
 
 #[inline]
-pub unsafe fn PyCMethod_CheckExact(op: *mut PyObject) -> c_int {
+pub unsafe fn PyCMethod_CheckExact(op: *mut PyObject) -> c_int { unsafe {
     Py_IS_TYPE(op, &raw mut PyCMethod_Type)
-}
+}}
 
 #[inline]
-pub unsafe fn PyCMethod_Check(op: *mut PyObject) -> c_int {
+pub unsafe fn PyCMethod_Check(op: *mut PyObject) -> c_int { unsafe {
     PyObject_TypeCheck(op, &raw mut PyCMethod_Type)
-}
+}}
 
 #[cfg(not(GraalPy))]
 #[inline]
-pub unsafe fn PyCFunction_GET_FUNCTION(func: *mut PyObject) -> PyMethodDefPointer {
+pub unsafe fn PyCFunction_GET_FUNCTION(func: *mut PyObject) -> PyMethodDefPointer { unsafe {
     debug_assert_eq!(PyCMethod_Check(func), 1);
 
     let func = func.cast::<PyCFunctionObject>();
     (*(*func).m_ml).ml_meth
-}
+}}
 
 #[cfg(not(GraalPy))]
 #[inline]
-pub unsafe fn PyCFunction_GET_SELF(func: *mut PyObject) -> *mut PyObject {
+pub unsafe fn PyCFunction_GET_SELF(func: *mut PyObject) -> *mut PyObject { unsafe {
     debug_assert_eq!(PyCMethod_Check(func), 1);
 
     let func = func.cast::<PyCFunctionObject>();
@@ -43,20 +43,20 @@ pub unsafe fn PyCFunction_GET_SELF(func: *mut PyObject) -> *mut PyObject {
     } else {
         (*func).m_self
     }
-}
+}}
 
 #[cfg(not(GraalPy))]
 #[inline]
-pub unsafe fn PyCFunction_GET_FLAGS(func: *mut PyObject) -> c_int {
+pub unsafe fn PyCFunction_GET_FLAGS(func: *mut PyObject) -> c_int { unsafe {
     debug_assert_eq!(PyCMethod_Check(func), 1);
 
     let func = func.cast::<PyCFunctionObject>();
     (*(*func).m_ml).ml_flags
-}
+}}
 
 #[cfg(not(GraalPy))]
 #[inline]
-pub unsafe fn PyCFunction_GET_CLASS(func: *mut PyObject) -> *mut PyTypeObject {
+pub unsafe fn PyCFunction_GET_CLASS(func: *mut PyObject) -> *mut PyTypeObject { unsafe {
     debug_assert_eq!(PyCMethod_Check(func), 1);
 
     let func = func.cast::<PyCFunctionObject>();
@@ -66,4 +66,4 @@ pub unsafe fn PyCFunction_GET_CLASS(func: *mut PyObject) -> *mut PyTypeObject {
     } else {
         core::ptr::null_mut()
     }
-}
+}}

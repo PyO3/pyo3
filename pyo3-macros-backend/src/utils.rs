@@ -8,14 +8,14 @@ use syn::{Expr, ExprLit, Lit, LitCStr};
 
 /// Macro inspired by `anyhow::anyhow!` to create a compiler error with the given span.
 macro_rules! err_spanned {
-    ($span:expr => $msg:expr) => {
+    ($span:expr_2021 => $msg:expr_2021) => {
         syn::Error::new($span, $msg)
     };
 }
 
 /// Macro inspired by `anyhow::bail!` to return a compiler error with the given span.
 macro_rules! bail_spanned {
-    ($span:expr => $msg:expr) => {
+    ($span:expr_2021 => $msg:expr_2021) => {
         return Err(err_spanned!($span => $msg))
     };
 }
@@ -23,12 +23,12 @@ macro_rules! bail_spanned {
 /// Macro inspired by `anyhow::ensure!` to return a compiler error with the given span if the
 /// specified condition is not met.
 macro_rules! ensure_spanned {
-    ($condition:expr, $span:expr => $msg:expr) => {
+    ($condition:expr_2021, $span:expr_2021 => $msg:expr_2021) => {
         if !($condition) {
             bail_spanned!($span => $msg);
         }
     };
-    ($($condition:expr, $span:expr => $msg:expr;)*) => {
+    ($($condition:expr_2021, $span:expr_2021 => $msg:expr_2021;)*) => {
         if let Some(e) = [$(
             (!($condition)).then(|| err_spanned!($span => $msg)),
         )*]

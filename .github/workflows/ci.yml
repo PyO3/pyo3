@@ -425,7 +425,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: ./.github/actions/enable-merged-doctests
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
@@ -490,7 +489,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: ./.github/actions/enable-merged-doctests
       - uses: ./.github/actions/build-emscripten
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
@@ -504,7 +502,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: ./.github/actions/enable-merged-doctests
       - uses: ./.github/actions/build-wasi
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}

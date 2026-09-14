@@ -9,15 +9,15 @@ opaque_struct!(pub PyLongObject);
 
 #[inline]
 #[cfg(not(RustPython))]
-pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {
+pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int { unsafe {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LONG_SUBCLASS)
-}
+}}
 
 #[inline]
 #[cfg(not(RustPython))]
-pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
+pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int { unsafe {
     Py_IS_TYPE(op, &raw mut PyLong_Type)
-}
+}}
 
 extern_libpython! {
     #[cfg(RustPython)]

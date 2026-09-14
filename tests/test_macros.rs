@@ -34,7 +34,7 @@ set_extends_via_macro!(MyClass2, MyBaseClass);
 //
 
 macro_rules! fn_macro {
-    ($sig:literal, $a_exp:expr, $b_exp:expr, $c_exp: expr) => {
+    ($sig:literal, $a_exp:expr_2021, $b_exp:expr_2021, $c_exp: expr_2021) => {
         // Try and pass a variable into the signature parameter
         #[pyfunction(signature = ($a_exp, $b_exp, *, $c_exp))]
         #[pyo3(text_signature = $sig)]

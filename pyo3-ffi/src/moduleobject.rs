@@ -17,15 +17,15 @@ extern_libpython! {
 
 #[inline]
 #[cfg(not(RustPython))]
-pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
+pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int { unsafe {
     PyObject_TypeCheck(op, &raw mut PyModule_Type)
-}
+}}
 
 #[inline]
 #[cfg(not(RustPython))]
-pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
+pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int { unsafe {
     Py_IS_TYPE(op, &raw mut PyModule_Type)
-}
+}}
 
 extern_libpython! {
     #[cfg(RustPython)]

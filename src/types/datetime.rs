@@ -1046,7 +1046,7 @@ mod tests {
 
     #[cfg(not(Py_LIMITED_API))]
     macro_rules! assert_check_exact {
-        ($check_func:ident, $check_func_exact:ident, $obj: expr) => {
+        ($check_func:ident, $check_func_exact:ident, $obj: expr_2021) => {
             unsafe {
                 use crate::ffi::*;
                 assert_ne!($check_func(($obj).as_ptr()), 0);
@@ -1057,7 +1057,7 @@ mod tests {
 
     #[cfg(not(Py_LIMITED_API))]
     macro_rules! assert_check_only {
-        ($check_func:ident, $check_func_exact:ident, $obj: expr) => {
+        ($check_func:ident, $check_func_exact:ident, $obj: expr_2021) => {
             unsafe {
                 use crate::ffi::*;
                 assert_ne!($check_func(($obj).as_ptr()), 0);

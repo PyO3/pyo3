@@ -81,7 +81,7 @@ extern_libpython! {
 
 #[cfg(not(all(Py_3_14, Py_LIMITED_API)))]
 #[inline]
-pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
+pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t { unsafe {
     #[cfg(Py_GIL_DISABLED)]
     {
         let local = (*ob).ob_ref_local.load(Relaxed);
@@ -114,12 +114,12 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     {
         _Py_REFCNT(ob)
     }
-}
+}}
 
 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 #[cfg(Py_3_12)]
 #[inline(always)]
-unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
+unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int { unsafe {
     #[cfg(all(target_pointer_width = "64", not(Py_GIL_DISABLED)))]
     {
         (((*op).ob_refcnt.ob_refcnt as crate::PY_INT32_T) < 0) as c_int
@@ -142,7 +142,7 @@ unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
     {
         ((*op).ob_ref_local.load(Relaxed) == _Py_IMMORTAL_REFCNT_LOCAL) as c_int
     }
-}
+}}
 
 // skipped _Py_IsStaticImmortal
 
@@ -176,7 +176,7 @@ extern_libpython! {
 }
 
 #[inline(always)]
-pub unsafe fn Py_INCREF(op: *mut PyObject) {
+pub unsafe fn Py_INCREF(op: *mut PyObject) { unsafe {
     // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
     // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
     #[cfg(any(
@@ -241,7 +241,7 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
         // Skipped _Py_INCREF_STAT_INC - if anyone wants this, please file an issue
         // or submit a PR supporting Py_STATS build option and pystats.h
     }
-}
+}}
 
 // skipped _Py_DecRefShared
 // skipped _Py_DecRefSharedDebug
@@ -252,7 +252,7 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
     all(py_sys_config = "Py_REF_DEBUG", Py_3_12, not(Py_LIMITED_API)),
     track_caller
 )]
-pub unsafe fn Py_DECREF(op: *mut PyObject) {
+pub unsafe fn Py_DECREF(op: *mut PyObject) { unsafe {
     // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
     // On 3.12+ we implement refcount debugging to get better assertion locations on negative refcounts
     // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
@@ -318,30 +318,30 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
             }
         }
     }
-}
+}}
 
 #[inline]
-pub unsafe fn Py_CLEAR(op: *mut *mut PyObject) {
+pub unsafe fn Py_CLEAR(op: *mut *mut PyObject) { unsafe {
     let tmp = *op;
     if !tmp.is_null() {
         *op = ptr::null_mut();
         Py_DECREF(tmp);
     }
-}
+}}
 
 #[inline]
-pub unsafe fn Py_XINCREF(op: *mut PyObject) {
+pub unsafe fn Py_XINCREF(op: *mut PyObject) { unsafe {
     if !op.is_null() {
         Py_INCREF(op)
     }
-}
+}}
 
 #[inline]
-pub unsafe fn Py_XDECREF(op: *mut PyObject) {
+pub unsafe fn Py_XDECREF(op: *mut PyObject) { unsafe {
     if !op.is_null() {
         Py_DECREF(op)
     }
-}
+}}
 
 extern_libpython! {
     #[cfg(all(Py_3_10, Py_LIMITED_API, not(PyPy)))]
@@ -358,15 +358,15 @@ extern_libpython! {
 #[cfg(all(Py_3_10, any(not(Py_LIMITED_API), PyPy)))]
 #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
 #[inline]
-pub unsafe fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject {
+pub unsafe fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject { unsafe {
     Py_INCREF(obj);
     obj
-}
+}}
 
 #[cfg(all(Py_3_10, any(not(Py_LIMITED_API), PyPy)))]
 #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
 #[inline]
-pub unsafe fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject {
+pub unsafe fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject { unsafe {
     Py_XINCREF(obj);
     obj
-}
+}}

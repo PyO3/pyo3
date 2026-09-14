@@ -12,15 +12,15 @@ extern_libpython! {
 
 #[cfg(not(RustPython))]
 #[inline]
-pub unsafe fn PyList_Check(op: *mut PyObject) -> c_int {
+pub unsafe fn PyList_Check(op: *mut PyObject) -> c_int { unsafe {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LIST_SUBCLASS)
-}
+}}
 
 #[inline]
 #[cfg(not(RustPython))]
-pub unsafe fn PyList_CheckExact(op: *mut PyObject) -> c_int {
+pub unsafe fn PyList_CheckExact(op: *mut PyObject) -> c_int { unsafe {
     Py_IS_TYPE(op, &raw mut PyList_Type)
-}
+}}
 
 extern_libpython! {
     #[cfg(RustPython)]

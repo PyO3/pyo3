@@ -1939,8 +1939,8 @@ struct TokenGeneratorCtx<'ctx>(TokenGenerator, &'ctx Ctx);
 
 impl ToTokens for TokenGeneratorCtx<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Self(TokenGenerator(gen), ctx) = self;
-        (gen)(ctx).to_tokens(tokens)
+        let Self(TokenGenerator(r#gen), ctx) = self;
+        (r#gen)(ctx).to_tokens(tokens)
     }
 }
 

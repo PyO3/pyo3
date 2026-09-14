@@ -591,11 +591,11 @@ mod tests {
             type Error = PyErr;
 
             fn extract(obj: crate::Borrowed<'_, 'py, crate::PyAny>) -> Result<Self, Self::Error> {
-                if let Ok(obj) = obj.cast::<Self>() {
+                match obj.cast::<Self>() { Ok(obj) => {
                     Ok(obj.borrow().clone())
-                } else {
+                } _ => {
                     obj.extract::<i32>().map(Self)
-                }
+                }}
             }
         }
         Python::attach(|py| {

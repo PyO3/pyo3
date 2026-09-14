@@ -299,14 +299,14 @@ extern_libpython! {
 }
 
 #[inline]
-pub unsafe fn PyMapping_DelItemString(o: *mut PyObject, key: *mut c_char) -> c_int {
+pub unsafe fn PyMapping_DelItemString(o: *mut PyObject, key: *mut c_char) -> c_int { unsafe {
     PyObject_DelItemString(o, key)
-}
+}}
 
 #[inline]
-pub unsafe fn PyMapping_DelItem(o: *mut PyObject, key: *mut PyObject) -> c_int {
+pub unsafe fn PyMapping_DelItem(o: *mut PyObject, key: *mut PyObject) -> c_int { unsafe {
     PyObject_DelItem(o, key)
-}
+}}
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyMapping_HasKeyString")]

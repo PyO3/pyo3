@@ -63,7 +63,7 @@ impl PyFunctionArgPyO3Attributes {
             cancel_handle: None,
         };
         take_attributes(attrs, |attr| {
-            if let Some(pyo3_attrs) = get_pyo3_options(attr)? {
+            match get_pyo3_options(attr)? { Some(pyo3_attrs) => {
                 for attr in pyo3_attrs {
                     match attr {
                         PyFunctionArgPyO3Attribute::FromPyWith(from_py_with) => {
@@ -87,9 +87,9 @@ impl PyFunctionArgPyO3Attributes {
                     );
                 }
                 Ok(true)
-            } else {
+            } _ => {
                 Ok(false)
-            }
+            }}
         })?;
         Ok(attributes)
     }

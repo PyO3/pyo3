@@ -21,13 +21,13 @@ impl FromPyObject<'_, '_> for IpAddr {
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         match obj.getattr(intern!(obj.py(), "packed")) {
             Ok(packed) => {
-                if let Ok(packed) = packed.extract::<[u8; 4]>() {
+                match packed.extract::<[u8; 4]>() { Ok(packed) => {
                     Ok(IpAddr::V4(Ipv4Addr::from(packed)))
-                } else if let Ok(packed) = packed.extract::<[u8; 16]>() {
+                } _ => { match packed.extract::<[u8; 16]>() { Ok(packed) => {
                     Ok(IpAddr::V6(Ipv6Addr::from(packed)))
-                } else {
+                } _ => {
                     Err(PyValueError::new_err("invalid packed length"))
-                }
+                }}}}
             }
             Err(_) => {
                 // We don't have a .packed attribute, so we try to construct an IP from str().

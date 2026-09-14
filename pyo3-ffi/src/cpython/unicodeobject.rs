@@ -538,11 +538,11 @@ unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
 
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
-unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
+unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void { unsafe {
     debug_assert!(!(*(op as *mut PyUnicodeObject)).data.any.is_null());
 
     (*(op as *mut PyUnicodeObject)).data.any
-}
+}}
 
 #[cfg(not(any(GraalPy, PyPy, Py_3_14)))]
 #[inline]
@@ -565,31 +565,31 @@ extern_libpython! {
 
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
-pub unsafe fn PyUnicode_1BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS1 {
+pub unsafe fn PyUnicode_1BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS1 { unsafe {
     PyUnicode_DATA(op) as *mut Py_UCS1
-}
+}}
 
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
-pub unsafe fn PyUnicode_2BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS2 {
+pub unsafe fn PyUnicode_2BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS2 { unsafe {
     PyUnicode_DATA(op) as *mut Py_UCS2
-}
+}}
 
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
-pub unsafe fn PyUnicode_4BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS4 {
+pub unsafe fn PyUnicode_4BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS4 { unsafe {
     PyUnicode_DATA(op) as *mut Py_UCS4
-}
+}}
 
 #[cfg(not(GraalPy))]
 #[inline]
-pub unsafe fn PyUnicode_GET_LENGTH(op: *mut PyObject) -> Py_ssize_t {
+pub unsafe fn PyUnicode_GET_LENGTH(op: *mut PyObject) -> Py_ssize_t { unsafe {
     debug_assert!(crate::PyUnicode_Check(op) != 0);
     #[cfg(not(Py_3_12))]
     debug_assert!(PyUnicode_IS_READY(op) != 0);
 
     (*(op as *mut PyASCIIObject)).length
-}
+}}
 
 // skipped PyUnstable_Unicode_GET_CACHED_HASH
 // skipped PyUnicode_WRITE
@@ -868,9 +868,9 @@ extern_libpython! {
 // skipped Py_UNICODE_ISPRINTABLE
 
 #[cfg(not(PyPy))]
-pub unsafe extern "C" fn Py_UNICODE_TODECIMAL(ch: Py_UCS4) -> c_int {
+pub unsafe extern "C" fn Py_UNICODE_TODECIMAL(ch: Py_UCS4) -> c_int { unsafe {
     _PyUnicode_ToDecimalDigit(ch)
-}
+}}
 
 #[cfg(PyPy)]
 extern_libpython! {

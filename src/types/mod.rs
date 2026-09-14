@@ -219,7 +219,7 @@ macro_rules! pyobject_native_type_named (
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_static_type_object(
-    ($typeobject:expr) => {
+    ($typeobject:expr_2021) => {
         |_py| &raw mut $typeobject
     };
 );
@@ -229,7 +229,7 @@ macro_rules! pyobject_native_static_type_object(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_type_info_type_hint(
-    ($module:expr, $name:expr) => {};
+    ($module:expr_2021, $name:expr_2021) => {};
 );
 
 #[cfg(feature = "experimental-inspect")]
@@ -251,7 +251,7 @@ macro_rules! pyobject_type_info_type_hint(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_info(
-    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, $typeobject:expr_2021, $type_hint_module:expr_2021, $type_hint_name:expr_2021, $module:expr_2021 $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         // SAFETY: macro caller has upheld the safety contracts
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
@@ -289,14 +289,14 @@ macro_rules! pyobject_native_type_info(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type_core {
-    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, $typeobject:expr_2021, $type_hint_module:expr_2021, $type_hint_name:expr_2021, #module=$module:expr_2021 $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_named!($name $(;$generics)*);
         $crate::pyobject_native_type_info!($name, $typeobject, $type_hint_module, $type_hint_name, $module $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
-    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, #module=$module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, $typeobject:expr_2021, $type_hint_module:expr_2021, $type_hint_name:expr_2021, #module=$module:expr_2021 $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=$module $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
-    ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, $typeobject:expr_2021, $type_hint_module:expr_2021, $type_hint_name:expr_2021 $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name, #module=::core::option::Option::Some("builtins") $(, #checkfunction=$checkfunction)? $(;$generics)*);
     };
 }
@@ -340,7 +340,7 @@ macro_rules! pyobject_native_type_sized {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pyobject_native_type {
-    ($name:ty, $layout:path, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr $(, #module=$module:expr)? $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
+    ($name:ty, $layout:path, $typeobject:expr_2021, $type_hint_module:expr_2021, $type_hint_name:expr_2021 $(, #module=$module:expr_2021)? $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         $crate::pyobject_native_type_core!($name, $typeobject, $type_hint_module, $type_hint_name $(, #module=$module)? $(, #checkfunction=$checkfunction)? $(;$generics)*);
         // To prevent inheriting native types with ABI3
         #[cfg(not(Py_LIMITED_API))]

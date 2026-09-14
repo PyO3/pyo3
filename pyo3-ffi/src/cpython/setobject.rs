@@ -30,14 +30,14 @@ pub struct PySetObject {
 
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
-pub(crate) unsafe fn _PySet_CAST(so: *mut PyObject) -> *mut PySetObject {
+pub(crate) unsafe fn _PySet_CAST(so: *mut PyObject) -> *mut PySetObject { unsafe {
     debug_assert_eq!(PyAnySet_Check(so), 1);
     so.cast()
-}
+}}
 
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
-pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t {
+pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t { unsafe {
     let so = _PySet_CAST(so);
     #[cfg(Py_GIL_DISABLED)]
     {
@@ -47,4 +47,4 @@ pub unsafe fn PySet_GET_SIZE(so: *mut PyObject) -> Py_ssize_t {
     {
         (*so).used
     }
-}
+}}

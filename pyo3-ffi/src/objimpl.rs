@@ -39,16 +39,16 @@ extern_libpython! {
 }
 
 #[inline]
-pub unsafe fn PyObject_New<T>(typeobj: *mut PyTypeObject) -> *mut T {
+pub unsafe fn PyObject_New<T>(typeobj: *mut PyTypeObject) -> *mut T { unsafe {
     _PyObject_New(typeobj).cast()
-}
+}}
 
 // skipped PyObject_NEW
 
 #[inline]
-pub unsafe fn PyObject_NewVar<T>(typeobj: *mut PyTypeObject, n: Py_ssize_t) -> *mut T {
+pub unsafe fn PyObject_NewVar<T>(typeobj: *mut PyTypeObject, n: Py_ssize_t) -> *mut T { unsafe {
     _PyObject_NewVar(typeobj, n).cast()
-}
+}}
 
 // skipped PyObject_NEW_VAR
 
@@ -70,18 +70,18 @@ extern_libpython! {
 }
 
 #[inline]
-pub unsafe fn PyType_IS_GC(t: *mut PyTypeObject) -> c_int {
+pub unsafe fn PyType_IS_GC(t: *mut PyTypeObject) -> c_int { unsafe {
     PyType_HasFeature(t, Py_TPFLAGS_HAVE_GC)
-}
+}}
 
 extern_libpython! {
     fn _PyObject_GC_Resize(op: *mut PyVarObject, n: Py_ssize_t) -> *mut PyVarObject;
 }
 
 #[inline]
-pub unsafe fn PyObject_GC_Resize<T>(op: *mut PyObject, n: Py_ssize_t) -> *mut T {
+pub unsafe fn PyObject_GC_Resize<T>(op: *mut PyObject, n: Py_ssize_t) -> *mut T { unsafe {
     _PyObject_GC_Resize(op.cast(), n).cast()
-}
+}}
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "_PyPyObject_GC_New")]
@@ -113,14 +113,14 @@ extern_libpython! {
 }
 
 #[inline]
-pub unsafe fn PyObject_GC_New<T>(typeobj: *mut PyTypeObject) -> *mut T {
+pub unsafe fn PyObject_GC_New<T>(typeobj: *mut PyTypeObject) -> *mut T { unsafe {
     _PyObject_GC_New(typeobj).cast()
-}
+}}
 
 #[inline]
-pub unsafe fn PyObject_GC_NewVar<T>(typeobj: *mut PyTypeObject, n: Py_ssize_t) -> *mut T {
+pub unsafe fn PyObject_GC_NewVar<T>(typeobj: *mut PyTypeObject, n: Py_ssize_t) -> *mut T { unsafe {
     _PyObject_GC_NewVar(typeobj, n).cast()
-}
+}}
 
 extern_libpython! {
     #[cfg(any(not(PyPy), Py_3_10))] // added in 3.9, or 3.10 on PyPy

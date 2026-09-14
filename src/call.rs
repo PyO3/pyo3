@@ -252,7 +252,7 @@ mod tests {
             let kwargs = &[("foo", 1), ("bar", 2)].into_py_dict(py).unwrap();
 
             macro_rules! check_call {
-                ($args:expr, $kwargs:expr) => {
+                ($args:expr_2021, $kwargs:expr_2021) => {
                     let (a, k): (Py<PyTuple>, Py<PyDict>) = f
                         .call(args.clone(), Some(kwargs))
                         .unwrap()
@@ -293,7 +293,7 @@ mod tests {
             let args = PyTuple::new(py, [1, 2, 3]).unwrap();
 
             macro_rules! check_call {
-                ($args:expr, $kwargs:expr) => {
+                ($args:expr_2021, $kwargs:expr_2021) => {
                     let (a, k): (Py<PyTuple>, Py<PyNone>) =
                         f.call1(args.clone()).unwrap().extract().unwrap();
                     assert!(a.is(&args));
