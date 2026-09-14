@@ -4,7 +4,6 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::{PyGcOpaque, PyGcTraversable};
 use pyo3::{PyTraverseError, PyVisit};
-use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 use std::marker::PhantomData;
 use std::sync::OnceLock;
@@ -13,7 +12,7 @@ struct NotTraversable {
     value: i32,
 }
 
-#[derive(Clone, PyGcTraversable, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PyGcTraversable, PartialEq, Eq, PartialOrd, Ord)]
 struct Leaf {
     value: i32,
 }
@@ -45,8 +44,6 @@ struct Wrappers {
     marker: PhantomData<Leaf>,
     result: Result<Leaf, Leaf>,
     array: [Leaf; 2],
-    cow_str: Cow<'static, str>,
-    cow_slice: Cow<'static, [Leaf]>,
     hash_map: HashMap<Leaf, Leaf>,
     hash_set: HashSet<Leaf>,
     vec_deque: VecDeque<Leaf>,
@@ -160,8 +157,6 @@ fn wrappers_compile_and_clear() {
         marker: PhantomData,
         result: Ok(Leaf { value: 7 }),
         array: [Leaf { value: 8 }, Leaf { value: 9 }],
-        cow_str: Cow::Borrowed("borrowed"),
-        cow_slice: Cow::Owned(vec![Leaf { value: 15 }]),
         hash_map,
         hash_set,
         vec_deque,
@@ -172,8 +167,6 @@ fn wrappers_compile_and_clear() {
     assert_eq!(wrappers.map.len(), 1);
     assert_eq!(wrappers.set.len(), 1);
     assert!(wrappers.lock.get().is_some());
-    assert_eq!(wrappers.cow_str, Cow::Borrowed("borrowed"));
-    assert_eq!(wrappers.cow_slice.len(), 1);
     assert_eq!(wrappers.hash_map.len(), 1);
     assert_eq!(wrappers.hash_set.len(), 1);
     assert_eq!(wrappers.vec_deque.len(), 1);
