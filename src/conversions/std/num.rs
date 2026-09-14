@@ -5,7 +5,7 @@ use crate::conversion::private::Reference;
 use crate::conversion::{FromPyObjectSequence, IntoPyObject};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::PyStaticExpr;
+use crate::inspect::{type_hint_identifier, PyStaticExpr};
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
@@ -21,6 +21,9 @@ use core::num::{
 };
 
 use super::array::invalid_sequence_length;
+
+#[cfg(feature = "experimental-inspect")]
+pub(crate) const INT_INPUT_TYPE: PyStaticExpr = type_hint_identifier!("typing", "SupportsIndex");
 
 macro_rules! int_fits_larger_int {
     ($rust_type:ty, $larger_type:ty) => {
@@ -125,7 +128,7 @@ macro_rules! int_convert_u64_or_i64 {
             type Error = PyErr;
 
             #[cfg(feature = "experimental-inspect")]
-            const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
+            const INPUT_TYPE: PyStaticExpr = INT_INPUT_TYPE;
 
             fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                 extract_int!(obj, !0, $pylong_as_ll_or_ull, $force_index_call)
@@ -171,7 +174,7 @@ macro_rules! int_fits_c_long {
             type Error = PyErr;
 
             #[cfg(feature = "experimental-inspect")]
-            const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
+            const INPUT_TYPE: PyStaticExpr = INT_INPUT_TYPE;
 
             fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
@@ -248,7 +251,7 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = INT_INPUT_TYPE;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
@@ -581,7 +584,7 @@ mod fast_128bit_int_conversion {
                 type Error = PyErr;
 
                 #[cfg(feature = "experimental-inspect")]
-                const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
+                const INPUT_TYPE: PyStaticExpr = INT_INPUT_TYPE;
 
                 fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                     let num = nb_index(&ob)?;
@@ -772,7 +775,7 @@ mod slow_128bit_int_conversion {
                 type Error = PyErr;
 
                 #[cfg(feature = "experimental-inspect")]
-                const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
+                const INPUT_TYPE: PyStaticExpr = INT_INPUT_TYPE;
 
                 fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                     let py = ob.py();

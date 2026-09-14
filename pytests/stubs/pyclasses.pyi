@@ -1,6 +1,6 @@
 from .awaitable import IterAwaitable
 from _typeshed import Incomplete
-from typing import Final, final
+from typing import Final, SupportsIndex, final
 from typing_extensions import disjoint_base
 
 @disjoint_base
@@ -28,7 +28,7 @@ class ClassWithDecorators:
         A deleter
         """
     @attr.setter
-    def attr(self, /, value: int) -> None:
+    def attr(self, /, value: SupportsIndex) -> None:
         """
         A setter
         """
@@ -79,7 +79,7 @@ class Number:
     def __mul__(self, other: object, /) -> Number: ...
     def __ne__(self, other: object, /) -> bool: ...
     def __neg__(self, /) -> Number: ...
-    def __new__(cls, /, value: int) -> Number: ...
+    def __new__(cls, /, value: SupportsIndex) -> Number: ...
     def __or__(self, other: object, /) -> Number: ...
     def __pos__(self, /) -> Number: ...
     def __pow__(self, other: object, modulo: object = None, /) -> Number: ...
@@ -98,7 +98,7 @@ class PlainObject:
         Bar
         """
     @bar.setter
-    def bar(self, /, value: int) -> None:
+    def bar(self, /, value: SupportsIndex) -> None:
         """
         Bar
         """
