@@ -34,7 +34,6 @@ requires-python = ">=3.9"
 
 [project.optional-dependencies]
 dev = [
-    "hypothesis>=3.55",
     # mypy doesn't build on GraalPy when installed via uv
     "mypy~=1.0; platform_python_implementation != 'GraalVM'",
     "pyrefly~=0.57.0",
