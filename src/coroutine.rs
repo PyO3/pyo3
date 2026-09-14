@@ -13,10 +13,10 @@ use pyo3_macros::{pyclass, pymethods};
 use crate::panic::PanicException;
 use crate::platform::prelude::*;
 use crate::{
+    Bound, Py, PyAny, PyErr, PyResult, Python,
     coroutine::{cancel::ThrowCallback, waker::AsyncioWaker},
     exceptions::{PyAttributeError, PyRuntimeError, PyStopIteration},
-    types::{string::PyStringMethods, PyIterator, PyString},
-    Bound, Py, PyAny, PyErr, PyResult, Python,
+    types::{PyIterator, PyString, string::PyStringMethods},
 };
 
 pub(crate) mod cancel;

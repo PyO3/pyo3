@@ -98,8 +98,8 @@ use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_identifier;
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, types::PyComplex, Borrowed, Bound, FromPyObject, PyAny, PyErr,
-    Python,
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, Python, ffi, ffi_ptr_ext::FfiPtrExt,
+    types::PyComplex,
 };
 use core::ffi::c_double;
 use num_complex::Complex;
@@ -216,10 +216,10 @@ complex_conversion!(f64);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::IntoPyObject;
     use crate::test_utils::generate_unique_module_name;
     use crate::types::PyAnyMethods as _;
-    use crate::types::{complex::PyComplexMethods, PyModule};
-    use crate::IntoPyObject;
+    use crate::types::{PyModule, complex::PyComplexMethods};
 
     #[test]
     fn from_complex() {

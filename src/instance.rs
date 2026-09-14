@@ -10,13 +10,13 @@ use crate::platform::prelude::*;
 use crate::pycell::impl_::PyClassObjectLayout;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
-use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString};
+use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::{
-    ffi, CastError, CastIntoError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
-    PyRefMut, PyTypeInfo, Python,
+    CastError, CastIntoError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
+    PyTypeInfo, Python, ffi,
 };
-use crate::{internal::state, PyTypeCheck};
+use crate::{PyTypeCheck, internal::state};
 use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ops::Deref;
@@ -2436,11 +2436,11 @@ mod tests {
     use crate::exceptions::PyValueError;
     #[allow(unused_imports, reason = "conditionally used")]
     use crate::platform::prelude::*;
-    use crate::test_utils::generate_unique_module_name;
     #[cfg(all(feature = "macros", panic = "unwind"))]
     use crate::test_utils::UnraisableCapture;
-    use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
-    use crate::{ffi, Borrowed, IntoPyObjectExt, PyAny, PyResult, Python};
+    use crate::test_utils::generate_unique_module_name;
+    use crate::types::{PyAnyMethods, PyCapsule, PyDict, PyString, dict::IntoPyDict};
+    use crate::{Borrowed, IntoPyObjectExt, PyAny, PyResult, Python, ffi};
     use core::ffi::CStr;
 
     #[test]
@@ -2514,9 +2514,10 @@ mod tests {
         Python::attach(|py| {
             let obj: Py<PyAny> = PyDict::new(py).into();
             assert!(obj.call_method0(py, "asdf").is_err());
-            assert!(obj
-                .call_method(py, "nonexistent_method", (1,), None)
-                .is_err());
+            assert!(
+                obj.call_method(py, "nonexistent_method", (1,), None)
+                    .is_err()
+            );
             assert!(obj.call_method0(py, "nonexistent_method").is_err());
             assert!(obj.call_method1(py, "nonexistent_method", (1,)).is_err());
         });
@@ -2561,10 +2562,12 @@ a = A()
 
             instance.setattr(py, "foo", "bar")?;
 
-            assert!(instance
-                .getattr(py, "foo")?
-                .bind(py)
-                .eq(PyString::new(py, "bar"))?);
+            assert!(
+                instance
+                    .getattr(py, "foo")?
+                    .bind(py)
+                    .eq(PyString::new(py, "bar"))?
+            );
 
             instance.getattr(py, "foo")?;
             Ok(())

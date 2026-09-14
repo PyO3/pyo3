@@ -4,17 +4,17 @@
 #[allow(unused_imports, reason = "used to build docs")]
 use crate::platform::prelude::*;
 #[cfg(any(doc, all(Py_3_14, not(Py_LIMITED_API))))]
-use crate::{types::PyString, Python};
+use crate::{Python, types::PyString};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use {
+    crate::IntoPyObject,
     crate::ffi::{
         PyUnicodeWriter_Create, PyUnicodeWriter_Discard, PyUnicodeWriter_Finish,
         PyUnicodeWriter_WriteChar, PyUnicodeWriter_WriteUTF8,
     },
     crate::ffi_ptr_ext::FfiPtrExt,
     crate::py_result_ext::PyResultExt,
-    crate::IntoPyObject,
-    crate::{ffi, Bound, PyErr, PyResult},
+    crate::{Bound, PyErr, PyResult, ffi},
     core::fmt,
     core::mem::ManuallyDrop,
     core::ptr::NonNull,
@@ -87,15 +87,14 @@ impl<'py> PyUnicodeWriter<'py> {
     #[inline]
     pub fn into_py_string(mut self) -> PyResult<Bound<'py, PyString>> {
         let py = self.python;
-        match self.take_error() { Some(error) => {
-            Err(error)
-        } _ => {
-            unsafe {
+        match self.take_error() {
+            Some(error) => Err(error),
+            _ => unsafe {
                 PyUnicodeWriter_Finish(ManuallyDrop::new(self).as_ptr())
                     .assume_owned_or_err(py)
                     .cast_into_unchecked()
-            }
-        }}
+            },
+        }
     }
 
     /// When fmt::Write returned an error, this function can be used to retrieve the last error that occurred.

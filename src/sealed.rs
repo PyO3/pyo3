@@ -8,7 +8,7 @@ use crate::types::{
     PyMapping, PyMappingProxy, PyModule, PyRange, PySequence, PySet, PySlice, PyString,
     PyTraceback, PyTuple, PyType, PyWeakref, PyWeakrefProxy, PyWeakrefReference,
 };
-use crate::{ffi, Bound, PyAny, PyResult};
+use crate::{Bound, PyAny, PyResult, ffi};
 
 use crate::pyclass_init::PyClassInitializer;
 

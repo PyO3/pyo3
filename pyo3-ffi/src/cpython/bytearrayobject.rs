@@ -1,8 +1,8 @@
+use crate::PyByteArray_Check;
 #[cfg(Py_GIL_DISABLED)]
 use crate::cpython::pyatomic::_Py_atomic_load_ssize_relaxed;
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use crate::PyByteArray_Check;
 #[cfg(not(any(PyPy, GraalPy)))]
 use core::ffi::c_char;
 
@@ -22,26 +22,32 @@ pub struct PyByteArrayObject {
 opaque_struct!(pub PyByteArrayObject);
 
 #[inline]
-pub(crate) unsafe fn _PyByteArray_CAST(op: *mut PyObject) -> *mut PyByteArrayObject { unsafe {
-    debug_assert_eq!(PyByteArray_Check(op), 1);
-    op.cast()
-}}
+pub(crate) unsafe fn _PyByteArray_CAST(op: *mut PyObject) -> *mut PyByteArrayObject {
+    unsafe {
+        debug_assert_eq!(PyByteArray_Check(op), 1);
+        op.cast()
+    }
+}
 
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
-pub unsafe fn PyByteArray_AS_STRING(op: *mut PyObject) -> *mut c_char { unsafe {
-    (*_PyByteArray_CAST(op)).ob_start
-}}
+pub unsafe fn PyByteArray_AS_STRING(op: *mut PyObject) -> *mut c_char {
+    unsafe { (*_PyByteArray_CAST(op)).ob_start }
+}
 
 #[inline]
-pub unsafe fn PyByteArray_GET_SIZE(op: *mut PyObject) -> Py_ssize_t { unsafe {
-    let byte_array = _PyByteArray_CAST(op);
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        _Py_atomic_load_ssize_relaxed(&raw const (*_PyVarObject_CAST(byte_array.cast())).ob_size)
+pub unsafe fn PyByteArray_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
+    unsafe {
+        let byte_array = _PyByteArray_CAST(op);
+        #[cfg(Py_GIL_DISABLED)]
+        {
+            _Py_atomic_load_ssize_relaxed(
+                &raw const (*_PyVarObject_CAST(byte_array.cast())).ob_size,
+            )
+        }
+        #[cfg(not(Py_GIL_DISABLED))]
+        {
+            Py_SIZE(byte_array.cast())
+        }
     }
-    #[cfg(not(Py_GIL_DISABLED))]
-    {
-        Py_SIZE(byte_array.cast())
-    }
-}}
+}

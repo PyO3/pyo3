@@ -1,6 +1,6 @@
 use core::ptr::NonNull;
 
-use crate::ffi::{self, Py_ssize_t, PY_SSIZE_T_MAX};
+use crate::ffi::{self, PY_SSIZE_T_MAX, Py_ssize_t};
 use crate::platform::prelude::*;
 
 #[cfg(wip_feature_std)]

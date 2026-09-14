@@ -1,13 +1,13 @@
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_union, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_union};
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 #[cfg(feature = "experimental-inspect")]
 use crate::types::PyNone;
-use crate::{
-    conversion::IntoPyObject, types::any::PyAnyMethods, BoundObject, FromPyObject, PyAny, Python,
-};
 use crate::{Borrowed, Bound};
+use crate::{
+    BoundObject, FromPyObject, PyAny, Python, conversion::IntoPyObject, types::any::PyAnyMethods,
+};
 
 impl<'py, T> IntoPyObject<'py> for Option<T>
 where

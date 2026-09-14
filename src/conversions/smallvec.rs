@@ -24,7 +24,7 @@ use crate::type_hint_subscript;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PySequence, PyString};
 use crate::{
-    err::CastError, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, PyTypeInfo, Python,
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, PyTypeInfo, Python, err::CastError, ffi,
 };
 use smallvec::{Array, SmallVec};
 

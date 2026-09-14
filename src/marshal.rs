@@ -5,7 +5,7 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyBytes};
-use crate::{ffi, Bound};
+use crate::{Bound, ffi};
 use crate::{PyResult, Python};
 use core::ffi::c_int;
 
@@ -61,7 +61,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{bytes::PyBytesMethods, dict::PyDictMethods, PyAnyMethods, PyDict};
+    use crate::types::{PyAnyMethods, PyDict, bytes::PyBytesMethods, dict::PyDictMethods};
 
     #[test]
     fn marshal_roundtrip() {

@@ -529,17 +529,20 @@ fn test_closure() {
             Python::attach(|py| {
                 let res: PyResult<Vec<_>> = args
                     .iter()
-                    .map(|elem| {
-                        match elem.extract::<i64>() { Ok(i) => {
-                            Ok((i + 1).into_pyobject(py)?.into_any().unbind())
-                        } _ => { match elem.extract::<f64>() { Ok(f) => {
-                            Ok((2. * f).into_pyobject(py)?.into_any().unbind())
-                        } _ => { match elem.extract::<String>() { Ok(mut s) => {
-                            s.push_str("-py");
-                            Ok(s.into_pyobject(py)?.into_any().unbind())
-                        } _ => {
-                            panic!("unexpected argument type for {elem:?}")
-                        }}}}}}
+                    .map(|elem| match elem.extract::<i64>() {
+                        Ok(i) => Ok((i + 1).into_pyobject(py)?.into_any().unbind()),
+                        _ => match elem.extract::<f64>() {
+                            Ok(f) => Ok((2. * f).into_pyobject(py)?.into_any().unbind()),
+                            _ => match elem.extract::<String>() {
+                                Ok(mut s) => {
+                                    s.push_str("-py");
+                                    Ok(s.into_pyobject(py)?.into_any().unbind())
+                                }
+                                _ => {
+                                    panic!("unexpected argument type for {elem:?}")
+                                }
+                            },
+                        },
                     })
                     .collect();
                 res

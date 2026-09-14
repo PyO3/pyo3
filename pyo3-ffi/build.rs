@@ -1,11 +1,11 @@
 use pyo3_build_config::{
-    bail, ensure,
+    InterpreterConfig, PythonAbiKind, PythonImplementation, PythonVersion, StableAbi, bail, ensure,
     pyo3_build_script_impl::{
-        cargo_env_var, env_var, errors::Result, is_linking_libpython_for_target,
-        print_feature_cfgs, print_libpython_rpath_link_args, resolve_build_config,
-        target_triple_from_env, BuildConfig, BuildConfigSource, MaximumVersionExceeded,
+        BuildConfig, BuildConfigSource, MaximumVersionExceeded, cargo_env_var, env_var,
+        errors::Result, is_linking_libpython_for_target, print_feature_cfgs,
+        print_libpython_rpath_link_args, resolve_build_config, target_triple_from_env,
     },
-    warn, InterpreterConfig, PythonAbiKind, PythonImplementation, PythonVersion, StableAbi,
+    warn,
 };
 
 /// Minimum Python version PyO3 supports.
@@ -356,7 +356,9 @@ fn print_config_and_exit(config: &InterpreterConfig) {
     config
         .to_writer(std::io::stdout())
         .expect("failed to print config to stdout");
-    println!("\nnote: unset the PYO3_PRINT_CONFIG environment variable and retry to compile with the above config");
+    println!(
+        "\nnote: unset the PYO3_PRINT_CONFIG environment variable and retry to compile with the above config"
+    );
     std::process::exit(101);
 }
 

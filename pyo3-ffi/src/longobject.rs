@@ -1,7 +1,7 @@
-use crate::object::*;
-use crate::pyport::Py_ssize_t;
 #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 use crate::Py_uintptr_t;
+use crate::object::*;
+use crate::pyport::Py_ssize_t;
 use core::ffi::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
 use libc::size_t;
 
@@ -9,15 +9,15 @@ opaque_struct!(pub PyLongObject);
 
 #[inline]
 #[cfg(not(RustPython))]
-pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int { unsafe {
-    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LONG_SUBCLASS)
-}}
+pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {
+    unsafe { PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LONG_SUBCLASS) }
+}
 
 #[inline]
 #[cfg(not(RustPython))]
-pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int { unsafe {
-    Py_IS_TYPE(op, &raw mut PyLong_Type)
-}}
+pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
+    unsafe { Py_IS_TYPE(op, &raw mut PyLong_Type) }
+}
 
 extern_libpython! {
     #[cfg(RustPython)]

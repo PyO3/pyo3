@@ -24,11 +24,11 @@ pub use self::datetime::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfo
 #[cfg(not(Py_LIMITED_API))]
 #[doc(inline)]
 pub use self::datetime::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
+#[doc(inline)]
+pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 #[cfg(not(any(PyPy, GraalPy, RustPython)))]
 #[doc(inline)]
 pub use self::dict::{items::PyDictItems, keys::PyDictKeys, values::PyDictValues};
-#[doc(inline)]
-pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 #[doc(inline)]
 pub use self::ellipsis::PyEllipsis;
 #[doc(inline)]

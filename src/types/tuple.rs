@@ -1,27 +1,27 @@
 //! Python tuples and related types.
 
+#[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
+use crate::BoundObject;
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_subscript, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_subscript};
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
 #[allow(unused_imports, reason = "used to build docs")]
 use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
-use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
-#[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
-use crate::BoundObject;
+use crate::types::{PyList, PySequence, sequence::PySequenceMethods};
 use crate::{
-    exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
+    Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python, exceptions,
 };
 #[cfg(RustPython)]
 use crate::{
+    Py,
     py_result_ext::PyResultExt,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
 use core::iter::FusedIterator;
 #[cfg(feature = "nightly")]
@@ -77,8 +77,14 @@ fn try_new_from_iter<'py>(
         (tup, elements.len() as Py_ssize_t)
     };
 
-    assert!(elements.next().is_none(), "Attempted to create PyTuple but `elements` was larger than reported by its `ExactSizeIterator` implementation.");
-    assert_eq!(len, counter, "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
+    assert!(
+        elements.next().is_none(),
+        "Attempted to create PyTuple but `elements` was larger than reported by its `ExactSizeIterator` implementation."
+    );
+    assert_eq!(
+        len, counter,
+        "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation."
+    );
 
     Ok(tup)
 }
@@ -1065,9 +1071,9 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod tests {
-    use crate::platform::prelude::*;
     use crate::platform::HashSet;
-    use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
+    use crate::platform::prelude::*;
+    use crate::types::{PyList, PyTuple, any::PyAnyMethods, tuple::PyTupleMethods};
     use crate::{Bound, IntoPyObject, PyAny, Python};
     #[cfg(feature = "nightly")]
     use core::num::NonZero;

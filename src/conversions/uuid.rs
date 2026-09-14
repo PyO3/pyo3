@@ -73,9 +73,9 @@ use crate::instance::Bound;
 use crate::sync::PyOnceLock;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_identifier;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
-use crate::{intern, Borrowed, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
+use crate::types::any::PyAnyMethods;
+use crate::{Borrowed, FromPyObject, Py, PyAny, PyErr, PyResult, Python, intern};
 
 fn get_uuid_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     static UUID_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
@@ -170,8 +170,8 @@ impl<'py> IntoPyObject<'py> for &NonNilUuid {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
+    use crate::types::dict::PyDictMethods;
     use alloc::ffi::CString;
     use uuid::Uuid;
 

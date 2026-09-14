@@ -7,7 +7,7 @@ use crate::introspection::unique_element_id;
 use crate::method::{
     CallingConvention, ClassMethodReceiver, ExtractErrorMode, PyArg, SelfConversionPolicy,
 };
-use crate::params::{impl_arg_params, impl_regular_arg_param, Holders};
+use crate::params::{Holders, impl_arg_params, impl_regular_arg_param};
 use crate::pyfunction::WarningFactory;
 use crate::utils::PythonDoc;
 use crate::utils::{Ctx, StaticIdent};
@@ -17,9 +17,9 @@ use crate::{
 };
 use crate::{quotes, utils};
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
 use syn::LitCStr;
-use syn::{ext::IdentExt, spanned::Spanned, Field, Ident, Result};
+use syn::{Field, Ident, Result, ext::IdentExt, spanned::Spanned};
 
 /// Generated code for a single pymethod item.
 pub struct MethodAndMethodDef {
@@ -469,10 +469,13 @@ fn impl_call_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> Result<Metho
 fn impl_traverse_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result<TokenStream> {
     let Ctx { pyo3_path, .. } = ctx;
     if let (Some(py_arg), _) = split_off_python_arg(&spec.signature.arguments) {
-        return Err(syn::Error::new_spanned(py_arg.ty, "__traverse__ may not take `Python`. \
+        return Err(syn::Error::new_spanned(
+            py_arg.ty,
+            "__traverse__ may not take `Python`. \
             Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` \
             should do nothing but calls to `visit.call`. Most importantly, safe access to the Python interpreter is \
-            prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic."));
+            prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.",
+        ));
     }
 
     // check that the receiver does not try to smuggle an (implicit) `Python` token into here

@@ -4,10 +4,10 @@ use crate::derive_attributes::{ContainerAttributes, FieldAttributes, FieldGetter
 use crate::py_expr::PyExpr;
 use crate::utils::{self, Ctx};
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
 use syn::{
-    ext::IdentExt, parse_quote, punctuated::Punctuated, spanned::Spanned, DataEnum, DeriveInput,
-    Fields, Ident, Result, Token,
+    DataEnum, DeriveInput, Fields, Ident, Result, Token, ext::IdentExt, parse_quote,
+    punctuated::Punctuated, spanned::Spanned,
 };
 
 /// Describes derivation input of an enum.

@@ -2,11 +2,11 @@ use crate::platform::prelude::*;
 use alloc::borrow::Cow;
 
 use crate::{
+    Borrowed, Bound, IntoPyObjectExt, Py, PyAny, PyErr, PyErrArguments, PyTypeInfo, Python,
     exceptions,
     types::{
         PyAnyMethods, PyNone, PyStringMethods, PyTuple, PyTupleMethods, PyType, PyTypeMethods,
     },
-    Borrowed, Bound, IntoPyObjectExt, Py, PyAny, PyErr, PyErrArguments, PyTypeInfo, Python,
 };
 
 /// Error that indicates an object was not an instance of a given target type.
@@ -153,34 +153,38 @@ struct DisplayClassInfo<'a, 'py>(&'a Bound<'py, PyAny>);
 
 impl core::fmt::Display for DisplayClassInfo<'_, '_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self.0.cast::<PyType>() { Ok(t) => {
-            if t.is(PyNone::type_object(t.py())) {
-                f.write_str("None")
-            } else {
-                t.qualname()
-                    .map_err(|_| core::fmt::Error)?
-                    .to_string_lossy()
-                    .fmt(f)
-            }
-        } _ => { match self.0.cast::<PyTuple>() { Ok(t) => {
-            for (i, t) in t.iter().enumerate() {
-                if i > 0 {
-                    f.write_str(" | ")?;
+        match self.0.cast::<PyType>() {
+            Ok(t) => {
+                if t.is(PyNone::type_object(t.py())) {
+                    f.write_str("None")
+                } else {
+                    t.qualname()
+                        .map_err(|_| core::fmt::Error)?
+                        .to_string_lossy()
+                        .fmt(f)
                 }
-                write!(f, "{}", DisplayClassInfo(&t))?;
             }
-            Ok(())
-        } _ => {
-            self.0.fmt(f)
-        }}}}
+            _ => match self.0.cast::<PyTuple>() {
+                Ok(t) => {
+                    for (i, t) in t.iter().enumerate() {
+                        if i > 0 {
+                            f.write_str(" | ")?;
+                        }
+                        write!(f, "{}", DisplayClassInfo(&t))?;
+                    }
+                    Ok(())
+                }
+                _ => self.0.fmt(f),
+            },
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::{PyBool, PyString},
         PyTypeInfo,
+        types::{PyBool, PyString},
     };
 
     use super::*;

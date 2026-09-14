@@ -141,53 +141,55 @@ unsafe fn _PyBytesWriter_Resize_impl(
     writer: *mut PyBytesWriter,
     mut size: crate::Py_ssize_t,
     resize: core::ffi::c_int,
-) -> core::ffi::c_int { unsafe {
-    let overallocate = resize;
-    assert!(size >= 0);
+) -> core::ffi::c_int {
+    unsafe {
+        let overallocate = resize;
+        assert!(size >= 0);
 
-    let allocated = if (*writer).obj.is_null() {
-        core::mem::size_of_val(&(*writer).small_buffer) as _
-    } else {
-        crate::PyBytes_Size((*writer).obj)
-    };
+        let allocated = if (*writer).obj.is_null() {
+            core::mem::size_of_val(&(*writer).small_buffer) as _
+        } else {
+            crate::PyBytes_Size((*writer).obj)
+        };
 
-    if size <= allocated {
-        return 0;
+        if size <= allocated {
+            return 0;
+        }
+
+        if overallocate > 0 {
+            #[cfg(windows)]
+            if size <= (crate::PY_SSIZE_T_MAX - size / 2) {
+                size += size / 2;
+            }
+
+            #[cfg(not(windows))]
+            if size <= (crate::PY_SSIZE_T_MAX - size / 4) {
+                size += size / 4;
+            }
+        }
+
+        if !(*writer).obj.is_null() {
+            if crate::_PyBytes_Resize(&mut (*writer).obj, size) > 0 {
+                return -1;
+            }
+            assert!(!(*writer).obj.is_null())
+        } else {
+            (*writer).obj = crate::PyBytes_FromStringAndSize(core::ptr::null_mut(), size);
+            if (*writer).obj.is_null() {
+                return -1;
+            }
+
+            if resize > 0 {
+                assert!((size as usize) > core::mem::size_of_val(&(*writer).small_buffer));
+
+                core::ptr::copy_nonoverlapping(
+                    (*writer).small_buffer.as_ptr(),
+                    crate::PyBytes_AS_STRING((*writer).obj) as *mut _,
+                    core::mem::size_of_val(&(*writer).small_buffer),
+                );
+            }
+        }
+
+        0
     }
-
-    if overallocate > 0 {
-        #[cfg(windows)]
-        if size <= (crate::PY_SSIZE_T_MAX - size / 2) {
-            size += size / 2;
-        }
-
-        #[cfg(not(windows))]
-        if size <= (crate::PY_SSIZE_T_MAX - size / 4) {
-            size += size / 4;
-        }
-    }
-
-    if !(*writer).obj.is_null() {
-        if crate::_PyBytes_Resize(&mut (*writer).obj, size) > 0 {
-            return -1;
-        }
-        assert!(!(*writer).obj.is_null())
-    } else {
-        (*writer).obj = crate::PyBytes_FromStringAndSize(core::ptr::null_mut(), size);
-        if (*writer).obj.is_null() {
-            return -1;
-        }
-
-        if resize > 0 {
-            assert!((size as usize) > core::mem::size_of_val(&(*writer).small_buffer));
-
-            core::ptr::copy_nonoverlapping(
-                (*writer).small_buffer.as_ptr(),
-                crate::PyBytes_AS_STRING((*writer).obj) as *mut _,
-                core::mem::size_of_val(&(*writer).small_buffer),
-            );
-        }
-    }
-
-    0
-}}
+}

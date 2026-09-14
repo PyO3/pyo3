@@ -4,13 +4,13 @@ use crate::instance::{Borrowed, Bound};
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::critical_section::with_critical_section;
-use crate::{ffi, PyAny, Python};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
+use crate::{PyAny, Python, ffi};
 use core::slice;
 
 /// Represents a Python `bytearray`.
@@ -339,7 +339,7 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};
-    use crate::{exceptions, Bound, Py, PyAny, Python};
+    use crate::{Bound, Py, PyAny, Python, exceptions};
 
     #[test]
     fn test_len() {
@@ -404,12 +404,13 @@ mod tests {
 
     #[test]
     fn test_from_err() {
-        Python::attach(|py| {
-            match PyByteArray::from(py.None().bind(py)) { Err(err) => {
+        Python::attach(|py| match PyByteArray::from(py.None().bind(py)) {
+            Err(err) => {
                 assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
-            } _ => {
+            }
+            _ => {
                 panic!("error");
-            }}
+            }
         });
     }
 
@@ -466,10 +467,12 @@ mod tests {
                 Err(PyValueError::new_err("Hello Crustaceans!"))
             });
             assert!(py_bytearray_result.is_err());
-            assert!(py_bytearray_result
-                .err()
-                .unwrap()
-                .is_instance_of::<PyValueError>(py));
+            assert!(
+                py_bytearray_result
+                    .err()
+                    .unwrap()
+                    .is_instance_of::<PyValueError>(py)
+            );
         })
     }
 
@@ -483,7 +486,7 @@ mod tests {
     fn test_data_integrity_in_critical_section() {
         use crate::instance::Py;
         use crate::platform::sync::non_poison::Mutex;
-        use crate::sync::{critical_section::with_critical_section, MutexExt};
+        use crate::sync::{MutexExt, critical_section::with_critical_section};
 
         use core::sync::atomic::{AtomicBool, Ordering};
         use core::time::Duration;

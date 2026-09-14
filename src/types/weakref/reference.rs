@@ -1,16 +1,16 @@
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, RustPython))]
+use crate::Py;
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API, RustPython))]
 use crate::sync::PyOnceLock;
+#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, RustPython))]
+use crate::types::PyType;
 use crate::types::any::PyAny;
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API, RustPython))]
 use crate::types::typeobject::PyTypeMethods;
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, RustPython))]
-use crate::types::PyType;
-#[cfg(any(PyPy, GraalPy, Py_LIMITED_API, RustPython))]
-use crate::Py;
-use crate::{ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt};
+use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, ffi};
 
 use super::PyWeakrefMethods;
 
@@ -176,7 +176,9 @@ impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefReference> {
     fn upgrade(&self) -> Option<Bound<'py, PyAny>> {
         let mut obj: *mut ffi::PyObject = core::ptr::null_mut();
         match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
-            core::ffi::c_int::MIN..=-1 => panic!("The 'weakref.ReferenceType' instance should be valid (non-null and actually a weakref reference)"),
+            core::ffi::c_int::MIN..=-1 => panic!(
+                "The 'weakref.ReferenceType' instance should be valid (non-null and actually a weakref reference)"
+            ),
             0 => None,
             1..=core::ffi::c_int::MAX => Some(unsafe { obj.assume_owned_unchecked(self.py()) }),
         }
@@ -206,9 +208,10 @@ mod tests {
             let (msg, addr) = first_part.split_once("0x").unwrap();
 
             assert_eq!(msg, "<weakref at ");
-            assert!(addr
-                .to_lowercase()
-                .contains(format!("{:x?}", reference.as_ptr()).split_at(2).1));
+            assert!(
+                addr.to_lowercase()
+                    .contains(format!("{:x?}", reference.as_ptr()).split_at(2).1)
+            );
         }
 
         match object {
@@ -220,9 +223,10 @@ mod tests {
                 assert!(msg.contains(class));
                 assert!(msg.ends_with("' at "));
 
-                assert!(addr
-                    .to_lowercase()
-                    .contains(format!("{:x?}", object.as_ptr()).split_at(2).1));
+                assert!(
+                    addr.to_lowercase()
+                        .contains(format!("{:x?}", object.as_ptr()).split_at(2).1)
+                );
             }
             None => {
                 assert_eq!(second_part, "dead>")
@@ -262,9 +266,11 @@ mod tests {
                 #[cfg(not(Py_LIMITED_API))]
                 check_repr(&reference, Some((object.as_any(), "A")))?;
 
-                assert!(reference
-                    .getattr("__callback__")
-                    .is_ok_and(|result| result.is_none()));
+                assert!(
+                    reference
+                        .getattr("__callback__")
+                        .is_ok_and(|result| result.is_none())
+                );
 
                 assert!(reference.call0()?.is(&object));
 
@@ -275,9 +281,11 @@ mod tests {
                 assert_eq!(reference.getattr("__class__")?.to_string(), CLASS_NAME);
                 check_repr(&reference, None)?;
 
-                assert!(reference
-                    .getattr("__callback__")
-                    .is_ok_and(|result| result.is_none()));
+                assert!(
+                    reference
+                        .getattr("__callback__")
+                        .is_ok_and(|result| result.is_none())
+                );
 
                 assert!(reference.call0()?.is_none());
 
@@ -385,7 +393,7 @@ mod tests {
     #[cfg(feature = "macros")]
     mod pyo3_pyclass {
         use super::*;
-        use crate::{pyclass, Py};
+        use crate::{Py, pyclass};
         use core::ptr;
 
         #[pyclass(weakref, crate = "crate")]
@@ -407,9 +415,11 @@ mod tests {
                 #[cfg(not(Py_LIMITED_API))]
                 check_repr(&reference, Some((object.as_any(), "WeakrefablePyClass")))?;
 
-                assert!(reference
-                    .getattr("__callback__")
-                    .is_ok_and(|result| result.is_none()));
+                assert!(
+                    reference
+                        .getattr("__callback__")
+                        .is_ok_and(|result| result.is_none())
+                );
 
                 assert!(reference.call0()?.is(&object));
 
@@ -420,9 +430,11 @@ mod tests {
                 assert_eq!(reference.getattr("__class__")?.to_string(), CLASS_NAME);
                 check_repr(&reference, None)?;
 
-                assert!(reference
-                    .getattr("__callback__")
-                    .is_ok_and(|result| result.is_none()));
+                assert!(
+                    reference
+                        .getattr("__callback__")
+                        .is_ok_and(|result| result.is_none())
+                );
 
                 assert!(reference.call0()?.is_none());
 

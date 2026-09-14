@@ -8,13 +8,13 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyIterator, PyList};
-use crate::{ffi, Python};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
+use crate::{Python, ffi};
 
 /// Represents a Python `mappingproxy`.
 #[repr(transparent)]
@@ -151,12 +151,12 @@ impl<'py> Iterator for BoundMappingProxyIterator<'py, '_> {
 mod tests {
 
     use super::*;
-    use crate::platform::prelude::*;
+    use crate::Python;
     use crate::platform::HashMap;
+    use crate::platform::prelude::*;
     use crate::types::dict::*;
     #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     use crate::types::{PyDictItems, PyDictKeys, PyDictValues};
-    use crate::Python;
     use crate::{
         exceptions::PyKeyError,
         types::{PyInt, PyTuple},
@@ -177,10 +177,12 @@ mod tests {
                     .extract::<i32>()
                     .unwrap()
             );
-            assert!(mappingproxy
-                .get_item(8i32)
-                .unwrap_err()
-                .is_instance_of::<PyKeyError>(py));
+            assert!(
+                mappingproxy
+                    .get_item(8i32)
+                    .unwrap_err()
+                    .is_instance_of::<PyKeyError>(py)
+            );
         });
     }
 
@@ -225,10 +227,12 @@ mod tests {
                     .extract::<i32>()
                     .unwrap()
             );
-            assert!(mappingproxy
-                .get_item(8i32)
-                .unwrap_err()
-                .is_instance_of::<PyKeyError>(py));
+            assert!(
+                mappingproxy
+                    .get_item(8i32)
+                    .unwrap_err()
+                    .is_instance_of::<PyKeyError>(py)
+            );
         });
     }
 

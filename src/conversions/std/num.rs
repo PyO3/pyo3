@@ -11,13 +11,13 @@ use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
-use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python, exceptions, ffi};
 use core::convert::Infallible;
 use core::ffi::c_long;
 use core::mem::MaybeUninit;
 use core::num::{
-    NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
-    NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize, NonZeroU8,
+    NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
 };
 
 use super::array::invalid_sequence_length;
@@ -260,13 +260,13 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
         obj: Borrowed<'_, 'py, PyAny>,
         _: crate::conversion::private::Token,
     ) -> Option<impl FromPyObjectSequence<Target = u8>> {
-        match obj.cast::<PyBytes>() { Ok(bytes) => {
-            Some(BytesSequenceExtractor::Bytes(bytes))
-        } _ => { match obj.cast::<PyByteArray>() { Ok(byte_array) => {
-            Some(BytesSequenceExtractor::ByteArray(byte_array))
-        } _ => {
-            None
-        }}}}
+        match obj.cast::<PyBytes>() {
+            Ok(bytes) => Some(BytesSequenceExtractor::Bytes(bytes)),
+            _ => match obj.cast::<PyByteArray>() {
+                Ok(byte_array) => Some(BytesSequenceExtractor::ByteArray(byte_array)),
+                _ => None,
+            },
+        }
     }
 }
 

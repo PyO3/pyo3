@@ -243,8 +243,8 @@ mod inheriting_native_type {
     use {
         pyo3::types::{PyCapsule, PyDict},
         std::sync::{
-            atomic::{AtomicBool, Ordering},
             Arc,
+            atomic::{AtomicBool, Ordering},
         },
     };
 

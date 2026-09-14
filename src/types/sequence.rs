@@ -1,14 +1,14 @@
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::instance::Bound;
 use crate::internal_tricks::get_ssize_index;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
-use crate::types::{any::PyAnyMethods, PyAny, PyList, PyTuple, PyType, PyTypeMethods};
-use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python};
+use crate::types::{PyAny, PyList, PyTuple, PyType, PyTypeMethods, any::PyAnyMethods};
+use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python, ffi};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 ///
@@ -680,11 +680,12 @@ mod tests {
             let v = vec!["foo", "bar"];
             let ob = (&v).into_pyobject(py).unwrap();
             let seq = ob.cast::<PySequence>().unwrap();
-            assert!(seq
-                .to_list()
-                .unwrap()
-                .eq(PyList::new(py, &v).unwrap())
-                .unwrap());
+            assert!(
+                seq.to_list()
+                    .unwrap()
+                    .eq(PyList::new(py, &v).unwrap())
+                    .unwrap()
+            );
         });
     }
 
@@ -694,11 +695,12 @@ mod tests {
             let v = "foo";
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.cast::<PySequence>().unwrap();
-            assert!(seq
-                .to_list()
-                .unwrap()
-                .eq(PyList::new(py, ["f", "o", "o"]).unwrap())
-                .unwrap());
+            assert!(
+                seq.to_list()
+                    .unwrap()
+                    .eq(PyList::new(py, ["f", "o", "o"]).unwrap())
+                    .unwrap()
+            );
         });
     }
 
@@ -708,11 +710,12 @@ mod tests {
             let v = ("foo", "bar");
             let ob = v.into_pyobject(py).unwrap();
             let seq = ob.cast::<PySequence>().unwrap();
-            assert!(seq
-                .to_tuple()
-                .unwrap()
-                .eq(PyTuple::new(py, ["foo", "bar"]).unwrap())
-                .unwrap());
+            assert!(
+                seq.to_tuple()
+                    .unwrap()
+                    .eq(PyTuple::new(py, ["foo", "bar"]).unwrap())
+                    .unwrap()
+            );
         });
     }
 
@@ -722,11 +725,12 @@ mod tests {
             let v = vec!["foo", "bar"];
             let ob = (&v).into_pyobject(py).unwrap();
             let seq = ob.cast::<PySequence>().unwrap();
-            assert!(seq
-                .to_tuple()
-                .unwrap()
-                .eq(PyTuple::new(py, &v).unwrap())
-                .unwrap());
+            assert!(
+                seq.to_tuple()
+                    .unwrap()
+                    .eq(PyTuple::new(py, &v).unwrap())
+                    .unwrap()
+            );
         });
     }
 

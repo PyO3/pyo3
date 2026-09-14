@@ -1,4 +1,4 @@
-use crate::{PyObject, Py_ssize_t};
+use crate::{Py_ssize_t, PyObject};
 use core::ffi::{c_char, c_int, c_long};
 use libc::FILE;
 

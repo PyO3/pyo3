@@ -21,10 +21,10 @@
 
 //! `PyBuffer` implementation
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::platform::prelude::*;
-use crate::{err, exceptions::PyBufferError, ffi, FromPyObject, PyAny, PyResult, Python};
 use crate::{Borrowed, Bound, PyErr};
+use crate::{FromPyObject, PyAny, PyResult, Python, err, exceptions::PyBufferError, ffi};
 use core::ffi::{
     c_char, c_int, c_long, c_longlong, c_schar, c_short, c_uchar, c_uint, c_ulong, c_ulonglong,
     c_ushort, c_void,
@@ -733,7 +733,7 @@ impl PyUntypedBuffer {
     }
 
     fn raw(&self) -> &ffi::Py_buffer {
-        &self.0 .0
+        &self.0.0
     }
 }
 
@@ -764,7 +764,9 @@ impl Drop for PyUntypedBuffer {
         // TODO remove once implementing GC traversal is unsafe
         #[cfg(wip_feature_std)]
         if !released && crate::internal::state::is_in_gc_traversal() {
-            std::eprintln!("Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory.");
+            std::eprintln!(
+                "Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory."
+            );
         }
 
         // If `try_attach` failed and `is_in_gc_traversal()` is false, then probably the interpreter has
@@ -827,10 +829,10 @@ impl_element!(f64, Float);
 mod tests {
     use super::*;
 
-    use crate::ffi;
-    use crate::types::any::PyAnyMethods;
-    use crate::types::PyBytes;
     use crate::Python;
+    use crate::ffi;
+    use crate::types::PyBytes;
+    use crate::types::any::PyAnyMethods;
 
     #[cfg(feature = "experimental-inspect")]
     #[test]

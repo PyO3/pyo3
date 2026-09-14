@@ -49,9 +49,9 @@ extern_libpython! {
 }
 
 #[inline]
-pub unsafe fn PyThreadState_GET() -> *mut PyThreadState { unsafe {
-    PyThreadState_Get()
-}}
+pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
+    unsafe { PyThreadState_Get() }
+}
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyThreadState_Swap")]

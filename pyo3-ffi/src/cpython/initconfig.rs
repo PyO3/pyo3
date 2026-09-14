@@ -1,8 +1,8 @@
 /* --- PyStatus ----------------------------------------------- */
 
+use crate::Py_ssize_t;
 #[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
 use crate::PyObject;
-use crate::Py_ssize_t;
 use core::ffi::{c_char, c_int, c_ulong};
 use libc::wchar_t;
 

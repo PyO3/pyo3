@@ -62,7 +62,7 @@ pub use self::compile::*;
 pub use self::complexobject::*;
 pub use self::context::*;
 #[cfg(all(Py_3_14, Py_GIL_DISABLED))]
-pub use self::critical_section::{PyCriticalSection2_BeginMutex, PyCriticalSection_BeginMutex};
+pub use self::critical_section::{PyCriticalSection_BeginMutex, PyCriticalSection2_BeginMutex};
 pub use self::descrobject::*;
 pub use self::dictobject::*;
 pub use self::floatobject::*;

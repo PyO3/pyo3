@@ -8,11 +8,11 @@ use crate::inspect::PyStaticExpr;
 use crate::sync::PyOnceLock;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
-#[cfg(wip_feature_std)]
-use crate::types::any::PyAnyMethods;
 use crate::types::PyDelta;
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::PyDeltaAccess;
+#[cfg(wip_feature_std)]
+use crate::types::any::PyAnyMethods;
 #[cfg(wip_feature_std)]
 use crate::types::{PyDateTime, PyTzInfo};
 use crate::{Borrowed, Bound, FromPyObject, PyAny, PyErr, Python};

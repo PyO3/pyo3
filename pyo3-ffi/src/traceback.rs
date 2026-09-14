@@ -18,6 +18,6 @@ extern_libpython! {
 
 #[inline]
 #[cfg(not(any(PyPy, RustPython)))]
-pub unsafe fn PyTraceBack_Check(op: *mut PyObject) -> c_int { unsafe {
-    Py_IS_TYPE(op, &raw mut PyTraceBack_Type)
-}}
+pub unsafe fn PyTraceBack_Check(op: *mut PyObject) -> c_int {
+    unsafe { Py_IS_TYPE(op, &raw mut PyTraceBack_Type) }
+}

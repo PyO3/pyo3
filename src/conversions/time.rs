@@ -60,9 +60,9 @@ use crate::types::datetime::{PyDateAccess, PyDeltaAccess};
 use crate::types::{PyAnyMethods, PyDate, PyDateTime, PyDelta, PyNone, PyTime, PyTzInfo};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyTimeAccess, PyTzInfoAccess};
-#[cfg(feature = "experimental-inspect")]
-use crate::{type_hint_identifier, PyTypeInfo};
 use crate::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
+#[cfg(feature = "experimental-inspect")]
+use crate::{PyTypeInfo, type_hint_identifier};
 use time::{
     Date, Duration, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcDateTime, UtcOffset,
 };
@@ -595,8 +595,8 @@ impl_into_py_for_ref!(UtcDateTime, PyDateTime);
 mod tests {
     use super::*;
     use crate::intern;
-    use crate::types::any::PyAnyMethods;
     use crate::types::PyTypeMethods;
+    use crate::types::any::PyAnyMethods;
 
     mod utils {
         use super::*;

@@ -2,19 +2,19 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 
 use crate::platform::prelude::*;
-use crate::platform::sync::non_poison::Mutex;
 use crate::platform::sync::Once;
+use crate::platform::sync::non_poison::Mutex;
 use crate::platform::thread::{self, ThreadId};
 
 use core::cell::UnsafeCell;
 
 use crate::sync::MutexExt;
 use crate::{
+    Bound, Py, PyAny, PyErrArguments, PyTypeInfo, Python,
     exceptions::{PyBaseException, PyTypeError},
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     types::{PyAnyMethods, PyTraceback, PyType},
-    Bound, Py, PyAny, PyErrArguments, PyTypeInfo, Python,
 };
 
 pub(crate) struct PyErrState {
@@ -406,7 +406,7 @@ mod tests {
     #[allow(unused_imports, reason = "conditionally used")]
     use crate::platform::prelude::*;
     use crate::{
-        exceptions::PyValueError, sync::PyOnceLock, Py, PyAny, PyErr, PyErrArguments, Python,
+        Py, PyAny, PyErr, PyErrArguments, Python, exceptions::PyValueError, sync::PyOnceLock,
     };
 
     // import a few things from std without leaking any imports
@@ -478,10 +478,11 @@ mod tests {
         // We should never have deadlocked, and should be able to run
         // this assertion
         Python::attach(|py| {
-            assert!(ERR
-                .get(py)
-                .expect("is set above")
-                .is_instance_of::<PyValueError>(py))
+            assert!(
+                ERR.get(py)
+                    .expect("is set above")
+                    .is_instance_of::<PyValueError>(py)
+            )
         });
     }
 }

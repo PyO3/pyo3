@@ -3,8 +3,8 @@ use std::ffi::CString;
 use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
-use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
+use quote::{ToTokens, quote, quote_spanned};
+use syn::{Ident, Result, ext::IdentExt, spanned::Spanned};
 use syn::{LitCStr, ReceiverKind};
 
 use crate::params::is_forwarded_args;
@@ -14,7 +14,7 @@ use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::utils::Ctx;
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
-    params::{impl_arg_params, Holders},
+    params::{Holders, impl_arg_params},
     pyfunction::{
         FunctionSignature, PyFunctionArgPyO3Attributes, PyFunctionOptions, SignatureAttribute,
     },
@@ -713,8 +713,14 @@ impl<'a> FnSpec<'a> {
                 set_name_to_new()?;
                 FnType::FnStatic
             }
-            [MethodTypeAttribute::New(_), MethodTypeAttribute::ClassMethod(span)]
-            | [MethodTypeAttribute::ClassMethod(span), MethodTypeAttribute::New(_)] => {
+            [
+                MethodTypeAttribute::New(_),
+                MethodTypeAttribute::ClassMethod(span),
+            ]
+            | [
+                MethodTypeAttribute::ClassMethod(span),
+                MethodTypeAttribute::New(_),
+            ] => {
                 set_name_to_new()?;
                 FnType::FnClass(*span)
             }
@@ -1107,7 +1113,7 @@ impl<'a> FnSpec<'a> {
         let self_argument = match &self.tp {
             // Getters / Setters / deleter / ClassAttribute are not callables on the Python side
             FnType::Getter(_) | FnType::Setter(_) | FnType::Deleter(_) | FnType::ClassAttribute => {
-                return None
+                return None;
             }
             FnType::Fn(_) => Some("self"),
             FnType::FnModule(_) => Some("module"),

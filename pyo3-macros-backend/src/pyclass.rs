@@ -2,17 +2,18 @@ use std::borrow::Cow;
 use std::fmt::Debug;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, ImplItemFn, Result, Token};
+use syn::{ImplItemFn, Result, Token, parse_quote, parse_quote_spanned, spanned::Spanned};
 
+use crate::PyFunctionOptions;
 use crate::attributes::kw::frozen;
 use crate::attributes::{
-    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, NewImplTypeAttribute, NewImplTypeAttributeValue,
-    RenameAllAttribute, StrFormatterAttribute,
+    self, CrateAttribute, ExtendsAttribute, FreelistAttribute, ModuleAttribute, NameAttribute,
+    NameLitStr, NewImplTypeAttribute, NewImplTypeAttributeValue, RenameAllAttribute,
+    StrFormatterAttribute, kw, take_pyo3_options,
 };
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
@@ -27,16 +28,15 @@ use crate::py_expr::PyExpr;
 use crate::pyfunction::{ConstructorAttribute, FunctionSignature};
 #[cfg(feature = "experimental-inspect")]
 use crate::pyimpl::method_introspection_code;
-use crate::pyimpl::{gen_py_const, get_cfg_attributes, PyClassMethodsType};
+use crate::pyimpl::{PyClassMethodsType, gen_py_const, get_cfg_attributes};
 #[cfg(feature = "experimental-inspect")]
 use crate::pymethod::field_python_name;
 use crate::pymethod::{
-    impl_py_class_attribute, impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef,
-    MethodAndSlotDef, PropertyType, SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __NEW__,
-    __REPR__, __RICHCMP__, __STR__,
+    __GETITEM__, __HASH__, __INT__, __LEN__, __NEW__, __REPR__, __RICHCMP__, __STR__,
+    MethodAndMethodDef, MethodAndSlotDef, PropertyType, SlotDef, impl_py_class_attribute,
+    impl_py_getter_def, impl_py_setter_def,
 };
-use crate::utils::{self, apply_renaming_rule, get_doc, locate_tokens_at, Ctx, PythonDoc};
-use crate::PyFunctionOptions;
+use crate::utils::{self, Ctx, PythonDoc, apply_renaming_rule, get_doc, locate_tokens_at};
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

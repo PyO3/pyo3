@@ -2,12 +2,12 @@ use super::PyWeakrefMethods;
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, type_hint_union, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier, type_hint_union};
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeCheck;
 use crate::types::any::PyAny;
-use crate::{ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python};
+use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python, ffi};
 
 /// Represents any Python `weakref` Proxy type.
 ///
@@ -168,7 +168,9 @@ impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakrefProxy> {
     fn upgrade(&self) -> Option<Bound<'py, PyAny>> {
         let mut obj: *mut ffi::PyObject = core::ptr::null_mut();
         match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
-            core::ffi::c_int::MIN..=-1 => panic!("The 'weakref.ProxyType' (or `weakref.CallableProxyType`) instance should be valid (non-null and actually a weakref reference)"),
+            core::ffi::c_int::MIN..=-1 => panic!(
+                "The 'weakref.ProxyType' (or `weakref.CallableProxyType`) instance should be valid (non-null and actually a weakref reference)"
+            ),
             0 => None,
             1..=core::ffi::c_int::MAX => Some(unsafe { obj.assume_owned_unchecked(self.py()) }),
         }
@@ -205,9 +207,10 @@ mod tests {
             let (msg, addr) = first_part.split_once("0x").unwrap();
 
             assert_eq!(msg, "<weakproxy at ");
-            assert!(addr
-                .to_lowercase()
-                .contains(format!("{:x?}", reference.as_ptr()).split_at(2).1));
+            assert!(
+                addr.to_lowercase()
+                    .contains(format!("{:x?}", reference.as_ptr()).split_at(2).1)
+            );
         }
 
         if let Some(class) = class.or(DEADREF_FIX) {
@@ -219,9 +222,10 @@ mod tests {
             assert!(msg.contains(class));
             assert!(msg.ends_with(" at "));
 
-            assert!(addr
-                .to_lowercase()
-                .contains(format!("{:x?}", object.as_ptr()).split_at(2).1));
+            assert!(
+                addr.to_lowercase()
+                    .contains(format!("{:x?}", object.as_ptr()).split_at(2).1)
+            );
         } else {
             assert!(second_part.contains("dead"));
         }
@@ -239,9 +243,9 @@ mod tests {
 
         mod python_class {
             use super::*;
+            use crate::PyTypeCheck;
             #[cfg(Py_3_10)]
             use crate::types::PyInt;
-            use crate::PyTypeCheck;
             use crate::{py_result_ext::PyResultExt, types::PyDict, types::PyType};
             use core::ptr;
 
@@ -271,10 +275,12 @@ mod tests {
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, &object, Some("A"))?;
 
-                    assert!(reference
-                        .getattr("__callback__")
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyAttributeError>(py)));
+                    assert!(
+                        reference
+                            .getattr("__callback__")
+                            .err()
+                            .is_some_and(|err| err.is_instance_of::<PyAttributeError>(py))
+                    );
 
                     assert!(reference.call0().err().is_some_and(|err| {
                         let result = err.is_instance_of::<PyTypeError>(py);
@@ -288,17 +294,21 @@ mod tests {
                     drop(object);
 
                     assert!(reference.upgrade().is_none());
-                    assert!(reference
-                        .getattr("__class__")
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
+                    assert!(
+                        reference
+                            .getattr("__class__")
+                            .err()
+                            .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py))
+                    );
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, py.None().bind(py), None)?;
 
-                    assert!(reference
-                        .getattr("__callback__")
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
+                    assert!(
+                        reference
+                            .getattr("__callback__")
+                            .err()
+                            .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py))
+                    );
 
                     assert!(reference.call0().err().is_some_and(|err| {
                         let result = err.is_instance_of::<PyTypeError>(py);
@@ -443,7 +453,7 @@ mod tests {
         #[cfg(feature = "macros")]
         mod pyo3_pyclass {
             use super::*;
-            use crate::{pyclass, Py};
+            use crate::{Py, pyclass};
             use core::ptr;
 
             #[pyclass(weakref, crate = "crate")]
@@ -471,10 +481,12 @@ mod tests {
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, object.as_any(), Some("WeakrefablePyClass"))?;
 
-                    assert!(reference
-                        .getattr("__callback__")
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyAttributeError>(py)));
+                    assert!(
+                        reference
+                            .getattr("__callback__")
+                            .err()
+                            .is_some_and(|err| err.is_instance_of::<PyAttributeError>(py))
+                    );
 
                     assert!(reference.call0().err().is_some_and(|err| {
                         let result = err.is_instance_of::<PyTypeError>(py);
@@ -488,17 +500,21 @@ mod tests {
                     drop(object);
 
                     assert!(reference.upgrade().is_none());
-                    assert!(reference
-                        .getattr("__class__")
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
+                    assert!(
+                        reference
+                            .getattr("__class__")
+                            .err()
+                            .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py))
+                    );
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, py.None().bind(py), None)?;
 
-                    assert!(reference
-                        .getattr("__callback__")
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
+                    assert!(
+                        reference
+                            .getattr("__callback__")
+                            .err()
+                            .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py))
+                    );
 
                     assert!(reference.call0().err().is_some_and(|err| {
                         let result = err.is_instance_of::<PyTypeError>(py);
@@ -628,34 +644,39 @@ mod tests {
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, &object, Some("A"))?;
 
-                    assert!(reference
-                        .getattr("__callback__")
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyAttributeError>(py)));
+                    assert!(
+                        reference
+                            .getattr("__callback__")
+                            .err()
+                            .is_some_and(|err| err.is_instance_of::<PyAttributeError>(py))
+                    );
 
                     assert_eq!(reference.call0()?.to_string(), "This class is callable!");
 
                     drop(object);
 
                     assert!(reference.upgrade().is_none());
-                    assert!(reference
-                        .getattr("__class__")
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
+                    assert!(
+                        reference
+                            .getattr("__class__")
+                            .err()
+                            .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py))
+                    );
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, py.None().bind(py), None)?;
 
-                    assert!(reference
-                        .getattr("__callback__")
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
+                    assert!(
+                        reference
+                            .getattr("__callback__")
+                            .err()
+                            .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py))
+                    );
 
-                    assert!(reference
-                        .call0()
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)
+                    assert!(reference.call0().err().is_some_and(|err| {
+                        err.is_instance_of::<PyReferenceError>(py)
                             & (err.value(py).to_string()
-                                == "weakly-referenced object no longer exists")));
+                                == "weakly-referenced object no longer exists")
+                    }));
 
                     Ok(())
                 })
@@ -759,7 +780,7 @@ mod tests {
         #[cfg(feature = "macros")]
         mod pyo3_pyclass {
             use super::*;
-            use crate::{pyclass, pymethods, Py};
+            use crate::{Py, pyclass, pymethods};
             use core::ptr;
 
             #[pyclass(weakref, crate = "crate")]
@@ -791,34 +812,39 @@ mod tests {
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, object.as_any(), Some("WeakrefablePyClass"))?;
 
-                    assert!(reference
-                        .getattr("__callback__")
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyAttributeError>(py)));
+                    assert!(
+                        reference
+                            .getattr("__callback__")
+                            .err()
+                            .is_some_and(|err| err.is_instance_of::<PyAttributeError>(py))
+                    );
 
                     assert_eq!(reference.call0()?.to_string(), "This class is callable!");
 
                     drop(object);
 
                     assert!(reference.upgrade().is_none());
-                    assert!(reference
-                        .getattr("__class__")
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
+                    assert!(
+                        reference
+                            .getattr("__class__")
+                            .err()
+                            .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py))
+                    );
                     #[cfg(not(Py_LIMITED_API))]
                     check_repr(&reference, py.None().bind(py), None)?;
 
-                    assert!(reference
-                        .getattr("__callback__")
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)));
+                    assert!(
+                        reference
+                            .getattr("__callback__")
+                            .err()
+                            .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py))
+                    );
 
-                    assert!(reference
-                        .call0()
-                        .err()
-                        .is_some_and(|err| err.is_instance_of::<PyReferenceError>(py)
+                    assert!(reference.call0().err().is_some_and(|err| {
+                        err.is_instance_of::<PyReferenceError>(py)
                             & (err.value(py).to_string()
-                                == "weakly-referenced object no longer exists")));
+                                == "weakly-referenced object no longer exists")
+                    }));
 
                     Ok(())
                 })

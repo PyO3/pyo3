@@ -152,9 +152,9 @@ impl FromPyObject<'_, '_> for CString {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::string::PyStringMethods;
-    use crate::types::PyAnyMethods;
     use crate::Python;
+    use crate::types::PyAnyMethods;
+    use crate::types::string::PyStringMethods;
 
     #[test]
     fn test_into_pyobject() {

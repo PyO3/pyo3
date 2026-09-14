@@ -33,27 +33,29 @@ extern_libpython! {
 #[inline]
 #[cfg(not(any(PyPy, RustPython)))]
 #[cfg(not(RustPython))]
-pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int { unsafe {
-    PyObject_TypeCheck(op, &raw mut _PyWeakref_RefType)
-}}
+pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
+    unsafe { PyObject_TypeCheck(op, &raw mut _PyWeakref_RefType) }
+}
 
 #[inline]
 #[cfg(not(any(PyPy, RustPython)))]
-pub unsafe fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int { unsafe {
-    Py_IS_TYPE(op, &raw mut _PyWeakref_RefType)
-}}
+pub unsafe fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int {
+    unsafe { Py_IS_TYPE(op, &raw mut _PyWeakref_RefType) }
+}
 
 #[inline]
 #[cfg(not(any(PyPy, RustPython)))]
-pub unsafe fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int { unsafe {
-    (Py_IS_TYPE(op, &raw mut _PyWeakref_ProxyType) > 0
-        || Py_IS_TYPE(op, &raw mut _PyWeakref_CallableProxyType) > 0) as c_int
-}}
+pub unsafe fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int {
+    unsafe {
+        (Py_IS_TYPE(op, &raw mut _PyWeakref_ProxyType) > 0
+            || Py_IS_TYPE(op, &raw mut _PyWeakref_CallableProxyType) > 0) as c_int
+    }
+}
 
 #[inline]
-pub unsafe fn PyWeakref_Check(op: *mut PyObject) -> c_int { unsafe {
-    (PyWeakref_CheckRef(op) != 0 || PyWeakref_CheckProxy(op) != 0) as c_int
-}}
+pub unsafe fn PyWeakref_Check(op: *mut PyObject) -> c_int {
+    unsafe { (PyWeakref_CheckRef(op) != 0 || PyWeakref_CheckProxy(op) != 0) as c_int }
+}
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyWeakref_NewRef")]

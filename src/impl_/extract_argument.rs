@@ -5,18 +5,18 @@ use crate::platform::prelude::*;
 use core::ptr::NonNull;
 
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_union, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_union};
 #[cfg(feature = "experimental-inspect")]
 use crate::types::PyNone;
 #[cfg(any(Py_3_10, not(Py_LIMITED_API), feature = "experimental-inspect"))]
 use crate::types::PyString;
 use crate::{
+    Borrowed, Bound, CastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr,
+    PyResult, PyTypeCheck, Python,
     exceptions::PyTypeError,
     ffi,
     pyclass::boolean_struct::False,
-    types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
-    Borrowed, Bound, CastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr,
-    PyResult, PyTypeCheck, Python,
+    types::{PyDict, PyTuple, any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods},
 };
 
 /// Helper type used to keep implementation more concise.
@@ -29,8 +29,8 @@ type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
 /// The public API is `FromPyObject`.
 mod function_argument {
     use crate::{
-        impl_::extract_argument::PyFunctionArgument, pyclass::boolean_struct::False, FromPyObject,
-        PyClass, PyTypeCheck,
+        FromPyObject, PyClass, PyTypeCheck, impl_::extract_argument::PyFunctionArgument,
+        pyclass::boolean_struct::False,
     };
 
     pub trait Sealed<const IMPLEMENTS_FROMPYOBJECT: bool> {}
@@ -1086,11 +1086,11 @@ fn push_parameter_list(msg: &mut String, parameter_names: &[&str]) {
 
 #[cfg(test)]
 mod tests {
+    use crate::Python;
     use crate::platform::prelude::*;
     use crate::types::{IntoPyDict, PyTuple};
-    use crate::Python;
 
-    use super::{push_parameter_list, FunctionDescription, NoVarargs, NoVarkeywords};
+    use super::{FunctionDescription, NoVarargs, NoVarkeywords, push_parameter_list};
 
     #[test]
     fn unexpected_keyword_argument() {

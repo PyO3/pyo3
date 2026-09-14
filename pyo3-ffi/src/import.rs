@@ -64,9 +64,9 @@ pub unsafe fn PyImport_ImportModuleEx(
     globals: *mut PyObject,
     locals: *mut PyObject,
     fromlist: *mut PyObject,
-) -> *mut PyObject { unsafe {
-    PyImport_ImportModuleLevel(name, globals, locals, fromlist, 0)
-}}
+) -> *mut PyObject {
+    unsafe { PyImport_ImportModuleLevel(name, globals, locals, fromlist, 0) }
+}
 
 extern_libpython! {
     pub fn PyImport_GetImporter(path: *mut PyObject) -> *mut PyObject;

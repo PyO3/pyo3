@@ -4,7 +4,7 @@ use core::{
     num::NonZero,
 };
 
-use crate::{ffi, Py};
+use crate::{Py, ffi};
 
 /// Error returned by a `__traverse__` visitor implementation.
 #[repr(transparent)]

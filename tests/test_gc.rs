@@ -15,9 +15,9 @@ use pyo3::py_run;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 #[cfg(wip_feature_std)]
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 #[cfg(wip_feature_std)]
 use std::sync::{Mutex, Once};
 

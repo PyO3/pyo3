@@ -13,9 +13,10 @@ mod impl_;
 use std::{env, process::Command, str::FromStr, sync::LazyLock};
 
 pub use impl_::{
-    cross_compiling_from_to, find_all_sysconfigdata, parse_sysconfigdata, BuildFlag, BuildFlags,
-    CrossCompileConfig, GilUsed, InterpreterConfig, InterpreterConfigBuilder, PythonAbi,
-    PythonAbiBuilder, PythonAbiKind, PythonImplementation, PythonVersion, StableAbi, Triple,
+    BuildFlag, BuildFlags, CrossCompileConfig, GilUsed, InterpreterConfig,
+    InterpreterConfigBuilder, PythonAbi, PythonAbiBuilder, PythonAbiKind, PythonImplementation,
+    PythonVersion, StableAbi, Triple, cross_compiling_from_to, find_all_sysconfigdata,
+    parse_sysconfigdata,
 };
 
 use target_lexicon::{Architecture, OperatingSystem};
@@ -185,8 +186,8 @@ pub mod pyo3_build_script_impl {
         pub use crate::errors::*;
     }
     pub use crate::impl_::{
-        cargo_env_var, env_var, is_linking_libpython_for_target, target_triple_from_env,
-        InterpreterConfig, PythonAbi, PythonAbiKind, PythonVersion, StableAbi,
+        InterpreterConfig, PythonAbi, PythonAbiKind, PythonVersion, StableAbi, cargo_env_var,
+        env_var, is_linking_libpython_for_target, target_triple_from_env,
     };
 
     pub enum BuildConfigSource {
@@ -423,9 +424,12 @@ mod tests {
         );
         error.add_help("this is a help message");
         let error = error.finish();
-        let expected = concat!("\
+        let expected = concat!(
+            "\
             the configured Python version (3.13) is newer than PyO3's maximum supported version (3.12)\n\
-            = help: this package is being built with PyO3 version ", env!("CARGO_PKG_VERSION"), "\n\
+            = help: this package is being built with PyO3 version ",
+            env!("CARGO_PKG_VERSION"),
+            "\n\
             = help: check https://crates.io/crates/pyo3 for the latest PyO3 version available\n\
             = help: updating this package to the latest version of PyO3 may provide compatibility with this Python version\n\
             = help: this is a help message"

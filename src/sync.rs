@@ -11,10 +11,10 @@
 //! This module provides synchronization primitives which are able to synchronize under these conditions.
 use crate::platform::sync::Once;
 use crate::{
+    Bound, Py, Python,
     internal::state::SuspendAttach,
     sealed::Sealed,
     types::{PyAny, PyString},
-    Bound, Py, Python,
 };
 use core::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit};
 
@@ -433,7 +433,7 @@ impl<T> MutexExt<T> for std::sync::Mutex<T> {
         match self.try_lock() {
             Ok(inner) => return Ok(inner),
             Err(std::sync::TryLockError::Poisoned(inner)) => {
-                return std::sync::LockResult::Err(inner)
+                return std::sync::LockResult::Err(inner);
             }
             Err(std::sync::TryLockError::WouldBlock) => {}
         }
@@ -565,7 +565,7 @@ impl<T> RwLockExt<T> for std::sync::RwLock<T> {
         match self.try_read() {
             Ok(inner) => return Ok(inner),
             Err(std::sync::TryLockError::Poisoned(inner)) => {
-                return std::sync::LockResult::Err(inner)
+                return std::sync::LockResult::Err(inner);
             }
             Err(std::sync::TryLockError::WouldBlock) => {}
         }
@@ -588,7 +588,7 @@ impl<T> RwLockExt<T> for std::sync::RwLock<T> {
         match self.try_write() {
             Ok(inner) => return Ok(inner),
             Err(std::sync::TryLockError::Poisoned(inner)) => {
-                return std::sync::LockResult::Err(inner)
+                return std::sync::LockResult::Err(inner);
             }
             Err(std::sync::TryLockError::WouldBlock) => {}
         }

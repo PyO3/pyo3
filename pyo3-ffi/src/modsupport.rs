@@ -89,16 +89,18 @@ extern_libpython! {
 }
 
 #[inline]
-pub unsafe fn PyModule_Create(module: *mut PyModuleDef) -> *mut PyObject { unsafe {
-    PyModule_Create2(
-        module,
-        if cfg!(Py_LIMITED_API) {
-            PYTHON_ABI_VERSION
-        } else {
-            PYTHON_API_VERSION
-        },
-    )
-}}
+pub unsafe fn PyModule_Create(module: *mut PyModuleDef) -> *mut PyObject {
+    unsafe {
+        PyModule_Create2(
+            module,
+            if cfg!(Py_LIMITED_API) {
+                PYTHON_ABI_VERSION
+            } else {
+                PYTHON_API_VERSION
+            },
+        )
+    }
+}
 
 extern_libpython! {
 
@@ -112,17 +114,19 @@ extern_libpython! {
 }
 
 #[inline]
-pub unsafe fn PyModule_FromDefAndSpec(def: *mut PyModuleDef, spec: *mut PyObject) -> *mut PyObject { unsafe {
-    PyModule_FromDefAndSpec2(
-        def,
-        spec,
-        if cfg!(Py_LIMITED_API) {
-            PYTHON_ABI_VERSION
-        } else {
-            PYTHON_API_VERSION
-        },
-    )
-}}
+pub unsafe fn PyModule_FromDefAndSpec(def: *mut PyModuleDef, spec: *mut PyObject) -> *mut PyObject {
+    unsafe {
+        PyModule_FromDefAndSpec2(
+            def,
+            spec,
+            if cfg!(Py_LIMITED_API) {
+                PYTHON_ABI_VERSION
+            } else {
+                PYTHON_API_VERSION
+            },
+        )
+    }
+}
 
 #[cfg(Py_3_15)]
 #[repr(C)]

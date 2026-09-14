@@ -4,10 +4,10 @@ use crate::derive_attributes::{ContainerAttributes, FieldAttributes};
 use crate::py_expr::PyExpr;
 use crate::utils::{self, Ctx};
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::spanned::Spanned as _;
-use syn::{parse_quote, DataEnum, DeriveInput, Fields, Ident, Index, Result};
+use syn::{DataEnum, DeriveInput, Fields, Ident, Index, Result, parse_quote};
 
 struct ItemOption(Option<syn::Lit>);
 

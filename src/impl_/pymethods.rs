@@ -11,18 +11,18 @@ use crate::impl_::panic::PanicTrap;
 use crate::impl_::pyclass::PyClassDict as _;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
-use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
+use crate::internal::get_slot::{TP_BASE, TP_CLEAR, TP_TRAVERSE, get_slot};
 use crate::internal::pyclass_init::PyClassInit;
 use crate::internal::state::ForbidAttaching;
 use crate::pycell::impl_::{PyClassObjectBaseLayout, PyClassObjectLayout};
-use crate::pyclass::gc::{make_traverse_result, PyTraverseError, PyVisit};
+use crate::pyclass::gc::{PyTraverseError, PyVisit, make_traverse_result};
 use crate::types::PyType;
-use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult, Python};
+use crate::{Borrowed, Bound, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult, Python, ffi};
 use core::ffi::CStr;
 use core::ffi::{c_int, c_void};
 use core::fmt;
 use core::panic::AssertUnwindSafe;
-use core::ptr::{null_mut, NonNull};
+use core::ptr::{NonNull, null_mut};
 use std::panic::catch_unwind;
 
 use super::pyclass::PyClassImpl;
@@ -748,7 +748,7 @@ mod tests {
         use super::PyMethodDef;
         use crate::impl_::pyfunction::PyFunctionDef;
         use crate::types::PyAnyMethods;
-        use crate::{ffi, Python};
+        use crate::{Python, ffi};
 
         Python::attach(|py| {
             let def =

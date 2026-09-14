@@ -12,15 +12,15 @@ extern_libpython! {
 
 #[inline]
 #[cfg(not(RustPython))]
-pub unsafe fn PyByteArray_Check(op: *mut PyObject) -> c_int { unsafe {
-    PyObject_TypeCheck(op, &raw mut PyByteArray_Type)
-}}
+pub unsafe fn PyByteArray_Check(op: *mut PyObject) -> c_int {
+    unsafe { PyObject_TypeCheck(op, &raw mut PyByteArray_Type) }
+}
 
 #[inline]
 #[cfg(not(RustPython))]
-pub unsafe fn PyByteArray_CheckExact(op: *mut PyObject) -> c_int { unsafe {
-    Py_IS_TYPE(op, &raw mut PyByteArray_Type)
-}}
+pub unsafe fn PyByteArray_CheckExact(op: *mut PyObject) -> c_int {
+    unsafe { Py_IS_TYPE(op, &raw mut PyByteArray_Type) }
+}
 
 extern_libpython! {
     #[cfg(RustPython)]

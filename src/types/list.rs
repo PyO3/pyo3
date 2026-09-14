@@ -8,13 +8,13 @@ use crate::internal_tricks::get_ssize_index;
 use crate::platform::prelude::*;
 use crate::types::sequence::PySequenceMethods;
 use crate::types::{PySequence, PyTuple};
+use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
-use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python};
 use core::iter::FusedIterator;
 #[cfg(feature = "nightly")]
 use core::num::NonZero;
@@ -111,7 +111,10 @@ impl PyList {
                 Ok::<_, PyErr>(count + 1)
             })?;
 
-        assert_eq!(len, count, "Attempted to create PyList but `elements` was smaller than reported by its `size_hint` implementation.");
+        assert_eq!(
+            len, count,
+            "Attempted to create PyList but `elements` was smaller than reported by its `size_hint` implementation."
+        );
 
         elements.try_for_each(|item| list.append(item?))?;
 
@@ -1205,10 +1208,11 @@ mod tests {
             assert_eq!(sum, 6);
 
             let list = PyList::new(py, ["foo", "bar"]).unwrap();
-            assert!(list
-                .iter()
-                .try_fold(0, |acc, v| PyResult::Ok(acc + v.extract::<usize>()?))
-                .is_err());
+            assert!(
+                list.iter()
+                    .try_fold(0, |acc, v| PyResult::Ok(acc + v.extract::<usize>()?))
+                    .is_err()
+            );
         });
     }
 
@@ -1223,10 +1227,11 @@ mod tests {
             assert_eq!(sum, 6);
 
             let list = PyList::new(py, ["foo", "bar"]).unwrap();
-            assert!(list
-                .iter()
-                .try_rfold(0, |acc, v| PyResult::Ok(acc + v.extract::<usize>()?))
-                .is_err());
+            assert!(
+                list.iter()
+                    .try_rfold(0, |acc, v| PyResult::Ok(acc + v.extract::<usize>()?))
+                    .is_err()
+            );
         });
     }
 

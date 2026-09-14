@@ -1,10 +1,10 @@
 use crate::conversion::{FromPyObjectOwned, FromPyObjectSequence, IntoPyObject};
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_subscript, PyStaticExpr};
-use crate::types::any::PyAnyMethods;
+use crate::inspect::{PyStaticExpr, type_hint_subscript};
 use crate::types::PySequence;
-use crate::{err::CastError, ffi, FromPyObject, PyAny, PyResult, PyTypeInfo, Python};
-use crate::{exceptions, Borrowed, Bound, PyErr};
+use crate::types::any::PyAnyMethods;
+use crate::{Borrowed, Bound, PyErr, exceptions};
+use crate::{FromPyObject, PyAny, PyResult, PyTypeInfo, Python, err::CastError, ffi};
 
 use core::mem::MaybeUninit;
 
@@ -187,11 +187,11 @@ mod tests {
         pub use std::panic::*;
     }
 
+    use crate::{PyResult, Python, types::PyList};
     use crate::{
         conversion::IntoPyObject,
-        types::{any::PyAnyMethods, PyBytes, PyBytesMethods},
+        types::{PyBytes, PyBytesMethods, any::PyAnyMethods},
     };
-    use crate::{types::PyList, PyResult, Python};
 
     #[test]
     #[cfg(panic = "unwind")]

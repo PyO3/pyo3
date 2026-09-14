@@ -71,9 +71,9 @@ extern_libpython! {
 
 #[inline]
 #[cfg(not(PyPy))]
-pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int { unsafe {
-    Py_IS_TYPE(op, &raw mut PyCode_Type)
-}}
+pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
+    unsafe { Py_IS_TYPE(op, &raw mut PyCode_Type) }
+}
 
 extern_libpython! {
     #[cfg(PyPy)]
@@ -162,9 +162,9 @@ pub unsafe extern "C" fn _PyCode_GetExtra(
     code: *mut PyObject,
     index: Py_ssize_t,
     extra: *mut *mut c_void,
-) -> c_int { unsafe {
-    PyUnstable_Code_GetExtra(code, index, extra)
-}}
+) -> c_int {
+    unsafe { PyUnstable_Code_GetExtra(code, index, extra) }
+}
 
 #[deprecated(since = "0.29.0", note = "renamed to PyUnstable_Code_SetExtra")]
 #[inline]
@@ -172,6 +172,6 @@ pub unsafe extern "C" fn _PyCode_SetExtra(
     code: *mut PyObject,
     index: Py_ssize_t,
     extra: *mut c_void,
-) -> c_int { unsafe {
-    PyUnstable_Code_SetExtra(code, index, extra)
-}}
+) -> c_int {
+    unsafe { PyUnstable_Code_SetExtra(code, index, extra) }
+}

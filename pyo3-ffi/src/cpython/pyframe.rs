@@ -1,6 +1,6 @@
 #[cfg(any(Py_3_11, not(PyPy)))]
 use crate::PyFrameObject;
-use crate::{PyObject, PyTypeObject, Py_IS_TYPE};
+use crate::{Py_IS_TYPE, PyObject, PyTypeObject};
 #[cfg(Py_3_12)]
 use core::ffi::c_char;
 use core::ffi::c_int;
@@ -30,15 +30,15 @@ extern_libpython! {
 }
 
 #[inline]
-pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int { unsafe {
-    Py_IS_TYPE(op, &raw mut PyFrame_Type)
-}}
+pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int {
+    unsafe { Py_IS_TYPE(op, &raw mut PyFrame_Type) }
+}
 
 #[cfg(Py_3_13)]
 #[inline]
-pub unsafe fn PyFrameLocalsProxy_Check(op: *mut PyObject) -> c_int { unsafe {
-    Py_IS_TYPE(op, &raw mut PyFrameLocalsProxy_Type)
-}}
+pub unsafe fn PyFrameLocalsProxy_Check(op: *mut PyObject) -> c_int {
+    unsafe { Py_IS_TYPE(op, &raw mut PyFrameLocalsProxy_Type) }
+}
 
 extern_libpython! {
     #[cfg(not(PyPy))]

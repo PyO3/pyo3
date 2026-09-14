@@ -1,12 +1,12 @@
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_subscript, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_subscript};
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
+    Borrowed, FromPyObject, PyAny, PyErr, Python,
     conversion::{FromPyObjectOwned, IntoPyObject},
     instance::Bound,
-    types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
-    Borrowed, FromPyObject, PyAny, PyErr, Python,
+    types::{PyDict, any::PyAnyMethods, dict::PyDictMethods},
 };
 
 use core::cmp;

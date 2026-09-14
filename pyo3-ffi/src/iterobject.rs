@@ -9,9 +9,9 @@ extern_libpython! {
 
 #[inline]
 #[cfg(not(RustPython))]
-pub unsafe fn PySeqIter_Check(op: *mut PyObject) -> c_int { unsafe {
-    Py_IS_TYPE(op, &raw mut PySeqIter_Type)
-}}
+pub unsafe fn PySeqIter_Check(op: *mut PyObject) -> c_int {
+    unsafe { Py_IS_TYPE(op, &raw mut PySeqIter_Type) }
+}
 
 extern_libpython! {
     #[cfg(RustPython)]
@@ -23,9 +23,9 @@ extern_libpython! {
 
 #[inline]
 #[cfg(not(RustPython))]
-pub unsafe fn PyCallIter_Check(op: *mut PyObject) -> c_int { unsafe {
-    Py_IS_TYPE(op, &raw mut PyCallIter_Type)
-}}
+pub unsafe fn PyCallIter_Check(op: *mut PyObject) -> c_int {
+    unsafe { Py_IS_TYPE(op, &raw mut PyCallIter_Type) }
+}
 
 extern_libpython! {
     #[cfg(RustPython)]

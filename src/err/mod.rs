@@ -13,15 +13,15 @@ use crate::panic::PanicException;
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::PyTypeInfo;
-use crate::types::any::PyAnyMethods;
 #[cfg(Py_3_11)]
 use crate::types::PyString;
+use crate::types::any::PyAnyMethods;
 use crate::types::{
-    string::PyStringMethods, traceback::PyTracebackMethods, typeobject::PyTypeMethods, PyTraceback,
-    PyType,
+    PyTraceback, PyType, string::PyStringMethods, traceback::PyTracebackMethods,
+    typeobject::PyTypeMethods,
 };
-use crate::{exceptions::PyBaseException, ffi};
 use crate::{BoundObject, Py, PyAny, Python};
+use crate::{exceptions::PyBaseException, ffi};
 use core::convert::Infallible;
 use core::ffi::CStr;
 use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
@@ -700,11 +700,14 @@ impl core::fmt::Display for PyErr {
             let value = self.value(py);
             let type_name = value.get_type().qualname().map_err(|_| core::fmt::Error)?;
             write!(f, "{type_name}")?;
-            match value.str() { Ok(s) => {
-                write!(f, ": {}", s.to_string_lossy())
-            } _ => {
-                write!(f, ": <exception str() failed>")
-            }}
+            match value.str() {
+                Ok(s) => {
+                    write!(f, ": {}", s.to_string_lossy())
+                }
+                _ => {
+                    write!(f, ": <exception str() failed>")
+                }
+            }
         })
     }
 }
@@ -803,7 +806,7 @@ impl_signed_integer!(isize);
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
-    use crate::impl_::pyclass::{value_of, IsSend, IsSync};
+    use crate::impl_::pyclass::{IsSend, IsSync, value_of};
     use crate::platform::prelude::*;
     use crate::test_utils::assert_warnings;
     use crate::{PyErr, PyTypeInfo, Python};
@@ -946,12 +949,13 @@ mod tests {
             let err = PyErr::new::<PyValueError, _>("foo");
             assert!(err.matches(py, PyValueError::type_object(py)).unwrap());
 
-            assert!(err
-                .matches(
+            assert!(
+                err.matches(
                     py,
                     (PyValueError::type_object(py), PyTypeError::type_object(py))
                 )
-                .unwrap());
+                .unwrap()
+            );
 
             assert!(!err.matches(py, PyTypeError::type_object(py)).unwrap());
 
@@ -1042,14 +1046,15 @@ mod tests {
                 None,
             )
             .unwrap_err();
-            assert!(err
-                .value(py)
-                .getattr("args")
-                .unwrap()
-                .get_item(0)
-                .unwrap()
-                .eq("I am warning you")
-                .unwrap());
+            assert!(
+                err.value(py)
+                    .getattr("args")
+                    .unwrap()
+                    .get_item(0)
+                    .unwrap()
+                    .eq("I am warning you")
+                    .unwrap()
+            );
 
             // Finally, reset filter again
             warnings.call_method0("resetwarnings").unwrap();

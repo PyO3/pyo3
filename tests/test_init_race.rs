@@ -27,21 +27,23 @@ fn test_concurrent_init_site_race() {
             pyo3::Python::initialize();
         });
 
-        s.spawn(|| loop {
-            let result = pyo3::Python::try_attach(|py| {
-                let done = py
-                    .import("sys")
-                    .unwrap()
-                    .getattr("_pyo3_site_done")
-                    .unwrap()
-                    .extract::<bool>()
-                    .unwrap();
-                assert!(done);
-            });
-            if result.is_some() {
-                break;
+        s.spawn(|| {
+            loop {
+                let result = pyo3::Python::try_attach(|py| {
+                    let done = py
+                        .import("sys")
+                        .unwrap()
+                        .getattr("_pyo3_site_done")
+                        .unwrap()
+                        .extract::<bool>()
+                        .unwrap();
+                    assert!(done);
+                });
+                if result.is_some() {
+                    break;
+                }
+                std::hint::spin_loop();
             }
-            std::hint::spin_loop();
         });
     });
 }

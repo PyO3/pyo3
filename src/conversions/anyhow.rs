@@ -107,8 +107,8 @@
 //! [`RuntimeError`]: https://docs.python.org/3/library/exceptions.html#RuntimeError "Built-in Exceptions — Python documentation"
 //! [Error handling]: https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html "Recoverable Errors with Result - The Rust Programming Language"
 
-use crate::exceptions::PyRuntimeError;
 use crate::PyErr;
+use crate::exceptions::PyRuntimeError;
 
 impl From<anyhow::Error> for PyErr {
     fn from(mut error: anyhow::Error) -> Self {
@@ -130,7 +130,7 @@ mod test_anyhow {
     use crate::prelude::*;
     use crate::types::IntoPyDict;
 
-    use anyhow::{anyhow, bail, Context, Result};
+    use anyhow::{Context, Result, anyhow, bail};
 
     fn f() -> Result<()> {
         use std::io;
