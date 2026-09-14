@@ -5,7 +5,7 @@ use alloc::{
     collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque},
     ffi::CString,
     string::String,
-    sync::{Arc, Weak},
+    sync::Arc,
     vec::Vec,
 };
 use core::{
@@ -440,19 +440,6 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for Arc<T> {
             }
         }
     }
-}
-
-// SAFETY: `Weak<T>` is non-owning and does not keep Python reference cycles alive.
-unsafe impl<T> PyGcTraversable for Weak<T> {
-    const MAY_CONTAIN_CYCLES: bool = false;
-
-    #[inline]
-    fn traverse(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        Ok(())
-    }
-
-    #[inline]
-    fn clear(&mut self) {}
 }
 
 // SAFETY: `Result<T, E>` owns either `T` or `E`; delegating to active variant is sound.
