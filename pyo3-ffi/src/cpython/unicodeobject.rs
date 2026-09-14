@@ -772,7 +772,7 @@ extern_libpython! {
     #[cfg(not(Py_3_11))]
     #[deprecated(note = "use `PyUnicode_AsUnicodeEscapeString` instead")]
     pub fn PyUnicode_EncodeUnicodeEscape(data: *const wchar_t, length: Py_ssize_t)
-        -> *mut PyObject;
+    -> *mut PyObject;
 
     #[cfg(not(Py_3_11))]
     #[deprecated(note = "use `PyUnicode_AsRawUnicodeEscapeString` instead")]

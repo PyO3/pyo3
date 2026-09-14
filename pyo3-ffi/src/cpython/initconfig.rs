@@ -272,7 +272,7 @@ extern_libpython! {
     pub fn PyInitConfig_FreeStrList(length: usize, items: *mut *mut c_char);
 
     pub fn PyInitConfig_SetInt(config: *mut PyInitConfig, name: *const c_char, value: u64)
-        -> c_int;
+    -> c_int;
     pub fn PyInitConfig_SetStr(
         config: *mut PyInitConfig,
         name: *const c_char,

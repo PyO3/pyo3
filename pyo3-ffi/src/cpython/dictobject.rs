@@ -111,7 +111,7 @@ extern_libpython! {
 extern_libpython! {
     #[cfg(Py_3_13)]
     pub fn PyDict_Pop(dict: *mut PyObject, key: *mut PyObject, result: *mut *mut PyObject)
-        -> c_int;
+    -> c_int;
     #[cfg(Py_3_13)]
     pub fn PyDict_PopString(
         dict: *mut PyObject,

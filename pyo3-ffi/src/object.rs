@@ -466,7 +466,7 @@ extern_libpython! {
     ) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_RichCompareBool")]
     pub fn PyObject_RichCompareBool(arg1: *mut PyObject, arg2: *mut PyObject, arg3: c_int)
-        -> c_int;
+    -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyObject_GetAttrString")]
     pub fn PyObject_GetAttrString(arg1: *mut PyObject, arg2: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_SetAttrString")]
@@ -498,7 +498,7 @@ extern_libpython! {
     ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyObject_SetAttr")]
     pub fn PyObject_SetAttr(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject)
-        -> c_int;
+    -> c_int;
     #[cfg(any(Py_3_13, all(PyPy, not(Py_3_11))))] // CPython defined in 3.12 as an inline function in abstract.h
     #[cfg_attr(PyPy, link_name = "PyPyObject_DelAttr")]
     pub fn PyObject_DelAttr(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
@@ -775,5 +775,5 @@ extern_libpython! {
 
     #[cfg(Py_3_15)]
     pub fn PyType_GetModuleByToken(_type: *mut PyTypeObject, token: *const c_void)
-        -> *mut PyObject;
+    -> *mut PyObject;
 }
