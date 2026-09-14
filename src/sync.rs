@@ -741,12 +741,10 @@ where
 
     // By having detached here, we guarantee that `.get_or_init` cannot deadlock with
     // the Python interpreter
-    let value = lock.get_or_init(move || {
+    lock.get_or_init(move || {
         drop(ts_guard);
         f()
-    });
-
-    value
+    })
 }
 
 mod once_lock_ext_sealed {

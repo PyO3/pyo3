@@ -771,14 +771,13 @@ mod tests {
         ) -> f64 {
             let py_tz = offset.into_pyobject(py).unwrap();
             let utc_offset = py_tz.call_method1("utcoffset", (py.None(),)).unwrap();
-            let total_seconds = utc_offset
+            utc_offset
                 .getattr(intern!(py, "total_seconds"))
                 .unwrap()
                 .call0()
                 .unwrap()
                 .extract::<f64>()
-                .unwrap();
-            total_seconds
+                .unwrap()
         }
 
         pub(crate) fn extract_from_utc_date_time(

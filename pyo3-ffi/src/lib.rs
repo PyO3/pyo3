@@ -363,6 +363,7 @@
     non_upper_case_globals,
     clippy::upper_case_acronyms,
     clippy::missing_safety_doc,
+    clippy::undocumented_unsafe_blocks,
     clippy::ptr_eq
 )]
 #![warn(
