@@ -4,7 +4,6 @@ use alloc::{
     boxed::Box,
     collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque},
     ffi::CString,
-    rc::{Rc, Weak as RcWeak},
     string::String,
     sync::{Arc, Weak},
     vec::Vec,
@@ -445,40 +444,6 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for Arc<T> {
 
 // SAFETY: `Weak<T>` is non-owning and does not keep Python reference cycles alive.
 unsafe impl<T> PyGcTraversable for Weak<T> {
-    const MAY_CONTAIN_CYCLES: bool = false;
-
-    #[inline]
-    fn traverse(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        Ok(())
-    }
-
-    #[inline]
-    fn clear(&mut self) {}
-}
-
-// SAFETY: `Rc<T>` shares ownership of one `T`; traversal can delegate through
-// immutable access, and clearing is only possible when uniquely owned.
-unsafe impl<T: PyGcTraversable> PyGcTraversable for Rc<T> {
-    const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
-
-    fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        if T::MAY_CONTAIN_CYCLES {
-            (**self).traverse(visit)?;
-        }
-        Ok(())
-    }
-
-    fn clear(&mut self) {
-        if T::MAY_CONTAIN_CYCLES {
-            if let Some(value) = Rc::get_mut(self) {
-                value.clear();
-            }
-        }
-    }
-}
-
-// SAFETY: `RcWeak<T>` is non-owning and does not keep Python reference cycles alive.
-unsafe impl<T> PyGcTraversable for RcWeak<T> {
     const MAY_CONTAIN_CYCLES: bool = false;
 
     #[inline]
