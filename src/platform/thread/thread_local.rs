@@ -45,14 +45,6 @@ impl Display for AccessError {
 
 impl core::error::Error for AccessError {}
 
-// This ensures the panicking code is outlined from `with` for `LocalKey`.
-#[cfg_attr(not(panic = "immediate-abort"), inline(never))]
-#[track_caller]
-#[cold]
-fn panic_access_error(err: AccessError) -> ! {
-    panic!("cannot access a Thread Local Storage value during or after destruction: {err:?}")
-}
-
 impl<T: 'static> LocalKey<T> {
     pub const unsafe fn new(init: fn() -> T) -> LocalKey<T> {
         LocalKey {
@@ -67,10 +59,7 @@ impl<T: 'static> LocalKey<T> {
     where
         F: FnOnce(&T) -> R,
     {
-        match self.try_with(f) {
-            Ok(r) => r,
-            Err(err) => panic_access_error(err),
-        }
+        f(self.get_val())
     }
 
     #[inline]
@@ -79,8 +68,7 @@ impl<T: 'static> LocalKey<T> {
     where
         F: FnOnce(&T) -> R,
     {
-        let val = self.get_val();
-        Ok(f(val))
+        Ok(self.with(f))
     }
 
     #[track_caller]
