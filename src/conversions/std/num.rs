@@ -5,7 +5,7 @@ use crate::conversion::private::Reference;
 use crate::conversion::{FromPyObjectSequence, IntoPyObject};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]

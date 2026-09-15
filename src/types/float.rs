@@ -2,7 +2,7 @@ use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::conversions::std::num::INT_INPUT_TYPE;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, type_hint_union, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier, type_hint_union};
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
