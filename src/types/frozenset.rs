@@ -1,20 +1,20 @@
 //! Python frozen sets and related types.
 
 use crate::types::PyIterator;
+use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt};
 use crate::{
+    Bound, PyAny, Python,
     err::{self, PyErr, PyResult},
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     py_result_ext::PyResultExt,
-    Bound, PyAny, Python,
 };
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
-use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt};
 use core::ptr;
 
 /// Allows building a Python `frozenset` one item at a time

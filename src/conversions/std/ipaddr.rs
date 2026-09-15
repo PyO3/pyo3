@@ -1,12 +1,12 @@
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, type_hint_union, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier, type_hint_union};
 use crate::sync::PyOnceLock;
+use crate::types::PyType;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
-use crate::types::PyType;
-use crate::{intern, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python};
+use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python, intern};
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 impl FromPyObject<'_, '_> for IpAddr {
@@ -20,15 +20,13 @@ impl FromPyObject<'_, '_> for IpAddr {
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         match obj.getattr(intern!(obj.py(), "packed")) {
-            Ok(packed) => {
-                if let Ok(packed) = packed.extract::<[u8; 4]>() {
-                    Ok(IpAddr::V4(Ipv4Addr::from(packed)))
-                } else if let Ok(packed) = packed.extract::<[u8; 16]>() {
-                    Ok(IpAddr::V6(Ipv6Addr::from(packed)))
-                } else {
-                    Err(PyValueError::new_err("invalid packed length"))
-                }
-            }
+            Ok(packed) => match packed.extract::<[u8; 4]>() {
+                Ok(packed) => Ok(IpAddr::V4(Ipv4Addr::from(packed))),
+                _ => match packed.extract::<[u8; 16]>() {
+                    Ok(packed) => Ok(IpAddr::V6(Ipv6Addr::from(packed))),
+                    _ => Err(PyValueError::new_err("invalid packed length")),
+                },
+            },
             Err(_) => {
                 // We don't have a .packed attribute, so we try to construct an IP from str().
                 obj.str()?.to_cow()?.parse().map_err(PyValueError::new_err)

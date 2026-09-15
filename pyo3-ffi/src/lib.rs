@@ -201,14 +201,14 @@
 //! // The module initialization function
 //! #[cfg(not(Py_3_15))]
 //! #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
-//! #[no_mangle]
+//! #[unsafe(no_mangle)]
 //! pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
 //!     PyModuleDef_Init(&raw mut MODULE_DEF)
 //! }
 //!
 //! #[cfg(Py_3_15)]
 //! #[allow(non_snake_case, reason = "must be named `PyModExport_<your_module>`")]
-//! #[no_mangle]
+//! #[unsafe(no_mangle)]
 //! pub unsafe extern "C" fn PyModExport_string_sum() -> *mut PySlot {
 //!     (&raw mut SLOTS).cast()
 //! }
@@ -363,6 +363,7 @@
     non_upper_case_globals,
     clippy::upper_case_acronyms,
     clippy::missing_safety_doc,
+    clippy::undocumented_unsafe_blocks,
     clippy::ptr_eq
 )]
 #![warn(
@@ -415,7 +416,7 @@ macro_rules! opaque_struct {
 #[macro_export]
 macro_rules! c_str {
     // TODO: deprecate this now MSRV is above 1.77
-    ($s:expr) => {
+    ($s:expr_2021) => {
         $crate::_cstr_from_utf8_with_nul_checked(concat!($s, "\0"))
     };
 }

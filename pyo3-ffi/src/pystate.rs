@@ -50,7 +50,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
-    PyThreadState_Get()
+    unsafe { PyThreadState_Get() }
 }
 
 extern_libpython! {

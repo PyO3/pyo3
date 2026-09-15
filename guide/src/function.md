@@ -5,7 +5,7 @@ Once defined, the function needs to be added to a [module](./module.md).
 
 The following example defines a function called `double` in a Python module called `my_extension`:
 
-```rust,no_run
+```rust,no_run,standalone_crate
 #[pyo3::pymodule]
 mod my_extension {
     use pyo3::prelude::*;

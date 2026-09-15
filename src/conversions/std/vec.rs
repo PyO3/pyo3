@@ -1,12 +1,12 @@
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_subscript, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_subscript};
 use crate::platform::prelude::*;
 use crate::{
+    Borrowed, CastError, PyResult, PyTypeInfo,
     conversion::{FromPyObject, FromPyObjectOwned, FromPyObjectSequence, IntoPyObject},
     exceptions::PyTypeError,
     ffi,
     types::{PyAnyMethods, PySequence, PyString},
-    Borrowed, CastError, PyResult, PyTypeInfo,
 };
 use crate::{Bound, PyAny, PyErr, Python};
 
@@ -93,10 +93,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::Python;
     use crate::conversion::IntoPyObject;
     use crate::platform::prelude::*;
     use crate::types::{PyAnyMethods, PyBytes, PyBytesMethods, PyList};
-    use crate::Python;
 
     #[test]
     fn test_vec_intopyobject_impl() {

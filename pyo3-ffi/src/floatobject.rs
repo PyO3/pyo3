@@ -19,13 +19,13 @@ extern_libpython! {
 #[inline]
 #[cfg(not(RustPython))]
 pub unsafe fn PyFloat_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &raw mut PyFloat_Type)
+    unsafe { PyObject_TypeCheck(op, &raw mut PyFloat_Type) }
 }
 
 #[inline]
 #[cfg(not(RustPython))]
 pub unsafe fn PyFloat_CheckExact(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PyFloat_Type)
+    unsafe { Py_IS_TYPE(op, &raw mut PyFloat_Type) }
 }
 
 // skipped Py_RETURN_NAN

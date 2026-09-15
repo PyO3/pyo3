@@ -1,10 +1,10 @@
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, type_hint_subscript, type_hint_union, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier, type_hint_subscript, type_hint_union};
 use crate::sync::PyOnceLock;
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python};
+use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python, ffi};
 use alloc::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -137,8 +137,8 @@ impl<'py> IntoPyObject<'py> for &PathBuf {
 mod tests {
     use super::*;
     use crate::{
-        types::{PyAnyMethods, PyString},
         IntoPyObjectExt,
+        types::{PyAnyMethods, PyString},
     };
     use core::fmt::Debug;
     #[cfg(not(target_os = "wasi"))]

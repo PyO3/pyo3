@@ -1,8 +1,8 @@
-use crate::object::{PyObject, PyTypeObject};
-#[cfg(not(RustPython))]
-use crate::PyObject_TypeCheck;
 #[cfg(not(RustPython))]
 use crate::Py_IS_TYPE;
+#[cfg(not(RustPython))]
+use crate::PyObject_TypeCheck;
+use crate::object::{PyObject, PyTypeObject};
 use core::ffi::{c_char, c_int, c_void};
 use core::{mem, ptr};
 
@@ -31,13 +31,13 @@ extern_libpython! {
 #[cfg(not(RustPython))]
 #[inline]
 pub unsafe fn PyCFunction_CheckExact(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PyCFunction_Type)
+    unsafe { Py_IS_TYPE(op, &raw mut PyCFunction_Type) }
 }
 
 #[cfg(not(RustPython))]
 #[inline]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &raw mut PyCFunction_Type)
+    unsafe { PyObject_TypeCheck(op, &raw mut PyCFunction_Type) }
 }
 
 pub type PyCFunction =
@@ -212,7 +212,7 @@ const _: () =
 
 #[inline]
 pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject {
-    PyCFunction_NewEx(ml, slf, core::ptr::null_mut())
+    unsafe { PyCFunction_NewEx(ml, slf, core::ptr::null_mut()) }
 }
 
 #[inline]
@@ -221,7 +221,7 @@ pub unsafe fn PyCFunction_NewEx(
     slf: *mut PyObject,
     module: *mut PyObject,
 ) -> *mut PyObject {
-    PyCMethod_New(ml, slf, module, core::ptr::null_mut())
+    unsafe { PyCMethod_New(ml, slf, module, core::ptr::null_mut()) }
 }
 
 extern_libpython! {

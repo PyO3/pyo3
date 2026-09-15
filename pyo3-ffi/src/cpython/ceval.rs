@@ -1,6 +1,6 @@
-use crate::cpython::pystate::Py_tracefunc;
-use crate::object::{freefunc, PyObject};
 use crate::Py_ssize_t;
+use crate::cpython::pystate::Py_tracefunc;
+use crate::object::{PyObject, freefunc};
 
 extern_libpython! {
     pub fn PyEval_SetProfile(trace_func: Option<Py_tracefunc>, arg1: *mut PyObject);
@@ -25,7 +25,7 @@ extern_libpython! {
 )]
 #[inline]
 pub unsafe extern "C" fn _PyEval_RequestCodeExtraIndex(func: freefunc) -> Py_ssize_t {
-    PyUnstable_Eval_RequestCodeExtraIndex(func)
+    unsafe { PyUnstable_Eval_RequestCodeExtraIndex(func) }
 }
 
 extern_libpython! {

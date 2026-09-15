@@ -214,7 +214,7 @@ It can either return `()` or `PyResult<()>`.
 # #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 use pyo3::types::{PyDict, PyTuple, PySuper};
 # #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
-use crate::pyo3::PyTypeInfo;
+use pyo3::PyTypeInfo;
 
 # #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 #[pyclass(extends = PyDict)]

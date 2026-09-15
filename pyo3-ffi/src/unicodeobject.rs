@@ -26,13 +26,13 @@ extern_libpython! {
 #[inline]
 #[cfg(not(any(PyPy, RustPython)))]
 pub unsafe fn PyUnicode_Check(op: *mut PyObject) -> c_int {
-    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_UNICODE_SUBCLASS)
+    unsafe { PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_UNICODE_SUBCLASS) }
 }
 
 #[inline]
 #[cfg(not(any(PyPy, RustPython)))]
 pub unsafe fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PyUnicode_Type)
+    unsafe { Py_IS_TYPE(op, &raw mut PyUnicode_Type) }
 }
 
 pub const Py_UNICODE_REPLACEMENT_CHARACTER: Py_UCS4 = 0xFFFD;

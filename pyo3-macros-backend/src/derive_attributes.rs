@@ -1,11 +1,11 @@
 use crate::attributes::{
-    self, get_pyo3_options, CrateAttribute, DefaultAttribute, FromPyWithAttribute,
-    IntoPyWithAttribute, RenameAllAttribute,
+    self, CrateAttribute, DefaultAttribute, FromPyWithAttribute, IntoPyWithAttribute,
+    RenameAllAttribute, get_pyo3_options,
 };
 use proc_macro2::Span;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
-use syn::{parenthesized, Attribute, LitStr, Result, Token};
+use syn::{Attribute, LitStr, Result, Token, parenthesized};
 
 /// Attributes for deriving `FromPyObject`/`IntoPyObject` scoped on containers.
 pub enum ContainerAttribute {
@@ -195,7 +195,7 @@ impl FieldAttributes {
             ($key:ident) => {
                 set_option!($key, concat!("`", stringify!($key), "` may only be specified once"))
             };
-            ($key:ident, $msg: expr) => {{
+            ($key:ident, $msg: expr_2021) => {{
                 ensure_spanned!(
                     self.$key.is_none(),
                     $key.span() => $msg

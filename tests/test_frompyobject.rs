@@ -260,7 +260,7 @@ fn test_struct_nested_type_errors() {
         let test = pybaz.extract::<Baz<String, usize>>();
         assert!(test.is_err());
         assert_eq!(
-            extract_traceback(py,test.unwrap_err()),
+            extract_traceback(py, test.unwrap_err()),
             "TypeError: failed to extract field Baz.tup: TypeError: failed to extract field Tuple.1: \
          TypeError: \'str\' object cannot be interpreted as an integer"
         );
@@ -841,9 +841,10 @@ fn test_with_default_item_and_conversion_function() {
         let dict = PyDict::new(py);
         dict.set_item("value", 3).unwrap();
         dict.set_item("opt", 1).unwrap();
-        assert!(dict
-            .extract::<WithDefaultItemAndConversionFunction>()
-            .is_err());
+        assert!(
+            dict.extract::<WithDefaultItemAndConversionFunction>()
+                .is_err()
+        );
     });
 }
 

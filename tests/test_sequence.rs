@@ -200,10 +200,10 @@ fn test_concat() {
         let d = seq_dict(py);
 
         py_run!(
-        py,
-        *d,
-        "s1 = ByteSequence([1, 2]); s2 = ByteSequence([3, 4]); assert list(s1 + s2) == [1, 2, 3, 4]"
-    );
+            py,
+            *d,
+            "s1 = ByteSequence([1, 2]); s2 = ByteSequence([3, 4]); assert list(s1 + s2) == [1, 2, 3, 4]"
+        );
         py_expect_exception!(
             py,
             *d,
@@ -324,12 +324,13 @@ fn test_any_object_list_set() {
         let list = Bound::new(py, AnyObjectList { items: vec![] }).unwrap();
 
         py_run!(py, list, "list.items = [1, 2, 3]");
-        assert!(list
-            .borrow()
-            .items
-            .iter()
-            .zip(&[1u32, 2, 3])
-            .all(|(a, b)| a.bind(py).eq(b.into_pyobject(py).unwrap()).unwrap()));
+        assert!(
+            list.borrow()
+                .items
+                .iter()
+                .zip(&[1u32, 2, 3])
+                .all(|(a, b)| a.bind(py).eq(b.into_pyobject(py).unwrap()).unwrap())
+        );
     });
 }
 

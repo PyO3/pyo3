@@ -1,5 +1,5 @@
-use crate::object::*;
 use crate::PyFrameObject;
+use crate::object::*;
 #[cfg(all(Py_3_11, not(any(PyPy, GraalPy, Py_3_14))))]
 use core::ffi::c_char;
 use core::ffi::c_int;
@@ -45,12 +45,12 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyGen_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &raw mut PyGen_Type)
+    unsafe { PyObject_TypeCheck(op, &raw mut PyGen_Type) }
 }
 
 #[inline]
 pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PyGen_Type)
+    unsafe { Py_IS_TYPE(op, &raw mut PyGen_Type) }
 }
 
 extern_libpython! {
@@ -72,7 +72,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyCoro_CheckExact(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &raw mut PyCoro_Type)
+    unsafe { PyObject_TypeCheck(op, &raw mut PyCoro_Type) }
 }
 
 // skipped _PyCoro_GetAwaitableIter
@@ -91,7 +91,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyAsyncGen_CheckExact(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &raw mut PyAsyncGen_Type)
+    unsafe { PyObject_TypeCheck(op, &raw mut PyAsyncGen_Type) }
 }
 
 // skipped _PyAsyncGenValueWrapperNew

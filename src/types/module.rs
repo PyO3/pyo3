@@ -4,11 +4,11 @@ use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
-    any::PyAnyMethods, list::PyListMethods, string::PyStringMethods, PyAny, PyCFunction, PyDict,
-    PyList, PyString,
+    PyAny, PyCFunction, PyDict, PyList, PyString, any::PyAnyMethods, list::PyListMethods,
+    string::PyStringMethods,
 };
 use crate::{
-    exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
+    Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python, exceptions, ffi,
 };
 #[cfg(RustPython)]
 use crate::{
@@ -16,9 +16,9 @@ use crate::{
     types::{PyType, PyTypeMethods},
 };
 use alloc::borrow::Cow;
+use core::ffi::CStr;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use core::ffi::c_int;
-use core::ffi::CStr;
 use core::str;
 
 /// Represents a Python [`module`][1] object.
@@ -138,7 +138,8 @@ impl PyModule {
     ///
     /// # Example: bundle in a file at compile time with [`include_str!`][core::include_str]:
     ///
-    /// ```rust
+    // `standalone_crate` for `script.py` to be found in the right place
+    /// ```rust,standalone_crate
     /// use pyo3::prelude::*;
     /// use pyo3::ffi::c_str;
     ///
@@ -236,7 +237,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,no_run,standalone_crate
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
@@ -272,7 +273,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,no_run,standalone_crate
     /// use pyo3::prelude::*;
     ///
     /// #[pyclass]
@@ -325,7 +326,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,no_run,standalone_crate
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
@@ -361,7 +362,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// Note that this also requires the [`wrap_pyfunction!`][2] macro
     /// to wrap a function annotated with [`#[pyfunction]`][1].
     ///
-    /// ```rust,no_run
+    /// ```rust,no_run,standalone_crate
     /// use pyo3::prelude::*;
     ///
     /// #[pyfunction]
@@ -404,7 +405,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,no_run,standalone_crate
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
@@ -581,8 +582,8 @@ fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::{module::PyModuleMethods, PyModule},
         Python,
+        types::{PyModule, module::PyModuleMethods},
     };
 
     #[test]
@@ -598,12 +599,13 @@ mod tests {
         use crate::types::string::PyStringMethods;
         Python::attach(|py| {
             let site = PyModule::import(py, "site").unwrap();
-            assert!(site
-                .filename()
-                .unwrap()
-                .to_cow()
-                .unwrap()
-                .ends_with("site.py"));
+            assert!(
+                site.filename()
+                    .unwrap()
+                    .to_cow()
+                    .unwrap()
+                    .ends_with("site.py")
+            );
         })
     }
 

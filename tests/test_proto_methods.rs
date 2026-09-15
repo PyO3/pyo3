@@ -94,10 +94,12 @@ fn test_getattr() {
                 .unwrap(),
             20,
         );
-        assert!(example_py
-            .getattr("other_attr")
-            .unwrap_err()
-            .is_instance_of::<PyAttributeError>(py));
+        assert!(
+            example_py
+                .getattr("other_attr")
+                .unwrap_err()
+                .is_instance_of::<PyAttributeError>(py)
+        );
 
         // Ensure that passing a wrong self type from Python does not cause UB
         // FIXME __getattr__ cannot be accessed via the type's __getattr__ slot0
@@ -604,10 +606,8 @@ impl GetItem {
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
                 return Ok("slice");
             }
-        } else if let Ok(idx) = idx.extract::<isize>() {
-            if idx == 1 {
-                return Ok("int");
-            }
+        } else if let Ok(1) = idx.extract::<isize>() {
+            return Ok("int");
         }
         Err(PyValueError::new_err("error"))
     }

@@ -16,16 +16,20 @@ pub struct PyFloatObject {
 #[inline]
 #[cfg(not(GraalPy))]
 unsafe fn _PyFloat_CAST(op: *mut PyObject) -> *mut PyFloatObject {
-    debug_assert_eq!(PyFloat_Check(op), 1);
-    op.cast()
+    unsafe {
+        debug_assert_eq!(PyFloat_Check(op), 1);
+        op.cast()
+    }
 }
 
 #[inline]
 pub unsafe fn PyFloat_AS_DOUBLE(op: *mut PyObject) -> c_double {
-    #[cfg(not(GraalPy))]
-    return (*_PyFloat_CAST(op)).ob_fval;
-    #[cfg(GraalPy)]
-    return PyFloat_AsDouble(op);
+    unsafe {
+        #[cfg(not(GraalPy))]
+        return (*_PyFloat_CAST(op)).ob_fval;
+        #[cfg(GraalPy)]
+        return PyFloat_AsDouble(op);
+    }
 }
 
 extern_libpython! {

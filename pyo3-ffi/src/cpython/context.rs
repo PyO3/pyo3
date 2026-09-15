@@ -1,6 +1,6 @@
+use crate::Py_IS_TYPE;
 use crate::object::PyObject;
 use crate::object::PyTypeObject;
-use crate::Py_IS_TYPE;
 #[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
 use core::ffi::c_uint;
 use core::ffi::{c_char, c_int};
@@ -16,17 +16,17 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyContext_CheckExact(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PyContext_Type)
+    unsafe { Py_IS_TYPE(op, &raw mut PyContext_Type) }
 }
 
 #[inline]
 pub unsafe fn PyContextVar_CheckExact(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PyContextVar_Type)
+    unsafe { Py_IS_TYPE(op, &raw mut PyContextVar_Type) }
 }
 
 #[inline]
 pub unsafe fn PyContextToken_CheckExact(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PyContextToken_Type)
+    unsafe { Py_IS_TYPE(op, &raw mut PyContextToken_Type) }
 }
 
 extern_libpython! {

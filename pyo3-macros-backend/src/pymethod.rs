@@ -7,7 +7,7 @@ use crate::introspection::unique_element_id;
 use crate::method::{
     CallingConvention, ClassMethodReceiver, ExtractErrorMode, PyArg, SelfConversionPolicy,
 };
-use crate::params::{impl_arg_params, impl_regular_arg_param, Holders};
+use crate::params::{Holders, impl_arg_params, impl_regular_arg_param};
 use crate::pyfunction::WarningFactory;
 use crate::utils::PythonDoc;
 use crate::utils::{Ctx, StaticIdent};
@@ -17,9 +17,9 @@ use crate::{
 };
 use crate::{quotes, utils};
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
 use syn::LitCStr;
-use syn::{ext::IdentExt, spanned::Spanned, Field, Ident, Result};
+use syn::{Field, Ident, Result, ext::IdentExt, spanned::Spanned};
 
 /// Generated code for a single pymethod item.
 pub struct MethodAndMethodDef {
@@ -469,10 +469,13 @@ fn impl_call_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> Result<Metho
 fn impl_traverse_slot(cls: &syn::Type, spec: &FnSpec<'_>, ctx: &Ctx) -> syn::Result<TokenStream> {
     let Ctx { pyo3_path, .. } = ctx;
     if let (Some(py_arg), _) = split_off_python_arg(&spec.signature.arguments) {
-        return Err(syn::Error::new_spanned(py_arg.ty, "__traverse__ may not take `Python`. \
+        return Err(syn::Error::new_spanned(
+            py_arg.ty,
+            "__traverse__ may not take `Python`. \
             Usually, an implementation of `__traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>` \
             should do nothing but calls to `visit.call`. Most importantly, safe access to the Python interpreter is \
-            prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic."));
+            prohibited inside implementations of `__traverse__`, i.e. `Python::attach` will panic.",
+        ));
     }
 
     // check that the receiver does not try to smuggle an (implicit) `Python` token into here
@@ -1570,7 +1573,7 @@ fn generate_method_body(
         pyo3_path,
         output_span,
     } = ctx;
-    let self_arg = spec.tp.self_arg(
+    let (self_arg, receiver_init) = spec.tp.self_arg(
         Some(cls),
         extract_error_mode,
         self_conversion,
@@ -1601,6 +1604,9 @@ fn generate_method_body(
             let (arg_convert, args) = impl_arg_params(spec, Some(cls), false, holders, ctx);
             let args = self_arg.into_iter().chain(args);
             let call = quote_spanned! {*output_span=> #cls::#rust_name(#(#args),*) };
+            let cast_receiver = matches!(spec.tp, FnType::FnClass(_)).then(|| {
+                quote! { let _slf = _slf.cast::<#pyo3_path::ffi::PyObject>(); }
+            });
 
             // Use just the text_signature_call_signature() because the class' Python name
             // isn't known to `#[pymethods]` - that has to be attached at runtime from the PyClassImpl
@@ -1634,7 +1640,10 @@ fn generate_method_body(
                 #warnings
                 #arg_convert
 
-                let result = #call;
+                let result = {
+                    #cast_receiver
+                    #call
+                };
                 let #value = #pyo3_path::impl_::wrap::OkWrapper::new(&result).ok_wrap(result)?;
                 let #initializer = #resolver;
                 unsafe { #conversion }
@@ -1666,6 +1675,7 @@ fn generate_method_body(
                 use #pyo3_path::impl_::callback::IntoPyCallbackOutput;
                 #warnings
                 #arg_convert
+                #receiver_init
                 let result = #call;
                 #output
             };
@@ -1692,6 +1702,7 @@ fn generate_method_body(
             };
             let body = quote! {
                 #warnings
+                #receiver_init
                 #result
             };
             (arg_idents, arg_types, body)
@@ -1985,8 +1996,8 @@ struct TokenGeneratorCtx<'ctx>(TokenGenerator, &'ctx Ctx);
 
 impl ToTokens for TokenGeneratorCtx<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Self(TokenGenerator(gen), ctx) = self;
-        (gen)(ctx).to_tokens(tokens)
+        let Self(TokenGenerator(r#gen), ctx) = self;
+        (r#gen)(ctx).to_tokens(tokens)
     }
 }
 

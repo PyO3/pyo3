@@ -14,7 +14,7 @@
 
 use crate::platform::prelude::*;
 use crate::{Py, PyAny, PyClass, Python};
-use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser};
 
 impl<T> Serialize for Py<T>
 where

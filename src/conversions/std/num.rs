@@ -5,19 +5,19 @@ use crate::conversion::private::Reference;
 use crate::conversion::{FromPyObjectSequence, IntoPyObject};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
-use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python, exceptions, ffi};
 use core::convert::Infallible;
 use core::ffi::c_long;
 use core::mem::MaybeUninit;
 use core::num::{
-    NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
-    NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize, NonZeroU8,
+    NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
 };
 
 use super::array::invalid_sequence_length;
@@ -69,11 +69,11 @@ macro_rules! int_fits_larger_int {
 }
 
 macro_rules! extract_int {
-    ($obj:ident, $error_val:expr, $pylong_as:expr) => {
+    ($obj:ident, $error_val:expr_2021, $pylong_as:expr_2021) => {
         extract_int!($obj, $error_val, $pylong_as, false)
     };
 
-    ($obj:ident, $error_val:expr, $pylong_as:expr, $force_index_call: literal) => {
+    ($obj:ident, $error_val:expr_2021, $pylong_as:expr_2021, $force_index_call: literal) => {
         // `PyLong_AsLong` and friends take care of calling `PyNumber_Index`,
         // however 3.9 does lossy conversion of floats, hence we only use the
         // simplest logic for 3.10+ where that was fixed - python/cpython#82180.
@@ -94,7 +94,7 @@ macro_rules! extract_int {
 }
 
 macro_rules! int_convert_u64_or_i64 {
-    ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ll_or_ull:expr, $force_index_call:literal) => {
+    ($rust_type:ty, $pylong_from_ll_or_ull:expr_2021, $pylong_as_ll_or_ull:expr_2021, $force_index_call:literal) => {
         impl<'py> IntoPyObject<'py> for $rust_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;
@@ -263,12 +263,12 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
         obj: Borrowed<'_, 'py, PyAny>,
         _: crate::conversion::private::Token,
     ) -> Option<impl FromPyObjectSequence<Target = u8>> {
-        if let Ok(bytes) = obj.cast::<PyBytes>() {
-            Some(BytesSequenceExtractor::Bytes(bytes))
-        } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
-            Some(BytesSequenceExtractor::ByteArray(byte_array))
-        } else {
-            None
+        match obj.cast::<PyBytes>() {
+            Ok(bytes) => Some(BytesSequenceExtractor::Bytes(bytes)),
+            _ => match obj.cast::<PyByteArray>() {
+                Ok(byte_array) => Some(BytesSequenceExtractor::ByteArray(byte_array)),
+                _ => None,
+            },
         }
     }
 }

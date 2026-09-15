@@ -21,7 +21,7 @@
 //!
 //! Rust code to create functions that add ordered floats:
 //!
-//! ```rust,no_run
+//! ```rust,no_run,standalone_crate
 //! use ordered_float::{NotNan, OrderedFloat};
 //! use pyo3::prelude::*;
 //!
@@ -113,8 +113,8 @@ float_conversions!(NotNan, f64, |val| NotNan::new(val)
 #[cfg(test)]
 mod test_ordered_float {
     use super::*;
-    use crate::types::dict::IntoPyDict;
     use crate::types::PyAnyMethods;
+    use crate::types::dict::IntoPyDict;
     use alloc::ffi::CString;
     use core::ffi::CStr;
 

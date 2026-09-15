@@ -172,7 +172,7 @@ extern_libpython! {
     pub fn PyNumber_Divmod(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyNumber_Power")]
     pub fn PyNumber_Power(o1: *mut PyObject, o2: *mut PyObject, o3: *mut PyObject)
-        -> *mut PyObject;
+    -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyNumber_Negative")]
     pub fn PyNumber_Negative(o: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyNumber_Positive")]
@@ -300,12 +300,12 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyMapping_DelItemString(o: *mut PyObject, key: *mut c_char) -> c_int {
-    PyObject_DelItemString(o, key)
+    unsafe { PyObject_DelItemString(o, key) }
 }
 
 #[inline]
 pub unsafe fn PyMapping_DelItem(o: *mut PyObject, key: *mut PyObject) -> c_int {
-    PyObject_DelItem(o, key)
+    unsafe { PyObject_DelItem(o, key) }
 }
 
 extern_libpython! {

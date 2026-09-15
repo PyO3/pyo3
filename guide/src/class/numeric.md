@@ -208,7 +208,7 @@ assert hash_djb2("l50_50") == Number(-1152549421)
 
 ### Final code
 
-```rust
+```rust,standalone_crate
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 

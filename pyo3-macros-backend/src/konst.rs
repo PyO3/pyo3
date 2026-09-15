@@ -1,16 +1,16 @@
 use std::borrow::Cow;
 use std::ffi::CString;
 
-use crate::attributes::{self, get_pyo3_options, take_attributes, NameAttribute};
+use crate::attributes::{self, NameAttribute, get_pyo3_options, take_attributes};
 #[cfg(feature = "experimental-inspect")]
 use crate::utils::PythonDoc;
 use proc_macro2::{Ident, Span};
 use syn::LitCStr;
 use syn::{
+    Result,
     ext::IdentExt,
     parse::{Parse, ParseStream},
     spanned::Spanned,
-    Result,
 };
 
 pub struct ConstSpec {

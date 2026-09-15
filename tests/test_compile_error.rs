@@ -5,7 +5,7 @@ use std::{
     panic::{RefUnwindSafe, UnwindSafe},
 };
 
-use ui_test::{spanned::Spanned, CommentParser, Revisioned};
+use ui_test::{CommentParser, Revisioned, spanned::Spanned};
 
 fn main() {
     // minimal support for running in cargo-nextest
@@ -36,7 +36,7 @@ fn main() {
     use std::{env::VarError, path::PathBuf};
 
     use regex::bytes::Regex;
-    use ui_test::{run_tests, spanned::Span, Config, OptWithLine};
+    use ui_test::{Config, OptWithLine, run_tests, spanned::Span};
 
     let mut config = Config::rustc("tests/ui");
 

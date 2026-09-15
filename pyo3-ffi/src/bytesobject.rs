@@ -12,13 +12,13 @@ extern_libpython! {
 #[inline]
 #[cfg(not(RustPython))]
 pub unsafe fn PyBytes_Check(op: *mut PyObject) -> c_int {
-    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_BYTES_SUBCLASS)
+    unsafe { PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_BYTES_SUBCLASS) }
 }
 
 #[inline]
 #[cfg(not(RustPython))]
 pub unsafe fn PyBytes_CheckExact(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PyBytes_Type)
+    unsafe { Py_IS_TYPE(op, &raw mut PyBytes_Type) }
 }
 
 extern_libpython! {

@@ -11,10 +11,10 @@
 //! This module provides synchronization primitives which are able to synchronize under these conditions.
 use crate::platform::sync::Once;
 use crate::{
+    Bound, Py, Python,
     internal::state::SuspendAttach,
     sealed::Sealed,
     types::{PyAny, PyString},
-    Bound, Py, Python,
 };
 use core::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit};
 
@@ -231,7 +231,7 @@ impl<T> Drop for GILOnceCell<T> {
 /// ```
 #[macro_export]
 macro_rules! intern {
-    ($py: expr, $text: expr) => {{
+    ($py: expr_2021, $text: expr_2021) => {{
         static INTERNED: $crate::sync::Interned = $crate::sync::Interned::new($text);
         INTERNED.get($py)
     }};
@@ -433,7 +433,7 @@ impl<T> MutexExt<T> for std::sync::Mutex<T> {
         match self.try_lock() {
             Ok(inner) => return Ok(inner),
             Err(std::sync::TryLockError::Poisoned(inner)) => {
-                return std::sync::LockResult::Err(inner)
+                return std::sync::LockResult::Err(inner);
             }
             Err(std::sync::TryLockError::WouldBlock) => {}
         }
@@ -565,7 +565,7 @@ impl<T> RwLockExt<T> for std::sync::RwLock<T> {
         match self.try_read() {
             Ok(inner) => return Ok(inner),
             Err(std::sync::TryLockError::Poisoned(inner)) => {
-                return std::sync::LockResult::Err(inner)
+                return std::sync::LockResult::Err(inner);
             }
             Err(std::sync::TryLockError::WouldBlock) => {}
         }
@@ -588,7 +588,7 @@ impl<T> RwLockExt<T> for std::sync::RwLock<T> {
         match self.try_write() {
             Ok(inner) => return Ok(inner),
             Err(std::sync::TryLockError::Poisoned(inner)) => {
-                return std::sync::LockResult::Err(inner)
+                return std::sync::LockResult::Err(inner);
             }
             Err(std::sync::TryLockError::WouldBlock) => {}
         }
@@ -741,12 +741,10 @@ where
 
     // By having detached here, we guarantee that `.get_or_init` cannot deadlock with
     // the Python interpreter
-    let value = lock.get_or_init(move || {
+    lock.get_or_init(move || {
         drop(ts_guard);
         f()
-    });
-
-    value
+    })
 }
 
 mod once_lock_ext_sealed {
@@ -855,7 +853,7 @@ mod tests {
     #[cfg(wip_feature_std)]
     fn test_once_ext() {
         macro_rules! test_once {
-            ($once:expr, $is_poisoned:expr) => {{
+            ($once:expr_2021, $is_poisoned:expr_2021) => {{
                 // adapted from the example in the docs for Once::try_once_force
                 let init = $once;
                 std::thread::scope(|s| {

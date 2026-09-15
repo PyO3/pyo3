@@ -1,7 +1,7 @@
 use crate::call::PyCallArgs;
 use crate::class::basic::CompareOp;
 use crate::conversion::{FromPyObject, IntoPyObject};
-use crate::err::{error_on_minusone, PyErr, PyResult};
+use crate::err::{PyErr, PyResult, error_on_minusone};
 use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
@@ -12,7 +12,7 @@ use crate::py_result_ext::PyResultExt;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::PySuper;
 use crate::types::{PyDict, PyIterator, PyList, PyString, PyType};
-use crate::{err, ffi, Borrowed, BoundObject, IntoPyObjectExt, Py};
+use crate::{Borrowed, BoundObject, IntoPyObjectExt, Py, err, ffi};
 #[cfg(RustPython)]
 use crate::{sync::PyOnceLock, types::typeobject::PyTypeMethods};
 use core::cell::UnsafeCell;
@@ -823,7 +823,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
 }
 
 macro_rules! implement_binop {
-    ($name:ident, $c_api:ident, $op:expr) => {
+    ($name:ident, $c_api:ident, $op:expr_2021) => {
         #[doc = concat!("Computes `self ", $op, " other`.")]
         fn $name<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
         where
@@ -1430,22 +1430,24 @@ impl<'py> Bound<'py, PyAny> {
     {
         let py = self.py();
         let self_type = self.get_type();
-        let attr = if let Ok(attr) = self_type.getattr(attr_name) {
-            attr
-        } else {
-            return Ok(None);
+        let attr = match self_type.getattr(attr_name) {
+            Ok(attr) => attr,
+            _ => {
+                return Ok(None);
+            }
         };
 
         // Manually resolve descriptor protocol. (Faster than going through Python.)
-        if let Some(descr_get) = attr.get_type().get_slot(TP_DESCR_GET) {
-            // attribute is a descriptor, resolve it
-            unsafe {
-                descr_get(attr.as_ptr(), self.as_ptr(), self_type.as_ptr())
-                    .assume_owned_or_err(py)
-                    .map(Some)
+        match attr.get_type().get_slot(TP_DESCR_GET) {
+            Some(descr_get) => {
+                // attribute is a descriptor, resolve it
+                unsafe {
+                    descr_get(attr.as_ptr(), self.as_ptr(), self_type.as_ptr())
+                        .assume_owned_or_err(py)
+                        .map(Some)
+                }
             }
-        } else {
-            Ok(Some(attr))
+            _ => Ok(Some(attr)),
         }
     }
 
@@ -1459,10 +1461,10 @@ impl<'py> Bound<'py, PyAny> {
 mod tests {
     use crate::platform::prelude::*;
     use crate::{
+        Bound, BoundObject, IntoPyObject, PyTypeInfo, Python,
         basic::CompareOp,
         test_utils::generate_unique_module_name,
         types::{IntoPyDict, PyAny, PyAnyMethods, PyBool, PyInt, PyList, PyModule, PyTypeMethods},
-        Bound, BoundObject, IntoPyObject, PyTypeInfo, Python,
     };
     use core::fmt::Debug;
     use pyo3_ffi::c_str;
@@ -1575,10 +1577,12 @@ class Test:
             let instance = class_test.call0().unwrap();
             let error = instance.getattr_opt("error");
             assert!(error.is_err());
-            assert!(error
-                .unwrap_err()
-                .to_string()
-                .contains("This is an intentional error"));
+            assert!(
+                error
+                    .unwrap_err()
+                    .to_string()
+                    .contains("This is an intentional error")
+            );
         });
     }
 
@@ -1716,10 +1720,11 @@ class SimpleClass:
             let obj = Py::new(py, GetattrFail).unwrap();
             let obj = obj.bind(py).as_any();
 
-            assert!(obj
-                .hasattr("foo")
-                .unwrap_err()
-                .is_instance_of::<PyValueError>(py));
+            assert!(
+                obj.hasattr("foo")
+                    .unwrap_err()
+                    .is_instance_of::<PyValueError>(py)
+            );
         })
     }
 
@@ -1904,11 +1909,13 @@ class SimpleClass:
             let py_str = "1".into_pyobject(py).unwrap();
 
             assert!(py_int.rich_compare(&py_str, CompareOp::Lt).is_err());
-            assert!(!py_int
-                .rich_compare(py_str, CompareOp::Eq)
-                .unwrap()
-                .is_truthy()
-                .unwrap());
+            assert!(
+                !py_int
+                    .rich_compare(py_str, CompareOp::Eq)
+                    .unwrap()
+                    .is_truthy()
+                    .unwrap()
+            );
         })
     }
 

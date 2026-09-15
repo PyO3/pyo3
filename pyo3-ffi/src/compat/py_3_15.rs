@@ -8,7 +8,7 @@ compat_function!(
     #[inline]
     pub unsafe fn PyBytesWriter_Create(
         size: crate::Py_ssize_t,
-    ) -> *mut PyBytesWriter {
+    ) -> *mut PyBytesWriter { unsafe {
 
         if size < 0 {
             crate::PyErr_SetString(crate::PyExc_ValueError, c"size must be >= 0".as_ptr() as *const _);
@@ -34,7 +34,7 @@ compat_function!(
         }
 
         writer
-    }
+    }}
 );
 
 #[cfg(not(Py_LIMITED_API))]
@@ -42,14 +42,14 @@ compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
-    pub unsafe fn PyBytesWriter_Discard(writer: *mut PyBytesWriter) -> () {
+    pub unsafe fn PyBytesWriter_Discard(writer: *mut PyBytesWriter) -> () { unsafe {
         if writer.is_null() {
             return;
         }
 
         crate::Py_XDECREF((*writer).obj);
         crate::PyMem_Free(writer.cast());
-    }
+    }}
 );
 
 #[cfg(not(Py_LIMITED_API))]
@@ -57,9 +57,9 @@ compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
-    pub unsafe fn PyBytesWriter_Finish(writer: *mut PyBytesWriter) -> *mut crate::PyObject {
+    pub unsafe fn PyBytesWriter_Finish(writer: *mut PyBytesWriter) -> *mut crate::PyObject { unsafe {
         PyBytesWriter_FinishWithSize(writer, (*writer).size)
-    }
+    }}
 );
 
 #[cfg(not(Py_LIMITED_API))]
@@ -67,7 +67,7 @@ compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
-    pub unsafe fn PyBytesWriter_FinishWithSize(writer: *mut PyBytesWriter, size: crate::Py_ssize_t) -> *mut crate::PyObject {
+    pub unsafe fn PyBytesWriter_FinishWithSize(writer: *mut PyBytesWriter, size: crate::Py_ssize_t) -> *mut crate::PyObject { unsafe {
         let result = if size == 0 {
             crate::PyBytes_FromStringAndSize(c"".as_ptr(), 0)
         } else if (*writer).obj.is_null() {
@@ -82,7 +82,7 @@ compat_function!(
 
         PyBytesWriter_Discard(writer);
         result
-    }
+    }}
 );
 
 #[cfg(not(Py_LIMITED_API))]
@@ -90,13 +90,13 @@ compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
-    pub unsafe fn PyBytesWriter_GetData(writer: *mut PyBytesWriter) -> *mut core::ffi::c_void {
+    pub unsafe fn PyBytesWriter_GetData(writer: *mut PyBytesWriter) -> *mut core::ffi::c_void { unsafe {
         if (*writer).obj.is_null() {
             (*writer).small_buffer.as_ptr() as *mut _
         } else {
                 crate::PyBytes_AS_STRING((*writer).obj) as *mut _
         }
-    }
+    }}
 );
 
 #[cfg(not(Py_LIMITED_API))]
@@ -104,9 +104,9 @@ compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
-    pub unsafe fn PyBytesWriter_GetSize(writer: *mut PyBytesWriter) -> crate::Py_ssize_t {
+    pub unsafe fn PyBytesWriter_GetSize(writer: *mut PyBytesWriter) -> crate::Py_ssize_t { unsafe {
         (*writer).size
-    }
+    }}
 );
 
 #[cfg(not(Py_LIMITED_API))]
@@ -114,7 +114,7 @@ compat_function!(
     originally_defined_for(all(Py_3_15, not(Py_LIMITED_API)));
 
     #[inline]
-    pub unsafe fn PyBytesWriter_Resize(writer: *mut PyBytesWriter, size: crate::Py_ssize_t) -> core::ffi::c_int {
+    pub unsafe fn PyBytesWriter_Resize(writer: *mut PyBytesWriter, size: crate::Py_ssize_t) -> core::ffi::c_int { unsafe {
         if size < 0 {
             crate::PyErr_SetString(crate::PyExc_ValueError, c"size must be >= 0".as_ptr());
             return -1;
@@ -124,7 +124,7 @@ compat_function!(
         }
         (*writer).size = size;
         0
-    }
+    }}
 );
 
 #[repr(C)]
@@ -142,52 +142,54 @@ unsafe fn _PyBytesWriter_Resize_impl(
     mut size: crate::Py_ssize_t,
     resize: core::ffi::c_int,
 ) -> core::ffi::c_int {
-    let overallocate = resize;
-    assert!(size >= 0);
+    unsafe {
+        let overallocate = resize;
+        assert!(size >= 0);
 
-    let allocated = if (*writer).obj.is_null() {
-        core::mem::size_of_val(&(*writer).small_buffer) as _
-    } else {
-        crate::PyBytes_Size((*writer).obj)
-    };
+        let allocated = if (*writer).obj.is_null() {
+            core::mem::size_of_val(&(*writer).small_buffer) as _
+        } else {
+            crate::PyBytes_Size((*writer).obj)
+        };
 
-    if size <= allocated {
-        return 0;
+        if size <= allocated {
+            return 0;
+        }
+
+        if overallocate > 0 {
+            #[cfg(windows)]
+            if size <= (crate::PY_SSIZE_T_MAX - size / 2) {
+                size += size / 2;
+            }
+
+            #[cfg(not(windows))]
+            if size <= (crate::PY_SSIZE_T_MAX - size / 4) {
+                size += size / 4;
+            }
+        }
+
+        if !(*writer).obj.is_null() {
+            if crate::_PyBytes_Resize(&mut (*writer).obj, size) > 0 {
+                return -1;
+            }
+            assert!(!(*writer).obj.is_null())
+        } else {
+            (*writer).obj = crate::PyBytes_FromStringAndSize(core::ptr::null_mut(), size);
+            if (*writer).obj.is_null() {
+                return -1;
+            }
+
+            if resize > 0 {
+                assert!((size as usize) > core::mem::size_of_val(&(*writer).small_buffer));
+
+                core::ptr::copy_nonoverlapping(
+                    (*writer).small_buffer.as_ptr(),
+                    crate::PyBytes_AS_STRING((*writer).obj) as *mut _,
+                    core::mem::size_of_val(&(*writer).small_buffer),
+                );
+            }
+        }
+
+        0
     }
-
-    if overallocate > 0 {
-        #[cfg(windows)]
-        if size <= (crate::PY_SSIZE_T_MAX - size / 2) {
-            size += size / 2;
-        }
-
-        #[cfg(not(windows))]
-        if size <= (crate::PY_SSIZE_T_MAX - size / 4) {
-            size += size / 4;
-        }
-    }
-
-    if !(*writer).obj.is_null() {
-        if crate::_PyBytes_Resize(&mut (*writer).obj, size) > 0 {
-            return -1;
-        }
-        assert!(!(*writer).obj.is_null())
-    } else {
-        (*writer).obj = crate::PyBytes_FromStringAndSize(core::ptr::null_mut(), size);
-        if (*writer).obj.is_null() {
-            return -1;
-        }
-
-        if resize > 0 {
-            assert!((size as usize) > core::mem::size_of_val(&(*writer).small_buffer));
-
-            core::ptr::copy_nonoverlapping(
-                (*writer).small_buffer.as_ptr(),
-                crate::PyBytes_AS_STRING((*writer).obj) as *mut _,
-                core::mem::size_of_val(&(*writer).small_buffer),
-            );
-        }
-    }
-
-    0
 }

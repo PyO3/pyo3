@@ -60,9 +60,9 @@ use crate::types::datetime::{PyDateAccess, PyDeltaAccess};
 use crate::types::{PyAnyMethods, PyDate, PyDateTime, PyDelta, PyNone, PyTime, PyTzInfo};
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyTimeAccess, PyTzInfoAccess};
-#[cfg(feature = "experimental-inspect")]
-use crate::{type_hint_identifier, PyTypeInfo};
 use crate::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
+#[cfg(feature = "experimental-inspect")]
+use crate::{PyTypeInfo, type_hint_identifier};
 use time::{
     Date, Duration, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcDateTime, UtcOffset,
 };
@@ -595,8 +595,8 @@ impl_into_py_for_ref!(UtcDateTime, PyDateTime);
 mod tests {
     use super::*;
     use crate::intern;
-    use crate::types::any::PyAnyMethods;
     use crate::types::PyTypeMethods;
+    use crate::types::any::PyAnyMethods;
 
     mod utils {
         use super::*;
@@ -771,14 +771,13 @@ mod tests {
         ) -> f64 {
             let py_tz = offset.into_pyobject(py).unwrap();
             let utc_offset = py_tz.call_method1("utcoffset", (py.None(),)).unwrap();
-            let total_seconds = utc_offset
+            utc_offset
                 .getattr(intern!(py, "total_seconds"))
                 .unwrap()
                 .call0()
                 .unwrap()
                 .extract::<f64>()
-                .unwrap();
-            total_seconds
+                .unwrap()
         }
 
         pub(crate) fn extract_from_utc_date_time(

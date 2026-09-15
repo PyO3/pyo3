@@ -18,13 +18,13 @@ extern_libpython! {
 #[inline]
 #[cfg(not(RustPython))]
 pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &raw mut PyModule_Type)
+    unsafe { PyObject_TypeCheck(op, &raw mut PyModule_Type) }
 }
 
 #[inline]
 #[cfg(not(RustPython))]
 pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PyModule_Type)
+    unsafe { Py_IS_TYPE(op, &raw mut PyModule_Type) }
 }
 
 extern_libpython! {
@@ -107,8 +107,16 @@ impl Default for PyModuleDef_Slot {
 )]
 pub const Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED: *mut c_void = 0 as *mut c_void;
 #[cfg(Py_3_12)]
+#[allow(
+    clippy::manual_dangling_ptr,
+    reason = "matches the way that the rest of these constants are defined"
+)]
 pub const Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED: *mut c_void = 1 as *mut c_void;
 #[cfg(Py_3_12)]
+#[allow(
+    clippy::manual_dangling_ptr,
+    reason = "matches the way that the rest of these constants are defined"
+)]
 pub const Py_MOD_PER_INTERPRETER_GIL_SUPPORTED: *mut c_void = 2 as *mut c_void;
 
 #[cfg(Py_3_13)]
@@ -118,6 +126,10 @@ pub const Py_MOD_PER_INTERPRETER_GIL_SUPPORTED: *mut c_void = 2 as *mut c_void;
 )]
 pub const Py_MOD_GIL_USED: *mut c_void = 0 as *mut c_void;
 #[cfg(Py_3_13)]
+#[allow(
+    clippy::manual_dangling_ptr,
+    reason = "matches the way that the rest of these constants are defined"
+)]
 pub const Py_MOD_GIL_NOT_USED: *mut c_void = 1 as *mut c_void;
 
 extern_libpython! {

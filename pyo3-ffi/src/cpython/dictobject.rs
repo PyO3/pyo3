@@ -1,12 +1,12 @@
+#[cfg(all(GraalPy, Py_3_13))]
+use crate::PyObject;
 #[cfg(not(GraalPy))]
 use crate::object::*;
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::pyport::Py_ssize_t;
-#[cfg(all(GraalPy, Py_3_13))]
-use crate::PyObject;
 
 #[cfg(Py_3_15)]
-use crate::{dictobject::PyDict_Check, PyDict_CheckExact};
+use crate::{PyDict_CheckExact, dictobject::PyDict_Check};
 
 #[cfg(all(not(PyPy), Py_3_13))]
 use core::ffi::c_char;
@@ -111,7 +111,7 @@ extern_libpython! {
 extern_libpython! {
     #[cfg(Py_3_13)]
     pub fn PyDict_Pop(dict: *mut PyObject, key: *mut PyObject, result: *mut *mut PyObject)
-        -> c_int;
+    -> c_int;
     #[cfg(Py_3_13)]
     pub fn PyDict_PopString(
         dict: *mut PyObject,

@@ -1,18 +1,18 @@
 //! Python sets and related types.
 
 use crate::types::PyIterator;
+use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python, ffi};
+#[cfg(RustPython)]
+use crate::{
+    Py,
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+};
 use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
     instance::Bound,
     py_result_ext::PyResultExt,
-};
-use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python};
-#[cfg(RustPython)]
-use crate::{
-    sync::PyOnceLock,
-    types::{PyType, PyTypeMethods},
-    Py,
 };
 use core::ptr;
 
@@ -298,9 +298,9 @@ mod tests {
     use super::PySet;
     use crate::platform::HashSet;
     use crate::{
+        Python,
         conversion::IntoPyObject,
         types::{PyAnyMethods, PySetMethods},
-        Python,
     };
 
     #[test]
@@ -387,9 +387,10 @@ mod tests {
             assert!(val.is_some());
             let val2 = set.pop();
             assert!(val2.is_none());
-            assert!(py
-                .eval(c"print('Exception state should not be set.')", None, None)
-                .is_ok());
+            assert!(
+                py.eval(c"print('Exception state should not be set.')", None, None)
+                    .is_ok()
+            );
         });
     }
 

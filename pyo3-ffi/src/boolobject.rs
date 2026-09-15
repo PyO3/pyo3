@@ -6,7 +6,7 @@ use core::ffi::{c_int, c_long};
 #[inline]
 #[cfg(not(RustPython))]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PyBool_Type)
+    unsafe { Py_IS_TYPE(op, &raw mut PyBool_Type) }
 }
 
 extern_libpython! {
@@ -52,12 +52,12 @@ pub unsafe fn Py_True() -> *mut PyObject {
 
 #[inline]
 pub unsafe fn Py_IsTrue(x: *mut PyObject) -> c_int {
-    Py_Is(x, Py_True())
+    unsafe { Py_Is(x, Py_True()) }
 }
 
 #[inline]
 pub unsafe fn Py_IsFalse(x: *mut PyObject) -> c_int {
-    Py_Is(x, Py_False())
+    unsafe { Py_Is(x, Py_False()) }
 }
 
 // skipped Py_RETURN_TRUE

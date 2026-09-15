@@ -21,7 +21,7 @@
 //! Using [`BigInt`] to correctly increment an arbitrary precision integer.
 //! This is not possible with Rust's native integers if the Python integer is too large,
 //! in which case it will fail its conversion and raise `OverflowError`.
-//! ```rust,no_run
+//! ```rust,no_run,standalone_crate
 //! use num_bigint::BigInt;
 //! use pyo3::prelude::*;
 //!
@@ -49,15 +49,15 @@
 
 #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 use crate::conversions::std::num::{
-    is_30bit_layout, pylong_from_digits, pylong_visit_digits, PYLONG_BITS_IN_DIGIT,
+    PYLONG_BITS_IN_DIGIT, is_30bit_layout, pylong_from_digits, pylong_visit_digits,
 };
 #[allow(unused_imports, reason = "conditionally used")]
 use crate::platform::prelude::*;
 #[cfg(Py_LIMITED_API)]
-use crate::types::{bytes::PyBytesMethods, PyBytes};
+use crate::types::{PyBytes, bytes::PyBytesMethods};
 use crate::{
-    conversion::IntoPyObject, conversions::std::num::nb_index, types::PyInt, Borrowed, Bound,
-    FromPyObject, PyAny, PyErr, PyResult, Python,
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python, conversion::IntoPyObject,
+    conversions::std::num::nb_index, types::PyInt,
 };
 
 use num_bigint::{BigInt, BigUint};
@@ -66,11 +66,11 @@ use num_bigint::{BigInt, BigUint};
 use num_bigint::Sign;
 
 #[cfg(feature = "experimental-inspect")]
+use crate::PyTypeInfo;
+#[cfg(feature = "experimental-inspect")]
 use crate::conversions::std::num::INT_INPUT_TYPE;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
-#[cfg(feature = "experimental-inspect")]
-use crate::PyTypeInfo;
 
 #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 struct PyLongDigitIter<I> {

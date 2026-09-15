@@ -12,7 +12,7 @@ pub type PyCapsule_Destructor = unsafe extern "C" fn(o: *mut PyObject);
 #[inline]
 #[cfg(not(RustPython))]
 pub unsafe fn PyCapsule_CheckExact(ob: *mut PyObject) -> c_int {
-    (Py_TYPE(ob) == &raw mut PyCapsule_Type) as c_int
+    unsafe { (Py_TYPE(ob) == &raw mut PyCapsule_Type) as c_int }
 }
 
 extern_libpython! {

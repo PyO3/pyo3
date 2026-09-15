@@ -8,29 +8,29 @@ use crate::introspection::{
 use crate::py_expr::PyExpr;
 use crate::{
     attributes::{
-        self, kw, take_attributes, take_pyo3_options, CrateAttribute, GILUsedAttribute,
-        ModuleAttribute, NameAttribute, SubmoduleAttribute,
+        self, CrateAttribute, GILUsedAttribute, ModuleAttribute, NameAttribute, SubmoduleAttribute,
+        kw, take_attributes, take_pyo3_options,
     },
     combine_errors::CombineErrors,
     get_doc,
     method::FnArg,
     pyclass::PyClassPyO3Option,
-    pyfunction::{impl_wrap_pyfunction, PyFunctionOptions},
+    pyfunction::{PyFunctionOptions, impl_wrap_pyfunction},
     pymethod::split_off_python_arg,
-    utils::{has_attribute, has_attribute_with_namespace, Ctx, IdentOrStr, PythonDoc},
+    utils::{Ctx, IdentOrStr, PythonDoc, has_attribute, has_attribute_with_namespace},
 };
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{ToTokens, quote, quote_spanned};
 use std::ffi::CString;
 use syn::LitCStr;
 use syn::{
+    Item, Meta, Path, Result,
     ext::IdentExt,
     parse::{Parse, ParseStream},
     parse_quote, parse_quote_spanned,
     punctuated::Punctuated,
     spanned::Spanned,
     token::Comma,
-    Item, Meta, Path, Result,
 };
 
 #[derive(Default)]

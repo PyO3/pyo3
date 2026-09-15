@@ -1,5 +1,5 @@
-use crate::pyport::Py_ssize_t;
 use crate::PyObject;
+use crate::pyport::Py_ssize_t;
 #[cfg(all(not(Py_LIMITED_API), py_sys_config = "Py_REF_DEBUG"))]
 use core::ffi::c_char;
 #[cfg(any(Py_3_12, all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API))))]
@@ -82,37 +82,39 @@ extern_libpython! {
 #[cfg(not(all(Py_3_14, Py_LIMITED_API)))]
 #[inline]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        let local = (*ob).ob_ref_local.load(Relaxed);
-        if local == _Py_IMMORTAL_REFCNT_LOCAL {
-            #[cfg(not(Py_3_14))]
-            return _Py_IMMORTAL_REFCNT;
-            #[cfg(Py_3_14)]
-            return _Py_IMMORTAL_INITIAL_REFCNT;
+    unsafe {
+        #[cfg(Py_GIL_DISABLED)]
+        {
+            let local = (*ob).ob_ref_local.load(Relaxed);
+            if local == _Py_IMMORTAL_REFCNT_LOCAL {
+                #[cfg(not(Py_3_14))]
+                return _Py_IMMORTAL_REFCNT;
+                #[cfg(Py_3_14)]
+                return _Py_IMMORTAL_INITIAL_REFCNT;
+            }
+            let shared = (*ob).ob_ref_shared.load(Relaxed);
+            local as Py_ssize_t + Py_ssize_t::from(shared >> _Py_REF_SHARED_SHIFT)
         }
-        let shared = (*ob).ob_ref_shared.load(Relaxed);
-        local as Py_ssize_t + Py_ssize_t::from(shared >> _Py_REF_SHARED_SHIFT)
-    }
 
-    #[cfg(all(Py_LIMITED_API, Py_3_14))]
-    {
-        Py_REFCNT(ob)
-    }
+        #[cfg(all(Py_LIMITED_API, Py_3_14))]
+        {
+            Py_REFCNT(ob)
+        }
 
-    #[cfg(all(not(Py_GIL_DISABLED), not(all(Py_LIMITED_API, Py_3_14)), Py_3_12))]
-    {
-        (*ob).ob_refcnt.ob_refcnt
-    }
+        #[cfg(all(not(Py_GIL_DISABLED), not(all(Py_LIMITED_API, Py_3_14)), Py_3_12))]
+        {
+            (*ob).ob_refcnt.ob_refcnt
+        }
 
-    #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), not(GraalPy)))]
-    {
-        (*ob).ob_refcnt
-    }
+        #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), not(GraalPy)))]
+        {
+            (*ob).ob_refcnt
+        }
 
-    #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), GraalPy))]
-    {
-        _Py_REFCNT(ob)
+        #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), GraalPy))]
+        {
+            _Py_REFCNT(ob)
+        }
     }
 }
 
@@ -120,27 +122,29 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
 #[cfg(Py_3_12)]
 #[inline(always)]
 unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
-    #[cfg(all(target_pointer_width = "64", not(Py_GIL_DISABLED)))]
-    {
-        (((*op).ob_refcnt.ob_refcnt as crate::PY_INT32_T) < 0) as c_int
-    }
-
-    #[cfg(all(target_pointer_width = "32", not(Py_GIL_DISABLED)))]
-    {
-        #[cfg(not(Py_3_14))]
+    unsafe {
+        #[cfg(all(target_pointer_width = "64", not(Py_GIL_DISABLED)))]
         {
-            ((*op).ob_refcnt.ob_refcnt == _Py_IMMORTAL_REFCNT) as c_int
+            (((*op).ob_refcnt.ob_refcnt as crate::PY_INT32_T) < 0) as c_int
         }
 
-        #[cfg(Py_3_14)]
+        #[cfg(all(target_pointer_width = "32", not(Py_GIL_DISABLED)))]
         {
-            ((*op).ob_refcnt.ob_refcnt >= _Py_IMMORTAL_MINIMUM_REFCNT) as c_int
-        }
-    }
+            #[cfg(not(Py_3_14))]
+            {
+                ((*op).ob_refcnt.ob_refcnt == _Py_IMMORTAL_REFCNT) as c_int
+            }
 
-    #[cfg(Py_GIL_DISABLED)]
-    {
-        ((*op).ob_ref_local.load(Relaxed) == _Py_IMMORTAL_REFCNT_LOCAL) as c_int
+            #[cfg(Py_3_14)]
+            {
+                ((*op).ob_refcnt.ob_refcnt >= _Py_IMMORTAL_MINIMUM_REFCNT) as c_int
+            }
+        }
+
+        #[cfg(Py_GIL_DISABLED)]
+        {
+            ((*op).ob_ref_local.load(Relaxed) == _Py_IMMORTAL_REFCNT_LOCAL) as c_int
+        }
     }
 }
 
@@ -177,69 +181,71 @@ extern_libpython! {
 
 #[inline(always)]
 pub unsafe fn Py_INCREF(op: *mut PyObject) {
-    // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
-    // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
-    #[cfg(any(
-        Py_GIL_DISABLED,
-        Py_LIMITED_API,
-        py_sys_config = "Py_REF_DEBUG",
-        GraalPy
-    ))]
-    {
-        // _Py_IncRef was added to the ABI in 3.10; skips null checks
-        #[cfg(all(Py_3_10, not(PyPy)))]
+    unsafe {
+        // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
+        // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
+        #[cfg(any(
+            Py_GIL_DISABLED,
+            Py_LIMITED_API,
+            py_sys_config = "Py_REF_DEBUG",
+            GraalPy
+        ))]
         {
-            _Py_IncRef(op);
-        }
-
-        #[cfg(any(not(Py_3_10), PyPy))]
-        {
-            Py_IncRef(op);
-        }
-    }
-
-    // version-specific builds are allowed to directly manipulate the reference count
-    #[cfg(not(any(
-        Py_GIL_DISABLED,
-        Py_LIMITED_API,
-        py_sys_config = "Py_REF_DEBUG",
-        GraalPy
-    )))]
-    {
-        #[cfg(all(Py_3_14, target_pointer_width = "64"))]
-        {
-            let cur_refcnt = (*op).ob_refcnt.ob_refcnt;
-            if (cur_refcnt as i32) < 0 {
-                return;
+            // _Py_IncRef was added to the ABI in 3.10; skips null checks
+            #[cfg(all(Py_3_10, not(PyPy)))]
+            {
+                _Py_IncRef(op);
             }
-            (*op).ob_refcnt.ob_refcnt = cur_refcnt.wrapping_add(1);
-        }
 
-        #[cfg(all(Py_3_12, not(Py_3_14), target_pointer_width = "64"))]
-        {
-            let cur_refcnt = (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN];
-            let new_refcnt = cur_refcnt.wrapping_add(1);
-            if new_refcnt == 0 {
-                return;
+            #[cfg(any(not(Py_3_10), PyPy))]
+            {
+                Py_IncRef(op);
             }
-            (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN] = new_refcnt;
         }
 
-        #[cfg(all(Py_3_12, target_pointer_width = "32"))]
+        // version-specific builds are allowed to directly manipulate the reference count
+        #[cfg(not(any(
+            Py_GIL_DISABLED,
+            Py_LIMITED_API,
+            py_sys_config = "Py_REF_DEBUG",
+            GraalPy
+        )))]
         {
-            if _Py_IsImmortal(op) != 0 {
-                return;
+            #[cfg(all(Py_3_14, target_pointer_width = "64"))]
+            {
+                let cur_refcnt = (*op).ob_refcnt.ob_refcnt;
+                if (cur_refcnt as i32) < 0 {
+                    return;
+                }
+                (*op).ob_refcnt.ob_refcnt = cur_refcnt.wrapping_add(1);
             }
-            (*op).ob_refcnt.ob_refcnt += 1
-        }
 
-        #[cfg(not(Py_3_12))]
-        {
-            (*op).ob_refcnt += 1
-        }
+            #[cfg(all(Py_3_12, not(Py_3_14), target_pointer_width = "64"))]
+            {
+                let cur_refcnt = (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN];
+                let new_refcnt = cur_refcnt.wrapping_add(1);
+                if new_refcnt == 0 {
+                    return;
+                }
+                (*op).ob_refcnt.ob_refcnt_split[crate::PY_BIG_ENDIAN] = new_refcnt;
+            }
 
-        // Skipped _Py_INCREF_STAT_INC - if anyone wants this, please file an issue
-        // or submit a PR supporting Py_STATS build option and pystats.h
+            #[cfg(all(Py_3_12, target_pointer_width = "32"))]
+            {
+                if _Py_IsImmortal(op) != 0 {
+                    return;
+                }
+                (*op).ob_refcnt.ob_refcnt += 1
+            }
+
+            #[cfg(not(Py_3_12))]
+            {
+                (*op).ob_refcnt += 1
+            }
+
+            // Skipped _Py_INCREF_STAT_INC - if anyone wants this, please file an issue
+            // or submit a PR supporting Py_STATS build option and pystats.h
+        }
     }
 }
 
@@ -253,68 +259,70 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
     track_caller
 )]
 pub unsafe fn Py_DECREF(op: *mut PyObject) {
-    // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
-    // On 3.12+ we implement refcount debugging to get better assertion locations on negative refcounts
-    // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
-    #[cfg(any(
-        Py_GIL_DISABLED,
-        Py_LIMITED_API,
-        all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
-        GraalPy
-    ))]
-    {
-        // _Py_DecRef was added to the ABI in 3.10; skips null checks
-        #[cfg(all(Py_3_10, not(PyPy)))]
+    unsafe {
+        // On limited API, the free-threaded build, or with refcount debugging, let the interpreter do refcounting
+        // On 3.12+ we implement refcount debugging to get better assertion locations on negative refcounts
+        // TODO: reimplement the logic in the header in the free-threaded build, for a little bit of performance.
+        #[cfg(any(
+            Py_GIL_DISABLED,
+            Py_LIMITED_API,
+            all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
+            GraalPy
+        ))]
         {
-            _Py_DecRef(op);
+            // _Py_DecRef was added to the ABI in 3.10; skips null checks
+            #[cfg(all(Py_3_10, not(PyPy)))]
+            {
+                _Py_DecRef(op);
+            }
+
+            #[cfg(any(not(Py_3_10), PyPy))]
+            {
+                Py_DecRef(op);
+            }
         }
 
-        #[cfg(any(not(Py_3_10), PyPy))]
+        #[cfg(not(any(
+            Py_GIL_DISABLED,
+            Py_LIMITED_API,
+            all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
+            GraalPy
+        )))]
         {
-            Py_DecRef(op);
-        }
-    }
+            #[cfg(Py_3_12)]
+            if _Py_IsImmortal(op) != 0 {
+                return;
+            }
 
-    #[cfg(not(any(
-        Py_GIL_DISABLED,
-        Py_LIMITED_API,
-        all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
-        GraalPy
-    )))]
-    {
-        #[cfg(Py_3_12)]
-        if _Py_IsImmortal(op) != 0 {
-            return;
-        }
-
-        // Skipped _Py_DECREF_STAT_INC - if anyone needs this, please file an issue
-        // or submit a PR supporting Py_STATS build option and pystats.h
-
-        #[cfg(py_sys_config = "Py_REF_DEBUG")]
-        _Py_DECREF_DecRefTotal();
-
-        #[cfg(Py_3_12)]
-        {
-            (*op).ob_refcnt.ob_refcnt -= 1;
+            // Skipped _Py_DECREF_STAT_INC - if anyone needs this, please file an issue
+            // or submit a PR supporting Py_STATS build option and pystats.h
 
             #[cfg(py_sys_config = "Py_REF_DEBUG")]
-            if (*op).ob_refcnt.ob_refcnt < 0 {
-                let location = core::panic::Location::caller();
-                let filename = alloc::ffi::CString::new(location.file()).unwrap();
-                _Py_NegativeRefcount(filename.as_ptr(), location.line() as i32, op);
+            _Py_DECREF_DecRefTotal();
+
+            #[cfg(Py_3_12)]
+            {
+                (*op).ob_refcnt.ob_refcnt -= 1;
+
+                #[cfg(py_sys_config = "Py_REF_DEBUG")]
+                if (*op).ob_refcnt.ob_refcnt < 0 {
+                    let location = core::panic::Location::caller();
+                    let filename = alloc::ffi::CString::new(location.file()).unwrap();
+                    _Py_NegativeRefcount(filename.as_ptr(), location.line() as i32, op);
+                }
+
+                if (*op).ob_refcnt.ob_refcnt == 0 {
+                    _Py_Dealloc(op);
+                }
             }
 
-            if (*op).ob_refcnt.ob_refcnt == 0 {
-                _Py_Dealloc(op);
-            }
-        }
+            #[cfg(not(Py_3_12))]
+            {
+                (*op).ob_refcnt -= 1;
 
-        #[cfg(not(Py_3_12))]
-        {
-            (*op).ob_refcnt -= 1;
-
-            if (*op).ob_refcnt == 0 {
-                _Py_Dealloc(op);
+                if (*op).ob_refcnt == 0 {
+                    _Py_Dealloc(op);
+                }
             }
         }
     }
@@ -322,24 +330,30 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
 
 #[inline]
 pub unsafe fn Py_CLEAR(op: *mut *mut PyObject) {
-    let tmp = *op;
-    if !tmp.is_null() {
-        *op = ptr::null_mut();
-        Py_DECREF(tmp);
+    unsafe {
+        let tmp = *op;
+        if !tmp.is_null() {
+            *op = ptr::null_mut();
+            Py_DECREF(tmp);
+        }
     }
 }
 
 #[inline]
 pub unsafe fn Py_XINCREF(op: *mut PyObject) {
-    if !op.is_null() {
-        Py_INCREF(op)
+    unsafe {
+        if !op.is_null() {
+            Py_INCREF(op)
+        }
     }
 }
 
 #[inline]
 pub unsafe fn Py_XDECREF(op: *mut PyObject) {
-    if !op.is_null() {
-        Py_DECREF(op)
+    unsafe {
+        if !op.is_null() {
+            Py_DECREF(op)
+        }
     }
 }
 
@@ -359,14 +373,18 @@ extern_libpython! {
 #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
 #[inline]
 pub unsafe fn Py_NewRef(obj: *mut PyObject) -> *mut PyObject {
-    Py_INCREF(obj);
-    obj
+    unsafe {
+        Py_INCREF(obj);
+        obj
+    }
 }
 
 #[cfg(all(Py_3_10, any(not(Py_LIMITED_API), PyPy)))]
 #[cfg_attr(docsrs, doc(cfg(Py_3_10)))]
 #[inline]
 pub unsafe fn Py_XNewRef(obj: *mut PyObject) -> *mut PyObject {
-    Py_XINCREF(obj);
-    obj
+    unsafe {
+        Py_XINCREF(obj);
+        obj
+    }
 }

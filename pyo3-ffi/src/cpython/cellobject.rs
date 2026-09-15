@@ -17,7 +17,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyCell_Check(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PyCell_Type)
+    unsafe { Py_IS_TYPE(op, &raw mut PyCell_Type) }
 }
 
 // skipped PyCell_SET

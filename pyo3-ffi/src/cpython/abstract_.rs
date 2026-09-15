@@ -1,4 +1,4 @@
-use crate::{vectorcallfunc, PyObject, Py_TYPE, Py_ssize_t};
+use crate::{Py_TYPE, Py_ssize_t, PyObject, vectorcallfunc};
 #[cfg(all(any(not(PyPy), not(Py_3_11)), not(Py_3_12)))]
 use core::ffi::c_char;
 #[cfg(not(Py_3_11))]
@@ -6,15 +6,15 @@ use core::ffi::c_int;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::{
-    PyListObject, PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE, PyTupleObject, PyTuple_GET_ITEM,
-    PyTuple_GET_SIZE,
+    PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE, PyListObject, PyTuple_GET_ITEM,
+    PyTuple_GET_SIZE, PyTupleObject,
 };
 
 #[cfg(not(Py_3_11))]
 use crate::Py_buffer;
 
 #[cfg(not(any(PyPy, Py_3_11)))]
-use crate::{PyCallable_Check, PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL};
+use crate::{Py_TPFLAGS_HAVE_VECTORCALL, PyCallable_Check, PyType_HasFeature};
 #[cfg(not(any(Py_3_12, PyPy)))]
 use crate::{PyThreadState, PyThreadState_GET, PyTuple_Check};
 use libc::size_t;
@@ -146,12 +146,14 @@ pub unsafe fn PyObject_CallMethodNoArgs(
     self_: *mut PyObject,
     name: *mut PyObject,
 ) -> *mut PyObject {
-    crate::PyObject_VectorcallMethod(
-        name,
-        &self_,
-        1 | PY_VECTORCALL_ARGUMENTS_OFFSET,
-        core::ptr::null_mut(),
-    )
+    unsafe {
+        crate::PyObject_VectorcallMethod(
+            name,
+            &self_,
+            1 | PY_VECTORCALL_ARGUMENTS_OFFSET,
+            core::ptr::null_mut(),
+        )
+    }
 }
 
 #[cfg(not(PyPy))]
@@ -161,14 +163,16 @@ pub unsafe fn PyObject_CallMethodOneArg(
     name: *mut PyObject,
     arg: *mut PyObject,
 ) -> *mut PyObject {
-    let args = [self_, arg];
-    assert!(!arg.is_null());
-    crate::PyObject_VectorcallMethod(
-        name,
-        args.as_ptr(),
-        2 | PY_VECTORCALL_ARGUMENTS_OFFSET,
-        core::ptr::null_mut(),
-    )
+    unsafe {
+        let args = [self_, arg];
+        assert!(!arg.is_null());
+        crate::PyObject_VectorcallMethod(
+            name,
+            args.as_ptr(),
+            2 | PY_VECTORCALL_ARGUMENTS_OFFSET,
+            core::ptr::null_mut(),
+        )
+    }
 }
 
 extern_libpython! {
@@ -230,35 +234,41 @@ extern_libpython! {
 
 #[inline(always)]
 pub unsafe fn PySequence_ITEM(seq: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
-    (*(*Py_TYPE(seq)).tp_as_sequence).sq_item.unwrap_unchecked()(seq, i)
+    unsafe { (*(*Py_TYPE(seq)).tp_as_sequence).sq_item.unwrap_unchecked()(seq, i) }
 }
 
 #[inline(always)]
 #[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PySequence_Fast_GET_SIZE(seq: *mut PyObject) -> Py_ssize_t {
-    if PyList_Check(seq) == 1 {
-        PyList_GET_SIZE(seq)
-    } else {
-        PyTuple_GET_SIZE(seq)
+    unsafe {
+        if PyList_Check(seq) == 1 {
+            PyList_GET_SIZE(seq)
+        } else {
+            PyTuple_GET_SIZE(seq)
+        }
     }
 }
 
 #[inline(always)]
 #[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PySequence_Fast_GET_ITEM(seq: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
-    if PyList_Check(seq) == 1 {
-        PyList_GET_ITEM(seq, i)
-    } else {
-        PyTuple_GET_ITEM(seq, i)
+    unsafe {
+        if PyList_Check(seq) == 1 {
+            PyList_GET_ITEM(seq, i)
+        } else {
+            PyTuple_GET_ITEM(seq, i)
+        }
     }
 }
 
 #[inline(always)]
 #[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn PySequence_Fast_ITEMS(seq: *mut PyObject) -> *mut *mut PyObject {
-    if PyList_Check(seq) == 1 {
-        (*seq.cast::<PyListObject>()).ob_item
-    } else {
-        (*seq.cast::<PyTupleObject>()).ob_item.as_mut_ptr()
+    unsafe {
+        if PyList_Check(seq) == 1 {
+            (*seq.cast::<PyListObject>()).ob_item
+        } else {
+            (*seq.cast::<PyTupleObject>()).ob_item.as_mut_ptr()
+        }
     }
 }

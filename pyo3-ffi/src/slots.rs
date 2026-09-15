@@ -68,7 +68,6 @@ pub const fn PySlot_DATA(NAME: c_int, VALUE: *mut c_void) -> PySlot {
     }
 }
 
-#[expect(clippy::incompatible_msrv, reason = "guarded by cfg(const_is_null)")]
 #[cfg(Py_3_15)]
 pub const unsafe fn PySlot_FUNC(NAME: c_int, VALUE: *mut c_void) -> PySlot {
     #[cfg(const_is_null)]

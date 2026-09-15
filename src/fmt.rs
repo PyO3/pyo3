@@ -4,17 +4,17 @@
 #[allow(unused_imports, reason = "used to build docs")]
 use crate::platform::prelude::*;
 #[cfg(any(doc, all(Py_3_14, not(Py_LIMITED_API))))]
-use crate::{types::PyString, Python};
+use crate::{Python, types::PyString};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use {
+    crate::IntoPyObject,
     crate::ffi::{
         PyUnicodeWriter_Create, PyUnicodeWriter_Discard, PyUnicodeWriter_Finish,
         PyUnicodeWriter_WriteChar, PyUnicodeWriter_WriteUTF8,
     },
     crate::ffi_ptr_ext::FfiPtrExt,
     crate::py_result_ext::PyResultExt,
-    crate::IntoPyObject,
-    crate::{ffi, Bound, PyErr, PyResult},
+    crate::{Bound, PyErr, PyResult, ffi},
     core::fmt,
     core::mem::ManuallyDrop,
     core::ptr::NonNull,
@@ -41,7 +41,7 @@ use {
 /// ```
 #[macro_export]
 macro_rules! py_format {
-    ($py: expr, $($arg:tt)*) => {{
+    ($py: expr_2021, $($arg:tt)*) => {{
         if let Some(static_string) = format_args!($($arg)*).as_str() {
             static INTERNED: $crate::sync::PyOnceLock<$crate::Py<$crate::types::PyString>> = $crate::sync::PyOnceLock::new();
             Ok($crate::Bound::clone(
@@ -87,14 +87,13 @@ impl<'py> PyUnicodeWriter<'py> {
     #[inline]
     pub fn into_py_string(mut self) -> PyResult<Bound<'py, PyString>> {
         let py = self.python;
-        if let Some(error) = self.take_error() {
-            Err(error)
-        } else {
-            unsafe {
+        match self.take_error() {
+            Some(error) => Err(error),
+            _ => unsafe {
                 PyUnicodeWriter_Finish(ManuallyDrop::new(self).as_ptr())
                     .assume_owned_or_err(py)
                     .cast_into_unchecked()
-            }
+            },
         }
     }
 

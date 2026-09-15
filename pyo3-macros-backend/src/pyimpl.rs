@@ -9,24 +9,24 @@ use crate::introspection::{attribute_introspection_code, function_introspection_
 use crate::method::{FnSpec, FnType};
 #[cfg(feature = "experimental-inspect")]
 use crate::py_expr::PyExpr;
-use crate::utils::{has_attribute, has_attribute_with_namespace, Ctx, PyO3CratePath};
+use crate::utils::{Ctx, PyO3CratePath, has_attribute, has_attribute_with_namespace};
 use crate::{
-    attributes::{take_pyo3_options, CrateAttribute},
+    attributes::{CrateAttribute, take_pyo3_options},
     konst::{ConstAttributes, ConstSpec},
     pyfunction::PyFunctionOptions,
     pymethod::{
-        self, is_proto_method, GeneratedPyMethod, MethodAndMethodDef, MethodAndSlotDef, PyMethod,
+        self, GeneratedPyMethod, MethodAndMethodDef, MethodAndSlotDef, PyMethod, is_proto_method,
     },
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
+#[cfg(feature = "experimental-inspect")]
+use syn::{Ident, ReturnType, parse_quote};
 use syn::{
+    ImplItemFn, Result,
     parse::{Parse, ParseStream},
     spanned::Spanned,
-    ImplItemFn, Result,
 };
-#[cfg(feature = "experimental-inspect")]
-use syn::{parse_quote, Ident, ReturnType};
 
 /// The mechanism used to collect `#[pymethods]` into the type object
 #[derive(Copy, Clone)]

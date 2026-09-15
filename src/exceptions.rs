@@ -9,7 +9,7 @@
 //! yourself to import Python classes that are ultimately derived from
 //! `BaseException`.
 
-use crate::{ffi, Bound, PyResult, Python};
+use crate::{Bound, PyResult, Python, ffi};
 use core::ffi::CStr;
 use core::ops;
 
@@ -64,7 +64,7 @@ macro_rules! impl_exception_boilerplate {
 /// ```
 #[macro_export]
 macro_rules! import_exception {
-    ($module: expr, $name: ident) => {
+    ($module: expr_2021, $name: ident) => {
         /// A Rust type representing an exception defined in Python code.
         ///
         /// This type was created by the [`pyo3::import_exception!`] macro - see its documentation
@@ -109,7 +109,7 @@ macro_rules! import_exception {
 ///
 /// # Examples
 ///
-/// ```
+/// ```standalone_crate
 /// use pyo3::prelude::*;
 /// use pyo3::create_exception;
 /// use pyo3::exceptions::PyException;
@@ -164,7 +164,7 @@ macro_rules! import_exception {
 ///
 #[macro_export]
 macro_rules! create_exception {
-    ($module: expr, $name: ident, $base: ty) => {
+    ($module: expr_2021, $name: ident, $base: ty) => {
         #[repr(transparent)]
         pub struct $name($crate::PyAny);
 
@@ -172,7 +172,7 @@ macro_rules! create_exception {
 
         $crate::create_exception_type_object!($module, $name, $base, None);
     };
-    ($module: expr, $name: ident, $base: ty, $doc: expr) => {
+    ($module: expr_2021, $name: ident, $base: ty, $doc: expr_2021) => {
         #[repr(transparent)]
         #[doc = $doc]
         pub struct $name($crate::PyAny);
@@ -188,10 +188,10 @@ macro_rules! create_exception {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! create_exception_type_object {
-    ($module: expr, $name: ident, $base: ty, None) => {
+    ($module: expr_2021, $name: ident, $base: ty, None) => {
         $crate::create_exception_type_object!($module, $name, $base, ::core::option::Option::None);
     };
-    ($module: expr, $name: ident, $base: ty, Some($doc: expr)) => {
+    ($module: expr_2021, $name: ident, $base: ty, Some($doc: expr_2021)) => {
         $crate::create_exception_type_object!(
             $module,
             $name,
@@ -199,7 +199,7 @@ macro_rules! create_exception_type_object {
             ::core::option::Option::Some($crate::ffi::c_str!($doc))
         );
     };
-    ($module: expr, $name: ident, $base: ty, $doc: expr) => {
+    ($module: expr_2021, $name: ident, $base: ty, $doc: expr_2021) => {
         $crate::pyobject_native_type_named!($name);
 
         // SAFETY: macro caller has upheld the safety contracts
@@ -254,7 +254,7 @@ macro_rules! create_exception_type_object {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! create_exception_type_hint(
-    ($module: expr, $name: ident) => {};
+    ($module: expr_2021, $name: ident) => {};
 );
 
 #[cfg(feature = "experimental-inspect")]
@@ -270,7 +270,7 @@ macro_rules! create_exception_type_hint(
 );
 
 macro_rules! impl_native_exception (
-    ($name:ident, $exc_name:ident, $python_name:literal, $doc:expr, $layout:path $(, #checkfunction=$checkfunction:path)?) => (
+    ($name:ident, $exc_name:ident, $python_name:literal, $doc:expr_2021, $layout:path $(, #checkfunction=$checkfunction:path)?) => (
         #[doc = concat!("Represents Python's [`", $python_name, "`](https://docs.python.org/3/library/exceptions.html#", $python_name, ") exception.")]
         #[doc = $doc]
         #[repr(transparent)]
@@ -285,7 +285,7 @@ macro_rules! impl_native_exception (
         }, "builtins", $python_name $(, #checkfunction=$checkfunction)?);
         $crate::pyobject_subclassable_native_type!($name, $layout);
     );
-    ($name:ident, $exc_name:ident, $python_name:literal, $doc:expr) => (
+    ($name:ident, $exc_name:ident, $python_name:literal, $doc:expr_2021) => (
         impl_native_exception!($name, $exc_name, $python_name, $doc, $crate::ffi::PyBaseExceptionObject);
     )
 );
@@ -872,7 +872,7 @@ impl_native_exception!(
 
 #[cfg(test)]
 macro_rules! test_exception {
-    ($exc_ty:ident $(, |$py:tt| $constructor:expr )?) => {
+    ($exc_ty:ident $(, |$py:tt| $constructor:expr_2021 )?) => {
         #[allow(non_snake_case, reason = "test matches exception name")]
         #[test]
         fn $exc_ty () {

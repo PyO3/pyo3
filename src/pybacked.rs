@@ -10,11 +10,11 @@ use crate::sync::critical_section::with_critical_section;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_union;
 use crate::{
-    types::{
-        bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
-        PyBytes, PyString, PyTuple,
-    },
     Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo, Python,
+    types::{
+        PyByteArray, PyBytes, PyString, PyTuple, bytearray::PyByteArrayMethods,
+        bytes::PyBytesMethods, string::PyStringMethods,
+    },
 };
 use alloc::sync::Arc;
 use core::{borrow::Borrow, convert::Infallible, ops::Deref, ptr::NonNull};
@@ -296,23 +296,23 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyBackedBytes {
     const INPUT_TYPE: PyStaticExpr = type_hint_union!(PyBytes::TYPE_HINT, PyByteArray::TYPE_HINT);
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
-        if let Ok(bytes) = obj.cast::<PyBytes>() {
-            Ok(Self::from(bytes.to_owned()))
-        } else if let Ok(bytearray) = obj.cast::<PyByteArray>() {
-            Ok(Self::from(bytearray.to_owned()))
-        } else {
-            Err(CastError::new(
-                obj,
-                PyTuple::new(
-                    obj.py(),
-                    [
-                        PyBytes::type_object(obj.py()),
-                        PyByteArray::type_object(obj.py()),
-                    ],
-                )
-                .unwrap()
-                .into_any(),
-            ))
+        match obj.cast::<PyBytes>() {
+            Ok(bytes) => Ok(Self::from(bytes.to_owned())),
+            _ => match obj.cast::<PyByteArray>() {
+                Ok(bytearray) => Ok(Self::from(bytearray.to_owned())),
+                _ => Err(CastError::new(
+                    obj,
+                    PyTuple::new(
+                        obj.py(),
+                        [
+                            PyBytes::type_object(obj.py()),
+                            PyByteArray::type_object(obj.py()),
+                        ],
+                    )
+                    .unwrap()
+                    .into_any(),
+                )),
+            },
         }
     }
 }
@@ -436,7 +436,7 @@ use impl_traits;
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::impl_::pyclass::{value_of, IsSend, IsSync};
+    use crate::impl_::pyclass::{IsSend, IsSync, value_of};
     use crate::types::PyAnyMethods as _;
     use crate::{IntoPyObject, Python};
     use core::hash::{Hash, Hasher};
@@ -522,10 +522,12 @@ mod test {
         Python::attach(|py| {
             let orig_bytes = PyBytes::new(py, b"abcde");
             let py_backed_bytes = PyBackedBytes::from(orig_bytes.clone());
-            assert!((&py_backed_bytes)
-                .into_pyobject(py)
-                .unwrap()
-                .is(&orig_bytes));
+            assert!(
+                (&py_backed_bytes)
+                    .into_pyobject(py)
+                    .unwrap()
+                    .is(&orig_bytes)
+            );
         });
     }
 

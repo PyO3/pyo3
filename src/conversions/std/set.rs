@@ -5,15 +5,15 @@ use core::cmp;
 use core::hash;
 
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_subscript, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_subscript};
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
     conversion::{FromPyObjectOwned, IntoPyObject},
     types::{
-        any::PyAnyMethods, frozenset::PyFrozenSetMethods, set::PySetMethods, PyFrozenSet, PySet,
+        PyFrozenSet, PySet, any::PyAnyMethods, frozenset::PyFrozenSetMethods, set::PySetMethods,
     },
-    Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
 };
 
 #[cfg(wip_feature_std)]
@@ -71,17 +71,16 @@ where
                 }
                 Ok(result)
             }
-            Err(err) => {
-                if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
+            Err(err) => match ob.cast::<PyFrozenSet>() {
+                Ok(frozen_set) => {
                     let mut result = Self::with_capacity_and_hasher(frozen_set.len(), S::default());
                     for item in frozen_set.iter() {
                         result.insert(item.extract().map_err(Into::into)?);
                     }
                     Ok(result)
-                } else {
-                    Err(PyErr::from(err))
                 }
-            }
+                _ => Err(PyErr::from(err)),
+            },
         }
     }
 }
@@ -137,24 +136,23 @@ where
                 }
                 Ok(values.into_iter().collect())
             }
-            Err(err) => {
-                if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
+            Err(err) => match ob.cast::<PyFrozenSet>() {
+                Ok(frozen_set) => {
                     let mut values = Vec::with_capacity(frozen_set.len());
                     for item in frozen_set.iter() {
                         values.push(item.extract().map_err(Into::into)?);
                     }
                     Ok(values.into_iter().collect())
-                } else {
-                    Err(PyErr::from(err))
                 }
-            }
+                _ => Err(PyErr::from(err)),
+            },
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{any::PyAnyMethods, PyFrozenSet, PySet};
+    use crate::types::{PyFrozenSet, PySet, any::PyAnyMethods};
     use crate::{IntoPyObject, Python};
     use alloc::collections::BTreeSet;
     #[cfg(wip_feature_std)]

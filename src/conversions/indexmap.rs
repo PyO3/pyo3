@@ -29,7 +29,7 @@
 //! Using [indexmap](https://docs.rs/indexmap) to return a dictionary with some statistics
 //! about a list of numbers. Because of the insertion order guarantees, the Python code will
 //! always print the same result, matching users' expectations about Python's dict.
-//! ```rust
+//! ```rust,standalone_crate
 //! use indexmap::{indexmap, IndexMap};
 //! use pyo3::prelude::*;
 //!
@@ -91,9 +91,9 @@ use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 use crate::types::*;
-#[cfg(feature = "experimental-inspect")]
-use crate::{type_hint_subscript, PyTypeInfo};
 use crate::{Borrowed, Bound, FromPyObject, PyErr, Python};
+#[cfg(feature = "experimental-inspect")]
+use crate::{PyTypeInfo, type_hint_subscript};
 use core::hash;
 
 impl<'py, K, V, H> IntoPyObject<'py> for indexmap::IndexMap<K, V, H>

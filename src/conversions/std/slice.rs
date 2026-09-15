@@ -6,7 +6,7 @@ use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
-    conversion::IntoPyObject, types::PyBytes, Bound, CastError, PyAny, PyErr, PyResult, Python,
+    Bound, CastError, PyAny, PyErr, PyResult, Python, conversion::IntoPyObject, types::PyBytes,
 };
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
@@ -53,10 +53,13 @@ impl<'a, 'py> crate::conversion::FromPyObject<'a, 'py> for Cow<'a, [u8]> {
     const INPUT_TYPE: PyStaticExpr = Vec::<u8>::INPUT_TYPE;
 
     fn extract(ob: crate::Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
-        Ok(if let Ok(bytes) = ob.cast::<PyBytes>() {
-            Cow::Borrowed(bytes.as_bytes()) // It's immutable, we can take a slice
-        } else {
-            Cow::Owned(Vec::extract(ob)?) // Not possible to take a slice, we have to build a Vec<u8>
+        Ok(match ob.cast::<PyBytes>() {
+            Ok(bytes) => {
+                Cow::Borrowed(bytes.as_bytes()) // It's immutable, we can take a slice
+            }
+            _ => {
+                Cow::Owned(Vec::extract(ob)?) // Not possible to take a slice, we have to build a Vec<u8>
+            }
         })
     }
 }
@@ -88,9 +91,9 @@ mod tests {
     use alloc::borrow::Cow;
 
     use crate::{
-        conversion::IntoPyObject,
-        types::{any::PyAnyMethods, PyBytes, PyBytesMethods, PyList},
         Python,
+        conversion::IntoPyObject,
+        types::{PyBytes, PyBytesMethods, PyList, any::PyAnyMethods},
     };
 
     #[test]

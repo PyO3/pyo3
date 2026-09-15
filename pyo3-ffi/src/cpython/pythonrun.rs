@@ -1,7 +1,7 @@
+use crate::PyCompilerFlags;
 use crate::object::*;
 #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
 use crate::pyarena::PyArena;
-use crate::PyCompilerFlags;
 #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
 use crate::{_mod, _node};
 use core::ffi::{c_char, c_int};
@@ -121,7 +121,7 @@ extern_libpython! {
 #[inline]
 #[cfg(not(any(PyPy, GraalPy)))]
 pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject {
-    Py_CompileStringExFlags(string, p, s, core::ptr::null_mut(), -1)
+    unsafe { Py_CompileStringExFlags(string, p, s, core::ptr::null_mut(), -1) }
 }
 
 #[inline]
@@ -132,7 +132,7 @@ pub unsafe fn Py_CompileStringFlags(
     s: c_int,
     f: *mut PyCompilerFlags,
 ) -> *mut PyObject {
-    Py_CompileStringExFlags(string, p, s, f, -1)
+    unsafe { Py_CompileStringExFlags(string, p, s, f, -1) }
 }
 
 extern_libpython! {

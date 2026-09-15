@@ -29,7 +29,7 @@
 //!
 //! Rust code to create functions which return `Bytes` or take `Bytes` as arguments:
 //!
-//! ```rust,no_run
+//! ```rust,no_run,standalone_crate
 //! use pyo3::prelude::*;
 //! use bytes::Bytes;
 //!
@@ -64,6 +64,8 @@
 //! ```
 use bytes::Bytes;
 
+#[cfg(feature = "experimental-inspect")]
+use crate::PyTypeInfo;
 use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
@@ -72,8 +74,6 @@ use crate::instance::Bound;
 use crate::platform::prelude::*;
 use crate::pybacked::PyBackedBytes;
 use crate::types::PyBytes;
-#[cfg(feature = "experimental-inspect")]
-use crate::PyTypeInfo;
 use crate::{Borrowed, CastError, FromPyObject, PyAny, PyErr, Python};
 
 impl<'a, 'py> FromPyObject<'a, 'py> for Bytes {
@@ -116,8 +116,8 @@ impl<'py> IntoPyObject<'py> for &Bytes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods, PyBytes};
     use crate::Python;
+    use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods, PyBytes};
 
     #[test]
     fn test_bytes() {

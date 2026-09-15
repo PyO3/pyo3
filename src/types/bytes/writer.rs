@@ -4,11 +4,12 @@
 //! Helper for making a [`PyBytes`], see [`PyBytesWriter`] for details.
 
 #[cfg(feature = "experimental-inspect")]
+use crate::PyTypeInfo;
+#[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[allow(unused_imports, reason = "conditionally used")]
 use crate::platform::prelude::*;
-#[cfg(feature = "experimental-inspect")]
-use crate::PyTypeInfo;
+use crate::{Bound, IntoPyObject, PyErr, PyResult, Python, types::PyBytes};
 #[cfg(not(Py_LIMITED_API))]
 use crate::{
     err::error_on_minusone,
@@ -22,7 +23,6 @@ use crate::{
     ffi_ptr_ext::FfiPtrExt,
     py_result_ext::PyResultExt,
 };
-use crate::{types::PyBytes, Bound, IntoPyObject, PyErr, PyResult, Python};
 #[cfg(not(Py_LIMITED_API))]
 use core::{mem::ManuallyDrop, ptr::NonNull};
 

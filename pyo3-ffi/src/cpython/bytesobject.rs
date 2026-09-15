@@ -1,5 +1,5 @@
-use crate::object::*;
 use crate::Py_ssize_t;
+use crate::object::*;
 #[cfg(not(Py_LIMITED_API))]
 use core::ffi::c_char;
 use core::ffi::c_int;
@@ -29,10 +29,12 @@ extern_libpython! {
 #[cfg(not(Py_LIMITED_API))]
 #[inline]
 pub unsafe fn PyBytes_AS_STRING(op: *mut PyObject) -> *const c_char {
-    #[cfg(not(any(PyPy, GraalPy)))]
-    return &(*op.cast::<PyBytesObject>()).ob_sval as *const c_char;
-    #[cfg(any(PyPy, GraalPy))]
-    return crate::PyBytes_AsString(op);
+    unsafe {
+        #[cfg(not(any(PyPy, GraalPy)))]
+        return &(*op.cast::<PyBytesObject>()).ob_sval as *const c_char;
+        #[cfg(any(PyPy, GraalPy))]
+        return crate::PyBytes_AsString(op);
+    }
 }
 
 #[cfg(Py_3_15)]

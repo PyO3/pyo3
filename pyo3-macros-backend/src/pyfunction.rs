@@ -4,28 +4,28 @@ use crate::combine_errors::CombineErrors;
 use crate::introspection::{function_introspection_code, introspection_id_const};
 #[cfg(feature = "experimental-inspect")]
 use crate::py_expr::PyExpr;
+use crate::utils::Ctx;
 #[cfg(feature = "experimental-inspect")]
 use crate::utils::get_doc;
-use crate::utils::Ctx;
 use crate::{
     attributes::{
-        self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
-        FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
+        self, CrateAttribute, FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
+        get_pyo3_options, take_attributes, take_pyo3_options,
     },
     method::{self, CallingConvention, ClassMethodReceiver, FnArg, SelfConversionPolicy},
     pymethod::check_generic,
 };
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use std::cmp::PartialEq;
 use std::ffi::CString;
 #[cfg(feature = "experimental-inspect")]
 use std::iter::empty;
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
 #[cfg(feature = "experimental-inspect")]
 use syn::ReturnType;
-use syn::{ext::IdentExt, spanned::Spanned, LitCStr, LitStr, Path, Result, Token};
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::{LitCStr, LitStr, Path, Result, Token, ext::IdentExt, spanned::Spanned};
 
 mod signature;
 
@@ -62,8 +62,8 @@ impl PyFunctionArgPyO3Attributes {
             from_py_with: None,
             cancel_handle: None,
         };
-        take_attributes(attrs, |attr| {
-            if let Some(pyo3_attrs) = get_pyo3_options(attr)? {
+        take_attributes(attrs, |attr| match get_pyo3_options(attr)? {
+            Some(pyo3_attrs) => {
                 for attr in pyo3_attrs {
                     match attr {
                         PyFunctionArgPyO3Attribute::FromPyWith(from_py_with) => {
@@ -87,9 +87,8 @@ impl PyFunctionArgPyO3Attributes {
                     );
                 }
                 Ok(true)
-            } else {
-                Ok(false)
             }
+            _ => Ok(false),
         })?;
         Ok(attributes)
     }

@@ -1,6 +1,6 @@
+use crate::Py_ssize_t;
 use crate::methodobject::PyMethodDef;
 use crate::object::{PyObject, PyTypeObject};
-use crate::Py_ssize_t;
 use core::ffi::{c_char, c_int, c_void};
 use core::ptr;
 
@@ -57,7 +57,7 @@ extern_libpython! {
     pub fn PyDescr_NewMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDescr_NewClassMethod")]
     pub fn PyDescr_NewClassMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef)
-        -> *mut PyObject;
+    -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDescr_NewMember")]
     pub fn PyDescr_NewMember(arg1: *mut PyTypeObject, arg2: *mut PyMemberDef) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDescr_NewGetSet")]

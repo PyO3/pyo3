@@ -20,7 +20,7 @@
 //!
 //! Rust code to create a function that adds one to a Decimal
 //!
-//! ```rust,no_run
+//! ```rust,no_run,standalone_crate
 //! use rust_decimal::Decimal;
 //! use pyo3::prelude::*;
 //!
@@ -57,9 +57,9 @@ use crate::platform::prelude::*;
 use crate::sync::PyOnceLock;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_identifier;
+use crate::types::PyType;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
-use crate::types::PyType;
 use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 use core::str::FromStr;
 use rust_decimal::Decimal;
@@ -123,8 +123,8 @@ impl<'py> IntoPyObject<'py> for &Decimal {
 #[cfg(test)]
 mod test_rust_decimal {
     use super::*;
-    use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
+    use crate::types::dict::PyDictMethods;
     use alloc::ffi::CString;
 
     #[cfg(not(target_arch = "wasm32"))]

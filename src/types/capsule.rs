@@ -7,14 +7,14 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::box_into_non_null;
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
-use crate::{ffi, PyAny};
+use crate::{Bound, Python};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
-use crate::{Bound, Python};
+use crate::{PyAny, ffi};
 use crate::{PyErr, PyResult};
 use alloc::ffi::CString;
 use core::ffi::CStr;
@@ -341,9 +341,9 @@ impl PyCapsule {
     /// use core::ptr::NonNull;
     ///
     /// unsafe extern "C" fn free_data(capsule: *mut pyo3::ffi::PyObject) {
-    ///     let ptr = pyo3::ffi::PyCapsule_GetPointer(capsule, c"my_module.data".as_ptr());
+    ///     let ptr = unsafe { pyo3::ffi::PyCapsule_GetPointer(capsule, c"my_module.data".as_ptr()) };
     ///     if !ptr.is_null() {
-    ///         drop(Box::from_raw(ptr as *mut u32));
+    ///         unsafe { drop(Box::from_raw(ptr as *mut u32)) };
     ///     }
     /// }
     ///
@@ -675,10 +675,9 @@ unsafe extern "C" fn capsule_destructor<
 }
 
 fn ensure_no_error(py: Python<'_>) -> PyResult<()> {
-    if let Some(err) = PyErr::take(py) {
-        Err(err)
-    } else {
-        Ok(())
+    match PyErr::take(py) {
+        Some(err) => Err(err),
+        _ => Ok(()),
     }
 }
 
@@ -695,10 +694,10 @@ mod tests {
     use crate::prelude::PyModule;
     use crate::types::capsule::PyCapsuleMethods;
     use crate::types::module::PyModuleMethods;
-    use crate::{types::PyCapsule, Py, PyResult, Python};
-    use core::ffi::{c_void, CStr};
+    use crate::{Py, PyResult, Python, types::PyCapsule};
+    use core::ffi::{CStr, c_void};
     use core::ptr::NonNull;
-    use std::sync::mpsc::{channel, Sender};
+    use std::sync::mpsc::{Sender, channel};
 
     const NAME: &CStr = c"foo";
 
@@ -924,7 +923,7 @@ mod tests {
 
     #[test]
     fn test_pycapsule_new_with_pointer_and_destructor() {
-        use std::sync::mpsc::{channel, TryRecvError};
+        use std::sync::mpsc::{TryRecvError, channel};
 
         let (tx, rx) = channel::<bool>();
 

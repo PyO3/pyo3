@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
@@ -56,14 +56,14 @@ mod external_submodule {}
 #[pymodule]
 mod declarative_module {
     #[pymodule_export]
-    use super::declarative_submodule;
-    #[pymodule_export]
     // This is not a real constraint but to test cfg attribute support
     #[cfg(not(Py_LIMITED_API))]
     use super::LocatedClass;
+    #[pymodule_export]
+    use super::declarative_submodule;
     use super::*;
     #[pymodule_export]
-    use super::{declarative_module2, double, MyError, ValueClass as Value};
+    use super::{MyError, ValueClass as Value, declarative_module2, double};
 
     // test for #4036
     #[pymodule_export]

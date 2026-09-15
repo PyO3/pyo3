@@ -13,12 +13,12 @@ use crate::sync::GILOnceCell;
 #[cfg(Py_3_14)]
 use crate::types::PyTypeMethods;
 use crate::{
+    Bound, Py, PyAny, PyClass, PyErr, PyResult, Python,
     exceptions::PyRuntimeError,
     ffi,
     impl_::pymethods::PyMethodDefType,
-    pyclass::{create_type_object, PyClassTypeObject},
+    pyclass::{PyClassTypeObject, create_type_object},
     types::PyType,
-    Bound, Py, PyAny, PyClass, PyErr, PyResult, Python,
 };
 
 use super::PyClassItemsIter;
@@ -179,7 +179,7 @@ impl LazyTypeObjectInner {
                                     name,
                                     attr.name.to_str().unwrap()
                                 ),
-                            ))
+                            ));
                         }
                     }
                 }

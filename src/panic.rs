@@ -1,7 +1,7 @@
 //! Helper to convert Rust panics to Python exceptions.
+use crate::PyErr;
 use crate::exceptions::PyBaseException;
 use crate::platform::prelude::*;
-use crate::PyErr;
 use core::any::Any;
 
 pyo3_exception!(

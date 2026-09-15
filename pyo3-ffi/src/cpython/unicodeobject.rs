@@ -1,6 +1,6 @@
 #[cfg(any(Py_3_11, not(PyPy)))]
 use crate::Py_hash_t;
-use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_ssize_t};
+use crate::{Py_UCS1, Py_UCS2, Py_UCS4, Py_ssize_t, PyObject};
 use core::ffi::{c_char, c_int, c_uint, c_void};
 use libc::wchar_t;
 
@@ -539,9 +539,11 @@ unsafe fn _PyUnicode_COMPACT_DATA(op: *mut PyObject) -> *mut c_void {
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 unsafe fn _PyUnicode_NONCOMPACT_DATA(op: *mut PyObject) -> *mut c_void {
-    debug_assert!(!(*(op as *mut PyUnicodeObject)).data.any.is_null());
+    unsafe {
+        debug_assert!(!(*(op as *mut PyUnicodeObject)).data.any.is_null());
 
-    (*(op as *mut PyUnicodeObject)).data.any
+        (*(op as *mut PyUnicodeObject)).data.any
+    }
 }
 
 #[cfg(not(any(GraalPy, PyPy, Py_3_14)))]
@@ -566,29 +568,31 @@ extern_libpython! {
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 pub unsafe fn PyUnicode_1BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS1 {
-    PyUnicode_DATA(op) as *mut Py_UCS1
+    unsafe { PyUnicode_DATA(op) as *mut Py_UCS1 }
 }
 
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 pub unsafe fn PyUnicode_2BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS2 {
-    PyUnicode_DATA(op) as *mut Py_UCS2
+    unsafe { PyUnicode_DATA(op) as *mut Py_UCS2 }
 }
 
 #[cfg(not(any(GraalPy, PyPy)))]
 #[inline]
 pub unsafe fn PyUnicode_4BYTE_DATA(op: *mut PyObject) -> *mut Py_UCS4 {
-    PyUnicode_DATA(op) as *mut Py_UCS4
+    unsafe { PyUnicode_DATA(op) as *mut Py_UCS4 }
 }
 
 #[cfg(not(GraalPy))]
 #[inline]
 pub unsafe fn PyUnicode_GET_LENGTH(op: *mut PyObject) -> Py_ssize_t {
-    debug_assert!(crate::PyUnicode_Check(op) != 0);
-    #[cfg(not(Py_3_12))]
-    debug_assert!(PyUnicode_IS_READY(op) != 0);
+    unsafe {
+        debug_assert!(crate::PyUnicode_Check(op) != 0);
+        #[cfg(not(Py_3_12))]
+        debug_assert!(PyUnicode_IS_READY(op) != 0);
 
-    (*(op as *mut PyASCIIObject)).length
+        (*(op as *mut PyASCIIObject)).length
+    }
 }
 
 // skipped PyUnstable_Unicode_GET_CACHED_HASH
@@ -768,7 +772,7 @@ extern_libpython! {
     #[cfg(not(Py_3_11))]
     #[deprecated(note = "use `PyUnicode_AsUnicodeEscapeString` instead")]
     pub fn PyUnicode_EncodeUnicodeEscape(data: *const wchar_t, length: Py_ssize_t)
-        -> *mut PyObject;
+    -> *mut PyObject;
 
     #[cfg(not(Py_3_11))]
     #[deprecated(note = "use `PyUnicode_AsRawUnicodeEscapeString` instead")]
@@ -869,7 +873,7 @@ extern_libpython! {
 
 #[cfg(not(PyPy))]
 pub unsafe extern "C" fn Py_UNICODE_TODECIMAL(ch: Py_UCS4) -> c_int {
-    _PyUnicode_ToDecimalDigit(ch)
+    unsafe { _PyUnicode_ToDecimalDigit(ch) }
 }
 
 #[cfg(PyPy)]

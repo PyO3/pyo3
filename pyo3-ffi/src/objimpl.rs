@@ -40,14 +40,14 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyObject_New<T>(typeobj: *mut PyTypeObject) -> *mut T {
-    _PyObject_New(typeobj).cast()
+    unsafe { _PyObject_New(typeobj).cast() }
 }
 
 // skipped PyObject_NEW
 
 #[inline]
 pub unsafe fn PyObject_NewVar<T>(typeobj: *mut PyTypeObject, n: Py_ssize_t) -> *mut T {
-    _PyObject_NewVar(typeobj, n).cast()
+    unsafe { _PyObject_NewVar(typeobj, n).cast() }
 }
 
 // skipped PyObject_NEW_VAR
@@ -71,7 +71,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyType_IS_GC(t: *mut PyTypeObject) -> c_int {
-    PyType_HasFeature(t, Py_TPFLAGS_HAVE_GC)
+    unsafe { PyType_HasFeature(t, Py_TPFLAGS_HAVE_GC) }
 }
 
 extern_libpython! {
@@ -80,7 +80,7 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyObject_GC_Resize<T>(op: *mut PyObject, n: Py_ssize_t) -> *mut T {
-    _PyObject_GC_Resize(op.cast(), n).cast()
+    unsafe { _PyObject_GC_Resize(op.cast(), n).cast() }
 }
 
 extern_libpython! {
@@ -114,12 +114,12 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyObject_GC_New<T>(typeobj: *mut PyTypeObject) -> *mut T {
-    _PyObject_GC_New(typeobj).cast()
+    unsafe { _PyObject_GC_New(typeobj).cast() }
 }
 
 #[inline]
 pub unsafe fn PyObject_GC_NewVar<T>(typeobj: *mut PyTypeObject, n: Py_ssize_t) -> *mut T {
-    _PyObject_GC_NewVar(typeobj, n).cast()
+    unsafe { _PyObject_GC_NewVar(typeobj, n).cast() }
 }
 
 extern_libpython! {

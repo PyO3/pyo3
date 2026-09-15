@@ -45,7 +45,7 @@ extern_libpython! {
 #[inline]
 #[cfg(not(RustPython))]
 pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
-    Py_IS_TYPE(op, &raw mut PySlice_Type)
+    unsafe { Py_IS_TYPE(op, &raw mut PySlice_Type) }
 }
 
 extern_libpython! {
@@ -81,12 +81,14 @@ pub unsafe fn PySlice_GetIndicesEx(
     step: *mut Py_ssize_t,
     slicelength: *mut Py_ssize_t,
 ) -> c_int {
-    if PySlice_Unpack(slice, start, stop, step) < 0 {
-        *slicelength = 0;
-        -1
-    } else {
-        *slicelength = PySlice_AdjustIndices(length, start, stop, *step);
-        0
+    unsafe {
+        if PySlice_Unpack(slice, start, stop, step) < 0 {
+            *slicelength = 0;
+            -1
+        } else {
+            *slicelength = PySlice_AdjustIndices(length, start, stop, *step);
+            0
+        }
     }
 }
 

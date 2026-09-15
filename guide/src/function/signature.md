@@ -17,7 +17,7 @@ For example, below is a function that accepts arbitrary keyword arguments (`**kw
 
 ```rust,no_run
 #[pyo3::pymodule]
-mod module_with_functions {
+mod module_with_signature {
     use pyo3::prelude::*;
     use pyo3::types::PyDict;
 

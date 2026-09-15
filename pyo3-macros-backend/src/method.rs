@@ -3,8 +3,8 @@ use std::ffi::CString;
 use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
-use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
+use quote::{ToTokens, quote, quote_spanned};
+use syn::{Ident, Result, ext::IdentExt, spanned::Spanned};
 use syn::{LitCStr, ReceiverKind};
 
 use crate::params::is_forwarded_args;
@@ -14,7 +14,7 @@ use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::utils::Ctx;
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
-    params::{impl_arg_params, Holders},
+    params::{Holders, impl_arg_params},
     pyfunction::{
         FunctionSignature, PyFunctionArgPyO3Attributes, PyFunctionOptions, SignatureAttribute,
     },
@@ -265,6 +265,7 @@ impl FnType {
         }
     }
 
+    /// Returns the `self` argument for a method, if any, and any initialization code that needs to be run before the method body.
     pub fn self_arg(
         &self,
         cls: Option<&syn::Type>,
@@ -273,9 +274,10 @@ impl FnType {
         class_method_receiver: ClassMethodReceiver,
         holders: &mut Holders,
         ctx: &Ctx,
-    ) -> Option<TokenStream> {
+    ) -> (Option<TokenStream>, TokenStream) {
         let Ctx { pyo3_path, .. } = ctx;
-        match self {
+        let mut receiver_init = TokenStream::new();
+        let self_arg = match self {
             FnType::Getter(st) | FnType::Setter(st) | FnType::Deleter(st) | FnType::Fn(st) => {
                 Some(st.receiver(
                     cls.expect("no class given for Fn with a \"self\" receiver"),
@@ -290,7 +292,7 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let class_method_receiver = match class_method_receiver {
-                    ClassMethodReceiver::Class => quote! { #slf.cast() },
+                    ClassMethodReceiver::Class => quote! { #slf },
                     ClassMethodReceiver::Instance => {
                         let type_check = match self_conversion.0 {
                             SelfConversionPolicyInner::Trusted => quote! {},
@@ -305,10 +307,16 @@ impl FnType {
                                 quote! { #type_check; }
                             }
                         };
-                        quote! {{
-                            #type_check
-                            #pyo3_path::ffi::Py_TYPE(#slf).cast()
-                        }}
+                        let cls_ptr = Ident::new("_cls", Span::call_site());
+                        // receiver_init binds the pointer so that temporary is not
+                        // an issue inside the `unsafe` block created below.
+                        receiver_init = quote! {
+                            let #cls_ptr = unsafe {
+                                #type_check
+                                #pyo3_path::ffi::Py_TYPE(#slf).cast()
+                            };
+                        };
+                        quote! { #cls_ptr }
                     }
                 };
                 let ret = quote_spanned! { *span =>
@@ -327,14 +335,15 @@ impl FnType {
                 let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion, reason = "`pass_module` accepts anything which implements `From<&Bound<PyModule>>`")]
                     ::core::convert::Into::into(
-                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
+                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf)
                             .cast_unchecked::<#pyo3_path::types::PyModule>()
                     )
                 };
                 Some(quote! { unsafe { #ret } })
             }
             FnType::FnStatic | FnType::ClassAttribute => None,
-        }
+        };
+        (self_arg, receiver_init)
     }
 }
 
@@ -713,8 +722,14 @@ impl<'a> FnSpec<'a> {
                 set_name_to_new()?;
                 FnType::FnStatic
             }
-            [MethodTypeAttribute::New(_), MethodTypeAttribute::ClassMethod(span)]
-            | [MethodTypeAttribute::ClassMethod(span), MethodTypeAttribute::New(_)] => {
+            [
+                MethodTypeAttribute::New(_),
+                MethodTypeAttribute::ClassMethod(span),
+            ]
+            | [
+                MethodTypeAttribute::ClassMethod(span),
+                MethodTypeAttribute::New(_),
+            ] => {
                 set_name_to_new()?;
                 FnType::FnClass(*span)
             }
@@ -826,7 +841,7 @@ impl<'a> FnSpec<'a> {
         }
 
         let rust_call = |args: Vec<TokenStream>, mut holders: Holders| {
-            let self_arg = self.tp.self_arg(
+            let (self_arg, receiver_init) = self.tp.self_arg(
                 cls,
                 ExtractErrorMode::Raise,
                 self_conversion,
@@ -953,6 +968,7 @@ impl<'a> FnSpec<'a> {
                                         #output_args
                                         #varargs_ptr
                                         #kwargs_ptr
+                                        #receiver_init
                                         function(#(#args),*)
                                     };
                                     let #ret_ident = future.await;
@@ -969,6 +985,7 @@ impl<'a> FnSpec<'a> {
                 quote! {
                     {
                         #init_holders
+                        #receiver_init
                         let #ret_ident = function(#(#args),*);
                         #return_conversion
                     }
@@ -1107,7 +1124,7 @@ impl<'a> FnSpec<'a> {
         let self_argument = match &self.tp {
             // Getters / Setters / deleter / ClassAttribute are not callables on the Python side
             FnType::Getter(_) | FnType::Setter(_) | FnType::Deleter(_) | FnType::ClassAttribute => {
-                return None
+                return None;
             }
             FnType::Fn(_) => Some("self"),
             FnType::FnModule(_) => Some("module"),

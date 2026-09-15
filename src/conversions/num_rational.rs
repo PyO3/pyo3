@@ -17,7 +17,7 @@
 //!
 //! Rust code to create a function that adds five to a fraction:
 //!
-//! ```rust,no_run
+//! ```rust,no_run,standalone_crate
 //! use num_rational::Ratio;
 //! use pyo3::prelude::*;
 //!
@@ -50,8 +50,8 @@ use crate::inspect::PyStaticExpr;
 use crate::sync::PyOnceLock;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_identifier;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
+use crate::types::any::PyAnyMethods;
 use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 #[cfg(feature = "num-bigint")]
 use num_bigint::BigInt;
@@ -130,8 +130,8 @@ rational_conversion!(BigInt);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
+    use crate::types::dict::PyDictMethods;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;

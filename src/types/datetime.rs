@@ -8,27 +8,27 @@ use crate::err::PyErr;
 use crate::err::PyResult;
 #[cfg(not(Py_LIMITED_API))]
 use crate::ffi::{
-    self, PyDateTime_CAPI, PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR,
-    PyDateTime_DATE_GET_MICROSECOND, PyDateTime_DATE_GET_MINUTE, PyDateTime_DATE_GET_SECOND,
-    PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS, PyDateTime_DELTA_GET_SECONDS,
-    PyDateTime_FromTimestamp, PyDateTime_GET_DAY, PyDateTime_GET_MONTH, PyDateTime_GET_YEAR,
-    PyDateTime_IMPORT, PyDateTime_TIME_GET_FOLD, PyDateTime_TIME_GET_HOUR,
-    PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
-    PyDate_FromTimestamp,
+    self, PyDate_FromTimestamp, PyDateTime_CAPI, PyDateTime_DATE_GET_FOLD,
+    PyDateTime_DATE_GET_HOUR, PyDateTime_DATE_GET_MICROSECOND, PyDateTime_DATE_GET_MINUTE,
+    PyDateTime_DATE_GET_SECOND, PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS,
+    PyDateTime_DELTA_GET_SECONDS, PyDateTime_FromTimestamp, PyDateTime_GET_DAY,
+    PyDateTime_GET_MONTH, PyDateTime_GET_YEAR, PyDateTime_IMPORT, PyDateTime_TIME_GET_FOLD,
+    PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE,
+    PyDateTime_TIME_GET_SECOND,
 };
 #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
-use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
+use crate::ffi::{Py_IsNone, PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO};
 #[cfg(Py_LIMITED_API)]
 use crate::type_object::PyTypeInfo;
 #[cfg(Py_LIMITED_API)]
-use crate::types::typeobject::PyTypeMethods;
-#[cfg(Py_LIMITED_API)]
 use crate::types::IntoPyDict;
-use crate::types::{any::PyAnyMethods, PyString, PyType};
-#[cfg(not(Py_LIMITED_API))]
-use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, BoundObject};
-use crate::{sync::PyOnceLock, Py};
+#[cfg(Py_LIMITED_API)]
+use crate::types::typeobject::PyTypeMethods;
+use crate::types::{PyString, PyType, any::PyAnyMethods};
 use crate::{Borrowed, Bound, IntoPyObject, PyAny, Python};
+#[cfg(not(Py_LIMITED_API))]
+use crate::{BoundObject, ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple};
+use crate::{Py, sync::PyOnceLock};
 #[cfg(not(Py_LIMITED_API))]
 use core::ffi::c_int;
 
@@ -1046,7 +1046,7 @@ mod tests {
 
     #[cfg(not(Py_LIMITED_API))]
     macro_rules! assert_check_exact {
-        ($check_func:ident, $check_func_exact:ident, $obj: expr) => {
+        ($check_func:ident, $check_func_exact:ident, $obj: expr_2021) => {
             unsafe {
                 use crate::ffi::*;
                 assert_ne!($check_func(($obj).as_ptr()), 0);
@@ -1057,7 +1057,7 @@ mod tests {
 
     #[cfg(not(Py_LIMITED_API))]
     macro_rules! assert_check_only {
-        ($check_func:ident, $check_func_exact:ident, $obj: expr) => {
+        ($check_func:ident, $check_func_exact:ident, $obj: expr_2021) => {
             unsafe {
                 use crate::ffi::*;
                 assert_ne!($check_func(($obj).as_ptr()), 0);

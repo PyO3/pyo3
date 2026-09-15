@@ -7,12 +7,12 @@
 //!
 //! [1]: https://docs.python.org/3/library/contextvars.html#contextvars.Context
 
-use crate::{ffi, PyAny};
+use crate::{PyAny, ffi};
 
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
 use crate::{
-    err::{error_on_minusone, error_on_minusone_with_result},
     Borrowed, PyResult, Python,
+    err::{error_on_minusone, error_on_minusone_with_result},
 };
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
 use core::ffi::c_int;
@@ -429,14 +429,14 @@ pub mod impl_ {
 
 #[cfg(all(test, Py_3_14, not(Py_GIL_DISABLED)))]
 mod watcher_tests {
-    use super::impl_::{context_watcher, ContextWatcherCallback, ContextWatcherCallbackDef};
+    use super::impl_::{ContextWatcherCallback, ContextWatcherCallbackDef, context_watcher};
     use super::{ContextEvent, PyContext};
     use crate::exceptions::{PyRuntimeError, PyValueError};
     use crate::platform::sync::non_poison::{Mutex, MutexGuard};
     #[cfg(feature = "macros")]
     use crate::test_utils::UnraisableCapture;
     use crate::types::PyAnyMethods;
-    use crate::{ffi, PyErr, PyResult, Python};
+    use crate::{PyErr, PyResult, Python, ffi};
     use alloc::string::ToString;
     use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
     use static_assertions::{assert_impl_all, assert_not_impl_any};
@@ -775,8 +775,8 @@ mod watcher_tests {
 #[cfg(test)]
 mod tests {
     use super::PyContext;
-    use crate::types::PyAnyMethods;
     use crate::Python;
+    use crate::types::PyAnyMethods;
 
     #[test]
     fn context_type() {

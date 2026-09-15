@@ -4,7 +4,7 @@
 use crate::platform::sync::Once;
 
 #[cfg(not(any(PyPy, GraalPy)))]
-use crate::{ffi, internal::state::AttachGuard, Python};
+use crate::{Python, ffi, internal::state::AttachGuard};
 
 static START: Once = Once::new();
 
@@ -45,7 +45,7 @@ pub(crate) fn initialize() {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,standalone_crate
 /// unsafe {
 ///     pyo3::with_embedded_python_interpreter(|py| {
 ///         if let Err(e) = py.run(c"print('Hello World')", None, None) {

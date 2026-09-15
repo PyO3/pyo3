@@ -2,7 +2,7 @@
 
 use crate::ffi_ptr_ext::FfiPtrExt as _;
 use crate::types::{PyAnyMethods as _, PyDict, PyString, PyTuple};
-use crate::{ffi, Borrowed, Bound, IntoPyObjectExt as _, Py, PyAny, PyResult};
+use crate::{Borrowed, Bound, IntoPyObjectExt as _, Py, PyAny, PyResult, ffi};
 
 pub(crate) mod private {
     use super::*;
@@ -225,9 +225,8 @@ impl<'py> PyCallArgs<'py> for Borrowed<'_, 'py, PyTuple> {
 #[cfg(feature = "macros")]
 mod tests {
     use crate::{
-        pyfunction,
+        Py, pyfunction,
         types::{PyDict, PyTuple},
-        Py,
     };
 
     #[pyfunction(signature = (*args, **kwargs), crate = "crate")]
@@ -241,8 +240,9 @@ mod tests {
     #[test]
     fn test_call() {
         use crate::{
+            Py, Python,
             types::{IntoPyDict, PyAnyMethods, PyDict, PyTuple},
-            wrap_pyfunction, Py, Python,
+            wrap_pyfunction,
         };
 
         Python::attach(|py| {
@@ -252,7 +252,7 @@ mod tests {
             let kwargs = &[("foo", 1), ("bar", 2)].into_py_dict(py).unwrap();
 
             macro_rules! check_call {
-                ($args:expr, $kwargs:expr) => {
+                ($args:expr_2021, $kwargs:expr_2021) => {
                     let (a, k): (Py<PyTuple>, Py<PyDict>) = f
                         .call(args.clone(), Some(kwargs))
                         .unwrap()
@@ -283,8 +283,9 @@ mod tests {
     #[test]
     fn test_call_positional() {
         use crate::{
+            Py, Python,
             types::{PyAnyMethods, PyNone, PyTuple},
-            wrap_pyfunction, Py, Python,
+            wrap_pyfunction,
         };
 
         Python::attach(|py| {
@@ -293,7 +294,7 @@ mod tests {
             let args = PyTuple::new(py, [1, 2, 3]).unwrap();
 
             macro_rules! check_call {
-                ($args:expr, $kwargs:expr) => {
+                ($args:expr_2021, $kwargs:expr_2021) => {
                     let (a, k): (Py<PyTuple>, Py<PyNone>) =
                         f.call1(args.clone()).unwrap().extract().unwrap();
                     assert!(a.is(&args));

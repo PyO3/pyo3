@@ -24,7 +24,7 @@ macro_rules! assert_type_refcount_stable {
         .unwrap());
     };
     // With custom constructor
-    ($type_name:ty, $test_name:expr, $ctor:expr) => {{
+    ($type_name:ty, $test_name:expr_2021, $ctor:expr_2021) => {{
         let ty = Python::attach(|py| py.get_type::<$type_name>().unbind());
 
         // SAFETY: ty is known to be a valid object
@@ -243,8 +243,8 @@ mod inheriting_native_type {
     use {
         pyo3::types::{PyCapsule, PyDict},
         std::sync::{
-            atomic::{AtomicBool, Ordering},
             Arc,
+            atomic::{AtomicBool, Ordering},
         },
     };
 
