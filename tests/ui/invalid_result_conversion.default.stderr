@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `PyErr: From<MyError>` is not satisfied
-   --> tests/ui/invalid_result_conversion.rs:22:25
+   --> tests/ui/invalid_result_conversion.rs:26:25
     |
- 22 | fn should_not_work() -> Result<(), MyError> {
+ 26 | fn should_not_work() -> Result<(), MyError> {
     |                         ^^^^^^ the trait `From<MyError>` is not implemented for `PyErr`
     |
     = help: `PyErr` implements trait `From<T>`:
@@ -11,8 +11,8 @@ error[E0277]: the trait bound `PyErr: From<MyError>` is not satisfied
               From<CharTryFromError>
               From<FromUtf8Error>
               From<Infallible>
+              From<IntoInnerError<W>>
               From<IntoStringError>
-              From<NulError>
             and $N others
 note: required by a bound in `pyo3::impl_::wrap::IntoPyObjectConverter::<Result<T, E>>::wrap_into_ptr`
  --> src/impl_/wrap.rs
