@@ -311,7 +311,10 @@ mod tests {
                     with_critical_section(b, || {
                         barrier.wait();
                         std::thread::sleep(core::time::Duration::from_millis(10));
-                        b.borrow().0.store(true, Ordering::Release);
+                        b.try_borrow_guard()
+                            .unwrap()
+                            .0
+                            .store(true, Ordering::Release);
                     })
                 });
             });
@@ -321,7 +324,7 @@ mod tests {
                     let b = bool_wrapper.bind(py);
                     // this blocks until the other thread's critical section finishes
                     with_critical_section(b, || {
-                        assert!(b.borrow().0.load(Ordering::Acquire));
+                        assert!(b.try_borrow_guard().unwrap().0.load(Ordering::Acquire));
                     });
                 });
             });
@@ -379,8 +382,14 @@ mod tests {
                     with_critical_section2(b1, b2, || {
                         barrier.wait();
                         std::thread::sleep(core::time::Duration::from_millis(10));
-                        b1.borrow().0.store(true, Ordering::Release);
-                        b2.borrow().0.store(true, Ordering::Release);
+                        b1.try_borrow_guard()
+                            .unwrap()
+                            .0
+                            .store(true, Ordering::Release);
+                        b2.try_borrow_guard()
+                            .unwrap()
+                            .0
+                            .store(true, Ordering::Release);
                     })
                 });
             });
@@ -390,7 +399,7 @@ mod tests {
                     let b1 = bool_wrapper1.bind(py);
                     // this blocks until the other thread's critical section finishes
                     with_critical_section(b1, || {
-                        assert!(b1.borrow().0.load(Ordering::Acquire));
+                        assert!(b1.try_borrow_guard().unwrap().0.load(Ordering::Acquire));
                     });
                 });
             });
@@ -400,7 +409,7 @@ mod tests {
                     let b2 = bool_wrapper2.bind(py);
                     // this blocks until the other thread's critical section finishes
                     with_critical_section(b2, || {
-                        assert!(b2.borrow().0.load(Ordering::Acquire));
+                        assert!(b2.try_borrow_guard().unwrap().0.load(Ordering::Acquire));
                     });
                 });
             });
@@ -457,7 +466,10 @@ mod tests {
                     with_critical_section2(b, b, || {
                         barrier.wait();
                         std::thread::sleep(core::time::Duration::from_millis(10));
-                        b.borrow().0.store(true, Ordering::Release);
+                        b.try_borrow_guard()
+                            .unwrap()
+                            .0
+                            .store(true, Ordering::Release);
                     })
                 });
             });
@@ -467,7 +479,7 @@ mod tests {
                     let b = bool_wrapper.bind(py);
                     // this blocks until the other thread's critical section finishes
                     with_critical_section(b, || {
-                        assert!(b.borrow().0.load(Ordering::Acquire));
+                        assert!(b.try_borrow_guard().unwrap().0.load(Ordering::Acquire));
                     });
                 });
             });
@@ -523,7 +535,10 @@ mod tests {
                     let v2 = vec2.bind(py);
                     with_critical_section2(v1, v2, || {
                         // v2.extend(v1)
-                        v2.borrow_mut().0.extend(v1.borrow().0.iter());
+                        v2.try_borrow_guard_mut()
+                            .unwrap()
+                            .0
+                            .extend(v1.try_borrow_guard().unwrap().0.iter());
                     })
                 });
             });
@@ -533,7 +548,10 @@ mod tests {
                     let v2 = vec2.bind(py);
                     with_critical_section2(v1, v2, || {
                         // v1.extend(v2)
-                        v1.borrow_mut().0.extend(v2.borrow().0.iter());
+                        v1.try_borrow_guard_mut()
+                            .unwrap()
+                            .0
+                            .extend(v2.try_borrow_guard().unwrap().0.iter());
                     })
                 });
             });
@@ -554,8 +572,10 @@ mod tests {
             let expected2_vec2 = vec![4, 5, 1, 2, 3];
 
             assert!(
-                (v1.borrow().0.eq(&expected1_vec1) && v2.borrow().0.eq(&expected1_vec2))
-                    || (v1.borrow().0.eq(&expected2_vec1) && v2.borrow().0.eq(&expected2_vec2))
+                (v1.try_borrow_guard().unwrap().0.eq(&expected1_vec1)
+                    && v2.try_borrow_guard().unwrap().0.eq(&expected1_vec2))
+                    || (v1.try_borrow_guard().unwrap().0.eq(&expected2_vec1)
+                        && v2.try_borrow_guard().unwrap().0.eq(&expected2_vec2))
             );
         });
     }

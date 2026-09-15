@@ -25,7 +25,7 @@ fn test_base_init() {
         let typeobj = py.get_type::<Base>();
         let obj = typeobj.call((), None).unwrap().cast_into::<Base>().unwrap();
         // check __init__ was called
-        assert_eq!(obj.borrow().num, 42);
+        assert_eq!(obj.try_borrow_guard().unwrap().num, 42);
     });
 }
 
@@ -50,7 +50,7 @@ fn test_subclass_without_init_calls_base_init() {
             .cast_into::<SubWithoutInit>()
             .unwrap();
         // check Base.__init__ was called
-        assert_eq!(obj.as_super().borrow().num, 42);
+        assert_eq!(obj.as_super().try_borrow_guard().unwrap().num, 42);
     });
 }
 
@@ -81,7 +81,7 @@ fn test_subclass_with_init() {
             .unwrap();
         // check SubWithInit.__init__ was called, and Base.__init__ was only called once (through
         // SubWithInit.__init__)
-        assert_eq!(obj.as_super().borrow().num, 43);
+        assert_eq!(obj.as_super().try_borrow_guard().unwrap().num, 43);
     });
 }
 

@@ -277,7 +277,9 @@ mod nightly {
         // This means that PyString, PyList, etc all inherit !Ungil from  this.
         impl !Ungil for crate::PyAny {}
 
+        #[expect(deprecated)]
         impl<T> !Ungil for crate::PyRef<'_, T> {}
+        #[expect(deprecated)]
         impl<T> !Ungil for crate::PyRefMut<'_, T> {}
 
         // FFI pointees
