@@ -892,8 +892,7 @@ impl DescrCounter {
 fn descr_getset() {
     Python::attach(|py| {
         let counter = py.get_type::<DescrCounter>();
-        let source = pyo3_ffi::c_str!(
-            r#"
+        let source = cr#"
 class Class:
     counter = Counter()
 
@@ -927,8 +926,7 @@ for call in (
         assert False, "expected TypeError"
     except TypeError:
         pass
-"#
-        );
+        "#;
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("Counter", counter).unwrap();
         py.run(source, Some(&globals), None)

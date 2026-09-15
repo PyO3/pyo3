@@ -2,13 +2,17 @@ use std::hint::black_box;
 
 use codspeed_criterion_compat::{criterion_group, criterion_main, Bencher, Criterion};
 
-use pyo3::ffi::c_str;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 
 macro_rules! test_module {
     ($py:ident, $code:literal) => {
-        PyModule::from_code($py, c_str!($code), c_str!(file!()), c"test_module")
+        PyModule::from_code(
+            $py,
+            core::ffi::CStr::from_bytes_with_nul(concat!($code, "\0").as_bytes()).unwrap(),
+            core::ffi::CStr::from_bytes_with_nul(concat!(file!(), "\0").as_bytes()).unwrap(),
+            c"test_module",
+        )
             .expect("module creation failed")
     };
 }

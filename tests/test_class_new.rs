@@ -156,8 +156,7 @@ impl SuperClass {
 fn subclass_new() {
     Python::attach(|py| {
         let super_cls = py.get_type::<SuperClass>();
-        let source = pyo3_ffi::c_str!(
-            r#"
+        let source = cr#"
 class Class(SuperClass):
     def __new__(cls):
         return super().__new__(cls)  # This should return an instance of Class
@@ -167,8 +166,7 @@ class Class(SuperClass):
         return False
 c = Class()
 assert c.from_rust is False
-"#
-        );
+        "#;
         let globals = PyModule::import(py, "__main__").unwrap().dict();
         globals.set_item("SuperClass", super_cls).unwrap();
         py.run(source, Some(&globals), None)
@@ -215,12 +213,12 @@ struct NewExisting {
 #[pymethods]
 impl NewExisting {
     #[new]
-    fn new(py: pyo3::Python<'_>, val: usize) -> pyo3::Py<NewExisting> {
-        static PRE_BUILT: PyOnceLock<[pyo3::Py<NewExisting>; 2]> = PyOnceLock::new();
+    fn new(py: Python<'_>, val: usize) -> Py<NewExisting> {
+        static PRE_BUILT: PyOnceLock<[Py<NewExisting>; 2]> = PyOnceLock::new();
         let existing = PRE_BUILT.get_or_init(py, || {
             [
-                pyo3::Py::new(py, NewExisting { num: 0 }).unwrap(),
-                pyo3::Py::new(py, NewExisting { num: 1 }).unwrap(),
+                Py::new(py, NewExisting { num: 0 }).unwrap(),
+                Py::new(py, NewExisting { num: 1 }).unwrap(),
             ]
         });
 
@@ -228,7 +226,7 @@ impl NewExisting {
             return existing[val].clone_ref(py);
         }
 
-        pyo3::Py::new(py, NewExisting { num: val }).unwrap()
+        Py::new(py, NewExisting { num: val }).unwrap()
     }
 }
 
@@ -299,17 +297,17 @@ fn test_new_returns_bound() {
     })
 }
 
-#[pyo3::pyclass]
+#[pyclass]
 struct NewClassMethod {
     #[pyo3(get)]
-    cls: pyo3::Py<PyAny>,
+    cls: Py<PyAny>,
 }
 
-#[pyo3::pymethods]
+#[pymethods]
 impl NewClassMethod {
     #[new]
     #[classmethod]
-    fn new(cls: &pyo3::Bound<'_, pyo3::types::PyType>) -> Self {
+    fn new(cls: &Bound<'_, pyo3::types::PyType>) -> Self {
         Self {
             cls: cls.clone().into_any().unbind(),
         }
@@ -318,7 +316,7 @@ impl NewClassMethod {
 
 #[test]
 fn test_new_class_method() {
-    pyo3::Python::attach(|py| {
+    Python::attach(|py| {
         let cls = py.get_type::<NewClassMethod>();
         pyo3::py_run!(py, cls, "assert cls().cls is cls");
     });
