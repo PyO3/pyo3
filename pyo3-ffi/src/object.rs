@@ -767,7 +767,8 @@ extern_libpython! {
     #[cfg(Py_3_14)]
     pub fn PyType_Freeze(tp: *mut crate::PyTypeObject) -> c_int;
 
-    #[cfg(Py_3_15)]
+    #[cfg(any(Py_3_15, not(Py_LIMITED_API)))]
+    #[cfg_attr(PyPy, link_name = "PyPyObject_CallFinalizerFromDealloc")]
     pub fn PyObject_CallFinalizerFromDealloc(arg1: *mut crate::PyObject) -> c_int;
 
     #[cfg(Py_3_15)]
