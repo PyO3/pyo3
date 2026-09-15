@@ -26,7 +26,7 @@ impl PyTraverseError {
 }
 
 /// Object visitor for GC.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct PyVisit<'a> {
     visit: ffi::visitproc,
     arg: *mut c_void,

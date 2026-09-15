@@ -29,10 +29,10 @@ def test(session: nox.Session):
             pass
 
     try_install_binary("numpy", ">=1.16")
-    # https://github.com/zopefoundation/zope.interface/issues/316
-    # - is a dependency of gevent
-    try_install_binary("zope.interface", "<7")
     try_install_binary("gevent", ">=22.10.2")
+    # hypothesis itself depends on PyO3 so newer Python versions may fail
+    # to build
+    try_install_binary("hypothesis", ">=6.171.1")
     ignored_paths = []
     if sys.version_info < (3, 10):
         # Match syntax is only available in Python >= 3.10

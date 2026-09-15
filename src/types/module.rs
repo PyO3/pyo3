@@ -160,6 +160,10 @@ impl PyModule {
     /// use pyo3::prelude::*;
     /// use std::ffi::CString;
     ///
+    /// # #[cfg(not(wip_feature_std))]
+    /// fn main() {}
+    ///
+    /// # #[cfg(wip_feature_std)]
     /// # fn main() -> PyResult<()> {
     /// # #[cfg(not(target_arch = "wasm32"))]  // node fs doesn't see this file, maybe cwd wrong?
     /// # {

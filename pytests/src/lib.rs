@@ -39,6 +39,10 @@ mod pyo3_pytests {
     #[pymodule_export]
     use path::path;
 
+    #[cfg(not(wip_feature_std))]
+    #[pymodule_export]
+    use path;
+
     #[pymodule_export]
     use {
         awaitable::awaitable, comparisons::comparisons, consts::consts, dict_iter::dict_iter,
@@ -50,6 +54,9 @@ mod pyo3_pytests {
     #[cfg(feature = "experimental-inspect")]
     #[pymodule_export]
     use annotations::annotations;
+
+    #[pymodule_export]
+    const NO_STD: bool = cfg!(not(wip_feature_std));
 
     // Inserting to sys.modules allows importing submodules nicely from Python
     // e.g. import pyo3_pytests.buf_and_str as bas
@@ -81,3 +88,7 @@ mod pyo3_pytests {
         Ok(())
     }
 }
+
+#[cfg(not(wip_feature_std))]
+#[pymodule]
+mod path {}
