@@ -125,12 +125,19 @@ extern_libpython! {
     pub fn PyUnstable_Module_SetGIL(module: *mut PyObject, gil: *mut c_void) -> c_int;
 }
 
-#[cfg(Py_3_15)]
 extern_libpython! {
+    #[cfg(Py_3_15)]
     pub fn PyModule_FromSlotsAndSpec(slots: *const PySlot, spec: *mut PyObject) -> *mut PyObject;
+    #[cfg(Py_3_15)]
     pub fn PyModule_Exec(_mod: *mut PyObject) -> c_int;
+    #[cfg(Py_3_15)]
     pub fn PyModule_GetStateSize(_mod: *mut PyObject, result: *mut Py_ssize_t) -> c_int;
+    #[cfg(Py_3_15)]
     pub fn PyModule_GetToken(module: *mut PyObject, result: *mut *mut c_void) -> c_int;
+    #[cfg(Py_3_15)]
+    pub fn PyModule_GetState_DuringGC(module: *mut PyObject) -> *mut c_void;
+    #[cfg(Py_3_15)]
+    pub fn PyModule_GetToken_DuringGC(module: *mut PyObject, result: *mut *mut c_void) -> c_int;
 }
 
 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
