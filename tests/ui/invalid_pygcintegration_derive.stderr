@@ -24,12 +24,12 @@ help: the trait `PyGcTraversable` is not implemented for `NotTraversable`
    = help: the following other types implement trait `PyGcTraversable`:
              &mut T
              ()
-             Arc<T>
              Atomic<bool>
              Atomic<i16>
              Atomic<i32>
              Atomic<i64>
              Atomic<i8>
+             Atomic<isize>
            and $N others
    = note: this error originates in the derive macro `PyGcTraversable` (in Nightly builds, run with -Z macro-backtrace for more info)
 
@@ -47,12 +47,12 @@ help: the trait `PyGcTraversable` is not implemented for `NotTraversable`
    = help: the following other types implement trait `PyGcTraversable`:
              &mut T
              ()
-             Arc<T>
              Atomic<bool>
              Atomic<i16>
              Atomic<i32>
              Atomic<i64>
              Atomic<i8>
+             Atomic<isize>
            and $N others
    = note: this error originates in the derive macro `PyGcTraversable` (in Nightly builds, run with -Z macro-backtrace for more info)
 
