@@ -781,10 +781,6 @@ mod tests {
                 |name: &'static str, year, month, day, hour, minute, second, ms, py_ms| {
                     let offset = Offset::from_seconds(3600).unwrap();
                     let datetime = DateTime::new(year, month, day, hour, minute, second, ms * 1000)
-                        .map_err(|e| {
-                            eprintln!("{name}: {e}");
-                            e
-                        })
                         .unwrap()
                         .to_zoned(offset.to_time_zone())
                         .unwrap();
