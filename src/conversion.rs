@@ -393,7 +393,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
 
     /// Provides the type hint information for this type when it appears as an argument.
     ///
-    /// For example, `Vec<u32>` would be `collections.abc.Sequence[int]`.
+    /// For example, `Vec<u32>` would be `collections.abc.Sequence[typing.SupportsIndex]`.
     /// The default value is `typing.Any`, which is correct for any type.
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("_typeshed", "Incomplete");

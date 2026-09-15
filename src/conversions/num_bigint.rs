@@ -68,6 +68,8 @@ use num_bigint::Sign;
 #[cfg(feature = "experimental-inspect")]
 use crate::PyTypeInfo;
 #[cfg(feature = "experimental-inspect")]
+use crate::conversions::std::num::INT_INPUT_TYPE;
+#[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 
 #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
@@ -248,7 +250,7 @@ impl<'py> FromPyObject<'_, 'py> for BigInt {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = INT_INPUT_TYPE;
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<BigInt, Self::Error> {
         // fast path - checking for subclass of `int` just checks a bit in the type object
@@ -310,7 +312,7 @@ impl<'py> FromPyObject<'_, 'py> for BigUint {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = INT_INPUT_TYPE;
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<BigUint, Self::Error> {
         // fast path - checking for subclass of `int` just checks a bit in the type object

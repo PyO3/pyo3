@@ -344,14 +344,14 @@ impl<T: Element> PyBuffer<T> {
         self.slice_pointer_internal(self.is_fortran_contiguous())
     }
 
-    fn slice_pointer_internal(&self, null: bool) -> Option<NonNull<[T]>> {
-        if null {
-            None
-        } else {
+    fn slice_pointer_internal(&self, contiguous: bool) -> Option<NonNull<[T]>> {
+        if contiguous {
             NonNull::new(ptr::slice_from_raw_parts_mut(
                 self.raw().buf.cast(),
                 self.item_count(),
             ))
+        } else {
+            None
         }
     }
 
@@ -1135,6 +1135,30 @@ mod tests {
                 let rebound = owner_ref.bind(py);
                 assert!(rebound.is_instance_of::<PyBytes>());
             });
+        });
+    }
+
+    #[test]
+    fn test_as_slice_ptr() {
+        Python::attach(|py| {
+            let bytes = PyBytes::new(py, b"abcde");
+            let buffer = PyBuffer::<u8>::get(&bytes).unwrap();
+            let slice_ptr = buffer.as_slice_ptr().unwrap();
+            assert_eq!(slice_ptr.len(), 5);
+            assert_eq!(unsafe { *slice_ptr.as_ptr().cast::<u8>() }, b'a');
+
+            let fortran_slice_ptr = buffer.as_fortran_slice_ptr().unwrap();
+            assert_eq!(fortran_slice_ptr.len(), 5);
+            assert_eq!(unsafe { *fortran_slice_ptr.as_ptr().cast::<u8>() }, b'a');
+
+            // non-contiguous buffer should return None, e.g. strided memoryview
+            let view = py.eval(c"memoryview(b'abcde')[::2]", None, None).unwrap();
+            let buffer = PyBuffer::<u8>::get(&view).unwrap();
+
+            assert_eq!(buffer.shape(), [3]);
+            assert_eq!(buffer.strides(), [2]);
+            assert!(buffer.as_slice_ptr().is_none());
+            assert!(buffer.as_fortran_slice_ptr().is_none());
         });
     }
 }
