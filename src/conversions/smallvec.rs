@@ -20,7 +20,7 @@ use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
-use crate::type_hint_subscript;
+use crate::platform::prelude::Vec;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PySequence, PyString};
 use crate::{
@@ -76,8 +76,7 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr =
-        type_hint_subscript!(PySequence::TYPE_HINT, A::Item::INPUT_TYPE);
+    const INPUT_TYPE: PyStaticExpr = <Vec<A::Item>>::INPUT_TYPE;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         if obj.is_instance_of::<PyString>() {
