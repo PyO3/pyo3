@@ -11,7 +11,7 @@ use crate::params::is_forwarded_args;
 #[cfg(feature = "experimental-inspect")]
 use crate::py_expr::PyExpr;
 use crate::pyfunction::{PyFunctionWarning, WarningFactory};
-use crate::utils::Ctx;
+use crate::utils::{Ctx, StaticIdent};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
     params::{impl_arg_params, Holders},
@@ -290,35 +290,53 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let class_method_receiver = match class_method_receiver {
-                    ClassMethodReceiver::Class => quote! { #slf.cast() },
+                    // `#slf` is `*mut PyTypeObject` for class methods
+                    ClassMethodReceiver::Class => quote_spanned! { *span =>
+                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
+                            .cast_unchecked::<#pyo3_path::types::PyType>()
+                    },
+                    // `#slf` is `*mut PyObject` for instance methods - need to get an
+                    // owned type object (stash it in a holder)
                     ClassMethodReceiver::Instance => {
-                        let type_check = match self_conversion.0 {
-                            SelfConversionPolicyInner::Trusted => quote! {},
+                        const EXTRACT_CLS_RECEIVER_TRUSTED: StaticIdent =
+                            StaticIdent::new("extract_cls_receiver_trusted");
+                        const EXTRACT_CLS_RECEIVER: StaticIdent =
+                            StaticIdent::new("extract_cls_receiver");
+
+                        let slf = quote! { #pyo3_path::Bound::ref_from_ptr(#py, &#slf) };
+                        let cls_object_holder = holders.push_holder(*span);
+
+                        let extract_function = match self_conversion.0 {
+                            SelfConversionPolicyInner::Trusted => {
+                                quote! { #EXTRACT_CLS_RECEIVER_TRUSTED }
+                            }
                             SelfConversionPolicyInner::Checked => {
-                                let cls = cls.expect("no class given for a class method");
-                                let type_check = error_mode.handle_error(
-                                    quote_spanned! { *span =>
-                                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf).cast::<#cls>()
-                                    },
-                                    ctx,
-                                );
-                                quote! { #type_check; }
+                                let cls = cls
+                                    .expect("no class given for FnClass with a \"self\" receiver");
+                                quote! { #EXTRACT_CLS_RECEIVER::<#cls> }
                             }
                         };
-                        quote! {{
-                            #type_check
-                            #pyo3_path::ffi::Py_TYPE(#slf).cast()
-                        }}
+
+                        let call = quote! {
+                            #pyo3_path::impl_::extract_argument::#extract_function(
+                                #slf,
+                                &mut #cls_object_holder
+                            )
+                        };
+
+                        match self_conversion.0 {
+                            SelfConversionPolicyInner::Trusted => call,
+                            SelfConversionPolicyInner::Checked => {
+                                error_mode.handle_error(call, ctx)
+                            }
+                        }
                     }
                 };
-                let ret = quote_spanned! { *span =>
+                let receiver = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion, reason = "#[classmethod] accepts anything which implements `From<&Bound<PyType>>`")]
-                    ::core::convert::Into::into(
-                        #pyo3_path::Bound::ref_from_ptr(#py, &#class_method_receiver)
-                            .cast_unchecked::<#pyo3_path::types::PyType>()
-                    )
+                    ::core::convert::Into::into(#class_method_receiver)
                 };
-                Some(quote! { unsafe { #ret } })
+                Some(quote! { unsafe { #receiver } })
             }
             FnType::FnModule(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
