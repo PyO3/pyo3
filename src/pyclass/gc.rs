@@ -391,6 +391,28 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for Mutex<T> {
     }
 }
 
+// SAFETY: `Mutex<T>` provides synchronized access to one `T`; delegating through
+// the lock guard preserves traversal and clear soundness.
+#[cfg(feature = "parking_lot")]
+unsafe impl<T: PyGcTraversable> PyGcTraversable for parking_lot::Mutex<T> {
+    const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
+
+    fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        if T::MAY_CONTAIN_CYCLES {
+            if let Some(value) = self.try_lock() {
+                value.traverse(visit)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn clear(&mut self) {
+        if T::MAY_CONTAIN_CYCLES {
+            self.get_mut().clear();
+        }
+    }
+}
+
 // SAFETY: `RwLock<T>` provides synchronized access to one `T`; delegating through
 // read / mutable access preserves traversal and clear soundness.
 unsafe impl<T: PyGcTraversable> PyGcTraversable for RwLock<T> {
