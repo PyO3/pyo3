@@ -141,7 +141,7 @@ The macro **must** be invoked _before_ initializing Python.
 
 As an example, the below adds the module `foo` to the embedded interpreter:
 
-```rust
+```rust,standalone_crate
 use pyo3::prelude::*;
 
 #[pymodule]
@@ -382,7 +382,7 @@ See also [the FAQ entry](../faq.md#ctrl-c-doesnt-do-anything-while-my-rust-code-
 
 Alternatively, set Python's `signal` module to take the default action for a signal:
 
-```rust
+```rust,standalone_crate
 use pyo3::prelude::*;
 
 # fn main() -> PyResult<()> {
