@@ -767,7 +767,33 @@ extern_libpython! {
     #[cfg(Py_3_14)]
     pub fn PyType_Freeze(tp: *mut crate::PyTypeObject) -> c_int;
 
+    #[cfg(any(Py_3_15, not(Py_LIMITED_API)))]
+    #[cfg_attr(PyPy, link_name = "PyPyObject_CallFinalizerFromDealloc")]
+    pub fn PyObject_CallFinalizerFromDealloc(arg1: *mut crate::PyObject) -> c_int;
+
     #[cfg(Py_3_15)]
     pub fn PyType_GetModuleByToken(_type: *mut PyTypeObject, token: *const c_void)
         -> *mut PyObject;
+
+    #[cfg(Py_3_15)]
+    pub fn PyObject_GetTypeData_DuringGC(o: *mut PyObject, cls: *mut PyTypeObject) -> *mut c_void;
+
+    #[cfg(Py_3_15)]
+    pub fn PyType_GetModuleState_DuringGC(type_: *mut PyTypeObject) -> *mut c_void;
+
+    #[cfg(Py_3_15)]
+    pub fn PyType_GetBaseByToken_DuringGC(
+        type_: *mut PyTypeObject,
+        tp_token: *mut c_void,
+        result: *mut *mut PyTypeObject,
+    ) -> c_int;
+
+    #[cfg(Py_3_15)]
+    pub fn PyType_GetModule_DuringGC(type_: *mut PyTypeObject) -> *mut PyObject;
+
+    #[cfg(Py_3_15)]
+    pub fn PyType_GetModuleByToken_DuringGC(
+        type_: *mut PyTypeObject,
+        mod_token: *const c_void,
+    ) -> *mut PyObject;
 }
