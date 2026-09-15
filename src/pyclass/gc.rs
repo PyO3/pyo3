@@ -164,7 +164,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for Vec<T> {
     fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         if T::MAY_CONTAIN_CYCLES {
             for item in self {
-                item.traverse(visit.clone())?;
+                item.traverse(visit)?;
             }
         }
         Ok(())
@@ -184,7 +184,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for VecDeque<T> {
     fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         if T::MAY_CONTAIN_CYCLES {
             for item in self {
-                item.traverse(visit.clone())?;
+                item.traverse(visit)?;
             }
         }
         Ok(())
@@ -204,7 +204,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for LinkedList<T> {
     fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         if T::MAY_CONTAIN_CYCLES {
             for item in self {
-                item.traverse(visit.clone())?;
+                item.traverse(visit)?;
             }
         }
         Ok(())
@@ -224,7 +224,7 @@ unsafe impl<T: PyGcTraversable + Ord> PyGcTraversable for BinaryHeap<T> {
     fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         if T::MAY_CONTAIN_CYCLES {
             for item in self {
-                item.traverse(visit.clone())?;
+                item.traverse(visit)?;
             }
         }
         Ok(())
@@ -250,10 +250,10 @@ where
         if K::MAY_CONTAIN_CYCLES || V::MAY_CONTAIN_CYCLES {
             for (key, value) in self {
                 if K::MAY_CONTAIN_CYCLES {
-                    key.traverse(visit.clone())?;
+                    key.traverse(visit)?;
                 }
                 if V::MAY_CONTAIN_CYCLES {
-                    value.traverse(visit.clone())?;
+                    value.traverse(visit)?;
                 }
             }
         }
@@ -278,7 +278,7 @@ where
     fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         if T::MAY_CONTAIN_CYCLES {
             for item in self {
-                item.traverse(visit.clone())?;
+                item.traverse(visit)?;
             }
         }
         Ok(())
@@ -303,10 +303,10 @@ where
         if K::MAY_CONTAIN_CYCLES || V::MAY_CONTAIN_CYCLES {
             for (key, value) in self {
                 if K::MAY_CONTAIN_CYCLES {
-                    key.traverse(visit.clone())?;
+                    key.traverse(visit)?;
                 }
                 if V::MAY_CONTAIN_CYCLES {
-                    value.traverse(visit.clone())?;
+                    value.traverse(visit)?;
                 }
             }
         }
@@ -327,7 +327,7 @@ unsafe impl<T: PyGcTraversable + Ord> PyGcTraversable for BTreeSet<T> {
     fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         if T::MAY_CONTAIN_CYCLES {
             for item in self {
-                item.traverse(visit.clone())?;
+                item.traverse(visit)?;
             }
         }
         Ok(())
@@ -372,10 +372,10 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for Mutex<T> {
         if T::MAY_CONTAIN_CYCLES {
             self.try_lock().map_or_else(
                 |err| match err {
-                    Poisoned(value) => value.into_inner().traverse(visit.clone()),
+                    Poisoned(value) => value.into_inner().traverse(visit),
                     WouldBlock => Ok(()),
                 },
-                |guard| guard.traverse(visit.clone()),
+                |guard| guard.traverse(visit),
             )?;
         }
         Ok(())
@@ -400,10 +400,10 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for RwLock<T> {
         if T::MAY_CONTAIN_CYCLES {
             self.try_read().map_or_else(
                 |err| match err {
-                    Poisoned(value) => value.into_inner().traverse(visit.clone()),
+                    Poisoned(value) => value.into_inner().traverse(visit),
                     WouldBlock => Ok(()),
                 },
-                |guard| guard.traverse(visit.clone()),
+                |guard| guard.traverse(visit),
             )?;
         }
         Ok(())
@@ -451,7 +451,7 @@ unsafe impl<T: PyGcTraversable, const N: usize> PyGcTraversable for [T; N] {
     fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         if T::MAY_CONTAIN_CYCLES {
             for item in self {
-                item.traverse(visit.clone())?;
+                item.traverse(visit)?;
             }
         }
         Ok(())
@@ -473,7 +473,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for [T] {
     fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         if T::MAY_CONTAIN_CYCLES {
             for item in self {
-                item.traverse(visit.clone())?;
+                item.traverse(visit)?;
             }
         }
         Ok(())

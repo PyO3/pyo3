@@ -114,7 +114,7 @@ fn traverse_stmt(
 ) -> TokenStream {
     quote! {
         if <#ty as #pyo3_path::pyclass::PyGcTraversable>::MAY_CONTAIN_CYCLES {
-            #pyo3_path::pyclass::PyGcTraversable::traverse(#value, visit.clone())?;
+            #pyo3_path::pyclass::PyGcTraversable::traverse(#value, visit)?;
         }
     }
 }
