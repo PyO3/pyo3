@@ -24,5 +24,8 @@ from . import (
     subclassing as subclassing,
 )
 from _typeshed import Incomplete
+from typing import Final
+
+NO_STD: Final[bool]
 
 def __getattr__(name: str) -> Incomplete: ...

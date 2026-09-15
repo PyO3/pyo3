@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, SupportsFloat, SupportsIndex
 
 __all__ = [
     "args_kwargs",
@@ -53,5 +53,8 @@ def simple_kwargs(
 ) -> tuple[Any, Any | None, Any | None, dict | None]: ...
 async def with_async() -> None: ...
 def with_typed_args(
-    a: bool = False, b: int = 0, c: float = 0.0, d: str = ""
+    a: bool = False,
+    b: SupportsIndex = 0,
+    c: SupportsFloat | SupportsIndex = 0.0,
+    d: str = "",
 ) -> tuple[bool, int, float, str]: ...

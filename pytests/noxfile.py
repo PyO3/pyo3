@@ -29,10 +29,10 @@ def test(session: nox.Session):
             pass
 
     try_install_binary("numpy", ">=1.16")
-    # https://github.com/zopefoundation/zope.interface/issues/316
-    # - is a dependency of gevent
-    try_install_binary("zope.interface", "<7")
     try_install_binary("gevent", ">=22.10.2")
+    # hypothesis itself depends on PyO3 so newer Python versions may fail
+    # to build
+    try_install_binary("hypothesis", ">=6.171.1")
     # The stubs are generated from a build with `experimental-async,experimental-inspect`,
     # so only such a build exports the members they declare. The `test-introspection`
     # session runs this test against one.

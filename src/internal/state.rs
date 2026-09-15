@@ -300,9 +300,9 @@ impl SuspendAttach {
 
 impl Drop for SuspendAttach {
     fn drop(&mut self) {
-        ATTACH_COUNT.with(|c| c.set(self.count));
         // SAFETY: tstate come from call to PyEval_SaveThread and it was not re-attached yet
         unsafe { ffi::PyEval_RestoreThread(self.tstate) };
+        ATTACH_COUNT.with(|c| c.set(self.count));
         // Update counts of `Py<T>` that were dropped while not attached.
         #[cfg(not(pyo3_disable_reference_pool))]
         {
@@ -367,6 +367,7 @@ pub fn register_decref(obj: Py<PyAny>) {
 
 /// Private helper function to check if we are currently in a GC traversal (as detected by PyO3).
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+#[cfg_attr(not(wip_feature_std), expect(dead_code))] // keep code if not used to minimize refactoring friction
 pub(crate) fn is_in_gc_traversal() -> bool {
     ATTACH_COUNT
         .try_with(|c| c.get() == ATTACH_FORBIDDEN_DURING_TRAVERSE)
