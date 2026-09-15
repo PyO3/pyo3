@@ -3,39 +3,39 @@ use crate::pyport::Py_ssize_t;
 use core::ffi::{c_char, c_int};
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyErr_SetNone")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_SetNone")]
     pub fn PyErr_SetNone(arg1: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPyErr_SetObject")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_SetObject")]
     pub fn PyErr_SetObject(arg1: *mut PyObject, arg2: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPyErr_SetString")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_SetString")]
     pub fn PyErr_SetString(exception: *mut PyObject, string: *const c_char);
-    #[cfg_attr(PyPy, link_name = "PyPyErr_Occurred")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_Occurred")]
     pub fn PyErr_Occurred() -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_Clear")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_Clear")]
     pub fn PyErr_Clear();
     #[cfg_attr(Py_3_12, deprecated(note = "Use PyErr_GetRaisedException() instead."))]
-    #[cfg_attr(PyPy, link_name = "PyPyErr_Fetch")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_Fetch")]
     pub fn PyErr_Fetch(
         arg1: *mut *mut PyObject,
         arg2: *mut *mut PyObject,
         arg3: *mut *mut PyObject,
     );
     #[cfg_attr(Py_3_12, deprecated(note = "Use PyErr_SetRaisedException() instead."))]
-    #[cfg_attr(PyPy, link_name = "PyPyErr_Restore")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_Restore")]
     pub fn PyErr_Restore(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPyErr_GetExcInfo")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_GetExcInfo")]
     pub fn PyErr_GetExcInfo(
         arg1: *mut *mut PyObject,
         arg2: *mut *mut PyObject,
         arg3: *mut *mut PyObject,
     );
-    #[cfg_attr(PyPy, link_name = "PyPyErr_SetExcInfo")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_SetExcInfo")]
     pub fn PyErr_SetExcInfo(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPy_FatalError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPy_FatalError")]
     pub fn Py_FatalError(message: *const c_char) -> !;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_GivenExceptionMatches")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_GivenExceptionMatches")]
     pub fn PyErr_GivenExceptionMatches(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_ExceptionMatches")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_ExceptionMatches")]
     pub fn PyErr_ExceptionMatches(arg1: *mut PyObject) -> c_int;
     #[cfg_attr(
         Py_3_12,
@@ -43,35 +43,35 @@ extern_libpython! {
             note = "Use PyErr_GetRaisedException() instead, to avoid any possible de-normalization."
         )
     )]
-    #[cfg_attr(PyPy, link_name = "PyPyErr_NormalizeException")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_NormalizeException")]
     pub fn PyErr_NormalizeException(
         arg1: *mut *mut PyObject,
         arg2: *mut *mut PyObject,
         arg3: *mut *mut PyObject,
     );
     #[cfg(Py_3_12)]
-    #[cfg_attr(PyPy, link_name = "PyPyErr_GetRaisedException")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_GetRaisedException")]
     pub fn PyErr_GetRaisedException() -> *mut PyObject;
     #[cfg(Py_3_12)]
-    #[cfg_attr(PyPy, link_name = "PyPyErr_SetRaisedException")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_SetRaisedException")]
     pub fn PyErr_SetRaisedException(exc: *mut PyObject);
     #[cfg(Py_3_11)]
-    #[cfg_attr(PyPy, link_name = "PyPyErr_GetHandledException")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_GetHandledException")]
     pub fn PyErr_GetHandledException() -> *mut PyObject;
     #[cfg(Py_3_11)]
-    #[cfg_attr(PyPy, link_name = "PyPyErr_SetHandledException")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_SetHandledException")]
     pub fn PyErr_SetHandledException(exc: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPyException_SetTraceback")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyException_SetTraceback")]
     pub fn PyException_SetTraceback(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyException_GetTraceback")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyException_GetTraceback")]
     pub fn PyException_GetTraceback(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyException_GetCause")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyException_GetCause")]
     pub fn PyException_GetCause(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyException_SetCause")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyException_SetCause")]
     pub fn PyException_SetCause(arg1: *mut PyObject, arg2: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPyException_GetContext")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyException_GetContext")]
     pub fn PyException_GetContext(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyException_SetContext")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyException_SetContext")]
     pub fn PyException_SetContext(arg1: *mut PyObject, arg2: *mut PyObject);
 
     #[cfg(RustPython)]
@@ -279,27 +279,38 @@ extern_libpython! {
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyErr_BadArgument")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_BadArgument")]
     pub fn PyErr_BadArgument() -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_NoMemory")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_NoMemory")]
     pub fn PyErr_NoMemory() -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_SetFromErrno")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_SetFromErrno")]
     pub fn PyErr_SetFromErrno(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_SetFromErrnoWithFilenameObject")]
+    #[cfg_attr(
+        all(PyPy, not(Py_3_12)),
+        link_name = "PyPyErr_SetFromErrnoWithFilenameObject"
+    )]
     pub fn PyErr_SetFromErrnoWithFilenameObject(
         arg1: *mut PyObject,
         arg2: *mut PyObject,
     ) -> *mut PyObject;
+    #[cfg_attr(
+        all(PyPy, not(Py_3_12)),
+        link_name = "PyPyErr_SetFromErrnoWithFilenameObjects"
+    )]
     pub fn PyErr_SetFromErrnoWithFilenameObjects(
         arg1: *mut PyObject,
         arg2: *mut PyObject,
         arg3: *mut PyObject,
     ) -> *mut PyObject;
+    #[cfg_attr(
+        all(PyPy, not(Py_3_12)),
+        link_name = "PyPyErr_SetFromErrnoWithFilename"
+    )]
     pub fn PyErr_SetFromErrnoWithFilename(
         exc: *mut PyObject,
         filename: *const c_char,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_Format")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_Format")]
     pub fn PyErr_Format(exception: *mut PyObject, format: *const c_char, ...) -> *mut PyObject;
     pub fn PyErr_SetImportErrorSubclass(
         arg1: *mut PyObject,
@@ -313,7 +324,7 @@ extern_libpython! {
         arg3: *mut PyObject,
     ) -> *mut PyObject;
     #[cfg(PyPy)]
-    #[cfg_attr(PyPy, link_name = "PyPyErr_BadInternalCall")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_BadInternalCall")]
     pub fn PyErr_BadInternalCall();
 
     #[cfg(not(PyPy))]
@@ -336,33 +347,33 @@ pub unsafe fn PyErr_BadInternalCall() {
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyErr_NewException")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_NewException")]
     pub fn PyErr_NewException(
         name: *const c_char,
         base: *mut PyObject,
         dict: *mut PyObject,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_NewExceptionWithDoc")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_NewExceptionWithDoc")]
     pub fn PyErr_NewExceptionWithDoc(
         name: *const c_char,
         doc: *const c_char,
         base: *mut PyObject,
         dict: *mut PyObject,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_WriteUnraisable")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_WriteUnraisable")]
     pub fn PyErr_WriteUnraisable(arg1: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPyErr_CheckSignals")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_CheckSignals")]
     pub fn PyErr_CheckSignals() -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_SetInterrupt")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_SetInterrupt")]
     pub fn PyErr_SetInterrupt();
     #[cfg(Py_3_10)]
-    #[cfg_attr(PyPy, link_name = "PyPyErr_SetInterruptEx")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_SetInterruptEx")]
     pub fn PyErr_SetInterruptEx(signum: c_int) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_SyntaxLocation")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_SyntaxLocation")]
     pub fn PyErr_SyntaxLocation(filename: *const c_char, lineno: c_int);
-    #[cfg_attr(PyPy, link_name = "PyPyErr_SyntaxLocationEx")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_SyntaxLocationEx")]
     pub fn PyErr_SyntaxLocationEx(filename: *const c_char, lineno: c_int, col_offset: c_int);
-    #[cfg_attr(PyPy, link_name = "PyPyErr_ProgramText")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_ProgramText")]
     pub fn PyErr_ProgramText(filename: *const c_char, lineno: c_int) -> *mut PyObject;
     #[cfg(not(PyPy))]
     pub fn PyUnicodeDecodeError_Create(
