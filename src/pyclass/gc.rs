@@ -2,9 +2,17 @@ use core::{
     ffi::{c_int, c_void},
     marker::PhantomData,
     num::NonZero,
+    ops::Deref,
+    ptr::NonNull,
 };
 
-use crate::{ffi, Py};
+use crate::{
+    ffi,
+    impl_::{pycell::PyClassMutability, pyclass::PyClassThreadChecker},
+    instance::PyBorrowedUnbound,
+    pycell::impl_::{PyClassBorrowChecker, PyClassObjectLayout},
+    Py, PyClass,
+};
 
 /// Error returned by a `__traverse__` visitor implementation.
 #[repr(transparent)]
@@ -71,6 +79,61 @@ pub(crate) fn make_traverse_result(retval: c_int) -> Result<(), PyTraverseError>
     match NonZero::new(retval) {
         None => Ok(()),
         Some(r) => Err(PyTraverseError(r)),
+    }
+}
+
+/// Variant of [`crate::PyClassGuard`] that is used during `__traverse__` calls to
+/// ensure that only gc-safe operations are performed on the class instance.
+pub(crate) struct PyClassTraverseGuard<'a, T: PyClass> {
+    // Caching these two pointers avoids repeated by-token resolution, e.g. on drop
+    value: NonNull<T>,
+    borrow_checker: &'a <T::PyClassMutability as PyClassMutability>::Checker,
+    // The original reference which we're fundamentally handling
+    phantom: PhantomData<PyBorrowedUnbound<'a, T>>,
+}
+
+impl<'a, T: PyClass> PyClassTraverseGuard<'a, T> {
+    /// Attempts to create a `PyClassTraverseGuard` from a raw pointer to a class object.
+    ///
+    /// If the Rust state cannot be safely traversed (e.g. unsendable or currently borrowed),
+    /// this returns `None`. This will lead to an incomplete traversal, which is safe but
+    /// may leak memory.
+    pub(crate) fn try_from_class_object(class_object: PyBorrowedUnbound<'a, T>) -> Option<Self> {
+        let contents = T::Layout::contents_during_gc(class_object);
+
+        if !contents.thread_checker.check() {
+            return None;
+        }
+
+        // This doesn't read from contents because it might need to traverse the ancestry to
+        // find the actual borrow checker for the highest mutable base.
+        let borrow_checker = T::Layout::borrow_checker_during_gc(class_object);
+
+        borrow_checker.try_borrow().ok().map(|_| {
+            // SAFETY: successful borrow implies we have read access to
+            // the data, cache a `NonNull` pointer to it which we can use to deref freely
+            let value = unsafe { NonNull::from(&*contents.value.get()) };
+            Self {
+                value,
+                borrow_checker,
+                phantom: PhantomData,
+            }
+        })
+    }
+}
+
+impl<'a, T: PyClass> Deref for PyClassTraverseGuard<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: we hold a borrow on the underlying data, so we can read it
+        unsafe { self.value.as_ref() }
+    }
+}
+
+impl<'a, T: PyClass> Drop for PyClassTraverseGuard<'a, T> {
+    fn drop(&mut self) {
+        self.borrow_checker.release_borrow();
     }
 }
 

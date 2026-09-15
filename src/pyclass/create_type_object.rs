@@ -66,6 +66,7 @@ where
         name: &'static str,
         module: Option<&'static str>,
         basicsize: ffi::Py_ssize_t,
+        #[cfg(Py_3_14)] token: *mut c_void,
     ) -> PyResult<PyClassTypeObject> {
         unsafe {
             PyTypeBuilder {
@@ -88,6 +89,8 @@ where
                 has_clear: false,
                 dict_offset: None,
                 class_flags: ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC,
+                #[cfg(Py_3_14)]
+                token,
             }
             .type_doc(doc)
             .offsets(dict_offset, weaklist_offset)
@@ -115,6 +118,8 @@ where
             <T as PyClass>::NAME,
             <T as PyClassImpl>::MODULE,
             <T as PyClassImpl>::Layout::BASIC_SIZE,
+            #[cfg(Py_3_14)]
+            T::token(),
         )
     }
 }
@@ -146,6 +151,8 @@ struct PyTypeBuilder {
     has_clear: bool,
     dict_offset: Option<PyObjectOffset>,
     class_flags: c_ulong,
+    #[cfg(Py_3_14)]
+    token: *mut c_void,
 }
 
 impl PyTypeBuilder {
@@ -405,6 +412,10 @@ impl PyTypeBuilder {
 
         let getset_defs = self.finalize_methods_and_properties();
 
+        #[cfg(Py_3_14)]
+        unsafe {
+            self.push_slot(ffi::Py_tp_token, self.token)
+        }
         unsafe { self.push_slot(ffi::Py_tp_base, self.tp_base as *mut c_void) }
 
         if !self.has_new {

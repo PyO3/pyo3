@@ -367,6 +367,7 @@ extern_libpython! {
 // skipped Py_TRASHCAN_END
 
 // skipped PyObject_GetItemData
+// skipped PyObject_GetItemData_DuringGC
 
 // skipped PyObject_VisitManagedDict
 // skipped _PyObject_SetManagedDict

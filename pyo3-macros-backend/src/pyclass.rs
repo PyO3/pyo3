@@ -3101,6 +3101,11 @@ impl<'a> PyClassImplsBuilder<'a> {
                     use #pyo3_path::impl_::pyclass::{PyClassTraverse, PyClassImplCollector};
                     PyClassImplCollector::<Self>::new().__traverse__(self, visit)
                 }
+
+                fn token() -> *mut ::core::ffi::c_void {
+                    static TOKEN: u8 = 0;
+                    (&raw const TOKEN).cast_mut().cast()
+                }
             }
 
             #default_methods_impl

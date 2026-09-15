@@ -1573,6 +1573,10 @@ impl<T> Py<T> {
         // Safety: all Py<T> are valid Py<PyAny>
         unsafe { Py::from_non_null(ManuallyDrop::new(self).0) }
     }
+
+    pub(crate) fn as_non_null(&self) -> NonNull<ffi::PyObject> {
+        self.0
+    }
 }
 
 impl<T> Py<T>
@@ -2417,6 +2421,63 @@ impl<T> Py<T> {
     pub unsafe fn cast_bound_unchecked<'py, U>(&self, py: Python<'py>) -> &Bound<'py, U> {
         // Safety: caller has upheld the safety contract
         unsafe { self.bind(py).cast_unchecked() }
+    }
+}
+
+/// Variant of [`Borrowed`] which doesn't have the attachment lifetime `'py` and therefore
+/// can be used in contexts where the Python interpreter is not attached, such as during
+/// GC traversal.
+///
+/// This is intended to be a private type for now as it's unlikely to have much use outside
+/// of PyO3 internals. It also has a horrible name. It comes in useful as a better
+/// alternative to `NonNull<ffi::PyObject>` because it carries the lifetime of validity
+/// plus type information.
+#[repr(transparent)]
+pub(crate) struct PyBorrowedUnbound<'a, T>(NonNull<ffi::PyObject>, PhantomData<&'a Py<T>>);
+
+impl<'a, T> Clone for PyBorrowedUnbound<'a, T> {
+    fn clone(&self) -> Self {
+        // No reference counting
+        Self(self.0, PhantomData)
+    }
+}
+
+impl<'a, T> Copy for PyBorrowedUnbound<'a, T> {}
+
+impl<'a> PyBorrowedUnbound<'a, PyAny> {
+    /// # Safety
+    ///
+    /// `ptr` must be a valid pointer to a Python object. The caller is responsible
+    /// for scoping the unbound lifetime `'a`.
+    #[inline]
+    pub(crate) unsafe fn from_non_null(ptr: NonNull<ffi::PyObject>) -> Self {
+        Self(ptr, PhantomData)
+    }
+}
+
+impl<'a, T> PyBorrowedUnbound<'a, T> {
+    #[cfg_attr(not(Py_3_15), expect(dead_code))]
+    pub(crate) fn as_any(self) -> PyBorrowedUnbound<'a, PyAny> {
+        // SAFETY: always can interpret as any
+        unsafe { self.cast_unchecked() }
+    }
+
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
+    #[inline]
+    pub(crate) unsafe fn cast_unchecked<U>(self) -> PyBorrowedUnbound<'a, U> {
+        PyBorrowedUnbound(self.0, PhantomData)
+    }
+}
+
+impl<'a, T> Deref for PyBorrowedUnbound<'a, T> {
+    type Target = Py<T>;
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: `Py<T>` has the same layout as `PyBorrowedUnbound<'a, T>` - just `NonNull<ffi::PyObject>`
+        // and both are `#[repr(transparent)]`
+        unsafe { NonNull::from(self).cast().as_ref() }
     }
 }
 

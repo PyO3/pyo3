@@ -2,18 +2,29 @@
 //! Crate-private implementation of PyClassObject
 
 use core::cell::UnsafeCell;
+#[cfg(Py_3_14)]
+use core::ffi::c_void;
 use core::marker::PhantomData;
 use core::mem::{offset_of, ManuallyDrop, MaybeUninit};
+#[cfg(Py_3_15)]
+use core::ptr::NonNull;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
+#[cfg(Py_3_14)]
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
+use crate::instance::PyBorrowedUnbound;
 use crate::internal::get_slot::{TP_DEALLOC, TP_FREE};
 #[cfg(RustPython)]
 use crate::sync::PyOnceLock;
 use crate::type_object::{PyLayout, PySizedLayout, PyTypeInfo};
 use crate::types::PyType;
+#[cfg(Py_3_14)]
+use crate::Bound;
+#[cfg(Py_3_15)]
+use crate::PyAny;
 use crate::{ffi, PyClass, Python};
 
 use crate::types::PyTypeMethods;
@@ -184,28 +195,50 @@ pub trait GetBorrowChecker<T: PyClassImpl> {
     fn borrow_checker(
         class_object: &T::Layout,
     ) -> &<T::PyClassMutability as PyClassMutability>::Checker;
+
+    #[expect(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(
+        class_object: PyBorrowedUnbound<'_, T>,
+    ) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for MutableClass {
     fn borrow_checker(class_object: &T::Layout) -> &BorrowChecker {
         &class_object.contents().borrow_checker
     }
-}
 
-impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for ImmutableClass {
-    fn borrow_checker(class_object: &T::Layout) -> &EmptySlot {
-        &class_object.contents().borrow_checker
+    #[expect(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(class_object: PyBorrowedUnbound<'_, T>) -> &BorrowChecker {
+        &T::Layout::contents_during_gc(class_object).borrow_checker
     }
 }
 
-impl<T: PyClassImpl<PyClassMutability = Self>, M: PyClassMutability> GetBorrowChecker<T>
+impl<T: PyClass<PyClassMutability = Self>> GetBorrowChecker<T> for ImmutableClass {
+    fn borrow_checker(class_object: &T::Layout) -> &EmptySlot {
+        &class_object.contents().borrow_checker
+    }
+
+    #[expect(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(class_object: PyBorrowedUnbound<'_, T>) -> &EmptySlot {
+        &T::Layout::contents_during_gc(class_object).borrow_checker
+    }
+}
+
+impl<T: PyClass<PyClassMutability = Self>, M: PyClassMutability> GetBorrowChecker<T>
     for ExtendsMutableAncestor<M>
 where
     T::BaseType: PyClassImpl + PyClassBaseType<LayoutAsBase = <T::BaseType as PyClassImpl>::Layout>,
     <T::BaseType as PyClassImpl>::PyClassMutability: PyClassMutability<Checker = BorrowChecker>,
 {
     fn borrow_checker(class_object: &T::Layout) -> &BorrowChecker {
-        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(class_object.ob_base())
+        <<T::BaseType as PyClassImpl>::Layout>::borrow_checker(class_object.ob_base())
+    }
+
+    #[expect(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(class_object: PyBorrowedUnbound<'_, T>) -> &BorrowChecker {
+        // SAFETY: `T` can always be interpreted as its base type
+        let super_obj = unsafe { class_object.cast_unchecked() };
+        <<T::BaseType as PyClassImpl>::Layout>::borrow_checker_during_gc(super_obj)
     }
 }
 
@@ -373,6 +406,10 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     /// Obtain a mutable reference to the structure that contains the pyclass struct and associated metadata.
     fn contents_mut(&mut self) -> &mut PyClassObjectContents<T>;
 
+    /// Variant of the above which is correct to call during GC (e.g. no refcounting)
+    #[expect(private_interfaces, reason = "only intended for use within PyO3")]
+    fn contents_during_gc(this: PyBorrowedUnbound<'_, T>) -> &PyClassObjectContents<T>;
+
     /// Obtain a pointer to the pyclass struct.
     fn get_ptr(&self) -> *mut T;
 
@@ -380,6 +417,11 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase;
 
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker;
+
+    #[expect(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(
+        this: PyBorrowedUnbound<'_, T>,
+    ) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
 #[repr(C)]
@@ -472,6 +514,12 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyStaticClassObje
         &mut self.contents
     }
 
+    #[expect(private_interfaces, reason = "only intended for use within PyO3")]
+    fn contents_during_gc(this: PyBorrowedUnbound<'_, T>) -> &PyClassObjectContents<T> {
+        let this = this.as_non_null().cast::<Self>();
+        unsafe { &this.as_ref().contents }
+    }
+
     fn get_ptr(&self) -> *mut T {
         self.contents.value.get()
     }
@@ -482,6 +530,13 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyStaticClassObje
 
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
         T::PyClassMutability::borrow_checker(self)
+    }
+
+    #[expect(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(
+        this: PyBorrowedUnbound<'_, T>,
+    ) -> &<T::PyClassMutability as PyClassMutability>::Checker {
+        T::PyClassMutability::borrow_checker_during_gc(this)
     }
 }
 
@@ -527,12 +582,23 @@ impl<T: PyClass<Layout = Self>> PyVariableClassObject<T> {
     unsafe fn get_contents_of_obj(
         obj: *mut ffi::PyObject,
     ) -> *mut MaybeUninit<PyClassObjectContents<T>> {
-        // TODO: it would be nice to eventually avoid coupling to the PyO3 statics here, maybe using
-        // 3.14's PyType_GetBaseByToken, to support PEP 587 / multiple interpreters better
-        // SAFETY: caller guarantees attached to the interpreter
-        let type_obj = T::type_object_raw(unsafe { Python::assume_attached() });
-        let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
-        pointer.cast()
+        cfg_select! {
+            Py_3_14 => {
+                // SAFETY: thread is attached and `obj` is a valid pointer
+                let type_obj = unsafe { get_type_by_token(Python::assume_attached(), obj, T::token()) };
+                // SAFETY: `obj` and `type_obj` known to be valid pointers by the successful
+                // call to `PyType_GetBaseByToken`
+                let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj.as_type_ptr()) };
+                pointer.cast()
+            }
+            not(Py_3_14) => {
+                // This is technically not correct once PyO3 supports reloadable modules / module state;
+                // we should avoid going via the statics. 3.14+ can do this using the token API above.
+                let type_obj = T::type_object_raw(unsafe { Python::assume_attached() });
+                let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
+                pointer.cast()
+            }
+        }
     }
 
     fn get_contents_ptr(&self) -> *mut PyClassObjectContents<T> {
@@ -592,8 +658,91 @@ impl<T: PyClass<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassObject
             .expect("should be able to cast PyClassObjectContents pointer")
     }
 
+    #[expect(private_interfaces, reason = "only intended for use within PyO3")]
+    fn contents_during_gc(this: PyBorrowedUnbound<'_, T>) -> &PyClassObjectContents<T> {
+        let obj: *mut ffi::PyObject = this.as_ptr();
+        let type_obj = cfg_select! {
+            Py_3_15 => {
+                // SAFETY: is during GC
+                unsafe { get_type_by_token_during_gc(this.as_any(), T::token()) }.as_ptr().cast()
+            },
+            not(Py_3_15) => {
+                // This goes through PyO3 statics which is technically not correct once PyO3 supports
+                // reloadable modules / module state, but we can't do better before 3.15 due to lack
+                // of `DuringGC` variants.
+                T::lazy_type_object().get_during_gc().as_ptr().cast::<ffi::PyTypeObject>()
+            }
+        };
+
+        let pointer = cfg_select! {
+            // SAFETY: `obj` and `type_obj` known to be valid pointers by the successful
+            // call to `PyType_GetBaseByToken_DuringGC`
+            Py_3_15 => unsafe { ffi::PyObject_GetTypeData_DuringGC(obj, type_obj) },
+            // SAFETY: `obj` and `type_obj` known to be valid pointers by the `get_during_gc` call
+            not(Py_3_15) => unsafe { ffi::PyObject_GetTypeData(obj, type_obj) },
+        };
+
+        // SAFETY: `PyObject_GetTypeData_DuringGC` returns a borrowed pointer to the contents of the object,
+        // valid for the lifetime of the object.
+        unsafe { &*pointer.cast() }
+    }
+
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
         T::PyClassMutability::borrow_checker(self)
+    }
+
+    #[expect(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(
+        this: PyBorrowedUnbound<'_, T>,
+    ) -> &<T::PyClassMutability as PyClassMutability>::Checker {
+        T::PyClassMutability::borrow_checker_during_gc(this)
+    }
+}
+
+#[cfg(Py_3_14)]
+unsafe fn get_type_by_token<'py>(
+    py: Python<'py>,
+    obj: *mut ffi::PyObject,
+    token: *mut c_void,
+) -> Bound<'py, PyType> {
+    let mut type_obj = core::ptr::null_mut();
+    // SAFETY: `obj` is a valid object
+    match unsafe { ffi::PyType_GetBaseByToken(ffi::Py_TYPE(obj), token, &mut type_obj) } {
+        core::ffi::c_int::MIN..=-1 => {
+            // SAFETY: `obj` is a valid object, exception is known to be set
+            unsafe { ffi::PyErr_WriteUnraisable(obj) };
+            panic!("failed to get base type by token")
+        }
+        0 => panic!("failed to get base type by token"),
+        1..=core::ffi::c_int::MAX => unsafe {
+            type_obj
+                .cast::<ffi::PyObject>()
+                .assume_owned_unchecked(py)
+                .cast_into_unchecked()
+        },
+    }
+}
+
+/// # Safety
+///
+/// Only sound during GC; uses borrowed references
+#[cfg(Py_3_15)]
+unsafe fn get_type_by_token_during_gc(
+    obj: PyBorrowedUnbound<'_, PyAny>,
+    token: *mut c_void,
+) -> PyBorrowedUnbound<'_, PyType> {
+    let mut type_obj = core::ptr::null_mut();
+    // SAFETY: `obj` is a valid object
+    if unsafe {
+        ffi::PyType_GetBaseByToken_DuringGC(ffi::Py_TYPE(obj.as_ptr()), token, &mut type_obj)
+    } <= 0
+    {
+        panic!("failed to get base type by token");
+    }
+
+    // SAFETY: success guarantees non-null result
+    unsafe {
+        PyBorrowedUnbound::from_non_null(NonNull::new_unchecked(type_obj).cast()).cast_unchecked()
     }
 }
 

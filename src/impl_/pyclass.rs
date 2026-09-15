@@ -289,6 +289,10 @@ pub trait PyClassImpl: Sized + 'static {
     fn lazy_type_object() -> &'static LazyTypeObject<Self>;
 
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError>;
+
+    /// Static token used for `Py_tp_token`. Emitted on all versions so that the macro
+    /// does not depend on the Python version, only used on 3.14+
+    fn token() -> *mut c_void;
 }
 
 mod generic_pyclass {

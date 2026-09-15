@@ -89,6 +89,7 @@ pub const Py_am_anext: c_int = 79;
 pub const Py_tp_finalize: c_int = 80;
 pub const Py_am_send: c_int = 81;
 pub const Py_tp_vectorcall: c_int = 82;
+#[cfg(Py_3_14)]
 pub const Py_tp_token: c_int = 83;
 pub const Py_mod_create: c_int = _Py_SLOT_COMPAT_VALUE(1, 84);
 pub const Py_mod_exec: c_int = _Py_SLOT_COMPAT_VALUE(2, 85);
