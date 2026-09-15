@@ -291,11 +291,9 @@ impl FnType {
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let class_method_receiver = match class_method_receiver {
                     // `#slf` is `*mut PyTypeObject` for class methods
-                    ClassMethodReceiver::Class => quote! {
-                        unsafe {
-                            #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
-                                .cast_unchecked::<#pyo3_path::types::PyType>()
-                        }
+                    ClassMethodReceiver::Class => quote_spanned! { *span =>
+                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
+                            .cast_unchecked::<#pyo3_path::types::PyType>()
                     },
                     // `#slf` is `*mut PyObject` for instance methods - need to get an
                     // owned type object (stash it in a holder)
@@ -334,10 +332,11 @@ impl FnType {
                         }
                     }
                 };
-                Some(quote_spanned! { *span =>
+                let receiver = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion, reason = "#[classmethod] accepts anything which implements `From<&Bound<PyType>>`")]
                     ::core::convert::Into::into(#class_method_receiver)
-                })
+                };
+                Some(quote! { unsafe { #receiver } })
             }
             FnType::FnModule(span) => {
                 let py = syn::Ident::new("py", Span::call_site());
