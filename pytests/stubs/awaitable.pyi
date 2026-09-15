@@ -1,5 +1,7 @@
 from typing import Any, final
 
+__all__ = ["FutureAwaitable", "IterAwaitable"]
+
 @final
 class FutureAwaitable:
     def __await__(self, /) -> FutureAwaitable: ...

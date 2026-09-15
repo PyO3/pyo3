@@ -55,6 +55,8 @@ will generate the following stub file:
 ```python
 import typing
 
+__all__ = ["CONSTANT", "Class", "list_of_int_identity"]
+
 CONSTANT: typing.Final = "FOO"
 
 
@@ -92,5 +94,6 @@ PyO3 also provides the smaller `pyo3-introspection` binary that allows to genera
   If you commit generated stubs to your repository, generate them with the oldest Python version you support (or with the matching `abi3-pyXY` feature) so that they are valid for every version.
 - PyO3 is not able to introspect the content of `#[pymodule]` and `#[pymodule_init]` functions.
   If they are present, the module is tagged as incomplete using a fake `def __getattr__(name: str) -> Incomplete: ...` function [following best practices](https://typing.python.org/en/latest/guides/writing_stubs.html#incomplete-stubs).
-  A `#[pymodule_init]` function [declared without the module argument](module.md#procedural-initialization) is exempt: it is not handed the module, so the module is taken to be complete.
+  Such a module also gets no `__all__` declaration, because the set of names it exports at runtime is not known.
+  A `#[pymodule_init]` function [declared without the module argument](module.md#procedural-initialization) is exempt: it is not handed the module, so the module is taken to be complete and keeps its `__all__`.
   A `Python<'_>` marker on its own does not count as the module argument.
