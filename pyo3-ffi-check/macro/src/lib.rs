@@ -6,7 +6,7 @@ use std::{
 };
 
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
-use pyo3_build_config::PythonVersion;
+use pyo3_build_config::{PythonImplementation, PythonVersion};
 use quote::quote;
 
 const PY_3_15: PythonVersion = PythonVersion {
@@ -48,6 +48,13 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
             && struct_name == "PyBytesWriter"
         {
             // PyBytesWriter was added in Python 3.15
+            continue;
+        }
+
+        if pyo3_build_config::get().target_abi().implementation() == PythonImplementation::GraalPy
+            && (struct_name == "PyFunctionObject" || struct_name == "PySliceObject")
+        {
+            // GraalPy wants these types to be opaque, we skip them
             continue;
         }
 
@@ -179,6 +186,17 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
         // bindgen picked `__bindgen_anon_1` as the field name for the anonymous union containing ob_refcnt,
         // PyO3 uses ob_refcnt directly
         all_fields.remove("__bindgen_anon_1");
+    } else if struct_name == "PyVarObject"
+        && pyo3_build_config::get().target_abi().implementation() == PythonImplementation::GraalPy
+    {
+        // ob_size not present in GraalPy
+        all_fields.remove("ob_size");
+    } else if pyo3_build_config::get().target_abi().implementation()
+        == PythonImplementation::GraalPy
+        && (struct_name == "PyFunctionObject" || struct_name == "PySliceObject")
+    {
+        // GraalPy wants these types to be opaque, we skip them
+        return TokenStream::new().into();
     }
 
     let mut output = TokenStream::new();
@@ -445,7 +463,7 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("Py_IS_TYPE", "not(Py_3_15)"), // symbol added for stable abi on 3.15
     ("Py_None", ""),
     ("Py_NotImplemented", ""),
-    ("Py_REFCNT", "not(Py_3_14)"),
+    ("Py_REFCNT", "all(not(Py_3_14), not(GraalPy))"),
     ("Py_SIZE", "not(Py_3_15)"), // symbol added for stable abi on 3.15
     ("Py_True", ""),
     ("Py_TYPE", "not(Py_3_14)"),
