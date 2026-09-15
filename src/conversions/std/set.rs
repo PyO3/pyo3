@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use core::{cmp, hash};
 use std::collections;
 
@@ -58,16 +59,20 @@ where
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         match ob.cast::<PySet>() {
-            Ok(set) => set
-                .iter()
-                .map(|any| any.extract().map_err(Into::into))
-                .collect(),
+            Ok(set) => {
+                let mut result = Self::with_capacity_and_hasher(set.len(), S::default());
+                for item in set.iter() {
+                    result.insert(item.extract().map_err(Into::into)?);
+                }
+                Ok(result)
+            }
             Err(err) => {
                 if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
-                    frozen_set
-                        .iter()
-                        .map(|any| any.extract().map_err(Into::into))
-                        .collect()
+                    let mut result = Self::with_capacity_and_hasher(frozen_set.len(), S::default());
+                    for item in frozen_set.iter() {
+                        result.insert(item.extract().map_err(Into::into)?);
+                    }
+                    Ok(result)
                 } else {
                     Err(PyErr::from(err))
                 }
@@ -120,16 +125,20 @@ where
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         match ob.cast::<PySet>() {
-            Ok(set) => set
-                .iter()
-                .map(|any| any.extract().map_err(Into::into))
-                .collect(),
+            Ok(set) => {
+                let mut values = Vec::with_capacity(set.len());
+                for item in set.iter() {
+                    values.push(item.extract().map_err(Into::into)?);
+                }
+                Ok(values.into_iter().collect())
+            }
             Err(err) => {
                 if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
-                    frozen_set
-                        .iter()
-                        .map(|any| any.extract().map_err(Into::into))
-                        .collect()
+                    let mut values = Vec::with_capacity(frozen_set.len());
+                    for item in frozen_set.iter() {
+                        values.push(item.extract().map_err(Into::into)?);
+                    }
+                    Ok(values.into_iter().collect())
                 } else {
                     Err(PyErr::from(err))
                 }

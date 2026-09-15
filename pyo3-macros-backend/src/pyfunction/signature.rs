@@ -10,6 +10,7 @@ use quote::ToTokens;
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
+    parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
     Expr, Token,
@@ -582,6 +583,26 @@ impl<'a> FunctionSignature<'a> {
             arguments,
             python_signature,
             attribute: None,
+        }
+    }
+
+    /// Gives the last `count` positional parameters a `None` default, matching a CPython slot
+    /// wrapper which substitutes `None` for the trailing arguments the caller may omit.
+    pub fn default_trailing_parameters_to_none(&mut self, count: usize) {
+        let mut defaulted = 0;
+        for arg in self.arguments.iter_mut().rev() {
+            if defaulted == count {
+                break;
+            }
+            if let FnArg::Regular(arg) = arg {
+                arg.default_value = Some(Box::new(parse_quote!(None)));
+                defaulted += 1;
+            }
+        }
+        for _ in 0..defaulted {
+            self.python_signature
+                .default_positional_parameters
+                .push(parse_quote!(None));
         }
     }
 

@@ -36,7 +36,7 @@ jobs:
     runs-on: ${{ inputs.os }}
     if: ${{ !(startsWith(inputs.python-version, 'graalpy') && startsWith(inputs.os, 'windows')) }}
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ inputs.sha }}
 
@@ -44,12 +44,11 @@ jobs:
       - if: ${{ !(inputs.os == 'macos-latest' && contains(fromJSON('["3.8", "3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64') }}
         name: Set up Python ${{ inputs.python-version }}
         id: setup-python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
-          # PyPy can have FFI changes within Python versions, which creates pain in CI
-          check-latest: ${{ startsWith(inputs.python-version, 'pypy') }}
+          check-latest: true
 
       - name: Install zoneinfo backport for Python 3.8
         id: zoneinfo-backport
