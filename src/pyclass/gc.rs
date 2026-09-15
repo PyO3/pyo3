@@ -554,7 +554,7 @@ unsafe impl<T> PyGcTraversable for Py<T> {
 /// # #[allow(dead_code)]
 /// # #[cfg(feature = "macros")] {
 /// use std::sync::Arc;
-/// use pyo3::{Py, PyAny, PyGcOpaque, PyGcTraversable, Python};
+/// use pyo3::{Py, PyAny, PyGcOpaque, PyGcTraversable, Python, PyVisit, PyTraverseError};
 ///
 /// #[derive(PyGcTraversable)]
 /// struct Node {
@@ -563,11 +563,23 @@ unsafe impl<T> PyGcTraversable for Py<T> {
 ///     children: PyGcOpaque<Vec<Arc<Node>>>,
 /// }
 ///
-/// #[derive(PyGcTraversable)]
 /// struct Graph {
 ///     // All nodes are traversed from here, so skipping links in `Node`
 ///     // avoids recursion without losing referents.
 ///     nodes: Vec<Arc<Node>>,
+/// }
+///
+/// unsafe impl PyGcTraversable for Graph {
+///     const MAY_CONTAIN_CYCLES: bool = true;
+///
+///     fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+///         for node in &self.nodes {
+///           (&*node).traverse(visit)?;
+///         }
+///       Ok(())
+///     }
+///
+///     fn clear(&mut self) {}
 /// }
 /// # }
 /// ```
