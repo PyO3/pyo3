@@ -104,7 +104,7 @@ impl_py_gc_no_cycles!(
 );
 
 // SAFETY: Mutable references can forward both traversal and clearing to `T`.
-unsafe impl<T: ?Sized + PyGcTraversable> PyGcTraversable for &mut T {
+unsafe impl<T: PyGcTraversable + ?Sized> PyGcTraversable for &mut T {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
     #[inline]
@@ -125,7 +125,7 @@ unsafe impl<T: ?Sized + PyGcTraversable> PyGcTraversable for &mut T {
 }
 
 // SAFETY: `PhantomData<T>` stores no runtime data and cannot reference Python objects.
-unsafe impl<T> PyGcTraversable for PhantomData<T> {
+unsafe impl<T: ?Sized> PyGcTraversable for PhantomData<T> {
     const MAY_CONTAIN_CYCLES: bool = false;
 
     #[inline]
@@ -365,7 +365,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for OnceLock<T> {
 // SAFETY: `Mutex<T>` provides synchronized access to one `T`; delegating through
 // the lock guard preserves traversal and clear soundness.
 #[allow(clippy::disallowed_types)]
-unsafe impl<T: PyGcTraversable> PyGcTraversable for Mutex<T> {
+unsafe impl<T: PyGcTraversable + ?Sized> PyGcTraversable for Mutex<T> {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
     fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
@@ -394,7 +394,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for Mutex<T> {
 // SAFETY: `Mutex<T>` provides synchronized access to one `T`; delegating through
 // the lock guard preserves traversal and clear soundness.
 #[cfg(feature = "parking_lot")]
-unsafe impl<T: PyGcTraversable> PyGcTraversable for parking_lot::Mutex<T> {
+unsafe impl<T: PyGcTraversable + ?Sized> PyGcTraversable for parking_lot::Mutex<T> {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
     fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
@@ -415,7 +415,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for parking_lot::Mutex<T> {
 
 // SAFETY: `RwLock<T>` provides synchronized access to one `T`; delegating through
 // read / mutable access preserves traversal and clear soundness.
-unsafe impl<T: PyGcTraversable> PyGcTraversable for RwLock<T> {
+unsafe impl<T: PyGcTraversable + ?Sized> PyGcTraversable for RwLock<T> {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
     fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
@@ -511,7 +511,7 @@ unsafe impl<T: PyGcTraversable> PyGcTraversable for [T] {
 }
 
 // SAFETY: `Box<T>` uniquely owns one `T`; delegating traversal and clear is sound.
-unsafe impl<T: PyGcTraversable> PyGcTraversable for Box<T> {
+unsafe impl<T: PyGcTraversable + ?Sized> PyGcTraversable for Box<T> {
     const MAY_CONTAIN_CYCLES: bool = T::MAY_CONTAIN_CYCLES;
 
     fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {

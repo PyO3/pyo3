@@ -142,7 +142,7 @@ pub mod non_poison {
 
     // SAFETY: This delegates to the inner `std::sync::Mutex`, which is `PyGcTraversable` if `T` is `PyGcTraversable`.
     #[cfg(wip_feature_std)]
-    unsafe impl<T: PyGcTraversable> PyGcTraversable for Mutex<T> {
+    unsafe impl<T: PyGcTraversable + ?Sized> PyGcTraversable for Mutex<T> {
         #[allow(clippy::disallowed_types)]
         const MAY_CONTAIN_CYCLES: bool = <std::sync::Mutex<T>>::MAY_CONTAIN_CYCLES;
 
