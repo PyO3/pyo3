@@ -2,6 +2,8 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 
 use crate::platform::prelude::*;
+use crate::types::PyType;
+use crate::PyTypeInfo;
 use core::ptr::NonNull;
 
 #[cfg(feature = "experimental-inspect")]
@@ -122,7 +124,8 @@ where
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = type_hint_union!(T::INPUT_TYPE, PyNone::TYPE_HINT);
+    const INPUT_TYPE: PyStaticExpr =
+        type_hint_union!(T::INPUT_TYPE, <PyNone as PyTypeCheck>::TYPE_HINT);
 
     #[inline]
     fn extract(
@@ -143,7 +146,7 @@ impl<'a, 'holder, 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'holder 
     type Error = <alloc::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = <PyString as PyTypeCheck>::TYPE_HINT;
 
     #[inline]
     fn extract(
@@ -323,6 +326,29 @@ where
 {
     let bound = bound_ref.cast::<T>().map_err(PyErr::from)?;
     R::try_from(bound).map_err(Into::into)
+}
+
+/// Extracts a `cls` receiver from a class instance, assuming the correct instance
+/// type has been provided.
+#[inline]
+pub fn extract_cls_receiver_trusted<'a, 'py>(
+    slf: &'a Bound<'py, PyAny>,
+    holder: &'a mut Option<Bound<'py, PyType>>,
+) -> &'a Bound<'py, PyType> {
+    holder.insert(slf.get_type())
+}
+
+/// Extracts a `cls` receiver from a class instance, performing a checked cast.
+#[inline]
+pub fn extract_cls_receiver<'a, 'py, T>(
+    slf: &'a Bound<'py, PyAny>,
+    holder: &'a mut Option<Bound<'py, PyType>>,
+) -> PyResult<&'a Bound<'py, PyType>>
+where
+    T: PyTypeInfo,
+{
+    slf.cast::<T>()?; // Perform type check
+    Ok(extract_cls_receiver_trusted(slf, holder))
 }
 
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
