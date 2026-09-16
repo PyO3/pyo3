@@ -15,7 +15,7 @@
 macro_rules! extern_libpython_cpython_private_fn {
     ($(#[$attrs:meta])* $vis:vis $name:ident($($args:tt)*) $(-> $ret:ty)?) => {
         #[cfg_attr(
-            all(windows, target_arch = "x86", not(any(PyPy, GraalPy))),
+            all(windows, pyo3_use_raw_dylib, target_arch = "x86"),
             link_name = concat!("_", stringify!($name))
         )]
         $(#[$attrs])*

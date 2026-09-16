@@ -6,7 +6,7 @@ use std::{
 };
 
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
-use pyo3_build_config::PythonVersion;
+use pyo3_build_config::{PythonImplementation, PythonVersion};
 use quote::quote;
 
 const PY_3_15: PythonVersion = PythonVersion {
@@ -195,6 +195,7 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
         let bindgen_field_ident = if (pyo3_build_config::get().target_abi().version() >= PY_3_12)
             && struct_name == "PyObject"
             && field_name == "ob_refcnt"
+            && pyo3_build_config::get().target_abi().implementation() != PythonImplementation::PyPy
         {
             // PyObject since 3.12 implements ob_refcnt as a union; bindgen creates
             // an anonymous name for the field
@@ -444,9 +445,6 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("Py_UNICODE_TODECIMAL", ""),
     ("Py_XDECREF", ""),
     ("Py_XINCREF", ""),
-    ("_PyCode_GetExtra", "Py_3_12"),
-    ("_PyCode_SetExtra", "Py_3_12"),
-    ("_PyEval_RequestCodeExtraIndex", "Py_3_12"),
     // These functions were only added in 3.10, but pyo3-ffi defines them for
     // all versions. Technically not macros but the machinery happens to work
     // the same way.
@@ -486,6 +484,17 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "PyOS_BeforeFork",
     "PyOS_AfterFork_Parent",
     "PyOS_AfterFork_Child",
+    // TODO: PyPy 3.12 declares these symbols in its headers but does not implement them?
+    "PyMapping_Length",
+    "PyObject_IS_GC",
+    "PyObject_Length",
+    "PySequence_In",
+    "PySequence_Length",
+    "PyType_ClearCache",
+    // TODO: deprecated backwards compatibility aliases to be removed in PyO3 0.31
+    "_PyCode_GetExtra",
+    "_PyCode_SetExtra",
+    "_PyEval_RequestCodeExtraIndex",
 ];
 
 // Assert at compile time that `MACRO_EXCLUSIONS` and `EXCLUDED_SYMBOLS` are disjoint
@@ -539,13 +548,20 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             continue;
         }
 
-        if pyo3_build_config::get().implementation()
-            == pyo3_build_config::PythonImplementation::PyPy
-        {
+        let mut bindgen_name = function_name.to_owned();
+        if pyo3_build_config::get().implementation() == PythonImplementation::PyPy {
+            // For PyPy, some functions are prefixed with "PyPy", we check whether the
+            // bindgen name contains the prefixed name and use that if it does.
+            if function_name.starts_with("Py") || function_name.starts_with("_Py") {
+                let prefixed_name = function_name.replacen("Py", "PyPy", 1);
+                if BINDGEN_FUNCTION_NAMES.contains(&prefixed_name) {
+                    bindgen_name = prefixed_name;
+                }
+            }
             // If the function doesn't exist in PyPy, for now we don't care:
             // - For PyO3 inline functions it's probably fine to include anyway
             // - For extern symbols - PyPy may add them in a future release
-            if !BINDGEN_FUNCTION_NAMES.contains(function_name) {
+            if !BINDGEN_FUNCTION_NAMES.contains(&bindgen_name) {
                 continue;
             }
         }
@@ -605,6 +621,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
         };
 
         let function_ident = Ident::new(function_name, Span::call_site());
+        let bindgen_ident = Ident::new(&bindgen_name, Span::call_site());
 
         let arg_types = std::iter::repeat_n(quote!(_), arg_count);
 
@@ -631,7 +648,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             .map(|(_, cfg)| if cfg.is_empty() { "all()" } else { *cfg })
             .map(|cfg| cfg.parse().expect("failed to parse macro exclusion cfg"));
 
-        let has_symbol = BINDGEN_FUNCTION_NAMES.contains(function_name);
+        let has_symbol = BINDGEN_FUNCTION_NAMES.contains(&bindgen_name);
         match (macro_exclusion_cfg, has_symbol) {
             (Some(cfg), true) => {
                 // emit an error if checking within the cfgs where a macro is expected
@@ -641,7 +658,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
                 output.extend(quote!(#[cfg(#cfg)] compile_error!(#error_message);));
                 // if not within the macro range, we found a symbol, this should be good
                 output.extend(
-                    quote!(#[cfg(not(#cfg))] #macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg));),
+                    quote!(#[cfg(not(#cfg))] #macro_name!(#inline #function_ident, #bindgen_ident, #modifiers (#(#arg_types),* #vararg));),
                 );
             }
             (Some(cfg), false) => {
@@ -655,7 +672,7 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             (None, true) => {
                 // emit the comparison macro to check that the argument count matches
                 output.extend(
-                    quote!(#macro_name!(#inline #function_ident, #modifiers (#(#arg_types),* #vararg));),
+                    quote!(#macro_name!(#inline #function_ident, #bindgen_ident, #modifiers (#(#arg_types),* #vararg));),
                 );
             }
             (None, false) => {

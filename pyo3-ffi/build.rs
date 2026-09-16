@@ -276,6 +276,30 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
         return Ok(());
     }
 
+    // Not using raw-dylib linking: PyPy dll needs to be the import library not the DLL name
+    let lib_name = if interpreter_config.target_abi().implementation() == PythonImplementation::PyPy
+        && target_os == "windows"
+    {
+        // FIXME: this should probably be done with better configuration in pyo3-build-config
+        // for `raw-dylib` in general, rather than as a patch here.
+        //
+        // Assert expected raw pypy dll name as a sanity check for now
+        assert_eq!(
+            lib_name,
+            format!(
+                "libpypy3.{}-c",
+                interpreter_config.target_abi().version().minor
+            )
+        );
+        format!(
+            "python{}{}",
+            interpreter_config.target_abi().version().major,
+            interpreter_config.target_abi().version().minor
+        )
+    } else {
+        lib_name.to_string()
+    };
+
     println!(
         "cargo:rustc-link-lib={link_model}{alias}{lib_name}",
         link_model = if interpreter_config.shared() {

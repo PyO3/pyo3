@@ -52,9 +52,16 @@ pub unsafe fn PyObject_NewVar<T>(typeobj: *mut PyTypeObject, n: Py_ssize_t) -> *
 
 // skipped PyObject_NEW_VAR
 
+#[cfg(not(all(PyPy, not(Py_3_12))))]
+type PyGCCollectReturn = Py_ssize_t;
+
+// PyPy before 3.12 seems to use `int` for return type
+#[cfg(all(PyPy, not(Py_3_12)))]
+type PyGCCollectReturn = c_int;
+
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyGC_Collect")]
-    pub fn PyGC_Collect() -> Py_ssize_t;
+    pub fn PyGC_Collect() -> PyGCCollectReturn;
 
     #[cfg(Py_3_10)]
     #[cfg_attr(PyPy, link_name = "PyPyGC_Enable")]

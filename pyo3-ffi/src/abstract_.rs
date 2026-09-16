@@ -75,7 +75,7 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyVectorcall_NARGS")]
     pub fn PyVectorcall_NARGS(nargsf: size_t) -> Py_ssize_t;
 
-    #[cfg_attr(not(any(Py_3_12, PyPy)), link_name = "_PyVectorcall_Call")] // symbol made public in 3.12
+    #[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
     #[cfg_attr(PyPy, link_name = "PyPyVectorcall_Call")]
     pub fn PyVectorcall_Call(
         callable: *mut PyObject,
