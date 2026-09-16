@@ -258,7 +258,10 @@ extern_libpython! {
     pub static mut PyExc_UserWarning: *mut PyObject;
     #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_DeprecationWarning")]
     pub static mut PyExc_DeprecationWarning: *mut PyObject;
-    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_PendingDeprecationWarning")]
+    #[cfg_attr(
+        all(PyPy, not(Py_3_12)),
+        link_name = "PyPyExc_PendingDeprecationWarning"
+    )]
     pub static mut PyExc_PendingDeprecationWarning: *mut PyObject;
     #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_SyntaxWarning")]
     pub static mut PyExc_SyntaxWarning: *mut PyObject;
