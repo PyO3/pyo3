@@ -30,15 +30,15 @@ extern_libpython! {
     #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySet_Size")]
     pub fn PySet_Size(anyset: *mut PyObject) -> Py_ssize_t;
 
-    #[cfg(any(PyPy, RustPython))]
+    #[cfg(any(all(PyPy, not(Py_3_12)), RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyFrozenSet_CheckExact")]
     pub fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int;
 
-    #[cfg(any(PyPy, RustPython))]
+    #[cfg(any(all(PyPy, not(Py_3_12)), RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyFrozenSet_Check")]
     pub fn PyFrozenSet_Check(ob: *mut PyObject) -> c_int;
 
-    #[cfg(any(PyPy, RustPython))]
+    #[cfg(any(all(PyPy, not(Py_3_12)), RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyAnySet_CheckExact")]
     pub fn PyAnySet_CheckExact(ob: *mut PyObject) -> c_int;
 
@@ -48,26 +48,26 @@ extern_libpython! {
     #[cfg(RustPython)]
     pub fn PySet_CheckExact(op: *mut PyObject) -> c_int;
 
-    #[cfg(any(PyPy, RustPython))]
+    #[cfg(any(all(PyPy, not(Py_3_12)), RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPySet_Check")]
     pub fn PySet_Check(ob: *mut PyObject) -> c_int;
 }
 
 #[inline]
-#[cfg(not(any(PyPy, GraalPy, RustPython)))]
+#[cfg(not(any(all(PyPy, not(Py_3_12)), GraalPy, RustPython)))]
 pub unsafe fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &raw mut PyFrozenSet_Type) as c_int
 }
 
 #[inline]
-#[cfg(not(any(PyPy, RustPython)))]
+#[cfg(not(any(all(PyPy, not(Py_3_12)), RustPython)))]
 pub unsafe fn PyFrozenSet_Check(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &raw mut PyFrozenSet_Type
         || PyType_IsSubtype(Py_TYPE(ob), &raw mut PyFrozenSet_Type) != 0) as c_int
 }
 
 #[inline]
-#[cfg(not(any(PyPy, RustPython)))]
+#[cfg(not(any(all(PyPy, not(Py_3_12)), RustPython)))]
 pub unsafe fn PyAnySet_CheckExact(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &raw mut PySet_Type || Py_TYPE(ob) == &raw mut PyFrozenSet_Type) as c_int
 }
@@ -87,7 +87,7 @@ pub unsafe fn PySet_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 #[inline]
-#[cfg(not(any(PyPy, RustPython)))]
+#[cfg(not(any(all(PyPy, not(Py_3_12)), RustPython)))]
 pub unsafe fn PySet_Check(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &raw mut PySet_Type || PyType_IsSubtype(Py_TYPE(ob), &raw mut PySet_Type) != 0)
         as c_int

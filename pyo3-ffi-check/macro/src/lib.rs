@@ -332,14 +332,14 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     // FIXME: for many of these `not(PyPy)` cases,
     // it seems that PyPy might actually offer symbols which PyO3
     // should be using rather than implementing inline functions
-    ("PyAnySet_Check", "not(PyPy)"),
-    ("PyAnySet_CheckExact", "not(PyPy)"),
+    ("PyAnySet_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyAnySet_CheckExact", "any(not(PyPy), Py_3_12)"),
     ("PyAsyncGen_CheckExact", ""),
     ("PyBool_Check", ""),
     ("PyByteArray_AS_STRING", ""),
     ("PyByteArray_GET_SIZE", ""),
-    ("PyByteArray_Check", "not(PyPy)"),
-    ("PyByteArray_CheckExact", "not(PyPy)"),
+    ("PyByteArray_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyByteArray_CheckExact", "any(not(PyPy), Py_3_12)"),
     ("PyBytes_AS_STRING", "not(PyPy)"),
     ("PyBytes_Check", ""),
     ("PyBytes_CheckExact", ""),
@@ -355,8 +355,8 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyCapsule_CheckExact", ""),
     ("PyCell_Check", ""),
     ("PyCode_Check", "not(PyPy)"),
-    ("PyComplex_Check", "not(PyPy)"),
-    ("PyComplex_CheckExact", "not(PyPy)"),
+    ("PyComplex_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyComplex_CheckExact", "any(not(PyPy), Py_3_12)"),
     ("PyContext_CheckExact", ""),
     ("PyContextToken_CheckExact", ""),
     ("PyContextVar_CheckExact", ""),
@@ -405,12 +405,12 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyExceptionInstance_Class", "not(PyPy)"),
     ("PyEval_CallObject", "not(Py_3_13)"),
     ("PyFloat_AS_DOUBLE", "not(PyPy)"),
-    ("PyFloat_Check", "not(PyPy)"),
-    ("PyFloat_CheckExact", "not(PyPy)"),
+    ("PyFloat_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyFloat_CheckExact", "any(not(PyPy), Py_3_12)"),
     ("PyFrame_Check", ""),
     ("PyFrameLocalsProxy_Check", ""),
-    ("PyFrozenSet_Check", "not(PyPy)"),
-    ("PyFrozenSet_CheckExact", "not(PyPy)"),
+    ("PyFrozenSet_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyFrozenSet_CheckExact", "any(not(PyPy), Py_3_12)"),
     ("PyFunction_Check", "not(PyPy)"),
     ("PyGen_Check", "not(PyPy)"),
     ("PyGen_CheckExact", "not(PyPy)"),
@@ -425,9 +425,9 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyLong_CheckExact", ""),
     ("PyMapping_DelItem", ""),
     ("PyMapping_DelItemString", ""),
-    ("PyMemoryView_Check", "not(PyPy)"),
-    ("PyModule_Check", "not(PyPy)"),
-    ("PyModule_CheckExact", "not(PyPy)"),
+    ("PyMemoryView_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyModule_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyModule_CheckExact", "any(not(PyPy), Py_3_12)"),
     ("PyModule_Create", ""),
     ("PyModule_FromDefAndSpec", "not(PyPy)"),
     ("PyObject_CallMethodNoArgs", ""),
@@ -456,8 +456,8 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PySequence_Fast_GET_SIZE", ""),
     ("PySequence_Fast_ITEMS", ""),
     ("PySequence_ITEM", "not(PyPy)"),
-    ("PySet_Check", "not(PyPy)"),
-    ("PySet_CheckExact", "not(PyPy)"),
+    ("PySet_Check", "any(not(PyPy), Py_3_12)"),
+    ("PySet_CheckExact", "any(not(PyPy), Py_3_12)"),
     ("PySet_GET_SIZE", ""),
     ("PySlice_Check", ""),
     ("PySlot_DATA", ""),
@@ -480,7 +480,7 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyTime_FromTimeAndFold", ""),
     ("PyTimeZone_FromOffset", ""),
     ("PyTimeZone_FromOffsetAndName", ""),
-    ("PyTraceBack_Check", "not(PyPy)"),
+    ("PyTraceBack_Check", "any(not(PyPy), Py_3_12)"),
     ("PyTuple_Check", ""),
     ("PyTuple_CheckExact", ""),
     ("PyTuple_GET_ITEM", ""),
@@ -491,7 +491,7 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyType_FastSubclass", ""),
     ("PyType_HasFeature", ""),
     ("PyType_IS_GC", ""),
-    ("PyType_SUPPORTS_WEAKREFS", "not(Py_3_11)"),
+    ("PyType_SUPPORTS_WEAKREFS", "any(PyPy, not(Py_3_11))"),
     ("PyUnicode_1BYTE_DATA", ""),
     ("PyUnicode_2BYTE_DATA", ""),
     ("PyUnicode_4BYTE_DATA", ""),
@@ -505,18 +505,21 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("PyUnicode_IS_READY", ""),
     ("PyUnicode_KIND", "not(Py_3_14)"),
     ("PyUnicode_READY", ""),
-    ("PyWeakref_Check", "not(PyPy)"),
-    ("PyWeakref_CheckProxy", "not(PyPy)"),
-    ("PyWeakref_CheckRef", "not(PyPy)"),
-    ("PyWeakref_CheckRefExact", "not(PyPy)"),
+    ("PyWeakref_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyWeakref_CheckProxy", "any(not(PyPy), Py_3_12)"),
+    ("PyWeakref_CheckRef", "any(not(PyPy), Py_3_12)"),
+    ("PyWeakref_CheckRefExact", "any(not(PyPy), Py_3_12)"),
     ("PyVectorcall_NARGS", "not(Py_3_12)"),
     ("Py_CLEAR", ""),
-    ("Py_CompileString", "not(Py_3_10)"),
+    (
+        "Py_CompileString",
+        "any(not(Py_3_10), all(PyPy, not(Py_3_12)))",
+    ),
     ("Py_CompileStringFlags", "all(not(PyPy), not(Py_3_13))"),
     ("Py_DECREF", ""),
     ("Py_Ellipsis", ""),
     ("Py_False", ""),
-    ("Py_GETENV", "not(Py_3_11)"),
+    ("Py_GETENV", "any(PyPy, not(Py_3_11))"),
     ("Py_INCREF", ""),
     ("Py_IS_TYPE", "not(Py_3_15)"), // symbol added for stable abi on 3.15
     ("Py_None", ""),
@@ -532,8 +535,8 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     // all versions. Technically not macros but the machinery happens to work
     // the same way.
     ("Py_Is", "not(Py_3_10)"),
-    ("Py_IsFalse", "not(Py_3_10)"),
-    ("Py_IsTrue", "not(Py_3_10)"),
+    ("Py_IsFalse", "any(not(Py_3_10), all(PyPy, not(Py_3_12)))"),
+    ("Py_IsTrue", "any(not(Py_3_10), all(PyPy, not(Py_3_12)))"),
     ("Py_IsNone", "not(Py_3_10)"),
 ];
 
@@ -632,14 +635,6 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
         }
 
         let bindgen_name = get_bindgen_name(function_name, &BINDGEN_FUNCTION_NAMES);
-        if pyo3_build_config::get().implementation() == PythonImplementation::PyPy {
-            // If the function doesn't exist in PyPy, for now we don't care:
-            // - For PyO3 inline functions it's probably fine to include anyway
-            // - For extern symbols - PyPy may add them in a future release
-            if !BINDGEN_FUNCTION_NAMES.contains(&bindgen_name) {
-                continue;
-            }
-        }
 
         let FunctionInfo {
             modifiers,
@@ -682,6 +677,20 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             ("PyThreadState_Get", Err(FunctionNameMismatch(e))) if e == "PyThreadState_GET" => {
                 FunctionInfo {
                     modifiers: quote!(extern "C"),
+                    arg_count: 0,
+                    variadic: false,
+                }
+            }
+            ("PyDateTime_IMPORT", Err(FunctionNameMismatch(e))) if e == "PyDateTime_Import" => {
+                FunctionInfo {
+                    modifiers: quote!(unsafe),
+                    arg_count: 0,
+                    variadic: false,
+                }
+            }
+            ("PyDateTime_Import", Err(FunctionNameMismatch(e))) if e == "PyDateTime_IMPORT" => {
+                FunctionInfo {
+                    modifiers: quote!(unsafe extern "C"),
                     arg_count: 0,
                     variadic: false,
                 }
@@ -749,6 +758,13 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
                 output.extend(
                     quote!(#macro_name!(#inline #function_ident, #bindgen_ident, #modifiers (#(#arg_types),* #vararg));),
                 );
+            }
+            (None, false)
+                if pyo3_build_config::get().implementation() == PythonImplementation::PyPy =>
+            {
+                // Without an explicit macro exclusion, tolerate missing PyPy symbols:
+                // - For PyO3 inline functions it's probably fine to include anyway
+                // - For extern symbols - PyPy may add them in a future release
             }
             (None, false) => {
                 // Not in MACRO_EXCLUSIONS, should have a symbol from bindgen
