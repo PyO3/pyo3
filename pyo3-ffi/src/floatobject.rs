@@ -35,11 +35,11 @@ extern_libpython! {
     pub fn PyFloat_GetMax() -> c_double;
     pub fn PyFloat_GetMin() -> c_double;
     pub fn PyFloat_GetInfo() -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyFloat_FromString")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFloat_FromString")]
     pub fn PyFloat_FromString(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyFloat_FromDouble")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFloat_FromDouble")]
     pub fn PyFloat_FromDouble(arg1: c_double) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyFloat_AsDouble")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFloat_AsDouble")]
     pub fn PyFloat_AsDouble(arg1: *mut PyObject) -> c_double;
 }
 

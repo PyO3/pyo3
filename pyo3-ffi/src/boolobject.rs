@@ -64,6 +64,6 @@ pub unsafe fn Py_IsFalse(x: *mut PyObject) -> c_int {
 // skipped Py_RETURN_FALSE
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyBool_FromLong")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBool_FromLong")]
     pub fn PyBool_FromLong(arg1: c_long) -> *mut PyObject;
 }
