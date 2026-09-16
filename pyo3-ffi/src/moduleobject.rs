@@ -33,15 +33,15 @@ extern_libpython! {
     #[cfg(RustPython)]
     pub fn PyModule_CheckExact(op: *mut PyObject) -> c_int;
 
-    #[cfg_attr(PyPy, link_name = "PyPyModule_NewObject")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_NewObject")]
     pub fn PyModule_NewObject(name: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_New")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_New")]
     pub fn PyModule_New(name: *const c_char) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_GetDict")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_GetDict")]
     pub fn PyModule_GetDict(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg(not(PyPy))]
     pub fn PyModule_GetNameObject(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_GetName")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_GetName")]
     pub fn PyModule_GetName(arg1: *mut PyObject) -> *const c_char;
     #[cfg(not(all(windows, PyPy)))]
     #[deprecated(note = "Python 3.2")]
@@ -51,11 +51,11 @@ extern_libpython! {
     // skipped non-limited _PyModule_Clear
     // skipped non-limited _PyModule_ClearDict
     // skipped non-limited _PyModuleSpec_IsInitializing
-    #[cfg_attr(PyPy, link_name = "PyPyModule_GetDef")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_GetDef")]
     pub fn PyModule_GetDef(arg1: *mut PyObject) -> *mut PyModuleDef;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_GetState")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_GetState")]
     pub fn PyModule_GetState(arg1: *mut PyObject) -> *mut c_void;
-    #[cfg_attr(PyPy, link_name = "PyPyModuleDef_Init")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModuleDef_Init")]
     pub fn PyModuleDef_Init(arg1: *mut PyModuleDef) -> *mut PyObject;
 
     #[cfg(not(RustPython))]

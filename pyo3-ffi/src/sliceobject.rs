@@ -52,7 +52,7 @@ extern_libpython! {
     #[cfg(RustPython)]
     pub fn PySlice_Check(op: *mut PyObject) -> c_int;
 
-    #[cfg_attr(PyPy, link_name = "PyPySlice_New")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySlice_New")]
     pub fn PySlice_New(
         start: *mut PyObject,
         stop: *mut PyObject,
@@ -62,7 +62,7 @@ extern_libpython! {
     // skipped non-limited _PySlice_FromIndices
     // skipped non-limited _PySlice_GetLongIndices
 
-    #[cfg_attr(PyPy, link_name = "PyPySlice_GetIndices")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySlice_GetIndices")]
     pub fn PySlice_GetIndices(
         r: *mut PyObject,
         length: Py_ssize_t,
@@ -91,7 +91,7 @@ pub unsafe fn PySlice_GetIndicesEx(
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPySlice_Unpack")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySlice_Unpack")]
     pub fn PySlice_Unpack(
         slice: *mut PyObject,
         start: *mut Py_ssize_t,
@@ -99,7 +99,7 @@ extern_libpython! {
         step: *mut Py_ssize_t,
     ) -> c_int;
 
-    #[cfg_attr(PyPy, link_name = "PyPySlice_AdjustIndices")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySlice_AdjustIndices")]
     pub fn PySlice_AdjustIndices(
         length: Py_ssize_t,
         start: *mut Py_ssize_t,

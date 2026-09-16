@@ -55,13 +55,17 @@ extern_libpython! {
     #[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
     pub fn PyContext_ClearWatcher(watcher_id: c_int) -> c_int;
 
+    #[cfg_attr(PyPy, link_name = "PyPyContextVar_New")]
     pub fn PyContextVar_New(name: *const c_char, def: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyContextVar_Get")]
     pub fn PyContextVar_Get(
         var: *mut PyObject,
         default_value: *mut PyObject,
         value: *mut *mut PyObject,
     ) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyContextVar_Set")]
     pub fn PyContextVar_Set(var: *mut PyObject, value: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyContextVar_Reset")]
     pub fn PyContextVar_Reset(var: *mut PyObject, token: *mut PyObject) -> c_int;
     // skipped non-limited _PyContext_NewHamtForTests
 }

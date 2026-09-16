@@ -56,12 +56,12 @@ pub unsafe fn PyWeakref_Check(op: *mut PyObject) -> c_int {
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyWeakref_NewRef")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyWeakref_NewRef")]
     pub fn PyWeakref_NewRef(ob: *mut PyObject, callback: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyWeakref_NewProxy")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyWeakref_NewProxy")]
     pub fn PyWeakref_NewProxy(ob: *mut PyObject, callback: *mut PyObject) -> *mut PyObject;
     #[cfg(not(Py_3_15))]
-    #[cfg_attr(PyPy, link_name = "PyPyWeakref_GetObject")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyWeakref_GetObject")]
     #[cfg_attr(
         Py_3_13,
         deprecated(note = "deprecated since Python 3.13. Use `PyWeakref_GetRef` instead.")

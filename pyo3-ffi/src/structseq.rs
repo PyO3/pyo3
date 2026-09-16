@@ -38,7 +38,7 @@ extern_libpython! {
 
     #[cfg(not(PyPy))]
     pub fn PyStructSequence_NewType(desc: *mut PyStructSequence_Desc) -> *mut PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyStructSequence_New")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyStructSequence_New")]
     pub fn PyStructSequence_New(_type: *mut PyTypeObject) -> *mut PyObject;
 }
 

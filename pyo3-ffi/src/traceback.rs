@@ -2,9 +2,9 @@ use crate::object::*;
 use core::ffi::c_int;
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Here")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTraceBack_Here")]
     pub fn PyTraceBack_Here(arg1: *mut crate::PyFrameObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Print")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTraceBack_Print")]
     pub fn PyTraceBack_Print(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
 
     #[cfg(not(RustPython))]

@@ -29,24 +29,24 @@ extern_libpython! {
     ))]
     #[cfg_attr(PyPy, link_name = "PyPyObject_CallNoArgs")]
     pub fn PyObject_CallNoArgs(func: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_Call")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_Call")]
     pub fn PyObject_Call(
         callable_object: *mut PyObject,
         args: *mut PyObject,
         kw: *mut PyObject,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_CallObject")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_CallObject")]
     pub fn PyObject_CallObject(
         callable_object: *mut PyObject,
         args: *mut PyObject,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_CallFunction")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_CallFunction")]
     pub fn PyObject_CallFunction(
         callable_object: *mut PyObject,
         format: *const c_char,
         ...
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_CallMethod")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_CallMethod")]
     pub fn PyObject_CallMethod(
         o: *mut PyObject,
         method: *const c_char,
@@ -62,21 +62,21 @@ extern_libpython! {
         ...
     ) -> *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPyObject_CallFunctionObjArgs")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_CallFunctionObjArgs")]
     pub fn PyObject_CallFunctionObjArgs(callable: *mut PyObject, ...) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_CallMethodObjArgs")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_CallMethodObjArgs")]
     pub fn PyObject_CallMethodObjArgs(
         o: *mut PyObject,
         method: *mut PyObject,
         ...
     ) -> *mut PyObject;
 
-    #[cfg(all(Py_3_12, Py_LIMITED_API))] // is an inline function in cpython/abstract.rs on version-specific ABI
-    #[cfg_attr(PyPy, link_name = "PyPyVectorcall_NARGS")]
+    #[cfg(all(Py_3_12, Py_LIMITED_API))]
+    // is an inline function in cpython/abstract.rs on version-specific ABI
     pub fn PyVectorcall_NARGS(nargsf: size_t) -> Py_ssize_t;
 
     #[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
-    #[cfg_attr(PyPy, link_name = "PyPyVectorcall_Call")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyVectorcall_Call")]
     pub fn PyVectorcall_Call(
         callable: *mut PyObject,
         tuple: *mut PyObject,
@@ -106,43 +106,43 @@ extern_libpython! {
         nargsf: size_t,
         kwnames: *mut PyObject,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_Type")]
     pub fn PyObject_Type(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_Size")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_Size")]
     pub fn PyObject_Size(o: *mut PyObject) -> Py_ssize_t;
 
     // PyObject_Length is a direct alias for PyObject_Size
-    #[cfg_attr(not(PyPy), link_name = "PyObject_Size")]
-    #[cfg_attr(PyPy, link_name = "PyPyObject_Size")]
+    #[cfg_attr(any(not(PyPy), all(PyPy, Py_3_12)), link_name = "PyObject_Size")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_Size")]
     pub fn PyObject_Length(o: *mut PyObject) -> Py_ssize_t;
 
-    #[cfg_attr(PyPy, link_name = "PyPyObject_GetItem")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_GetItem")]
     pub fn PyObject_GetItem(o: *mut PyObject, key: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_SetItem")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_SetItem")]
     pub fn PyObject_SetItem(o: *mut PyObject, key: *mut PyObject, v: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_DelItemString")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_DelItemString")]
     pub fn PyObject_DelItemString(o: *mut PyObject, key: *const c_char) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_DelItem")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_DelItem")]
     pub fn PyObject_DelItem(o: *mut PyObject, key: *mut PyObject) -> c_int;
 
-    #[cfg_attr(PyPy, link_name = "PyPyObject_Format")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_Format")]
     pub fn PyObject_Format(obj: *mut PyObject, format_spec: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_GetIter")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_GetIter")]
     pub fn PyObject_GetIter(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg(Py_3_10)]
-    #[cfg_attr(PyPy, link_name = "PyPyObject_GetAIter")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_GetAIter")]
     pub fn PyObject_GetAIter(arg1: *mut PyObject) -> *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPyIter_Check")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyIter_Check")]
     pub fn PyIter_Check(obj: *mut PyObject) -> c_int;
     #[cfg(Py_3_10)]
-    #[cfg_attr(PyPy, link_name = "PyPyAIter_Check")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyAIter_Check")]
     pub fn PyAIter_Check(obj: *mut PyObject) -> c_int;
 
     #[cfg(Py_3_14)]
     #[cfg_attr(PyPy, link_name = "PyPyIter_NextItem")]
     pub fn PyIter_NextItem(iter: *mut PyObject, item: *mut *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyIter_Next")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyIter_Next")]
     pub fn PyIter_Next(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg(all(not(PyPy), Py_3_10))]
     #[cfg_attr(PyPy, link_name = "PyPyIter_Send")]
@@ -152,149 +152,153 @@ extern_libpython! {
         presult: *mut *mut PyObject,
     ) -> PySendResult;
 
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Check")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Check")]
     pub fn PyNumber_Check(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Add")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Add")]
     pub fn PyNumber_Add(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Subtract")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Subtract")]
     pub fn PyNumber_Subtract(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Multiply")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Multiply")]
     pub fn PyNumber_Multiply(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_MatrixMultiply")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_MatrixMultiply")]
     pub fn PyNumber_MatrixMultiply(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_FloorDivide")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_FloorDivide")]
     pub fn PyNumber_FloorDivide(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_TrueDivide")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_TrueDivide")]
     pub fn PyNumber_TrueDivide(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Remainder")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Remainder")]
     pub fn PyNumber_Remainder(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Divmod")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Divmod")]
     pub fn PyNumber_Divmod(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Power")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Power")]
     pub fn PyNumber_Power(o1: *mut PyObject, o2: *mut PyObject, o3: *mut PyObject)
         -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Negative")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Negative")]
     pub fn PyNumber_Negative(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Positive")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Positive")]
     pub fn PyNumber_Positive(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Absolute")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Absolute")]
     pub fn PyNumber_Absolute(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Invert")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Invert")]
     pub fn PyNumber_Invert(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Lshift")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Lshift")]
     pub fn PyNumber_Lshift(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Rshift")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Rshift")]
     pub fn PyNumber_Rshift(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_And")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_And")]
     pub fn PyNumber_And(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Xor")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Xor")]
     pub fn PyNumber_Xor(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Or")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Or")]
     pub fn PyNumber_Or(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPyIndex_Check")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyIndex_Check")]
     pub fn PyIndex_Check(o: *mut PyObject) -> c_int;
 
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Index")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Index")]
     pub fn PyNumber_Index(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_AsSsize_t")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_AsSsize_t")]
     pub fn PyNumber_AsSsize_t(o: *mut PyObject, exc: *mut PyObject) -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Long")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Long")]
     pub fn PyNumber_Long(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_Float")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_Float")]
     pub fn PyNumber_Float(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_InPlaceAdd")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_InPlaceAdd")]
     pub fn PyNumber_InPlaceAdd(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_InPlaceSubtract")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_InPlaceSubtract")]
     pub fn PyNumber_InPlaceSubtract(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_InPlaceMultiply")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_InPlaceMultiply")]
     pub fn PyNumber_InPlaceMultiply(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_InPlaceMatrixMultiply")]
+    #[cfg_attr(
+        all(PyPy, not(Py_3_12)),
+        link_name = "PyPyNumber_InPlaceMatrixMultiply"
+    )]
     pub fn PyNumber_InPlaceMatrixMultiply(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_InPlaceFloorDivide")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_InPlaceFloorDivide")]
     pub fn PyNumber_InPlaceFloorDivide(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_InPlaceTrueDivide")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_InPlaceTrueDivide")]
     pub fn PyNumber_InPlaceTrueDivide(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_InPlaceRemainder")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_InPlaceRemainder")]
     pub fn PyNumber_InPlaceRemainder(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_InPlacePower")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_InPlacePower")]
     pub fn PyNumber_InPlacePower(
         o1: *mut PyObject,
         o2: *mut PyObject,
         o3: *mut PyObject,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_InPlaceLshift")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_InPlaceLshift")]
     pub fn PyNumber_InPlaceLshift(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_InPlaceRshift")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_InPlaceRshift")]
     pub fn PyNumber_InPlaceRshift(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_InPlaceAnd")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_InPlaceAnd")]
     pub fn PyNumber_InPlaceAnd(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_InPlaceXor")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_InPlaceXor")]
     pub fn PyNumber_InPlaceXor(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyNumber_InPlaceOr")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_InPlaceOr")]
     pub fn PyNumber_InPlaceOr(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyNumber_ToBase")]
     pub fn PyNumber_ToBase(n: *mut PyObject, base: c_int) -> *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPySequence_Check")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_Check")]
     pub fn PySequence_Check(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_Size")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_Size")]
     pub fn PySequence_Size(o: *mut PyObject) -> Py_ssize_t;
 
     // PySequence_Length is a direct alias for PySequence_Size
-    #[cfg_attr(not(PyPy), link_name = "PySequence_Size")]
-    #[cfg_attr(PyPy, link_name = "PyPySequence_Size")]
+    #[cfg_attr(any(not(PyPy), all(PyPy, Py_3_12)), link_name = "PySequence_Size")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_Size")]
     pub fn PySequence_Length(o: *mut PyObject) -> Py_ssize_t;
 
-    #[cfg_attr(PyPy, link_name = "PyPySequence_Concat")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_Concat")]
     pub fn PySequence_Concat(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_Repeat")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_Repeat")]
     pub fn PySequence_Repeat(o: *mut PyObject, count: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_GetItem")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_GetItem")]
     pub fn PySequence_GetItem(o: *mut PyObject, i: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_GetSlice")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_GetSlice")]
     pub fn PySequence_GetSlice(o: *mut PyObject, i1: Py_ssize_t, i2: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_SetItem")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_SetItem")]
     pub fn PySequence_SetItem(o: *mut PyObject, i: Py_ssize_t, v: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_DelItem")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_DelItem")]
     pub fn PySequence_DelItem(o: *mut PyObject, i: Py_ssize_t) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_SetSlice")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_SetSlice")]
     pub fn PySequence_SetSlice(
         o: *mut PyObject,
         i1: Py_ssize_t,
         i2: Py_ssize_t,
         v: *mut PyObject,
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_DelSlice")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_DelSlice")]
     pub fn PySequence_DelSlice(o: *mut PyObject, i1: Py_ssize_t, i2: Py_ssize_t) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_Tuple")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_Tuple")]
     pub fn PySequence_Tuple(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_List")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_List")]
     pub fn PySequence_List(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_Fast")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_Fast")]
     pub fn PySequence_Fast(o: *mut PyObject, m: *const c_char) -> *mut PyObject;
     pub fn PySequence_Count(o: *mut PyObject, value: *mut PyObject) -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_Contains")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_Contains")]
     pub fn PySequence_Contains(seq: *mut PyObject, ob: *mut PyObject) -> c_int;
 
     // PySequence_In is a direct alias for PySequence_Contains
-    #[cfg_attr(not(PyPy), link_name = "PySequence_Contains")]
-    #[cfg_attr(PyPy, link_name = "PyPySequence_Contains")]
+    #[cfg_attr(any(not(PyPy), all(PyPy, Py_3_12)), link_name = "PySequence_Contains")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_Contains")]
     pub fn PySequence_In(o: *mut PyObject, value: *mut PyObject) -> c_int;
 
-    #[cfg_attr(PyPy, link_name = "PyPySequence_Index")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_Index")]
     pub fn PySequence_Index(o: *mut PyObject, value: *mut PyObject) -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_InPlaceConcat")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_InPlaceConcat")]
     pub fn PySequence_InPlaceConcat(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPySequence_InPlaceRepeat")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySequence_InPlaceRepeat")]
     pub fn PySequence_InPlaceRepeat(o: *mut PyObject, count: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMapping_Check")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMapping_Check")]
     pub fn PyMapping_Check(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyMapping_Size")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMapping_Size")]
     pub fn PyMapping_Size(o: *mut PyObject) -> Py_ssize_t;
 
     // PyMapping_Length is a direct alias for PyMapping_Size
-    #[cfg_attr(not(PyPy), link_name = "PyMapping_Size")]
-    #[cfg_attr(PyPy, link_name = "PyPyMapping_Size")]
+    #[cfg_attr(any(not(PyPy), all(PyPy, Py_3_12)), link_name = "PyMapping_Size")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMapping_Size")]
     pub fn PyMapping_Length(o: *mut PyObject) -> Py_ssize_t;
 }
 
@@ -309,9 +313,9 @@ pub unsafe fn PyMapping_DelItem(o: *mut PyObject, key: *mut PyObject) -> c_int {
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyMapping_HasKeyString")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMapping_HasKeyString")]
     pub fn PyMapping_HasKeyString(o: *mut PyObject, key: *const c_char) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyMapping_HasKey")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMapping_HasKey")]
     pub fn PyMapping_HasKey(o: *mut PyObject, key: *mut PyObject) -> c_int;
     #[cfg(Py_3_13)]
     #[cfg_attr(PyPy, link_name = "PyPyMapping_HasKeyWithError")]
@@ -319,13 +323,13 @@ extern_libpython! {
     #[cfg(Py_3_13)]
     #[cfg_attr(PyPy, link_name = "PyPyMapping_HasKeyStringWithError")]
     pub fn PyMapping_HasKeyStringWithError(o: *mut PyObject, key: *const c_char) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyMapping_Keys")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMapping_Keys")]
     pub fn PyMapping_Keys(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMapping_Values")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMapping_Values")]
     pub fn PyMapping_Values(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMapping_Items")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMapping_Items")]
     pub fn PyMapping_Items(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMapping_GetItemString")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMapping_GetItemString")]
     pub fn PyMapping_GetItemString(o: *mut PyObject, key: *const c_char) -> *mut PyObject;
     #[cfg(Py_3_13)]
     #[cfg_attr(PyPy, link_name = "PyPyMapping_GetOptionalItem")]
@@ -341,14 +345,14 @@ extern_libpython! {
         key: *const c_char,
         result: *mut *mut PyObject,
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyMapping_SetItemString")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMapping_SetItemString")]
     pub fn PyMapping_SetItemString(
         o: *mut PyObject,
         key: *const c_char,
         value: *mut PyObject,
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_IsInstance")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_IsInstance")]
     pub fn PyObject_IsInstance(object: *mut PyObject, typeorclass: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyObject_IsSubclass")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_IsSubclass")]
     pub fn PyObject_IsSubclass(object: *mut PyObject, typeorclass: *mut PyObject) -> c_int;
 }
