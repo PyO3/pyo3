@@ -330,6 +330,31 @@ impl<T: Element> PyBuffer<T> {
         }
     }
 
+    /// Gets the buffer memory as a slice.
+    ///
+    /// Returns null if the buffer is not C-style contiguous
+    pub fn as_slice_ptr(&self) -> Option<NonNull<[T]>> {
+        self.slice_pointer_internal(self.is_c_contiguous())
+    }
+
+    /// Gets the buffer memory as a slice.
+    ///
+    /// This function returns null if the buffer is not Fortran-style contiguous
+    pub fn as_fortran_slice_ptr(&self) -> Option<NonNull<[T]>> {
+        self.slice_pointer_internal(self.is_fortran_contiguous())
+    }
+
+    fn slice_pointer_internal(&self, contiguous: bool) -> Option<NonNull<[T]>> {
+        if contiguous {
+            NonNull::new(ptr::slice_from_raw_parts_mut(
+                self.raw().buf.cast(),
+                self.item_count(),
+            ))
+        } else {
+            None
+        }
+    }
+
     /// Copies the buffer elements to the specified slice.
     /// If the buffer is multi-dimensional, the elements are written in C-style order.
     ///
@@ -730,11 +755,18 @@ impl RawBuffer {
 
 impl Drop for PyUntypedBuffer {
     fn drop(&mut self) {
-        if Python::try_attach(|_| unsafe { self.0.release() }).is_none()
-            && crate::internal::state::is_in_gc_traversal()
-        {
-            eprintln!("Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory.");
+        #[cfg_attr(not(wip_feature_std), expect(unused_variables))]
+        let released = Python::try_attach(|_| unsafe {
+            self.0.release();
+        })
+        .is_some();
+
+        // TODO remove once implementing GC traversal is unsafe
+        #[cfg(wip_feature_std)]
+        if !released && crate::internal::state::is_in_gc_traversal() {
+            std::eprintln!("Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory.");
         }
+
         // If `try_attach` failed and `is_in_gc_traversal()` is false, then probably the interpreter has
         // already finalized and we can just assume that the underlying memory has already been freed.
         //
@@ -1101,6 +1133,30 @@ mod tests {
                 let rebound = owner_ref.bind(py);
                 assert!(rebound.is_instance_of::<PyBytes>());
             });
+        });
+    }
+
+    #[test]
+    fn test_as_slice_ptr() {
+        Python::attach(|py| {
+            let bytes = PyBytes::new(py, b"abcde");
+            let buffer = PyBuffer::<u8>::get(&bytes).unwrap();
+            let slice_ptr = buffer.as_slice_ptr().unwrap();
+            assert_eq!(slice_ptr.len(), 5);
+            assert_eq!(unsafe { *slice_ptr.as_ptr().cast::<u8>() }, b'a');
+
+            let fortran_slice_ptr = buffer.as_fortran_slice_ptr().unwrap();
+            assert_eq!(fortran_slice_ptr.len(), 5);
+            assert_eq!(unsafe { *fortran_slice_ptr.as_ptr().cast::<u8>() }, b'a');
+
+            // non-contiguous buffer should return None, e.g. strided memoryview
+            let view = py.eval(c"memoryview(b'abcde')[::2]", None, None).unwrap();
+            let buffer = PyBuffer::<u8>::get(&view).unwrap();
+
+            assert_eq!(buffer.shape(), [3]);
+            assert_eq!(buffer.strides(), [2]);
+            assert!(buffer.as_slice_ptr().is_none());
+            assert!(buffer.as_fortran_slice_ptr().is_none());
         });
     }
 }
