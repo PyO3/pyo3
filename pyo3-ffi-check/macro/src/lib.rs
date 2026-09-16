@@ -19,6 +19,11 @@ const PY_3_12: PythonVersion = PythonVersion {
     minor: 12,
 };
 
+const PY_3_11: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 11,
+};
+
 /// Macro which expands to multiple macro calls, one per pyo3-ffi struct.
 #[proc_macro]
 pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -70,15 +75,20 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 static DOC_DIR: LazyLock<PathBuf> =
     LazyLock::new(|| PathBuf::from(env::var_os("PYO3_FFI_CHECK_DOC_DIR").unwrap()));
 
-static BINDGEN_FUNCTION_NAMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
-    // parse all the function names from the bindgen index file
+static BINDGEN_FUNCTION_NAMES: LazyLock<HashSet<String>> =
+    LazyLock::new(|| get_bindgen_names("fn"));
+
+static BINDGEN_STATIC_NAMES: LazyLock<HashSet<String>> =
+    LazyLock::new(|| get_bindgen_names("static"));
+
+fn get_bindgen_names(kind: &str) -> HashSet<String> {
+    // Parse names from the bindgen index file.
     let index_file = DOC_DIR.join("bindgen/index.html");
 
-    // the functions are in `a` elements with class "fn", and the full path is in the
-    // `title` attribute
+    // The full path is in the `title` attribute of each item's link.
     let html = fs::read_to_string(index_file).unwrap();
     let html = scraper::Html::parse_document(&html);
-    let selector = scraper::Selector::parse("a.fn").unwrap();
+    let selector = scraper::Selector::parse(&format!("a.{kind}")).unwrap();
 
     html.select(&selector)
         .map(|el| {
@@ -91,7 +101,81 @@ static BINDGEN_FUNCTION_NAMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
                 .to_string()
         })
         .collect()
-});
+}
+
+fn get_bindgen_name(name: &str, names: &HashSet<String>) -> String {
+    if pyo3_build_config::get().implementation() == PythonImplementation::PyPy
+        && (name.starts_with("Py") || name.starts_with("_Py"))
+    {
+        let prefixed_name = name.replacen("Py", "PyPy", 1);
+        if names.contains(&prefixed_name) {
+            return prefixed_name;
+        }
+    }
+    name.to_owned()
+}
+
+/// Macro which expands to multiple macro calls, one per pyo3-ffi static.
+#[proc_macro]
+pub fn for_all_statics(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let macro_name = match get_macro_name_from_input("for_all_statics", input) {
+        Ok(name) => name,
+        Err(err) => return err.into(),
+    };
+
+    let statics_glob = format!("{}/pyo3_ffi/static.*.html", DOC_DIR.display());
+    let mut output = TokenStream::new();
+
+    for entry in glob::glob(&statics_glob).expect("Failed to read glob pattern") {
+        let entry = entry.unwrap();
+        let file_name = entry.file_name().unwrap().to_string_lossy().into_owned();
+        let static_name = file_name
+            .strip_prefix("static.")
+            .unwrap()
+            .strip_suffix(".html")
+            .unwrap();
+
+        if static_name == "PyStructSequence_UnnamedField"
+            && pyo3_build_config::get().target_abi().version() < PY_3_11
+        {
+            // Not marked PyAPI_DATA (and thus not exported reliably) before Python 3.11.
+            // https://github.com/python/cpython/issues/88386
+            continue;
+        }
+
+        let is_pypy = pyo3_build_config::get().implementation() == PythonImplementation::PyPy;
+        if is_pypy && static_name == "PySuper_Type" {
+            // PyPy declares this in its headers but does not export it.
+            continue;
+        }
+
+        // PyPy uses a macro to define these aliases as the same static; CPython has three
+        // separate statics
+        let bindgen_name = get_bindgen_name(
+            if is_pypy
+                && matches!(
+                    static_name,
+                    "PyExc_EnvironmentError" | "PyExc_IOError" | "PyExc_WindowsError"
+                )
+            {
+                "PyExc_OSError"
+            } else {
+                static_name
+            },
+            &BINDGEN_STATIC_NAMES,
+        );
+        if is_pypy && !BINDGEN_STATIC_NAMES.contains(&bindgen_name) {
+            // As with functions, PyPy may not yet offer all of the declared symbols.
+            continue;
+        }
+
+        let static_ident = Ident::new(static_name, Span::call_site());
+        let bindgen_ident = Ident::new(&bindgen_name, Span::call_site());
+        output.extend(quote!(#macro_name!(#static_ident, #bindgen_ident);));
+    }
+
+    output.into()
+}
 
 /// Macro which expands to multiple macro calls, one per field in a pyo3-ffi
 /// struct.
@@ -547,16 +631,8 @@ pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenSt
             continue;
         }
 
-        let mut bindgen_name = function_name.to_owned();
+        let bindgen_name = get_bindgen_name(function_name, &BINDGEN_FUNCTION_NAMES);
         if pyo3_build_config::get().implementation() == PythonImplementation::PyPy {
-            // For PyPy, some functions are prefixed with "PyPy", we check whether the
-            // bindgen name contains the prefixed name and use that if it does.
-            if function_name.starts_with("Py") || function_name.starts_with("_Py") {
-                let prefixed_name = function_name.replacen("Py", "PyPy", 1);
-                if BINDGEN_FUNCTION_NAMES.contains(&prefixed_name) {
-                    bindgen_name = prefixed_name;
-                }
-            }
             // If the function doesn't exist in PyPy, for now we don't care:
             // - For PyO3 inline functions it's probably fine to include anyway
             // - For extern symbols - PyPy may add them in a future release

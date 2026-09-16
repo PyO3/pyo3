@@ -32,9 +32,9 @@ extern_libpython! {
     // skipped PyObject_INIT
     // skipped PyObject_INIT_VAR
 
-    #[cfg_attr(PyPy, link_name = "_PyPyObject_New")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "_PyPyObject_New")]
     fn _PyObject_New(typeobj: *mut PyTypeObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "_PyPyObject_NewVar")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "_PyPyObject_NewVar")]
     fn _PyObject_NewVar(typeobj: *mut PyTypeObject, n: Py_ssize_t) -> *mut PyVarObject;
 }
 
@@ -91,9 +91,9 @@ pub unsafe fn PyObject_GC_Resize<T>(op: *mut PyObject, n: Py_ssize_t) -> *mut T 
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "_PyPyObject_GC_New")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "_PyPyObject_GC_New")]
     fn _PyObject_GC_New(typeobj: *mut PyTypeObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "_PyPyObject_GC_NewVar")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "_PyPyObject_GC_NewVar")]
     fn _PyObject_GC_NewVar(typeobj: *mut PyTypeObject, n: Py_ssize_t) -> *mut PyVarObject;
 
     #[cfg(not(PyPy))]

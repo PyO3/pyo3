@@ -20,6 +20,7 @@ pub const PyUnstable_EXECUTABLE_KIND_METHOD_DESCRIPTOR: c_int = 4;
 pub const PyUnstable_EXECUTABLE_KINDS: c_int = 5;
 
 extern_libpython! {
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFrame_Type")]
     pub static mut PyFrame_Type: PyTypeObject;
 
     #[cfg(Py_3_13)]

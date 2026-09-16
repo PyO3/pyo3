@@ -37,19 +37,19 @@ impl Default for PyGetSetDef {
 
 #[cfg(not(RustPython))]
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyClassMethodDescr_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyClassMethodDescr_Type")]
     pub static mut PyClassMethodDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyGetSetDescr_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyGetSetDescr_Type")]
     pub static mut PyGetSetDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMemberDescr_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMemberDescr_Type")]
     pub static mut PyMemberDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMethodDescr_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMethodDescr_Type")]
     pub static mut PyMethodDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyWrapperDescr_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyWrapperDescr_Type")]
     pub static mut PyWrapperDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyDictProxy_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyDictProxy_Type")]
     pub static mut PyDictProxy_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyProperty_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyProperty_Type")]
     pub static mut PyProperty_Type: PyTypeObject;
 }
 

@@ -59,7 +59,7 @@ pub struct PyFunctionObject {
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyFunction_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFunction_Type")]
     pub static mut PyFunction_Type: crate::PyTypeObject;
 }
 

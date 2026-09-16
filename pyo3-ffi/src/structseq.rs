@@ -21,6 +21,7 @@ pub struct PyStructSequence_Desc {
 
 extern_libpython! {
     #[cfg(any(Py_3_11, all(Py_3_9, not(Py_LIMITED_API))))]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyStructSequence_UnnamedField")]
     pub static PyStructSequence_UnnamedField: *const c_char;
 }
 

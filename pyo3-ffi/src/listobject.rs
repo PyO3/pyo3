@@ -4,7 +4,7 @@ use core::ffi::c_int;
 
 #[cfg(not(RustPython))]
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyList_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyList_Type")]
     pub static mut PyList_Type: PyTypeObject;
     pub static mut PyListIter_Type: PyTypeObject;
     pub static mut PyListRevIter_Type: PyTypeObject;
