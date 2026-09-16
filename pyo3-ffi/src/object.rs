@@ -651,7 +651,7 @@ extern_libpython! {
     pub fn Py_GetConstantBorrowed(constant_id: c_uint) -> *mut PyObject;
 
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
-    #[cfg_attr(PyPy, link_name = "_PyPy_NoneStruct")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "_PyPy_NoneStruct")]
     static mut _Py_NoneStruct: PyObject;
 
     #[cfg(GraalPy)]
@@ -679,7 +679,7 @@ pub unsafe fn Py_IsNone(x: *mut PyObject) -> c_int {
 
 extern_libpython! {
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
-    #[cfg_attr(PyPy, link_name = "_PyPy_NotImplementedStruct")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "_PyPy_NotImplementedStruct")]
     static mut _Py_NotImplementedStruct: PyObject;
 
     #[cfg(GraalPy)]

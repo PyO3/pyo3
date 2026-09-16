@@ -66,6 +66,7 @@ extern_libpython! {
     pub fn PyThreadState_GetUnchecked() -> *mut PyThreadState;
 
     #[cfg(not(Py_3_13))]
+    #[cfg_attr(PyPy, link_name = "_PyPyThreadState_UncheckedGet")]
     pub(crate) fn _PyThreadState_UncheckedGet() -> *mut PyThreadState;
 
     #[cfg(Py_3_11)]
