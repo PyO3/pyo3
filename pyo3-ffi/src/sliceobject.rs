@@ -4,7 +4,7 @@ use core::ffi::c_int;
 
 extern_libpython! {
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
-    #[cfg_attr(PyPy, link_name = "_PyPy_EllipsisObject")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "_PyPy_EllipsisObject")]
     static mut _Py_EllipsisObject: PyObject;
 
     #[cfg(GraalPy)]
@@ -37,7 +37,7 @@ pub struct PySliceObject {
 
 #[cfg(not(RustPython))]
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPySlice_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySlice_Type")]
     pub static mut PySlice_Type: PyTypeObject;
     pub static mut PyEllipsis_Type: PyTypeObject;
 }

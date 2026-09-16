@@ -9,6 +9,7 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPy_VerboseFlag")]
     pub static mut Py_VerboseFlag: c_int;
     #[deprecated(note = "Python 3.12")]
+    #[cfg_attr(PyPy, link_name = "PyPy_QuietFlag")]
     pub static mut Py_QuietFlag: c_int;
     #[deprecated(note = "Python 3.12")]
     #[cfg_attr(PyPy, link_name = "PyPy_InteractiveFlag")]
@@ -26,9 +27,6 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPy_BytesWarningFlag")]
     pub static mut Py_BytesWarningFlag: c_int;
     #[deprecated(note = "Python 3.12")]
-    #[cfg_attr(PyPy, link_name = "PyPy_UseClassExceptionsFlag")]
-    pub static mut Py_UseClassExceptionsFlag: c_int;
-    #[deprecated(note = "Python 3.12")]
     #[cfg_attr(PyPy, link_name = "PyPy_FrozenFlag")]
     pub static mut Py_FrozenFlag: c_int;
     #[deprecated(note = "Python 3.12")]
@@ -41,16 +39,19 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPy_NoUserSiteDirectory")]
     pub static mut Py_NoUserSiteDirectory: c_int;
     #[deprecated(note = "Python 3.12")]
+    #[cfg_attr(PyPy, link_name = "PyPy_UnbufferedStdioFlag")]
     pub static mut Py_UnbufferedStdioFlag: c_int;
     #[cfg_attr(PyPy, link_name = "PyPy_HashRandomizationFlag")]
     pub static mut Py_HashRandomizationFlag: c_int;
     #[deprecated(note = "Python 3.12")]
+    #[cfg_attr(PyPy, link_name = "PyPy_IsolatedFlag")]
     pub static mut Py_IsolatedFlag: c_int;
     #[cfg(windows)]
     #[deprecated(note = "Python 3.12")]
     pub static mut Py_LegacyWindowsFSEncodingFlag: c_int;
     #[cfg(windows)]
     #[deprecated(note = "Python 3.12")]
+    #[cfg_attr(PyPy, link_name = "PyPy_LegacyWindowsStdioFlag")]
     pub static mut Py_LegacyWindowsStdioFlag: c_int;
 }
 

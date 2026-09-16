@@ -19,7 +19,7 @@ pub struct PyCFunctionObject {
 
 extern_libpython! {
     #[cfg(not(RustPython))]
-    #[cfg_attr(PyPy, link_name = "PyPyCFunction_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCFunction_Type")]
     pub static mut PyCFunction_Type: PyTypeObject;
 
     #[cfg(RustPython)]

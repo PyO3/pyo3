@@ -1,4 +1,7 @@
-use std::{ffi::CStr, process::exit};
+use std::{
+    ffi::{c_void, CStr},
+    process::exit,
+};
 
 use pyo3_ffi_check_definitions::{bindgen as bindings, pyo3_ffi};
 
@@ -200,6 +203,26 @@ fn main() {
     }
 
     pyo3_ffi_check_macro::for_all_functions!(check_function);
+
+    macro_rules! check_static {
+        ($name:ident, $bindgen_name:ident) => {{
+            #[allow(deprecated)]
+            let pyo3_ffi_ptr = (&raw const pyo3_ffi::$name).cast::<c_void>();
+            let bindgen_ptr = (&raw const bindings::$bindgen_name).cast::<c_void>();
+
+            if pyo3_ffi_ptr != bindgen_ptr {
+                failed = true;
+                println!(
+                    "error: static address of {} differs between pyo3_ffi ({:p}) and bindgen ({:p})",
+                    stringify!($name),
+                    pyo3_ffi_ptr,
+                    bindgen_ptr
+                );
+            }
+        }};
+    }
+
+    pyo3_ffi_check_macro::for_all_statics!(check_static);
 
     if failed {
         exit(1);
