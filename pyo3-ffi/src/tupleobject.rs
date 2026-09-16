@@ -4,7 +4,7 @@ use core::ffi::c_int;
 
 #[cfg(not(RustPython))]
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_Type")]
     pub static mut PyTuple_Type: PyTypeObject;
     pub static mut PyTupleIter_Type: PyTypeObject;
 }

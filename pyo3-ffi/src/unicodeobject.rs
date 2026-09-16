@@ -9,7 +9,7 @@ pub type Py_UCS1 = u8;
 
 extern_libpython! {
     #[cfg(not(RustPython))]
-    #[cfg_attr(PyPy, link_name = "PyPyUnicode_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyUnicode_Type")]
     pub static mut PyUnicode_Type: PyTypeObject;
     #[cfg(not(RustPython))]
     pub static mut PyUnicodeIter_Type: PyTypeObject;

@@ -99,6 +99,7 @@ extern_libpython! {
     pub fn PyOS_setsig(arg1: c_int, arg2: PyOS_sighandler_t) -> PyOS_sighandler_t;
 
     #[cfg(Py_3_11)]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPy_Version")]
     pub static Py_Version: core::ffi::c_ulong;
 
     #[cfg(Py_3_13)]

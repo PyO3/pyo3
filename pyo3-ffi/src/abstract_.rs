@@ -55,7 +55,7 @@ extern_libpython! {
     ) -> *mut PyObject;
 
     #[cfg(all(PyPy, not(Py_3_13)))] // called internally in PyUnicodeDecodeError_Create on PyPy
-    #[cfg_attr(PyPy, link_name = "_PyPyObject_CallFunction_SizeT")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "_PyPyObject_CallFunction_SizeT")]
     pub(crate) fn _PyObject_CallFunction_SizeT(
         callable_object: *mut PyObject,
         format: *const c_char,

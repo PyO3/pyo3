@@ -3,7 +3,7 @@ use core::ffi::{c_char, c_int, c_void};
 
 #[cfg(not(RustPython))]
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyCapsule_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCapsule_Type")]
     pub static mut PyCapsule_Type: PyTypeObject;
 }
 

@@ -6,7 +6,7 @@ use core::ffi::{c_char, c_int};
 
 extern_libpython! {
     #[cfg(not(RustPython))]
-    #[cfg_attr(PyPy, link_name = "PyPyMemoryView_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMemoryView_Type")]
     pub static mut PyMemoryView_Type: PyTypeObject;
 
     #[cfg(RustPython)]

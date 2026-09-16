@@ -4,9 +4,9 @@ use core::ffi::c_int;
 
 #[cfg(not(RustPython))]
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPySet_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySet_Type")]
     pub static mut PySet_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyFrozenSet_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFrozenSet_Type")]
     pub static mut PyFrozenSet_Type: PyTypeObject;
     pub static mut PySetIter_Type: PyTypeObject;
 }
