@@ -51,6 +51,7 @@ extern_libpython! {
     pub static mut Py_LegacyWindowsFSEncodingFlag: c_int;
     #[cfg(windows)]
     #[deprecated(note = "Python 3.12")]
+    #[cfg_attr(PyPy, link_name = "PyPy_LegacyWindowsStdioFlag")]
     pub static mut Py_LegacyWindowsStdioFlag: c_int;
 }
 
