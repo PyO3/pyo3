@@ -4,7 +4,7 @@ use core::ffi::{c_char, c_int};
 
 #[cfg(not(RustPython))]
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyDict_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyDict_Type")]
     pub static mut PyDict_Type: PyTypeObject;
 }
 
@@ -97,7 +97,9 @@ extern_libpython! {
 
 #[cfg(not(RustPython))]
 extern_libpython! {
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyDictKeys_Type")]
     pub static mut PyDictKeys_Type: PyTypeObject;
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyDictValues_Type")]
     pub static mut PyDictValues_Type: PyTypeObject;
     pub static mut PyDictItems_Type: PyTypeObject;
 }

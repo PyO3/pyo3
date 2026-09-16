@@ -59,7 +59,7 @@ pub struct PyFunctionObject {
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyFunction_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFunction_Type")]
     pub static mut PyFunction_Type: crate::PyTypeObject;
 }
 
@@ -143,7 +143,9 @@ pub unsafe fn PyFunction_GET_ANNOTATIONS(func: *mut PyObject) -> *mut PyObject {
 }
 
 extern_libpython! {
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyClassMethod_Type")]
     pub static mut PyClassMethod_Type: crate::PyTypeObject;
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyStaticMethod_Type")]
     pub static mut PyStaticMethod_Type: crate::PyTypeObject;
 
     #[cfg_attr(PyPy, link_name = "PyPyClassMethod_New")]

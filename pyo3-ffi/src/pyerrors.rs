@@ -127,154 +127,155 @@ pub unsafe fn PyUnicodeDecodeError_Create(
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyExc_BaseException")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_BaseException")]
     pub static mut PyExc_BaseException: *mut PyObject;
     #[cfg(Py_3_11)]
-    #[cfg_attr(PyPy, link_name = "PyPyExc_BaseExceptionGroup")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_BaseExceptionGroup")]
     pub static mut PyExc_BaseExceptionGroup: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_Exception")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_Exception")]
     pub static mut PyExc_Exception: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_StopAsyncIteration")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_StopAsyncIteration")]
     pub static mut PyExc_StopAsyncIteration: *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPyExc_StopIteration")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_StopIteration")]
     pub static mut PyExc_StopIteration: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_GeneratorExit")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_GeneratorExit")]
     pub static mut PyExc_GeneratorExit: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ArithmeticError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ArithmeticError")]
     pub static mut PyExc_ArithmeticError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_LookupError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_LookupError")]
     pub static mut PyExc_LookupError: *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPyExc_AssertionError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_AssertionError")]
     pub static mut PyExc_AssertionError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_AttributeError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_AttributeError")]
     pub static mut PyExc_AttributeError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_BufferError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_BufferError")]
     pub static mut PyExc_BufferError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_EOFError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_EOFError")]
     pub static mut PyExc_EOFError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_FloatingPointError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_FloatingPointError")]
     pub static mut PyExc_FloatingPointError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_OSError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_OSError")]
     pub static mut PyExc_OSError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ImportError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ImportError")]
     pub static mut PyExc_ImportError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ModuleNotFoundError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ModuleNotFoundError")]
     pub static mut PyExc_ModuleNotFoundError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_IndexError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_IndexError")]
     pub static mut PyExc_IndexError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_KeyError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_KeyError")]
     pub static mut PyExc_KeyError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_KeyboardInterrupt")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_KeyboardInterrupt")]
     pub static mut PyExc_KeyboardInterrupt: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_MemoryError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_MemoryError")]
     pub static mut PyExc_MemoryError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_NameError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_NameError")]
     pub static mut PyExc_NameError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_OverflowError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_OverflowError")]
     pub static mut PyExc_OverflowError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_RuntimeError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_RuntimeError")]
     pub static mut PyExc_RuntimeError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_RecursionError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_RecursionError")]
     pub static mut PyExc_RecursionError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_NotImplementedError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_NotImplementedError")]
     pub static mut PyExc_NotImplementedError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_SyntaxError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_SyntaxError")]
     pub static mut PyExc_SyntaxError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_IndentationError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_IndentationError")]
     pub static mut PyExc_IndentationError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_TabError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_TabError")]
     pub static mut PyExc_TabError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ReferenceError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ReferenceError")]
     pub static mut PyExc_ReferenceError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_SystemError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_SystemError")]
     pub static mut PyExc_SystemError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_SystemExit")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_SystemExit")]
     pub static mut PyExc_SystemExit: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_TypeError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_TypeError")]
     pub static mut PyExc_TypeError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_UnboundLocalError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_UnboundLocalError")]
     pub static mut PyExc_UnboundLocalError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_UnicodeError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_UnicodeError")]
     pub static mut PyExc_UnicodeError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_UnicodeEncodeError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_UnicodeEncodeError")]
     pub static mut PyExc_UnicodeEncodeError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_UnicodeDecodeError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_UnicodeDecodeError")]
     pub static mut PyExc_UnicodeDecodeError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_UnicodeTranslateError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_UnicodeTranslateError")]
     pub static mut PyExc_UnicodeTranslateError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ValueError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ValueError")]
     pub static mut PyExc_ValueError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ZeroDivisionError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ZeroDivisionError")]
     pub static mut PyExc_ZeroDivisionError: *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPyExc_BlockingIOError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_BlockingIOError")]
     pub static mut PyExc_BlockingIOError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_BrokenPipeError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_BrokenPipeError")]
     pub static mut PyExc_BrokenPipeError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ChildProcessError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ChildProcessError")]
     pub static mut PyExc_ChildProcessError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ConnectionError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ConnectionError")]
     pub static mut PyExc_ConnectionError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ConnectionAbortedError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ConnectionAbortedError")]
     pub static mut PyExc_ConnectionAbortedError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ConnectionRefusedError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ConnectionRefusedError")]
     pub static mut PyExc_ConnectionRefusedError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ConnectionResetError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ConnectionResetError")]
     pub static mut PyExc_ConnectionResetError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_FileExistsError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_FileExistsError")]
     pub static mut PyExc_FileExistsError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_FileNotFoundError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_FileNotFoundError")]
     pub static mut PyExc_FileNotFoundError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_InterruptedError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_InterruptedError")]
     pub static mut PyExc_InterruptedError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_IsADirectoryError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_IsADirectoryError")]
     pub static mut PyExc_IsADirectoryError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_NotADirectoryError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_NotADirectoryError")]
     pub static mut PyExc_NotADirectoryError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_PermissionError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_PermissionError")]
     pub static mut PyExc_PermissionError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ProcessLookupError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ProcessLookupError")]
     pub static mut PyExc_ProcessLookupError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_TimeoutError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_TimeoutError")]
     pub static mut PyExc_TimeoutError: *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPyExc_OSError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_OSError")]
+    #[cfg_attr(all(PyPy, Py_3_12), link_name = "PyExc_OSError")]
     pub static mut PyExc_EnvironmentError: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_OSError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_OSError")]
+    #[cfg_attr(all(PyPy, Py_3_12), link_name = "PyExc_OSError")]
     pub static mut PyExc_IOError: *mut PyObject;
     #[cfg(windows)]
-    #[cfg_attr(PyPy, link_name = "PyPyExc_OSError")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_OSError")]
+    #[cfg_attr(all(PyPy, Py_3_12), link_name = "PyExc_OSError")]
     pub static mut PyExc_WindowsError: *mut PyObject;
 
-    pub static mut PyExc_RecursionErrorInst: *mut PyObject;
-
     /* Predefined warning categories */
-    #[cfg_attr(PyPy, link_name = "PyPyExc_Warning")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_Warning")]
     pub static mut PyExc_Warning: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_UserWarning")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_UserWarning")]
     pub static mut PyExc_UserWarning: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_DeprecationWarning")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_DeprecationWarning")]
     pub static mut PyExc_DeprecationWarning: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_PendingDeprecationWarning")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_PendingDeprecationWarning")]
     pub static mut PyExc_PendingDeprecationWarning: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_SyntaxWarning")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_SyntaxWarning")]
     pub static mut PyExc_SyntaxWarning: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_RuntimeWarning")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_RuntimeWarning")]
     pub static mut PyExc_RuntimeWarning: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_FutureWarning")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_FutureWarning")]
     pub static mut PyExc_FutureWarning: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ImportWarning")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ImportWarning")]
     pub static mut PyExc_ImportWarning: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_UnicodeWarning")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_UnicodeWarning")]
     pub static mut PyExc_UnicodeWarning: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_BytesWarning")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_BytesWarning")]
     pub static mut PyExc_BytesWarning: *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyExc_ResourceWarning")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_ResourceWarning")]
     pub static mut PyExc_ResourceWarning: *mut PyObject;
     #[cfg(Py_3_10)]
-    #[cfg_attr(PyPy, link_name = "PyPyExc_EncodingWarning")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyExc_EncodingWarning")]
     pub static mut PyExc_EncodingWarning: *mut PyObject;
 }
 

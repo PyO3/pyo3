@@ -225,9 +225,9 @@ extern_libpython! {
 
 #[cfg(not(RustPython))]
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyLong_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_Type")]
     pub static mut PyLong_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyBool_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBool_Type")]
     pub static mut PyBool_Type: PyTypeObject;
 }
 
@@ -420,7 +420,7 @@ pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_
 extern_libpython! {
     /// built-in 'type'
     #[cfg(not(RustPython))]
-    #[cfg_attr(PyPy, link_name = "PyPyType_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyType_Type")]
     pub static mut PyType_Type: PyTypeObject;
     /// built-in 'object'
     #[cfg(not(RustPython))]

@@ -4,7 +4,7 @@ use core::ffi::{c_char, c_int};
 
 #[cfg(not(RustPython))]
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyBytes_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBytes_Type")]
     pub static mut PyBytes_Type: PyTypeObject;
     pub static mut PyBytesIter_Type: PyTypeObject;
 }
