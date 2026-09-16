@@ -12,22 +12,22 @@ extern_libpython! {
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPySet_New")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySet_New")]
     pub fn PySet_New(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyFrozenSet_New")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFrozenSet_New")]
     pub fn PyFrozenSet_New(arg1: *mut PyObject) -> *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPySet_Add")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySet_Add")]
     pub fn PySet_Add(set: *mut PyObject, key: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPySet_Clear")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySet_Clear")]
     pub fn PySet_Clear(set: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPySet_Contains")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySet_Contains")]
     pub fn PySet_Contains(anyset: *mut PyObject, key: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPySet_Discard")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySet_Discard")]
     pub fn PySet_Discard(set: *mut PyObject, key: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPySet_Pop")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySet_Pop")]
     pub fn PySet_Pop(set: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPySet_Size")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySet_Size")]
     pub fn PySet_Size(anyset: *mut PyObject) -> Py_ssize_t;
 
     #[cfg(any(PyPy, RustPython))]

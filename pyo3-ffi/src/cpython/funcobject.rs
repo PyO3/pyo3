@@ -75,8 +75,11 @@ extern_libpython! {
         globals: *mut PyObject,
         qualname: *mut PyObject,
     ) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyFunction_GetCode")]
     pub fn PyFunction_GetCode(op: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyFunction_GetGlobals")]
     pub fn PyFunction_GetGlobals(op: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyFunction_GetModule")]
     pub fn PyFunction_GetModule(op: *mut PyObject) -> *mut PyObject;
     pub fn PyFunction_GetDefaults(op: *mut PyObject) -> *mut PyObject;
     pub fn PyFunction_SetDefaults(op: *mut PyObject, defaults: *mut PyObject) -> c_int;

@@ -27,21 +27,21 @@ extern_libpython! {
     #[cfg(RustPython)]
     pub fn PyTuple_CheckExact(op: *mut PyObject) -> c_int;
 
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_New")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_New")]
     pub fn PyTuple_New(size: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_Size")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_Size")]
     pub fn PyTuple_Size(arg1: *mut PyObject) -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_GetItem")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_GetItem")]
     pub fn PyTuple_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_SetItem")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_SetItem")]
     pub fn PyTuple_SetItem(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_GetSlice")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_GetSlice")]
     pub fn PyTuple_GetSlice(
         arg1: *mut PyObject,
         arg2: Py_ssize_t,
         arg3: Py_ssize_t,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_Pack")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_Pack")]
     pub fn PyTuple_Pack(arg1: Py_ssize_t, ...) -> *mut PyObject;
     #[cfg(any(all(Py_3_15, not(Py_LIMITED_API)), RustPython))]
     pub fn PyTuple_FromArray(array: *const *mut PyObject, size: Py_ssize_t) -> *mut PyObject;

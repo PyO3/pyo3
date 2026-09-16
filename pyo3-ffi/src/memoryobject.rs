@@ -23,18 +23,18 @@ pub unsafe fn PyMemoryView_Check(op: *mut PyObject) -> c_int {
 // skipped non-limited PyMemoryView_GET_BASE
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromObject")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMemoryView_FromObject")]
     pub fn PyMemoryView_FromObject(base: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromMemory")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMemoryView_FromMemory")]
     pub fn PyMemoryView_FromMemory(
         mem: *mut c_char,
         size: Py_ssize_t,
         flags: c_int,
     ) -> *mut PyObject;
     #[cfg(any(Py_3_11, not(Py_LIMITED_API)))]
-    #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromBuffer")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMemoryView_FromBuffer")]
     pub fn PyMemoryView_FromBuffer(view: *const crate::Py_buffer) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMemoryView_GetContiguous")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMemoryView_GetContiguous")]
     pub fn PyMemoryView_GetContiguous(
         base: *mut PyObject,
         buffertype: c_int,

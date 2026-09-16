@@ -9,15 +9,15 @@ extern_libpython! {
     #[cfg(any(all(Py_LIMITED_API, not(PyPy)), GraalPy))]
     pub fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPyErr_Print")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_Print")]
     pub fn PyErr_Print();
-    #[cfg_attr(PyPy, link_name = "PyPyErr_PrintEx")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_PrintEx")]
     pub fn PyErr_PrintEx(arg1: c_int);
-    #[cfg_attr(PyPy, link_name = "PyPyErr_Display")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_Display")]
     pub fn PyErr_Display(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject);
 
     #[cfg(Py_3_12)]
-    #[cfg_attr(PyPy, link_name = "PyPyErr_DisplayException")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_DisplayException")]
     pub fn PyErr_DisplayException(exc: *mut PyObject);
 }
 

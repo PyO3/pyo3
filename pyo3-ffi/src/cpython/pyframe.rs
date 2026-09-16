@@ -45,24 +45,31 @@ extern_libpython! {
     pub fn PyFrame_GetBack(frame: *mut PyFrameObject) -> *mut PyFrameObject;
 
     #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetLocals")]
     pub fn PyFrame_GetLocals(frame: *mut PyFrameObject) -> *mut PyObject;
 
     #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetGlobals")]
     pub fn PyFrame_GetGlobals(frame: *mut PyFrameObject) -> *mut PyObject;
 
     #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetBuiltins")]
     pub fn PyFrame_GetBuiltins(frame: *mut PyFrameObject) -> *mut PyObject;
 
     #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetGenerator")]
     pub fn PyFrame_GetGenerator(frame: *mut PyFrameObject) -> *mut PyObject;
 
     #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetLasti")]
     pub fn PyFrame_GetLasti(frame: *mut PyFrameObject) -> c_int;
 
     #[cfg(Py_3_12)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetVar")]
     pub fn PyFrame_GetVar(frame: *mut PyFrameObject, name: *mut PyObject) -> *mut PyObject;
 
     #[cfg(Py_3_12)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetVarString")]
     pub fn PyFrame_GetVarString(frame: *mut PyFrameObject, name: *mut c_char) -> *mut PyObject;
 
     #[cfg(Py_3_12)]

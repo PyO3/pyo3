@@ -9,10 +9,13 @@ pub const Py_MARSHAL_VERSION: c_int = 6;
 pub const Py_MARSHAL_VERSION: c_int = 5;
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyMarshal_WriteObjectToString")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMarshal_WriteObjectToString")]
     pub fn PyMarshal_WriteObjectToString(object: *mut PyObject, version: c_int) -> *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPyMarshal_ReadObjectFromString")]
+    #[cfg_attr(
+        all(PyPy, not(Py_3_12)),
+        link_name = "PyPyMarshal_ReadObjectFromString"
+    )]
     pub fn PyMarshal_ReadObjectFromString(data: *const c_char, len: Py_ssize_t) -> *mut PyObject;
 
     pub fn PyMarshal_WriteLongToFile(value: c_long, file: *mut FILE, version: c_int);

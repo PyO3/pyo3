@@ -5,6 +5,7 @@ use crate::PyFrameObject;
 use core::ffi::c_int;
 
 extern_libpython! {
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFrame_GetLineNumber")]
     pub fn PyFrame_GetLineNumber(frame: *mut PyFrameObject) -> c_int;
 
     #[cfg(not(GraalPy))]
