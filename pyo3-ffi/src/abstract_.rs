@@ -71,7 +71,8 @@ extern_libpython! {
         ...
     ) -> *mut PyObject;
 
-    #[cfg(all(Py_3_12, Py_LIMITED_API))] // is an inline function in cpython/abstract.rs on version-specific ABI
+    #[cfg(all(Py_3_12, Py_LIMITED_API))]
+    // is an inline function in cpython/abstract.rs on version-specific ABI
     pub fn PyVectorcall_NARGS(nargsf: size_t) -> Py_ssize_t;
 
     #[cfg(any(Py_3_12, not(Py_LIMITED_API)))]
