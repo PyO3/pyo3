@@ -11,13 +11,13 @@ extern_libpython! {
     #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTraceBack_Type")]
     pub static mut PyTraceBack_Type: PyTypeObject;
 
-    #[cfg(any(PyPy, RustPython))]
+    #[cfg(any(all(PyPy, not(Py_3_12)), RustPython))]
     #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Check")]
     pub fn PyTraceBack_Check(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
-#[cfg(not(any(PyPy, RustPython)))]
+#[cfg(not(any(all(PyPy, not(Py_3_12)), RustPython)))]
 pub unsafe fn PyTraceBack_Check(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyTraceBack_Type)
 }

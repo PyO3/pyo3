@@ -56,11 +56,11 @@ extern_libpython! {
 }
 
 extern_libpython! {
-    #[cfg(Py_3_11)]
+    #[cfg(all(Py_3_11, not(PyPy)))]
     pub fn Py_GETENV(name: *const c_char) -> *mut c_char;
 }
 
-#[cfg(not(Py_3_11))]
+#[cfg(any(PyPy, not(Py_3_11)))]
 #[inline(always)]
 pub unsafe fn Py_GETENV(name: *const c_char) -> *mut c_char {
     #[allow(deprecated)]
