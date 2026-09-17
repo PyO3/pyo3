@@ -2,7 +2,10 @@ use crate::pyport::Py_ssize_t;
 use crate::PyObject;
 #[cfg(all(not(Py_LIMITED_API), py_sys_config = "Py_REF_DEBUG"))]
 use core::ffi::c_char;
-#[cfg(any(Py_3_12, all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API))))]
+#[cfg(any(
+    all(Py_3_12, not(PyPy)),
+    all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API))
+))]
 use core::ffi::c_int;
 #[cfg(all(Py_3_14, any(not(Py_GIL_DISABLED), target_pointer_width = "32")))]
 use core::ffi::c_long;
@@ -102,7 +105,15 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
 
     #[cfg(all(not(Py_GIL_DISABLED), not(all(Py_LIMITED_API, Py_3_14)), Py_3_12))]
     {
-        (*ob).ob_refcnt.ob_refcnt
+        #[cfg(not(PyPy))]
+        {
+            (*ob).ob_refcnt.ob_refcnt
+        }
+
+        #[cfg(PyPy)]
+        {
+            (*ob).ob_refcnt
+        }
     }
 
     #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), not(GraalPy)))]
@@ -118,6 +129,7 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
 
 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 #[cfg(Py_3_12)]
+#[cfg(not(PyPy))]
 #[inline(always)]
 unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
     #[cfg(all(target_pointer_width = "64", not(Py_GIL_DISABLED)))]
@@ -159,10 +171,10 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "_PyPy_Dealloc")]
     fn _Py_Dealloc(arg1: *mut PyObject);
 
-    #[cfg_attr(PyPy, link_name = "PyPy_IncRef")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPy_IncRef")]
     #[cfg_attr(GraalPy, link_name = "_Py_IncRef")]
     pub fn Py_IncRef(o: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPy_DecRef")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPy_DecRef")]
     #[cfg_attr(GraalPy, link_name = "_Py_DecRef")]
     pub fn Py_DecRef(o: *mut PyObject);
 
@@ -183,7 +195,8 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
         Py_GIL_DISABLED,
         Py_LIMITED_API,
         py_sys_config = "Py_REF_DEBUG",
-        GraalPy
+        GraalPy,
+        PyPy
     ))]
     {
         // _Py_IncRef was added to the ABI in 3.10; skips null checks
@@ -203,7 +216,8 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
         Py_GIL_DISABLED,
         Py_LIMITED_API,
         py_sys_config = "Py_REF_DEBUG",
-        GraalPy
+        GraalPy,
+        PyPy
     )))]
     {
         #[cfg(all(Py_3_14, target_pointer_width = "64"))]
@@ -260,7 +274,8 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
         Py_GIL_DISABLED,
         Py_LIMITED_API,
         all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
-        GraalPy
+        GraalPy,
+        PyPy
     ))]
     {
         // _Py_DecRef was added to the ABI in 3.10; skips null checks
@@ -279,7 +294,8 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
         Py_GIL_DISABLED,
         Py_LIMITED_API,
         all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
-        GraalPy
+        GraalPy,
+        PyPy
     )))]
     {
         #[cfg(Py_3_12)]

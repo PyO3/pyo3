@@ -1,5 +1,5 @@
 use crate::object::*;
-#[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API, Py_3_10)))]
+#[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
 use crate::pyarena::PyArena;
 use crate::PyCompilerFlags;
 #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
@@ -97,6 +97,10 @@ extern_libpython! {
         flags: *mut PyCompilerFlags,
     ) -> *mut PyObject;
 
+    // skipped Py_CompileString - there is a symbol defined for this since Python 3.13
+    // but the symbol is overridden by a macro definition to call Py_CompileStringExFlags
+    // inline (see below)
+
     #[cfg(not(any(PyPy, GraalPy)))]
     pub fn Py_CompileStringExFlags(
         str: *const c_char,
@@ -105,7 +109,6 @@ extern_libpython! {
         flags: *mut PyCompilerFlags,
         optimize: c_int,
     ) -> *mut PyObject;
-    #[cfg(not(Py_LIMITED_API))]
     pub fn Py_CompileStringObject(
         str: *const c_char,
         filename: *mut PyObject,
@@ -150,7 +153,7 @@ extern_libpython! {
         arg2: *const c_char,
         arg3: *mut PyCompilerFlags,
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyRun_SimpleString")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyRun_SimpleString")]
     pub fn PyRun_SimpleString(s: *const c_char) -> c_int;
     #[cfg(not(any(PyPy, GraalPy)))]
     pub fn PyRun_SimpleFile(f: *mut FILE, p: *const c_char) -> c_int;

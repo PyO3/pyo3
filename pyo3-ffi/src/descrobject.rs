@@ -37,33 +37,34 @@ impl Default for PyGetSetDef {
 
 #[cfg(not(RustPython))]
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyClassMethodDescr_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyClassMethodDescr_Type")]
     pub static mut PyClassMethodDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyGetSetDescr_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyGetSetDescr_Type")]
     pub static mut PyGetSetDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMemberDescr_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMemberDescr_Type")]
     pub static mut PyMemberDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMethodDescr_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMethodDescr_Type")]
     pub static mut PyMethodDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyWrapperDescr_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyWrapperDescr_Type")]
     pub static mut PyWrapperDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyDictProxy_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyDictProxy_Type")]
     pub static mut PyDictProxy_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyProperty_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyProperty_Type")]
     pub static mut PyProperty_Type: PyTypeObject;
 }
 
 extern_libpython! {
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyDescr_NewMethod")]
     pub fn PyDescr_NewMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyDescr_NewClassMethod")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyDescr_NewClassMethod")]
     pub fn PyDescr_NewClassMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef)
         -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyDescr_NewMember")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyDescr_NewMember")]
     pub fn PyDescr_NewMember(arg1: *mut PyTypeObject, arg2: *mut PyMemberDef) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyDescr_NewGetSet")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyDescr_NewGetSet")]
     pub fn PyDescr_NewGetSet(arg1: *mut PyTypeObject, arg2: *mut PyGetSetDef) -> *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPyDictProxy_New")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyDictProxy_New")]
     pub fn PyDictProxy_New(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyWrapper_New(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
 }
@@ -128,6 +129,8 @@ pub const _Py_WRITE_RESTRICTED: c_int = 4; // Deprecated, no-op. Do not reuse th
 pub const Py_RELATIVE_OFFSET: c_int = 8;
 
 extern_libpython! {
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMember_GetOne")]
     pub fn PyMember_GetOne(addr: *const c_char, l: *mut PyMemberDef) -> *mut PyObject;
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyMember_SetOne")]
     pub fn PyMember_SetOne(addr: *mut c_char, l: *mut PyMemberDef, value: *mut PyObject) -> c_int;
 }
