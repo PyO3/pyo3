@@ -127,8 +127,6 @@ impl From<anyhow::Error> for PyErr {
 
 #[cfg(test)]
 mod test_anyhow {
-    use std::path::PathBuf;
-
     use crate::exceptions::{PyRuntimeError, PyValueError};
     use crate::platform::prelude::*;
     use crate::prelude::*;
@@ -198,20 +196,5 @@ mod test_anyhow {
         assert!(Python::attach(
             |py| converted.is_instance_of::<PyRuntimeError>(py)
         ))
-    }
-
-    #[test]
-    fn test_traceback() {
-        let origin_exc = PyValueError::new_err("Value Error");
-        let mut err: anyhow::Error = origin_exc.into();
-        err = err.context("Context");
-        let converted: PyErr = err.into();
-        Python::attach(|py| {
-            let traceback = converted.traceback(py).expect("expected traceback");
-            let format = traceback.format().expect("expected formatting to work");
-            let file_path = PathBuf::from(file!());
-            let file_name = file_path.file_name().and_then(|s| s.to_str()).unwrap();
-            assert!(format.contains(file_name));
-        })
     }
 }

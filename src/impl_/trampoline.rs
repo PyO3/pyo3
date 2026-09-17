@@ -14,6 +14,9 @@ use crate::{
     panic::PanicException, types::PyModule, Bound, PyResult, Python,
 };
 
+/// Prefix of the demangled symbol names of everything in here, i.e. `pyo3::impl_::trampoline`.
+pub const MODULE_PATH: &str = module_path!();
+
 #[inline]
 pub unsafe fn module_exec(
     module: *mut ffi::PyObject,

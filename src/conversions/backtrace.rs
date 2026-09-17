@@ -1,7 +1,7 @@
 #![cfg(all(feature = "btparse", not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 //! Conversion from standard backtrace
 
-use alloc::ffi::CString;
+use alloc::{ffi::CString, vec::Vec};
 
 use crate::{
     exceptions::PyRuntimeError,
@@ -27,9 +27,12 @@ impl<'py> IntoPyObject<'py> for btparse::Backtrace {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let mut frames = self.frames;
+        trim_at_ffi_boundary(&mut frames);
+
         let mut tb: PyResult<Bound<'_, PyTraceback>> =
             Err(PyErr::new::<PyRuntimeError, _>("no frames"));
-        for frame in self.frames {
+        for frame in frames {
             let line_number = frame.line.unwrap_or(0).try_into().unwrap_or(0);
             tb = Ok(PyTraceback::new(
                 py,
@@ -57,6 +60,17 @@ impl<'py> IntoPyObject<'py> for btparse::Frame {
             function.as_c_str(),
             self.line.unwrap_or(0).try_into().unwrap_or(0),
         )
+    }
+}
+
+/// Keep only the innermost Rust segment: below the FFI boundary sit Python frames,
+/// which the interpreter appends itself as the exception propagates out of the trampoline.
+fn trim_at_ffi_boundary(frames: &mut Vec<btparse::Frame>) {
+    if let Some(boundary) = frames.iter().position(|f| {
+        f.function
+            .starts_with(crate::impl_::trampoline::MODULE_PATH)
+    }) {
+        frames.truncate(boundary);
     }
 }
 
