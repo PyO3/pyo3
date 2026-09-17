@@ -1,4 +1,4 @@
-#![cfg(not(Py_LIMITED_API))]
+#![cfg(not(any(Py_LIMITED_API, GraalPy)))]
 
 //! Support for the Python `marshal` format.
 

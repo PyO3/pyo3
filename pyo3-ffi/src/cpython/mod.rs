@@ -26,6 +26,7 @@ pub(crate) mod listobject;
 #[cfg(Py_3_13)]
 pub(crate) mod lock;
 pub(crate) mod longobject;
+#[cfg(not(GraalPy))]
 pub(crate) mod marshal;
 #[cfg(not(PyPy))]
 pub(crate) mod methodobject;
@@ -77,6 +78,7 @@ pub use self::listobject::*;
 #[cfg(Py_3_13)]
 pub use self::lock::*;
 pub use self::longobject::*;
+#[cfg(not(GraalPy))]
 pub use self::marshal::*;
 #[cfg(not(PyPy))]
 pub use self::methodobject::*;
