@@ -396,8 +396,6 @@ impl Imports {
             local_name_to_module_and_attribute
                 .insert(name.clone(), (current_module_name.clone(), name.clone()));
         }
-        // We don't process the current module elements, no need to care about them
-        local_name_to_module_and_attribute.remove(&current_module_name);
 
         // We process then imports, normalizing local imports
         for (module, attrs) in &referenced_names.module_to_name {
@@ -1272,6 +1270,52 @@ mod tests {
         assert_eq!(
             module_stubs(&module, &[]),
             "from math import inf, nan\nX = inf\ndef func(a=nan): ...\n"
+        );
+    }
+
+    /// A class named like the root module used to be imported from itself and shadowed by builtins
+    #[test]
+    fn local_binding_named_like_the_root_module_is_kept() {
+        let module = Module {
+            name: "int".into(),
+            modules: Vec::new(),
+            classes: vec![Class {
+                name: "int".into(),
+                bases: Vec::new(),
+                methods: Vec::new(),
+                attributes: Vec::new(),
+                decorators: Vec::new(),
+                inner_classes: Vec::new(),
+                docstring: None,
+            }],
+            functions: vec![Function {
+                name: "make".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: vec![Argument {
+                        name: "a".into(),
+                        default_value: None,
+                        annotation: Some(Expr::Name { id: "int".into() }),
+                    }],
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: Some(Expr::Attribute {
+                    value: Box::new(Expr::Name { id: "int".into() }),
+                    attr: "int".into(),
+                }),
+                is_async: false,
+                docstring: None,
+            }],
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        assert_eq!(
+            module_stubs(&module, &[]),
+            "from builtins import int as int2\nclass int: ...\ndef make(a: int2) -> int: ...\n"
         );
     }
 }
