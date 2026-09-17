@@ -139,7 +139,6 @@ abi3t-py315 = ["abi3t", "pyo3-ffi/abi3t-py315"]
 generate-import-lib = ["pyo3-ffi/generate-import-lib"]
 
 anyhow = ["dep:anyhow", "btparse"]
-btparse = ["dep:btparse"]
 
 # Changes `Python::attach` to automatically initialize the Python interpreter if needed.
 auto-initialize = []
