@@ -76,7 +76,11 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = <Vec<A::Item>>::INPUT_TYPE;
+    const INPUT_TYPE: PyStaticExpr = type_hint_subscript!(
+        type_hint_identifier!("_typeshed", "SupportsGetItem"),
+        type_hint_identifier!("builtins", "int"),
+        T::INPUT_TYPE
+    );
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         if obj.is_instance_of::<PyString>() {
