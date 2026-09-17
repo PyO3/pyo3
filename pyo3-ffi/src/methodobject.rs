@@ -19,7 +19,7 @@ pub struct PyCFunctionObject {
 
 extern_libpython! {
     #[cfg(not(RustPython))]
-    #[cfg_attr(PyPy, link_name = "PyPyCFunction_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCFunction_Type")]
     pub static mut PyCFunction_Type: PyTypeObject;
 
     #[cfg(RustPython)]
@@ -82,12 +82,13 @@ pub type PyCMethod = unsafe extern "C" fn(
 ) -> *mut PyObject;
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyCFunction_GetFunction")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCFunction_GetFunction")]
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
     pub fn PyCFunction_GetSelf(f: *mut PyObject) -> *mut PyObject;
     pub fn PyCFunction_GetFlags(f: *mut PyObject) -> c_int;
     #[cfg(not(Py_3_13))]
     #[deprecated(note = "Python 3.9")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCFunction_Call")]
     pub fn PyCFunction_Call(
         f: *mut PyObject,
         args: *mut PyObject,
@@ -225,7 +226,7 @@ pub unsafe fn PyCFunction_NewEx(
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyCMethod_New")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCMethod_New")]
     pub fn PyCMethod_New(
         ml: *mut PyMethodDef,
         slf: *mut PyObject,

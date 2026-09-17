@@ -1,7 +1,8 @@
 use std::env;
 use std::path::PathBuf;
 
-use bindgen::callbacks::ItemInfo;
+use bindgen::callbacks::{ItemInfo, ItemKind};
+use target_lexicon::{Architecture, OperatingSystem, Triple};
 
 #[derive(Debug)]
 struct ParseCallbacks;
@@ -20,12 +21,14 @@ impl bindgen::callbacks::ParseCallbacks for ParseCallbacks {
 }
 
 #[derive(Debug)]
-struct PyPyReplaceCallbacks;
+struct WindowsX86RawDylibCallbacks;
 
-impl bindgen::callbacks::ParseCallbacks for PyPyReplaceCallbacks {
-    fn item_name(&self, item_info: ItemInfo<'_>) -> Option<String> {
-        if item_info.name.starts_with("PyPy") || item_info.name.starts_with("_PyPy") {
-            Some(item_info.name.replacen("PyPy", "Py", 1))
+// Matches the adjustment in `pyo3-ffi` to force the link name for functions starting
+// with `_Py` (see `pyo3-ffi/src/impl_/macros.rs`)
+impl bindgen::callbacks::ParseCallbacks for WindowsX86RawDylibCallbacks {
+    fn generated_link_name_override(&self, item: ItemInfo<'_>) -> Option<String> {
+        if item.kind == ItemKind::Function && item.name.starts_with("_Py") {
+            Some(format!("_{}", item.name))
         } else {
             None
         }
@@ -34,12 +37,13 @@ impl bindgen::callbacks::ParseCallbacks for PyPyReplaceCallbacks {
 
 fn main() {
     let config = pyo3_build_config::get();
+    let target: Triple = env::var("TARGET").unwrap().parse().unwrap();
 
     let python_include_dir = config
         .run_python_script(
             "import sysconfig; print(sysconfig.get_config_var('INCLUDEPY'), end='');",
         )
-        .expect("failed to get lib dir");
+        .expect("failed to get include dir");
     let gil_disabled_on_windows = config
         .run_python_script(
             "import sysconfig; import platform; print(sysconfig.get_config_var('Py_GIL_DISABLED') == 1 and platform.system() == 'Windows');",
@@ -62,40 +66,31 @@ fn main() {
         .clang_args(clang_args)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .parse_callbacks(Box::new(ParseCallbacks))
-        .blocklist_item("memcpy")
-        .blocklist_item("memmove")
-        .blocklist_item("memset")
-        .blocklist_item("memcmp")
-        .blocklist_item("strlen")
-        .blocklist_item("bcmp");
+        // Minimising bindgen output to `Py` symbols and their dependencies, avoiding
+        // system declarations etc which are not relevant to `pyo3-ffi-check`.
+        .allowlist_type("_?Py.*")
+        .allowlist_function("_?Py.*")
+        .allowlist_var("_?Py.*|PY.*");
 
-    if matches!(
-        config.implementation(),
-        pyo3_build_config::PythonImplementation::PyPy
-    ) {
-        builder = builder.parse_callbacks(Box::new(PyPyReplaceCallbacks));
+    // Match PyO3's choice to use raw-dylib linking on Windows for the bindgen symbols
+    // so that link resolution is done identically
+    if target.operating_system == OperatingSystem::Windows {
+        println!("cargo:rerun-if-env-changed=PYO3_USE_RAW_DYLIB");
+        let lib_name = config.lib_name().expect("missing Python library name");
+        if env::var("PYO3_USE_RAW_DYLIB").map_or(true, |value| value == "1") {
+            let import_name_type = if matches!(target.architecture, Architecture::X86_32(_)) {
+                builder = builder.parse_callbacks(Box::new(WindowsX86RawDylibCallbacks));
+                ", import_name_type = \"undecorated\""
+            } else {
+                ""
+            };
+            builder = builder.extern_block_attrs(format!(
+                "#[link(name = \"{lib_name}\", kind = \"raw-dylib\"{import_name_type})]"
+            ));
+        }
     }
 
-    let bindings = builder
-        // blocklist some values which apparently have conflicting definitions on unix
-        .blocklist_item("FP_NORMAL")
-        .blocklist_item("FP_SUBNORMAL")
-        .blocklist_item("FP_NAN")
-        .blocklist_item("FP_INFINITE")
-        .blocklist_item("FP_INT_UPWARD")
-        .blocklist_item("FP_INT_DOWNWARD")
-        .blocklist_item("FP_INT_TOWARDZERO")
-        .blocklist_item("FP_INT_TONEARESTFROMZERO")
-        .blocklist_item("FP_INT_TONEAREST")
-        .blocklist_item("FP_ZERO")
-        // blocklist mingw specific types
-        .blocklist_type("__mingw_ldbl_type_t")
-        // ARM neon intrinsics cause issue on GitHub actions windows CI, also not relevant to
-        // what we're trying to check anyway.
-        .blocklist_file(r".*(\\|/)arm(64)?_neon\.h")
-        .blocklist_file(r".*(\\|/)arm_vector_types\.h")
-        .generate()
-        .expect("Unable to generate bindings");
+    let bindings = builder.generate().expect("Unable to generate bindings");
 
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     bindings

@@ -3,7 +3,7 @@ use core::ffi::c_int;
 
 extern_libpython! {
     #[cfg(not(RustPython))]
-    #[cfg_attr(PyPy, link_name = "PyPyRange_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyRange_Type")]
     pub static mut PyRange_Type: PyTypeObject;
     #[cfg(not(RustPython))]
     pub static mut PyRangeIter_Type: PyTypeObject;
