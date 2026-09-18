@@ -26,12 +26,14 @@ use crate::{
     types::PyType,
     Py, PyClass, PyResult, PyTypeInfo, Python,
 };
+
 use core::{
     ffi::CStr,
     ffi::{c_int, c_ulong, c_void},
     ptr::{self, NonNull},
 };
-use std::ffi::CString;
+
+use alloc::ffi::CString;
 
 pub(crate) struct PyClassTypeObject {
     pub type_object: Py<PyType>,
