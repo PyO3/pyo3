@@ -13,7 +13,7 @@ use core::mem;
 #[cfg(not(pyo3_disable_reference_pool))]
 use core::sync::atomic::{AtomicBool, Ordering};
 
-std::thread_local! {
+crate::platform::thread_local! {
     /// This is an internal counter in pyo3 monitoring whether this thread is attached to the interpreter.
     ///
     /// It will be incremented whenever an AttachGuard is created, and decremented whenever
