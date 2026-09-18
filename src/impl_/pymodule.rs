@@ -566,6 +566,8 @@ impl PyAddToModule for ModuleDef {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use alloc::borrow::Cow;
     use core::{ffi::c_int, ffi::CStr};
 
