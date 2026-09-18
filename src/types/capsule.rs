@@ -691,6 +691,8 @@ fn name_ptr(name: Option<&CStr>) -> *const c_char {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use crate::platform::prelude::*;
     use crate::prelude::PyModule;
     use crate::types::capsule::PyCapsuleMethods;
