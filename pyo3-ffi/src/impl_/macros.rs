@@ -288,6 +288,7 @@ macro_rules! extern_libpython {
             "python316t", "python316t_d",
             // PyPy (DLL is libpypy3.X-c.dll, not pythonXY.dll)
             "libpypy3.11-c",
+            "libpypy3.12-c",
         );
     };
     // Internal: generate cfg_attr for each DLL name. One of these will be selected
