@@ -5,6 +5,10 @@
 
 version: 2
 updates:
+  # main cargo workspace does not include `pyo3-benches` and `pyo3-ffi-check`
+  # as they are not published to crates.io and occasionally depend on
+  # compiler functionality newer than MSRV.
+
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
@@ -29,4 +33,35 @@ updates:
       - "dependencies"
       - "github-actions"
       # additional labels
+      - "CI-skip-changelog"
+
+
+  # uv & npm used for development tools (locally and in CI)
+
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "quarterly"
+    cooldown:
+      default-days: 7
+    groups:
+      uv-tools:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "CI-skip-changelog"
+
+  - package-ecosystem: "npm"
+    directory: "/.github/tools/netlify"
+    schedule:
+      interval: "quarterly"
+    cooldown:
+      default-days: 7
+    groups:
+      npm-netlify-cli:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
       - "CI-skip-changelog"

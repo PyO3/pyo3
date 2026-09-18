@@ -2,6 +2,8 @@
 # in order to access the netlify secrets.
 #
 # This is safe because this doesn't run arbitrary code from PRs.
+# Keep PR artifacts outside the working directory so the CLI cannot discover
+# their configuration, plugins, or functions. Deploy the prebuilt files only.
 
 name: netlify-deploy
 
@@ -11,52 +13,65 @@ on:
     types:
       - completed
 
-env:
-  CARGO_TERM_COLOR: always
+permissions:
+  actions: read
+  contents: read
+  statuses: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: github.event.workflow_run.conclusion == 'success'
     environment: netlify
 
     steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          # workflow_run's SHA is on the default branch, not the triggering PR.
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
       - name: Download Build Artifact
         uses: actions/download-artifact@v8
         with:
           name: site
+          path: ${{ runner.temp }}/netlify-site
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
       - name: Install netlify-cli
-        run: |
-          npm install -g netlify-cli
+        run: npm ci --prefix .github/tools/netlify --ignore-scripts --no-audit --no-fund
 
       - name: Deploy to Netlify
+        env:
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_TOKEN }}
         run: |
-          ls -la
-          DEBUG=* netlify deploy \
-              --site ${{ secrets.NETLIFY_SITE_ID }} \
-              --auth ${{ secrets.NETLIFY_TOKEN }} \
-              ${{ ((github.event.workflow_run.head_repository.full_name == 'PyO3/pyo3') && (github.event.workflow_run.head_branch == 'main') && '--prod') || '' }} \
-              --json | tee deploy_output.json
+          .github/tools/netlify/node_modules/.bin/netlify deploy --no-build \
+              --dir "$RUNNER_TEMP/netlify-site" \
+              --site "$NETLIFY_SITE_ID" \
+              ${{ ((github.event.workflow_run.event == 'push') && (github.event.workflow_run.head_repository.full_name == 'PyO3/pyo3') && (github.event.workflow_run.head_branch == 'main') && '--prod') || '' }} \
+              --json > deploy_output.json
 
       # credit: https://www.raulmelo.me/en/blog/deploying-netlify-github-actions-guide
       - name: Generate URL Preview
         id: url_preview
         if: ${{ github.event.workflow_run.event == 'pull_request' }}
         run: |
-          NETLIFY_PREVIEW_URL=$(jq -r '.deploy_url' deploy_output.json)
+          NETLIFY_PREVIEW_URL=$(jq -er '.deploy_url' deploy_output.json)
           echo "NETLIFY_PREVIEW_URL=$NETLIFY_PREVIEW_URL" >> "$GITHUB_OUTPUT"
 
       - name: Post Netlify Preview Status to PR
         if: ${{ github.event.workflow_run.event == 'pull_request' }}
         uses: actions/github-script@v9
+        env:
+          NETLIFY_PREVIEW_URL: ${{ steps.url_preview.outputs.NETLIFY_PREVIEW_URL }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const previewUrl = '${{ steps.url_preview.outputs.NETLIFY_PREVIEW_URL }}';
-            const commitSha = '${{ github.event.workflow_run.head_sha }}';
+            const previewUrl = process.env.NETLIFY_PREVIEW_URL;
+            const commitSha = context.payload.workflow_run.head_sha;
 
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,

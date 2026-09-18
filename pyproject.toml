@@ -67,7 +67,11 @@ style = "fenced"
 [tool.uv]
 package = false
 
+[tool.uv.dependency-groups]
+codecov = { requires-python = ">=3.14,<3.15" }
+
 [dependency-groups]
+codecov = ["codecov-cli==11.3.1"]
 dev = [
   "ruff",
   "rumdl",
