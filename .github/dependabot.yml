@@ -10,28 +10,28 @@ updates:
     schedule:
       interval: "weekly"
     cooldown:
-      default-days: 7
+      default-days: 3
 
   - package-ecosystem: "cargo"
     directory: "/pyo3-benches/"
     schedule:
       interval: "weekly"
     cooldown:
-      default-days: 7
+      default-days: 3
 
   - package-ecosystem: "cargo"
     directory: "/pyo3-ffi-check/"
     schedule:
       interval: "weekly"
     cooldown:
-      default-days: 7
+      default-days: 3
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     cooldown:
-      default-days: 7
+      default-days: 3
     labels:
       # dependabot default labels
       - "dependencies"
