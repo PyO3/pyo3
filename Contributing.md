@@ -237,6 +237,27 @@ The minimum Rust version supported will be decided when the release which bumps 
 
 CI tests both the most recent stable Rust version and the minimum supported Rust version. Because of Rust's stability guarantees this is sufficient to confirm support for all Rust versions in between.
 
+#### Support for `no_std`
+
+Support for compiling PyO3 without rusts's `std` library is currently a work-in-progress. Failing `no_std` jobs in CI will not prevent your PR from being merged, but we appreciate any steps you take to make your PR support it.
+
+##### Enable `no_std`
+
+To use PyO3 with the WIP `no_std` support, set the env variable `PYO3_WIP_NO_STD` to `1` or `true`. Note that as of now, this still links the `std` crate.
+```bash
+PYO3_WIP_NO_STD=1 cargo test
+```
+
+##### Troubleshooting `no_std`
+
+You may find that your changes to PyO3 do not compile with `no_std` due to missing imports.
+
+The first thing you can try is to add `use crate::platform::prelude::*` at the top of the file. This imports items from the `alloc` crate that are usually imported in the implicitly included `std::prelude`.
+
+If the item you need is not there, look through the `platform` mod. It might already contain a suitable replacement.
+
+If we do not have a replacement, open an issue listing the items you need and a brief explanation of why you need them. If you feel up to it, you can also open a PR adding suitable replacements to the `platform` mod.
+
 ## Benchmarking
 
 PyO3 has two sets of benchmarks for evaluating some aspects of its performance. The benchmark suite is currently very small - please open PRs with new benchmarks if you're interested in helping to expand it!
