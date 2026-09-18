@@ -11,15 +11,15 @@ runs:
     - name: Select Python
       shell: bash
       run: echo "UV_PYTHON=3.15" >> "$GITHUB_ENV"
-    - uses: astral-sh/setup-uv@v7
+    - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
       with:
         save-cache: ${{ inputs.save-cache }}
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
       with:
         targets: wasm32-unknown-emscripten
         components: rust-src
-    - uses: actions/setup-node@v7
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
       with:
         node-version: 24
     - name: Resolve CPython version
@@ -31,18 +31,18 @@ runs:
     - name: Restore build cache
       if: inputs.save-cache != 'true'
       id: cache-restore
-      uses: actions/cache/restore@v6
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: .nox/emscripten
         key: emscripten-${{ hashFiles('wasm/emscripten/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.python.outputs.version }}
     - name: Restore and save build cache
       if: inputs.save-cache == 'true'
       id: cache
-      uses: actions/cache@v6
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: .nox/emscripten
         key: emscripten-${{ hashFiles('wasm/emscripten/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.python.outputs.version }}
-    - uses: Swatinem/rust-cache@v2
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       with:
         save-if: ${{ inputs.save-cache }}
     - name: Build

@@ -6,7 +6,7 @@
 name: netlify-deploy
 
 on:
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers] -- Deploys prebuilt files without executing code from the artifact.
     workflows: ["netlify-build"]
     types:
       - completed
@@ -14,30 +14,37 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
+    permissions:
+      actions: read # Required to download the triggering workflow's artifact.
+      statuses: write # Required to post the preview deployment status.
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'success'
     environment: netlify
 
     steps:
       - name: Download Build Artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: site
+          path: site
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
       - name: Install netlify-cli
-        run: |
+        run: | # zizmor: ignore[adhoc-packages] -- The deployment runner has no project checkout; install the standalone CLI.
           npm install -g netlify-cli
 
       - name: Deploy to Netlify
+        env:
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_TOKEN }}
         run: |
-          ls -la
-          DEBUG=* netlify deploy \
-              --site ${{ secrets.NETLIFY_SITE_ID }} \
-              --auth ${{ secrets.NETLIFY_TOKEN }} \
+          netlify deploy --no-build --dir site \
               ${{ ((github.event.workflow_run.head_repository.full_name == 'PyO3/pyo3') && (github.event.workflow_run.head_branch == 'main') && '--prod') || '' }} \
               --json | tee deploy_output.json
 
@@ -51,12 +58,14 @@ jobs:
 
       - name: Post Netlify Preview Status to PR
         if: ${{ github.event.workflow_run.event == 'pull_request' }}
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          NETLIFY_PREVIEW_URL: ${{ steps.url_preview.outputs.NETLIFY_PREVIEW_URL }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const previewUrl = '${{ steps.url_preview.outputs.NETLIFY_PREVIEW_URL }}';
-            const commitSha = '${{ github.event.workflow_run.head_sha }}';
+            const previewUrl = process.env.NETLIFY_PREVIEW_URL;
+            const commitSha = context.payload.workflow_run.head_sha;
 
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,

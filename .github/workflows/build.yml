@@ -1,5 +1,8 @@
 on:
   workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: false
     inputs:
       sha:
         required: true
@@ -30,34 +33,39 @@ env:
   NOX_DEFAULT_VENV_BACKEND: uv
   UV_CONSTRAINT: ${{ github.workspace }}/.github/uv-constraints.txt
 
+permissions:
+  contents: read
+  pull-requests: read # Required by dorny/paths-filter in build.yml.
+
 jobs:
   build:
     continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["beta", "nightly"]'), inputs.rust) }}
     runs-on: ${{ inputs.os }}
     if: ${{ !(startsWith(inputs.python-version, 'graalpy') && startsWith(inputs.os, 'windows')) }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ inputs.sha }}
 
       # installs using setup-python do not work for arm macOS 3.9 and below
       - if: ${{ !(inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64') }}
         name: Set up Python ${{ inputs.python-version }}
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
           check-latest: true
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           # workaround for the above, only available for 3.9
           python-version: ${{ inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64' && format('cpython-{0}-macos-x86-64', inputs.python-version) || '' }}
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
           toolchain: ${{ inputs.rust }}
           targets: ${{ inputs.rust-target }}
@@ -73,7 +81,7 @@ jobs:
         run: |
           echo "CARGO_BUILD_TARGET=i686-pc-windows-msvc" >> $GITHUB_ENV
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
@@ -89,7 +97,7 @@ jobs:
         name: Ignore changed error messages for ui tests (still run for coverage)
         run: echo "UI_TEST=ignore" >> "$GITHUB_ENV"
 
-      - uses: dorny/paths-filter@v4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         if: ${{ inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') }}
         id: ffi-changes
         with:
@@ -107,7 +115,7 @@ jobs:
         if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy')) }}
         run: uvx nox -s ffi-check
 
-      - uses: ./.github/actions/prepare-coverage
+      - uses: $/.github/actions/prepare-coverage
         if: ${{ inputs.os != 'windows-11-arm' }} # https://github.com/rust-lang/rust/issues/150123
 
       - name: Build docs
@@ -122,7 +130,7 @@ jobs:
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
-      - uses: ./.github/actions/report-coverage
+      - uses: $/.github/actions/report-coverage
         if: ${{ inputs.os != 'windows-11-arm' }} # https://github.com/rust-lang/rust/issues/150123
         with:
           name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}

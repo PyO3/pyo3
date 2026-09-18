@@ -12,6 +12,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   pypi_linux:
     runs-on: ubuntu-latest
@@ -19,16 +22,20 @@ jobs:
       matrix:
         target: [x86_64, x86, aarch64, armv7, s390x, ppc64le]
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: PyO3/maturin-action@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --compatibility pypi
           manylinux: auto
           working-directory: pyo3-introspection
-      - uses: astral-sh/setup-uv@v8.1.0
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: false
       - run: uvx twine check pyo3-introspection/dist/*
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: wheels-linux-${{ matrix.target }}
           path: pyo3-introspection/dist
@@ -45,16 +52,20 @@ jobs:
           - runner: windows-11-arm
             target: aarch64
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Build wheels
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --compatibility pypi
           working-directory: pyo3-introspection
-      - uses: astral-sh/setup-uv@v8.1.0
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: false
       - run: uvx twine check pyo3-introspection/dist/*
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: wheels-windows-${{ matrix.platform.target }}
           path: pyo3-introspection/dist
@@ -69,15 +80,19 @@ jobs:
           - runner: macos-latest
             target: aarch64
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: PyO3/maturin-action@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --compatibility pypi
           working-directory: pyo3-introspection
-      - uses: astral-sh/setup-uv@v8.1.0
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: false
       - run: uvx twine check pyo3-introspection/dist/*
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: wheels-macos-${{ matrix.platform.target }}
           path: pyo3-introspection/dist
@@ -85,15 +100,19 @@ jobs:
   pypi_sdist:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: PyO3/maturin-action@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
         with:
           command: sdist
           args: --out dist
           working-directory: pyo3-introspection
-      - uses: astral-sh/setup-uv@v8.1.0
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: false
       - run: uvx twine check pyo3-introspection/dist/*
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: wheels-sdist
           path: pyo3-introspection/dist
@@ -107,11 +126,11 @@ jobs:
     environment: release
     needs: [pypi_linux, pypi_windows, pypi_macos, pypi_sdist]
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: wheels-*
           path: pyo3-introspection/dist
           merge-multiple: true
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         with:
           packages-dir: pyo3-introspection/dist
