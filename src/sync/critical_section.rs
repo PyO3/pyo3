@@ -285,8 +285,8 @@ mod tests {
     use super::{with_critical_section_mutex, with_critical_section_mutex2};
     #[allow(unused_imports, reason = "conditionally used")]
     use crate::platform::prelude::*;
-    #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
-    use crate::sync::PyMutex;
+    #[cfg(all(not(Py_LIMITED_API), Py_3_14,))]
+    use crate::sync::non_poison::PyMutex;
     #[cfg(feature = "macros")]
     use core::sync::atomic::{AtomicBool, Ordering};
     #[cfg(any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14)))]
@@ -575,7 +575,7 @@ mod tests {
     fn test_critical_section_mutex2_two_containers() {
         let (m1, m2) = (PyMutex::new(vec![1, 2, 3]), PyMutex::new(vec![4, 5]));
 
-        let (m1_guard, m2_guard) = (m1.lock().unwrap(), m2.lock().unwrap());
+        let (m1_guard, m2_guard) = (m1.lock(), m2.lock());
 
         std::thread::scope(|s| {
             s.spawn(|| {
@@ -627,8 +627,8 @@ mod tests {
         let expected2_vec1 = vec![1, 2, 3, 4, 5, 1, 2, 3];
         let expected2_vec2 = vec![4, 5, 1, 2, 3];
 
-        let v1 = m1.lock().unwrap();
-        let v2 = m2.lock().unwrap();
+        let v1 = m1.lock();
+        let v2 = m2.lock();
         assert!(
             (&*v1, &*v2) == (&expected1_vec1, &expected1_vec2)
                 || (&*v1, &*v2) == (&expected2_vec1, &expected2_vec2)

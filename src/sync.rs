@@ -19,13 +19,13 @@ use crate::{
 use core::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit};
 
 pub mod critical_section;
-#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+#[cfg(all(not(Py_LIMITED_API), Py_3_13, wip_feature_std))]
 mod mutex;
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 pub mod non_poison;
 pub(crate) mod once_lock;
 
-#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+#[cfg(all(not(Py_LIMITED_API), Py_3_13, wip_feature_std))]
 pub use self::mutex::{PyMutex, PyMutexGuard};
 
 /// Deprecated alias for [`pyo3::sync::critical_section::with_critical_section`][crate::sync::critical_section::with_critical_section]
@@ -765,12 +765,15 @@ mod rwlock_ext_sealed {
     impl<R, T> Sealed for alloc::sync::Arc<lock_api::RwLock<R, T>> {}
 }
 
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 mod mutex_trait_sealed {
     pub trait Sealed {}
+    #[cfg(wip_feature_std)]
     impl<T: ?Sized> Sealed for super::mutex::PyMutex<T> {}
     impl<T: ?Sized> Sealed for super::non_poison::PyMutex<T> {}
 }
 
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 pub trait PyMutexTrait<T: ?Sized>: mutex_trait_sealed::Sealed {
     /// # Safety
     /// This function may not be called from outside of PyO3
@@ -783,6 +786,7 @@ pub trait PyMutexTrait<T: ?Sized>: mutex_trait_sealed::Sealed {
     unsafe fn inner(&self) -> &UnsafeCell<crate::ffi::PyMutex>;
 }
 
+#[cfg(all(not(Py_LIMITED_API), Py_3_13, wip_feature_std))]
 impl<T: ?Sized> PyMutexTrait<T> for self::mutex::PyMutex<T> {
     unsafe fn data(&self) -> &UnsafeCell<T> {
         &self.data
@@ -793,6 +797,7 @@ impl<T: ?Sized> PyMutexTrait<T> for self::mutex::PyMutex<T> {
     }
 }
 
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 impl<T: ?Sized> PyMutexTrait<T> for self::non_poison::PyMutex<T> {
     unsafe fn data(&self) -> &UnsafeCell<T> {
         &self.data
