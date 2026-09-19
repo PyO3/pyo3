@@ -1,3 +1,5 @@
+//! Contains a non-poisoning variant of [`PyMutex`].
+
 use core::cell::UnsafeCell;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};

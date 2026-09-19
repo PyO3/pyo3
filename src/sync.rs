@@ -773,6 +773,7 @@ mod mutex_trait_sealed {
     impl<T: ?Sized> Sealed for super::non_poison::PyMutex<T> {}
 }
 
+/// Trait for mutex types used in [`critical_section`] API.
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 pub trait PyMutexTrait<T: ?Sized>: mutex_trait_sealed::Sealed {
     /// # Safety
