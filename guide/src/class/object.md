@@ -179,6 +179,7 @@ This option also requires `eq`: According to the [Python docs](https://docs.pyth
 ```rust,no_run
 # use pyo3::prelude::*;
 #
+# #[cfg(wip_feature_std)]
 # #[allow(dead_code)]
 #[pyclass(frozen, eq, hash)]
 #[derive(PartialEq, Hash)]

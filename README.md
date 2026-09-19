@@ -4,7 +4,7 @@
 [![benchmark](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/PyO3/pyo3)
 [![codecov](https://img.shields.io/codecov/c/gh/PyO3/pyo3?logo=codecov)](https://codecov.io/gh/PyO3/pyo3)
 [![crates.io](https://img.shields.io/crates/v/pyo3?logo=rust)](https://crates.io/crates/pyo3)
-[![minimum rustc 1.83](https://img.shields.io/badge/rustc-1.83+-blue?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![minimum rustc](https://img.shields.io/badge/dynamic/json?url=https://crates.io/api/v1/crates/pyo3&query=$.versions[0].rust_version&label=rustc&suffix=%2B&color=blue&logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![discord server](https://img.shields.io/discord/1209263839632424990?logo=discord)](https://discord.gg/33kcChzH7f)
 [![contributing notes](https://img.shields.io/badge/contribute-on%20github-Green?logo=github)](https://github.com/PyO3/pyo3/blob/main/Contributing.md)
 
@@ -71,7 +71,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.29.1"
+pyo3 = "0.29.2"
 ```
 
 **`src/lib.rs`**
@@ -139,7 +139,7 @@ Start a new project with `cargo new` and add  `pyo3` to the `Cargo.toml` like th
 
 ```toml
 [dependencies.pyo3]
-version = "0.29.1"
+version = "0.29.2"
 # Enabling this cargo feature will cause PyO3 to start a Python interpreter on first call to `Python::attach`
 features = ["auto-initialize"]
 ```

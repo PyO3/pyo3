@@ -1339,7 +1339,7 @@ impl InterpreterConfigBuilder {
     }
 
     pub fn finalize(self) -> Result<InterpreterConfig> {
-        let mut build_flags = self.build_flags.clone();
+        let mut build_flags = self.build_flags;
         let py_gil_disabled = build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED);
         let target_abi = match (self.target_abi, py_gil_disabled) {
             // No target ABI set, no Py_GIL_DISABLED: default to GIL-enabled version-specific.

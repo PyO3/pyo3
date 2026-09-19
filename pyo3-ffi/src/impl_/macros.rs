@@ -15,7 +15,7 @@
 macro_rules! extern_libpython_cpython_private_fn {
     ($(#[$attrs:meta])* $vis:vis $name:ident($($args:tt)*) $(-> $ret:ty)?) => {
         #[cfg_attr(
-            all(windows, target_arch = "x86", not(any(PyPy, GraalPy))),
+            all(windows, pyo3_use_raw_dylib, target_arch = "x86"),
             link_name = concat!("_", stringify!($name))
         )]
         $(#[$attrs])*
@@ -82,6 +82,18 @@ macro_rules! extern_libpython_maybe_private_fn {
     };
     (
         [_PyThreadState_UncheckedGet]
+        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
+    ) => {
+        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
+    };
+    (
+        [_PyInterpreterState_GetEvalFrameFunc]
+        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
+    ) => {
+        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
+    };
+    (
+        [_PyInterpreterState_SetEvalFrameFunc]
         $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
@@ -276,6 +288,7 @@ macro_rules! extern_libpython {
             "python316t", "python316t_d",
             // PyPy (DLL is libpypy3.X-c.dll, not pythonXY.dll)
             "libpypy3.11-c",
+            "libpypy3.12-c",
         );
     };
     // Internal: generate cfg_attr for each DLL name. One of these will be selected

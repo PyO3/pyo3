@@ -1,3 +1,5 @@
+//! Python strings and related types.
+
 #[cfg(not(Py_LIMITED_API))]
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::ffi_ptr_ext::FfiPtrExt;

@@ -365,8 +365,6 @@ pub(crate) mod ffi_ptr_ext;
 pub(crate) mod py_result_ext;
 pub(crate) mod sealed;
 
-mod platform;
-
 /// Old module which contained some implementation details of the `#[pyproto]` module.
 ///
 /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::CompareOp` instead
@@ -416,6 +414,8 @@ mod internal;
 #[macro_use]
 mod internal_tricks;
 
+mod platform;
+
 // Macro dependencies, also contains macros exported for use across the codebase and
 // in expanded macros.
 #[doc(hidden)]
@@ -437,7 +437,7 @@ pub mod marker;
 pub mod marshal;
 #[macro_use]
 pub mod sync;
-pub(crate) mod byteswriter;
+#[cfg(wip_feature_std)]
 pub mod panic;
 pub mod pybacked;
 pub mod pycell;

@@ -274,12 +274,12 @@ impl<'a, const REF: bool> Container<'a, REF> {
 
                 if let Some(expr_path) = f.into_py_with.as_ref().map(|i|&i.value) {
                     let cow = if REF {
-                        quote!(::std::borrow::Cow::Borrowed(#value))
+                        quote!(#pyo3_path::impl_::alloc::borrow::Cow::Borrowed(#value))
                     } else {
-                        quote!(::std::borrow::Cow::Owned(#value))
+                        quote!(#pyo3_path::impl_::alloc::borrow::Cow::Owned(#value))
                     };
                     quote! {
-                        let into_py_with: fn(::std::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
+                        let into_py_with: fn(#pyo3_path::impl_::alloc::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
                         #pyo3_path::types::PyDictMethods::set_item(&dict, #key, into_py_with(#cow, py)?)?;
                     }
                 } else {
@@ -300,7 +300,7 @@ impl<'a, const REF: bool> Container<'a, REF> {
                 #unpack
                 let dict = #pyo3_path::types::PyDict::new(py);
                 #setter
-                ::std::result::Result::Ok::<_, Self::Error>(dict)
+                ::core::result::Result::Ok::<_, Self::Error>(dict)
             },
         }
     }
@@ -326,13 +326,13 @@ impl<'a, const REF: bool> Container<'a, REF> {
 
                 if let Some(expr_path) = f.into_py_with.as_ref().map(|i|&i.value) {
                     let cow = if REF {
-                        quote!(::std::borrow::Cow::Borrowed(#value))
+                        quote!(#pyo3_path::impl_::alloc::borrow::Cow::Borrowed(#value))
                     } else {
-                        quote!(::std::borrow::Cow::Owned(#value))
+                        quote!(#pyo3_path::impl_::alloc::borrow::Cow::Owned(#value))
                     };
                     quote_spanned! { ty.span() =>
                         {
-                            let into_py_with: fn(::std::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
+                            let into_py_with: fn(#pyo3_path::impl_::alloc::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
                             into_py_with(#cow, py)?
                         },
                     }
@@ -446,7 +446,7 @@ impl<'a, const REF: bool> Enum<'a, REF> {
                         {#body}
                             .map(#pyo3_path::BoundObject::into_any)
                             .map(#pyo3_path::BoundObject::into_bound)
-                            .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
+                            .map_err(::core::convert::Into::<#pyo3_path::PyErr>::into)
                     }
                 }
             })
@@ -611,7 +611,7 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
             type Error = #error;
             #output_type
 
-            fn into_pyobject(self, py: #pyo3_path::Python<#lt_param>) -> ::std::result::Result<
+            fn into_pyobject(self, py: #pyo3_path::Python<#lt_param>) -> ::core::result::Result<
                 <Self as #pyo3_path::conversion::IntoPyObject<#lt_param>>::Output,
                 <Self as #pyo3_path::conversion::IntoPyObject<#lt_param>>::Error,
             > {

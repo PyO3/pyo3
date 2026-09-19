@@ -1,5 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+//! Python mapping proxies and related types.
+
 use super::PyMapping;
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -124,6 +126,7 @@ impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
     }
 }
 
+/// Iterator over the key-value pairs of a Python mapping proxy.
 pub struct BoundMappingProxyIterator<'py, 'a> {
     iterator: Bound<'py, PyIterator>,
     mappingproxy: &'a Bound<'py, PyMappingProxy>,
@@ -151,6 +154,8 @@ mod tests {
     use crate::platform::prelude::*;
     use crate::platform::HashMap;
     use crate::types::dict::*;
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
+    use crate::types::{PyDictItems, PyDictKeys, PyDictValues};
     use crate::Python;
     use crate::{
         exceptions::PyKeyError,

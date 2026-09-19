@@ -1,13 +1,13 @@
 error[E0277]: `Blah` cannot be converted to a Python object
-   --> tests/ui/missing_intopy.rs:8:14
+   --> tests/ui/missing_intopy.rs:10:14
     |
-  8 | fn blah() -> Blah {
+ 10 | fn blah() -> Blah {
     |              ^^^^ unsatisfied trait bound
     |
 help: the trait `IntoPyObject<'_>` is not implemented for `Blah`
-   --> tests/ui/missing_intopy.rs:5:1
+   --> tests/ui/missing_intopy.rs:7:1
     |
-  5 | struct Blah;
+  7 | struct Blah;
     | ^^^^^^^^^^^
     = note: `IntoPyObject` is automatically implemented by the `#[pyclass]` macro
     = note: if you do not wish to have a corresponding Python type, implement it manually

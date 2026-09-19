@@ -1,3 +1,5 @@
+//! Python sets and related types.
+
 use crate::types::PyIterator;
 use crate::{
     err::{self, PyErr, PyResult},

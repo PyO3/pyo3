@@ -39,6 +39,7 @@ pub(crate) mod pylifecycle;
 pub(crate) mod pymem;
 pub(crate) mod pystate;
 pub(crate) mod pythonrun;
+pub(crate) mod pythread;
 // skipped sysmodule.h
 pub(crate) mod floatobject;
 pub(crate) mod pyframe;
@@ -91,6 +92,7 @@ pub use self::pylifecycle::*;
 pub use self::pymem::*;
 pub use self::pystate::*;
 pub use self::pythonrun::*;
+pub use self::pythread::*;
 pub use self::setobject::*;
 pub use self::traceback::*;
 pub use self::tupleobject::*;

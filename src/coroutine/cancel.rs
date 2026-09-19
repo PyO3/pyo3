@@ -1,8 +1,9 @@
+use crate::platform::sync::non_poison::Mutex;
 use crate::{Py, PyAny};
 use alloc::sync::Arc;
 use core::future::poll_fn;
+use core::panic::AssertUnwindSafe;
 use core::task::{Context, Poll, Waker};
-use std::sync::Mutex;
 
 #[derive(Debug, Default)]
 struct Inner {
@@ -14,7 +15,7 @@ struct Inner {
 ///
 /// Only the last exception thrown can be retrieved.
 #[derive(Debug, Default)]
-pub struct CancelHandle(Arc<Mutex<Inner>>);
+pub struct CancelHandle(Arc<AssertUnwindSafe<Mutex<Inner>>>);
 
 impl CancelHandle {
     /// Create a new `CoroutineCancel`.
@@ -24,12 +25,12 @@ impl CancelHandle {
 
     /// Returns whether the associated coroutine has been cancelled.
     pub fn is_cancelled(&self) -> bool {
-        self.0.lock().unwrap().exception.is_some()
+        self.0.lock().exception.is_some()
     }
 
     /// Poll to retrieve the exception thrown in the associated coroutine.
     pub fn poll_cancelled(&mut self, cx: &mut Context<'_>) -> Poll<Py<PyAny>> {
-        let mut inner = self.0.lock().unwrap();
+        let mut inner = self.0.lock();
         if let Some(exc) = inner.exception.take() {
             return Poll::Ready(exc);
         }
@@ -54,11 +55,11 @@ impl CancelHandle {
 }
 
 #[doc(hidden)]
-pub struct ThrowCallback(Arc<Mutex<Inner>>);
+pub struct ThrowCallback(Arc<AssertUnwindSafe<Mutex<Inner>>>);
 
 impl ThrowCallback {
     pub(super) fn throw(&self, exc: Py<PyAny>) {
-        let mut inner = self.0.lock().unwrap();
+        let mut inner = self.0.lock();
         inner.exception = Some(exc);
         if let Some(waker) = inner.waker.take() {
             waker.wake();

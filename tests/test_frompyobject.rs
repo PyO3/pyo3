@@ -4,6 +4,8 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
 
+extern crate alloc;
+
 #[macro_use]
 mod test_utils;
 
@@ -109,7 +111,7 @@ fn test_generic_transparent_named_field_struct() {
 }
 
 #[derive(Debug, FromPyObject)]
-pub struct GenericWithBound<K: std::hash::Hash + Eq, V>(std::collections::HashMap<K, V>);
+pub struct GenericWithBound<K: std::cmp::Ord, V>(alloc::collections::BTreeMap<K, V>);
 
 #[test]
 fn test_generic_with_bound() {

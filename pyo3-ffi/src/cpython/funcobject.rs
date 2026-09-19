@@ -59,7 +59,7 @@ pub struct PyFunctionObject {
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyFunction_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFunction_Type")]
     pub static mut PyFunction_Type: crate::PyTypeObject;
 }
 
@@ -75,8 +75,11 @@ extern_libpython! {
         globals: *mut PyObject,
         qualname: *mut PyObject,
     ) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyFunction_GetCode")]
     pub fn PyFunction_GetCode(op: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyFunction_GetGlobals")]
     pub fn PyFunction_GetGlobals(op: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyFunction_GetModule")]
     pub fn PyFunction_GetModule(op: *mut PyObject) -> *mut PyObject;
     pub fn PyFunction_GetDefaults(op: *mut PyObject) -> *mut PyObject;
     pub fn PyFunction_SetDefaults(op: *mut PyObject, defaults: *mut PyObject) -> c_int;
@@ -89,15 +92,64 @@ extern_libpython! {
 }
 
 // skipped _PyFunction_Vectorcall
-// skipped PyFunction_GET_CODE
-// skipped PyFunction_GET_GLOBALS
-// skipped PyFunction_GET_MODULE
-// skipped PyFunction_GET_DEFAULTS
-// skipped PyFunction_GET_KW_DEFAULTS
-// skipped PyFunction_GET_CLOSURE
-// skipped PyFunction_GET_ANNOTATIONS
 
-// skipped PyClassMethod_Type
-// skipped PyStaticMethod_Type
-// skipped PyClassMethod_New
-// skipped PyStaticMethod_New
+#[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
+pub unsafe fn _PyFunction_CAST(func: *mut PyObject) -> *mut PyFunctionObject {
+    assert_eq!(PyFunction_Check(func), 1);
+    func.cast::<PyFunctionObject>()
+}
+
+#[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
+pub unsafe fn PyFunction_GET_CODE(func: *mut PyObject) -> *mut PyObject {
+    (*_PyFunction_CAST(func)).func_code
+}
+
+#[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
+pub unsafe fn PyFunction_GET_GLOBALS(func: *mut PyObject) -> *mut PyObject {
+    (*_PyFunction_CAST(func)).func_globals
+}
+
+#[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
+pub unsafe fn PyFunction_GET_MODULE(func: *mut PyObject) -> *mut PyObject {
+    (*_PyFunction_CAST(func)).func_module
+}
+
+#[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
+pub unsafe fn PyFunction_GET_DEFAULTS(func: *mut PyObject) -> *mut PyObject {
+    (*_PyFunction_CAST(func)).func_defaults
+}
+
+#[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
+pub unsafe fn PyFunction_GET_KW_DEFAULTS(func: *mut PyObject) -> *mut PyObject {
+    (*_PyFunction_CAST(func)).func_kwdefaults
+}
+
+#[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
+pub unsafe fn PyFunction_GET_CLOSURE(func: *mut PyObject) -> *mut PyObject {
+    (*_PyFunction_CAST(func)).func_closure
+}
+
+#[inline]
+#[cfg(all(not(PyPy), not(GraalPy)))]
+pub unsafe fn PyFunction_GET_ANNOTATIONS(func: *mut PyObject) -> *mut PyObject {
+    (*_PyFunction_CAST(func)).func_annotations
+}
+
+extern_libpython! {
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyClassMethod_Type")]
+    pub static mut PyClassMethod_Type: crate::PyTypeObject;
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyStaticMethod_Type")]
+    pub static mut PyStaticMethod_Type: crate::PyTypeObject;
+
+    #[cfg_attr(PyPy, link_name = "PyPyClassMethod_New")]
+    pub fn PyClassMethod_New(ob: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyStaticMethod_New")]
+    pub fn PyStaticMethod_New(ob: *mut PyObject) -> *mut PyObject;
+}

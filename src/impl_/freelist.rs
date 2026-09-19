@@ -9,8 +9,32 @@
 //! [1]: https://en.wikipedia.org/wiki/Free_list
 
 use crate::ffi;
+use crate::marker::Python;
 use crate::platform::prelude::*;
+use crate::platform::sync::non_poison::Mutex;
+use crate::sync::{MutexExt, PyOnceLock};
+
+use core::ops::DerefMut;
 use core::ptr::NonNull;
+
+pub struct FreeList(PyOnceLock<Mutex<PyObjectFreeList>>);
+
+impl FreeList {
+    #[expect(clippy::new_without_default, reason = "always called in const context")]
+    pub const fn new() -> Self {
+        Self(PyOnceLock::new())
+    }
+
+    pub fn get(
+        &self,
+        py: Python<'_>,
+        capacity: usize,
+    ) -> impl DerefMut<Target = PyObjectFreeList> + '_ {
+        self.0
+            .get_or_init(py, || Mutex::new(PyObjectFreeList::with_capacity(capacity)))
+            .lock_py_attached(py)
+    }
+}
 
 /// A free allocation list for PyObject ffi pointers.
 ///
@@ -18,7 +42,6 @@ use core::ptr::NonNull;
 pub struct PyObjectFreeList {
     entries: Box<[Option<NonNull<ffi::PyObject>>]>,
     split: usize,
-    capacity: usize,
 }
 
 // safety: the pointers are never used internally and they are cleared when they are given out
@@ -29,11 +52,7 @@ impl PyObjectFreeList {
     pub fn with_capacity(capacity: usize) -> PyObjectFreeList {
         let entries = vec![None; capacity].into_boxed_slice();
 
-        PyObjectFreeList {
-            entries,
-            split: 0,
-            capacity,
-        }
+        PyObjectFreeList { entries, split: 0 }
     }
 
     /// Pops the first non empty item.
@@ -53,7 +72,7 @@ impl PyObjectFreeList {
     /// Inserts a value into the list. Returns `Some(val)` if the `PyObjectFreeList` is full.
     pub fn insert(&mut self, val: NonNull<ffi::PyObject>) -> Option<NonNull<ffi::PyObject>> {
         let next = self.split + 1;
-        if next < self.capacity {
+        if next < self.entries.len() {
             self.entries[self.split] = Some(val);
             self.split = next;
             None

@@ -10,6 +10,22 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.29.2] - 2026-08-05
+
+### Packaging
+
+- Add `PYO3_USE_RAW_DYLIB=0` opt-out of `raw-dylib` linking for Windows. [#6185](https://github.com/PyO3/pyo3/pull/6185)
+
+### Fixed
+
+- Fix PyO3 0.29 regression with failure to link under Cygwin / MSYS2. [#6185](https://github.com/PyO3/pyo3/pull/6185)
+- Fix stubs generation for field getters (`#[pyo3(get)]`) when `IntoPyObject` is only implemented on references of the field type. [#6276](https://github.com/PyO3/pyo3/pull/6276)
+- Fix `#[classmethod]` magic methods receiving the instance instead of its type when invoked through a type slot. [#6283](https://github.com/PyO3/pyo3/pull/6283)
+- Fix `pyo3_build_config::add_libpython_rpath_link_args` emitting Unix-style rpath linker arguments on Windows and Cygwin. [#6284](https://github.com/PyO3/pyo3/pull/6284)
+- Fix PyO3 0.29.1 regression on PyPy causing crashes when deallocating `#[pyclass]` instances. [#6294](https://github.com/PyO3/pyo3/pull/6294)
+- Fix missing trailing nul in Python 3.9 `#[pyclass]` docstrings. [#6296](https://github.com/PyO3/pyo3/pull/6296)
+- Fix reference count leak of `#[classattr]` values created from `fn` items. [#6297](https://github.com/PyO3/pyo3/pull/6297)
+
 ## [0.29.1] - 2026-08-02
 
 ### Changed
@@ -2682,7 +2698,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.29.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.29.2...HEAD
+[0.29.1]: https://github.com/pyo3/pyo3/compare/v0.29.1...v0.29.2
 [0.29.1]: https://github.com/pyo3/pyo3/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/pyo3/pyo3/compare/v0.28.3...v0.29.0
 [0.28.3]: https://github.com/pyo3/pyo3/compare/v0.28.2...v0.28.3

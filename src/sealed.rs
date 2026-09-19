@@ -66,8 +66,10 @@ impl<T: crate::type_object::PyTypeInfo> Sealed for PyNativeTypeInitializer<T> {}
 impl<T: crate::pyclass::PyClass> Sealed for PyClassInitializer<T> {}
 
 #[cfg(wip_feature_std)]
+#[allow(clippy::disallowed_types)]
 impl Sealed for std::sync::Once {}
 #[cfg(wip_feature_std)]
+#[allow(clippy::disallowed_types)]
 impl<T> Sealed for std::sync::Mutex<T> {}
 #[cfg(feature = "lock_api")]
 impl<R, T> Sealed for lock_api::Mutex<R, T> {}

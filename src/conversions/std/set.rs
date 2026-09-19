@@ -1,6 +1,8 @@
-use alloc::collections;
 use alloc::vec::Vec;
-use core::{cmp, hash};
+
+use core::cmp;
+#[cfg(wip_feature_std)]
+use core::hash;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_subscript, PyStaticExpr};
@@ -84,7 +86,7 @@ where
     }
 }
 
-impl<'py, K> IntoPyObject<'py> for collections::BTreeSet<K>
+impl<'py, K> IntoPyObject<'py> for alloc::collections::BTreeSet<K>
 where
     K: IntoPyObject<'py> + cmp::Ord,
 {
@@ -100,7 +102,7 @@ where
     }
 }
 
-impl<'a, 'py, K> IntoPyObject<'py> for &'a collections::BTreeSet<K>
+impl<'a, 'py, K> IntoPyObject<'py> for &'a alloc::collections::BTreeSet<K>
 where
     &'a K: IntoPyObject<'py> + cmp::Ord,
     K: 'a,
@@ -117,7 +119,7 @@ where
     }
 }
 
-impl<'py, K> FromPyObject<'_, 'py> for collections::BTreeSet<K>
+impl<'py, K> FromPyObject<'_, 'py> for alloc::collections::BTreeSet<K>
 where
     K: FromPyObjectOwned<'py> + cmp::Ord,
 {
@@ -159,9 +161,8 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    #[cfg_attr(not(wip_feature_std), ignore)]
+    #[cfg(wip_feature_std)]
     fn test_extract_hashset() {
-        #[cfg(wip_feature_std)]
         Python::attach(|py| {
             let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
             let hash_set: HashSet<usize> = set.extract().unwrap();

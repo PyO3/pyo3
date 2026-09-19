@@ -8,8 +8,10 @@ use crate::{
     types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
     Borrowed, FromPyObject, PyAny, PyErr, Python,
 };
-use alloc::collections;
-use core::{cmp, hash};
+
+use core::cmp;
+#[cfg(wip_feature_std)]
+use core::hash;
 
 #[cfg(wip_feature_std)]
 impl<'py, K, V, H> IntoPyObject<'py> for std::collections::HashMap<K, V, H>
@@ -59,7 +61,7 @@ where
     }
 }
 
-impl<'py, K, V> IntoPyObject<'py> for collections::BTreeMap<K, V>
+impl<'py, K, V> IntoPyObject<'py> for alloc::collections::BTreeMap<K, V>
 where
     K: IntoPyObject<'py> + cmp::Eq,
     V: IntoPyObject<'py>,
@@ -81,7 +83,7 @@ where
     }
 }
 
-impl<'a, 'py, K, V> IntoPyObject<'py> for &'a collections::BTreeMap<K, V>
+impl<'a, 'py, K, V> IntoPyObject<'py> for &'a alloc::collections::BTreeMap<K, V>
 where
     &'a K: IntoPyObject<'py> + cmp::Eq,
     &'a V: IntoPyObject<'py>,
@@ -131,7 +133,7 @@ where
     }
 }
 
-impl<'py, K, V> FromPyObject<'_, 'py> for collections::BTreeMap<K, V>
+impl<'py, K, V> FromPyObject<'_, 'py> for alloc::collections::BTreeMap<K, V>
 where
     K: FromPyObjectOwned<'py> + cmp::Ord,
     V: FromPyObjectOwned<'py>,
@@ -144,7 +146,7 @@ where
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, PyErr> {
         let dict = ob.cast::<PyDict>()?;
-        let mut ret = collections::BTreeMap::new();
+        let mut ret = alloc::collections::BTreeMap::new();
         for (k, v) in dict.iter() {
             ret.insert(
                 k.extract().map_err(Into::into)?,
@@ -163,9 +165,8 @@ mod tests {
     use std::collections::HashMap;
 
     #[test]
-    #[cfg_attr(not(wip_feature_std), ignore)]
+    #[cfg(wip_feature_std)]
     fn test_hashmap_to_python() {
-        #[cfg(wip_feature_std)]
         Python::attach(|py| {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);
@@ -209,9 +210,8 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(not(wip_feature_std), ignore)]
+    #[cfg(wip_feature_std)]
     fn test_hashmap_into_python() {
-        #[cfg(wip_feature_std)]
         Python::attach(|py| {
             let mut map = HashMap::<i32, i32>::new();
             map.insert(1, 1);

@@ -1,3 +1,5 @@
+//! Python code objects and related types.
+
 use super::PyDict;
 use super::{PyAnyMethods as _, PyDictMethods as _};
 use crate::ffi_ptr_ext::FfiPtrExt;

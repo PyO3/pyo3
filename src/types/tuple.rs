@@ -1,3 +1,5 @@
+//! Python tuples and related types.
+
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]

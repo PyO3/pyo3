@@ -8,6 +8,7 @@ use crate::inspect::PyStaticExpr;
 use crate::instance::Bound;
 #[cfg(Py_3_11)]
 use crate::intern;
+#[cfg(wip_feature_std)]
 use crate::panic::PanicException;
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
@@ -286,6 +287,7 @@ impl PyErr {
     pub fn take(py: Python<'_>) -> Option<PyErr> {
         let state = PyErrStateNormalized::take(py)?;
 
+        #[cfg(wip_feature_std)]
         if PanicException::is_exact_type_of(state.pvalue.bind(py)) {
             Self::print_panic_and_unwind(py, state)
         }
@@ -293,6 +295,7 @@ impl PyErr {
         Some(PyErr::from_state(PyErrState::normalized(state)))
     }
 
+    #[cfg(wip_feature_std)]
     #[cold]
     fn print_panic_and_unwind(py: Python<'_>, state: PyErrStateNormalized) -> ! {
         let msg: String = state
@@ -302,8 +305,10 @@ impl PyErr {
             .map(|py_str| py_str.to_string_lossy().into())
             .unwrap_or_else(|_| String::from("Unwrapped panic from Python code"));
 
-        eprintln!("--- PyO3 is resuming a panic after fetching a PanicException from Python. ---");
-        eprintln!("Python stack trace below:");
+        std::eprintln!(
+            "--- PyO3 is resuming a panic after fetching a PanicException from Python. ---"
+        );
+        std::eprintln!("Python stack trace below:");
 
         PyErrState::normalized(state).restore(py);
 
@@ -848,6 +853,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(wip_feature_std)]
     #[should_panic(expected = "new panic")]
     fn fetching_panic_exception_resumes_unwind() {
         use crate::panic::PanicException;
@@ -865,6 +871,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "new panic")]
     #[cfg(not(Py_3_12))]
+    #[cfg(wip_feature_std)]
     fn fetching_normalized_panic_exception_resumes_unwind() {
         use crate::panic::PanicException;
 

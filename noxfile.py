@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import io
 import json
 import os
@@ -17,11 +18,7 @@ from functools import lru_cache
 from glob import glob
 from pathlib import Path
 from shlex import quote
-from typing import (
-    Any,
-    Callable,
-    Literal,
-)
+from typing import Any, Literal, Protocol
 
 import nox.command
 
@@ -87,6 +84,15 @@ def _supported_interpreter_versions(
     if python_impl == "cpython":
         versions += [f"{major}.{minor}t" for minor in range(14, max_minor + 1)]
     return versions
+
+
+@functools.cache
+def _is_no_std() -> bool:
+    no_std = os.environ.get("PYO3_WIP_NO_STD")
+    if no_std is None:
+        return False
+    no_std = no_std.strip()
+    return no_std == "1" or no_std.lower() == "true"
 
 
 PY_VERSIONS = _supported_interpreter_versions("cpython")
@@ -177,9 +183,18 @@ def test_rust(session: nox.Session):
 
 @nox.session(name="test-py", venv_backend="none")
 def test_py(session: nox.Session) -> None:
-    _run(session, "nox", "-f", "pytests/noxfile.py", external=True)
+    features = (
+        ",".join(f"pyo3/{feat}" for feat in _REQUIRED_FOR_NO_STD)
+        if _is_no_std()
+        else ""
+    )
+    extra_args = ("--", f"--features={features}") if features else ()
+
+    _run(session, "nox", "-f", "pytests/noxfile.py", *extra_args, external=True)
     for example in glob("examples/*/noxfile.py"):
-        _run(session, "nox", "-f", example, external=True)
+        if _is_no_std() and example.startswith("examples/setuptools-rust-starter"):
+            continue
+        _run(session, "nox", "-f", example, *extra_args, external=True)
     for example in glob("pyo3-ffi/examples/*/noxfile.py"):
         _run(session, "nox", "-f", example, external=True)
 
@@ -259,10 +274,11 @@ def _clippy(
     *,
     env: dict[str, str] | None = None,
     version: tuple[int, int] | None = None,
+    free_threaded: bool = FREE_THREADED_BUILD,
 ) -> bool:
     success = True
     env = env or os.environ
-    for feature_set in _get_feature_sets(version):
+    for feature_set in _get_feature_sets(version=version, free_threaded=free_threaded):
         try:
             _run_cargo(
                 session,
@@ -323,10 +339,12 @@ def clippy_all(session: nox.Session) -> None:
     success = True
 
     def _clippy_with_config(
-        env: dict[str, str], version: tuple[int, int] | None
+        *, env: dict[str, str], version: tuple[int, int] | None, free_threaded: bool
     ) -> None:
         nonlocal success
-        success &= _clippy(session, env=env, version=version)
+        success &= _clippy(
+            session, env=env, version=version, free_threaded=free_threaded
+        )
 
     _for_all_version_configs(session, _clippy_with_config)
     success &= _clippy_additional_workspaces(session)
@@ -339,9 +357,13 @@ def clippy_all(session: nox.Session) -> None:
 def check_all(session: nox.Session) -> None:
     success = True
 
-    def _check(env: dict[str, str], version: tuple[int, int]) -> None:
+    def _check(
+        *, env: dict[str, str], version: tuple[int, int] | None, free_threaded: bool
+    ) -> None:
         nonlocal success
-        for feature_set in _get_feature_sets():
+        for feature_set in _get_feature_sets(
+            version=version, free_threaded=free_threaded
+        ):
             try:
                 _run_cargo(
                     session,
@@ -359,16 +381,6 @@ def check_all(session: nox.Session) -> None:
 
     if not success:
         session.error("one or more jobs failed")
-
-
-@nox.session(venv_backend="none")
-def publish(session: nox.Session) -> None:
-    _run_cargo_publish(session, package="pyo3-build-config")
-    _run_cargo_publish(session, package="pyo3-macros-backend")
-    _run_cargo_publish(session, package="pyo3-macros")
-    _run_cargo_publish(session, package="pyo3-ffi")
-    _run_cargo_publish(session, package="pyo3")
-    _run_cargo_publish(session, package="pyo3-introspection")
 
 
 @nox.session(venv_backend="none")
@@ -482,6 +494,8 @@ def test_emscripten(session: nox.Session):
             "-C link-arg=-sEXPORTED_FUNCTIONS=_main,__PyRuntime",
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
             "-C link-arg=-sSTACK_SIZE=262144",
+            # https://github.com/python/cpython/issues/156780
+            "-C link-arg=-sMAIN_MODULE=2",
         ]
     )
     session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
@@ -520,19 +534,39 @@ class WasiInfo:
         self.libdir = crossbuild_dir / "build" / f"lib.wasi-wasm32-{self.pymajorminor}"
 
 
-@nox.session(name="build-wasm", venv_backend="none")
-def build_wasm(session: nox.Session):
-    info = WasiInfo()
+def _make_wasm(session: nox.Session, info: WasiInfo, *targets: str):
     _run(
         session,
         "make",
         "-C",
         str(info.wasi_dir),
+        *targets,
         f"PYTHON={sys.executable}",
         f"BUILDROOT={info.builddir}",
         f"PYMAJORMINORMICRO={info.pyversion}",
         external=True,
     )
+
+
+@nox.session(name="prepare-wasm", venv_backend="none")
+def prepare_wasm(session: nox.Session):
+    import tomllib
+
+    info = WasiInfo()
+    _make_wasm(session, info, "prepare")
+
+    with (info.cpython_dir / "Platforms/WASI/config.toml").open("rb") as config_file:
+        wasi_sdk_version = tomllib.load(config_file)["targets"]["wasi-sdk"]
+
+    session.log("CPython requires WASI SDK %s", wasi_sdk_version)
+    if github_output := os.environ.get("GITHUB_OUTPUT"):
+        with open(github_output, "a") as output_file:
+            print(f"wasi-sdk-version={wasi_sdk_version}", file=output_file)
+
+
+@nox.session(name="build-wasm", venv_backend="none")
+def build_wasm(session: nox.Session):
+    _make_wasm(session, WasiInfo())
 
 
 @nox.session(name="test-wasm", venv_backend="none")
@@ -548,8 +582,11 @@ def test_wasm(session: nox.Session):
     )
     session.env["PYO3_CROSS_LIB_DIR"] = str(info.libdir)
     session.env["CARGO_BUILD_TARGET"] = target
+    # The checkout is mounted at `/`; point the embedded interpreter at the stdlib and
+    # the WASI build outputs.
+    build_lib_dir = info.libdir.relative_to(info.cpython_dir).as_posix()
     session.env["CARGO_TARGET_WASM32_WASIP1_RUNNER"] = (
-        f"wasmtime run --dir {info.cpython_dir}::/ --env PYTHONPATH=/lib"
+        f"wasmtime run --dir {info.cpython_dir}::/ --env PYTHONPATH=/Lib:/{build_lib_dir}"
     )
     session.env["RUSTFLAGS"] = " ".join(
         [
@@ -557,7 +594,12 @@ def test_wasm(session: nox.Session):
             "-C link-arg=-lwasi-emulated-signal",
             "-C link-arg=-lwasi-emulated-process-clocks",
             "-C link-arg=-lwasi-emulated-getpid",
-            "-C link-arg=-lmpdec",
+            "-C link-arg=-lpthread",
+            "-C link-arg=-lHacl_Hash_MD5",
+            "-C link-arg=-lHacl_Hash_SHA1",
+            "-C link-arg=-lHacl_Hash_SHA2",
+            "-C link-arg=-lHacl_Hash_SHA3",
+            "-C link-arg=-lHacl_Hash_BLAKE2",
             "-C link-arg=-lHacl_HMAC",
             "-C link-arg=-lexpat",
         ]
@@ -1292,13 +1334,16 @@ def set_msrv_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    extra_args = []
-    # This flag can be useful for debugging ffi-check errors, but overall the
-    # short message format is easier to read
-    if "--long-message-format" not in session.posargs:
-        extra_args.append("--message-format=short")
-
-    _run_cargo(session, "run", _FFI_CHECK, *extra_args)
+    # on windows, missing symbols are reported best at link time against a
+    # proper import library, so running with raw dylib disabled gets the best
+    # feedback. Exercise both paths.
+    no_raw_dylib_env = {**os.environ, "PYO3_USE_RAW_DYLIB": "0"}
+    raw_dylib_env = {**os.environ, "PYO3_USE_RAW_DYLIB": "1"}
+    if sys.platform == "win32":
+        # only relevant to run this on windows; the env var is ignored on
+        # other platforms
+        _run_cargo(session, "run", _FFI_CHECK, env=no_raw_dylib_env)
+    _run_cargo(session, "run", _FFI_CHECK, env=raw_dylib_env)
     _check_raw_dylib_macro(session)
 
 
@@ -1443,7 +1488,10 @@ def _check_raw_dylib_macro(session: nox.Session):
     pypy_min, pypy_max = _parse_supported_interpreter_version("pypy")
     pypy_min_minor = int(pypy_min.split(".")[1])
     pypy_max_minor = int(pypy_max.split(".")[1])
-    for minor in range(pypy_min_minor, pypy_max_minor + 1):
+    for minor in range(
+        pypy_min_minor,
+        pypy_max_minor + 2,  # allow prerelease of next version
+    ):
         expected_dlls.add(f"libpypy3.{minor}-c")
 
     # Parse the DLL name list in the extern_libpython!(@impl ...) invocation
@@ -1570,6 +1618,12 @@ def _cfg_attr_is_non_cpython_only(attr: str) -> bool:
     )
 
 
+_REQUIRED_FOR_NO_STD = {
+    "hashbrown",
+    "parking_lot",
+}
+
+
 @nox.session(name="check-feature-powerset", venv_backend="none")
 def check_feature_powerset(session: nox.Session):
     if toml is None:
@@ -1660,6 +1714,8 @@ def check_feature_powerset(session: nox.Session):
         *abi3_version_features,
         *abi3t_version_features,
     ]
+    if _is_no_std():
+        features_to_skip.extend(_REQUIRED_FOR_NO_STD)
 
     # deny warnings
     env = os.environ.copy()
@@ -1672,7 +1728,7 @@ def check_feature_powerset(session: nox.Session):
 
     comma_join = ",".join
     for abi_name in ["abi3", "abi3t"]:
-        _run_cargo(
+        args = [
             session,
             subcommand,
             "--feature-powerset",
@@ -1681,8 +1737,10 @@ def check_feature_powerset(session: nox.Session):
             *(f"--group-features={comma_join(group)}" for group in features_to_group),
             "check",
             "--all-targets",
-            env=env,
-        )
+        ]
+        if not _is_no_std():
+            args.append(f"--features={comma_join(_REQUIRED_FOR_NO_STD)}")
+        _run_cargo(*args, env=env)
 
 
 @nox.session(name="update-ui-tests", venv_backend="none")
@@ -1693,6 +1751,14 @@ def update_ui_tests(session: nox.Session):
     _run_cargo(session, *command, "--features=macros", env=env)
     _run_cargo(session, *command, "--features=full", env=env)
     _run_cargo(session, *command, "--features=abi3,full", env=env)
+
+    env["PYO3_WIP_NO_STD"] = "1"
+    _run_cargo(
+        session,
+        *command,
+        f"--features=macros,{','.join(_REQUIRED_FOR_NO_STD)}",
+        env=env,
+    )
 
 
 @nox.session(name="test-introspection")
@@ -1794,13 +1860,17 @@ def _get_rust_default_target() -> str:
 
 @lru_cache
 def _get_feature_sets(
+    *,
     version: tuple[int, int] | None = None,
+    free_threaded: bool = FREE_THREADED_BUILD,
 ) -> tuple[str | None, ...]:
     """Returns feature sets to use for Rust jobs"""
     if version is None:
         version = sys.version_info[:2]
 
     cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
+
+    required = ",".join(_REQUIRED_FOR_NO_STD) if _is_no_std() else ""
 
     features = "full"
 
@@ -1811,23 +1881,33 @@ def _get_feature_sets(
     if is_rust_nightly():
         features += ",nightly"
 
-    if FREE_THREADED_BUILD:
+    if free_threaded:
         if version >= (3, 15):
-            return (None, "abi3t", features, f"abi3t,{features}")
+            return (
+                required,
+                f"abi3t,{required}",
+                f"{features},{required}",
+                f"abi3t,{features},{required}",
+            )
         else:
-            return (None, features)
+            return (required, f"{features},{required}")
 
     # do fewer abi3t builds?
     if version >= (3, 15):
         return (
-            None,
-            "abi3",
-            "abi3t",
-            features,
-            f"abi3,{features}",
-            f"abi3t,{features}",
+            required,
+            f"abi3,{required}",
+            f"abi3t,{required}",
+            f"{features},{required}",
+            f"abi3,{features},{required}",
+            f"abi3t,{features},{required}",
         )
-    return (None, "abi3", features, f"abi3,{features}")
+    return (
+        required,
+        f"abi3,{required}",
+        f"{features},{required}",
+        f"abi3,{features},{required}",
+    )
 
 
 _RELEASE_LINE_START = "release: "
@@ -1930,10 +2010,6 @@ def _run_cargo_test(
     _run(session, *command, external=True, env=test_env)
 
 
-def _run_cargo_publish(session: nox.Session, *, package: str) -> None:
-    _run_cargo(session, "publish", f"--package={package}")
-
-
 def _run_cargo_set_package_version(
     session: nox.Session,
     pkg_id: str,
@@ -1947,9 +2023,13 @@ def _run_cargo_set_package_version(
     _run(session, *command, external=True)
 
 
-def _for_all_version_configs(
-    session: nox.Session, job: Callable[[dict[str, str]], None]
-) -> None:
+class Job(Protocol):
+    def __call__(
+        self, *, env: dict[str, str], version: tuple[int, int], free_threaded: bool
+    ) -> None: ...
+
+
+def _for_all_version_configs(session: nox.Session, job: Job) -> None:
     env = os.environ.copy()
     with _config_file() as config_file:
         env["PYO3_CONFIG_FILE"] = config_file.name
@@ -1957,8 +2037,9 @@ def _for_all_version_configs(
         def _job_with_config(implementation, version):
             session.log(f"{implementation} {version}")
             config_file.set(implementation, version)
-            major_minor = tuple(map(int, version.strip("t").split(".")))
-            job(env, major_minor)
+            major_minor = tuple[int, int](map(int, version.strip("t").split(".")))
+            free_threaded = version.endswith("t")
+            job(env=env, version=major_minor, free_threaded=free_threaded)
 
         for version in PY_VERSIONS:
             _job_with_config("CPython", version)

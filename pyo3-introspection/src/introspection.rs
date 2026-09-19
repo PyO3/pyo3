@@ -685,6 +685,7 @@ enum Chunk {
         members: Vec<String>,
         #[serde(default)]
         doc: Option<String>,
+        #[serde(default)]
         incomplete: bool,
     },
     Class {

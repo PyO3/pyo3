@@ -1,3 +1,5 @@
+//! Python lists and related types.
+
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;

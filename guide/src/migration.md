@@ -557,11 +557,14 @@ After:
 ```rust
 # use pyo3::prelude::*;
 use pyo3::sync::MutexExt;
+# #[cfg(wip_feature_std)]
 use std::sync::Mutex;
 # fn main() {
 # Python::attach(|py| {
+# #[cfg(wip_feature_std)]
 static NUMBERS: Mutex<Vec<i32>> = Mutex::new(Vec::new());
 Python::attach(|py| {
+    # #[cfg(wip_feature_std)]
     NUMBERS.lock_py_attached(py).expect("no poisoning").push(42);
 });
 # })

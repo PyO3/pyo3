@@ -1,3 +1,5 @@
+//! Python function objects.
+
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pyfunction::create_py_c_function;
 use crate::platform::prelude::*;

@@ -6,6 +6,7 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 use crate::platform::prelude::*;
+use crate::sync::critical_section::with_critical_section;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_union;
 use crate::{
@@ -272,7 +273,14 @@ impl From<Bound<'_, PyBytes>> for PyBackedBytes {
 
 impl From<Bound<'_, PyByteArray>> for PyBackedBytes {
     fn from(py_bytearray: Bound<'_, PyByteArray>) -> Self {
-        let s = Arc::<[u8]>::from(py_bytearray.to_vec());
+        let s = with_critical_section(&py_bytearray, || {
+            // SAFETY:
+            //  * `py_bytearray` is a `Bound` object, which guarantees that the Python GIL is held.
+            //  * For free-threaded Python, a critical section is used in lieu of the GIL.
+            //  * We don't interact with the interpreter
+            //  * We don't mutate the underlying slice
+            Arc::<[u8]>::from(unsafe { py_bytearray.as_bytes() })
+        });
         let data = NonNull::from(s.as_ref());
         Self {
             storage: PyBackedBytesStorage::Rust(s),

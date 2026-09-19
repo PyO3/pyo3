@@ -2,11 +2,12 @@ use crate::model::{
     Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator,
     VariableLengthArgument,
 };
+use std::ascii;
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 use std::iter::once;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 /// Generates the [type stubs](https://typing.readthedocs.io/en/latest/source/stubs.html) of a given module.
@@ -15,38 +16,40 @@ use std::str::FromStr;
 /// in files with a relevant name.
 pub fn module_stub_files(module: &Module) -> HashMap<PathBuf, String> {
     let mut output_files = HashMap::new();
-    add_module_stub_files(module, &[], &mut output_files);
+    add_module_stub_files(module, Path::new(""), &[], &mut output_files);
     output_files
 }
 
 fn add_module_stub_files(
     module: &Module,
-    module_path: &[&str],
+    directory: &Path,
+    parents: &[&str],
     output_files: &mut HashMap<PathBuf, String>,
 ) {
-    let mut file_path = PathBuf::new();
-    for e in module_path {
-        file_path = file_path.join(e);
-    }
     output_files.insert(
-        file_path.join("__init__.pyi"),
-        module_stubs(module, module_path),
+        directory.join("__init__.pyi"),
+        module_stubs(module, parents),
     );
-    let mut module_path = module_path.to_vec();
-    module_path.push(&module.name);
+    let mut parents = parents.to_vec();
+    parents.push(&module.name);
     for submodule in &module.modules {
         if submodule.modules.is_empty() {
             output_files.insert(
-                file_path.join(format!("{}.pyi", submodule.name)),
-                module_stubs(submodule, &module_path),
+                directory.join(format!("{}.pyi", submodule.name)),
+                module_stubs(submodule, &parents),
             );
         } else {
-            add_module_stub_files(submodule, &module_path, output_files);
+            add_module_stub_files(
+                submodule,
+                &directory.join(&submodule.name),
+                &parents,
+                output_files,
+            );
         }
     }
 }
 
-/// Generates the module stubs to a String, not including submodules
+/// Generates the module stubs to a String, re-exporting the submodules but not their content
 fn module_stubs(module: &Module, parents: &[&str]) -> String {
     let imports = Imports::create(module, parents);
     let mut elements = Vec::new();
@@ -94,7 +97,9 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
 
     let mut final_elements = Vec::new();
     if let Some(docstring) = &module.docstring {
-        final_elements.push(format!("\"\"\"\n{docstring}\n\"\"\""));
+        let mut buffer = String::new();
+        push_docstring(&mut buffer, "", docstring);
+        final_elements.push(buffer);
     }
     final_elements.extend(imports.imports);
     final_elements.extend(elements);
@@ -259,19 +264,48 @@ fn push_indented(buffer: &mut String, indent: &str, text: &str) {
 
 /// Appends a `"""`-quoted docstring indented by `indent`, starting on a fresh line.
 fn push_docstring(buffer: &mut String, indent: &str, docstring: &str) {
-    buffer.push('\n');
+    if !buffer.is_empty() {
+        buffer.push('\n');
+    }
     buffer.push_str(indent);
     buffer.push_str("\"\"\"");
     for line in docstring.lines() {
         buffer.push('\n');
         if !line.is_empty() {
             buffer.push_str(indent);
-            buffer.push_str(line);
+            let mut quotes = 0;
+            for c in line.chars() {
+                quotes = if c == '"' { quotes + 1 } else { 0 };
+                if quotes == 3 {
+                    buffer.push('\\');
+                    quotes = 0;
+                }
+                if c.is_ascii_control() || c == '\\' {
+                    buffer.extend(ascii::escape_default(c as u8).map(char::from));
+                } else {
+                    buffer.push(c);
+                }
+            }
         }
     }
     buffer.push('\n');
     buffer.push_str(indent);
     buffer.push_str("\"\"\"");
+}
+
+/// Collects the operands of a `|` chain in source order, skipping repeats.
+fn flatten_union<'a>(expr: &'a Expr, operands: &mut Vec<&'a Expr>, seen: &mut HashSet<&'a Expr>) {
+    if let Expr::BinOp {
+        left,
+        op: Operator::BitOr,
+        right,
+    } = expr
+    {
+        flatten_union(left, operands, seen);
+        flatten_union(right, operands, seen);
+    } else if seen.insert(expr) {
+        operands.push(expr);
+    }
 }
 
 fn attribute_stubs(attribute: &Attribute, imports: &Imports) -> String {
@@ -335,8 +369,8 @@ impl Imports {
     /// and create the aliases when needed.
     fn create(module: &Module, module_parents: &[&str]) -> Self {
         let module_is_package = !module.modules.is_empty();
-        let mut elements_used_in_annotations = ElementsUsedInAnnotations::new();
-        elements_used_in_annotations.walk_module(module);
+        let mut referenced_names = ReferencedNames::new();
+        referenced_names.walk_module(module);
 
         let mut imports = Vec::new();
         let mut renaming = BTreeMap::new();
@@ -357,15 +391,14 @@ impl Imports {
             .map(|c| c.name.clone())
             .chain(module.functions.iter().map(|f| f.name.clone()))
             .chain(module.attributes.iter().map(|a| a.name.clone()))
+            .chain(module.modules.iter().map(|m| m.name.clone()))
         {
             local_name_to_module_and_attribute
                 .insert(name.clone(), (current_module_name.clone(), name.clone()));
         }
-        // We don't process the current module elements, no need to care about them
-        local_name_to_module_and_attribute.remove(&current_module_name);
 
         // We process then imports, normalizing local imports
-        for (module, attrs) in &elements_used_in_annotations.module_to_name {
+        for (module, attrs) in &referenced_names.module_to_name {
             let mut import_for_module = Vec::new();
             for attr in attrs {
                 // We split nested classes A.B in "A" (the part that must be imported and can have naming conflicts) and ".B"
@@ -425,6 +458,18 @@ impl Imports {
                 ));
             }
         }
+        // Submodules are attributes of their parent at runtime, so we re-export them.
+        // The redundant alias is what marks a name as a public re-export for type checkers.
+        if module_is_package {
+            let mut submodules = module
+                .modules
+                .iter()
+                .map(|m| format!("{0} as {0}", m.name))
+                .collect::<Vec<_>>();
+            submodules.sort();
+            imports.push(format!("from . import {}", submodules.join(", ")));
+        }
+
         imports.sort(); // We make sure they are sorted
 
         Self { imports, renaming }
@@ -482,13 +527,20 @@ impl Imports {
                     buffer.push_str(attr);
                 }
             }
-            Expr::BinOp { left, op, right } => {
-                self.serialize_expr(left, buffer);
-                buffer.push(' ');
-                buffer.push(match op {
-                    Operator::BitOr => '|',
-                });
-                self.serialize_expr(right, buffer);
+            Expr::BinOp {
+                op: Operator::BitOr,
+                ..
+            } => {
+                // Union deduplication needs to happen here because the macro
+                // generation only sees unresolved associated constants.
+                let mut operands = Vec::new();
+                flatten_union(expr, &mut operands, &mut HashSet::new());
+                for (index, operand) in operands.into_iter().enumerate() {
+                    if index > 0 {
+                        buffer.push_str(" | ");
+                    }
+                    self.serialize_expr(operand, buffer);
+                }
             }
             Expr::Tuple { elts } => {
                 buffer.push('(');
@@ -507,8 +559,12 @@ impl Imports {
                 self.serialize_expr(value, buffer);
                 buffer.push('[');
                 if let Expr::Tuple { elts } = &**slice {
-                    // We don't display the tuple parentheses
-                    self.serialize_elts(elts, buffer);
+                    if elts.is_empty() {
+                        // Empty tuples need parentheses to avoid invalid syntax like `tuple[]`
+                        buffer.push_str("()");
+                    } else {
+                        self.serialize_elts(elts, buffer);
+                    }
                 } else {
                     self.serialize_expr(slice, buffer);
                 }
@@ -527,13 +583,13 @@ impl Imports {
     }
 }
 
-/// Lists all the elements used in annotations
-struct ElementsUsedInAnnotations {
+/// Collects the names referenced by the expressions emitted in a module's stub
+struct ReferencedNames {
     /// module -> name where module is global (from the root of the interpreter).
     module_to_name: BTreeMap<String, BTreeSet<String>>,
 }
 
-impl ElementsUsedInAnnotations {
+impl ReferencedNames {
     fn new() -> Self {
         Self {
             module_to_name: BTreeMap::new(),
@@ -584,6 +640,9 @@ impl ElementsUsedInAnnotations {
         if let Some(type_hint) = &attribute.annotation {
             self.walk_expr(type_hint);
         }
+        if let Some(value) = &attribute.value {
+            self.walk_expr(value);
+        }
     }
 
     fn walk_function(&mut self, function: &Function) {
@@ -599,6 +658,9 @@ impl ElementsUsedInAnnotations {
         {
             if let Some(type_hint) = &arg.annotation {
                 self.walk_expr(type_hint);
+            }
+            if let Some(default_value) = &arg.default_value {
+                self.walk_expr(default_value);
             }
         }
         for arg in function
@@ -930,6 +992,35 @@ mod tests {
         assert_eq!(output, "dict[A, (A3.C, A3.D, B, A2, int, int2, float)]");
     }
 
+    /// A submodule is an attribute of its parent at runtime, so the parent stub must re-export it.
+    #[test]
+    fn submodules_are_re_exported_by_their_parent() {
+        let submodule = |name: &str| Module {
+            name: name.into(),
+            modules: Vec::new(),
+            classes: Vec::new(),
+            functions: Vec::new(),
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        let module = Module {
+            name: "foo".into(),
+            modules: vec![submodule("zulu"), submodule("alpha")],
+            classes: Vec::new(),
+            functions: Vec::new(),
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        assert_eq!(
+            module_stubs(&module, &[]),
+            "from . import alpha as alpha, zulu as zulu\n"
+        );
+        // A module without submodules gets no such line.
+        assert_eq!(module_stubs(&submodule("alpha"), &["foo"]), "");
+    }
+
     #[test]
     fn test_make_module_path_relative() {
         assert_eq!(
@@ -972,7 +1063,7 @@ mod tests {
     /// is an empty line. Padding it out to the body indentation is trailing whitespace, which
     /// `W293` flags and which nobody can fix by hand in a generated file.
     #[test]
-    fn docstring_blank_lines_are_not_padded_with_indentation() {
+    fn docstrings_are_escaped_and_blank_lines_are_not_padded() {
         let module = Module {
             name: "bar".into(),
             modules: Vec::new(),
@@ -991,22 +1082,30 @@ mod tests {
                     },
                     returns: None,
                     is_async: false,
-                    docstring: Some("Summary.\n\nDetail.".into()),
+                    docstring: Some("Summary.\n\nC:\\Users\\someone\\".into()),
                 }],
                 attributes: Vec::new(),
                 decorators: Vec::new(),
                 inner_classes: Vec::new(),
-                docstring: Some("Class summary.\n\nClass detail.".into()),
+                docstring: Some(
+                    concat!(
+                        "Class summary.\n\n",
+                        r#"Quotes: "a" "" """ """" """"" """""" """""""."#,
+                        "\n",
+                        r#"Edges: \"""\ """"#,
+                    )
+                    .into(),
+                ),
             }],
             functions: Vec::new(),
             attributes: vec![Attribute {
                 name: "CONST".into(),
                 value: None,
                 annotation: None,
-                docstring: Some("Const summary.\n\nConst detail.".into()),
+                docstring: Some("Const summary.\n\nControls: \x0007\t\r. Unicode: café 🦀.".into()),
             }],
             incomplete: false,
-            docstring: None,
+            docstring: Some("\"\"\" C:\\Users\\someone".into()),
         };
 
         let stubs = module_stubs(&module, &["foo"]);
@@ -1016,9 +1115,207 @@ mod tests {
                 .any(|line| !line.is_empty() && line.trim().is_empty()),
             "generated stubs contain a blank line padded with whitespace:\n{stubs:?}"
         );
-        // The indentation of the non-empty lines is unaffected.
-        assert!(stubs.contains("\n    Class summary.\n\n    Class detail.\n"));
-        assert!(stubs.contains("\n        Summary.\n\n        Detail.\n"));
-        assert!(stubs.contains("\nConst summary.\n\nConst detail.\n"));
+        // Escaping preserves the indentation and paragraph breaks in every scope.
+        assert!(stubs.starts_with("\"\"\"\n\"\"\\\" C:\\\\Users\\\\someone\n\"\"\"\n"));
+        assert!(stubs.contains(concat!(
+            "\n    Class summary.\n\n",
+            r#"    Quotes: "a" "" ""\" ""\"" ""\""" ""\"""\" ""\"""\""."#,
+            "\n",
+            r#"    Edges: \\""\"\\ ""\""#,
+            "\n",
+        )));
+        assert!(stubs.contains("\n        Summary.\n\n        C:\\\\Users\\\\someone\\\\\n"));
+        assert!(stubs.contains("\nConst summary.\n\nControls: \\x0007\\t\\r. Unicode: café 🦀.\n"));
+    }
+
+    #[test]
+    fn union_members_are_deduplicated_and_spaced() {
+        let str_ = || Expr::Name { id: "str".into() };
+        let path_like = || Expr::Subscript {
+            value: Box::new(Expr::Attribute {
+                value: Box::new(Expr::Name { id: "os".into() }),
+                attr: "PathLike".into(),
+            }),
+            slice: Box::new(str_()),
+        };
+        let union = |left: Expr, right: Expr| Expr::BinOp {
+            left: Box::new(left),
+            op: Operator::BitOr,
+            right: Box::new(right),
+        };
+        let imports = Imports {
+            imports: Vec::new(),
+            renaming: BTreeMap::from([
+                (("builtins".into(), "str".into()), "str".into()),
+                (("os".into(), "PathLike".into()), "PathLike".into()),
+            ]),
+        };
+        let serialize = |expr| {
+            let mut buffer = String::new();
+            imports.serialize_expr(&expr, &mut buffer);
+            buffer
+        };
+
+        // `str | os.PathLike[str] | str`, nested to the right
+        assert_eq!(
+            serialize(union(str_(), union(path_like(), str_()))),
+            "str | PathLike[str]"
+        );
+        // and the same chain nested to the left
+        assert_eq!(
+            serialize(union(union(str_(), path_like()), str_())),
+            "str | PathLike[str]"
+        );
+    }
+
+    #[test]
+    fn nested_packages_are_written_into_their_own_directory() {
+        let attribute = |name: &str| Attribute {
+            name: name.into(),
+            value: None,
+            annotation: Some(Expr::Attribute {
+                value: Box::new(Expr::Name { id: "top".into() }),
+                attr: "Top".into(),
+            }),
+            docstring: None,
+        };
+        let module = |name: &str, modules: Vec<Module>, attributes: Vec<Attribute>| Module {
+            name: name.into(),
+            modules,
+            classes: Vec::new(),
+            functions: Vec::new(),
+            attributes,
+            incomplete: false,
+            docstring: None,
+        };
+        let mut top = module(
+            "top",
+            vec![
+                module(
+                    "child",
+                    vec![module("grandchild", Vec::new(), vec![attribute("deep")])],
+                    vec![attribute("mid")],
+                ),
+                module("sibling", Vec::new(), Vec::new()),
+            ],
+            Vec::new(),
+        );
+        top.classes.push(Class {
+            name: "Top".into(),
+            bases: Vec::new(),
+            methods: Vec::new(),
+            attributes: Vec::new(),
+            decorators: Vec::new(),
+            inner_classes: Vec::new(),
+            docstring: None,
+        });
+
+        let files = module_stub_files(&top);
+        let mut paths = files.keys().cloned().collect::<Vec<_>>();
+        paths.sort();
+        assert_eq!(
+            paths,
+            [
+                PathBuf::from("__init__.pyi"),
+                PathBuf::from("child/__init__.pyi"),
+                PathBuf::from("child/grandchild.pyi"),
+                PathBuf::from("sibling.pyi"),
+            ]
+        );
+        // The parents passed to `module_stubs` must stay the module names, not the directories.
+        assert!(files[Path::new("child/__init__.pyi")].contains("from .. import Top"));
+        assert!(files[Path::new("child/grandchild.pyi")].contains("from .. import Top"));
+        assert!(files[Path::new("sibling.pyi")].is_empty());
+    }
+
+    /// Default values and attribute values go through the same renaming table as the type hints,
+    /// so the names they use must be collected too, or `serialize_expr` panics on them.
+    #[test]
+    fn names_in_defaults_and_values_are_imported() {
+        let math = |attr: &str| Expr::Attribute {
+            value: Box::new(Expr::Name { id: "math".into() }),
+            attr: attr.into(),
+        };
+        let module = Module {
+            name: "foo".into(),
+            modules: Vec::new(),
+            classes: Vec::new(),
+            functions: vec![Function {
+                name: "func".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: vec![Argument {
+                        name: "a".into(),
+                        default_value: Some(math("nan")),
+                        annotation: None,
+                    }],
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: None,
+                is_async: false,
+                docstring: None,
+            }],
+            attributes: vec![Attribute {
+                name: "X".into(),
+                value: Some(math("inf")),
+                annotation: None,
+                docstring: None,
+            }],
+            incomplete: false,
+            docstring: None,
+        };
+        assert_eq!(
+            module_stubs(&module, &[]),
+            "from math import inf, nan\nX = inf\ndef func(a=nan): ...\n"
+        );
+    }
+
+    /// A class named like the root module used to be imported from itself and shadowed by builtins
+    #[test]
+    fn local_binding_named_like_the_root_module_is_kept() {
+        let module = Module {
+            name: "int".into(),
+            modules: Vec::new(),
+            classes: vec![Class {
+                name: "int".into(),
+                bases: Vec::new(),
+                methods: Vec::new(),
+                attributes: Vec::new(),
+                decorators: Vec::new(),
+                inner_classes: Vec::new(),
+                docstring: None,
+            }],
+            functions: vec![Function {
+                name: "make".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: vec![Argument {
+                        name: "a".into(),
+                        default_value: None,
+                        annotation: Some(Expr::Name { id: "int".into() }),
+                    }],
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: Some(Expr::Attribute {
+                    value: Box::new(Expr::Name { id: "int".into() }),
+                    attr: "int".into(),
+                }),
+                is_async: false,
+                docstring: None,
+            }],
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        assert_eq!(
+            module_stubs(&module, &[]),
+            "from builtins import int as int2\nclass int: ...\ndef make(a: int2) -> int: ...\n"
+        );
     }
 }

@@ -3,7 +3,7 @@ use crate::{ffi, impl_::pyclass::PyClassImpl, PyTypeInfo};
 use core::{cmp::Ordering, ffi::c_int};
 
 mod create_type_object;
-mod gc;
+pub(crate) mod gc;
 mod guard;
 
 pub(crate) use self::create_type_object::{create_type_object, PyClassTypeObject};

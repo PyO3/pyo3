@@ -5,7 +5,7 @@ use crate::conversion::private::Reference;
 use crate::conversion::{FromPyObjectSequence, IntoPyObject};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::PyStaticExpr;
+use crate::inspect::{type_hint_identifier, PyStaticExpr};
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
@@ -21,6 +21,9 @@ use core::num::{
 };
 
 use super::array::invalid_sequence_length;
+
+#[cfg(feature = "experimental-inspect")]
+pub(crate) const INT_INPUT_TYPE: PyStaticExpr = type_hint_identifier!("typing", "SupportsIndex");
 
 macro_rules! int_fits_larger_int {
     ($rust_type:ty, $larger_type:ty) => {
@@ -125,7 +128,7 @@ macro_rules! int_convert_u64_or_i64 {
             type Error = PyErr;
 
             #[cfg(feature = "experimental-inspect")]
-            const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
+            const INPUT_TYPE: PyStaticExpr = INT_INPUT_TYPE;
 
             fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                 extract_int!(obj, !0, $pylong_as_ll_or_ull, $force_index_call)
@@ -171,10 +174,11 @@ macro_rules! int_fits_c_long {
             type Error = PyErr;
 
             #[cfg(feature = "experimental-inspect")]
-            const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
+            const INPUT_TYPE: PyStaticExpr = INT_INPUT_TYPE;
 
             fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
+                #[allow(unreachable_code, reason = "error type might be !")]
                 <$rust_type>::try_from(val)
                     .map_err(|e| exceptions::PyOverflowError::new_err(e.to_string()))
             }
@@ -247,7 +251,7 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = INT_INPUT_TYPE;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         let val: c_long = extract_int!(obj, -1, ffi::PyLong_AsLong)?;
@@ -361,18 +365,20 @@ int_convert_u64_or_i64!(
 pub(crate) const PYLONG_BITS_IN_DIGIT: usize = 30;
 
 #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
-pub(crate) fn is_30bit_layout() -> bool {
-    static DIGITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+pub(crate) fn is_30bit_layout(py: Python<'_>) -> bool {
+    use crate::sync::PyOnceLock;
+
+    static DIGITS: PyOnceLock<bool> = PyOnceLock::new();
 
     const PYLONG_DIGIT_SIZE: u8 = 4;
     const PYLONG_DIGITS_ORDER: i8 = -1;
 
-    #[cfg(target_endian = "little")]
-    const NATIVE_DIGIT_ENDIANNESS: i8 = -1;
-    #[cfg(target_endian = "big")]
-    const NATIVE_DIGIT_ENDIANNESS: i8 = 1;
+    const NATIVE_DIGIT_ENDIANNESS: i8 = cfg_select! {
+        target_endian = "little" => -1,
+        target_endian = "big" => 1,
+    };
 
-    *DIGITS.get_or_init(|| {
+    *DIGITS.get_or_init(py, || {
         let layout = unsafe { &*ffi::PyLong_GetNativeLayout() };
         layout.bits_per_digit == PYLONG_BITS_IN_DIGIT as u8
             && layout.digit_size == PYLONG_DIGIT_SIZE
@@ -394,12 +400,41 @@ impl Drop for ExportGuard {
 // Builds an int from an iterator of 30-bit digits
 #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
 #[inline]
-pub(crate) fn pylong_from_digits<'py, I: ExactSizeIterator<Item = u32>>(
-    py: Python<'py>,
+pub(crate) fn pylong_from_digits<I: ExactSizeIterator<Item = u32>>(
+    py: Python<'_>,
     negative: bool,
     digits: I,
-) -> Bound<'py, PyInt> {
+) -> Bound<'_, PyInt> {
     let digits_len = digits.len();
+
+    if digits_len == 0 {
+        // Return the constant 0 as a fast path
+        return unsafe {
+            ffi::Py_GetConstant(ffi::Py_CONSTANT_ZERO)
+                .assume_owned(py)
+                .cast_into_unchecked()
+        };
+    } else if digits_len == 1 {
+        // Using the direct constructors for small integers
+        // is lower overhead than the writer API; the writer output
+        // is likely to be dropped for an immoratal value anyway.
+        let digit = digits.into_iter().next().unwrap();
+        if negative {
+            return unsafe {
+                // NB digit has at most 30 bits so this can't overflow i32
+                ffi::PyLong_FromInt32(-(digit as i32))
+                    .assume_owned(py)
+                    .cast_into_unchecked()
+            };
+        } else {
+            return unsafe {
+                ffi::PyLong_FromUInt32(digit)
+                    .assume_owned(py)
+                    .cast_into_unchecked()
+            };
+        }
+    }
+
     let mut ptr = core::ptr::null_mut();
     let writer = unsafe {
         ffi::PyLongWriter_Create(negative.into(), digits_len as ffi::Py_ssize_t, &mut ptr)
@@ -430,24 +465,63 @@ pub(crate) fn pylong_visit_digits<R>(
             ffi::PyLong_Export(obj.as_ptr(), long_export.as_mut_ptr()),
         )?;
     }
-    let export_guard = ExportGuard(unsafe { long_export.assume_init() });
-    let long_export_ref = &export_guard.0;
-    let value = long_export_ref.value;
-    if long_export_ref.digits.is_null() {
-        let negative = long_export_ref.value < 0;
-        f(negative, value, None)
-    } else {
-        let negative = long_export_ref.negative != 0;
-        let n_digits = long_export_ref.ndigits as usize;
-        let ptr = long_export_ref.digits.cast::<u32>();
-        let digits = unsafe { core::slice::from_raw_parts(ptr, n_digits) };
-        f(negative, value, Some(digits))
+    let long_export = unsafe { long_export.assume_init() };
+    let ptr = long_export.digits.cast::<u32>();
+
+    if ptr.is_null() {
+        // `value` is only valid when `digits` is NULL, and `PyLong_FreeExport()`
+        // is optional in that case
+        //
+        // See: https://docs.python.org/3/c-api/long.html#c.PyLong_FreeExport
+        return f(long_export.value < 0, long_export.value, None);
     }
+    // Keep the export alive while `digits` borrows the exported buffer
+    let export_guard = ExportGuard(long_export);
+
+    let negative = export_guard.0.negative != 0;
+    let n_digits = export_guard.0.ndigits as usize;
+    let digits = unsafe { core::slice::from_raw_parts(ptr, n_digits) };
+
+    f(negative, 0, Some(digits))
 }
 
 #[cfg(any(not(Py_LIMITED_API), Py_3_15))]
 mod fast_128bit_int_conversion {
     use super::*;
+
+    #[cfg(Py_3_14)]
+    struct U128DigitIterator {
+        inner: u128,
+    }
+
+    #[cfg(Py_3_14)]
+    impl Iterator for U128DigitIterator {
+        type Item = u32;
+
+        fn next(&mut self) -> Option<u32> {
+            const DIGIT_MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
+
+            if self.inner == 0 {
+                return None;
+            }
+            let digit = (self.inner as u32) & DIGIT_MASK;
+            self.inner >>= PYLONG_BITS_IN_DIGIT;
+            Some(digit)
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let digit_count = self.len();
+            (digit_count, Some(digit_count))
+        }
+    }
+
+    #[cfg(Py_3_14)]
+    impl ExactSizeIterator for U128DigitIterator {
+        fn len(&self) -> usize {
+            let bit_count = u128::BITS - self.inner.leading_zeros();
+            (bit_count as usize).div_ceil(PYLONG_BITS_IN_DIGIT)
+        }
+    }
 
     // for 128bit Integers
     macro_rules! int_convert_128 {
@@ -463,8 +537,7 @@ mod fast_128bit_int_conversion {
                 fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                     #[cfg(Py_3_14)]
                     {
-                        if is_30bit_layout() {
-                            const DIGIT_MASK: u32 = (1 << PYLONG_BITS_IN_DIGIT) - 1;
+                        if is_30bit_layout(py) {
                             let signed = self as i128;
                             let negative = $is_signed && signed < 0;
                             let abs = if negative {
@@ -472,23 +545,24 @@ mod fast_128bit_int_conversion {
                             } else {
                                 self as u128
                             };
-                            let bits = 128 - abs.leading_zeros() as usize;
-                            let n_digits = bits.div_ceil(PYLONG_BITS_IN_DIGIT).max(1);
-                            let digits = (0..n_digits)
-                                .map(|i| (abs >> (i * PYLONG_BITS_IN_DIGIT)) as u32 & DIGIT_MASK);
-                            return Ok(pylong_from_digits(py, negative, digits));
+
+                            return Ok(pylong_from_digits(
+                                py,
+                                negative,
+                                U128DigitIterator { inner: abs },
+                            ));
                         }
                     }
-                    #[cfg(Py_3_13)]
-                    {
-                        let bytes = self.to_ne_bytes();
-                        Ok(int_from_ne_bytes::<{ $is_signed }>(py, &bytes))
-                    }
-                    #[cfg(not(Py_3_13))]
-                    {
-                        let bytes = self.to_le_bytes();
-                        Ok(int_from_le_bytes::<{ $is_signed }>(py, &bytes))
-                    }
+
+                    let bytes = cfg_select! {
+                        Py_3_13 => self.to_ne_bytes(),
+                        not(Py_3_13) => self.to_le_bytes(),
+                    };
+
+                    Ok(cfg_select! {
+                        Py_3_13 => int_from_ne_bytes::<{ $is_signed }>(py, &bytes),
+                        not(Py_3_13) => int_from_le_bytes::<{ $is_signed }>(py, &bytes),
+                    })
                 }
             }
 
@@ -510,13 +584,13 @@ mod fast_128bit_int_conversion {
                 type Error = PyErr;
 
                 #[cfg(feature = "experimental-inspect")]
-                const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
+                const INPUT_TYPE: PyStaticExpr = INT_INPUT_TYPE;
 
                 fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                     let num = nb_index(&ob)?;
                     #[cfg(Py_3_14)]
                     {
-                        if is_30bit_layout() {
+                        if is_30bit_layout(ob.py()) {
                             let overflow = || {
                                 exceptions::PyOverflowError::new_err(
                                     "Python int larger than 128 bits",
@@ -701,7 +775,7 @@ mod slow_128bit_int_conversion {
                 type Error = PyErr;
 
                 #[cfg(feature = "experimental-inspect")]
-                const INPUT_TYPE: PyStaticExpr = PyInt::TYPE_HINT;
+                const INPUT_TYPE: PyStaticExpr = INT_INPUT_TYPE;
 
                 fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<$rust_type, Self::Error> {
                     let py = ob.py();
