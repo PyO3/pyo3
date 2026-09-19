@@ -85,12 +85,12 @@ pub use self::typeobject::{PyType, PyTypeMethods};
 pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefReference};
 
 /// Deprecated alias for [`crate::sync::PyMutex`].
-#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+#[cfg(all(not(Py_LIMITED_API), Py_3_13, wip_feature_std))]
 #[deprecated(since = "0.30.0", note = "moved to `pyo3::sync::PyMutex`")]
 pub type PyMutex<T> = crate::sync::PyMutex<T>;
 
 /// Deprecated alias for [`crate::sync::PyMutexGuard`].
-#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+#[cfg(all(not(Py_LIMITED_API), Py_3_13, wip_feature_std))]
 #[deprecated(since = "0.30.0", note = "moved to `pyo3::sync::PyMutexGuard`")]
 pub type PyMutexGuard<'a, T> = crate::sync::PyMutexGuard<'a, T>;
 

@@ -41,7 +41,7 @@
 //! possibly surprising ways.
 
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
-use crate::sync::PyMutex;
+use crate::sync::PyMutexTrait;
 
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use crate::Python;
@@ -194,19 +194,23 @@ where
 /// for more details.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section_mutex<F, R, T>(_py: Python<'_>, mutex: &PyMutex<T>, f: F) -> R
+pub fn with_critical_section_mutex<F, R, T, PyMutex: PyMutexTrait<T>>(
+    _py: Python<'_>,
+    mutex: &PyMutex,
+    f: F,
+) -> R
 where
     F: for<'s> FnOnce(EnteredCriticalSection<'s, T>) -> R,
 {
     #[cfg(Py_GIL_DISABLED)]
     {
         let mut guard = CSGuard(unsafe { core::mem::zeroed() });
-        unsafe { crate::ffi::PyCriticalSection_BeginMutex(&raw mut guard.0, mutex.mutex.get()) };
-        f(EnteredCriticalSection(&mutex.data))
+        unsafe { crate::ffi::PyCriticalSection_BeginMutex(&raw mut guard.0, mutex.inner().get()) };
+        f(EnteredCriticalSection(unsafe { mutex.data() }))
     }
     #[cfg(not(Py_GIL_DISABLED))]
     {
-        f(EnteredCriticalSection(&mutex.data))
+        f(EnteredCriticalSection(unsafe { mutex.data() }))
     }
 }
 
@@ -240,14 +244,16 @@ where
 /// for more details.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section_mutex2<F, R, T1, T2>(
+pub fn with_critical_section_mutex2<F, R, T1, T2, PyMutex1, PyMutex2>(
     py: Python<'_>,
-    m1: &PyMutex<T1>,
-    m2: &PyMutex<T2>,
+    m1: &PyMutex1,
+    m2: &PyMutex2,
     f: F,
 ) -> R
 where
     F: for<'s> FnOnce(EnteredCriticalSection<'s, T1>, Option<EnteredCriticalSection<'s, T2>>) -> R,
+    PyMutex1: PyMutexTrait<T1>,
+    PyMutex2: PyMutexTrait<T2>,
 {
     if core::ptr::addr_eq(m1, m2) {
         return with_critical_section_mutex(py, m1, |cs| f(cs, None));
@@ -256,11 +262,15 @@ where
     let mut guard = CS2Guard(unsafe { core::mem::zeroed() });
     #[cfg(Py_GIL_DISABLED)]
     unsafe {
-        crate::ffi::PyCriticalSection2_BeginMutex(&raw mut guard.0, m1.mutex.get(), m2.mutex.get())
+        crate::ffi::PyCriticalSection2_BeginMutex(
+            &raw mut guard.0,
+            m1.inner().get(),
+            m2.inner().get(),
+        )
     };
     f(
-        EnteredCriticalSection(&m1.data),
-        Some(EnteredCriticalSection(&m2.data)),
+        EnteredCriticalSection(unsafe { m1.data() }),
+        Some(EnteredCriticalSection(unsafe { m2.data() })),
     )
 }
 
@@ -275,8 +285,8 @@ mod tests {
     use super::{with_critical_section_mutex, with_critical_section_mutex2};
     #[allow(unused_imports, reason = "conditionally used")]
     use crate::platform::prelude::*;
-    #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
-    use crate::sync::PyMutex;
+    #[cfg(all(not(Py_LIMITED_API), Py_3_14,))]
+    use crate::sync::non_poison::PyMutex;
     #[cfg(feature = "macros")]
     use core::sync::atomic::{AtomicBool, Ordering};
     #[cfg(any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14)))]
@@ -565,7 +575,7 @@ mod tests {
     fn test_critical_section_mutex2_two_containers() {
         let (m1, m2) = (PyMutex::new(vec![1, 2, 3]), PyMutex::new(vec![4, 5]));
 
-        let (m1_guard, m2_guard) = (m1.lock().unwrap(), m2.lock().unwrap());
+        let (m1_guard, m2_guard) = (m1.lock(), m2.lock());
 
         std::thread::scope(|s| {
             s.spawn(|| {
@@ -617,8 +627,8 @@ mod tests {
         let expected2_vec1 = vec![1, 2, 3, 4, 5, 1, 2, 3];
         let expected2_vec2 = vec![4, 5, 1, 2, 3];
 
-        let v1 = m1.lock().unwrap();
-        let v2 = m2.lock().unwrap();
+        let v1 = m1.lock();
+        let v2 = m2.lock();
         assert!(
             (&*v1, &*v2) == (&expected1_vec1, &expected1_vec2)
                 || (&*v1, &*v2) == (&expected2_vec1, &expected2_vec2)
