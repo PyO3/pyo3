@@ -16,6 +16,7 @@ from contextlib import ExitStack, contextmanager
 from difflib import unified_diff
 from functools import lru_cache
 from glob import glob
+from operator import contains
 from pathlib import Path
 from shlex import quote
 from typing import Any, Literal, Protocol
@@ -267,6 +268,83 @@ def typos(session: nox.Session):
 def clippy(session: nox.Session) -> bool:
     if not (_clippy(session) and _clippy_additional_workspaces(session)):
         session.error("one or more jobs failed")
+
+
+@nox.session(name="verify-nostd", venv_backend="none")
+def verify_nostd(session: nox.Sesstion):
+    manifest_path = "examples/maturin-starter-nostd/Cargo.toml"
+    args = [
+        "cargo",
+        "build",
+        f"--manifest-path={manifest_path}",
+        "--message-format=json-diagnostic-rendered-ansi",
+    ]
+
+    dylib_path: str | None = None
+    is_github_actions = _is_github_actions()
+    failed = False
+    if is_github_actions:
+        # Insert ::group:: at the start of nox's command line output
+        print("::group::", end="", flush=True, file=sys.stderr)
+    try:
+        env = os.environ.copy()
+        env["PYO3_WIP_NO_STD"] = "1"
+        stdout = subprocess.Popen(
+            args,
+            stdout=subprocess.PIPE,
+            env=env,
+        ).stdout
+        assert stdout is not None
+        for line in io.TextIOWrapper(stdout).readlines():
+            line = line.strip()
+            if not line.startswith("{"):
+                print(line)
+                continue
+
+            try:
+                message = json.loads(line)
+                reason: str = message["reason"]
+
+                if reason == "compiler-message":
+                    print(message["message"]["rendered"])
+
+                elif reason == "compiler-artifact":
+                    this_manifest_path: str = message["manifest_path"]
+                    if not this_manifest_path.endswith(manifest_path):
+                        continue
+                    target_kinds: list[str] = message["target"]["kind"]
+                    if not contains(target_kinds, "cdylib"):
+                        continue
+                    filenames: list[str] = message["filenames"]
+                    if len(filenames) != 1:
+                        session.error(
+                            f"found multiple files for cdylib artifact: {filenames}",
+                        )
+                        return
+                    dylib_path = filenames[0]
+
+            except json.JSONDecodeError:
+                print(line)
+
+    except Exception:
+        failed = True
+        raise
+    finally:
+        if is_github_actions:
+            print("::endgroup::", file=sys.stderr)
+            # Defer the error message until after the group to make them easier
+            # to find in the log
+            if failed:
+                command = " ".join(args)
+                print(f"::error::`{command}` failed", file=sys.stderr)
+
+    if dylib_path is None:
+        session.error("could not find path to compiled dylib artifact")
+        return
+
+    _run_cargo(
+        session, "run", "--manifest-path=pyo3-verify-nostd/Cargo.toml", "--", dylib_path
+    )
 
 
 def _clippy(

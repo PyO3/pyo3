@@ -1,0 +1,11 @@
+[package]
+name = "pyo3-verify-nostd"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+anyhow = "1.0.104"
+object = "0.40"
+
+[workspace]
