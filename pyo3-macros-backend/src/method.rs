@@ -1081,11 +1081,6 @@ impl<'a> FnSpec<'a> {
     ) -> Result<TokenStream> {
         let Ctx { pyo3_path, .. } = ctx;
         let python_name = self.null_terminated_python_name();
-        let flags = match self.tp {
-            FnType::FnClass(_) => quote! { .flags(#pyo3_path::ffi::METH_CLASS) },
-            FnType::FnStatic => quote! { .flags(#pyo3_path::ffi::METH_STATIC) },
-            _ => quote! {},
-        };
         // Constructor names on `PyMethodDef` and (shorter) trampoline aliases in
         // `impl_::trampoline` - the short aliases keep the generated code small.
         let (constructor, trampoline) = match convention {
@@ -1107,7 +1102,7 @@ impl<'a> FnSpec<'a> {
                 #python_name,
                 #pyo3_path::impl_::trampoline::get_trampoline_function!(#trampoline, #wrapper),
                 #doc,
-            ) #flags
+            )
         })
     }
 
