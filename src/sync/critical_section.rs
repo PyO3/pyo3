@@ -41,7 +41,7 @@
 //! possibly surprising ways.
 
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
-use crate::sync::PyMutex;
+use crate::sync::PyMutexTrait;
 
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use crate::Python;
@@ -194,19 +194,23 @@ where
 /// for more details.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section_mutex<F, R, T>(_py: Python<'_>, mutex: &PyMutex<T>, f: F) -> R
+pub fn with_critical_section_mutex<F, R, T, PyMutex: PyMutexTrait<T>>(
+    _py: Python<'_>,
+    mutex: &PyMutex,
+    f: F,
+) -> R
 where
     F: for<'s> FnOnce(EnteredCriticalSection<'s, T>) -> R,
 {
     #[cfg(Py_GIL_DISABLED)]
     {
         let mut guard = CSGuard(unsafe { core::mem::zeroed() });
-        unsafe { crate::ffi::PyCriticalSection_BeginMutex(&raw mut guard.0, mutex.mutex.get()) };
-        f(EnteredCriticalSection(&mutex.data))
+        unsafe { crate::ffi::PyCriticalSection_BeginMutex(&raw mut guard.0, mutex.inner().get()) };
+        f(EnteredCriticalSection(unsafe { mutex.data() }))
     }
     #[cfg(not(Py_GIL_DISABLED))]
     {
-        f(EnteredCriticalSection(&mutex.data))
+        f(EnteredCriticalSection(unsafe { mutex.data() }))
     }
 }
 
@@ -240,14 +244,16 @@ where
 /// for more details.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section_mutex2<F, R, T1, T2>(
+pub fn with_critical_section_mutex2<F, R, T1, T2, PyMutex1, PyMutex2>(
     py: Python<'_>,
-    m1: &PyMutex<T1>,
-    m2: &PyMutex<T2>,
+    m1: &PyMutex1,
+    m2: &PyMutex2,
     f: F,
 ) -> R
 where
     F: for<'s> FnOnce(EnteredCriticalSection<'s, T1>, Option<EnteredCriticalSection<'s, T2>>) -> R,
+    PyMutex1: PyMutexTrait<T1>,
+    PyMutex2: PyMutexTrait<T2>,
 {
     if core::ptr::addr_eq(m1, m2) {
         return with_critical_section_mutex(py, m1, |cs| f(cs, None));
@@ -256,11 +262,15 @@ where
     let mut guard = CS2Guard(unsafe { core::mem::zeroed() });
     #[cfg(Py_GIL_DISABLED)]
     unsafe {
-        crate::ffi::PyCriticalSection2_BeginMutex(&raw mut guard.0, m1.mutex.get(), m2.mutex.get())
+        crate::ffi::PyCriticalSection2_BeginMutex(
+            &raw mut guard.0,
+            m1.inner().get(),
+            m2.inner().get(),
+        )
     };
     f(
-        EnteredCriticalSection(&m1.data),
-        Some(EnteredCriticalSection(&m2.data)),
+        EnteredCriticalSection(unsafe { m1.data() }),
+        Some(EnteredCriticalSection(unsafe { m2.data() })),
     )
 }
 
