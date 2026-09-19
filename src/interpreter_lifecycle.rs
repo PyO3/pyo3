@@ -1,27 +1,84 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use crate::platform::sync::Once;
+use once_cell::sync::OnceCell;
+use pyo3_ffi::Py_IsInitialized;
+
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
+use crate::init_config::{InitializeFromConfigError, PyInitConfig};
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::{ffi, internal::state::AttachGuard, Python};
 
-static START: Once = Once::new();
+static START: OnceCell<()> = OnceCell::new();
 
 #[cfg(not(any(PyPy, GraalPy)))]
 pub(crate) fn initialize() {
     // Protect against race conditions when Python is not yet initialized and multiple threads
     // concurrently call 'initialize()'. Note that we do not protect against
     // concurrent initialization of the Python runtime by other users of the Python C API.
-    START.call_once_force(|| unsafe {
-        // Use call_once_force because if initialization panics, it's okay to try again.
-        if ffi::Py_IsInitialized() == 0 {
-            ffi::Py_InitializeEx(0);
 
-            // Release the GIL.
-            ffi::PyEval_SaveThread();
+    START.get_or_init(|| {
+        if !is_initialized() {
+            unsafe {
+                ffi::Py_InitializeEx(0);
+
+                // Release the GIL
+                ffi::PyEval_SaveThread();
+            }
         }
     });
+}
+
+#[allow(dead_code, reason = "conditional compilation")]
+fn is_initialized() -> bool {
+    (unsafe { Py_IsInitialized() } != 0)
+}
+
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy, RustPython, Py_LIMITED_API))))]
+pub(crate) fn initialize_from_config(
+    config: PyInitConfig,
+) -> Result<(), InitializeFromConfigError> {
+    const ALREADY_INIT_MESSAGE: &str = "interpreter is already initialized";
+
+    let mut already_initialized = true;
+    START.get_or_try_init(|| {
+        assert_eq!(
+            (unsafe { ffi::Py_IsInitialized() }),
+            0,
+            "{ALREADY_INIT_MESSAGE}"
+        );
+        already_initialized = false;
+
+        // SAFETY: points to a valid config object
+        let result = unsafe { ffi::Py_InitializeFromInitConfig(config.raw().as_ptr()) };
+        let result = match result {
+            0 => Ok(()),
+            -1 => {
+                let mut exitcode = 0;
+                // SAFETY: pointers are valid
+                let result = unsafe {
+                    ffi::PyInitConfig_GetExitCode(config.raw().as_ptr(), &raw mut exitcode)
+                };
+                match result {
+                    0 => Err(InitializeFromConfigError::Message(config.get_err())),
+                    1 => Err(InitializeFromConfigError::Exit(exitcode)),
+                    _ => unreachable!(),
+                }
+            }
+            _ => unreachable!(),
+        };
+
+        if result.is_ok() {
+            // Release the GIL
+            unsafe { ffi::PyEval_SaveThread() };
+        }
+
+        result
+    })?;
+
+    assert!(!already_initialized, "{ALREADY_INIT_MESSAGE}");
+    Ok(())
 }
 
 /// Executes the provided closure with an embedded Python interpreter.
@@ -100,11 +157,7 @@ where
 /// progress (another thread is inside `initialize()`), `call_once` blocks
 /// until it completes.
 pub(crate) fn wait_for_initialization() {
-    // TODO: use START.wait_force() on MSRV 1.86
-    // TODO: may not be needed on Python 3.15 (https://github.com/python/cpython/pull/146303)
-    START.call_once(|| {
-        assert_ne!(unsafe { crate::ffi::Py_IsInitialized() }, 0);
-    });
+    START.get_or_init(|| assert_ne!(unsafe { crate::ffi::Py_IsInitialized() }, 0));
 }
 
 pub(crate) fn ensure_initialized() {
@@ -129,7 +182,7 @@ pub(crate) fn ensure_initialized() {
             initialize();
         }
 
-        START.call_once_force(|| unsafe {
+        START.get_or_init(|| unsafe {
             // Use call_once_force because if there is a panic because the interpreter is
             // not initialized, it's fine for the user to initialize the interpreter and
             // retry.
