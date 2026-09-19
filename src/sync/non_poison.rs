@@ -91,12 +91,6 @@ impl<T> PyMutex<T> {
     }
 
     /// Consumes this mutex, returning the underlying data.
-    ///
-    /// # Errors
-    ///
-    /// If another user of this mutex panicked while holding the mutex, then
-    /// this call will return an error containing the underlying data
-    /// instead.
     pub fn into_inner(self) -> T
     where
         T: Sized,
