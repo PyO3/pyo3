@@ -1,6 +1,7 @@
 //! This module contains conversions between various Rust object and their representation in Python.
 
 pub mod anyhow;
+pub mod backtrace;
 pub mod bigdecimal;
 pub mod bytes;
 pub mod chrono;
