@@ -403,6 +403,7 @@ impl OnceExt for parking_lot::Once {
     }
 }
 
+#[cfg(wip_feature_std)]
 impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
     fn get_or_init_py_attached<F>(&self, py: Python<'_>, f: F) -> &T
     where
@@ -546,6 +547,7 @@ where
     }
 }
 
+#[cfg(wip_feature_std)]
 impl<T> RwLockExt<T> for std::sync::RwLock<T> {
     type ReadLockResult<'a>
         = std::sync::LockResult<std::sync::RwLockReadGuard<'a, T>>
@@ -725,6 +727,7 @@ where
     });
 }
 
+#[cfg(wip_feature_std)]
 #[cold]
 fn init_once_lock_py_attached<'a, F, T>(
     lock: &'a std::sync::OnceLock<T>,
@@ -751,11 +754,13 @@ where
 
 mod once_lock_ext_sealed {
     pub trait Sealed {}
+    #[cfg(wip_feature_std)]
     impl<T> Sealed for std::sync::OnceLock<T> {}
 }
 
 mod rwlock_ext_sealed {
     pub trait Sealed {}
+    #[cfg(wip_feature_std)]
     impl<T> Sealed for std::sync::RwLock<T> {}
     #[cfg(feature = "lock_api")]
     impl<R, T> Sealed for lock_api::RwLock<R, T> {}
@@ -766,6 +771,8 @@ mod rwlock_ext_sealed {
 #[allow(clippy::disallowed_types, reason = "tests")]
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::*;
 
     use crate::types::{PyAnyMethods, PyDict, PyDictMethods};
@@ -1034,6 +1041,7 @@ mod tests {
         assert_eq!(*guard, 42);
     }
 
+    #[cfg(wip_feature_std)]
     #[cfg(feature = "macros")]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
@@ -1068,6 +1076,7 @@ mod tests {
         });
     }
 
+    #[cfg(wip_feature_std)]
     #[cfg(feature = "macros")]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
@@ -1239,6 +1248,7 @@ mod tests {
         );
     }
 
+    #[cfg(wip_feature_std)]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_rwlock_ext_poison() {
