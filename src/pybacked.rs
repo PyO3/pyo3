@@ -10,6 +10,7 @@ use crate::sync::critical_section::with_critical_section;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_union;
 use crate::{
+    pyclass::{PyGcTraversable, PyTraverseError, PyVisit},
     types::{
         bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
         PyBytes, PyString, PyTuple,
@@ -96,6 +97,20 @@ impl Borrow<str> for PyBackedStr {
 // safe to share between threads
 unsafe impl Send for PyBackedStr {}
 unsafe impl Sync for PyBackedStr {}
+
+// SAFETY: `PyBackedStr` owns a strong Python reference and traversal can
+// report it directly without executing Python code.
+unsafe impl PyGcTraversable for PyBackedStr {
+    const MAY_CONTAIN_CYCLES: bool = true;
+
+    #[inline]
+    fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.storage)
+    }
+
+    #[inline]
+    fn clear(&mut self) {}
+}
 
 impl core::fmt::Display for PyBackedStr {
     #[inline]
@@ -233,6 +248,22 @@ impl AsRef<[u8]> for PyBackedBytes {
 // safe to share between threads
 unsafe impl Send for PyBackedBytes {}
 unsafe impl Sync for PyBackedBytes {}
+
+// SAFETY: `PyBackedBytes` may own a strong Python reference in the `Python`
+// storage variant; traversal reports it directly.
+unsafe impl PyGcTraversable for PyBackedBytes {
+    const MAY_CONTAIN_CYCLES: bool = true;
+
+    fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        match &self.storage {
+            PyBackedBytesStorage::Python(bytes) => visit.call(bytes),
+            PyBackedBytesStorage::Rust(_) => Ok(()),
+        }
+    }
+
+    #[inline]
+    fn clear(&mut self) {}
+}
 
 impl<const N: usize> PartialEq<[u8; N]> for PyBackedBytes {
     fn eq(&self, other: &[u8; N]) -> bool {
