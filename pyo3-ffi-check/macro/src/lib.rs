@@ -548,6 +548,8 @@ const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
     ("Py_IsFalse", "any(not(Py_3_10), all(PyPy, not(Py_3_12)))"),
     ("Py_IsTrue", "any(not(Py_3_10), all(PyPy, not(Py_3_12)))"),
     ("Py_IsNone", "not(Py_3_10)"),
+    ("PyMem_New", ""),
+    ("PyMem_Resize", ""),
 ];
 
 // TODO: probably need to clean these up
