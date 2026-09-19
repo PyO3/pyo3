@@ -388,6 +388,10 @@ fn traverse_partial() {
 
 #[test]
 #[cfg(panic = "unwind")]
+#[cfg_attr(
+    not(wip_feature_std),
+    ignore = "panic handling not supported for `no_std`"
+)]
 fn traverse_panic() {
     #[pyclass]
     struct PanickyTraverse {
