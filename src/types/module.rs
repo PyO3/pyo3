@@ -140,11 +140,14 @@ impl PyModule {
     ///
     /// ```rust
     /// use pyo3::prelude::*;
-    /// use pyo3::ffi::c_str;
+    /// use core::ffi::CStr;
     ///
     /// # fn main() -> PyResult<()> {
     /// // This path is resolved relative to this file.
-    /// let code = c_str!(include_str!("../../assets/script.py"));
+    /// let code = CStr::from_bytes_with_nul(concat!(
+    ///     include_str!("../../assets/script.py"),
+    ///     "\0"
+    /// ).as_bytes()).unwrap();
     ///
     /// Python::attach(|py| -> PyResult<()> {
     ///     PyModule::from_code(py, code, c"example.py", c"example")?;

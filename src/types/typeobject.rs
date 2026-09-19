@@ -263,7 +263,6 @@ mod tests {
     use crate::types::{PyAnyMethods, PyBool, PyInt, PyModule, PyTuple, PyType, PyTypeMethods};
     use crate::PyAny;
     use crate::Python;
-    use pyo3_ffi::c_str;
 
     #[test]
     fn test_type_is_subclass() {
@@ -332,7 +331,7 @@ mod tests {
 class MyClass:
     pass
 "#,
-                c_str!(file!()),
+                core::ffi::CStr::from_bytes_with_nul(concat!(file!(), "\0").as_bytes()).unwrap(),
                 &module_name,
             )
             .expect("module create failed");
@@ -373,7 +372,7 @@ class OuterClass:
     class InnerClass:
         pass
 "#,
-                c_str!(file!()),
+                core::ffi::CStr::from_bytes_with_nul(concat!(file!(), "\0").as_bytes()).unwrap(),
                 &module_name,
             )
             .expect("module create failed");
