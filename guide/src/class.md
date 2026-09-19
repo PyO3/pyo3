@@ -1565,6 +1565,11 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
     fn __traverse__(&self, _visit: pyo3::pyclass::PyVisit<'_>) -> Result<(), pyo3::pyclass::PyTraverseError> {
         Ok(())
     }
+
+    fn token() -> *mut core::ffi::c_void {
+        static TOKEN: u8 = 0;
+        (&raw const TOKEN).cast_mut().cast()
+    }
 }
 
 # Python::attach(|py| {

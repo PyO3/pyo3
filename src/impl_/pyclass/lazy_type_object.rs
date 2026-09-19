@@ -76,6 +76,18 @@ impl<T: PyClass> LazyTypeObject<T> {
             T::items_iter(),
         )
     }
+
+    /// Gets the type object contained without performing any initialization work.
+    /// This avoids unsafe operations during GC.
+    #[cfg(not(Py_3_15))]
+    pub(crate) fn get_during_gc(&self) -> &Py<PyType> {
+        &self
+            .0
+            .value
+            .get_during_gc()
+            .expect("PyClass type object should have been created to reach GC")
+            .type_object
+    }
 }
 
 impl LazyTypeObjectInner {
