@@ -21,6 +21,8 @@ use core::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit};
 pub mod critical_section;
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 mod mutex;
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+pub mod non_poison;
 pub(crate) mod once_lock;
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
