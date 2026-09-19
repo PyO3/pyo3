@@ -415,20 +415,26 @@ fn traverse_panic() {
 #[test]
 #[cfg(panic = "unwind")]
 fn tries_gil_in_traverse() {
+    #[allow(unused_extern_crates)]
+    extern crate std;
+
     #[pyclass]
     struct TriesGILInTraverse {}
 
     #[pymethods]
     impl TriesGILInTraverse {
+        #[expect(clippy::unnecessary_wraps)]
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-            Python::attach(|_py| Ok(()))
+            std::panic::catch_unwind(|| Python::attach(|_py| ()))
+                .expect_err("attaching to interpreter in __traverse__ should panic");
+            Ok(())
         }
     }
 
     Python::attach(|py| {
         // confirm that traversing panicks
         let obj = Bound::new(py, TriesGILInTraverse {}).unwrap();
-        assert_eq!(traverse_object(&obj, novisit), -1);
+        traverse_object(&obj, novisit);
     })
 }
 
