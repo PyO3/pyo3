@@ -765,6 +765,44 @@ mod rwlock_ext_sealed {
     impl<R, T> Sealed for alloc::sync::Arc<lock_api::RwLock<R, T>> {}
 }
 
+mod mutex_trait_sealed {
+    pub trait Sealed {}
+    impl<T: ?Sized> Sealed for super::mutex::PyMutex<T> {}
+    impl<T: ?Sized> Sealed for super::non_poison::PyMutex<T> {}
+}
+
+pub trait PyMutexTrait<T: ?Sized>: mutex_trait_sealed::Sealed {
+    /// # Safety
+    /// This function may not be called from outside of PyO3
+    #[doc(hidden)]
+    unsafe fn data(&self) -> &UnsafeCell<T>;
+
+    /// # Safety
+    /// This function may not be called from outside of PyO3
+    #[doc(hidden)]
+    unsafe fn inner(&self) -> &UnsafeCell<crate::ffi::PyMutex>;
+}
+
+impl<T: ?Sized> PyMutexTrait<T> for self::mutex::PyMutex<T> {
+    unsafe fn data(&self) -> &UnsafeCell<T> {
+        &self.data
+    }
+
+    unsafe fn inner(&self) -> &UnsafeCell<crate::ffi::PyMutex> {
+        &self.mutex
+    }
+}
+
+impl<T: ?Sized> PyMutexTrait<T> for self::non_poison::PyMutex<T> {
+    unsafe fn data(&self) -> &UnsafeCell<T> {
+        &self.data
+    }
+
+    unsafe fn inner(&self) -> &UnsafeCell<crate::ffi::PyMutex> {
+        &self.mutex
+    }
+}
+
 #[allow(clippy::disallowed_types, reason = "tests")]
 #[cfg(test)]
 mod tests {
