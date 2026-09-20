@@ -74,6 +74,182 @@ fn multithreaded_class_with_freelist() {
     });
 }
 
+#[cfg(wip_feature_std)]
+fn assert_cached<T: pyo3::impl_::pyclass::PyClassWithFreeList>(
+    py: Python<'_>,
+    ptr: *mut ffi::PyObject,
+) {
+    let mut cache = T::get_free_list(py);
+    let cached = cache.pop().expect("allocation was not cached");
+    assert_eq!(cached.as_ptr(), ptr);
+    assert!(cache.insert(cached).is_none());
+}
+
+#[test]
+#[cfg(wip_feature_std)]
+fn freelist_reuse_is_tracked_and_collectible() {
+    #[pyclass(freelist = 2)]
+    struct CachedCycle {
+        cycle: Option<Py<Self>>,
+        _guard: DropGuard,
+    }
+
+    #[pymethods]
+    impl CachedCycle {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            visit.call(&self.cycle)
+        }
+
+        fn __clear__(&mut self) {
+            self.cycle = None;
+        }
+    }
+
+    for _ in 0..3 {
+        let (check, ptr) = Python::attach(|py| {
+            let gc = py.import("gc").unwrap();
+            let (guard, check) = drop_check();
+            let fresh = Bound::new(
+                py,
+                CachedCycle {
+                    cycle: None,
+                    _guard: guard,
+                },
+            )
+            .unwrap();
+            assert!(gc
+                .call_method1("is_tracked", (&fresh,))
+                .unwrap()
+                .extract::<bool>()
+                .unwrap());
+            let ptr = fresh.as_ptr();
+            drop(fresh);
+            check.assert_dropped();
+            assert_cached::<CachedCycle>(py, ptr);
+
+            let (guard, check) = drop_check();
+            let reused = Bound::new(
+                py,
+                CachedCycle {
+                    cycle: None,
+                    _guard: guard,
+                },
+            )
+            .unwrap();
+            assert_eq!(reused.as_ptr(), ptr);
+            assert!(gc
+                .call_method1("is_tracked", (&reused,))
+                .unwrap()
+                .extract::<bool>()
+                .unwrap());
+            reused.borrow_mut().cycle = Some(reused.clone().unbind());
+            drop(reused);
+            (check, ptr)
+        });
+        check.assert_drops_with_gc(ptr);
+    }
+}
+
+#[test]
+#[cfg(wip_feature_std)]
+fn freelist_reuse_initializes_all_rust_bases() {
+    #[pyclass(subclass, freelist = 2)]
+    struct Base {
+        marker: usize,
+        _guard: DropGuard,
+    }
+
+    #[pyclass(extends = Base, freelist = 2, dict, weakref)]
+    struct Derived {
+        cycle: Option<Py<Self>>,
+        marker: String,
+        _guard: DropGuard,
+    }
+
+    #[pymethods]
+    impl Derived {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            assert_eq!(self.marker, "initialized");
+            visit.call(&self.cycle)
+        }
+
+        fn __clear__(&mut self) {
+            self.cycle = None;
+        }
+    }
+
+    for marker in [37, 91, 123] {
+        let (check, base_check, weak, ptr) = Python::attach(|py| {
+            let gc = py.import("gc").unwrap();
+            let weakref = py.import("weakref").unwrap();
+
+            let (base_guard, base_check) = drop_check();
+            let (guard, check) = drop_check();
+            let priming = Bound::new(
+                py,
+                PyClassInitializer::from(Base {
+                    marker: 0,
+                    _guard: base_guard,
+                })
+                .add_subclass(Derived {
+                    cycle: None,
+                    marker: "initialized".to_owned(),
+                    _guard: guard,
+                }),
+            )
+            .unwrap();
+            priming.setattr("previous_lifetime", marker).unwrap();
+            let previous_weak = weakref.call_method1("ref", (&priming,)).unwrap();
+            let ptr = priming.as_ptr();
+            drop(priming);
+            check.assert_dropped();
+            base_check.assert_dropped();
+            assert!(previous_weak.call0().unwrap().is_none());
+            assert_cached::<Derived>(py, ptr);
+
+            let (base_guard, base_check) = drop_check();
+            let (guard, check) = drop_check();
+            let obj = Bound::new(
+                py,
+                PyClassInitializer::from(Base {
+                    marker,
+                    _guard: base_guard,
+                })
+                .add_subclass(Derived {
+                    cycle: None,
+                    marker: "initialized".to_owned(),
+                    _guard: guard,
+                }),
+            )
+            .unwrap();
+            assert_eq!(obj.as_ptr(), ptr);
+            assert_eq!(obj.borrow().as_super().marker, marker);
+            assert_eq!(obj.getattr("__dict__").unwrap().len().unwrap(), 0);
+            assert_eq!(
+                weakref
+                    .call_method1("getweakrefs", (&obj,))
+                    .unwrap()
+                    .len()
+                    .unwrap(),
+                0
+            );
+            let weak = weakref.call_method1("ref", (&obj,)).unwrap();
+            obj.setattr("previous_lifetime", marker).unwrap();
+            assert!(gc
+                .call_method1("is_tracked", (&obj,))
+                .unwrap()
+                .extract::<bool>()
+                .unwrap());
+            obj.borrow_mut().cycle = Some(obj.clone().unbind());
+            drop(obj);
+            (check, base_check, weak.unbind(), ptr)
+        });
+        check.assert_drops_with_gc(ptr);
+        base_check.assert_drops_with_gc(ptr);
+        Python::attach(|py| assert!(weak.bind(py).call0().unwrap().is_none()));
+    }
+}
+
 /// Helper function to create a pair of objects that can be used to test drops;
 /// the first object is a guard that records when it has been dropped, the second
 /// object is a check that can be used to assert that the guard has been dropped.

@@ -219,6 +219,9 @@ pub trait PyClassImpl: Sized + 'static {
     /// #[pyclass(extends=...)]
     const IS_SUBCLASS: bool = false;
 
+    /// #[pyclass(freelist = N)]
+    const HAS_FREELIST: bool = false;
+
     /// #[pyclass(mapping)]
     const IS_MAPPING: bool = false;
 

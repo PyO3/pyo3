@@ -151,6 +151,26 @@ impl<T: PyClass> PyClassInitializer<T> {
     where
         T: PyClass,
     {
+        let obj = unsafe { self.into_new_object(py, target_type)? };
+
+        // A freelist hit is untracked. Wait until every Rust base has been
+        // initialized before allowing traversal of the complete instance.
+        // Fresh allocations and some native bases already track the object.
+        if T::HAS_FREELIST && unsafe { ffi::PyObject_GC_IsTracked(obj) } == 0 {
+            unsafe { ffi::PyObject_GC_Track(obj.cast()) };
+        }
+
+        // SAFETY: all contents of this instance of `target_type` are initialized.
+        Ok(unsafe { obj.assume_owned(py).cast_into_unchecked() })
+    }
+}
+
+impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
+    unsafe fn into_new_object(
+        self,
+        py: Python<'_>,
+        target_type: *mut PyTypeObject,
+    ) -> PyResult<*mut ffi::PyObject> {
         let obj = unsafe { self.super_init.into_new_object(py, target_type)? };
 
         // SAFETY: `obj` is constructed using `T::Layout` but has not been initialized yet
@@ -188,9 +208,7 @@ impl<T: PyClass> PyClassInitializer<T> {
         // `PyClassObjectContents` (either statically in Rust or dynamically by Python)
         unsafe { (*contents).write(new_contents) };
 
-        // Safety: obj is a valid pointer to an object of type `target_type`, which` is a known
-        // subclass of `T`
-        Ok(unsafe { obj.assume_owned(py).cast_into_unchecked() })
+        Ok(obj)
     }
 }
 
@@ -219,19 +237,6 @@ fn eagerly_created_dict_possible<T: PyClassImpl>(py: Python<'_>) -> bool {
         {
             let _ = py;
             cfg!(Py_3_11)
-        }
-    }
-}
-
-impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
-    unsafe fn into_new_object(
-        self,
-        py: Python<'_>,
-        subtype: *mut PyTypeObject,
-    ) -> PyResult<*mut ffi::PyObject> {
-        unsafe {
-            self.create_class_object_of_type(py, subtype)
-                .map(Bound::into_ptr)
         }
     }
 }
