@@ -177,16 +177,18 @@ class ClassWithoutConstructor:
         )
 
 
-@pytest.mark.xfail(
-    platform.python_implementation() == "PyPy" and sys.version_info[:2] == (3, 11),
-    reason="broken on PyPy 3.11 due to https://github.com/pypy/pypy/issues/5319, waiting for next release",
-)
 @pytest.mark.parametrize(
     "cls, exc_message",
     [
-        (
+        pytest.param(
             pyclasses.ClassWithoutConstructor,
             "cannot create 'builtins.ClassWithoutConstructor' instances",
+            marks=pytest.mark.xfail(
+                platform.python_implementation() == "PyPy"
+                and sys.version_info[:2] == (3, 11),
+                reason="https://github.com/pypy/pypy/issues/5319",
+                strict=True,
+            ),
         ),
         (
             ClassWithoutConstructor,
