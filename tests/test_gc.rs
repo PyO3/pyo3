@@ -23,7 +23,7 @@ use std::sync::{Mutex, Once};
 
 mod test_utils;
 
-#[pyclass(freelist = 2)]
+#[pyclass(freelist = 1)]
 struct ClassWithFreelist {}
 
 #[test]
