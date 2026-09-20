@@ -2827,6 +2827,9 @@ impl<'a> PyClassImplsBuilder<'a> {
 
         let is_basetype = is_basetype.then(|| quote! { const IS_BASETYPE: bool = true; });
         let is_subclass_const = is_subclass.then(|| quote! { const IS_SUBCLASS: bool = true; });
+        let has_freelist = self.attr.options.freelist.is_some().then(|| {
+            quote! { const HAS_FREELIST: bool = true; }
+        });
         let is_mapping = is_mapping.then(|| quote! { const IS_MAPPING: bool = true; });
         let is_sequence = is_sequence.then(|| quote! { const IS_SEQUENCE: bool = true; });
         let is_immutable_type =
@@ -3058,6 +3061,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 #module
                 #is_basetype
                 #is_subclass_const
+                #has_freelist
                 #is_mapping
                 #is_sequence
                 #is_immutable_type
