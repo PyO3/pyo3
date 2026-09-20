@@ -4,8 +4,8 @@
 use crate::exceptions::PyAttributeError;
 use crate::impl_::pymethods::{Deleter, PyDeleterDef};
 use crate::internal::get_slot::{get_slot, TP_CLEAR};
+use crate::platform::collections::HashMap;
 use crate::platform::prelude::*;
-use crate::platform::HashMap;
 #[cfg(not(Py_3_10))]
 use crate::types::typeobject::PyTypeMethods;
 use crate::{
