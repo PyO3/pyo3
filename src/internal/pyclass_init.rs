@@ -49,6 +49,32 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
                     .get_slot(TP_NEW)
                     .ok_or_else(|| PyTypeError::new_err("base type without tp_new"))?
             };
+            #[cfg(PyPy)]
+            let tp_new = {
+                use crate::types::PyAnyMethods as _;
+
+                let use_native_new = if type_ptr == &raw mut ffi::PyBaseObject_Type {
+                    let subtype = unsafe {
+                        subtype
+                            .cast::<ffi::PyObject>()
+                            .assume_borrowed_unchecked(py)
+                            .cast_unchecked::<PyType>()
+                    };
+                    let flags = subtype.getattr("__flags__")?.extract::<usize>()?;
+                    flags & ffi::Py_TPFLAGS_IS_ABSTRACT as usize == 0
+                } else {
+                    false
+                };
+                if use_native_new {
+                    // PyPy's object.__new__ creates a managed instance before its native
+                    // representation. Its instance dict can then retain that managed
+                    // instance through a cycle invisible to the native GC.
+                    ffi::PyType_GenericNew
+                } else {
+                    // object.__new__ rejects abstract classes before allocating them.
+                    tp_new
+                }
+            };
 
             // TODO: make it possible to provide real arguments to the base tp_new
             let obj =

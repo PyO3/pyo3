@@ -48,6 +48,10 @@ class ClassWithDict:
     def __new__(cls, /) -> ClassWithDict: ...
 
 @final
+class ClassWithDictAndFreelist:
+    def __new__(cls, /) -> ClassWithDictAndFreelist: ...
+
+@final
 class ClassWithoutConstructor: ...
 
 @final

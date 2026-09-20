@@ -1,6 +1,9 @@
 import asyncio
+import gc
 import platform
 import sys
+import weakref
+from abc import ABCMeta, abstractmethod
 from collections.abc import Iterator
 
 import pytest
@@ -143,6 +146,30 @@ def test_new_classmethod():
         _ = AssertingSubClass(expected_type=str)
 
 
+def test_abstract_pyclass_subclass_cannot_be_instantiated():
+    class Abstract(pyclasses.AssertingBaseClass, metaclass=ABCMeta):
+        @abstractmethod
+        def required(self):
+            raise NotImplementedError
+
+    with pytest.raises(TypeError, match="abstract"):
+        Abstract(expected_type=Abstract)  # type: ignore[bad-instantiation]
+
+    class Concrete(Abstract):
+        def required(self):
+            return 42
+
+    obj = Concrete(expected_type=Concrete)
+    assert isinstance(obj, Concrete)
+    assert obj.required() == 42
+
+    Concrete.__abstractmethods__ = frozenset({"required"})
+    with pytest.raises(TypeError, match="abstract"):
+        Concrete(expected_type=Concrete)
+    Concrete.__abstractmethods__ = frozenset()
+    assert isinstance(Concrete(expected_type=Concrete), Concrete)
+
+
 class ClassWithoutConstructor:
     def __new__(cls):
         raise TypeError(
@@ -183,13 +210,38 @@ def test_dict():
     try:
         ClassWithDict = pyclasses.ClassWithDict
     except AttributeError:
-        pytest.skip("not defined using abi3 < 3.9")
+        pytest.skip("not defined using abi3 < 3.10")
 
     d = ClassWithDict()
     assert d.__dict__ == {}
 
     d.foo = 42  # type: ignore[missing-attribute]
     assert d.__dict__ == {"foo": 42}
+
+
+@pytest.mark.parametrize("class_name", ["ClassWithDict", "ClassWithDictAndFreelist"])
+def test_dict_releases_attributes(class_name):
+    try:
+        cls = getattr(pyclasses, class_name)
+    except AttributeError:
+        pytest.skip("not defined using abi3 < 3.10")
+
+    class Payload:
+        pass
+
+    def make_instance():
+        obj = cls()
+        assert obj.__dict__ == {}
+        payload = Payload()
+        obj.payload = payload
+        return weakref.ref(payload)
+
+    for _ in range(2):
+        ref = make_instance()
+        # PyPy finalizes native objects after collection; collect their referents too.
+        gc.collect()
+        gc.collect()
+        assert ref() is None
 
 
 def test_getter(benchmark):

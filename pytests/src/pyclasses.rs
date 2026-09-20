@@ -188,11 +188,24 @@ struct ClassWithoutConstructor;
 struct ClassWithDict;
 
 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+#[pyclass(dict, freelist = 2)]
+struct ClassWithDictAndFreelist;
+
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 #[pymethods]
 impl ClassWithDict {
     #[new]
     fn new() -> Self {
         ClassWithDict
+    }
+}
+
+#[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+#[pymethods]
+impl ClassWithDictAndFreelist {
+    #[new]
+    fn new() -> Self {
+        ClassWithDictAndFreelist
     }
 }
 
@@ -420,9 +433,6 @@ impl Number {
 
 #[pymodule]
 pub mod pyclasses {
-    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
-    #[pymodule_export]
-    use super::ClassWithDict;
     #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
     #[pymodule_export]
     use super::SubClassWithInit;
@@ -432,4 +442,7 @@ pub mod pyclasses {
         Number, PlainObject, PyClassIter, PyClassOptionAsyncIter, PyClassOptionIter,
         PyClassResultOptionIter, PyClassThreadIter,
     };
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
+    #[pymodule_export]
+    use super::{ClassWithDict, ClassWithDictAndFreelist};
 }
