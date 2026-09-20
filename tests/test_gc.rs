@@ -29,20 +29,23 @@ struct ClassWithFreelist {}
 #[test]
 #[cfg(not(all(windows, Py_LIMITED_API, not(Py_3_10))))]
 fn class_with_freelist() {
-    let ptr = Python::attach(|py| {
+    let (ptr1, ptr2) = Python::attach(|py| {
         let inst = Py::new(py, ClassWithFreelist {}).unwrap();
-        let _inst2 = Py::new(py, ClassWithFreelist {}).unwrap();
-        let ptr = inst.as_ptr();
+        let inst2 = Py::new(py, ClassWithFreelist {}).unwrap();
+        let ptr1 = inst.as_ptr();
+        let ptr2 = inst2.as_ptr();
+        drop(inst2);
         drop(inst);
-        ptr
+        assert_ne!(ptr1, ptr2);
+        (ptr1, ptr2)
     });
 
     Python::attach(|py| {
         let inst3 = Py::new(py, ClassWithFreelist {}).unwrap();
-        assert_eq!(ptr, inst3.as_ptr());
+        assert_eq!(ptr1, inst3.as_ptr());
 
         let inst4 = Py::new(py, ClassWithFreelist {}).unwrap();
-        assert_ne!(ptr, inst4.as_ptr())
+        assert_eq!(ptr2, inst4.as_ptr())
     });
 }
 
