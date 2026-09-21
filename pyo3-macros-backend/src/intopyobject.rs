@@ -280,11 +280,11 @@ impl<'a, const REF: bool> Container<'a, REF> {
                     };
                     quote! {
                         let into_py_with: fn(#pyo3_path::impl_::alloc::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
-                        #pyo3_path::types::PyDictMethods::set_item(&dict, #key, into_py_with(#cow, py)?)?;
+                        #pyo3_path::types::PyDictMethods::set_item(&dict, #pyo3_path::intern!(py, #key), into_py_with(#cow, py)?)?;
                     }
                 } else {
                     quote! {
-                        #pyo3_path::types::PyDictMethods::set_item(&dict, #key, #value)?;
+                        #pyo3_path::types::PyDictMethods::set_item(&dict, #pyo3_path::intern!(py, #key), #value)?;
                     }
                 }
             })
