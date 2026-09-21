@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::types::{PyDict, PyList, PyString};
-use pyo3::{prelude::*, py_run, IntoPyObject, IntoPyObjectExt};
+use pyo3::{intern, prelude::*, py_run, IntoPyObject, IntoPyObjectExt};
 use std::collections::BTreeMap;
 
 #[macro_use]
@@ -283,5 +283,35 @@ fn test_struct_into_py_rename_all() {
             py_foo,
             "assert py_foo == {'fooBar': 'foobar', 'BAZ': 42, 'longFieldName': 0},f'{py_foo}'"
         );
+    });
+}
+
+#[test]
+fn test_into_py_object_interns_keys() {
+    fn assert_interned<'py>(py: Python<'py>, keys: Bound<'py, PyList>) {
+        let name_key = keys.get_item(0).unwrap();
+        assert!(
+            name_key.is(intern!(py, "name")),
+            "plain attribute is not interned"
+        );
+
+        let my_object_key = keys.get_item(1).unwrap();
+        assert!(
+            my_object_key.is(intern!(py, "my_object")),
+            "attribute with `from_py_with` is not interned"
+        );
+    }
+
+    Python::attach(|py| {
+        let zap = Zap {
+            name: "whatever".into(),
+            some_object_length: 3,
+        };
+
+        let py_zap_ref = (&zap).into_pyobject(py).unwrap();
+        let py_zap = zap.into_pyobject(py).unwrap();
+
+        assert_interned(py, py_zap_ref.keys());
+        assert_interned(py, py_zap.keys());
     });
 }
