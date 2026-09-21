@@ -287,6 +287,20 @@ fn test_struct_into_py_rename_all() {
 }
 
 #[test]
+fn test_struct_into_py_non_str_item_keys() {
+    #[derive(IntoPyObject, IntoPyObjectRef)]
+    #[allow(dead_code, reason = "used to test non-str item(..) compiles")]
+    struct Foo {
+        #[pyo3(item(1))]
+        int_key: i32,
+        #[pyo3(item(b"bytes"))]
+        bytes_key: i32,
+        #[pyo3(item(true))]
+        bool_key: i32,
+    }
+}
+
+#[test]
 fn test_into_py_object_interns_keys() {
     fn assert_interned<'py>(py: Python<'py>, keys: Bound<'py, PyList>) {
         let name_key = keys.get_item(0).unwrap();

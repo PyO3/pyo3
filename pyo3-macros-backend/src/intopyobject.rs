@@ -4,7 +4,7 @@ use crate::derive_attributes::{ContainerAttributes, FieldAttributes};
 use crate::py_expr::PyExpr;
 use crate::utils::{self, Ctx};
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::spanned::Spanned as _;
 use syn::{parse_quote, DataEnum, DeriveInput, Fields, Ident, Index, Result};
@@ -261,15 +261,18 @@ impl<'a, const REF: bool> Container<'a, REF> {
             .iter()
             .enumerate()
             .map(|(i, f)| {
-                let key = f
-                    .item
-                    .as_ref()
-                    .and_then(|item| item.0.as_ref())
-                    .map(|item| item.into_token_stream())
-                    .unwrap_or_else(|| {
+                let key = match f.item.as_ref().and_then(|item| item.0.as_ref()) {
+                    Some(syn::Lit::Str(key)) => quote!(#pyo3_path::intern!(py, #key)),
+                    Some(key) => quote!(#key),
+                    None => {
                         let name = f.ident.unraw().to_string();
-                        self.rename_rule.map(|rule| utils::apply_renaming_rule(rule, &name)).unwrap_or(name).into_token_stream()
-                    });
+                        let name = self
+                            .rename_rule
+                            .map(|rule| utils::apply_renaming_rule(rule, &name))
+                            .unwrap_or(name);
+                        quote!(#pyo3_path::intern!(py, #name))
+                    }
+                };
                 let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
 
                 if let Some(expr_path) = f.into_py_with.as_ref().map(|i|&i.value) {
@@ -280,11 +283,11 @@ impl<'a, const REF: bool> Container<'a, REF> {
                     };
                     quote! {
                         let into_py_with: fn(#pyo3_path::impl_::alloc::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
-                        #pyo3_path::types::PyDictMethods::set_item(&dict, #pyo3_path::intern!(py, #key), into_py_with(#cow, py)?)?;
+                        #pyo3_path::types::PyDictMethods::set_item(&dict, #key, into_py_with(#cow, py)?)?;
                     }
                 } else {
                     quote! {
-                        #pyo3_path::types::PyDictMethods::set_item(&dict, #pyo3_path::intern!(py, #key), #value)?;
+                        #pyo3_path::types::PyDictMethods::set_item(&dict, #key, #value)?;
                     }
                 }
             })
