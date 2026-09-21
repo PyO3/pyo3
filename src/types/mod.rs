@@ -183,7 +183,7 @@ pub mod iter {
 /// # Safety
 /// May not be implemented by downstream crates.
 pub unsafe trait FfiObj {
-    /// The assoicated [`ApiObj`] type
+    /// The associated [`ApiObj`] type
     type ApiType: ApiObj<FfiType = Self>;
 }
 
