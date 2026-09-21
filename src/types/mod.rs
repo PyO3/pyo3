@@ -196,6 +196,9 @@ pub unsafe trait ApiObj {
     type FfiType: FfiObj<ApiType = Self>;
 }
 
+/// Helper to get [`ApiObj::FfiType`] for `T`
+pub type FfiTypeOf<T> = <T as ApiObj>::FfiType;
+
 /// Python objects that have a base type.
 ///
 /// This marks types that can be upcast into a [`PyAny`] and used in its place.
