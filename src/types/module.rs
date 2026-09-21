@@ -37,12 +37,23 @@ use core::str;
 #[repr(transparent)]
 pub struct PyModule(PyAny);
 
+mod ffi_obj {
+    #[repr(transparent)]
+    pub struct PyModuleObject(crate::ffi::PyObject);
+}
+
 #[cfg(not(RustPython))]
-pyobject_native_type_core!(PyModule, pyobject_native_static_type_object!(ffi::PyModule_Type), "types", "ModuleType", #checkfunction=ffi::PyModule_Check);
+pyobject_native_type_core!(
+    PyModule: ffi_obj::PyModuleObject,
+    pyobject_native_static_type_object!(ffi::PyModule_Type),
+    "types",
+    "ModuleType",
+    #checkfunction=ffi::PyModule_Check
+);
 
 #[cfg(RustPython)]
 pyobject_native_type_core!(
-    PyModule,
+    PyModule: ffi_obj::PyModuleObject,
     |py| {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "types", "ModuleType").unwrap().as_type_ptr()

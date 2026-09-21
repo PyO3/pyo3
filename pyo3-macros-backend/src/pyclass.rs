@@ -3234,7 +3234,8 @@ impl<'a> PyClassImplsBuilder<'a> {
         let pyo3_path = &ctx.pyo3_path;
         let cls_ident = &self.cls_ident;
         let mod_name = cls_ident.to_string() + "_mod";
-        let mod_name = Ident::new(&mod_name, Span::call_site());
+        let mod_name = mod_name.strip_prefix("r#").unwrap_or(&mod_name);
+        let mod_name = Ident::new(mod_name, Span::call_site());
         let vis = visibility_for_item_in_generated_mod(self.vis);
 
         quote! {
