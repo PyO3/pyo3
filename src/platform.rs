@@ -14,13 +14,15 @@ pub(crate) mod prelude {
 
 pub mod sync;
 
-#[cfg(feature = "hashbrown")]
-pub use hashbrown::{HashMap, HashSet};
+pub mod collections {
+    #[cfg(feature = "hashbrown")]
+    pub use hashbrown::{HashMap, HashSet};
 
-#[cfg(all(not(feature = "hashbrown"), wip_feature_std))]
-pub use std::collections::{HashMap, HashSet};
+    #[cfg(all(not(feature = "hashbrown"), wip_feature_std))]
+    pub use std::collections::{HashMap, HashSet};
 
-#[cfg(all(not(feature = "hashbrown"), not(wip_feature_std)))]
-compile_error!("Please enable at least one of the following features: hashbrown, std");
+    #[cfg(all(not(feature = "hashbrown"), not(wip_feature_std)))]
+    compile_error!("Please enable at least one of the following features: hashbrown, std");
+}
 
 pub mod thread;
