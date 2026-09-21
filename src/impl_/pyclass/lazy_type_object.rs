@@ -7,7 +7,7 @@ use core::{ffi::CStr, marker::PhantomData};
 
 #[cfg(Py_3_14)]
 use crate::err::error_on_minusone;
-use crate::platform::sync::non_poison::Mutex;
+use crate::platform::sync::nonpoison::Mutex;
 #[allow(deprecated)]
 use crate::sync::GILOnceCell;
 #[cfg(Py_3_14)]

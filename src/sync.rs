@@ -22,7 +22,7 @@ pub mod critical_section;
 #[cfg(all(not(Py_LIMITED_API), Py_3_13, wip_feature_std))]
 mod mutex;
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
-pub mod non_poison;
+pub mod nonpoison;
 pub(crate) mod once_lock;
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_13, wip_feature_std))]
@@ -770,7 +770,7 @@ mod mutex_trait_sealed {
     pub trait Sealed {}
     #[cfg(wip_feature_std)]
     impl<T: ?Sized> Sealed for super::mutex::PyMutex<T> {}
-    impl<T: ?Sized> Sealed for super::non_poison::PyMutex<T> {}
+    impl<T: ?Sized> Sealed for super::nonpoison::PyMutex<T> {}
 }
 
 /// Trait for mutex types used in [`critical_section`] API.
@@ -799,7 +799,7 @@ impl<T: ?Sized> PyMutexTrait<T> for self::mutex::PyMutex<T> {
 }
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
-impl<T: ?Sized> PyMutexTrait<T> for self::non_poison::PyMutex<T> {
+impl<T: ?Sized> PyMutexTrait<T> for self::nonpoison::PyMutex<T> {
     unsafe fn data(&self) -> &UnsafeCell<T> {
         &self.data
     }

@@ -286,7 +286,7 @@ mod tests {
     #[allow(unused_imports, reason = "conditionally used")]
     use crate::platform::prelude::*;
     #[cfg(all(not(Py_LIMITED_API), Py_3_14,))]
-    use crate::sync::non_poison::PyMutex;
+    use crate::sync::nonpoison::PyMutex;
     #[cfg(feature = "macros")]
     use core::sync::atomic::{AtomicBool, Ordering};
     #[cfg(any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14)))]
