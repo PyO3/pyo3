@@ -1,5 +1,5 @@
 use crate::err::{self, PyResult};
-use crate::instance::Borrowed;
+use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(not(Py_3_13))]
 use crate::pybacked::PyBackedStr;
 #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_13)))]
@@ -61,7 +61,7 @@ impl PyType {
         py: Python<'_>,
         p: *mut ffi::PyTypeObject,
     ) -> Bound<'_, PyType> {
-        unsafe { Borrowed::<Self>::from_ptr_unchecked(py, p.cast()).to_owned() }
+        unsafe { p.assume_borrowed(py) }.to_owned()
     }
 }
 

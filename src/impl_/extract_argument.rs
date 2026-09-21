@@ -15,8 +15,11 @@ use crate::types::PyString;
 use crate::{
     exceptions::PyTypeError,
     ffi,
+    ffi_ptr_ext::FfiPtrExt,
     pyclass::boolean_struct::False,
-    types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
+    types::{
+        any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, FfiTypeOf, PyDict, PyTuple,
+    },
     Borrowed, Bound, CastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr,
     PyResult, PyTypeCheck, Python,
 };
@@ -615,8 +618,11 @@ impl FunctionDescription {
 
         // Safety: kwnames is known to be a pointer to a tuple, or null
         //  - we both have the GIL and can borrow this input reference for the `'py` lifetime.
-        let kwnames: Option<Borrowed<'_, '_, PyTuple>> =
-            unsafe { Borrowed::from_ptr_or_opt(py, kwnames.cast()) };
+        let kwnames = unsafe {
+            kwnames
+                .cast::<FfiTypeOf<PyTuple>>()
+                .assume_borrowed_or_opt(py)
+        };
         if let Some(kwnames) = kwnames {
             let kwargs = unsafe {
                 ::core::slice::from_raw_parts(
@@ -665,13 +671,14 @@ impl FunctionDescription {
         V: VarargsHandler<'py>,
         K: VarkeywordsHandler<'py>,
     {
-        // Safety:
-        //  - `args` is known to be a tuple
-        //  - `kwargs` is known to be a dict or null
-        //  - we both have the GIL and can borrow these input references for the `'py` lifetime.
-        let args: Borrowed<'py, 'py, PyTuple> = unsafe { Borrowed::from_ptr(py, args.cast()) };
-        let kwargs: Option<Borrowed<'py, 'py, PyDict>> =
-            unsafe { Borrowed::from_ptr_or_opt(py, kwargs.cast()) };
+        // Safety: `args` is known to be a tuple
+        let args = unsafe { args.cast::<FfiTypeOf<PyTuple>>().assume_borrowed(py) };
+        // SAFETY: `kwargs` is known to be a dict or null
+        let kwargs = unsafe {
+            kwargs
+                .cast::<FfiTypeOf<PyDict>>()
+                .assume_borrowed_or_opt(py)
+        };
 
         let num_positional_parameters = self.positional_parameter_names.len();
 

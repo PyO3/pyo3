@@ -706,7 +706,7 @@ where
     InitializerT: PyClassInit<'py, ClassT>,
 {
     // SAFETY: caller has guaranteed `cls` is the correct object
-    unsafe { initializer.init(Borrowed::from_ptr_unchecked(py, cls.cast())) }.map(Bound::into_ptr)
+    unsafe { initializer.init(Borrowed::from_ptr_unchecked(py, cls)) }.map(Bound::into_ptr)
 }
 
 #[cfg(test)]

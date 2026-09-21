@@ -6,6 +6,7 @@ use core::marker::PhantomData;
 use core::mem::{offset_of, ManuallyDrop, MaybeUninit};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
@@ -271,14 +272,14 @@ unsafe fn tp_dealloc(slf: *mut ffi::PyObject, type_obj: &crate::Bound<'_, PyType
         // it will decref the type object.
         debug_assert!(ffi::PyType_HasFeature(actual_type_ptr, ffi::Py_TPFLAGS_HEAPTYPE) != 0);
         let actual_type = cfg_select! {
-            not(PyPy) => crate::Bound::from_owned_ptr(py, actual_type_ptr),
+            not(PyPy) => actual_type_ptr.assume_owned(py),
             // See https://github.com/pypy/pypy/issues/5555 - it seems that PyPy does not
             // support the CPython semantics properly, so we avoid taking ownership of the
             // type object on PyPy.
             //
             // TODO: If the PyPy bug is fixed we should remove this workaround and just create
             // a `Bound` as above.
-            PyPy => crate::Borrowed::from_ptr(py, actual_type_ptr),
+            PyPy => actual_type_ptr.assume_borrowed(py),
         };
 
         // For `#[pyclass]` types which inherit from PyAny, we can just call tp_free
