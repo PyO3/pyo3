@@ -615,9 +615,8 @@ impl FunctionDescription {
 
         // Safety: kwnames is known to be a pointer to a tuple, or null
         //  - we both have the GIL and can borrow this input reference for the `'py` lifetime.
-        let kwnames: Option<Borrowed<'_, '_, PyTuple>> = unsafe {
-            Borrowed::from_ptr_or_opt(py, kwnames).map(|kwnames| kwnames.cast_unchecked())
-        };
+        let kwnames: Option<Borrowed<'_, '_, PyTuple>> =
+            unsafe { Borrowed::from_ptr_or_opt(py, kwnames.cast()) };
         if let Some(kwnames) = kwnames {
             let kwargs = unsafe {
                 ::core::slice::from_raw_parts(
@@ -670,10 +669,9 @@ impl FunctionDescription {
         //  - `args` is known to be a tuple
         //  - `kwargs` is known to be a dict or null
         //  - we both have the GIL and can borrow these input references for the `'py` lifetime.
-        let args: Borrowed<'py, 'py, PyTuple> =
-            unsafe { Borrowed::from_ptr(py, args).cast_unchecked::<PyTuple>() };
+        let args: Borrowed<'py, 'py, PyTuple> = unsafe { Borrowed::from_ptr(py, args.cast()) };
         let kwargs: Option<Borrowed<'py, 'py, PyDict>> =
-            unsafe { Borrowed::from_ptr_or_opt(py, kwargs).map(|kwargs| kwargs.cast_unchecked()) };
+            unsafe { Borrowed::from_ptr_or_opt(py, kwargs.cast()) };
 
         let num_positional_parameters = self.positional_parameter_names.len();
 

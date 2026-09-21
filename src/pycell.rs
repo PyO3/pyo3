@@ -295,6 +295,10 @@ impl<'py, T: PyClass> PyRef<'py, T> {
         self.inner.as_ptr()
     }
 
+    pub(crate) fn as_typed_ptr(&self) -> *mut T::FfiType {
+        self.inner.as_typed_ptr()
+    }
+
     /// Returns an owned raw FFI pointer represented by self.
     ///
     /// # Safety
@@ -569,6 +573,11 @@ impl<'py, T: PyClass<Frozen = False>> PyRefMut<'py, T> {
     #[inline]
     pub fn as_ptr(&self) -> *mut ffi::PyObject {
         self.inner.as_ptr()
+    }
+
+    #[inline]
+    pub(crate) fn as_typed_ptr(&self) -> *mut T::FfiType {
+        self.inner.as_typed_ptr()
     }
 
     /// Returns an owned raw FFI pointer represented by self.

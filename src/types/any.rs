@@ -44,7 +44,7 @@ fn PyObject_Check(_: *mut ffi::PyObject) -> c_int {
 // We follow stub writing guidelines and use "object" instead of "typing.Any": https://typing.python.org/en/latest/guides/writing_stubs.html#using-any
 #[cfg(not(RustPython))]
 pyobject_native_type_info!(
-    PyAny,
+    PyAny: crate::ffi::PyObject,
     pyobject_native_static_type_object!(ffi::PyBaseObject_Type),
     "typing",
     "Any",
@@ -54,7 +54,7 @@ pyobject_native_type_info!(
 
 #[cfg(RustPython)]
 pyobject_native_type_info!(
-    PyAny,
+    PyAny: crate::ffi::PyObject,
     |py| {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "builtins", "object").unwrap().as_type_ptr()

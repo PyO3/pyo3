@@ -33,7 +33,7 @@ pyobject_subclassable_native_type!(PyDict, crate::ffi::PyDictObject);
 
 #[cfg(not(RustPython))]
 pyobject_native_type!(
-    PyDict,
+    PyDict: crate::ffi::PyDictObject,
     ffi::PyDictObject,
     pyobject_native_static_type_object!(ffi::PyDict_Type),
     "builtins",
@@ -43,7 +43,7 @@ pyobject_native_type!(
 
 #[cfg(RustPython)]
 pyobject_native_type_core!(
-    PyDict,
+    PyDict: crate::ffi::PyDict,
     |py| {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "builtins", "dict").unwrap().as_type_ptr()

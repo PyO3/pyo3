@@ -94,7 +94,13 @@ fn try_new_from_iter<'py>(
 pub struct PyTuple(PyAny);
 
 #[cfg(not(RustPython))]
-pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyTuple_Type), "builtins", "tuple", #checkfunction=ffi::PyTuple_Check);
+pyobject_native_type_core!(
+    PyTuple: crate::ffi::PyTupleObject,
+    pyobject_native_static_type_object!(ffi::PyTuple_Type),
+    "builtins",
+    "tuple",
+    #checkfunction=ffi::PyTuple_Check
+);
 
 #[cfg(RustPython)]
 pyobject_native_type_core!(

@@ -293,7 +293,6 @@ impl FnType {
                     // `#slf` is `*mut PyTypeObject` for class methods
                     ClassMethodReceiver::Class => quote_spanned! { *span =>
                         #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
-                            .cast_unchecked::<#pyo3_path::types::PyType>()
                     },
                     // `#slf` is `*mut PyObject` for instance methods - need to get an
                     // owned type object (stash it in a holder)

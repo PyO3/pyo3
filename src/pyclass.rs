@@ -1,4 +1,5 @@
 //! `PyClass` and related traits.
+use crate::types::ApiObj;
 use crate::{ffi, impl_::pyclass::PyClassImpl, PyTypeInfo};
 use core::{cmp::Ordering, ffi::c_int};
 
@@ -18,7 +19,7 @@ pub use self::guard::{
 ///
 /// The `#[pyclass]` attribute implements this trait for your Rust struct -
 /// you shouldn't implement this trait directly.
-pub trait PyClass: PyTypeInfo + PyClassImpl {
+pub trait PyClass: PyTypeInfo + PyClassImpl + ApiObj {
     /// Name of the class.
     ///
     /// This can be set via `#[pyclass(name = "...")]`, otherwise it defaults to the Rust type name.
