@@ -94,8 +94,18 @@ fn try_new_from_iter<'py>(
 pub struct PyTuple(PyAny);
 
 #[cfg(not(RustPython))]
+mod ffi_obj {
+    #[cfg(Py_LIMITED_API)]
+    #[repr(transparent)]
+    pub struct PyTupleObject(crate::ffi::PyObject);
+
+    #[cfg(not(Py_LIMITED_API))]
+    pub use crate::ffi::PyTupleObject;
+}
+
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(
-    PyTuple: crate::ffi::PyTupleObject,
+    PyTuple: ffi_obj::PyTupleObject,
     pyobject_native_static_type_object!(ffi::PyTuple_Type),
     "builtins",
     "tuple",
