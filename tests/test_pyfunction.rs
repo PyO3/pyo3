@@ -807,7 +807,7 @@ fn test_pyfunction_multiple_warnings() {
 }
 
 #[test]
-#[cfg(not(PyPy))] // PyPy does not implement `PyCFunction_GetFlags`
+#[cfg(any(not(PyPy), Py_3_12))]
 fn test_pyfunction_is_not_static() {
     use pyo3::ffi;
 
