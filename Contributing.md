@@ -239,7 +239,7 @@ CI tests both the most recent stable Rust version and the minimum supported Rust
 
 #### Support for `no_std`
 
-Support for compiling PyO3 without rusts's `std` library is currently a work-in-progress. Failing `no_std` jobs in CI will not prevent your PR from being merged, but we appreciate any steps you take to make your PR support it.
+Support for compiling PyO3 without rusts's `std` library is currently a work-in-progress.
 
 ##### Enable `no_std`
 
