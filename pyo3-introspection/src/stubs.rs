@@ -1390,7 +1390,7 @@ mod tests {
         };
         assert_eq!(
             module_stubs(&module, &[]),
-            "from math import inf, nan\nX = inf\ndef func(a=nan): ...\n"
+            "from math import inf, nan\n\n__all__ = [\"X\", \"func\"]\n\nX = inf\ndef func(a=nan): ...\n"
         );
     }
 
@@ -1436,7 +1436,7 @@ mod tests {
         };
         assert_eq!(
             module_stubs(&module, &[]),
-            "from builtins import int as int2\nclass int: ...\ndef make(a: int2) -> int: ...\n"
+            "from builtins import int as int2\n\n__all__ = [\"int\", \"make\"]\n\nclass int: ...\ndef make(a: int2) -> int: ...\n"
         );
     }
 }
