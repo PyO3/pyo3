@@ -182,6 +182,7 @@ pub mod iter {
 ///
 /// # Safety
 /// May not be implemented by downstream crates.
+#[doc(hidden)]
 pub unsafe trait FfiObj {
     /// The associated [`ApiObj`] type
     type ApiType: ApiObj<FfiType = Self>;
@@ -191,12 +192,14 @@ pub unsafe trait FfiObj {
 ///
 /// # Safety
 /// May not be implemented by downstream crates.
+#[doc(hidden)]
 pub unsafe trait ApiObj {
     /// The associated [`FfiObj`] type
     type FfiType: FfiObj<ApiType = Self>;
 }
 
 /// Helper to get [`ApiObj::FfiType`] for `T`
+#[doc(hidden)]
 pub type FfiTypeOf<T> = <T as ApiObj>::FfiType;
 
 /// Python objects that have a base type.
