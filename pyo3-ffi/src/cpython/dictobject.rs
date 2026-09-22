@@ -83,6 +83,7 @@ pub unsafe fn PyAnyDict_CheckExact(op: *mut PyObject) -> c_int {
 
 extern_libpython! {
     #[cfg(not(GraalPy))]
+    #[cfg_attr(PyPy, link_name = "PyPyDict_SetDefault")]
     pub fn PyDict_SetDefault(
         mp: *mut PyObject,
         key: *mut PyObject,

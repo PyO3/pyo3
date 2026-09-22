@@ -66,11 +66,14 @@ extern_libpython! {
     pub fn PyThreadState_GetUnchecked() -> *mut PyThreadState;
 
     #[cfg(not(Py_3_13))]
+    #[cfg_attr(PyPy, link_name = "_PyPyThreadState_UncheckedGet")]
     pub(crate) fn _PyThreadState_UncheckedGet() -> *mut PyThreadState;
 
     #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyThreadState_EnterTracing")]
     pub fn PyThreadState_EnterTracing(state: *mut PyThreadState);
     #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyThreadState_LeaveTracing")]
     pub fn PyThreadState_LeaveTracing(state: *mut PyThreadState);
 
     #[cfg_attr(PyPy, link_name = "PyPyGILState_Check")]
@@ -92,7 +95,7 @@ extern_libpython! {
     #[cfg(not(PyPy))]
     pub fn PyThreadState_Next(tstate: *mut PyThreadState) -> *mut PyThreadState;
 
-    #[cfg_attr(PyPy, link_name = "PyPyThreadState_DeleteCurrent")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyThreadState_DeleteCurrent")]
     pub fn PyThreadState_DeleteCurrent();
 
     #[cfg(all(not(Py_3_11), not(PyPy)))]

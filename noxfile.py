@@ -186,15 +186,15 @@ def test_py(session: nox.Session) -> None:
     features = (
         ",".join(f"pyo3/{feat}" for feat in _REQUIRED_FOR_NO_STD)
         if _is_no_std()
-        else None
+        else ""
     )
-    features = f"--features={features}" if features else None
+    extra_args = ("--", f"--features={features}") if features else ()
 
-    _run(session, "nox", "-f", "pytests/noxfile.py", "--", features, external=True)
+    _run(session, "nox", "-f", "pytests/noxfile.py", *extra_args, external=True)
     for example in glob("examples/*/noxfile.py"):
         if _is_no_std() and example.startswith("examples/setuptools-rust-starter"):
             continue
-        _run(session, "nox", "-f", example, "--", features, external=True)
+        _run(session, "nox", "-f", example, *extra_args, external=True)
     for example in glob("pyo3-ffi/examples/*/noxfile.py"):
         _run(session, "nox", "-f", example, external=True)
 
@@ -1334,13 +1334,16 @@ def set_msrv_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    extra_args = []
-    # This flag can be useful for debugging ffi-check errors, but overall the
-    # short message format is easier to read
-    if "--long-message-format" not in session.posargs:
-        extra_args.append("--message-format=short")
-
-    _run_cargo(session, "run", _FFI_CHECK, *extra_args)
+    # on windows, missing symbols are reported best at link time against a
+    # proper import library, so running with raw dylib disabled gets the best
+    # feedback. Exercise both paths.
+    no_raw_dylib_env = {**os.environ, "PYO3_USE_RAW_DYLIB": "0"}
+    raw_dylib_env = {**os.environ, "PYO3_USE_RAW_DYLIB": "1"}
+    if sys.platform == "win32":
+        # only relevant to run this on windows; the env var is ignored on
+        # other platforms
+        _run_cargo(session, "run", _FFI_CHECK, env=no_raw_dylib_env)
+    _run_cargo(session, "run", _FFI_CHECK, env=raw_dylib_env)
     _check_raw_dylib_macro(session)
 
 
@@ -1485,7 +1488,10 @@ def _check_raw_dylib_macro(session: nox.Session):
     pypy_min, pypy_max = _parse_supported_interpreter_version("pypy")
     pypy_min_minor = int(pypy_min.split(".")[1])
     pypy_max_minor = int(pypy_max.split(".")[1])
-    for minor in range(pypy_min_minor, pypy_max_minor + 1):
+    for minor in range(
+        pypy_min_minor,
+        pypy_max_minor + 2,  # allow prerelease of next version
+    ):
         expected_dlls.add(f"libpypy3.{minor}-c")
 
     # Parse the DLL name list in the extern_libpython!(@impl ...) invocation
@@ -1938,7 +1944,7 @@ def _get_coverage_env(*flags: str) -> dict[str, str]:
     return env
 
 
-def _run(session: nox.Session, *args: str | None, **kwargs: Any) -> None:
+def _run(session: nox.Session, *args: str, **kwargs: Any) -> None:
     """Wrapper for _run(session, which creates nice groups on GitHub Actions."""
     is_github_actions = _is_github_actions()
     failed = False
@@ -1946,8 +1952,7 @@ def _run(session: nox.Session, *args: str | None, **kwargs: Any) -> None:
         # Insert ::group:: at the start of nox's command line output
         print("::group::", end="", flush=True, file=sys.stderr)
     try:
-        filtered_args = [x for x in args if x is not None]
-        session.run(*filtered_args, **kwargs)
+        session.run(*args, **kwargs)
     except nox.command.CommandFailed:
         failed = True
         raise

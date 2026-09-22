@@ -25,27 +25,27 @@ extern_libpython! {
     #[cfg(RustPython)]
     pub fn PyLong_CheckExact(op: *mut PyObject) -> c_int;
 
-    #[cfg_attr(PyPy, link_name = "PyPyLong_FromLong")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_FromLong")]
     pub fn PyLong_FromLong(arg1: c_long) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_FromUnsignedLong")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_FromUnsignedLong")]
     pub fn PyLong_FromUnsignedLong(arg1: c_ulong) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_FromSize_t")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_FromSize_t")]
     pub fn PyLong_FromSize_t(arg1: size_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_FromSsize_t")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_FromSsize_t")]
     pub fn PyLong_FromSsize_t(arg1: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_FromDouble")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_FromDouble")]
     pub fn PyLong_FromDouble(arg1: c_double) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_AsLong")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_AsLong")]
     pub fn PyLong_AsLong(arg1: *mut PyObject) -> c_long;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_AsLongAndOverflow")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_AsLongAndOverflow")]
     pub fn PyLong_AsLongAndOverflow(arg1: *mut PyObject, arg2: *mut c_int) -> c_long;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_AsSsize_t")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_AsSsize_t")]
     pub fn PyLong_AsSsize_t(arg1: *mut PyObject) -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_AsSize_t")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_AsSize_t")]
     pub fn PyLong_AsSize_t(arg1: *mut PyObject) -> size_t;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_AsUnsignedLong")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_AsUnsignedLong")]
     pub fn PyLong_AsUnsignedLong(arg1: *mut PyObject) -> c_ulong;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_AsUnsignedLongMask")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_AsUnsignedLongMask")]
     pub fn PyLong_AsUnsignedLongMask(arg1: *mut PyObject) -> c_ulong;
 
     // skipped non-limited PyLong_AsInt
@@ -115,25 +115,25 @@ extern_libpython! {
     // skipped _Py_PARSE_INTPTR
     // skipped _Py_PARSE_UINTPTR
 
-    #[cfg_attr(PyPy, link_name = "PyPyLong_AsDouble")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_AsDouble")]
     pub fn PyLong_AsDouble(arg1: *mut PyObject) -> c_double;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_FromVoidPtr")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_FromVoidPtr")]
     pub fn PyLong_FromVoidPtr(arg1: *mut c_void) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_AsVoidPtr")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_AsVoidPtr")]
     pub fn PyLong_AsVoidPtr(arg1: *mut PyObject) -> *mut c_void;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_FromLongLong")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_FromLongLong")]
     pub fn PyLong_FromLongLong(arg1: c_longlong) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_FromUnsignedLongLong")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_FromUnsignedLongLong")]
     pub fn PyLong_FromUnsignedLongLong(arg1: c_ulonglong) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_AsLongLong")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_AsLongLong")]
     pub fn PyLong_AsLongLong(arg1: *mut PyObject) -> c_longlong;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_AsUnsignedLongLong")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_AsUnsignedLongLong")]
     pub fn PyLong_AsUnsignedLongLong(arg1: *mut PyObject) -> c_ulonglong;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_AsUnsignedLongLongMask")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_AsUnsignedLongLongMask")]
     pub fn PyLong_AsUnsignedLongLongMask(arg1: *mut PyObject) -> c_ulonglong;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_AsLongLongAndOverflow")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_AsLongLongAndOverflow")]
     pub fn PyLong_AsLongLongAndOverflow(arg1: *mut PyObject, arg2: *mut c_int) -> c_longlong;
-    #[cfg_attr(PyPy, link_name = "PyPyLong_FromString")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyLong_FromString")]
     pub fn PyLong_FromString(
         arg1: *const c_char,
         arg2: *mut *mut c_char,

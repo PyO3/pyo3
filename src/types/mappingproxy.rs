@@ -151,8 +151,8 @@ impl<'py> Iterator for BoundMappingProxyIterator<'py, '_> {
 mod tests {
 
     use super::*;
+    use crate::platform::collections::HashMap;
     use crate::platform::prelude::*;
-    use crate::platform::HashMap;
     use crate::types::dict::*;
     #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     use crate::types::{PyDictItems, PyDictKeys, PyDictValues};

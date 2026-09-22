@@ -195,7 +195,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
 
 #[cfg(test)]
 mod tests {
-    use crate::platform::HashMap;
+    use crate::platform::collections::HashMap;
     use crate::{exceptions::PyKeyError, types::PyTuple};
 
     use super::*;

@@ -416,8 +416,8 @@ impl Imports {
     /// and create the aliases when needed.
     fn create(module: &Module, module_parents: &[&str]) -> Self {
         let module_is_package = !module.modules.is_empty();
-        let mut elements_used_in_annotations = ElementsUsedInAnnotations::new();
-        elements_used_in_annotations.walk_module(module);
+        let mut referenced_names = ReferencedNames::new();
+        referenced_names.walk_module(module);
 
         let mut imports = Vec::new();
         let mut renaming = BTreeMap::new();
@@ -443,11 +443,9 @@ impl Imports {
             local_name_to_module_and_attribute
                 .insert(name.clone(), (current_module_name.clone(), name.clone()));
         }
-        // We don't process the current module elements, no need to care about them
-        local_name_to_module_and_attribute.remove(&current_module_name);
 
         // We process then imports, normalizing local imports
-        for (module, attrs) in &elements_used_in_annotations.module_to_name {
+        for (module, attrs) in &referenced_names.module_to_name {
             let mut import_for_module = Vec::new();
             for attr in attrs {
                 // We split nested classes A.B in "A" (the part that must be imported and can have naming conflicts) and ".B"
@@ -632,13 +630,13 @@ impl Imports {
     }
 }
 
-/// Lists all the elements used in annotations
-struct ElementsUsedInAnnotations {
+/// Collects the names referenced by the expressions emitted in a module's stub
+struct ReferencedNames {
     /// module -> name where module is global (from the root of the interpreter).
     module_to_name: BTreeMap<String, BTreeSet<String>>,
 }
 
-impl ElementsUsedInAnnotations {
+impl ReferencedNames {
     fn new() -> Self {
         Self {
             module_to_name: BTreeMap::new(),
@@ -689,6 +687,9 @@ impl ElementsUsedInAnnotations {
         if let Some(type_hint) = &attribute.annotation {
             self.walk_expr(type_hint);
         }
+        if let Some(value) = &attribute.value {
+            self.walk_expr(value);
+        }
     }
 
     fn walk_function(&mut self, function: &Function) {
@@ -704,6 +705,9 @@ impl ElementsUsedInAnnotations {
         {
             if let Some(type_hint) = &arg.annotation {
                 self.walk_expr(type_hint);
+            }
+            if let Some(default_value) = &arg.default_value {
+                self.walk_expr(default_value);
             }
         }
         for arg in function
@@ -1343,5 +1347,96 @@ mod tests {
         assert!(files[Path::new("child/__init__.pyi")].contains("from .. import Top"));
         assert!(files[Path::new("child/grandchild.pyi")].contains("from .. import Top"));
         assert!(files[Path::new("sibling.pyi")].is_empty());
+    }
+
+    /// Default values and attribute values go through the same renaming table as the type hints,
+    /// so the names they use must be collected too, or `serialize_expr` panics on them.
+    #[test]
+    fn names_in_defaults_and_values_are_imported() {
+        let math = |attr: &str| Expr::Attribute {
+            value: Box::new(Expr::Name { id: "math".into() }),
+            attr: attr.into(),
+        };
+        let module = Module {
+            name: "foo".into(),
+            modules: Vec::new(),
+            classes: Vec::new(),
+            functions: vec![Function {
+                name: "func".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: vec![Argument {
+                        name: "a".into(),
+                        default_value: Some(math("nan")),
+                        annotation: None,
+                    }],
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: None,
+                is_async: false,
+                docstring: None,
+            }],
+            attributes: vec![Attribute {
+                name: "X".into(),
+                value: Some(math("inf")),
+                annotation: None,
+                docstring: None,
+            }],
+            incomplete: false,
+            docstring: None,
+        };
+        assert_eq!(
+            module_stubs(&module, &[]),
+            "from math import inf, nan\nX = inf\ndef func(a=nan): ...\n"
+        );
+    }
+
+    /// A class named like the root module used to be imported from itself and shadowed by builtins
+    #[test]
+    fn local_binding_named_like_the_root_module_is_kept() {
+        let module = Module {
+            name: "int".into(),
+            modules: Vec::new(),
+            classes: vec![Class {
+                name: "int".into(),
+                bases: Vec::new(),
+                methods: Vec::new(),
+                attributes: Vec::new(),
+                decorators: Vec::new(),
+                inner_classes: Vec::new(),
+                docstring: None,
+            }],
+            functions: vec![Function {
+                name: "make".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: vec![Argument {
+                        name: "a".into(),
+                        default_value: None,
+                        annotation: Some(Expr::Name { id: "int".into() }),
+                    }],
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: Some(Expr::Attribute {
+                    value: Box::new(Expr::Name { id: "int".into() }),
+                    attr: "int".into(),
+                }),
+                is_async: false,
+                docstring: None,
+            }],
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        assert_eq!(
+            module_stubs(&module, &[]),
+            "from builtins import int as int2\nclass int: ...\ndef make(a: int2) -> int: ...\n"
+        );
     }
 }
