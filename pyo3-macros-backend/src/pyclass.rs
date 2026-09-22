@@ -6,8 +6,8 @@ use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
+use syn::Visibility;
 use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, ImplItemFn, Result, Token};
-use syn::{PathArguments, PathSegment, Visibility};
 
 use crate::attributes::kw::frozen;
 use crate::attributes::{
@@ -3232,75 +3232,24 @@ impl<'a> PyClassImplsBuilder<'a> {
 
     fn impl_api_obj(&self, ctx: &Ctx) -> TokenStream {
         let pyo3_path = &ctx.pyo3_path;
-        let cls_ident = &self.cls_ident;
-        let mod_name = cls_ident.to_string() + "_mod";
-        let mod_name = mod_name.strip_prefix("r#").unwrap_or(&mod_name);
-        let mod_name = Ident::new(mod_name, Span::call_site());
-        let vis = visibility_for_item_in_generated_mod(self.vis);
+        let cls_ident = self.cls_ident;
+        let vis = self.vis;
+
+        let ffi_name = Ident::new(&format!("{}_Ffi", cls_ident.unraw()), cls_ident.span());
 
         quote! {
             unsafe impl #pyo3_path::types::ApiObj for #cls_ident {
-                type FfiType = #mod_name::FfiType;
+                type FfiType = #ffi_name;
             }
 
-            unsafe impl #pyo3_path::types::FfiObj for #mod_name::FfiType {
+            unsafe impl #pyo3_path::types::FfiObj for #ffi_name {
                 type ApiType = #cls_ident;
             }
 
             #[doc(hidden)]
-            mod #mod_name {
-                #[repr(transparent)]
-                #vis struct FfiType(#pyo3_path::ffi::PyObject);
-            }
+            #[allow(nonstandard_style, clippy::allow_attributes, reason = "generated code")]
+            #vis struct #ffi_name(#pyo3_path::ffi::PyObject);
         }
-    }
-}
-
-fn visibility_for_item_in_generated_mod(vis: &Visibility) -> Cow<'_, Visibility> {
-    match vis {
-        Visibility::Public(_) => Cow::Borrowed(vis),
-        Visibility::Restricted(vis_restricted) => {
-            if vis_restricted.in_token.is_some() {
-                vis_restricted.path.segments.first().map_or_else(
-                    || Cow::Borrowed(vis),
-                    |first| {
-                        if first.ident == "crate" {
-                            Cow::Borrowed(vis)
-                        } else if first.ident == "super" {
-                            let mut vis = vis_restricted.clone();
-                            vis.path.segments.insert(
-                                0,
-                                PathSegment {
-                                    ident: Ident::new("super", first.span()),
-                                    arguments: PathArguments::None,
-                                },
-                            );
-                            Cow::Owned(Visibility::Restricted(vis))
-                        } else if first.ident == "self" {
-                            let mut vis = vis_restricted.clone();
-                            let first_mut = vis.path.segments.first_mut().unwrap();
-                            let span = first_mut.ident.span();
-                            first_mut.ident = Ident::new("super", span);
-                            Cow::Owned(Visibility::Restricted(vis))
-                        } else {
-                            Cow::Borrowed(vis)
-                        }
-                    },
-                )
-            } else {
-                let path_ident = vis_restricted.path.get_ident().unwrap();
-                if path_ident == "crate" {
-                    Cow::Borrowed(vis)
-                } else if path_ident == "super" {
-                    Cow::Owned(parse_quote! { pub(in super::super) })
-                } else if path_ident == "self" {
-                    Cow::Owned(parse_quote! { pub(super) })
-                } else {
-                    unreachable!("unrecognized visibility restriction: {path_ident}")
-                }
-            }
-        }
-        Visibility::Inherited => Cow::Owned(parse_quote! { pub(super) }),
     }
 }
 
