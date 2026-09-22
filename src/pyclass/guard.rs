@@ -791,7 +791,7 @@ impl<'a, 'py, T: PyClass<Frozen = False>> IntoPyObject<'py> for &PyClassGuardMut
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
         // SAFETY: `ptr` is guaranteed to be valid for 'a and points to an
         // object of type T
-        unsafe { Ok(Borrowed::from_non_null(py, self.ptr.cast::<T::FfiType>())) }
+        unsafe { Ok(Borrowed::from_non_null(py, self.ptr).cast_unchecked()) }
     }
 }
 

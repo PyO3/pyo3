@@ -1,3 +1,4 @@
+use crate::py_result_ext::PyResultExt;
 use crate::types::{ApiObj, FfiObj};
 use crate::{
     instance::{Borrowed, Bound},
@@ -55,7 +56,7 @@ impl<T: FfiObj> FfiPtrExt for *mut T {
     #[inline]
     unsafe fn assume_owned_or_err(self, py: Python<'_>) -> PyResult<Bound<'_, Self::ApiType>> {
         // SAFETY: caller upholds requirements
-        unsafe { Bound::<Self::ApiType>::from_owned_ptr_or_err(py, self) }
+        unsafe { Bound::from_owned_ptr_or_err(py, self.cast()).cast_into_unchecked() }
     }
 
     /// # Safety
@@ -64,7 +65,7 @@ impl<T: FfiObj> FfiPtrExt for *mut T {
     #[inline]
     unsafe fn assume_owned_or_opt(self, py: Python<'_>) -> Option<Bound<'_, Self::ApiType>> {
         // SAFETY: caller upholds requirements
-        unsafe { Bound::from_owned_ptr_or_opt(py, self) }
+        unsafe { Bound::from_owned_ptr_or_opt(py, self.cast()).map(|b| b.cast_into_unchecked()) }
     }
 
     /// # Safety
@@ -74,7 +75,7 @@ impl<T: FfiObj> FfiPtrExt for *mut T {
     #[track_caller]
     unsafe fn assume_owned(self, py: Python<'_>) -> Bound<'_, Self::ApiType> {
         // SAFETY: caller upholds requirements
-        unsafe { Bound::from_owned_ptr(py, self) }
+        unsafe { Bound::from_owned_ptr(py, self.cast()).cast_into_unchecked() }
     }
 
     /// # Safety
@@ -83,7 +84,7 @@ impl<T: FfiObj> FfiPtrExt for *mut T {
     #[inline]
     unsafe fn assume_owned_unchecked(self, py: Python<'_>) -> Bound<'_, Self::ApiType> {
         // SAFETY: caller upholds requirements
-        unsafe { Bound::from_owned_ptr_unchecked(py, self) }
+        unsafe { Bound::from_owned_ptr_unchecked(py, self.cast()).cast_into_unchecked() }
     }
 
     /// # Safety
@@ -95,7 +96,7 @@ impl<T: FfiObj> FfiPtrExt for *mut T {
         py: Python<'_>,
     ) -> PyResult<Borrowed<'a, '_, Self::ApiType>> {
         // SAFETY: caller upholds requirements
-        unsafe { Borrowed::from_ptr_or_err(py, self) }
+        unsafe { Borrowed::from_ptr_or_err(py, self.cast()).map(|b| b.cast_unchecked()) }
     }
 
     /// # Safety
@@ -107,7 +108,7 @@ impl<T: FfiObj> FfiPtrExt for *mut T {
         py: Python<'_>,
     ) -> Option<Borrowed<'a, '_, Self::ApiType>> {
         // SAFETY: caller upholds requirements
-        unsafe { Borrowed::from_ptr_or_opt(py, self) }
+        unsafe { Borrowed::from_ptr_or_opt(py, self.cast()).map(|b| b.cast_unchecked()) }
     }
 
     /// # Safety
@@ -117,7 +118,7 @@ impl<T: FfiObj> FfiPtrExt for *mut T {
     #[track_caller]
     unsafe fn assume_borrowed<'a>(self, py: Python<'_>) -> Borrowed<'a, '_, Self::ApiType> {
         // SAFETY: caller upholds requirements
-        unsafe { Borrowed::from_ptr(py, self) }
+        unsafe { Borrowed::from_ptr(py, self.cast()).cast_unchecked() }
     }
 
     /// # Safety
@@ -129,6 +130,6 @@ impl<T: FfiObj> FfiPtrExt for *mut T {
         py: Python<'_>,
     ) -> Borrowed<'a, '_, Self::ApiType> {
         // SAFETY: caller upholds requirements
-        unsafe { Borrowed::from_ptr_unchecked(py, self) }
+        unsafe { Borrowed::from_ptr_unchecked(py, self.cast()).cast_unchecked() }
     }
 }

@@ -22,7 +22,6 @@ pub trait Sealed {}
 
 // for FfiPtrExt
 impl Sealed for *mut ffi::PyObject {}
-impl Sealed for ffi::PyObject {}
 
 // for PyResultExt
 impl Sealed for PyResult<Bound<'_, PyAny>> {}

@@ -293,6 +293,7 @@ impl FnType {
                     // `#slf` is `*mut PyTypeObject` for class methods
                     ClassMethodReceiver::Class => quote_spanned! { *span =>
                         #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
+                            .cast_unchecked::<#pyo3_path::types::PyType>()
                     },
                     // `#slf` is `*mut PyObject` for instance methods - need to get an
                     // owned type object (stash it in a holder)
@@ -343,7 +344,10 @@ impl FnType {
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion, reason = "`pass_module` accepts anything which implements `From<&Bound<PyModule>>`")]
-                    ::core::convert::Into::into(#pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast()))
+                    ::core::convert::Into::into(
+                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
+                            .cast_unchecked::<#pyo3_path::types::PyModule>()
+                    )
                 };
                 Some(quote! { unsafe { #ret } })
             }
@@ -889,7 +893,7 @@ impl<'a> FnSpec<'a> {
                 let (slf_py, slf_ptr) = if self_arg.is_some() {
                     (
                         Some(
-                            quote! { let _slf = #pyo3_path::Borrowed::<PyAny>::from_ptr(py, _slf).to_owned().unbind(); },
+                            quote! { let _slf = #pyo3_path::Borrowed::from_ptr(py, _slf).to_owned().unbind(); },
                         ),
                         Some(quote! { let _slf = _slf.as_ptr(); }),
                     )
