@@ -31,38 +31,6 @@ def test_simple_rs(benchmark):
     assert rust == py
 
 
-# The benchmark fixture calls its target as `target(*args, **kwargs)`, which
-# CPython never specializes. This wrapper calls `f` with positional arguments,
-# so that CPython specializes the call site to the instruction for `f`'s
-# calling convention. That is where a wrong method flag costs time (#6426).
-# It makes 1,000 calls per measurement, so that the calls dominate the fixed
-# cost of a CodSpeed measurement.
-def call_with_positional_arguments(f) -> Any:
-    result = None
-    for _ in range(1_000):
-        result = f(1, "foo")
-    return result
-
-
-def warm_up_positional_arguments(f) -> None:
-    # CPython specializes a call site only after it has run a few times, and
-    # it waits up to 4095 runs after a failed attempt, so run the call site
-    # 10,000 times with `f` before the measurement.
-    for _ in range(10):
-        call_with_positional_arguments(f)
-
-
-def test_positional_arguments_py(benchmark):
-    warm_up_positional_arguments(simple_py)
-    benchmark(call_with_positional_arguments, simple_py)
-
-
-def test_positional_arguments_rs(benchmark):
-    warm_up_positional_arguments(pyfunctions.simple)
-    rust = benchmark(call_with_positional_arguments, pyfunctions.simple)
-    assert rust == simple_py(1, "foo")
-
-
 def simple_args_py(a, b=None, *args, c=None):
     return a, b, args, c
 
