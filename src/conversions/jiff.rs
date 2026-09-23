@@ -909,6 +909,35 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(windows))]
+    fn test_nonexistent_datetime_frompyobject_matches_python_timestamp() {
+        Python::attach(|py| {
+            let py_datetime = new_py_datetime_ob(
+                py,
+                "datetime",
+                (
+                    2020,
+                    3,
+                    8,
+                    2,
+                    30,
+                    0,
+                    0,
+                    python_zoneinfo(py, "America/Los_Angeles"),
+                ),
+            );
+            let python_timestamp = py_datetime
+                .call_method0("timestamp")
+                .unwrap()
+                .extract::<f64>()
+                .unwrap() as i64;
+            let datetime_from_py: Zoned = py_datetime.extract().unwrap();
+
+            assert_eq!(datetime_from_py.timestamp().as_second(), python_timestamp);
+        })
+    }
+
+    #[test]
     fn test_pyo3_datetime_frompyobject_fixed_offset() {
         Python::attach(|py| {
             let year = 2014;
