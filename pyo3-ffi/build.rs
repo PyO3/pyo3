@@ -14,39 +14,44 @@ struct SupportedVersions {
     max: PythonVersion,
 }
 
-const SUPPORTED_VERSIONS_CPYTHON: SupportedVersions = SupportedVersions {
-    min: PythonVersion { major: 3, minor: 9 },
-    max: PythonVersion {
-        major: 3,
-        minor: 15,
-    },
+const PY_3_9: PythonVersion = PythonVersion { major: 3, minor: 9 };
+const PY_3_10: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 10,
 };
-
-const SUPPORTED_VERSIONS_PYPY: SupportedVersions = SupportedVersions {
-    min: PythonVersion {
-        major: 3,
-        minor: 11,
-    },
-    max: SUPPORTED_VERSIONS_CPYTHON.max,
+const PY_3_11: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 11,
 };
-
-const SUPPORTED_VERSIONS_GRAALPY: SupportedVersions = SupportedVersions {
-    min: PythonVersion {
-        major: 3,
-        minor: 10,
-    },
-    max: SUPPORTED_VERSIONS_CPYTHON.max,
+const PY_3_12: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 12,
 };
-
-const MIN_FREE_THREADED_VERSION: PythonVersion = PythonVersion {
+const PY_3_14: PythonVersion = PythonVersion {
     major: 3,
     minor: 14,
 };
-
 const PY_3_15: PythonVersion = PythonVersion {
     major: 3,
     minor: 15,
 };
+
+const SUPPORTED_VERSIONS_CPYTHON: SupportedVersions = SupportedVersions {
+    min: PY_3_9,
+    max: PY_3_15,
+};
+
+const SUPPORTED_VERSIONS_PYPY: SupportedVersions = SupportedVersions {
+    min: PY_3_11,
+    max: SUPPORTED_VERSIONS_CPYTHON.max,
+};
+
+const SUPPORTED_VERSIONS_GRAALPY: SupportedVersions = SupportedVersions {
+    min: PY_3_10,
+    max: SUPPORTED_VERSIONS_CPYTHON.max,
+};
+
+const MIN_FREE_THREADED_VERSION: PythonVersion = PY_3_14;
 
 fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
     // This is an undocumented env var which is only really intended to be used in CI / for testing
@@ -55,113 +60,107 @@ fn ensure_python_version(interpreter_config: &InterpreterConfig) -> Result<()> {
         return Ok(());
     }
 
-    match interpreter_config.target_abi().implementation() {
-        PythonImplementation::CPython => {
-            let versions = SUPPORTED_VERSIONS_CPYTHON;
-            let interp_version = interpreter_config.target_abi().version();
-            ensure!(
-                interpreter_config.version() >= versions.min,
-                "the configured Python interpreter version ({}) is lower than PyO3's minimum supported version ({})",
-                interpreter_config.version(),
-                versions.min,
-            );
-            let v_plus_1 = PythonVersion {
-                major: versions.max.major,
-                minor: versions.max.minor + 1,
-            };
-            if interp_version == v_plus_1 {
-                warn!(
-                    "Using experimental support for the Python {}.{} ABI. \
-                     Build artifacts may not be compatible with the final release of CPython, \
-                     so do not distribute them.",
-                    v_plus_1.major, v_plus_1.minor,
-                );
-            } else if interp_version > v_plus_1 {
-                let mut error = MaximumVersionExceeded::new(interpreter_config, versions.max);
-                if interpreter_config.target_abi().kind().is_free_threaded() {
-                    if interp_version >= PY_3_15 {
-                        if env_var("PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY")
-                            .is_none_or(|os_str| os_str != "1")
-                        {
-                            error.add_help(
-                                "set PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the free-threaded stable ABI"
-                            );
-                            return Err(error.finish().into());
-                        }
-                    } else {
-                        error.add_help(format!(
-                            "the free-threaded build of CPython {}.{} does not support the limited API so this check cannot be suppressed.", interp_version.major, interp_version.minor
-                        ).as_str());
-                        return Err(error.finish().into());
-                    }
-                }
-                if env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_none_or(|os_str| os_str != "1")
-                    && env_var("PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY")
-                        .is_none_or(|os_str| os_str != "1")
+    let implementation = interpreter_config.target_abi().implementation();
+
+    let supported_versions = match implementation {
+        PythonImplementation::CPython => SUPPORTED_VERSIONS_CPYTHON,
+        PythonImplementation::PyPy => SUPPORTED_VERSIONS_PYPY,
+        PythonImplementation::GraalPy => SUPPORTED_VERSIONS_GRAALPY,
+        PythonImplementation::RustPython => {
+            // We don't yet check anything for RustPython
+            return Ok(());
+        }
+    };
+
+    let interp_version = interpreter_config.target_abi().version();
+    ensure!(
+        interpreter_config.version() >= supported_versions.min,
+        "the configured Python interpreter version ({}) is lower than PyO3's minimum supported version ({})",
+        interpreter_config.version(),
+        supported_versions.min,
+    );
+    let expected_next_version = PythonVersion {
+        major: supported_versions.max.major,
+        minor: supported_versions.max.minor + 1,
+    };
+    if interp_version == expected_next_version {
+        warn!(
+            "Using experimental support for the {implementation} {}.{} ABI. \
+             Build artifacts may not be compatible with the final release of {implementation}, \
+             so do not distribute them.",
+            expected_next_version.major, expected_next_version.minor,
+        );
+    } else if interp_version > expected_next_version {
+        let mut error = MaximumVersionExceeded::new(interpreter_config, supported_versions.max);
+        if interpreter_config.target_abi().kind().is_free_threaded()
+            && implementation == PythonImplementation::CPython
+        {
+            if interp_version >= PY_3_15 {
+                if env_var("PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY")
+                    .is_none_or(|os_str| os_str != "1")
                 {
-                    error.add_help("set PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the stable ABI");
+                    error.add_help(
+                        "set PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the free-threaded stable ABI"
+                    );
                     return Err(error.finish().into());
                 }
+            } else {
+                error.add_help(format!(
+                    "the free-threaded build of CPython {}.{} does not support the limited API so this check cannot be suppressed.", interp_version.major, interp_version.minor
+                ).as_str());
+                return Err(error.finish().into());
             }
+        }
+        // Only CPython and PyPy support the stable ABI
+        if matches!(
+            implementation,
+            PythonImplementation::CPython | PythonImplementation::PyPy
+        ) && env_var("PYO3_USE_ABI3_FORWARD_COMPATIBILITY").is_none_or(|os_str| os_str != "1")
+            && env_var("PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY")
+                .is_none_or(|os_str| os_str != "1")
+        {
+            error.add_help("set PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY=1 to suppress this check and build anyway using the stable ABI");
+            return Err(error.finish().into());
+        }
+    }
 
-            if interpreter_config.target_abi().kind().is_free_threaded() {
-                ensure!(
-                    interpreter_config.target_abi().version() >= MIN_FREE_THREADED_VERSION,
-                    "PyO3 does not support the free-threaded build of CPython versions below {}, the selected Python version is {}",
-                    MIN_FREE_THREADED_VERSION,
-                    interpreter_config.target_abi().version(),
-                );
-            }
-        }
-        PythonImplementation::PyPy => {
-            let versions = SUPPORTED_VERSIONS_PYPY;
-            ensure!(
-                interpreter_config.target_abi().version() >= versions.min,
-                "the configured PyPy interpreter version ({}) is lower than PyO3's minimum supported version ({})",
-                interpreter_config.target_abi().version(),
-                versions.min,
-            );
-            // PyO3 does not support abi3, so we cannot offer forward compatibility
-            if interpreter_config.target_abi().version() > versions.max {
-                let error = MaximumVersionExceeded::new(interpreter_config, versions.max);
-                return Err(error.finish().into());
-            }
-        }
-        PythonImplementation::GraalPy => {
-            let versions = SUPPORTED_VERSIONS_GRAALPY;
-            ensure!(
-                interpreter_config.target_abi().version() >= versions.min,
-                "the configured GraalPy interpreter version ({}) is lower than PyO3's minimum supported version ({})",
-                interpreter_config.target_abi().version(),
-                versions.min,
-            );
-            // GraalPy does not support abi3, so we cannot offer forward compatibility
-            if interpreter_config.target_abi().version() > versions.max {
-                let error = MaximumVersionExceeded::new(interpreter_config, versions.max);
-                return Err(error.finish().into());
-            }
-        }
-        PythonImplementation::RustPython => {}
+    if interpreter_config.target_abi().kind().is_free_threaded() {
+        ensure!(
+            implementation == PythonImplementation::CPython,
+            "PyO3 only supports the free-threaded build of CPython, \
+             the selected Python implementation is {implementation}",
+        );
+        ensure!(
+            interpreter_config.target_abi().version() >= MIN_FREE_THREADED_VERSION,
+            "PyO3 does not support the free-threaded build of CPython versions \
+             below {MIN_FREE_THREADED_VERSION}, the selected Python version is {}",
+            interpreter_config.target_abi().version(),
+        );
     }
 
     if let PythonAbiKind::Stable(abi) = interpreter_config.target_abi().kind() {
-        match interpreter_config.target_abi().implementation() {
-            PythonImplementation::CPython => match abi {
+        match implementation {
+            PythonImplementation::CPython | PythonImplementation::PyPy => match abi {
                 StableAbi::Abi3t => {
                     ensure!(
                         interpreter_config.target_abi().version() >= PY_3_15,
                         "Abi3t builds are not supported on CPython targets before Python 3.15"
                     )
                 }
-                StableAbi::Abi3 => {}
+                StableAbi::Abi3 => {
+                    if implementation == PythonImplementation::PyPy
+                        && interpreter_config.target_abi().version() < PY_3_12
+                    {
+                        warn!(
+                            "PyPy does not support abi3 before PyPy 3.12 so the build artifacts will be version-specific."
+                        )
+                    }
+                }
             },
-            PythonImplementation::PyPy => warn!(
-                "PyPy does not yet support {abi} so the build artifacts will be version-specific. \
-                 See https://github.com/pypy/pypy/issues/3397 for more information."
-            ),
             PythonImplementation::GraalPy => warn!(
                 "GraalPy does not support {abi} so the build artifacts will be version-specific."
             ),
+            // NB RustPython likely to support abi3t, but no checking here yet.
             PythonImplementation::RustPython => {}
         }
     }
