@@ -84,7 +84,9 @@ pub type PyCMethod = unsafe extern "C" fn(
 extern_libpython! {
     #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCFunction_GetFunction")]
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
+    #[cfg(any(not(PyPy), Py_3_12))]
     pub fn PyCFunction_GetSelf(f: *mut PyObject) -> *mut PyObject;
+    #[cfg(any(not(PyPy), Py_3_12))]
     pub fn PyCFunction_GetFlags(f: *mut PyObject) -> c_int;
     #[cfg(not(Py_3_13))]
     #[deprecated(note = "Python 3.9")]

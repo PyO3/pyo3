@@ -915,8 +915,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::collections::HashMap;
     use crate::platform::prelude::*;
-    use crate::platform::HashMap;
     use crate::types::{PyAnyMethods as _, PyTuple};
     #[cfg(not(any(PyPy, GraalPy, RustPython)))]
     use crate::types::{PyDictItems, PyDictKeys, PyDictValues};
