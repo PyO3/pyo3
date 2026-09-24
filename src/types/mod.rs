@@ -20,10 +20,10 @@ pub use self::complex::{PyComplex, PyComplexMethods};
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, RustPython)))]
 pub use self::context::PyContext;
 #[doc(inline)]
-pub use self::datetime::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
-#[cfg(not(Py_LIMITED_API))]
-#[doc(inline)]
-pub use self::datetime::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
+pub use self::datetime::{
+    PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTzInfo,
+    PyTzInfoAccess,
+};
 #[cfg(not(any(PyPy, GraalPy, RustPython)))]
 #[doc(inline)]
 pub use self::dict::{items::PyDictItems, keys::PyDictKeys, values::PyDictValues};
