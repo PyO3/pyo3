@@ -2,6 +2,7 @@
 use crate::err::PyResult;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{type_hint_identifier, type_hint_subscript, PyStaticExpr};
+use crate::internal_tricks::Never;
 use crate::platform::prelude::*;
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
@@ -109,6 +110,19 @@ pub(crate) mod private {
 
     impl<T> Reference for &'_ T {
         type BaseType = T;
+    }
+}
+
+impl<'py> IntoPyObject<'py> for Never {
+    type Target = Never;
+    type Output = Never;
+    type Error = Never;
+
+    #[cfg(all(feature = "experimental-inspect", Py_3_11))]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("typing", "Never");
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self
     }
 }
 

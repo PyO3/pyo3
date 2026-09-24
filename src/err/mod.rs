@@ -8,6 +8,7 @@ use crate::inspect::PyStaticExpr;
 use crate::instance::Bound;
 #[cfg(Py_3_11)]
 use crate::intern;
+use crate::internal_tricks::Never;
 #[cfg(wip_feature_std)]
 use crate::panic::PanicException;
 use crate::platform::prelude::*;
@@ -666,6 +667,12 @@ fn failed_to_fetch() -> PyErr {
         panic!("{}", FAILED_TO_FETCH)
     } else {
         crate::exceptions::PySystemError::new_err(FAILED_TO_FETCH)
+    }
+}
+
+impl From<Never> for PyErr {
+    fn from(value: Never) -> Self {
+        value
     }
 }
 
