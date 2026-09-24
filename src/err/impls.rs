@@ -98,6 +98,7 @@ impl<W: Send + Sync> PyErrArguments for io::IntoInnerError<W> {
     }
 }
 
+#[cfg(not(never_type))]
 impl From<core::convert::Infallible> for PyErr {
     fn from(_: core::convert::Infallible) -> PyErr {
         unreachable!()
