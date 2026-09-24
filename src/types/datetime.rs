@@ -50,6 +50,26 @@ fn expect_datetime_api(py: Python<'_>) -> &'static PyDateTime_CAPI {
     ensure_datetime_api(py).expect("failed to import `datetime` C API")
 }
 
+#[cfg(Py_LIMITED_API)]
+macro_rules! limited_api_descriptor_get {
+    ($self:expr, $owner:ty, $attr:literal, $output:ty) => {{
+        let py = $self.py();
+        static DESCRIPTOR: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+        DESCRIPTOR
+            .get_or_try_init(py, || {
+                <$owner>::type_object(py)
+                    .getattr($attr)
+                    .map(|descriptor| descriptor.unbind())
+            })
+            .map(|descriptor| descriptor.bind(py))
+            .and_then(|descriptor| {
+                descriptor.call_method1(intern!(py, "__get__"), ($self, <$owner>::type_object(py)))
+            })
+            .and_then(|value| value.extract::<$output>())
+            .unwrap_or_default()
+    }};
+}
+
 // Type Check macros
 //
 // These are bindings around the C API typecheck macros, all of them return
@@ -262,9 +282,7 @@ impl PyDateAccess for Bound<'_, PyDate> {
     fn get_year(&self) -> i32 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "year"))
-                    .and_then(|value| value.extract::<i32>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyDate, "year", i32)
             }
             _ => {
                 unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
@@ -275,9 +293,7 @@ impl PyDateAccess for Bound<'_, PyDate> {
     fn get_month(&self) -> u8 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "month"))
-                    .and_then(|value| value.extract::<u8>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyDate, "month", u8)
             }
             _ => {
                 unsafe { PyDateTime_GET_MONTH(self.as_ptr()) as u8 }
@@ -288,9 +304,7 @@ impl PyDateAccess for Bound<'_, PyDate> {
     fn get_day(&self) -> u8 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "day"))
-                    .and_then(|value| value.extract::<u8>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyDate, "day", u8)
             }
             _ => {
                 unsafe { PyDateTime_GET_DAY(self.as_ptr()) as u8 }
@@ -458,9 +472,7 @@ impl PyDateAccess for Bound<'_, PyDateTime> {
     fn get_year(&self) -> i32 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "year"))
-                    .and_then(|value| value.extract::<i32>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyDateTime, "year", i32)
             }
             _ => {
                 unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
@@ -471,9 +483,7 @@ impl PyDateAccess for Bound<'_, PyDateTime> {
     fn get_month(&self) -> u8 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "month"))
-                    .and_then(|value| value.extract::<u8>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyDateTime, "month", u8)
             }
             _ => {
                 unsafe { PyDateTime_GET_MONTH(self.as_ptr()) as u8 }
@@ -484,9 +494,7 @@ impl PyDateAccess for Bound<'_, PyDateTime> {
     fn get_day(&self) -> u8 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "day"))
-                    .and_then(|value| value.extract::<u8>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyDateTime, "day", u8)
             }
             _ => {
                 unsafe { PyDateTime_GET_DAY(self.as_ptr()) as u8 }
@@ -499,9 +507,7 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
     fn get_hour(&self) -> u8 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "hour"))
-                    .and_then(|value| value.extract::<u8>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyDateTime, "hour", u8)
             }
             _ => {
                 unsafe { PyDateTime_DATE_GET_HOUR(self.as_ptr()) as u8 }
@@ -512,9 +518,7 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
     fn get_minute(&self) -> u8 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "minute"))
-                    .and_then(|value| value.extract::<u8>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyDateTime, "minute", u8)
             }
             _ => {
                 unsafe { PyDateTime_DATE_GET_MINUTE(self.as_ptr()) as u8 }
@@ -525,9 +529,7 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
     fn get_second(&self) -> u8 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "second"))
-                    .and_then(|value| value.extract::<u8>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyDateTime, "second", u8)
             }
             _ => {
                 unsafe { PyDateTime_DATE_GET_SECOND(self.as_ptr()) as u8 }
@@ -538,9 +540,7 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
     fn get_microsecond(&self) -> u32 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "microsecond"))
-                    .and_then(|value| value.extract::<u32>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyDateTime, "microsecond", u32)
             }
             _ => {
                 unsafe { PyDateTime_DATE_GET_MICROSECOND(self.as_ptr()) as u32 }
@@ -551,11 +551,7 @@ impl PyTimeAccess for Bound<'_, PyDateTime> {
     fn get_fold(&self) -> bool {
         cfg_select! {
             Py_LIMITED_API => {
-                self
-                    .getattr(intern!(self.py(), "fold"))
-                    .and_then(|value| value.extract::<usize>())
-                    .unwrap_or_default()
-                    > 0
+                limited_api_descriptor_get!(self, PyDateTime, "fold", usize) > 0
             }
             _ => {
                 unsafe { PyDateTime_DATE_GET_FOLD(self.as_ptr()) != 0 }
@@ -714,9 +710,7 @@ impl PyTimeAccess for Bound<'_, PyTime> {
     fn get_hour(&self) -> u8 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "hour"))
-                    .and_then(|value| value.extract::<u8>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyTime, "hour", u8)
             }
             _ => {
                 unsafe { PyDateTime_TIME_GET_HOUR(self.as_ptr()) as u8 }
@@ -727,9 +721,7 @@ impl PyTimeAccess for Bound<'_, PyTime> {
     fn get_minute(&self) -> u8 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "minute"))
-                    .and_then(|value| value.extract::<u8>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyTime, "minute", u8)
             }
             _ => {
                 unsafe { PyDateTime_TIME_GET_MINUTE(self.as_ptr()) as u8 }
@@ -740,9 +732,7 @@ impl PyTimeAccess for Bound<'_, PyTime> {
     fn get_second(&self) -> u8 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "second"))
-                    .and_then(|value| value.extract::<u8>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyTime, "second", u8)
             }
             _ => {
                 unsafe { PyDateTime_TIME_GET_SECOND(self.as_ptr()) as u8 }
@@ -753,9 +743,7 @@ impl PyTimeAccess for Bound<'_, PyTime> {
     fn get_microsecond(&self) -> u32 {
         cfg_select! {
             Py_LIMITED_API => {
-                self.getattr(intern!(self.py(), "microsecond"))
-                    .and_then(|value| value.extract::<u32>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyTime, "microsecond", u32)
             }
             _ => {
                 unsafe { PyDateTime_TIME_GET_MICROSECOND(self.as_ptr()) as u32 }
@@ -766,11 +754,7 @@ impl PyTimeAccess for Bound<'_, PyTime> {
     fn get_fold(&self) -> bool {
         cfg_select! {
             Py_LIMITED_API => {
-                self
-                    .getattr(intern!(self.py(), "fold"))
-                    .and_then(|value| value.extract::<usize>())
-                    .unwrap_or_default()
-                    > 0
+                limited_api_descriptor_get!(self, PyTime, "fold", usize) > 0
             }
             _ => {
                 unsafe { PyDateTime_TIME_GET_FOLD(self.as_ptr()) != 0 }
@@ -1000,9 +984,7 @@ impl PyDeltaAccess for Bound<'_, PyDelta> {
     fn get_days(&self) -> i32 {
         cfg_select! {
             Py_LIMITED_API =>  {
-                self.getattr(intern!(self.py(), "days"))
-                    .and_then(|value| value.extract::<i32>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyDelta, "days", i32)
             },
             _ => {
                 unsafe { PyDateTime_DELTA_GET_DAYS(self.as_ptr()) }
@@ -1013,9 +995,7 @@ impl PyDeltaAccess for Bound<'_, PyDelta> {
     fn get_seconds(&self) -> i32 {
         cfg_select! {
             Py_LIMITED_API =>  {
-                self.getattr(intern!(self.py(), "seconds"))
-                    .and_then(|value| value.extract::<i32>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyDelta, "seconds", i32)
             },
             _ => {
                 unsafe { PyDateTime_DELTA_GET_SECONDS(self.as_ptr()) }
@@ -1026,9 +1006,7 @@ impl PyDeltaAccess for Bound<'_, PyDelta> {
     fn get_microseconds(&self) -> i32 {
         cfg_select! {
             Py_LIMITED_API =>  {
-                self.getattr(intern!(self.py(), "microseconds"))
-                    .and_then(|value| value.extract::<i32>())
-                    .unwrap_or_default()
+                limited_api_descriptor_get!(self, PyDelta, "microseconds", i32)
             },
             _ => {
                 unsafe { PyDateTime_DELTA_GET_MICROSECONDS(self.as_ptr()) }
@@ -1379,6 +1357,29 @@ mod tests {
                 );
                 dt.unwrap_err();
             }
+        });
+    }
+
+    #[test]
+    fn test_property_on_subclass() {
+        Python::attach(|py| {
+            py.run(
+                c"import datetime
+class MyDate(datetime.date):
+    @property
+    def year(self):
+        raise RuntimeError('subclass year property should not be called')",
+                None,
+                None,
+            )
+            .unwrap();
+
+            let my_date: Bound<'_, PyDate> = py
+                .eval(c"MyDate(2024, 9, 24)", None, None)
+                .unwrap()
+                .cast_into()
+                .unwrap();
+            assert_eq!(my_date.get_year(), 2024);
         });
     }
 }
