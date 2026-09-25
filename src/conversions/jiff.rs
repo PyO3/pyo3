@@ -51,14 +51,13 @@ use crate::inspect::PyStaticExpr;
 use crate::platform::prelude::*;
 use crate::types::{PyAnyMethods, PyNone};
 use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
-#[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
 use crate::{intern, Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
 #[cfg(feature = "experimental-inspect")]
 use crate::{type_hint_identifier, PyTypeInfo};
 use alloc::borrow::Cow;
 use jiff::civil::{Date, DateTime, ISOWeekDate, Time};
-use jiff::tz::{Offset, TimeZone};
+use jiff::tz::{AmbiguousOffset, Offset, TimeZone};
 use jiff::{SignedDuration, Span, Timestamp, Zoned};
 #[cfg(feature = "jiff-02")]
 use jiff_02 as jiff;
@@ -86,24 +85,12 @@ fn datetime_to_pydatetime<'py>(
     )
 }
 
-#[cfg(not(Py_LIMITED_API))]
 fn pytime_to_time(time: &impl PyTimeAccess) -> PyResult<Time> {
     Ok(Time::new(
         time.get_hour().try_into()?,
         time.get_minute().try_into()?,
         time.get_second().try_into()?,
         (time.get_microsecond() * 1000).try_into()?,
-    )?)
-}
-
-#[cfg(Py_LIMITED_API)]
-fn pytime_to_time(time: &Bound<'_, PyAny>) -> PyResult<Time> {
-    let py = time.py();
-    Ok(Time::new(
-        time.getattr(intern!(py, "hour"))?.extract()?,
-        time.getattr(intern!(py, "minute"))?.extract()?,
-        time.getattr(intern!(py, "second"))?.extract()?,
-        time.getattr(intern!(py, "microsecond"))?.extract::<i32>()? * 1000,
     )?)
 }
 
@@ -185,24 +172,11 @@ impl<'py> FromPyObject<'_, 'py> for Date {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let date = ob.cast::<PyDate>()?;
 
-        #[cfg(not(Py_LIMITED_API))]
-        {
-            Ok(Date::new(
-                date.get_year().try_into()?,
-                date.get_month().try_into()?,
-                date.get_day().try_into()?,
-            )?)
-        }
-
-        #[cfg(Py_LIMITED_API)]
-        {
-            let py = date.py();
-            Ok(Date::new(
-                date.getattr(intern!(py, "year"))?.extract()?,
-                date.getattr(intern!(py, "month"))?.extract()?,
-                date.getattr(intern!(py, "day"))?.extract()?,
-            )?)
-        }
+        Ok(Date::new(
+            date.get_year().try_into()?,
+            date.get_month().try_into()?,
+            date.get_day().try_into()?,
+        )?)
     }
 }
 
@@ -359,13 +333,16 @@ impl<'py> FromPyObject<'_, 'py> for Zoned {
         let datetime = DateTime::from_parts(dt.extract()?, pytime_to_time(&*dt)?);
         let zoned = tz.into_ambiguous_zoned(datetime);
 
-        #[cfg(not(Py_LIMITED_API))]
-        let fold = dt.get_fold();
-
-        #[cfg(Py_LIMITED_API)]
-        let fold = dt.getattr(intern!(dt.py(), "fold"))?.extract::<usize>()? > 0;
-
-        if fold {
+        // Python uses the fold bit to disambiguate both folds and gaps (PEP 495).
+        //
+        // For gaps (non-existent local times):
+        // - fold=0 maps to the later instant.
+        // - fold=1 maps to the earlier instant.
+        //
+        // For folds (repeated local times):
+        // - fold=0 maps to the earlier instant.
+        // - fold=1 maps to the later instant.
+        if dt.get_fold() ^ matches!(zoned.offset(), AmbiguousOffset::Gap { .. }) {
             Ok(zoned.later()?)
         } else {
             Ok(zoned.earlier()?)
@@ -525,20 +502,10 @@ impl<'py> FromPyObject<'_, 'py> for SignedDuration {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let delta = ob.cast::<PyDelta>()?;
 
-        #[cfg(not(Py_LIMITED_API))]
         let (seconds, microseconds) = {
             let days = delta.get_days() as i64;
             let seconds = delta.get_seconds() as i64;
             let microseconds = delta.get_microseconds();
-            (days * 24 * 60 * 60 + seconds, microseconds)
-        };
-
-        #[cfg(Py_LIMITED_API)]
-        let (seconds, microseconds) = {
-            let py = delta.py();
-            let days = delta.getattr(intern!(py, "days"))?.extract::<i64>()?;
-            let seconds = delta.getattr(intern!(py, "seconds"))?.extract::<i64>()?;
-            let microseconds = ob.getattr(intern!(py, "microseconds"))?.extract::<i32>()?;
             (days * 24 * 60 * 60 + seconds, microseconds)
         };
 
@@ -906,6 +873,35 @@ mod tests {
                 "2020-10-25T02:00:00+00:00[Europe/London]",
             ]
         );
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn test_nonexistent_datetime_frompyobject_matches_python_timestamp() {
+        Python::attach(|py| {
+            let py_datetime = new_py_datetime_ob(
+                py,
+                "datetime",
+                (
+                    2020,
+                    3,
+                    8,
+                    2,
+                    30,
+                    0,
+                    0,
+                    python_zoneinfo(py, "America/Los_Angeles"),
+                ),
+            );
+            let python_timestamp = py_datetime
+                .call_method0("timestamp")
+                .unwrap()
+                .extract::<f64>()
+                .unwrap() as i64;
+            let datetime_from_py: Zoned = py_datetime.extract().unwrap();
+
+            assert_eq!(datetime_from_py.timestamp().as_second(), python_timestamp);
+        })
     }
 
     #[test]

@@ -634,7 +634,7 @@ mod test {
     #[test]
     fn test_backed_str_map_key() {
         Python::attach(|py| {
-            use crate::platform::HashMap;
+            use crate::platform::collections::HashMap;
 
             let mut map: HashMap<PyBackedStr, usize> = HashMap::new();
             let s: PyBackedStr = PyString::new(py, "key1").try_into().unwrap();

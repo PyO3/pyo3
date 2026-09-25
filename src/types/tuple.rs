@@ -1067,8 +1067,8 @@ tuple_conversion!(
 mod tests {
     extern crate std;
 
+    use crate::platform::collections::HashSet;
     use crate::platform::prelude::*;
-    use crate::platform::HashSet;
     use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
     use crate::{Bound, IntoPyObject, PyAny, Python};
     #[cfg(feature = "nightly")]

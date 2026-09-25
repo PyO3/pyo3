@@ -805,3 +805,43 @@ fn test_pyfunction_multiple_warnings() {
         ]
     );
 }
+
+#[test]
+#[cfg(any(not(PyPy), Py_3_12))]
+fn test_pyfunction_is_not_static() {
+    use pyo3::ffi;
+
+    // one function for each calling convention
+    #[pyfunction]
+    fn no_args() {}
+
+    #[pyfunction]
+    fn positional(_arg: i32) {}
+
+    #[pyfunction]
+    #[pyo3(signature = (**_kwargs))]
+    fn keywords(_kwargs: Option<&Bound<'_, types::PyDict>>) {}
+
+    Python::attach(|py| {
+        let module = PyModule::new(py, "test_module").unwrap();
+        for function in [
+            wrap_pyfunction!(no_args, &module).unwrap(),
+            wrap_pyfunction!(positional, &module).unwrap(),
+            wrap_pyfunction!(keywords, &module).unwrap(),
+        ] {
+            let name = function.getattr("__name__").unwrap();
+            // `METH_STATIC` and `METH_CLASS` are only for methods of a class
+            let flags = unsafe { ffi::PyCFunction_GetFlags(function.as_ptr()) };
+            assert_eq!(
+                flags & (ffi::METH_STATIC | ffi::METH_CLASS),
+                0,
+                "`{name}` has flags {flags:#x}"
+            );
+            // `METH_STATIC` would make `__self__` `None`
+            assert!(
+                function.getattr("__self__").unwrap().is(&module),
+                "`{name}.__self__` is not the module"
+            );
+        }
+    });
+}

@@ -297,7 +297,8 @@ jobs:
             "3.15-dev",
             "3.15t-dev",
             "pypy3.11",
-            "graalpy25.0",
+            "graalpy25.2", # 3.12
+            "graalpy25.3", # 3.13
           ]
         platform:
           [
@@ -517,7 +518,6 @@ jobs:
         session: ["test-py", "test-rust", "clippy"]
     env:
       PYO3_WIP_NO_STD: "1"
-    continue-on-error: ${{ !contains(github.event.pull_request.labels.*.name, 'no_std') }}
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v7
