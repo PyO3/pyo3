@@ -24,8 +24,6 @@ pub(crate) mod initconfig;
 pub(crate) mod listobject;
 #[cfg(Py_3_13)]
 pub(crate) mod lock;
-#[cfg(Py_3_14)]
-pub(crate) mod longintrepr;
 pub(crate) mod longobject;
 pub(crate) mod marshal;
 #[cfg(all(Py_3_9, not(PyPy)))]
@@ -75,8 +73,6 @@ pub use self::initconfig::*;
 pub use self::listobject::*;
 #[cfg(Py_3_13)]
 pub use self::lock::*;
-#[cfg(Py_3_14)]
-pub use self::longintrepr::*;
 pub use self::longobject::*;
 pub use self::marshal::*;
 #[cfg(all(Py_3_9, not(PyPy)))]
