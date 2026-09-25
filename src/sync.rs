@@ -122,6 +122,15 @@ impl<T> GILOnceCell<T> {
         }
     }
 
+    pub(crate) fn get_during_gc(&self) -> Option<&T> {
+        if self.once.is_completed() {
+            // SAFETY: the cell has been written.
+            Some(unsafe { (*self.data.get()).assume_init_ref() })
+        } else {
+            None
+        }
+    }
+
     /// Like `get_or_init`, but accepts a fallible initialization function. If it fails, the cell
     /// is left uninitialized.
     ///

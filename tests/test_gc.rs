@@ -1158,3 +1158,64 @@ fn test_subclass_clear() {
 
     check.assert_drops_with_gc(ptr);
 }
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn test_gc_during_classattr_initialization() {
+    use std::sync::atomic::AtomicUsize;
+
+    static CLASSATTR_CALLS: AtomicUsize = AtomicUsize::new(0);
+    static TRAVERSE_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+    #[pyclass]
+    struct GcDuringClassattr;
+
+    #[pymethods]
+    impl GcDuringClassattr {
+        #[classattr]
+        fn instance(py: Python<'_>) -> PyResult<Py<PyAny>> {
+            if CLASSATTR_CALLS.fetch_add(1, Ordering::SeqCst) != 0 {
+                // Prevent infinite recursion of new threads & nested GC traversals.
+                return Ok(py.None());
+            }
+
+            let instance = Py::new(py, Self)?;
+
+            // Run GC traversal on a separate thread; incorrect coupling of Python statics
+            // can cause class attribute initialization to be triggered during GC traversal,
+            // which will corrupt GC state.
+            py.detach(|| {
+                std::thread::spawn(|| {
+                    Python::attach(|py| {
+                        let gc = py.import("gc").unwrap();
+                        let before = TRAVERSE_CALLS.load(Ordering::SeqCst);
+                        gc.call_method0("collect").unwrap();
+                        assert!(TRAVERSE_CALLS.load(Ordering::SeqCst) > before);
+                    });
+                })
+                .join()
+                .unwrap();
+            });
+            Ok(instance.into_any())
+        }
+
+        #[expect(clippy::unnecessary_wraps)]
+        fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            TRAVERSE_CALLS.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    Python::attach(|py| {
+        let ty = py.get_type::<GcDuringClassattr>();
+        assert_eq!(
+            CLASSATTR_CALLS.load(Ordering::SeqCst),
+            1,
+            "GC traversal must not initialize class attributes"
+        );
+        assert!(ty
+            .getattr("instance")
+            .unwrap()
+            .is_instance_of::<GcDuringClassattr>());
+    });
+}
