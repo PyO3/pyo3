@@ -581,6 +581,8 @@ const EXCLUDED_SYMBOLS: &[&str] = &[
     "_PyCode_GetExtra",
     "_PyCode_SetExtra",
     "_PyEval_RequestCodeExtraIndex",
+    // Never implemented before 3.9, just exclude it on this patch release
+    "PyBuffer_SizeFromFormat",
 ];
 
 // Assert at compile time that `MACRO_EXCLUSIONS` and `EXCLUDED_SYMBOLS` are disjoint
