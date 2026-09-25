@@ -2877,7 +2877,7 @@ mod tests {
         }
     }
 
-    // Tests backwards compatbility before target abi accepted debug
+    // Tests backwards compatibility before target abi accepted debug
     #[test]
     fn debug_flags_promote_non_debug_target_abi() {
         for abi in [
