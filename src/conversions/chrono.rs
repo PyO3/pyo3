@@ -129,19 +129,9 @@ impl FromPyObject<'_, '_> for Duration {
         // 0 <= microseconds < 1000000
         // 0 <= seconds < 3600*24
         // -999999999 <= days <= 999999999
-        let (days, seconds, microseconds) = {
-            (
-                delta.get_days().into(),
-                delta.get_seconds().into(),
-                delta.get_microseconds().into(),
-            )
-        };
-
-        Ok(
-            Duration::days(days)
-                + Duration::seconds(seconds)
-                + Duration::microseconds(microseconds),
-        )
+        Ok(Duration::days(delta.get_days().into())
+            + Duration::seconds(delta.get_seconds().into())
+            + Duration::microseconds(delta.get_microseconds().into()))
     }
 }
 
