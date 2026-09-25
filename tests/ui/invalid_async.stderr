@@ -7,7 +7,7 @@ error: async functions are only supported with the `experimental-async` feature
 error: async functions are only supported with the `experimental-async` feature
   --> tests/ui/invalid_async.rs:14:5
    |
-14 |     async fn __anext__(mut _pyself: PyRefMut<'_, Self>) -> PyResult<i32> {
+14 |     async fn __anext__(mut _pyself: PyClassGuardMut<'_, Self>) -> PyResult<i32> {
    |     ^^^^^
 
 error: async functions are only supported with the `experimental-async` feature

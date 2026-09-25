@@ -403,43 +403,43 @@ impl LhsAndRhs {
     //     "BA"
     // }
 
-    fn __add__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
+    fn __add__(lhs: PyClassGuard<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
         format!("{lhs:?} + {rhs:?}")
     }
 
-    fn __sub__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
+    fn __sub__(lhs: PyClassGuard<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
         format!("{lhs:?} - {rhs:?}")
     }
 
-    fn __mul__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
+    fn __mul__(lhs: PyClassGuard<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
         format!("{lhs:?} * {rhs:?}")
     }
 
-    fn __lshift__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
+    fn __lshift__(lhs: PyClassGuard<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
         format!("{lhs:?} << {rhs:?}")
     }
 
-    fn __rshift__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
+    fn __rshift__(lhs: PyClassGuard<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
         format!("{lhs:?} >> {rhs:?}")
     }
 
-    fn __and__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
+    fn __and__(lhs: PyClassGuard<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
         format!("{lhs:?} & {rhs:?}")
     }
 
-    fn __xor__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
+    fn __xor__(lhs: PyClassGuard<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
         format!("{lhs:?} ^ {rhs:?}")
     }
 
-    fn __or__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
+    fn __or__(lhs: PyClassGuard<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
         format!("{lhs:?} | {rhs:?}")
     }
 
-    fn __pow__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>, _mod: Option<usize>) -> String {
+    fn __pow__(lhs: PyClassGuard<'_, Self>, rhs: &Bound<'_, PyAny>, _mod: Option<usize>) -> String {
         format!("{lhs:?} ** {rhs:?}")
     }
 
-    fn __matmul__(lhs: PyRef<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
+    fn __matmul__(lhs: PyClassGuard<'_, Self>, rhs: &Bound<'_, PyAny>) -> String {
         format!("{lhs:?} @ {rhs:?}")
     }
 
@@ -640,67 +640,115 @@ mod return_not_implemented {
             "RC_Self"
         }
 
-        fn __richcmp__(&self, other: PyRef<'_, Self>, _op: CompareOp) -> Py<PyAny> {
-            other.py().None()
+        fn __richcmp__(
+            &self,
+            py: Python<'_>,
+            _other: PyClassGuard<'_, Self>,
+            _op: CompareOp,
+        ) -> Py<PyAny> {
+            py.None()
         }
 
-        fn __add__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        fn __add__<'p>(
+            slf: PyClassGuard<'p, Self>,
+            _other: PyClassGuard<'p, Self>,
+        ) -> PyClassGuard<'p, Self> {
             slf
         }
-        fn __sub__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        fn __sub__<'p>(
+            slf: PyClassGuard<'p, Self>,
+            _other: PyClassGuard<'p, Self>,
+        ) -> PyClassGuard<'p, Self> {
             slf
         }
-        fn __mul__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        fn __mul__<'p>(
+            slf: PyClassGuard<'p, Self>,
+            _other: PyClassGuard<'p, Self>,
+        ) -> PyClassGuard<'p, Self> {
             slf
         }
-        fn __matmul__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        fn __matmul__<'p>(
+            slf: PyClassGuard<'p, Self>,
+            _other: PyClassGuard<'p, Self>,
+        ) -> PyClassGuard<'p, Self> {
             slf
         }
-        fn __truediv__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        fn __truediv__<'p>(
+            slf: PyClassGuard<'p, Self>,
+            _other: PyClassGuard<'p, Self>,
+        ) -> PyClassGuard<'p, Self> {
             slf
         }
-        fn __floordiv__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        fn __floordiv__<'p>(
+            slf: PyClassGuard<'p, Self>,
+            _other: PyClassGuard<'p, Self>,
+        ) -> PyClassGuard<'p, Self> {
             slf
         }
-        fn __mod__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        fn __mod__<'p>(
+            slf: PyClassGuard<'p, Self>,
+            _other: PyClassGuard<'p, Self>,
+        ) -> PyClassGuard<'p, Self> {
             slf
         }
-        fn __pow__(slf: PyRef<'_, Self>, _other: u8, _modulo: Option<u8>) -> PyRef<'_, Self> {
+        fn __pow__(
+            slf: PyClassGuard<'_, Self>,
+            _other: u8,
+            _modulo: Option<u8>,
+        ) -> PyClassGuard<'_, Self> {
             slf
         }
-        fn __lshift__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        fn __lshift__<'p>(
+            slf: PyClassGuard<'p, Self>,
+            _other: PyClassGuard<'p, Self>,
+        ) -> PyClassGuard<'p, Self> {
             slf
         }
-        fn __rshift__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        fn __rshift__<'p>(
+            slf: PyClassGuard<'p, Self>,
+            _other: PyClassGuard<'p, Self>,
+        ) -> PyClassGuard<'p, Self> {
             slf
         }
-        fn __divmod__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        fn __divmod__<'p>(
+            slf: PyClassGuard<'p, Self>,
+            _other: PyClassGuard<'p, Self>,
+        ) -> PyClassGuard<'p, Self> {
             slf
         }
-        fn __and__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        fn __and__<'p>(
+            slf: PyClassGuard<'p, Self>,
+            _other: PyClassGuard<'p, Self>,
+        ) -> PyClassGuard<'p, Self> {
             slf
         }
-        fn __or__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        fn __or__<'p>(
+            slf: PyClassGuard<'p, Self>,
+            _other: PyClassGuard<'p, Self>,
+        ) -> PyClassGuard<'p, Self> {
             slf
         }
-        fn __xor__<'p>(slf: PyRef<'p, Self>, _other: PyRef<'p, Self>) -> PyRef<'p, Self> {
+        fn __xor__<'p>(
+            slf: PyClassGuard<'p, Self>,
+            _other: PyClassGuard<'p, Self>,
+        ) -> PyClassGuard<'p, Self> {
             slf
         }
 
         // Inplace assignments
-        fn __iadd__(&mut self, _other: PyRef<'_, Self>) {}
-        fn __isub__(&mut self, _other: PyRef<'_, Self>) {}
-        fn __imul__(&mut self, _other: PyRef<'_, Self>) {}
-        fn __imatmul__(&mut self, _other: PyRef<'_, Self>) {}
-        fn __itruediv__(&mut self, _other: PyRef<'_, Self>) {}
-        fn __ifloordiv__(&mut self, _other: PyRef<'_, Self>) {}
-        fn __imod__(&mut self, _other: PyRef<'_, Self>) {}
-        fn __ilshift__(&mut self, _other: PyRef<'_, Self>) {}
-        fn __irshift__(&mut self, _other: PyRef<'_, Self>) {}
-        fn __iand__(&mut self, _other: PyRef<'_, Self>) {}
-        fn __ior__(&mut self, _other: PyRef<'_, Self>) {}
-        fn __ixor__(&mut self, _other: PyRef<'_, Self>) {}
-        fn __ipow__(&mut self, _other: PyRef<'_, Self>, _modulo: Option<u8>) {}
+        fn __iadd__(&mut self, _other: PyClassGuard<'_, Self>) {}
+        fn __isub__(&mut self, _other: PyClassGuard<'_, Self>) {}
+        fn __imul__(&mut self, _other: PyClassGuard<'_, Self>) {}
+        fn __imatmul__(&mut self, _other: PyClassGuard<'_, Self>) {}
+        fn __itruediv__(&mut self, _other: PyClassGuard<'_, Self>) {}
+        fn __ifloordiv__(&mut self, _other: PyClassGuard<'_, Self>) {}
+        fn __imod__(&mut self, _other: PyClassGuard<'_, Self>) {}
+        fn __ilshift__(&mut self, _other: PyClassGuard<'_, Self>) {}
+        fn __irshift__(&mut self, _other: PyClassGuard<'_, Self>) {}
+        fn __iand__(&mut self, _other: PyClassGuard<'_, Self>) {}
+        fn __ior__(&mut self, _other: PyClassGuard<'_, Self>) {}
+        fn __ixor__(&mut self, _other: PyClassGuard<'_, Self>) {}
+        fn __ipow__(&mut self, _other: PyClassGuard<'_, Self>, _modulo: Option<u8>) {}
     }
 
     fn _test_binary_dunder(dunder: &str) {
