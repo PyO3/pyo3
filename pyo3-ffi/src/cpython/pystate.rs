@@ -98,7 +98,7 @@ extern_libpython! {
     #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyThreadState_DeleteCurrent")]
     pub fn PyThreadState_DeleteCurrent();
 
-    #[cfg(all(not(Py_3_11), not(PyPy)))]
+    #[cfg(all(Py_3_9, not(Py_3_11), not(PyPy)))]
     pub fn _PyInterpreterState_GetEvalFrameFunc(
         interp: *mut PyInterpreterState,
     ) -> Option<_PyFrameEvalFunction>;
@@ -106,7 +106,7 @@ extern_libpython! {
     pub fn _PyInterpreterState_GetEvalFrameFunc(
         interp: *mut PyInterpreterState,
     ) -> _PyFrameEvalFunction;
-    #[cfg(not(PyPy))]
+    #[cfg(all(Py_3_9, not(PyPy)))]
     pub fn _PyInterpreterState_SetEvalFrameFunc(
         interp: *mut PyInterpreterState,
         eval_frame: Option<_PyFrameEvalFunction>,
