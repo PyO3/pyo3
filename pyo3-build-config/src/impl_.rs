@@ -1593,6 +1593,8 @@ pub fn is_linking_libpython_for_target(target: &Triple) -> bool {
     target.operating_system == OperatingSystem::Windows
         // See https://github.com/PyO3/pyo3/issues/4068#issuecomment-2051159852
         || target.operating_system == OperatingSystem::Aix
+        // z/OS uses XPLINK linkage; extension modules must link libpython explicitly
+        || target.operating_system == OperatingSystem::Zos
         || target.environment == Environment::Android
         || target.environment == Environment::Androideabi
         || target.operating_system == OperatingSystem::Cygwin
