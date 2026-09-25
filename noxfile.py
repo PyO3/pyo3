@@ -1494,6 +1494,9 @@ def _check_raw_dylib_macro(session: nox.Session):
     ):
         expected_dlls.add(f"libpypy3.{minor}-c")
 
+    # GraalPy DLL (python-native.dll)
+    expected_dlls.add("python-native")
+
     # Parse the DLL name list in the extern_libpython!(@impl ...) invocation
     lib_rs = (PYO3_DIR / "pyo3-ffi" / "src" / "impl_" / "macros.rs").read_text()
     found_dlls = set(re.findall(r'"((?:python(?!XY)|libpypy)[^"]+)"', lib_rs))

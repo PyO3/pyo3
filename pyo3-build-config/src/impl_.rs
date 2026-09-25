@@ -2396,15 +2396,6 @@ fn default_lib_name_for_target(abi: PythonAbi, target: &Triple) -> String {
 }
 
 fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<String> {
-    // mingw formats lib names like unix, and uses a "lib" prefix. We could let the linker
-    // handle "lib" prefix, but that means the `raw-dylib` name is incorrect (where the
-    // "lib" prefix is not automatically added).
-    if mingw {
-        let mut lib_name = default_lib_name_unix(abi, true, None)?;
-        lib_name.insert_str(0, "lib");
-        return Ok(lib_name);
-    }
-
     if abi.implementation.is_pypy() {
         // PyPy on Windows ships `libpypy3.X-c.dll` (e.g. `libpypy3.11-c.dll`),
         // not CPython's `pythonXY.dll`. With raw-dylib linking we need the real
@@ -2413,6 +2404,16 @@ fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<
             "libpypy{}.{}-c",
             abi.version.major, abi.version.minor
         ))
+    } else if abi.implementation == PythonImplementation::GraalPy {
+        // Similar for GraalPy on Windows, which ships `python-native.dll`
+        Ok("python-native".to_string())
+    } else if mingw {
+        // mingw formats lib names like unix, and uses a "lib" prefix. We could let the linker
+        // handle "lib" prefix, but that means the `raw-dylib` name is incorrect (where the
+        // "lib" prefix is not automatically added).
+        let mut lib_name = default_lib_name_unix(abi, true, None)?;
+        lib_name.insert_str(0, "lib");
+        Ok(lib_name)
     } else if debug && abi.version < PythonVersion::PY310 {
         // CPython bug: linking against python3_d.dll raises error
         // https://github.com/python/cpython/issues/101614
