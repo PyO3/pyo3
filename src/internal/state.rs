@@ -613,14 +613,7 @@ mod tests {
                 let pool = unsafe { AttachGuard::assume() };
 
                 // Rebuild obj so that it can be dropped
-                unsafe {
-                    use crate::Bound;
-
-                    Bound::from_owned_ptr(
-                        pool.python(),
-                        ffi::PyCapsule_GetPointer(capsule, core::ptr::null()) as _,
-                    )
-                };
+                unsafe { capsule.assume_owned(pool.python()) };
             }
 
             let ptr = obj.into_ptr();

@@ -877,8 +877,8 @@ slot_fragment_trait! {
         other: *mut ffi::PyObject,
     ) -> PyResult<*mut ffi::PyObject> {
         // By default `__ne__` will try `__eq__` and invert the result
-        let slf = unsafe { Borrowed::from_ptr(py, slf)};
-        let other = unsafe { Borrowed::from_ptr(py, other)};
+        let slf = unsafe { slf.assume_borrowed(py) };
+        let other = unsafe { other.assume_borrowed(py) };
         slf.eq(other).map(|is_eq| PyBool::new(py, !is_eq).to_owned().into_ptr())
     }
 }

@@ -1,6 +1,7 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pycell::PyClassObjectBaseLayout as _;
 use crate::impl_::pyclass::PyClassImpl;
 #[cfg(feature = "experimental-inspect")]
@@ -343,7 +344,7 @@ impl<'a, 'py, T: PyClass> IntoPyObject<'py> for &PyClassGuard<'a, T> {
     fn into_pyobject(self, py: crate::Python<'py>) -> Result<Self::Output, Self::Error> {
         // SAFETY: `ptr` is guaranteed to be valid for 'a and points to an
         // object of type T
-        unsafe { Ok(Borrowed::from_non_null(py, self.ptr).cast_unchecked()) }
+        Ok(unsafe { self.ptr.cast::<T::FfiType>().as_ptr().assume_borrowed(py) })
     }
 }
 

@@ -24,7 +24,7 @@ fn test_datetime_fromtimestamp() {
         let args = (100,).into_pyobject(py).unwrap();
         let dt = unsafe {
             PyDateTime_IMPORT();
-            Bound::from_owned_ptr(py, PyDateTime_FromTimestamp(args.as_ptr()))
+            Bound::<PyAny>::from_owned_ptr(py, PyDateTime_FromTimestamp(args.as_ptr()))
         };
         let locals = PyDict::new(py);
         locals.set_item("dt", dt).unwrap();
@@ -46,7 +46,7 @@ fn test_date_fromtimestamp() {
         let args = (100,).into_pyobject(py).unwrap();
         let dt = unsafe {
             PyDateTime_IMPORT();
-            Bound::from_owned_ptr(py, PyDate_FromTimestamp(args.as_ptr()))
+            Bound::<PyAny>::from_owned_ptr(py, PyDate_FromTimestamp(args.as_ptr()))
         };
         let locals = PyDict::new(py);
         locals.set_item("dt", dt).unwrap();

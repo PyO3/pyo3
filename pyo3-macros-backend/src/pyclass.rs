@@ -6,6 +6,7 @@ use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
+use syn::Visibility;
 use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, ImplItemFn, Result, Token};
 
 use crate::attributes::kw::frozen;
@@ -342,7 +343,15 @@ pub fn build_py_class(
         }
     }
 
-    impl_class(&class.ident, &args, doc, field_options, methods_type, ctx)
+    impl_class(
+        &class.vis,
+        &class.ident,
+        &args,
+        doc,
+        field_options,
+        methods_type,
+        ctx,
+    )
 }
 
 enum Annotated<X, Y> {
@@ -457,6 +466,7 @@ fn get_class_type_hint(cls: &Ident, args: &PyClassArgs, ctx: &Ctx) -> TokenStrea
 }
 
 fn impl_class(
+    vis: &Visibility,
     cls: &Ident,
     args: &PyClassArgs,
     doc: Option<PythonDoc>,
@@ -515,7 +525,7 @@ fn impl_class(
     slots.extend(default_new_slot);
 
     let mut impl_builder =
-        PyClassImplsBuilder::new(cls, cls, args, methods_type, default_methods, slots);
+        PyClassImplsBuilder::new(vis, cls, cls, args, methods_type, default_methods, slots);
     if let Some(doc) = doc {
         impl_builder = impl_builder.doc(doc);
     }
@@ -526,6 +536,7 @@ fn impl_class(
         impl_builder.impl_add_to_module(ctx),
         impl_builder.impl_freelist(ctx),
         impl_builder.impl_introspection(ctx, None),
+        impl_builder.impl_api_obj(ctx),
     ]
     .into_iter()
     .collect();
@@ -597,6 +608,7 @@ pub fn build_py_enum(
 }
 
 struct PyClassSimpleEnum<'a> {
+    vis: &'a Visibility,
     ident: &'a syn::Ident,
     // The underlying #[repr] of the enum, used to implement __int__ and __richcmp__.
     // This matters when the underlying representation may not fit in `isize`.
@@ -631,6 +643,7 @@ impl<'a> PyClassSimpleEnum<'a> {
             })
         }
 
+        let vis = &enum_.vis;
         let ident = &enum_.ident;
 
         // According to the [reference](https://doc.rust-lang.org/reference/items/enumerations.html),
@@ -655,6 +668,7 @@ impl<'a> PyClassSimpleEnum<'a> {
             .map(extract_unit_variant_data)
             .collect::<syn::Result<_>>()?;
         Ok(Self {
+            vis,
             ident,
             repr_type,
             variants,
@@ -663,6 +677,7 @@ impl<'a> PyClassSimpleEnum<'a> {
 }
 
 struct PyClassComplexEnum<'a> {
+    vis: &'a Visibility,
     ident: &'a syn::Ident,
     variants: Vec<PyClassEnumVariant<'a>>,
 }
@@ -733,6 +748,7 @@ impl<'a> PyClassComplexEnum<'a> {
                 Ok(variant)
             };
 
+        let vis = &enum_.vis;
         let ident = &enum_.ident;
 
         let variants: Vec<_> = enum_
@@ -741,7 +757,11 @@ impl<'a> PyClassComplexEnum<'a> {
             .map(extract_variant_data)
             .collect::<syn::Result<_>>()?;
 
-        Ok(Self { ident, variants })
+        Ok(Self {
+            vis,
+            ident,
+            variants,
+        })
     }
 }
 
@@ -1110,6 +1130,7 @@ fn impl_simple_enum(
     default_slots.extend(default_str_slot);
 
     let mut impl_builder = PyClassImplsBuilder::new(
+        simple_enum.vis,
         cls,
         cls,
         args,
@@ -1172,6 +1193,7 @@ fn impl_simple_enum(
         impl_builder.impl_add_to_module(ctx),
         impl_builder.impl_freelist(ctx),
         impl_builder.impl_introspection(ctx, None),
+        impl_builder.impl_api_obj(ctx),
     ]
     .into_iter()
     .collect();
@@ -1217,6 +1239,7 @@ fn impl_complex_enum(
     };
 
     let ctx = &Ctx::new(&args.options.krate, None);
+    let vis = complex_enum.vis;
     let cls = complex_enum.ident;
     let variants = complex_enum.variants;
     let pytypeinfo = impl_pytypeinfo(cls, &args, ctx);
@@ -1232,6 +1255,7 @@ fn impl_complex_enum(
     default_slots.extend(default_str_slot);
 
     let mut impl_builder = PyClassImplsBuilder::new(
+        vis,
         cls,
         cls,
         &args,
@@ -1286,6 +1310,7 @@ fn impl_complex_enum(
         impl_builder.impl_add_to_module(ctx),
         impl_builder.impl_freelist(ctx),
         impl_builder.impl_introspection(ctx, None),
+        impl_builder.impl_api_obj(ctx),
     ]
     .into_iter()
     .collect();
@@ -1328,6 +1353,7 @@ fn impl_complex_enum(
         slots.push(variant_new);
 
         let mut impl_builder = PyClassImplsBuilder::new(
+            &Visibility::Inherited,
             &variant_cls,
             &variant_name,
             &variant_args,
@@ -1346,6 +1372,7 @@ fn impl_complex_enum(
             impl_builder.impl_add_to_module(ctx),
             impl_builder.impl_freelist(ctx),
             impl_builder.impl_introspection(ctx, Some(cls)),
+            impl_builder.impl_api_obj(ctx),
         ]
         .into_iter()
         .collect();
@@ -2705,6 +2732,7 @@ fn pyclass_class_getitem(
 /// and attributes of `#[pyclass]`, and docstrings.
 /// Therefore it doesn't implement traits that depends on struct fields and enum variants.
 struct PyClassImplsBuilder<'a> {
+    vis: &'a Visibility,
     /// Identifier of the class Rust struct
     cls_ident: &'a Ident,
     /// Name of the class in Python
@@ -2718,6 +2746,7 @@ struct PyClassImplsBuilder<'a> {
 
 impl<'a> PyClassImplsBuilder<'a> {
     fn new(
+        vis: &'a Visibility,
         cls_ident: &'a Ident,
         cls_name: &'a Ident,
         attr: &'a PyClassArgs,
@@ -2726,6 +2755,7 @@ impl<'a> PyClassImplsBuilder<'a> {
         default_slots: Vec<MethodAndSlotDef>,
     ) -> Self {
         Self {
+            vis,
             cls_ident,
             cls_name,
             attr,
@@ -3198,6 +3228,28 @@ impl<'a> PyClassImplsBuilder<'a> {
     #[cfg(not(feature = "experimental-inspect"))]
     fn impl_introspection(&self, _ctx: &Ctx, _parent: Option<&Ident>) -> TokenStream {
         quote! {}
+    }
+
+    fn impl_api_obj(&self, ctx: &Ctx) -> TokenStream {
+        let pyo3_path = &ctx.pyo3_path;
+        let cls_ident = self.cls_ident;
+        let vis = self.vis;
+
+        let ffi_name = Ident::new(&format!("{}_Ffi", cls_ident.unraw()), cls_ident.span());
+
+        quote! {
+            unsafe impl #pyo3_path::types::ApiObj for #cls_ident {
+                type FfiType = #ffi_name;
+            }
+
+            unsafe impl #pyo3_path::types::FfiObj for #ffi_name {
+                type ApiType = #cls_ident;
+            }
+
+            #[doc(hidden)]
+            #[allow(nonstandard_style, clippy::allow_attributes, reason = "generated code")]
+            #vis struct #ffi_name(#pyo3_path::ffi::PyObject);
+        }
     }
 }
 

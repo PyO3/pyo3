@@ -2073,7 +2073,7 @@ impl<T> Py<T> {
     /// - a non-null `ptr` must be an owned Python reference, as the `Py<T>` will assume ownership
     #[inline]
     #[deprecated(note = "use `Bound::from_owned_ptr_or_opt` instead", since = "0.28.0")]
-    pub unsafe fn from_owned_ptr_or_opt(_py: Python<'_>, ptr: *mut ffi::PyObject) -> Option<Self> {
+    pub unsafe fn from_owned_ptr_or_opt(_py: Python<'_>, ptr: *mut ffi::PyObject) -> Option<Py<T>> {
         NonNull::new(ptr).map(|nonnull_ptr| {
             // SAFETY: caller has upheld the safety contract
             unsafe { Self::from_non_null(nonnull_ptr) }
@@ -2091,7 +2091,7 @@ impl<T> Py<T> {
     #[inline]
     #[track_caller]
     #[deprecated(note = "use `Borrowed::from_borrowed_ptr` instead", since = "0.28.0")]
-    pub unsafe fn from_borrowed_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
+    pub unsafe fn from_borrowed_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Self {
         // SAFETY: caller has upheld the safety contract
         #[allow(deprecated)]
         unsafe { Self::from_borrowed_ptr_or_opt(py, ptr) }.unwrap_or_else(|| panic_on_null(py))
@@ -2147,7 +2147,7 @@ impl<T> Py<T> {
     /// `ptr` must point to an owned Python object type T.
     #[inline(always)]
     unsafe fn from_non_null(ptr: NonNull<ffi::PyObject>) -> Self {
-        Self(ptr, PhantomData)
+        Self(ptr.cast(), PhantomData)
     }
 
     /// As with `from_non_null`, while calling incref.
@@ -2158,7 +2158,7 @@ impl<T> Py<T> {
     #[inline(always)]
     unsafe fn from_borrowed_non_null(_py: Python<'_>, ptr: NonNull<ffi::PyObject>) -> Self {
         // SAFETY: caller has upheld the safety contract, thread is attached to the interpreter
-        unsafe { ffi::Py_INCREF(ptr.as_ptr()) };
+        unsafe { ffi::Py_INCREF(ptr.cast().as_ptr()) };
         // SAFETY: caller has upheld the safety contract
         unsafe { Self::from_non_null(ptr) }
     }

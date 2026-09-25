@@ -1,5 +1,5 @@
 use crate::err::{self, PyResult};
-use crate::instance::Borrowed;
+use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(not(Py_3_13))]
 use crate::pybacked::PyBackedStr;
 #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_13)))]
@@ -22,11 +22,17 @@ use super::PyString;
 pub struct PyType(PyAny);
 
 #[cfg(not(RustPython))]
-pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyType_Type), "builtins", "type", #checkfunction=ffi::PyType_Check);
+pyobject_native_type_core!(
+    PyType: crate::ffi::PyTypeObject,
+    pyobject_native_static_type_object!(ffi::PyType_Type),
+    "builtins",
+    "type",
+    #checkfunction=ffi::PyType_Check
+);
 
 #[cfg(RustPython)]
 pyobject_native_type_core!(
-    PyType,
+    PyType: crate::ffi::PyTypeObject,
     |py| {
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "builtins", "type").unwrap().as_type_ptr()
@@ -55,11 +61,7 @@ impl PyType {
         py: Python<'_>,
         p: *mut ffi::PyTypeObject,
     ) -> Bound<'_, PyType> {
-        unsafe {
-            Borrowed::from_ptr_unchecked(py, p.cast())
-                .cast_unchecked()
-                .to_owned()
-        }
+        unsafe { p.assume_borrowed(py) }.to_owned()
     }
 }
 

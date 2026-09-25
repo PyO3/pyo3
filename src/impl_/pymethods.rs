@@ -4,6 +4,7 @@
 use pyo3_ffi::Py_TPFLAGS_HEAPTYPE;
 
 use crate::exceptions::PyStopAsyncIteration;
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::callback::IntoPyCallbackOutput;
 #[cfg(feature = "experimental-inspect")]
 use crate::impl_::introspection::PyReturnType;
@@ -17,7 +18,7 @@ use crate::internal::state::ForbidAttaching;
 use crate::pycell::impl_::{PyClassObjectBaseLayout, PyClassObjectLayout};
 use crate::pyclass::gc::{make_traverse_result, PyTraverseError, PyVisit};
 use crate::types::PyType;
-use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult, Python};
+use crate::{ffi, Bound, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult, Python};
 use core::ffi::CStr;
 use core::ffi::{c_int, c_void};
 use core::fmt;
@@ -706,8 +707,7 @@ where
     InitializerT: PyClassInit<'py, ClassT>,
 {
     // SAFETY: caller has guaranteed `cls` is the correct object
-    unsafe { initializer.init(Borrowed::from_ptr_unchecked(py, cls.cast()).cast_unchecked()) }
-        .map(Bound::into_ptr)
+    unsafe { initializer.init(cls.assume_borrowed(py)) }.map(Bound::into_ptr)
 }
 
 #[cfg(test)]

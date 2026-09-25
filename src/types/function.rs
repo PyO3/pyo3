@@ -161,10 +161,10 @@ where
                 let boxed_fn: &ClosureDestructor<F> =
                     &*(ffi::PyCapsule_GetPointer(capsule_ptr, CLOSURE_CAPSULE_NAME.as_ptr())
                         as *mut ClosureDestructor<F>);
-                let args = Bound::ref_from_ptr(py, &args).cast_unchecked::<PyTuple>();
+                let args = Bound::ref_from_ptr(py, &args).cast_unchecked();
                 let kwargs = Bound::ref_from_ptr_or_opt(py, &kwargs)
                     .as_ref()
-                    .map(|b| b.cast_unchecked::<PyDict>());
+                    .map(|kw| kw.cast_unchecked());
                 let result = (boxed_fn.closure)(args, kwargs);
                 crate::impl_::callback::convert(py, result)
             },
