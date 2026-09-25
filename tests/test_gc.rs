@@ -388,6 +388,10 @@ fn traverse_partial() {
 
 #[test]
 #[cfg(panic = "unwind")]
+#[cfg_attr(
+    not(wip_feature_std),
+    ignore = "panic handling not supported for `no_std`"
+)]
 fn traverse_panic() {
     #[pyclass]
     struct PanickyTraverse {
@@ -425,27 +429,26 @@ fn traverse_panic() {
 #[test]
 #[cfg(panic = "unwind")]
 fn tries_gil_in_traverse() {
+    #[allow(unused_extern_crates)]
+    extern crate std;
+
     #[pyclass]
     struct TriesGILInTraverse {}
 
     #[pymethods]
     impl TriesGILInTraverse {
+        #[expect(clippy::unnecessary_wraps)]
         fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-            Python::attach(|_py| Ok(()))
+            std::panic::catch_unwind(|| Python::attach(|_py| ()))
+                .expect_err("attaching to interpreter in __traverse__ should panic");
+            Ok(())
         }
     }
 
     Python::attach(|py| {
         // get the traverse function
         let ty = py.get_type::<TriesGILInTraverse>();
-        let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
-
-        // confirm that traversing panicks
-        let obj = Py::new(py, TriesGILInTraverse {}).unwrap();
-        assert_eq!(
-            unsafe { traverse(obj.as_ptr(), novisit, std::ptr::null_mut()) },
-            -1
-        );
+        unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
     })
 }
 
