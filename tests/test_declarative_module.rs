@@ -1,12 +1,10 @@
 #![cfg(feature = "macros")]
 
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
-use std::sync::OnceLock;
 
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::sync::OnceLockExt;
 
 mod test_utils;
 
@@ -163,12 +161,8 @@ mod declarative_module2 {
     use super::double;
 }
 
-fn declarative_module(py: Python<'_>) -> &Bound<'_, PyModule> {
-    static MODULE: OnceLock<Py<PyModule>> = OnceLock::new();
-
-    MODULE
-        .get_or_init_py_attached(py, || pyo3::wrap_pymodule!(declarative_module)(py))
-        .bind(py)
+fn declarative_module(py: Python<'_>) -> Bound<'_, PyModule> {
+    pyo3::wrap_pymodule!(declarative_module)(py).into_bound(py)
 }
 
 #[test]
