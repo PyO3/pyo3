@@ -1065,6 +1065,8 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use crate::platform::collections::HashSet;
     use crate::platform::prelude::*;
     use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
