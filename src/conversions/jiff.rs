@@ -58,7 +58,7 @@ use crate::{intern, Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, P
 use crate::{type_hint_identifier, PyTypeInfo};
 use alloc::borrow::Cow;
 use jiff::civil::{Date, DateTime, ISOWeekDate, Time};
-use jiff::tz::{Offset, TimeZone};
+use jiff::tz::{AmbiguousOffset, Offset, TimeZone};
 use jiff::{SignedDuration, Span, Timestamp, Zoned};
 #[cfg(feature = "jiff-02")]
 use jiff_02 as jiff;
@@ -365,7 +365,16 @@ impl<'py> FromPyObject<'_, 'py> for Zoned {
         #[cfg(Py_LIMITED_API)]
         let fold = dt.getattr(intern!(dt.py(), "fold"))?.extract::<usize>()? > 0;
 
-        if fold {
+        // Python uses the fold bit to disambiguate both folds and gaps (PEP 495).
+        //
+        // For gaps (non-existent local times):
+        // - fold=0 maps to the later instant.
+        // - fold=1 maps to the earlier instant.
+        //
+        // For folds (repeated local times):
+        // - fold=0 maps to the earlier instant.
+        // - fold=1 maps to the later instant.
+        if fold ^ matches!(zoned.offset(), AmbiguousOffset::Gap { .. }) {
             Ok(zoned.later()?)
         } else {
             Ok(zoned.earlier()?)
@@ -906,6 +915,35 @@ mod tests {
                 "2020-10-25T02:00:00+00:00[Europe/London]",
             ]
         );
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn test_nonexistent_datetime_frompyobject_matches_python_timestamp() {
+        Python::attach(|py| {
+            let py_datetime = new_py_datetime_ob(
+                py,
+                "datetime",
+                (
+                    2020,
+                    3,
+                    8,
+                    2,
+                    30,
+                    0,
+                    0,
+                    python_zoneinfo(py, "America/Los_Angeles"),
+                ),
+            );
+            let python_timestamp = py_datetime
+                .call_method0("timestamp")
+                .unwrap()
+                .extract::<f64>()
+                .unwrap() as i64;
+            let datetime_from_py: Zoned = py_datetime.extract().unwrap();
+
+            assert_eq!(datetime_from_py.timestamp().as_second(), python_timestamp);
+        })
     }
 
     #[test]
