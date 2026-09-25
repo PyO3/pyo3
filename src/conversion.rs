@@ -112,6 +112,20 @@ pub(crate) mod private {
     }
 }
 
+#[cfg(never_type)]
+impl<'py> IntoPyObject<'py> for ! {
+    type Target = !;
+    type Output = !;
+    type Error = !;
+
+    #[cfg(all(feature = "experimental-inspect", Py_3_11))]
+    const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("typing", "Never");
+
+    fn into_pyobject(self, _py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self
+    }
+}
+
 impl<'py, T: PyTypeCheck> IntoPyObject<'py> for Bound<'py, T> {
     type Target = T;
     type Output = Bound<'py, Self::Target>;

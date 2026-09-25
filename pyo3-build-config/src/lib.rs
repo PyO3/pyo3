@@ -276,6 +276,7 @@ pub mod pyo3_build_script_impl {
         print_feature_cfg(85, "fn_ptr_eq");
         print_feature_cfg(86, "from_bytes_with_nul_error");
         print_feature_cfg(95, "cfg_select");
+        print_feature_cfg(100, "never_type");
     }
 
     /// Helper to print a feature cfg with a minimum rust version required.

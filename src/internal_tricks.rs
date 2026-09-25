@@ -63,3 +63,25 @@ pub(crate) fn box_into_non_null<T>(b: Box<T>) -> NonNull<T> {
 pub(crate) const fn array_ptr_as_mut<T, const N: usize>(ptr: *mut [T; N]) -> *mut T {
     ptr.cast()
 }
+
+#[cfg(never_type)]
+pub type Never = !;
+
+// copied from never-say-never crate
+// https://github.com/danielhenrymantilla/never-say-never.rs/blob/master/src/lib.rs
+#[cfg(not(never_type))]
+pub type Never = <fn() -> ! as never_helper::FnTrait>::Output;
+
+#[cfg(not(never_type))]
+mod never_helper {
+    pub trait FnTrait {
+        type Output;
+    }
+
+    impl<F, R> FnTrait for F
+    where
+        F: core::ops::FnOnce() -> R,
+    {
+        type Output = R;
+    }
+}
