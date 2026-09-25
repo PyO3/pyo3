@@ -432,7 +432,7 @@ mod watcher_tests {
     use super::impl_::{context_watcher, ContextWatcherCallback, ContextWatcherCallbackDef};
     use super::{ContextEvent, PyContext};
     use crate::exceptions::{PyRuntimeError, PyValueError};
-    use crate::platform::sync::non_poison::{Mutex, MutexGuard};
+    use crate::platform::sync::nonpoison::{Mutex, MutexGuard};
     #[cfg(feature = "macros")]
     use crate::test_utils::UnraisableCapture;
     use crate::types::PyAnyMethods;

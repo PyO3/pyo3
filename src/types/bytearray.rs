@@ -482,7 +482,7 @@ mod tests {
     #[test]
     fn test_data_integrity_in_critical_section() {
         use crate::instance::Py;
-        use crate::platform::sync::non_poison::Mutex;
+        use crate::platform::sync::nonpoison::Mutex;
         use crate::sync::{critical_section::with_critical_section, MutexExt};
 
         use core::sync::atomic::{AtomicBool, Ordering};

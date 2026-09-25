@@ -2,7 +2,7 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 
 use crate::platform::prelude::*;
-use crate::platform::sync::non_poison::Mutex;
+use crate::platform::sync::nonpoison::Mutex;
 use crate::platform::sync::Once;
 use crate::platform::thread::{self, ThreadId};
 

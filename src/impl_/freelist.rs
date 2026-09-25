@@ -11,7 +11,7 @@
 use crate::ffi;
 use crate::marker::Python;
 use crate::platform::prelude::*;
-use crate::platform::sync::non_poison::Mutex;
+use crate::platform::sync::nonpoison::Mutex;
 use crate::sync::{MutexExt, PyOnceLock};
 
 use core::ops::DerefMut;

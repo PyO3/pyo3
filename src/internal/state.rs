@@ -6,7 +6,7 @@ use crate::platform::prelude::*;
 use crate::{ffi, Py, PyAny, Python};
 
 #[cfg(not(pyo3_disable_reference_pool))]
-use crate::platform::sync::non_poison::Mutex;
+use crate::platform::sync::nonpoison::Mutex;
 use core::cell::Cell;
 #[cfg_attr(pyo3_disable_reference_pool, allow(unused_imports))]
 use core::mem;

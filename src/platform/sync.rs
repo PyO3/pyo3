@@ -66,7 +66,7 @@ impl OnceExt for Once {
     }
 }
 
-pub mod non_poison {
+pub mod nonpoison {
     // TODO replace with cfg_select when MSRV >= 1.95.0
     #[cfg(wip_feature_std)]
     pub use std::sync::MutexGuard;
