@@ -409,12 +409,14 @@ macro_rules! opaque_struct {
 /// ```rust,no_run
 /// use core::ffi::CStr;
 ///
+/// # #[allow(deprecated)]
 /// const HELLO: &CStr = pyo3_ffi::c_str!("hello");
+/// # #[allow(deprecated)]
 /// static WORLD: &CStr = pyo3_ffi::c_str!("world");
 /// ```
+#[deprecated(since = "0.29.1", note = "use native c\"...\" literals instead")]
 #[macro_export]
 macro_rules! c_str {
-    // TODO: deprecate this now MSRV is above 1.77
     ($s:expr) => {
         $crate::_cstr_from_utf8_with_nul_checked(concat!($s, "\0"))
     };
