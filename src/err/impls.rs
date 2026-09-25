@@ -1,3 +1,4 @@
+use crate::internal_tricks::Never;
 use crate::platform::prelude::*;
 use crate::{err::PyErrArguments, exceptions, types, PyErr, Python};
 use crate::{IntoPyObject, Py, PyAny};
@@ -95,6 +96,12 @@ impl<W> From<io::IntoInnerError<W>> for PyErr {
 impl<W: Send + Sync> PyErrArguments for io::IntoInnerError<W> {
     fn arguments(self, py: Python<'_>) -> Py<PyAny> {
         self.into_error().arguments(py)
+    }
+}
+
+impl From<Never> for PyErr {
+    fn from(value: Never) -> Self {
+        value
     }
 }
 
