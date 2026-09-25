@@ -71,13 +71,40 @@ impl PyObjectFreeList {
 
     /// Inserts a value into the list. Returns `Some(val)` if the `PyObjectFreeList` is full.
     pub fn insert(&mut self, val: NonNull<ffi::PyObject>) -> Option<NonNull<ffi::PyObject>> {
-        let next = self.split + 1;
-        if next < self.entries.len() {
+        if self.split < self.entries.len() {
             self.entries[self.split] = Some(val);
-            self.split = next;
+            self.split += 1;
             None
         } else {
             Some(val)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exact_capacity_and_lifo() {
+        let mut allocations = [0u8; 18];
+        let pointers: Vec<_> = allocations
+            .iter_mut()
+            .map(|value| NonNull::from(value).cast())
+            .collect();
+        for capacity in [0, 1, 2, 17] {
+            let mut list = PyObjectFreeList::with_capacity(capacity);
+            for _ in 0..2 {
+                assert_eq!(list.pop(), None);
+                for &ptr in &pointers[..capacity] {
+                    assert_eq!(list.insert(ptr), None, "capacity {capacity}");
+                }
+                assert_eq!(list.insert(pointers[capacity]), Some(pointers[capacity]));
+                for &ptr in pointers[..capacity].iter().rev() {
+                    assert_eq!(list.pop(), Some(ptr));
+                }
+                assert_eq!(list.pop(), None);
+            }
         }
     }
 }
