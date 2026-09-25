@@ -1,4 +1,3 @@
-use crate::internal_tricks::Never;
 use crate::platform::prelude::*;
 use crate::{err::PyErrArguments, exceptions, types, PyErr, Python};
 use crate::{IntoPyObject, Py, PyAny};
@@ -99,13 +98,6 @@ impl<W: Send + Sync> PyErrArguments for io::IntoInnerError<W> {
     }
 }
 
-impl From<Never> for PyErr {
-    fn from(value: Never) -> Self {
-        value
-    }
-}
-
-#[cfg(not(never_type))]
 impl From<core::convert::Infallible> for PyErr {
     fn from(_: core::convert::Infallible) -> PyErr {
         unreachable!()
