@@ -50,6 +50,7 @@ pub mod kw {
     syn::custom_keyword!(unsendable);
     syn::custom_keyword!(weakref);
     syn::custom_keyword!(generic);
+    syn::custom_keyword!(gc);
     syn::custom_keyword!(gil_used);
     syn::custom_keyword!(warn);
     syn::custom_keyword!(message);
@@ -392,6 +393,7 @@ pub type FromPyWithAttribute = KeywordAttribute<kw::from_py_with, ExprPath>;
 pub type IntoPyWithAttribute = KeywordAttribute<kw::into_py_with, ExprPath>;
 
 pub type DefaultAttribute = OptionalKeywordAttribute<Token![default], Expr>;
+pub type GcAttribute = KeywordAttribute<kw::gc, LitBool>;
 
 /// For specifying the path to the pyo3 crate.
 pub type CrateAttribute = KeywordAttribute<Token![crate], LitStrValue<Path>>;
