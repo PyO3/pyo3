@@ -122,6 +122,7 @@ impl<T> GILOnceCell<T> {
         }
     }
 
+    #[cfg(Py_3_12)]
     pub(crate) fn get_during_gc(&self) -> Option<&T> {
         if self.once.is_completed() {
             // SAFETY: the cell has been written.

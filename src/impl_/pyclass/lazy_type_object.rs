@@ -79,6 +79,7 @@ impl<T: PyClass> LazyTypeObject<T> {
 
     /// Gets the type object contained without performing any initialization work.
     /// This avoids unsafe operations during GC.
+    #[cfg(Py_3_12)]
     pub(crate) fn get_during_gc(&self) -> &Py<PyType> {
         &self
             .0
