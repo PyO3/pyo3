@@ -54,17 +54,15 @@ fn expect_datetime_api(py: Python<'_>) -> &'static PyDateTime_CAPI {
 macro_rules! limited_api_descriptor_get {
     ($self:expr, $owner:ty, $attr:literal, $output:ty) => {{
         let py = $self.py();
-        static DESCRIPTOR: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
-        DESCRIPTOR
+        static DESCRIPTOR_GET: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+        DESCRIPTOR_GET
             .get_or_try_init(py, || {
                 <$owner>::type_object(py)
                     .getattr($attr)
-                    .map(|descriptor| descriptor.unbind())
+                    .and_then(|descriptor| descriptor.getattr("__get__"))
+                    .map(|getter| getter.unbind())
             })
-            .map(|descriptor| descriptor.bind(py))
-            .and_then(|descriptor| {
-                descriptor.call_method1(intern!(py, "__get__"), ($self, <$owner>::type_object(py)))
-            })
+            .and_then(|getter| getter.bind(py).call1(($self, <$owner>::type_object(py))))
             .and_then(|value| value.extract::<$output>())
             .unwrap_or_default()
     }};
