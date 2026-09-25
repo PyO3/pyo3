@@ -350,7 +350,7 @@ pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
 // but copying them seems suboptimal
 #[inline]
 #[cfg(GraalPy)]
-pub unsafe fn _get_attr(obj: *mut PyObject, field: &core::ffi::CStr) -> c_int {
+unsafe fn _get_attr(obj: *mut PyObject, field: &core::ffi::CStr) -> c_int {
     let result = PyObject_GetAttrString(obj, field.as_ptr());
     Py_DecRef(result); // the original macros are borrowing
     if PyLong_Check(result) == 1 {

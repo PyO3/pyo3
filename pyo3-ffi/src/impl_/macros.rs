@@ -289,6 +289,8 @@ macro_rules! extern_libpython {
             "python316t", "python316t_d",
             // PyPy (DLL is libpypy3.X-c.dll, not pythonXY.dll)
             "libpypy3.11-c",
+            // GraalPy DLL
+            "python-native",
         );
     };
     // Internal: generate cfg_attr for each DLL name. One of these will be selected
