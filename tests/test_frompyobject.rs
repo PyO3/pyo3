@@ -1,6 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::exceptions::PyValueError;
+use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PyString, PyTuple};
 
@@ -877,5 +878,56 @@ fn test_with_default_item_enum() {
         let result = dict.extract::<WithDefaultItemEnum>().unwrap();
         let expected = WithDefaultItemEnum::Foo { a: 1, b: 0 };
         assert_eq!(result, expected);
+    });
+}
+
+#[test]
+fn test_from_py_object_interns_keys() {
+    #[pyclass]
+    struct Echo;
+
+    #[pymethods]
+    impl Echo {
+        fn __getitem__<'py>(&self, key: Bound<'py, PyAny>) -> Bound<'py, PyAny> {
+            key
+        }
+        fn __getattr__<'py>(&self, key: Bound<'py, PyAny>) -> Bound<'py, PyAny> {
+            key
+        }
+    }
+
+    #[derive(Debug, FromPyObject)]
+    pub struct InternedKeys<'py> {
+        #[pyo3(attribute)]
+        attribute: Bound<'py, PyString>,
+        #[pyo3(attribute("attribute_renamed"))]
+        attribute_r: Bound<'py, PyString>,
+        #[pyo3(item)]
+        item: Bound<'py, PyString>,
+        #[pyo3(item("item_renamed"))]
+        item_r: Bound<'py, PyString>,
+    }
+
+    Python::attach(|py| {
+        let echo = Py::new(py, Echo).unwrap();
+
+        let ik: InternedKeys<'_> = echo.extract(py).unwrap();
+
+        assert!(
+            ik.attribute.is(intern!(py, "attribute")),
+            "plain attribute is not interned by FromPyObject derive"
+        );
+        assert!(
+            ik.attribute_r.is(intern!(py, "attribute_renamed")),
+            "renamed attribute is not interned by FromPyObject derive"
+        );
+        assert!(
+            ik.item.is(intern!(py, "item")),
+            "plain item is not interned by FromPyObject derive"
+        );
+        assert!(
+            ik.item_r.is(intern!(py, "item_renamed")),
+            "renamed item is not interned by FromPyObject derive"
+        );
     });
 }

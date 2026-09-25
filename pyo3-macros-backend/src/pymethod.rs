@@ -432,8 +432,15 @@ pub fn impl_py_method_def(
         calling_convention,
         ctx,
     )?;
+    // These flags are added here rather than in `get_methoddef` because `FnType::FnStatic`
+    // also stands for a plain `#[pyfunction]`, which must not be `METH_STATIC`.
+    let flags = match spec.tp {
+        FnType::FnClass(_) => quote! { .flags(#pyo3_path::ffi::METH_CLASS) },
+        FnType::FnStatic => quote! { .flags(#pyo3_path::ffi::METH_STATIC) },
+        _ => quote! {},
+    };
     let method_def = quote! {
-        #pyo3_path::impl_::pymethods::PyMethodDefType::Method(#methoddef)
+        #pyo3_path::impl_::pymethods::PyMethodDefType::Method(#methoddef #flags)
     };
     Ok(MethodAndMethodDef {
         associated_method,
