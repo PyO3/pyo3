@@ -309,9 +309,7 @@ fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
 
     let caught_panic = std::thread::spawn(move || {
         // This access must panic
-        Python::attach(move |py| {
-            obj.borrow(py);
-        });
+        obj.try_borrow_guard().unwrap();
     })
     .join();
 
@@ -425,7 +423,7 @@ fn test_tuple_struct_class() {
         "#
         );
 
-        assert_eq!(instance.borrow(py).0, 1234);
+        assert_eq!(instance.try_borrow_guard().unwrap().0, 1234);
     });
 }
 

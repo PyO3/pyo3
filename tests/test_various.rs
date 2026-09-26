@@ -18,7 +18,7 @@ impl MutRefArg {
     fn get(&self) -> i32 {
         self.n
     }
-    fn set_other(&self, mut other: PyRefMut<'_, MutRefArg>) {
+    fn set_other(&self, mut other: PyClassGuardMut<'_, MutRefArg>) {
         other.n = 100;
     }
 }
@@ -30,7 +30,7 @@ fn mut_ref_arg() {
         let inst2 = Py::new(py, MutRefArg { n: 0 }).unwrap();
 
         py_run!(py, inst1 inst2, "inst1.set_other(inst2)");
-        let inst2 = inst2.bind(py).borrow();
+        let inst2 = inst2.try_borrow_guard().unwrap();
         assert_eq!(inst2.n, 100);
     });
 }

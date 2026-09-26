@@ -24,11 +24,9 @@ where
     where
         S: Serializer,
     {
-        Python::attach(|py| {
-            self.try_borrow(py)
-                .map_err(|e| ser::Error::custom(e.to_string()))?
-                .serialize(serializer)
-        })
+        self.try_borrow_guard()
+            .map_err(|e| ser::Error::custom(e.to_string()))?
+            .serialize(serializer)
     }
 }
 
@@ -117,12 +115,18 @@ mod tests {
         assert_eq!(user.friends.len(), 1usize);
         let friend = user.friends.first().unwrap();
 
-        Python::attach(|py| {
-            assert_eq!(friend.borrow(py).username, "friend");
-            assert_eq!(
-                friend.borrow(py).group.as_ref().unwrap().borrow(py).name,
-                "danya's friends"
-            )
-        });
+        assert_eq!(friend.try_borrow_guard().unwrap().username, "friend");
+        assert_eq!(
+            friend
+                .try_borrow_guard()
+                .unwrap()
+                .group
+                .as_ref()
+                .unwrap()
+                .try_borrow_guard()
+                .unwrap()
+                .name,
+            "danya's friends"
+        );
     }
 }

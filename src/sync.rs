@@ -932,7 +932,10 @@ mod tests {
                     barrier.wait();
                     // sleep to ensure the other thread actually blocks
                     std::thread::sleep(core::time::Duration::from_millis(10));
-                    (*b).bind(py).borrow().0.store(true, Ordering::Release);
+                    (*b).try_borrow_guard()
+                        .unwrap()
+                        .0
+                        .store(true, Ordering::Release);
                     drop(b);
                 });
             });
@@ -941,7 +944,7 @@ mod tests {
                 Python::attach(|py| {
                     // blocks until the other thread releases the lock
                     let b = mutex.lock_py_attached(py).unwrap();
-                    assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
+                    assert!((*b).try_borrow_guard().unwrap().0.load(Ordering::Acquire));
                 });
             });
         });
@@ -967,7 +970,10 @@ mod tests {
                             barrier.wait();
                             // sleep to ensure the other thread actually blocks
                             std::thread::sleep(core::time::Duration::from_millis(10));
-                            (*b).bind(py).borrow().0.store(true, Ordering::Release);
+                            (*b).try_borrow_guard()
+                                .unwrap()
+                                .0
+                                .store(true, Ordering::Release);
                             drop(b);
                         });
                     });
@@ -976,7 +982,7 @@ mod tests {
                         Python::attach(|py| {
                             // blocks until the other thread releases the lock
                             let b: $guard = mutex.lock_py_attached(py);
-                            assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
+                            assert!((*b).try_borrow_guard().unwrap().0.load(Ordering::Acquire));
                         });
                     });
                 });
@@ -1053,7 +1059,10 @@ mod tests {
                     barrier.wait();
                     // sleep to ensure the other thread actually blocks
                     std::thread::sleep(core::time::Duration::from_millis(10));
-                    (*b).bind(py).borrow().0.store(true, Ordering::Release);
+                    (*b).try_borrow_guard()
+                        .unwrap()
+                        .0
+                        .store(true, Ordering::Release);
                     drop(b);
                 });
             });
@@ -1062,7 +1071,7 @@ mod tests {
                 Python::attach(|py| {
                     // blocks until the other thread releases the lock
                     let b = rwlock.read_py_attached(py).unwrap();
-                    assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
+                    assert!((*b).try_borrow_guard().unwrap().0.load(Ordering::Acquire));
                 });
             });
         });
@@ -1091,7 +1100,7 @@ mod tests {
 
                     // The bool must still be false (i.e., the writer did not actually write the
                     // value yet).
-                    assert!(!(*b).bind(py).borrow().0.load(Ordering::Acquire));
+                    assert!(!(*b).try_borrow_guard().unwrap().0.load(Ordering::Acquire));
                 });
             });
             s.spawn(|| {
@@ -1099,7 +1108,10 @@ mod tests {
                 Python::attach(|py| {
                     // blocks until the other thread releases the lock
                     let b = rwlock.write_py_attached(py).unwrap();
-                    (*b).bind(py).borrow().0.store(true, Ordering::Release);
+                    (*b).try_borrow_guard()
+                        .unwrap()
+                        .0
+                        .store(true, Ordering::Release);
                     drop(b);
                 });
             });
@@ -1108,7 +1120,7 @@ mod tests {
         // Confirm that the writer did in fact run and write the expected `true` value.
         Python::attach(|py| {
             let b = rwlock.read_py_attached(py).unwrap();
-            assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
+            assert!((*b).try_borrow_guard().unwrap().0.load(Ordering::Acquire));
             drop(b);
         });
     }
@@ -1133,7 +1145,10 @@ mod tests {
                             barrier.wait();
                             // sleep to ensure the other thread actually blocks
                             std::thread::sleep(core::time::Duration::from_millis(10));
-                            (*b).bind(py).borrow().0.store(true, Ordering::Release);
+                            (*b).try_borrow_guard()
+                                .unwrap()
+                                .0
+                                .store(true, Ordering::Release);
                             drop(b);
                         });
                     });
@@ -1142,7 +1157,7 @@ mod tests {
                         Python::attach(|py| {
                             // blocks until the other thread releases the lock
                             let b: $read_guard = rwlock.read_py_attached(py);
-                            assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
+                            assert!((*b).try_borrow_guard().unwrap().0.load(Ordering::Acquire));
                         });
                     });
                 });
@@ -1194,7 +1209,8 @@ mod tests {
 
                             // The bool must still be false (i.e., the writer did not actually write the
                             // value yet).
-                            assert!(!(*b).bind(py).borrow().0.load(Ordering::Acquire));                            (*b).bind(py).borrow().0.store(true, Ordering::Release);
+                            assert!(!(*b).try_borrow_guard().unwrap().0.load(Ordering::Acquire));
+                            (*b).try_borrow_guard().unwrap().0.store(true, Ordering::Release);
 
                             drop(b);
                         });
@@ -1204,7 +1220,7 @@ mod tests {
                         Python::attach(|py| {
                             // blocks until the other thread releases the lock
                             let b: $write_guard = rwlock.write_py_attached(py);
-                            (*b).bind(py).borrow().0.store(true, Ordering::Release);
+                            (*b).try_borrow_guard().unwrap().0.store(true, Ordering::Release);
                         });
                     });
                 });
@@ -1212,7 +1228,7 @@ mod tests {
                 // Confirm that the writer did in fact run and write the expected `true` value.
                 Python::attach(|py| {
                     let b: $read_guard = rwlock.read_py_attached(py);
-                    assert!((*b).bind(py).borrow().0.load(Ordering::Acquire));
+                    assert!((*b).try_borrow_guard().unwrap().0.load(Ordering::Acquire));
                     drop(b);
                 });
             }};
