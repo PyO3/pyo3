@@ -354,7 +354,7 @@ pub use crate::instance::{Borrowed, Bound, BoundObject, Py};
 pub use crate::interpreter_lifecycle::with_embedded_python_interpreter;
 pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
-pub use crate::pyclass::{PyClass, PyClassGuard, PyClassGuardMut};
+pub use crate::pyclass::{PyClass, PyClassGuard, PyClassGuardMut, PyGcOpaque, PyGcTraversable};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::type_object::{PyTypeCheck, PyTypeInfo};
 pub use crate::types::PyAny;
@@ -455,7 +455,7 @@ pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{
-    pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef,
+    pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef, PyGcTraversable,
 };
 
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.
