@@ -290,19 +290,8 @@ impl PyString {
 /// `arbitrary_self_types`.
 #[doc(alias = "PyString")]
 pub trait PyStringMethods<'py>: crate::sealed::Sealed {
-    /// Returns the number of code points in the string, as Python's `len()` counts them.
-    ///
-    /// This reads the length Python stores for the string, so it is not the byte length of the
-    /// string's UTF-8 encoding, and unlike [`PyAnyMethods::len`] it does not call a `str`
-    /// subclass's `__len__`. The exception is PyPy, whose C API takes a `str` subclass's length
-    /// from `__len__`.
-    ///
-    /// # Panics
-    ///
-    /// Before Python 3.12, a string created through the deprecated `Py_UNICODE` APIs is converted
-    /// to its canonical form first; this panics if that conversion fails.
-    ///
-    /// [`PyAnyMethods::len`]: crate::types::PyAnyMethods::len
+    /// Returns the number of code points in the string, without calling a subclass's `__len__`
+    /// (except on PyPy).
     fn code_point_len(&self) -> usize;
 
     /// Gets the Python string as a Rust UTF-8 string slice.
