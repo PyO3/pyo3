@@ -117,6 +117,7 @@ unsafe fn recover_raw(ptr: *mut u8, align: usize) -> *mut u8 {
     let raw = unsafe { ptr.cast::<Header>().sub(1).read() }.0;
     let offset = (ptr as usize).wrapping_sub(raw as usize);
     if offset.wrapping_sub(size_of::<Header>()) >= align {
+        // SAFETY: `abort` has no safety preconditions.
         unsafe { libc::abort() };
     }
     raw
