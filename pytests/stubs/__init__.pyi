@@ -24,8 +24,11 @@ from . import (
     subclassing as subclassing,
 )
 from _typeshed import Incomplete
-from typing import Final
+from typing import Final, Protocol
 
 NO_STD: Final[bool]
+
+class SupportsClose(Protocol):
+    def close(self, /) -> None: ...
 
 def __getattr__(name: str) -> Incomplete: ...
