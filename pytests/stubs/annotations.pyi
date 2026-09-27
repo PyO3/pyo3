@@ -1,5 +1,7 @@
+from . import SupportsClose
 from .pyclasses import EmptyClass
 
+def close(obj: SupportsClose) -> None: ...
 def cross_module_imports(_a: EmptyClass) -> None: ...
 def with_custom_type_annotations(
     a: "list[int]", *_args: "str", _b: "int | None" = None, **_kwargs: "bool"

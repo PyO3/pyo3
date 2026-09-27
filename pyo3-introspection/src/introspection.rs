@@ -807,9 +807,6 @@ enum Chunk {
         parent: Option<String>,
         #[serde(default)]
         doc: Option<String>,
-        /// Declared by a library crate that cannot know the root module's id.
-        ///
-        /// Such a class is adopted by the root module, but only if some annotation refers to it.
         #[serde(default)]
         attach_to_root: bool,
     },
@@ -910,42 +907,4 @@ pub enum ChunkConstant {
 #[serde(rename_all = "lowercase")]
 pub enum ChunkOperator {
     BitOr,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_attach_to_root() {
-        // `Used` is referenced by `f` and refers to `Nested`, `Unused` only refers to itself
-        let chunks: Vec<Chunk> = serde_json::from_str(
-            r#"[
-                {"type": "module", "id": "m", "name": "m", "members": ["f"]},
-                {"type": "function", "id": "f", "name": "f", "arguments": {
-                    "args": [{"name": "x", "annotation": {"type": "id", "id": "lib:Used"}}]
-                }},
-                {"type": "class", "id": "lib:Used", "name": "Used", "attach_to_root": true},
-                {"type": "function", "name": "m", "parent": "lib:Used", "arguments": {
-                    "args": [{"name": "x", "annotation": {"type": "id", "id": "lib:Nested"}}]
-                }},
-                {"type": "class", "id": "lib:Nested", "name": "Nested", "attach_to_root": true},
-                {"type": "class", "id": "lib:Unused", "name": "Unused", "attach_to_root": true},
-                {"type": "function", "name": "m", "parent": "lib:Unused", "arguments": {
-                    "args": [{"name": "x", "annotation": {"type": "id", "id": "lib:Unused"}}]
-                }}
-            ]"#,
-        )
-        .unwrap();
-        let module = parse_chunks(&chunks, "m").unwrap();
-        let classes = module.classes.iter().map(|c| c.name.as_str());
-        assert_eq!(classes.collect::<Vec<_>>(), ["Nested", "Used"]);
-        assert_eq!(
-            module.functions[0].arguments.arguments[0].annotation,
-            Some(Expr::Attribute {
-                value: Box::new(Expr::Name { id: "m".into() }),
-                attr: "Used".into(),
-            })
-        );
-    }
 }
