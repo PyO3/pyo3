@@ -37,9 +37,15 @@ const MIN_ALIGN: usize = cfg_select! {
     // Windows: 8 for both `MS_WIN32` / `MS_WIN64`.
     target_os = "windows" => 8,
     // macOS: 16 on Intel (`i386` / `x86_64`).
-    all(target_vendor = "apple", any(target_arch = "x86", target_arch = "x86_64")) => 16,
+    all(
+        target_vendor = "apple",
+        any(target_arch = "x86", target_arch = "x86_64")
+    ) => 16,
     // macOS: 8 on other archs (e.g. `arm64`).
-    all(target_vendor = "apple", not(any(target_arch = "x86", target_arch = "x86_64"))) => 8,
+    all(
+        target_vendor = "apple",
+        not(any(target_arch = "x86", target_arch = "x86_64"))
+    ) => 8,
     // Other Unix: autoconf-derived at build time, not checked in, not guaranteed > 8.
     _ => 8,
 };
@@ -47,6 +53,7 @@ const MIN_ALIGN: usize = cfg_select! {
 /// Header stashing the original allocation pointer before an over-aligned block.
 ///
 /// Recovered by [`recover_raw`] to pass back to `PyMem_RawFree` / `PyMem_RawRealloc`.
+#[derive(Clone, Copy)]
 #[repr(transparent)]
 struct Header(*mut u8);
 
@@ -102,11 +109,17 @@ unsafe fn finish_aligned(raw: *mut u8, layout: Layout) -> *mut u8 {
 ///
 /// # Safety
 ///
-/// `ptr` must have been returned by [`finish_aligned`], with its `Header` still intact.
+/// `ptr` must have been returned by [`finish_aligned`] for `align`.
 #[inline]
-unsafe fn recover_raw(ptr: *mut u8) -> *mut u8 {
-    // SAFETY: `ptr` has a `Header` written directly before it by `finish_aligned`.
-    unsafe { ptr::read((ptr as *mut Header).sub(1)).0 }
+unsafe fn recover_raw(ptr: *mut u8, align: usize) -> *mut u8 {
+    // SAFETY: `ptr` is inside the allocation written by `finish_aligned`, which placed
+    // the `Header` immediately before it.
+    let raw = unsafe { ptr.cast::<Header>().sub(1).read() }.0;
+    let offset = (ptr as usize).wrapping_sub(raw as usize);
+    if offset.wrapping_sub(size_of::<Header>()) >= align {
+        libc::abort();
+    }
+    raw
 }
 
 // SAFETY: forwards to `PyMem_Raw*`, satisfying the `GlobalAlloc` contract.
@@ -135,8 +148,8 @@ unsafe impl GlobalAlloc for PyMemRawAllocator {
             // See: https://docs.python.org/3/c-api/memory.html#c.PyMem_RawFree
             unsafe { pyo3_ffi::PyMem_RawFree(ptr as *mut _) }
         } else {
-            // SAFETY: `ptr` was returned by `finish_aligned`, so it has a `Header` before it.
-            let raw = unsafe { recover_raw(ptr) };
+            // SAFETY: `ptr` was returned by `finish_aligned` for `layout.align()`.
+            let raw = unsafe { recover_raw(ptr, layout.align()) };
             // SAFETY: `raw` is the original pointer from `PyMem_RawMalloc`/`PyMem_RawCalloc`,
             // which is what `PyMem_RawFree` requires.
             //
