@@ -30,16 +30,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - name: Check python formatting and lints (ruff)
-        run: uvx nox -s ruff
-      - name: Check rust formatting (rustfmt)
-        run: uvx nox -s rustfmt
-      - name: Check markdown formatting (rumdl)
-        run: uvx nox -s rumdl
-      - name: Check `required-features` in Cargo.toml
-        run: uvx nox -s check-test-features
-      - name: Spell check
-        run: uvx nox -s typos
+      - name: Check formatting and lints
+        run: uvx nox -s fmt
 
   resolve:
     runs-on: ubuntu-latest

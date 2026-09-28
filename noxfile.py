@@ -235,6 +235,19 @@ def generate_coverage_report(session: nox.Session) -> None:
 
 
 @nox.session(venv_backend="none")
+def fmt(session: nox.Session):
+    """Check formatting and lints."""
+    for name in (
+        "ruff",
+        "rustfmt",
+        "rumdl",
+        "check-test-features",
+        "typos",
+    ):
+        session.notify(name)
+
+
+@nox.session(venv_backend="none")
 def rustfmt(session: nox.Session):
     _run_cargo(session, "fmt", "--all", "--check")
     _run_cargo(session, "fmt", _FFI_CHECK, "--all", "--check")
