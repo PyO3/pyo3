@@ -1430,23 +1430,25 @@ impl<'py> Bound<'py, PyAny> {
     {
         let py = self.py();
         let self_type = self.get_type();
-        let attr = match self_type.getattr(attr_name) { Ok(attr) => {
-            attr
-        } _ => {
-            return Ok(None);
-        }};
+        let attr = match self_type.getattr(attr_name) {
+            Ok(attr) => attr,
+            _ => {
+                return Ok(None);
+            }
+        };
 
         // Manually resolve descriptor protocol. (Faster than going through Python.)
-        match attr.get_type().get_slot(TP_DESCR_GET) { Some(descr_get) => {
-            // attribute is a descriptor, resolve it
-            unsafe {
-                descr_get(attr.as_ptr(), self.as_ptr(), self_type.as_ptr())
-                    .assume_owned_or_err(py)
-                    .map(Some)
+        match attr.get_type().get_slot(TP_DESCR_GET) {
+            Some(descr_get) => {
+                // attribute is a descriptor, resolve it
+                unsafe {
+                    descr_get(attr.as_ptr(), self.as_ptr(), self_type.as_ptr())
+                        .assume_owned_or_err(py)
+                        .map(Some)
+                }
             }
-        } _ => {
-            Ok(Some(attr))
-        }}
+            _ => Ok(Some(attr)),
+        }
     }
 
     #[inline]

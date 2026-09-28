@@ -675,11 +675,10 @@ unsafe extern "C" fn capsule_destructor<
 }
 
 fn ensure_no_error(py: Python<'_>) -> PyResult<()> {
-    match PyErr::take(py) { Some(err) => {
-        Err(err)
-    } _ => {
-        Ok(())
-    }}
+    match PyErr::take(py) {
+        Some(err) => Err(err),
+        _ => Ok(()),
+    }
 }
 
 fn name_ptr(name: Option<&CStr>) -> *const c_char {

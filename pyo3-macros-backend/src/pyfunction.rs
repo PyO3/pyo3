@@ -62,8 +62,8 @@ impl PyFunctionArgPyO3Attributes {
             from_py_with: None,
             cancel_handle: None,
         };
-        take_attributes(attrs, |attr| {
-            match get_pyo3_options(attr)? { Some(pyo3_attrs) => {
+        take_attributes(attrs, |attr| match get_pyo3_options(attr)? {
+            Some(pyo3_attrs) => {
                 for attr in pyo3_attrs {
                     match attr {
                         PyFunctionArgPyO3Attribute::FromPyWith(from_py_with) => {
@@ -87,9 +87,8 @@ impl PyFunctionArgPyO3Attributes {
                     );
                 }
                 Ok(true)
-            } _ => {
-                Ok(false)
-            }}
+            }
+            _ => Ok(false),
         })?;
         Ok(attributes)
     }
