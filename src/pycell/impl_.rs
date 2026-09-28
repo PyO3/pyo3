@@ -576,8 +576,7 @@ impl<T: PyClass<Layout = Self>> PyVariableClassObject<T> {
         // 3.14's PyType_GetBaseByToken, to support PEP 587 / multiple interpreters better
         // SAFETY: caller guarantees attached to the interpreter
         let type_obj = T::type_object_raw(unsafe { Python::assume_attached() });
-        // SAFETY: `obj` and `type_obj` known to be valid pointers by the successful
-        // call to `PyType_GetBaseByToken`
+        // SAFETY: `obj` and `type_obj` known to be valid pointers
         let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
         pointer.cast()
     }
@@ -650,15 +649,14 @@ impl<T: PyClass<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassObject
             .cast::<ffi::PyTypeObject>();
 
         let pointer = cfg_select! {
-            // SAFETY: `obj` and `type_obj` known to be valid pointers by the successful
-            // call to `PyType_GetBaseByToken_DuringGC`
+            // SAFETY: `obj` and `type_obj` known to be valid pointers by the `get_during_gc` call
             Py_3_15 => unsafe { ffi::PyObject_GetTypeData_DuringGC(obj, type_obj) },
             // SAFETY: `obj` and `type_obj` known to be valid pointers by the `get_during_gc` call,
             // there's not a better option for this in 3.14
             not(Py_3_15) => unsafe { ffi::PyObject_GetTypeData(obj, type_obj) },
         };
 
-        // SAFETY: `PyObject_GetTypeData_DuringGC` returns a borrowed pointer to the contents of the object,
+        // SAFETY: `PyObject_GetTypeData[_DuringGC]` returns a borrowed pointer to the contents of the object,
         // valid for the lifetime of the object.
         unsafe { &*pointer.cast() }
     }
