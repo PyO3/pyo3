@@ -344,12 +344,9 @@ impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
             // SAFETY: self is a valid str object
             _ => unsafe { ffi::PyUnicode_GetLength(self.as_ptr()) },
         };
-        usize::try_from(len).unwrap_or_else(|_| {
-            panic!(
-                "failed to get the length of a Python string: {}",
-                crate::PyErr::fetch(self.py())
-            )
-        })
+        crate::err::error_on_minusone(self.py(), len)
+            .expect("failed to get the length of a Python string");
+        len as usize
     }
 
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
